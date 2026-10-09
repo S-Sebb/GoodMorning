@@ -1,0 +1,66 @@
+# daily/YYYY-MM-DD.md (user-local, git-ignored)
+
+One file per day. Short lines, fixed headings (lowercase match is enough:
+`state.py` detects headings case-insensitively). Full verbatim agent
+replies live in sibling snapshots `YYYY-MM-DD.gm.md` / `.gn.md` — this
+file holds trimmed one-liners only, so the default read stays cheap.
+
+```text
+# YYYY-MM-DD
+
+- gm: yes (session NAME) | answer: daily/YYYY-MM-DD.gm.md
+- gn: no
+
+## weather
+- overcast, 12/18C, rain: yes — umbrella. AQI 27 good.
+
+## news
+- YYYY-MM-DD: AI/world/national counts; top: ...; gaps or source warnings: ...
+
+## schedule
+- 09:30-10:30 TA RSM338 @ RSM338 — pack slides tonight.
+
+## must-do
+- [ ] TA RSM338 9:30
+- [ ] Send group slides by 22:00
+
+## nice-to-do
+- [ ] Gym 18:00 if energy left
+```
+
+(`/gn` later ticks boxes off and appends `## feedback` / `## progress` —
+those sections never exist before the first `/gn`, and no box is ever
+checked at `/gm` time.)
+
+Lifecycle rules:
+
+- `/gm` writes run lines, weather/news/schedule, and must-do + nice-to-do
+  with every box unchecked (`[ ]`). Nothing is done in the morning, so a
+  checked box at `/gm` time is always a bug.
+- A repeat `/gm` the same day serves the locally saved content (this file
+  plus the `.gm.md` snapshot), never re-fetches. `state.py` already refuses
+  the double-mark and points at the first session.
+- `/gn` ticks boxes off (`[x]`) and appends `## feedback` / `## progress`.
+- In-thread amendments: talking to the agent inside a `/gm` or `/gn` thread
+  edits the saved files. If the user adjusts a task, ticks something off
+  early, or changes a plan, the agent updates today's daily file in place
+  and confirms what changed. Dated events additionally go through the
+  custom-calendar rule (quote back, ask, then `--add`; never delete or edit
+   silently). Adjustments to future dates live in `calendar.sqlite` and
+  are picked up by that day's own `/gm`. The `.gm.md`/`.gn.md` snapshots
+  stay as the original briefing; re-save them (`--mark --force`) only if
+   the user asks for a full re-render.
+- External calendar imports must pass the review queue before appearing in
+  a briefing. Query `secretary_calendar.py --days N`; do not merge raw imports
+  or bulk-read the database. Follow `docs/calendar-pipeline.md` for review.
+- `- gm:` / `- gn:` lines are machine-read (`state.py --rebuild`
+  recovers run state + sessions from them). Keep the `session NAME` and
+  `| answer: path` parts verbatim; use `no` until the run happens.
+- Sections are optional but keep their headings when present: `weather`,
+  `news`, `schedule`, `must-do`/`tasks`, `feedback`/`progress`. The
+   sections drive presence flags, not proof of completed retrieval. News
+   backfill/delivery lives in `news_reports.sqlite`: use `news.py --status`,
+   `--backfill`, `--show`, and explicit `--ack` after presenting the report.
+   News dates refer to publication/report dates, not the greeting's date.
+- Keep each bullet to one line. Detail belongs in the `.gm.md`/`.gn.md`
+  snapshots, not here.

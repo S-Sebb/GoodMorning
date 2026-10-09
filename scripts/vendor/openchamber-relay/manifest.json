@@ -1,0 +1,16 @@
+{
+  "repository": "https://github.com/openchamber/openchamber",
+  "version": "2.2.0",
+  "commit": "74b79d41eac44ff38790c66f238050936083e0bb",
+  "source_directory": "packages/ui/src/lib/relay",
+  "sha256": {
+    "protocol.ts": "5f7d3053f42c286b0c7cd3a3a51c05f821486582a9c9c9e13775ab1ced92154a",
+    "crypto.ts": "77bce67f0073b67e220a427891df075a9dd1a6398ea158da6f2a11fab48d6c2a",
+    "handshake.ts": "1b927854aa16a88c9427bb19663d0939e9b61600f3b9823657633f0e7e57792a",
+    "transport-error.ts": "f90c0e21ce08b14092197d913a012909d0713d62b8f85d8098c934f9a4ee4ae4",
+    "tunnel-payloads.ts": "6243e1549ebae8c21852a69c10a48881b6a379549ef0d6f50684d6da541aef0c",
+    "tunnel-codec.ts": "51d25899373496a3370ce17e88f8c89eb536c6fe5a955f455092085c263a7e60",
+    "tunnel-client.ts": "6a4eb19db2de5f8f03d7566f7912871af88cb39804d45f441a89cf0a48982516",
+    "LICENSE": "1f6e869a3feff6b4eb07907afc89176562b1f4324389f163d9fd94f09864b44e"
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "projects": [
+    {
+      "name": "local-demo",
+      "host": "local",
+      "path": "/work/local-demo",
+      "write_targets": ["PLAN.md"],
+      "allow_exec": false
+    },
+    {
+      "name": "remote-demo",
+      "host": "confirmed-paired-host-id",
+      "path": "/work/remote-demo",
+      "project_id": "confirmed-openchamber-project-id",
+      "write_targets": ["PLAN.md"],
+      "allow_exec": false,
+      "shared_id": "confirmed-shared-workspace-id"
+    }
+  ]
+}

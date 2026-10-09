@@ -1,0 +1,75 @@
+{
+  "_note": "General defaults, no personal data. Importance-first is an explainable heuristic, not verified importance or editorial truth. Priority reflects feed focus, not political lean. Primary-source announcements are claims, not independent benchmarks. China Daily's old RSS endpoint returned HTTP 404 on 2026-10-09; verified English China coverage uses SCMP and Guardian. Lean labels are coarse, fallible outlet labels and are not ranking inputs.",
+  "ranking_policy": "importance-first-v1",
+  "editorial_review": true,
+  "reviewed": "2026-10-09",
+  "feeds": [
+    {"name": "BBC World", "url": "https://feeds.bbci.co.uk/news/world/rss.xml", "section": "major", "lean": "center", "role": "journalism", "priority": 1},
+    {"name": "NPR World", "url": "https://feeds.npr.org/1004/rss.xml", "section": "major", "lean": "lean-left", "role": "journalism", "priority": 1},
+    {"name": "Fox World", "url": "https://moxie.foxnews.com/google-publisher/world.xml", "section": "major", "lean": "lean-right", "role": "journalism", "priority": 1},
+    {"name": "Al Jazeera", "url": "https://www.aljazeera.com/xml/rss/all.xml", "section": "major", "lean": "lean-left", "role": "journalism", "priority": 1},
+    {"name": "DW", "url": "https://rss.dw.com/rdf/rss-en-all", "section": "major", "lean": "center", "role": "journalism", "priority": 1},
+    {"name": "France24", "url": "https://www.france24.com/en/rss", "section": "major", "lean": "center", "role": "journalism", "priority": 1},
+    {"name": "Guardian World", "url": "https://www.theguardian.com/world/rss", "section": "major", "lean": "lean-left", "role": "journalism", "priority": 1},
+    {"name": "TechCrunch AI", "url": "https://techcrunch.com/category/artificial-intelligence/feed/", "section": "ai", "lean": "unrated", "role": "journalism", "ai_topic": true, "priority": 2},
+    {"name": "The Verge AI", "url": "https://www.theverge.com/rss/ai-artificial-intelligence/index.xml", "section": "ai", "lean": "unrated", "role": "journalism", "ai_topic": true, "priority": 2},
+    {"name": "MIT Tech Review", "url": "https://www.technologyreview.com/feed/", "section": "ai", "lean": "unrated", "role": "journalism", "priority": 1},
+    {"name": "Ars Technica", "url": "https://feeds.arstechnica.com/arstechnica/technology-lab", "section": "ai", "lean": "unrated", "role": "journalism", "priority": 1},
+    {"name": "OpenAI Blog", "url": "https://openai.com/news/rss.xml", "section": "ai", "lean": "unrated", "role": "primary", "ai_topic": true},
+    {"name": "Hugging Face Blog", "url": "https://huggingface.co/blog/feed.xml", "section": "ai", "lean": "unrated", "role": "primary", "ai_topic": true}
+  ],
+  "countries": {
+    "US": [
+      {"name": "NPR US", "url": "https://feeds.npr.org/1003/rss.xml", "section": "national", "lean": "lean-left"},
+      {"name": "Fox US", "url": "https://moxie.foxnews.com/google-publisher/us.xml", "section": "national", "lean": "lean-right"}
+    ],
+    "GB": [
+      {"name": "BBC UK", "url": "https://feeds.bbci.co.uk/news/uk/rss.xml", "section": "national", "lean": "center", "role": "journalism", "priority": 1},
+      {"name": "BBC Politics", "url": "https://feeds.bbci.co.uk/news/politics/rss.xml", "section": "national", "lean": "center", "role": "journalism", "priority": 2},
+      {"name": "Guardian UK", "url": "https://www.theguardian.com/uk-news/rss", "section": "national", "lean": "lean-left", "role": "journalism", "priority": 1}
+    ],
+    "CN": [
+      {"name": "SCMP China", "url": "https://www.scmp.com/rss/4/feed/", "section": "national", "lean": "unrated", "role": "journalism", "priority": 1},
+      {"name": "Guardian China", "url": "https://www.theguardian.com/world/china/rss", "section": "national", "lean": "lean-left", "role": "journalism", "priority": 1}
+    ],
+    "CA": [
+      {"name": "CBC Canada", "url": "https://www.cbc.ca/webfeed/rss/rss-canada", "section": "national", "lean": "unrated"}
+    ],
+    "AU": [
+      {"name": "ABC Australia", "url": "https://www.abc.net.au/news/feed/51120/rss.xml", "section": "national", "lean": "unrated"}
+    ]
+  },
+  "outlet_lean": {
+    "AP": "center",
+    "BBC World": "center",
+    "NPR World": "lean-left",
+    "Fox World": "lean-right",
+    "Fox Tech": "lean-right",
+    "Al Jazeera": "lean-left",
+    "DW": "center",
+    "France24": "center",
+    "Hacker News": "unrated",
+    "GDELT": "mixed"
+  },
+  "domain_lean": {
+    "apnews.com": "center",
+    "bbc.co.uk": "center",
+    "bbc.com": "center",
+    "npr.org": "lean-left",
+    "foxnews.com": "lean-right",
+    "aljazeera.com": "lean-left",
+    "dw.com": "center",
+    "france24.com": "center",
+    "reuters.com": "center",
+    "theguardian.com": "lean-left",
+    "nytimes.com": "lean-left",
+    "wsj.com": "lean-right",
+    "cnn.com": "lean-left",
+    "abcnews.go.com": "center",
+    "cbsnews.com": "lean-left",
+    "nbcnews.com": "lean-left",
+    "thehill.com": "center",
+    "politico.com": "lean-left",
+    "economist.com": "center"
+  }
+}

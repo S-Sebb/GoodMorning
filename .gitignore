@@ -218,3 +218,11 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# GoodMorning user-local data: profile, daily notes, inbox, state
+/secretary/
+.sandbox/
+
+# Project adapter coordination artifacts; stable locks must not be deleted.
+.gm-write-*.lock
+.gm-write-*.tmp
