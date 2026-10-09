@@ -58,7 +58,9 @@ authorize code development. Event import is a separate follow-up.
 
 1. Say good morning. Run `python scripts/state.py --check`. If today already has
    a briefing, identify its session and use the saved record; do not fetch again.
-   Remind the user about missed morning/night runs, oldest first.
+   Remind the user about missed morning/night runs, oldest first. When proceeding
+   with a new briefing, rename this conversation to `GoodMorning YYYY-MM-DD`
+   for the selected daily date (see `docs/skill-rules.md`).
 2. Run `weather.py` once with the saved city. Report rain yes/no/unknown,
    umbrella/boots advice, temperature, AQI health level, source, and freshness.
 3. Run `news.py --backfill` using the confirmed profile. Read its compact
@@ -83,6 +85,8 @@ authorize code development. Event import is a separate follow-up.
 ## `/gn`: night summary
 
 1. Check state for duplicate or missed runs and identify the previous session.
+   When proceeding with a new summary, rename this conversation to
+   `GoodNight YYYY-MM-DD` for the selected daily date.
 2. Read today's task lists and ask what the user completed. Mark only confirmed
    completions. Save feedback and actual progress.
 3. Assess project progress from the user's report, suggest next steps, and update

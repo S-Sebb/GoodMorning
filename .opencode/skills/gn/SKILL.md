@@ -34,7 +34,8 @@ takeaways and the closing. Do not add routine weather/news, backlog or diagnosti
 
 1. Check setup and run `python scripts/state.py --check --json`. Handle duplicate
    or missed runs first. A duplicate names the previous session and stops without
-   marking or overwriting its snapshot.
+   marking or overwriting its snapshot. When proceeding with a new summary,
+   rename this conversation to `GoodNight DATE` per the shared title rule.
 2. Read the selected day's must-do/nice-to-do lists. Ask what was completed,
    partially completed, blocked, or changed. If the user already provided this,
    ask only for remaining ambiguities. If no morning list exists, ask for the

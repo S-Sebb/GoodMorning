@@ -38,7 +38,7 @@ class SkillContractTests(unittest.TestCase):
                 for reference in references:
                     self.assertTrue((path.parent / reference).resolve().is_file(), reference)
                 self.assertIn("skill-rules.md", text)
-                self.assertLess(len(text), 6500)
+                self.assertLess(len(text), 6800)
 
     def test_slash_commands_load_exact_skills_without_execution_or_delegation(self):
         for kind in KINDS:
@@ -56,6 +56,21 @@ class SkillContractTests(unittest.TestCase):
                          "outcome_unknown", "--force", "runtime_busy", "SECRETARY_DIR",
                          "Never use a made-up", "Do not silently backdate"):
             self.assertIn(required, text)
+
+    def test_gm_gn_use_fixed_openchamber_conversation_titles(self):
+        shared = (ROOT / "docs/skill-rules.md").read_text()
+        for required in ("GoodMorning YYYY-MM-DD", "GoodNight YYYY-MM-DD",
+                         "OPENCODE_SESSION_ID", "opencode api patch",
+                         "never\n  on a duplicate stop", "rename failure internal"):
+            self.assertIn(required, shared)
+        gm = (ROOT / ".opencode/skills/gm/SKILL.md").read_text()
+        gn = (ROOT / ".opencode/skills/gn/SKILL.md").read_text()
+        self.assertIn("`GoodMorning DATE`", gm)
+        self.assertIn("shared title rule", gm)
+        self.assertIn("`GoodNight DATE`", gn)
+        self.assertIn("shared title rule", gn)
+        self.assertNotIn("`GoodNight DATE`", gm)
+        self.assertNotIn("`GoodMorning DATE`", gn)
 
     def test_skills_prefer_interactive_questions_with_consent_and_fallback(self):
         shared = (ROOT / "docs/skill-rules.md").read_text()

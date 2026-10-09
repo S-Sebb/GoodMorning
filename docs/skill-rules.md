@@ -30,6 +30,14 @@ operation needed. Paths in this guide are relative to the GoodMorning root.
 - Use the current session's real identifier/name for `--session` and calendar
   `--actor`. If unavailable, ask for a stable session label. Never use a made-up
   ID, a template placeholder, or another session's name.
+- OpenChamber conversation titles are fixed format for gm/gn only. `/gm` uses
+  `GoodMorning YYYY-MM-DD`; `/gn` uses `GoodNight YYYY-MM-DD`, with the selected
+  daily date in the profile timezone (`--today` override for historical work).
+  After the date is confirmed and only when proceeding with a new briefing (never
+  on a duplicate stop), rename the current conversation with
+  `opencode api patch /api/session/$OPENCODE_SESSION_ID --data '{"title":"..."}'`.
+  Keep a rename failure internal; the briefing continues. Never invent a session
+  ID or reuse another session's name.
 - Use the profile's timezone. `state.py --check --json` supplies the local date.
   Historical work requires an explicit user-selected date and `--today DATE` on
   state commands. Label reconstructed reports; do not fetch today's weather and

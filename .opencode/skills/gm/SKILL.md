@@ -32,6 +32,8 @@ Brief optional section takeaways and a warm closing may add flavor; keep news it
    Check setup, then run
    `python scripts/state.py --check --json`. Handle duplicates and missed runs
    before fetching. For a duplicate, identify its session and stop; no refresh.
+   When proceeding with a new briefing, rename this conversation to
+   `GoodMorning DATE` per the shared title rule.
 2. For today, run `weather.py` once with the profile's qualified city using
    explicit `--city CITY` (and `--profile PATH` when relocated). Read its compact
    brief, not JSON. Present distinct parts in this order: temperature, precipitation
