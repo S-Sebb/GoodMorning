@@ -70,10 +70,11 @@ set `TMPDIR` for calendar imports. These scripts do not automatically read `.env
 
 ## Supported boundaries
 
-- Production Betterbird staging supports compatible caches of expanded events;
-  recurrence-containing or locked caches are refused. Metadata preflight reports
-  this before imports. The sandbox recurrence prototype is not part of the release.
-- Native provider login, ICS parsing, recurrence expansion, Twitter/X ingestion,
+- Production Betterbird staging expands common daily/weekly/monthly/yearly rules,
+  additions, exclusions and stored exceptions. Unsupported rules/schemas and
+  locked caches are refused without partial imports. Metadata preflight verifies
+  schema only; see `calendar-pipeline.md` for supported components and limits.
+- Native provider login, ICS file parsing, arbitrary recurrence rules, Twitter/X ingestion,
   automatic collection scheduling and unattended model calls are not implemented.
 - Feed reachability, historical RSS coverage and model-authored editorial relevance
   are not guaranteed by passing tests. Source attribution and material gaps remain.

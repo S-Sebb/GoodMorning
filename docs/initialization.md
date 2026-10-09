@@ -93,9 +93,10 @@ whole news reports, event descriptions or private settings.
   reads and reuse the connection. Pairing repair belongs to the owner.
 - Betterbird uses `--probe-betterbird` for compatibility metadata only. It does not
   initialize secretary storage, read descriptions, or stage events. A busy cache
-  needs owner action (usually closing Betterbird); recurrence-containing caches
-  remain unsupported by the production adapter. Stop and offer deferral or expanded
-  event data, not a code-writing detour inside initialization.
+  needs owner action (usually closing Betterbird). Modern recurrence schemas are
+  supported; metadata preflight does not validate individual rules. Unsupported
+  schemas or rules need deferral or expanded event data, not a code-writing detour
+  inside initialization. See `calendar-pipeline.md` for expansion limits.
 
 Do not auto-fetch omitted checks, retry failures, change outlets, refresh caches,
 expand access or adopt a sandbox prototype. Surface actionable pending items once.

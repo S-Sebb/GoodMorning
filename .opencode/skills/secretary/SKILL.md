@@ -59,7 +59,8 @@ No routine caveats or long framing; bold only key details.
    and lock-artifact consent; execution stays disabled. Follow calendar preflight
    before requesting event-import scope. A locked cache needs owner action;
    unsupported recurrence/imports remain pending, not a repair project. Native
-   provider login, ICS parsing and recurrence expansion remain unsupported.
+    provider login and ICS parsing are unsupported. Betterbird rules/limits:
+    `docs/calendar-pipeline.md`. Preflight checks schema.
 8. Summarize saved versus verified versus pending setup and offer to resume the
    original workflow. If setup alone was requested, stop; do not start another skill.
 

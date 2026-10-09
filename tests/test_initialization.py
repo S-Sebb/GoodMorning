@@ -107,8 +107,20 @@ class InitializationTests(unittest.TestCase):
         with contextlib.redirect_stdout(out):
             code = calendar.main(["--probe-betterbird", "--betterbird-path", str(cache), "--secretary-dir", str(runtime), "--timezone", "UTC"])
         self.assertEqual(code, 1)
-        self.assertEqual(json.loads(out.getvalue())["reason"], "recurrence_not_supported")
+        self.assertEqual(json.loads(out.getvalue())["reason"], "unsupported_recurrence_schema")
         self.assertNotIn("Do not expose event contents", out.getvalue())
+        self.assertFalse(runtime.exists())
+        with closing(sqlite3.connect(cache)) as con:
+            con.execute("CREATE TABLE cal_recurrence(item_id TEXT, cal_id TEXT, icalString TEXT)")
+            con.execute("INSERT INTO cal_recurrence VALUES ('fictional-id','fictional-calendar','RRULE:FREQ=WEEKLY')")
+            con.commit()
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            code = calendar.main(["--probe-betterbird", "--betterbird-path", str(cache), "--secretary-dir", str(runtime), "--timezone", "UTC"])
+        self.assertEqual(code, 0)
+        self.assertTrue(json.loads(out.getvalue())["has_recurrence"])
+        self.assertNotIn("Do not expose event contents", out.getvalue())
+        self.assertNotIn("FREQ", out.getvalue())
         self.assertFalse(runtime.exists())
 
     def test_locked_snapshot_never_falls_back_to_inconsistent_copy_or_live_parse(self):

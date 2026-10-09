@@ -155,11 +155,29 @@ All-day flag handling follows Thunderbird's `EVENT_ALLDAY = 8` contract.
 Calendar IDs/display labels are not event organizers. The adapter leaves organizer
 empty rather than inventing an identity or reading unrelated profile preferences.
 
-Native ICS parsing, provider login/sync, and recurrence expansion are not
-implemented. Import **expanded occurrences** from a provider or export adapter;
-do not flatten a recurrence rule into a single event. Betterbird sync explicitly
-refuses caches containing recurrence-rule masters rather than claiming a
-complete schedule. Existing stored occurrence rows without rules can be staged.
+Betterbird sync expands modern `cal_recurrence.icalString` rules within the
+requested window. Supported frequencies are DAILY, WEEKLY, MONTHLY and YEARLY,
+with INTERVAL, COUNT, UNTIL, BYDAY (including monthly/yearly ordinal weekdays),
+BYMONTHDAY, BYMONTH, BYSETPOS and WKST. RDATE adds dates; EXDATE stages explicit
+cancellations so previously approved occurrences can be withdrawn through review.
+Stored moved/cancelled exceptions replace the original occurrence, retaining its
+source recurrence ID. An exception moved outside the window is still staged when
+its original occurrence overlaps the window. Calendar IDs keep separate series
+with the same event ID distinct.
+
+Expansion uses the source timezone, preserving local meeting times across daylight
+saving changes. Floating and all-day values use the selected calendar timezone;
+all-day ends remain exclusive. Nonexistent local rule times are skipped.
+Generated IDs use Thunderbird PRTime microseconds, so overlapping sync windows
+and repeat imports retain the same identity. Imports remain pending until reviewed.
+
+Unknown rule components/frequencies (including EXRULE and sub-daily rules),
+unknown timezones, legacy recurrence schemas and missing definitions stop the
+entire batch without partial imports. Expansion is bounded to 200,000 days of
+series history and 10,000 generated dates per series / staged events per batch.
+Use an expanded provider/export view for unsupported rules; never flatten a
+rule into one event. Native ICS file parsing and provider login/sync are still
+not implemented. Metadata preflight verifies schema only, not individual rules.
 Cache schema/locking behavior varies by version. Verify staged events against
 the source before relying on this adapter for a new account or version.
 

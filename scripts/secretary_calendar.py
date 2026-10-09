@@ -13,12 +13,13 @@ import json
 import os
 import re
 import sys
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 import sqlite3
 
 from calendar_store import CalendarStore, encode, endpoints, normalize
+from calendar_recurrence import expand, occurrence_id, recurrence_zone
 
 
 @dataclass
@@ -218,7 +219,7 @@ def _copy_live_db(db_path: str, dest: str) -> bool:
             src.backup(target, pages=256, progress=check_deadline, sleep=0.05)
             if target.execute("PRAGMA integrity_check").fetchone()[0] == "ok":
                 return True
-    except (OSError, sqlite3.Error):
+    except (OSError, sqlite3.Error, TimeoutError):
         pass
     return False
 
@@ -238,9 +239,11 @@ def probe_betterbird(db_path):
             if "cal_recurrence" in tables:
                 recurrence = recurrence or bool(con.execute("SELECT 1 FROM cal_recurrence LIMIT 1").fetchone())
             ids = [r[0] for r in con.execute("SELECT DISTINCT cal_id FROM cal_events LIMIT 21")] if "cal_id" in columns else []
-            return {"status": "pending" if recurrence else "verified", "has_recurrence": recurrence,
-                    "calendar_ids": ids[:20], "truncated": len(ids) > 20,
-                    **({"reason": "recurrence_not_supported", "next": "Defer import or use expanded event data; do not fix code during setup."} if recurrence else {})}
+            supported = not recurrence or ("cal_recurrence" in tables and
+                {"item_id", "icalString"} <= {r[1] for r in con.execute("PRAGMA table_info(cal_recurrence)")})
+            return {"status": "verified" if supported else "pending", "has_recurrence": recurrence,
+                     "calendar_ids": ids[:20], "truncated": len(ids) > 20,
+                     **({"reason": "unsupported_recurrence_schema", "next": "Use a current cache or expanded export; do not fix code during setup."} if not supported else {})}
     except sqlite3.OperationalError:
         return {"status": "pending", "reason": "calendar_unavailable_or_busy",
                 "next": "Check the selected cache; if locked, close Betterbird before an authorized retry."}
@@ -258,12 +261,15 @@ def _parse_betterbird_snapshot(db_path: str, orig_path: str,
         if "cal_events" not in tables:
             raise ValueError(f"{db_path} has no cal_events table; not a calendar cache")
         cols = {r[1] for r in con.execute("PRAGMA table_info(cal_events)")}
-        has_recurrence = ("flags" in cols and con.execute(
-            "SELECT 1 FROM cal_events WHERE flags & 16 != 0 LIMIT 1").fetchone()) or (
-            "cal_recurrence" in tables and con.execute("SELECT 1 FROM cal_recurrence LIMIT 1").fetchone())
-        if has_recurrence:
-            raise ValueError("cache contains recurrence rules, not expanded occurrences; "
-                             "ask the secretary to import an expanded provider/export view instead")
+        rules = {}
+        if "cal_recurrence" in tables:
+            rcols = {r[1] for r in con.execute("PRAGMA table_info(cal_recurrence)")}
+            if con.execute("SELECT 1 FROM cal_recurrence LIMIT 1").fetchone():
+                if not {"item_id", "icalString"} <= rcols:
+                    raise ValueError("unsupported Betterbird recurrence schema; nothing imported")
+                calendar_col = "cal_id" if "cal_id" in rcols else "''"
+                for item, calendar_id, rule in con.execute(f"SELECT item_id, {calendar_col}, icalString FROM cal_recurrence"):
+                    rules.setdefault((item, calendar_id), []).append(rule)
         sel = ["id", "title", "event_start", "event_end"]
         if "cal_id" in cols:
             sel.append("cal_id")
@@ -274,11 +280,20 @@ def _parse_betterbird_snapshot(db_path: str, orig_path: str,
         for name in ("recurrence_id", "flags", "event_start_tz"):
             if name in cols:
                 sel.append(name)
+        recurring = []
+        if "flags" in cols:
+            recurring.append("flags & 16 != 0")
+        if "recurrence_id" in cols:
+            recurring.append("recurrence_id IS NOT NULL AND recurrence_id != 0")
+        if rules:
+            # Masters can start years before the requested window.
+            recurring.append("id IN (SELECT item_id FROM cal_recurrence)")
+        extra = " OR " + " OR ".join(recurring) if recurring else ""
         rows = con.execute(
             f"SELECT {', '.join(sel)} FROM cal_events "
             "WHERE (event_start <= ? AND event_end >= ?) "
             "OR (event_start <= ? AND event_end >= ?) "
-            "OR (event_start <= ? AND event_end >= ?)",
+            "OR (event_start <= ? AND event_end >= ?)" + extra,
             # Floating date values are stored as UTC-like wall times. Widen
             # the fetch, then apply exact timezone-aware overlap below.
             (end_us + 86400000000, start_us - 86400000000,
@@ -316,6 +331,8 @@ def _parse_betterbird_snapshot(db_path: str, orig_path: str,
     finally:
         con.close()
     events: list[Event] = []
+    masters = {}
+    exceptions = {}
     idx = {name: i for i, name in enumerate(sel)}
     for row in rows:
         eid = row[idx["id"]]
@@ -325,15 +342,17 @@ def _parse_betterbird_snapshot(db_path: str, orig_path: str,
             e = _tb_time(row[idx["event_end"]], tz)
             flags = int(row[idx["flags"]] or 0) if "flags" in idx else 0
             all_day = bool(flags & 8)
-            if "event_start_tz" in idx and row[idx["event_start_tz"]] == "floating":
+            floating = "event_start_tz" in idx and row[idx["event_start_tz"]] == "floating"
+            if floating or all_day:
                 s = _tb_time(row[idx["event_start"]], timezone.utc).replace(tzinfo=tz)
                 e = _tb_time(row[idx["event_end"]], timezone.utc).replace(tzinfo=tz)
+            elif flags & 16 or (eid, row[idx["cal_id"]] if "cal_id" in idx else "") in rules:
+                zone = recurrence_zone(row[idx["event_start_tz"]] if "event_start_tz" in idx else "UTC", tz)
+                s, e = s.astimezone(zone), e.astimezone(zone)
         except (ValueError, OverflowError, OSError) as exc:
             raise ValueError(f"bad Betterbird row {eid!r}: {exc}; nothing imported") from exc
         if e <= s:
             raise ValueError(f"nonpositive duration for Betterbird row {eid!r}; nothing imported")
-        if e <= start or s >= end:
-            continue
         cal_id = row[idx["cal_id"]] if "cal_id" in idx else ""
         occurrence = str(row[idx["recurrence_id"]] or "") if "recurrence_id" in idx else ""
         def lookup(mapping):
@@ -349,14 +368,45 @@ def _parse_betterbird_snapshot(db_path: str, orig_path: str,
         notes = prop.get("DESCRIPTION", "")
         if people:
             notes = (notes + f" | attendees: {', '.join(people)}").strip(" |")
-        events.append(Event(
+        ev = Event(
             subject=row[idx["title"]] or "(no title)", start=s, end=e,
             location=(loc or ""), organizer="",
             notes=notes, source="betterbird", external_id=f"{cal_id}:{eid}",
             occurrence_id=occurrence,
             status="cancelled" if (status or "").upper() == "CANCELLED" else "confirmed",
-            all_day=all_day))
-    return events
+            all_day=all_day)
+        key = (eid, cal_id)
+        if occurrence:
+            exceptions.setdefault(key, {})[occurrence] = ev
+        elif flags & 16 or key in rules or (eid, "") in rules:
+            masters[key] = (ev, floating or all_day)
+        elif e > start and s < end:
+            events.append(ev)
+    for key, (master, floating) in masters.items():
+        properties = rules.get(key, rules.get((key[0], ""), []))
+        if not properties:
+            raise ValueError("cache contains recurrence rules without stored definitions; nothing imported")
+        duration = (master.end - master.start if master.all_day or floating else
+                    master.end.astimezone(timezone.utc) - master.start.astimezone(timezone.utc))
+        overrides = exceptions.pop(key, {})
+        for stamp, excluded in expand(properties, master.start, end, master.all_day, floating):
+            identity = occurrence_id(stamp, floating)
+            finish = (stamp + duration if master.all_day or floating else
+                      (stamp.astimezone(timezone.utc) + duration).astimezone(stamp.tzinfo))
+            override = overrides.pop(identity, None)
+            original_in_window = finish > start and stamp < end
+            if override is not None:
+                if original_in_window or (override.end > start and override.start < end):
+                    events.append(replace(override, status="cancelled") if excluded else override)
+            elif original_in_window:
+                events.append(replace(master, start=stamp, end=finish, occurrence_id=identity,
+                                      status="cancelled" if excluded else master.status))
+        events.extend(ev for ev in overrides.values() if ev.end > start and ev.start < end)
+    for overrides in exceptions.values():
+        events.extend(ev for ev in overrides.values() if ev.end > start and ev.start < end)
+    if len(events) > 10000:
+        raise ValueError("Betterbird import exceeds occurrence limit; nothing imported")
+    return sorted(events, key=lambda ev: (ev.start, ev.external_id, ev.occurrence_id))
 
 
 _CUSTOM_LINE = re.compile(

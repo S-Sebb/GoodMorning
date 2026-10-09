@@ -13,8 +13,8 @@ User request in simple words. Each phase below can go to a different agent.
   morning/night workflow are tested. An authorized sandbox walkthrough exercised
   initialization, gm, gn and pending idea capture; feedback drove the final voice,
   layout, language-first setup and yesterday-only news behavior.
-- Current verification: **229 Python tests and 26 Node tests pass**. These use
-  synthetic fixtures, not live provider/server probes.
+- Current verification: **244 Python tests and 26 Node tests pass**. Tests use
+  synthetic fixtures; recurrence also had a separate read-only live cache check.
 - Replies prioritize clean formatting and clarity, with customised tone
   throughout. Reply length is not a token or sentence target. Internals stay compact.
 - Finalized for the supported agent-assisted deployment described in
@@ -24,6 +24,23 @@ User request in simple words. Each phase below can go to a different agent.
 - Personal setup is an owner-confirmed step, separate from general implementation.
   Authorized walkthrough records were removed on the owner's cleanup request.
   The real secretary runtime has not been initialized by this work.
+
+### Betterbird recurring import repair — 2026-10-09
+
+- Added bounded, standard-library expansion for common daily/weekly/monthly/yearly
+  rules, RDATE/EXDATE, stored moved/cancelled exceptions, source timezones and
+  stable PRTime occurrence identities. Unsupported rules fail atomically.
+- Fifteen new fixture tests cover recurrence, DST, exceptions, cancellations,
+  repeat staging and failure safety. An independent comparison matched
+  python-dateutil for 315 supported rule combinations; it is not a dependency.
+- A read-only selected-cache check expanded 26 occurrences over 30 days, including
+  two cancellations, in 0.174 seconds. No source events or private runtime were
+  changed. This checks expansion, not end-to-end approval or provider freshness.
+- Updated recurrence limits and initialization guidance. The earlier sandbox
+  prototype was not reused. See `docs/calendar-pipeline.md` for exact support.
+- Redeployed eight public files and registered secretary guidance locally. All
+  86 installed manifest hashes match; 244 Python tests pass in the installation.
+  Private runtime files were unchanged; no real events were staged or approved.
 
 ### Deployment finalization — 2026-10-09
 
@@ -51,9 +68,9 @@ User request in simple words. Each phase below can go to a different agent.
   contamination, credentials saved before calendar review, and relay deadlines
   ignored by stalled transports/response bodies. CLI close timers no longer
   extend finished project commands. Calendar imports require consistent backups.
-- Metadata-only Betterbird compatibility probing detects unsupported recurrence
-  before event import. Production recurrence expansion remains unsupported; the
-  earlier sandbox prototype was not promoted.
+- Initially, metadata-only Betterbird probing rejected recurrence before import;
+  production expansion was unsupported and the sandbox prototype was not promoted.
+  The recurring import repair above supersedes that limitation for supported rules.
 - Synthetic four-hung-check experiment: sequential waits 0.604 s versus shared
   budget 0.151 s (3.99x). This proves the bounded failure path, not a measured
   real-user initialization speedup or live provider availability.
@@ -374,7 +391,7 @@ First use must run setup, not normal work. Steps:
    verification remains an open setup item, not a successful result.
 6. Explain profile/projects, daily records/snapshots, inbox, calendar, and news
    reports. Offer custom-only, authorized external imports, or Betterbird staging;
-   do not promise unimplemented native login, ICS, or recurrence support.
+   do not promise native login, ICS file parsing, or unsupported recurrence rules.
 
 ### 4.2 /gm Morning Greeting
 
@@ -493,8 +510,9 @@ Skills format and judge. Scripts fetch facts. Deterministic steps become code.
   `--import-json` stages original imports; `--pending`, `--show`, `--approve`,
   `--reject` handle review. `--history` exposes revision history on demand;
   `--migrate-md` explicitly migrates old Markdown without editing it. Stdlib
-  only. Native provider auth, ICS parsing, and recurrence expansion are not
-  implemented; import expanded occurrences instead. See `docs/calendar-pipeline.md`.
+  only. Common Betterbird recurrence rules expand into reviewable occurrences.
+  Native provider auth and ICS file parsing are not implemented; unsupported
+  rules need expanded exports. See `docs/calendar-pipeline.md`.
 - `scripts/state.py --check [--json] | --mark-gm | --mark-gn` (+ `--rebuild`, `--tokens PATH`)
   Reads/writes `state.json` and daily index. Detects already-used (refuses
   double-mark unless `--force`) and missed days. `--mark-* --session NAME
@@ -623,8 +641,9 @@ Split work like this:
   built 2026-10-09: custom events, staged external imports, AI review, source
   changes/cancellations, history, migration, and compact queries tested on
   synthetic data. Original Betterbird reader was live-tested; new staging
-  workflow still needs a user-authorized live check. Native provider auth,
-  ICS, and recurrence expansion remain future work.
+  workflow still needs a user-authorized end-to-end live check. Common recurrence
+  expansion now has fixture and read-only live checks. Native provider auth and
+  ICS file parsing remain future work.
 - Phase E: news retrieval plus bounded backfill and explicit delivery tracking. Implemented 2026-10-09: separate report ledger, missing/partial/collected/delivered states, read-only status/show, exact-ID acknowledgements, retry caps/cooldowns, historical windows, warnings, scope isolation, and repeat-fetch avoidance. Backfill uses the ledger, not Markdown headings. New managed behavior is synthetic-tested in `tests/test_news_reports.py`; earlier feed spike results are historical. See `docs/news-pipeline.md`.
 - Phase F: project registry and local/relay read/write-back. Implemented: pinned-source transport, bounded reads/batches/job summaries, exact scopes, explicit execution permission, hash-checked writes, and shared-storage locks. Historical remote live results are preserved in §6; current verification is synthetic. Personal registry setup and future host/version compatibility checks require consent. See `docs/project-access.md` and the project/relay tests.
 - Phase G: all four skills and same-session slash-command wrappers are implemented and discoverable. Metadata, references and routing are tested; an authorized sandbox walkthrough and owner feedback exercised all four workflows.
@@ -632,7 +651,7 @@ Split work like this:
 - Phase I: scoped acceptance/finalization completed; confirmed walkthrough failures were repaired, regressions rerun and private sandbox records removed. Production integration boundaries remain documented.
 
 Current commands: `python -m unittest discover -s tests -q` and
-`node --test tests/test_projects.mjs`. Both passed in final validation: 229 Python
+`node --test tests/test_projects.mjs`. Both passed in current validation: 244 Python
 tests and 26 Node tests. Optional experiments live in `tests/benchmark_*.py` and
 `tests/benchmark_projects.mjs`; measurements do not impose reply-length budgets.
 
@@ -666,7 +685,7 @@ tests and 26 Node tests. Optional experiments live in `tests/benchmark_*.py` and
    when requested; retain existing records and confirm exact scopes.
 
 Deferred, not required for current core acceptance: native calendar provider
-authentication/sync, ICS parsing, recurrence expansion, external-calendar
+authentication/sync, ICS file parsing, arbitrary recurrence rules, external-calendar
 write-back, SSH/hub deployment, and long-running job supervision. Scheduled news
 collection also requires separate authorization; no scheduler is installed by
 these source changes. Original standalone spike reports are absent; this plan
