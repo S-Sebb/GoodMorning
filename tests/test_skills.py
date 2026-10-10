@@ -59,17 +59,38 @@ class SkillContractTests(unittest.TestCase):
     def test_gm_gn_use_fixed_openchamber_conversation_titles(self):
         shared = (ROOT / "docs/skill-rules.md").read_text()
         for required in ("GoodMorning YYYY-MM-DD", "GoodNight YYYY-MM-DD",
+                         "Secretary YYYY-MM-DD", "Eureka SUMMARY",
                          "OPENCODE_SESSION_ID", "opencode api patch",
                          "never\n  on a duplicate stop", "rename failure internal"):
             self.assertIn(required, shared)
+        self.assertIn("all four workflows", shared)
+        self.assertNotIn("for gm/gn only", shared)
+        self.assertIn("very short", shared)
+        self.assertIn("in the\n  user's `secretary_language`", shared)
+        self.assertIn("English defaults", shared)
+        self.assertIn("translate only the prefix", shared)
+        self.assertIn("not translated", shared)
         gm = (ROOT / "docs/workflows/gm.md").read_text()
         gn = (ROOT / "docs/workflows/gn.md").read_text()
+        eureka = (ROOT / "docs/workflows/eureka.md").read_text()
+        secretary = (ROOT / "docs/workflows/secretary.md").read_text()
         self.assertIn("`GoodMorning DATE`", gm)
         self.assertIn("shared title rule", gm)
         self.assertIn("`GoodNight DATE`", gn)
         self.assertIn("shared title rule", gn)
         self.assertNotIn("`GoodNight DATE`", gm)
         self.assertNotIn("`GoodMorning DATE`", gn)
+        self.assertIn("`Secretary DATE`", secretary)
+        self.assertIn("shared title rule", secretary)
+        self.assertIn("`Eureka SUMMARY`", eureka)
+        self.assertIn("shared title rule", eureka)
+        self.assertIn("very short", eureka)
+        self.assertNotIn("`Secretary DATE`", gm)
+        self.assertNotIn("`Secretary DATE`", gn)
+        self.assertNotIn("`Eureka SUMMARY`", gm)
+        self.assertNotIn("`Eureka SUMMARY`", gn)
+        for text in (gm, gn, eureka, secretary):
+            self.assertIn("`secretary_language`", text)
 
     def test_skills_prefer_interactive_questions_with_consent_and_fallback(self):
         shared = (ROOT / "docs/skill-rules.md").read_text()
@@ -178,6 +199,9 @@ class SkillContractTests(unittest.TestCase):
         self.assertIn("across gm/gn/eureka/secretary", shared)
         self.assertIn("raw captured ideas", shared)
         self.assertIn("For older profiles lacking it", shared)
+        self.assertIn("conversation", shared)
+        self.assertIn("titles", shared)
+        self.assertIn("English defaults", shared)
 
     def test_all_four_reply_shapes_render_without_instructions_or_placeholders(self):
         report, morning, night = fixtures()

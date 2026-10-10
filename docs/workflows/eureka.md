@@ -29,7 +29,10 @@ Brief grounded interest or a warm closing is optional, not mandatory padding.
     missing, retain the idea in the conversation, read `docs/workflows/secretary.md` for setup, and
    say it is not saved yet. If no idea was supplied, ask for it; do not create an
    empty entry.
-2. Append one pending entry to the existing inbox without replacing other ideas:
+2. Rename this conversation to `Eureka SUMMARY` in `secretary_language` per the
+   shared title rule, using a very short idea summary; if no idea was supplied,
+   ask first, then rename.
+   Append one pending entry to the existing inbox without replacing other ideas:
    `- YYYY-MM-DD HH:MM TIMEZONE | RAW_IDEA | pending | PROJECT`.
    Use the real local timestamp and an optional confirmed project. Preserve raw
    wording; for multiline text, encode the raw string as JSON on that single

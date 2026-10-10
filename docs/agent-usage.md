@@ -20,8 +20,9 @@ authorize code development. Event import is a separate follow-up.
 ## Shared rules
 
 - Ask `secretary_language` first during new setup, before other preferences, then
-  use the explicit choice for all replies and interactive questions. News language
-  and country remain independent. Older profiles do not require reinitialization.
+  use the explicit choice for all replies, OpenChamber conversation titles, and
+  interactive questions. News language and country remain independent. Older
+  profiles do not require reinitialization.
 
 - Prefer the session's interactive `question` tool (OpenChamber question UI) for
   setup, clarification, progress choices, and confirmations. Use relevant options,
@@ -64,7 +65,7 @@ authorize code development. Event import is a separate follow-up.
    a briefing, identify its session and use the saved record; do not fetch again.
    Remind the user about missed morning/night runs, oldest first. When proceeding
    with a new briefing, rename this conversation to `GoodMorning YYYY-MM-DD`
-   for the selected daily date (see `docs/skill-rules.md`).
+   in `secretary_language` for the selected daily date (see `docs/skill-rules.md`).
 2. Run `weather.py` once with the saved city. Report rain yes/no/unknown,
    umbrella/boots advice, temperature, AQI health level, source, and freshness.
 3. Run `news.py --backfill` using the confirmed profile. Read its compact
@@ -91,7 +92,7 @@ authorize code development. Event import is a separate follow-up.
 
 1. Check state for duplicate or missed runs and identify the previous session.
    When proceeding with a new summary, rename this conversation to
-   `GoodNight YYYY-MM-DD` for the selected daily date.
+   `GoodNight YYYY-MM-DD` in `secretary_language` for the selected daily date.
 2. Read today's task lists and ask what the user completed. Mark only confirmed
    completions. Save feedback and actual progress.
 3. Assess project progress from the user's report, suggest next steps, and update
@@ -105,7 +106,9 @@ authorize code development. Event import is a separate follow-up.
 
 ## `/eureka`: idea capture
 
-1. Save the raw idea and any supplied details immediately, before clarification,
+1. Once the raw idea is known (if none was supplied, ask first), rename this
+   conversation to `Eureka SUMMARY` in `secretary_language` with a very short idea summary
+   (see `docs/skill-rules.md`). Save the raw idea and any supplied details
    with a timestamp as pending in `secretary/inbox.md`; note remaining ambiguity and
    confirm it was saved. Offer calendar confirmation if it implies a dated event.
 2. Leave it pending by default, without a now/later question. Invite optional
@@ -120,7 +123,8 @@ authorize code development. Event import is a separate follow-up.
 
 ## `/secretary`: general work
 
-Handle setup, records, calendar review, questions, and confirmed plan changes.
+Rename this conversation to `Secretary YYYY-MM-DD` in `secretary_language` with the local date
+(see `docs/skill-rules.md`). Handle setup, records, calendar review, questions, and confirmed plan changes.
 Read relevant project files to understand context. Use `docs/project-access.md`
 for authorized local/remote access and write-back; preserve unrelated work.
 Details about a saved idea resume its clarification without requiring `Clarify`

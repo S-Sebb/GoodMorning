@@ -23,7 +23,7 @@ No routine caveats or long framing; bold only key details.
 
 1. Read `docs/initialization.md`, `config.example.md`, and the profile/project
    templates. Resolve one runtime, inspect only that runtime, and reuse answers
-   already in this conversation. Local setup and optional integration checks are
+   already given. Local setup and optional integration checks are
    separate; never turn initialization into unrequested code development.
 2. The first initialization question is `secretary_language`; wait for the explicit
    choice and use it throughout. Reuse explicit preferences only; never infer
@@ -44,8 +44,8 @@ No routine caveats or long framing; bold only key details.
    calendar/news reports, and JSON configuration/index. Present one exact storage
    and permission summary; obtain consent only for actions not already authorized.
    No credentials in records. Optional weather model AQI needs no key; offer WAQI
-   registration at https://aqicn.org/data-platform/token/ without an extra required
-   question when it was already declined. Tokens belong only in the environment.
+   registration at https://aqicn.org/data-platform/token/ without extra question
+   when already declined. Tokens belong only in the environment.
 5. After consent, create only missing records/folders from templates, initialize
    `secretary_calendar.py --init --timezone ZONE`, then `state.py --rebuild --json`.
    Never overwrite existing records or create legacy schedules, tasks/completions,
@@ -66,7 +66,8 @@ No routine caveats or long framing; bold only key details.
 
 ## Normal work
 
-1. Identify the requested read/change and any ambiguity. Read the profile and only
+1. Rename this conversation to `Secretary DATE` in `secretary_language` per the shared title rule.
+   Identify the requested read/change and any ambiguity. Read the profile and only
    relevant records/compact queries; no blanket project scan or automatic daily
      fetching. Route morning/night/idea requests to their corresponding workflow file.
     Save ideas/details immediately per shared inbox rules; remind about pending clarification.
@@ -76,7 +77,7 @@ No routine caveats or long framing; bold only key details.
 2. Use the shared pending project-update workflow before asking questions;
     catch up; remind about outstanding project-update questions. Respect write-back
     scope and update `last_update` for confirmed changes.
-    Confirm changed roles/fields before updating the profile; preserve other
+    Confirm changed roles/fields before updating the profile; keep other
     preferences and follow shared personalization rules.
 3. For "I moved", confirm the qualified city and region before updating the
    profile; ask whether timezone changed and verify the new weather location.
@@ -86,12 +87,11 @@ No routine caveats or long framing; bold only key details.
    confirmation rules and `docs/calendar-pipeline.md`. Stage originals, inspect
    pending details, review compatible versions, and use the current revision.
    Never display raw imports as approved or approve unseen events in bulk.
-5. Apply in-thread daily amendments without changing original snapshots. Rebuild
+5. Apply in-thread daily amendments without changing snapshots. Rebuild
    the index after confirmed record edits. Use the reply template to state the
    outcome first, then explain useful context, unresolved items, or a next question
    in the user's customised tone throughout, including errors and follow-up
-   questions. Clean formatting and clarity take priority over tone flourishes
-   or minimizing sentences.
+   questions. Clean formatting and clarity take priority over tone flourishes.
    Do not mark gm/gn merely because this general skill was used.
 
 ## Errors

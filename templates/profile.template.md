@@ -38,7 +38,7 @@ Never put passwords or keys here. -->
 - Ask for `secretary_language` as the first initialization question, before any
   location, schedule, tone or news question. Save the explicit language/script or
   bilingual preference; “follow my message language” is a valid confirmed setting.
-- Use that language for all four workflows, setup, questions and follow-ups. It is
+- Use that language for all four workflows, conversation titles, setup, questions and follow-ups. It is
   independent of news-source language, national-news country, timezone and tone.
   Older profiles without this field stay valid; do not invent or force a migration.
 - Ask for a qualified city (city plus country/region) or verify coordinates.

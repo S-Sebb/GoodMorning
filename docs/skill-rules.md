@@ -19,7 +19,8 @@ operation needed. Paths in this guide are relative to the GoodMorning root.
   saved before setup and a successful write. Optional settings can stay empty
   when the user explicitly declines them; never invent personal defaults.
 - `secretary_language` controls all user-facing replies, setup, question widgets,
-  confirmations and errors across gm/gn/eureka/secretary. Ask it first in new setup;
+  confirmations and errors, and OpenChamber conversation titles, across gm/gn/eureka/secretary.
+  Ask it first in new setup;
   follow an explicit language/script or bilingual choice, or a confirmed request
   to follow message language. Do not infer it from location or news preferences.
   For older profiles lacking it, keep the conversation language without forcing
@@ -33,14 +34,23 @@ operation needed. Paths in this guide are relative to the GoodMorning root.
 - Use the current session's real identifier/name for `--session` and calendar
   `--actor`. If unavailable, ask for a stable session label. Never use a made-up
   ID, a template placeholder, or another session's name.
-- OpenChamber conversation titles are fixed format for gm/gn only. `/gm` uses
+- OpenChamber conversation titles are fixed format for all four workflows, in the
+  user's `secretary_language`. English defaults: `/gm` uses
   `GoodMorning YYYY-MM-DD`; `/gn` uses `GoodNight YYYY-MM-DD`, with the selected
   daily date in the profile timezone (`--today` override for historical work).
+  `/secretary` uses `Secretary YYYY-MM-DD` with the local date in the profile
+  timezone. `/eureka` uses `Eureka SUMMARY` where SUMMARY is a very short
+  raw idea wording (max ~6 words, single line, no credentials, not translated).
+  For other languages translate only the prefix naturally and keep the date and
+  SUMMARY format; for bilingual or follow-message-language use the current turn
+  language. For older profiles without `secretary_language`, use English defaults.
   After the date is confirmed and only when proceeding with a new briefing (never
   on a duplicate stop), rename the current conversation with
   `opencode api patch /api/session/$OPENCODE_SESSION_ID --data '{"title":"..."}'`.
-  Keep a rename failure internal; the briefing continues. Never invent a session
-  ID or reuse another session's name.
+  For `/secretary` rename once the local date is known; for `/eureka` rename once
+  the raw idea is known (if none was supplied, ask first, then rename; never use
+  an empty summary). Keep a rename failure internal; the workflow continues.
+  Never invent a session ID or reuse another session's name.
 - Use the profile's timezone. `state.py --check --json` supplies the local date.
   Historical work requires an explicit user-selected date and `--today DATE` on
   state commands. Label reconstructed reports; do not fetch today's weather and
