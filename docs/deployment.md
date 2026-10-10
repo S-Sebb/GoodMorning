@@ -43,6 +43,10 @@ slash commands; natural-language requests work too.
 
 ## Validate
 
+Optional image briefings use a separate, dependency-free OpenCode plugin package.
+See [briefing plugin deployment](../plugins/briefing-delivery/DEPLOYMENT.md) for copying,
+packaging and verification. The checkout enables it only for this project.
+
 From the checkout:
 
 ```bash

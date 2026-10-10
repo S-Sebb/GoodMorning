@@ -1,6 +1,6 @@
 ---
 name: gm
-description: Morning secretary briefing for /gm: weather, yesterday's consequential news, optional separately dated latest developments, approved schedule, and today's priorities. Save records without duplicate runs.
+description: Morning briefing: weather, yesterday's news, approved schedule, priorities and optional dated latest developments. Save without duplicate runs.
 ---
 
 # Morning briefing
@@ -90,6 +90,8 @@ omit routine bookkeeping, extra framing and repeated summaries.
    are unchecked. Save the exact reply through `state.py --mark-gm` with session,
    answer input, and `--json`; verify success. Present it without extra repeated
    summaries. Acknowledge only reports whose actual delivery is now verifiable.
+
+7. For chosen image delivery, follow `docs/image-delivery.md` after saving text.
 
 ## Errors and follow-up
 

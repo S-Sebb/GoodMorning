@@ -1,0 +1,17 @@
+{
+  "name": "goodmorning-briefing-delivery",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./index.js",
+  "exports": "./index.js",
+  "files": [
+    "index.js",
+    "index.mjs",
+    "core.mjs",
+    "transport.mjs",
+    "render_cards.py",
+    "README.md",
+    "DEPLOYMENT.md"
+  ]
+}
