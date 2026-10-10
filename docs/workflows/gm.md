@@ -6,31 +6,25 @@ description: Morning secretary briefing for /gm: weather, yesterday's consequent
 # Morning briefing
 
 Trigger: `/gm`, or an explicit request for the GoodMorning morning workflow.
-Inputs: confirmed profile, current session, optional explicit date, daily/project
-records, and compact script results. Output: a clear briefing in the user's custom
-tone plus saved daily
-record and verbatim snapshot; news delivery is tracked separately.
+Inputs: confirmed preferences, current session/date, relevant records and script output.
+Output: a personalised briefing, concise daily record and exact snapshot; delivery is separate.
 
 All paths below are relative to the GoodMorning package root. Read
-`docs/skill-rules.md` first. Use
+`docs/core-rules.md` first (`docs/skill-rules.md` is the expanded reference). Use
 `templates/gm.reply.template.md` for the reply and
 `templates/daily.template.md` for storage. Commands below run from root;
 apply shared runtime/date rules and use the `question` tool for needed choices
 or confirmations, including missed runs and unclear tasks.
-Apply the shared materiality gate throughout: no non-critical disclaimers or
-process narration in the greeting, briefing, questions or closing.
-Use `docs/reply-voice.md`: this is a conversational personal assistant,
-not a dense essay or a cold dashboard. Keep the agreed personality within useful
-section content; no extra framing paragraphs. Use headings/rules, weather order,
-source-based news lists and calendar timetables; bold only genuinely key details.
-Brief optional section takeaways and a warm closing may add flavor; keep news items factual.
+Apply the shared materiality gate and `docs/reply-voice.md`: personable sections,
+ordered weather, factual cited news and calendar timetables. Keep useful detail;
+omit routine bookkeeping, extra framing and repeated summaries.
 
 ## Steps
 
-1. Use the profile's customised tone throughout the briefing, while prioritizing
-   clean formatting and clarity. Greet in that tone; do not assume their mood.
-   Check setup, then run
-   `python scripts/state.py --check --json`. Handle duplicates and missed runs
+1. Use the confirmed tone and run
+   `python scripts/workflow.py --secretary-dir RUNTIME --prepare gm`. Use its dates,
+   preferences, paths, daily task page and active inbox page; do not repeat those reads.
+   Handle duplicates and missed runs
    before fetching. For a duplicate, identify its session and stop; no refresh.
    When proceeding with a new briefing, rename this conversation to
    `GoodMorning DATE` in `secretary_language` per the shared title rule.
@@ -42,19 +36,18 @@ Brief optional section takeaways and a warm closing may add flavor; keep news it
     internal; short labels are enough. Surface stale/unavailable data and health
     warnings only when material, without generic model/station caveats.
    For historical work, label unavailable weather; never substitute today's data.
-3. Run `news.py --backfill` once per confirmed country and inspect the manifest and
-   source/window diagnostics. Follow shared editorial rules: scores are proxies,
-   not truth or final judgment. Use `--audit` for suspect selection on a narrow
+3. Read `docs/news-delivery.md`. Run `news.py --backfill` once per confirmed country and inspect the manifest and
+   source/window diagnostics. Scores are proxies. Use `--audit` for suspect selection on a narrow
    window; never acknowledge a report whose selected stories were omitted.
    When `editorial_review_pending` is set, read that day's collected candidates
-   with `--show`. Select distinct consequential stories using semantic judgment,
+    with `--show DATE --view candidates`, following `next_offset` pages. Select distinct consequential stories using semantic judgment,
    not just proxy scores; record candidate_id/reason choices in runtime JSON and
    run `--curate DATE --selection-file PATH --expect REPORT_ID --session NAME`
-   with the matching country/runtime/sources. Reread the reviewed report before
-   presentation. Do not skip review or invent citations; fewer items are fine.
+   with the matching country/runtime/sources and `--view stories`. Use the returned
+   saved stories directly. Do not skip review or invent citations; fewer items are fine.
    For historical work,
    use an explicit `--ending` date before the requested briefing date. Read
-   `--show DATE` for yesterday's undelivered report; show already-delivered news
+   `--show DATE --view stories` for yesterday's undelivered report; show already-delivered news
    only when requested. Use Markdown AI/world/national subheadings and summary
    bullets. Prefer existing source summaries where appropriate to reuse; otherwise
    paraphrase faithfully, cite, keep quotes brief and separate any useful neutral
@@ -71,9 +64,9 @@ Brief optional section takeaways and a warm closing may add flavor; keep news it
    stateless; keep mechanics internal, show material gaps and deduplicate stories.
    If editorial review is required, save the exact latest JSON inside the runtime
    and use `--curate-latest FILE --selection-file PATH --expect CANDIDATE_BATCH_ID
-   --session NAME --secretary-dir RUNTIME` after reviewing its candidates. Preserve
+   --session NAME --secretary-dir RUNTIME --view stories` after reviewing its candidates. Preserve
    cutoff/freshness notes and label analysis or social discovery appropriately.
-4. Query `secretary_calendar.py --from DATE --days 3 --timezone ZONE --json`.
+4. Query `secretary_calendar.py --from DATE --days 3 --timezone ZONE --json --details`.
    Use approved events only, show pending review counts, and inspect relevant
     details for preparation. Show a chronological timetable with date/time/timezone,
     event, place and prep where known. Put conflicts beneath it; no duplicate prose.
@@ -82,21 +75,24 @@ Brief optional section takeaways and a warm closing may add flavor; keep news it
    nice-to-do tasks with priority, fixed times, and clearly labeled estimates.
     Explain useful advice within sections in the user's tone; keep it easy to scan.
    Do not invent deadlines or progress.
-    Read relevant pending ideas and add unchecked clarification TODOs to the reply
+      Use preparation's inbox page; fetch further `inbox.py --list` filters/pages only
+      as needed, then `--show ID` only for relevant
+     current constraints. Never read archived discussions. Review flagged new
+     details per `docs/inbox-pipeline.md`; do not silently omit reminders from later pages.
+     Read relevant pending ideas and add unchecked clarification TODOs to the reply
     and daily task list per the shared reminder rule, preserving existing tasks.
     Use the shared pending project-update workflow: clarification TODOs,
     not unconfirmed actions; no duplicate tasks.
     TODOs: record-only.
-6. Compose the reply using the template. Write concise weather/news/schedule/task
-   sections into the selected daily file, preserving existing content. New tasks
+6. Compose the reply using the template. Use `daily.py --date DATE --amend --expect HASH` from
+   the preparation result for concise sections/task additions, preserving existing content.
+   See `docs/workflow-helpers.md` for the structured payload. New tasks
    are unchecked. Save the exact reply through `state.py --mark-gm` with session,
    answer input, and `--json`; verify success. Present it without extra repeated
    summaries. Acknowledge only reports whose actual delivery is now verifiable.
 
 ## Errors and follow-up
 
-Preserve all warnings internally and surface material weather/news or calendar/
-project failures briefly; say unavailable,
-not empty or complete. Stop duplicate writes on state refusal. Ask about unclear
-tasks or likely new events using shared confirmation rules. In-thread changes
-update daily/project records; snapshots stay original unless replacement is asked.
+Preserve warnings; show material failures as unavailable, not empty or complete.
+Respect duplicate refusals and shared confirmation rules. In-thread amendments
+use daily/project helpers; original snapshots remain unchanged.

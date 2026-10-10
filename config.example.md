@@ -32,10 +32,13 @@ After confirming setup answers and file formats with the user:
     store the others as comma-separated `news_additional_countries`.
 2. Create `secretary/projects/` and `secretary/daily/`. Copy
    `templates/project.template.md` for each confirmed project.
-3. Create `secretary/inbox.md`. Use one idea per line:
-   `- YYYY-MM-DD HH:MM TIMEZONE | raw idea | pending | linked project`.
-   Use `confirmed` only after clarifying and organizing the idea. Leave the
-   linked project empty when unknown; do not put credentials in ideas.
+3. Initialize `secretary/inbox.sqlite` with
+   `python scripts/inbox.py --secretary-dir RUNTIME --init` after storage consent.
+   Capture exact actionable user input with `--add`; query current state through
+   stable IDs and bounded pages, not a transcript. See `docs/inbox-pipeline.md`.
+   Existing Markdown inboxes need explicit migration authorization; never overwrite
+   them. Use `confirmed` only after authorized organization and `done` only on
+   user-confirmed TODO completion. Do not put credentials in records.
 4. Initialize `secretary/calendar.sqlite` with the calendar command below.
    Run `python scripts/state.py --rebuild` to derive `secretary/state.json`.
 5. Use `templates/daily.template.md` as the daily format reference when a

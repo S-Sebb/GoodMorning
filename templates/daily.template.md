@@ -30,15 +30,15 @@ file holds trimmed one-liners only, so the default read stays cheap.
 
 (`/gn` later ticks boxes off and appends `## feedback` / `## progress` —
 those sections never exist before the first `/gn`, and no box is ever
-checked at `/gm` time.)
+newly checked by `/gm`.) Earlier user-confirmed completions are preserved.
 
 Lifecycle rules:
 
 - `/gm` writes run lines, weather/news/schedule, and must-do + nice-to-do
   with every box unchecked (`[ ]`). Nothing is done in the morning, so a
-  checked box at `/gm` time is always a bug.
-- A repeat `/gm` the same day serves the locally saved content (this file
-  plus the `.gm.md` snapshot), never re-fetches. `state.py` already refuses
+  new checked box inferred by `/gm` is a bug; never reset existing completions.
+- A repeat `/gm` identifies the saved session and stops, never re-fetches or
+  automatically opens the `.gm.md` snapshot. `state.py` already refuses
   the double-mark and points at the first session.
 - `/gn` ticks boxes off (`[x]`) and appends `## feedback` / `## progress`.
 - In-thread amendments: talking to the agent inside a `/gm` or `/gn` thread
@@ -64,3 +64,5 @@ Lifecycle rules:
    News dates refer to publication/report dates, not the greeting's date.
 - Keep each bullet to one line. Detail belongs in the `.gm.md`/`.gn.md`
   snapshots, not here.
+Use `daily.py --show` and `--amend --expect HASH` for routine section/task edits;
+see `docs/workflow-helpers.md`. Do not rewrite the entire file through the agent.

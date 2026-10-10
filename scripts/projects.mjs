@@ -24,7 +24,7 @@ const HELP = `Usage: node scripts/projects.mjs <operation> [project] [relative-p
   exec PROJECT --command 'short command' --confirm
   batch < operations.json     Up to 20 read-only operations; reuse host connections
 Options: --registry PATH --settings PATH --offset N --limit N --tail --timeout SECONDS
-Defaults: secretary/projects.json; ~/.config/openchamber/settings.json; timeout 20s.
+Defaults: ~/.local/share/GoodMorning/secretary/projects.json; ~/.config/openchamber/settings.json; timeout 20s.
 Write requires exact registry write_targets. Exec requires registry allow_exec=true.
 No mutation is retried. Errors, truncation, and unknown outcomes are explicit.
 `;
@@ -196,7 +196,9 @@ export class ProjectAccess {
   constructor(options = {}) {
     this.options = options;
     this.timeout = integer(options.timeout, 20, 1, 120) * 1000;
-    this.registryFile = options.registry ?? process.env.GM_PROJECT_REGISTRY ?? 'secretary/projects.json';
+    const runtime = process.env.SECRETARY_DIR || path.join(os.homedir(), '.local/share/GoodMorning/secretary');
+    this.registryFile = options.registry ?? process.env.GM_PROJECT_REGISTRY ?? path.join(runtime, 'projects.json');
+    if (this.registryFile.startsWith('~/')) this.registryFile = path.join(os.homedir(), this.registryFile.slice(2));
     this.settingsFile = options.settings ?? process.env.GM_OPENCHAMBER_SETTINGS ?? path.join(os.homedir(), '.config/openchamber/settings.json');
     this.connections = new Map();
     this.secrets = new Set();

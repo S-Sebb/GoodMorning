@@ -11,8 +11,9 @@ project, and supplied follow-up details. Output: a verified saved pending TODO,
 not execution of the task or a change to the confirmed project plan.
 
 All paths below are relative to the GoodMorning package root. Read
-`docs/skill-rules.md` first, then use `templates/todo.reply.template.md` and
-`docs/reply-voice.md`. Run helpers from root with explicit absolute runtime paths.
+`docs/core-rules.md` first (`docs/skill-rules.md` is the expanded reference), then use `templates/todo.reply.template.md` and
+the shared voice essentials; `docs/reply-voice.md` is for detailed discussion.
+Run helpers from root with explicit absolute runtime paths.
 Apply the shared materiality gate and the user's customised tone throughout.
 Keep the current session and model; do not delegate.
 
@@ -22,22 +23,27 @@ Keep the current session and model; do not delegate.
    the TODO in the conversation, follow `docs/workflows/secretary.md`, and say it
    is not saved yet. If no TODO text was supplied, ask for it; never save an empty
    entry. Never persist credentials; ask for redacted wording instead.
-2. Rename this conversation to `Todo SUMMARY` in `secretary_language` per the
-   shared title rule, using a very short summary of the raw TODO.
-   Append to the existing runtime inbox without replacing other entries:
-   `- YYYY-MM-DD HH:MM TIMEZONE | JSON_TODO | pending | PROJECT`.
-   Use the real local timestamp. JSON_TODO is a single-line JSON object with
-   `kind: "todo"`, `raw` containing the user's exact wording, and `details`
-   containing supplied follow-up wording. JSON encoding preserves multiline text,
-   quotes, and pipes. Use only a confirmed project; otherwise leave PROJECT empty.
+2. For new raw input use `workflow.py --capture todo --session SESSION --request-key KEY
+   --input-stdin` with `raw` containing the user's exact wording and optional confirmed
+   project/current context. No `kind` in the payload (the wrapper supplies `kind: "todo"`).
+   It checks setup and returns the receipt, title suggestion and reply preferences;
+   no separate preparation/profile/state read. Read `docs/inbox-pipeline.md` only
+   for follow-ups/completion/discussion, not simple capture. Save material follow-ups with
+   `--append ID`; maintain concise current constraints, not discussion history.
+   JSON preserves multiline text, quotes, and pipes. The helper uses the profile
+   timezone. Use only a confirmed project; otherwise leave `project` empty.
+   Never read old inbox messages to add a TODO; verify its compact receipt.
+   After a successful capture, rename once to `Todo SUMMARY` in `secretary_language`
+   per the shared title rule, using the helper's very short raw summary.
    Do not ask for a project, deadline, priority, or task breakdown by default.
    If this same user turn was already captured, reuse its entry instead of
    duplicating it. Save follow-up details immediately with the same entry,
    preserving `raw`; supplied details alone do not request clarification.
    If the target is unclear, save them as unassigned pending TODO input first;
    leave them unassigned unless the user identifies the target or requests discussion.
-3. Verify the write and rebuild the index with
-   `python scripts/state.py --secretary-dir RUNTIME --rebuild --json`.
+3. Verify the write receipt from
+   `python scripts/workflow.py --secretary-dir RUNTIME --capture todo` (with the required payload,
+   session and request key). No full state rebuild is needed for inbox changes.
    Never mark gm/gn for TODO capture. Confirm the saved TODO briefly, using the
    reply template. Do not require a reply or a now/later choice. A brief optional
    `Clarify` invitation is allowed, not a clarification question.
@@ -57,12 +63,11 @@ Keep the current session and model; do not delegate.
 6. Later `/gm`, `/gn`, and `/secretary` workflows may surface an open TODO as a
    task/reminder, not an automatic clarification TODO or question. Do not invent
    a due date, force it into today's must-do list, or duplicate an existing task.
-   Only user-confirmed completion permits marking it `done`; rebuild the index
-   after changes. No scheduler is needed.
+   Only user-confirmed completion permits marking it `done`; use revision-checked
+   `inbox.py --update`. No scheduler is needed.
 
 ## Errors
 
-A failed write means not saved. Distinguish a verified inbox save from a failed
-index rebuild. Preserve unrelated records and unknown outcomes; inspect before
+A failed write means not saved. Preserve unrelated records and unknown outcomes; inspect before
 retrying so a possibly successful capture is not duplicated. Do not turn a
 capture failure into an unrequested code-repair or task-execution detour.

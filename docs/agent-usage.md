@@ -10,7 +10,8 @@ model. The five workflows live in `docs/workflows/` and load only when requested
 Installing the skill does not initialize personal records.
 
 Start with `/secretary` for owner-confirmed setup. The loaded skill and
-`docs/skill-rules.md` are the execution instructions; the sections below are a
+`docs/core-rules.md` and the requested workflow are the execution instructions;
+`docs/skill-rules.md` is an expanded reference. The sections below are a
 quick overview. Reply shapes live in `templates/*.reply.template.md`.
 Setup uses [staged initialization](initialization.md): reuse answers, save only
 authorized local records, then run selected checks once under a shared elapsed
@@ -49,7 +50,7 @@ authorize code development. Event import is a separate follow-up.
   facts. Warmth is the default, not an override of the user's preference.
   Explain useful context and advice; use paragraphs or bullets as appropriate.
   Follow `reply-voice.md`: keep the agreed persona within useful section content.
-  No extra framing or closing flavor text. Use headings and horizontal rules,
+  No extra framing; a brief grounded closing is optional. Use headings and horizontal rules,
   ordered weather parts, source-summary news bullets and calendar timetables.
   Reserve bold for key findings or urgent warnings, never section divisions.
   Keep internal reads and daily records compact, not the user's conversation.
@@ -61,7 +62,7 @@ authorize code development. Event import is a separate follow-up.
 
 ## `/gm`: morning briefing
 
-1. Say good morning. Run `python scripts/state.py --check`. If today already has
+1. Say good morning. Run `workflow.py --prepare gm` once for local context. If today already has
    a briefing, identify its session and use the saved record; do not fetch again.
    Remind the user about missed morning/night runs, oldest first. When proceeding
    with a new briefing, rename this conversation to `GoodMorning YYYY-MM-DD`
@@ -82,7 +83,8 @@ authorize code development. Event import is a separate follow-up.
    deadlines, and estimates where supported. Pick today's must-do and nice-to-do
     tasks. Add unchecked TODOs for pending idea clarification in the reply and
     daily task list.
-6. Save concise output using `templates/daily.template.md`, with tasks unchecked.
+6. Amend the daily record using `daily.py --amend --expect HASH`, with new tasks unchecked
+   and earlier completions preserved; no full-file model rewrite.
    Save the verbatim reply using `state.py --mark-gm --session NAME
    --answer-file PATH` or `--answer-stdin`.
    Prefer `--json` for state commands. Saving/marking a morning reply does not
@@ -90,10 +92,10 @@ authorize code development. Event import is a separate follow-up.
 
 ## `/gn`: night summary
 
-1. Check state for duplicate or missed runs and identify the previous session.
+1. Use `workflow.py --prepare gn` for duplicate/missed runs, tasks and preferences.
    When proceeding with a new summary, rename this conversation to
    `GoodNight YYYY-MM-DD` in `secretary_language` for the selected daily date.
-2. Read today's task lists and ask what the user completed. Mark only confirmed
+2. Use the returned task IDs and ask what the user completed. Mark only confirmed
    completions. Save feedback and actual progress.
 3. Assess project progress from the user's report, suggest next steps, and update
     authorized project records. When Betterbird is the confirmed calendar source,
@@ -109,7 +111,7 @@ authorize code development. Event import is a separate follow-up.
 1. Once the raw idea is known (if none was supplied, ask first), rename this
    conversation to `Eureka SUMMARY` in `secretary_language` with a very short idea summary
    (see `docs/skill-rules.md`). Save the raw idea and any supplied details
-   with a timestamp as pending in `secretary/inbox.md`; note remaining ambiguity and
+   with `workflow.py --capture eureka` as pending in `secretary/inbox.sqlite`; note remaining ambiguity and
    confirm it was saved. Offer calendar confirmation if it implies a dated event.
 2. Leave it pending by default, without a now/later question. Invite optional
    clarification via `Clarify`; the idea can also stay as is. Accept details
@@ -125,8 +127,8 @@ authorize code development. Event import is a separate follow-up.
 
 1. Rename the conversation to `Todo SUMMARY` in `secretary_language` using a very
    short summary. Save the exact TODO with the local timestamp as a pending
-   `kind: "todo"` inbox entry; preserve multiline wording with JSON. Verify the
-   save, rebuild the state index, and confirm briefly.
+   `kind: "todo"` inbox entry via `workflow.py --capture todo`; preserve multiline wording with JSON. Verify the
+   save receipt and confirm briefly. Inbox-only changes need no state rebuild.
 2. Record only: no default clarification questions, project/deadline questions,
    planning, research, delegation, task execution, or calendar changes. Save
    follow-up details without treating them as a request for discussion.
@@ -138,7 +140,7 @@ authorize code development. Event import is a separate follow-up.
 
 ## `/secretary`: general work
 
-Rename this conversation to `Secretary YYYY-MM-DD` in `secretary_language` with the local date
+Rename this conversation to `Secretary SUMMARY` in `secretary_language` with a simple summary, no date
 (see `docs/skill-rules.md`). Handle setup, records, calendar review, questions, and confirmed plan changes.
 Read relevant project files to understand context. Use `docs/project-access.md`
 for authorized local/remote access and write-back; preserve unrelated work.
@@ -155,6 +157,10 @@ same entry: the next `/gm` includes a clarification TODO, `/gn` asks clarificati
 questions, and later `/secretary` calls remind the user. Reuse answers and avoid
 duplicate notes/tasks; resolve the entry only after clarification and authorized
 updates succeed. See the pending project-update workflow in `docs/skill-rules.md`.
+Use `docs/inbox-pipeline.md` for stable IDs, idempotent capture and revision-checked
+current-state updates. Save only material memory, not a conversation transcript.
+Normal reads use `workflow.py --prepare secretary`, then only relevant filtered
+active/current IDs; raw text/history is explicit. See `docs/workflow-helpers.md`.
 When the user moves, confirm and update the profile city and region, then verify
 the weather location. National news country remains an independent choice.
 

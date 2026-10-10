@@ -11,16 +11,15 @@ and any supplied details or request to clarify. Output: a saved pending idea fir
 confirmed organization only after clarification and successful writes.
 
 All paths below are relative to the GoodMorning package root. Read
-`docs/skill-rules.md` first. Use
+`docs/core-rules.md` first (`docs/skill-rules.md` is the expanded reference). Use
 `templates/eureka.reply.template.md`. Run commands from root and resolve
 the shared runtime directory. Do not ask for a now/later choice by default. Use
 `question` only for needed clarification or confirmation. Do not fetch
 weather/news or scan all projects.
 Apply the shared materiality gate: no non-critical disclaimers or unrelated
 diagnostic narration; show the actual capture outcome and useful next step.
-Use `docs/reply-voice.md`: quick capture can still sound interested and
-personal. Reflect the idea within useful content, without extra framing. Use lists
-when clarification benefits from them, not forced tables or decorative bold.
+Quick capture follows the shared voice essentials; read `docs/reply-voice.md`
+only for detailed discussion. Reflect the idea naturally, without extra framing.
 Brief grounded interest or a warm closing is optional, not mandatory padding.
 
 ## Steps
@@ -29,18 +28,20 @@ Brief grounded interest or a warm closing is optional, not mandatory padding.
     missing, retain the idea in the conversation, read `docs/workflows/secretary.md` for setup, and
    say it is not saved yet. If no idea was supplied, ask for it; do not create an
    empty entry.
-2. Rename this conversation to `Eureka SUMMARY` in `secretary_language` per the
-   shared title rule, using a very short idea summary; if no idea was supplied,
-   ask first, then rename.
-   Append one pending entry to the existing inbox without replacing other ideas:
-   `- YYYY-MM-DD HH:MM TIMEZONE | RAW_IDEA | pending | PROJECT`.
-   Use the real local timestamp and an optional confirmed project. Preserve raw
-   wording; for multiline text, encode the raw string as JSON on that single
-   line so line breaks/quotes are reversible. Never persist credentials: ask for
-   a redacted idea instead. Verify the write before saying "Saved". If this same
+2. For new raw input use `workflow.py --capture eureka --session SESSION --request-key KEY
+   --input-stdin` with JSON `raw` and optional confirmed project/current context.
+   This checks local setup and saves directly; no preparation/full profile/state read.
+   It produces the English title suggestion and reply preferences. No `kind` in this
+   payload (the wrapper supplies `kind: "idea"`). Read `docs/inbox-pipeline.md`
+   only for follow-ups/review/organization, not simple capture. Timestamps use the profile.
+   After a successful receipt, rename once to `Eureka SUMMARY` in `secretary_language`
+   per the shared title rule, using the helper's very short raw summary.
+   Never read old inbox messages to append. Never persist credentials: ask for
+   a redacted idea instead. Verify the write receipt before saying "Saved". If this same
     user turn was already captured, point to its entry rather than appending again.
    Save follow-up details immediately too, before any clarification question,
-   using the shared inbox rules. Note what still requires clarification.
+   using `--append ID`. Keep a concise current context and focused questions,
+   not a transcript; note what still requires clarification.
 3. Apply the user's customised tone throughout the confirmation, questions, and
    reminders, while prioritizing clean formatting and clarity. Confirm what was
     saved in a natural reply using the template. By default, leave it pending and
@@ -59,16 +60,17 @@ Brief grounded interest or a warm closing is optional, not mandatory padding.
    or command is required to provide details. Reuse supplied answers and relevant
    context. If the target idea is ambiguous, ask which one rather than guessing.
    Preserve the original raw idea and retain additional details with that pending
-   entry, not as a duplicate idea. Ask focused questions only about remaining
+   entry via its stable ID, not as a duplicate idea. Ask focused questions only about remaining
    ambiguity in the goal, intended project, constraints, or next action. If those
    are already clear, skip clarification questions. Quote back the clarified
    meaning for confirmation. Read only
    relevant project records/instructions. Write the confirmed idea into authorized
    records and/or work files, updating `last_update` and preserving unrelated work.
-6. Change that inbox entry to `confirmed` only after the user confirms and the
-   agreed organization succeeds. If any required write is unresolved, keep it
-   pending and describe what remains. Rebuild the state index after record changes
-   with `state.py --rebuild --json`; never mark gm/gn for idea capture.
+6. Use `inbox.py --update ID --expect-revision REVISION` to change the entry to
+   `confirmed` only after the user confirms and the agreed organization succeeds.
+   If any required write is unresolved, keep it pending and describe what remains.
+   State checks/marks already read current records; do not rebuild after every
+   record edit. Never mark gm/gn for idea capture.
 
 ## Errors
 

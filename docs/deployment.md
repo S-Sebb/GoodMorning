@@ -76,9 +76,20 @@ saves are separate operations.
 
 ## Update and rollback
 
+- Workflow upgrades copy `workflow.py`, `daily.py`, `news_views.py` and their shared
+  helper changes together with `docs/core-rules.md`, routed workflows and the skill
+  entry. No personal-data migration is required. Verify on disposable records,
+  then use read-only preparation on the selected live runtime. Start a fresh session
+  to load new instructions. Existing missing-calendar reads now require setup.
 - Back up the private runtime before updates. Use SQLite's backup API for active
   databases, or stop writers before copying SQLite files/journals.
 - Copy changed public skill files only; retain personal records and environment.
+- Inbox upgrades use `scripts/inbox.py` and `scripts/inbox_store.py` together with
+  their workflow/state instructions. With explicit migration consent, run
+  `python scripts/inbox.py --secretary-dir RUNTIME --migrate --session NAME`.
+  This keeps an unchanged private legacy archive and replaces `inbox.md` with a
+  helper/archive pointer. Verify counts and relevant current entries; normal reads
+  must not load the legacy archive. See `docs/inbox-pipeline.md` for recovery.
   New reply-language preferences do not force older profiles to reinitialize.
 - Preserve unknown/newer schemas, corrupt data and stable production locks. Do
   not force migrations, reset databases or replay unknown mutations.

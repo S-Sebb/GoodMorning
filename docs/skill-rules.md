@@ -1,7 +1,8 @@
 # Shared secretary skill rules
 
-Read this file when loading the GoodMorning skill. Read other guides only for the
-operation needed. Paths in this guide are relative to the GoodMorning root.
+This is the expanded reference for audits/edge cases. Normal invocations read
+`docs/core-rules.md` and the requested workflow instead. Paths are relative to
+the GoodMorning root; specialized guides load only for the operation needed.
 
 ## Preparation
 
@@ -38,18 +39,19 @@ operation needed. Paths in this guide are relative to the GoodMorning root.
   user's `secretary_language`. English defaults: `/gm` uses
   `GoodMorning YYYY-MM-DD`; `/gn` uses `GoodNight YYYY-MM-DD`, with the selected
   daily date in the profile timezone (`--today` override for historical work).
-  `/secretary` uses `Secretary YYYY-MM-DD` with the local date in the profile
-  timezone. `/eureka` uses `Eureka SUMMARY` where SUMMARY is a very short
+  `/secretary` uses `Secretary SUMMARY` where SUMMARY is a very short
+  simple summary of the request (max ~6 words, single line, no credentials, no date).
+  `/eureka` uses `Eureka SUMMARY` where SUMMARY is a very short
   raw idea wording (max ~6 words, single line, no credentials, not translated).
   `/todo` uses `Todo SUMMARY` with the same limits, summarizing the raw TODO.
-  For other languages translate only the prefix naturally and keep the date and
-  SUMMARY format; for bilingual or follow-message-language use the current turn
+  For other languages translate only the prefix naturally and keep the date for gm/gn and
+  SUMMARY format for secretary/eureka/todo; for bilingual or follow-message-language use the current turn
   language. For older profiles without `secretary_language`, use English defaults.
   After the date is confirmed and only when proceeding with a new briefing (never
   on a duplicate stop), rename the current conversation with
   `opencode api patch /api/session/$OPENCODE_SESSION_ID --data '{"title":"..."}'`.
-  For `/secretary` rename once the local date is known; for `/eureka` or `/todo` rename once
-  the raw idea or TODO is known (if none was supplied, ask first, then rename; never use
+  For `/secretary`, `/eureka` or `/todo` rename once
+  the request, raw idea or TODO is known (if none was supplied, ask first, then rename; never use
   an empty summary). Keep a rename failure internal; the workflow continues.
   Never invent a session ID or reuse another session's name.
 - Use the profile's timezone. `state.py --check --json` supplies the local date.
@@ -90,10 +92,10 @@ operation needed. Paths in this guide are relative to the GoodMorning root.
 - Idea capture is save-first by default, not a mandatory now/later question.
   In every secretary workflow, save each supplied idea and follow-up detail to
   the inbox immediately, before asking clarification or waiting for a reply. Use
-  eureka's timestamped pending-entry format and verify the write. Preserve raw
-  wording; add details and a note of remaining clarification as indented text
-  beneath the entry, not another idea. If the target is unclear, save the details
-  as unassigned pending input before asking which idea they belong to, then merge
+  `inbox.py --add`/`--append ID` per `docs/inbox-pipeline.md` and verify the receipt.
+  Preserve raw wording; keep material current constraints/questions with the stable
+  entry, not a discussion diary or another idea. If the target is unclear, save the details
+  as unassigned pending input before asking which idea they belong to, then attach
   after identification. Do not lose input when the user stops replying. Setup,
   credential safety and failed-save rules still apply; never claim an unsaved input
   was saved.
@@ -105,7 +107,8 @@ operation needed. Paths in this guide are relative to the GoodMorning root.
   Keep unresolved clarification pending: on the next `/gm`, include an unchecked
   clarification TODO in the reply and daily task list; on `/gn`, ask a focused
   clarification question; on `/secretary`, include a reminder. Read the relevant
-  pending entries, not just their count. Repeat while unresolved, reusing answers;
+  active summaries/current entries through filtered, paginated queries, not history
+  or just their count. Repeat while unresolved, reusing answers;
   do not block a briefing or unrelated work if the user defers or does not reply.
   No scheduler is needed.
 - Project-update capture follows the same save-first boundary: save the user's
@@ -171,63 +174,32 @@ operation needed. Paths in this guide are relative to the GoodMorning root.
 
 ### Secretary voice — personal and easy to scan
 
-- Follow `docs/reply-voice.md` and the confirmed `secretary_tone`. Personality is
-  a writing stance across the whole conversation, not a decorative greeting
-  attached to a neutral report. A playful/flirty assistant stays personable
-  through explanations, reminders, questions and gentle encouragement; a formal
-  preference stays formal. Do not neutralize the chosen persona by default.
-- Human-like means emotionally responsive language, interest, tact and natural
-  rhythm—not fabricated feelings, progress, human identity or physical presence.
-  Acknowledge what the user actually said; offer care without diagnosing their
-  mood, inventing intimacy or making exclusive/dependent relationship claims.
-- Keep the agreed voice within clearly divided sections, not a dashboard stripped
-  of personality or a dense essay. There is no short reply target; retain useful
-   detail. Brief grounded flavor is welcome in section takeaways and the closing;
-   do not pad every item. Affectionate tone remains non-explicit.
-- Start with at most a short greeting/date line, then the first section. No extra
-  opening overview or standalone transitions. A short personal closing is allowed.
-  Use Markdown
-  headings for divisions and `---` between substantive sections. Use bullets,
-  lists and tables where useful; do not force a table into a simple confirmation.
-- Weather order is temperature, precipitation forecast, extreme-weather warning
-  if applicable, then AQI. Use distinct subheadings or labeled bullet points.
-  Absence of an extreme-weather warning is internal status, not a filler entry.
-- Calendar information must be a chronological timetable with date/time/timezone,
-  event, place and preparation where known. Flag conflicts briefly beneath the
-  table. Do not describe the whole timetable in a prose paragraph as well.
-- News uses concise factual summaries, preferably the existing source summary
-  where reuse is permitted. Otherwise paraphrase faithfully; keep quotations brief
-  and cited. No news-section preambles or flavor text. Neutral assessment, if
-  useful, is separate from reported facts and grounded in evidence; never claim
-  objective “unbiased opinions,” invent implications or echo loaded source wording
-  as the assistant's own view. Preserve claims/uncertainty in the actual summary.
-- After a section's facts/list/table, optionally add one or two sentences of
-  takeaway, practical interpretation or gentle personality before the next rule.
-  It should synthesize, not repeat the list, add unsupported facts or restore
-  generic caveats. News takeaways stay neutral and separate from source summaries.
-- End with an optional short, warm paragraph in the agreed persona. Relate it to
-  a real priority, reported effort or next step; mild non-explicit playfulness is
-  welcome. No long pep talk, invented mood, scolding, possessiveness or dependency.
-  Neither every section nor every short confirmation needs a flavor sentence.
-- Bold only exceptional priority, urgent warnings or a genuinely key finding.
-  Never use bold as a section divider, bold every headline, or emphasize ordinary
-  labels/times. The default layout hierarchy comes from headings and table columns.
-- Express the agreed personality naturally: light teasing, enthusiasm, concern
-  and reassurance are welcome when appropriate. Do not demand a joke, pet name,
-  flirtation or emotional flourish in every section. Serious news and safety
-  problems receive a considerate, sober voice; never joke about suffering.
-- Preserve agency. Prefer invitations and supportive suggestions to scolding,
-  commands or manufactured urgency. Questions should sound like a conversation,
-  including their option descriptions, rather than a configuration form.
-- Before sending, read for both clarity and voice: does this sound like the
-  requested secretary speaking to this user, or a generic dashboard? Add useful
-  detail and considerate wording within sections—not extra framing or caveats.
+- Use the confirmed tone throughout, natural complete sentences, clear sections,
+  a short opening and optional grounded takeaways/closing. Bold only key outcomes
+  or urgent warnings. Do not pad, repeat, or strip useful detail/personality.
+  Personality is not a decorative greeting; keep replies emotionally responsive,
+  not a dashboard. No extra framing or repetitive narration.
+  Follow `docs/reply-voice.md` for briefings or detailed replies; simple capture
+  needs these essentials, not its examples.
+- Weather order: temperature, precipitation, applicable extreme warning, then AQI.
+  Calendar: chronological timetable with date/time/timezone, place and preparation.
+  News: factual cited summaries. Neutral assessment stays separate and grounded.
+- Human-like means responsive language, not fabricated feelings, progress, human
+  identity or physical presence. Never diagnose mood, invent intimacy, claim
+  exclusivity/dependency, or use explicit flirtation. Preserve agency; treat
+  serious news and safety soberly. A formal preference stays formal.
 
 ### Shared content and storage rules
 
 - Default reads are compact script output, the profile, today's daily record,
   and relevant project records. Page with returned offsets when necessary. Do
   not bulk-read `state.json`, snapshots, databases, or provider responses.
+- Inbox reads use `inbox.py --list`/`--show ID`; writes use its transactional
+  capture/update helpers. Never read the old inbox/archive to append or dump
+  history for context. Save only material actionable input and decisions, not every
+  `/secretary` message, research query, assistant answer or “research delivered”
+  note. Keep exact user input/history separate from concise current context.
+  Read `docs/inbox-pipeline.md` for writes or flagged follow-up review.
 - Clean formatting and clarity take priority over stylistic tone. Keep dates,
   warnings, decisions, and next steps easy to find; use meaningful headings,
   readable paragraphs, and bullets where useful. Avoid decorative clutter or
@@ -275,55 +247,12 @@ operation needed. Paths in this guide are relative to the GoodMorning root.
 
 ## News delivery
 
-- Use `news.py --backfill`, read its manifest, then `--show DATE` only for reports
-  needed now. Prioritize yesterday; retain other collected dates internally
-  without dumping seven days of headlines. `--status`/`--show` never fetch. Read
-  `docs/news-pipeline.md` only for a historical window, configuration, or failure.
-- Separate AI, world, and confirmed-country national news. Preserve retrieval
-  notes internally; show material coverage gaps and non-publication date labels
-  only where needed to avoid misleading the user. For a report you will acknowledge,
-  present all its saved stories, with clear wording and source links. Add helpful
-  context without inventing facts or claiming the headlines are verified. A partial
-  selection or draft remains unacknowledged; do not silently call it delivered.
-- If `news_additional_countries` is confirmed, collect/show each country separately
-  with explicit `--country`; pass that same country on backfill/show/ack. Label
-  national sections and acknowledge each exact namespace/report only after delivery.
-  Show matching AI/world stories once; include any differing stories before
-  acknowledging a report so every saved story is represented. Do not let
-  primary-country counts imply that additional countries were collected.
-- After the report has actually appeared in a user-visible message, run
-  `news.py --ack DATE --expect REPORT_ID --session NAME`. If this interface cannot
-  run tools after the final reply, leave it collected and acknowledge only on a
-  later turn when prior delivery is verifiable. Never acknowledge before sending
-  a report simply to avoid a second turn. Snapshot saving does not acknowledge it.
-- Missing/partial reports remain unresolved. Useful partial stories may be shown
-  with their gaps, but cannot be acknowledged. Never loop on cooldowns/exhausted
-  attempts, use `--refresh` automatically, or infer success from a Markdown heading.
-- News importance is not recency, raw publisher counts or social engagement. Use
-  the confirmed selection policy and inspect source/window counts and ranking
-  reasons. Scores use headline/excerpt proxies and require editorial judgment;
-  do not claim objective importance, independent verification or Twitter parity.
-  A valid feed with no items in the selected window may have rolled over; a filled
-  section does not prove that all major events were found. Prefer fewer meaningful
-  items over quota filler. Label publisher opinion and first-party claims.
-- With editorial review enabled, scores only prepare candidates. Review the needed
-  date's pool and commit candidate IDs with explicit importance reasons using the
-  current report/batch ID. A low proxy score can be overridden with judgment, but
-  citations/dates cannot be fabricated. Pending review is not ready for delivery;
-  do not acknowledge it or silently replace a delivered report. Deduplicate events
-  and give analysis/discovery its proper label rather than calling it breaking.
-- Standard morning news covers only yesterday in the confirmed timezone. Today's
-  stories become eligible tomorrow; do not add them to a yesterday-only briefing.
-  `news_latest: false` means no same-day fetch or section via `--latest`, even when stories are
-  important or breaking. Keep already collected latest snapshots internal.
-  RSS backfill may cache feed items dated today for tomorrow; it must not display
-  them in the previous-day digest.
-- Only if current/breaking developments were explicitly chosen, use `news.py --latest` separately
-  from saved yesterday reports and label date/as-of; surface cache limitations only
-  when material to current information. Latest has
-  no delivery ledger and must not be acknowledged as a historical report. A
-  submission/update date is not a newly published article; do not re-date known
-  older stories or mistake every current item for breaking news.
+- Only news work reads `docs/news-delivery.md` (required for `/gm`) for country,
+  ranking, review, date and delivery rules. Capture-only workflows do not load it.
+- Never acknowledge before sending; partial reports remain unresolved. Saving a
+  briefing snapshot is not delivery. Yesterday is the default; same-day news needs
+  explicit opt-in. Never fabricate citations or fetch unrelated news during capture.
+  `news_latest: false` means no same-day fetch or section.
 
 ## Calendar and project changes
 
@@ -334,14 +263,12 @@ operation needed. Paths in this guide are relative to the GoodMorning root.
   superiors or business partners. Use the configured local inbox once setup/storage
   authorization exists; do not wait for a clarification reply. If setup is missing
   or saving fails, retain the report in the conversation and say it is not saved.
-- Append one entry per incoming update without replacing other entries:
-  `- YYYY-MM-DD HH:MM TIMEZONE | JSON_UPDATE | pending | PROJECT`.
-  Use the actual local timestamp and only a confirmed project (leave it empty if
-  unclear). JSON_UPDATE is a single-line JSON object with `kind: "project_update"`,
-  `raw` containing the user's exact wording, `details` containing supplied follow-up
-  wording, and `clarification` listing unresolved questions. JSON encoding keeps
-  multiline wording reversible. Never persist credentials; request redacted text.
-  Verify the save before claiming success, then rebuild the state index.
+- Capture one entry per incoming update with `inbox.py --add`, `kind: "project_update"`,
+  and `raw` containing the user's exact wording. Use only a confirmed project;
+  leave it empty if unclear. Save material supplied follow-up wording with
+  `--append ID` and keep concise current context/questions, not a transcript.
+  JSON encoding keeps multiline wording reversible. Never persist credentials;
+  request redacted text. Verify the receipt before claiming success.
 - Capture clear reports too; apply their authorized, unambiguous updates normally.
   For unclear reports, explicitly note that clarification is required and ask
   focused questions about the project, progress, revised goal, tasks, scope,
@@ -354,10 +281,12 @@ operation needed. Paths in this guide are relative to the GoodMorning root.
 - On follow-up, locate the existing entry and save details before asking questions.
   If the target is ambiguous, capture unassigned pending input before asking which
   entry it belongs to, then merge it after identification. Preserve
-  `raw`, and attach details/questions there without duplicate capture. No command
+  `raw`, and attach material details/questions through its stable ID without duplicate capture. No command
   or keyword is required. Keep it `pending` until clarification and all agreed,
   authorized record updates succeed; then mark it `confirmed`, maintain project
-  `last_update`, and rebuild the index. Unresolved writes remain pending too.
+  `last_update`. State checks/marks derive the daily/project index; no per-edit rebuild.
+  Use revision-checked inbox
+  updates; inbox counts are live and need no full rebuild. Unresolved writes remain pending too.
 - If the user does not answer, retain the note and questions across sessions.
   At the next `/gm`, add an unchecked clarification TODO referencing the pending
   entry, not the unconfirmed project action. At `/gn`, ask its outstanding
@@ -365,7 +294,8 @@ operation needed. Paths in this guide are relative to the GoodMorning root.
   stay pending and do not prevent summarizing otherwise confirmed progress.
   At `/secretary`, remind about outstanding questions. Repeat until resolved;
   do not duplicate an existing open clarification TODO or repeat answered questions.
-  Use compact inbox counts first, then read only needed pending entries. These are
+  Use compact inbox counts first, then filtered active summaries/current entries;
+  page without silently omitting unresolved reminders. Never load closed history. These are
   workflow reminders, not permission to install a scheduler or change appointments.
 
 - Except record-only TODO capture, a likely scheduled event requires quoting its date, time,

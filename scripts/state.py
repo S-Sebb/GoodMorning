@@ -44,7 +44,8 @@ from pathlib import Path
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from calendar_store import read_stats
-from runtime_files import atomic_text, profile_fields, runtime_lock
+from inbox_store import InboxStore
+from runtime_files import atomic_text, profile_fields, runtime_lock, secretary_path, calendar_path
 from reply_policy import boilerplate_categories
 
 VERSION = 1
@@ -67,14 +68,7 @@ def eprint(*a: object) -> None:
 
 
 def find_secretary_dir(explicit: str | None) -> str:
-    if explicit:
-        return explicit
-    if os.environ.get("SECRETARY_DIR"):
-        return os.environ["SECRETARY_DIR"]
-    if os.path.isdir(os.path.join(os.getcwd(), "secretary")):
-        return os.path.join(os.getcwd(), "secretary")
-    here = os.path.dirname(os.path.abspath(__file__))
-    return os.path.join(here, "..", "secretary")
+    return str(secretary_path(explicit))
 
 
 def today_str(override: str | None, timezone: str = "") -> str:
@@ -248,13 +242,13 @@ def parse_daily(path: str) -> dict:
 
 
 def scan_inbox(secretary_dir: str) -> dict:
-    """Tolerant parse of secretary/inbox.md.
-
-    Expected line shape (templates/inbox not yet fixed, so be lenient):
-      - YYYY-MM-DD | raw idea | pending | project
-    Any line mentioning 'pending' counts as pending; first date-like
-    token is its date. Lines mentioning confirmed/done are done.
-    """
+    """Read SQLite counts only; retain read-only compatibility with legacy Markdown."""
+    if Path(secretary_dir, "inbox.sqlite").exists():
+        store = InboxStore(secretary_dir)
+        try:
+            return store.stats()
+        finally:
+            store.close()
     out = {"pending": 0, "oldest_pending_date": None, "total": 0}
     try:
         with open(os.path.join(secretary_dir, "inbox.md"), encoding="utf-8") as f:
@@ -317,7 +311,7 @@ def count_custom_events(secretary_dir: str) -> dict:
 
 
 def calendar_stats(secretary_dir: str) -> dict:
-    path = os.environ.get("CALENDAR_DB_PATH") or os.path.join(secretary_dir, "calendar.sqlite")
+    path = str(calendar_path(secretary_dir))
     return {**read_stats(path),
             "legacy_markdown": os.path.isfile(os.path.join(secretary_dir, "custom_schedule.md"))}
 
@@ -326,7 +320,8 @@ def daily_path(secretary_dir: str, day: str, suffix: str = ".md") -> str:
     return os.path.join(secretary_dir, "daily", day + suffix)
 
 
-def rebuild_index(secretary_dir: str, state: dict, today: str | None = None) -> dict:
+def rebuild_index(secretary_dir: str, state: dict, today: str | None = None,
+                  snapshot_stats: bool = True, scan_context: bool = True) -> dict:
     """Rescan files into state['days'] + summaries. Files win on conflict."""
     ddir = os.path.join(secretary_dir, "daily")
     if Path(ddir).is_symlink():
@@ -370,7 +365,7 @@ def rebuild_index(secretary_dir: str, state: dict, today: str | None = None) -> 
                     warnings.append("unsafe_answer_pointer")
                     parsed[kind]["answer_file"] = None
                     continue
-            if apath and os.path.isfile(apath) and cutoff <= day <= today:
+            if snapshot_stats and apath and os.path.isfile(apath) and cutoff <= day <= today:
                 metadata = os.stat(apath)
                 fingerprint = [metadata.st_dev, metadata.st_ino, metadata.st_size,
                                metadata.st_mtime_ns, metadata.st_ctime_ns]
@@ -399,10 +394,11 @@ def rebuild_index(secretary_dir: str, state: dict, today: str | None = None) -> 
     gn_days = sorted(d for d, v in days.items() if v["gn"]["ran"])
     state["last_gm_date"] = gm_days[-1] if gm_days else None
     state["last_gn_date"] = gn_days[-1] if gn_days else None
-    state["inbox"] = scan_inbox(secretary_dir)
-    state["projects"] = scan_projects(secretary_dir)
-    state["calendar"] = calendar_stats(secretary_dir)
-    state["custom_schedule"] = {"events": state["calendar"]["custom"]}
+    if scan_context:
+        state["inbox"] = scan_inbox(secretary_dir)
+        state["projects"] = scan_projects(secretary_dir)
+        state["calendar"] = calendar_stats(secretary_dir)
+        state["custom_schedule"] = {"events": state["calendar"]["custom"]}
     tz = read_profile_timezone(secretary_dir)
     state["timezone"] = tz
     state["warnings"] = sorted(set(warnings))

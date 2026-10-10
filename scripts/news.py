@@ -38,7 +38,8 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from news_cache import Fetcher, NewsCache, SourceUnavailable
 from news_reports import ReportStore, context_key, recent_days
-from runtime_files import profile_fields, runtime_lock
+from runtime_files import profile_fields, runtime_lock, secretary_path, cache_path
+from news_views import report_view
 from news_rank import POLICY, rank_stories, source_genre
 from news_editorial import candidates as editorial_candidates, seal, curate
 
@@ -72,7 +73,7 @@ def parse_args(argv=None):
     p.add_argument("--max-items", type=int, default=DEFAULT_MAX_ITEMS,
                    help=f"Max stories per section per day (default: {DEFAULT_MAX_ITEMS}).")
     p.add_argument("--timeout", type=int, default=TIMEOUT, help="HTTP timeout seconds.")
-    p.add_argument("--cache-dir", default=os.environ.get("GM_CACHE_DIR", ".cache/goodmorning"),
+    p.add_argument("--cache-dir", default=str(cache_path()),
                    help="Local response cache and headline archive directory.")
     p.add_argument("--no-cache", action="store_true", help="Use memory only; no persistent reads/writes.")
     p.add_argument("--offline", action="store_true", help="Read local archive/cache without network access.")
@@ -82,6 +83,10 @@ def parse_args(argv=None):
     p.add_argument("--sources", default=SOURCES_FILE, help="Feed config; country feeds can be user-local.")
     p.add_argument("--max-links", type=int, default=1, choices=[1, 2], help="Links per story (default: 1).")
     p.add_argument("--details", action="store_true", help="Include full source metadata in JSON.")
+    p.add_argument("--view", choices=("full", "stories", "candidates"), default="full",
+                   help="Saved --show/--curate projection; stories omits candidate/diagnostic history")
+    p.add_argument("--offset", type=int, default=0, help="Candidate page offset for --show --view candidates")
+    p.add_argument("--limit", type=int, default=10, help="Candidate page size, 1..30")
     p.add_argument("--audit", action="store_true", help="Include up to 30 ranked candidates and source diagnostics; no article fetches.")
     actions = p.add_mutually_exclusive_group()
     actions.add_argument("--latest", action="store_true", help="Today's developments as of collection time, separate from yesterday and delivery reports.")
@@ -93,7 +98,7 @@ def parse_args(argv=None):
     actions.add_argument("--status", action="store_true", help="Read seven-day report statuses without fetching.")
     actions.add_argument("--show", metavar="DATE", help="Read one saved compact report without fetching.")
     actions.add_argument("--ack", metavar="DATE", help="Acknowledge delivery of an exact collected report.")
-    p.add_argument("--secretary-dir", default=os.environ.get("SECRETARY_DIR", "secretary"))
+    p.add_argument("--secretary-dir", default=str(secretary_path()))
     p.add_argument("--today", help="Explicit YYYY-MM-DD for deterministic backfill/tests.")
     p.add_argument("--ending", help="Managed seven-day window ending on this past date (default yesterday).")
     p.add_argument("--expect", help="Current report_id from --show; required for --ack.")
@@ -515,6 +520,12 @@ def main(argv=None):
 
 def run(argv=None):
     args = parse_args(argv)
+    args.secretary_dir = str(secretary_path(args.secretary_dir))
+    args.cache_dir = str(cache_path(args.cache_dir))
+    if not 1 <= args.limit <= 30 or args.offset < 0:
+        raise ValueError("invalid news page size/offset")
+    if (args.view != "full" or args.offset) and not (args.show or args.curate or args.curate_latest):
+        raise ValueError("saved views require --show, --curate or --curate-latest")
     if args.curate_latest:
         if not args.selection_file or not args.expect or not args.session:
             sys.exit("error: --curate-latest needs --selection-file, --expect BATCH_ID and --session")
@@ -528,6 +539,9 @@ def run(argv=None):
         if value.get("scope") != "latest_today" or value.get("since") != dt.datetime.now(ZoneInfo(value["timezone"])).date().isoformat():
             sys.exit("error: only a current-day latest candidate snapshot can be reviewed")
         result = curate(value, runtime_json(args.selection_file, args.secretary_dir), args.expect, args.session)
+        if args.view != "full":
+            result = report_view({"payload": result, "report_id": None, "status": "stateless",
+                                  "collected_at": value.get("as_of")}, args.view, args.offset, args.limit)
         print(json.dumps(result, ensure_ascii=False, separators=(",", ":")))
         return 0
     if args.selection_file and not args.curate:
@@ -848,13 +862,14 @@ def managed_reports(args, timezone, cfg, country, today):
                 reviewed = curate(row["payload"], runtime_json(args.selection_file, args.secretary_dir),
                                   row["payload"].get("candidate_batch_id"), args.session)
                 saved = store.save(context, reviewed, offline=True, expect=args.expect)
-                output = {"date": saved["day"], "status": saved["status"], "report_id": saved["report_id"],
-                          "curation": saved["payload"]["curation"]}
+                output = report_view(saved, args.view, args.offset, args.limit) if args.view != "full" else {
+                    "date": saved["day"], "status": saved["status"], "report_id": saved["report_id"],
+                    "curation": saved["payload"]["curation"]}
             else:
                 row = store.get(context, date.isoformat())
                 if row is None:
                     sys.exit("error: report_missing: collect under the current settings first")
-                output = {"report_id": row["report_id"], "status": row["status"],
+                output = report_view(row, args.view, args.offset, args.limit) if args.view != "full" else {"report_id": row["report_id"], "status": row["status"],
                           "collected_at": dt.datetime.fromtimestamp(row["collected_at"], dt.timezone.utc).isoformat(timespec="seconds"),
                           **row["payload"]}
             print(json.dumps(output, ensure_ascii=False, separators=(",", ":")))

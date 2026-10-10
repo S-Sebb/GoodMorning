@@ -295,6 +295,10 @@ class CommandTests(unittest.TestCase):
                      ("--offset", "-1"), ("--timezone", "Invalid/Zone"),
                      ("--add", "--event-json", "null")):
             self.assertEqual(self.run_command(*args)[0], 2)
+        self.assertFalse((Path(self.tmp.name) / "calendar.sqlite").exists())
+        self.assertEqual(self.run_command("--json")[0], 2)
+        self.assertFalse((Path(self.tmp.name) / "calendar.sqlite").exists())
+        self.assertEqual(self.run_command("--init")[0], 0)
         code, out, _ = self.run_command("--betterbird-path", "/nonexistent", "--json")
         self.assertEqual(code, 0)
         self.assertEqual(json.loads(out), [])

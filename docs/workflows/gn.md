@@ -13,7 +13,7 @@ snapshot. Apply that tone throughout, including questions and progress discussio
 clean formatting and clarity always take priority.
 
 All paths below are relative to the GoodMorning package root. Read
-`docs/skill-rules.md` first. Use
+`docs/core-rules.md` first (`docs/skill-rules.md` is the expanded reference). Use
 `templates/gn.reply.template.md` and
 `templates/daily.template.md`. Run commands from root; apply the shared
 runtime/date rules. Use `question` for needed progress input or clarification;
@@ -32,7 +32,9 @@ takeaways and the closing. Do not add routine weather/news, backlog or diagnosti
 
 ## Steps
 
-1. Check setup and run `python scripts/state.py --check --json`. Handle duplicate
+1. Run `workflow.py --secretary-dir RUNTIME --prepare gn` once for setup, dates,
+   preferences, paths, daily tasks/hash and active inbox summaries. Do not repeat
+   these reads. Handle duplicate
    or missed runs first. A duplicate names the previous session and stops without
    marking or overwriting its snapshot. When proceeding with a new summary,
    rename this conversation to `GoodNight DATE` in `secretary_language` per the shared title rule.
@@ -49,7 +51,9 @@ takeaways and the closing. Do not add routine weather/news, backlog or diagnosti
    extra work. A completion choice confirms that task only; partial/blocked work
    needs its actual details. Never turn implementation work by this agent, calendar
    presence or a successful gm run into the user's completed project work.
-3. Check only confirmed completed tasks. Add concise `## feedback` and
+3. Use `daily.py --date DATE --amend --expect HASH` with selected task IDs and explicit
+   `confirmed_completion:true` only for actual user-confirmed completions.
+   Add concise `## feedback` and
    `## progress` sections; keep partial and blocked tasks open. Assess each
    relevant project's position against known goals/deadlines, stating uncertainty
    when evidence is insufficient. Recognize actual effort without exaggeration or
@@ -65,8 +69,12 @@ takeaways and the closing. Do not add routine weather/news, backlog or diagnosti
    imports for review on every /gn run; never auto-approve unseen events. If the
    cache is locked, ask the user to close Betterbird and retry; otherwise continue
    with approved events. Then query the next local day's schedule with
-   `secretary_calendar.py --from TOMORROW --days 1 --timezone ZONE --json`.
-   Inspect preparation details, surface pending review, and remind about pending
+   `secretary_calendar.py --from TOMORROW --days 1 --timezone ZONE --json --details`.
+    Use preparation's inbox page; fetch further `inbox.py --list` filters/pages and
+    `--show ID` only as needed for relevant current
+    constraints; no raw inbox/history scan. Review flagged new details per
+    `docs/inbox-pipeline.md`; do not silently omit reminders from later pages.
+    Inspect preparation details, surface pending review, and remind about pending
     inbox ideas. Ask focused questions for pending clarification per the shared
     reminder rule; deferral leaves ideas pending without blocking the summary.
     Treat `kind: "todo"` entries as open task reminders, not automatic clarification

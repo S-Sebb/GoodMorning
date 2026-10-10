@@ -72,7 +72,19 @@ def endpoints(data: dict) -> tuple[datetime, datetime]:
 
 
 class CalendarStore:
-    def __init__(self, path: str):
+    def __init__(self, path: str, readonly=False):
+        if readonly:
+            self.con = sqlite3.connect(Path(path).resolve().as_uri() + "?mode=ro", uri=True, timeout=10)
+            self.con.row_factory = sqlite3.Row
+            try:
+                version = self.con.execute("PRAGMA user_version").fetchone()[0]
+                tables = {r[0] for r in self.con.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+                if version != 1 or not {"events", "history"} <= tables:
+                    raise ValueError("unsupported calendar database; preserve it and inspect setup")
+            except Exception:
+                self.con.close()
+                raise
+            return
         Path(path).parent.mkdir(parents=True, exist_ok=True)
         self.con = sqlite3.connect(path, timeout=10)
         self.con.row_factory = sqlite3.Row

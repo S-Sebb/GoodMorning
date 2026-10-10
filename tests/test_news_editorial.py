@@ -113,6 +113,15 @@ class EditorialTests(unittest.TestCase):
                 self.assertEqual(news.main(["--secretary-dir",directory,"--curate-latest",str(source),"--selection-file",str(choice),"--expect",data["candidate_batch_id"],"--session","ses-test"]),0)
             self.assertEqual(json.loads(reviewed.getvalue())["curation"]["state"],"reviewed")
             self.assertFalse((Path(directory)/"news_reports.sqlite").exists())
+            projected=io.StringIO()
+            with patch.object(news,"collect",side_effect=AssertionError("unexpected fetch")),contextlib.redirect_stdout(projected):
+                self.assertEqual(news.main(["--secretary-dir",directory,"--curate-latest",str(source),"--selection-file",str(choice),
+                    "--expect",data["candidate_batch_id"],"--session","ses-test","--view","stories"]),0)
+            compact=json.loads(projected.getvalue())
+            self.assertEqual(compact["status"],"stateless")
+            self.assertEqual(compact["as_of"],data["as_of"])
+            self.assertNotIn("candidates",compact)
+            self.assertEqual(compact["stories"],json.loads(reviewed.getvalue())["stories"])
 
 
 if __name__=="__main__":unittest.main()

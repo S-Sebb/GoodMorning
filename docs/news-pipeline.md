@@ -15,6 +15,8 @@ After confirming the profile's timezone, country, and optional feed config:
 ```bash
 python scripts/news.py --backfill
 python scripts/news.py --show YYYY-MM-DD
+python scripts/news.py --show YYYY-MM-DD --view candidates --limit 10 --offset 0
+python scripts/news.py --show YYYY-MM-DD --view stories
 python scripts/news.py --ack YYYY-MM-DD --expect REPORT_ID --session NAME
 python scripts/news.py --status
 ```
@@ -46,7 +48,10 @@ python scripts/news.py --status
 - Country, timezone, or effective feed changes get a separate report namespace.
   Earlier reports are preserved, not reused under a different scope. Item/link
   counts and provider choice do not hide an existing saved report; `--show`
-  exposes its saved settings. Refresh explicitly to change those settings.
+  full view exposes its saved settings. `--view stories` keeps every selected story,
+  citations, notes and review state without old candidate/diagnostic context.
+  Candidate views page complete records with `next_offset` and current report ID;
+  follow needed pages before editorial decisions. Refresh explicitly to change settings.
   Managed providers are `all` or `rss`, with `--max-items 1..10`; keyed AI-only
   discovery remains a stateless operation.
 - Refreshing changed content clears its delivery flag. Unchanged content keeps
@@ -144,7 +149,7 @@ with `--show`, then write a runtime-local JSON choice list:
 Apply it using the current report ID and real session identifier:
 
 ```bash
-python scripts/news.py --curate DATE --country CODE --selection-file RUNTIME/choices.json --expect REPORT_ID --session SESSION
+python scripts/news.py --curate DATE --country CODE --selection-file RUNTIME/choices.json --expect REPORT_ID --session SESSION --view stories
 ```
 
 Pass the selected runtime/source configuration too. Selection is restricted to
@@ -153,6 +158,8 @@ Candidate evidence is retained. The save checks the report revision atomically,
 and a delivered report cannot be silently replaced. Pending editorial reports
 cannot be acknowledged, even if all three section counts are populated. Review
 updates are not provider retries and do not consume a fetch attempt.
+`--view stories` on curate returns the saved reviewed stories directly; no extra
+`--show` or provider request is needed before composing the briefing.
 
 For latest news, save the exact `--latest --format json` candidate output inside
 the runtime, then use `--curate-latest FILE --selection-file CHOICES --expect

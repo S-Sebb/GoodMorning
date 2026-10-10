@@ -32,7 +32,7 @@ class DeploymentTests(unittest.TestCase):
             self.assertNotIn('../', text)
             for reference in re.findall(r'`((?:docs|templates)/[^`]+\.md)`', text):
                 self.assertTrue((skill / reference).is_file(), reference)
-            for helper in ('state.py', 'news.py', 'weather.py', 'secretary_calendar.py', 'setup_check.py'):
+            for helper in ('state.py', 'inbox.py', 'workflow.py', 'daily.py', 'news.py', 'weather.py', 'secretary_calendar.py', 'setup_check.py'):
                 result = subprocess.run([sys.executable, '-B', str(skill / 'scripts' / helper), '--help'],
                                         cwd=home, capture_output=True, text=True, timeout=20)
                 self.assertEqual(result.returncode, 0, result.stderr)

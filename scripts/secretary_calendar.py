@@ -545,15 +545,18 @@ def main(argv: list[str] | None = None) -> int:
     actions.add_argument("--migrate-md", metavar="PATH", help="explicit one-time Markdown migration, source untouched")
     args = ap.parse_args(argv)
     cfg = load_config_file(args.config)
-    secretary_dir = resolve("secretary_dir", args.secretary_dir, cfg,
-                            "SECRETARY_DIR", "secretary")
+    from runtime_files import secretary_path, profile_fields, calendar_config, calendar_path
+    secretary_dir = str(secretary_path(resolve("secretary_dir", args.secretary_dir, cfg,
+                                              "SECRETARY_DIR", str(secretary_path()))))
     bb_arg = (args.betterbird_path or os.environ.get("BETTERBIRD_PATH", "").strip()
               or str(cfg.get("betterbird_path", "")).strip() or None)
-    db_path = resolve("calendar_db", args.db, cfg, "CALENDAR_DB_PATH",
-                      os.path.join(secretary_dir, "calendar.sqlite"))
-    tzname = args.timezone or os.environ.get("CALENDAR_TIMEZONE") or cfg.get("timezone")
     store = None
     try:
+        if not args.config:
+            cfg = calendar_config(secretary_dir)
+        db_path = str(calendar_path(secretary_dir, args.db, cfg))
+        bb_arg = bb_arg or cfg.get("betterbird_path")
+        tzname = args.timezone or os.environ.get("CALENDAR_TIMEZONE") or cfg.get("timezone") or profile_fields(secretary_dir).get("timezone")
         if args.limit is None:
             args.limit = 20 if args.pending or args.history else 100
         if not 1 <= args.days <= 30 or not 1 <= args.limit <= 500 or args.offset < 0:
@@ -577,7 +580,9 @@ def main(argv: list[str] | None = None) -> int:
             result = probe_betterbird(selected) if selected else {"status": "pending", "reason": "cache_not_found"}
             print(encode(result))
             return 0 if result["status"] == "verified" else 1
-        store = CalendarStore(db_path)
+        writes = args.init or args.add is not None or any((args.update, args.cancel, args.approve,
+                 args.reject, args.migrate_md, args.import_json, args.sync_betterbird))
+        store = CalendarStore(db_path, readonly=not writes)
         result = None
         if args.init:
             result = {"database": db_path, **store.stats()}

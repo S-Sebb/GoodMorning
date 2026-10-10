@@ -1,10 +1,37 @@
 """Small user-local file helpers: explicit profiles, atomic writes, bounded locks."""
 
 import contextlib
+import json
 import os
 from pathlib import Path
 import re
 import tempfile
+
+
+def secretary_path(explicit=None):
+    return Path(explicit or os.environ.get("SECRETARY_DIR") or
+                "~/.local/share/GoodMorning/secretary").expanduser().resolve()
+
+
+def cache_path(explicit=None):
+    return Path(explicit or os.environ.get("GM_CACHE_DIR") or
+                "~/.cache/goodmorning").expanduser().resolve()
+
+
+def calendar_config(directory):
+    try:
+        value = json.loads((Path(directory) / "calendar.config.json").read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        return {}
+    if not isinstance(value, dict):
+        raise ValueError("calendar configuration must be an object")
+    return value
+
+
+def calendar_path(directory, explicit=None, config=None):
+    config = calendar_config(directory) if config is None else config
+    selected = explicit or os.environ.get("CALENDAR_DB_PATH") or config.get("calendar_db") or Path(directory) / "calendar.sqlite"
+    return Path(selected).expanduser().resolve()
 
 
 def profile_fields(directory):

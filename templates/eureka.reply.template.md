@@ -25,7 +25,8 @@ instead of repeating the invitation or an answered question.
 Apply the shared materiality gate: no non-critical disclaimers, unrelated news/
 weather caveats or routine bookkeeping. Confirm the idea's actual save status
 and the useful next step; failed saves and needed clarification remain visible.
-Read `docs/reply-voice.md`. Keep the capture quick but personal: respond with
+For detailed discussion, read `docs/reply-voice.md`; simple capture uses the shared
+voice essentials. Keep the capture quick but personal: respond with
 interest to the actual idea, reflect a specific connection when supported, and
 invite discussion naturally within the actual capture/clarification content. No
 long framing. A brief interested takeaway or warm closing is welcome when it

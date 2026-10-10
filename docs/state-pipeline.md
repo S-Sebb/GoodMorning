@@ -38,8 +38,12 @@ Invalid named timezones are errors, not silent fallbacks.
   original; use `--force` only for an authorized replacement.
 - Keep `session NAME`, `| answer: path`, and recognized headings intact. Fenced
   examples are ignored; duplicate run lines are errors rather than guesses.
-  Inbox counts use the status column, not words inside the raw idea.
-- Pending ideas include a count and oldest date. Remind at today's `/gn`,
+  Inbox counts come from `inbox.sqlite` without loading messages/history into
+  context. Read-only legacy Markdown compatibility uses the status column, not
+  words inside raw ideas. New stores use `docs/inbox-pipeline.md`.
+- Active inbox entries include a count and oldest date; newly supplied details on
+  closed entries stay active until reviewed. Counts are live, not cached behind a
+  required inbox rebuild. Remind at today's `/gn`,
   otherwise the next `/gm`, until confirmed and organized.
 - Exit 0 means success; exit 1 means runtime/storage failure; exit 2 means a
   refused mark or invalid arguments. Operational errors with `--json` contain

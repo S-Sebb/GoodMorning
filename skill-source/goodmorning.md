@@ -9,7 +9,8 @@ The GoodMorning package root is this skill directory (`./`).
 Resolve it to an absolute path before reading files or running helpers. All paths
 in workflow files are relative to that package root, not the invoking project.
 
-Read `docs/skill-rules.md`, then only the requested workflow:
+Read `docs/core-rules.md`, then only the requested workflow. The expanded
+`docs/skill-rules.md` is for audits/edge cases, not a default read:
 
 - `/gm`: `docs/workflows/gm.md`.
 - `/gn`: `docs/workflows/gn.md`.
@@ -21,6 +22,13 @@ Read `docs/skill-rules.md`, then only the requested workflow:
 Equivalent natural-language requests use the same workflows. Ask if the requested
 workflow is unclear. Keep the current session and model; do not delegate.
 Missing setup follows the secretary workflow without recursively loading a skill.
+Inbox memory uses `scripts/inbox.py`: append without reading history, query only
+active summaries/relevant IDs, and keep material current state—not a transcript.
+Never append to legacy `inbox.md`. Read `docs/inbox-pipeline.md` for advanced updates/review.
+New raw ideas/TODOs use `scripts/workflow.py --capture eureka|todo` directly; it
+checks setup and saves without reading old context. Do not load the advanced inbox
+guide for a simple capture. Briefings/general work use `--prepare KIND` once;
+daily amendments use `scripts/daily.py`. See `docs/workflow-helpers.md` as needed.
 
 Run helpers from the package root with explicit absolute storage paths. Runtime
 records use an explicitly selected `SECRETARY_DIR`, otherwise

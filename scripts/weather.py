@@ -224,14 +224,8 @@ def parse_profile(path):
 
 
 def find_profile(explicit):
-    if explicit:
-        return explicit
-    here = os.path.dirname(os.path.abspath(__file__))
-    for base in (os.getcwd(), os.path.join(here, "..")):
-        p = os.path.join(base, "secretary", "profile.md")
-        if os.path.exists(p):
-            return p
-    return os.path.join(os.getcwd(), "secretary", "profile.md")
+    from runtime_files import secretary_path
+    return str(Path(explicit).expanduser().resolve() if explicit else secretary_path() / "profile.md")
 
 
 def build_advice(temp_c, rain, snow=False):
@@ -492,7 +486,8 @@ def main(argv=None):
     ap.add_argument("--profile", default="")
     ap.add_argument("--aqi-source", choices=["auto", "open-meteo", "waqi", "off"], default="auto")
     ap.add_argument("--json", action="store_true")
-    ap.add_argument("--cache-dir", default=os.environ.get("GM_CACHE_DIR", str(Path(__file__).resolve().parents[1] / ".cache/goodmorning")))
+    from runtime_files import cache_path
+    ap.add_argument("--cache-dir", default=str(cache_path()))
     ap.add_argument("--refresh", action="store_true", help="Fetch again; retain bounded stale fallback")
     ap.add_argument("--no-cache", action="store_true", help="No disk reads or writes")
     ap.add_argument("--timeout", type=float, default=TIMEOUT, help="Timeout per HTTP attempt in seconds (default: 8)")
@@ -507,7 +502,7 @@ def main(argv=None):
             raise WeatherError("--timeout must be a positive finite number")
         if a.aqi_source == "waqi" and not waqi_tok:
             raise WeatherError("WAQI_TOKEN missing; get a free token at https://aqicn.org/data-platform/token/")
-        cache = Cache(None if a.no_cache else Path(a.cache_dir) / "weather", a.refresh)
+        cache = Cache(None if a.no_cache else cache_path(a.cache_dir) / "weather", a.refresh)
         location = {}
         if a.lat is not None or a.lon is not None:
             validate_coordinates(a.lat, a.lon)

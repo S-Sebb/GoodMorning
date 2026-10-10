@@ -45,8 +45,11 @@ extra reads, retries, imports, or code changes.
 
 ## Local checkpoint
 
-After consent, create only missing profile, project records, inbox, runtime folders
-and agreed configuration. Initialize an empty SQLite calendar and rebuild state.
+After consent, create only missing profile, project records, runtime folders
+and agreed configuration. Initialize an empty SQLite calendar and inbox
+(`inbox.py --secretary-dir RUNTIME --init`), then rebuild state. Do not overwrite
+an existing Markdown inbox: migration is a separately authorized operation in
+`docs/inbox-pipeline.md`.
 Include an authorized runtime `tmp/` folder; set `TMPDIR` to its absolute path
 for calendar import commands so disposable source snapshots stay in the runtime.
 No daily tasks/completions, briefing snapshots/marks, news reports/acknowledgements,

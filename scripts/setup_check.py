@@ -17,10 +17,28 @@ import sys
 import time
 from zoneinfo import ZoneInfo
 
-from runtime_files import profile_fields
+from runtime_files import profile_fields, secretary_path
 from news import load_sources, SOURCES_FILE
 
 ROOT = Path(__file__).resolve().parents[1]
+
+
+def profile_status(runtime, fields):
+    """Local readiness only; never contacts providers or initializes storage."""
+    required = ["city", "timezone", "news_country"]
+    if not (Path(runtime) / "profile.md").is_file() or "secretary_language" in fields:
+        required.insert(0, "secretary_language")
+    missing = [key for key in required if not fields.get(key)]
+    if fields.get("timezone"):
+        ZoneInfo(fields["timezone"])
+    countries = list(dict.fromkeys(code.strip() for code in [fields.get("news_country", "").upper(),
+                     *fields.get("news_additional_countries", "").upper().replace(";", ",").split(",")] if code.strip()))
+    if len(countries) > 20 or any(len(code) != 2 or not code.isascii() or not code.isalpha() for code in countries):
+        raise ValueError("invalid countries")
+    return {"profile_ready": not missing, "missing_fields": missing, "countries": countries,
+            "secretary_language": fields.get("secretary_language") or None,
+            "language_status": "confirmed" if fields.get("secretary_language") else
+            "missing" if "secretary_language" in required else "legacy_unset"}
 
 
 def run_check(command, deadline, env=None):
@@ -72,25 +90,17 @@ def run_checks(commands, budget, env=None):
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--secretary-dir", default=os.environ.get("SECRETARY_DIR", "secretary"))
+    parser.add_argument("--secretary-dir")
     parser.add_argument("--verify", nargs="+", choices=("weather", "news", "projects", "calendar"), default=[])
     parser.add_argument("--budget", type=float, default=20, help="Total elapsed budget for all selected checks (default 20 seconds)")
     args = parser.parse_args(argv)
     if not math.isfinite(args.budget) or not 0 < args.budget <= 120:
         parser.error("--budget must be finite and in (0, 120]")
-    runtime = Path(args.secretary_dir).resolve()
+    runtime = secretary_path(args.secretary_dir)
     try:
         fields = profile_fields(runtime)
-        required = ["city", "timezone", "news_country"]
-        if not (runtime / "profile.md").is_file() or "secretary_language" in fields:
-            required.insert(0, "secretary_language")
-        missing = [key for key in required if not fields.get(key)]
-        if fields.get("timezone"):
-            ZoneInfo(fields["timezone"])
-        countries = list(dict.fromkeys(code.strip() for code in [fields.get("news_country", "").upper(),
-                         *fields.get("news_additional_countries", "").upper().replace(";", ",").split(",")] if code.strip()))
-        if len(countries) > 20 or any(len(code) != 2 or not code.isalpha() for code in countries):
-            raise ValueError("invalid countries")
+        local = profile_status(runtime, fields)
+        missing, countries = local["missing_fields"], local["countries"]
         commands, checks = {}, {}
         py = sys.executable
         cache = runtime / "cache"
@@ -139,10 +149,7 @@ def main(argv=None):
         env = dict(os.environ, PYTHONDONTWRITEBYTECODE="1", SECRETARY_DIR=str(runtime),
                    CALENDAR_DB_PATH=str(runtime / "calendar.sqlite"), GM_CACHE_DIR=str(cache))
         checks.update(run_checks(commands, args.budget, env))
-        result = {"profile_ready": not missing, "missing_fields": missing,
-                  "secretary_language": fields.get("secretary_language") or None,
-                  "language_status": "confirmed" if fields.get("secretary_language") else "missing" if "secretary_language" in required else "legacy_unset",
-                  "countries": countries, "checks": checks, "budget_seconds": args.budget,
+        result = {**local, "checks": checks, "budget_seconds": args.budget,
                   "verification_complete": bool(checks) and all(row["status"] == "verified" for row in checks.values())}
         print(json.dumps(result, separators=(",", ":")))
         return 0 if not missing and all(row["status"] == "verified" for row in checks.values()) else 1

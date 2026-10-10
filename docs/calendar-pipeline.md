@@ -1,6 +1,8 @@
 # Calendar usage
 
 Storage is `secretary/calendar.sqlite`, not Markdown.
+Read commands now open an existing database read-only; missing storage requires
+authorized setup and is not treated as an empty schedule. Reads never initialize it.
 Both scripts use Python's standard library; no calendar service or database
 server is needed. Personal data remains under the git-ignored `secretary/`.
 
@@ -31,8 +33,9 @@ events. These commands are implementation details, not required user work.
 6. Briefings query the stored, approved schedule. They do not read the whole
    database or re-fetch providers. `state.py --check` reports pending review
    counts. Save only a concise schedule summary in the daily Markdown file.
-   Before reporting preparation requirements, inspect `--show` for relevant
-   events or `--json --details` for a narrow window. The cheap view omits notes,
+   Before reporting preparation requirements, prefer `--json --details` for a
+   narrow approved window in one query. Use `--show` only when examining originals/
+   revisions or additional details. The cheap view omits notes,
    and its generated preparation hints are not a complete requirements list.
 
 An external event is absent from the main schedule until approved. A changed

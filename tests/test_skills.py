@@ -56,13 +56,60 @@ class SkillContractTests(unittest.TestCase):
                          "Never use a made-up", "Do not silently backdate"):
             self.assertIn(required, text)
 
+    def test_inbox_contract_uses_helpers_not_transcripts_or_legacy_edits(self):
+        shared = (ROOT / "docs/skill-rules.md").read_text()
+        guide = (ROOT / "docs/inbox-pipeline.md").read_text()
+        self.assertLess(len(shared), 24000)
+        for marker in ("not every", "assistant answer", "--append ID", "--show ID", "inbox-pipeline.md"):
+            self.assertIn(marker, shared)
+        for marker in ("--request-key", "--expect-revision", "needs_review", "byte-for-byte",
+                       "No silent item/question truncation", "not a running diary", "not every"):
+            self.assertIn(marker, guide)
+        for kind in KINDS:
+            text = (ROOT / "docs/workflows" / f"{kind}.md").read_text()
+            self.assertIn("inbox.py", text)
+            self.assertIn("inbox-pipeline.md", text)
+            self.assertNotIn("YYYY-MM-DD HH:MM TIMEZONE |", text)
+        todo = (ROOT / "docs/workflows/todo.md").read_text()
+        self.assertNotIn("state.py --", todo)
+        self.assertIn("No full state rebuild", todo)
+
+    def test_news_rules_are_loaded_only_for_news_work(self):
+        shared = (ROOT / "docs/skill-rules.md").read_text()
+        news = (ROOT / "docs/news-delivery.md").read_text()
+        self.assertIn("Capture-only workflows do not load it", shared)
+        self.assertIn("Read `docs/news-delivery.md`", (ROOT / "docs/workflows/gm.md").read_text())
+        for marker in ("Never acknowledge before sending", "news_additional_countries",
+                       "current report/batch ID", "no same-day fetch or section", "no delivery ledger"):
+            self.assertIn(marker, news)
+
+    def test_normal_workflows_load_compact_core_and_mechanical_helpers(self):
+        entry = (ROOT / "skill-source/goodmorning.md").read_text()
+        core = (ROOT / "docs/core-rules.md").read_text()
+        self.assertIn("Read `docs/core-rules.md`", entry)
+        self.assertLess(len(core), 10000)
+        for boundary in ("Never acknowledge", "user-confirmed", "current revision", "outcome_unknown",
+                         "do not delegate", "not consent", "Do not save every exchange", "first", "--force"):
+            self.assertIn(boundary, core)
+        for kind in KINDS:
+            text = (ROOT / "docs/workflows" / f"{kind}.md").read_text()
+            self.assertIn("core-rules.md", text)
+            self.assertIn("workflow.py", text)
+        gm = (ROOT / "docs/workflows/gm.md").read_text()
+        self.assertIn("--view candidates", gm)
+        self.assertIn("--view stories", gm)
+        self.assertIn("--json --details", gm)
+        for kind in ("gm", "gn", "secretary"):
+            self.assertIn("daily.py", (ROOT / "docs/workflows" / f"{kind}.md").read_text())
+
     def test_gm_gn_use_fixed_openchamber_conversation_titles(self):
         shared = (ROOT / "docs/skill-rules.md").read_text()
         for required in ("GoodMorning YYYY-MM-DD", "GoodNight YYYY-MM-DD",
-                         "Secretary YYYY-MM-DD", "Eureka SUMMARY", "Todo SUMMARY",
+                         "Secretary SUMMARY", "Eureka SUMMARY", "Todo SUMMARY",
                          "OPENCODE_SESSION_ID", "opencode api patch",
                          "never\n  on a duplicate stop", "rename failure internal"):
             self.assertIn(required, shared)
+        self.assertNotIn("Secretary YYYY-MM-DD", shared)
         self.assertIn("all five workflows", shared)
         self.assertNotIn("for gm/gn only", shared)
         self.assertIn("very short", shared)
@@ -81,13 +128,14 @@ class SkillContractTests(unittest.TestCase):
         self.assertIn("shared title rule", gn)
         self.assertNotIn("`GoodNight DATE`", gm)
         self.assertNotIn("`GoodMorning DATE`", gn)
-        self.assertIn("`Secretary DATE`", secretary)
+        self.assertIn("`Secretary SUMMARY`", secretary)
         self.assertIn("shared title rule", secretary)
+        self.assertNotIn("`Secretary DATE`", secretary)
         self.assertIn("`Eureka SUMMARY`", eureka)
         self.assertIn("shared title rule", eureka)
         self.assertIn("very short", eureka)
-        self.assertNotIn("`Secretary DATE`", gm)
-        self.assertNotIn("`Secretary DATE`", gn)
+        self.assertNotIn("`Secretary SUMMARY`", gm)
+        self.assertNotIn("`Secretary SUMMARY`", gn)
         self.assertNotIn("`Eureka SUMMARY`", gm)
         self.assertNotIn("`Eureka SUMMARY`", gn)
         self.assertIn("`Todo SUMMARY`", todo)
