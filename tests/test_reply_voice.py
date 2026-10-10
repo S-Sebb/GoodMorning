@@ -13,7 +13,7 @@ from benchmark_reply_templates import fixtures, render
 class ReplyVoiceTests(unittest.TestCase):
     def test_all_skills_and_templates_reference_shared_voice_design(self):
         for kind in ("gm", "gn", "eureka", "secretary"):
-            skill = (ROOT / ".opencode/skills" / kind / "SKILL.md").read_text()
+            skill = (ROOT / "docs/workflows" / f"{kind}.md").read_text()
             template = (ROOT / "templates" / (kind + ".reply.template.md")).read_text()
             self.assertIn("reply-voice.md", skill)
             self.assertIn("reply-voice.md", template)

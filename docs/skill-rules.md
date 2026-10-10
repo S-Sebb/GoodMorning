@@ -1,17 +1,20 @@
 # Shared secretary skill rules
 
-Read this file when loading a GoodMorning skill. Read other guides only for the
+Read this file when loading the GoodMorning skill. Read other guides only for the
 operation needed. Paths in this guide are relative to the GoodMorning root.
 
 ## Preparation
 
-- Run scripts from the repository root, not the skill directory. The root is
-  three directories above `.opencode/skills/<name>/`. Runtime records use
-  `SECRETARY_DIR` if set, otherwise `secretary/`; resolve this once and use it
-  consistently. Pass `--secretary-dir` to state/news/calendar and `--profile` to
-  weather when records are relocated. Never read `.env` or pairing credentials.
+- Run scripts from the package root identified by the loaded `goodmorning` skill.
+  Runtime records use `SECRETARY_DIR` if set, otherwise
+  `~/.local/share/GoodMorning/secretary`; resolve this once to an absolute path and
+  use it consistently. Always pass `--secretary-dir` to state/news/calendar,
+  `--profile` to weather, and calendar `--db`. Resolve `GM_CACHE_DIR` if set,
+  otherwise `~/.cache/goodmorning`, and pass news/weather `--cache-dir` explicitly.
+  Never store personal records or caches inside the installed skill or invoking
+  project. Never read `.env` or pairing credentials.
 - Read the profile for confirmed preferences and timezone. If it is missing or
-  setup answers are incomplete, load the `secretary` skill for setup and pause
+  setup answers are incomplete, read `docs/workflows/secretary.md` for setup and pause
   normal work. Keep an incoming idea in the conversation; do not claim it is
   saved before setup and a successful write. Optional settings can stay empty
   when the user explicitly declines them; never invent personal defaults.
@@ -107,7 +110,7 @@ operation needed. Paths in this guide are relative to the GoodMorning root.
 
 ## Records and replies
 
-### User-facing materiality gate — all four skills
+### User-facing materiality gate — all four workflows
 
 - Non-critical disclaimers and process narration must never appear in normal
   secretary messages. This gate targets qualifications and process/status asides,
@@ -218,7 +221,7 @@ operation needed. Paths in this guide are relative to the GoodMorning root.
   are flexible guides, not rigid scripts; never force cheerfulness or familiarity.
 - Use confirmed `occupations` and `expertise_fields`, alongside existing industry,
   project scope, and knowledge area, to choose relevant topics, examples, and
-  explanation depth across all four skills. Do not assume knowledge from a job
+  explanation depth across all four workflows. Do not assume knowledge from a job
   title; ask when the useful level is unclear. Respect unrelated requests and do
   not force every conversation into a career topic. Personalization must not
   replace required news sections or infer national-news country. These optional

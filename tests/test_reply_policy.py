@@ -39,10 +39,10 @@ class ReplyPolicyTests(unittest.TestCase):
 
     def test_all_four_skill_and_reply_templates_apply_materiality_gate(self):
         shared = (ROOT / "docs/skill-rules.md").read_text()
-        for marker in ("all four skills", "must never appear", "Preserve full", "Never hide material problems"):
+        for marker in ("all four workflows", "must never appear", "Preserve full", "Never hide material problems"):
             self.assertIn(marker, shared)
         for kind in ("gm", "gn", "eureka", "secretary"):
-            self.assertIn("materiality gate", (ROOT / ".opencode/skills" / kind / "SKILL.md").read_text())
+            self.assertIn("materiality gate", (ROOT / "docs/workflows" / f"{kind}.md").read_text())
             self.assertIn("materiality gate", (ROOT / "templates" / (kind + ".reply.template.md")).read_text())
 
     def test_synthetic_brief_has_no_boilerplate_and_keeps_actionable_content(self):

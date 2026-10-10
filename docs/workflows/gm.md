@@ -11,15 +11,15 @@ records, and compact script results. Output: a clear briefing in the user's cust
 tone plus saved daily
 record and verbatim snapshot; news delivery is tracked separately.
 
-The repository root is `../../..` from this skill directory. Read
-`../../../docs/skill-rules.md` first. Use
-`../../../templates/gm.reply.template.md` for the reply and
-`../../../templates/daily.template.md` for storage. Commands below run from root;
+All paths below are relative to the GoodMorning package root. Read
+`docs/skill-rules.md` first. Use
+`templates/gm.reply.template.md` for the reply and
+`templates/daily.template.md` for storage. Commands below run from root;
 apply shared runtime/date rules and use the `question` tool for needed choices
 or confirmations, including missed runs and unclear tasks.
 Apply the shared materiality gate throughout: no non-critical disclaimers or
 process narration in the greeting, briefing, questions or closing.
-Use `../../../docs/reply-voice.md`: this is a conversational personal assistant,
+Use `docs/reply-voice.md`: this is a conversational personal assistant,
 not a dense essay or a cold dashboard. Keep the agreed personality within useful
 section content; no extra framing paragraphs. Use headings/rules, weather order,
 source-based news lists and calendar timetables; bold only genuinely key details.

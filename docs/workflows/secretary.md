@@ -10,18 +10,18 @@ another GoodMorning skill. Inputs: the user's request and confirmed local settin
 with relevant records/provider data only as needed. Output: a clear answer or
 verified record changes; no fabricated settings, progress, or successful writes.
 
-The repository root is `../../..` from this skill directory. Read
-`../../../docs/skill-rules.md` first. Its setup rule refers to this section; do not
-reload this skill recursively. Use `../../../templates/secretary.reply.template.md`.
+All paths below are relative to the GoodMorning package root. Read
+`docs/skill-rules.md` first. Its setup rule refers to this section; do not
+reload the skill recursively. Use `templates/secretary.reply.template.md`.
 Run commands from root; use shared runtime and `question`-tool rules for setup,
 clarification, and confirmation.
-Apply the shared materiality gate and `../../../docs/reply-voice.md`: personable
+Apply the shared materiality gate and `docs/reply-voice.md`: personable
 useful content, optional brief takeaways/closing, clear headings/rules and lists.
 No routine caveats or long framing; bold only key details.
 
 ## First use / incomplete setup
 
-1. Read `../../../docs/initialization.md`, `config.example.md`, and the profile/project
+1. Read `docs/initialization.md`, `config.example.md`, and the profile/project
    templates. Resolve one runtime, inspect only that runtime, and reuse answers
    already in this conversation. Local setup and optional integration checks are
    separate; never turn initialization into unrequested code development.
@@ -68,7 +68,7 @@ No routine caveats or long framing; bold only key details.
 
 1. Identify the requested read/change and any ambiguity. Read the profile and only
    relevant records/compact queries; no blanket project scan or automatic daily
-    fetching. Route morning/night/idea requests to their corresponding skill.
+     fetching. Route morning/night/idea requests to their corresponding workflow file.
     Save ideas/details immediately per shared inbox rules; remind about pending clarification.
     Resume an existing pending entry; do not require `/eureka` or `Clarify`.
     Reuse prior answers; ask only about remaining ambiguity. Confirm only after

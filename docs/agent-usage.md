@@ -1,9 +1,13 @@
 # Secretary agent usage
 
-The four project skills live in `.opencode/skills/<name>/SKILL.md`; wrappers in
-`.opencode/commands/` provide `/gm`, `/gn`, `/eureka`, and `/secretary` without
-switching models or spawning another session. Skills can also be loaded directly
-by ID. These definitions do not initialize personal records.
+The self-contained skill lives only in `~/.agents/skills/goodmorning/` and loads
+by the `goodmorning` ID. The repository keeps an inactive source at
+`skill-source/goodmorning.md`, ready to copy as `SKILL.md` without edits; the
+repository registers no project skills or command wrappers.
+`/gm`, `/gn`, `/eureka`, and `/secretary` are plain workflow requests, not registered
+slash commands. Natural-language requests work too. Keep the current session and
+model. The four workflows live in `docs/workflows/` and load only when requested.
+Installing the skill does not initialize personal records.
 
 Start with `/secretary` for owner-confirmed setup. The loaded skill and
 `docs/skill-rules.md` are the execution instructions; the sections below are a
@@ -30,7 +34,7 @@ authorize code development. Event import is a separate follow-up.
 - Invite optional current-role and expertise/field context during setup. Use
   confirmed answers for relevant topics and explanations throughout the skills;
   do not infer expertise from job titles or force older profiles to reinitialize.
-- Keep personal records under the git-ignored `secretary/`. Never put credentials
+- Keep personal records outside the installed skill in the selected runtime. Never put credentials
   in records. Scripts fetch facts; the agent summarizes and asks for decisions.
 - Read compact script output and today's daily record. Open detailed guides only
   for the operation needed. Do not bulk-read answer snapshots or provider data.

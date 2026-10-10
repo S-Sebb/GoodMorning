@@ -12,15 +12,15 @@ progress records plus a clear night reply in the user's custom tone and a verbat
 snapshot. Apply that tone throughout, including questions and progress discussion;
 clean formatting and clarity always take priority.
 
-The repository root is `../../..` from this skill directory. Read
-`../../../docs/skill-rules.md` first. Use
-`../../../templates/gn.reply.template.md` and
-`../../../templates/daily.template.md`. Run commands from root; apply the shared
+All paths below are relative to the GoodMorning package root. Read
+`docs/skill-rules.md` first. Use
+`templates/gn.reply.template.md` and
+`templates/daily.template.md`. Run commands from root; apply the shared
 runtime/date rules. Use `question` for needed progress input or clarification;
 confirmed completed-task choices may use multiple selection.
 Apply the shared materiality gate: non-critical caveats, empty statuses and routine
 bookkeeping stay internal; actionable blockers, conflicts and failed saves remain.
-Use `../../../docs/reply-voice.md`. Respond with the agreed personality to actual
+Use `docs/reply-voice.md`. Respond with the agreed personality to actual
 effort, concerns and setbacks; make the evening conversation supportive, not a
 performance report. Keep useful context within sections; use headings/rules,
 appropriate lists and a timetable for tomorrow. Brief section takeaways and a warm

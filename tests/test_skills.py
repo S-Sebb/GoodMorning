@@ -1,4 +1,4 @@
-"""Skill/command contracts and a deterministic fake-data morning/night dry run."""
+"""Skill contracts and a deterministic fake-data morning/night dry run."""
 
 import contextlib
 import io
@@ -26,29 +26,28 @@ class SkillContractTests(unittest.TestCase):
     def test_skills_have_discoverable_metadata_and_complete_workflows(self):
         for kind in KINDS:
             with self.subTest(kind=kind):
-                path = ROOT / ".opencode/skills" / kind / "SKILL.md"
+                path = ROOT / "docs/workflows" / f"{kind}.md"
                 text = path.read_text()
                 metadata = re.match(r"---\n(.*?)\n---\n", text, re.S).group(1)
                 self.assertIn(f"name: {kind}\n", metadata + "\n")
                 self.assertRegex(metadata, r"description: .+")
                 for marker in ("Trigger:", "Inputs:", "Output:", "##", "Errors"):
                     self.assertIn(marker, text)
-                references = re.findall(r"`(\.\./\.\./\.\./[^`]+)`", text)
+                references = re.findall(r"`((?:docs|templates)/[^`]+\.md)`", text)
                 self.assertGreaterEqual(len(references), 2)
                 for reference in references:
-                    self.assertTrue((path.parent / reference).resolve().is_file(), reference)
+                    self.assertTrue((ROOT / reference).is_file(), reference)
                 self.assertIn("skill-rules.md", text)
                 self.assertLess(len(text), 6800)
 
-    def test_slash_commands_load_exact_skills_without_execution_or_delegation(self):
+    def test_skill_source_is_inactive_and_no_project_wrappers_exist(self):
+        text = (ROOT / "skill-source/goodmorning.md").read_text()
+        self.assertIn("name: goodmorning", text)
+        self.assertIn("Keep the current session and model; do not delegate", text)
         for kind in KINDS:
-            with self.subTest(kind=kind):
-                text = (ROOT / ".opencode/commands" / f"{kind}.md").read_text()
-                self.assertIn(f"Load the `{kind}` skill using the skill tool", text)
-                self.assertEqual(text.count("$ARGUMENTS"), 1)
-                self.assertIn("subagent: false", text)
-                self.assertNotIn("!`", text)
-                self.assertNotRegex(text, r"(?m)^(?:agent|model):")
+            self.assertIn(f"docs/workflows/{kind}.md", text)
+        self.assertEqual(list((ROOT / ".opencode").rglob("*.md")), [])
+        self.assertEqual(list(ROOT.glob("**/SKILL.md")), [])
 
     def test_shared_rules_preserve_delivery_and_confirmation_boundaries(self):
         text = (ROOT / "docs/skill-rules.md").read_text()
@@ -63,8 +62,8 @@ class SkillContractTests(unittest.TestCase):
                          "OPENCODE_SESSION_ID", "opencode api patch",
                          "never\n  on a duplicate stop", "rename failure internal"):
             self.assertIn(required, shared)
-        gm = (ROOT / ".opencode/skills/gm/SKILL.md").read_text()
-        gn = (ROOT / ".opencode/skills/gn/SKILL.md").read_text()
+        gm = (ROOT / "docs/workflows/gm.md").read_text()
+        gn = (ROOT / "docs/workflows/gn.md").read_text()
         self.assertIn("`GoodMorning DATE`", gm)
         self.assertIn("shared title rule", gm)
         self.assertIn("`GoodNight DATE`", gn)
@@ -81,16 +80,16 @@ class SkillContractTests(unittest.TestCase):
             self.assertIn(required, shared)
         for kind in KINDS:
             with self.subTest(kind=kind):
-                skill = (ROOT / ".opencode/skills" / kind / "SKILL.md").read_text()
+                skill = (ROOT / "docs/workflows" / f"{kind}.md").read_text()
                 template = (ROOT / "templates" / f"{kind}.reply.template.md").read_text()
                 self.assertIn("`question`", skill)
                 self.assertIn("`question`", template)
 
     def test_eureka_saves_by_default_and_accepts_details_without_a_keyword(self):
-        skill = (ROOT / ".opencode/skills/eureka/SKILL.md").read_text()
+        skill = (ROOT / "docs/workflows/eureka.md").read_text()
         template = (ROOT / "templates/eureka.reply.template.md").read_text()
         shared = (ROOT / "docs/skill-rules.md").read_text()
-        secretary = (ROOT / ".opencode/skills/secretary/SKILL.md").read_text()
+        secretary = (ROOT / "docs/workflows/secretary.md").read_text()
         for text in (skill, template):
             self.assertIn("optional clarification via `Clarify`", text)
             self.assertIn("idea as is", text)
@@ -119,7 +118,7 @@ class SkillContractTests(unittest.TestCase):
                              ("gm", "unchecked clarification TODOs"),
                              ("gn", "Ask focused questions for pending clarification"),
                              ("secretary", "Save ideas/details immediately")):
-            text = (ROOT / ".opencode/skills" / kind / "SKILL.md").read_text()
+            text = (ROOT / "docs/workflows" / f"{kind}.md").read_text()
             self.assertIn(marker, text)
 
     def test_project_updates_save_before_clarification_and_follow_up_across_skills(self):
@@ -133,12 +132,12 @@ class SkillContractTests(unittest.TestCase):
                        "At `/gn`", "At `/secretary`", "Repeat until resolved",
                        "not permission to install a scheduler"):
             self.assertIn(marker, shared)
-        secretary = (ROOT / ".opencode/skills/secretary/SKILL.md").read_text()
+        secretary = (ROOT / "docs/workflows/secretary.md").read_text()
         self.assertIn("before asking questions", secretary)
         self.assertIn("outstanding project-update questions", secretary)
         for kind in ("secretary", "gm", "gn"):
             with self.subTest(kind=kind):
-                skill = (ROOT / ".opencode/skills" / kind / "SKILL.md").read_text()
+                skill = (ROOT / "docs/workflows" / f"{kind}.md").read_text()
                 template = (ROOT / "templates" / f"{kind}.reply.template.md").read_text()
                 self.assertIn("shared pending project-update workflow", skill)
                 self.assertIn("clarification", template)
@@ -148,7 +147,7 @@ class SkillContractTests(unittest.TestCase):
         self.assertNotIn("before saving", project)
 
     def test_setup_invites_optional_role_context_and_all_skills_can_use_it(self):
-        secretary = (ROOT / ".opencode/skills/secretary/SKILL.md").read_text()
+        secretary = (ROOT / "docs/workflows/secretary.md").read_text()
         shared = (ROOT / "docs/skill-rules.md").read_text()
         for field in ("occupations", "expertise_fields"):
             self.assertIn(f"`{field}`", secretary)
@@ -156,11 +155,11 @@ class SkillContractTests(unittest.TestCase):
         self.assertIn("These fields are optional", secretary)
         self.assertIn("You can skip", secretary)
         self.assertIn("older profiles remain valid", secretary)
-        self.assertIn("across all four skills", shared)
+        self.assertIn("across all four workflows", shared)
         self.assertIn("Do not assume knowledge from a job", shared)
 
     def test_initialization_is_staged_bounded_and_does_not_launch_repairs(self):
-        secretary = (ROOT / ".opencode/skills/secretary/SKILL.md").read_text()
+        secretary = (ROOT / "docs/workflows/secretary.md").read_text()
         guide = (ROOT / "docs/initialization.md").read_text()
         for marker in ("setup_check.py", "--budget 20", "news_additional_countries",
                        "unsupported recurrence/imports remain pending", "If setup alone was requested, stop"):
@@ -170,7 +169,7 @@ class SkillContractTests(unittest.TestCase):
             self.assertIn(marker, guide)
 
     def test_reply_language_is_first_initialization_question_and_applies_across_skills(self):
-        secretary = (ROOT / ".opencode/skills/secretary/SKILL.md").read_text()
+        secretary = (ROOT / "docs/workflows/secretary.md").read_text()
         guide = (ROOT / "docs/initialization.md").read_text()
         shared = (ROOT / "docs/skill-rules.md").read_text()
         self.assertIn("first initialization question is `secretary_language`", secretary)

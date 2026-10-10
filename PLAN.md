@@ -2,6 +2,12 @@
 
 Goal: build a general AI secretary project in this repo. Four skills plus scripts plus reusable templates. No personal data in source code.
 
+Current deployment policy (2026-10-10): one self-contained `goodmorning` skill
+is installed only in `~/.agents/skills/goodmorning/`. The checkout keeps inactive
+source in `skill-source/goodmorning.md` and registers no skills or command wrappers.
+Deployment is manual file copying; no installer or release-packaging scripts are needed.
+Older project-skill and wrapper references below describe the historical plan.
+
 User request in simple words. Each phase below can go to a different agent.
 
 ## Current Status — inspected 2026-10-09
@@ -473,9 +479,10 @@ country stays independent. General work does not automatically mark gm/gn.
 Direct details about a pending idea resume its clarification without requiring
 `Clarify` or `/eureka`; ask which idea only if the target is ambiguous.
 
-Skills live in `.opencode/skills/<name>/SKILL.md`; `.opencode/commands/` wrappers
-load them in the current session without changing models or spawning a child.
-They reference `docs/skill-rules.md` and `templates/<name>.reply.template.md`.
+The installed skill lives only in `~/.agents/skills/goodmorning/`; its inactive
+source is `skill-source/goodmorning.md`. No command wrappers are registered.
+It uses the current session without changing models or spawning a child and
+references `docs/skill-rules.md` and `templates/<name>.reply.template.md`.
 `docs/agent-usage.md` summarizes their workflows.
 
 During skill usage, prefer the session's available `question` tool (OpenChamber

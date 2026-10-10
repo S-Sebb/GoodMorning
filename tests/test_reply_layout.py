@@ -58,7 +58,7 @@ class LayoutTests(unittest.TestCase):
         template = (ROOT / "templates/gm.reply.template.md").read_text()
         for marker in ("Weather order", "chronological timetable", "Bold only", "No extra", "Neutral assessment"):
             self.assertIn(marker, shared)
-        self.assertIn("No news preambles", (ROOT / ".opencode/skills/gm/SKILL.md").read_text())
+        self.assertIn("No news preambles", (ROOT / "docs/workflows/gm.md").read_text())
         self.assertIn("existing source summary", re.sub(r"\s+", " ", template))
 
     def test_brief_takeaways_and_closing_do_not_displace_structure_or_sources(self):
@@ -82,7 +82,7 @@ class LayoutTests(unittest.TestCase):
         self.assertIn("No long pep talk", template)
 
     def test_yesterday_only_preference_excludes_same_day_sections(self):
-        skill = (ROOT / ".opencode/skills/gm/SKILL.md").read_text()
+        skill = (ROOT / "docs/workflows/gm.md").read_text()
         shared = (ROOT / "docs/skill-rules.md").read_text()
         template = (ROOT / "templates/gm.reply.template.md").read_text()
         self.assertIn("today's news waits", skill)
@@ -102,7 +102,7 @@ class LayoutTests(unittest.TestCase):
         self.assertNotRegex(reply, r"(?m)^\*\*[^\n]+\*\*$")
 
     def test_night_instructions_separate_reported_progress_from_calendar_and_agent_work(self):
-        skill = (ROOT / ".opencode/skills/gn/SKILL.md").read_text()
+        skill = (ROOT / "docs/workflows/gn.md").read_text()
         template = (ROOT / "templates/gn.reply.template.md").read_text()
         for marker in ("actual outcomes", "this agent", "unfinished", "chronological rows", "while waiting for feedback"):
             self.assertIn(marker, skill)

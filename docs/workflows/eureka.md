@@ -10,15 +10,15 @@ Inputs: the user's raw idea, confirmed runtime/timezone, optional project alias,
 and any supplied details or request to clarify. Output: a saved pending idea first;
 confirmed organization only after clarification and successful writes.
 
-The repository root is `../../..` from this skill directory. Read
-`../../../docs/skill-rules.md` first. Use
-`../../../templates/eureka.reply.template.md`. Run commands from root and resolve
+All paths below are relative to the GoodMorning package root. Read
+`docs/skill-rules.md` first. Use
+`templates/eureka.reply.template.md`. Run commands from root and resolve
 the shared runtime directory. Do not ask for a now/later choice by default. Use
 `question` only for needed clarification or confirmation. Do not fetch
 weather/news or scan all projects.
 Apply the shared materiality gate: no non-critical disclaimers or unrelated
 diagnostic narration; show the actual capture outcome and useful next step.
-Use `../../../docs/reply-voice.md`: quick capture can still sound interested and
+Use `docs/reply-voice.md`: quick capture can still sound interested and
 personal. Reflect the idea within useful content, without extra framing. Use lists
 when clarification benefits from them, not forced tables or decorative bold.
 Brief grounded interest or a warm closing is optional, not mandatory padding.
@@ -26,7 +26,7 @@ Brief grounded interest or a warm closing is optional, not mandatory padding.
 ## Steps
 
 1. Check setup without delaying capture with unrelated questions. If setup is
-   missing, retain the idea in the conversation, load `secretary` for setup, and
+    missing, retain the idea in the conversation, read `docs/workflows/secretary.md` for setup, and
    say it is not saved yet. If no idea was supplied, ask for it; do not create an
    empty entry.
 2. Append one pending entry to the existing inbox without replacing other ideas:

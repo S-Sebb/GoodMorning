@@ -2,9 +2,10 @@
 
 This is documentation, not a configuration file loaded by every script.
 All examples are general; no personal profile or credentials are supplied.
-Run commands from the repository root. Use `/secretary` for guided setup;
-project skills and command wrappers live under `.opencode/`. Creating these
-definitions does not initialize personal data.
+Run helpers from the repository or installed skill root. Ask the globally
+installed `goodmorning` skill for secretary setup, or use `/secretary` as a plain
+workflow request. This checkout registers no skills or command wrappers.
+Installing the skill does not initialize personal data.
 
 Guided setup follows [the staged initialization workflow](docs/initialization.md):
 reuse confirmed answers, save local records after consent, and verify only selected
@@ -14,7 +15,7 @@ they do not require repeating preferences or fixing integrations during setup.
 ## User-local files
 
 The first initialization question confirms the secretary's reply language, saved
-as `secretary_language` after storage consent. It applies to all four skills,
+as `secretary_language` after storage consent. It applies to all four workflows,
 setup/questions and follow-ups, independently of news-source language/country or
 tone. Allow explicit language/script, bilingual or “follow my message language”
 choices. Existing profiles without it are valid; never silently invent the field.
