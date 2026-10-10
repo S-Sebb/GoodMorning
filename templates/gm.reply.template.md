@@ -53,8 +53,13 @@ headings, routine labels or every news item. There is no arbitrary length target
   Never show tasks as completed simply because a morning briefing was created.
   Connect advice to their actual priorities, offer a manageable next step, and
   preserve their agency. Avoid clipped instructions and patronizing pep talks.
+- Include unresolved project updates as unchecked clarification TODOs referencing
+  their pending entries. Ask to clarify the change, not to execute an unconfirmed
+  action; do not duplicate an already open clarification TODO.
 - Reminders include only actionable pending ideas/reviews, required missed-run
-  choices, material conflicts or failed saves. Never announce empty queues or
+  choices, material conflicts or failed saves. Pending clarification belongs as
+  an unchecked TODO in the task list, not only an idea-count reminder.
+  Never announce empty queues or
   unrequested older-news availability. Omit empty/non-actionable sections; do not
   hide a material gap in requested information.
 - Retain this layout hierarchy; optional sections may be omitted when empty or

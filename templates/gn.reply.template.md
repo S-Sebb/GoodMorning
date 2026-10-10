@@ -39,6 +39,11 @@ forced optimism or exaggerated praise, and there is no short reply target.
   If no appointments are listed, one short sentence is enough; do not force empty
   table rows. Unfinished priorities stay in Still open, not the timetable.
 - Reminders include pending ideas or unresolved saves; omit only if unnecessary.
+  Ask a focused question about remaining idea clarification; keep the saved idea
+  pending if the user defers or does not reply.
+- Ask outstanding clarification questions for pending project updates alongside
+  progress questions. Unanswered plan changes stay pending; summarize only clear,
+  confirmed progress and do not silently apply proposed goals or TODOs.
 - Close in the user's tone, respecting special needs and the actual time.
    Do not force cheerfulness, guilt, or a claim that everything is on track.
 - Use `---` between substantive sections, headings rather than bold dividers,

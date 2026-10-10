@@ -75,7 +75,8 @@ authorize code development. Event import is a separate follow-up.
    reviews. Inspect relevant event details before reporting preparation needs.
 5. Read relevant project records. Build weekly tasks with priorities, confirmed
    deadlines, and estimates where supported. Pick today's must-do and nice-to-do
-   tasks. Remind about pending ideas.
+    tasks. Add unchecked TODOs for pending idea clarification in the reply and
+    daily task list.
 6. Save concise output using `templates/daily.template.md`, with tasks unchecked.
    Save the verbatim reply using `state.py --mark-gm --session NAME
    --answer-file PATH` or `--answer-stdin`.
@@ -90,18 +91,25 @@ authorize code development. Event import is a separate follow-up.
 2. Read today's task lists and ask what the user completed. Mark only confirmed
    completions. Save feedback and actual progress.
 3. Assess project progress from the user's report, suggest next steps, and update
-   authorized project records. Remind about tomorrow's schedule and pending ideas.
+    authorized project records. Remind about tomorrow's schedule and ask focused
+    questions about pending idea clarification; deferral does not block the summary.
 4. Say good night in the agreed tone, appropriate to the time. Save the daily
    record and verbatim reply with `state.py --mark-gn --session NAME` plus an
    answer input. Do not overwrite earlier snapshots without an explicit request.
 
 ## `/eureka`: idea capture
 
-1. Save the raw idea with a timestamp as pending in `secretary/inbox.md` and
+1. Save the raw idea and any supplied details immediately, before clarification,
+   with a timestamp as pending in `secretary/inbox.md`; note remaining ambiguity and
    confirm it was saved. Offer calendar confirmation if it implies a dated event.
-2. Ask whether to clarify now or later. If now, resolve ambiguity before writing
-   the confirmed idea to project records or authorized work files.
-3. If later, remind at today's `/gn`, otherwise the next `/gm`. Keep reminding
+2. Leave it pending by default, without a now/later question. Invite optional
+   clarification via `Clarify`; the idea can also stay as is. Accept details
+   directly in the initial request, a follow-up, or
+   `/secretary`; reuse answers and ask only about remaining ambiguity. Preserve
+   the raw idea and retain details with its entry, without duplicating it. Confirm
+   the clarified meaning before organizing it in authorized records or work files.
+3. For ideas left pending, add a clarification TODO at the next `/gm`, ask a
+   clarification question at `/gn`, or include a reminder at `/secretary`. Keep reminding
    until the user confirms and the idea is organized.
 
 ## `/secretary`: general work
@@ -109,6 +117,19 @@ authorize code development. Event import is a separate follow-up.
 Handle setup, records, calendar review, questions, and confirmed plan changes.
 Read relevant project files to understand context. Use `docs/project-access.md`
 for authorized local/remote access and write-back; preserve unrelated work.
+Details about a saved idea resume its clarification without requiring `Clarify`
+or `/eureka`. Ask which idea only if unclear; do not repeat supplied answers.
+Save details before asking, even if their target idea is unclear; follow shared
+inbox rules for unassigned input and remind about pending clarification.
+Save project progress reports and proposed TODO/goal changes immediately in the
+configured inbox, including updates after meetings or discussions. Preserve the
+user's wording before asking questions, note what requires clarification, and
+catch up from relevant project records. Pending capture does not change the
+confirmed plan or authorize external writes. Keep unanswered questions with the
+same entry: the next `/gm` includes a clarification TODO, `/gn` asks clarification
+questions, and later `/secretary` calls remind the user. Reuse answers and avoid
+duplicate notes/tasks; resolve the entry only after clarification and authorized
+updates succeed. See the pending project-update workflow in `docs/skill-rules.md`.
 When the user moves, confirm and update the profile city and region, then verify
 the weather location. National news country remains an independent choice.
 

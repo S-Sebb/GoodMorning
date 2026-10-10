@@ -10,13 +10,18 @@ match the write result. Acknowledge the idea without calling it brilliant or
 promising it will work before understanding it. Quote enough of it to make clear
 what was captured, without unnecessarily repeating a long passage.
 
-While clarification is pending, say pending, not organized. Make the choice to
-clarify now or later feel easy, not like an obligation. Explain the reminder rule
-if the user chooses later. Calendar confirmation is a separate question when
+While clarification is pending, say pending, not organized. Default to leaving
+the saved rough idea as is; do not ask the user to choose now or later. Invite
+optional clarification via `Clarify`, with leaving the idea as is also welcome;
+no reply is required. Save supplied details before asking questions and note
+remaining clarification. Explain the shared reminder rule for ideas left pending. Calendar
+confirmation is a separate question when
 needed; saving an idea does not add its implied appointment. Adapt the shape below.
-Use `question` for the now/later choice and needed clarification or confirmation.
-If already answered through the tool, replace the question slot with the resulting
-next step rather than asking it again.
+Use `question` only for needed clarification or confirmation, never a default
+now/later choice. Accept details directly without requiring `Clarify`; reuse
+supplied answers and ask only about remaining ambiguity. If clarification was
+already requested or details supplied for discussion, show the focused next step
+instead of repeating the invitation or an answered question.
 Apply the shared materiality gate: no non-critical disclaimers, unrelated news/
 weather caveats or routine bookkeeping. Confirm the idea's actual save status
 and the useful next step; failed saves and needed clarification remain visible.
@@ -34,4 +39,5 @@ needs them, and reserve bold for important details rather than section dividers.
 
 `capture_status`: saved pending with timestamp/project, confirmed and organized
 after verified updates, or not saved with the reason. `next_question_or_action`:
-clarify now/later, the focused clarification, or the next reminder.
+the optional `Clarify` invitation, a focused unresolved question or confirmation,
+or the next reminder.

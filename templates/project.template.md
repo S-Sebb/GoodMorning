@@ -36,8 +36,10 @@ Likely scheduled events also require confirmation before adding to SQLite. -->
 - Use only registered paths and the agreed read/write-back scope.
 - Record confirmed ideas and reported progress here. Update work project files
   when authorized so other agents see the same plan; preserve unrelated work.
-- Keep unconfirmed ideas in `secretary/inbox.md`, not in the confirmed plan.
-- Resolve ambiguous changes before saving. Update `last_update` after edits.
+- Keep unconfirmed ideas and project updates in the configured runtime's
+  `inbox.md`, not in the confirmed plan. Save raw reports immediately, before
+  clarification; retain unresolved questions for gm/gn/secretary follow-up.
+- Resolve ambiguous changes before applying them here. Update `last_update` after edits.
 - Use the confirmed `registry_alias` with `scripts/projects.mjs`; the private
   registry is authoritative for host, path, and exact write targets. See
   `docs/project-access.md`. Never invent aliases or broaden their scope.

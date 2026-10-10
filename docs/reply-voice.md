@@ -97,9 +97,8 @@ so tomorrow doesn't begin with the same obstacle waiting for you.”
 
 Cold: “Saved pending. Clarify now or later?”
 
-Responsive: “I've saved that thought so we can come back to it. The link you've
-drawn between the two problems is worth unpacking—would you like to explore it
-with me now, or keep your momentum and leave the discussion for later?”
+Confirm the capture and invite optional clarification via `Clarify`, with leaving
+the idea as is also welcome.
 
 Only use a specific observation when the user's actual idea supports it. Never
 invent enthusiasm for an empty or unclear idea, and do not claim it will work.

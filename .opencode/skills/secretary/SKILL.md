@@ -68,10 +68,14 @@ No routine caveats or long framing; bold only key details.
 
 1. Identify the requested read/change and any ambiguity. Read the profile and only
    relevant records/compact queries; no blanket project scan or automatic daily
-   fetching. Route morning/night/idea requests to their corresponding skill.
-2. Answer questions from actual evidence. For reported ideas/progress, confirm
-    unclear meaning and apply authorized updates, maintaining `last_update`.
-    Follow shared project access/write-back rules and expose unresolved outcomes.
+    fetching. Route morning/night/idea requests to their corresponding skill.
+    Save ideas/details immediately per shared inbox rules; remind about pending clarification.
+    Resume an existing pending entry; do not require `/eureka` or `Clarify`.
+    Reuse prior answers; ask only about remaining ambiguity. Confirm only after
+    user confirmation and successful authorized organization.
+2. Use the shared pending project-update workflow before asking questions;
+    catch up; remind about outstanding project-update questions. Respect write-back
+    scope and update `last_update` for confirmed changes.
     Confirm changed roles/fields before updating the profile; preserve other
     preferences and follow shared personalization rules.
 3. For "I moved", confirm the qualified city and region before updating the

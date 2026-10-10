@@ -51,7 +51,7 @@ operation needed. Paths in this guide are relative to the GoodMorning root.
 - Prefer the available `question` tool—the structured question UI in OpenChamber—
   when a skill needs user input, clarification, a choice, or confirmation. This
   applies to setup/preferences, optional roles/fields, missed-day choices, night
-  progress, idea clarification now/later, project scope, and calendar changes.
+  progress, requested idea clarification, project scope, and calendar changes.
   Use the tool exposed by this session; do not invent an `openchamber` action or
   assume a particular tool namespace exists.
 - Give a clear question, short header, and meaningful choices with helpful
@@ -73,6 +73,30 @@ operation needed. Paths in this guide are relative to the GoodMorning root.
   confirmation covering this action. Do not repeat a tool question in the final
   reply after it has been answered. Greetings, explanations, and updates remain
   ordinary replies; the question tool is not a substitute for a briefing.
+- Idea capture is save-first by default, not a mandatory now/later question.
+  In every secretary workflow, save each supplied idea and follow-up detail to
+  the inbox immediately, before asking clarification or waiting for a reply. Use
+  eureka's timestamped pending-entry format and verify the write. Preserve raw
+  wording; add details and a note of remaining clarification as indented text
+  beneath the entry, not another idea. If the target is unclear, save the details
+  as unassigned pending input before asking which idea they belong to, then merge
+  after identification. Do not lose input when the user stops replying. Setup,
+  credential safety and failed-save rules still apply; never claim an unsaved input
+  was saved.
+  Leave the rough idea pending and invite the user to say `Clarify` if they want
+  to work out details; no reply is required. Accept directly supplied details in
+  eureka or secretary without a keyword, reuse prior answers, and ask only about
+  remaining ambiguity. This does not bypass confirmation for organization or
+  calendar/project changes.
+  Keep unresolved clarification pending: on the next `/gm`, include an unchecked
+  clarification TODO in the reply and daily task list; on `/gn`, ask a focused
+  clarification question; on `/secretary`, include a reminder. Read the relevant
+  pending entries, not just their count. Repeat while unresolved, reusing answers;
+  do not block a briefing or unrelated work if the user defers or does not reply.
+  No scheduler is needed.
+- Project-update capture follows the same save-first boundary: save the user's
+  report before asking for clarification, not an interpretation or plan mutation.
+  Follow the pending project-update workflow below; silence is never confirmation.
 - Avoid dummy “provide/specify” buttons for text-only details; they do not supply
   an answer. Use custom input without dummy choices if supported, otherwise ask
   plainly. Reuse the stated timezone/date and exact prior consent when clear;
@@ -277,6 +301,47 @@ operation needed. Paths in this guide are relative to the GoodMorning root.
   older stories or mistake every current item for breaking news.
 
 ## Calendar and project changes
+
+### Pending project updates and plan changes
+
+- In `/secretary`, immediately capture reported project progress and proposed
+  TODO/goal changes, including changes after meetings or discussions with friends,
+  superiors or business partners. Use the configured local inbox once setup/storage
+  authorization exists; do not wait for a clarification reply. If setup is missing
+  or saving fails, retain the report in the conversation and say it is not saved.
+- Append one entry per incoming update without replacing other entries:
+  `- YYYY-MM-DD HH:MM TIMEZONE | JSON_UPDATE | pending | PROJECT`.
+  Use the actual local timestamp and only a confirmed project (leave it empty if
+  unclear). JSON_UPDATE is a single-line JSON object with `kind: "project_update"`,
+  `raw` containing the user's exact wording, `details` containing supplied follow-up
+  wording, and `clarification` listing unresolved questions. JSON encoding keeps
+  multiline wording reversible. Never persist credentials; request redacted text.
+  Verify the save before claiming success, then rebuild the state index.
+- Capture clear reports too; apply their authorized, unambiguous updates normally.
+  For unclear reports, explicitly note that clarification is required and ask
+  focused questions about the project, progress, revised goal, tasks, scope,
+  deadlines or whether a discussion produced a decision versus a suggestion.
+  Read only relevant records to catch up; reuse supplied answers. Save identified
+  questions before asking. Never infer agreement from the other person's role.
+- Keep uncertain changes out of confirmed project goals, TODOs, daily execution
+  tasks and calendar events. Preserve the existing plan until meaning and write
+  scope are confirmed. Saving a pending note does not authorize external write-back.
+- On follow-up, locate the existing entry and save details before asking questions.
+  If the target is ambiguous, capture unassigned pending input before asking which
+  entry it belongs to, then merge it after identification. Preserve
+  `raw`, and attach details/questions there without duplicate capture. No command
+  or keyword is required. Keep it `pending` until clarification and all agreed,
+  authorized record updates succeed; then mark it `confirmed`, maintain project
+  `last_update`, and rebuild the index. Unresolved writes remain pending too.
+- If the user does not answer, retain the note and questions across sessions.
+  At the next `/gm`, add an unchecked clarification TODO referencing the pending
+  entry, not the unconfirmed project action. At `/gn`, ask its outstanding
+  clarification questions alongside progress questions; unanswered plan questions
+  stay pending and do not prevent summarizing otherwise confirmed progress.
+  At `/secretary`, remind about outstanding questions. Repeat until resolved;
+  do not duplicate an existing open clarification TODO or repeat answered questions.
+  Use compact inbox counts first, then read only needed pending entries. These are
+  workflow reminders, not permission to install a scheduler or change appointments.
 
 - In any skill, a likely scheduled event requires quoting its date, time,
   timezone, title, and place and asking whether to add it. Ask for missing or

@@ -86,6 +86,67 @@ class SkillContractTests(unittest.TestCase):
                 self.assertIn("`question`", skill)
                 self.assertIn("`question`", template)
 
+    def test_eureka_saves_by_default_and_accepts_details_without_a_keyword(self):
+        skill = (ROOT / ".opencode/skills/eureka/SKILL.md").read_text()
+        template = (ROOT / "templates/eureka.reply.template.md").read_text()
+        shared = (ROOT / "docs/skill-rules.md").read_text()
+        secretary = (ROOT / ".opencode/skills/secretary/SKILL.md").read_text()
+        for text in (skill, template):
+            self.assertIn("optional clarification via `Clarify`", text)
+            self.assertIn("idea as is", text)
+            self.assertNotIn("Say `Clarify` if you want me", text)
+            self.assertIn("remaining", text)
+            self.assertNotIn("Use `question` for now/later", text)
+            self.assertNotIn("Use `question` for the now/later choice", text)
+        for marker in ("Do not ask for a now/later choice by default",
+                       "no special keyword", "Preserve the original raw idea",
+                       "not as a duplicate idea", "skip clarification questions",
+                       "only after the user confirms"):
+            self.assertIn(marker, skill)
+        self.assertIn("no reply is required", shared)
+        for marker in ("do not require `/eureka` or `Clarify`", "existing pending entry",
+                       "prior answers", "remaining ambiguity", "successful authorized organization"):
+            self.assertIn(marker, secretary)
+
+    def test_idea_details_are_saved_before_questions_and_resurface_by_workflow(self):
+        shared = (ROOT / "docs/skill-rules.md").read_text()
+        for marker in ("save each supplied idea and follow-up detail", "immediately, before asking",
+                       "unassigned pending input", "Do not lose input when the user stops replying",
+                       "unchecked", "clarification TODO", "clarification question",
+                       "`/secretary`, include a reminder", "do not block a briefing"):
+            self.assertIn(marker, shared)
+        for kind, marker in (("eureka", "Save follow-up details immediately"),
+                             ("gm", "unchecked clarification TODOs"),
+                             ("gn", "Ask focused questions for pending clarification"),
+                             ("secretary", "Save ideas/details immediately")):
+            text = (ROOT / ".opencode/skills" / kind / "SKILL.md").read_text()
+            self.assertIn(marker, text)
+
+    def test_project_updates_save_before_clarification_and_follow_up_across_skills(self):
+        shared = (ROOT / "docs/skill-rules.md").read_text()
+        for marker in ('kind: "project_update"', "user's exact wording",
+                       "before asking for clarification", "clarification is required",
+                       "silence is never confirmation", "decision versus a suggestion",
+                       "Keep uncertain changes out of confirmed", "Preserve\n  `raw`",
+                       "all agreed,\n  authorized record updates succeed",
+                       "At the next `/gm`", "unchecked clarification TODO",
+                       "At `/gn`", "At `/secretary`", "Repeat until resolved",
+                       "not permission to install a scheduler"):
+            self.assertIn(marker, shared)
+        secretary = (ROOT / ".opencode/skills/secretary/SKILL.md").read_text()
+        self.assertIn("before asking questions", secretary)
+        self.assertIn("outstanding project-update questions", secretary)
+        for kind in ("secretary", "gm", "gn"):
+            with self.subTest(kind=kind):
+                skill = (ROOT / ".opencode/skills" / kind / "SKILL.md").read_text()
+                template = (ROOT / "templates" / f"{kind}.reply.template.md").read_text()
+                self.assertIn("shared pending project-update workflow", skill)
+                self.assertIn("clarification", template)
+        project = (ROOT / "templates/project.template.md").read_text()
+        self.assertIn("Save raw reports immediately", project)
+        self.assertIn("before applying them here", project)
+        self.assertNotIn("before saving", project)
+
     def test_setup_invites_optional_role_context_and_all_skills_can_use_it(self):
         secretary = (ROOT / ".opencode/skills/secretary/SKILL.md").read_text()
         shared = (ROOT / "docs/skill-rules.md").read_text()
@@ -123,7 +184,7 @@ class SkillContractTests(unittest.TestCase):
         report, morning, night = fixtures()
         cases = {"gm": morning, "gn": night,
                  "eureka": {"capture_status": "I've saved your idea for Demo as pending, so we can return to it.",
-                            "next_question_or_action": "Would you like to clarify it together now, or leave it for later?"},
+                             "next_question_or_action": "Say `Clarify` if you want me to work out the details with you, otherwise we can leave it as is."},
                  "secretary": {"outcome": "I've updated Demo's goal using what you confirmed.",
                                "details_or_open_items": "The remote file hasn't been updated because a conflicting change needs review.",
                                "next_question_or_action": "Let's check the current file before deciding how to combine the changes."}}
@@ -188,6 +249,42 @@ class FakeWorkflowTests(unittest.TestCase):
         self.assertEqual(code, 0, err.getvalue())
         return json.loads(out.getvalue())
 
+    def test_pending_project_update_survives_without_reply_and_retains_raw_follow_up(self):
+        inbox = self.root / "inbox.md"
+        project = self.root / "projects/demo.md"
+        original_project = project.read_text()
+        raw = 'After the meeting, switch Demo to the partner plan.\nTODO: A | B; "soon".'
+        update = {"kind": "project_update", "raw": raw, "details": [],
+                  "clarification": ["Was the partner plan agreed or suggested?",
+                                    "Which TODOs and deadline replace the current plan?"]}
+        prefix = "- 2026-10-09 15:00 UTC | "
+        suffix = " | pending | Demo\n"
+        idea = '- 2026-10-08 07:00 UTC | Existing idea | pending | Demo\n'
+        inbox.write_text(idea + prefix + json.dumps(update) + suffix)
+
+        # No clarification reply: both notes remain discoverable on later runs.
+        for day in ("2026-10-09", "2026-10-10"):
+            rebuilt = self.call(state_main, ["--today", day, "--rebuild", "--json"])
+            self.assertTrue(rebuilt["rebuilt"])
+            state = self.call(state_main, ["--today", day, "--check", "--json"])
+            self.assertEqual(state["inbox"]["pending"], 2)
+            self.assertEqual(state["inbox"]["oldest_pending_date"], "2026-10-08")
+            self.assertEqual(project.read_text(), original_project)
+
+        # Simulate attaching a supplied detail to the same note, not a new capture.
+        update["details"].append("It was only suggested; keep the current goal for now.")
+        update["clarification"] = ["Which proposed TODOs should we keep for review?"]
+        inbox.write_text(idea + prefix + json.dumps(update) + suffix)
+        line = inbox.read_text().splitlines()[1]
+        restored = json.loads(line[len(prefix):-len(suffix.rstrip("\n"))])
+        self.assertEqual(restored["raw"], raw)
+        self.assertEqual(restored["details"], update["details"])
+        self.assertEqual(restored["clarification"], update["clarification"])
+        self.assertEqual(scan_inbox(str(self.root))["total"], 2)
+        self.assertEqual(scan_inbox(str(self.root))["pending"], 2)
+        self.assertTrue(inbox.read_text().startswith(idea))
+        self.assertEqual(project.read_text(), original_project)
+
     def test_capture_morning_delivery_and_night_records(self):
         report, morning, night = fixtures()
         (self.root / "inbox.md").write_text('- 2026-10-09 07:00 UTC | "Try a synthetic demo" | pending | Demo\n')
@@ -246,6 +343,18 @@ class FakeWorkflowTests(unittest.TestCase):
         self.assertIn("- [ ] Demo: optional reading", daily.read_text())
         self.assertEqual(summary["inbox"]["pending"], 1)
         self.assertEqual(summary["news"]["delivered"], 1)
+
+    def test_pending_details_survive_without_a_clarification_reply(self):
+        raw = '- 2026-10-09 07:00 UTC | "Try a synthetic demo" | pending | Demo\n'
+        details = '  Details: "Use a small dataset first."\n'
+        unresolved = '  Clarification needed: which dataset?\n'
+        inbox = self.root / "inbox.md"
+        inbox.write_text(raw + details + unresolved)
+        self.call(state_main, ["--today", "2026-10-10", "--rebuild", "--json"])
+        summary = self.call(state_main, ["--today", "2026-10-10", "--check", "--json"])
+        self.assertEqual(summary["inbox"]["pending"], 1)
+        self.assertEqual(summary["inbox"]["total"], 1)
+        self.assertEqual(inbox.read_text(), raw + details + unresolved)
 
 
 if __name__ == "__main__":

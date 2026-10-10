@@ -40,7 +40,11 @@ takeaways and the closing. Do not add routine weather/news, backlog or diagnosti
    partially completed, blocked, or changed. If the user already provided this,
    ask only for remaining ambiguities. If no morning list exists, ask for the
    actual work and label the missing plan; do not invent it. Do not mark `/gn`
-   while waiting for feedback.
+    while waiting for feedback.
+    Follow the shared pending project-update workflow: ask outstanding clarification
+    questions from saved updates alongside progress questions, reusing prior answers.
+    Leave unanswered plan changes pending; they do not block a summary of otherwise
+    confirmed progress. Do not apply them as confirmed goals, TODOs or completions.
    For a small task list, ask one compact question about actual outcomes and any
    extra work. A completion choice confirms that task only; partial/blocked work
    needs its actual details. Never turn implementation work by this agent, calendar
@@ -59,7 +63,9 @@ takeaways and the closing. Do not add routine weather/news, backlog or diagnosti
 5. Query the next local day's schedule with
    `secretary_calendar.py --from TOMORROW --days 1 --timezone ZONE --json`.
    Inspect preparation details, surface pending review, and remind about pending
-   inbox ideas. Do not treat unfinished tasks as new calendar appointments.
+    inbox ideas. Ask focused questions for pending clarification per the shared
+    reminder rule; deferral leaves ideas pending without blocking the summary.
+    Do not treat unfinished tasks as new calendar appointments.
    Show date/time/timezone, event, place and prep in chronological rows. A clear
    calendar can be stated in one short planning-relevant line; do not manufacture
    events or pad it with empty rows. Omit empty reminder sections. Keep unfinished

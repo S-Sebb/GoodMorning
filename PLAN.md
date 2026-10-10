@@ -445,15 +445,24 @@ Order:
 
 Order:
 
-1. Fast save of raw idea to `inbox.md` with timestamp. Confirm saved. If the
+1. Immediately save raw ideas and supplied details to `inbox.md` with timestamp,
+   before asking clarification; note remaining ambiguity. Confirm saved. If the
    idea implies a scheduled event, offer to add it to the custom calendar (§3.6).
-2. Ask: confirm now or later?
-3. Now: clarify and confirm meaning, then write to authorized project records
+2. Leave the rough idea pending by default, without a now/later question. Invite
+   optional clarification via `Clarify`; the idea can also stay as is. No reply
+   is required.
+3. On a clarification request or directly supplied details (including through
+   `/secretary`), reuse answers and ask only about remaining ambiguity. Preserve
+   the raw idea and retain details with its entry, without duplication. Clarify
+   and confirm meaning, then write to authorized project records
    and/or work files. Set `confirmed` only after agreed organization succeeds;
    keep unresolved writes pending. Rebuild the index without marking gm/gn.
    Never claim a failed capture was saved or install scheduled reminders without
    separate authorization.
-4. Later: keep in inbox. Remind at today's `/gn`. If no `/gn` that day, remind at next day `/gm`. Repeat until user confirms and idea is organized.
+4. Default / later: keep in inbox even without a follow-up reply. Next `/gm` adds
+   an unchecked clarification TODO to the reply and daily tasks; `/gn` asks a
+   clarification question; `/secretary` gives a reminder. Repeat until confirmed
+   and organized, without blocking unrelated work if the user defers.
 
 ### 4.5 /secretary General
 
@@ -461,6 +470,8 @@ Handles setup, profile changes, records, questions, calendar review, and confirm
 plan amendments. Read relevant context and apply registry/confirmation rules to
 writes. A move changes confirmed city/region and possibly timezone; national news
 country stays independent. General work does not automatically mark gm/gn.
+Direct details about a pending idea resume its clarification without requiring
+`Clarify` or `/eureka`; ask which idea only if the target is ambiguous.
 
 Skills live in `.opencode/skills/<name>/SKILL.md`; `.opencode/commands/` wrappers
 load them in the current session without changing models or spawning a child.

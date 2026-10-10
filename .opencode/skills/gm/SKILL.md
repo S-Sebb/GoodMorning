@@ -82,8 +82,10 @@ Brief optional section takeaways and a warm closing may add flavor; keep news it
    nice-to-do tasks with priority, fixed times, and clearly labeled estimates.
     Explain useful advice within sections in the user's tone; keep it easy to scan.
    Do not invent deadlines or progress.
-   Remind about pending ideas without
-   opening the entire inbox unless clarification is needed.
+    Read relevant pending ideas and add unchecked clarification TODOs to the reply
+    and daily task list per the shared reminder rule, preserving existing tasks.
+    Use the shared pending project-update workflow: clarification TODOs,
+    not unconfirmed actions; no duplicate tasks.
 6. Compose the reply using the template. Write concise weather/news/schedule/task
    sections into the selected daily file, preserving existing content. New tasks
    are unchecked. Save the exact reply through `state.py --mark-gm` with session,

@@ -1,20 +1,21 @@
 ---
 name: eureka
-description: Fast idea capture for /eureka: save the user's raw idea as pending, offer clarification now or later, and organize only confirmed meaning into authorized project records.
+description: Fast idea capture for /eureka: save the user's raw idea as pending by default, invite optional clarification, accept supplied details, and organize only confirmed meaning into authorized project records.
 ---
 
 # Idea capture
 
 Trigger: `/eureka`, or an explicit request to capture an idea in GoodMorning.
 Inputs: the user's raw idea, confirmed runtime/timezone, optional project alias,
-and their choice to clarify now or later. Output: a saved pending idea first;
+and any supplied details or request to clarify. Output: a saved pending idea first;
 confirmed organization only after clarification and successful writes.
 
 The repository root is `../../..` from this skill directory. Read
 `../../../docs/skill-rules.md` first. Use
 `../../../templates/eureka.reply.template.md`. Run commands from root and resolve
-the shared runtime directory. Use `question` for now/later and needed clarification
-or confirmation. Do not fetch weather/news or scan all projects.
+the shared runtime directory. Do not ask for a now/later choice by default. Use
+`question` only for needed clarification or confirmation. Do not fetch
+weather/news or scan all projects.
 Apply the shared materiality gate: no non-critical disclaimers or unrelated
 diagnostic narration; show the actual capture outcome and useful next step.
 Use `../../../docs/reply-voice.md`: quick capture can still sound interested and
@@ -34,17 +35,31 @@ Brief grounded interest or a warm closing is optional, not mandatory padding.
    wording; for multiline text, encode the raw string as JSON on that single
    line so line breaks/quotes are reversible. Never persist credentials: ask for
    a redacted idea instead. Verify the write before saying "Saved". If this same
-   user turn was already captured, point to its entry rather than appending again.
+    user turn was already captured, point to its entry rather than appending again.
+   Save follow-up details immediately too, before any clarification question,
+   using the shared inbox rules. Note what still requires clarification.
 3. Apply the user's customised tone throughout the confirmation, questions, and
    reminders, while prioritizing clean formatting and clarity. Confirm what was
-   saved in a natural reply using the template. Make it
-   easy to choose whether to clarify now or later, without pressure or exaggerated
-   praise. If the idea implies a dated event, offer calendar confirmation under
+    saved in a natural reply using the template. By default, leave it pending and
+    invite optional clarification via `Clarify`, not a question widget; the user
+    can also leave the idea as is. Do not require a reply or a now/later
+    choice. If the user already requests clarification or supplies details to work
+    through, continue with those instead of repeating the invitation. If the idea
+    implies a dated event, offer calendar confirmation under
    the shared rules; capturing an idea does not authorize adding an appointment.
-4. Later: leave it pending. State the reminder rule: today's `/gn`, otherwise the
-   next `/gm`, repeated until confirmed and organized. Do not install a scheduler.
-5. Now: ask focused questions until goal, intended project, constraints, and next
-   action are clear. Quote back the clarified meaning for confirmation. Read only
+4. Default / later: leave it pending without requiring an explicit "later" reply.
+   Follow the shared reminder rule: next `/gm` as an unchecked clarification TODO,
+   `/gn` as a clarification question, and `/secretary` as a reminder. Keep unresolved
+   input pending even without a follow-up reply. Do not install a scheduler.
+5. Clarification: accept `Clarify`, an equivalent request, or details supplied
+   directly in the initial capture, a follow-up, or `/secretary`; no special keyword
+   or command is required to provide details. Reuse supplied answers and relevant
+   context. If the target idea is ambiguous, ask which one rather than guessing.
+   Preserve the original raw idea and retain additional details with that pending
+   entry, not as a duplicate idea. Ask focused questions only about remaining
+   ambiguity in the goal, intended project, constraints, or next action. If those
+   are already clear, skip clarification questions. Quote back the clarified
+   meaning for confirmation. Read only
    relevant project records/instructions. Write the confirmed idea into authorized
    records and/or work files, updating `last_update` and preserving unrelated work.
 6. Change that inbox entry to `confirmed` only after the user confirms and the

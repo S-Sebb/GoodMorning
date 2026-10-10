@@ -1,5 +1,5 @@
 ---
-description: Save an idea quickly, then clarify now or later
+description: Save a rough idea directly, with optional clarification
 subagent: false
 ---
 
