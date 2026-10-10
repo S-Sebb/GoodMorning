@@ -21,6 +21,9 @@ Read `docs/core-rules.md`, then only the requested workflow. The expanded
 
 Equivalent natural-language requests use the same workflows. Ask if the requested
 workflow is unclear. Keep the current session and model; do not delegate.
+`/eureka` and `/todo` are capture requests, not instructions to do the captured
+work. Save, confirm, then stop. Supplied details do not authorize discussion or
+execution; clarification requires an explicit request and is not execution consent.
 Missing setup follows the secretary workflow without recursively loading a skill.
 Inbox memory uses `scripts/inbox.py`: append without reading history, query only
 active summaries/relevant IDs, and keep material current state—not a transcript.

@@ -68,11 +68,10 @@ replies, `docs/reply-voice.md`: personable useful content, no routine bookkeepin
      fetching. Route gm/gn/eureka/todo requests to their workflow.
     Save ideas/details immediately per shared inbox rules; remind about pending clarification.
     Use preparation's inbox page; further `inbox.py --list` filters/pages and `--show ID`
-    only for relevant current
-    state, not archived discussions. Read `docs/inbox-pipeline.md` for mutations or
+    for relevant current state, not history. Read `docs/inbox-pipeline.md` for mutations or
     flagged details. Save only material memory, not every message or assistant answer.
     Resume an existing pending entry; do not require `/eureka` or `Clarify`.
-    Reuse prior answers; ask only about remaining ambiguity. Confirm only after
+    On requested discussion, reuse prior answers; ask only about remaining ambiguity. Confirm only after
     user confirmation and successful authorized organization.
     TODOs follow `docs/workflows/todo.md`.
 2. Use the shared pending project-update workflow before asking questions;

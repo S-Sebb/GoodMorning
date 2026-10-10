@@ -179,6 +179,30 @@ class SkillContractTests(unittest.TestCase):
                        "prior answers", "remaining ambiguity", "successful authorized organization"):
             self.assertIn(marker, secretary)
 
+    def test_eureka_stops_after_capture_and_separates_discussion_from_execution(self):
+        entry = (ROOT / "skill-source/goodmorning.md").read_text()
+        core = (ROOT / "docs/core-rules.md").read_text()
+        workflow = (ROOT / "docs/workflows/eureka.md").read_text()
+        template = (ROOT / "templates/eureka.reply.template.md").read_text()
+        shared = (ROOT / "docs/skill-rules.md").read_text()
+        self.assertIn("Save, confirm, then stop", entry)
+        for text in (core, workflow, shared):
+            with self.subTest(document=text.splitlines()[0]):
+                normalized = " ".join(text.split())
+                self.assertIn("details alone do not request discussion", normalized)
+                self.assertIn("not execution consent", normalized)
+                self.assertIn("explicit", text)
+        for marker in ("By default, save, confirm, then stop", "Even", '"research X"',
+                       '"build Y"', '"fix Z"', "Only inbox capture and the workflow title",
+                       "Without an explicit discussion request", "no calendar offer",
+                       "Clarification is not permission to execute", "separately requested",
+                       "not permission to complete that TODO"):
+            self.assertIn(marker, workflow)
+        self.assertNotIn("supplies details to work", workflow)
+        self.assertNotIn("offer calendar confirmation", workflow)
+        self.assertIn("Do not promise", template)
+        self.assertIn("Details alone do not request discussion", template)
+
     def test_idea_details_are_saved_before_questions_and_resurface_by_workflow(self):
         shared = (ROOT / "docs/skill-rules.md").read_text()
         for marker in ("save each supplied idea and follow-up detail", "immediately, before asking",
@@ -293,7 +317,7 @@ class SkillContractTests(unittest.TestCase):
                        "only when the", "never claim the task itself was completed"):
             self.assertIn(marker, template)
         self.assertIn("idea/project-update clarification reminder rules do not apply", shared)
-        self.assertIn("Except record-only TODO capture", shared)
+        self.assertIn("Except record-only idea/TODO capture", shared)
         for kind in ("gm", "gn", "secretary"):
             text = (ROOT / "docs/workflows" / f"{kind}.md").read_text()
             self.assertIn('kind: "todo"' if kind == "gn" else "TODO", text)

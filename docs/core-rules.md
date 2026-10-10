@@ -66,12 +66,14 @@ Load specialized guides only for an operation that actually needs them.
 - Unresolved idea/project questions recur as an unchecked `/gm` clarification TODO,
   focused `/gn` question or `/secretary` reminder, without blocking unrelated work
   or duplicating existing reminders. Reuse answers. No scheduler is implied.
-- TODOs are record-only: no unsolicited clarification, planning, research, execution,
-  delegation, project/deadline questions or calendar offers. Details alone do not
-  request discussion. Discuss only on `Clarify`/equivalent explicit request or a
-  request for explanation. Later surface open tasks without inventing deadlines,
-  forcing today's priorities or automatic clarification. `done` requires actual
-  user-confirmed completion, not the agent's work or calendar presence.
+- `/eureka` and `/todo` are record-only: save, confirm, then stop. Action verbs
+  and requirements are content, not execution consent. Supplied details alone
+  do not request discussion. Discuss only on `Clarify`/equivalent explicit request.
+  No unsolicited questions, plans, research, implementation, delegation, jobs,
+  project/work-file edits or calendar offers. Discussion never authorizes
+  organization/execution; request those separately. Follow-ups keep this boundary.
+  TODOs get no invented deadlines, forced priorities or auto-clarification.
+  `done` needs user-confirmed completion, not the agent's work.
 - Use `daily.py` for hash-checked section/task amendments. New tasks are unchecked;
   preserve earlier completions, run lines and unrelated work. Complete only exact
   IDs selected from actual user feedback; no inference from silence. Deduplication

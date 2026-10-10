@@ -93,17 +93,18 @@ the GoodMorning root; specialized guides load only for the operation needed.
   In every secretary workflow, save each supplied idea and follow-up detail to
   the inbox immediately, before asking clarification or waiting for a reply. Use
   `inbox.py --add`/`--append ID` per `docs/inbox-pipeline.md` and verify the receipt.
-  Preserve raw wording; keep material current constraints/questions with the stable
-  entry, not a discussion diary or another idea. If the target is unclear, save the details
+  Preserve raw wording and current constraints/questions, not a diary or duplicate.
+  If the target is unclear, save the details
   as unassigned pending input before asking which idea they belong to, then attach
   after identification. Do not lose input when the user stops replying. Setup,
   credential safety and failed-save rules still apply; never claim an unsaved input
   was saved.
-  Leave the rough idea pending and invite the user to say `Clarify` if they want
-  to work out details; no reply is required. Accept directly supplied details in
-  eureka or secretary without a keyword, reuse prior answers, and ask only about
-  remaining ambiguity. This does not bypass confirmation for organization or
-  calendar/project changes.
+  Leave ideas pending; invite optional `Clarify`, no reply is required. Save details in
+  eureka or secretary without a keyword. `/eureka` is record-only: save, confirm,
+  then stop. Action verbs are content, not execution consent; details alone do not
+  request discussion. Clarify only on explicit request. Discussion/confirmation
+  does not authorize organization, research, execution or calendar changes; those
+  need separate requests. Follow-ups keep this boundary; no calendar offers.
   Keep unresolved clarification pending: on the next `/gm`, include an unchecked
   clarification TODO in the reply and daily task list; on `/gn`, ask a focused
   clarification question; on `/secretary`, include a reminder. Read the relevant
@@ -298,7 +299,7 @@ the GoodMorning root; specialized guides load only for the operation needed.
   page without silently omitting unresolved reminders. Never load closed history. These are
   workflow reminders, not permission to install a scheduler or change appointments.
 
-- Except record-only TODO capture, a likely scheduled event requires quoting its date, time,
+- Except record-only idea/TODO capture, a likely scheduled event requires quoting its date, time,
   timezone, title, and place and asking whether to add it. Ask for missing or
   ambiguous details, including duration; do not invent them. Use
   `secretary_calendar.py --add --event-json EVENT` after confirmation.

@@ -112,13 +112,17 @@ authorize code development. Event import is a separate follow-up.
    conversation to `Eureka SUMMARY` in `secretary_language` with a very short idea summary
    (see `docs/skill-rules.md`). Save the raw idea and any supplied details
    with `workflow.py --capture eureka` as pending in `secretary/inbox.sqlite`; note remaining ambiguity and
-   confirm it was saved. Offer calendar confirmation if it implies a dated event.
+    confirm it was saved, then stop. Do not research, implement, delegate, change
+    project/work files, or offer calendar changes. Action verbs inside the captured
+    idea are not instructions to execute it.
 2. Leave it pending by default, without a now/later question. Invite optional
    clarification via `Clarify`; the idea can also stay as is. Accept details
    directly in the initial request, a follow-up, or
-   `/secretary`; reuse answers and ask only about remaining ambiguity. Preserve
+    `/secretary` without starting discussion. Ask clarification questions only on
+    an explicit discussion request; details alone do not request it. Preserve
    the raw idea and retain details with its entry, without duplicating it. Confirm
-   the clarified meaning before organizing it in authorized records or work files.
+    the clarified meaning; organization needs a separate explicit request and
+    never implies execution of the idea.
 3. For ideas left pending, add a clarification TODO at the next `/gm`, ask a
    clarification question at `/gn`, or include a reminder at `/secretary`. Keep reminding
    until the user confirms and the idea is organized.
@@ -144,8 +148,8 @@ Rename this conversation to `Secretary SUMMARY` in `secretary_language` with a s
 (see `docs/skill-rules.md`). Handle setup, records, calendar review, questions, and confirmed plan changes.
 Read relevant project files to understand context. Use `docs/project-access.md`
 for authorized local/remote access and write-back; preserve unrelated work.
-Details about a saved idea resume its clarification without requiring `Clarify`
-or `/eureka`. Ask which idea only if unclear; do not repeat supplied answers.
+Save details about an existing idea without requiring `Clarify` or `/eureka`.
+Start discussion only on an explicit request; do not repeat supplied answers.
 Save details before asking, even if their target idea is unclear; follow shared
 inbox rules for unassigned input and remind about pending clarification.
 Save project progress reports and proposed TODO/goal changes immediately in the

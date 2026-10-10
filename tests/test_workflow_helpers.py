@@ -62,6 +62,31 @@ class HelpersTests(unittest.TestCase):
         self.assertFalse((self.root / "daily").exists())
         self.assertFalse((self.root / "calendar.sqlite").exists())
 
+    def test_eureka_captures_action_words_and_requirements_as_pending_data_only(self):
+        initialize(self.root)
+        target = self.root / "project.py"
+        target.write_text("# Existing project, not authorized for edits\n")
+        raw = (f'Research the alternatives, then build and fix {target}.\n'
+               'Use Python; deploy tomorrow and book a review at 10:00.')
+        args = ["--capture", "eureka", "--session", "ses-test",
+                "--request-key", "idea-actions", "--input-stdin"]
+        payload = {"raw": raw, "context": "Full requirements supplied, capture only."}
+        with patch.object(workflow, "rebuild_index", side_effect=AssertionError("state scan")), \
+             patch("sys.stdin", io.StringIO(json.dumps(payload))), \
+             contextlib.redirect_stdout(io.StringIO()) as out:
+            self.assertEqual(workflow.main(args), 0)
+        receipt = json.loads(out.getvalue())
+        self.assertTrue(receipt["saved"])
+        store = InboxStore(self.root)
+        self.addCleanup(store.close)
+        current = store.show(receipt["id"])
+        self.assertEqual(current["kind"], "idea")
+        self.assertEqual(current["status"], "pending")
+        self.assertEqual(store.text(receipt["id"])["text"], raw)
+        self.assertEqual(target.read_text(), "# Existing project, not authorized for edits\n")
+        for name in ("state.json", "daily", "calendar.sqlite"):
+            self.assertFalse((self.root / name).exists())
+
     def test_preparation_checks_duplicates_before_loading_daily_tasks_or_inbox(self):
         self.file(f"# {DAY}\n- gm: yes (session ses-original)\n")
         before = set(self.root.iterdir())
