@@ -1,6 +1,6 @@
 ---
 name: goodmorning
-description: Personal secretary for /gm morning briefings, /gn night summaries, /eureka idea capture, and /secretary setup, project records, and calendar work.
+description: Personal secretary for /gm morning briefings, /gn night summaries, /eureka idea capture, /todo task capture, and /secretary setup, project records, and calendar work.
 ---
 
 # GoodMorning
@@ -14,6 +14,7 @@ Read `docs/skill-rules.md`, then only the requested workflow:
 - `/gm`: `docs/workflows/gm.md`.
 - `/gn`: `docs/workflows/gn.md`.
 - `/eureka`: `docs/workflows/eureka.md`.
+- `/todo`: `docs/workflows/todo.md`.
 - `/secretary`, first-use setup, or general secretary work:
   `docs/workflows/secretary.md`.
 

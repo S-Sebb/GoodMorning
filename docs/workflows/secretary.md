@@ -68,12 +68,13 @@ No routine caveats or long framing; bold only key details.
 
 1. Rename this conversation to `Secretary DATE` in `secretary_language` per the shared title rule.
    Identify the requested read/change and any ambiguity. Read the profile and only
-   relevant records/compact queries; no blanket project scan or automatic daily
-     fetching. Route morning/night/idea requests to their corresponding workflow file.
+   relevant records/compact queries; no blanket scan or automatic daily
+     fetching. Route gm/gn/eureka/todo requests to their workflow.
     Save ideas/details immediately per shared inbox rules; remind about pending clarification.
     Resume an existing pending entry; do not require `/eureka` or `Clarify`.
     Reuse prior answers; ask only about remaining ambiguity. Confirm only after
     user confirmation and successful authorized organization.
+    TODOs follow `docs/workflows/todo.md`.
 2. Use the shared pending project-update workflow before asking questions;
     catch up; remind about outstanding project-update questions. Respect write-back
     scope and update `last_update` for confirmed changes.
@@ -89,7 +90,7 @@ No routine caveats or long framing; bold only key details.
    Never display raw imports as approved or approve unseen events in bulk.
 5. Apply in-thread daily amendments without changing snapshots. Rebuild
    the index after confirmed record edits. Use the reply template to state the
-   outcome first, then explain useful context, unresolved items, or a next question
+   outcome first, then useful context, unresolved items, or a next question
    in the user's customised tone throughout, including errors and follow-up
    questions. Clean formatting and clarity take priority over tone flourishes.
    Do not mark gm/gn merely because this general skill was used.

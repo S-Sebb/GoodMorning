@@ -69,6 +69,8 @@ takeaways and the closing. Do not add routine weather/news, backlog or diagnosti
    Inspect preparation details, surface pending review, and remind about pending
     inbox ideas. Ask focused questions for pending clarification per the shared
     reminder rule; deferral leaves ideas pending without blocking the summary.
+    Treat `kind: "todo"` entries as open task reminders, not automatic clarification
+    questions. Mark them done only on user-confirmed completion.
     Do not treat unfinished tasks as new calendar appointments.
    Show date/time/timezone, event, place and prep in chronological rows. A clear
    calendar can be stated in one short planning-relevant line; do not manufacture

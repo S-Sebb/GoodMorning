@@ -37,11 +37,11 @@ class ReplyPolicyTests(unittest.TestCase):
                 "Discussion surfaced today; article publication date is unknown.")
         self.assertEqual(boilerplate_categories(text), [])
 
-    def test_all_four_skill_and_reply_templates_apply_materiality_gate(self):
+    def test_all_five_skill_and_reply_templates_apply_materiality_gate(self):
         shared = (ROOT / "docs/skill-rules.md").read_text()
-        for marker in ("all four workflows", "must never appear", "Preserve full", "Never hide material problems"):
+        for marker in ("all five workflows", "must never appear", "Preserve full", "Never hide material problems"):
             self.assertIn(marker, shared)
-        for kind in ("gm", "gn", "eureka", "secretary"):
+        for kind in ("gm", "gn", "eureka", "todo", "secretary"):
             self.assertIn("materiality gate", (ROOT / "docs/workflows" / f"{kind}.md").read_text())
             self.assertIn("materiality gate", (ROOT / "templates" / (kind + ".reply.template.md")).read_text())
 

@@ -19,7 +19,7 @@ from secretary_calendar import main as calendar_main
 from state import main as state_main, scan_inbox
 from benchmark_reply_templates import fixtures, render
 
-KINDS = ("gm", "gn", "eureka", "secretary")
+KINDS = ("gm", "gn", "eureka", "todo", "secretary")
 
 
 class SkillContractTests(unittest.TestCase):
@@ -59,11 +59,11 @@ class SkillContractTests(unittest.TestCase):
     def test_gm_gn_use_fixed_openchamber_conversation_titles(self):
         shared = (ROOT / "docs/skill-rules.md").read_text()
         for required in ("GoodMorning YYYY-MM-DD", "GoodNight YYYY-MM-DD",
-                         "Secretary YYYY-MM-DD", "Eureka SUMMARY",
+                         "Secretary YYYY-MM-DD", "Eureka SUMMARY", "Todo SUMMARY",
                          "OPENCODE_SESSION_ID", "opencode api patch",
                          "never\n  on a duplicate stop", "rename failure internal"):
             self.assertIn(required, shared)
-        self.assertIn("all four workflows", shared)
+        self.assertIn("all five workflows", shared)
         self.assertNotIn("for gm/gn only", shared)
         self.assertIn("very short", shared)
         self.assertIn("in the\n  user's `secretary_language`", shared)
@@ -74,6 +74,7 @@ class SkillContractTests(unittest.TestCase):
         gn = (ROOT / "docs/workflows/gn.md").read_text()
         eureka = (ROOT / "docs/workflows/eureka.md").read_text()
         secretary = (ROOT / "docs/workflows/secretary.md").read_text()
+        todo = (ROOT / "docs/workflows/todo.md").read_text()
         self.assertIn("`GoodMorning DATE`", gm)
         self.assertIn("shared title rule", gm)
         self.assertIn("`GoodNight DATE`", gn)
@@ -89,7 +90,9 @@ class SkillContractTests(unittest.TestCase):
         self.assertNotIn("`Secretary DATE`", gn)
         self.assertNotIn("`Eureka SUMMARY`", gm)
         self.assertNotIn("`Eureka SUMMARY`", gn)
-        for text in (gm, gn, eureka, secretary):
+        self.assertIn("`Todo SUMMARY`", todo)
+        self.assertIn("shared title rule", todo)
+        for text in (gm, gn, eureka, todo, secretary):
             self.assertIn("`secretary_language`", text)
 
     def test_skills_prefer_interactive_questions_with_consent_and_fallback(self):
@@ -176,7 +179,7 @@ class SkillContractTests(unittest.TestCase):
         self.assertIn("These fields are optional", secretary)
         self.assertIn("You can skip", secretary)
         self.assertIn("older profiles remain valid", secretary)
-        self.assertIn("across all four workflows", shared)
+        self.assertIn("across all five workflows", shared)
         self.assertIn("Do not assume knowledge from a job", shared)
 
     def test_initialization_is_staged_bounded_and_does_not_launch_repairs(self):
@@ -196,18 +199,19 @@ class SkillContractTests(unittest.TestCase):
         self.assertIn("first initialization question is `secretary_language`", secretary)
         self.assertIn("Wait for the answer before other setup questions", guide)
         self.assertLess(guide.index("Which language would you like"), guide.index("location/timezone"))
-        self.assertIn("across gm/gn/eureka/secretary", shared)
+        self.assertIn("across gm/gn/eureka/todo/secretary", shared)
         self.assertIn("raw captured ideas", shared)
         self.assertIn("For older profiles lacking it", shared)
         self.assertIn("conversation", shared)
         self.assertIn("titles", shared)
         self.assertIn("English defaults", shared)
 
-    def test_all_four_reply_shapes_render_without_instructions_or_placeholders(self):
+    def test_all_five_reply_shapes_render_without_instructions_or_placeholders(self):
         report, morning, night = fixtures()
         cases = {"gm": morning, "gn": night,
                  "eureka": {"capture_status": "I've saved your idea for Demo as pending, so we can return to it.",
                              "next_question_or_action": "Say `Clarify` if you want me to work out the details with you, otherwise we can leave it as is."},
+                 "todo": {"capture_status": "Saved your TODO: buy milk."},
                  "secretary": {"outcome": "I've updated Demo's goal using what you confirmed.",
                                "details_or_open_items": "The remote file hasn't been updated because a conflicting change needs review.",
                                "next_question_or_action": "Let's check the current file before deciding how to combine the changes."}}
@@ -224,6 +228,29 @@ class SkillContractTests(unittest.TestCase):
         for fact in ("STALE", "refresh failed", "AQI 27", "submission date", "bring slides", "stale cached"):
             self.assertIn(fact, gm)
         self.assertNotIn("[x]", gm)
+
+    def test_todo_is_record_only_until_explicit_discussion_request(self):
+        skill = (ROOT / "docs/workflows/todo.md").read_text()
+        template = (ROOT / "templates/todo.reply.template.md").read_text()
+        shared = (ROOT / "docs/skill-rules.md").read_text()
+        for marker in ('kind: "todo"', "user's exact wording", "Verify the write",
+                       "Do not ask for a project, deadline, priority", "do not delegate",
+                       "supplied details alone do not request clarification",
+                       "Do not ask clarification questions", "execute the TODO",
+                       "do not offer calendar confirmation", "Discuss only if the user says `Clarify`",
+                       "requests a more detailed explanation", "Only user-confirmed completion",
+                       "not an automatic clarification TODO or question", "--secretary-dir RUNTIME"):
+            self.assertIn(marker, skill)
+        for marker in ("Do not ask clarification questions", "no reply is required",
+                       "only when the", "never claim the task itself was completed"):
+            self.assertIn(marker, template)
+        self.assertIn("idea/project-update clarification reminder rules do not apply", shared)
+        self.assertIn("Except record-only TODO capture", shared)
+        for kind in ("gm", "gn", "secretary"):
+            text = (ROOT / "docs/workflows" / f"{kind}.md").read_text()
+            self.assertIn('kind: "todo"' if kind == "gn" else "TODO", text)
+        self.assertEqual(render("todo", {"capture_status": "Saved your TODO: buy milk."}),
+                         "Saved your TODO: buy milk.\n")
 
     def test_user_replies_prioritize_clarity_and_customised_tone_without_length_targets(self):
         shared = (ROOT / "docs/skill-rules.md").read_text()
@@ -366,6 +393,37 @@ class FakeWorkflowTests(unittest.TestCase):
         self.assertIn("- [ ] Demo: optional reading", daily.read_text())
         self.assertEqual(summary["inbox"]["pending"], 1)
         self.assertEqual(summary["news"]["delivered"], 1)
+
+    def test_todo_capture_preserves_raw_text_without_changing_project_or_daily_tasks(self):
+        inbox = self.root / "inbox.md"
+        project = self.root / "projects/demo.md"
+        original_project = project.read_text()
+        original_idea = "- 2026-10-08 07:00 UTC | Existing idea | pending | Demo\n"
+        raw = 'Email A | B tomorrow.\nTODO: ask about "pending | done".'
+        todo = {"kind": "todo", "raw": raw, "details": []}
+        prefix = "- 2026-10-09 15:00 UTC | "
+        suffix = " | pending | \n"
+        inbox.write_text(original_idea + prefix + json.dumps(todo) + suffix)
+        for day in ("2026-10-09", "2026-10-10"):
+            self.call(state_main, ["--secretary-dir", str(self.root), "--today", day,
+                                   "--rebuild", "--json"])
+            result = self.call(state_main, ["--secretary-dir", str(self.root), "--today", day,
+                                            "--check", "--json"])
+            self.assertEqual(result["inbox"]["pending"], 2)
+            self.assertEqual(project.read_text(), original_project)
+            self.assertEqual(list((self.root / "daily").iterdir()), [])
+        todo["details"].append("Also attach the invoice; no deadline yet.")
+        inbox.write_text(original_idea + prefix + json.dumps(todo) + suffix)
+        line = inbox.read_text().splitlines()[1]
+        restored = json.loads(line[len(prefix):-len(suffix.rstrip("\n"))])
+        self.assertEqual(restored, todo)
+        self.assertEqual(restored["raw"], raw)
+        self.assertEqual(scan_inbox(str(self.root))["total"], 2)
+        self.assertTrue(inbox.read_text().startswith(original_idea))
+        self.assertEqual(project.read_text(), original_project)
+        inbox.write_text(original_idea + prefix + json.dumps(todo) + " | done | \n")
+        self.assertEqual(scan_inbox(str(self.root))["pending"], 1)
+        self.assertEqual(scan_inbox(str(self.root))["total"], 2)
 
     def test_pending_details_survive_without_a_clarification_reply(self):
         raw = '- 2026-10-09 07:00 UTC | "Try a synthetic demo" | pending | Demo\n'

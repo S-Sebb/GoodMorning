@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run-state index for GoodMorning (/gm, /gn, /eureka, /secretary).
+"""Run-state index for GoodMorning (/gm, /gn, /eureka, /todo, /secretary).
 
 What it records:
   - Whether gm/gn ran each day, with session names for jump links.
@@ -8,7 +8,7 @@ What it records:
     estimated token cost, so later agents can decide BEFORE reading.
   - Per-day pipeline coverage derived from the daily file: did the day get
     a weather / news / schedule / tasks / feedback section?
-  - Inbox pressure (pending eureka ideas, oldest date) so /gm and /gn know
+  - Inbox pressure (pending ideas, TODOs and updates, oldest date) so /gm and /gn know
     what to remind without reading the whole inbox.
    - Project last-update dates and stored calendar counts, so stale
     projects and calendar drift are visible in one cheap read.

@@ -38,7 +38,7 @@ destination before replacing files; preserve unknown files and local changes.
 The copied skill has no checkout dependencies. The repository's source is
 inactive; opening the checkout registers no skills or command wrappers.
 OpenCode/OpenChamber discovers the global skill by the `goodmorning` ID.
-`/gm`, `/gn`, `/eureka`, and `/secretary` are plain workflow requests, not custom
+`/gm`, `/gn`, `/eureka`, `/todo`, and `/secretary` are plain workflow requests, not custom
 slash commands; natural-language requests work too.
 
 ## Validate

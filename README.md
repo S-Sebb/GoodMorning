@@ -10,14 +10,16 @@ file copying, updates and supported integration boundaries.
 
 Start with [setup and configuration](config.example.md).
 The first setup question confirms the secretary's reply language, independently
-of news-source language. The explicit preference applies across all four workflows.
+of news-source language. The explicit preference applies across all five workflows.
 One self-contained `goodmorning` skill is copied only into
 `~/.agents/skills/goodmorning/`. The inactive source lives in
 `skill-source/goodmorning.md`; this checkout registers no skills or commands.
-Workflow instructions are in `docs/workflows/`. Use `/gm`, `/gn`, `/eureka`, or
+Workflow instructions are in `docs/workflows/`. Use `/gm`, `/gn`, `/eureka`, `/todo`, or
 `/secretary` as plain workflow requests, not custom slash commands, or ask in
 natural language. Start with `/secretary` to confirm setup before
 creating personal records. See [agent workflows](docs/agent-usage.md).
+`/todo` records the user's wording without questions, planning, or doing the task.
+Clarification or a more detailed explanation happens only when explicitly requested.
 Initialization now separates saved local preferences from optional verification;
 see [the staged setup workflow](docs/initialization.md). Failed integrations stay
 pending rather than restarting setup or launching code repairs.

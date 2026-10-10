@@ -15,11 +15,11 @@ operation needed. Paths in this guide are relative to the GoodMorning root.
   project. Never read `.env` or pairing credentials.
 - Read the profile for confirmed preferences and timezone. If it is missing or
   setup answers are incomplete, read `docs/workflows/secretary.md` for setup and pause
-  normal work. Keep an incoming idea in the conversation; do not claim it is
+  normal work. Keep an incoming idea or TODO in the conversation; do not claim it is
   saved before setup and a successful write. Optional settings can stay empty
   when the user explicitly declines them; never invent personal defaults.
 - `secretary_language` controls all user-facing replies, setup, question widgets,
-  confirmations and errors, and OpenChamber conversation titles, across gm/gn/eureka/secretary.
+  confirmations and errors, and OpenChamber conversation titles, across gm/gn/eureka/todo/secretary.
   Ask it first in new setup;
   follow an explicit language/script or bilingual choice, or a confirmed request
   to follow message language. Do not infer it from location or news preferences.
@@ -34,21 +34,22 @@ operation needed. Paths in this guide are relative to the GoodMorning root.
 - Use the current session's real identifier/name for `--session` and calendar
   `--actor`. If unavailable, ask for a stable session label. Never use a made-up
   ID, a template placeholder, or another session's name.
-- OpenChamber conversation titles are fixed format for all four workflows, in the
+- OpenChamber conversation titles are fixed format for all five workflows, in the
   user's `secretary_language`. English defaults: `/gm` uses
   `GoodMorning YYYY-MM-DD`; `/gn` uses `GoodNight YYYY-MM-DD`, with the selected
   daily date in the profile timezone (`--today` override for historical work).
   `/secretary` uses `Secretary YYYY-MM-DD` with the local date in the profile
   timezone. `/eureka` uses `Eureka SUMMARY` where SUMMARY is a very short
   raw idea wording (max ~6 words, single line, no credentials, not translated).
+  `/todo` uses `Todo SUMMARY` with the same limits, summarizing the raw TODO.
   For other languages translate only the prefix naturally and keep the date and
   SUMMARY format; for bilingual or follow-message-language use the current turn
   language. For older profiles without `secretary_language`, use English defaults.
   After the date is confirmed and only when proceeding with a new briefing (never
   on a duplicate stop), rename the current conversation with
   `opencode api patch /api/session/$OPENCODE_SESSION_ID --data '{"title":"..."}'`.
-  For `/secretary` rename once the local date is known; for `/eureka` rename once
-  the raw idea is known (if none was supplied, ask first, then rename; never use
+  For `/secretary` rename once the local date is known; for `/eureka` or `/todo` rename once
+  the raw idea or TODO is known (if none was supplied, ask first, then rename; never use
   an empty summary). Keep a rename failure internal; the workflow continues.
   Never invent a session ID or reuse another session's name.
 - Use the profile's timezone. `state.py --check --json` supplies the local date.
@@ -110,6 +111,17 @@ operation needed. Paths in this guide are relative to the GoodMorning root.
 - Project-update capture follows the same save-first boundary: save the user's
   report before asking for clarification, not an interpretation or plan mutation.
   Follow the pending project-update workflow below; silence is never confirmation.
+- TODO capture is record-only by default. Follow `docs/workflows/todo.md` for
+  entries with `kind: "todo"`, including follow-ups in other workflows. Save exact
+  wording/details immediately; do not clarify, plan, research, execute, delegate,
+  or offer calendar changes unless separately requested. Supplied details alone
+  do not request discussion. Ask clarification questions only after `Clarify` or
+  an equivalent explicit request; give detailed explanations only when requested.
+  Missing-input/setup/credential safety and failed-save rules still apply.
+  The idea/project-update clarification reminder rules do not apply to captured
+  TODOs: surface open TODOs as tasks/reminders without automatic clarification
+  questions, invented deadlines, or duplicate daily tasks. Pending means open,
+  not necessarily unclear. Only user-confirmed completion permits `done`.
 - Avoid dummy “provide/specify” buttons for text-only details; they do not supply
   an answer. Use custom input without dummy choices if supported, otherwise ask
   plainly. Reuse the stated timezone/date and exact prior consent when clear;
@@ -120,7 +132,7 @@ operation needed. Paths in this guide are relative to the GoodMorning root.
 
 ## Records and replies
 
-### User-facing materiality gate — all four workflows
+### User-facing materiality gate — all five workflows
 
 - Non-critical disclaimers and process narration must never appear in normal
   secretary messages. This gate targets qualifications and process/status asides,
@@ -231,7 +243,7 @@ operation needed. Paths in this guide are relative to the GoodMorning root.
   are flexible guides, not rigid scripts; never force cheerfulness or familiarity.
 - Use confirmed `occupations` and `expertise_fields`, alongside existing industry,
   project scope, and knowledge area, to choose relevant topics, examples, and
-  explanation depth across all four workflows. Do not assume knowledge from a job
+  explanation depth across all five workflows. Do not assume knowledge from a job
   title; ask when the useful level is unclear. Respect unrelated requests and do
   not force every conversation into a career topic. Personalization must not
   replace required news sections or infer national-news country. These optional
@@ -356,7 +368,7 @@ operation needed. Paths in this guide are relative to the GoodMorning root.
   Use compact inbox counts first, then read only needed pending entries. These are
   workflow reminders, not permission to install a scheduler or change appointments.
 
-- In any skill, a likely scheduled event requires quoting its date, time,
+- Except record-only TODO capture, a likely scheduled event requires quoting its date, time,
   timezone, title, and place and asking whether to add it. Ask for missing or
   ambiguous details, including duration; do not invent them. Use
   `secretary_calendar.py --add --event-json EVENT` after confirmation.

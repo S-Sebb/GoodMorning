@@ -4,9 +4,9 @@ The self-contained skill lives only in `~/.agents/skills/goodmorning/` and loads
 by the `goodmorning` ID. The repository keeps an inactive source at
 `skill-source/goodmorning.md`, ready to copy as `SKILL.md` without edits; the
 repository registers no project skills or command wrappers.
-`/gm`, `/gn`, `/eureka`, and `/secretary` are plain workflow requests, not registered
+`/gm`, `/gn`, `/eureka`, `/todo`, and `/secretary` are plain workflow requests, not registered
 slash commands. Natural-language requests work too. Keep the current session and
-model. The four workflows live in `docs/workflows/` and load only when requested.
+model. The five workflows live in `docs/workflows/` and load only when requested.
 Installing the skill does not initialize personal records.
 
 Start with `/secretary` for owner-confirmed setup. The loaded skill and
@@ -40,7 +40,7 @@ authorize code development. Event import is a separate follow-up.
 - Read compact script output and today's daily record. Open detailed guides only
   for the operation needed. Do not bulk-read answer snapshots or provider data.
 - Ask about ambiguous requirements. Record reported progress, not invented progress.
-- When any conversation suggests a scheduled event, quote its date, time,
+- Except record-only `/todo` capture, when a conversation suggests a scheduled event, quote its date, time,
   timezone, title, and place. Ask for missing details and confirmation before
   adding, changing, or cancelling it. Follow `docs/calendar-pipeline.md`.
 - Prioritize clean formatting and clarity, then express the user's customised
@@ -120,6 +120,21 @@ authorize code development. Event import is a separate follow-up.
 3. For ideas left pending, add a clarification TODO at the next `/gm`, ask a
    clarification question at `/gn`, or include a reminder at `/secretary`. Keep reminding
    until the user confirms and the idea is organized.
+
+## `/todo`: TODO capture
+
+1. Rename the conversation to `Todo SUMMARY` in `secretary_language` using a very
+   short summary. Save the exact TODO with the local timestamp as a pending
+   `kind: "todo"` inbox entry; preserve multiline wording with JSON. Verify the
+   save, rebuild the state index, and confirm briefly.
+2. Record only: no default clarification questions, project/deadline questions,
+   planning, research, delegation, task execution, or calendar changes. Save
+   follow-up details without treating them as a request for discussion.
+3. Discuss only on `Clarify`, an equivalent explicit request, or a request for a
+   more detailed explanation. Discussion does not authorize execution. Later
+   workflows surface open TODOs as tasks/reminders, not automatic clarification
+   questions; only user-confirmed completion permits marking them done.
+   Missing-input/setup/credential safety and failed-save rules still apply.
 
 ## `/secretary`: general work
 

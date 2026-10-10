@@ -15,7 +15,7 @@ they do not require repeating preferences or fixing integrations during setup.
 ## User-local files
 
 The first initialization question confirms the secretary's reply language, saved
-as `secretary_language` after storage consent. It applies to all four workflows,
+as `secretary_language` after storage consent. It applies to all five workflows,
 setup/questions and follow-ups, independently of news-source language/country or
 tone. Allow explicit language/script, bilingual or “follow my message language”
 choices. Existing profiles without it are valid; never silently invent the field.

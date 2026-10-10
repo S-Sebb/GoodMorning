@@ -86,6 +86,7 @@ Brief optional section takeaways and a warm closing may add flavor; keep news it
     and daily task list per the shared reminder rule, preserving existing tasks.
     Use the shared pending project-update workflow: clarification TODOs,
     not unconfirmed actions; no duplicate tasks.
+    TODOs: record-only.
 6. Compose the reply using the template. Write concise weather/news/schedule/task
    sections into the selected daily file, preserving existing content. New tasks
    are unchecked. Save the exact reply through `state.py --mark-gm` with session,
