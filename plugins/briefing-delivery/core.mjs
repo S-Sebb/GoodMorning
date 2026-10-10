@@ -10,6 +10,13 @@ const ID = /^[a-f0-9]{32}$/;
 const BEGIN = /<!-- gm-card:([a-f0-9]{32}):begin -->|\[gm-card-([a-f0-9]{32})-begin\]: #/g;
 export const hasOwnedBlock = text => /<!-- gm-card:[a-f0-9]{32}:begin -->|\[gm-card-[a-f0-9]{32}-begin\]: #/.test(text);
 
+export function briefingInstruction(messages) {
+  const latest = [...messages].reverse().find(message => message.role === 'user');
+  const text = (latest?.content ?? []).filter(part => part.type === 'text').map(part => part.text).join('\n').trimStart();
+  if (!/^\/(gm|gn)(?:\s|$)/i.test(text)) return null;
+  return 'For this /gm or /gn, use image-card delivery by default unless the user explicitly requests text only. Follow the GoodMorning workflow and its duplicate/consent rules. Save complete text first, then call briefing_cards with the profile-local date and kind. Put its returned marker once in the final answer outside code fences. Never read Base64. On failure, present the saved text and explain the material failure.';
+}
+
 export function validateInput({ date, kind }) {
   if (!['gm', 'gn'].includes(kind) || !/^\d{4}-\d{2}-\d{2}$/.test(date) || new Date(date).toISOString().slice(0, 10) !== date) throw new Error('Use kind gm|gn and a valid YYYY-MM-DD date.');
 }

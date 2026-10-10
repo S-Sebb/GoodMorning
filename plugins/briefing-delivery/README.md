@@ -5,6 +5,11 @@ saved `/gm` or `/gn` snapshot as sharp, lossless editorial cards, then returns a
 small attachment marker. Code expands that marker in the assistant response;
 the model never reads or writes the encoded image data.
 
+An explicit `/gm` or `/gn` request receives a short default-card-delivery
+instruction. It preserves text-only overrides, duplicate rules and consent.
+Normal OpenChamber chat folders require global installation, not just the
+checkout's project loader; see the deployment guide.
+
 ## Agent contract
 
 1. Complete the normal workflow and save the full text snapshot first.
@@ -29,8 +34,10 @@ See the [short deployment guide](DEPLOYMENT.md).
 Copy this complete folder to a project's `.opencode/plugins/` directory, or use
 `npm pack` to make a portable archive. No dependency installation is required.
 
-The project loader is `.opencode/plugins/briefing-delivery.js`. It imports this
-directory without npm dependencies. OpenCode's V2 plugin interface is structural;
+Install this folder globally under `~/.config/opencode/plugins/` for ordinary
+OpenChamber chats, or under one project's `.opencode/plugins/` for project-only
+use. Do not register both copies. No npm dependencies are needed.
+OpenCode's V2 plugin interface is structural;
 its `Plugin.define` helper would return the same object unchanged.
 
 Requires OpenCode V2, Python with Pillow/WebP support, and readable fonts.

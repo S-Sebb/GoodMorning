@@ -3,14 +3,37 @@ import assert from 'node:assert/strict';
 import { mkdtemp, mkdir, writeFile, readFile, symlink, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { execFileSync } from 'node:child_process';
-import { LIMITS, MarkerStream, Receipts, sha, loadBundle, payloadFor, validateInput, hasOwnedBlock } from '../plugins/briefing-delivery/core.mjs';
+import { LIMITS, MarkerStream, Receipts, sha, loadBundle, payloadFor, validateInput, hasOwnedBlock, briefingInstruction } from '../plugins/briefing-delivery/core.mjs';
 import { ResponseAdapter, rewriteSSE } from '../plugins/briefing-delivery/transport.mjs';
+import delivery from '../plugins/briefing-delivery/index.mjs';
 
 function storage() {
   const data = new Map();
   return { get: async key => structuredClone(data.get(key)), set: async (key, value) => data.set(key, structuredClone(value)), data };
 }
 const id = 'a'.repeat(32), marker = `[[GM_CARD:${id}]]`;
+test('older local-plugin contexts return a compact failure even without an abort signal', async () => {
+  let tool;
+  await delivery.setup({
+    options: { runtime: '/tmp/opencode/briefing-missing-runtime-for-test' }, storage: storage(),
+    session: { hook: async () => {} }, rpc: { register: async () => {} },
+    tool: { transform: async callback => callback({ add: definition => { tool = definition; } }) },
+  });
+  const result = await tool.execute({ date: '2026-10-10', kind: 'gm' }, { sessionID: 'ses_test' });
+  assert(JSON.parse(result.content).error);
+  assert(!result.content.includes('base64'));
+});
+test('explicit gm/gn requests get default-delivery guidance without overriding text or duplicate rules', () => {
+  const messages = text => [{ role: 'user', content: [{ type: 'text', text }] }];
+  for (const input of ['/gm Good morning!', '/gn', '  /gm text only']) {
+    const instruction = briefingInstruction(messages(input));
+    assert(instruction.includes('Save complete text first'));
+    assert(instruction.includes('explicitly requests text only'));
+    assert(instruction.includes('duplicate/consent rules'));
+  }
+  assert.equal(briefingInstruction(messages('Investigate the /gm plugin')), null);
+  assert.equal(briefingInstruction([...messages('/gm'), ...messages('Different task now')]), null);
+});
 test('all marker splits, duplicate suppression, unknown and unfinished markers', async () => {
   for (let split = 1; split < marker.length; split++) {
     const stream = new MarkerStream(async () => '<image>');

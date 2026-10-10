@@ -1,8 +1,7 @@
 # Deploy the briefing cards plugin
 
-**In this checkout:** the project loader at
-`.opencode/plugins/briefing-delivery.js` already enables the plugin. No build,
-npm install, OpenChamber patch or Android APK change is required.
+No build, npm install, OpenChamber patch or Android APK change is required.
+Global installation is recommended for ordinary OpenChamber briefing chats.
 
 ## Requirements
 
@@ -13,6 +12,20 @@ npm install, OpenChamber patch or Android APK change is required.
   requires `~/.local/share/fonts/noto-cjk/NotoSansSC-Regular.ttf`.
 - The GoodMorning skill and an already saved briefing in
   `~/.local/share/GoodMorning/secretary/daily/` (or `SECRETARY_DIR`).
+
+## Install for normal OpenChamber chats
+
+Project-only installation does **not** cover OpenChamber's separate chat folders.
+To use cards for `/gm` and `/gn` anywhere on this device, copy the package globally:
+
+```sh
+mkdir -p ~/.config/opencode/plugins
+cp -R plugins/briefing-delivery ~/.config/opencode/plugins/
+```
+
+Also update the installed GoodMorning workflow docs. With the tool available,
+image delivery is the default; an explicit text-only request overrides it.
+Verify the plugin in an ordinary chat directory, not only the checkout.
 
 ## Copy to another project
 
@@ -25,9 +38,9 @@ cp -R plugins/briefing-delivery "$PROJECT/.opencode/plugins/"
 
 Use a new destination, or inspect and back up an existing installation first.
 Copy the entire plugin folder; `index.js` supplies the discovered entry point.
-Do not add a second copy to this checkout, which already has a loader.
-For all-project installation, the same folder can instead go under
-`~/.config/opencode/plugins/`; choose only one registration per project.
+Do not install both global and project copies: OpenCode rejects duplicate plugin
+IDs. Keep the global copy for normal chats; remove an old project loader only
+after verifying that the global copy is active and existing receipts still work.
 
 ## Optional archive
 
@@ -36,7 +49,7 @@ mkdir -p dist
 npm pack ./plugins/briefing-delivery --pack-destination dist
 ```
 
-This creates `dist/goodmorning-briefing-delivery-0.1.0.tgz` without installing
+This creates `dist/goodmorning-briefing-delivery-0.1.1.tgz` without installing
 dependencies or publishing anything. To deploy, extract its `package/` contents
 into `.opencode/plugins/briefing-delivery/`. The archive contains only plugin
 code and documentation—never briefing images, personal records or credentials.

@@ -90,7 +90,7 @@ takeaways and the closing. Do not add routine weather/news, backlog or diagnosti
    --answer-file PATH --json` (or stdin), using the selected date. Verify success,
    then present the reply. Saving is not evidence of delivery.
 
-7. For chosen image delivery, follow `docs/image-delivery.md` after saving text.
+7. If `briefing_cards` is available, follow `docs/image-delivery.md` after saving text.
 
 ## Errors and follow-up
 

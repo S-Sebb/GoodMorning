@@ -91,7 +91,7 @@ omit routine bookkeeping, extra framing and repeated summaries.
    answer input, and `--json`; verify success. Present it without extra repeated
    summaries. Acknowledge only reports whose actual delivery is now verifiable.
 
-7. For chosen image delivery, follow `docs/image-delivery.md` after saving text.
+7. If `briefing_cards` is available, use `docs/image-delivery.md` after saving text.
 
 ## Errors and follow-up
 

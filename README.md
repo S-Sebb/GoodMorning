@@ -10,7 +10,8 @@ file copying, updates and supported integration boundaries.
 
 Start with [setup and configuration](config.example.md).
 
-Optional image delivery uses the project-scoped [briefing cards plugin](plugins/briefing-delivery/README.md).
+Optional image delivery uses the [briefing cards plugin](plugins/briefing-delivery/README.md).
+Install it globally for normal OpenChamber chat folders, or explicitly for one project.
 Its single agent tool renders an already saved `/gm` or `/gn` snapshot, then
 attaches cards without passing image bytes through the model. Complete text and
 citations remain stored first. No OpenChamber patch or npm install is required.

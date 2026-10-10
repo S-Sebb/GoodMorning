@@ -3,7 +3,7 @@ import { resolve, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
-import { LIMITS, Receipts, loadBundle, validateInput, hasOwnedBlock } from './core.mjs';
+import { LIMITS, Receipts, loadBundle, validateInput, hasOwnedBlock, briefingInstruction } from './core.mjs';
 import { ResponseAdapter, rewriteSSE } from './transport.mjs';
 
 const exec = promisify(execFile);
@@ -20,6 +20,8 @@ export default {
     for (const kind of ['context', 'compaction', 'generate', 'title']) await ctx.session.hook(kind, async event => {
       const before = event.messages.reduce((sum, message) => sum + (message.content ?? []).reduce((length, part) => length + (part.type === 'text' ? part.text.length : 0), 0), 0);
       await receipts.filter(event.messages);
+      const instruction = kind === 'context' ? briefingInstruction(event.messages) : null;
+      if (instruction) event.system.push({ type: 'text', text: instruction });
       const after = event.messages.reduce((sum, message) => sum + (message.content ?? []).reduce((length, part) => length + (part.type === 'text' ? part.text.length : 0), 0), 0);
       if (await ctx.storage.get(`enabled/${event.sessionID}`)) await ctx.storage.set(`audit/${event.sessionID}`, { kind, removedCharacters: before - after, checkedAt: Date.now() });
     });
@@ -61,7 +63,7 @@ export default {
           const receipt = await receipts.prepare(context.sessionID, bundle);
           return { content: JSON.stringify(receipt) };
         } catch (error) {
-          if (context.signal.aborted) throw error;
+          if (context.signal?.aborted) throw error;
           // Avoid leaking traceback paths or content; no marker on partial failure.
           return { content: JSON.stringify({ error: error.code === 'ENOENT' ? 'Python or saved briefing missing.' : 'Cards could not be safely prepared. Keep the saved text; inspect local renderer diagnostics.', retry: false }) };
         }

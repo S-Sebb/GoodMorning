@@ -1,6 +1,7 @@
 # Optional image briefing delivery
 
-Use this only when the user chose image briefings and `briefing_cards` is available.
+Installing the plugin opts into image briefings when `briefing_cards` is available.
+Use cards by default unless the user explicitly requests text-only delivery.
 Complete the usual workflow and save its entire text snapshot first.
 
 Call `briefing_cards` once with the profile-local `date` from preparation and
