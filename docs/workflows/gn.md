@@ -60,7 +60,11 @@ takeaways and the closing. Do not add routine weather/news, backlog or diagnosti
 4. Update authorized project records from confirmed progress and set
    `last_update`. Write to work project files only within confirmed scope and the
    shared hash/confirmation rules; report unresolved write-back separately.
-5. Query the next local day's schedule with
+5. When Betterbird is the confirmed calendar source, first run
+   `secretary_calendar.py --sync-betterbird --days 7 --timezone ZONE` to stage
+   imports for review on every /gn run; never auto-approve unseen events. If the
+   cache is locked, ask the user to close Betterbird and retry; otherwise continue
+   with approved events. Then query the next local day's schedule with
    `secretary_calendar.py --from TOMORROW --days 1 --timezone ZONE --json`.
    Inspect preparation details, surface pending review, and remind about pending
     inbox ideas. Ask focused questions for pending clarification per the shared

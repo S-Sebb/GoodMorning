@@ -95,7 +95,9 @@ authorize code development. Event import is a separate follow-up.
 2. Read today's task lists and ask what the user completed. Mark only confirmed
    completions. Save feedback and actual progress.
 3. Assess project progress from the user's report, suggest next steps, and update
-    authorized project records. Remind about tomorrow's schedule and ask focused
+    authorized project records. When Betterbird is the confirmed calendar source,
+    stage imports on every run with review before display; if locked ask to close
+    and retry. Remind about tomorrow's schedule and ask focused
     questions about pending idea clarification; deferral does not block the summary.
 4. Say good night in the agreed tone, appropriate to the time. Save the daily
    record and verbatim reply with `state.py --mark-gn --session NAME` plus an
