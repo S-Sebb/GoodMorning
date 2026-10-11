@@ -41,12 +41,22 @@ main { max-width: 1440px; padding: 0 64px; padding-left: max(24px, env(safe-area
 h1 { font: normal clamp(48px, 6.5vw, 92px)/1.05 Georgia, serif; margin: 18px 0; letter-spacing: -4px; }
 .subtitle { font: italic 20px/1.7 "Lora Commentary", Georgia, serif; color: var(--muted); }
 .orbit { width: 240px; margin: 0; justify-self: end; color: var(--muted); }
-.briefing-avatar { margin: 20px 0 0; }
-.briefing-avatar > a { display: inline-flex; align-items: center; gap: 12px; max-width: 100%; border-radius: 16px; text-decoration: none; }
-.briefing-avatar img { display: block; width: 64px; height: 64px; flex-shrink: 0; border-radius: 16px; image-rendering: pixelated; }
-.briefing-avatar a > span { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; font-size: 12px; color: var(--muted); }
-.briefing-avatar a:hover > span { color: var(--accent); }
-.waiting-room .briefing-avatar { margin: 20px auto; }
+.briefing-letter .hero { grid-template-columns: minmax(0, 1fr) 240px; gap: 36px; padding: 40px 0 28px; }
+.briefing-letter .hero-copy { display: grid; grid-template-columns: 200px minmax(0, 1fr); align-items: stretch; gap: 32px; }
+.briefing-letter .hero-copy > * { animation: none; }
+.letter-copy { min-width: 0; }
+.letter-copy > .eyebrow { margin-top: 0; }
+.letter-copy > .subtitle { margin-bottom: 0; }
+.briefing-letter h1 { font-size: clamp(42px, 5.2vw, 70px); letter-spacing: -2px; }
+.briefing-letter .subtitle { font-size: 18px; }
+.briefing-avatar { width: 100%; max-width: 220px; margin: 0; min-height: 180px; }
+.hero-copy .briefing-avatar .avatar-frame { height: 100%; }
+.hero-copy .briefing-avatar .avatar-image { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center; }
+.waiting-room .briefing-avatar { width: 180px; margin: 20px auto; }
+.briefing-section-nav { display: flex; flex-wrap: wrap; gap: 8px 20px; margin: 0 0 24px; border-bottom: 1px solid var(--line); }
+.briefing-section-nav a { display: inline-flex; align-items: center; min-height: 44px; font-size: 12px; text-decoration: none; color: var(--muted); }
+.briefing-section-nav a:hover { color: var(--accent); }
+.briefing-letter .briefing-closing { padding-left: 0; }
 .sky-scene { position: relative; width: 100%; height: 155px; }
 .sun { position: absolute; width: 200px; height: 145px; left: calc(50% - 100px); top: 0; transform: translate3d(0, calc(var(--sun-drift, 0px) * -1), 0); }
 .celestial-art { display: block; width: 100%; height: 100%; }
@@ -223,6 +233,7 @@ footer { max-width: 1440px; margin: 48px auto 0; padding: 26px max(80px, calc(en
 @media (hover: hover) and (pointer: fine) { .briefing-section:hover { box-shadow: 0 8px 28px #00000008; } .section-body .task-card:hover, .section-body .agenda-event:hover, .section-body .news-card:hover, .section-body .news-card:focus-within { background: var(--wash); border-color: var(--accent); box-shadow: 0 4px 14px #00000008; } .weather-tile:hover { border-color: var(--tile-accent); box-shadow: 0 4px 14px #00000009; } .section-body tbody tr:hover { background: var(--wash); } }
 @media (hover: hover) and (pointer: fine) { .edition-link:hover { transform: translateY(-2px); box-shadow: 0 5px 16px #0001; } .edition-link:not(.selected):hover { background: var(--wash); } }
 @media (max-width: 1000px) { .briefing-section { padding: 26px; } .hero { grid-template-columns: 1fr 220px; } .orbit { width: 220px; } }
+@media (max-width: 1100px) and (min-width: 701px) { .briefing-letter .hero { grid-template-columns: minmax(0, 1fr) 160px; gap: 16px; } .briefing-letter .hero-copy { grid-template-columns: 160px minmax(0, 1fr); gap: 20px; } .briefing-letter .orbit { width: 160px; } }
 @media (max-width: 700px) { .masthead { padding: max(22px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) 22px max(16px, env(safe-area-inset-left)); align-items: flex-start; flex-wrap: wrap; gap: 16px; } .wordmark { font-size: 24px; } .edition-switch { justify-content: flex-end; gap: 4px; margin-left: auto; } .edition-link { padding: 10px 12px; min-height: 44px; } .pending { width: 100%; text-align: right; font-size: 10px; } main { padding: 0 max(56px, calc(env(safe-area-inset-right) + 52px)) 0 max(16px, env(safe-area-inset-left)); } .hero { grid-template-columns: 1fr; padding: 34px 0 12px; } h1 { font-size: clamp(38px, 10vw, 60px); letter-spacing: -2px; overflow-wrap: anywhere; } .orbit { display: none; } .subtitle { font-size: 18px; } .intro { padding-bottom: 20px; } .weather .section-body { display: block; } .briefing-section { padding: 20px; border-radius: 12px; } .briefing-section > header { gap: 12px; } h2 { font-size: 25px; overflow-wrap: anywhere; } .section-body { font-size: 14px; } .section-body table { min-width: 620px; } .scroll-map { right: max(4px, env(safe-area-inset-right)); } .nav-preview { padding: 20px; } footer { margin-top: 28px; padding-left: max(16px, env(safe-area-inset-left)); padding-right: max(56px, calc(env(safe-area-inset-right) + 52px)); } }
 @media (max-height: 500px) { .scroll-map { height: calc(100vh - 32px); } .nav-preview { padding: 16px; } .preview-title { font-size: 21px; margin: 8px 0; } .preview-excerpt { -webkit-line-clamp: 3; } .preview-footer { margin-top: 12px; padding-top: 10px; } }
 @supports (height: 1dvh) { .scroll-map { height: clamp(280px, 62dvh, 440px); max-height: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 112px); } @media (max-height: 500px) { .scroll-map { height: calc(100dvh - 112px); } } }
@@ -297,7 +308,37 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
 @media (prefers-reduced-motion: reduce) { .desk-animation span { animation: none; } }
 @media (max-width: 700px) { :root { --content-gutter: 104px; } main { padding-right: calc(var(--content-gutter) + var(--safe-right)); } .briefing-tools { gap: 8px; } .briefing-section .section-body > p.section-takeaway { font-size: 17px; padding: 16px; } }
 @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } .hero-copy > *, .briefing-section.arriving { animation: none; } a, .reading-progress, .edition-link, .scroll-cursor, .chunk-bar, .chunk-number, .nav-preview, .briefing-section, .section-number, .section-body li, .section-body tr, .section-body .task-card, .section-body .agenda-event, .section-body .news-card, .weather-tile, .week-picker a, .back-to-top, .back-to-top > span { transition: none; } .sun, .edition-link:hover { transform: none; } }
-@media print { .scroll-map, .edition-switch, .orbit, .briefing-avatar, .reading-progress, footer, .skip-link, .back-to-top { display: none; } body { background: white; color: black; } main, .masthead { padding: 0; } .hero { padding: 24px 0; } .hero-copy > *, .briefing-section.arriving { animation: none; } .briefing-section { border: 0; padding: 0; break-inside: avoid; } .section-body { color: black; } }
+@media (max-width: 700px) {
+  .edition-link { display: inline-flex; align-items: center; justify-content: center; position: relative; isolation: isolate; min-height: 44px; padding: 0 10px; line-height: 1; }
+  .edition-link::before { content: ""; position: absolute; z-index: -1; inset: 6px 0; border-radius: 999px; background: transparent; }
+  .edition-link.selected { background: transparent; }
+  .edition-link.selected::before { background: var(--ink); }
+  .briefing-letter { --content-gutter: 16px; }
+  .briefing-letter .language-toolbar, .chat-page .language-toolbar { padding: 4px 16px; font-size: 11px; }
+  .briefing-letter .language-toolbar select, .chat-page .language-toolbar select { min-height: 36px; padding: 4px 8px; }
+  .briefing-letter .masthead, .chat-page .masthead { padding: 10px 16px; gap: 8px; align-items: center; }
+  .briefing-letter .wordmark, .chat-page .wordmark { font-size: 22px; }
+  .briefing-letter .wordmark span, .chat-page .wordmark span { display: none; }
+  .briefing-letter .edition-switch, .chat-page .edition-switch { gap: 0; font-size: 11px; }
+  .briefing-letter main { padding: 0 16px; }
+  .briefing-letter .week-picker { display: flex; gap: 6px; overflow-x: auto; padding: 12px 0 2px; scrollbar-width: none; }
+  .briefing-letter .week-picker a { flex: 0 0 72px; padding: 8px 4px; font-size: 10px; }
+  .briefing-letter .scroll-map { display: none; }
+  .briefing-letter .back-to-top { right: 16px !important; }
+  .briefing-letter .hero { position: relative; display: block; padding: 44px 0 20px; }
+  .briefing-letter .hero-copy { grid-template-columns: 120px minmax(0, 1fr); gap: 16px; }
+  .briefing-avatar { min-height: 160px; }
+  .letter-copy > .eyebrow { font-size: 9px; letter-spacing: 1.1px; }
+  .briefing-letter h1 { font-size: 38px; letter-spacing: -1.5px; margin: 12px 0; }
+  .briefing-letter .subtitle { font-size: 14px; line-height: 1.5; }
+  .briefing-letter .orbit { display: block; width: 72px; position: absolute; right: 0; top: 8px; }
+  .briefing-letter .orbit .sky-scene { height: 52px; }
+  .briefing-letter .orbit .sun { width: 72px; height: 52px; left: 0; }
+  .briefing-section-nav { gap: 0 18px; margin-bottom: 12px; }
+  .briefing-section-nav a { font-size: 11px; }
+}
+@media (max-width: 350px) { .briefing-letter .masthead, .chat-page .masthead { display: block; } .briefing-letter .edition-switch, .chat-page .edition-switch { margin-top: 6px; justify-content: flex-start; } .briefing-letter .hero-copy { grid-template-columns: 108px minmax(0, 1fr); gap: 12px; } .briefing-letter h1 { font-size: 34px; } }
+@media print { .scroll-map, .edition-switch, .orbit, .briefing-avatar, .reading-progress, footer, .skip-link, .back-to-top { display: none; } body { background: white; color: black; } main, .masthead { padding: 0; } .hero { padding: 24px 0; } .briefing-letter .hero-copy { display: block; } .hero-copy > *, .briefing-section.arriving { animation: none; } .briefing-section { border: 0; padding: 0; break-inside: avoid; } .section-body { color: black; } }
 .account-tools { display: flex; justify-content: center; align-items: center; gap: 1.2rem; padding: 1.5rem; font-size: .85rem; }
 .account-tools button { font: inherit; color: inherit; background: transparent; border: 1px solid currentColor; padding: .45rem .8rem; border-radius: .6rem; cursor: pointer; }
 .account-tools button:hover { opacity: .7; }

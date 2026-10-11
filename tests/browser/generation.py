@@ -64,7 +64,7 @@ def check_recovery(browser, artifacts):
             expect(page.get_by_role('article').get_by_text('Both listed tasks remain open.',exact=True)).to_be_visible()
             command('finish',{})
             page.reload()
-            expect(page.locator('.source-link')).to_have_attribute('href',f'/d/{date}/gn.json')
+            expect(page.locator('.briefing-tools')).to_have_count(0)
             assert '- [x]' not in daily.read_text()
             assert not page.evaluate('document.documentElement.scrollWidth>innerWidth')
             assert not errors,errors
@@ -95,10 +95,14 @@ def main():
                     assert not page.evaluate('document.documentElement.scrollWidth>innerWidth')
                     if viewport['width']==1440:
                         expect(page.locator('#generate')).to_be_visible()
+                        assert page.locator('.avatar-display #generate').count() == 0
                         if artifacts:page.screenshot(path=str(artifacts/'not-generated-desktop.png'))
                         page.locator('#generate').click()
                         expect(page.get_by_role('heading',name='How did today go?')).to_be_visible()
                         expect(page.get_by_role('heading',name='Permission needed')).to_be_visible()
+                        expect(page.locator('#agent-questions')).to_be_visible()
+                        assert page.locator('.avatar-display #agent-questions').count() == 0
+                        assert page.locator('#agent-questions').bounding_box()['width'] > 600
                         page.get_by_placeholder('Or write your own answer').fill('Leave progress unreported, please.')
                         # A live status refresh must preserve the draft.
                         page.evaluate('poll()')
@@ -114,7 +118,7 @@ def main():
                         expect(page.locator('article')).to_be_visible()
                         expect(page.locator('h1')).to_have_text('Good morning')
                         config = json.loads(page.locator('#browser-config').get_attribute('data-config'))
-                        expect(page.locator('.source-link')).to_have_attribute('href', f'/d/{config["date"]}/gm.json')
+                        expect(page.locator('.briefing-tools')).to_have_count(0)
                         assert not list((root/'daily').glob('*.gm.md'))
                     else:
                         expect(page.locator('article')).to_be_visible()

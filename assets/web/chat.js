@@ -27,6 +27,19 @@ let revision = 0;
 let requestLanguage = null;
 let secretaryName = typeof chatConfig.secretary_name === 'string' && chatConfig.secretary_name ? chatConfig.secretary_name : null;
 const drafts = new Map();
+let themeTimer;
+
+function updateChatTheme(now = new Date()) {
+  const hour = Number(new Intl.DateTimeFormat('en-GB', {timeZone: chatConfig.timezone || 'UTC',
+    hour: '2-digit', hourCycle: 'h23'}).format(now));
+  document.documentElement.dataset.edition = hour >= 6 && hour < 18 ? 'gm' : 'gn';
+}
+
+function scheduleChatTheme() {
+  clearTimeout(themeTimer);
+  updateChatTheme();
+  themeTimer = setTimeout(scheduleChatTheme, 60000 - Date.now() % 60000);
+}
 
 function applySecretaryName() {
   const heading = document.querySelector('#secretary-heading');
@@ -34,44 +47,6 @@ function applySecretaryName() {
   // Force author labels to refresh on next message render.
   messageSignature = '';
 }
-
-const avatarOrder = Array.isArray(chatConfig.avatars) && chatConfig.avatars.length
-  ? chatConfig.avatars.map(item => item.id) : ['f1'];
-const avatarSrc = {};
-if (Array.isArray(chatConfig.avatars)) chatConfig.avatars.forEach(item => { avatarSrc[item.id] = item.src; });
-let avatar = avatarOrder.includes(chatConfig.avatar) ? chatConfig.avatar : avatarOrder[0];
-let savingAvatar = false;
-
-function showAvatar(id) {
-  const figure = document.querySelector('.desk-figure');
-  const image = document.querySelector('#desk-illustration');
-  const caption = document.querySelector('#avatar-caption');
-  if (figure) figure.dataset.avatar = id;
-  if (image && avatarSrc[id]) { image.src = avatarSrc[id]; image.hidden = false; }
-  if (caption) caption.textContent = chatT('Avatar {current} of {total}', {current: avatarOrder.indexOf(id) + 1, total: avatarOrder.length});
-}
-
-async function saveAvatar(id) {
-  if (savingAvatar || id === avatar) return;
-  savingAvatar = true;
-  try {
-    const result = await chatAPI('/api/avatar', {avatar: id});
-    avatar = result.avatar;
-    showAvatar(avatar);
-  } catch (error) {
-    errorBox.textContent = chatT('Avatar could not be saved. Try again.');
-  } finally {
-    savingAvatar = false;
-  }
-}
-
-function stepAvatar(delta) {
-  const next = avatarOrder[(avatarOrder.indexOf(avatar) + delta + avatarOrder.length) % avatarOrder.length];
-  saveAvatar(next);
-}
-
-document.querySelector('[data-avatar-prev]')?.addEventListener('click', () => stepAvatar(-1));
-document.querySelector('[data-avatar-next]')?.addEventListener('click', () => stepAvatar(1));
 
 async function chatAPI(path, body) {
   if (body) pendingChatMutations++;
@@ -191,14 +166,15 @@ async function historyList() {
   const result = await chatAPI('/api/chats');
   chatConfig.defaultMode = result.defaultMode;
   chatConfig.connected = result.connected;
+  if (typeof result.timezone === 'string' && result.timezone !== chatConfig.timezone) {
+    chatConfig.timezone = result.timezone;
+    scheduleChatTheme();
+  }
   if (typeof result.secretary_name === 'string' && result.secretary_name && result.secretary_name !== secretaryName) {
     secretaryName = result.secretary_name;
     applySecretaryName();
   }
-  if (typeof result.avatar === 'string' && result.avatar !== avatar && avatarOrder.includes(result.avatar)) {
-    avatar = result.avatar;
-    showAvatar(avatar);
-  }
+  if (typeof result.avatar === 'string') document.dispatchEvent(new CustomEvent('secretary:avatar', {detail: result.avatar}));
   document.querySelector('#chat-history').replaceChildren(...result.chats.map(item => {
     const link = make('a', item.title); link.href = '/chat?id=' + item.id;
     const label=item.mode === 'todo' ? 'To-do' : item.mode[0].toUpperCase() + item.mode.slice(1);
@@ -378,14 +354,17 @@ function pollVisible() {
   (state === 'queued' ? pollQueue() : pollChat());
 }
 
-document.addEventListener('visibilitychange', () => { if (document.hidden) clearTimeout(timer); else pollVisible(); });
-document.addEventListener('website:language', () => { showMode(); showAvatar(avatar); pollVisible(); });
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) { clearTimeout(timer); clearTimeout(themeTimer); }
+  else { scheduleChatTheme(); pollVisible(); }
+});
+document.addEventListener('website:language', () => { showMode(); pollVisible(); });
 document.addEventListener('website:before-refresh', event => { if (sending || pendingChatMutations) event.preventDefault(); });
 document.addEventListener('website:refresh-drafts', event => {
   if ([...drafts.values()].some(text => text.trim())) event.preventDefault();
 });
-window.addEventListener('focus', () => { pollVisible(); });
+window.addEventListener('focus', () => { scheduleChatTheme(); pollVisible(); });
+scheduleChatTheme();
 showMode();
-showAvatar(avatar);
 historyList().catch(error => { errorBox.textContent = error.message; });
 if (chat) pollChat();

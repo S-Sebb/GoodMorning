@@ -237,7 +237,7 @@ class SaveAndViewTests(unittest.TestCase):
         self.assertFalse((self.root / 'daily' / f'{DATE}.gm.presentation.json').exists())
         self.assertIn('Preserve me', (self.root / 'daily' / f'{DATE}.md').read_text())
         page = self.app().page(DATE, 'gm', True).decode()
-        self.assertIn(f'href="/d/{DATE}/gm.json"', page)
+        self.assertNotIn('class="briefing-tools"', page)
         self.assertNotIn('Read original Markdown', page)
         self.assertFalse((self.root / 'browser').exists())
         self.assertEqual(self.save(doc)[1]['error'], 'already_ran')
@@ -385,7 +385,7 @@ class NativeHTTPTests(server_tests.HTTPTests):
         payload = native.encode(document())
         (self.root / 'daily' / f'{self.date}.gm.json').write_text(payload)
         with urlopen(self.address + '/gm.html') as response:
-            self.assertIn('View saved data', response.read().decode())
+            self.assertNotIn('class="briefing-tools"', response.read().decode())
             self.assertEqual(response.headers['Cache-Control'], 'no-store')
         with urlopen(self.address + f'/d/{self.date}/gm.json') as response:
             self.assertEqual(response.read(), payload.encode())

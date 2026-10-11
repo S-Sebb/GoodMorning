@@ -123,6 +123,14 @@ def run(artifacts):
                 page.locator('input[name=repeat]').fill('a1alice-permanent')
                 page.locator('#account-form button[type=submit]').click()
                 expect(page.locator('#chat-compose')).to_be_visible()
+                def avatar(page, selected):
+                    if not page.locator('.avatar-menu').is_visible():
+                        page.locator('[data-avatar-toggle]').click()
+                    page.locator(f'[data-avatar-choice="{selected}"]').click()
+                    expect(page.locator('.avatar-display')).to_have_attribute('aria-busy','false')
+                    expect(page.locator('.avatar-display')).to_have_attribute('data-avatar',selected)
+                    page.keyboard.press('Escape')
+                avatar(page,'f2')
                 page.get_by_role('radio',name='待办',exact=True).click()
                 page.locator('#chat-text').fill('Keep this unsent draft: 原文。')
                 switch(page,'en');expect(page.locator('#chat-text')).to_have_value('Keep this unsent draft: 原文。')
@@ -138,9 +146,10 @@ def run(artifacts):
                     other=desktop.new_page();login(other,host,'alice','a1alice-permanent')
                     other.on('pageerror',lambda error:errors.append(str(error)))
                     expect(other.locator('html')).to_have_attribute('lang','zh-CN')
+                    expect(other.locator('.avatar-display')).to_have_attribute('data-avatar','f2')
                     expect(other.get_by_role('heading',name='Existing English briefing',exact=True)).to_be_visible()
                     expect(other.locator('article')).to_contain_text('Password')
-                    expect(other.locator('.source-link')).to_contain_text('查看已保存的数据')
+                    expect(other.locator('.briefing-tools')).to_have_count(0)
                     expect(other.locator('.agenda-day').first).to_contain_text('明天')
                     expect(other.locator('.agenda-day')).to_have_count(2)
                     expect(other.locator('.agenda-event')).to_have_count(2)
@@ -167,6 +176,10 @@ def run(artifacts):
                 second=context(viewport={'width':320,'height':760},reduced_motion='reduce')
                 mobile=second.new_page();mobile.on('pageerror',lambda error:errors.append(str(error)))
                 login(mobile,'sec','alice','a1alice-permanent');expect(mobile.locator('html')).to_have_attribute('lang','zh-CN')
+                expect(mobile.locator('.avatar-display')).to_have_attribute('data-avatar','f2')
+                avatar(mobile,'m2')
+                page.evaluate("window.dispatchEvent(new Event('focus'))")
+                expect(page.locator('.avatar-display')).to_have_attribute('data-avatar','m2')
                 no_overflow(mobile);mobile.screenshot(path=str(artifacts/'chinese-chat-320.png'),full_page=True)
                 switch(mobile,'en')
                 page.evaluate('syncWebsiteLanguage()');expect(page.locator('html')).to_have_attribute('lang','en')
@@ -180,12 +193,20 @@ def run(artifacts):
                 login(new,'sec','bob','a1bob-temporary')
                 new.locator('input[name=current]').fill('a1bob-temporary');new.locator('input[name=replacement]').fill('a1bob-permanent');new.locator('input[name=repeat]').fill('a1bob-permanent')
                 new.locator('#account-form button[type=submit]').click();expect(new.get_by_role('button',name='开始初始化')).to_be_visible()
+                expect(new.locator('.avatar-display')).to_have_attribute('data-avatar','f1')
+                avatar(new,'m1')
+                page.evaluate("window.dispatchEvent(new Event('focus'))")
+                expect(page.locator('.avatar-display')).to_have_attribute('data-avatar','m2')
                 new.get_by_role('button',name='开始初始化').click();expect(new.get_by_role('heading',name='确认所在地')).to_be_visible()
                 new.get_by_placeholder('或填写你自己的回答').fill('London, GB')
                 switch(new,'en');expect(new.get_by_placeholder('Or write your own answer')).to_have_value('London, GB')
                 expect(new.locator('#request-language-note')).to_contain_text('Simplified Chinese')
                 new.get_by_role('button',name='Send answer',exact=True).click();expect(new.get_by_role('button',name='Allow once')).to_be_visible()
                 new.get_by_role('button',name='Allow once').click();expect(new.get_by_role('button',name='Send reply')).to_be_enabled()
+                expect(new.locator('.avatar-display')).to_have_attribute('data-avatar','m1')
+                for name, selected in (('alice','m2'),('bob','m1')):
+                    stored=json.loads((Path(settings['runtimes'][name])/'website-avatar.json').read_text())
+                    assert stored=={'avatar':selected}
                 assert 'secretary_language' not in (Path(settings['runtimes']['bob'])/'profile.md').read_text()
                 switch(new,'zh-CN');new.get_by_role('button',name='新建对话').click()
                 for label in ('秘书','待办','灵感','初始化'):
@@ -231,6 +252,7 @@ def run(artifacts):
                 plain.close()
                 fresh.close();second.close();desktop.close();browser.close()
             report={'modelCalls':0,'localSyntheticGateway':True,'subdomains':3,'accountSync':True,'crossDeviceSync':True,
+                    'avatarPerAccountIsolation':True,'avatarAcrossHostsAndDevices':True,'avatarSurvivesSetup':True,
                     'loginAndPasswordPages':True,'modeGuidance':True,'draftsAndPasswordVisibilityPreserved':True,
                     'activeRequestLanguagePinned':True,'savedContentPreserved':True,'nightPreflightAndRecoveryTranslated':True,
                     'noJavascriptLanguageSwitch':True,'instantLanguageSelectionWithoutApply':True,'prominentAgendaDayHeadings':True,

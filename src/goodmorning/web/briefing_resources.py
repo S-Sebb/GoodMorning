@@ -73,6 +73,7 @@ class Resources:
                  'briefing.js': 'text/javascript', 'browser.js': 'text/javascript',
                    'questions.js': 'text/javascript', 'chat.js': 'text/javascript', 'chat.css': 'text/css', 'language.js':'text/javascript',
                    'update.js': 'text/javascript', 'update.css': 'text/css',
+                   'avatar.js': 'text/javascript', 'avatar.css': 'text/css',
                  'fonts/OFL.txt': 'text/plain', 'desk-secretary.png': 'image/png',
                  'desk-secretary-f2.png': 'image/png', 'desk-secretary-m1.png': 'image/png',
                  'desk-secretary-m2.png': 'image/png', **ICON_TYPES}

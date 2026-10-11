@@ -124,7 +124,7 @@ class LanguageTests(unittest.TestCase):
                 self.assertIn('>Sign in</h1>',page)
                 self.assertIn('<p>Password</p>',page)
                 self.assertIn('>Today</div>',page)
-                self.assertIn('查看已保存的数据' if value=='zh-CN' else 'View saved data',page)
+                self.assertNotIn('class="briefing-tools"',page)
                 self.assertIn('气温' if value=='zh-CN' else 'Temperature',page)
                 self.assertIn('部分完成' if value=='zh-CN' else 'Partial',page)
                 self.assertIn('data-ui-date="2026-10-11"',page)

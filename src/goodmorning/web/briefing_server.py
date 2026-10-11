@@ -23,11 +23,12 @@ from goodmorning.briefings.briefing_document import source_path
 from goodmorning.briefings import briefing_document as native
 from goodmorning.briefings.briefing_stream import DEFAULT_PLANS, load as load_preview, require_final
 from goodmorning.runtime_files import atomic_text, profile_fields
-from .briefing_chat import AVATARS, Chats, avatar_id, page as chat_page, read_avatar, write_avatar
+from .briefing_chat import AVATARS, Chats, avatar_id, avatar_widget, page as chat_page, read_avatar, write_avatar
 from goodmorning.paths import ROOT
 from . import language as ui
 from .release import VERSION
 from .session_inventory import job_session_title
+from .chat_theme import clock_theme
 
 DESK_ART = '<svg viewBox="0 0 64 64" width="64" height="64" fill="none" aria-hidden="true"><rect x="15" y="8" width="36" height="48" rx="7" fill="var(--surface)" stroke="currentColor" stroke-width="1.5"/><path d="M24 19h18M24 25h12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" opacity=".4"/><circle cx="27" cy="36" r="1.5" fill="currentColor"/><circle cx="39" cy="36" r="1.5" fill="currentColor"/><path d="M28 43q5 5 10 0" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>'
 
@@ -152,11 +153,31 @@ class BrowserApp:
                 for entry, filename, _ in AVATARS}
 
     def briefing_avatar(self, avatar=None):
-        selected = avatar or self.avatar()
-        source = html.escape(self.avatar_sources()[selected], quote=True)
-        return (f'<figure class="briefing-avatar" data-avatar="{selected}">'
-                f'<a href="/chat"><img src="{source}" alt="Secretary avatar" width="64" height="64">'
-                '<span>Your secretary <span aria-hidden="true">↗</span></span></a></figure>')
+        return avatar_widget(avatar or self.avatar(), self.avatar_sources(), 'briefing-avatar')
+
+    def briefing_layout(self, text, avatar=None):
+        portrait = self.briefing_avatar(avatar)
+        text = re.sub(r'<body([^>]*)>', lambda match: '<body' + match[1] + ' class="briefing-letter">', text, count=1)
+        text, count = re.subn(r'<div class="hero-copy">(.*?)</div>',
+                             lambda match: '<div class="hero-copy">' + portrait + '<div class="letter-copy">' + match[1] + '</div></div>',
+                             text, count=1, flags=re.S)
+        if not count:
+            text = text.replace('<p class="eyebrow">', portrait + '<p class="eyebrow">', 1)
+        text = re.sub(r'<div class="briefing-tools">.*?</div>', '', text, count=1, flags=re.S)
+        questions = '<div id="agent-questions"></div>'
+        if questions in text and '<article' in text:
+            text = text.replace(questions, '', 1)
+            text = re.sub(r'<article\b', questions + '<article', text, count=1)
+        links = []
+        for match in re.finditer(r'<a class="scroll-chunk" href="(#section-\d+)"([^>]*)>', text):
+            label = re.search(r'aria-label="\d+: ([^"]+)"', match[2])
+            if label:
+                links.append(f'<a href="{match[1]}" data-content>{label[1]}</a>')
+        navigation = '<nav class="briefing-section-nav" aria-label="Briefing sections">' + ''.join(links) + '</nav>'
+        text = re.sub(r'<article\b', navigation + '<article', text, count=1)
+        text = text.replace('</head>', '<link rel="stylesheet" href="/avatar.css"></head>')
+        text = text.replace('</body>', '<script src="/avatar.js" defer></script></body>')
+        return text
 
     def chat_settings(self):
         from goodmorning.setup_check import profile_status
@@ -169,17 +190,18 @@ class BrowserApp:
             secretary_name = None
         current = self.avatar()
         return {'defaultMode': 'secretary' if ready else 'initialize', 'connected': bool(self.chamber),
+                **clock_theme(self.profile().get('timezone'), self.now() if self.now else None),
                 'secretary_name': secretary_name, 'avatar': current,
                 'avatars': [{'id': entry, 'src': self.avatar_sources()[entry]} for entry, _, _ in AVATARS]}
 
     def chat_page(self):
         settings = self.chat_settings()
-        return self.resources.rewrite(ui.page(chat_page(self.csrf, settings['defaultMode'] == 'secretary', settings['connected'], settings.get('secretary_name'), settings['avatar'], {item['id']: item['src'] for item in settings['avatars']}),self.csrf,'/chat')).encode()
+        return self.resources.rewrite(ui.page(chat_page(self.csrf, settings['defaultMode'] == 'secretary', settings['connected'], settings.get('secretary_name'), settings['avatar'], {item['id']: item['src'] for item in settings['avatars']}, settings['timezone'], settings['theme']),self.csrf,'/chat')).encode()
 
     def initialization_page(self, kind):
         switches = ''.join(f'<a class="edition-link{" selected" if other == kind else ""}" href="/{other}.html">{label}</a>' for other, label in KINDS.items())
         text = f'<!doctype html><html lang="en" data-edition="{kind}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><title>Initialize your secretary — GoodMorning</title><link rel="stylesheet" href="/briefing.css"></head><body><header class="masthead"><a class="wordmark" href="/{kind}.html">GoodMorning<span>A personal secretary just for you</span></a><nav class="edition-switch" aria-label="Edition">{switches}<a class="edition-link" href="/chat">Secretary</a></nav></header><main><section class="waiting-room"><div class="waiting-art">{celestial(kind)}</div><p class="eyebrow">{KINDS[kind]} edition</p><h1>Let’s make this yours.</h1><p class="subtitle">Complete your secretary’s setup before preparing a briefing. Your saved records stay unchanged.</p><a id="initialize" class="initialize-button" href="/chat?mode=initialize">Initialize my secretary</a></section></main></body></html>'
-        text = re.sub(r'(<p class="subtitle"[^>]*>.*?</p>)', lambda match: match[0] + self.briefing_avatar(), text, count=1, flags=re.S)
+        text = self.briefing_layout(text)
         return self.resources.rewrite(ui.page(text.replace('</head>', favicon_links(kind) + '</head>'),self.csrf,'/'+kind+'.html')).encode()
 
     def dates(self):
@@ -312,8 +334,7 @@ class BrowserApp:
                 text = re.sub(r'<div class="briefing-tools">.*?</div>', '<section class="generation-desk">' + button + controls + '<p class="preview-notice">Unfinished preview · sections appear here as they are prepared. Nothing is saved yet.</p></section>', text)
                 text = text.replace('href="briefing.css"', 'href="/briefing.css"').replace('src="briefing.js"', 'src="/briefing.js"').replace('href="fonts/', 'href="/fonts/').replace('href="index.html"', f'href="/{kind}.html"')
                 text = text.replace(f'{date} / {KINDS[kind]} edition', f'{KINDS[kind]} edition')
-        avatar_markup = self.briefing_avatar(avatar)
-        text = re.sub(r'(<p class="subtitle"[^>]*>.*?</p>)', lambda match: match[0] + avatar_markup, text, count=1, flags=re.S)
+        text = self.briefing_layout(text, avatar)
         text = text.replace('<span>▱</span>', '<span>' + DESK_ART + '</span>')
         text=text.replace('<p id="generation-status" role="status"></p>','<p id="generation-status" role="status"></p><p id="request-language-note" role="status"></p>')
         missing = not confirmed

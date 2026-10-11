@@ -52,12 +52,20 @@ class AvatarTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             write_avatar(self.root, 'f1')
 
-    def test_page_places_arrows_beside_avatar_above_your_desk(self):
+    def test_page_places_shared_tshirt_picker_above_your_desk(self):
         html = page('csrf', True, True, None)
         self.assertIn('data-avatar-prev', html)
         self.assertIn('data-avatar-next', html)
         self.assertIn('aria-label="Previous avatar"', html)
         self.assertIn('aria-label="Next avatar"', html)
+        self.assertIn('data-avatar-toggle', html)
+        self.assertIn('class="avatar-menu"', html)
+        self.assertNotIn('avatar-menu-heading', html)
+        self.assertNotIn('data-avatar-close', html)
+        self.assertIn('aria-label="Change avatar"', html)
+        self.assertIn('href="/avatar.css"', html)
+        self.assertIn('src="/avatar.js"', html)
+        self.assertNotIn('avatar-caption', html)
         self.assertIn('Avatar 1 of 4', html)
         self.assertIn('data-avatar="f1"', html)
         self.assertLess(html.index('desk-figure'), html.index('<p class="eyebrow">Your desk'))
@@ -95,6 +103,32 @@ class AvatarTests(unittest.TestCase):
         self.assertTrue(GET_ROUTES.fullmatch(hashed))
         self.assertFalse(GET_ROUTES.fullmatch('/desk-secretary-evil.png'))
 
+    def test_avatar_is_private_per_runtime_and_survives_viewer_restart(self):
+        profiles = {}
+        apps = {}
+        for name in ('alice', 'bob'):
+            runtime = self.root / name
+            runtime.mkdir(mode=0o700)
+            profile = runtime / 'profile.md'
+            profile.write_bytes((self.root / 'profile.md').read_bytes())
+            profiles[name] = profile.read_bytes()
+            apps[name] = BrowserApp(runtime, FakeChamber())
+        apps['alice'].set_avatar('f2')
+        apps['bob'].set_avatar('m2')
+        for name, selected in (('alice', 'f2'), ('bob', 'm2')):
+            runtime = self.root / name
+            self.assertEqual((runtime / 'website-avatar.json').stat().st_mode & 0o777, 0o600)
+            restarted = BrowserApp(runtime, FakeChamber())
+            self.assertEqual(restarted.avatar(), selected)
+            self.assertEqual(restarted.chat_settings()['avatar'], selected)
+            self.assertIn(f'data-avatar="{selected}"', restarted.chat_page().decode())
+            for kind in ('gm', 'gn'):
+                self.assertIn(f'data-avatar="{selected}"', restarted.page(restarted.today(), kind, False).decode())
+            self.assertEqual((runtime / 'profile.md').read_bytes(), profiles[name])
+        apps['alice'].set_avatar('m1')
+        self.assertEqual(BrowserApp(self.root / 'alice', FakeChamber()).avatar(), 'm1')
+        self.assertEqual(apps['bob'].avatar(), 'm2')
+
     def test_briefings_show_selected_avatar_without_rewriting_saved_content(self):
         app = BrowserApp(self.root, FakeChamber())
         day = app.today()
@@ -108,10 +142,15 @@ class AvatarTests(unittest.TestCase):
                 app.set_avatar(selected)
                 for pinned in (False, True):
                     rendered = app.page(day, kind, pinned).decode()
-                    self.assertIn(f'class="briefing-avatar" data-avatar="{selected}"', rendered)
+                    self.assertIn(f'class="briefing-avatar avatar-display" data-avatar="{selected}"', rendered)
                     self.assertIn(f'src="{app.avatar_sources()[selected]}"', rendered)
                     self.assertIn('class="orbit"', rendered)
                     self.assertTrue(celestial(kind).casefold() in rendered.casefold(), 'Original edition SVG must be retained')
+                    self.assertIn('class="letter-copy"', rendered)
+                    self.assertNotIn('class="secretary-panel"', rendered)
+                    self.assertNotIn('class="briefing-tools"', rendered)
+                    self.assertNotIn('href="/chat"><img', rendered)
+                    self.assertIn('width="220" height="220"', rendered)
                     self.assertIn('Keep this saved content.', rendered)
                     self.assertEqual(source.read_text(), document)
         self.assertEqual(app.chamber.calls, [])
@@ -124,7 +163,7 @@ class AvatarTests(unittest.TestCase):
             archive = app.page(app.dates()[1], kind, True).decode()
             setup = app.initialization_page(kind).decode()
             for rendered in (preview, archive, setup):
-                self.assertIn('class="briefing-avatar" data-avatar="m2"', rendered)
+                self.assertIn('class="briefing-avatar avatar-display" data-avatar="m2"', rendered)
                 self.assertIn('alt="Secretary avatar"', rendered)
                 self.assertTrue(celestial(kind).casefold() in rendered.casefold(), 'Original edition SVG must be retained')
             self.assertIn('class="orbit"', preview)
@@ -132,10 +171,21 @@ class AvatarTests(unittest.TestCase):
             self.assertIn('class="waiting-art"', setup)
         self.assertEqual(app.chamber.calls, [])
 
+    def test_generation_questions_stay_out_of_the_avatar_picker(self):
+        app = BrowserApp(self.root, FakeChamber())
+        rendered = app.page(app.today(), 'gm', False).decode()
+        panel = rendered.split('class="briefing-avatar avatar-display"', 1)[1].split('</figure>', 1)[0]
+        self.assertIn('id="generate"', rendered)
+        self.assertIn('id="generation-progress"', rendered)
+        self.assertNotIn('id="agent-questions"', panel)
+        self.assertEqual(rendered.count('id="agent-questions"'), 1)
+        self.assertEqual(rendered.count('class="briefing-avatar avatar-display"'), 1)
+
     def test_avatar_strings_translate(self):
         catalog = json.loads((WEB_ASSETS / 'translations.json').read_text())
         for key in ('Secretary avatar', 'Previous avatar', 'Next avatar',
-                    'Avatar {current} of {total}', 'Avatar could not be saved. Try again.'):
+                    'Avatar {current} of {total}', 'Avatar could not be saved. Try again.',
+                    'Change avatar', 'Choose an avatar', 'Avatar {number}'):
             self.assertIn(key, catalog)
         token = ui.CURRENT.set('zh-CN')
         try:

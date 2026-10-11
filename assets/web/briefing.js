@@ -186,10 +186,23 @@ function refreshBriefing() {
   const previousSections = sections;
   sections = Array.from(document.querySelectorAll('.briefing-section:not([hidden])'));
   links = Array.from(document.querySelectorAll('.scroll-segment:not([hidden]) .scroll-chunk'));
+  const inlineNav = document.querySelector('.briefing-section-nav');
+  if (inlineNav) inlineNav.replaceChildren(...sections.map(section => {
+    const link = document.createElement('a');
+    const heading = section.querySelector('h2');
+    link.href = '#' + section.id;
+    link.textContent = heading.textContent;
+    const label = heading.querySelector('[data-ui-text]');
+    if (label) link.dataset.uiText = label.dataset.uiText;
+    else link.dataset.content = '';
+    return link;
+  }));
   fills = links.map(() => -1);
   map.hidden = !sections.length;
   bindLinks();
   resizeObserver?.disconnect();
+  const questions = document.querySelector('#agent-questions');
+  if (questions) resizeObserver?.observe(questions);
   previousSections.filter(section => !sections.includes(section)).forEach(section => entryObserver?.unobserve(section.parentElement));
   sections.forEach(section => {
     resizeObserver?.observe(section);
@@ -207,5 +220,8 @@ function refreshBriefing() {
   measureSections();
 }
 document.addEventListener('briefing:updated', refreshBriefing);
+document.addEventListener('website:language', refreshBriefing);
 if (document.fonts) document.fonts.ready.then(measureSections);
 refreshBriefing();
+const days = document.querySelector('.briefing-letter .week-picker');
+if (days && innerWidth <= 700) days.scrollLeft = days.scrollWidth;

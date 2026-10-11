@@ -146,7 +146,7 @@ class LiveTests(unittest.TestCase):
         self.assertEqual(source.read_text(),GM)
         self.assertIn('href="' + self.app.resources.urls['briefing.css'] + '"',page)
         self.assertIn('href="/d/2026-10-10/gn.html"',page)
-        self.assertIn('href="/d/2026-10-10/gm.json"',page)
+        self.assertNotIn('class="briefing-tools"',page)
         self.assertRegex(page,r'<h1\b[^>]*>Good morning</h1>')
         self.assertNotIn('Complete text and clickable sources',page)
         self.assertNotIn('orbit-caption',page)

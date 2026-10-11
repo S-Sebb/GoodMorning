@@ -161,7 +161,7 @@ def run(artifacts):
                                 assert all(change['index'] >= item['_after'] for change in item['changes'])
                         command('state', '--today', date, f'--mark-{kind}', '--session', 'ses_fixture', '--browser-job', job, '--answer-file', str(draft), '--json')
                         (root / 'stop').write_text('stop')
-                        expect(page.locator('.source-link')).to_have_attribute('href', f'/d/{date}/{kind}.json')
+                        expect(page.locator('.briefing-tools')).to_have_count(0)
                         expect(page.locator('.preview-notice')).to_have_count(0)
                         expect(page.locator('.briefing-section')).to_have_count(len(document['sections']))
                         expect(page.locator('.scroll-chunk')).to_have_count(len(document['sections']))

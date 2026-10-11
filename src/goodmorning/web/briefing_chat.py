@@ -21,6 +21,27 @@ AVATAR_IDS = tuple(entry[0] for entry in AVATARS)
 AVATAR_FILES = {entry[0]: entry[1] for entry in AVATARS}
 
 
+def avatar_widget(selected='f1', sources=None, class_name='desk-figure'):
+    selected = selected if selected in AVATAR_IDS else 'f1'
+    sources = {entry: (sources or {}).get(entry, '/' + filename) for entry, filename, _ in AVATARS}
+    options = html.escape(json.dumps([{'id': entry, 'src': sources[entry]} for entry in AVATAR_IDS]), quote=True)
+    previews = ''.join(
+        f'<button type="button" class="avatar-preview" role="option" data-avatar-choice="{entry}" aria-selected="{str(entry == selected).lower()}" aria-label="Avatar {index}">'
+        f'<img src="{html.escape(sources[entry], quote=True)}" alt="" width="72" height="72" loading="lazy"><span>{index}</span></button>'
+        for index, entry in enumerate(AVATAR_IDS, 1))
+    return (f'<figure class="{class_name} avatar-display" data-avatar="{selected}" data-avatar-options="{options}">'
+            '<div class="avatar-frame">'
+            f'<img class="avatar-image" src="{html.escape(sources[selected], quote=True)}" alt="Secretary avatar" width="220" height="220">'
+            '<button class="avatar-toggle" type="button" data-avatar-toggle aria-label="Change avatar" title="Change avatar" aria-expanded="false" disabled>'
+            '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'
+            '<path d="m16 3 5 5-3 3v10H6V11L3 8l5-5a4 4 0 0 0 8 0Z"/></svg></button></div>'
+            '<div class="avatar-menu" role="dialog" aria-label="Choose an avatar" hidden>'
+            '<div class="avatar-carousel"><button class="avatar-step" type="button" data-avatar-prev aria-label="Previous avatar">‹</button>'
+            '<div class="avatar-previews" role="listbox" aria-label="Secretary avatars">' + previews + '</div>'
+            '<button class="avatar-step" type="button" data-avatar-next aria-label="Next avatar">›</button></div>'
+            '<p class="avatar-feedback" role="status">Avatar ' + str(AVATAR_IDS.index(selected) + 1) + ' of 4</p></div></figure>')
+
+
 def avatar_id(value):
     if value not in AVATAR_IDS:
         raise ValueError('Unknown secretary avatar')
@@ -249,35 +270,30 @@ class Chats:
         return {'answered': True}
 
 
-def page(csrf, ready, connected, secretary_name=None, avatar='f1', avatar_urls=None):
+def page(csrf, ready, connected, secretary_name=None, avatar='f1', avatar_urls=None, timezone='UTC', theme='gm'):
     if avatar not in AVATAR_IDS:
         avatar = 'f1'
     sources = dict(avatar_urls) if avatar_urls else {}
     for entry, filename in AVATAR_FILES.items():
         sources.setdefault(entry, '/' + filename)
     config = html.escape(json.dumps({'csrf': csrf, 'defaultMode': 'secretary' if ready else 'initialize',
+                                    'timezone': timezone,
                                    'connected': connected, 'secretary_name': secretary_name,
                                    'avatar': avatar, 'avatars': [{'id': entry, 'src': sources[entry]} for entry, _, _ in AVATARS]}), quote=True)
     choices = ''.join(f'<button type="button" role="radio" aria-checked="false" data-mode="{mode}">{label}</button>'
                       for mode, label in MODES.items())
     heading = html.escape(secretary_name) + '.' if secretary_name else 'Your secretary.'
     title = (html.escape(secretary_name) + ' — GoodMorning') if secretary_name else 'Your secretary — GoodMorning'
-    return ('<!doctype html><html lang="en"><head><meta charset="utf-8">'
+    return ('<!doctype html><html lang="en" data-edition="' + ('gn' if theme == 'gn' else 'gm') + '"><head><meta charset="utf-8">'
             '<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">'
             '<title>' + title + '</title>' + favicon_links('secretary') + '<link rel="stylesheet" href="/briefing.css">'
-            '<link rel="stylesheet" href="/chat.css"></head><body class="chat-page">'
+            '<link rel="stylesheet" href="/chat.css"><link rel="stylesheet" href="/avatar.css"></head><body class="chat-page">'
             '<a class="skip-link" href="#conversation">Skip to conversation</a>'
             '<header class="masthead"><a class="wordmark" href="/chat">GoodMorning<span>A little space to think, plan, and begin.</span></a>'
             '<nav class="edition-switch" aria-label="Your desk"><a class="edition-link" href="/gm.html">Morning</a>'
             '<a class="edition-link" href="/gn.html">Evening</a><a class="edition-link selected" href="/chat" aria-current="page">Secretary</a></nav></header>'
             '<main class="chat-layout"><aside class="conversation-sidebar">'
-            '<figure class="desk-figure" data-avatar="' + avatar + '">'
-            '<div class="desk-frame">'
-            '<button class="avatar-arrow avatar-prev" type="button" data-avatar-prev aria-label="Previous avatar">‹</button>'
-            '<img class="desk-illustration" id="desk-illustration" src="' + sources[avatar] + '" alt="Pixel-art secretary desk under a warm office spotlight" width="440" height="440" fetchpriority="high" onerror="this.hidden=true">'
-            '<button class="avatar-arrow avatar-next" type="button" data-avatar-next aria-label="Next avatar">›</button>'
-            '</div>'
-            '<figcaption class="avatar-caption" id="avatar-caption">Avatar ' + str(AVATAR_IDS.index(avatar) + 1) + ' of ' + str(len(AVATARS)) + '</figcaption></figure>'
+            + avatar_widget(avatar, sources) +
             '<p class="eyebrow">Your desk</p>'
             '<h1 id="secretary-heading">' + heading + '</h1><p>A place for your plans, bright ideas, and the details that make this yours.</p>'
             '<button id="new-conversation" type="button">New conversation</button>'
@@ -296,4 +312,4 @@ def page(csrf, ready, connected, secretary_name=None, avatar='f1', avatar_urls=N
              '<button type="submit" id="chat-send" disabled>Send message</button></div></form><p id="chat-error" role="alert"></p>'
             '<noscript>Enable JavaScript to talk with your secretary. Saved briefings remain readable.</noscript></section></main>'
             '<div id="chat-config" hidden data-config="'+config+'"></div>'
-            '<script src="/questions.js" defer></script><script src="/chat.js" defer></script></body></html>')
+            '<script src="/questions.js" defer></script><script src="/avatar.js" defer></script><script src="/chat.js" defer></script></body></html>')
