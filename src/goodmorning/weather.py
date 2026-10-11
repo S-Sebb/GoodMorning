@@ -275,41 +275,73 @@ def aqi_advice(us_aqi):
     return "avoid outdoor exertion."
 
 
+def _geocode_languages(city):
+    """Order geocoding languages so native-script names are found.
+
+    Open-Meteo matches the query against names in the requested language:
+    ``上海`` with ``language=en`` returns no results, while ``language=zh``
+    finds it (and ``Москва`` needs ``ru``). English queries work in both,
+    so trying ``en`` first preserves current behaviour and a ``zh`` fallback
+    fixes Chinese-character cities like Shanghai.
+    """
+    if re.search(r"[\u4e00-\u9fff\uf900-\ufaff]", city):
+        return ["zh", "en"]
+    if re.search(r"[\u0400-\u04ff]", city):
+        return ["ru", "en", "zh"]
+    if re.search(r"[\u3040-\u30ff]", city):
+        return ["ja", "zh", "en"]
+    if re.search(r"[\uac00-\ud7af]", city):
+        return ["ko", "zh", "en"]
+    return ["en", "zh"]
+
+
 def openmeteo_geocode(city, timeout=TIMEOUT):
     parts = [part.strip() for part in city.split(",")]
     if not parts[0] or any(not part for part in parts):
         raise WeatherError("city must have nonempty location components")
-    q = urllib.parse.urlencode({"name": parts[0], "count": 10, "language": "en", "format": "json"})
-    data = http_get_json("https://geocoding-api.open-meteo.com/v1/search?" + q, timeout=timeout)
-    res = (data or {}).get("results") or []
-    if not res:
-        raise WeatherError("city not found; use a qualified city or --lat/--lon")
-    try:
-        if not isinstance(res, list) or not all(isinstance(item, dict) for item in res):
-            raise WeatherError("invalid geocoding response")
-        if len(parts) > 1:
-            country = parts[-1].casefold()
-            res = [item for item in res if country in (
-                str(item.get("country_code", "")).casefold(), str(item.get("country", "")).casefold())]
-            for region in parts[1:-1]:
-                res = [item for item in res if region.casefold() in (
-                    str(item.get("admin1", "")).casefold(), str(item.get("admin2", "")).casefold())]
-        exact = [item for item in res if str(item.get("name", "")).casefold() == parts[0].casefold()]
-        if exact:
-            res = exact
+    saw_filtered_empty = False
+    saw_ambiguous = False
+    for lang in _geocode_languages(city):
+        q = urllib.parse.urlencode({"name": parts[0], "count": 10, "language": lang, "format": "json"})
+        data = http_get_json("https://geocoding-api.open-meteo.com/v1/search?" + q, timeout=timeout)
+        res = (data or {}).get("results") or []
         if not res:
-            raise WeatherError("no city matches the confirmed country/region; use verified coordinates")
-        if len({(item.get("latitude"), item.get("longitude")) for item in res}) != 1:
-            raise WeatherError("city is ambiguous; specify country/region or verified coordinates")
-        location = res[0]
-        if not isinstance(location.get("name", city), str):
-            raise WeatherError("invalid geocoding name")
-        lat, lon = number(location["latitude"]), number(location["longitude"])
-        validate_coordinates(lat, lon)
-        return {"latitude": lat, "longitude": lon, "city": location.get("name", city),
-                "country": location.get("country_code"), "admin1": location.get("admin1")}
-    except (KeyError, TypeError, IndexError, AttributeError):
-        raise WeatherError("invalid geocoding response") from None
+            continue
+        try:
+            if not isinstance(res, list) or not all(isinstance(item, dict) for item in res):
+                raise WeatherError("invalid geocoding response")
+            if len(parts) > 1:
+                country = parts[-1].casefold()
+                res = [item for item in res if country in (
+                    str(item.get("country_code", "")).casefold(), str(item.get("country", "")).casefold())]
+                for region in parts[1:-1]:
+                    res = [item for item in res if region.casefold() in (
+                        str(item.get("admin1", "")).casefold(), str(item.get("admin2", "")).casefold())]
+            exact = [item for item in res if str(item.get("name", "")).casefold() == parts[0].casefold()]
+            if exact:
+                res = exact
+            if not res:
+                saw_filtered_empty = True
+                continue
+            if len({(item.get("latitude"), item.get("longitude")) for item in res}) != 1:
+                saw_ambiguous = True
+                continue
+            location = res[0]
+            if not isinstance(location.get("name", city), str):
+                raise WeatherError("invalid geocoding name")
+            lat, lon = number(location["latitude"]), number(location["longitude"])
+            validate_coordinates(lat, lon)
+            return {"latitude": lat, "longitude": lon, "city": location.get("name", city),
+                    "country": location.get("country_code"), "admin1": location.get("admin1")}
+        except (KeyError, TypeError, IndexError, AttributeError):
+            raise WeatherError("invalid geocoding response") from None
+    if saw_ambiguous:
+        raise WeatherError("city is ambiguous; specify country/region or verified coordinates")
+    if saw_filtered_empty:
+        raise WeatherError("no city matches the confirmed country/region; use verified coordinates")
+    if re.search(r"[^\x00-\x7f]", city):
+        raise WeatherError("city not found; try English/Pinyin like 'Shanghai, CN' or use --lat/--lon")
+    raise WeatherError("city not found; use a qualified city or --lat/--lon")
 
 
 def fetch_openmeteo(city, lat, lon, timeout=TIMEOUT):

@@ -31,6 +31,10 @@ visible when they affect the user's decision, once and in concise language.
   ISO code/full English name and optional administrative region. Several matching
   coordinates or a country mismatch fail clearly; no arbitrary first result.
   Older first-result geocoding cache entries are not reused.
+- Non-ASCII names are searched in their matching language first (for example
+  `zh` for `上海`) with an English fallback. A bare native name that matches
+  several places still needs a qualifier: `Shanghai, CN` or `上海, 上海市, CN`.
+  Unknown non-ASCII names suggest Pinyin/English plus `--lat`/`--lon`.
 - Open-Meteo weather and CAMS model AQI need no key. The free Open-Meteo service
   is non-commercial only and has no uptime guarantee.
 - Optional WAQI station cross-check: register at

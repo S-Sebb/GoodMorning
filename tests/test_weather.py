@@ -145,6 +145,58 @@ class WeatherTests(unittest.TestCase):
         with patch.object(w, "http_get_json", return_value=candidates), self.assertRaisesRegex(w.WeatherError, "ambiguous"):
             w.openmeteo_geocode("London")
 
+    def test_geocode_language_order_matches_script(self):
+        self.assertEqual(w._geocode_languages("上海")[0], "zh")
+        self.assertEqual(w._geocode_languages("Москва")[0], "ru")
+        self.assertEqual(w._geocode_languages("London")[0], "en")
+        self.assertEqual(w._geocode_languages("Shanghai, CN")[-1], "zh")
+
+    def test_cjk_city_resolves_when_english_index_has_no_match(self):
+        shanghai = {"results": [
+            {"name": "上海", "latitude": 31.22, "longitude": 121.45,
+             "country_code": "CN", "country": "中国", "admin1": "上海市"}]}
+        def provider(url, **kwargs):
+            self.calls.append(url)
+            if "language=en" in url:
+                return {}
+            return shanghai
+        with patch.object(w, "http_get_json", side_effect=provider):
+            result = w.openmeteo_geocode("上海, 上海市, CN")
+        self.assertEqual(result["country"], "CN")
+        self.assertEqual(result["latitude"], 31.22)
+        self.assertIn("language=zh", self.calls[0])
+
+    def test_ascii_city_falls_back_to_second_language(self):
+        hit = {"results": [
+            {"name": "Testville", "latitude": 1.0, "longitude": 2.0, "country_code": "GB"}]}
+        def provider(url, **kwargs):
+            self.calls.append(url)
+            return {} if "language=en" in url else hit
+        with patch.object(w, "http_get_json", side_effect=provider):
+            result = w.openmeteo_geocode("Testville")
+        self.assertEqual(result["latitude"], 1.0)
+        self.assertEqual(len(self.calls), 2)
+
+    def test_qualifier_mismatch_tries_next_language(self):
+        english = {"results": [
+            {"name": "London", "latitude": 51.5, "longitude": -0.12,
+             "country_code": "GB", "country": "United Kingdom", "admin1": "England"}]}
+        chinese = {"results": [
+            {"name": "倫敦", "latitude": 51.5, "longitude": -0.12,
+             "country_code": "GB", "country": "英国", "admin1": "英格兰"}]}
+        def provider(url, **kwargs):
+            return chinese if "language=zh" in url else english
+        with patch.object(w, "http_get_json", side_effect=provider):
+            result = w.openmeteo_geocode("London, 英格兰, GB")
+        self.assertEqual(result["country"], "GB")
+
+    def test_non_ascii_not_found_suggests_pinyin(self):
+        with patch.object(w, "http_get_json", return_value={}):
+            with self.assertRaisesRegex(w.WeatherError, "Pinyin"):
+                w.openmeteo_geocode("不存在的城市")
+            with self.assertRaisesRegex(w.WeatherError, "qualified city"):
+                w.openmeteo_geocode("NoSuchCityXYZ")
+
     def test_afternoon_rain_despite_clear_current_conditions(self):
         for change in ({"weather_code": [61]}, {"rain_sum": [2]},
                        {"precipitation_probability_max": [80]}):
