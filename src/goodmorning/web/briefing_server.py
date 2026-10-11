@@ -23,7 +23,7 @@ from goodmorning.briefings.briefing_document import source_path
 from goodmorning.briefings import briefing_document as native
 from goodmorning.briefings.briefing_stream import DEFAULT_PLANS, load as load_preview, require_final
 from goodmorning.runtime_files import atomic_text, profile_fields
-from .briefing_chat import Chats, page as chat_page
+from .briefing_chat import AVATARS, Chats, avatar_id, page as chat_page, read_avatar, write_avatar
 from goodmorning.paths import ROOT
 from . import language as ui
 from .release import VERSION
@@ -140,6 +140,24 @@ class BrowserApp:
             raise ValueError('Initialize your profile timezone first')
         return briefing_day(self.zone, self.now() if self.now else None)
 
+    def avatar(self):
+        return read_avatar(self.runtime)
+
+    def set_avatar(self, value):
+        with self.lock:
+            return write_avatar(self.runtime, avatar_id(value))
+
+    def avatar_sources(self):
+        return {entry: self.resources.urls.get(filename, '/' + filename)
+                for entry, filename, _ in AVATARS}
+
+    def briefing_avatar(self, avatar=None):
+        selected = avatar or self.avatar()
+        source = html.escape(self.avatar_sources()[selected], quote=True)
+        return (f'<figure class="briefing-avatar" data-avatar="{selected}">'
+                f'<a href="/chat"><img src="{source}" alt="Secretary avatar" width="440" height="440" fetchpriority="high">'
+                '<span>Your secretary <span aria-hidden="true">↗</span></span></a></figure>')
+
     def chat_settings(self):
         from goodmorning.setup_check import profile_status
         try:
@@ -149,16 +167,19 @@ class BrowserApp:
         except (ValueError, KeyError):
             ready = False
             secretary_name = None
+        current = self.avatar()
         return {'defaultMode': 'secretary' if ready else 'initialize', 'connected': bool(self.chamber),
-                'secretary_name': secretary_name}
+                'secretary_name': secretary_name, 'avatar': current,
+                'avatars': [{'id': entry, 'src': self.avatar_sources()[entry]} for entry, _, _ in AVATARS]}
 
     def chat_page(self):
         settings = self.chat_settings()
-        return self.resources.rewrite(ui.page(chat_page(self.csrf, settings['defaultMode'] == 'secretary', settings['connected'], settings.get('secretary_name')),self.csrf,'/chat')).encode()
+        return self.resources.rewrite(ui.page(chat_page(self.csrf, settings['defaultMode'] == 'secretary', settings['connected'], settings.get('secretary_name'), settings['avatar'], {item['id']: item['src'] for item in settings['avatars']}),self.csrf,'/chat')).encode()
 
     def initialization_page(self, kind):
         switches = ''.join(f'<a class="edition-link{" selected" if other == kind else ""}" href="/{other}.html">{label}</a>' for other, label in KINDS.items())
         text = f'<!doctype html><html lang="en" data-edition="{kind}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><title>Initialize your secretary — GoodMorning</title><link rel="stylesheet" href="/briefing.css"></head><body><header class="masthead"><a class="wordmark" href="/{kind}.html">GoodMorning<span>A personal secretary just for you</span></a><nav class="edition-switch" aria-label="Edition">{switches}<a class="edition-link" href="/chat">Secretary</a></nav></header><main><section class="waiting-room"><div class="waiting-art">{celestial(kind)}</div><p class="eyebrow">{KINDS[kind]} edition</p><h1>Let’s make this yours.</h1><p class="subtitle">Complete your secretary’s setup before preparing a briefing. Your saved records stay unchanged.</p><a id="initialize" class="initialize-button" href="/chat?mode=initialize">Initialize my secretary</a></section></main></body></html>'
+        text = text.replace('<div class="waiting-art">' + celestial(kind) + '</div>', self.briefing_avatar())
         return self.resources.rewrite(ui.page(text.replace('</head>', favicon_links(kind) + '</head>'),self.csrf,'/'+kind+'.html')).encode()
 
     def dates(self):
@@ -251,15 +272,16 @@ class BrowserApp:
         path = self.source(date, kind)
         week = self.week(date, kind)
         confirmed = path.is_file()
+        avatar = self.avatar()
         current_job = self.jobs.get(date+'.'+kind)
         if confirmed and self.preflight and current_job and self.status(current_job['id'])['state'] != 'ready':
             confirmed = False
-        page_key = date, kind, pinned, ui.current()
+        page_key = date, kind, pinned, ui.current(), VERSION
         page_signature = None
         if confirmed:
             manifest = self.runtime / 'browser-images' / date / 'manifest.json'
             if manifest.parent.is_symlink():raise ValueError('Unsafe image manifest')
-            page_signature = self.file_signature(path), self.file_signature(manifest), week
+            page_signature = self.file_signature(path), self.file_signature(manifest), week, VERSION, avatar
             with self.lock:
                 cached = self.pages.get(page_key)
                 if cached and cached[0] == page_signature:return cached[1]
@@ -290,6 +312,9 @@ class BrowserApp:
                 text = re.sub(r'<div class="briefing-tools">.*?</div>', '<section class="generation-desk">' + button + controls + '<p class="preview-notice">Unfinished preview · sections appear here as they are prepared. Nothing is saved yet.</p></section>', text)
                 text = text.replace('href="briefing.css"', 'href="/briefing.css"').replace('src="briefing.js"', 'src="/briefing.js"').replace('href="fonts/', 'href="/fonts/').replace('href="index.html"', f'href="/{kind}.html"')
                 text = text.replace(f'{date} / {KINDS[kind]} edition', f'{KINDS[kind]} edition')
+        avatar_markup = self.briefing_avatar(avatar)
+        text = re.sub(r'<figure class="orbit"[^>]*>.*?</figure>', lambda _: avatar_markup, text, count=1)
+        text = text.replace('<div class="waiting-art">' + celestial(kind) + '</div>', avatar_markup)
         text = text.replace('<span>▱</span>', '<span>' + DESK_ART + '</span>')
         text=text.replace('<p id="generation-status" role="status"></p>','<p id="generation-status" role="status"></p><p id="request-language-note" role="status"></p>')
         missing = not confirmed
@@ -655,6 +680,7 @@ def serve_live(app, port, *, gateway_key=None, public_origins=()):
             try:
                 self.select_language()
                 if path=='/api/language':return self.respond({'language':ui.current()})
+                if path=='/api/avatar':return self.respond({'avatar': app.avatar()})
                 if path=='/api/release':return self.respond({'version': VERSION})
                 if path == '/api/day':
                     return self.respond({'date': app.today(), 'timezone': app.zone})
@@ -755,6 +781,10 @@ def serve_live(app, port, *, gateway_key=None, public_origins=()):
                     return self.respond(app.recover(recovery[1], body), 202)
                 if path == '/api/chats':
                     return self.respond(app.chats.start(body), 202)
+                if path == '/api/avatar':
+                    if set(body) != {'avatar'}:
+                        raise ValueError('Choose a secretary avatar')
+                    return self.respond({'avatar': app.set_avatar(body['avatar'])})
                 chat = re.fullmatch(r'/api/chats/([a-f0-9]{32})/messages', path)
                 if chat:
                     return self.respond(app.chats.send(chat[1], body), 202)

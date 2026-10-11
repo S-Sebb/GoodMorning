@@ -73,13 +73,15 @@ class Resources:
                  'briefing.js': 'text/javascript', 'browser.js': 'text/javascript',
                    'questions.js': 'text/javascript', 'chat.js': 'text/javascript', 'chat.css': 'text/css', 'language.js':'text/javascript',
                    'update.js': 'text/javascript', 'update.css': 'text/css',
-                 'fonts/OFL.txt': 'text/plain', 'desk-secretary.png': 'image/png', **ICON_TYPES}
+                 'fonts/OFL.txt': 'text/plain', 'desk-secretary.png': 'image/png',
+                 'desk-secretary-f2.png': 'image/png', 'desk-secretary-m1.png': 'image/png',
+                 'desk-secretary-m2.png': 'image/png', **ICON_TYPES}
         # Register the font first: CSS embeds its immutable, shared URL.
         for name, mime in types.items():
             try:
                 data = (assets / name).read_bytes()
             except FileNotFoundError:
-                if name == 'desk-secretary.png':
+                if name.startswith('desk-secretary') and name.endswith('.png'):
                     continue
                 raise
             if name == 'language.js':

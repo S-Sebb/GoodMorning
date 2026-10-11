@@ -124,6 +124,12 @@ def page(source,csrf,return_to='/'):
                 '<button id="update-later" type="button">Later</button>'
                 '<p id="update-feedback" role="status"></p></aside>')
         source=source.replace('</body>',notice+'</body>')
+    else:
+        # A proxied backend may have embedded its own fingerprint; the served
+        # document must match this process's /api/release source of truth.
+        source=re.sub(r'id="site-release"[^>]*data-version="[a-f0-9]{64}"','id="site-release" hidden data-version="'+VERSION+'"',source,count=1)
+        if '/update.js' not in source:
+            source=source.replace('</head>','<link rel="stylesheet" href="/update.css"><script src="/update.js" defer></script></head>')
     config=html.escape(json.dumps({'language':current(),'csrf':csrf}),quote=True)
     controls=('<form id="language-form" class="language-toolbar" action="/api/language" method="post">'
               '<label for="website-language">Website language</label><select id="website-language" name="language">'

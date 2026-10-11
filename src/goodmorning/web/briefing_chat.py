@@ -13,6 +13,46 @@ from .session_inventory import chat_session_title
 
 MODES = {'initialize': 'Initialize', 'secretary': 'Secretary', 'todo': 'To-do', 'eureka': 'Eureka'}
 
+AVATARS = (('f1', 'desk-secretary.png', 'Classic'),
+           ('f2', 'desk-secretary-f2.png', 'Female 2'),
+           ('m1', 'desk-secretary-m1.png', 'Male 1'),
+           ('m2', 'desk-secretary-m2.png', 'Male 2'))
+AVATAR_IDS = tuple(entry[0] for entry in AVATARS)
+AVATAR_FILES = {entry[0]: entry[1] for entry in AVATARS}
+
+
+def avatar_id(value):
+    if value not in AVATAR_IDS:
+        raise ValueError('Unknown secretary avatar')
+    return value
+
+
+def read_avatar(runtime):
+    from pathlib import Path
+    path = Path(runtime) / 'website-avatar.json'
+    if path.is_symlink():
+        raise ValueError('Unsafe avatar storage')
+    try:
+        raw = path.read_text(encoding='utf-8')
+    except FileNotFoundError:
+        return 'f1'
+    except OSError:
+        return 'f1'
+    try:
+        return avatar_id(json.loads(raw).get('avatar'))
+    except (ValueError, AttributeError, TypeError):
+        return 'f1'
+
+
+def write_avatar(runtime, value):
+    from pathlib import Path
+    avatar_id(value)
+    path = Path(runtime) / 'website-avatar.json'
+    if path.is_symlink():
+        raise ValueError('Unsafe avatar storage')
+    atomic_text(path, json.dumps({'avatar': value}) + '\n')
+    return value
+
 
 def identifier(value):
     if not isinstance(value, str) or not re.fullmatch('[a-f0-9]{32}', value):
@@ -209,9 +249,15 @@ class Chats:
         return {'answered': True}
 
 
-def page(csrf, ready, connected, secretary_name=None):
+def page(csrf, ready, connected, secretary_name=None, avatar='f1', avatar_urls=None):
+    if avatar not in AVATAR_IDS:
+        avatar = 'f1'
+    sources = dict(avatar_urls) if avatar_urls else {}
+    for entry, filename in AVATAR_FILES.items():
+        sources.setdefault(entry, '/' + filename)
     config = html.escape(json.dumps({'csrf': csrf, 'defaultMode': 'secretary' if ready else 'initialize',
-                                   'connected': connected, 'secretary_name': secretary_name}), quote=True)
+                                   'connected': connected, 'secretary_name': secretary_name,
+                                   'avatar': avatar, 'avatars': [{'id': entry, 'src': sources[entry]} for entry, _, _ in AVATARS]}), quote=True)
     choices = ''.join(f'<button type="button" role="radio" aria-checked="false" data-mode="{mode}">{label}</button>'
                       for mode, label in MODES.items())
     heading = html.escape(secretary_name) + '.' if secretary_name else 'Your secretary.'
@@ -224,7 +270,15 @@ def page(csrf, ready, connected, secretary_name=None):
             '<header class="masthead"><a class="wordmark" href="/chat">GoodMorning<span>A little space to think, plan, and begin.</span></a>'
             '<nav class="edition-switch" aria-label="Your desk"><a class="edition-link" href="/gm.html">Morning</a>'
             '<a class="edition-link" href="/gn.html">Evening</a><a class="edition-link selected" href="/chat" aria-current="page">Secretary</a></nav></header>'
-            '<main class="chat-layout"><aside class="conversation-sidebar"><figure class="desk-figure"><img class="desk-illustration" src="/desk-secretary.png" alt="Pixel-art secretary desk under a warm office spotlight" width="440" height="440" fetchpriority="high" onerror="this.parentNode.hidden=true"></figure><p class="eyebrow">Your desk</p>'
+            '<main class="chat-layout"><aside class="conversation-sidebar">'
+            '<figure class="desk-figure" data-avatar="' + avatar + '">'
+            '<div class="desk-frame">'
+            '<button class="avatar-arrow avatar-prev" type="button" data-avatar-prev aria-label="Previous avatar">‹</button>'
+            '<img class="desk-illustration" id="desk-illustration" src="' + sources[avatar] + '" alt="Pixel-art secretary desk under a warm office spotlight" width="440" height="440" fetchpriority="high" onerror="this.hidden=true">'
+            '<button class="avatar-arrow avatar-next" type="button" data-avatar-next aria-label="Next avatar">›</button>'
+            '</div>'
+            '<figcaption class="avatar-caption" id="avatar-caption">Avatar ' + str(AVATAR_IDS.index(avatar) + 1) + ' of ' + str(len(AVATARS)) + '</figcaption></figure>'
+            '<p class="eyebrow">Your desk</p>'
             '<h1 id="secretary-heading">' + heading + '</h1><p>A place for your plans, bright ideas, and the details that make this yours.</p>'
             '<button id="new-conversation" type="button">New conversation</button>'
             '<details id="conversation-history"><summary>Previous conversations</summary><nav id="chat-history" aria-label="Previous conversations"></nav></details></aside>'

@@ -33,7 +33,8 @@ class SessionInventoryTests(unittest.TestCase):
             created = next(call for call in chamber.calls if call[0] == 'session.create')
             self.assertTrue(created[1]['title'].startswith('GoodMorning · '))
             app = BrowserApp(root, chamber)
-            job = app.start(app.today(), 'gm')['job']
+            with patch('goodmorning.web.briefing_server.threading.Thread', ImmediateThread):
+                app.start(app.today(), 'gm')
             created = next(call for call in chamber.calls if call[0] == 'session.create' and 'briefing' in call[1]['title'])
             self.assertTrue(created[1]['title'].startswith('GoodMorning · '))
             self.assertIn(app.today(), created[1]['title'])

@@ -21,6 +21,8 @@ let polling = false;
 let timer;
 let formSignature = '';
 let messageSignature = '';
+let animateMessages = false;
+let statusLabel = '';
 let revision = 0;
 let requestLanguage = null;
 let secretaryName = typeof chatConfig.secretary_name === 'string' && chatConfig.secretary_name ? chatConfig.secretary_name : null;
@@ -32,6 +34,44 @@ function applySecretaryName() {
   // Force author labels to refresh on next message render.
   messageSignature = '';
 }
+
+const avatarOrder = Array.isArray(chatConfig.avatars) && chatConfig.avatars.length
+  ? chatConfig.avatars.map(item => item.id) : ['f1'];
+const avatarSrc = {};
+if (Array.isArray(chatConfig.avatars)) chatConfig.avatars.forEach(item => { avatarSrc[item.id] = item.src; });
+let avatar = avatarOrder.includes(chatConfig.avatar) ? chatConfig.avatar : avatarOrder[0];
+let savingAvatar = false;
+
+function showAvatar(id) {
+  const figure = document.querySelector('.desk-figure');
+  const image = document.querySelector('#desk-illustration');
+  const caption = document.querySelector('#avatar-caption');
+  if (figure) figure.dataset.avatar = id;
+  if (image && avatarSrc[id]) { image.src = avatarSrc[id]; image.hidden = false; }
+  if (caption) caption.textContent = chatT('Avatar {current} of {total}', {current: avatarOrder.indexOf(id) + 1, total: avatarOrder.length});
+}
+
+async function saveAvatar(id) {
+  if (savingAvatar || id === avatar) return;
+  savingAvatar = true;
+  try {
+    const result = await chatAPI('/api/avatar', {avatar: id});
+    avatar = result.avatar;
+    showAvatar(avatar);
+  } catch (error) {
+    errorBox.textContent = chatT('Avatar could not be saved. Try again.');
+  } finally {
+    savingAvatar = false;
+  }
+}
+
+function stepAvatar(delta) {
+  const next = avatarOrder[(avatarOrder.indexOf(avatar) + delta + avatarOrder.length) % avatarOrder.length];
+  saveAvatar(next);
+}
+
+document.querySelector('[data-avatar-prev]')?.addEventListener('click', () => stepAvatar(-1));
+document.querySelector('[data-avatar-next]')?.addEventListener('click', () => stepAvatar(1));
 
 async function chatAPI(path, body) {
   if (body) pendingChatMutations++;
@@ -66,7 +106,26 @@ function composeState() {
   textBox.required = !chat && ['todo','eureka'].includes(mode) || Boolean(chat);
   document.querySelector('#compose-note').textContent = chatT(state === 'queued'
     ? 'Your message is queued and will send automatically.' : chat && state !== 'idle'
-    ? 'Answer pending questions below, or wait for your secretary.' : 'Only your chosen mode. No commands needed.');
+     ? 'Answer pending questions below, or wait for your secretary.' : 'Only your chosen mode. No commands needed.');
+  showActivity();
+}
+
+function showActivity() {
+  const status = document.querySelector('#chat-status');
+  const active = sending || ['starting', 'running'].includes(state);
+  let label = status.querySelector('.chat-status-label');
+  if (!label) {
+    const dots = make('span', '', 'chat-activity-dots');
+    dots.setAttribute('aria-hidden', 'true');
+    dots.append(make('span'), make('span'), make('span'));
+    label = make('span', '', 'chat-status-label');
+    status.replaceChildren(dots, label);
+  }
+  const text = chatT(sending ? 'Sending your message' : state === 'starting'
+    ? 'Opening your conversation' : state === 'running' ? 'Your secretary is working' : statusLabel);
+  if (label.textContent !== text) label.textContent = text;
+  status.classList.toggle('is-working', active);
+  status.classList.toggle('is-queued', !sending && state === 'queued');
 }
 
 function queueText(position, depth) {
@@ -76,9 +135,8 @@ function queueText(position, depth) {
 }
 
 function showQueued(position, depth) {
-  const status = document.querySelector('#chat-status');
-  status.textContent = queueText(position, depth);
-  status.classList.add('is-queued');
+  statusLabel = queueText(position, depth);
+  showActivity();
 }
 
 function clearQueued() {
@@ -104,11 +162,11 @@ function newConversation(next = chatConfig.defaultMode) {
   clearTimeout(timer); revision++;
   chat = null; state = null; sending = false; mode = next; requestLanguage = null;
   history.replaceState(null, '', '/chat');
-  formSignature = ''; messageSignature = '';
+  formSignature = ''; messageSignature = ''; animateMessages = false;
   document.querySelector('#chat-messages').replaceChildren();
   document.querySelector('#chat-questions').replaceChildren();
   document.querySelector('#chat-empty').hidden = false;
-  document.querySelector('#chat-status').textContent = '';
+  statusLabel = '';
   document.querySelector('#chat-status').classList.remove('is-queued');
   errorBox.textContent = '';
   textBox.value = drafts.get(mode) || '';
@@ -137,6 +195,10 @@ async function historyList() {
     secretaryName = result.secretary_name;
     applySecretaryName();
   }
+  if (typeof result.avatar === 'string' && result.avatar !== avatar && avatarOrder.includes(result.avatar)) {
+    avatar = result.avatar;
+    showAvatar(avatar);
+  }
   document.querySelector('#chat-history').replaceChildren(...result.chats.map(item => {
     const link = make('a', item.title); link.href = '/chat?id=' + item.id;
     const label=item.mode === 'todo' ? 'To-do' : item.mode[0].toUpperCase() + item.mode.slice(1);
@@ -152,6 +214,7 @@ function showMessages(messages) {
   const log = document.querySelector('#chat-messages');
   const nearBottom = document.documentElement.scrollHeight - scrollY - innerHeight < 240;
   const existing = new Map([...log.children].map(node => [node.dataset.message, node]));
+  let added = false;
   const nodes = messages.map(item => {
     let bubble = existing.get(item.id);
     if (!bubble) {
@@ -162,7 +225,12 @@ function showMessages(messages) {
       author.dataset.uiText=item.role==='user'?'You':'Your secretary';
       if (item.role !== 'user' && secretaryName) author.dataset.secretaryName = secretaryName;
       bubble.append(author, make('div', '', 'message-text'));
+      if (animateMessages && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        bubble.classList.add('message-enter');
+        bubble.addEventListener('animationend', () => bubble.classList.remove('message-enter'), {once: true});
+      }
       log.append(bubble);
+      added = true;
     } else if (item.role !== 'user') {
       const author = bubble.querySelector('.message-author');
       const expected = secretaryName || chatT('Your secretary');
@@ -175,7 +243,9 @@ function showMessages(messages) {
   [...log.children].filter(node => !nodes.includes(node)).forEach(node => node.remove());
   document.querySelector('#chat-empty').hidden = messages.length > 0;
   messageSignature = signature;
-  if (nearBottom && messages.length) log.lastElementChild.scrollIntoView({block:'nearest'});
+  if (nearBottom && messages.length) log.lastElementChild.scrollIntoView({block:'nearest',
+    behavior: animateMessages && added && !matchMedia('(prefers-reduced-motion: reduce)').matches ? 'smooth' : 'auto'});
+  animateMessages = true;
 }
 
 async function pollQueue() {
@@ -192,8 +262,8 @@ async function pollQueue() {
       showQueued(mine.position, status.depth);
       showMode();
     } else {
-      state = 'starting'; clearQueued();
-      pollChat();
+      state = 'starting'; clearQueued(); showActivity();
+      timer = setTimeout(pollChat, 0);
       return;
     }
   } catch (error) {
@@ -237,7 +307,7 @@ async function pollChat() {
       secretaryName = result.secretary_name;
       applySecretaryName();
     }
-    document.querySelector('#chat-status').textContent = result.label;
+    statusLabel = result.label;
     document.querySelector('#chat-status').classList.remove('is-queued');
     if (result.messages) showMessages(result.messages);
     const signature = JSON.stringify([result.forms, result.permissions]);
@@ -274,7 +344,7 @@ document.querySelector('#chat-compose').addEventListener('submit', async event =
   const request = crypto.randomUUID().replaceAll('-', '');
   const current = chat || request;
   const version = revision;
-  sending = true; errorBox.textContent = ''; composeState();
+  sending = true; animateMessages = true; errorBox.textContent = ''; composeState();
   try {
     const result = await chatAPI(first ? '/api/chats' : `/api/chats/${current}/messages`,
       first ? {id: current, mode, text: textBox.value} : {id: request, text: textBox.value});
@@ -309,12 +379,13 @@ function pollVisible() {
 }
 
 document.addEventListener('visibilitychange', () => { if (document.hidden) clearTimeout(timer); else pollVisible(); });
-document.addEventListener('website:language', () => { showMode(); pollVisible(); });
+document.addEventListener('website:language', () => { showMode(); showAvatar(avatar); pollVisible(); });
 document.addEventListener('website:before-refresh', event => { if (sending || pendingChatMutations) event.preventDefault(); });
 document.addEventListener('website:refresh-drafts', event => {
   if ([...drafts.values()].some(text => text.trim())) event.preventDefault();
 });
 window.addEventListener('focus', () => { pollVisible(); });
 showMode();
+showAvatar(avatar);
 historyList().catch(error => { errorBox.textContent = error.message; });
 if (chat) pollChat();
