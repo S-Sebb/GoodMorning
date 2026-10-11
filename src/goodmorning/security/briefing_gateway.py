@@ -17,12 +17,12 @@ from urllib.request import Request, build_opener, HTTPRedirectHandler
 from urllib.error import HTTPError
 
 from .briefing_accounts import Accounts, COOKIE, Denied, Limited, SESSION_SECONDS, REMEMBER_SECONDS, PASSWORD_MIN, PASSWORD_MAX, PASSWORD_RULE
-from goodmorning.web.briefing_resources import accepts_gzip, Resources, ICON_TYPES, favicon_links
+from goodmorning.web.briefing_resources import accepts_gzip, Resources, ByteCache, ICON_TYPES, favicon_links
+from goodmorning.web.release import VERSION
 from goodmorning.paths import WEB_ASSETS
 from goodmorning.web import language as ui
 
 ASSETS = WEB_ASSETS
-AUTH_VERSION = hashlib.sha256((ASSETS/'auth.js').read_bytes()+(ASSETS/'auth.css').read_bytes()).hexdigest()[:16]
 POLICY = "default-src 'none'; style-src 'self'; script-src 'self'; img-src 'self'; font-src 'self'; connect-src 'self'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'"
 GET_ROUTES = re.compile(r'(?:/|/(?:index|gm|gn)\.html|/chat|/api/chats(?:/[a-f0-9]{32})?|/api/day|/api/edition/\d{4}-\d{2}-\d{2}/(?:gm|gn)|/api/jobs/[a-f0-9]{32}(?:/preview)?|/d/\d{4}-\d{2}-\d{2}/(?:gm|gn)\.(?:html|json)|/media/(?:thumb-v1/)?[a-f0-9]{64}\.webp|/d/\d{4}-\d{2}-\d{2}/media/[a-f0-9]+\.webp|/(?:assets/[a-f0-9]{64}/)?(?:briefing\.css|briefing\.js|browser\.js|questions\.js|chat\.js|chat\.css|fonts/(?:lora-italic\.woff2|OFL\.txt)))')
 POST_ROUTES = re.compile(r'(?:/api/generate|/api/chats|/api/chats/[a-f0-9]{32}/(?:messages|(?:form|permission)/[A-Za-z0-9_]+/reply)|/api/jobs/[a-f0-9]{32}/(?:recover|(?:form|permission)/[A-Za-z0-9_]+/reply))')
@@ -39,7 +39,10 @@ class Gateway:
             raise ValueError('Configure explicit morning, evening and optional secretary hostnames')
         self.accounts, self.hosts, self.testing = accounts, hosts, testing
         self.opener = build_opener(NoRedirect())
-        self.icons = Resources(ASSETS, types={**ICON_TYPES,'language.js':'text/javascript'})
+        self.icons = Resources(ASSETS, types={**ICON_TYPES,'language.js':'text/javascript',
+            'auth.js':'text/javascript','auth.css':'text/css','update.js':'text/javascript','update.css':'text/css'})
+        self.html_cache = ByteCache(8 * 1024 * 1024, 32)
+        self.html_lock = threading.RLock()
         labels=[host.split('.')[::-1] for host in hosts]
         shared=[]
         for parts in zip(*labels):
@@ -225,7 +228,7 @@ def account_page(session, title, kind='gm'):
     note = 'Accounts are created by the server administrator. Forgotten passwords require administrator help.' if login else (
         'Replace your temporary password before opening private briefings.' if temporary else 'Changing your password signs out other devices. Your encrypted records stay unchanged.')
     return ('<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">' + favicon_links(kind) +
-            '<title>'+html.escape(title)+'</title><link rel="stylesheet" href="/auth.css?v='+AUTH_VERSION+'"></head><body><main class="account-card">'
+            '<title>'+html.escape(title)+'</title><link rel="stylesheet" href="/auth.css"></head><body><main class="account-card">'
             '<p class="eyebrow">Your personal secretary</p><h1>'+html.escape(title)+'</h1><p>'+note+'</p>'+
             ('' if login else '<p id="password-rules">'+PASSWORD_RULE+'</p>')+
             '<form id="account-form" method="post" action="/api/auth/'+('login' if login else 'password')+'" data-action="'+('login' if login else 'password')+'" data-csrf="'+session['csrf']+'" '
@@ -233,7 +236,7 @@ def account_page(session, title, kind='gm'):
             '<button type="submit" disabled>'+('Sign in' if login else 'Change password')+'</button></form><p id="account-error" role="alert"></p>'+
             '<noscript>Enable JavaScript to sign in or change your password.</noscript>'+
             ('' if login or temporary else '<a href="/">Back to briefing</a>')+
-            '<script src="/auth.js?v='+AUTH_VERSION+'" defer></script></main></body></html>').encode()
+            '<script src="/auth.js" defer></script></main></body></html>').encode()
 
 
 def handler_for(gateway):
@@ -247,13 +250,13 @@ def handler_for(gateway):
             super().setup()
             self.connection.settimeout(25)
 
-        def respond(self,data,status=200,mime='application/json',*,token=None,cookie_age=SESSION_SECONDS,location=None,cache='no-store',etag=None,language_cookie=None):
+        def respond(self,data,status=200,mime='application/json',*,token=None,cookie_age=SESSION_SECONDS,location=None,cache='no-store',etag=None,language_cookie=None,resource=None):
             if not isinstance(data,bytes):
                 if isinstance(data,dict) and isinstance(data.get('error'),str):data={**data,'error':ui.text(data['error'])}
                 data=json.dumps(data,separators=(',',':')).encode()
             encoded=bool(data) and accepts_gzip(self.headers.get('Accept-Encoding','')) and mime.startswith(('text/','application/json')) and not mime.startswith('text/html')
             if encoded:
-                data=gzip.compress(data,mtime=0)
+                data=resource.compressed if resource else gzip.compress(data,mtime=0)
             self.send_response(status)
             self.send_header('Content-Type',mime)
             self.send_header('Content-Length',str(len(data)))
@@ -329,14 +332,17 @@ def handler_for(gateway):
                 host=self.host()
                 self.select_language()
                 path=urlsplit(self.path).path
+                if path == '/api/release':
+                    tag='W/"'+VERSION+'"'
+                    cached=self.headers.get('If-None-Match')==tag
+                    return self.respond(b'' if cached else {'version':VERSION},304 if cached else 200,cache='public, no-cache',etag=tag)
                 resource=gateway.icons.paths.get(path) or gateway.icons.alias(path)
                 if resource:
-                    cached=self.headers.get('If-None-Match')==resource.etag
+                    tag=resource.etag
+                    if resource.mime.startswith('text/') and accepts_gzip(self.headers.get('Accept-Encoding','')):tag=tag[:-1]+'-gzip"'
+                    cached=any(value.strip().removeprefix('W/') in (tag,'*') for value in self.headers.get('If-None-Match','').split(','))
                     return self.respond(b'' if cached else resource.data,304 if cached else 200,resource.mime,
-                                        cache='public, max-age=31536000, immutable' if path in gateway.icons.paths else 'public, max-age=3600',etag=resource.etag)
-                if path in ('/auth.css','/auth.js'):
-                    data=(ASSETS/path.lstrip('/')).read_bytes()
-                    return self.respond(data,mime='text/css' if path.endswith('css') else 'text/javascript',cache='public, max-age=3600')
+                                        cache='public, max-age=31536000, immutable' if path in gateway.icons.paths else 'public, no-cache',etag=tag,resource=resource)
                 try:
                     session=self.session(host)
                 except Denied:
@@ -361,12 +367,17 @@ def handler_for(gateway):
                 status,headers,data=gateway.proxy(session['user_id'],host,self.path,'GET',None,self.headers)
                 mime=headers.get('Content-Type','application/json')
                 if mime.startswith('text/html'):
+                    cache_key=(session['user_id'],host,self.path,ui.current(),session['csrf'],hashlib.sha256(data).digest())
+                    with gateway.html_lock:cached=gateway.html_cache.get(cache_key)
+                    if cached is not None:return self.respond(cached,status,mime)
                     # Replace backend-wide CSRF with the authenticated session's CSRF.
                     text=data.decode()
                     text=re.sub(r'(&quot;csrf&quot;:\s*&quot;)[A-Za-z0-9_-]{43}(&quot;)',r'\g<1>'+session['csrf']+r'\g<2>',text)
-                    controls='<nav class="account-tools" aria-label="Account"><a href="/password">Change password</a><button id="sign-out" data-csrf="'+session['csrf']+'">Sign out</button></nav><script src="/auth.js?v='+AUTH_VERSION+'" defer></script>'
+                    controls='<nav class="account-tools" aria-label="Account"><a href="/password">Change password</a><button id="sign-out" data-csrf="'+session['csrf']+'">Sign out</button></nav><script src="/auth.js" defer></script>'
                     data=text.replace('</body>',controls+'</body>').encode()
                     data=gateway.icons.rewrite(ui.page(data.decode(),session['csrf'],self.path)).encode()
+                    if status == 200:
+                        with gateway.html_lock:gateway.html_cache.put(cache_key,data,len(data))
                 # Personal pages/media never enter durable browser or shared proxy caches.
                 static=path.startswith('/assets/')
                 return self.respond(data,status,mime,cache=headers.get('Cache-Control','no-store') if static else 'no-store',etag=headers.get('ETag') if static else None)

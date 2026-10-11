@@ -114,6 +114,16 @@ class InterfaceHTML(HTMLParser):
 
 
 def page(source,csrf,return_to='/'):
+    from .release import VERSION
+    if 'id="site-release"' not in source:
+        source=source.replace('</head>','<link rel="stylesheet" href="/update.css"><script src="/update.js" defer></script></head>')
+        notice=('<div id="site-release" hidden data-version="'+VERSION+'"></div>'
+                '<aside id="site-update" class="site-update" hidden aria-label="Website update">'
+                '<p role="status" aria-live="polite">A website update is available.</p>'
+                '<button id="update-refresh" type="button">Refresh</button>'
+                '<button id="update-later" type="button">Later</button>'
+                '<p id="update-feedback" role="status"></p></aside>')
+        source=source.replace('</body>',notice+'</body>')
     config=html.escape(json.dumps({'language':current(),'csrf':csrf}),quote=True)
     controls=('<form id="language-form" class="language-toolbar" action="/api/language" method="post">'
               '<label for="website-language">Website language</label><select id="website-language" name="language">'

@@ -9,6 +9,7 @@ COMMANDS = {
     'news': 'news.news',
     'calendar': 'calendar.secretary_calendar',
     'state': 'records.state',
+    'sessions': 'web.session_inventory',
     'inbox': 'records.inbox',
     'workflow': 'records.workflow',
     'daily': 'records.daily',

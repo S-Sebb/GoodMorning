@@ -1,6 +1,13 @@
 {
   "Website language": "网站语言",
   "Apply": "应用",
+  "Website update": "网站更新",
+  "This conversation is no longer available. Start a new one.": "此对话已不可用。请开始新对话。",
+  "A website update is available.": "网站有新版本可用。",
+  "Refresh": "刷新",
+  "Later": "稍后",
+  "Wait for your message to finish sending before refreshing.": "请等待消息发送完成后再刷新。",
+  "Refreshing will discard unsent text. Refresh anyway?": "刷新会丢弃尚未发送的文字。仍要刷新吗？",
   "Language saved.": "语言设置已保存。",
   "Language could not be saved. Try again.": "语言设置未能保存，请重试。",
   "Enable JavaScript to change the website language.": "请启用 JavaScript 以切换网站语言。",

@@ -84,12 +84,51 @@ not compressed. Images use private browser caching.
 
 Viewer caches are capped at 14 editions / 16 MiB, 128 images / 4 MiB and 128
 thumbnails / 2 MiB. These do not bound total process memory or retained history.
+Saved assembled pages have a separate 14-page / 8 MiB memory cache. File identity,
+mtime, ctime, image manifests, week availability, language, and archive selection
+invalidate it immediately. The gateway caches final HTML in 32 entries / 8 MiB,
+bound to account, host, path, language, session CSRF, and backend content. Every
+request is authenticated before lookup; private responses remain `no-store`.
 Viewing checks only the selected day and seven-day navigation window. There is no
 automatic deletion policy for private records, preferences, images or job recovery.
 
 Reduced motion is respected; saved content and source links remain readable
 without JavaScript. Restart for renderer/backend changes; saved JSON and image
 manifest changes refresh without a restart.
+
+Open tabs check a public release fingerprint on load, focus and each visible
+minute. A small corner notice offers Refresh or Later; it never reloads by itself.
+Refresh pauses while a mutation is being sent and asks before discarding unsent
+drafts. No draft is persisted in browser storage. Public auth/update assets are
+fingerprinted, immutable and precompressed; their unversioned aliases revalidate.
+Tabs opened before this feature was installed need one manual refresh first.
+
+Chat history reads bounded native V2 pages of at most 200 raw records, retaining
+the latest 100 visible messages. This avoids OpenChamber 2.2's fourfold prefetch
+overflow. Pending input and uncertain delivery still retain the global busy flag.
+
+## Session organization
+
+Each website conversation and each briefing owns exactly one OpenChamber
+session. Follow-up messages reuse that session; only a new conversation or a
+new briefing date creates another one. New sessions are titled
+`GoodMorning · <mode or briefing> · <topic or date>` so the engine dashboard
+stays searchable as counts grow across accounts.
+
+Local registries stay bounded without deleting engine history:
+
+```sh
+python scripts/goodmorning.py sessions --secretary-dir RUNTIME --list
+python scripts/goodmorning.py sessions --secretary-dir RUNTIME --prune-jobs --jobs-older-than-days 14
+python scripts/goodmorning.py sessions --secretary-dir RUNTIME --archive-chats --keep 200 --older-than-days 90
+```
+
+Reports are dry runs unless `--apply` is passed. Pruning drops only terminal
+job entries older than the window plus their transient preview/context files;
+saved editions are never touched. Archival moves only idle chats to a preserved
+local archive; active, waiting, running, uncertain, or unavailable chats are
+retained. Engine sessions are never deleted by these commands; use the engine
+dashboard search for `GoodMorning ·` to review unreferenced sessions.
 
 ## Validation and evidence
 

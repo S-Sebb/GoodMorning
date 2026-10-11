@@ -62,6 +62,9 @@ async function saveWebsiteLanguage(event) {
   finally { selected.disabled = false; }
 }
 languageForm.addEventListener('submit', saveWebsiteLanguage);
+document.addEventListener('website:before-refresh', event => {
+  if (document.querySelector('#website-language').disabled) event.preventDefault();
+});
 document.querySelector('#website-language').addEventListener('change', saveWebsiteLanguage);
 let languageSyncing = false;
 async function syncWebsiteLanguage() {

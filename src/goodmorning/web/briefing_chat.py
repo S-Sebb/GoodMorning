@@ -4,10 +4,12 @@ import html
 import json
 import re
 import threading
+import time
 
 from goodmorning.runtime_files import atomic_text
 from .briefing_resources import favicon_links
 from . import language as ui
+from .session_inventory import chat_session_title
 
 MODES = {'initialize': 'Initialize', 'secretary': 'Secretary', 'todo': 'To-do', 'eureka': 'Eureka'}
 
@@ -88,7 +90,8 @@ class Chats:
                 raise ValueError('Conversation storage needs administrator archival')
             self.capacity(text)
             item = {'id': chat, 'mode': body['mode'], 'title': text[:64] or ui.text(MODES[body['mode']]),
-                    'state': 'starting', 'turns': [{'id': chat, 'text': text,'language':ui.current()}]}
+                    'state': 'starting', 'turns': [{'id': chat, 'text': text,'language':ui.current()}],
+                    'created': time.time()}
             self.items[chat] = item
             self.save()  # Save intent before any model request; never blindly replay.
             threading.Thread(target=self.dispatch, args=(item, text, True), daemon=True).start()
@@ -123,7 +126,8 @@ class Chats:
         try:
             selected=item['turns'][-1]['language']
             if first:
-                result = self.chamber.control('session.create', title=ui.text(MODES[item['mode']],lang=selected) + ' · ' + item['title'])
+                result = self.chamber.control('session.create', title=chat_session_title(
+                    ui.text(MODES[item['mode']],lang=selected), item['title']))
                 session = result['sessionId']
                 if not re.fullmatch('ses[A-Za-z0-9_]+', session):
                     raise ValueError('Invalid session')

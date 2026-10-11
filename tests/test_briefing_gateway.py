@@ -167,9 +167,12 @@ class GatewayTests(unittest.TestCase):
         self.assertIn(b'aria-pressed="false"',page)
         self.assertIn(b'name="remember"',page)
         self.assertNotIn(b'checked',page)
-        versions=re.findall(rb'/auth\.(?:css|js)\?v=([a-f0-9]{16})',page)
+        versions=re.findall(rb'/assets/([a-f0-9]{64})/auth\.(?:css|js)',page)
         self.assertEqual(len(versions),2)
-        self.assertEqual(versions[0],versions[1])
+        for path in re.findall(rb'(?:href|src)="([^"]+/auth\.(?:css|js))"',page):
+            status,headers,_=self.request(path.decode())
+            self.assertEqual(status,200)
+            self.assertIn('immutable',headers['Cache-Control'])
         self.login()
         _,_,page=self.request('/password')
         for name in ('current','replacement','repeat'):
@@ -300,6 +303,56 @@ class GatewayTests(unittest.TestCase):
         self.assertEqual(self.request('/api/chats',{'id':'a'*32,'mode':'initialize','text':''})[0],202)
         self.assertEqual(self.request('/api/chats',{'id':'b'*32,'mode':'todo','text':'Capture this task'})[0],202)
         self.assertEqual(self.gateway.ticket()['chat'],'b'*32)
+
+    def test_real_native_message_limit_releases_finished_chat_but_not_pending_input(self):
+        from goodmorning.web.briefing_chat import Chats
+        from test_briefing_chat import MockChamber, ImmediateThread
+        runtime=self.root/'synthetic-secretary';runtime.mkdir()
+        chats=Chats(runtime,MockChamber(runtime))
+        def proxy(user,host,path,method,raw,headers):
+            result=chats.status(path.rsplit('/',1)[-1]) if method=='GET' else chats.start(json.loads(raw))
+            return 200 if method=='GET' else 202,{},json.dumps(result).encode()
+        self.gateway.proxy=proxy
+        with patch('goodmorning.web.briefing_chat.threading.Thread',ImmediateThread):
+            for identifier,mode in (('a','secretary'),('b','todo'),('c','initialize')):
+                body={'id':identifier*32,'mode':mode,'text':'' if mode=='initialize' else 'Synthetic capture'}
+                self.assertEqual(self.gateway.chat_message(self.id,'gm.example.test','/api/chats',json.dumps(body).encode(),{})[0],202)
+            self.assertEqual(self.gateway.chat_message(self.other,'gm.example.test','/api/chats',json.dumps({'id':'d'*32,'mode':'secretary','text':'Other request'}).encode(),{})[0],409)
+            self.assertEqual(self.gateway.ticket()['chat'],'c'*32)
+
+    def test_public_release_check_does_not_touch_login_sessions(self):
+        from goodmorning.web.release import VERSION
+        with self.store.db() as db:before=[tuple(row) for row in db.execute('SELECT * FROM sessions')]
+        status,headers,data=self.request('/api/release')
+        self.assertEqual(status,200);self.assertEqual(json.loads(data),{'version':VERSION})
+        self.assertEqual(headers['Cache-Control'],'public, no-cache')
+        self.assertNotIn('Set-Cookie',headers)
+        self.assertEqual(self.request('/api/release',headers={'If-None-Match':headers['ETag']})[0],304)
+        with self.store.db() as db:self.assertEqual([tuple(row) for row in db.execute('SELECT * FROM sessions')],before)
+
+    def test_private_html_cache_is_bound_to_account_session_path_and_language(self):
+        from goodmorning.web import language as ui
+        self.permanent()
+        html='<html><head></head><body><p>Alice preserved content</p></body></html>'
+        self.gateway.proxy=lambda user,*args:(200,{'Content-Type':'text/html'},html.encode())
+        with patch.object(ui,'page',wraps=ui.page) as render:
+            first=self.request('/chat')[2];second=self.request('/chat')[2]
+            self.assertEqual(first,second);self.assertEqual(render.call_count,1)
+            self.assertIn(self.csrf.encode(),first)
+            self.request('/gm.html');self.assertEqual(render.call_count,2)
+            self.store.website_language(self.id,'zh-CN');self.request('/chat');self.assertEqual(render.call_count,3)
+            anonymous,_=self.store.anonymous('gm.example.test')
+            session=self.store.session(anonymous,'gm.example.test')
+            token,csrf,_=self.store.login('alice','permanent-alice-secret1','gm.example.test','192.0.2.2',session)
+            previous=self.csrf;self.cookie=COOKIE+'='+token;self.csrf=csrf
+            content=self.request('/chat')[2];self.assertEqual(render.call_count,4)
+            self.assertIn(csrf.encode(),content);self.assertNotIn(previous.encode(),content)
+            html=html.replace('preserved','changed');self.request('/chat');self.assertEqual(render.call_count,5)
+        status,headers,_=self.request('/chat',headers={'Accept-Encoding':'gzip'})
+        self.assertEqual(headers['Cache-Control'],'no-store');self.assertNotIn('Content-Encoding',headers)
+        self.request('/api/auth/logout',{})
+        self.assertEqual(self.request('/chat')[0],302)
+        self.assertLessEqual(self.gateway.html_cache.size,8*1024*1024)
 
     def test_unsupported_chat_mode_does_not_reserve_or_dispatch(self):
         self.permanent()

@@ -11,7 +11,8 @@ from pathlib import Path
 import re
 import secrets
 import threading
-from urllib.parse import urlsplit, quote, parse_qs
+import time
+from urllib.parse import urlsplit, quote, parse_qs, urlencode
 from urllib.request import Request, build_opener, HTTPRedirectHandler
 
 from goodmorning.briefings.briefing_day import briefing_day
@@ -25,6 +26,8 @@ from goodmorning.runtime_files import atomic_text, profile_fields
 from .briefing_chat import Chats, page as chat_page
 from goodmorning.paths import ROOT
 from . import language as ui
+from .release import VERSION
+from .session_inventory import job_session_title
 
 DESK_ART = '<svg viewBox="0 0 64 64" width="64" height="64" fill="none" aria-hidden="true"><rect x="15" y="8" width="36" height="48" rx="7" fill="var(--surface)" stroke="currentColor" stroke-width="1.5"/><path d="M24 19h18M24 25h12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" opacity=".4"/><circle cx="27" cy="36" r="1.5" fill="currentColor"/><circle cx="39" cy="36" r="1.5" fill="currentColor"/><path d="M28 43q5 5 10 0" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>'
 
@@ -56,6 +59,28 @@ class Chamber:
             return json.loads(raw) if raw else {}
 
     def control(self, action, **parameters):
+        if action == 'session.messages':
+            # OpenChamber 2.2 multiplies this limit by four, exceeding V2's 200.
+            # Read bounded native pages instead; keep the 100 visible-message window.
+            session = parameters['sessionId']
+            limit = parameters.get('limit', 100)
+            messages, cursor = [], None
+            for _ in range(10):
+                query = {'limit': 200, **({'cursor': cursor} if cursor else {'order': 'desc'})}
+                page = self.request(f'/api/session/{session}/message?' + urlencode(query))
+                for entry in page['data']:
+                    role = entry.get('type')
+                    if role not in ('user', 'assistant'):continue
+                    text = entry.get('text', '') if role == 'user' else ''.join(
+                        part['text'] for part in entry.get('content', []) if part.get('type') == 'text')
+                    if text.strip():messages.append({'id': entry['id'], 'role': role, 'text': text.strip()})
+                next_cursor = page['cursor'].get('next')
+                if len(messages) >= limit or not next_cursor:break
+                if next_cursor == cursor:raise ValueError('Repeated message cursor')
+                cursor = next_cursor
+            status = self.request('/api/openchamber/control', {'action': 'session.status',
+                'input': {'directory': self.directory, 'sessionId': session}})
+            return {**status, 'messages': list(reversed(messages[:limit]))}
         return self.request('/api/openchamber/control', {'action': action, 'input': {'directory': self.directory, **parameters}})
 
     def pending(self, session):
@@ -72,6 +97,8 @@ class BrowserApp:
         self.csrf = secrets.token_urlsafe(32)
         self.lock = threading.RLock()
         self.cache = ByteCache(16 * 1024 * 1024, 14)
+        self.pages = ByteCache(8 * 1024 * 1024, 14)
+        self.profile_cache = None
         self.media = ByteCache(4 * 1024 * 1024, 128)
         self.thumbnails = ByteCache(2 * 1024 * 1024, 128)
         self.resources = Resources(ASSETS)
@@ -91,8 +118,24 @@ class BrowserApp:
         if self.jobs:
             self.save_jobs()
 
+    def profile(self):
+        path = self.runtime / 'profile.md'
+        signature = self.file_signature(path)
+        with self.lock:
+            if self.profile_cache is None or self.profile_cache[0] != signature:
+                self.profile_cache = signature, profile_fields(self.runtime)
+            return self.profile_cache[1]
+
+    @staticmethod
+    def file_signature(path):
+        if path.is_symlink():raise ValueError('Unsafe cached source')
+        try:
+            stat = path.stat()
+            return stat.st_ino, stat.st_mtime_ns, stat.st_ctime_ns, stat.st_size
+        except FileNotFoundError:return None
+
     def today(self):
-        self.zone = profile_fields(self.runtime).get('timezone')
+        self.zone = self.profile().get('timezone')
         if not self.zone:
             raise ValueError('Initialize your profile timezone first')
         return briefing_day(self.zone, self.now() if self.now else None)
@@ -100,7 +143,7 @@ class BrowserApp:
     def chat_settings(self):
         from goodmorning.setup_check import profile_status
         try:
-            ready = profile_status(self.runtime, profile_fields(self.runtime),ui.current())['profile_ready']
+            ready = profile_status(self.runtime, self.profile(),ui.current())['profile_ready']
         except (ValueError, KeyError):
             ready = False
         return {'defaultMode': 'secretary' if ready else 'initialize', 'connected': bool(self.chamber)}
@@ -143,12 +186,12 @@ class BrowserApp:
         source = self.source(date, kind)
         if source.is_symlink():
             raise ValueError('Unsafe source')
-        signature.append((source.stat().st_mtime_ns, source.stat().st_size) if source.exists() else None)
+        signature.append(self.file_signature(source))
         signature = (str(source), *signature)
         manifest = self.runtime / 'browser-images' / date / 'manifest.json'
         if manifest.is_symlink() or manifest.parent.is_symlink():
             raise ValueError('Unsafe image manifest')
-        signature += ((manifest.stat().st_mtime_ns, manifest.stat().st_size) if manifest.is_file() else None,)
+        signature += (self.file_signature(manifest),)
         with self.lock:
             key = date, kind, ui.current()
             cached = self.cache.get(key)
@@ -207,6 +250,15 @@ class BrowserApp:
         current_job = self.jobs.get(date+'.'+kind)
         if confirmed and self.preflight and current_job and self.status(current_job['id'])['state'] != 'ready':
             confirmed = False
+        page_key = date, kind, pinned, ui.current()
+        page_signature = None
+        if confirmed:
+            manifest = self.runtime / 'browser-images' / date / 'manifest.json'
+            if manifest.parent.is_symlink():raise ValueError('Unsafe image manifest')
+            page_signature = self.file_signature(path), self.file_signature(manifest), week
+            with self.lock:
+                cached = self.pages.get(page_key)
+                if cached and cached[0] == page_signature:return cached[1]
         if confirmed:
             text = self.files(date, kind)[f'{kind}.html'].decode()
             switches = ''.join(f'<a class="edition-link{" selected" if other == kind else ""}" href="{f"/d/{date}/{other}.html" if pinned else f"/{other}.html"}">{label}</a>' for other, label in KINDS.items())
@@ -245,7 +297,10 @@ class BrowserApp:
         if '<link rel="icon"' not in text:
             text = text.replace('</head>', favicon_links(kind) + '</head>')
         return_to=f'/d/{date}/{kind}.html' if pinned else f'/{kind}.html'
-        return self.resources.rewrite(ui.page(text.replace('</body>', marker + '</body>'),self.csrf,return_to)).encode()
+        output = self.resources.rewrite(ui.page(text.replace('</body>', marker + '</body>'),self.csrf,return_to)).encode()
+        if confirmed:
+            with self.lock:self.pages.put(page_key, (page_signature, output), len(output))
+        return output
 
     def start(self, date, kind):
         if self.chat_settings()['defaultMode'] == 'initialize':
@@ -262,7 +317,8 @@ class BrowserApp:
             key = date + '.' + kind
             if key in self.jobs:
                 return {'job': self.jobs[key]['id']}
-            job = {'id': secrets.token_hex(16), 'date': date, 'kind': kind, 'state': 'starting','language':ui.current()}
+            job = {'id': secrets.token_hex(16), 'date': date, 'kind': kind, 'state': 'starting','language':ui.current(),
+                   'created': time.time()}
             if self.preflight:
                 job.update(state='preflight')
             self.jobs[key] = job
@@ -284,7 +340,8 @@ class BrowserApp:
 
     def dispatch(self, job):
         try:
-            result = self.chamber.control('session.create', title=ui.text(KINDS[job['kind']]+' briefing',lang=job.get('language','en'))+' '+job['date'])
+            result = self.chamber.control('session.create', title=job_session_title(
+                ui.text(KINDS[job['kind']]+' briefing',lang=job.get('language','en')), job['date']))
             session = result['sessionId']
             if not re.fullmatch(r'ses[A-Za-z0-9_]+', session):
                 raise ValueError('Invalid session')
@@ -594,6 +651,7 @@ def serve_live(app, port, *, gateway_key=None, public_origins=()):
             try:
                 self.select_language()
                 if path=='/api/language':return self.respond({'language':ui.current()})
+                if path=='/api/release':return self.respond({'version': VERSION})
                 if path == '/api/day':
                     return self.respond({'date': app.today(), 'timezone': app.zone})
                 if path == '/chat':
@@ -617,7 +675,7 @@ def serve_live(app, port, *, gateway_key=None, public_origins=()):
                     return self.respond({'job': item['id'] if item else None})
                 if path in ('/', '/index.html', '/gm.html', '/gn.html'):
                     kind = 'gn' if path == '/gn.html' else 'gm'
-                    if not profile_fields(app.runtime).get('timezone'):
+                    if not app.profile().get('timezone'):
                         return self.respond(app.initialization_page(kind), content_type='text/html; charset=utf-8', compress=True)
                     day = app.today()
                     page = app.page(day, kind, False)

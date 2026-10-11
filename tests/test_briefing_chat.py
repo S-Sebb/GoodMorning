@@ -11,12 +11,14 @@ from unittest.mock import patch
 from support import TEMP_ROOT
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'src'))
 from goodmorning.web.briefing_chat import Chats, MODES
-from goodmorning.web.briefing_server import BrowserApp, serve_live
+from goodmorning.web.briefing_server import BrowserApp, Chamber, serve_live
+from urllib.parse import urlsplit, parse_qs
 
 
-class MockChamber:
+class MockChamber(Chamber):
     def __init__(self, runtime):
         self.runtime = runtime
+        self.directory = str(runtime)
         self.sessions = {}
         self.calls = []
         self.replies = []
@@ -42,8 +44,7 @@ class MockChamber:
                 self.add(session, 'assistant', 'Synthetic reply. Your text stays text: <img src=x onerror=alert(1)>')
             return {'promptDispatched': True}
         if action == 'session.messages':
-            return {'sessionStatus': {'type': 'busy' if session['forms'] or session['permissions'] else 'idle'},
-                    'messages': session['messages'][-body['limit']:]}
+            return super().control(action, **body)
         raise ValueError('Unexpected control action')
 
     def add(self, session, role, text):
@@ -53,7 +54,20 @@ class MockChamber:
         entry = self.sessions[session]
         return entry['forms'], entry['permissions']
 
-    def request(self, path, body):
+    def request(self, path, body=None):
+        if path == '/api/openchamber/control':
+            session = self.sessions[body['input']['sessionId']]
+            return {'sessionStatus': {'type': 'busy' if session['forms'] or session['permissions'] else 'idle'}}
+        if body is None:
+            parsed = urlsplit(path);query = parse_qs(parsed.query)
+            limit = int(query['limit'][0])
+            if limit > 200:raise ValueError('Expected a value less than or equal to 200')
+            session = self.sessions[parsed.path.split('/')[3]]
+            offset = int(query.get('cursor', ['0'])[0])
+            rows = list(reversed(session['messages']))[offset:offset+limit]
+            return {'data': [{'id': row['id'], 'type': row['role'], **({'text': row['text']} if row['role']=='user'
+                    else {'content':[{'type':'text','text':row['text']}]})} for row in rows],
+                    'cursor': {'next': str(offset+limit) if len(session['messages'])>offset+limit else None}}
         self.replies.append((path, body))
         session_id = path.split('/')[3]
         session = self.sessions[session_id]
@@ -185,6 +199,29 @@ class ChatTests(unittest.TestCase):
         session = self.chamber.sessions[self.chats.get(self.id)['session']]
         session['messages'] = []
         self.assertEqual(self.chats.status(self.id)['state'], 'running')
+
+    def test_native_message_read_preserves_100_messages_without_400_record_prefetch(self):
+        self.start()
+        session = self.chamber.sessions[self.chats.get(self.id)['session']]
+        for index in range(120):self.chamber.add(session, 'assistant', f'Reply {index}')
+        result = self.chamber.control('session.messages', sessionId=self.chats.get(self.id)['session'], limit=100)
+        self.assertEqual(len(result['messages']), 100)
+        self.assertEqual(result['messages'][0]['text'], 'Reply 20')
+        self.assertEqual(result['messages'][-1]['text'], 'Reply 119')
+
+    def test_native_message_read_pages_past_non_text_records(self):
+        from unittest.mock import Mock
+        chamber = Chamber('http://127.0.0.1:1234', '/synthetic')
+        chamber.request = Mock(side_effect=[
+            {'data':[{'id':'idle','type':'idle'} for _ in range(200)], 'cursor':{'next':'opaque /+'}},
+            {'data':[{'id':'a','type':'assistant','content':[{'type':'text','text':'Answer'}]},
+                     {'id':'u','type':'user','text':'Prompt'}], 'cursor':{'next':None}},
+            {'sessionStatus':{'type':'idle'}}])
+        result=chamber.control('session.messages',sessionId='ses_test',limit=100)
+        self.assertEqual([entry['text'] for entry in result['messages']],['Prompt','Answer'])
+        self.assertIn('limit=200', chamber.request.call_args_list[0].args[0])
+        self.assertIn('cursor=opaque+%2F%2B', chamber.request.call_args_list[1].args[0])
+        self.assertEqual(result['sessionStatus']['type'],'idle')
 
     def test_symlink_storage_is_rejected(self):
         root = self.root / 'unsafe'; root.mkdir()

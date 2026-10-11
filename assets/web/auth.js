@@ -48,6 +48,9 @@ if (form) form.addEventListener('submit', async event => {
   finally { button.disabled = false; }
 });
 const logout = document.querySelector('#sign-out');
+document.addEventListener('website:before-refresh', event => {
+  if ((form && form.querySelector('button[type="submit"]').disabled) || logout?.disabled) event.preventDefault();
+});
 if (logout) logout.addEventListener('click', async () => {
   logout.disabled = true;
   try {

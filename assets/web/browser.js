@@ -10,6 +10,8 @@ let previewRevision = null;
 let imageRevision = null;
 let resolvedSections = -1;
 let briefingRequestLanguage = null;
+let pendingBriefingMutations = 0;
+document.addEventListener('website:before-refresh', event => { if (pendingBriefingMutations) event.preventDefault(); });
 
 function fragment(markup) {
   // Only escaped, typed server components arrive here, never agent-authored HTML.
@@ -82,6 +84,12 @@ function sectionActivity(state) {
 }
 
 async function api(path, body) {
+  if (body !== undefined) pendingBriefingMutations++;
+  try { return await requestAPI(path, body); }
+  finally { if (body !== undefined) pendingBriefingMutations--; }
+}
+
+async function requestAPI(path, body) {
   const response = await fetch(path, body === undefined ? {} : {
     method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Briefing-CSRF': config.csrf },
     body: JSON.stringify(body)

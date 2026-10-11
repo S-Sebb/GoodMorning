@@ -25,6 +25,32 @@ from test_briefing_web import GM
 
 
 class ResourceTests(unittest.TestCase):
+    def test_saved_page_cache_reuses_html_and_invalidates_records_dates_and_language(self):
+        from goodmorning.web import language as ui
+        with tempfile.TemporaryDirectory(dir=TEMP_ROOT) as directory:
+            root=Path(directory);(root/'daily').mkdir();(root/'profile.md').write_text('timezone: Europe/London\n')
+            source=root/'daily/2034-03-17.gm.json';source.write_text(GM)
+            app=BrowserApp(root,now=lambda:datetime(2034,3,17,12,tzinfo=timezone.utc))
+            with patch.object(ui,'page',wraps=ui.page) as render:
+                first=app.page('2034-03-17','gm',False)
+                self.assertIs(app.page('2034-03-17','gm',False),first)
+                self.assertEqual(render.call_count,1)
+                app.page('2034-03-17','gm',True);self.assertEqual(render.call_count,2)
+                token=ui.CURRENT.set('zh-CN')
+                try:app.page('2034-03-17','gm',False)
+                finally:ui.CURRENT.reset(token)
+                self.assertEqual(render.call_count,3)
+                source.write_text(GM.replace('Good morning','Different greeting'))
+                self.assertNotEqual(app.page('2034-03-17','gm',False),first)
+                self.assertEqual(render.call_count,4)
+                (root/'daily/2034-03-16.gm.json').write_text(GM)
+                app.page('2034-03-17','gm',False);self.assertEqual(render.call_count,5)
+                app.now=lambda:datetime(2034,3,18,12,tzinfo=timezone.utc)
+                app.page('2034-03-17','gm',False);self.assertEqual(render.call_count,6)
+            self.assertLessEqual(app.pages.size,8*1024*1024)
+            (root/'profile.md').write_text('timezone: Asia/Tokyo\n')
+            app.today();self.assertEqual(app.zone,'Asia/Tokyo')
+
     def test_gzip_quality_negotiation(self):
         for header in ('gzip', 'br, gzip;q=.5', '*;q=1'):
             self.assertTrue(accepts_gzip(header))

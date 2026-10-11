@@ -16,6 +16,7 @@ let mode = Object.hasOwn(modes, requestedMode) ? requestedMode : chatConfig.defa
 let chat = new URLSearchParams(location.search).get('id');
 let state = null;
 let sending = false;
+let pendingChatMutations = 0;
 let polling = false;
 let timer;
 let formSignature = '';
@@ -25,6 +26,12 @@ let requestLanguage = null;
 const drafts = new Map();
 
 async function chatAPI(path, body) {
+  if (body) pendingChatMutations++;
+  try { return await chatRequest(path, body); }
+  finally { if (body) pendingChatMutations--; }
+}
+
+async function chatRequest(path, body) {
   let response;
   try {
     response = await fetch(path, { method: body ? 'POST' : 'GET',
@@ -38,6 +45,7 @@ async function chatAPI(path, body) {
   const result = await response.json();
   if (!response.ok) {
     const error = new Error(result.error || chatT('The secretary is unavailable.'));
+    error.status = response.status;
     error.uncertain = response.status >= 500; throw error;
   }
   return result;
@@ -158,6 +166,12 @@ async function pollChat() {
     showMode();
     if (state === 'idle') await historyList();
   } catch (error) {
+    if (version === revision && error.status === 404) {
+      newConversation();
+      errorBox.textContent = chatT('This conversation is no longer available. Start a new one.');
+      historyList().catch(() => {});
+      return;
+    }
     if (version === revision) { state = 'unavailable'; errorBox.textContent = error.message; composeState(); }
   } finally {
     polling = false;
@@ -195,6 +209,10 @@ document.querySelector('#chat-compose').addEventListener('submit', async event =
 
 document.addEventListener('visibilitychange', () => { if (document.hidden) clearTimeout(timer); else pollChat(); });
 document.addEventListener('website:language', () => { showMode(); if (chat) pollChat(); });
+document.addEventListener('website:before-refresh', event => { if (sending || pendingChatMutations) event.preventDefault(); });
+document.addEventListener('website:refresh-drafts', event => {
+  if ([...drafts.values()].some(text => text.trim())) event.preventDefault();
+});
 window.addEventListener('focus', () => { if (chat) pollChat(); });
 showMode();
 historyList().catch(error => { errorBox.textContent = error.message; });

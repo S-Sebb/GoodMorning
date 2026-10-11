@@ -71,7 +71,8 @@ class Resources:
         self.paths, self.urls = {}, {}
         types = types if types is not None else {'fonts/lora-italic.woff2': 'font/woff2', 'briefing.css': 'text/css',
                  'briefing.js': 'text/javascript', 'browser.js': 'text/javascript',
-                  'questions.js': 'text/javascript', 'chat.js': 'text/javascript', 'chat.css': 'text/css', 'language.js':'text/javascript',
+                   'questions.js': 'text/javascript', 'chat.js': 'text/javascript', 'chat.css': 'text/css', 'language.js':'text/javascript',
+                   'update.js': 'text/javascript', 'update.css': 'text/css',
                  'fonts/OFL.txt': 'text/plain', **ICON_TYPES}
         # Register the font first: CSS embeds its immutable, shared URL.
         for name, mime in types.items():

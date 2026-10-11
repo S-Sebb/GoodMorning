@@ -1,0 +1,7 @@
+.site-update[hidden] { display: none; }
+.site-update { position: fixed; right: max(16px,env(safe-area-inset-right)); bottom: max(16px,env(safe-area-inset-bottom)); z-index: 100; width: min(360px,calc(100% - 32px)); padding: 16px; border: 1px solid var(--line,#b4c7c0); border-radius: 14px; background: var(--surface,#fffefa); color: var(--ink,#253d45); box-shadow: 0 8px 32px #0003; font: 14px/1.6 system-ui,sans-serif; }
+.site-update p { margin: 0 0 12px; }
+.site-update button { width: auto; min-height: 44px; margin-right: 8px; padding: 8px 16px; border: 1px solid var(--line,#b4c7c0); border-radius: 8px; font: inherit; background: var(--wash,#e9f0ed); color: inherit; cursor: pointer; }
+.site-update button:focus-visible { outline: 3px solid var(--accent,#35765b); outline-offset: 3px; }
+.site-update #update-feedback:empty { display: none; }
+.site-update #update-feedback { margin: 12px 0 0; }
