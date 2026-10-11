@@ -22,7 +22,12 @@ def check_avatar(page, selected, label):
     image = figure.locator('img')
     assert image.evaluate('node => node.complete && node.naturalWidth > 0')
     assert image.get_attribute('src').startswith('/assets/')
-    assert page.locator('.orbit, .waiting-art').count() == 0
+    assert page.locator('.celestial-art').count() == 1
+    kind = page.locator('html').get_attribute('data-edition')
+    assert page.locator('#sun-light' if kind == 'gm' else '#moon-light').count() == 1
+    assert image.bounding_box()['width'] == 64
+    if page.viewport_size['width'] > 700:
+        expect(page.locator('.orbit')).to_be_visible()
     assert not page.evaluate('document.documentElement.scrollWidth > innerWidth')
 
 
@@ -79,7 +84,7 @@ def main():
                     results.append({'width': width, 'languages': ['en', 'zh-CN'], 'avatars': 4,
                                     'editions': ['gm', 'gn'], 'archive': True, 'overflow': False, 'pageErrors': 0})
                     page.close()
-                page = browser.new_page(java_script_enabled=False, viewport={'width': 390, 'height': 844})
+                page = browser.new_page(java_script_enabled=False, viewport={'width': 390, 'height': 844}, reduced_motion='reduce')
                 page.goto(address + '/gm.html')
                 check_avatar(page, 'm2', '你的秘书')
                 page.locator('.briefing-avatar a').click()

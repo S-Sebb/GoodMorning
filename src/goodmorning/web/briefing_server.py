@@ -155,7 +155,7 @@ class BrowserApp:
         selected = avatar or self.avatar()
         source = html.escape(self.avatar_sources()[selected], quote=True)
         return (f'<figure class="briefing-avatar" data-avatar="{selected}">'
-                f'<a href="/chat"><img src="{source}" alt="Secretary avatar" width="440" height="440" fetchpriority="high">'
+                f'<a href="/chat"><img src="{source}" alt="Secretary avatar" width="64" height="64">'
                 '<span>Your secretary <span aria-hidden="true">↗</span></span></a></figure>')
 
     def chat_settings(self):
@@ -179,7 +179,7 @@ class BrowserApp:
     def initialization_page(self, kind):
         switches = ''.join(f'<a class="edition-link{" selected" if other == kind else ""}" href="/{other}.html">{label}</a>' for other, label in KINDS.items())
         text = f'<!doctype html><html lang="en" data-edition="{kind}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><title>Initialize your secretary — GoodMorning</title><link rel="stylesheet" href="/briefing.css"></head><body><header class="masthead"><a class="wordmark" href="/{kind}.html">GoodMorning<span>A personal secretary just for you</span></a><nav class="edition-switch" aria-label="Edition">{switches}<a class="edition-link" href="/chat">Secretary</a></nav></header><main><section class="waiting-room"><div class="waiting-art">{celestial(kind)}</div><p class="eyebrow">{KINDS[kind]} edition</p><h1>Let’s make this yours.</h1><p class="subtitle">Complete your secretary’s setup before preparing a briefing. Your saved records stay unchanged.</p><a id="initialize" class="initialize-button" href="/chat?mode=initialize">Initialize my secretary</a></section></main></body></html>'
-        text = text.replace('<div class="waiting-art">' + celestial(kind) + '</div>', self.briefing_avatar())
+        text = re.sub(r'(<p class="subtitle"[^>]*>.*?</p>)', lambda match: match[0] + self.briefing_avatar(), text, count=1, flags=re.S)
         return self.resources.rewrite(ui.page(text.replace('</head>', favicon_links(kind) + '</head>'),self.csrf,'/'+kind+'.html')).encode()
 
     def dates(self):
@@ -313,8 +313,7 @@ class BrowserApp:
                 text = text.replace('href="briefing.css"', 'href="/briefing.css"').replace('src="briefing.js"', 'src="/briefing.js"').replace('href="fonts/', 'href="/fonts/').replace('href="index.html"', f'href="/{kind}.html"')
                 text = text.replace(f'{date} / {KINDS[kind]} edition', f'{KINDS[kind]} edition')
         avatar_markup = self.briefing_avatar(avatar)
-        text = re.sub(r'<figure class="orbit"[^>]*>.*?</figure>', lambda _: avatar_markup, text, count=1)
-        text = text.replace('<div class="waiting-art">' + celestial(kind) + '</div>', avatar_markup)
+        text = re.sub(r'(<p class="subtitle"[^>]*>.*?</p>)', lambda match: match[0] + avatar_markup, text, count=1, flags=re.S)
         text = text.replace('<span>▱</span>', '<span>' + DESK_ART + '</span>')
         text=text.replace('<p id="generation-status" role="status"></p>','<p id="generation-status" role="status"></p><p id="request-language-note" role="status"></p>')
         missing = not confirmed

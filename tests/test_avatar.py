@@ -15,6 +15,7 @@ from goodmorning.web.briefing_server import BrowserApp
 from goodmorning.security.briefing_gateway import GET_ROUTES, POST_ROUTES
 from test_briefing_server import FakeChamber
 from goodmorning.briefings.briefing_document import encode
+from goodmorning.briefings.briefing_layout import celestial
 
 
 class AvatarTests(unittest.TestCase):
@@ -109,7 +110,8 @@ class AvatarTests(unittest.TestCase):
                     rendered = app.page(day, kind, pinned).decode()
                     self.assertIn(f'class="briefing-avatar" data-avatar="{selected}"', rendered)
                     self.assertIn(f'src="{app.avatar_sources()[selected]}"', rendered)
-                    self.assertNotIn('class="orbit"', rendered)
+                    self.assertIn('class="orbit"', rendered)
+                    self.assertTrue(celestial(kind).casefold() in rendered.casefold(), 'Original edition SVG must be retained')
                     self.assertIn('Keep this saved content.', rendered)
                     self.assertEqual(source.read_text(), document)
         self.assertEqual(app.chamber.calls, [])
@@ -124,8 +126,10 @@ class AvatarTests(unittest.TestCase):
             for rendered in (preview, archive, setup):
                 self.assertIn('class="briefing-avatar" data-avatar="m2"', rendered)
                 self.assertIn('alt="Secretary avatar"', rendered)
-                self.assertNotIn('class="orbit"', rendered)
-                self.assertNotIn('class="waiting-art"', rendered)
+                self.assertTrue(celestial(kind).casefold() in rendered.casefold(), 'Original edition SVG must be retained')
+            self.assertIn('class="orbit"', preview)
+            self.assertIn('class="waiting-art"', archive)
+            self.assertIn('class="waiting-art"', setup)
         self.assertEqual(app.chamber.calls, [])
 
     def test_avatar_strings_translate(self):
