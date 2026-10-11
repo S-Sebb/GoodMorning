@@ -14,11 +14,14 @@ import unittest
 from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / "scripts"))
-import state
-from runtime_files import runtime_lock
+sys.path.insert(0, str(ROOT / "src"))
+from goodmorning.records import state
+from goodmorning.runtime_files import runtime_lock
+from goodmorning.briefings.briefing_document import encode
+from goodmorning.records.inbox_store import InboxStore, initialize
 
 TODAY = "2026-10-09"
+ANSWER = encode({'v': 1, 'greeting': 'Good morning.', 'opening': 'A clear start.', 'sections': [['notes', [['p', 'Keep this detail.']]]]})
 
 
 class StateTests(unittest.TestCase):
@@ -69,7 +72,7 @@ class StateTests(unittest.TestCase):
     def test_mark_duplicate_snapshot_and_preserve_daily_edits(self):
         path = self.daily(TODAY, f"# {TODAY}\n\n## must-do\n- [ ] Existing task\n")
         answer = self.root / "answer.txt"
-        answer.write_text("Good morning.\n")
+        answer.write_text(ANSWER)
         self.assertEqual(self.invoke("--mark-gm", "--session", "ses-first", "--answer-file", str(answer))[0], 0)
         first = path.read_text()
         self.assertIn("Existing task", first)
@@ -77,7 +80,7 @@ class StateTests(unittest.TestCase):
         self.assertEqual(code, 2)
         self.assertIn("ses-first", error)
         self.assertEqual(path.read_text(), first)
-        self.assertEqual((self.root / "daily" / f"{TODAY}.gm.md").read_text(), "Good morning.\n")
+        self.assertEqual((self.root / "daily" / f"{TODAY}.gm.json").read_text(), ANSWER)
 
     def test_session_injection_and_empty_answers_leave_no_run(self):
         self.assertEqual(self.invoke("--mark-gm", "--session", "bad\n- gn: yes")[0], 2)
@@ -114,7 +117,7 @@ class StateTests(unittest.TestCase):
 
     def test_invalid_daily_date_and_missing_snapshot_are_visible(self):
         self.daily("2026-02-30", "- gm: yes\n")
-        self.daily(TODAY, f"- gm: yes | answer: daily/{TODAY}.gm.md\n")
+        self.daily(TODAY, f"- gm: yes | answer: daily/{TODAY}.gm.json\n")
         code, output, _ = self.invoke("--check", "--json")
         self.assertEqual(code, 0)
         self.assertEqual(json.loads(output)["warnings"], ["invalid_daily_date", "missing_answer"])
@@ -129,21 +132,23 @@ class StateTests(unittest.TestCase):
         self.assertIn("unsafe_answer_pointer", json.loads(output)["warnings"])
 
     def test_inbox_counts_status_column_not_idea_words(self):
-        (self.root / "inbox.md").write_text(
-            "# Pending ideas\n- 2026-10-07 | pending work is done | confirmed | demo\n"
-            "- 2026-10-08 | confirmed mechanism with extra | detail | pending | demo\n"
-            "This paragraph says pending.\n")
+        initialize(self.root)
+        store = InboxStore(self.root, write=True)
+        self.addCleanup(store.close)
+        receipt = store.mutate('add', {'kind': 'idea', 'raw': 'pending work is done', 'project': 'demo'}, 'ses_fixture', 'a', '2026-10-07T12:00:00+00:00')
+        store.mutate('update', {'status': 'confirmed'}, 'ses_fixture', 'b', '2026-10-07T12:00:00+00:00', receipt['id'], 1)
+        store.mutate('add', {'kind': 'idea', 'raw': 'confirmed mechanism', 'project': 'demo'}, 'ses_fixture', 'c', '2026-10-08T12:00:00+00:00')
         self.assertEqual(state.scan_inbox(str(self.root)),
                          {"pending": 1, "oldest_pending_date": "2026-10-08", "total": 2})
 
     def test_thirty_day_cost_survives_persistence_and_warm_checks_read_no_snapshots(self):
         for i in range(30):
             day = (dt.date.fromisoformat(TODAY) - dt.timedelta(days=i)).isoformat()
-            self.daily(day, f"- gm: yes (session ses-{i}) | answer: daily/{day}.gm.md\n")
-            (self.root / "daily" / f"{day}.gm.md").write_text("x" * 400)
+            self.daily(day, f"- gm: yes (session ses-{i}) | answer: daily/{day}.gm.json\n")
+            (self.root / "daily" / f"{day}.gm.json").write_text(ANSWER)
         code, output, _ = self.invoke("--check", "--json")
         self.assertEqual(code, 0)
-        self.assertEqual(json.loads(output)["answer_cost_30d"]["tokens_est"], 3000)
+        self.assertEqual(json.loads(output)["answer_cost_30d"]["tokens_est"], 30 * ((len(ANSWER) + 3) // 4))
         self.assertEqual(len(json.loads((self.root / "state.json").read_text())["days"]), 14)
         with patch.object(state, "stat_answer", side_effect=AssertionError("warm snapshot read")):
             code, output, _ = self.invoke("--check", "--json")
@@ -153,13 +158,14 @@ class StateTests(unittest.TestCase):
 
     def test_snapshot_edit_invalidates_cached_stats(self):
         self.daily(TODAY, "- gm: yes\n")
-        answer = self.root / "daily" / f"{TODAY}.gm.md"
-        answer.write_text("old")
+        answer = self.root / "daily" / f"{TODAY}.gm.json"
+        answer.write_text(ANSWER)
         self.invoke("--check")
-        answer.write_text("new and longer")
+        changed = ANSWER.replace('A clear start.', 'A new and longer opening.')
+        answer.write_text(changed)
         code, output, _ = self.invoke("--check", "--json")
         self.assertEqual(code, 0)
-        self.assertEqual(json.loads(output)["gm_today"]["chars"], len("new and longer"))
+        self.assertEqual(json.loads(output)["gm_today"]["chars"], len(changed))
 
     def test_long_gap_paging_is_bounded_and_counts_old_history(self):
         self.daily("2000-01-01", "- gm: yes\n- gn: yes\n")
@@ -177,7 +183,7 @@ class StateTests(unittest.TestCase):
 
     def test_cooperating_writer_lock_prevents_mutation(self):
         with runtime_lock(str(self.root), ".state.lock"):
-            result = subprocess.run([sys.executable, str(ROOT / "scripts/state.py"),
+            result = subprocess.run([sys.executable, str(ROOT / "scripts/goodmorning.py"), "state",
                                      "--mark-gm", "--session", "ses-race", "--today", TODAY],
                                     env=os.environ.copy(), capture_output=True, text=True, timeout=5)
         self.assertEqual(result.returncode, 1)
@@ -191,7 +197,8 @@ class StateTests(unittest.TestCase):
         self.assertFalse(missing.exists())
 
     def test_mark_and_duplicate_have_single_json_responses(self):
-        code, output, _ = self.invoke("--mark-gm", "--session", "ses-json", "--json")
+        with patch.object(sys, 'stdin', io.StringIO(ANSWER)):
+            code, output, _ = self.invoke("--mark-gm", "--session", "ses-json", "--answer-stdin", "--json")
         self.assertEqual(code, 0)
         self.assertEqual(json.loads(output)["session"], "ses-json")
         code, output, _ = self.invoke("--mark-gm", "--session", "ses-repeat", "--json")
@@ -203,7 +210,7 @@ class StateTests(unittest.TestCase):
             code, output, _ = self.invoke("--mark-gm", "--session", "ses-size", "--answer-stdin", "--json")
         self.assertEqual(code, 2)
         self.assertEqual(json.loads(output)["error"], "answer_too_large")
-        self.assertFalse((self.root / "daily" / f"{TODAY}.gm.md").exists())
+        self.assertFalse((self.root / "daily" / f"{TODAY}.gm.json").exists())
 
     def test_unreadable_daily_encoding_is_not_reported_as_missing(self):
         (self.root / "daily" / f"{TODAY}.md").write_bytes(b"\xff")
@@ -212,18 +219,18 @@ class StateTests(unittest.TestCase):
         self.assertEqual(json.loads(output)["error"], "state_unavailable")
 
     def test_orphan_snapshot_is_reported_and_not_overwritten(self):
-        path = self.root / "daily" / f"{TODAY}.gm.md"
-        path.write_text("interrupted reply")
+        path = self.root / "daily" / f"{TODAY}.gm.json"
+        path.write_text(ANSWER)
         code, output, _ = self.invoke("--check", "--json")
         self.assertIn("orphan_snapshot", json.loads(output)["warnings"])
-        with patch.object(sys, "stdin", io.StringIO("replacement")):
+        with patch.object(sys, "stdin", io.StringIO(ANSWER)):
             code, output, _ = self.invoke("--mark-gm", "--session", "ses-new", "--answer-stdin", "--json")
         self.assertEqual(json.loads(output)["error"], "snapshot_exists")
-        self.assertEqual(path.read_text(), "interrupted reply")
+        self.assertEqual(path.read_text(), ANSWER)
 
     def test_explicit_rebuild_recomputes_snapshot_metadata(self):
         self.daily(TODAY, "- gm: yes\n")
-        (self.root / "daily" / f"{TODAY}.gm.md").write_text("reply")
+        (self.root / "daily" / f"{TODAY}.gm.json").write_text(ANSWER)
         self.invoke("--check")
         with patch.object(state, "stat_answer", wraps=state.stat_answer) as reads:
             code, output, _ = self.invoke("--rebuild", "--json")

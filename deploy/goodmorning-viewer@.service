@@ -1,0 +1,27 @@
+[Unit]
+Description=GoodMorning isolated briefing backend %i
+Requires=goodmorning-account@%i.service
+After=goodmorning-account@%i.service
+BindsTo=goodmorning-vault@%i.service
+
+[Service]
+Type=simple
+ExecStart=/opt/goodmorning/python/bin/python /opt/goodmorning/current/scripts/goodmorning.py runtime --volume /srv/goodmorning/live/%i viewer
+Restart=on-failure
+RestartSec=5
+UMask=0077
+LimitCORE=0
+MemorySwapMax=0
+MemoryMax=256M
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectProc=invisible
+BindPaths=/srv/goodmorning/live/%i/tmp:/tmp /srv/goodmorning/live/%i/tmp:/var/tmp
+PrivateDevices=true
+ReadWritePaths=/srv/goodmorning/live/%i
+StandardOutput=null
+StandardError=append:/srv/goodmorning/live/%i/tmp/viewer-service.log
+
+[Install]
+WantedBy=multi-user.target

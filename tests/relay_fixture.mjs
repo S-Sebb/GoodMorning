@@ -1,10 +1,10 @@
 // Real upstream encryption and framing; an in-memory relay/host replaces only
 // network delivery. No external server, credentials, or app state is changed.
-import { createRelayTunnelClient } from '../scripts/relay_transport.mjs';
-const { createHostHandshake } = await import('../scripts/vendor/openchamber-relay/handshake.ts');
-const { generateEcdhKeyPair, exportPublicKeyJwk } = await import('../scripts/vendor/openchamber-relay/crypto.ts');
-const { TunnelFrameType: F } = await import('../scripts/vendor/openchamber-relay/protocol.ts');
-const { chunkPayload, encodeTunnelFrame, decodeTunnelFrame, encodeFrameBatch, decodeFrameBatch, encodeJsonPayload } = await import('../scripts/vendor/openchamber-relay/tunnel-codec.ts');
+import { createRelayTunnelClient } from '../integrations/projects/relay_transport.mjs';
+const { createHostHandshake } = await import('../vendor/openchamber-relay/handshake.ts');
+const { generateEcdhKeyPair, exportPublicKeyJwk } = await import('../vendor/openchamber-relay/crypto.ts');
+const { TunnelFrameType: F } = await import('../vendor/openchamber-relay/protocol.ts');
+const { chunkPayload, encodeTunnelFrame, decodeTunnelFrame, encodeFrameBatch, decodeFrameBatch, encodeJsonPayload } = await import('../vendor/openchamber-relay/tunnel-codec.ts');
 
 export async function fixture(handle, options = {}) {
   const keys = await generateEcdhKeyPair();
@@ -14,7 +14,7 @@ export async function fixture(handle, options = {}) {
   const requests = [];
   const factory = config => createRelayTunnelClient({ ...config, reconnectBaseDelayMs: 5, batchWindowMs: 1, ...options.client, createWireSocket(url) {
     urls.push(url);
-    const handshake = createHostHandshake(keys.privateKey, { batch: options.batch !== false });
+    const handshake = createHostHandshake(keys.privateKey, { batch: options.batch !== false, flowControl: options.flowControl !== false });
     let channel, batch, closed = false, chain = Promise.resolve();
     const heads = new Map();
     const wire = {

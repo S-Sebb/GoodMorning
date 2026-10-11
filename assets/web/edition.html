@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="{{LANG}}" data-edition="{{KIND}}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>{{EDITION}} · {{DATE}} — GoodMorning</title>
+  {{ICONS}}
+  <link rel="preload" href="fonts/lora-italic.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="briefing.css">
+  <script src="briefing.js" defer></script>
+</head>
+<body id="page-top">
+  <a class="skip-link" href="#content">Skip to briefing</a>
+  <div class="reading-progress" aria-hidden="true"></div>
+  <header class="masthead">
+    <a href="index.html" class="wordmark">GoodMorning<span>A personal secretary just for you</span></a>
+    <nav class="edition-switch" aria-label="Edition">{{SWITCHES}}</nav>
+  </header>
+  <main id="content">
+    <div class="hero">
+      <div class="hero-copy"><p class="eyebrow">{{DATE}} / {{EDITION}} edition</p><h1>{{TITLE}}</h1><p class="subtitle">{{SUBTITLE}}</p></div>
+      <figure class="orbit" aria-hidden="true"><div class="sky-scene"><div class="sun">{{CELESTIAL}}</div></div></figure>
+    </div>
+    <div class="intro">{{INTRO}}</div>
+    <div class="briefing-tools"><a class="source-link" href="{{SOURCE}}">{{SOURCELABEL}} ↗</a></div>
+    <article aria-label="{{EDITION}} briefing">{{SECTIONS}}{{CLOSING}}</article>
+  </main>
+  <nav class="scroll-map" aria-label="Section scroll navigation"><span class="scroll-cursor" aria-hidden="true"></span><div class="scroll-track">{{NAV}}</div></nav>
+  <a class="back-to-top" href="#page-top" aria-label="Back to top" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 11 6-6 6 6M12 5v14"/></svg><span>Back to top</span></a>
+  <footer><span>Prepared for you by GoodMorning</span><noscript><a href="#page-top">Back to top ↑</a></noscript></footer>
+</body>
+</html>

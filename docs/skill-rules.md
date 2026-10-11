@@ -24,8 +24,8 @@ the GoodMorning root; specialized guides load only for the operation needed.
   Ask it first in new setup;
   follow an explicit language/script or bilingual choice, or a confirmed request
   to follow message language. Do not infer it from location or news preferences.
-  For older profiles lacking it, keep the conversation language without forcing
-  reinitialization or silently writing a preference. Confirm requested changes.
+  If it is missing, ask for this required setting without resetting other answers
+  or silently writing a preference. Confirm requested changes.
   Translate response headings, not machine-readable daily headings, paths, IDs or
   raw captured ideas. Source language and citations remain independent settings.
 - Saved local setup with provider checks pending is not a missing profile. Do not
@@ -46,7 +46,7 @@ the GoodMorning root; specialized guides load only for the operation needed.
   `/todo` uses `Todo SUMMARY` with the same limits, summarizing the raw TODO.
   For other languages translate only the prefix naturally and keep the date for gm/gn and
   SUMMARY format for secretary/eureka/todo; for bilingual or follow-message-language use the current turn
-  language. For older profiles without `secretary_language`, use English defaults.
+  language. Confirm a missing `secretary_language` before starting normal work.
   After the date is confirmed and only when proceeding with a new briefing (never
   on a duplicate stop), rename the current conversation with
   `opencode api patch /api/session/$OPENCODE_SESSION_ID --data '{"title":"..."}'`.
@@ -54,7 +54,7 @@ the GoodMorning root; specialized guides load only for the operation needed.
   the request, raw idea or TODO is known (if none was supplied, ask first, then rename; never use
   an empty summary). Keep a rename failure internal; the workflow continues.
   Never invent a session ID or reuse another session's name.
-- Use the profile's timezone. `state.py --check --json` supplies the local date.
+- Use the profile's timezone. `python scripts/goodmorning.py state --check --json` supplies the local date.
   Historical work requires an explicit user-selected date and `--today DATE` on
   state commands. Label reconstructed reports; do not fetch today's weather and
   present it as an earlier forecast or invent historical progress.
@@ -92,7 +92,7 @@ the GoodMorning root; specialized guides load only for the operation needed.
 - Idea capture is save-first by default, not a mandatory now/later question.
   In every secretary workflow, save each supplied idea and follow-up detail to
   the inbox immediately, before asking clarification or waiting for a reply. Use
-  `inbox.py --add`/`--append ID` per `docs/inbox-pipeline.md` and verify the receipt.
+  `python scripts/goodmorning.py inbox --add`/`--append ID` per `docs/inbox-pipeline.md` and verify the receipt.
   Preserve raw wording and current constraints/questions, not a diary or duplicate.
   If the target is unclear, save the details
   as unassigned pending input before asking which idea they belong to, then attach
@@ -167,7 +167,7 @@ the GoodMorning root; specialized guides load only for the operation needed.
   internally. The gate changes presentation, not collection, verification,
   acknowledgements, permissions or truthfulness. Detailed diagnostics are allowed
   only when the user explicitly asks; do not silently call routine replies diagnostics.
-- Apply `reply_policy.py` to an exact final draft when needed. Its conservative
+- Apply `scripts/goodmorning.py reply-policy` to an exact final draft when needed. Its conservative
   lint catches known boilerplate, not every possible paraphrase. gm/gn marking
   automatically rejects flagged drafts before snapshot/run writes. Rewrite a
   rejected draft; do not expose lint bookkeeping to the user, strip text blindly,
@@ -195,7 +195,7 @@ the GoodMorning root; specialized guides load only for the operation needed.
 - Default reads are compact script output, the profile, today's daily record,
   and relevant project records. Page with returned offsets when necessary. Do
   not bulk-read `state.json`, snapshots, databases, or provider responses.
-- Inbox reads use `inbox.py --list`/`--show ID`; writes use its transactional
+- Inbox reads use `python scripts/goodmorning.py inbox --list`/`--show ID`; writes use its transactional
   capture/update helpers. Never read the old inbox/archive to append or dump
   history for context. Save only material actionable input and decisions, not every
   `/secretary` message, research query, assistant answer or “research delivered”
@@ -234,13 +234,12 @@ the GoodMorning root; specialized guides load only for the operation needed.
   `templates/daily.template.md` headings. A morning briefing creates unchecked
   tasks; never reset earlier user-confirmed completions during an amendment.
   Night summaries check only user-confirmed completions and add feedback/progress.
-- Save the exact user-facing briefing to a temporary file under the runtime
-  directory, then run `state.py --mark-gm|--mark-gn --session NAME
-  --answer-file PATH --json` after assembling the daily record. Do not append
-  bookkeeping text to a successfully saved briefing afterward. A snapshot means
-  saved, not proof of delivery. If saving fails, report that it was not saved;
-  do not claim an earlier draft snapshot matches a changed reply. Inspect failure
-  results before claiming success.
+- Save gm/gn per `docs/briefing-format.md` with `state` after
+  daily edits, using real session/input and a reusable runtime draft. Native JSON
+  needs no Markdown/presentation/HTML copies. No added bookkeeping.
+  Save is not delivery. Inspect failures
+  before claiming success; report unsaved work, never claim an older snapshot
+  matches a changed reply.
 - Duplicate gm/gn: name the original session, show the daily summary if useful,
   and stop without fetching or marking. Open the original snapshot only if the
   user requests the full reply. `--force` requires an explicit full replacement
@@ -264,7 +263,7 @@ the GoodMorning root; specialized guides load only for the operation needed.
   superiors or business partners. Use the configured local inbox once setup/storage
   authorization exists; do not wait for a clarification reply. If setup is missing
   or saving fails, retain the report in the conversation and say it is not saved.
-- Capture one entry per incoming update with `inbox.py --add`, `kind: "project_update"`,
+- Capture one entry per incoming update with `python scripts/goodmorning.py inbox --add`, `kind: "project_update"`,
   and `raw` containing the user's exact wording. Use only a confirmed project;
   leave it empty if unclear. Save material supplied follow-up wording with
   `--append ID` and keep concise current context/questions, not a transcript.
@@ -302,7 +301,7 @@ the GoodMorning root; specialized guides load only for the operation needed.
 - Except record-only idea/TODO capture, a likely scheduled event requires quoting its date, time,
   timezone, title, and place and asking whether to add it. Ask for missing or
   ambiguous details, including duration; do not invent them. Use
-  `secretary_calendar.py --add --event-json EVENT` after confirmation.
+  `python scripts/goodmorning.py calendar --add --event-json EVENT` after confirmation.
 - Edits/cancellations require confirmation, a stable ID, and the current revision
   from `--show`; pass `--expect-revision`. Imports require an authorized source,
   staging, and review before display. Read `docs/calendar-pipeline.md` for that

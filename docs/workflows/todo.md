@@ -23,7 +23,8 @@ Keep the current session and model; do not delegate.
    the TODO in the conversation, follow `docs/workflows/secretary.md`, and say it
    is not saved yet. If no TODO text was supplied, ask for it; never save an empty
    entry. Never persist credentials; ask for redacted wording instead.
-2. For new raw input use `workflow.py --capture todo --session SESSION --request-key KEY
+2. Python helpers use `python scripts/goodmorning.py COMMAND`.
+   For new raw input use `workflow --capture todo --session SESSION --request-key KEY
    --input-stdin` with `raw` containing the user's exact wording and optional confirmed
    project/current context. No `kind` in the payload (the wrapper supplies `kind: "todo"`).
    It checks setup and returns the receipt, title suggestion and reply preferences;
@@ -42,7 +43,7 @@ Keep the current session and model; do not delegate.
    If the target is unclear, save them as unassigned pending TODO input first;
    leave them unassigned unless the user identifies the target or requests discussion.
 3. Verify the write receipt from
-   `python scripts/workflow.py --secretary-dir RUNTIME --capture todo` (with the required payload,
+   `python scripts/goodmorning.py workflow --secretary-dir RUNTIME --capture todo` (with the required payload,
    session and request key). No full state rebuild is needed for inbox changes.
    Never mark gm/gn for TODO capture. Confirm the saved TODO briefly, using the
    reply template. Do not require a reply or a now/later choice. A brief optional
@@ -64,7 +65,7 @@ Keep the current session and model; do not delegate.
    task/reminder, not an automatic clarification TODO or question. Do not invent
    a due date, force it into today's must-do list, or duplicate an existing task.
    Only user-confirmed completion permits marking it `done`; use revision-checked
-   `inbox.py --update`. No scheduler is needed.
+   `inbox --update`. No scheduler is needed.
 
 ## Errors
 

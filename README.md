@@ -1,6 +1,6 @@
 # GoodMorning
 
-AI secretary scripts and templates. Installed personal runtime data belongs in
+Browser-based AI secretary, helper commands, and templates. Installed personal runtime data belongs in
 `~/.local/share/GoodMorning/secretary/`, outside the skill package. An explicitly
 selected checkout runtime remains git-ignored. Requires Python 3.9+. Bounded setup, state and managed news
 backfill use Linux file locks; project access also requires Linux and Node.js
@@ -10,11 +10,23 @@ file copying, updates and supported integration boundaries.
 
 Start with [setup and configuration](config.example.md).
 
-Optional image delivery uses the [briefing cards plugin](plugins/briefing-delivery/README.md).
-Install it globally for normal OpenChamber chat folders, or explicitly for one project.
-Its single agent tool renders an already saved `/gm` or `/gn` snapshot, then
-attaches cards without passing image bytes through the model. Complete text and
-citations remain stored first. No OpenChamber patch or npm install is required.
+Public multi-user deployment uses the [website security boundary](docs/website-security.md):
+SSH-only accounts, HTTPS login, encrypted volumes and isolated agent homes.
+
+New gm/gn editions use [validated browser-native JSON](docs/briefing-format.md),
+without Markdown or presentation copies. The [private browser viewer](docs/browser-delivery.md)
+renders saved briefings as HTML with inline sections and clickable sources;
+its live mode offers a seven-day archive and explicit generation in a dedicated OpenChamber
+session, with browser questions and permissions. New browser jobs publish sections
+top-down with individual loading placeholders; finished sections are readable while
+later ones are prepared. Previews remain explicitly unfinished until the final save.
+Public deployment adds authenticated HTTPS and isolated encrypted accounts.
+Briefing days roll over at 04:00 in each
+user's configured timezone; all behavior lives in this package's source.
+Live pages render on demand with shared cacheable assets, bounded memory caches
+and deduplicated publisher images, rather than duplicating webpages/resources daily.
+Briefings are delivered on their browser pages, not as inline OpenCode image cards.
+No image-delivery plugin is required.
 The first setup question confirms the secretary's reply language, independently
 of news-source language. The explicit preference applies across all five workflows.
 One self-contained `goodmorning` skill is copied only into
@@ -32,14 +44,14 @@ pending rather than restarting setup or launching code repairs.
 
 | Task | Command | Guidance |
 |---|---|---|
-| Setup preflight | `python scripts/setup_check.py --secretary-dir secretary` | [Initialization](docs/initialization.md) |
-| Weather/AQI | `python scripts/weather.py` | [Weather](docs/weather-pipeline.md) |
-| News backfill | `python scripts/news.py --backfill` | [News and delivery tracking](docs/news-pipeline.md) |
-| Schedule | `python scripts/secretary_calendar.py --days 3` | [Calendar](docs/calendar-pipeline.md) |
-| State and missed runs | `python scripts/state.py --check --json` | [State](docs/state-pipeline.md) |
-| Capture and active memory | `python scripts/inbox.py --secretary-dir RUNTIME --list` | [Inbox](docs/inbox-pipeline.md) |
-| Workflow context / fast capture | `python scripts/workflow.py --secretary-dir RUNTIME --prepare gm` | [Helpers](docs/workflow-helpers.md) |
-| Safe daily amendments | `python scripts/daily.py --secretary-dir RUNTIME --date DATE --show` | [Helpers](docs/workflow-helpers.md) |
+| Setup preflight | `python scripts/goodmorning.py setup --secretary-dir RUNTIME` | [Initialization](docs/initialization.md) |
+| Weather/AQI | `python scripts/goodmorning.py weather` | [Weather](docs/weather-pipeline.md) |
+| News backfill | `python scripts/goodmorning.py news --backfill` | [News and delivery tracking](docs/news-pipeline.md) |
+| Schedule | `python scripts/goodmorning.py calendar --days 3` | [Calendar](docs/calendar-pipeline.md) |
+| State and missed runs | `python scripts/goodmorning.py state --check --json` | [State](docs/state-pipeline.md) |
+| Capture and active memory | `python scripts/goodmorning.py inbox --secretary-dir RUNTIME --list` | [Inbox](docs/inbox-pipeline.md) |
+| Workflow context / fast capture | `python scripts/goodmorning.py workflow --secretary-dir RUNTIME --prepare gm` | [Helpers](docs/workflow-helpers.md) |
+| Safe daily amendments | `python scripts/goodmorning.py daily --secretary-dir RUNTIME --date DATE --show` | [Helpers](docs/workflow-helpers.md) |
 | Local/remote projects | `node scripts/projects.mjs --help` | [Project access](docs/project-access.md) |
 
 Run from the repository or installed skill root. Replace example settings with confirmed values.
@@ -63,7 +75,7 @@ State summaries are paged; do not bulk-read the index or answer snapshots.
 Inbox memory uses SQLite, stable IDs, bounded current-state queries, idempotent
 capture and revision-checked updates. Save material inputs and decisions, not
 every exchange. Original wording/history stays separate from normal model context.
-Existing Markdown inboxes have an explicit, lossless migration path.
+No Markdown inbox or calendar migration is supported.
 
 Reply shapes are in `templates/*.reply.template.md`; shared skill rules are in
 `docs/core-rules.md`. The expanded `docs/skill-rules.md` loads only for edge cases.
@@ -71,16 +83,32 @@ User-facing replies prioritize clean formatting and clarity,
 with the user's customised tone throughout, not just greetings and closings.
 There are no sentence limits or token budgets for replies. Internal records and
 script output stay compact. Validate with `python -m unittest discover -s tests -q`
-and measure synthetic reply size with `python tests/benchmark_reply_templates.py`.
+and measure synthetic reply size with `python tests/benchmarks/reply_templates.py`.
 Workflow preparation/capture and daily bookkeeping are deterministic helpers;
 editorial judgment, prioritization, clarification and consent remain with the agent.
-Measure context savings with `python tests/benchmark_workflow.py`; see the
+Measure context savings with `python tests/benchmarks/workflow.py`; see the
 [workflow audit](docs/workflow-audit.md) for decisions and boundaries.
 
 To set up the skill, copy `skill-source/goodmorning.md` as `SKILL.md` into
-`~/.agents/skills/goodmorning/`, alongside `scripts/`, `docs/`, `templates/`, and
-`config.example.md`. No installer, package builder, or command wrappers are needed.
+`~/.agents/skills/goodmorning/`, with the public directories listed in
+[deployment](docs/deployment.md). No pip installation or package builder is needed.
 See [manual deployment](docs/deployment.md) for the file layout and safe updates.
 Do not copy profiles, caches, credentials, or sandbox fixtures. Personal records
 stay at `~/.local/share/GoodMorning/secretary/` (or the explicitly selected
 `SECRETARY_DIR`). Copying files does not initialize personal records.
+
+## Project layout
+
+- `src/goodmorning/`: Python application code, grouped by responsibility.
+- `scripts/`: only the Python and Node.js command entry points.
+- `assets/web/`: browser styles, JavaScript, templates, and fonts.
+- `integrations/projects/`: local/relay project adapter and its internal helper.
+- `vendor/`: unchanged third-party relay source, license, and integrity manifest.
+- `requirements/`: optional browser-rendering dependencies.
+- `tests/test_*.py`, `tests/test_projects.mjs`: automated unit/contract tests.
+- `tests/browser/`, `tests/benchmarks/`: opt-in browser and performance experiments.
+- `deploy/`: service and HTTPS deployment templates.
+- `docs/`, `skill-source/`, `templates/`: instructions, inactive skill entry, and reply guides.
+
+See [structure and command migration](docs/project-structure.md). The original
+design plan is preserved in `docs/history/plan.md`; it is not current setup guidance.

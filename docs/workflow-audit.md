@@ -9,8 +9,8 @@ task completion, or personal-record amendments were used to validate changes.
 | Area | Inefficiency / risk | Change |
 |---|---|---|
 | Instructions | Every invocation loaded the full expanded rulebook and repeated pipeline/voice guidance | Compact mandatory core; workflows load only relevant specialized guides |
-| Preparation | Agent repeatedly resolved paths/dates/countries, read full profile prose, state, daily files and inbox | `workflow.py --prepare` returns relevant preferences, deterministic dates/paths and paginated local context once |
-| Quick capture | Separate readiness/profile/state reads and payload/type/title construction | `workflow.py --capture todo/eureka` checks setup and captures in one command, preserving idempotency and raw input |
+| Preparation | Agent repeatedly resolved paths/dates/countries, read full profile prose, state, daily files and inbox | `python scripts/goodmorning.py workflow --prepare` returns relevant preferences, deterministic dates/paths and paginated local context once |
+| Quick capture | Separate readiness/profile/state reads and payload/type/title construction | `python scripts/goodmorning.py workflow --capture todo/eureka` checks setup and captures in one command, preserving idempotency and raw input |
 | Duplicate briefings | Full state/context checks before stopping a duplicate | Inspect today's run source first; stop before history, tasks, inbox or provider activity |
 | Preparation I/O | Reply-cost scans and unrelated project/calendar scans for data not used in preparation | Read run flags without snapshot bodies/context scans; retain full state checks for explicit diagnostics and marks |
 | Daily records | Model repeatedly rebuilt Markdown, deduplicated reminders and toggled checkboxes | Hash-checked deterministic section amendments, exact task IDs, explicit completion flag, preserved prior completions/run lines/unrelated text |
@@ -47,7 +47,7 @@ task completion, or personal-record amendments were used to validate changes.
 
 ## Evidence and limits
 
-`python tests/benchmark_workflow.py` uses synthetic fixtures. Reference measurements:
+`python tests/benchmarks/workflow.py` uses synthetic fixtures. Reference measurements:
 
 - Default required rules: 23,897 to 9,854 characters, 58.8% smaller.
 - Preparation context: 10,744 to 2,250 characters, 79.1% smaller. The fixture has

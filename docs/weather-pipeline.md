@@ -1,12 +1,12 @@
 # Weather usage
 
 ```bash
-python scripts/weather.py
-python scripts/weather.py --city 'London, GB'
-python scripts/weather.py --lat 51.5 --lon -0.12 --city London
-python scripts/weather.py --refresh
-python scripts/weather.py --aqi-source open-meteo --json
-python scripts/weather.py --no-cache
+python scripts/goodmorning.py weather
+python scripts/goodmorning.py weather --city 'London, GB'
+python scripts/goodmorning.py weather --lat 51.5 --lon -0.12 --city London
+python scripts/goodmorning.py weather --refresh
+python scripts/goodmorning.py weather --aqi-source open-meteo --json
+python scripts/goodmorning.py weather --no-cache
 ```
 
 For `/gm`, run once and use the default brief. Preserve warnings, `STALE`,
@@ -61,7 +61,7 @@ visible when they affect the user's decision, once and in concise language.
   0 with visible warnings or a station fallback. AQI `off` does not mean good AQI.
 - Network timeout defaults to eight seconds per socket attempt, not a whole-run
   deadline. Network errors and selected server errors get one retry.
-- Initialization uses `setup_check.py --verify weather --budget 20` after consent
+- Initialization uses `python scripts/goodmorning.py setup --verify weather --budget 20` after consent
   to enforce an elapsed deadline including DNS and retries. Partial weather/AQI
   results remain pending verification even when weather.py exits zero.
 

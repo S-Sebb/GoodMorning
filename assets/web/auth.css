@@ -1,0 +1,25 @@
+:root { color-scheme: light; font-family: system-ui, sans-serif; color: #253d45; background: #f2f6f5; }
+* { box-sizing: border-box; }
+body { margin: 0; min-height: 100dvh; display: grid; place-items: center; padding: 1rem; background: radial-gradient(ellipse at top left, #e0ede5, transparent 60%); }
+.account-card { width: min(100%, 28rem); padding: clamp(1.4rem, 5vw, 2.5rem); border: 1px solid #d5e0db; border-radius: 1.5rem; background: #fffefa; box-shadow: 0 1rem 4rem #253d4512; }
+.eyebrow { font-size: .75rem; letter-spacing: .13em; text-transform: uppercase; color: #56746a; }
+h1 { font-family: Georgia, serif; font-weight: 500; font-size: 2rem; }
+p { line-height: 1.6; }
+form { display: grid; gap: 1.2rem; margin: 1.5rem 0; }
+label { display: grid; gap: .5rem; font-size: .9rem; }
+.account-field { display: grid; gap: .5rem; }
+.password-field { display: flex; align-items: center; gap: .5rem; }
+.password-field input { flex: 1; }
+.password-field .password-toggle { width: auto; min-width: 4rem; min-height: 48px; flex: none; padding: .6rem; background: #e9f0ed; color: #315e50; }
+.password-field .password-toggle:hover { background: #d7e6df; }
+.remember-login { display: flex; align-items: flex-start; gap: .65rem; line-height: 1.5; }
+.remember-login input { width: 1.1rem; height: 1.1rem; flex: none; margin: .15rem 0; padding: 0; }
+input, button { font: inherit; padding: .9rem 1rem; border-radius: .7rem; width: 100%; }
+input { border: 1px solid #b4c7c0; background: white; min-width: 0; }
+button { border: 0; background: #315e50; color: white; cursor: pointer; transition: background .15s; }
+button:hover { background: #23483c; }
+button:disabled { opacity: .65; cursor: wait; }
+:focus-visible { outline: 3px solid #719bb8; outline-offset: 3px; }
+a { color: #315e50; }
+#account-error { color: #9b3d32; overflow-wrap: anywhere; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }

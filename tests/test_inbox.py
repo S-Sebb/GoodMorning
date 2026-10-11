@@ -1,4 +1,4 @@
-"""Inbox safety, lossless migration, bounded reads and constant-size capture."""
+"""Inbox safety, bounded reads and constant-size capture."""
 
 import contextlib
 import io
@@ -14,10 +14,10 @@ from unittest.mock import patch
 from support import TEMP_ROOT
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / "scripts"))
-import inbox
-from inbox_store import InboxStore, encode, initialize, migrate
-import state
+sys.path.insert(0, str(ROOT / "src"))
+from goodmorning.records import inbox
+from goodmorning.records.inbox_store import InboxStore, encode, initialize
+from goodmorning.records import state
 
 NOW = "2026-10-10T12:00:00+01:00"
 
@@ -55,15 +55,15 @@ class InboxTests(InboxFixture):
             self.assertEqual(inbox.main(["--secretary-dir", str(self.root / "missing"), "--stats"]), 1)
         self.assertFalse((self.root / "missing").exists())
 
-    def test_initialization_is_private_idempotent_and_refuses_legacy(self):
+    def test_initialization_is_private_idempotent_and_preserves_unrelated_text(self):
         legacy = self.root / "inbox.md"
         legacy.write_text("# Existing inbox\n")
-        self.assertEqual(self.cli("--init")[1]["error"], "migration_required")
-        self.assertFalse((self.root / "inbox.sqlite").exists())
-        legacy.unlink()
         self.assertEqual(self.cli("--init")[0], 0)
         self.assertEqual(self.cli("--init")[0], 0)
         self.assertEqual((self.root / "inbox.sqlite").stat().st_mode & 0o777, 0o600)
+        self.assertEqual(legacy.read_text(), '# Existing inbox\n')
+        with sqlite3.connect(self.root / 'inbox.sqlite') as db:
+            self.assertNotIn('migration', {row[0] for row in db.execute("SELECT name FROM sqlite_master WHERE type='table'")})
 
     def test_capture_preserves_unicode_multiline_and_pipes(self):
         store = self.store()
@@ -257,68 +257,6 @@ class InboxTests(InboxFixture):
         with patch("builtins.open", side_effect=AssertionError("legacy read")):
             self.assertEqual(state.scan_inbox(str(self.root)),
                              {"pending": 1, "oldest_pending_date": "2026-10-10", "total": 1})
-
-
-class MigrationTests(InboxFixture):
-    def legacy(self):
-        text = ('# Inbox\n\n<!-- One idea per line -->\n'
-                '- 2026-10-09 | Existing | with pipes | pending | Demo\n'
-                '  Details: "Original follow-up"\n'
-                '- 2026-10-10 10:00 Europe/London | ' + json.dumps({"kind": "project_update",
-                    "raw": "Change A | B\nnext line", "details": ["Only a suggestion"],
-                    "clarification": ["Was it agreed?"]}) + ' | pending | Demo\n'
-                '- 2026-10-10 11:00 UTC | "Completed task" | done | \n'
-                '  Details: user confirmed completion.\n')
-        (self.root / "inbox.md").write_text(text)
-        return text.encode()
-
-    def test_migration_preserves_every_source_byte_and_all_statuses(self):
-        original = self.legacy()
-        receipt = migrate(self.root, "ses-migrate")
-        self.assertEqual(receipt["entries"], 3)
-        self.assertEqual((self.root / receipt["backup"]).read_bytes(), original)
-        self.assertEqual((self.root / receipt["backup"]).stat().st_mode & 0o777, 0o600)
-        self.assertIn("Do not append here", (self.root / "inbox.md").read_text())
-        store = InboxStore(self.root)
-        self.addCleanup(store.close)
-        self.assertEqual(store.stats(), {"pending": 2, "oldest_pending_date": "2026-10-09", "total": 3})
-        items = store.list(status="all")["items"]
-        self.assertEqual(store.text(items[0]["id"])["text"], "Existing | with pipes")
-        current = store.show(items[1]["id"])
-        self.assertEqual(current["questions"], ["Was it agreed?"])
-        self.assertIn("Only a suggestion", current["context"])
-        self.assertEqual(store.text(items[1]["id"])["text"], "Change A | B\nnext line")
-        history = store.text(1, event=True)["text"]
-        self.assertIn('Details: "Original follow-up"', history)
-        self.assertEqual(migrate(self.root, "ses-migrate")["entries"], 3)
-        self.assertEqual(store.stats()["total"], 3)
-
-    def test_interrupted_pointer_replacement_is_resumable(self):
-        original = self.legacy()
-        with patch("inbox_store.atomic_text", side_effect=OSError("interrupted")):
-            with self.assertRaises(OSError):
-                migrate(self.root, "ses-migrate")
-        self.assertEqual((self.root / "inbox.md").read_bytes(), original)
-        self.assertTrue((self.root / "inbox.sqlite").exists())
-        self.assertTrue(migrate(self.root, "ses-migrate")["replayed"])
-
-    def test_changed_legacy_is_never_overwritten_on_retry(self):
-        self.legacy()
-        migrate(self.root, "ses-migrate")
-        changed = "# Later edit\n- 2026-10-10 | New task | pending | Demo\n"
-        (self.root / "inbox.md").write_text(changed)
-        with self.assertRaisesRegex(ValueError, "migration_conflict"):
-            migrate(self.root, "ses-migrate")
-        self.assertEqual((self.root / "inbox.md").read_text(), changed)
-
-    def test_invalid_or_protected_legacy_creates_no_database(self):
-        for text in ("Unknown unassigned input\n", "- wrong | task | pending | Demo\n",
-                     "- 2026-10-10 | token=secret | pending | Demo\n"):
-            (self.root / "inbox.md").write_text(text)
-            with self.assertRaises(ValueError):
-                migrate(self.root, "ses-migrate")
-            self.assertFalse((self.root / "inbox.sqlite").exists())
-            self.assertEqual((self.root / "inbox.md").read_text(), text)
 
 
 if __name__ == "__main__":

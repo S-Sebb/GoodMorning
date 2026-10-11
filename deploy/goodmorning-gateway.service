@@ -1,0 +1,32 @@
+[Unit]
+Description=GoodMorning authenticated public gateway
+Requires=goodmorning-vault@accounts.service
+After=goodmorning-vault@accounts.service
+BindsTo=goodmorning-vault@accounts.service
+
+[Service]
+Type=simple
+User=root
+Group=www-data
+UMask=0077
+RuntimeDirectory=goodmorning
+RuntimeDirectoryMode=0750
+ExecStart=/opt/goodmorning/python/bin/python /opt/goodmorning/current/scripts/goodmorning.py gateway --account-mount /srv/goodmorning/live/accounts --socket /run/goodmorning/gateway.sock --gm-host gm.love765.me --gn-host gn.love765.me --sec-host sec.love765.me
+Restart=on-failure
+RestartSec=5
+LimitCORE=0
+MemorySwapMax=0
+MemoryMax=512M
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+ReadWritePaths=/srv/goodmorning/live/accounts /run/goodmorning
+StandardOutput=null
+StandardError=null
+
+[Install]
+WantedBy=multi-user.target

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { mkdtemp, writeFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { RelayAccess, ProjectAccess, boundedBody } from '../scripts/projects.mjs';
+import { RelayAccess, ProjectAccess, boundedBody } from '../integrations/projects/index.mjs';
 import { fixture } from './relay_fixture.mjs';
 import { execFile } from 'node:child_process';
 import { tempRoot } from './support.mjs';
@@ -32,9 +32,16 @@ test('encrypted JSON request and fragmented response, batching enabled', async t
   assert.equal(f.urls[0].includes(f.host.clientToken), false);
 });
 
-test('legacy peer without batching remains compatible', async t => {
+test('older peer without batching is refused before any request', async t => {
   const f = await context(t, () => ({ body: { ok: true } }), { batch: false });
-  assert.deepEqual(await f.access.request('/health'), { ok: true });
+  await assert.rejects(f.access.request('/health'));
+  assert.equal(f.requests.length, 0);
+});
+
+test('older peer without flow control is refused before any request', async t => {
+  const f = await context(t, () => ({ body: { ok: true } }), { flowControl: false });
+  await assert.rejects(f.access.request('/health'));
+  assert.equal(f.requests.length, 0);
 });
 
 test('read reconnects once after dispatched request loses response', async t => {

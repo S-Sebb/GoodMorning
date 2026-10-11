@@ -1,11 +1,11 @@
 # News usage
 
 ```bash
-python scripts/news.py --country CA --timezone America/Toronto
-python scripts/news.py --since 2026-10-02 --until 2026-10-08 --country CA --timezone America/Toronto
-python scripts/news.py --country CA --offline
-python scripts/news.py --refresh --max-links 2
-python scripts/news.py --format json --details
+python scripts/goodmorning.py news --country CA --timezone America/Toronto
+python scripts/goodmorning.py news --since 2026-10-02 --until 2026-10-08 --country CA --timezone America/Toronto
+python scripts/goodmorning.py news --country CA --offline
+python scripts/goodmorning.py news --refresh --max-links 2
+python scripts/goodmorning.py news --format json --details
 ```
 
 ## Managed backfill and delivery (recommended for agents)
@@ -13,12 +13,12 @@ python scripts/news.py --format json --details
 After confirming the profile's timezone, country, and optional feed config:
 
 ```bash
-python scripts/news.py --backfill
-python scripts/news.py --show YYYY-MM-DD
-python scripts/news.py --show YYYY-MM-DD --view candidates --limit 10 --offset 0
-python scripts/news.py --show YYYY-MM-DD --view stories
-python scripts/news.py --ack YYYY-MM-DD --expect REPORT_ID --session NAME
-python scripts/news.py --status
+python scripts/goodmorning.py news --backfill
+python scripts/goodmorning.py news --show YYYY-MM-DD
+python scripts/goodmorning.py news --show YYYY-MM-DD --view candidates --limit 10 --offset 0
+python scripts/goodmorning.py news --show YYYY-MM-DD --view stories
+python scripts/goodmorning.py news --ack YYYY-MM-DD --expect REPORT_ID --session NAME
+python scripts/goodmorning.py news --status
 ```
 
 - Managed commands read `timezone`, `news_country`, and optional
@@ -75,7 +75,7 @@ python scripts/news.py --status
 
 The original date-range commands remain available for stateless retrieval. They
 require explicit profile values and do not save delivery state. Markdown news
-headings are legacy presence flags, never delivery evidence. Do not bulk-open
+headings are presence flags, never delivery evidence. Do not bulk-open
 answer snapshots to discover missing news.
 
 ## Country and feed configuration
@@ -96,7 +96,7 @@ region, IP, or weather location. Save its ISO code as `news_country`, confirm
 the timezone, and verify feeds before finalizing setup.
 
 US, GB, CA, AU, and CN feeds are bundled. For other countries, copy
-`scripts/news_sources.json` to `secretary/news_sources.json`, add confirmed feeds
+`src/goodmorning/news/news_sources.json` to `secretary/news_sources.json`, add confirmed feeds
 under `countries[ISO_CODE]` with `section: national`, and pass `--sources PATH`.
 This is a full configuration, not a merge overlay. Ask about preferred outlets
 and language; the agent manages and verifies feeds. Missing country feeds are
@@ -149,7 +149,7 @@ with `--show`, then write a runtime-local JSON choice list:
 Apply it using the current report ID and real session identifier:
 
 ```bash
-python scripts/news.py --curate DATE --country CODE --selection-file RUNTIME/choices.json --expect REPORT_ID --session SESSION --view stories
+python scripts/goodmorning.py news --curate DATE --country CODE --selection-file RUNTIME/choices.json --expect REPORT_ID --session SESSION --view stories
 ```
 
 Pass the selected runtime/source configuration too. Selection is restricted to
@@ -177,9 +177,9 @@ fetched/recent/topic/window counts and controlled HTTP failures such as `HTTP 40
 `no_window_items` differs from an unavailable endpoint: short feeds may have lost
 historical articles. These counts describe collection, not comprehensive coverage.
 
-Ranking policy participates in saved-report namespaces. Configurations without a
-policy retain the explicit legacy behavior/identity for compatibility. Changing
-feeds or policy does not overwrite old reports or acknowledgements; keep an old
+Ranking uses the current importance policy, including when the setting is omitted;
+other policies are rejected. The policy participates in saved-report namespaces.
+Changing feeds does not overwrite old reports or acknowledgements; keep an old
 full configuration to inspect its earlier namespace. Do not replace an original
 briefing snapshot just because ranking improved.
 The editorial-review setting also separates report namespaces, preserving the
@@ -189,7 +189,7 @@ only reviewed, complete reports are ready for the normal presentation/ack flow.
 ### Current developments are separate from yesterday
 
 ```bash
-python scripts/news.py --latest --country GB --timezone Europe/London --format json
+python scripts/goodmorning.py news --latest --country GB --timezone Europe/London --format json
 ```
 
 Pass the selected runtime, cache and custom sources explicitly when relocated.
@@ -258,7 +258,7 @@ VentureBeat were not promoted to the critical path. Feed health can change.
 
 ```bash
 python -m unittest discover -s tests -p 'test_news_reports.py' -v
-python tests/benchmark_state_news.py
+python tests/benchmarks/state_news.py
 ```
 
 The synthetic seven-day fixture retains all 84 selected stories while its

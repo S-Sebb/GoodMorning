@@ -39,7 +39,8 @@ Brief grounded interest or a warm closing is optional, not mandatory padding.
     missing, retain the idea in the conversation, read `docs/workflows/secretary.md` for setup, and
    say it is not saved yet. If no idea was supplied, ask for it; do not create an
    empty entry.
-2. For new raw input use `workflow.py --capture eureka --session SESSION --request-key KEY
+2. Python helpers use `python scripts/goodmorning.py COMMAND`.
+   For new raw input use `workflow --capture eureka --session SESSION --request-key KEY
    --input-stdin` with JSON `raw` and optional confirmed project/current context.
    This checks local setup and saves directly; no preparation/full profile/state read.
    It produces the English title suggestion and reply preferences. No `kind` in this
@@ -81,7 +82,7 @@ Brief grounded interest or a warm closing is optional, not mandatory padding.
    authorized organization, read relevant project records/instructions and write
    the confirmed idea into scoped records, updating `last_update` and preserving
    unrelated work. Saving a project TODO is not permission to complete that TODO.
-6. Use `inbox.py --update ID --expect-revision REVISION` to change the entry to
+6. Use `inbox --update ID --expect-revision REVISION` to change the entry to
    `confirmed` only after the user confirms and the agreed organization succeeds.
    If any required write is unresolved, keep it pending and describe what remains.
    State checks/marks already read current records; do not rebuild after every

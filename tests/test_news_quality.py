@@ -12,11 +12,11 @@ from support import TEMP_ROOT
 import unittest
 from unittest.mock import patch
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
-import news
-from news_rank import POLICY, importance
-from news_reports import context_key
-from news_cache import Fetcher, NewsCache, SourceUnavailable
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
+from goodmorning.news import news
+from goodmorning.news.news_rank import POLICY, importance
+from goodmorning.news.news_reports import context_key
+from goodmorning.news.news_cache import Fetcher, NewsCache, SourceUnavailable
 
 DAY = dt.date(2026, 10, 8)
 UTC = dt.timezone.utc
@@ -29,12 +29,22 @@ def item(title, section="ai", hour=12, **extra):
 
 
 class QualityTests(unittest.TestCase):
+    def test_unrelated_copyright_lawsuit_is_not_ai_even_from_ai_feed(self):
+        story=news.group_stories([item('DistroKid has been quietly taking down songs in response to UMG lawsuit',
+            summary='Music distribution and copyright takedowns.',priority=3)])[0]
+        ranked=importance(story)
+        self.assertFalse(ranked['eligible'])
+        self.assertFalse(ranked['ai_relevant'])
+        self.assertEqual(news.select_stories([story],4),[])
+        story['sources'][0]['summary']='The lawsuit concerns artificial intelligence music training.'
+        self.assertTrue(importance(story)['ai_relevant'])
+
     def test_consequential_release_beats_newer_promotions_and_roundups(self):
         raw = [item("Fox News AI Newsletter: tech boom", hour=23),
                item("How Oracle turns days of work into minutes with ChatGPT", hour=22, role="primary"),
                item("Pollo AI turns creative ideas into campaigns with OpenAI", hour=21, role="primary"),
                item("Anthropic launches AI security scans for open-source projects", hour=10)]
-        selected = news.select_stories(news.group_stories(raw), 4, POLICY)
+        selected = news.select_stories(news.group_stories(raw), 4)
         self.assertEqual([story["title"] for story in selected], [raw[-1]["title"]])
         self.assertIn("safety_security_or_governance", selected[0]["ranking"]["reasons"])
 
@@ -43,7 +53,7 @@ class QualityTests(unittest.TestCase):
             raw = [item("Prince Harry describes depression after leaving UK", section, 23),
                    item("Two men arrested for trespass at RAF base", section, 22),
                    item("Government announces national NHS budget legislation", section, 10)]
-            result = news.select_stories(news.group_stories(raw), 4, POLICY)
+            result = news.select_stories(news.group_stories(raw), 4)
             self.assertEqual([story["title"] for story in result], [raw[-1]["title"]])
 
     def test_popularity_and_political_lean_do_not_turn_promotions_into_major_news(self):
@@ -58,13 +68,13 @@ class QualityTests(unittest.TestCase):
         self.assertIn("first_party_claims", importance(story)["reasons"])
 
     def test_thin_day_does_not_fill_quota_with_low_signal_items(self):
-        result = news.select_stories(news.group_stories([item("An entertaining AI anecdote")]), 4, POLICY)
+        result = news.select_stories(news.group_stories([item("An entertaining AI anecdote")]), 4)
         self.assertEqual(result, [])
 
     def test_background_mentions_do_not_outrank_the_actual_event(self):
         background = item("Carrier returns home after long deployment", "major", 23, summary="Its deployment involved a war and government decisions.")
         event = item("Government signs ceasefire after missile attacks", "major", 10)
-        result = news.select_stories(news.group_stories([background,event]),4,POLICY)
+        result = news.select_stories(news.group_stories([background,event]),4)
         self.assertEqual(result[0]["title"],event["title"])
         self.assertFalse(importance(news.group_stories([background])[0])["eligible"])
 
@@ -81,17 +91,15 @@ class QualityTests(unittest.TestCase):
 
     def test_diversity_preference_does_not_discard_four_qualified_single_publisher_items(self):
         stories=news.group_stories([item("Government approves NHS budget legislation "+str(i),"national",10+i) for i in range(4)])
-        self.assertEqual(len(news.select_stories(stories,4,POLICY)),4)
+        self.assertEqual(len(news.select_stories(stories,4)),4)
 
-    def test_policy_changes_report_namespace_without_altering_legacy_identity(self):
+    def test_default_policy_has_one_report_namespace(self):
         cfg = {"feeds": [], "countries": {"GB": []}}
-        legacy = context_key("UTC", "GB", cfg)
-        self.assertEqual(legacy, context_key("UTC", "GB", {**cfg, "ranking_policy": "legacy"}))
-        self.assertNotEqual(legacy, context_key("UTC", "GB", {**cfg, "ranking_policy": POLICY}))
+        self.assertEqual(context_key("UTC", "GB", cfg), context_key("UTC", "GB", {**cfg, "ranking_policy": POLICY}))
 
     def test_discovery_dates_are_not_claimed_as_publication(self):
         story = news.group_stories([item("OpenAI releases reasoning model", date_basis="submitted", role="discovery")])[0]
-        ranked = news.select_stories([story], 4, POLICY)[0]
+        ranked = news.select_stories([story], 4)[0]
         compact = news.compact_story(ranked, 1)
         self.assertEqual(compact["date_basis"], "submitted")
         self.assertIn("discovery_or_update_date_not_publication", compact["ranking"]["reasons"])

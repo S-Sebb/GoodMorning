@@ -1,0 +1,18 @@
+[Unit]
+Description=GoodMorning encrypted volume %i
+Before=goodmorning-gateway.service
+
+[Service]
+Type=forking
+ExecStart=/opt/goodmorning/python/bin/python /opt/goodmorning/current/scripts/goodmorning.py vault --root /srv/goodmorning mount %i
+ExecStop=/usr/bin/python3 /opt/goodmorning/current/scripts/goodmorning.py vault --root /srv/goodmorning unmount %i
+UMask=0077
+LimitCORE=0
+MemorySwapMax=0
+# Mounts must be visible to separately isolated per-account services.
+PrivateMounts=false
+StandardOutput=null
+StandardError=null
+
+[Install]
+WantedBy=multi-user.target

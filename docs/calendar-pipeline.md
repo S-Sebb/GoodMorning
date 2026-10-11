@@ -31,7 +31,7 @@ events. These commands are implementation details, not required user work.
    Ask the user about ambiguous mappings or substantive scheduling changes.
    Approval records the current revision. Do not batch-approve unseen events.
 6. Briefings query the stored, approved schedule. They do not read the whole
-   database or re-fetch providers. `state.py --check` reports pending review
+   database or re-fetch providers. `python scripts/goodmorning.py state --check` reports pending review
    counts. Save only a concise schedule summary in the daily Markdown file.
    Before reporting preparation requirements, prefer `--json --details` for a
    narrow approved window in one query. Use `--show` only when examining originals/
@@ -59,16 +59,16 @@ Run from the repository root. Set `CALENDAR_TIMEZONE` to an IANA zone such as
 saving changes. Windows may need `pip install tzdata` for named zones.
 
 ```bash
-python scripts/secretary_calendar.py --init
-python scripts/secretary_calendar.py --add --event-json '{"subject":"Dentist","start":"2026-10-15T14:00:00+01:00","end":"2026-10-15T15:00:00+01:00","location":"Clinic","notes":"Bring card"}'
-python scripts/secretary_calendar.py --days 3
-python scripts/secretary_calendar.py --from 2026-10-15 --days 3 --json
-python scripts/secretary_calendar.py --pending
-python scripts/secretary_calendar.py --show EVENT_ID
-python scripts/secretary_calendar.py --approve EVENT_ID --expect-revision 1 --event-json '{"subject":"Team sync","notes":"Bring slides"}'
-python scripts/secretary_calendar.py --update EVENT_ID --expect-revision 2 --event-json '{"location":"Room 302"}'
-python scripts/secretary_calendar.py --cancel EVENT_ID --expect-revision 3
-python scripts/secretary_calendar.py --history EVENT_ID --limit 5
+python scripts/goodmorning.py calendar --init
+python scripts/goodmorning.py calendar --add --event-json '{"subject":"Dentist","start":"2026-10-15T14:00:00+01:00","end":"2026-10-15T15:00:00+01:00","location":"Clinic","notes":"Bring card"}'
+python scripts/goodmorning.py calendar --days 3
+python scripts/goodmorning.py calendar --from 2026-10-15 --days 3 --json
+python scripts/goodmorning.py calendar --pending
+python scripts/goodmorning.py calendar --show EVENT_ID
+python scripts/goodmorning.py calendar --approve EVENT_ID --expect-revision 1 --event-json '{"subject":"Team sync","notes":"Bring slides"}'
+python scripts/goodmorning.py calendar --update EVENT_ID --expect-revision 2 --event-json '{"location":"Room 302"}'
+python scripts/goodmorning.py calendar --cancel EVENT_ID --expect-revision 3
+python scripts/goodmorning.py calendar --history EVENT_ID --limit 5
 ```
 
 The revision examples are illustrative. Always use the current revision from
@@ -146,8 +146,8 @@ provider data or regenerate existing user databases automatically.
 ## Betterbird and import limitations
 
 ```bash
-python scripts/secretary_calendar.py --sync-betterbird --days 7 --timezone Europe/London
-python scripts/secretary_calendar.py --pending
+python scripts/goodmorning.py calendar --sync-betterbird --days 7 --timezone Europe/London
+python scripts/goodmorning.py calendar --pending
 ```
 
 The read-only cache reader stages events for review, not immediate display.
@@ -194,24 +194,15 @@ is no raw file-copy or live-read fallback. Close Betterbird before an authorized
 retry. An integrity check alone would not prove a copied live cache was consistent.
 No external calendar is written back by these commands.
 
-## Migration and safety
+## Storage and safety
 
-```bash
-python scripts/secretary_calendar.py --migrate-md secretary/custom_schedule.md --timezone Europe/London
-```
-
-Migration is explicit and all-or-nothing. Invalid non-comment lines report
-their line number rather than disappearing silently. The original file is
-never edited or deleted. Repeating the same migration adds no duplicates;
-later Markdown edits are not synchronized. After checking the result, the
-user may archive the old file. The old template is retained as a legacy
-format reference, not an instruction to create new calendar files.
+Calendar storage uses SQLite only. Markdown schedule files and migration commands
+are not supported. Unrelated private files are never converted or deleted.
 
 The database uses WAL (SQLite's transactional journal) and records every
 mutation with its actor, revision, timestamp, and full state snapshot.
 Cancellation never deletes history. `state.json` is still a derived index:
-calendar counts come from SQLite, not dated-line counts in Markdown. Its old
-`custom_schedule.events` key is retained for compatibility.
+calendar counts come from SQLite, not dated-line counts in Markdown.
 
 Path precedence: CLI `--db` > `CALENDAR_DB_PATH` > config `calendar_db` >
 `SECRETARY_DIR/calendar.sqlite`. If using a non-default database path, set

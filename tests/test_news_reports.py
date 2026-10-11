@@ -13,11 +13,11 @@ from support import TEMP_ROOT
 import unittest
 from unittest.mock import patch
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
-import news
-import state
-from news_reports import MAX_ATTEMPTS, ReportStore, context_key, recent_days
-from runtime_files import runtime_lock
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
+from goodmorning.news import news
+from goodmorning.records import state
+from goodmorning.news.news_reports import MAX_ATTEMPTS, ReportStore, context_key, recent_days
+from goodmorning.runtime_files import runtime_lock
 
 TODAY = dt.date(2026, 10, 9)
 DAY = "2026-10-08"
@@ -145,7 +145,7 @@ class ManagedCLITests(unittest.TestCase):
 
     def rss(self, url, *args):
         self.calls.append(url)
-        return [{"title": "AI technology headline" if "ai." in url else "World national headline",
+        return [{"title": "OpenAI releases reasoning model" if "ai." in url else "Government approves national budget legislation",
                  "url": url.replace("feed", f"story-{i}"),
                  "published": dt.datetime.combine(TODAY - dt.timedelta(days=i), dt.time(12), dt.timezone.utc)}
                 for i in range(1, 8)]

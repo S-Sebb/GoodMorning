@@ -10,10 +10,10 @@ from support import TEMP_ROOT
 import unittest
 from unittest.mock import patch
 
-sys.path.insert(0,str(Path(__file__).resolve().parents[1]/"scripts"))
-import news
-from news_editorial import candidates, curate, seal
-from news_reports import ReportStore, context_key
+sys.path.insert(0,str(Path(__file__).resolve().parents[1]/"src"))
+from goodmorning.news import news
+from goodmorning.news.news_editorial import candidates, curate, seal
+from goodmorning.news.news_reports import ReportStore, context_key
 
 
 def batch():
@@ -27,6 +27,15 @@ def batch():
 
 
 class EditorialTests(unittest.TestCase):
+    def test_review_cannot_override_missing_ai_connection(self):
+        value=batch();story=value['stories'][0]
+        story['title']='DistroKid removes songs after UMG lawsuit'
+        story['ranking']={'ai_relevant':True}
+        value['candidates']=candidates(value['stories']);value=seal(value)
+        choices=[{'candidate_id':value['candidates'][0]['candidate_id'],'reason':'Copyright has economic consequences.'}]
+        with self.assertRaisesRegex(ValueError,'explicit AI connection'):
+            curate(value,choices,value['candidate_batch_id'],'ses-test')
+
     def test_assistant_can_promote_known_consequential_candidates_missed_by_proxy(self):
         value=batch()
         choices=[{"candidate_id":item["candidate_id"],"reason":"A consequential newly reported development, selected after reviewing its source."} for item in value["candidates"]]

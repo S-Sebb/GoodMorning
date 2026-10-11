@@ -25,11 +25,16 @@ Create `~/.agents/skills/goodmorning/` and copy these files from the checkout:
 | `skill-source/goodmorning.md` | `SKILL.md` |
 | `config.example.md` | `config.example.md` |
 | `scripts/` | `scripts/` |
+| `src/` | `src/` |
+| `assets/` | `assets/` |
+| `integrations/` | `integrations/` |
+| `vendor/` | `vendor/` |
+| `requirements/` | `requirements/` |
 | `docs/` | `docs/` |
 | `templates/` | `templates/` |
 
 The entry file is ready to copy unchanged; only its filename changes. Preserve
-the directory layout, including `scripts/vendor/openchamber-relay/` and its
+the directory layout, including `vendor/openchamber-relay/` and its
 license/manifest. Exclude generated `__pycache__/` directories and `.pyc` files.
 Do not copy personal profiles, SQLite data, ideas, snapshots, caches, credentials,
 sandbox fixtures, `.git`, tests, or the entire checkout. Inspect an existing
@@ -43,10 +48,8 @@ slash commands; natural-language requests work too.
 
 ## Validate
 
-Optional image briefings use a separate, dependency-free OpenCode plugin package.
-See [briefing plugin deployment](../plugins/briefing-delivery/DEPLOYMENT.md) for copying,
-packaging and verification. Global installation covers ordinary OpenChamber
-chat folders; a project-only installation does not.
+Briefings use browser delivery. The obsolete inline image plugin is not part of
+the deployment; do not install it or request its former card tool.
 
 From the checkout:
 
@@ -81,21 +84,33 @@ saves are separate operations.
 
 ## Update and rollback
 
-- Workflow upgrades copy `workflow.py`, `daily.py`, `news_views.py` and their shared
-  helper changes together with `docs/core-rules.md`, routed workflows and the skill
+The production service templates use a dedicated Python environment at
+`/opt/goodmorning/python/`. Create it once and install
+`requirements/browser.txt` there before validating a candidate release. Do not
+modify the operating system's Python packages. Native rendering needs only the
+standard library; Pillow supports optional publisher images.
+Include `.gitignore` in releases used to run the source-layout tests.
+
+- The package-layout migration requires a clean public release, not an overlay
+  of an old release that would leave obsolete scripts behind. Copy all listed
+  public directories together. See [project structure](project-structure.md).
+  Validate the copied release before switching the release pointer.
+- Update the account, viewer, gateway, and vault service command templates to
+  `scripts/goodmorning.py`. Stop new requests and check account sessions, pending
+  questions, permissions, and the global reservation before restarting idle
+  account engines and viewers. Never restart mounted encrypted vaults merely
+  to update their next-start command. Preserve the previous release and units.
+
+- Workflow upgrades copy the source package, entry points, and public resources
+  together with `docs/core-rules.md`, routed workflows and the skill
   entry. No personal-data migration is required. Verify on disposable records,
   then use read-only preparation on the selected live runtime. Start a fresh session
   to load new instructions. Existing missing-calendar reads now require setup.
 - Back up the private runtime before updates. Use SQLite's backup API for active
   databases, or stop writers before copying SQLite files/journals.
 - Copy changed public skill files only; retain personal records and environment.
-- Inbox upgrades use `scripts/inbox.py` and `scripts/inbox_store.py` together with
-  their workflow/state instructions. With explicit migration consent, run
-  `python scripts/inbox.py --secretary-dir RUNTIME --migrate --session NAME`.
-  This keeps an unchanged private legacy archive and replaces `inbox.md` with a
-  helper/archive pointer. Verify counts and relevant current entries; normal reads
-  must not load the legacy archive. See `docs/inbox-pipeline.md` for recovery.
-  New reply-language preferences do not force older profiles to reinitialize.
+- Inbox storage uses SQLite only. No text migration commands are supported.
+  Keep initialized profiles and personal files unchanged during public-code updates.
 - Preserve unknown/newer schemas, corrupt data and stable production locks. Do
   not force migrations, reset databases or replay unknown mutations.
 - Retain the previous public skill files for rollback and revalidate them against

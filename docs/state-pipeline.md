@@ -3,12 +3,12 @@
 Use compact command output, not raw `state.json` or bulk answer snapshots.
 
 ```bash
-python scripts/state.py --check --json
-python scripts/state.py --check --json --limit 7 --offset 7
-python scripts/state.py --mark-gm --session NAME --answer-file PATH --json
-python scripts/state.py --mark-gn --session NAME --answer-stdin --json
-python scripts/state.py --rebuild --json
-python scripts/state.py --tokens PATH --json
+python scripts/goodmorning.py state --check --json
+python scripts/goodmorning.py state --check --json --limit 7 --offset 7
+python scripts/goodmorning.py state --mark-gm --session NAME --answer-file PATH --json
+python scripts/goodmorning.py state --mark-gn --session NAME --answer-stdin --json
+python scripts/goodmorning.py state --rebuild --json
+python scripts/goodmorning.py state --tokens PATH --json
 ```
 
 Set `--secretary-dir PATH` or `SECRETARY_DIR` for relocated records. Commands
@@ -26,21 +26,23 @@ Invalid named timezones are errors, not silent fallbacks.
   `--offset` page missed days and project records. Use `next_offset` and
   `projects_next_offset`. Long gaps are counted without constructing every row.
 - News counts use the confirmed profile's default configuration. Use
-  `news.py --status` for the authoritative backlog or explicit overrides.
+  `python scripts/goodmorning.py news --status` for the authoritative backlog or explicit overrides.
   A Markdown news heading indicates presence, never collection or delivery.
-- Save concise daily records using `templates/daily.template.md`. Verbatim
-  replies live in `daily/YYYY-MM-DD.gm.md` and `.gn.md`. Open only on explicit need.
+- Save concise daily records using `templates/daily.template.md`. New browser
+  editions live in `daily/YYYY-MM-DD.gm.json` and `.gn.json` (`docs/briefing-format.md`).
 - Mark commands accept either an answer file or stdin, never both. They preserve
   daily tasks/feedback. JSON replies expose date, kind, session, answer pointer,
-  and size. Inputs cap at 1,048,576 characters. Missing answer input remains
-  supported but emits a note.
+  and size. Inputs cap at 1,048,576 characters. Native JSON input is required.
+- Every save parses/validates the v1 contract before writing,
+  and compacts whitespace without changing string values. It creates one briefing,
+  no Markdown/presentation/HTML copies. Invalid input returns `briefing_invalid`
+  and a field path without marking. Unrelated text files are ignored and preserved.
 - Duplicate marks and existing snapshots are refused with exit 2. Inspect the
   original; use `--force` only for an authorized replacement.
 - Keep `session NAME`, `| answer: path`, and recognized headings intact. Fenced
   examples are ignored; duplicate run lines are errors rather than guesses.
   Inbox counts come from `inbox.sqlite` without loading messages/history into
-  context. Read-only legacy Markdown compatibility uses the status column, not
-  words inside raw ideas. New stores use `docs/inbox-pipeline.md`.
+  context. Use `docs/inbox-pipeline.md` for current entries.
 - Active inbox entries include a count and oldest date; newly supplied details on
   closed entries stay active until reviewed. Counts are live, not cached behind a
   required inbox rebuild. Remind at today's `/gn`,
@@ -58,7 +60,7 @@ Invalid named timezones are errors, not silent fallbacks.
 - Normal checks reuse snapshot statistics when filesystem metadata is unchanged.
   Cold checks stream only snapshots in the 30-day window. `--rebuild` forces fresh
   statistics. Character/4 token estimates are not a model tokenizer.
-- Snapshot pointers must identify that day's canonical `.gm.md` or `.gn.md`
+- Snapshot pointers must identify that day's canonical `.gm.json`/`.gn.json`
   inside `daily/`. External/symlink pointers are not read. Invalid dates, missing
   snapshots, and orphan snapshots produce warnings. Unreadable source records
   fail visibly rather than being interpreted as missing work.
@@ -69,15 +71,14 @@ Invalid named timezones are errors, not silent fallbacks.
   update. Do not delete locks. Ordinary editors bypass this lock; atomic writes
   are not a multi-file transaction. An interrupted mark may leave an orphan
   snapshot: inspect it before any replacement.
-- Calendar counts come from SQLite; `custom_schedule.events` is a compatibility
-  key, not a Markdown event count. Set `CALENDAR_DB_PATH` for both state and
+- Calendar counts come from SQLite. Set `CALENDAR_DB_PATH` for both state and
   calendar commands when using a non-default database.
 
 ## Focused verification
 
 ```bash
 python -m unittest discover -s tests -p 'test_state.py' -v
-python tests/benchmark_state_news.py
+python tests/benchmarks/state_news.py
 ```
 
 The synthetic 120-day fixture returns seven of 119 missed days with the full

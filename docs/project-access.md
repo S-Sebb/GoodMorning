@@ -120,6 +120,8 @@ because the model thinks it would help.
   Failures never become empty task/process lists.
 - Full document reads cap at 512 KiB; larger logs need `--tail`. Listings stop
   above 100,000 visible entries. Responses/configuration have hard size caps.
+- Relay peers must support frame batching and flow control; missing capabilities
+  are rejected before requests. No older-peer fallback is supported.
 - The relay source is pinned, not a stable public SDK. Before upgrading it,
   review the source pin, license, and hashes in the vendor manifest; run regression
   tests and live compatibility checks. Remote hosts must keep OpenChamber and

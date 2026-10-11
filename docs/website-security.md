@@ -1,0 +1,133 @@
+# Website security and account operations
+
+The public website adds a security boundary to the local viewer; it is not an
+OpenChamber UI proxy. It permits login, current-password changes, logout and
+account-owned briefing viewing/generation/questions and the four secretary chat
+modes. No web registration, account
+creation, username edit, forgotten-password shortcut or arbitrary agent API exists.
+
+The explicit `gm`, `gn`, and optional `sec` hosts share accounts, not login cookies.
+The secretary host opens `/chat`; briefing hosts open their matching edition.
+Incomplete profiles see an initialization link instead of a generation button,
+even before a timezone exists. `/chat?mode=initialize` selects a new Initialize
+draft without dispatching a model or resetting records. Direct generation also
+refuses incomplete setup. Explicit host/origin allowlists and TLS certificates
+must include all configured hosts; never use wildcard origin/cookie permissions.
+
+## Encryption and trust
+
+Use gocryptfs for encrypted filenames and authenticated content encryption, not
+custom cryptography. Keep account SQLite/session/rate counters in a root-only
+encrypted `accounts` volume. Give each immutable account ID a separate encrypted
+volume and Linux UID. Its secretary records, caches, temporary inputs, agent HOME,
+OpenCode database/WAL/transcripts, OpenChamber state/logs and runtime files all
+belong there. Readable mounts are 0700; unmounted fallback directories are root-only
+and empty. Never put personal data in the shared read-only source/engine package.
+Production account operations fail closed when the encrypted mount is absent.
+
+SSH administrators are trusted. Mount keys stay root-readable (0600), separately
+from ciphertext. This protects ciphertext copies/backups, not a compromised root
+server holding its keys. Back up ciphertext and recovery keys separately; test
+restoration privately. Do not claim encryption hides live data from administrators
+or from an AI provider processing the request. Legacy trial originals are retained
+where they already were; this does not retroactively encrypt or delete them.
+
+Use HTTPS/TLS 1.2+ publicly. The gateway listens only on a root:www-data Unix
+socket; NGINX overwrites trusted host/proxy/IP headers. Backends remain loopback-only
+and require an independent random gateway key and allowlisted HTTPS origin.
+Each agent has its own authenticated OpenChamber/OpenCode runtime. Never reuse a
+shared agent UID/HOME/database across accounts or expose its UI/API publicly.
+`scripts/goodmorning.py runtime` launches per-account engines and renews only rejected/expired
+bridge authentication, not uncertain model requests. Shared installed binaries are
+read-only bind mounts, with a reader-group ACL on public libraries only. No extra
+engine downloads or library copies per account. The example engine service points
+to this host's installation; adapt and verify paths on another host.
+
+The gateway reserves one agent request globally before dispatch, shared by chat
+and briefing generation. Other users can browse normally but must retry agent
+requests after the active session finishes. Waiting questions retain the
+reservation is encrypted and survives restarts; unknown dispatches stay blocked
+for SSH reconciliation rather than launching duplicates. This is a bounded
+single-agent pilot, not a tested multi-agent load capacity claim.
+
+Disable access/body logs and disk proxy buffering. Private responses/media use
+`no-store`; only public fingerprinted assets cache durably. Credentials never enter
+URLs, browser storage, command arguments or report output. Services use no core
+dumps and `MemorySwapMax=0` on cgroup v2: otherwise decrypted memory may enter
+unencrypted swap. Apply the same controls to per-account engines and NGINX workers.
+Existing host swap is not reformatted or disabled by this deployment.
+
+## Accounts
+
+Passwords use scrypt N=131072, r=8, p=1 and independent salts (128 MiB per check).
+New temporary and permanent passwords require 6–32 characters inclusive, at least
+one letter and one digit; symbols are optional and no uppercase is required.
+Unicode letters/digits are supported; length counts Unicode characters rather
+than UTF-16 units. This shorter minimum is an explicit owner preference; longer
+passwords remain safer. Existing passwords continue to authenticate and can be
+replaced without forcing a reset or losing records.
+Persistent account/IP attempt limits precede checks. Session cookies are random,
+host-only `__Host-` cookies with Secure, HttpOnly and SameSite=Strict. The database
+stores token hashes, not cookies. Ordinary sessions expire after 30 minutes idle
+or 12 hours absolute. The unchecked-by-default remember option lasts at most 60
+days without idle expiry; it remembers a revocable login token, never password
+text. Current-password replacement preserves that choice while revoking all old
+tokens. SSH resets/admin changes also revoke tokens; logout revokes the current
+token. Login rotates the
+anonymous cookie. Every mutation also requires the exact HTTPS Origin and the
+authenticated session's CSRF token. CSP blocks external scripts and framing.
+
+The same account logs into gm and gn independently; no parent-domain cookie is
+shared with unrelated sibling services. Temporary passwords can access only the
+password-change page until replaced. Forgotten passwords require SSH recovery.
+
+```sh
+sudo python3 /opt/goodmorning/current/scripts/goodmorning.py admin \
+  --account-mount /srv/goodmorning/live/accounts create USERNAME
+sudo python3 /opt/goodmorning/current/scripts/goodmorning.py admin \
+  --account-mount /srv/goodmorning/live/accounts reset USERNAME
+sudo python3 /opt/goodmorning/current/scripts/goodmorning.py admin \
+  --account-mount /srv/goodmorning/live/accounts rename USERNAME --new-name NEWNAME
+```
+
+These read temporary passwords interactively with getpass, never through chat,
+argv or environment dumps. `list`, `disable` and `enable` are SSH-only too. Names
+are normalized ASCII, 3–40 characters; storage uses the immutable random ID, so
+rename/reset never moves or loses records. New accounts are not connected to any
+existing user's data: provision a new encrypted volume/UID and isolated backend.
+
+If login rejects an SSH-set password, use the SSH-only `check USERNAME` action with
+the same flags. It reads a hidden password and reports only whether it matches the
+saved hash, without changing the password, issuing a session or clearing rate limits.
+Never send the password in chat or add a public password-check route.
+
+## Provisioning and validation
+
+`python scripts/goodmorning.py vault --root /srv/goodmorning init accounts` initializes the auth
+volume without printing keys. Start `goodmorning-vault@accounts.service`, create
+an account, then `init ACCOUNT_ID` and `user ACCOUNT_ID`. Do not rerun init over
+existing paths. `deploy/` contains reviewed NGINX and gateway/vault service templates;
+install only after checking the host's existing paths and configuration.
+Install the included Certbot deploy hook for renewal-time NGINX reloads; issuing
+a certificate alone does not make running workers reload renewed files.
+
+The encrypted `backends.json` registry maps account IDs only to `{port,key}`. Ports
+must be independent loopback backends. Provision the backend key privately inside
+the account volume and pass `python scripts/goodmorning.py serve --gateway-key-file KEY
+--public-origin https://gm.love765.me --public-origin https://gn.love765.me`.
+Run the backend as that account's Linux UID, never root. NGINX cannot choose a
+backend from query strings/usernames. The gateway does not forward browser cookies
+or credentials upstream; it substitutes session-owned CSRF for the reader.
+
+Per-account services bind encrypted temporary directories over both `/tmp` and
+`/var/tmp` in their private mount namespaces. Setting `TMPDIR` alone cannot protect
+libraries that hard-code either path. Engine and viewer share only their own
+account's temporary directory; the host and other users retain separate views.
+
+Unit tests use synthetic accounts with explicitly reduced test-only password cost.
+Production refuses that reduction and unencrypted storage. Before release test:
+three distinct accounts; cross-account file/job/API denial; password recovery and
+session revocation; encrypted unmount/remount; reboot/service recovery; actual
+public-domain generation and mobile rendering. Passing unit tests alone is not a
+security audit or proof of production readiness. Physical devices, third-party
+penetration testing, key rotation and disaster recovery remain deployment work.

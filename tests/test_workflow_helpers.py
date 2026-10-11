@@ -13,16 +13,15 @@ from unittest.mock import patch
 
 from support import TEMP_ROOT
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / "scripts"))
-import daily
-import workflow
-import news
-from news_editorial import candidates, seal
-from news_views import report_view
-from news_reports import ReportStore, context_key
-from inbox_store import initialize, InboxStore
-from runtime_files import secretary_path, cache_path, calendar_path
-from calendar_store import CalendarStore
+sys.path.insert(0, str(ROOT / "src"))
+from goodmorning.records import daily, workflow
+from goodmorning.news import news
+from goodmorning.news.news_editorial import candidates, seal
+from goodmorning.news.news_views import report_view
+from goodmorning.news.news_reports import ReportStore, context_key
+from goodmorning.records.inbox_store import initialize, InboxStore
+from goodmorning.runtime_files import secretary_path, cache_path, calendar_path
+from goodmorning.calendar.calendar_store import CalendarStore
 
 DAY = "2026-10-10"
 
@@ -111,6 +110,17 @@ class HelpersTests(unittest.TestCase):
         self.assertEqual(result["missing_fields"][0], "secretary_language")
         self.assertFalse(missing.exists())
 
+    def test_native_duplicate_uses_json_pointer_without_history_or_content_reads(self):
+        self.file(f'# {DAY}\n- gm: yes (session ses-original) | answer: daily/{DAY}.gm.json\n')
+        payload = {'v': 1, 'greeting': 'Hello.', 'opening': 'Saved once.', 'sections': [['notes', [['p', 'Preserved.']]]]}
+        (self.root / 'daily' / f'{DAY}.gm.json').write_text(json.dumps(payload))
+        with patch.object(workflow, 'daily_show', side_effect=AssertionError('task read')), \
+             patch.object(workflow, 'rebuild_index', side_effect=AssertionError('history read')):
+            result = workflow.prepare(self.root, 'gm', DAY)
+        self.assertTrue(result['duplicate'])
+        self.assertEqual(result['answer_file'], f'daily/{DAY}.gm.json')
+        self.assertEqual(result['original_session'], 'ses-original')
+
     def test_non_english_title_is_not_guessed(self):
         profile = self.root / "profile.md"
         profile.write_text(profile.read_text().replace('"English"', '"Chinese"'))
@@ -124,7 +134,7 @@ class HelpersTests(unittest.TestCase):
         self.assertIn("calendar_configuration", result)
 
     def test_prepare_does_not_read_snapshot_bodies_or_scan_unrelated_project_records(self):
-        import state
+        from goodmorning.records import state
         self.file(f"# {DAY}\n- gm: no\n")
         with patch.object(state, "stat_answer", side_effect=AssertionError("snapshot body")), \
              patch.object(state, "scan_projects", side_effect=AssertionError("unrelated project")), \
@@ -215,7 +225,7 @@ class HelpersTests(unittest.TestCase):
 
 class NewsViewTests(unittest.TestCase):
     def report(self):
-        stories = [{"date": "2026-10-09", "section": section, "title": "Important event", "summary": "Evidence and uncertainty.",
+        stories = [{"date": "2026-10-09", "section": section, "title": "Important AI event" if section == 'ai' else "Important event", "summary": "Evidence and uncertainty.",
                     "links": [{"source": "Synthetic", "url": "https://example.invalid/" + section}]} for section in ("ai", "major", "national")]
         pool = candidates(stories * 1)
         payload = seal({"date": "2026-10-09", "country": "GB", "timezone": "UTC", "counts": {"ai": 1, "major": 1, "national": 1},

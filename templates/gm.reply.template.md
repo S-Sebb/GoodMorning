@@ -14,14 +14,19 @@ not non-critical disclaimers or process narration. Keep routine diagnostics,
 historical backlog and empty-queue bookkeeping internal. Mention only limitations
 that affect plans, safety, requested information or a needed decision.
 
-Read `docs/reply-voice.md`. Keep the agreed personality within useful section
-content, optional section takeaways and a warm closing. No extra framing introduction
+Read `docs/reply-voice.md`. Keep agreed personality within useful section
+content and a warm closing. No extra framing introduction
 or standalone transitions. Use
-clear Markdown headings, horizontal rules between sections, and bullets/tables
-where useful. Reserve bold for the most important facts or urgent warnings—not
-headings, routine labels or every news item. There is no arbitrary length target.
+typed native sections and blocks per `docs/briefing-format.md` and
+`docs/browser-generation.md`. The browser owns headings, separators and typography.
+There is no arbitrary length target. Never create Markdown snapshots or image cards.
 
-- Open with a short greeting and selected local date only; go directly to Weather.
+- Open with a short, freshly AI-written greeting and selected local date; go
+  directly to Weather. Do not scan old greetings to enforce uniqueness.
+  Author the native browser document per `docs/browser-generation.md`, with its
+  opening and useful section takeaways included in that document.
+  Include Nice-to-do commentary when that section exists. Never show internal
+  inbox/task/session identifiers; use meaningful descriptions instead.
 - Weather must have clearly separated parts in this order: temperature,
   precipitation forecast/advice, extreme-weather warning only if applicable,
   AQI/health level. Prefer labeled bullets or subheadings, not a mixed paragraph.
@@ -63,51 +68,10 @@ headings, routine labels or every news item. There is no arbitrary length target
   unrequested older-news availability. Omit empty/non-actionable sections; do not
   hide a material gap in requested information.
 - Retain this layout hierarchy; optional sections may be omitted when empty or
-  irrelevant. Optionally add one or two sentences after a section's list/table:
-  a grounded takeaway, useful synthesis or gentle personality—not a repeated list
-  or disclaimer. News takeaways are neutral and separate from source summaries.
-  End with a short personal paragraph tied to a real priority or next step, with
+  irrelevant. Useful section takeaways are optional. End with a short personal
+  paragraph tied to a real priority or next step, with
   the agreed warmth and light playfulness. Neither summaries nor closing are
   mandatory when they add nothing. No long pep talk or invented feelings. Include
   a horizontal rule between sections, but no trailing empty section or rule.
-
-```markdown
-{greeting} — {date}
-
----
-
-## Weather
-{weather}
-
----
-
-## News — {news_date}
-### AI
-{news_ai}
-### World
-{news_world}
-### National — {news_country}
-{news_national}
-
----
-
-## Schedule
-{schedule}
-
----
-
-## Must-do
-{must_do}
-
----
-
-## Nice-to-do
-{nice_to_do}
-
----
-
-## Reminders
-{reminders}
-
-{closing}
-```
+- Browser delivery: return the saved edition's link. Do not repeat its section
+  bodies in chat, attach image cards, or export a second Markdown copy.

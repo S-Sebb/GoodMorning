@@ -24,7 +24,7 @@ class DeploymentTests(unittest.TestCase):
             skill.mkdir(parents=True)
             shutil.copy2(ROOT / 'skill-source/goodmorning.md', skill / 'SKILL.md')
             shutil.copy2(ROOT / 'config.example.md', skill / 'config.example.md')
-            for name in ('scripts', 'docs', 'templates'):
+            for name in ('scripts', 'src', 'assets', 'integrations', 'vendor', 'requirements', 'docs', 'templates'):
                 shutil.copytree(ROOT / name, skill / name,
                                 ignore=shutil.ignore_patterns('__pycache__', '*.pyc'))
             text = (skill / 'SKILL.md').read_text()
@@ -32,8 +32,10 @@ class DeploymentTests(unittest.TestCase):
             self.assertNotIn('../', text)
             for reference in re.findall(r'`((?:docs|templates)/[^`]+\.md)`', text):
                 self.assertTrue((skill / reference).is_file(), reference)
-            for helper in ('state.py', 'inbox.py', 'workflow.py', 'daily.py', 'news.py', 'weather.py', 'secretary_calendar.py', 'setup_check.py'):
-                result = subprocess.run([sys.executable, '-B', str(skill / 'scripts' / helper), '--help'],
+            sys.path.insert(0, str(ROOT / 'src'))
+            from goodmorning.cli import COMMANDS
+            for helper in COMMANDS:
+                result = subprocess.run([sys.executable, '-B', str(skill / 'scripts/goodmorning.py'), helper, '--help'],
                                         cwd=home, capture_output=True, text=True, timeout=20)
                 self.assertEqual(result.returncode, 0, result.stderr)
             self.assertEqual(list(skill.rglob('SKILL.md')), [skill / 'SKILL.md'])
@@ -47,12 +49,13 @@ class DeploymentTests(unittest.TestCase):
             self.assertFalse((ROOT / 'scripts' / name).exists())
 
     def test_runtime_python_sources_parse_with_supported_grammar(self):
-        for path in (ROOT / 'scripts').glob('*.py'):
+        paths = [*(ROOT / 'src').rglob('*.py'), *(ROOT / 'scripts').glob('*.py'), *(ROOT / 'integrations').rglob('*.py')]
+        for path in paths:
             with self.subTest(path=path.name):
                 ast.parse(path.read_text(), filename=str(path), feature_version=(3, 9))
 
     def test_bundled_vendor_hashes_and_license_are_intact(self):
-        directory = ROOT / 'scripts/vendor/openchamber-relay'
+        directory = ROOT / 'vendor/openchamber-relay'
         manifest = json.loads((directory / 'manifest.json').read_text())
         for name, expected in manifest['sha256'].items():
             self.assertEqual(hashlib.sha256((directory / name).read_bytes()).hexdigest(), expected)

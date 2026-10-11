@@ -14,10 +14,10 @@ import unittest
 from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / "scripts"))
-import setup_check
-import secretary_calendar as calendar
-import news
+sys.path.insert(0, str(ROOT / "src"))
+from goodmorning import setup_check
+from goodmorning.calendar import secretary_calendar as calendar
+from goodmorning.news import news
 
 
 class InitializationTests(unittest.TestCase):
@@ -35,7 +35,7 @@ class InitializationTests(unittest.TestCase):
         self.assertEqual(json.loads(out.getvalue())["missing_fields"], ["secretary_language", "city", "timezone", "news_country"])
 
     def test_ready_profile_does_not_require_optional_context_or_integrations(self):
-        (self.root / "profile.md").write_text("city: London, GB\ntimezone: Europe/London\nnews_country: GB\nnews_additional_countries: CN, GB\n")
+        (self.root / "profile.md").write_text("secretary_language: English\ncity: London, GB\ntimezone: Europe/London\nnews_country: GB\nnews_additional_countries: CN, GB\n")
         out = io.StringIO()
         with contextlib.redirect_stdout(out):
             self.assertEqual(setup_check.main(["--secretary-dir", str(self.root)]), 0)
@@ -43,7 +43,7 @@ class InitializationTests(unittest.TestCase):
         self.assertEqual(data["countries"], ["GB", "CN"])
         self.assertEqual(data["checks"], {})
         self.assertFalse(data["verification_complete"])
-        self.assertEqual(data["language_status"], "legacy_unset")
+        self.assertEqual(data["language_status"], "confirmed")
         self.assertEqual(list(self.root.iterdir()), [self.root / "profile.md"])
 
     def test_parallel_checks_share_hard_elapsed_deadline(self):
@@ -74,7 +74,7 @@ class InitializationTests(unittest.TestCase):
         self.assertEqual(data["countries"], ["GB"])
 
     def test_optional_configuration_failures_preserve_valid_profile_and_do_not_fetch(self):
-        (self.root / "profile.md").write_text("city: London, GB\ntimezone: Europe/London\nnews_country: XX\n")
+        (self.root / "profile.md").write_text("secretary_language: English\ncity: London, GB\ntimezone: Europe/London\nnews_country: XX\n")
         (self.root / "calendar.config.json").write_text("not JSON")
         out = io.StringIO()
         with patch.object(setup_check.subprocess, "Popen", side_effect=AssertionError("network")), contextlib.redirect_stdout(out):

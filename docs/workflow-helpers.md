@@ -7,9 +7,9 @@ decide task completion, approve imports, select news or claim delivery.
 ## Prepare once
 
 ```bash
-python scripts/workflow.py --secretary-dir RUNTIME --cache-dir CACHE --prepare gm
-python scripts/workflow.py --secretary-dir RUNTIME --prepare gn --today YYYY-MM-DD
-python scripts/workflow.py --secretary-dir RUNTIME --prepare secretary
+python scripts/goodmorning.py workflow --secretary-dir RUNTIME --cache-dir CACHE --prepare gm
+python scripts/goodmorning.py workflow --secretary-dir RUNTIME --prepare gn --today YYYY-MM-DD
+python scripts/goodmorning.py workflow --secretary-dir RUNTIME --prepare secretary
 ```
 
 This returns relevant confirmed preferences, local date/adjacent dates, resolved
@@ -29,7 +29,7 @@ do not rename a duplicate briefing. The helper does not touch session services.
 ## Save-first capture in one command
 
 ```bash
-python scripts/workflow.py --secretary-dir RUNTIME --capture todo --session SESSION \
+python scripts/goodmorning.py workflow --secretary-dir RUNTIME --capture todo --session SESSION \
   --request-key STABLE_KEY --input-stdin
 ```
 
@@ -46,9 +46,9 @@ Follow-ups/organization/completion use `docs/inbox-pipeline.md`.
 ## Daily records without full-file rewrites
 
 ```bash
-python scripts/daily.py --secretary-dir RUNTIME --date DATE --show
-python scripts/daily.py --secretary-dir RUNTIME --date DATE --show --section feedback
-python scripts/daily.py --secretary-dir RUNTIME --date DATE --amend --expect SHA256 --input-stdin
+python scripts/goodmorning.py daily --secretary-dir RUNTIME --date DATE --show
+python scripts/goodmorning.py daily --secretary-dir RUNTIME --date DATE --show --section feedback
+python scripts/goodmorning.py daily --secretary-dir RUNTIME --date DATE --amend --expect SHA256 --input-stdin
 ```
 
 `--show` returns the whole record's hash (`missing` when absent), current task IDs,
@@ -82,13 +82,13 @@ Amendment JSON example:
   A conflict requires a focused reread/reconciliation. Repeat exact amendments
   with a fresh hash after verifying an uncertain outcome; dedup makes them no-ops.
 - After daily amendments, mark gm/gn using the exact answer file/stdin through
-  `state.py`. Do not mark a waiting `/gn`, acknowledge news, or alter snapshots
+  `scripts/goodmorning.py state`. Do not mark a waiting `/gn`, acknowledge news, or alter snapshots
   during a normal amendment. Index reads/marking already rescan current records;
   do not run a redundant `--rebuild` after every edit.
 
 ## News and calendar reads
 
-`news.py --show DATE --view candidates --limit 10 --offset N` returns complete
+`python scripts/goodmorning.py news --show DATE --view candidates --limit 10 --offset N` returns complete
 candidate records and a `next_offset`, preserving IDs and current report ID. Read
 all pages needed for editorial judgment; pagination is not permission to ignore
 evidence. `--view stories` returns every selected story, source/summary/date,

@@ -14,8 +14,8 @@ import unittest
 from unittest.mock import patch
 import urllib.error
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
-import weather as w
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
+from goodmorning import weather as w
 
 NOW = datetime(2026, 10, 9, 9, tzinfo=timezone.utc).timestamp()
 
@@ -41,6 +41,16 @@ def station():
 
 
 class WeatherTests(unittest.TestCase):
+    def test_runtime_flag_selects_profile_and_private_cache(self):
+        runtime=Path(self.tmp.name)/'runtime';runtime.mkdir()
+        (runtime/'profile.md').write_text('city: London, GB\n')
+        output=io.StringIO()
+        with patch.object(w,'http_get_json',side_effect=self.provider),contextlib.redirect_stdout(output):
+            self.assertEqual(w.main(['--secretary-dir',str(runtime),'--json']),0)
+        self.assertEqual(json.loads(output.getvalue())['city'],'London')
+        self.assertEqual(json.loads(output.getvalue())['country'],'GB')
+        self.assertTrue(list((runtime/'cache/weather').glob('*.json')))
+
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory(dir=TEMP_ROOT)
         self.addCleanup(self.tmp.cleanup)

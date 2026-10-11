@@ -1,0 +1,2 @@
+# Optional browser renderer only. Existing secretary helpers remain standard-library.
+Pillow>=10,<13

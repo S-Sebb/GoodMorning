@@ -1,0 +1,121 @@
+// Shared question widgets. Agent text is always text, never executable markup.
+function secretaryElement(tag, text = '', className = '') {
+  const node = document.createElement(tag);
+  node.textContent = text;
+  if (className) node.className = className;
+  return node;
+}
+
+function secretaryQuestion(info, send, refreshed) {
+  const make = secretaryElement;
+  const form = make('form', '', 'agent-form');
+  form.append(make('h2', info.title || 'A question for you'));
+  const controls = new Map();
+  let unsupported = false;
+  for (const field of info.fields) {
+    const group = make('fieldset');
+    group.append(make('legend', field.title || 'Your answer'));
+    if (field.description) group.append(make('p', field.description));
+    const inputs = [];
+    let custom;
+    if (field.options) {
+      const single = field.type !== 'multiselect' || field.maxItems === 1;
+      for (const option of field.options) {
+        const label = make('label', '', 'answer-option');
+        const input = make('input');
+        input.type = single ? 'radio' : 'checkbox';
+        input.name = field.key; input.value = option.value;
+        input.checked = Array.isArray(field.default) ? field.default.includes(option.value) : field.default === option.value;
+        label.append(input, make('span', option.label));
+        if (option.description) label.append(make('small', option.description));
+        group.append(label); inputs.push(input);
+      }
+      if (field.custom) {
+        custom = make('input'); custom.type = 'text'; custom.placeholder = 'Or write your own answer';
+        custom.setAttribute('aria-label', 'Your own answer'); group.append(custom);
+        custom.addEventListener('input', () => { if (custom.value && single) inputs.forEach(input => { input.checked = false; }); });
+        inputs.forEach(input => input.addEventListener('change', () => { if (input.checked && single) custom.value = ''; }));
+      }
+    } else if (['string', 'number', 'integer', 'boolean'].includes(field.type)) {
+      const input = make(field.type === 'string' && !field.format ? 'textarea' : 'input');
+      if (input.tagName === 'INPUT') input.type = field.type === 'boolean' ? 'checkbox' : ['number','integer'].includes(field.type) ? 'number' : field.format === 'date' ? 'date' : 'text';
+      if (field.type === 'integer') input.step = '1';
+      if (field.type === 'boolean') input.checked = field.default === true;
+      else input.value = field.default ?? '';
+      input.setAttribute('aria-label', field.title || 'Your answer');
+      input.required = field.required && field.type !== 'boolean';
+      for (const key of ['placeholder','minLength','maxLength']) if (field[key] !== undefined) input[key] = field[key];
+      if (Number.isFinite(field.minimum)) input.min = field.minimum;
+      if (Number.isFinite(field.maximum)) input.max = field.maximum;
+      group.append(input); inputs.push(input);
+    } else {
+      group.append(make('p', 'This question needs administrator help in OpenChamber. Your answers remain unchanged.'));
+      unsupported = true;
+    }
+    controls.set(field.key, { field, group, inputs, custom });
+    form.append(group);
+  }
+  function value({ field, inputs, custom }) {
+    if (field.options) {
+      const selected = inputs.filter(input => input.checked).map(input => input.value);
+      if (custom?.value.trim()) selected.push(custom.value.trim());
+      return field.type === 'multiselect' ? selected : selected[0] ?? '';
+    }
+    if (field.type === 'boolean') return inputs[0].checked;
+    if (field.type === 'number' || field.type === 'integer') return inputs[0].value === '' ? undefined : Number(inputs[0].value);
+    return inputs[0]?.value;
+  }
+  function visibility() {
+    for (const control of controls.values()) {
+      control.group.hidden = control.field.hidden === true || (control.field.when || []).some(condition => {
+        const other = controls.get(condition.key);
+        const equal = other && value(other) === condition.value;
+        return condition.op === 'eq' ? !equal : equal;
+      });
+      control.inputs.forEach(input => { input.disabled = control.group.hidden; });
+      if (control.custom) control.custom.disabled = control.group.hidden;
+    }
+  }
+  form.addEventListener('input', visibility); visibility();
+  const submit = make('button', 'Send answer'); submit.type = 'submit'; submit.disabled = unsupported;
+  const feedback = make('p'); feedback.setAttribute('role', 'alert');
+  form.append(submit, feedback);
+  form.addEventListener('submit', async event => {
+    event.preventDefault();
+    const answer = {};
+    for (const [key, control] of controls) {
+      if (control.group.hidden) continue;
+      const result = value(control);
+      if (control.field.type === 'multiselect') {
+        const min = control.field.minItems ?? (control.field.required ? 1 : 0);
+        const max = control.field.maxItems ?? Infinity;
+        if (result.length < min || result.length > max) { feedback.textContent = `Please select between ${min} and ${max === Infinity ? 'all available' : max} answers.`; return; }
+      }
+      if (control.field.required && (result === '' || result === undefined)) { feedback.textContent = 'Please answer the required questions.'; return; }
+      if (result !== undefined) answer[key] = result;
+    }
+    submit.disabled = true;
+    try { await send('form', info.id, { answer }); form.remove(); refreshed(); }
+    catch (error) { feedback.textContent = error.message; submit.disabled = false; }
+  });
+  return form;
+}
+
+function secretaryPermission(info, send, refreshed) {
+  const make = secretaryElement;
+  const form = make('section', '', 'agent-form');
+  form.append(make('h2', 'Permission needed'), make('p', info.action));
+  for (const resource of info.resources) form.append(make('pre', resource));
+  const feedback = make('p'); feedback.setAttribute('role', 'alert');
+  for (const [decision, text] of [['once','Allow once'], ['reject','Decline']]) {
+    const button = make('button', text); button.type = 'button';
+    button.addEventListener('click', async () => {
+      form.querySelectorAll('button').forEach(item => { item.disabled = true; });
+      try { await send('permission', info.id, { decision }); form.remove(); refreshed(); }
+      catch (error) { feedback.textContent = error.message; form.querySelectorAll('button').forEach(item => { item.disabled = false; }); }
+    });
+    form.append(button);
+  }
+  form.append(feedback);
+  return form;
+}

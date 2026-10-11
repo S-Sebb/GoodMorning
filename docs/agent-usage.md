@@ -22,8 +22,8 @@ authorize code development. Event import is a separate follow-up.
 
 - Ask `secretary_language` first during new setup, before other preferences, then
   use the explicit choice for all replies, OpenChamber conversation titles, and
-  interactive questions. News language and country remain independent. Older
-  profiles do not require reinitialization.
+   interactive questions. News language and country remain independent. Confirm
+   missing required settings without resetting an existing profile.
 
 - Prefer the session's interactive `question` tool (OpenChamber question UI) for
   setup, clarification, progress choices, and confirmations. Use relevant options,
@@ -35,7 +35,7 @@ authorize code development. Event import is a separate follow-up.
   `templates/profile.template.md`. Do not overwrite existing user-local files.
 - Invite optional current-role and expertise/field context during setup. Use
   confirmed answers for relevant topics and explanations throughout the skills;
-  do not infer expertise from job titles or force older profiles to reinitialize.
+   do not infer expertise from job titles or require optional context for readiness.
 - Keep personal records outside the installed skill in the selected runtime. Never put credentials
   in records. Scripts fetch facts; the agent summarizes and asks for decisions.
 - Read compact script output and today's daily record. Open detailed guides only
@@ -62,14 +62,14 @@ authorize code development. Event import is a separate follow-up.
 
 ## `/gm`: morning briefing
 
-1. Say good morning. Run `workflow.py --prepare gm` once for local context. If today already has
+1. Say good morning. Run `python scripts/goodmorning.py workflow --prepare gm` once for local context. If today already has
    a briefing, identify its session and use the saved record; do not fetch again.
    Remind the user about missed morning/night runs, oldest first. When proceeding
    with a new briefing, rename this conversation to `GoodMorning YYYY-MM-DD`
    in `secretary_language` for the selected daily date (see `docs/skill-rules.md`).
-2. Run `weather.py` once with the saved city. Report rain yes/no/unknown,
+2. Run `scripts/goodmorning.py weather` once with the saved city. Report rain yes/no/unknown,
    umbrella/boots advice, temperature, AQI health level, source, and freshness.
-3. Run `news.py --backfill` using the confirmed profile. Read its compact
+3. Run `python scripts/goodmorning.py news --backfill` using the confirmed profile. Read its compact
    manifest, then `--show DATE` only for collected reports needing delivery.
    Separate yesterday's AI, world, and national news; preserve warnings and
    unresolved gaps. Already delivered reports need no repeat unless requested.
@@ -77,22 +77,22 @@ authorize code development. Event import is a separate follow-up.
    Never acknowledge a draft or empty/partial report. Historical windows are
    explicit (`--ending DATE`); do not loop on exhausted gaps. News ledger dates
    refer to the news day, not the morning briefing's date.
-4. Query `secretary_calendar.py --days N` for approved events. Surface pending
+4. Query `python scripts/goodmorning.py calendar --days N` for approved events. Surface pending
    reviews. Inspect relevant event details before reporting preparation needs.
 5. Read relevant project records. Build weekly tasks with priorities, confirmed
    deadlines, and estimates where supported. Pick today's must-do and nice-to-do
     tasks. Add unchecked TODOs for pending idea clarification in the reply and
     daily task list.
-6. Amend the daily record using `daily.py --amend --expect HASH`, with new tasks unchecked
+6. Amend the daily record using `python scripts/goodmorning.py daily --amend --expect HASH`, with new tasks unchecked
    and earlier completions preserved; no full-file model rewrite.
-   Save the verbatim reply using `state.py --mark-gm --session NAME
+   Save the verbatim reply using `python scripts/goodmorning.py state --mark-gm --session NAME
    --answer-file PATH` or `--answer-stdin`.
    Prefer `--json` for state commands. Saving/marking a morning reply does not
    acknowledge news delivery; these are separate operations.
 
 ## `/gn`: night summary
 
-1. Use `workflow.py --prepare gn` for duplicate/missed runs, tasks and preferences.
+1. Use `python scripts/goodmorning.py workflow --prepare gn` for duplicate/missed runs, tasks and preferences.
    When proceeding with a new summary, rename this conversation to
    `GoodNight YYYY-MM-DD` in `secretary_language` for the selected daily date.
 2. Use the returned task IDs and ask what the user completed. Mark only confirmed
@@ -103,7 +103,7 @@ authorize code development. Event import is a separate follow-up.
     and retry. Remind about tomorrow's schedule and ask focused
     questions about pending idea clarification; deferral does not block the summary.
 4. Say good night in the agreed tone, appropriate to the time. Save the daily
-   record and verbatim reply with `state.py --mark-gn --session NAME` plus an
+   record and verbatim reply with `python scripts/goodmorning.py state --mark-gn --session NAME` plus an
    answer input. Do not overwrite earlier snapshots without an explicit request.
 
 ## `/eureka`: idea capture
@@ -111,7 +111,7 @@ authorize code development. Event import is a separate follow-up.
 1. Once the raw idea is known (if none was supplied, ask first), rename this
    conversation to `Eureka SUMMARY` in `secretary_language` with a very short idea summary
    (see `docs/skill-rules.md`). Save the raw idea and any supplied details
-   with `workflow.py --capture eureka` as pending in `secretary/inbox.sqlite`; note remaining ambiguity and
+   with `python scripts/goodmorning.py workflow --capture eureka` as pending in `secretary/inbox.sqlite`; note remaining ambiguity and
     confirm it was saved, then stop. Do not research, implement, delegate, change
     project/work files, or offer calendar changes. Action verbs inside the captured
     idea are not instructions to execute it.
@@ -131,7 +131,7 @@ authorize code development. Event import is a separate follow-up.
 
 1. Rename the conversation to `Todo SUMMARY` in `secretary_language` using a very
    short summary. Save the exact TODO with the local timestamp as a pending
-   `kind: "todo"` inbox entry via `workflow.py --capture todo`; preserve multiline wording with JSON. Verify the
+   `kind: "todo"` inbox entry via `python scripts/goodmorning.py workflow --capture todo`; preserve multiline wording with JSON. Verify the
    save receipt and confirm briefly. Inbox-only changes need no state rebuild.
 2. Record only: no default clarification questions, project/deadline questions,
    planning, research, delegation, task execution, or calendar changes. Save
@@ -163,7 +163,7 @@ duplicate notes/tasks; resolve the entry only after clarification and authorized
 updates succeed. See the pending project-update workflow in `docs/skill-rules.md`.
 Use `docs/inbox-pipeline.md` for stable IDs, idempotent capture and revision-checked
 current-state updates. Save only material memory, not a conversation transcript.
-Normal reads use `workflow.py --prepare secretary`, then only relevant filtered
+Normal reads use `python scripts/goodmorning.py workflow --prepare secretary`, then only relevant filtered
 active/current IDs; raw text/history is explicit. See `docs/workflow-helpers.md`.
 When the user moves, confirm and update the profile city and region, then verify
 the weather location. National news country remains an independent choice.
@@ -186,7 +186,7 @@ file/script contracts, not a model's end-to-end judgment or client UI behavior.
 
 ```bash
 python -m unittest discover -s tests -p 'test_skills.py' -v
-python tests/benchmark_reply_templates.py
+python tests/benchmarks/reply_templates.py
 ```
 
 The synthetic fixture demonstrates natural, supportive sentences while retaining

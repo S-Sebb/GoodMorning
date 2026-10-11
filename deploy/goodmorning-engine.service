@@ -1,0 +1,17 @@
+[Unit]
+Description=Read-only shared GoodMorning engine binaries
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/bin/mount --bind /home/ubuntu/.local/lib/node_modules /opt/goodmorning/engine/node_modules
+ExecStart=/bin/mount -o remount,bind,ro /opt/goodmorning/engine/node_modules
+ExecStart=/bin/mount --bind /home/ubuntu/.local/opt/node-v24.21.0-linux-x64/bin/node /opt/goodmorning/engine/bin/node
+ExecStart=/bin/mount -o remount,bind,ro /opt/goodmorning/engine/bin/node
+ExecStop=/bin/umount /opt/goodmorning/engine/bin/node
+ExecStop=/bin/umount /opt/goodmorning/engine/node_modules
+LimitCORE=0
+MemorySwapMax=0
+
+[Install]
+WantedBy=multi-user.target

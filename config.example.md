@@ -33,14 +33,14 @@ After confirming setup answers and file formats with the user:
 2. Create `secretary/projects/` and `secretary/daily/`. Copy
    `templates/project.template.md` for each confirmed project.
 3. Initialize `secretary/inbox.sqlite` with
-   `python scripts/inbox.py --secretary-dir RUNTIME --init` after storage consent.
+   `python scripts/goodmorning.py inbox --secretary-dir RUNTIME --init` after storage consent.
    Capture exact actionable user input with `--add`; query current state through
    stable IDs and bounded pages, not a transcript. See `docs/inbox-pipeline.md`.
    Existing Markdown inboxes need explicit migration authorization; never overwrite
    them. Use `confirmed` only after authorized organization and `done` only on
    user-confirmed TODO completion. Do not put credentials in records.
 4. Initialize `secretary/calendar.sqlite` with the calendar command below.
-   Run `python scripts/state.py --rebuild` to derive `secretary/state.json`.
+   Run `python scripts/goodmorning.py state --rebuild` to derive `secretary/state.json`.
 5. Use `templates/daily.template.md` as the daily format reference when a
    briefing runs. Do not pre-mark greetings or summaries as completed.
 
@@ -52,13 +52,13 @@ Do not create the legacy `custom_schedule.md` for a new calendar.
 Local preflight (no fetching or writes):
 
 ```bash
-python scripts/setup_check.py --secretary-dir secretary
+python scripts/goodmorning.py setup --secretary-dir secretary
 ```
 
 After consent for the listed checks only:
 
 ```bash
-python scripts/setup_check.py --secretary-dir secretary --verify weather news projects calendar --budget 20
+python scripts/goodmorning.py setup --secretary-dir secretary --verify weather news projects calendar --budget 20
 ```
 
 Checks run in parallel with a shared 20-second elapsed budget. Select a subset
@@ -68,7 +68,7 @@ imports, profile changes or calendar initialization occur in this check command.
 
 ## Weather
 
-`python scripts/weather.py` reads city from `secretary/profile.md`.
+`python scripts/goodmorning.py weather` reads city from `secretary/profile.md`.
 Use `--profile PATH` for another profile. City precedence is `--city`,
 `GM_CITY`, `CITY`, then the profile. For verified coordinates, use
 `--lat LAT --lon LON`. Weather and model AQI require no key.
@@ -95,9 +95,9 @@ dates from a new social submission or label every recent headline â€œbreaking.â€
 For agent-managed collection and explicit delivery tracking:
 
 ```bash
-python scripts/news.py --backfill
-python scripts/news.py --show YYYY-MM-DD
-python scripts/news.py --ack YYYY-MM-DD --expect REPORT_ID --session NAME
+python scripts/goodmorning.py news --backfill
+python scripts/goodmorning.py news --show YYYY-MM-DD
+python scripts/goodmorning.py news --ack YYYY-MM-DD --expect REPORT_ID --session NAME
 ```
 
 These commands read the confirmed profile timezone, country, and optional news
@@ -110,7 +110,7 @@ the first authorized backfill creates the report store.
 For stateless retrieval, pass confirmed profile values explicitly:
 
 ```bash
-python scripts/news.py --timezone "$TIMEZONE" --country "$NEWS_COUNTRY"
+python scripts/goodmorning.py news --timezone "$TIMEZONE" --country "$NEWS_COUNTRY"
 ```
 
 Set these shell variables from confirmed values before running the example;
@@ -141,7 +141,7 @@ confirmed IANA timezone before initializing:
 ```
 
 ```bash
-python scripts/secretary_calendar.py --config secretary/calendar.config.json --init
+python scripts/goodmorning.py calendar --config secretary/calendar.config.json --init
 ```
 
 Calendar precedence is CLI flags, environment, JSON config, then defaults.

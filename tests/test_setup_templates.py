@@ -13,11 +13,11 @@ import unittest
 from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / "scripts"))
-from secretary_calendar import load_config_file, main as calendar_main
-from state import read_profile_timezone, scan_projects
-from weather import parse_profile
-from runtime_files import profile_fields
+sys.path.insert(0, str(ROOT / "src"))
+from goodmorning.calendar.secretary_calendar import load_config_file, main as calendar_main
+from goodmorning.records.state import read_profile_timezone, scan_projects
+from goodmorning.weather import parse_profile
+from goodmorning.runtime_files import profile_fields
 
 
 class SetupTemplateTests(unittest.TestCase):
@@ -71,7 +71,7 @@ class SetupTemplateTests(unittest.TestCase):
         self.assertEqual(parse_profile(path), ("", ""))
         self.assertEqual(read_profile_timezone(str(self.directory)), "")
 
-    def test_older_profile_remains_readable_without_optional_context(self):
+    def test_profile_remains_readable_without_optional_context(self):
         (self.directory / "profile.md").write_text('city: "London, GB"\nregion: "global"\ntimezone: "UTC"\n')
         fields = profile_fields(self.directory)
         self.assertNotIn("occupations", fields)

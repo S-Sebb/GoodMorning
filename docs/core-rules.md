@@ -1,43 +1,45 @@
 # Required core rules
 
-Read this compact contract and only the requested workflow. The expanded
-`docs/skill-rules.md` is a reference for audits/edge cases, not a mandatory read.
-Load specialized guides only for an operation that actually needs them.
+Read this contract and matching workflow. Use `docs/skill-rules.md` for audits/
+edge cases. Load other guides only when needed.
 
 ## Scope, setup and preparation
 
-- Run from the installed package root. Use absolute selected `SECRETARY_DIR`,
-  otherwise `~/.local/share/GoodMorning/secretary`; cache defaults to
+- `Browser chat`: read `docs/browser-chat.md`.
+- Run from the package root. Use absolute `SECRETARY_DIR`, defaulting to
+  `~/.local/share/GoodMorning/secretary`; cache defaults to
   `~/.cache/goodmorning`. Never initialize records inside the skill/checkout.
   Pass runtime/cache/profile/calendar paths explicitly. No `.env`, credentials,
   pairing-store reads or environment dumps. Keep temp inputs under the runtime.
-- `workflow.py --prepare KIND` provides confirmed relevant preferences, local
-  date/yesterday/tomorrow, selected paths and bounded context. It does not fetch,
-  initialize records, run projects, or mark briefings. Capture has its own fast
-  path below; do not run a full state check for a new idea/TODO.
+- `python scripts/goodmorning.py workflow --prepare KIND` gives confirmed preferences, dates, selected paths
+  and bounded context; no fetching, initialization, project execution or marking.
+  Capture uses its fast path below, not a full state check.
 - Missing/incomplete setup follows `docs/workflows/secretary.md`; ask reply language
   first, then missing answers in small groups. Reuse explicit answers; never infer
   language, timezone, country, tone, permissions or optional preferences. Profile
-  setup remains saved when optional providers fail; do not restart it or launch
+  setup survives optional provider failures; do not restart it or launch
   repairs. Installation is not setup/provider/storage consent.
 - `secretary_language` governs replies/questions/titles, independently of news
-  source language. For older profiles without it, use conversation language and
-  English title defaults without writing a preference. Follow explicit bilingual
+  source language. All profiles require an explicitly confirmed reply language;
+  ask only for missing required fields without resetting saved answers. Follow explicit bilingual
   or follow-message-language choices; do not infer expertise from occupation.
 - Use the current real session ID/label for `--session` and calendar `--actor`.
-  Ask if unavailable; never invent one or use another conversation's ID. Keep the
-  current session/model and do not delegate.
+   If unavailable, ask; never invent or borrow an ID. Keep the current session/model;
+   do not delegate.
 - Titles: `GoodMorning YYYY-MM-DD`, `GoodNight YYYY-MM-DD`, `Secretary SUMMARY`,
-  `Eureka SUMMARY`, `Todo SUMMARY`. Helpers produce English dates (gm/gn) and short raw summaries (eureka/todo); secretary SUMMARY is a simple agent summary, no date;
+    `Eureka SUMMARY`, `Todo SUMMARY`. Helpers supply dates/raw summaries; Secretary
+    SUMMARY is a short undated agent summary;
   translate only the prefix for confirmed other languages. Never translate raw
   summary text. Rename via the available session tool or
   `opencode api patch /api/session/$OPENCODE_SESSION_ID --data '{"title":"..."}'`.
   A rename failure is internal, non-blocking; no rename/fetch on duplicate briefings.
-- Use profile timezone. Historical gm/gn needs an explicitly chosen `--today` date;
+- Profile-local briefing days begin at 04:00 (`briefing_day.py`); timestamps stay real.
+  Historical gm/gn needs an explicitly chosen `--today` date;
   label reconstruction and never substitute today's weather. Duplicate gm/gn:
   identify original session and stop, no fetch/mark. If older runs are missing,
   ask whether to finish the oldest or continue today, once per invocation. A
-  successful snapshot save is not proof of delivery. Full replacement/`--force`
+   browser job's saved missing-edition choice replaces that question; never repeat
+   it or reconstruct past editions. Saving is not delivery. Full replacement/`--force`
   requires an explicit request; ordinary amendments keep original snapshots.
 
 ## Memory, daily records and consent
@@ -45,10 +47,10 @@ Load specialized guides only for an operation that actually needs them.
 - Save material supplied ideas, TODOs and project reports/details immediately,
   before clarification. Do not save every exchange, assistant answer or “research
   delivered” narration. Exact inputs/history remain separate from current state.
-- New raw `/todo` or `/eureka`: `workflow.py --capture todo|eureka` with JSON
+- New raw `/todo` or `/eureka`: `python scripts/goodmorning.py workflow --capture todo|eureka` with JSON
   `raw`, optional current context/project/summary/questions, actual session and
   one stable request key. Check the save receipt; no whole-profile/inbox/state read
-  or verification dump. Follow-ups: `inbox.py --append ID` before questions.
+  or verification dump. Follow-ups: `python scripts/goodmorning.py inbox --append ID` before questions.
   Reuse the same request key/input on uncertain retries; never append again with
   a new key. Missing input/setup or a failed save means not saved.
 - If a follow-up target is unclear, save unassigned pending input before asking.
@@ -74,17 +76,18 @@ Load specialized guides only for an operation that actually needs them.
   organization/execution; request those separately. Follow-ups keep this boundary.
   TODOs get no invented deadlines, forced priorities or auto-clarification.
   `done` needs user-confirmed completion, not the agent's work.
-- Use `daily.py` for hash-checked section/task amendments. New tasks are unchecked;
+- Use `scripts/goodmorning.py daily` for hash-checked amendments; new tasks stay unchecked;
   preserve earlier completions, run lines and unrelated work. Complete only exact
   IDs selected from actual user feedback; no inference from silence. Deduplication
   is by exact wording or explicit inbox ref, not semantic guesses. Agent judgment
   still supplies priorities, progress interpretation and concise factual summaries.
-  `state.py --mark-gm|--mark-gn` saves the exact final reply with actual session and
-  answer input, after daily amendments. Do not append bookkeeping to the saved reply.
+  Save gm/gn via `docs/briefing-format.md` and `scripts/goodmorning.py state`
+  with real session/input. Native JSON only. No bookkeeping in replies.
 - Prefer the interactive `question` tool for decisions, progress, ambiguity and
-  consent. Use meaningful choices, built-in custom input and multiple selection
+  consent. Ask one question at a time; await its receipt. Use meaningful choices, built-in custom
+  input and multiple selection
   only where it fits. No dummy text-field buttons. Quote exact proposed change/
-  scope, wait for explicit consent, and reuse clear prior authorization. Silence,
+  scope, await explicit consent, and reuse prior authorization. Silence,
   cancellation, dismissal or tool failure is not consent. If unavailable, ask
   normally and wait. Do not repeat answered questions or force optional choices.
 - Calendar adds/edits/cancellations require explicit date, time, timezone, title,
@@ -120,7 +123,7 @@ Load specialized guides only for an operation that actually needs them.
   closing; no forced verbosity limit. Weather order: temperature, precipitation,
   applicable extreme warning, AQI/health. Calendar is a chronological timetable.
   News is factual and cited; neutral assessment stays separate. Read the reply
-  template/voice guide for detailed briefings, not quick capture confirmations.
+  voice guide and native authoring guides for briefings; do not create text/card copies.
 - Materiality gate: omit healthy retrieval, retries/cache/delivery bookkeeping,
   empty headings/queues, generic caveats and unrequested news backlog. This is not
   a brevity filter. Preserve full metadata internally. Never hide material stale/

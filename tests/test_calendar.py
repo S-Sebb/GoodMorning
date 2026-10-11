@@ -15,10 +15,10 @@ from unittest.mock import patch
 from datetime import datetime, timezone
 from zoneinfo import ZoneInfo
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
-from calendar_store import CalendarStore, normalize, read_stats
-from secretary_calendar import custom_event, main, migrate_markdown
-from state import rebuild_index, blank_state
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
+from goodmorning.calendar.calendar_store import CalendarStore, normalize, read_stats
+from goodmorning.calendar.secretary_calendar import custom_event, main
+from goodmorning.records.state import rebuild_index, blank_state
 
 
 def event(**changes):
@@ -65,7 +65,7 @@ class StoreTests(unittest.TestCase):
         self.assertIn("Bring slides", raw["notes"])
 
     def test_redaction_is_idempotent_and_keeps_adjacent_preparation_and_public_links(self):
-        from calendar_safety import safe_text
+        from goodmorning.calendar.calendar_safety import safe_text
         text = 'Join with Passcode: "fictional secret". Bring slides. https://example.org/registration?p=2'
         redacted = safe_text(text)
         self.assertFalse("fictional secret" in redacted)
@@ -79,7 +79,7 @@ class StoreTests(unittest.TestCase):
         legacy = event(notes="Passcode: " + secret)
         self.store.con.execute("UPDATE events SET approved_json=? WHERE id=?", (json.dumps(legacy), eid))
         self.store.con.commit()
-        from calendar_store import encode
+        from goodmorning.calendar.calendar_store import encode
         self.assertFalse(secret in encode(self.store.get(eid)))
         self.assertTrue(secret in self.store.con.execute("SELECT approved_json FROM events WHERE id=?", (eid,)).fetchone()[0])
 
@@ -170,18 +170,6 @@ class StoreTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "local time"):
                 custom_event(text, tz)
 
-    def test_migration_atomic_idempotent_and_original_unchanged(self):
-        path = Path(self.tmp.name) / "custom_schedule.md"
-        original = "# Calendar\n- 2026-10-10 09:00-10:00 | Meeting | | Notes\n"
-        path.write_text(original)
-        self.assertEqual(migrate_markdown(self.store, str(path), timezone.utc, "test")["added"], 1)
-        self.assertEqual(migrate_markdown(self.store, str(path), timezone.utc, "test")["added"], 0)
-        self.assertEqual(path.read_text(), original)
-        path.write_text(original + "- 2026-10-10 11:00-12:00 | New event\nmalformed\n")
-        with self.assertRaisesRegex(ValueError, "nothing migrated"):
-            migrate_markdown(self.store, str(path), timezone.utc, "test")
-        self.assertEqual(self.store.stats()["total"], 1)
-
     def test_compact_output_pagination_and_details(self):
         for i in range(3):
             self.store.add(event(subject=f"Meeting {i}", notes="x" * 5000))
@@ -251,7 +239,7 @@ class StoreTests(unittest.TestCase):
         summary = rebuild_index(self.tmp.name, blank_state())
         self.assertEqual(summary["calendar"]["custom"], 1)
         self.assertEqual(summary["calendar"]["pending"], 1)
-        self.assertEqual(summary["custom_schedule"]["events"], 1)
+        self.assertEqual(summary["calendar"]["custom"], 1)
         self.assertEqual(read_stats(str(Path(self.tmp.name) / "absent.sqlite"))["total"], 0)
         self.assertFalse((Path(self.tmp.name) / "absent.sqlite").exists())
 

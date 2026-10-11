@@ -6,6 +6,10 @@ extra reads, retries, imports, or code changes.
 
 ## Conversation
 
+An explicit `/initialize` reviews all existing preferences in small groups. Show
+saved values and allow retaining them. Change only explicitly confirmed values;
+preserve all records, permissions and answers already given in this conversation.
+
 1. Resolve the runtime once, including its cache and temporary paths. A sandbox
    request must not read or initialize the real secretary runtime. Inspect existing
    filenames first; preserve existing data and confirm a private ignore rule if
@@ -47,23 +51,20 @@ extra reads, retries, imports, or code changes.
 
 After consent, create only missing profile, project records, runtime folders
 and agreed configuration. Initialize an empty SQLite calendar and inbox
-(`inbox.py --secretary-dir RUNTIME --init`), then rebuild state. Do not overwrite
-an existing Markdown inbox: migration is a separately authorized operation in
-`docs/inbox-pipeline.md`.
+(`inbox --secretary-dir RUNTIME --init`), then rebuild state. Do not overwrite
+unrelated private files. See `docs/inbox-pipeline.md` for the storage contract.
 Include an authorized runtime `tmp/` folder; set `TMPDIR` to its absolute path
 for calendar import commands so disposable source snapshots stay in the runtime.
 No daily tasks/completions, briefing snapshots/marks, news reports/acknowledgements,
 scheduled jobs, or external calendar events belong to this checkpoint.
 
-`python scripts/setup_check.py --secretary-dir RUNTIME` is a compact local check.
+`python scripts/goodmorning.py setup --secretary-dir RUNTIME` is a compact local check.
 It never fetches, creates files or accesses configured external projects/calendar
-caches. `profile_ready` checks minimal city/timezone/primary-news-country fields
-and the reply-language field on a new profile/template,
-not whether every preference has been discussed or providers verified. Missing
-optional context in an older profile is not a reason to restart setup.
-Older profiles without `secretary_language` remain ready when their existing core
-fields are valid; use the conversation language without persisting an invented
-preference, and offer an explicit setting when the user requests a profile update.
+caches. `profile_ready` requires city, timezone, primary news country and an
+explicitly confirmed reply language for every profile. It does not check whether
+every optional preference has been discussed or providers verified. Ask only for
+missing required settings; never reset existing answers or infer a language.
+Missing optional context is not a reason to restart setup.
 
 Save a concise setup-status record with confirmed answers, permissions and separate
 saved/verified/pending items. Provider failures leave setup **saved with verification
@@ -74,7 +75,7 @@ pending**, not “fully verified” or a reason to repeat preference collection.
 After explicit consent, select only authorized checks:
 
 ```bash
-python scripts/setup_check.py --secretary-dir RUNTIME --verify weather news projects calendar --budget 20
+python scripts/goodmorning.py setup --secretary-dir RUNTIME --verify weather news projects calendar --budget 20
 ```
 
 The checks run concurrently with a **shared 20-second elapsed budget**, including

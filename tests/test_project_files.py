@@ -9,7 +9,7 @@ from support import TEMP_ROOT
 import unittest
 
 
-HELPER = Path(__file__).resolve().parents[1] / "scripts/project_files.py"
+HELPER = Path(__file__).resolve().parents[1] / "integrations/projects/project_files.py"
 
 
 class ProjectFilesTests(unittest.TestCase):

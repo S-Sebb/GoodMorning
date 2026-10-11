@@ -12,9 +12,9 @@ import urllib.error
 from unittest.mock import patch
 from zoneinfo import ZoneInfo
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
-import news
-from news_cache import Fetcher, MAX_BYTES, NewsCache
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
+from goodmorning.news import news
+from goodmorning.news.news_cache import Fetcher, MAX_BYTES, NewsCache
 
 DAY = dt.date(2026, 10, 8)
 UTC = dt.timezone.utc
@@ -139,7 +139,7 @@ class StoryTests(unittest.TestCase):
         self.assertEqual(len(news.group_stories([a, b, c])), 3)
 
     def test_per_day_section_limits_and_diversity(self):
-        stories = [news.group_stories([article(f"Unique {i}", f"https://site{i}.com/a", section)])[0]
+        stories = [news.group_stories([article(f"OpenAI releases reasoning model {i}" if section == 'ai' else f"Government approves national budget legislation {i}", f"https://site{i}.com/a", section)])[0]
                    for section in ("ai", "major", "national") for i in range(5)]
         result = news.select_stories(stories, 2)
         self.assertEqual(len(result), 6)
@@ -311,7 +311,7 @@ class CLITests(unittest.TestCase):
 
     def test_national_and_world_are_separate(self):
         def rss(url, *args):
-            return [{"title": "National or world headline", "url": url.replace("feed", "article"),
+            return [{"title": "Government approves national budget legislation", "url": url.replace("feed", "article"),
                      "published": dt.datetime(2026, 10, 8, 12, tzinfo=UTC)}]
         feeds = [{"name": "World", "url": "https://world.com/feed", "section": "major"}]
         with patch.object(news, "fetch_rss", side_effect=rss):
@@ -324,7 +324,7 @@ class CLITests(unittest.TestCase):
 
         def rss(url, *args):
             barrier.wait(timeout=2)
-            return [{"title": "World headline", "url": url.replace("feed", "article"),
+            return [{"title": "Government approves national budget legislation", "url": url.replace("feed", "article"),
                      "published": dt.datetime(2026, 10, 8, 12, tzinfo=UTC)}]
 
         feeds = [{"name": str(i), "url": f"https://world{i}.com/feed", "section": "major"}
@@ -334,7 +334,7 @@ class CLITests(unittest.TestCase):
         self.assertEqual(code, 0)
 
     def test_default_does_not_call_gdelt(self):
-        item = {"title": "AI headline", "url": "https://example.com/a",
+        item = {"title": "OpenAI releases reasoning model", "url": "https://example.com/a",
                 "published": dt.datetime(2026, 10, 8, 12, tzinfo=UTC)}
         with patch.object(news, "fetch_hn", return_value=[item]), \
                 patch.object(news, "fetch_gdelt") as gdelt:

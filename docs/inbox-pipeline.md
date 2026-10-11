@@ -1,9 +1,9 @@
 # Inbox: durable memory, not a transcript
 
-Use `scripts/inbox.py` from the package root with absolute `--secretary-dir RUNTIME`.
+Use `scripts/goodmorning.py inbox` from the package root with absolute `--secretary-dir RUNTIME`.
 All commands return compact JSON. `inbox.sqlite` is the source of truth; never
-read it directly, dump it, or edit it with SQL. `inbox.md` is legacy input only.
-Read this guide for capture, follow-ups, organization, completion or migration.
+read it directly, dump it, or edit it with SQL. No Markdown inbox is supported.
+Read this guide for capture, follow-ups, organization or completion.
 Briefings need only the read contract below until a mutation is requested.
 
 ## What to remember
@@ -28,11 +28,11 @@ previous state remain in separately queried history, not normal context.
 ## Reads: bounded, specific, complete
 
 ```bash
-python scripts/inbox.py --secretary-dir RUNTIME --stats
-python scripts/inbox.py --secretary-dir RUNTIME --list
-python scripts/inbox.py --secretary-dir RUNTIME --list --project ALIAS --kind todo
-python scripts/inbox.py --secretary-dir RUNTIME --list --search "office chair"
-python scripts/inbox.py --secretary-dir RUNTIME --show ID
+python scripts/goodmorning.py inbox --secretary-dir RUNTIME --stats
+python scripts/goodmorning.py inbox --secretary-dir RUNTIME --list
+python scripts/goodmorning.py inbox --secretary-dir RUNTIME --list --project ALIAS --kind todo
+python scripts/goodmorning.py inbox --secretary-dir RUNTIME --list --search "office chair"
+python scripts/goodmorning.py inbox --secretary-dir RUNTIME --show ID
 ```
 
 - `--list` returns active summaries, all saved questions, revision, sizes and
@@ -53,13 +53,12 @@ python scripts/inbox.py --secretary-dir RUNTIME --show ID
   deadline, completion or lack of constraints from a summary alone.
 - When `needs_review` is true, incorporate outstanding saved inputs before relying
   on current context. `--history ID --after REVIEWED_EVENT` lists event metadata;
-  retrieve relevant `append` events with `--event NUMBER`. A migrated overflow
-  also needs its original migration event. Follow returned page offsets.
+  retrieve relevant `append` events with `--event NUMBER`. Follow returned page offsets.
 - Exact wording: `--raw ID`; audit: `--history ID`; saved event text/state:
   `--event NUMBER`. Text reads return at most 2,000 characters by default with
   `next_offset`; continue with `--offset NUMBER`. `--chars` allows 1..8,000.
-  History returns metadata, not whole event contents. Never open the legacy
-  archive merely to capture a new message.
+  History returns metadata, not whole event contents. Never open old records
+  merely to capture a new message.
 
 ## Writes: save first, return receipts only
 
@@ -75,7 +74,7 @@ key with different input fails. A replay receipt is not the entry's live revisio
 Capture has no historical read prerequisite:
 
 ```bash
-python scripts/inbox.py --secretary-dir RUNTIME --add --session NAME --request-key KEY \
+python scripts/goodmorning.py inbox --secretary-dir RUNTIME --add --session NAME --request-key KEY \
   --input-json '{"kind":"todo","raw":"Buy milk","summary":"Buy milk"}'
 ```
 
@@ -89,7 +88,7 @@ larger, explain the limit and ask how to divide it. No silent clipping of inputs
 Save each material follow-up immediately, before questions or interpretation:
 
 ```bash
-python scripts/inbox.py --secretary-dir RUNTIME --append ID --session NAME --request-key KEY \
+python scripts/goodmorning.py inbox --secretary-dir RUNTIME --append ID --session NAME --request-key KEY \
   --input-json '{"detail":"Also attach the invoice; no deadline yet."}'
 ```
 
@@ -102,7 +101,7 @@ the target, then resolve the unassigned entry with a context reference to its ID
 Reconcile only the affected current entry, preserving important known information:
 
 ```bash
-python scripts/inbox.py --secretary-dir RUNTIME --update ID --expect-revision REVISION \
+python scripts/goodmorning.py inbox --secretary-dir RUNTIME --update ID --expect-revision REVISION \
   --session NAME --request-key KEY \
   --input-json '{"context":"Buy milk and attach the invoice. No deadline confirmed.","questions":[],"reviewed":true}'
 ```
@@ -113,7 +112,7 @@ all outstanding material inputs before setting `reviewed:true`; the revision che
 prevents acknowledging a new follow-up that arrived meanwhile. Replace superseded
 context, do not append a diary. If 6,000 characters are insufficient, keep a clear
 current summary plus references to relevant history IDs; never discard key facts.
-No need to rebuild all state after each inbox change: `state.py --check` reads live
+No need to rebuild all state after each inbox change: `python scripts/goodmorning.py state --check` reads live
 counts. Rebuild after daily/project edits as those workflows require.
 
 Save receipts include `saved`, ID, revision and event ID—not previous messages.
@@ -122,20 +121,12 @@ Successful exit and receipt verify the transaction; do not reread the whole inbo
 user-confirmed completion. Pending input never authorizes plan/calendar changes.
 Only separately requested work permits executing a captured task.
 
-## Recovery and migration (only when authorized)
+## Setup and recovery (only when authorized)
 
 - New setup: `--init` creates a private empty store in an existing authorized
-  runtime. Reads and installation never initialize it. An existing Markdown inbox
-  requires explicit `--migrate --session NAME`; normal capture must not migrate it.
-- Migration preserves a byte-for-byte, owner-only `inbox.legacy-HASH.md` archive,
-  original raw wording, entry statuses/projects, attached details and full per-entry
-  legacy history. It creates the SQLite store privately, publishes it atomically,
-  then replaces `inbox.md` with an archive/helper pointer. It does not reinterpret
-  old `confirmed` items as completed TODOs or infer new permissions. Oversized
-  legacy context is flagged for review; the archive and event retain all text.
-- Repeating migration is safe for the same source/pointer. An interrupted pointer
-  replacement can resume. Changed sources, malformed entries, unknown database
-  schemas or conflicting archives are refused, never overwritten or “repaired”.
+  runtime. Reads and installation never initialize it. Unrelated text files are
+  ignored, never converted or overwritten. Preserve the user's original input
+  byte-for-byte; do not silently shorten or reinterpret it.
 - SQLite transactions keep entry/audit/receipt writes together. Concurrent writers
   return `runtime_busy`; retry later with the same key. A `write_conflict` requires
   a targeted reread and reconciliation, then a new key for the revised action.

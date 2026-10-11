@@ -11,10 +11,10 @@ from zoneinfo import ZoneInfo
 from support import TEMP_ROOT
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / 'scripts'))
-from calendar_recurrence import expand, occurrence_id
-import secretary_calendar as calendar
-from calendar_store import CalendarStore
+sys.path.insert(0, str(ROOT / 'src'))
+from goodmorning.calendar.calendar_recurrence import expand, occurrence_id
+from goodmorning.calendar import secretary_calendar as calendar
+from goodmorning.calendar.calendar_store import CalendarStore
 
 
 class RuleTests(unittest.TestCase):
