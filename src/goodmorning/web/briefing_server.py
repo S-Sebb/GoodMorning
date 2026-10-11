@@ -390,7 +390,7 @@ class BrowserApp:
             change = {'index': index, 'state': outcome}
             if section:
                 title = native.section_title(section, job['date'],document.get('lang','en'))
-                content = ''.join(native.render_block(value, images) for value in section[1])
+                content = ''.join(native.render_block(value, images, job['date']) for value in section[1])
                 if len(section) >= 3 and section[2]:
                     content += '<p class="section-takeaway">' + native.escaped(section[2]) + '</p>'
                 change.update(html=section_markup(index + 1, native.escaped(title), content, section[0]),

@@ -44,6 +44,7 @@ def main():
                     expect(password).to_have_attribute('type','password')
                     password.fill('')
                     page.locator('#website-language').select_option('zh-CN')
+                    expect(page.locator('#language-form button[type=submit]')).to_have_count(0)
                     expect(page.get_by_role('heading',name='登录',exact=True)).to_be_visible()
                     expect(page.locator('html')).to_have_attribute('lang','zh-CN')
                     expect(page.get_by_role('button',name='显示密码',exact=True)).to_be_visible()

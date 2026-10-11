@@ -72,7 +72,7 @@ def edition(document, date, kind, available, images=None, preview_plan=None, ui_
     nav, sections = [], []
     for number, section in enumerate(document['sections'], 1):
         title = visible_text(native.section_title(section, date,document.get('lang','en')))
-        content = ''.join(native.render_block(value, images or {}) for value in section[1])
+        content = ''.join(native.render_block(value, images or {}, date) for value in section[1])
         if len(section) >= 3 and section[2]:
             content += '<p class="section-takeaway">' + native.escaped(section[2]) + '</p>'
         nav.append(navigation(number, title, content, kind))

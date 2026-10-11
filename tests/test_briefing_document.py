@@ -78,6 +78,34 @@ class DocumentTests(unittest.TestCase):
         for value in ('weather-tile', 'news-card', 'agenda-event', 'task-card', 'src="briefing.js"'):
             self.assertIn(value, page)
 
+    def test_agenda_groups_make_tomorrow_weekday_and_later_dates_prominent(self):
+        doc={'v':1,'greeting':'Hello','opening':'Plan ahead','sections':[['schedule',[['agenda',[
+            ['2026-10-12','09:00','First','Room one','Bring notes'],
+            ['2026-10-12','11:00','Second','Room two',''],
+            ['2026-10-13','10:30','Third','Online','Join link']]]]]]}
+        original=copy.deepcopy(doc)
+        for kind in ('gm','gn'):
+            page=web.edition(doc,'2026-10-11',kind,{kind:True})
+            self.assertEqual(page.count('class="agenda-day"'),2)
+            self.assertIn('>Tomorrow</bdi> — <span lang="en" data-ui-full-date="2026-10-12">Monday, 12 October 2026</span>',page)
+            self.assertIn('Tuesday, 13 October 2026',page)
+            self.assertEqual(page.count('class="agenda-event"'),3)
+            self.assertLess(page.index('<h4>First'),page.index('<h4>Second'))
+            self.assertLess(page.index('<h4>Second'),page.index('<h4>Third'))
+        self.assertEqual(doc,original)
+
+    def test_agenda_relative_day_is_pinned_and_legacy_date_text_is_not_guessed(self):
+        value=['agenda',[[day,'09:00','Event','',''] for day in ('2026-12-31','2027-01-01','Date TBC','<script>unsafe</script>','')]]
+        page=native.render_block(value,{},'2026-12-31')
+        self.assertIn('>Today</bdi>',page)
+        self.assertIn('>Tomorrow</bdi>',page)
+        self.assertIn('Friday, 01 January 2027',page)
+        self.assertIn('Date TBC',page)
+        self.assertNotIn('<script>unsafe',page)
+        self.assertEqual(page.count('data-ui-full-date='),2)
+        self.assertEqual(page.count('<ol class="agenda-events">'),5)
+        self.assertEqual(page.count('</ol>'),5)
+
     def test_headlines_with_dashes_and_every_citation_are_preserved(self):
         doc = document()
         news = doc['sections'][1][1][0]
@@ -213,6 +241,20 @@ class SaveAndViewTests(unittest.TestCase):
         self.assertNotIn('Read original Markdown', page)
         self.assertFalse((self.root / 'browser').exists())
         self.assertEqual(self.save(doc)[1]['error'], 'already_ran')
+
+    def test_streamed_agenda_uses_the_same_pinned_day_headings(self):
+        from goodmorning.web import language as ui
+        app=self.app();identifier='a'*32
+        app.jobs[DATE+'.gn']={'id':identifier,'date':DATE,'kind':'gn','state':'running'}
+        doc={'v':1,'greeting':'Hello','opening':'Tomorrow','sections':[['schedule',[['agenda',[
+            ['2034-03-18','09:00','Preserved event','Place','Preparation']]]]]]}
+        (app.job_dir/(identifier+'.preview.json')).write_text(json.dumps({'plan':[['schedule','Schedule']], 'outcomes':['ready'],'document':doc}))
+        token=ui.CURRENT.set('zh-CN')
+        try:page=app.preview(identifier)['changes'][0]['html']
+        finally:ui.CURRENT.reset(token)
+        self.assertIn('>明天</bdi>',page)
+        self.assertIn('2034年3月18日 周六',page)
+        self.assertIn('Preserved event',page)
 
     def test_validation_failure_does_not_save_or_mark(self):
         doc = document(); doc['v'] = 999

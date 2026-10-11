@@ -144,7 +144,7 @@ html[data-edition="gn"] .weather-tile.air { --tile-accent: #aed4b7; --tile-bg: #
 .weather .section-body > p, .weather-detailed .section-body > p { color: var(--muted); font-family: Georgia, serif; font-size: 18px; margin-top: 24px; }
 .agenda { margin: 28px 0; }
 .agenda-group + .agenda-group { margin-top: 30px; }
-.agenda-day { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 16px; font-size: 14px; font-weight: 650; }
+.agenda-day { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin: 0 0 16px; padding: 12px 16px; background: var(--wash); border-radius: 10px; font-size: 16px; font-weight: 650; text-transform: none; letter-spacing: 0; }
 .agenda-day > span:first-child { display: flex; align-items: center; gap: 10px; }
 .agenda-day .data-icon { color: var(--accent); }
 .event-count { color: var(--muted); background: var(--wash); border-radius: 20px; font-size: 11px; font-weight: 400; padding: 5px 12px; }

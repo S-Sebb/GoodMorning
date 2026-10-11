@@ -217,7 +217,7 @@ def citations(value):
     return ' '.join(f'<a href="{html.escape(url, quote=True)}" target="_blank" rel="noopener noreferrer">{escaped(label)}</a>' for label, url in value)
 
 
-def render_block(value, images):
+def render_block(value, images, briefing_date=None):
     tag = value[0]
     if tag == 'p':
         return '<p>' + escaped(value[1]) + (' ' + citations(value[2]) if len(value) == 3 else '') + '</p>'
@@ -238,12 +238,17 @@ def render_block(value, images):
         return f'<div class="table-scroll" tabindex="0" role="region" data-ui-aria-label="Briefing table; scroll horizontally if needed" aria-label="{ui.text("Briefing table; scroll horizontally if needed")}"><table><thead><tr>{headers}</tr></thead><tbody>{body}</tbody></table></div>'
     if tag == 'agenda':
         labels = value[2] if len(value) == 3 else AGENDA_LABELS
-        events = []
+        groups, previous = [], None
         for date, time, event, place, prep in value[1]:
+            if date != previous:
+                if groups:groups.append('</ol></div>')
+                heading='<h3 class="agenda-day">'+icon('calendar')+ui.agenda_day(date,briefing_date)+'</h3>' if date else ''
+                groups.append('<div class="agenda-group">'+heading+'<ol class="agenda-events">')
+                previous=date
             fields = [(labels[0], date, 'calendar'), (labels[3], place, 'pin'), (labels[4], prep, 'list')]
             detail = ''.join(f'<div class="event-detail">{icon(symbol)}<div><span class="detail-label">{escaped(label) if len(value)==3 else ui.ui(label)}</span><div>{escaped(content)}</div></div></div>' for label, content, symbol in fields if content)
-            events.append(f'<li class="agenda-event"><div class="event-time">{icon("clock")}<span>{escaped(time)}</span></div><div class="event-copy"><h4>{escaped(event)}</h4>{detail}</div></li>')
-        return '<div class="agenda"><ol class="agenda-events">' + ''.join(events) + '</ol></div>'
+            groups.append(f'<li class="agenda-event"><div class="event-time">{icon("clock")}<span>{escaped(time)}</span></div><div class="event-copy"><h4>{escaped(event)}</h4>{detail}</div></li>')
+        return '<div class="agenda">' + ''.join(groups) + '</ol></div></div>'
     if tag == 'weather':
         cards = []
         for row in value[1]:

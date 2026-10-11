@@ -51,7 +51,10 @@ Block shapes (all positional fields shown below are required unless marked `?`):
   uppercase country code chooses a flag, independently of translated text. Assessments
   belong in the section note, not in the reported summary. Group by category/country.
 - `['agenda', [[date,time,event,place,preparation], ...], labels?]`: approved events
-  only, in chronological order. Missing place/preparation may be `""`; unknown time
+  only, in chronological order. Use ISO `YYYY-MM-DD` event dates so the viewer can
+  show prominent weekday/date groups and Today/Tomorrow relative to the pinned
+  edition date, including in archives and streamed sections. Existing non-ISO
+  date text is preserved without guessing a weekday. Missing place/preparation may be `""`; unknown time
   must be explicit, e.g. `"TBC"`, not fabricated. Default labels are Date, Time,
   Event, Place, Preparation; translated labels must contain five entries in that
   order. Put the confirmed timezone in an adjacent paragraph. Use other paragraphs

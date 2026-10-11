@@ -46,11 +46,24 @@ def ui(source, **values):
     return '<bdi lang="'+current()+'" data-ui-text="'+html.escape(original,quote=True)+'">'+html.escape(text(source,**values))+'</bdi>'
 
 
-def day_label(day):
+def day_label(day, *, full=False):
     value=Date.fromisoformat(day)
-    label = (f'{value.month}月{value.day}日 '+['周一','周二','周三','周四','周五','周六','周日'][value.weekday()]
+    label = ((f'{value.year}年' if full else '')+f'{value.month}月{value.day}日 '+['周一','周二','周三','周四','周五','周六','周日'][value.weekday()]
              if current()=='zh-CN' else value.strftime('%a %d %b'))
-    return f'<span data-ui-date="{day}">{label}</span>'
+    if full and current()=='en':label=value.strftime('%A, %d %B %Y')
+    attribute='data-ui-full-date' if full else 'data-ui-date'
+    locale=f' lang="{current()}"' if full else ''
+    return f'<span{locale} {attribute}="{day}">{label}</span>'
+
+
+def agenda_day(day, reference=None):
+    try:
+        value=Date.fromisoformat(day)
+        if value.isoformat()!=day:raise ValueError
+    except ValueError:
+        return html.escape(day)
+    relative=({0:'Today',1:'Tomorrow'}.get((value-Date.fromisoformat(reference)).days) if reference else None)
+    return (ui(relative)+' — ' if relative else '')+day_label(day,full=True)
 
 
 class InterfaceHTML(HTMLParser):
@@ -108,7 +121,7 @@ def page(source,csrf,return_to='/'):
                        for code,label in (('en','English'),('zh-CN','简体中文')))+
               '</select><input type="hidden" name="csrf" value="'+html.escape(csrf or '',quote=True)+'">'
               '<input type="hidden" name="return_to" value="'+html.escape(return_to,quote=True)+'">'
-              '<button type="submit">Apply</button><span id="language-feedback" role="status"></span></form>')
+              '<noscript><button type="submit">Apply</button></noscript><span id="language-feedback" role="status"></span></form>')
     source=re.sub(r'<html\b[^>]*\blang="[^"]*"',lambda match:re.sub(r'lang="[^"]*"','lang="'+current()+'"',match[0]),source,count=1)
     if 'id="language-form"' not in source:
         source=re.sub(r'(<body\b[^>]*>)',lambda match:match[0]+controls,source,count=1)

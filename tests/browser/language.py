@@ -1,5 +1,6 @@
 """Bilingual browser flow through the real gateway and isolated synthetic backends."""
 import json
+from datetime import date as Date, timedelta
 from pathlib import Path
 import secrets
 import socket
@@ -44,7 +45,8 @@ def fixture(root):
             (runtime/'profile.md').write_text('city: London\ntimezone: Europe/London\nnews_country: GB\nsecretary_language: English\n')
             (runtime/'daily').mkdir()
             document={'v':1,'lang':'en','greeting':'Existing English briefing','opening':'Original saved introduction.',
-                      'sections':[['notes',[['p','Password']]],['today',[['tasks',[['open','Original task','Keep this exact wording.']]]]]]}
+                      'sections':[['notes',[['p','Password']]],['today',[['tasks',[['open','Original task','Keep this exact wording.']]]]],
+                                  ['schedule',[['agenda',[[(Date.fromisoformat(day)+timedelta(days=offset)).isoformat(),'09:00',f'Original event {offset}','Room','Bring notes'] for offset in (1,2)]]]]]}
             for kind in ('gm','gn'):(runtime/'daily'/(day+'.'+kind+'.json')).write_text(encode(document))
         with socket.socket() as check:
             check.bind(('127.0.0.1',0));port=check.getsockname()[1]
@@ -97,6 +99,7 @@ def run(artifacts):
                     page.locator('#account-form button[type=submit]').click()
                     expect(page).not_to_have_url('https://'+host+'.language.test/login')
                 def switch(page,value):
+                    expect(page.locator('#language-form button[type=submit]')).to_have_count(0)
                     page.locator('#website-language').select_option(value)
                     expect(page.locator('html')).to_have_attribute('lang',value)
                 def no_overflow(page):
@@ -133,10 +136,30 @@ def run(artifacts):
                 # Each host has its own login, but the same account's saved language wins.
                 for host in ('gm','gn'):
                     other=desktop.new_page();login(other,host,'alice','a1alice-permanent')
+                    other.on('pageerror',lambda error:errors.append(str(error)))
                     expect(other.locator('html')).to_have_attribute('lang','zh-CN')
                     expect(other.get_by_role('heading',name='Existing English briefing',exact=True)).to_be_visible()
                     expect(other.locator('article')).to_contain_text('Password')
                     expect(other.locator('.source-link')).to_contain_text('查看已保存的数据')
+                    expect(other.locator('.agenda-day').first).to_contain_text('明天')
+                    expect(other.locator('.agenda-day')).to_have_count(2)
+                    expect(other.locator('.agenda-event')).to_have_count(2)
+                    switch(other,'en')
+                    expect(other.locator('.agenda-day').first).to_contain_text('Tomorrow')
+                    tomorrow=Date.fromisoformat(settings['date'])+timedelta(days=1)
+                    expect(other.locator('.agenda-day').first).to_contain_text(tomorrow.strftime('%A'))
+                    expect(other.locator('.agenda-day').first).to_contain_text(str(tomorrow.year))
+                    for width in (320,390,1440):
+                        other.set_viewport_size({'width':width,'height':900})
+                        no_overflow(other)
+                        expect(other.locator('.agenda-day').first).to_be_visible()
+                        other.locator('.agenda').screenshot(path=str(artifacts/(host+'-agenda-'+str(width)+'-en.png')))
+                    switch(other,'zh-CN')
+                    for width in (320,390,1440):
+                        other.set_viewport_size({'width':width,'height':900})
+                        no_overflow(other)
+                        expect(other.locator('.agenda-day').first).to_contain_text('明天')
+                        other.locator('.agenda').screenshot(path=str(artifacts/(host+'-agenda-'+str(width)+'-zh-CN.png')))
                     other.goto(f'https://{host}.language.test/d/{settings["date"]}/{host}.html')
                     expect(other.get_by_role('heading',name='Existing English briefing',exact=True)).to_be_visible()
                     no_overflow(other);other.screenshot(path=str(artifacts/(host+'-chinese-archive.png')),full_page=True);other.close()
@@ -210,7 +233,7 @@ def run(artifacts):
             report={'modelCalls':0,'localSyntheticGateway':True,'subdomains':3,'accountSync':True,'crossDeviceSync':True,
                     'loginAndPasswordPages':True,'modeGuidance':True,'draftsAndPasswordVisibilityPreserved':True,
                     'activeRequestLanguagePinned':True,'savedContentPreserved':True,'nightPreflightAndRecoveryTranslated':True,
-                    'noJavascriptLanguageSwitch':True,
+                    'noJavascriptLanguageSwitch':True,'instantLanguageSelectionWithoutApply':True,'prominentAgendaDayHeadings':True,
                     'mobileWidths':[320,390],'desktopWidth':1440}
             (artifacts/'result.json').write_text(json.dumps(report,indent=2));print(json.dumps(report))
         finally:
