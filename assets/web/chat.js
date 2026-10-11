@@ -23,7 +23,15 @@ let formSignature = '';
 let messageSignature = '';
 let revision = 0;
 let requestLanguage = null;
+let secretaryName = typeof chatConfig.secretary_name === 'string' && chatConfig.secretary_name ? chatConfig.secretary_name : null;
 const drafts = new Map();
+
+function applySecretaryName() {
+  const heading = document.querySelector('#secretary-heading');
+  if (heading && secretaryName) heading.textContent = secretaryName + '.';
+  // Force author labels to refresh on next message render.
+  messageSignature = '';
+}
 
 async function chatAPI(path, body) {
   if (body) pendingChatMutations++;
@@ -107,6 +115,10 @@ async function historyList() {
   const result = await chatAPI('/api/chats');
   chatConfig.defaultMode = result.defaultMode;
   chatConfig.connected = result.connected;
+  if (typeof result.secretary_name === 'string' && result.secretary_name && result.secretary_name !== secretaryName) {
+    secretaryName = result.secretary_name;
+    applySecretaryName();
+  }
   document.querySelector('#chat-history').replaceChildren(...result.chats.map(item => {
     const link = make('a', item.title); link.href = '/chat?id=' + item.id;
     const label=item.mode === 'todo' ? 'To-do' : item.mode[0].toUpperCase() + item.mode.slice(1);
@@ -117,7 +129,7 @@ async function historyList() {
 }
 
 function showMessages(messages) {
-  const signature = JSON.stringify(messages);
+  const signature = JSON.stringify([messages, secretaryName]);
   if (signature === messageSignature) return;
   const log = document.querySelector('#chat-messages');
   const nearBottom = document.documentElement.scrollHeight - scrollY - innerHeight < 240;
@@ -127,10 +139,16 @@ function showMessages(messages) {
     if (!bubble) {
       bubble = make('section', '', 'chat-message ' + item.role);
       bubble.dataset.message = item.id;
-      const author=make('p',chatT(item.role === 'user' ? 'You' : 'Your secretary'),'message-author');
+      const authorName = item.role === 'user' ? chatT('You') : (secretaryName || chatT('Your secretary'));
+      const author=make('p',authorName,'message-author');
       author.dataset.uiText=item.role==='user'?'You':'Your secretary';
+      if (item.role !== 'user' && secretaryName) author.dataset.secretaryName = secretaryName;
       bubble.append(author, make('div', '', 'message-text'));
       log.append(bubble);
+    } else if (item.role !== 'user') {
+      const author = bubble.querySelector('.message-author');
+      const expected = secretaryName || chatT('Your secretary');
+      if (author && author.textContent !== expected) author.textContent = expected;
     }
     const content = bubble.querySelector('.message-text');
     if (content.textContent !== item.text) content.textContent = item.text;
@@ -152,6 +170,10 @@ async function pollChat() {
     if (version !== revision) return;
     mode = result.mode; state = result.state;
     requestLanguage = result.language;
+    if (typeof result.secretary_name === 'string' && result.secretary_name && result.secretary_name !== secretaryName) {
+      secretaryName = result.secretary_name;
+      applySecretaryName();
+    }
     document.querySelector('#chat-status').textContent = result.label;
     if (result.messages) showMessages(result.messages);
     const signature = JSON.stringify([result.forms, result.permissions]);

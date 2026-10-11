@@ -143,14 +143,18 @@ class BrowserApp:
     def chat_settings(self):
         from goodmorning.setup_check import profile_status
         try:
-            ready = profile_status(self.runtime, self.profile(),ui.current())['profile_ready']
+            status = profile_status(self.runtime, self.profile(),ui.current())
+            ready = status['profile_ready']
+            secretary_name = status.get('secretary_name')
         except (ValueError, KeyError):
             ready = False
-        return {'defaultMode': 'secretary' if ready else 'initialize', 'connected': bool(self.chamber)}
+            secretary_name = None
+        return {'defaultMode': 'secretary' if ready else 'initialize', 'connected': bool(self.chamber),
+                'secretary_name': secretary_name}
 
     def chat_page(self):
         settings = self.chat_settings()
-        return self.resources.rewrite(ui.page(chat_page(self.csrf, settings['defaultMode'] == 'secretary', settings['connected']),self.csrf,'/chat')).encode()
+        return self.resources.rewrite(ui.page(chat_page(self.csrf, settings['defaultMode'] == 'secretary', settings['connected'], settings.get('secretary_name')),self.csrf,'/chat')).encode()
 
     def initialization_page(self, kind):
         switches = ''.join(f'<a class="edition-link{" selected" if other == kind else ""}" href="/{other}.html">{label}</a>' for other, label in KINDS.items())

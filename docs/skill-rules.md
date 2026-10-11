@@ -23,9 +23,12 @@ the GoodMorning root; specialized guides load only for the operation needed.
   question widgets and titles, even when the local profile has another language.
   Never ask a browser user for a separate reply language. Leave the local field
   unchanged and pass `--website-language CODE` to setup/workflow helpers.
+  Ask `secretary_name` first in new setup (both browser and local); it is
+  optional, 1-30 characters with at least one letter or number, and is reused
+  for self-reference, website header/author labels and briefing greetings.
 - For local use, `secretary_language` controls all user-facing replies, setup, question widgets,
   confirmations and errors, and OpenChamber conversation titles, across gm/gn/eureka/todo/secretary.
-  Ask it first in new setup;
+  Ask it second in new local setup, after `secretary_name`;
   follow an explicit language/script or bilingual choice, or a confirmed request
   to follow message language. Do not infer it from location or news preferences.
   If it is missing, ask for this required setting without resetting other answers

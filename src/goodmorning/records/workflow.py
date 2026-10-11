@@ -16,7 +16,7 @@ from .state import load_state, rebuild_index, parse_daily, missed_page, today_st
 from goodmorning.briefings.briefing_document import source_path
 
 KINDS = ("gm", "gn", "eureka", "todo", "secretary")
-PERSONAL = ("secretary_language", "secretary_tone", "special_needs", "occupations", "expertise_fields",
+PERSONAL = ("secretary_name", "secretary_language", "secretary_tone", "special_needs", "occupations", "expertise_fields",
             "work_days", "work_hours", "sleep_time", "industry", "knowledge_area", "project_scope")
 
 
@@ -36,7 +36,7 @@ def prepare(directory, kind, today=None, cache=None, *, task_limit=7, website_la
     elif kind == "secretary":
         result["title"] = None
     if kind in ("todo", "eureka"):
-        result["profile"] = {key: fields[key] for key in PERSONAL[:2] if fields.get(key)}
+        result["profile"] = {key: fields[key] for key in ("secretary_name", "secretary_language", "secretary_tone") if fields.get(key)}
         return result
     result.update(yesterday=(day - dt.timedelta(days=1)).isoformat(), tomorrow=(day + dt.timedelta(days=1)).isoformat())
     if kind in ("gm", "gn"):

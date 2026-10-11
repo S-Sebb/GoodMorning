@@ -14,11 +14,14 @@ they do not require repeating preferences or fixing integrations during setup.
 
 ## User-local files
 
-The first initialization question confirms the secretary's reply language, saved
+The first initialization question confirms the secretary's display name, saved
+as `secretary_name` after storage consent (optional, 1-30 characters, allow skipping; existing profiles without it stay valid). Use it for self-reference and website/briefing greetings where appropriate.
+
+For local use, the second initialization question confirms the secretary's reply language, saved
 as `secretary_language` after storage consent. It applies to all five workflows,
 setup/questions and follow-ups, independently of news-source language/country or
 tone. Allow explicit language/script, bilingual or “follow my message language”
-choices. Existing profiles without it are valid; never silently invent the field.
+choices. Existing profiles without it are valid; never silently invent the field. For browser chats, skip the language question: replies follow the website language switch without writing the local field.
 
 After confirming setup answers and file formats with the user:
 

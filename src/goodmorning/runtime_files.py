@@ -44,6 +44,29 @@ def profile_fields(directory):
             for m in re.finditer(r"^([a-z_]+)[ \t]*:[ \t]*([^\r\n]*)$", text, re.M | re.I)}
 
 
+SECRETARY_NAME_MAX = 30
+
+
+def normalize_secretary_name(value):
+    """Optional short display name for the AI secretary.
+
+    Returns "" for missing/empty, otherwise the stripped name.
+    Raises ValueError for unsafe or overlong names.
+    """
+    if value is None:
+        return ""
+    text = str(value).strip().strip("\"' ")
+    if not text:
+        return ""
+    if len(text) > SECRETARY_NAME_MAX or len(text) < 1:
+        raise ValueError("invalid secretary_name: use 1-30 characters")
+    if any(ord(ch) < 32 or ord(ch) == 127 for ch in text):
+        raise ValueError("invalid secretary_name: no control characters or newlines")
+    if not any(ch.isalnum() for ch in text):
+        raise ValueError("invalid secretary_name: include at least one letter or number")
+    return text
+
+
 def atomic_text(path, text):
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)

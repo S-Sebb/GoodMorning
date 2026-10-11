@@ -14,8 +14,8 @@ edge cases. Load other guides only when needed.
 - `python scripts/goodmorning.py workflow --prepare KIND` gives confirmed preferences, dates, selected paths
   and bounded context; no fetching, initialization, project execution or marking.
   Capture uses its fast path below, not a full state check.
-- Missing/incomplete setup follows `docs/workflows/secretary.md`; local use asks reply language
-  first, then missing answers in small groups. Reuse explicit answers; never infer
+- Missing/incomplete setup follows `docs/workflows/secretary.md`; ask secretary display name
+  first, then for local use ask reply language second, then missing answers in small groups. Reuse explicit answers; never infer
   language, timezone, country, tone, permissions or optional preferences. Profile
   setup survives optional provider failures; do not restart it or launch
   repairs. Installation is not setup/provider/storage consent.

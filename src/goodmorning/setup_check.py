@@ -17,7 +17,7 @@ import sys
 import time
 from zoneinfo import ZoneInfo
 
-from .runtime_files import profile_fields, secretary_path
+from .runtime_files import profile_fields, secretary_path, normalize_secretary_name
 from .news.news import load_sources, SOURCES_FILE
 from .paths import ROOT
 
@@ -36,8 +36,10 @@ def profile_status(runtime, fields, website_language=None):
                      *fields.get("news_additional_countries", "").upper().replace(";", ",").split(",")] if code.strip()))
     if len(countries) > 20 or any(len(code) != 2 or not code.isascii() or not code.isalpha() for code in countries):
         raise ValueError("invalid countries")
+    secretary_name = normalize_secretary_name(fields.get("secretary_name", ""))
     return {"profile_ready": not missing, "missing_fields": missing, "countries": countries,
             "secretary_language": fields.get("secretary_language") or None,
+            "secretary_name": secretary_name or None,
             "language_status": "website" if website_language is not None else "confirmed" if fields.get("secretary_language") else "missing"}
 
 

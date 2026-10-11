@@ -153,7 +153,13 @@ class Chats:
 
     def status(self, chat):
         item = self.get(chat)
-        result = {'chat': chat, 'mode': item['mode'], 'state': item['state'], 'forms': [], 'permissions': [],'language':item['turns'][-1].get('language') if item['turns'] else None}
+        try:
+            from goodmorning.runtime_files import profile_fields, normalize_secretary_name
+            secretary_name = normalize_secretary_name(profile_fields(self.runtime).get("secretary_name", "")) or None
+        except (ValueError, OSError):
+            secretary_name = None
+        result = {'chat': chat, 'mode': item['mode'], 'state': item['state'], 'forms': [], 'permissions': [],'language':item['turns'][-1].get('language') if item['turns'] else None,
+                  'secretary_name': secretary_name}
         if item.get('session') and self.chamber:
             try:
                 forms, permissions = self.chamber.pending(item['session'])
@@ -203,21 +209,23 @@ class Chats:
         return {'answered': True}
 
 
-def page(csrf, ready, connected):
+def page(csrf, ready, connected, secretary_name=None):
     config = html.escape(json.dumps({'csrf': csrf, 'defaultMode': 'secretary' if ready else 'initialize',
-                                   'connected': connected}), quote=True)
+                                   'connected': connected, 'secretary_name': secretary_name}), quote=True)
     choices = ''.join(f'<button type="button" role="radio" aria-checked="false" data-mode="{mode}">{label}</button>'
                       for mode, label in MODES.items())
+    heading = html.escape(secretary_name) + '.' if secretary_name else 'Your secretary.'
+    title = (html.escape(secretary_name) + ' — GoodMorning') if secretary_name else 'Your secretary — GoodMorning'
     return ('<!doctype html><html lang="en"><head><meta charset="utf-8">'
             '<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">'
-            '<title>Your secretary — GoodMorning</title>' + favicon_links('secretary') + '<link rel="stylesheet" href="/briefing.css">'
+            '<title>' + title + '</title>' + favicon_links('secretary') + '<link rel="stylesheet" href="/briefing.css">'
             '<link rel="stylesheet" href="/chat.css"></head><body class="chat-page">'
             '<a class="skip-link" href="#conversation">Skip to conversation</a>'
             '<header class="masthead"><a class="wordmark" href="/chat">GoodMorning<span>A little space to think, plan, and begin.</span></a>'
             '<nav class="edition-switch" aria-label="Your desk"><a class="edition-link" href="/gm.html">Morning</a>'
             '<a class="edition-link" href="/gn.html">Evening</a><a class="edition-link selected" href="/chat" aria-current="page">Secretary</a></nav></header>'
-            '<main class="chat-layout"><aside class="conversation-sidebar"><p class="eyebrow">Your desk</p>'
-            '<h1>Your secretary.</h1><p>A place for your plans, bright ideas, and the details that make this yours.</p>'
+            '<main class="chat-layout"><aside class="conversation-sidebar"><figure class="desk-figure"><img class="desk-illustration" src="/desk-secretary.png" alt="Pixel-art secretary desk under a warm office spotlight" width="440" height="440" fetchpriority="high" onerror="this.parentNode.hidden=true"></figure><p class="eyebrow">Your desk</p>'
+            '<h1 id="secretary-heading">' + heading + '</h1><p>A place for your plans, bright ideas, and the details that make this yours.</p>'
             '<button id="new-conversation" type="button">New conversation</button>'
             '<details id="conversation-history"><summary>Previous conversations</summary><nav id="chat-history" aria-label="Previous conversations"></nav></details></aside>'
             '<section class="conversation-panel" id="conversation" aria-label="Secretary conversation">'

@@ -129,6 +129,17 @@ class ChatTests(unittest.TestCase):
         self.assertEqual(status['messages'][0]['text'], 'Start initialize')
         self.assertNotIn(str(self.root), json.dumps(status['messages']))
 
+    def test_secretary_name_is_remembered_in_settings_page_and_status(self):
+        app = BrowserApp(self.root, self.chamber)
+        (self.root / 'profile.md').write_text('secretary_name: Aria\nsecretary_language: English\ncity: London\ntimezone: Europe/London\nnews_country: GB\n')
+        self.assertEqual(app.chat_settings()['secretary_name'], 'Aria')
+        page = app.chat_page().decode()
+        self.assertIn('Aria.', page)
+        self.assertIn('id="secretary-heading"', page)
+        with patch('goodmorning.web.briefing_chat.threading.Thread', ImmediateThread):
+            self.start('secretary', 'Hello')
+        self.assertEqual(self.chats.status(self.id)['secretary_name'], 'Aria')
+
     def test_saved_profile_changes_default_without_restart_or_provider_verification(self):
         app = BrowserApp(self.root, self.chamber)
         (self.root / 'profile.md').write_text('secretary_language: English\ncity: London\ntimezone: Europe/London\nnews_country: GB\n')

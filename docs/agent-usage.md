@@ -20,9 +20,8 @@ authorize code development. Event import is a separate follow-up.
 
 ## Shared rules
 
-- Ask `secretary_language` first during new setup, before other preferences, then
-  use the explicit choice for all replies, OpenChamber conversation titles, and
-   interactive questions. News language and country remain independent. Confirm
+- Ask `secretary_name` first during new setup, before other preferences, then for local use ask `secretary_language` second and use the explicit choice for all replies, OpenChamber conversation titles, and
+   interactive questions. For browser chats skip the language question and follow the website language switch. Refer to yourself by the saved `secretary_name` when present. News language and country remain independent. Confirm
    missing required settings without resetting an existing profile.
 
 - Prefer the session's interactive `question` tool (OpenChamber question UI) for

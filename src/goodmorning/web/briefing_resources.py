@@ -73,10 +73,15 @@ class Resources:
                  'briefing.js': 'text/javascript', 'browser.js': 'text/javascript',
                    'questions.js': 'text/javascript', 'chat.js': 'text/javascript', 'chat.css': 'text/css', 'language.js':'text/javascript',
                    'update.js': 'text/javascript', 'update.css': 'text/css',
-                 'fonts/OFL.txt': 'text/plain', **ICON_TYPES}
+                 'fonts/OFL.txt': 'text/plain', 'desk-secretary.png': 'image/png', **ICON_TYPES}
         # Register the font first: CSS embeds its immutable, shared URL.
         for name, mime in types.items():
-            data = (assets / name).read_bytes()
+            try:
+                data = (assets / name).read_bytes()
+            except FileNotFoundError:
+                if name == 'desk-secretary.png':
+                    continue
+                raise
             if name == 'language.js':
                 import json
                 from .language import CATALOG

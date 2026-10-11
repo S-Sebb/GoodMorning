@@ -20,10 +20,15 @@ replies, `docs/reply-voice.md`: personable useful content, no routine bookkeepin
 1. Read `docs/initialization.md`, `config.example.md` and profile/project templates.
    Reuse answers in the selected runtime. Setup and verification are separate;
    no unrequested code development.
-2. In a browser chat, use the supplied website language and skip the reply-language
+2. Ask for the secretary's display name first, alone, in both browser and
+   local setup. It is optional (1-30 characters, at least one letter or
+   number); allow skipping and never invent a name. Save the exact confirmed
+   spelling in `secretary_name` after storage consent and use it for
+   self-reference and website/briefing greetings where appropriate.
+   In a browser chat, use the supplied website language and skip the reply-language
    question. Do not amend an existing local `secretary_language` preference.
    Browser setup/workflow helpers pass `--website-language CODE`.
-   For local use, the first initialization question is `secretary_language`; wait for the explicit
+   For local use, the second initialization question is `secretary_language`; wait for the explicit
    choice and use it throughout. Reuse explicit preferences only; never infer
    reply language from city or news settings. Scripts/bilingual choices are valid.
    Then ask only missing preferences in small groups: qualified city
@@ -82,15 +87,25 @@ replies, `docs/reply-voice.md`: personable useful content, no routine bookkeepin
     scope and update `last_update` for confirmed changes.
     Confirm changed roles/fields before updating the profile; keep other
     preferences and follow shared personalization rules.
-3. For "I moved", confirm the qualified city and region before updating the
+    Refer to yourself by the confirmed `secretary_name` from `workflow --prepare secretary`
+    whenever one is saved (website header/author labels and briefing greetings use
+    the same value); fall back to a generic “your secretary” only when it is empty.
+3. For a rename request (“call yourself X”, “rename yourself”, “change your name”),
+   confirm the exact spelling once, validate it as 1-30 characters with at least
+   one letter or number and no control characters, then update only the
+   `secretary_name:` line in `secretary/profile.md`, preserving all other lines.
+   No state rebuild, briefing mark or verification run is needed. Use the new
+   name immediately in this and later sessions; the website picks it up from the
+   same profile on its next `/api/chats` or conversation-status read.
+4. For "I moved", confirm the qualified city and region before updating the
    profile; ask whether timezone changed and verify the new weather location.
    National news country remains an independent choice. Do not change code or
    override environment settings silently.
-4. For scheduled events, additions/edits/cancellations/imports follow the shared
+5. For scheduled events, additions/edits/cancellations/imports follow the shared
    confirmation rules and `docs/calendar-pipeline.md`. Stage originals, inspect
    pending details, review compatible versions, and use the current revision.
    Never display raw imports as approved or approve unseen events in bulk.
-5. Apply daily amendments with `daily --date DATE --amend --expect HASH`, without changing
+6. Apply daily amendments with `daily --date DATE --amend --expect HASH`, without changing
    snapshots. State checks/marks read live records; no rebuild after each edit.
    Use the reply template: outcome first, useful context/open items next, in the
    user's customised tone. Clean formatting and clarity take priority.

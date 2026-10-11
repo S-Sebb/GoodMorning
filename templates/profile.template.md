@@ -5,6 +5,7 @@ confirmed. Replace empty values with user-confirmed settings. Keep city,
 region, and timezone as plain key: value lines for the existing scripts.
 Quoted empty strings prevent an empty field from absorbing the next line. -->
 
+secretary_name: ""
 secretary_language: ""
 city: ""
 region: ""
@@ -35,9 +36,20 @@ Never put passwords or keys here. -->
 
 ## Setup rules
 
-- Ask for `secretary_language` as the first initialization question, before any
-  location, schedule, tone or news question. Save the explicit language/script or
-  bilingual preference; “follow my message language” is a valid confirmed setting.
+- Ask for `secretary_name` as the first initialization question, before any
+  location, schedule, tone or news question. It is an optional short display
+  name (1-30 characters, at least one letter or number, no control characters
+  or newlines). Allow skipping; older profiles without this field stay valid.
+  Save the exact confirmed spelling in `secretary_name` after storage consent
+  and use it for self-reference, website header/author labels and briefing
+  greetings where appropriate. A later `/secretary` rename updates only this
+  line and keeps all other preferences unchanged.
+- For local use, ask for `secretary_language` second, before location/schedule/
+  tone/news. Save the explicit language/script or bilingual preference;
+  “follow my message language” is a valid confirmed setting. For browser chats,
+  skip this question: replies, questions and titles follow the website language
+  switch and helpers pass `--website-language CODE` without writing the local
+  field.
 - Use that language for all five workflows, conversation titles, setup, questions and follow-ups. It is
   independent of news-source language, national-news country, timezone and tone.
   Older profiles without this field stay valid; do not invent or force a migration.

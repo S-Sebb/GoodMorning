@@ -41,11 +41,31 @@ class SetupTemplateTests(unittest.TestCase):
     def test_reply_language_is_first_profile_setting_and_preserves_explicit_choices(self):
         template = (ROOT / "templates/profile.template.md").read_text()
         fields = re.findall(r"(?m)^([a-z_]+):", template)
-        self.assertEqual(fields[0], "secretary_language")
+        self.assertEqual(fields[0], "secretary_name")
+        self.assertEqual(fields[1], "secretary_language")
         for language in ("English", "简体中文", "繁體中文", "English and French", "follow my message language"):
             (self.directory / "profile.md").write_text(template.replace('secretary_language: ""', 'secretary_language: "' + language + '"'))
             self.assertEqual(profile_fields(self.directory)["secretary_language"], language)
             self.assertEqual(parse_profile(self.directory / "profile.md"), ("", ""))
+
+    def test_secretary_name_is_optional_short_safe_and_first(self):
+        from goodmorning.runtime_files import normalize_secretary_name
+        from goodmorning.setup_check import profile_status
+        template = (ROOT / "templates/profile.template.md").read_text()
+        self.assertIn('secretary_name: ""', template)
+        self.assertEqual(normalize_secretary_name("Aria"), "Aria")
+        self.assertEqual(normalize_secretary_name("小秘"), "小秘")
+        self.assertEqual(normalize_secretary_name(""), "")
+        for bad in ("x" * 31, "***", "a\nb"):
+            with self.assertRaises(ValueError):
+                normalize_secretary_name(bad)
+        (self.directory / "profile.md").write_text(template.replace('secretary_name: ""', 'secretary_name: "Aria"'))
+        self.assertEqual(profile_fields(self.directory)["secretary_name"], "Aria")
+        # Optional: missing name keeps an otherwise ready profile valid.
+        (self.directory / "profile.md").write_text('secretary_language: English\ncity: London, GB\ntimezone: Europe/London\nnews_country: GB\n')
+        status = profile_status(self.directory, profile_fields(self.directory))
+        self.assertTrue(status["profile_ready"])
+        self.assertIsNone(status["secretary_name"])
 
     def test_project_last_update_is_readable(self):
         projects = self.directory / "projects"

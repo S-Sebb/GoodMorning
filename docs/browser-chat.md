@@ -8,7 +8,9 @@ website language. Keep the configured model and current session. Never
 delegate. Read `docs/core-rules.md` and the matching workflow, as for local use.
 
 - **Initialize** (`/initialize`): follow `docs/workflows/secretary.md` and
-  `docs/initialization.md`. Use the supplied website language; never ask for a
+  `docs/initialization.md`. Ask for the secretary's display name first
+  (`secretary_name`, optional, 1-30 characters); allow skipping and reuse the
+  saved spelling for self-reference and website greetings. Use the supplied website language; never ask for a
   separate agent/reply language. Show it as controlled by the website switch.
   Leave any existing local `secretary_language` field unchanged. For an existing
   profile, review **all other** preferences in small related groups,

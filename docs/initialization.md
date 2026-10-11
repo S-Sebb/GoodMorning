@@ -14,10 +14,18 @@ preserve all records, permissions and answers already given in this conversation
    request must not read or initialize the real secretary runtime. Inspect existing
    filenames first; preserve existing data and confirm a private ignore rule if
     needed. Never read `.env` or pairing credentials.
-2. **Website:** use the supplied `Website language` for all replies and questions;
+2. Ask for the secretary's display name first, alone: “What would you like
+   to call me as your secretary?” It is an optional short name (1-30
+   characters, at least one letter or number, no control characters). Allow
+   skipping; older profiles without `secretary_name` stay valid. Wait for the
+   answer before other setup questions. Keep it in the conversation until
+   storage consent, then save the exact confirmed spelling in `secretary_name`.
+   Use it afterwards for self-reference, website header/author labels and
+   briefing greetings where appropriate.
+   **Website:** use the supplied `Website language` for all replies and questions;
    do not ask for a separate reply language or write it into the local profile.
    `setup`/`workflow` helpers use `--website-language CODE` for browser requests.
-   **Local use:** the first initialization question is the secretary's reply language, alone:
+   **Local use:** the second initialization question is the secretary's reply language, alone:
    “Which language would you like me to use as your secretary?” Use the current
    conversation language only to ask that initial question; it is not consent to
    save a preference. Offer genuine language/script choices and custom answers,
