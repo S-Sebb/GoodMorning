@@ -96,7 +96,16 @@ class GatewayTests(unittest.TestCase):
             self.assertEqual(self.gateway.ticket()['user'],self.id)
             self.assertEqual(self.gateway.recover(self.id,'gm.example.test',path,raw,{})[0],202)
             self.assertEqual(sum(call.args[3]=='POST' for call in proxy.call_args_list),1)
-            self.assertEqual(self.gateway.recover(self.other,'gm.example.test',path,raw,{})[0],409)
+            status,_,data=self.gateway.recover(self.other,'gm.example.test',path,raw,{})
+            self.assertEqual(status,202)
+            queued=json.loads(data)
+            self.assertTrue(queued.get('queued'))
+            self.assertEqual(queued.get('position'),1)
+            self.assertEqual(self.gateway.ticket()['user'],self.id)
+            self.assertEqual(sum(call.args[3]=='POST' for call in proxy.call_args_list),1)
+            status=self.gateway.queue_status(self.other)
+            self.assertEqual(len(status['queue']),1)
+            self.assertEqual(status['queue'][0]['job'],job)
         with patch.object(self.gateway,'proxy',return_value=(200,{},b'{"state":"waiting","recovery":"Refresh task list","recovery_action":"refresh"}')):
             self.assertEqual(self.gateway.recover(self.id,'gm.example.test',path,json.dumps({'id':'c'*32}).encode(),{})[0],200)
         self.assertEqual(self.gateway.ticket()['request'],'c'*32)
@@ -249,10 +258,15 @@ class GatewayTests(unittest.TestCase):
         ticket=self.gateway.ticket()
         self.assertEqual(ticket['user'],self.id)
         self.assertEqual(ticket['job'],'a'*32)
-        status,_,_=self.gateway.generate(self.other,'gm.example.test',b'{"date":"2026-10-11","kind":"gn"}',{})
-        self.assertEqual(status,409)
+        status,_,data=self.gateway.generate(self.other,'gm.example.test',b'{"date":"2026-10-11","kind":"gn"}',{})
+        self.assertEqual(status,202)
+        queued=json.loads(data)
+        self.assertTrue(queued.get('queued'))
+        self.assertEqual(queued.get('position'),1)
+        self.assertEqual(self.gateway.ticket(),ticket)
         reopened=Gateway(self.store,self.gateway.hosts,testing=True)
         self.assertEqual(reopened.ticket(),ticket)
+        self.assertEqual(reopened.queue_status(self.other)['depth'],1)
         self.gateway.clear_ticket(ticket)
         self.assertIsNone(self.gateway.ticket())
 
@@ -282,10 +296,63 @@ class GatewayTests(unittest.TestCase):
         body={'id':'a'*32,'mode':'secretary','text':'Hello'}
         self.assertEqual(self.request('/api/chats',body)[0],202)
         self.assertEqual(self.gateway.ticket()['chat'],'a'*32)
-        self.assertEqual(self.request('/api/generate',{'date':'2026-10-11','kind':'gm'})[0],409)
+        status,_,data=self.request('/api/generate',{'date':'2026-10-11','kind':'gm'})
+        self.assertEqual(status,202)
+        self.assertTrue(json.loads(data).get('queued'))
         other={**body,'id':'b'*32}
-        self.assertEqual(self.gateway.chat_message(self.other,'gm.example.test','/api/chats',json.dumps(other).encode(),{})[0],409)
+        status,_,data=self.gateway.chat_message(self.other,'gm.example.test','/api/chats',json.dumps(other).encode(),{})
+        self.assertEqual(status,202)
+        self.assertTrue(json.loads(data).get('queued'))
         self.assertEqual(sum(args[3]=='POST' for args in calls),1)
+        self.assertEqual(self.gateway.queue_status(self.other)['depth'],2)
+
+    def test_global_queue_is_bounded_fifo_and_deduplicated(self):
+        from goodmorning.security.briefing_gateway import MAX_QUEUE
+        self.permanent()
+        calls=[]
+        def proxy(*args):
+            calls.append(args)
+            if args[3]=='GET': return 200,{},b'{"state":"running"}'
+            return 202,{},b'{"chat":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}'
+        self.gateway.proxy=proxy
+        first={'id':'a'*32,'mode':'secretary','text':'First'}
+        self.assertEqual(self.request('/api/chats',first)[0],202)
+        second={'id':'b'*32,'mode':'secretary','text':'Second'}
+        status,_,data=self.gateway.chat_message(self.other,'gm.example.test','/api/chats',json.dumps(second).encode(),{})
+        self.assertEqual(status,202)
+        self.assertEqual(json.loads(data)['position'],1)
+        status,_,repeat=self.gateway.chat_message(self.other,'gm.example.test','/api/chats',json.dumps(second).encode(),{})
+        self.assertEqual(status,202)
+        self.assertEqual(json.loads(repeat)['position'],1)
+        self.assertEqual(self.gateway.queue_status(self.other)['depth'],1)
+        for index in range(MAX_QUEUE - 1):
+            body={'id':format(index,'032x'),'mode':'secretary','text':'Filler %d' % index}
+            status,_,_=self.gateway.chat_message(self.other,'gm.example.test','/api/chats',json.dumps(body).encode(),{})
+            self.assertEqual(status,202)
+        status,_,data=self.gateway.chat_message(self.other,'gm.example.test','/api/chats',json.dumps({'id':'f'*32,'mode':'secretary','text':'Overflow'}).encode(),{})
+        self.assertEqual(status,429)
+        self.assertIn('queue',json.loads(data)['error'].lower())
+        self.assertEqual(sum(args[3]=='POST' for args in calls),1)
+
+    def test_pump_dispatches_queued_work_in_order_after_idle(self):
+        self.permanent()
+        states={'active':True}
+        dispatched=[]
+        def proxy(user,host,path,method,raw,headers):
+            if method=='GET':
+                return (200,{},b'{"state":"idle"}') if not states['active'] else (200,{},b'{"state":"running"}')
+            dispatched.append(json.loads(raw)['id'])
+            states['active']=True
+            return 202,{},b'{"chat":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}'
+        self.gateway.proxy=proxy
+        self.assertEqual(self.gateway.chat_message(self.id,'gm.example.test','/api/chats',json.dumps({'id':'a'*32,'mode':'secretary','text':'First'}).encode(),{})[0],202)
+        self.assertEqual(self.gateway.chat_message(self.other,'gm.example.test','/api/chats',json.dumps({'id':'b'*32,'mode':'secretary','text':'Second'}).encode(),{})[0],202)
+        self.assertEqual(dispatched,['a'*32])
+        states['active']=False
+        status=self.gateway.queue_status(self.other)
+        self.assertEqual(status['queue'],[])
+        self.assertEqual(dispatched,['a'*32,'b'*32])
+        self.assertEqual(self.gateway.ticket()['chat'],'b'*32)
 
     def test_uncertain_chat_reservation_is_preserved_on_invalid_duplicate(self):
         self.permanent()
@@ -317,7 +384,9 @@ class GatewayTests(unittest.TestCase):
             for identifier,mode in (('a','secretary'),('b','todo'),('c','initialize')):
                 body={'id':identifier*32,'mode':mode,'text':'' if mode=='initialize' else 'Synthetic capture'}
                 self.assertEqual(self.gateway.chat_message(self.id,'gm.example.test','/api/chats',json.dumps(body).encode(),{})[0],202)
-            self.assertEqual(self.gateway.chat_message(self.other,'gm.example.test','/api/chats',json.dumps({'id':'d'*32,'mode':'secretary','text':'Other request'}).encode(),{})[0],409)
+            status,_,data=self.gateway.chat_message(self.other,'gm.example.test','/api/chats',json.dumps({'id':'d'*32,'mode':'secretary','text':'Other request'}).encode(),{})
+            self.assertEqual(status,202)
+            self.assertTrue(json.loads(data).get('queued'))
             self.assertEqual(self.gateway.ticket()['chat'],'c'*32)
 
     def test_public_release_check_does_not_touch_login_sessions(self):

@@ -64,8 +64,25 @@ function composeState() {
   textBox.disabled = sending || (chat && state !== 'idle');
   sendButton.textContent = chatT(chat ? 'Send reply' : modes[mode][2]);
   textBox.required = !chat && ['todo','eureka'].includes(mode) || Boolean(chat);
-  document.querySelector('#compose-note').textContent = chatT(chat && state !== 'idle'
+  document.querySelector('#compose-note').textContent = chatT(state === 'queued'
+    ? 'Your message is queued and will send automatically.' : chat && state !== 'idle'
     ? 'Answer pending questions below, or wait for your secretary.' : 'Only your chosen mode. No commands needed.');
+}
+
+function queueText(position, depth) {
+  const place = chatT('You are #{position} in line', {position});
+  if (depth > 1) return `${chatT('In queue')} · ${place} · ${chatT('{depth} waiting', {depth})}`;
+  return `${chatT('In queue')} · ${place}`;
+}
+
+function showQueued(position, depth) {
+  const status = document.querySelector('#chat-status');
+  status.textContent = queueText(position, depth);
+  status.classList.add('is-queued');
+}
+
+function clearQueued() {
+  document.querySelector('#chat-status').classList.remove('is-queued');
 }
 
 function showMode() {
@@ -92,6 +109,7 @@ function newConversation(next = chatConfig.defaultMode) {
   document.querySelector('#chat-questions').replaceChildren();
   document.querySelector('#chat-empty').hidden = false;
   document.querySelector('#chat-status').textContent = '';
+  document.querySelector('#chat-status').classList.remove('is-queued');
   errorBox.textContent = '';
   textBox.value = drafts.get(mode) || '';
   showMode();
@@ -160,6 +178,51 @@ function showMessages(messages) {
   if (nearBottom && messages.length) log.lastElementChild.scrollIntoView({block:'nearest'});
 }
 
+async function pollQueue() {
+  clearTimeout(timer);
+  if (!chat || document.hidden || polling) return;
+  polling = true;
+  const current = chat; const version = revision;
+  try {
+    const status = await chatAPI('/api/queue');
+    if (version !== revision) return;
+    const mine = (status.queue || []).find(item => item.work === 'chat' && item.chat === current);
+    if (mine) {
+      state = 'queued';
+      showQueued(mine.position, status.depth);
+      showMode();
+    } else {
+      state = 'starting'; clearQueued();
+      pollChat();
+      return;
+    }
+  } catch (error) {
+    if (version !== revision) return;
+    if (error.status === 401) throw error;
+    errorBox.textContent = error.message;
+  } finally {
+    polling = false;
+    if (version !== revision && chat) timer = setTimeout(pollQueue, 0);
+  }
+  if (version === revision && chat && state === 'queued') timer = setTimeout(pollQueue, 2500);
+}
+
+async function recoverQueuedAfterReload() {
+  try {
+    const status = await chatAPI('/api/queue');
+    const mine = (status.queue || []).find(item => item.work === 'chat' && item.chat === chat);
+    if (mine) {
+      state = 'queued';
+      errorBox.textContent = '';
+      showQueued(mine.position, status.depth);
+      showMode();
+      pollQueue();
+      return true;
+    }
+  } catch { /* Fall through to the unavailable notice below. */ }
+  return false;
+}
+
 async function pollChat() {
   clearTimeout(timer);
   if (!chat || document.hidden || polling) return;
@@ -175,6 +238,7 @@ async function pollChat() {
       applySecretaryName();
     }
     document.querySelector('#chat-status').textContent = result.label;
+    document.querySelector('#chat-status').classList.remove('is-queued');
     if (result.messages) showMessages(result.messages);
     const signature = JSON.stringify([result.forms, result.permissions]);
     if (signature !== formSignature) {
@@ -189,6 +253,7 @@ async function pollChat() {
     if (state === 'idle') await historyList();
   } catch (error) {
     if (version === revision && error.status === 404) {
+      if (await recoverQueuedAfterReload()) return;
       newConversation();
       errorBox.textContent = chatT('This conversation is no longer available. Start a new one.');
       historyList().catch(() => {});
@@ -211,31 +276,45 @@ document.querySelector('#chat-compose').addEventListener('submit', async event =
   const version = revision;
   sending = true; errorBox.textContent = ''; composeState();
   try {
-    await chatAPI(first ? '/api/chats' : `/api/chats/${current}/messages`,
+    const result = await chatAPI(first ? '/api/chats' : `/api/chats/${current}/messages`,
       first ? {id: current, mode, text: textBox.value} : {id: request, text: textBox.value});
     if (version !== revision) return;
-    chat = current; state = 'starting'; textBox.value = ''; drafts.delete(mode);
+    chat = current; textBox.value = ''; drafts.delete(mode);
     history.replaceState(null, '', '/chat?id=' + chat);
+    if (result && result.queued) {
+      state = 'queued';
+      showQueued(result.position, result.depth);
+    } else {
+      state = 'starting'; clearQueued();
+    }
     await historyList();
   } catch (error) {
     if (version !== revision) return;
-    errorBox.textContent = error.message;
+    errorBox.textContent = error.status === 429 ? chatT(error.message) : error.message;
     if (error.uncertain) {
       chat = current; state = 'uncertain';
       history.replaceState(null, '', '/chat?id=' + chat);
     }
   } finally {
-    if (version === revision) { sending = false; composeState(); if (chat) pollChat(); }
+    if (version === revision) {
+      sending = false; composeState();
+      if (chat) (state === 'queued' ? pollQueue() : pollChat());
+    }
   }
 });
 
-document.addEventListener('visibilitychange', () => { if (document.hidden) clearTimeout(timer); else pollChat(); });
-document.addEventListener('website:language', () => { showMode(); if (chat) pollChat(); });
+function pollVisible() {
+  if (!chat) return;
+  (state === 'queued' ? pollQueue() : pollChat());
+}
+
+document.addEventListener('visibilitychange', () => { if (document.hidden) clearTimeout(timer); else pollVisible(); });
+document.addEventListener('website:language', () => { showMode(); pollVisible(); });
 document.addEventListener('website:before-refresh', event => { if (sending || pendingChatMutations) event.preventDefault(); });
 document.addEventListener('website:refresh-drafts', event => {
   if ([...drafts.values()].some(text => text.trim())) event.preventDefault();
 });
-window.addEventListener('focus', () => { if (chat) pollChat(); });
+window.addEventListener('focus', () => { pollVisible(); });
 showMode();
 historyList().catch(error => { errorBox.textContent = error.message; });
 if (chat) pollChat();

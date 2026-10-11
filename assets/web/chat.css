@@ -27,6 +27,7 @@
 .message-author { margin: 0 0 8px; color: var(--accent); font-size: 11px; font-weight: 650; }
 .message-text { white-space: pre-wrap; line-height: 1.75; font-size: 14px; }
 #chat-status { font-size: 12px; color: var(--muted); }
+#chat-status.is-queued { display: inline-block; margin-top: 4px; padding: 6px 12px; border: 1px solid var(--line); border-radius: 999px; background: var(--wash); color: var(--ink); font-size: 12px; }
 #chat-compose { margin-top: 24px; border-top: 1px solid var(--line); padding-top: 24px; }
 #compose-label { display: block; font-size: 12px; font-weight: 600; margin-bottom: 8px; }
 #chat-text { width: 100%; min-height: 100px; resize: vertical; background: var(--bg); border: 1px solid var(--line); border-radius: 12px; padding: 14px; color: var(--ink); font-size: 16px; }

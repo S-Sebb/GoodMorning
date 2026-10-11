@@ -12,6 +12,7 @@ import re
 import secrets
 import socketserver
 import threading
+import time
 from urllib.parse import urlsplit, parse_qs
 from urllib.request import Request, build_opener, HTTPRedirectHandler
 from urllib.error import HTTPError
@@ -26,6 +27,10 @@ ASSETS = WEB_ASSETS
 POLICY = "default-src 'none'; style-src 'self'; script-src 'self'; img-src 'self'; font-src 'self'; connect-src 'self'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'"
 GET_ROUTES = re.compile(r'(?:/|/(?:index|gm|gn)\.html|/chat|/api/chats(?:/[a-f0-9]{32})?|/api/day|/api/edition/\d{4}-\d{2}-\d{2}/(?:gm|gn)|/api/jobs/[a-f0-9]{32}(?:/preview)?|/d/\d{4}-\d{2}-\d{2}/(?:gm|gn)\.(?:html|json)|/media/(?:thumb-v1/)?[a-f0-9]{64}\.webp|/d/\d{4}-\d{2}-\d{2}/media/[a-f0-9]+\.webp|/(?:assets/[a-f0-9]{64}/)?(?:briefing\.css|briefing\.js|browser\.js|questions\.js|chat\.js|chat\.css|fonts/(?:lora-italic\.woff2|OFL\.txt)))')
 POST_ROUTES = re.compile(r'(?:/api/generate|/api/chats|/api/chats/[a-f0-9]{32}/(?:messages|(?:form|permission)/[A-Za-z0-9_]+/reply)|/api/jobs/[a-f0-9]{32}/(?:recover|(?:form|permission)/[A-Za-z0-9_]+/reply))')
+QUEUE_KEY = 'generation_queue'
+MAX_QUEUE = 20
+QUEUE_TTL = 900
+QUEUE_FULL = 'The secretary queue is full. Please wait for earlier requests to finish.'
 
 
 class NoRedirect(HTTPRedirectHandler):
@@ -110,6 +115,164 @@ class Gateway:
             except Exception:
                 pass  # Uncertain work keeps its reservation. Never launch work blindly.
 
+    @staticmethod
+    def _valid_queue_entry(entry):
+        if not isinstance(entry, dict) or entry.get('kind') not in ('chat', 'generate', 'recover'):
+            return False
+        candidate = entry.get('candidate')
+        if not isinstance(candidate, dict) or not isinstance(entry.get('user'), str) or not isinstance(entry.get('host'), str):
+            return False
+        if not isinstance(entry.get('path'), str) or not isinstance(entry.get('body'), dict):
+            return False
+        if entry.get('language') not in ('en', 'zh-CN') or not isinstance(entry.get('enqueued'), (int, float)):
+            return False
+        try:
+            if len(json.dumps(entry['body']).encode()) > 20000:
+                return False
+        except (TypeError, ValueError):
+            return False
+        return True
+
+    def _read_queue(self, db):
+        row = db.execute('SELECT value FROM metadata WHERE key=?', (QUEUE_KEY,)).fetchone()
+        if not row:
+            return []
+        try:
+            queue = json.loads(row[0])
+        except (TypeError, ValueError):
+            return []
+        return queue if isinstance(queue, list) else []
+
+    def _write_queue(self, db, queue):
+        if queue:
+            db.execute('INSERT INTO metadata VALUES (?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value',
+                       (QUEUE_KEY, json.dumps(queue, separators=(',', ':'))))
+        else:
+            db.execute('DELETE FROM metadata WHERE key=?', (QUEUE_KEY,))
+
+    def _prune_queue(self, queue, now):
+        return [entry for entry in queue
+                if self._valid_queue_entry(entry) and now - entry['enqueued'] < QUEUE_TTL]
+
+    def _reserve_or_queue(self, kind, candidate, path, body, language):
+        """Atomically take the active slot or join the bounded global waiting line."""
+        entry = {'kind': kind, 'candidate': candidate, 'user': candidate['user'], 'host': candidate['host'],
+                 'path': path, 'body': body, 'language': language, 'enqueued': time.time()}
+        with self.accounts.db() as db:
+            db.execute('BEGIN IMMEDIATE')
+            row = db.execute('SELECT value FROM metadata WHERE key=?', ('generation',)).fetchone()
+            queue = self._prune_queue(self._read_queue(db), entry['enqueued'])
+            if row:
+                if json.loads(row[0]) == candidate:
+                    self._write_queue(db, queue)
+                    return ('active_duplicate', None, len(queue))
+                for index, waiting in enumerate(queue):
+                    if waiting.get('kind') == kind and waiting.get('candidate') == candidate:
+                        self._write_queue(db, queue)
+                        return ('queued_duplicate', index + 1, len(queue))
+                if len(queue) >= MAX_QUEUE:
+                    self._write_queue(db, queue)
+                    return ('full', None, len(queue))
+                queue.append(entry)
+                self._write_queue(db, queue)
+                return ('queued', len(queue), len(queue))
+            if queue:
+                for index, waiting in enumerate(queue):
+                    if waiting.get('kind') == kind and waiting.get('candidate') == candidate:
+                        self._write_queue(db, queue)
+                        return ('queued_duplicate', index + 1, len(queue))
+                if len(queue) >= MAX_QUEUE:
+                    self._write_queue(db, queue)
+                    return ('full', None, len(queue))
+                queue.append(entry)
+                self._write_queue(db, queue)
+                return ('queued', len(queue), len(queue))
+            db.execute('INSERT INTO metadata VALUES (?,?)', ('generation', json.dumps(candidate, separators=(',', ':'))))
+            return ('active_new', None, 0)
+
+    def _dispatch_queued(self, entry):
+        token = ui.CURRENT.set(entry.get('language') or 'en')
+        try:
+            raw = json.dumps(entry['body']).encode()
+            status, upstream, data = self.proxy(entry['user'], entry['host'], entry['path'], 'POST', raw, {})
+            candidate = entry['candidate']
+            if entry['kind'] == 'generate':
+                try:
+                    result = json.loads(data)
+                except (TypeError, ValueError):
+                    result = {}
+                if status < 300 and re.fullmatch('[a-f0-9]{32}', result.get('job', '')):
+                    updated = {**candidate, 'job': result['job']}
+                    with self.accounts.db() as db:
+                        db.execute('UPDATE metadata SET value=? WHERE key=? AND value=?',
+                                   (json.dumps(updated, separators=(',', ':')), 'generation', json.dumps(candidate, separators=(',', ':'))))
+                elif status < 500:
+                    self.clear_ticket(candidate)
+            elif 400 <= status < 500:
+                self.clear_ticket(candidate)
+            return status
+        finally:
+            ui.CURRENT.reset(token)
+
+    def pump_queue(self):
+        """Advance the global waiting line while the active slot is free."""
+        self.reconcile_ticket()
+        for _ in range(MAX_QUEUE + 1):
+            with self.accounts.db() as db:
+                db.execute('BEGIN IMMEDIATE')
+                if db.execute('SELECT value FROM metadata WHERE key=?', ('generation',)).fetchone():
+                    return
+                queue = self._prune_queue(self._read_queue(db), time.time())
+                if not queue:
+                    self._write_queue(db, queue)
+                    return
+                head = queue.pop(0)
+                db.execute('INSERT INTO metadata VALUES (?,?)',
+                           ('generation', json.dumps(head['candidate'], separators=(',', ':'))))
+                self._write_queue(db, queue)
+            try:
+                self._dispatch_queued(head)
+            except Exception:
+                return  # Uncertain dispatch keeps its reservation and blocks the line.
+            with self.accounts.db() as db:
+                row = db.execute('SELECT value FROM metadata WHERE key=?', ('generation',)).fetchone()
+                if row:
+                    return
+            # An invalid head cleared its own reservation; immediately try the next waiter.
+
+    def queue_status(self, identifier):
+        self.pump_queue()
+        now = time.time()
+        with self.accounts.db() as db:
+            db.execute('BEGIN IMMEDIATE')
+            queue = self._prune_queue(self._read_queue(db), now)
+            self._write_queue(db, queue)
+            row = db.execute('SELECT value FROM metadata WHERE key=?', ('generation',)).fetchone()
+            waiting = []
+            for index, entry in enumerate(queue):
+                if entry.get('user') != identifier:
+                    continue
+                item = {'work': entry['kind'], 'position': index + 1}
+                if entry['kind'] == 'chat':
+                    item['chat'] = entry['candidate'].get('chat')
+                elif entry['kind'] == 'generate':
+                    item['date'] = entry['candidate'].get('date')
+                    item['edition'] = entry['candidate'].get('kind')
+                else:
+                    item['job'] = entry['candidate'].get('job')
+                waiting.append(item)
+            return {'queue': waiting, 'depth': len(queue), 'active': row is not None}
+
+    def queued_response(self, kind, candidate, position, depth):
+        payload = {'queued': True, 'position': position, 'depth': depth}
+        if kind == 'chat':
+            payload['chat'] = candidate['chat']
+        elif kind == 'generate':
+            payload.update(date=candidate['date'], edition=candidate['kind'])
+        else:
+            payload['job'] = candidate['job']
+        return 202, {'Content-Type': 'application/json'}, json.dumps(payload).encode()
+
     def chat_message(self, identifier, host, path, raw, headers):
         from goodmorning.web.briefing_chat import identifier as chat_id, message, MODES
         body = json.loads(raw)
@@ -124,19 +287,14 @@ class Gateway:
         request = chat_id(body['id'])
         message(body['text'])
         candidate = {'user': identifier, 'host': host, 'chat': chat, 'request': request}
-        self.reconcile_ticket()
-        created = False
-        with self.accounts.db() as db:
-            db.execute('BEGIN IMMEDIATE')
-            row = db.execute('SELECT value FROM metadata WHERE key=?', ('generation',)).fetchone()
-            if row:
-                current = json.loads(row[0])
-                if current != candidate:
-                    return 409, {'Content-Type': 'application/json'}, b'{"error":"The secretary is busy with another request. Try again after it finishes."}'
-                # The backend verifies duplicate payloads without dispatching them again.
-            else:
-                db.execute('INSERT INTO metadata VALUES (?,?)', ('generation', json.dumps(candidate, separators=(',', ':'))))
-                created = True
+        language = self.accounts.website_language(identifier) or ui.current()
+        self.pump_queue()
+        action, position, depth = self._reserve_or_queue('chat', candidate, path, body, language)
+        if action in ('queued', 'queued_duplicate'):
+            return self.queued_response('chat', candidate, position, depth)
+        if action == 'full':
+            return 429, {'Content-Type': 'application/json'}, json.dumps({'error': QUEUE_FULL}).encode()
+        created = action == 'active_new'
         status, upstream, data = self.proxy(identifier, host, path, 'POST', raw, headers)
         if created and 400 <= status < 500:
             self.clear_ticket(candidate)
@@ -146,19 +304,21 @@ class Gateway:
         body=json.loads(raw)
         if set(body)!={'date','kind'} or not isinstance(body['date'],str) or not re.fullmatch(r'\d{4}-\d{2}-\d{2}',body['date']) or body['kind'] not in ('gm','gn'):
             raise ValueError('Invalid generation request')
-        self.reconcile_ticket()
         candidate={'user':identifier,'host':host,'date':body.get('date'),'kind':body.get('kind')}
-        with self.accounts.db() as db:
-            db.execute('BEGIN IMMEDIATE')
-            row=db.execute('SELECT value FROM metadata WHERE key=?',('generation',)).fetchone()
-            if row:
-                current=json.loads(row[0])
-                if {k:current.get(k) for k in candidate}!=candidate:
-                    return 409,{'Content-Type':'application/json'},b'{"error":"Another briefing is being prepared. Try again after it finishes."}'
+        language = self.accounts.website_language(identifier) or ui.current()
+        self.pump_queue()
+        action, position, depth = self._reserve_or_queue('generate', candidate, '/api/generate', body, language)
+        if action in ('queued', 'queued_duplicate'):
+            return self.queued_response('generate', candidate, position, depth)
+        if action == 'full':
+            return 429,{'Content-Type':'application/json'},json.dumps({'error':QUEUE_FULL}).encode()
+        if action == 'active_duplicate':
+            current = self.ticket()
+            if current and {k:current.get(k) for k in candidate}==candidate:
                 if not current.get('job'):
                     return 409,{'Content-Type':'application/json'},b'{"error":"A generation request needs administrator reconciliation before retrying."}'
                 return 202,{'Content-Type':'application/json'},json.dumps({'job':current['job']}).encode()
-            db.execute('INSERT INTO metadata VALUES (?,?)',('generation',json.dumps(candidate,separators=(',',':'))))
+            return self.queued_response('generate', candidate, position or 1, depth)
         status,upstream,data=self.proxy(identifier,host,'/api/generate','POST',raw,headers)
         result=json.loads(data)
         if status<300 and re.fullmatch('[a-f0-9]{32}',result.get('job','')):
@@ -176,7 +336,8 @@ class Gateway:
             raise ValueError('Invalid recovery request')
         job = re.fullmatch(r'/api/jobs/([a-f0-9]{32})/recover', path)[1]
         candidate = {'user':identifier, 'host':host, 'job':job, 'request':body['id']}
-        self.reconcile_ticket()
+        language = self.accounts.website_language(identifier) or ui.current()
+        self.pump_queue()
         observed = self.ticket()
         refreshable = False
         if observed and all(observed.get(k) == candidate[k] for k in ('user','host','job')) and observed.get('request') != body['id']:
@@ -186,15 +347,41 @@ class Gateway:
             db.execute('BEGIN IMMEDIATE')
             row = db.execute("SELECT value FROM metadata WHERE key='generation'").fetchone()
             previous = json.loads(row[0]) if row else None
+            queue = self._prune_queue(self._read_queue(db), time.time())
             if row:
                 current = json.loads(row[0])
                 if any(current.get(k) != candidate[k] for k in ('user', 'host', 'job')):
-                    return 409, {'Content-Type':'application/json'}, b'{"error":"The secretary is busy with another request."}'
+                    for index, waiting in enumerate(queue):
+                        if waiting.get('kind') == 'recover' and waiting.get('candidate') == candidate:
+                            self._write_queue(db, queue)
+                            return self.queued_response('recover', candidate, index + 1, len(queue))
+                    if len(queue) >= MAX_QUEUE:
+                        self._write_queue(db, queue)
+                        return 429, {'Content-Type':'application/json'}, json.dumps({'error':QUEUE_FULL}).encode()
+                    queue.append({'kind':'recover','candidate':candidate,'user':identifier,'host':host,
+                                  'path':path,'body':body,'language':language,'enqueued':time.time()})
+                    self._write_queue(db, queue)
+                    return self.queued_response('recover', candidate, len(queue), len(queue))
                 if current.get('request') == body['id']:
+                    self._write_queue(db, queue)
                     return 202, {'Content-Type':'application/json'}, json.dumps({'job':job}).encode()
                 # Only an undispatched preflight can replace its own reservation.
                 if current != observed or not refreshable:
+                    self._write_queue(db, queue)
                     return 409, {'Content-Type':'application/json'}, b'{"error":"Refresh status before trying recovery again."}'
+            elif queue:
+                for index, waiting in enumerate(queue):
+                    if waiting.get('kind') == 'recover' and waiting.get('candidate') == candidate:
+                        self._write_queue(db, queue)
+                        return self.queued_response('recover', candidate, index + 1, len(queue))
+                if len(queue) >= MAX_QUEUE:
+                    self._write_queue(db, queue)
+                    return 429, {'Content-Type':'application/json'}, json.dumps({'error':QUEUE_FULL}).encode()
+                queue.append({'kind':'recover','candidate':candidate,'user':identifier,'host':host,
+                              'path':path,'body':body,'language':language,'enqueued':time.time()})
+                self._write_queue(db, queue)
+                return self.queued_response('recover', candidate, len(queue), len(queue))
+            self._write_queue(db, queue)
             db.execute('INSERT OR REPLACE INTO metadata VALUES (?,?)', ('generation', json.dumps(candidate, separators=(',',':'))))
         status, upstream, data = self.proxy(identifier, host, path, 'POST', raw, headers)
         if 400 <= status < 500:
@@ -364,6 +551,8 @@ def handler_for(gateway):
                     return self.respond(self.account_html(session,'Change password',host),mime='text/html; charset=utf-8')
                 if path=='/login':
                     return self.respond(b'',302,location='/')
+                if path=='/api/queue':
+                    return self.respond(gateway.queue_status(session['user_id']))
                 status,headers,data=gateway.proxy(session['user_id'],host,self.path,'GET',None,self.headers)
                 mime=headers.get('Content-Type','application/json')
                 if mime.startswith('text/html'):

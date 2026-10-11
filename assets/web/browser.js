@@ -11,7 +11,60 @@ let imageRevision = null;
 let resolvedSections = -1;
 let briefingRequestLanguage = null;
 let pendingBriefingMutations = 0;
+let queuedBriefing = null;
+let queuedRecovery = null;
 document.addEventListener('website:before-refresh', event => { if (pendingBriefingMutations) event.preventDefault(); });
+
+function queueLabel(position, depth) {
+  const place = browserT('You are #{position} in line', {position});
+  const line = depth > 1 ? `${browserT('In queue')} · ${place} · ${browserT('{depth} waiting', {depth})}` : `${browserT('In queue')} · ${place}`;
+  return line;
+}
+
+function showBriefingQueued(position, depth) {
+  document.querySelector('#generation').hidden = false;
+  document.querySelector('#generation-progress').value = 2;
+  const status = document.querySelector('#generation-status');
+  status.textContent = queueLabel(position, depth);
+  status.classList.add('is-queued');
+  document.querySelector('.desk-animation')?.classList.add('is-paused');
+}
+
+function clearBriefingQueued() {
+  document.querySelector('#generation-status').classList.remove('is-queued');
+}
+
+async function pollBriefingQueue() {
+  clearTimeout(pollTimer);
+  if (document.hidden || polling) return;
+  polling = true;
+  try {
+    const waiting = await api('/api/queue');
+    const mine = (waiting.queue || []).find(item =>
+      (queuedBriefing && item.work === 'generate' && item.date === queuedBriefing.date && item.edition === queuedBriefing.kind) ||
+      (queuedRecovery && item.work === 'recover' && item.job === queuedRecovery));
+    if (mine) {
+      showBriefingQueued(mine.position, waiting.depth);
+      if (queuedBriefing && generate) generate.hidden = true;
+    } else if (queuedBriefing) {
+      const current = await api(`/api/edition/${queuedBriefing.date}/${queuedBriefing.kind}`);
+      if (current.job) {
+        job = current.job; queuedBriefing = null; clearBriefingQueued();
+        if (generate) generate.hidden = true;
+        poll();
+        return;
+      }
+      showBriefingQueued(1, 1);
+    } else if (queuedRecovery) {
+      queuedRecovery = null; clearBriefingQueued();
+      poll();
+      return;
+    } else return;
+  } catch (error) {
+    errorBox.textContent = error.message;
+  } finally { polling = false; }
+  pollTimer = setTimeout(pollBriefingQueue, 2500);
+}
 
 function fragment(markup) {
   // Only escaped, typed server components arrive here, never agent-authored HTML.
@@ -127,6 +180,7 @@ async function poll() {
     document.querySelector('#generation').hidden = false;
     document.querySelector('#generation-progress').value = state.progress;
     document.querySelector('#generation-status').textContent = state.label;
+    document.querySelector('#generation-status').classList.remove('is-queued');
     const languageNote = document.querySelector('#request-language-note');
     if (languageNote) languageNote.textContent = state.language && typeof goodmorningLanguage !== 'undefined' && state.language !== goodmorningLanguage
       ? browserT('This request is finishing in {language}. New requests use your current website language.',{language:browserT(state.language==='zh-CN'?'Simplified Chinese':'English')}) : '';
@@ -149,7 +203,13 @@ async function poll() {
       recover.addEventListener('click', async () => {
         recover.disabled = true; errorBox.textContent = '';
         try {
-          await api(`/api/jobs/${job}/recover`, { id: crypto.randomUUID().replaceAll('-', '') });
+          const outcome = await api(`/api/jobs/${job}/recover`, { id: crypto.randomUUID().replaceAll('-', '') });
+          if (outcome && outcome.queued) {
+            queuedRecovery = outcome.job || job;
+            showBriefingQueued(outcome.position, outcome.depth);
+            pollBriefingQueue();
+            return;
+          }
           formSignature = ''; poll();
         } catch (error) {
           errorBox.textContent = error.message;
@@ -186,6 +246,13 @@ generate?.addEventListener('click', async () => {
   try {
     const result = await api('/api/generate', { date: config.date, kind: config.kind });
     if (result.ready) { location.reload(); return; }
+    if (result.queued) {
+      queuedBriefing = {date: config.date, kind: config.kind};
+      showBriefingQueued(result.position, result.depth);
+      generate.hidden = true;
+      pollBriefingQueue();
+      return;
+    }
     job = result.job; generate.hidden = true; poll();
   } catch (error) { errorBox.textContent = error.message; generate.disabled = false; }
 });
@@ -194,14 +261,24 @@ async function resume() {
   if (!config.missing) return;
   try {
     const current = await api(`/api/edition/${config.date}/${config.kind}`);
-    if (current.job) { job = current.job; if (generate) generate.hidden = true; poll(); }
-  } catch (error) { errorBox.textContent = error.message; }
+    if (current.job) { job = current.job; if (generate) generate.hidden = true; poll(); return; }
+  } catch (error) { errorBox.textContent = error.message; return; }
+  try {
+    const waiting = await api('/api/queue');
+    const mine = (waiting.queue || []).find(item => item.work === 'generate' && item.date === config.date && item.edition === config.kind);
+    if (mine) {
+      queuedBriefing = {date: config.date, kind: config.kind};
+      showBriefingQueued(mine.position, waiting.depth);
+      if (generate) { generate.hidden = true; generate.disabled = true; }
+      pollBriefingQueue();
+    }
+  } catch { /* Stay on the generate button when the queue cannot be read. */ }
 }
 document.addEventListener('visibilitychange', () => {
   if (document.hidden) clearTimeout(pollTimer);
-  else { checkDay(); if (job) poll(); }
+  else { checkDay(); if (job) poll(); else if (queuedBriefing || queuedRecovery) pollBriefingQueue(); }
 });
 window.addEventListener('focus', checkDay);
-document.addEventListener('website:language', () => { if (job) poll(); });
+document.addEventListener('website:language', () => { if (job) poll(); else if (queuedBriefing || queuedRecovery) pollBriefingQueue(); });
 setInterval(checkDay, 60000);
 checkDay(); resume();

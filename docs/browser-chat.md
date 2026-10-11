@@ -52,8 +52,10 @@ Code creates an account-owned dedicated session, saves intent before dispatch,
 and persists conversation IDs and request IDs in the selected encrypted runtime.
 Refresh restores the same session; duplicate requests do not create extra turns.
 Interrupted dispatch stays uncertain and requires inspection, never blind replay.
-The gateway shares the global agent reservation with briefing generation. A
-waiting question retains its reservation until the owning session becomes idle.
+The gateway keeps one bounded global waiting line (about 20 requests) shared by
+briefing generation and all secretary conversations. A waiting question retains
+its reservation until the owning session becomes idle, and queued requests wait
+behind it in arrival order without concurrent dispatch.
 
 The page reads only visible user/assistant text, never reasoning or tool output.
 Text is rendered without agent HTML. Bounded recent history is displayed; complete
