@@ -28,7 +28,7 @@ decisions, before fetching; follow its recipes and publish top-down, not at step
    preferences, paths, daily task page and active inbox page; do not repeat those reads.
    Handle duplicates and missed runs
    before fetching. For a duplicate, identify its session and stop; no refresh.
-    Rename new runs to `GoodMorning DATE` in `secretary_language` per the shared title rule.
+    Rename new runs to `GoodMorning DATE` in the browser job's website language, or `secretary_language` for local use, per the shared title rule.
 2. For today, run `weather` once with the profile's qualified city using
    explicit `--city CITY` (and `--profile PATH` when relocated). Read its compact
    brief, not JSON. Present distinct parts in this order: temperature, precipitation

@@ -2,6 +2,7 @@
 import argparse
 import json
 from pathlib import Path
+import time
 
 from playwright.sync_api import sync_playwright, expect
 
@@ -42,6 +43,15 @@ def main():
                     page.get_by_role('button',name='Hide password',exact=True).click()
                     expect(password).to_have_attribute('type','password')
                     password.fill('')
+                    page.locator('#website-language').select_option('zh-CN')
+                    expect(page.get_by_role('heading',name='登录',exact=True)).to_be_visible()
+                    expect(page.locator('html')).to_have_attribute('lang','zh-CN')
+                    expect(page.get_by_role('button',name='显示密码',exact=True)).to_be_visible()
+                    expect(page.get_by_role('checkbox',name='在此设备上保持登录 60 天')).not_to_be_checked()
+                    assert page.evaluate('document.documentElement.scrollWidth<=innerWidth')
+                    page.screenshot(path=str(args.artifacts/(host.split('.')[0]+'-'+str(width)+'-zh-CN.png')),full_page=True)
+                    page.locator('#website-language').select_option('en')
+                    expect(page.get_by_role('heading',name='Sign in',exact=True)).to_be_visible()
                     expect(page.get_by_role('checkbox',name='Remember me for 60 days on this device')).not_to_be_checked()
                     expect(page.get_by_role('button',name='Sign in',exact=True)).to_be_enabled()
                     assert response.status==200 and response.headers['cache-control']=='no-store'
@@ -51,7 +61,7 @@ def main():
                     assert session['secure'] and session['httpOnly'] and session['sameSite']=='Strict'
                     assert session['domain']==host
                     measurements=page.evaluate('''() => ({width:innerWidth, content:document.documentElement.scrollWidth,
-                        labels:[...document.querySelectorAll('input')].map(input => input.labels.length)})''')
+                        labels:[...document.querySelectorAll('input:not([type=hidden])')].map(input => input.labels.length)})''')
                     assert measurements['content']<=measurements['width']
                     assert all(measurements['labels'])
                     assert not errors
@@ -59,8 +69,22 @@ def main():
                     api=context.request.get('https://'+host+'/api/jobs/'+('a'*32))
                     assert api.status==401
                     results.append({'host':host,'width':width,'overflow':False,'pageErrors':0,
-                                    'hostOnlySecureCookie':True,'privateAPIStatus':api.status,'tabIcon':kind,'iconFormats':['PNG','SVG']})
+                                    'hostOnlySecureCookie':True,'privateAPIStatus':api.status,'tabIcon':kind,'iconFormats':['PNG','SVG'],
+                                    'languages':['en','zh-CN']})
                     context.close()
+                    time.sleep(4)  # Respect the production auth rate limit, not an assertion wait.
+            plain=browser.new_context(java_script_enabled=False,viewport={'width':320,'height':760})
+            page=plain.new_page();page.goto('https://gm.love765.me/login')
+            page.locator('#website-language').select_option('zh-CN')
+            page.get_by_role('button',name='Apply',exact=True).click()
+            expect(page.get_by_role('heading',name='登录',exact=True)).to_be_visible()
+            expect(page.locator('#account-form button[type=submit]')).to_be_disabled()
+            assert page.evaluate('document.documentElement.scrollWidth<=innerWidth')
+            for host in ('gn.love765.me','sec.love765.me'):
+                page.goto('https://'+host+'/login')
+                expect(page.get_by_role('heading',name='登录',exact=True)).to_be_visible()
+            results.append({'noJavascriptNativeRedirect':True,'anonymousLanguageSharedAcrossThreeHosts':True})
+            plain.close()
         finally:
             browser.close()
     report={'modelCalls':0,'loggedIntoAccount':False,'engine':'Chromium','checks':results}

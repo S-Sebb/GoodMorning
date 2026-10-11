@@ -1,4 +1,5 @@
 // Shared question widgets. Agent text is always text, never executable markup.
+const questionT = (key, values = {}) => typeof goodmorningT === 'function' ? goodmorningT(key, values) : key.replace(/\{([a-z]+)\}/g,(token,name)=>values[name] ?? token);
 function secretaryElement(tag, text = '', className = '') {
   const node = document.createElement(tag);
   node.textContent = text;
@@ -6,15 +7,16 @@ function secretaryElement(tag, text = '', className = '') {
   return node;
 }
 
-function secretaryQuestion(info, send, refreshed) {
+function secretaryQuestion(info, send, refreshed, language) {
   const make = secretaryElement;
   const form = make('form', '', 'agent-form');
-  form.append(make('h2', info.title || 'A question for you'));
+  if (['en','zh-CN'].includes(language)) form.lang=language;
+  form.append(make('h2', info.title || questionT('A question for you')));
   const controls = new Map();
   let unsupported = false;
   for (const field of info.fields) {
     const group = make('fieldset');
-    group.append(make('legend', field.title || 'Your answer'));
+    group.append(make('legend', field.title || questionT('Your answer')));
     if (field.description) group.append(make('p', field.description));
     const inputs = [];
     let custom;
@@ -31,8 +33,10 @@ function secretaryQuestion(info, send, refreshed) {
         group.append(label); inputs.push(input);
       }
       if (field.custom) {
-        custom = make('input'); custom.type = 'text'; custom.placeholder = 'Or write your own answer';
-        custom.setAttribute('aria-label', 'Your own answer'); group.append(custom);
+        custom = make('input'); custom.type = 'text'; custom.placeholder = questionT('Or write your own answer');
+        custom.setAttribute('data-ui-placeholder','Or write your own answer');
+        custom.setAttribute('data-ui-aria-label','Your own answer');
+        custom.setAttribute('aria-label', questionT('Your own answer')); group.append(custom);
         custom.addEventListener('input', () => { if (custom.value && single) inputs.forEach(input => { input.checked = false; }); });
         inputs.forEach(input => input.addEventListener('change', () => { if (input.checked && single) custom.value = ''; }));
       }
@@ -42,14 +46,14 @@ function secretaryQuestion(info, send, refreshed) {
       if (field.type === 'integer') input.step = '1';
       if (field.type === 'boolean') input.checked = field.default === true;
       else input.value = field.default ?? '';
-      input.setAttribute('aria-label', field.title || 'Your answer');
+      input.setAttribute('aria-label', field.title || questionT('Your answer'));
       input.required = field.required && field.type !== 'boolean';
       for (const key of ['placeholder','minLength','maxLength']) if (field[key] !== undefined) input[key] = field[key];
       if (Number.isFinite(field.minimum)) input.min = field.minimum;
       if (Number.isFinite(field.maximum)) input.max = field.maximum;
       group.append(input); inputs.push(input);
     } else {
-      group.append(make('p', 'This question needs administrator help in OpenChamber. Your answers remain unchanged.'));
+      group.append(make('p', questionT('This question needs administrator help in OpenChamber. Your answers remain unchanged.')));
       unsupported = true;
     }
     controls.set(field.key, { field, group, inputs, custom });
@@ -77,7 +81,8 @@ function secretaryQuestion(info, send, refreshed) {
     }
   }
   form.addEventListener('input', visibility); visibility();
-  const submit = make('button', 'Send answer'); submit.type = 'submit'; submit.disabled = unsupported;
+  const submit = make('button', questionT('Send answer')); submit.dataset.uiText='Send answer'; submit.type = 'submit'; submit.disabled = unsupported;
+  if (typeof goodmorningLanguage !== 'undefined') submit.lang=goodmorningLanguage;
   const feedback = make('p'); feedback.setAttribute('role', 'alert');
   form.append(submit, feedback);
   form.addEventListener('submit', async event => {
@@ -89,9 +94,9 @@ function secretaryQuestion(info, send, refreshed) {
       if (control.field.type === 'multiselect') {
         const min = control.field.minItems ?? (control.field.required ? 1 : 0);
         const max = control.field.maxItems ?? Infinity;
-        if (result.length < min || result.length > max) { feedback.textContent = `Please select between ${min} and ${max === Infinity ? 'all available' : max} answers.`; return; }
+        if (result.length < min || result.length > max) { feedback.textContent = questionT('Please select between {min} and {max} answers.',{min,max:max === Infinity ? questionT('all available') : max}); return; }
       }
-      if (control.field.required && (result === '' || result === undefined)) { feedback.textContent = 'Please answer the required questions.'; return; }
+      if (control.field.required && (result === '' || result === undefined)) { feedback.textContent = questionT('Please answer the required questions.'); return; }
       if (result !== undefined) answer[key] = result;
     }
     submit.disabled = true;
@@ -101,14 +106,18 @@ function secretaryQuestion(info, send, refreshed) {
   return form;
 }
 
-function secretaryPermission(info, send, refreshed) {
+function secretaryPermission(info, send, refreshed, language) {
   const make = secretaryElement;
   const form = make('section', '', 'agent-form');
-  form.append(make('h2', 'Permission needed'), make('p', info.action));
+  if (['en','zh-CN'].includes(language)) form.lang=language;
+  const heading=make('h2',questionT('Permission needed'));heading.dataset.uiText='Permission needed';
+  if (typeof goodmorningLanguage !== 'undefined') heading.lang=goodmorningLanguage;
+  form.append(heading, make('p', info.action));
   for (const resource of info.resources) form.append(make('pre', resource));
   const feedback = make('p'); feedback.setAttribute('role', 'alert');
   for (const [decision, text] of [['once','Allow once'], ['reject','Decline']]) {
-    const button = make('button', text); button.type = 'button';
+    const button = make('button', questionT(text)); button.dataset.uiText=text; button.type = 'button';
+    if (typeof goodmorningLanguage !== 'undefined') button.lang=goodmorningLanguage;
     button.addEventListener('click', async () => {
       form.querySelectorAll('button').forEach(item => { item.disabled = true; });
       try { await send('permission', info.id, { decision }); form.remove(); refreshed(); }

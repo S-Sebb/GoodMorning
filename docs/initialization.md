@@ -14,7 +14,10 @@ preserve all records, permissions and answers already given in this conversation
    request must not read or initialize the real secretary runtime. Inspect existing
    filenames first; preserve existing data and confirm a private ignore rule if
     needed. Never read `.env` or pairing credentials.
-2. The first initialization question is the secretary's reply language, alone:
+2. **Website:** use the supplied `Website language` for all replies and questions;
+   do not ask for a separate reply language or write it into the local profile.
+   `setup`/`workflow` helpers use `--website-language CODE` for browser requests.
+   **Local use:** the first initialization question is the secretary's reply language, alone:
    “Which language would you like me to use as your secretary?” Use the current
    conversation language only to ask that initial question; it is not consent to
    save a preference. Offer genuine language/script choices and custom answers,
@@ -61,7 +64,10 @@ scheduled jobs, or external calendar events belong to this checkpoint.
 `python scripts/goodmorning.py setup --secretary-dir RUNTIME` is a compact local check.
 It never fetches, creates files or accesses configured external projects/calendar
 caches. `profile_ready` requires city, timezone, primary news country and an
-explicitly confirmed reply language for every profile. It does not check whether
+explicitly confirmed reply language for local use. A browser check passes
+`--website-language en|zh-CN`, using the website setting instead of a profile
+language field. Neither mode changes existing preferences during a check.
+The check does not determine whether
 every optional preference has been discussed or providers verified. Ask only for
 missing required settings; never reset existing answers or infer a language.
 Missing optional context is not a reason to restart setup.

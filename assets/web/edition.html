@@ -18,12 +18,12 @@
   </header>
   <main id="content">
     <div class="hero">
-      <div class="hero-copy"><p class="eyebrow">{{DATE}} / {{EDITION}} edition</p><h1>{{TITLE}}</h1><p class="subtitle">{{SUBTITLE}}</p></div>
+      <div class="hero-copy"><p class="eyebrow">{{DATE}} / {{EDITION}} edition</p><h1 data-content lang="{{LANG}}">{{TITLE}}</h1><p class="subtitle" data-content lang="{{LANG}}">{{SUBTITLE}}</p></div>
       <figure class="orbit" aria-hidden="true"><div class="sky-scene"><div class="sun">{{CELESTIAL}}</div></div></figure>
     </div>
     <div class="intro">{{INTRO}}</div>
-    <div class="briefing-tools"><a class="source-link" href="{{SOURCE}}">{{SOURCELABEL}} ↗</a></div>
-    <article aria-label="{{EDITION}} briefing">{{SECTIONS}}{{CLOSING}}</article>
+    <div class="briefing-tools"><a class="source-link" href="{{SOURCE}}"><span>{{SOURCELABEL}}</span> ↗</a><span>This saved content keeps its original language.</span></div>
+    <article data-ui-aria-label="{{EDITION}} briefing" aria-label="{{ARTICLELABEL}}" lang="{{LANG}}" data-content>{{SECTIONS}}{{CLOSING}}</article>
   </main>
   <nav class="scroll-map" aria-label="Section scroll navigation"><span class="scroll-cursor" aria-hidden="true"></span><div class="scroll-track">{{NAV}}</div></nav>
   <a class="back-to-top" href="#page-top" aria-label="Back to top" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 11 6-6 6 6M12 5v14"/></svg><span>Back to top</span></a>

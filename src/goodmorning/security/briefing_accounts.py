@@ -195,6 +195,17 @@ class Accounts:
         with self.db() as db:
             db.execute('DELETE FROM sessions WHERE hash=?',(session['hash'],))
 
+    def website_language(self, identifier, replacement=None):
+        from goodmorning.web.language import language
+        with self.db() as db:
+            key='website-language:'+identifier
+            if replacement is not None:
+                replacement=language(replacement)
+                db.execute('INSERT INTO metadata VALUES (?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value',(key,replacement))
+                return replacement
+            row=db.execute('SELECT value FROM metadata WHERE key=?',(key,)).fetchone()
+            return language(row[0]) if row else None
+
     def create(self, name, secret):
         name,secret = username(name),password(secret)
         identifier,salt = secrets.token_hex(16),secrets.token_bytes(32)

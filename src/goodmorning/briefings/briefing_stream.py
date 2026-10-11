@@ -122,7 +122,7 @@ def publish(runtime, identifier, document=None, plan=None, skip=False, *, positi
         if len(checkpoint['outcomes']) == len(checkpoint['plan']) and not document['sections']:
             raise ValueError('Publish at least one section before resolving the plan')
         for entry, section in zip((item for item, outcome in zip(checkpoint['plan'], checkpoint['outcomes']) if outcome == 'ready'), document['sections']):
-            if native.section_title(section, job['date']) != entry[1]:
+            if native.section_title(section, job['date'],document.get('lang','en')) != entry[1]:
                 raise ValueError('Published section title must match its plan')
         source = json.dumps(checkpoint, ensure_ascii=False, separators=(',', ':')) + '\n'
         if len(source.encode()) > MAX_CHECKPOINT:

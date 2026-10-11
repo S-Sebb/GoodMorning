@@ -37,6 +37,7 @@ def celestial(kind):
 
 
 def country_flag(code):
+    from goodmorning.web import language as ui
     names = {'CN': 'China', 'GB': 'United Kingdom', 'US': 'United States', 'CA': 'Canada', 'AU': 'Australia'}
     code = 'GB' if code == 'UK' else code
     jack = '<rect width="30" height="20" fill="#21437a"/><path d="m0 0 30 20M30 0 0 20" stroke="white" stroke-width="5"/><path d="m0 0 30 20M30 0 0 20" stroke="#ca3047" stroke-width="2"/><path d="M15 0v20M0 10h30" stroke="white" stroke-width="7"/><path d="M15 0v20M0 10h30" stroke="#ca3047" stroke-width="4"/>'
@@ -60,7 +61,7 @@ def country_flag(code):
         drawing += '</g>'
     else:
         return f'<span class="country-code">{html.escape(code)}</span>'
-    return f'<svg class="country-flag" viewBox="0 0 30 20" role="img" aria-label="{names[code]}" focusable="false">{drawing}</svg>'
+    return f'<svg class="country-flag" viewBox="0 0 30 20" role="img" data-ui-aria-label="{names[code]}" aria-label="{ui.text(names[code])}" focusable="false">{drawing}</svg>'
 
 
 def category_icon(category):
@@ -69,6 +70,7 @@ def category_icon(category):
 
 
 def news_visual(url, source_label, category, images):
+    from goodmorning.web import language as ui
     cached = images.get(url)
     if cached:
         responsive = ''
@@ -76,9 +78,10 @@ def news_visual(url, source_label, category, images):
             desktop_width = max(108, round(120 * cached['width'] / cached['height']))
             mobile_floor = round(136 * cached['width'] / cached['height'])
             responsive = f' srcset="{html.escape(cached["small_src"], quote=True)} {cached["small_width"]}w, /{html.escape(cached["src"], quote=True)} {cached["width"]}w" sizes="(max-width: 700px) max(calc(100vw - 196px), {mobile_floor}px), {desktop_width}px"'
-        picture = f'<figure class="news-visual"><img src="{html.escape(cached["src"], quote=True)}"{responsive} alt="{html.escape(cached.get("alt", "Publisher article preview"), quote=True)}" width="{cached.get("width", 640)}" height="{cached.get("height", 480)}" loading="lazy" decoding="async"><figcaption>Publisher preview · {source_label}</figcaption></figure>'
+        alt=cached.get('alt') or ui.text('Publisher article preview')
+        caption=ui.ui('Publisher preview · {publisher}',publisher=html.unescape(source_label))
+        picture = f'<figure class="news-visual"><img src="{html.escape(cached["src"], quote=True)}"{responsive} alt="{html.escape(alt, quote=True)}" width="{cached.get("width", 640)}" height="{cached.get("height", 480)}" loading="lazy" decoding="async"><figcaption>{caption}</figcaption></figure>'
     else:
         symbol = 'chip' if category.casefold() == 'ai' else 'globe' if category.casefold() == 'world' else 'news'
-        picture = f'<figure class="news-visual illustration">{icon(symbol)}<figcaption>Illustration · image unavailable</figcaption></figure>'
+        picture = f'<figure class="news-visual illustration">{icon(symbol)}<figcaption>{ui.ui("Illustration · image unavailable")}</figcaption></figure>'
     return picture
-

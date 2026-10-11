@@ -7,6 +7,7 @@ import re
 from urllib.parse import urlsplit
 
 from .briefing_layout import icon, category_icon, news_visual
+from goodmorning.web import language as ui
 
 MAX_BYTES = 150_000
 TITLES = {'weather': 'Weather', 'news': 'News', 'schedule': 'Schedule',
@@ -225,21 +226,22 @@ def render_block(value, images):
     if tag == 'tasks':
         items = []
         for status, title, detail in value[1]:
-            mark = '<span class="check" aria-label="' + ('Completed' if status == 'done' else 'Not completed') + '">' + ('✓' if status == 'done' else '') + '</span>'
-            label = '<span class="task-status">' + status.capitalize() + '</span> ' if status in ('partial', 'blocked') else ''
+            status_label='Completed' if status=='done' else 'Not completed'
+            mark = '<span class="check" data-ui-aria-label="'+status_label+'" aria-label="'+ui.text(status_label)+'">'+('✓' if status=='done' else '')+'</span>'
+            label = '<span class="task-status">' + ui.ui(status.capitalize()) + '</span> ' if status in ('partial', 'blocked') else ''
             items.append(f'<li class="task-card task"><div class="task-title">{mark}{escaped(title)}</div><div class="task-detail">{label}{escaped(detail)}</div></li>')
         return '<ul class="task-list">' + ''.join(items) + '</ul>'
     if tag == 'table':
         columns, rows = value[1:]
         headers = ''.join('<th>' + escaped(label) + '</th>' for label in columns)
         body = ''.join('<tr>' + ''.join('<td>' + escaped(cell) + '</td>' for cell in row) + '</tr>' for row in rows)
-        return f'<div class="table-scroll" tabindex="0" role="region" aria-label="Briefing table; scroll horizontally if needed"><table><thead><tr>{headers}</tr></thead><tbody>{body}</tbody></table></div>'
+        return f'<div class="table-scroll" tabindex="0" role="region" data-ui-aria-label="Briefing table; scroll horizontally if needed" aria-label="{ui.text("Briefing table; scroll horizontally if needed")}"><table><thead><tr>{headers}</tr></thead><tbody>{body}</tbody></table></div>'
     if tag == 'agenda':
         labels = value[2] if len(value) == 3 else AGENDA_LABELS
         events = []
         for date, time, event, place, prep in value[1]:
             fields = [(labels[0], date, 'calendar'), (labels[3], place, 'pin'), (labels[4], prep, 'list')]
-            detail = ''.join(f'<div class="event-detail">{icon(symbol)}<div><span class="detail-label">{escaped(label)}</span><div>{escaped(content)}</div></div></div>' for label, content, symbol in fields if content)
+            detail = ''.join(f'<div class="event-detail">{icon(symbol)}<div><span class="detail-label">{escaped(label) if len(value)==3 else ui.ui(label)}</span><div>{escaped(content)}</div></div></div>' for label, content, symbol in fields if content)
             events.append(f'<li class="agenda-event"><div class="event-time">{icon("clock")}<span>{escaped(time)}</span></div><div class="event-copy"><h4>{escaped(event)}</h4>{detail}</div></li>')
         return '<div class="agenda"><ol class="agenda-events">' + ''.join(events) + '</ol></div>'
     if tag == 'weather':
@@ -248,7 +250,7 @@ def render_block(value, images):
             card, metric, detail, *custom = row
             label, symbol, style = WEATHER[card]
             metric = '<p class="weather-value">' + escaped(metric) + '</p>' if metric is not None else ''
-            cards.append(f'<div class="weather-tile {style}"><div class="weather-label">{icon(symbol)}<h3>{escaped(custom[0] if custom else label)}</h3></div>{metric}<div class="weather-detail"><p>{escaped(detail)}</p></div></div>')
+            cards.append(f'<div class="weather-tile {style}"><div class="weather-label">{icon(symbol)}<h3>{escaped(custom[0]) if custom else ui.ui(label)}</h3></div>{metric}<div class="weather-detail"><p>{escaped(detail)}</p></div></div>')
         return '<div class="weather-tiles">' + ''.join(cards) + '</div>'
     if tag == 'news':
         from .briefing_layout import country_flag
@@ -262,10 +264,10 @@ def render_block(value, images):
     raise ValueError('Validate blocks before rendering')
 
 
-def section_title(section, date):
+def section_title(section, date, language='en'):
     if len(section) == 4:
         return section[3]
-    return TITLES[section[0]] + (' — ' + (Date.fromisoformat(date) - timedelta(days=1)).isoformat() if section[0] == 'news' else '')
+    return ui.text(TITLES[section[0]],lang=language if language in ui.LANGUAGES else 'en') + (' — ' + (Date.fromisoformat(date) - timedelta(days=1)).isoformat() if section[0] == 'news' else '')
 
 
 def news_urls(data):

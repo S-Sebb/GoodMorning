@@ -20,7 +20,10 @@ replies, `docs/reply-voice.md`: personable useful content, no routine bookkeepin
 1. Read `docs/initialization.md`, `config.example.md` and profile/project templates.
    Reuse answers in the selected runtime. Setup and verification are separate;
    no unrequested code development.
-2. The first initialization question is `secretary_language`; wait for the explicit
+2. In a browser chat, use the supplied website language and skip the reply-language
+   question. Do not amend an existing local `secretary_language` preference.
+   Browser setup/workflow helpers pass `--website-language CODE`.
+   For local use, the first initialization question is `secretary_language`; wait for the explicit
    choice and use it throughout. Reuse explicit preferences only; never infer
    reply language from city or news settings. Scripts/bilingual choices are valid.
    Then ask only missing preferences in small groups: qualified city
@@ -60,7 +63,7 @@ replies, `docs/reply-voice.md`: personable useful content, no routine bookkeepin
 
 ## Normal work
 
-1. Rename this conversation to `Secretary SUMMARY` in `secretary_language` per the shared title rule (simple summary, no date).
+1. Rename this conversation to `Secretary SUMMARY` in the supplied website language for browser chats, or `secretary_language` for local use, per the shared title rule (simple summary, no date).
    Use `workflow --secretary-dir RUNTIME --prepare secretary` once for relevant
    preferences, local date, paths and active inbox summaries. Do not repeat these reads.
    Identify the requested read/change and any ambiguity. Read only

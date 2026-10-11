@@ -1,10 +1,16 @@
 # Browser generation contract
 
 The dispatch request contains only `/gm` or `/gn`, the browser job ID, and its
-selected runtime. Read core rules, this contract, the matching workflow and
+selected runtime and website language. Read core rules, this contract, the matching workflow and
 `docs/briefing-format.md`. Stable instructions belong here, never in dispatch.
 
 ## Prepare once
+
+Use the saved `website_language` from `job prepare` for this entire edition,
+including questions, titles and the document's `lang`. It overrides the local
+profile's reply language. Never ask for another language during initialization.
+Changing the interface language does not restart or translate an active edition;
+it affects future requests. Preserve all earlier published and saved content.
 
 The page offers explicit recovery controls. “Prepare again” reopens an
 undispatched preflight after “Stop for now”. “Refresh task list” preserves the

@@ -69,12 +69,12 @@ class TransportTests(server_tests.HTTPTests):
         with urlopen(Request(self.address + path, method='HEAD')) as response:
             self.assertEqual(response.read(), b'')
 
-    def test_saved_html_compresses_but_generation_secrets_do_not(self):
+    def test_html_with_language_or_generation_secrets_does_not_compress(self):
         (self.root / 'daily' / f'{self.date}.gm.json').write_text(GM)
         with urlopen(Request(self.address + '/gm.html', headers={'Accept-Encoding': 'gzip'})) as response:
-            self.assertEqual(response.headers['Content-Encoding'], 'gzip')
-            page = gzip.decompress(response.read()).decode()
-            self.assertNotIn(self.csrf, page)
+            self.assertIsNone(response.headers['Content-Encoding'])
+            page = response.read().decode()
+            self.assertIn(self.csrf, page)
             self.assertEqual(response.headers['Cache-Control'], 'no-store')
         with urlopen(Request(self.address + '/gn.html', headers={'Accept-Encoding': 'gzip'})) as response:
             self.assertIsNone(response.headers.get('Content-Encoding'))

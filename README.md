@@ -27,8 +27,13 @@ Live pages render on demand with shared cacheable assets, bounded memory caches
 and deduplicated publisher images, rather than duplicating webpages/resources daily.
 Briefings are delivered on their browser pages, not as inline OpenCode image cards.
 No image-delivery plugin is required.
-The first setup question confirms the secretary's reply language, independently
-of news-source language. The explicit preference applies across all five workflows.
+The website offers English and Simplified Chinese, with one account-wide setting
+shared by Morning, Night and Secretary, including other devices. New agent requests
+use that setting; active requests finish in their starting language. Saved content
+and existing local preferences are not translated or rewritten. Website initialization
+therefore skips the separate reply-language question. For local skill use, the first
+setup question still confirms the secretary's reply language independently of news.
+The Secretary page explains when to choose Secretary, To-do, Eureka or Initialize.
 One self-contained `goodmorning` skill is copied only into
 `~/.agents/skills/goodmorning/`. The inactive source lives in
 `skill-source/goodmorning.md`; this checkout registers no skills or commands.

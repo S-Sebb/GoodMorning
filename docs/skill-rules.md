@@ -19,7 +19,11 @@ the GoodMorning root; specialized guides load only for the operation needed.
   normal work. Keep an incoming idea or TODO in the conversation; do not claim it is
   saved before setup and a successful write. Optional settings can stay empty
   when the user explicitly declines them; never invent personal defaults.
-- `secretary_language` controls all user-facing replies, setup, question widgets,
+- Browser requests use their supplied website language for replies, setup,
+  question widgets and titles, even when the local profile has another language.
+  Never ask a browser user for a separate reply language. Leave the local field
+  unchanged and pass `--website-language CODE` to setup/workflow helpers.
+- For local use, `secretary_language` controls all user-facing replies, setup, question widgets,
   confirmations and errors, and OpenChamber conversation titles, across gm/gn/eureka/todo/secretary.
   Ask it first in new setup;
   follow an explicit language/script or bilingual choice, or a confirmed request

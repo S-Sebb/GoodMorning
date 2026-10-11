@@ -23,8 +23,11 @@ from .paths import ROOT
 
 
 
-def profile_status(runtime, fields):
+def profile_status(runtime, fields, website_language=None):
     """Local readiness only; never contacts providers or initializes storage."""
+    if website_language is not None:
+        from .web.language import reply_language
+        fields={**fields,'secretary_language':reply_language(website_language)}
     required = ["secretary_language", "city", "timezone", "news_country"]
     missing = [key for key in required if not fields.get(key)]
     if fields.get("timezone"):
@@ -35,7 +38,7 @@ def profile_status(runtime, fields):
         raise ValueError("invalid countries")
     return {"profile_ready": not missing, "missing_fields": missing, "countries": countries,
             "secretary_language": fields.get("secretary_language") or None,
-            "language_status": "confirmed" if fields.get("secretary_language") else "missing"}
+            "language_status": "website" if website_language is not None else "confirmed" if fields.get("secretary_language") else "missing"}
 
 
 def run_check(command, deadline, env=None):
@@ -88,6 +91,7 @@ def run_checks(commands, budget, env=None):
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--secretary-dir")
+    parser.add_argument('--website-language',choices=('en','zh-CN'),help='Use the selected website language without changing local preferences')
     parser.add_argument("--verify", nargs="+", choices=("weather", "news", "projects", "calendar"), default=[])
     parser.add_argument("--budget", type=float, default=20, help="Total elapsed budget for all selected checks (default 20 seconds)")
     args = parser.parse_args(argv)
@@ -96,7 +100,7 @@ def main(argv=None):
     runtime = secretary_path(args.secretary_dir)
     try:
         fields = profile_fields(runtime)
-        local = profile_status(runtime, fields)
+        local = profile_status(runtime, fields, args.website_language)
         missing, countries = local["missing_fields"], local["countries"]
         commands, checks = {}, {}
         py = sys.executable

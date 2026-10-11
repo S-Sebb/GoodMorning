@@ -3,12 +3,15 @@
 The separate `/chat` page has four modes: Initialize, Secretary, To-do and Eureka.
 The browser sends the selected workflow; users never need to type commands.
 The first message supplies only the workflow, browser conversation ID, selected
-runtime, and user text. Keep the configured model and current session. Never
+runtime, website language, and user text. Every later turn also supplies its
+website language. Keep the configured model and current session. Never
 delegate. Read `docs/core-rules.md` and the matching workflow, as for local use.
 
 - **Initialize** (`/initialize`): follow `docs/workflows/secretary.md` and
-  `docs/initialization.md`. For a new profile, ask reply language alone first.
-  For an existing profile, review **all** preferences in small related groups,
+  `docs/initialization.md`. Use the supplied website language; never ask for a
+  separate agent/reply language. Show it as controlled by the website switch.
+  Leave any existing local `secretary_language` field unchanged. For an existing
+  profile, review **all other** preferences in small related groups,
   showing current values and offering to retain them. Ask only once per setting;
   preserve answers already confirmed in this conversation. Change only explicitly
   confirmed values. Never reset briefings, tasks, ideas, calendar records or access
@@ -18,6 +21,17 @@ delegate. Read `docs/core-rules.md` and the matching workflow, as for local use.
   permission to repair integrations or develop code.
 - **To-do** (`/todo`) and **Eureka** (`/eureka`): capture only. Save using the existing
   fast helper, confirm the actual save and stop. A capture is not execution consent.
+  Pass `--website-language CODE` to `workflow --capture` and preparation helpers.
+  Use the same flag for `setup` readiness checks. It supplies reply language
+  without writing a profile field or guessing from country/user text.
+
+The page explains the four modes: Secretary discusses and plans, To-do records a
+task, Eureka records an idea, and Initialize sets up or reviews preferences.
+The account's English/Simplified Chinese setting is shared by Morning, Night and
+Secretary and across devices. Login cookies remain host-only. Unauthenticated
+pages share only a non-secret browser language preference. Active requests retain
+their starting language, while new messages use the latest account setting.
+Language changes never translate or rewrite previous conversations or records.
 
 Conversation continuations stay within the selected mode. If the user wants
 another mode, direct them to the mode switch. Briefing generation remains on the

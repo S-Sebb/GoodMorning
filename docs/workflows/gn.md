@@ -37,7 +37,7 @@ decisions; publish Today from actual answers, then Still open, before tomorrow's
    these reads. Handle duplicate
    or missed runs first. A duplicate names the previous session and stops without
     marking or overwriting its snapshot. Rename new runs to `GoodNight DATE` in
-    `secretary_language` per the shared title rule.
+    the browser job's website language, or `secretary_language` for local use, per the shared title rule.
 2. Read the selected day's must-do/nice-to-do lists. Ask what was completed,
    partially completed, blocked, or changed. If the user already provided this,
    ask only for remaining ambiguities. If no morning list exists, ask for the

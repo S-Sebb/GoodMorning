@@ -71,11 +71,15 @@ class Resources:
         self.paths, self.urls = {}, {}
         types = types if types is not None else {'fonts/lora-italic.woff2': 'font/woff2', 'briefing.css': 'text/css',
                  'briefing.js': 'text/javascript', 'browser.js': 'text/javascript',
-                 'questions.js': 'text/javascript', 'chat.js': 'text/javascript', 'chat.css': 'text/css',
+                  'questions.js': 'text/javascript', 'chat.js': 'text/javascript', 'chat.css': 'text/css', 'language.js':'text/javascript',
                  'fonts/OFL.txt': 'text/plain', **ICON_TYPES}
         # Register the font first: CSS embeds its immutable, shared URL.
         for name, mime in types.items():
             data = (assets / name).read_bytes()
+            if name == 'language.js':
+                import json
+                from .language import CATALOG
+                data = ('const goodmorningCatalog = '+json.dumps(CATALOG,ensure_ascii=False,separators=(',',':'))+';\n').encode()+data
             if name == 'briefing.css':
                 data = data.replace(b'fonts/lora-italic.woff2', self.urls['fonts/lora-italic.woff2'].encode())
             digest = hashlib.sha256(data).hexdigest()

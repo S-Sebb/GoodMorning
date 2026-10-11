@@ -7,6 +7,7 @@ import threading
 
 from goodmorning.runtime_files import atomic_text
 from .briefing_resources import favicon_links
+from . import language as ui
 
 MODES = {'initialize': 'Initialize', 'secretary': 'Secretary', 'todo': 'To-do', 'eureka': 'Eureka'}
 
@@ -86,8 +87,8 @@ class Chats:
             if len(self.items) >= 500:
                 raise ValueError('Conversation storage needs administrator archival')
             self.capacity(text)
-            item = {'id': chat, 'mode': body['mode'], 'title': text[:64] or MODES[body['mode']],
-                    'state': 'starting', 'turns': [{'id': chat, 'text': text}]}
+            item = {'id': chat, 'mode': body['mode'], 'title': text[:64] or ui.text(MODES[body['mode']]),
+                    'state': 'starting', 'turns': [{'id': chat, 'text': text,'language':ui.current()}]}
             self.items[chat] = item
             self.save()  # Save intent before any model request; never blindly replay.
             threading.Thread(target=self.dispatch, args=(item, text, True), daemon=True).start()
@@ -112,7 +113,7 @@ class Chats:
             if len(item['turns']) >= 200:
                 raise ValueError('Start a new conversation to keep context bounded')
             self.capacity(text)
-            item['turns'].append({'id': request, 'text': text})
+            item['turns'].append({'id': request, 'text': text,'language':ui.current()})
             item['state'] = 'starting'
             self.save()
             threading.Thread(target=self.dispatch, args=(item, text, False), daemon=True).start()
@@ -120,15 +121,18 @@ class Chats:
 
     def dispatch(self, item, text, first):
         try:
+            selected=item['turns'][-1]['language']
             if first:
-                result = self.chamber.control('session.create', title=MODES[item['mode']] + ' · ' + item['title'])
+                result = self.chamber.control('session.create', title=ui.text(MODES[item['mode']],lang=selected) + ' · ' + item['title'])
                 session = result['sessionId']
                 if not re.fullmatch('ses[A-Za-z0-9_]+', session):
                     raise ValueError('Invalid session')
                 with self.lock:
                     item['session'] = session
                     self.save()
-            prompt = (f"/{item['mode']}\nBrowser chat: {item['id']}\nRuntime: {self.runtime}\n\n{text}" if first else text).strip()
+            prompt = (f"/{item['mode']}\nBrowser chat: {item['id']}\nRuntime: {self.runtime}\n" if first else '')
+            prompt += f"Website language: {selected}\n\n{text}"
+            prompt=prompt.strip()
             with self.lock:
                 item['turns'][-1]['prompt_hash'] = hashlib.sha256(prompt.encode()).hexdigest()
                 self.save()
@@ -145,14 +149,15 @@ class Chats:
 
     def status(self, chat):
         item = self.get(chat)
-        result = {'chat': chat, 'mode': item['mode'], 'state': item['state'], 'forms': [], 'permissions': []}
+        result = {'chat': chat, 'mode': item['mode'], 'state': item['state'], 'forms': [], 'permissions': [],'language':item['turns'][-1].get('language') if item['turns'] else None}
         if item.get('session') and self.chamber:
             try:
                 forms, permissions = self.chamber.pending(item['session'])
                 transcript = self.chamber.control('session.messages', sessionId=item['session'], limit=100)
                 messages = []
-                originals = {turn.get('prompt_hash'): turn['text'] or 'Start ' + MODES[item['mode']].lower()
-                             for turn in item['turns']}
+                originals = {turn.get('prompt_hash'): turn['text'] or ui.text('Start {mode}',lang=turn.get('language','en'),
+                             mode=ui.text(MODES[item['mode']],lang=turn.get('language','en')).lower())
+                              for turn in item['turns']}
                 for entry in transcript['messages']:
                     if entry.get('role') not in ('user', 'assistant') or not isinstance(entry.get('text'), str):
                         continue
@@ -174,6 +179,7 @@ class Chats:
                            'waiting': 'Your secretary needs your answer', 'idle': 'Ready for your reply',
                            'uncertain': 'Delivery is uncertain. Ask the administrator to inspect this conversation before sending again.',
                            'unavailable': 'The secretary connection is unavailable. Your conversation is preserved.'}[result['state']]
+        result['label']=ui.text(result['label'])
         return result
 
     def reply(self, chat, category, request, body):
@@ -211,15 +217,17 @@ def page(csrf, ready, connected):
             '<button id="new-conversation" type="button">New conversation</button>'
             '<details id="conversation-history"><summary>Previous conversations</summary><nav id="chat-history" aria-label="Previous conversations"></nav></details></aside>'
             '<section class="conversation-panel" id="conversation" aria-label="Secretary conversation">'
-            '<div class="mode-switch" role="radiogroup" aria-label="Secretary mode">'+choices+'</div>'
+             '<div class="mode-switch" role="radiogroup" aria-label="Secretary mode">'+choices+'</div>'
+             '<details id="mode-guide"><summary>Which mode should I use?</summary>'
+             '<p>Use Secretary for discussion and planning, To-do for a task, Eureka for an idea, and Initialize for setup or preference review.</p></details>'
             '<p id="mode-description"></p><div id="chat-empty"><span class="desk-symbol" aria-hidden="true">✦</span>'
             '<h2 id="chat-welcome"></h2><p id="chat-hint"></p></div>'
             '<div id="chat-messages" role="log" aria-label="Conversation messages" aria-live="polite" aria-relevant="additions text"></div>'
-            '<p id="chat-status" role="status"></p><div id="chat-questions"></div>'
+             '<p id="chat-status" role="status"></p><p id="request-language-note" role="status"></p><div id="chat-questions"></div>'
             '<form id="chat-compose"><label for="chat-text" id="compose-label">Your message</label>'
             '<textarea id="chat-text" rows="3" maxlength="8000" placeholder="What’s on your mind?"></textarea>'
             '<div class="compose-footer"><span id="compose-note">Only your chosen mode. No commands needed.</span>'
-            '<button type="submit" id="chat-send">Send message</button></div></form><p id="chat-error" role="alert"></p>'
+             '<button type="submit" id="chat-send" disabled>Send message</button></div></form><p id="chat-error" role="alert"></p>'
             '<noscript>Enable JavaScript to talk with your secretary. Saved briefings remain readable.</noscript></section></main>'
             '<div id="chat-config" hidden data-config="'+config+'"></div>'
             '<script src="/questions.js" defer></script><script src="/chat.js" defer></script></body></html>')

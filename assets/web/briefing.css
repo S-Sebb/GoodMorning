@@ -5,6 +5,14 @@ html[data-edition="gn"] { color-scheme: dark; --bg: #111c2a; --surface: #192638;
 * { box-sizing: border-box; }
 html { scroll-behavior: smooth; scroll-padding-top: 32px; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 body { margin: 0; background: var(--bg); color: var(--ink); font-family: ui-sans-serif, system-ui, sans-serif; line-height: 1.7; }
+.language-toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: .6rem; max-width: 1440px; margin: auto; padding: .65rem max(24px,env(safe-area-inset-right)); font-size: .8rem; }
+.language-toolbar select, .language-toolbar button { font: inherit; min-height: 44px; padding: .4rem .65rem; border: 1px solid var(--line); border-radius: .6rem; background: var(--surface); color: var(--ink); }
+.language-toolbar button { cursor: pointer; }
+#language-feedback { font-size: .75rem; overflow-wrap: anywhere; }
+h1:lang(zh-CN) { letter-spacing: 0; font-family: system-ui,"Noto Sans CJK SC",sans-serif; }
+#mode-guide { margin: .6rem 0 1rem; color: var(--muted); font-size: .85rem; }
+#mode-guide summary { cursor: pointer; }
+#request-language-note { color: var(--muted); font-size: .8rem; }
 a { color: inherit; text-decoration-thickness: 1px; text-underline-offset: 4px; transition: color .22s ease, text-decoration-color .22s ease; }
 a:hover { color: var(--accent); }
 a:focus-visible { outline: 2px solid var(--accent); outline-offset: 5px; }

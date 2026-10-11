@@ -125,9 +125,10 @@ class LiveTests(unittest.TestCase):
             week = self.app.week(selected, kind)
             self.assertEqual(week.count('class="today-marker"'), 1)
             self.assertIn(f'href="/{kind}.html"', week)
-            self.assertIn('<span class="today-marker">Today</span><span>Sat 10 Oct</span>', week)
+        self.assertIn('<span class="today-marker">Today</span>', week)
+        self.assertIn('data-ui-date="2026-10-10">Sat 10 Oct', week)
         self.app.now = lambda: datetime(2026,10,11,3,0,tzinfo=timezone.utc)
-        self.assertIn('<span class="today-marker">Today</span><span>Sun 11 Oct</span>', self.app.week('2026-10-10', 'gm'))
+        self.assertIn('<span class="today-marker">Today</span><span data-ui-date="2026-10-11">Sun 11 Oct</span>', self.app.week('2026-10-10', 'gm'))
 
     def test_rollover_changes_current_day_but_keeps_selected_archive(self):
         (self.root/'daily/2026-10-10.gm.json').write_text(GM)
@@ -146,7 +147,7 @@ class LiveTests(unittest.TestCase):
         self.assertIn('href="' + self.app.resources.urls['briefing.css'] + '"',page)
         self.assertIn('href="/d/2026-10-10/gn.html"',page)
         self.assertIn('href="/d/2026-10-10/gm.json"',page)
-        self.assertIn('<h1>Good morning</h1>',page)
+        self.assertRegex(page,r'<h1\b[^>]*>Good morning</h1>')
         self.assertNotIn('Complete text and clickable sources',page)
         self.assertNotIn('orbit-caption',page)
 

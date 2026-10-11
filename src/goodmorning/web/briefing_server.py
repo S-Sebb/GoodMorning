@@ -24,6 +24,7 @@ from goodmorning.briefings.briefing_stream import DEFAULT_PLANS, load as load_pr
 from goodmorning.runtime_files import atomic_text, profile_fields
 from .briefing_chat import Chats, page as chat_page
 from goodmorning.paths import ROOT
+from . import language as ui
 
 DESK_ART = '<svg viewBox="0 0 64 64" width="64" height="64" fill="none" aria-hidden="true"><rect x="15" y="8" width="36" height="48" rx="7" fill="var(--surface)" stroke="currentColor" stroke-width="1.5"/><path d="M24 19h18M24 25h12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" opacity=".4"/><circle cx="27" cy="36" r="1.5" fill="currentColor"/><circle cx="39" cy="36" r="1.5" fill="currentColor"/><path d="M28 43q5 5 10 0" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>'
 
@@ -99,19 +100,19 @@ class BrowserApp:
     def chat_settings(self):
         from goodmorning.setup_check import profile_status
         try:
-            ready = profile_status(self.runtime, profile_fields(self.runtime))['profile_ready']
+            ready = profile_status(self.runtime, profile_fields(self.runtime),ui.current())['profile_ready']
         except (ValueError, KeyError):
             ready = False
         return {'defaultMode': 'secretary' if ready else 'initialize', 'connected': bool(self.chamber)}
 
     def chat_page(self):
         settings = self.chat_settings()
-        return self.resources.rewrite(chat_page(self.csrf, settings['defaultMode'] == 'secretary', settings['connected'])).encode()
+        return self.resources.rewrite(ui.page(chat_page(self.csrf, settings['defaultMode'] == 'secretary', settings['connected']),self.csrf,'/chat')).encode()
 
     def initialization_page(self, kind):
         switches = ''.join(f'<a class="edition-link{" selected" if other == kind else ""}" href="/{other}.html">{label}</a>' for other, label in KINDS.items())
         text = f'<!doctype html><html lang="en" data-edition="{kind}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><title>Initialize your secretary — GoodMorning</title><link rel="stylesheet" href="/briefing.css"></head><body><header class="masthead"><a class="wordmark" href="/{kind}.html">GoodMorning<span>A personal secretary just for you</span></a><nav class="edition-switch" aria-label="Edition">{switches}<a class="edition-link" href="/chat">Secretary</a></nav></header><main><section class="waiting-room"><div class="waiting-art">{celestial(kind)}</div><p class="eyebrow">{KINDS[kind]} edition</p><h1>Let’s make this yours.</h1><p class="subtitle">Complete your secretary’s setup before preparing a briefing. Your saved records stay unchanged.</p><a id="initialize" class="initialize-button" href="/chat?mode=initialize">Initialize my secretary</a></section></main></body></html>'
-        return self.resources.rewrite(text.replace('</head>', favicon_links(kind) + '</head>')).encode()
+        return self.resources.rewrite(ui.page(text.replace('</head>', favicon_links(kind) + '</head>'),self.csrf,'/'+kind+'.html')).encode()
 
     def dates(self):
         today = Date.fromisoformat(self.today())
@@ -129,12 +130,12 @@ class BrowserApp:
         days = []
         today = self.today()
         for day in reversed(self.dates()):
-            label = Date.fromisoformat(day).strftime('%a %d %b')
+            label = ui.day_label(day)
             ready = self.source(day, kind).is_file()
             selected = ' aria-current="date"' if day == date else ''
             link = f'/{kind}.html' if day == today else f'/d/{day}/{kind}.html'
             marker = '<span class="today-marker">Today</span>' if day == today else ''
-            days.append(f'<a href="{link}"{selected}>{marker}<span>{label}</span><small>{"Saved" if ready else "Not generated"}</small></a>')
+            days.append(f'<a href="{link}"{selected}>{marker}{label}<small>{"Saved" if ready else "Not generated"}</small></a>')
         return '<nav class="week-picker" aria-label="Past seven briefing days">' + ''.join(days) + '</nav>'
 
     def files(self, date, kind):
@@ -149,7 +150,7 @@ class BrowserApp:
             raise ValueError('Unsafe image manifest')
         signature += ((manifest.stat().st_mtime_ns, manifest.stat().st_size) if manifest.is_file() else None,)
         with self.lock:
-            key = date, kind
+            key = date, kind, ui.current()
             cached = self.cache.get(key)
             if not cached or cached[0] != signature:
                 files = build(self.runtime, date, include_assets=False, kind=kind) if signature[1] else {}
@@ -227,13 +228,14 @@ class BrowserApp:
             if (current and self.chamber) or date + '.' + kind in self.jobs:
                 controls = re.search(r'<div id="generation".*?</noscript>', text)[0]
                 document = {'v': 1, 'greeting': 'Your briefing awaits.', 'opening': detail, 'sections': []}
-                text = edition(document, date, kind, KINDS, preview_plan=DEFAULT_PLANS[kind])
+                text = edition(document, date, kind, KINDS, preview_plan=DEFAULT_PLANS[kind],ui_intro=True)
                 text = text.replace('<main id="content">', '<main id="content">' + week)
                 text = re.sub(r'<nav class="edition-switch"[^>]*>.*?</nav>', '<nav class="edition-switch" aria-label="Edition">' + switches + '</nav>', text)
                 text = re.sub(r'<div class="briefing-tools">.*?</div>', '<section class="generation-desk">' + button + controls + '<p class="preview-notice">Unfinished preview · sections appear here as they are prepared. Nothing is saved yet.</p></section>', text)
                 text = text.replace('href="briefing.css"', 'href="/briefing.css"').replace('src="briefing.js"', 'src="/briefing.js"').replace('href="fonts/', 'href="/fonts/').replace('href="index.html"', f'href="/{kind}.html"')
                 text = text.replace(f'{date} / {KINDS[kind]} edition', f'{KINDS[kind]} edition')
         text = text.replace('<span>▱</span>', '<span>' + DESK_ART + '</span>')
+        text=text.replace('<p id="generation-status" role="status"></p>','<p id="generation-status" role="status"></p><p id="request-language-note" role="status"></p>')
         missing = not confirmed
         config = json.dumps({'date': date, 'kind': kind, 'pinned': pinned, 'csrf': self.csrf if missing else None, 'missing': missing}).replace('<', '\\u003c')
         # Inert JSON in a data attribute; no inline scripts or unsafe HTML.
@@ -242,7 +244,8 @@ class BrowserApp:
         text = text.replace('href="icons/', 'href="/icons/')
         if '<link rel="icon"' not in text:
             text = text.replace('</head>', favicon_links(kind) + '</head>')
-        return self.resources.rewrite(text.replace('</body>', marker + '</body>')).encode()
+        return_to=f'/d/{date}/{kind}.html' if pinned else f'/{kind}.html'
+        return self.resources.rewrite(ui.page(text.replace('</body>', marker + '</body>'),self.csrf,return_to)).encode()
 
     def start(self, date, kind):
         if self.chat_settings()['defaultMode'] == 'initialize':
@@ -259,7 +262,7 @@ class BrowserApp:
             key = date + '.' + kind
             if key in self.jobs:
                 return {'job': self.jobs[key]['id']}
-            job = {'id': secrets.token_hex(16), 'date': date, 'kind': kind, 'state': 'starting'}
+            job = {'id': secrets.token_hex(16), 'date': date, 'kind': kind, 'state': 'starting','language':ui.current()}
             if self.preflight:
                 job.update(state='preflight')
             self.jobs[key] = job
@@ -281,14 +284,14 @@ class BrowserApp:
 
     def dispatch(self, job):
         try:
-            result = self.chamber.control('session.create', title=KINDS[job['kind']] + ' briefing ' + job['date'])
+            result = self.chamber.control('session.create', title=ui.text(KINDS[job['kind']]+' briefing',lang=job.get('language','en'))+' '+job['date'])
             session = result['sessionId']
             if not re.fullmatch(r'ses[A-Za-z0-9_]+', session):
                 raise ValueError('Invalid session')
             with self.lock:
                 job['session'] = session
                 self.save_jobs()
-            prompt = f"/{job['kind']}\nBrowser job: {job['id']}\nRuntime: {self.runtime}"
+            prompt = f"/{job['kind']}\nBrowser job: {job['id']}\nRuntime: {self.runtime}\nWebsite language: {job.get('language','en')}"
             dispatched = self.chamber.control('session.send', sessionId=session, prompt=prompt)
             if dispatched.get('promptDispatched') is not True:
                 raise ValueError('Prompt dispatch was not confirmed')
@@ -350,7 +353,7 @@ class BrowserApp:
             forms, permissions = self.chamber.pending(job['session'])
             if forms or permissions or self.chamber.control('session.status', sessionId=job['session'])['sessionStatus']['type'] != 'idle':
                 raise ValueError('Session changed before continuation')
-            prompt = f"/{job['kind']}\nBrowser job: {job['id']}\nRuntime: {self.runtime}"
+            prompt = f"/{job['kind']}\nBrowser job: {job['id']}\nRuntime: {self.runtime}\nWebsite language: {job.get('language','en')}"
             result = self.chamber.control('session.send', sessionId=job['session'], prompt=prompt)
             if result.get('promptDispatched') is not True:
                 raise ValueError('Continuation was not confirmed')
@@ -386,7 +389,7 @@ class BrowserApp:
                 continue
             change = {'index': index, 'state': outcome}
             if section:
-                title = native.section_title(section, job['date'])
+                title = native.section_title(section, job['date'],document.get('lang','en'))
                 content = ''.join(native.render_block(value, images) for value in section[1])
                 if len(section) >= 3 and section[2]:
                     content += '<p class="section-takeaway">' + native.escaped(section[2]) + '</p>'
@@ -437,13 +440,13 @@ class BrowserApp:
             if not readable():
                 return {'state': 'stopped', 'progress': 95, 'label': invalid, 'forms': [], 'permissions': []}
             return {'state': 'ready', 'progress': 100, 'label': 'Your briefing is ready', 'forms': [], 'permissions': []}
-        result = {'state': job['state'], 'progress': 5, 'label': 'Opening your secretary’s desk', 'forms': [], 'permissions': []}
+        result = {'state': job['state'], 'progress': 5, 'label': 'Opening your secretary’s desk', 'forms': [], 'permissions': [],'language':job.get('language')}
         if job['state'] == 'preflight':
             from goodmorning.briefings.briefing_job import context_path
             from goodmorning.briefings.briefing_stream import bounded_json
             context = bounded_json(context_path(self.runtime,identifier),300_000)
-            return {**result,'state':'waiting','label':'Before your briefing','forms':[context['form']] if context['awaiting'] else [],
-                    'recovery':'Refresh task list' if job['kind'] == 'gn' else None}
+            return {**result,'state':'waiting','label':ui.text('Before your briefing'),'forms':[context['form']] if context['awaiting'] else [],
+                    'recovery':'Refresh task list' if job['kind'] == 'gn' else None,'recovery_action':'refresh' if job['kind']=='gn' else None}
         if preview_path.exists():
             try:
                 checkpoint = load_preview(preview_path)
@@ -480,6 +483,8 @@ class BrowserApp:
             result['label'] = 'The connection was interrupted. Check OpenChamber before retrying; a session may already be running.'
         if self.preflight and job['date'] == self.today() and result['state'] == 'stopped' and job['state'] not in ('starting', 'uncertain', 'complete'):
             result['recovery'] = 'Continue existing session' if job.get('session') else 'Prepare again'
+            result['recovery_action']='resume' if job.get('session') else 'restart'
+        result['label']=ui.text(result['label'])
         return result
 
     def reply(self, identifier, category, request_id, body):
@@ -521,6 +526,15 @@ def serve_live(app, port, *, gateway_key=None, public_origins=()):
     if bool(gateway_key) != bool(public_origins):
         raise ValueError('A public backend requires both a gateway key and explicit HTTPS origins')
     class Handler(BaseHTTPRequestHandler):
+        def select_language(self):
+            if gateway_key:
+                selected=ui.language(self.headers.get('X-GoodMorning-Language','en'))
+            else:
+                path=app.runtime/'website-language.json'
+                if path.is_symlink():raise ValueError('Unsafe website language file')
+                selected=ui.language(json.loads(path.read_text())['language']) if path.is_file() else 'en'
+            ui.CURRENT.set(selected)
+
         def authorized(self, mutation=False):
             if gateway_key:
                 # The public gateway authenticates sessions and checks per-session CSRF.
@@ -535,9 +549,12 @@ def serve_live(app, port, *, gateway_key=None, public_origins=()):
                     and (not mutation or (self.headers.get('Origin') == origin
                          and secrets.compare_digest(self.headers.get('X-Briefing-CSRF', ''), app.csrf))))
 
-        def respond(self, data, status=200, content_type='application/json', resource=None, compress=False, cache='no-store'):
+        def respond(self, data, status=200, content_type='application/json', resource=None, compress=False, cache='no-store',location=None):
             if not isinstance(data, bytes):
+                if isinstance(data,dict):
+                    data={key:ui.text(value) if key in ('error','label','recovery') and isinstance(value,str) else value for key,value in data.items()}
                 data = json.dumps(data).encode()
+            if content_type.startswith('text/html'):compress=False
             compressed = resource.compressed if resource else gzip.compress(data, compresslevel=6, mtime=0) if compress else data
             encoded = len(compressed) < len(data) and accepts_gzip(self.headers.get('Accept-Encoding', ''))
             tag = (resource.etag if resource else '"' + hashlib.sha256(data).hexdigest() + '"') if cache != 'no-store' else None
@@ -551,6 +568,8 @@ def serve_live(app, port, *, gateway_key=None, public_origins=()):
             if status != 304:
                 self.send_header('Content-Length', str(len(data)))
             self.send_header('Cache-Control', cache)
+            self.send_header('Content-Language',ui.current())
+            if location:self.send_header('Location',location)
             if resource or compress:
                 self.send_header('Vary', 'Accept-Encoding')
             if encoded and status != 304:
@@ -558,7 +577,7 @@ def serve_live(app, port, *, gateway_key=None, public_origins=()):
             if tag:
                 self.send_header('ETag', tag)
             self.send_header('X-Content-Type-Options', 'nosniff')
-            self.send_header('Referrer-Policy', 'no-referrer')
+            self.send_header('Referrer-Policy', 'same-origin' if content_type.startswith('text/html') else 'no-referrer')
             self.send_header('Content-Security-Policy', "default-src 'none'; style-src 'self'; script-src 'self'; img-src 'self'; font-src 'self'; connect-src 'self'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'")
             self.end_headers()
             if self.command != 'HEAD' and status != 304:
@@ -573,6 +592,8 @@ def serve_live(app, port, *, gateway_key=None, public_origins=()):
             parsed = urlsplit(self.path)
             path = parsed.path
             try:
+                self.select_language()
+                if path=='/api/language':return self.respond({'language':ui.current()})
                 if path == '/api/day':
                     return self.respond({'date': app.today(), 'timezone': app.zone})
                 if path == '/chat':
@@ -640,14 +661,31 @@ def serve_live(app, port, *, gateway_key=None, public_origins=()):
                 return self.respond({'error': 'Secretary connection unavailable; your saved records are unchanged'}, 503)
 
         def do_POST(self):
-            if not self.authorized(True):
+            path=urlsplit(self.path).path
+            form=path=='/api/language' and self.headers.get('Content-Type','').split(';')[0]=='application/x-www-form-urlencoded'
+            if not self.authorized(not form):
                 return self.respond({'error': 'Forbidden'}, 403)
             try:
+                self.select_language()
                 length = int(self.headers.get('Content-Length', '0'))
-                if not 0 < length <= 20000 or self.headers.get('Content-Type') != 'application/json':
+                if not 0 < length <= 20000 or (not form and self.headers.get('Content-Type') != 'application/json'):
                     raise ValueError('Invalid input')
-                body = json.loads(self.rfile.read(length))
-                path = urlsplit(self.path).path
+                raw=self.rfile.read(length)
+                if form:
+                    fields=parse_qs(raw.decode(),keep_blank_values=True,strict_parsing=True)
+                    if set(fields)!={'csrf','language','return_to'} or any(len(values)!=1 for values in fields.values()):raise ValueError('Invalid language form')
+                    body={key:values[0] for key,values in fields.items()}
+                    origin=f'http://127.0.0.1:{self.server.server_port}'
+                    if self.headers.get('Origin')!=origin or not secrets.compare_digest(body['csrf'],app.csrf):return self.respond({'error':'Forbidden'},403)
+                else:body=json.loads(raw)
+                if path=='/api/language':
+                    if not form and set(body)!={'language'}:raise ValueError('Invalid language choice')
+                    selected=ui.language(body['language'])
+                    atomic_text(app.runtime/'website-language.json',json.dumps({'language':selected})+'\n')
+                    ui.CURRENT.set(selected)
+                    target=body.get('return_to','/')
+                    if not re.fullmatch(r'/(?:|chat|(?:gm|gn)\.html|d/\d{4}-\d{2}-\d{2}/(?:gm|gn)\.html)',target):target='/'
+                    return self.respond({'language':selected},303 if form else 200,location=target if form else None)
                 if path == '/api/generate':
                     return self.respond(app.start(body['date'], body['kind']), 202)
                 recovery = re.fullmatch(r'/api/jobs/([a-f0-9]{32})/recover', path)

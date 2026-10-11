@@ -14,13 +14,17 @@ edge cases. Load other guides only when needed.
 - `python scripts/goodmorning.py workflow --prepare KIND` gives confirmed preferences, dates, selected paths
   and bounded context; no fetching, initialization, project execution or marking.
   Capture uses its fast path below, not a full state check.
-- Missing/incomplete setup follows `docs/workflows/secretary.md`; ask reply language
+- Missing/incomplete setup follows `docs/workflows/secretary.md`; local use asks reply language
   first, then missing answers in small groups. Reuse explicit answers; never infer
   language, timezone, country, tone, permissions or optional preferences. Profile
   setup survives optional provider failures; do not restart it or launch
   repairs. Installation is not setup/provider/storage consent.
-- `secretary_language` governs replies/questions/titles, independently of news
-  source language. All profiles require an explicitly confirmed reply language;
+- Browser requests supply `Website language: en` or `zh-CN`. This controls all
+  replies, questions and titles for that request. Do not ask for another reply
+  language or change a saved local language preference. Browser setup/workflow
+  commands pass `--website-language CODE`; browser jobs use their saved language.
+- For local use, `secretary_language` governs replies/questions/titles, independently of news
+  source language. Local profiles require an explicitly confirmed reply language;
   ask only for missing required fields without resetting saved answers. Follow explicit bilingual
   or follow-message-language choices; do not infer expertise from occupation.
 - Use the current real session ID/label for `--session` and calendar `--actor`.

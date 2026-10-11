@@ -1,5 +1,6 @@
 // Live features are separate from the lightweight saved-briefing reader.
 const config = JSON.parse(document.querySelector('#browser-config').dataset.config);
+const browserT = (key, values) => typeof goodmorningT === 'function' ? goodmorningT(key, values) : key;
 const errorBox = document.querySelector('#generation-error');
 let job = null;
 let pollTimer = null;
@@ -8,6 +9,7 @@ let polling = false;
 let previewRevision = null;
 let imageRevision = null;
 let resolvedSections = -1;
+let briefingRequestLanguage = null;
 
 function fragment(markup) {
   // Only escaped, typed server components arrive here, never agent-authored HTML.
@@ -28,7 +30,11 @@ async function updatePreview(state) {
     document.querySelector('.scroll-track').replaceChildren(fragment(preview.navigation));
     document.querySelector('h1').textContent = preview.greeting;
     document.querySelector('.subtitle').textContent = preview.opening;
-    document.documentElement.lang = preview.lang;
+    document.querySelector('h1').removeAttribute('data-ui-language');
+    document.querySelector('.subtitle').removeAttribute('data-ui-language');
+    article.lang = preview.lang;
+    document.querySelector('h1').lang = preview.lang;
+    document.querySelector('.subtitle').lang = preview.lang;
   }
   for (const change of preview.changes) {
     const section = document.querySelector(`#section-${change.index + 1}`);
@@ -62,15 +68,17 @@ function sectionActivity(state) {
     section.classList.toggle('is-working', index === 0 && running);
     section.classList.toggle('is-waiting', index === 0 && state.state === 'waiting');
     section.classList.toggle('is-stopped', index === 0 && ['stopped', 'uncertain'].includes(state.state));
-    section.querySelector('.section-loading-label').textContent = index > 0 ? 'Waiting its turn'
+    const label = index > 0 ? 'Waiting its turn'
       : state.state === 'waiting' ? 'Waiting for your answer'
       : ['stopped', 'uncertain'].includes(state.state) ? 'Preparation paused · check the briefing session'
       : resolvedSections === -1 ? 'Getting your plans ready' : 'Preparing this section';
+    section.querySelector('.section-loading-label').dataset.uiText=label;
+    section.querySelector('.section-loading-label').textContent=browserT(label);
   });
   const notice = document.querySelector('.preview-notice');
-  if (notice) notice.textContent = state.state === 'stopped'
+  if (notice) notice.textContent = browserT(state.state === 'stopped'
     ? 'Unfinished preview · preparation stopped. Completed sections remain below; the full briefing is not confirmed complete.'
-    : 'Unfinished preview · completed sections are readable below. The full briefing is not finished yet.';
+    : 'Unfinished preview · completed sections are readable below. The full briefing is not finished yet.');
 }
 
 async function api(path, body) {
@@ -79,7 +87,7 @@ async function api(path, body) {
     body: JSON.stringify(body)
   });
   const data = await response.json();
-  if (!response.ok) throw new Error(data.error || 'The secretary could not be reached.');
+  if (!response.ok) throw new Error(data.error || browserT('The secretary could not be reached.'));
   return data;
 }
 
@@ -91,11 +99,11 @@ function element(tag, text, className) {
 }
 
 function questionForm(info) {
-  return secretaryQuestion(info, replyToAgent, refreshAnswers);
+  return secretaryQuestion(info, replyToAgent, refreshAnswers, briefingRequestLanguage);
 }
 
 function permissionForm(info) {
-  return secretaryPermission(info, replyToAgent, refreshAnswers);
+  return secretaryPermission(info, replyToAgent, refreshAnswers, briefingRequestLanguage);
 }
 
 function replyToAgent(category, id, body) { return api(`/api/jobs/${job}/${category}/${id}/reply`, body); }
@@ -107,9 +115,13 @@ async function poll() {
   polling = true;
   try {
     const state = await api(`/api/jobs/${job}`);
+    briefingRequestLanguage = state.language;
     document.querySelector('#generation').hidden = false;
     document.querySelector('#generation-progress').value = state.progress;
     document.querySelector('#generation-status').textContent = state.label;
+    const languageNote = document.querySelector('#request-language-note');
+    if (languageNote) languageNote.textContent = state.language && typeof goodmorningLanguage !== 'undefined' && state.language !== goodmorningLanguage
+      ? browserT('This request is finishing in {language}. New requests use your current website language.',{language:browserT(state.language==='zh-CN'?'Simplified Chinese':'English')}) : '';
     document.querySelector('.desk-animation').classList.toggle('is-paused', state.state !== 'running' && state.state !== 'starting');
     if (state.state === 'ready') { location.reload(); return; }
     await updatePreview(state);
@@ -123,7 +135,7 @@ async function poll() {
     errorBox.textContent = state.preview_error || '';
     let recover = document.querySelector('#recover');
     if (state.recovery && !recover) {
-      recover = element('button', state.recovery);
+      recover = element('button', browserT(state.recovery));
       recover.id = 'recover'; recover.type = 'button';
       errorBox.before(recover);
       recover.addEventListener('click', async () => {
@@ -140,7 +152,7 @@ async function poll() {
     if (recover) {
       recover.hidden = !state.recovery;
       recover.disabled = false;
-      if (state.recovery) recover.textContent = state.recovery;
+      if (state.recovery) { recover.dataset.uiText=state.recovery;recover.textContent = browserT(state.recovery); }
     }
     if (['stopped','uncertain'].includes(state.state)) return;
   } catch (error) {
@@ -182,5 +194,6 @@ document.addEventListener('visibilitychange', () => {
   else { checkDay(); if (job) poll(); }
 });
 window.addEventListener('focus', checkDay);
+document.addEventListener('website:language', () => { if (job) poll(); });
 setInterval(checkDay, 60000);
 checkDay(); resume();

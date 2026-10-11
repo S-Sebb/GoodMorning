@@ -97,11 +97,11 @@ class GatewayTests(unittest.TestCase):
             self.assertEqual(self.gateway.recover(self.id,'gm.example.test',path,raw,{})[0],202)
             self.assertEqual(sum(call.args[3]=='POST' for call in proxy.call_args_list),1)
             self.assertEqual(self.gateway.recover(self.other,'gm.example.test',path,raw,{})[0],409)
-        with patch.object(self.gateway,'proxy',return_value=(200,{},b'{"state":"waiting","recovery":"Refresh task list"}')):
+        with patch.object(self.gateway,'proxy',return_value=(200,{},b'{"state":"waiting","recovery":"Refresh task list","recovery_action":"refresh"}')):
             self.assertEqual(self.gateway.recover(self.id,'gm.example.test',path,json.dumps({'id':'c'*32}).encode(),{})[0],200)
         self.assertEqual(self.gateway.ticket()['request'],'c'*32)
         def rejected(*args):
-            return (400,{},b'{"error":"Feedback requires reconciliation"}') if args[3]=='POST' else (200,{},b'{"state":"waiting","recovery":"Refresh task list"}')
+            return (400,{},b'{"error":"Feedback requires reconciliation"}') if args[3]=='POST' else (200,{},b'{"state":"waiting","recovery":"Refresh task list","recovery_action":"refresh"}')
         with patch.object(self.gateway,'proxy',side_effect=rejected):
             self.assertEqual(self.gateway.recover(self.id,'gm.example.test',path,json.dumps({'id':'d'*32}).encode(),{})[0],400)
         self.assertEqual(self.gateway.ticket()['request'],'c'*32)

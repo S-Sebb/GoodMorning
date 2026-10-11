@@ -1,15 +1,19 @@
 // Credentials remain in form fields only, never storage, query strings or logs.
+const authT = key => typeof goodmorningT === 'function' ? goodmorningT(key) : key;
 document.querySelectorAll('[data-password-target]').forEach(button => {
   button.addEventListener('click', () => {
     const input = document.getElementById(button.dataset.passwordTarget);
     const visible = input.type === 'password';
     input.type = visible ? 'text' : 'password';
-    button.textContent = visible ? 'Hide' : 'Show';
+    button.dataset.uiText = visible ? 'Hide' : 'Show';
+    button.textContent = authT(button.dataset.uiText);
     button.setAttribute('aria-pressed', String(visible));
-    button.setAttribute('aria-label', `${visible ? 'Hide' : 'Show'} ${button.dataset.passwordLabel}`);
+    button.setAttribute('data-ui-aria-label',`${visible ? 'Hide' : 'Show'} ${button.dataset.passwordLabel}`);
+    button.setAttribute('aria-label', authT(button.getAttribute('data-ui-aria-label')));
   });
 });
 const form = document.querySelector('#account-form');
+if (form) form.querySelector('button[type="submit"]').disabled = false;
 if (form) form.addEventListener('submit', async event => {
   event.preventDefault();
   const error = document.querySelector('#account-error');
@@ -17,7 +21,7 @@ if (form) form.addEventListener('submit', async event => {
   const values = Object.fromEntries(new FormData(form));
   if (form.dataset.action === 'login') values.remember = form.elements.remember.checked;
   if (form.dataset.action === 'password' && values.replacement !== values.repeat) {
-    error.textContent = 'The new passwords do not match.';
+    error.textContent = authT('The new passwords do not match.');
     return;
   }
   if (form.dataset.action === 'password') {
@@ -37,7 +41,7 @@ if (form) form.addEventListener('submit', async event => {
       body: JSON.stringify(values), cache: 'no-store', credentials: 'same-origin'
     });
     const result = await response.json();
-    if (!response.ok) throw new Error(result.error || 'Sign-in unavailable.');
+    if (!response.ok) throw new Error(result.error || authT('Sign-in unavailable.'));
     form.reset();
     location.replace(result.next);
   } catch (failure) { error.textContent = failure.message; }

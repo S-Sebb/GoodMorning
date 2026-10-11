@@ -7,6 +7,7 @@ from .briefing_stream import bounded_json
 from goodmorning.records.daily import amend, one_line, read_record, record_path
 from goodmorning.runtime_files import atomic_text, runtime_lock
 from goodmorning.records.workflow import prepare
+from goodmorning.web import language as ui
 
 
 def write(path, value):
@@ -14,7 +15,9 @@ def write(path, value):
 
 
 def initialize(runtime, job):
-    context = prepare(runtime, job['kind'], job['date'], Path(runtime)/'cache', task_limit=200)
+    selected=job.get('language',ui.current())
+    context = prepare(runtime, job['kind'], job['date'], Path(runtime)/'cache', task_limit=200, website_language=selected)
+    context['website_language']=selected
     policy_path = Path(runtime)/'browser-policy.json'
     policy = bounded_json(policy_path,2000) if policy_path.exists() else {}
     if not isinstance(policy,dict) or set(policy)-{'live_project_access','calendar_sync','publisher_images','news_acknowledgement'} or any(type(v) is not bool for v in policy.values()):
@@ -39,8 +42,13 @@ def initialize(runtime, job):
              'custom':True,'options':[{'value':'No other updates','label':'No other updates'}],
              'description':'Give actual details, or choose “No other updates.”'}])
     context['awaiting'] = bool(fields)
+    for field in fields:
+        for key in ('title','description'):
+            if key in field:field[key]=ui.text(field[key],lang=selected)
+        for option in field.get('options',[]):
+            if option['value'] in ('today','stop','none','No other updates'):option['label']=ui.text(option['label'],lang=selected)
     revision = '_'+str(job['preflight_revision']) if job.get('preflight_revision') else ''
-    context['form'] = {'id':'preflight_'+job['id']+revision,'title':'Before your briefing','fields':fields} if fields else None
+    context['form'] = {'id':'preflight_'+job['id']+revision,'title':ui.text('Before your briefing',lang=selected),'fields':fields} if fields else None
     write(context_path(runtime, job['id']), context)
     return context
 

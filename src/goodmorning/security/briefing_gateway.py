@@ -3,7 +3,7 @@ import argparse
 import gzip
 import hashlib
 import html
-from http.cookies import SimpleCookie
+from http.cookies import SimpleCookie, CookieError
 from http.server import BaseHTTPRequestHandler
 import json
 import os
@@ -12,13 +12,14 @@ import re
 import secrets
 import socketserver
 import threading
-from urllib.parse import urlsplit
+from urllib.parse import urlsplit, parse_qs
 from urllib.request import Request, build_opener, HTTPRedirectHandler
 from urllib.error import HTTPError
 
 from .briefing_accounts import Accounts, COOKIE, Denied, Limited, SESSION_SECONDS, REMEMBER_SECONDS, PASSWORD_MIN, PASSWORD_MAX, PASSWORD_RULE
 from goodmorning.web.briefing_resources import accepts_gzip, Resources, ICON_TYPES, favicon_links
 from goodmorning.paths import WEB_ASSETS
+from goodmorning.web import language as ui
 
 ASSETS = WEB_ASSETS
 AUTH_VERSION = hashlib.sha256((ASSETS/'auth.js').read_bytes()+(ASSETS/'auth.css').read_bytes()).hexdigest()[:16]
@@ -38,7 +39,13 @@ class Gateway:
             raise ValueError('Configure explicit morning, evening and optional secretary hostnames')
         self.accounts, self.hosts, self.testing = accounts, hosts, testing
         self.opener = build_opener(NoRedirect())
-        self.icons = Resources(ASSETS, types=ICON_TYPES)
+        self.icons = Resources(ASSETS, types={**ICON_TYPES,'language.js':'text/javascript'})
+        labels=[host.split('.')[::-1] for host in hosts]
+        shared=[]
+        for parts in zip(*labels):
+            if len(set(parts))!=1:break
+            shared.append(parts[0])
+        self.language_domain='.'.join(shared[::-1]) if len(shared)>=2 else None
 
     def backend(self, identifier):
         # No username/path/URL from the browser selects another account's backend.
@@ -61,7 +68,8 @@ class Gateway:
             raise Denied('Not found')
         if parsed.path in ('/','/index.html'):
             path = '/chat' if self.hosts[host] == 'sec' else '/'+self.hosts[host]+'.html'
-        forwarded = {'Authorization':'Bearer '+backend['key'],'X-GoodMorning-Origin':'https://'+host}
+        forwarded = {'Authorization':'Bearer '+backend['key'],'X-GoodMorning-Origin':'https://'+host,
+                     'X-GoodMorning-Language':self.accounts.website_language(identifier) or ui.current()}
         if body is not None:
             forwarded['Content-Type']='application/json'
         # Never forward cookies, user-provided proxy headers or credentials.
@@ -170,7 +178,7 @@ class Gateway:
         refreshable = False
         if observed and all(observed.get(k) == candidate[k] for k in ('user','host','job')) and observed.get('request') != body['id']:
             status, _, data = self.proxy(identifier, host, '/api/jobs/'+job, 'GET', None, {})
-            refreshable = status == 200 and json.loads(data).get('recovery') == 'Refresh task list'
+            refreshable = status == 200 and json.loads(data).get('recovery_action') == 'refresh'
         with self.accounts.db() as db:
             db.execute('BEGIN IMMEDIATE')
             row = db.execute("SELECT value FROM metadata WHERE key='generation'").fetchone()
@@ -220,9 +228,10 @@ def account_page(session, title, kind='gm'):
             '<title>'+html.escape(title)+'</title><link rel="stylesheet" href="/auth.css?v='+AUTH_VERSION+'"></head><body><main class="account-card">'
             '<p class="eyebrow">Your personal secretary</p><h1>'+html.escape(title)+'</h1><p>'+note+'</p>'+
             ('' if login else '<p id="password-rules">'+PASSWORD_RULE+'</p>')+
-            '<form id="account-form" data-action="'+('login' if login else 'password')+'" data-csrf="'+session['csrf']+'" '
+            '<form id="account-form" method="post" action="/api/auth/'+('login' if login else 'password')+'" data-action="'+('login' if login else 'password')+'" data-csrf="'+session['csrf']+'" '
             'data-password-min="'+str(PASSWORD_MIN)+'" data-password-max="'+str(PASSWORD_MAX)+'">'+fields+
-            '<button type="submit">'+('Sign in' if login else 'Change password')+'</button></form><p id="account-error" role="alert"></p>'+
+            '<button type="submit" disabled>'+('Sign in' if login else 'Change password')+'</button></form><p id="account-error" role="alert"></p>'+
+            '<noscript>Enable JavaScript to sign in or change your password.</noscript>'+
             ('' if login or temporary else '<a href="/">Back to briefing</a>')+
             '<script src="/auth.js?v='+AUTH_VERSION+'" defer></script></main></body></html>').encode()
 
@@ -238,20 +247,24 @@ def handler_for(gateway):
             super().setup()
             self.connection.settimeout(25)
 
-        def respond(self,data,status=200,mime='application/json',*,token=None,cookie_age=SESSION_SECONDS,location=None,cache='no-store',etag=None):
+        def respond(self,data,status=200,mime='application/json',*,token=None,cookie_age=SESSION_SECONDS,location=None,cache='no-store',etag=None,language_cookie=None):
             if not isinstance(data,bytes):
+                if isinstance(data,dict) and isinstance(data.get('error'),str):data={**data,'error':ui.text(data['error'])}
                 data=json.dumps(data,separators=(',',':')).encode()
-            encoded=bool(data) and accepts_gzip(self.headers.get('Accept-Encoding','')) and mime.startswith(('text/','application/json'))
+            encoded=bool(data) and accepts_gzip(self.headers.get('Accept-Encoding','')) and mime.startswith(('text/','application/json')) and not mime.startswith('text/html')
             if encoded:
                 data=gzip.compress(data,mtime=0)
             self.send_response(status)
             self.send_header('Content-Type',mime)
             self.send_header('Content-Length',str(len(data)))
             self.send_header('Cache-Control',cache)
+            self.send_header('Content-Language',ui.current())
             self.send_header('Vary','Accept-Encoding')
             self.send_header('Content-Security-Policy',POLICY)
             self.send_header('X-Content-Type-Options','nosniff')
-            self.send_header('Referrer-Policy','no-referrer')
+            # Native same-origin forms need a non-null Origin for strict CSRF checks.
+            # This policy still sends no referrer to external sites.
+            self.send_header('Referrer-Policy','same-origin' if mime.startswith('text/html') else 'no-referrer')
             self.send_header('Permissions-Policy','camera=(), microphone=(), geolocation=()')
             self.send_header('Strict-Transport-Security','max-age=31536000')
             if encoded:
@@ -262,6 +275,10 @@ def handler_for(gateway):
                 self.send_header('ETag',etag)
             if token is not None:
                 self.send_header('Set-Cookie',f'{COOKIE}={token}; Path=/; Secure; HttpOnly; SameSite=Strict; Max-Age={cookie_age if token else 0}')
+            if language_cookie is not None:
+                value=ui.language(language_cookie)
+                domain='; Domain='+gateway.language_domain if gateway.language_domain else ''
+                self.send_header('Set-Cookie','GoodMorningLanguage='+value+'; Path=/; Secure; SameSite=Lax; Max-Age=31536000'+domain)
             self.end_headers()
             if self.command!='HEAD' and status!=304:
                 self.wfile.write(data)
@@ -282,7 +299,7 @@ def handler_for(gateway):
             try:
                 cookie.load(raw)
                 return gateway.accounts.session(cookie[COOKIE].value,host)
-            except (KeyError,ValueError):
+            except (KeyError,ValueError,CookieError):
                 raise Denied('Login required')
 
         def address(self):
@@ -290,12 +307,27 @@ def handler_for(gateway):
             import ipaddress
             return str(ipaddress.ip_address(value))  # NGINX overwrites it, never trusts clients.
 
+        def browser_language(self):
+            try:
+                cookie=SimpleCookie();cookie.load(self.headers.get('Cookie','')[:4096])
+                return ui.language(cookie['GoodMorningLanguage'].value)
+            except (KeyError,ValueError,CookieError):return 'en'
+
+        def select_language(self,session=None):
+            selected=(gateway.accounts.website_language(session['user_id']) or 'en') if session and session.get('user_id') else self.browser_language()
+            ui.CURRENT.set(selected)
+
+        def account_html(self,session,title,host):
+            source=account_page(session,title,gateway.hosts[host]).decode()
+            return gateway.icons.rewrite(ui.page(source,session['csrf'],urlsplit(self.path).path)).encode()
+
         def do_HEAD(self):
             self.do_GET()
 
         def do_GET(self):
             try:
                 host=self.host()
+                self.select_language()
                 path=urlsplit(self.path).path
                 resource=gateway.icons.paths.get(path) or gateway.icons.alias(path)
                 if resource:
@@ -308,19 +340,22 @@ def handler_for(gateway):
                 try:
                     session=self.session(host)
                 except Denied:
+                    if path=='/api/language':return self.respond({'language':ui.current()})
                     if path!='/login':
                         return self.respond({'error':'Login required'},401) if path.startswith('/api/') else self.respond(b'',302,location='/login')
                     gateway.accounts.limit([('prelogin-ip:'+self.address(),60)])
                     token,csrf=gateway.accounts.anonymous(host)
-                    return self.respond(gateway.icons.rewrite(account_page({'csrf':csrf},'Sign in',gateway.hosts[host]).decode()).encode(),mime='text/html; charset=utf-8',token=token,cookie_age=600)
+                    return self.respond(self.account_html({'csrf':csrf},'Sign in',host),mime='text/html; charset=utf-8',token=token,cookie_age=600)
+                self.select_language(session)
+                if path=='/api/language':return self.respond({'language':ui.current()})
                 if path=='/login' and not session['user_id']:
-                    return self.respond(gateway.icons.rewrite(account_page(session,'Sign in',gateway.hosts[host]).decode()).encode(),mime='text/html; charset=utf-8')
+                    return self.respond(self.account_html(session,'Sign in',host),mime='text/html; charset=utf-8')
                 if not session['user_id']:
                     return self.respond({'error':'Login required'},401) if path.startswith('/api/') else self.respond(b'',302,location='/login')
                 if path=='/password' or session['temporary']:
                     if path!='/password':
                         return self.respond({'error':'Password change required'},403) if path.startswith('/api/') else self.respond(b'',302,location='/password')
-                    return self.respond(gateway.icons.rewrite(account_page(session,'Change password',gateway.hosts[host]).decode()).encode(),mime='text/html; charset=utf-8')
+                    return self.respond(self.account_html(session,'Change password',host),mime='text/html; charset=utf-8')
                 if path=='/login':
                     return self.respond(b'',302,location='/')
                 status,headers,data=gateway.proxy(session['user_id'],host,self.path,'GET',None,self.headers)
@@ -331,6 +366,7 @@ def handler_for(gateway):
                     text=re.sub(r'(&quot;csrf&quot;:\s*&quot;)[A-Za-z0-9_-]{43}(&quot;)',r'\g<1>'+session['csrf']+r'\g<2>',text)
                     controls='<nav class="account-tools" aria-label="Account"><a href="/password">Change password</a><button id="sign-out" data-csrf="'+session['csrf']+'">Sign out</button></nav><script src="/auth.js?v='+AUTH_VERSION+'" defer></script>'
                     data=text.replace('</body>',controls+'</body>').encode()
+                    data=gateway.icons.rewrite(ui.page(data.decode(),session['csrf'],self.path)).encode()
                 # Personal pages/media never enter durable browser or shared proxy caches.
                 static=path.startswith('/assets/')
                 return self.respond(data,status,mime,cache=headers.get('Cache-Control','no-store') if static else 'no-store',etag=headers.get('ETag') if static else None)
@@ -344,29 +380,47 @@ def handler_for(gateway):
         def do_POST(self):
             try:
                 host=self.host()
+                self.select_language()
                 if self.headers.get('Origin')!='https://'+host or self.headers.get('Sec-Fetch-Site','same-origin')!='same-origin':
                     raise Denied('Forbidden')
                 session=self.session(host)
-                if not secrets.compare_digest(self.headers.get('X-Briefing-CSRF',''),session['csrf']):
-                    raise Denied('Forbidden')
+                self.select_language(session)
+                path=urlsplit(self.path).path
                 if self.headers.get('Transfer-Encoding') or len(self.headers.get_all('Content-Length',[]))!=1:
                     raise ValueError('Invalid request body')
                 size=int(self.headers['Content-Length'])
-                if not 0<size<=20000 or self.headers.get('Content-Type')!='application/json':
+                form=path=='/api/language' and self.headers.get('Content-Type','').split(';')[0]=='application/x-www-form-urlencoded'
+                if not 0<size<=20000 or (not form and self.headers.get('Content-Type')!='application/json'):
                     raise ValueError('Invalid request body')
                 raw=self.rfile.read(size)
                 if len(raw)!=size:
                     raise ValueError('Incomplete request')
-                body=json.loads(raw)
+                if form:
+                    fields=parse_qs(raw.decode(),keep_blank_values=True,strict_parsing=True)
+                    if set(fields)!={'csrf','language','return_to'} or any(len(values)!=1 for values in fields.values()):raise ValueError('Invalid language form')
+                    body={key:values[0] for key,values in fields.items()}
+                else:body=json.loads(raw)
                 if not isinstance(body,dict):
                     raise ValueError('A JSON object is required')
-                path=urlsplit(self.path).path
+                if not secrets.compare_digest(body.get('csrf','') if form else self.headers.get('X-Briefing-CSRF',''),session['csrf']):raise Denied('Forbidden')
+                if path=='/api/language':
+                    if not form and set(body)!={'language'}:raise ValueError('Invalid language choice')
+                    selected=ui.language(body['language'])
+                    if session['user_id']:gateway.accounts.website_language(session['user_id'],selected)
+                    ui.CURRENT.set(selected)
+                    target=body.get('return_to','/')
+                    if form and (len(target)>2048 or any(ord(c)<32 for c in target) or '\\' in target or urlsplit(target).netloc or urlsplit(target).scheme or not (GET_ROUTES.fullmatch(urlsplit(target).path) or target in ('/login','/password'))):target='/'
+                    return self.respond({'language':selected},303 if form else 200,location=target if form else None,language_cookie=selected)
                 if path=='/api/auth/login' and not session['user_id']:
                     if set(body) not in ({'username','password'},{'username','password','remember'}) or type(body.get('remember',False)) is not bool:
                         raise ValueError('Invalid login')
                     remember=body.get('remember',False)
                     token,csrf,temporary=gateway.accounts.login(body['username'],body['password'],host,self.address(),session,remember=remember)
-                    return self.respond({'next':'/password' if temporary else '/'},token=token,cookie_age=REMEMBER_SECONDS if remember else SESSION_SECONDS)
+                    logged=gateway.accounts.session(token,host)
+                    selected=gateway.accounts.website_language(logged['user_id'])
+                    if selected is None:selected=gateway.accounts.website_language(logged['user_id'],ui.current())
+                    ui.CURRENT.set(selected)
+                    return self.respond({'next':'/password' if temporary else '/'},token=token,cookie_age=REMEMBER_SECONDS if remember else SESSION_SECONDS,language_cookie=selected)
                 if not session['user_id']:
                     raise Denied('Login required')
                 if path=='/api/auth/password':
@@ -393,7 +447,8 @@ def handler_for(gateway):
             except Denied as error:
                 return self.respond({'error':str(error)},403)
             except (ValueError,KeyError,TypeError):
-                return self.respond({'error':'Invalid request. '+PASSWORD_RULE},400)
+                error='Choose English or Simplified Chinese' if urlsplit(self.path).path=='/api/language' else 'Invalid request. '+PASSWORD_RULE
+                return self.respond({'error':error},400)
             except Exception:
                 return self.respond({'error':'Request could not be confirmed. Refresh before retrying.'},503)
     return Handler

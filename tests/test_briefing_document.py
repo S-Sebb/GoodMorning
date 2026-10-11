@@ -120,8 +120,8 @@ class DocumentTests(unittest.TestCase):
         doc = document('gn')
         doc['sections'][-1][1] = [['tasks', [[status, status + ' task', 'Outcome retained.'] for status in ('open', 'done', 'partial', 'blocked')]]]
         page = web.edition(doc, DATE, 'gn', {'gn': True})
-        self.assertEqual(page.count('aria-label="Completed"'), 1)
-        self.assertEqual(page.count('aria-label="Not completed"'), 3)
+        self.assertEqual(page.count(' aria-label="Completed"'), 1)
+        self.assertEqual(page.count(' aria-label="Not completed"'), 3)
         self.assertIn('Partial', page)
         self.assertIn('Blocked', page)
 
@@ -332,7 +332,7 @@ class SaveAndViewTests(unittest.TestCase):
         job = {'id': 'a' * 32, 'date': DATE, 'kind': 'gm', 'state': 'starting'}
         app.jobs[DATE + '.gm'] = job; app.dispatch(job)
         prompt = next(args['prompt'] for action, args in chamber.calls if action == 'session.send')
-        self.assertEqual(prompt, f'/gm\nBrowser job: {job["id"]}\nRuntime: {app.runtime}')
+        self.assertEqual(prompt, f'/gm\nBrowser job: {job["id"]}\nRuntime: {app.runtime}\nWebsite language: en')
         self.assertNotIn('briefing-json', prompt)
         self.assertLess(len(prompt), 250)
         self.assertNotIn('model', chamber.calls[0][1])

@@ -3,7 +3,7 @@
 For `/gm` or `/gn` browser-generation prompts, read `docs/core-rules.md` and
 `docs/browser-generation.md`, then the matching workflow. Stable rules belong in
 those files, not in dispatch prompts. The prompt supplies only an edition, browser
-job ID and selected runtime. Start with `scripts/goodmorning.py job --secretary-dir
+job ID, selected runtime and website language. Start with `scripts/goodmorning.py job --secretary-dir
 RUNTIME --job JOB prepare`; it resolves the pinned date, paths, saved preparation
 and actual browser feedback. Use the real session ID from the environment or an
 explicit `--session`; never guess it.
@@ -17,6 +17,12 @@ For website prompts marked `Browser chat`, read `docs/core-rules.md`,
 `docs/browser-chat.md`, then the matching workflow. `/initialize` reviews all
 existing preferences without resetting records. Chat supports only initialize,
 secretary, todo and eureka; briefings remain on their own pages.
+Every browser request supplies `Website language: en` or `zh-CN`. Use that
+language for replies, questions and titles, not the profile's local reply-language
+preference. Website initialization never asks for a separate reply language.
+Use `--website-language CODE` with setup/workflow helpers in browser chats.
+An active request keeps its starting language; a later chat turn can choose
+another website language. Preserve existing records and earlier replies.
 
 For development, keep personal records, credentials and generated artifacts out
 of this source tree. Public source is shared; each account's private runtime and

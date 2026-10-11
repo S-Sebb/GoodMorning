@@ -140,7 +140,29 @@ def run(root,origin):
             assert status==200 and canary.encode() in data
             assert canary.encode() not in b''.join(p.read_bytes() for p in (root/'cipher'/identifier).rglob('*') if p.is_file())
             report['checks'].append('account-'+str(index)+': HTTPS remembered login, preference survives forced password change, token revocation, private briefing/chat rendering, ciphertext canary absent')
+            originals={path:path.read_bytes() for path in (runtime/'profile.md',runtime/'daily'/(day+'.gm.json'))}
+            selected='zh-CN' if index==0 else 'en'
+            status,headers,data=client.call('/api/language',{'language':selected})
+            assert status==200 and json.loads(data)['language']==selected
+            assert 'GoodMorningLanguage='+selected in headers['Set-Cookie'] and 'Domain=love765.me' in headers['Set-Cookie']
+            assert store.website_language(identifier)==selected
+            assert json.loads(secretary.call('/api/language')[2])['language']==selected
+            night=Client('https://gn.love765.me');night.form('/login')
+            assert night.call('/api/auth/login',{'username':name,'password':permanent})[0]==200
+            assert json.loads(night.call('/api/language')[2])['language']==selected
+            if selected=='zh-CN':
+                assert '网站语言'.encode() in secretary.call('/chat')[2]
+                page=client.call('/')[2]
+                assert '查看已保存的数据'.encode() in page and b'Synthetic security fixture' in page
+            assert client.call('/api/language',{'language':'zh-TW'})[0]==400
+            assert client.call('/api/language',{'language':'en'},headers={'Origin':'https://evil.example'})[0]==403
+            assert client.call('/api/language',{'language':'en'},headers={'X-Briefing-CSRF':'invalid'})[0]==403
+            assert store.website_language(identifier)==selected
+            assert all(path.read_bytes()==value for path,value in originals.items())
+            report['checks'].append('account-'+str(index)+': language shared by three authenticated HTTPS hosts/devices, host-only auth, original records unchanged, invalid language/origin/CSRF denied')
         report['checks'].append('password policy: actual HTTPS accepts 6 and 32 characters, rejects 5/33 or missing letter/digit')
+        assert [store.website_language(identifier) for _,identifier,*_ in created]==['zh-CN','en','en']
+        report['accountLanguageIsolation']=True
         for index,(name,identifier,linux,unit,client,canary,permanent) in enumerate(created):
             status,_,data=client.call('/')
             assert all(other.encode() not in data for _,_,_,_,_,other,_ in created if other!=canary)

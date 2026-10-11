@@ -13,6 +13,7 @@ from .briefing_images import cache_previews, cached_previews
 from . import briefing_document as native
 from goodmorning.paths import WEB_ASSETS
 from goodmorning.web.briefing_resources import ICON_TYPES, favicon_links
+from goodmorning.web import language as ui
 
 ASSETS = WEB_ASSETS
 KINDS = {"gm": "Morning", "gn": "Evening"}
@@ -38,10 +39,13 @@ def visible_text(source):
     return re.sub(r'(?<![\w/])(?:ib_[0-9a-f]{16,64}|ses_[A-Za-z0-9]+|(?:task|todo)_[0-9a-f]{16,64})(?!\w)', '', source)
 
 
-def navigation(number, title, body, kind):
+def navigation(number, title, body, kind, ui_title=False):
     label = html.escape(title.strip())
+    attributes=f' data-ui-section-title="{label}" data-ui-section-number="{number:02d}"' if ui_title else ''
+    accessible=html.escape(ui.text(title.strip())) if ui_title else label
+    visible=ui.ui(title.strip()) if ui_title else label
     preview = html.escape(PreviewText().excerpt(body))
-    return f'<div class="scroll-segment"><a class="scroll-chunk" href="#section-{number}" aria-label="{number:02d}: {label}" aria-describedby="preview-{number}"><span class="chunk-bar" aria-hidden="true"></span><span class="chunk-number" aria-hidden="true">{number:02d}</span></a><span class="nav-preview" id="preview-{number}" role="tooltip"><span class="preview-eyebrow">SECTION {number:02d} / {KINDS[kind].upper()} EDITION</span><span class="preview-title">{label}</span><span class="preview-excerpt">{preview}</span><span class="preview-footer"><span class="preview-lines" aria-hidden="true"></span><span class="pointer-hint">Jump to section ↗</span><span class="touch-hint">Tap again to jump ↗</span></span></span></div>'
+    return f'<div class="scroll-segment"><a class="scroll-chunk" href="#section-{number}"{attributes} aria-label="{number:02d}: {accessible}" aria-describedby="preview-{number}"><span class="chunk-bar" aria-hidden="true"></span><span class="chunk-number" aria-hidden="true">{number:02d}</span></a><span class="nav-preview" id="preview-{number}" role="tooltip"><span class="preview-eyebrow">{ui.ui("SECTION {number} / "+KINDS[kind].upper()+" EDITION",number=f"{number:02d}")}</span><span class="preview-title" data-content>{visible}</span><span class="preview-excerpt" data-content>{ui.ui(PreviewText().excerpt(body)) if ui_title else preview}</span><span class="preview-footer"><span class="preview-lines" aria-hidden="true"></span><span class="pointer-hint">{ui.ui("Jump to section ↗")}</span><span class="touch-hint">{ui.ui("Tap again to jump ↗")}</span></span></span></div>'
 
 
 def section_markup(number, heading, content, layout, pending=False):
@@ -53,28 +57,28 @@ def section_markup(number, heading, content, layout, pending=False):
 
 
 def loading_body(layout):
-    return f'<div class="section-loading loading-{layout}"><div class="section-loader" aria-hidden="true"><span></span><span></span><span></span></div><p class="section-loading-label">Waiting its turn</p><div class="skeleton-lines" aria-hidden="true"><i></i><i></i><i></i></div></div>'
+    return f'<div class="section-loading loading-{layout}"><div class="section-loader" aria-hidden="true"><span></span><span></span><span></span></div><p class="section-loading-label">{ui.ui("Waiting its turn")}</p><div class="skeleton-lines" aria-hidden="true"><i></i><i></i><i></i></div></div>'
 
 
-def preview_shell(plan, kind):
-    sections = ''.join(section_markup(n, native.escaped(title), loading_body(tag), tag, pending=True)
+def preview_shell(plan, kind, ui_titles=False):
+    sections = ''.join(section_markup(n, ui.ui(title) if ui_titles else native.escaped(title), loading_body(tag), tag, pending=True)
                        for n, (tag, title) in enumerate(plan, 1))
-    nav = ''.join(navigation(n, title, '<p>Waiting its turn</p>', kind) for n, (_, title) in enumerate(plan, 1))
+    nav = ''.join(navigation(n, title, '<p>Waiting its turn</p>', kind,ui_title=ui_titles) for n, (_, title) in enumerate(plan, 1))
     return sections, nav
 
 
-def edition(document, date, kind, available, images=None, preview_plan=None):
+def edition(document, date, kind, available, images=None, preview_plan=None, ui_intro=False):
     native.validate(document, partial=preview_plan is not None)
     nav, sections = [], []
     for number, section in enumerate(document['sections'], 1):
-        title = visible_text(native.section_title(section, date))
+        title = visible_text(native.section_title(section, date,document.get('lang','en')))
         content = ''.join(native.render_block(value, images or {}) for value in section[1])
         if len(section) >= 3 and section[2]:
             content += '<p class="section-takeaway">' + native.escaped(section[2]) + '</p>'
         nav.append(navigation(number, title, content, kind))
         sections.append(section_markup(number, native.escaped(title), content, section[0]))
     if preview_plan is not None:
-        panels, chunks = preview_shell(preview_plan, kind)
+        panels, chunks = preview_shell(preview_plan, kind,ui_titles=ui_intro)
         sections, nav = [panels], [chunks]
     switches = []
     for other, label in KINDS.items():
@@ -85,15 +89,16 @@ def edition(document, date, kind, available, images=None, preview_plan=None):
         else:
             switches.append(f'<span class="edition-unavailable" aria-label="{label} briefing not available yet"><span>{label}</span><small>Not yet</small></span>')
     template = (ASSETS / "edition.html").read_text(encoding="utf-8")
-    values = {"KIND": kind, "DATE": date, "EDITION": KINDS[kind], "SWITCHES": ''.join(switches),
+    values = {"KIND": kind, "DATE": date, "EDITION": KINDS[kind], "ARTICLELABEL":ui.text(KINDS[kind]+' briefing'), "SWITCHES": ''.join(switches),
               "NAV": ''.join(nav), "SECTIONS": ''.join(sections), "INTRO": '',
               "HASH": hashlib.sha256(json.dumps(document, ensure_ascii=False, separators=(',', ':')).encode()).hexdigest()[:12],
-              "TITLE": native.escaped(document['greeting']), "SUBTITLE": native.escaped(document['opening']),
-              "LANG": document.get('lang', 'en'),
+              "TITLE": ui.ui(document['greeting']) if ui_intro else native.escaped(document['greeting']), "SUBTITLE": ui.ui(document['opening']) if ui_intro else native.escaped(document['opening']),
+              "LANG": ui.current() if ui_intro else document.get('lang', 'en'),
               "CLOSING": '<p class="briefing-closing">' + native.escaped(document['closing']) + '</p>' if document.get('closing') else '',
               "SOURCE": kind + '.json', "SOURCELABEL": 'View saved data',
               "CELESTIAL": celestial(kind), "ICONS": favicon_links(kind, '')}
-    return re.sub(r"\{\{([A-Z]+)\}\}", lambda match: values[match[1]], template)
+    output=re.sub(r"\{\{([A-Z]+)\}\}", lambda match: values[match[1]], template)
+    return output.replace('data-content lang=','data-ui-language lang=') if ui_intro else output
 
 
 def build(runtime, date, fetch_images=False, include_assets=True, kind=None):

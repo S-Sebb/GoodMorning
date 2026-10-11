@@ -13,6 +13,7 @@ import sys
 from . import briefing_document as native
 from .briefing_stream import DEFAULT_PLANS, bounded_json, load, paths, publish, require_final
 from goodmorning.runtime_files import atomic_text, runtime_lock, secretary_path
+from goodmorning.web import language as ui
 
 
 def context_path(runtime, identifier):
@@ -38,11 +39,13 @@ def owned(runtime, identifier, session):
 
 def default_plan(context):
     plan = deepcopy(DEFAULT_PLANS[context['workflow']])
+    selected=context.get('website_language','en')
     for item in plan:
+        item[1]=ui.text(item[1],lang=selected)
         if item[0] == 'news':
             item[1] += ' — ' + context['yesterday']
     if context.get('news', {}).get('latest_enabled'):
-        plan.insert(2, ['news', 'Latest news — ' + context['date']])
+        plan.insert(2, ['news', ui.text('Latest news — {date}',lang=selected,date=context['date'])])
     return plan
 
 
@@ -114,9 +117,9 @@ def act(runtime, identifier, session, action, payload=None):
         if action == 'init':
             if not isinstance(payload, dict) or not {'greeting','opening'} <= payload.keys() or set(payload) - {'greeting', 'opening', 'lang', 'plan'}:
                 raise ValueError('Initialize with greeting, opening, optional lang and plan')
-            document = {'v': 1, 'greeting': payload['greeting'], 'opening': payload['opening'], 'sections': []}
-            if 'lang' in payload:
-                document['lang'] = payload['lang']
+            selected=context.get('website_language','en')
+            if 'lang' in payload and payload['lang']!=selected:raise ValueError('Use this job’s pinned website language')
+            document = {'v': 1, 'greeting': payload['greeting'], 'opening': payload['opening'], 'sections': [],'lang':selected}
             plan = payload.get('plan', default_plan(context))
             if checkpoint:
                 if checkpoint['plan'] != plan or {k:v for k,v in checkpoint['document'].items() if k not in ('sections','closing')} != {k:v for k,v in document.items() if k != 'sections'}:

@@ -34,10 +34,10 @@ class MockChamber:
                 raise OSError('Synthetic dispatch interruption')
             self.add(session, 'user', body['prompt'])
             if body['prompt'].startswith('/initialize'):
-                self.add(session, 'assistant', 'Which language would you like me to use as your secretary?')
-                session['forms'] = [{'id': 'form_language', 'title': 'Choose your language', 'fields': [
-                    {'key': 'language', 'title': 'Secretary language', 'type': 'string', 'required': True,
-                     'options': [{'value': 'English', 'label': 'English'}, {'value': '中文', 'label': '中文'}], 'custom': True}]}]
+                self.add(session, 'assistant', 'Confirm your location; replies follow the website language.')
+                session['forms'] = [{'id': 'form_city', 'title': 'Confirm your location', 'fields': [
+                    {'key': 'city', 'title': 'City', 'type': 'string', 'required': True,
+                     'options': [{'value': 'London', 'label': 'London'}], 'custom': True}]}]
             else:
                 self.add(session, 'assistant', 'Synthetic reply. Your text stays text: <img src=x onerror=alert(1)>')
             return {'promptDispatched': True}
@@ -63,7 +63,7 @@ class MockChamber:
         else:
             session['permissions'] = []
             if body['decision'] == 'once':
-                (self.runtime / 'profile.md').write_text('secretary_language: English\ncity: London\ntimezone: Europe/London\nnews_country: GB\n')
+                (self.runtime / 'profile.md').write_text('city: London\ntimezone: Europe/London\nnews_country: GB\n')
                 self.add(session, 'assistant', 'Synthetic setup saved. Provider verification was not performed.')
             else:
                 self.add(session, 'assistant', 'Nothing saved.')
@@ -111,7 +111,7 @@ class ChatTests(unittest.TestCase):
         self.start('initialize', '')
         status = self.chats.status(self.id)
         self.assertEqual(status['state'], 'waiting')
-        self.assertEqual(status['forms'][0]['id'], 'form_language')
+        self.assertEqual(status['forms'][0]['id'], 'form_city')
         self.assertEqual(status['messages'][0]['text'], 'Start initialize')
         self.assertNotIn(str(self.root), json.dumps(status['messages']))
 
@@ -137,7 +137,7 @@ class ChatTests(unittest.TestCase):
     def test_questions_and_permissions_are_bound_to_owning_conversation(self):
         self.start('initialize', '')
         with self.assertRaises(ValueError): self.chats.reply(self.id, 'form', 'foreign', {'answer': {}})
-        self.chats.reply(self.id, 'form', 'form_language', {'answer': {'language': 'English'}})
+        self.chats.reply(self.id, 'form', 'form_city', {'answer': {'city': 'London'}})
         with self.assertRaises(ValueError): self.chats.reply(self.id, 'permission', 'permission_setup', {'decision': 'always'})
         self.chats.reply(self.id, 'permission', 'permission_setup', {'decision': 'once'})
         self.assertEqual(self.chats.status(self.id)['state'], 'idle')

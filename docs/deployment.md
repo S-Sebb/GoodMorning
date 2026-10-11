@@ -122,6 +122,14 @@ Include `.gitignore` in releases used to run the source-layout tests.
 
 ## Supported boundaries
 
+Website language is account-wide English or Simplified Chinese. The encrypted
+account metadata stores it without altering password records or local profiles.
+All three hosts use that setting; only a non-secret pre-login preference cookie
+uses their common parent domain. Authentication cookies remain host-only.
+The selector works on login, password change, setup, chat, current and archived
+briefing pages. Saved content is not translated. Active agent requests keep their
+starting language; new requests receive the latest language explicitly.
+
 - Production Betterbird staging expands common daily/weekly/monthly/yearly rules,
   additions, exclusions and stored exceptions. Unsupported rules/schemas and
   locked caches are refused without partial imports. Metadata preflight verifies

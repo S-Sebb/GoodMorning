@@ -20,9 +20,10 @@ PERSONAL = ("secretary_language", "secretary_tone", "special_needs", "occupation
             "work_days", "work_hours", "sleep_time", "industry", "knowledge_area", "project_scope")
 
 
-def prepare(directory, kind, today=None, cache=None, *, task_limit=7):
+def prepare(directory, kind, today=None, cache=None, *, task_limit=7, website_language=None):
     fields = profile_fields(directory)
-    ready = profile_status(directory, fields)
+    ready = profile_status(directory, fields, website_language)
+    if website_language is not None:fields={**fields,'secretary_language':ready['secretary_language']}
     if not ready["profile_ready"]:
         return {"workflow": kind, **ready, "next": "resume secretary setup; do not initialize or fetch automatically"}
     date = today_str(today, fields["timezone"])
@@ -86,6 +87,7 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--secretary-dir")
     parser.add_argument("--cache-dir")
+    parser.add_argument("--website-language",choices=('en','zh-CN'),help='Explicit browser request language; does not rewrite local preferences')
     action = parser.add_mutually_exclusive_group(required=True)
     action.add_argument("--prepare", choices=KINDS)
     action.add_argument("--capture", choices=("eureka", "todo"))
@@ -101,7 +103,7 @@ def main(argv=None):
         kind = args.prepare or args.capture
         if args.capture and args.today:
             raise ValueError("invalid_input: capture uses the actual local timestamp, not historical dates")
-        result = prepare(directory, kind, args.today, args.cache_dir)
+        result = prepare(directory, kind, args.today, args.cache_dir, website_language=args.website_language)
         if args.capture and result.get("ready"):
             if not args.session or not args.request_key or not (args.input_file or args.input_stdin):
                 raise ValueError("input_required: capture needs session, stable request key and JSON input")

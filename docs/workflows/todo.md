@@ -34,7 +34,7 @@ Keep the current session and model; do not delegate.
    JSON preserves multiline text, quotes, and pipes. The helper uses the profile
    timezone. Use only a confirmed project; otherwise leave `project` empty.
    Never read old inbox messages to add a TODO; verify its compact receipt.
-   After a successful capture, rename once to `Todo SUMMARY` in `secretary_language`
+   After a successful capture, rename once to `Todo SUMMARY` in the supplied website language for browser chats, or `secretary_language` for local use,
    per the shared title rule, using the helper's very short raw summary.
    Do not ask for a project, deadline, priority, or task breakdown by default.
    If this same user turn was already captured, reuse its entry instead of

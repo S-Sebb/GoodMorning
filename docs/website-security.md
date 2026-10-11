@@ -1,5 +1,14 @@
 # Website security and account operations
 
+The account-wide interface language is encrypted account metadata, not a profile
+rewrite. Only the non-secret pre-login language cookie uses the hosts' common
+parent domain. Authentication cookies remain host-only. Language changes require
+the same origin and session CSRF checks, including the no-JavaScript form. HTML
+uses `Referrer-Policy: same-origin` so native forms send a verifiable Origin;
+external sites still receive no referrer. Language controls include a CSRF token,
+so private HTML is never compressed. Shared translation assets contain no private
+data and keep content-hashed, cacheable URLs.
+
 The public website adds a security boundary to the local viewer; it is not an
 OpenChamber UI proxy. It permits login, current-password changes, logout and
 account-owned briefing viewing/generation/questions and the four secretary chat
