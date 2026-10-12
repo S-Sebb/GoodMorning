@@ -636,29 +636,35 @@ class BrowserApp:
             return {'state': 'stopped', 'progress': 0, 'label': 'This briefing was replaced. Refresh to open the new edition.', 'forms': [], 'permissions': []}
         saved = self.source(job['date'], job['kind']).is_file()
 
-        def readable():
+        def verified():
+            """'ready' when the saved edition is verified, 'foreign' when a valid
+            edition was saved outside this job, else 'invalid'. Records stay unchanged."""
             try:
                 self.files(job['date'], job['kind'])
                 if self.preflight:
                     from goodmorning.records.state import parse_daily, load_state, stat_answer
                     run = parse_daily(str(self.runtime/'daily'/(job['date']+'.md')))[job['kind']]
-                    if not run['ran'] or run['session'] != job.get('session') or run['answer_file'] != 'daily/'+self.source(job['date'],job['kind']).name:
-                        return False
+                    if not run['ran'] or run['answer_file'] != 'daily/'+self.source(job['date'],job['kind']).name:
+                        return 'invalid'
                     indexed = load_state(str(self.runtime)).get('days', {}).get(job['date'], {}).get(job['kind'], {})
                     if any(indexed.get(key) != run[key] for key in ('ran', 'session', 'answer_file')) or indexed.get('sha1') != stat_answer(str(self.source(job['date'], job['kind'])))['sha1']:
-                        return False
+                        return 'invalid'
+                    if run['session'] != job.get('session'):
+                        return 'foreign'
                 if preview_path.exists():
                     document = native.parse(self.source(job['date'], job['kind']).read_text())
                     require_final(self.runtime, identifier, job['date'], job['kind'], job.get('session'), document)
             except (ValueError, OSError, UnicodeError):
-                return False
-            return True
+                return 'invalid'
+            return 'ready'
 
         invalid = 'The saved edition is not readable. Inspect its format in OpenChamber; your records are unchanged.'
+        mismatch = 'This edition was updated outside its briefing job and cannot be verified. Regenerate to replace it; your records are unchanged.'
         preview_path = self.job_dir / (identifier + '.preview.json')
         if saved and job['state'] == 'complete':
-            if not readable():
-                return {'state': 'stopped', 'progress': 95, 'label': invalid, 'forms': [], 'permissions': [],
+            reason = verified()
+            if reason != 'ready':
+                return {'state': 'stopped', 'progress': 95, 'label': mismatch if reason == 'foreign' else invalid, 'forms': [], 'permissions': [],
                         'regeneratable': self.preflight and job['date'] == self.today()}
             return {'state': 'ready', 'progress': 100, 'label': 'Your briefing is ready', 'forms': [], 'permissions': []}
         result = {'state': job['state'], 'progress': 5, 'label': 'Opening your secretary’s desk', 'forms': [], 'permissions': [],
@@ -695,7 +701,8 @@ class BrowserApp:
                     result['reservation_required'] = False
             else:
                 if state == 'idle' and job['state'] == 'running':
-                    if saved and readable():
+                    reason = verified() if saved else 'invalid'
+                    if reason == 'ready':
                         with self.lock:
                             if self.jobs[job['date'] + '.' + job['kind']]['id'] != identifier:
                                 return self.status(identifier)  # An older poll must never complete its replacement.
@@ -708,7 +715,7 @@ class BrowserApp:
                     else:
                         replacement = 'replacement' in job
                         result.update(state='stopped', label='Regeneration stopped before the new briefing was saved. Your previous briefing is preserved.' if replacement
-                                      else invalid if saved else 'Preparation stopped before an edition was saved. Open the session in OpenChamber to continue.')
+                                      else mismatch if reason == 'foreign' else invalid if saved else 'Preparation stopped before an edition was saved. Open the session in OpenChamber to continue.')
         elif job.get('session'):
             result.update(state='uncertain', label='The secretary is not connected. Completed preview sections remain readable; check the session in OpenChamber.')
         if result['state'] == 'uncertain':

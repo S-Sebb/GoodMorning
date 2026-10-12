@@ -471,6 +471,22 @@ class JobTests(unittest.TestCase):
         tasks=inspect((self.root/'daily/2026-10-11.md').read_text(),'2026-10-11')[2]
         self.assertEqual(len(tasks),2)
 
+    def test_status_names_edition_saved_outside_its_job(self):
+        self.save_original()
+        source=self.root/'daily/2026-10-11.gm.json'
+        saved=source.read_bytes()
+        path=self.root/'daily/2026-10-11.md'
+        path.write_text(path.read_text().replace('ses_fixture','ses_other'))
+        state.save_state(str(self.root),state.rebuild_index(str(self.root),state.load_state(str(self.root)),'2026-10-11'))
+        result=self.app.status(self.identifier)
+        self.assertEqual(result['state'],'stopped')
+        self.assertEqual(result['progress'],95)
+        self.assertEqual(result['label'],'This edition was updated outside its briefing job and cannot be verified. Regenerate to replace it; your records are unchanged.')
+        self.assertEqual(source.read_bytes(),saved)
+        source.write_text('{broken')
+        self.assertEqual(self.app.status(self.identifier)['label'],
+            'The saved edition is not readable. Inspect its format in OpenChamber; your records are unchanged.')
+
     def save_original(self):
         self.init()
         act(self.root,self.identifier,'ses_fixture','publish',{'position':0,'section':

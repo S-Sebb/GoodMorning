@@ -260,6 +260,11 @@ the GoodMorning root; specialized guides load only for the operation needed.
   and stop without fetching or marking. Open the original snapshot only if the
   user requests the full reply. `--force` requires an explicit full replacement
   request. Ordinary in-thread edits update records, not original snapshots.
+- Never save a browser-owned edition from a chat or local session: when
+  `browser-jobs/jobs.json` names a live job for that date and edition, briefing
+  fixes go through the website Regenerate flow, not `state --mark-*` with
+  `--force`. A foreign session save orphans the owning job and its edition
+  can no longer be verified.
 
 ## News delivery
 
