@@ -1,11 +1,13 @@
 """Shared briefing avatars on isolated synthetic records; no model calls."""
 import json
+import io
 from pathlib import Path
 import subprocess
 import sys
 import tempfile
 
 from playwright.sync_api import expect, sync_playwright
+from PIL import Image
 
 REPO = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO / 'src'))
@@ -72,7 +74,7 @@ def check_picker(page, address, artifacts):
         assert page.locator('.avatar-menu').evaluate("node => getComputedStyle(node).padding") == '0px'
         assert page.locator('.avatar-menu').evaluate("node => getComputedStyle(node).boxShadow") == 'none'
         expect(page.locator('.avatar-feedback')).to_have_css('clip', 'rect(0px, 0px, 0px, 0px)')
-        assert abs(page.locator('.avatar-menu').bounding_box()['height'] - page.locator('.avatar-carousel').bounding_box()['height']) < 1
+        expect(page.get_by_role('button', name='Upload your own avatar')).to_be_visible()
         expect(page.locator('[data-avatar-choice]')).to_have_count(4)
         expect(page.locator('[data-avatar-toggle]')).to_have_attribute('aria-expanded', 'true')
         page.locator('[data-avatar-choice="f1"]').click()
@@ -268,6 +270,68 @@ def main():
                 expect(page.locator('[data-avatar-toggle]')).to_be_disabled()
                 assert not page.evaluate('document.documentElement.scrollWidth > innerWidth')
                 page.close()
+                # Already-open pages discover the new custom choice and replacements.
+                observer = browser.new_page()
+                observer.goto(address + '/gm.html')
+                uploader = browser.new_page()
+                uploader.goto(address + '/chat')
+                for color in ('purple', 'orange'):
+                    uploader.bring_to_front()
+                    open_picker(uploader)
+                    image = io.BytesIO()
+                    Image.new('RGB', (120, 160), color).save(image, format='PNG')
+                    with uploader.expect_response('**/api/avatar/upload') as uploaded:
+                        uploader.locator('[data-avatar-file]').set_input_files({
+                            'name': 'avatar.png', 'mimeType': 'image/png', 'buffer': image.getvalue()})
+                    custom_source = uploaded.value.json()['avatars'][-1]['src']
+                    expect(uploader.locator('.avatar-display')).to_have_attribute('aria-busy', 'false')
+                    observer.bring_to_front()
+                    # Headless Chromium does not reliably emit window focus on tab activation.
+                    observer.evaluate("window.dispatchEvent(new Event('focus'))")
+                    expect(observer.locator('.avatar-display')).to_have_attribute('data-avatar', 'custom')
+                    expect(observer.locator('.avatar-image')).to_have_attribute('src', custom_source)
+                    expect(observer.locator('[data-avatar-choice]')).to_have_count(5)
+                observer.close()
+                uploader.close()
+                for width in (1440, 390, 320):
+                    page = browser.new_page(viewport={'width': width, 'height': 900}, reduced_motion='reduce')
+                    errors = []
+                    page.on('pageerror', lambda error: errors.append(str(error)))
+                    page.goto(address + '/chat')
+                    open_picker(page)
+                    image = io.BytesIO()
+                    Image.new('RGB', (120, 160), 'teal').save(image, format='PNG')
+                    with page.expect_response('**/api/avatar/upload') as response:
+                        page.locator('[data-avatar-file]').set_input_files({
+                            'name': 'my-secretary.png', 'mimeType': 'image/png', 'buffer': image.getvalue()})
+                    assert response.value.status == 201
+                    custom_source = response.value.json()['avatars'][-1]['src']
+                    expect(page.locator('.avatar-display')).to_have_attribute('data-avatar', 'custom')
+                    expect(page.locator('[data-avatar-choice]')).to_have_count(5)
+                    expect(page.locator('.avatar-display')).to_have_attribute('aria-busy', 'false')
+                    open_picker(page)
+                    page.screenshot(path=str(artifacts / f'custom-avatar-{width}.png'))
+                    assert not page.evaluate('document.documentElement.scrollWidth > innerWidth')
+                    for path in ('/gm.html', '/gn.html', f'/d/{day}/gm.html', f'/d/{day}/gn.html'):
+                        page.goto(address + path)
+                        expect(page.locator('.avatar-display')).to_have_attribute('data-avatar', 'custom')
+                        expect(page.locator('.avatar-image')).to_have_attribute('src', custom_source)
+                        assert page.locator('.avatar-image').evaluate('node => node.complete && node.naturalWidth > 0')
+                    open_picker(page)
+                    page.locator('[data-avatar-choice="f1"]').click()
+                    expect(page.locator('.avatar-display')).to_have_attribute('aria-busy', 'false')
+                    page.locator('[data-avatar-choice="custom"]').click()
+                    expect(page.locator('.avatar-display')).to_have_attribute('aria-busy', 'false')
+                    with page.expect_response('**/api/avatar/upload') as rejected:
+                        page.locator('[data-avatar-file]').set_input_files({
+                            'name': 'invalid.png', 'mimeType': 'image/png', 'buffer': b'not an image'})
+                    assert rejected.value.status == 400
+                    expect(page.locator('.avatar-feedback')).to_have_class('avatar-feedback is-error')
+                    expect(page.locator('.avatar-display')).to_have_attribute('data-avatar', 'custom')
+                    assert not errors, errors
+                    results.append({'width': width, 'customUpload': True, 'defaultSwitch': True,
+                                    'invalidImagePreservedAvatar': True, 'pageErrors': 0})
+                    page.close()
                 browser.close()
             for kind in ('gm', 'gn'):
                 assert (root / 'daily' / f'{day}.{kind}.json').read_text() == document

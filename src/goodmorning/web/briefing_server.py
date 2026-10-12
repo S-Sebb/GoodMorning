@@ -27,10 +27,12 @@ from .briefing_chat import AVATARS, Chats, avatar_id, avatar_widget, page as cha
 from goodmorning.paths import ROOT
 from . import language as ui
 from . import models as site_models
+from . import color_schemes as site_colors
 from .release import VERSION, release_info, acknowledge_version
 from .session_inventory import job_session_title
 from .chat_theme import clock_theme
 from .chat_uploads import MAX_UPLOAD_BYTES, UPLOAD_ROUTE, upload_name
+from .avatar_images import MAX_AVATAR_BYTES, AVATAR_UPLOAD_PATH, image_url, read_image, save_image
 from .bridge_json import read_json
 from .activity import ACTIVITY_PATH, snapshot as activity_snapshot
 
@@ -160,8 +162,24 @@ class BrowserApp:
             return write_avatar(self.runtime, avatar_id(value))
 
     def avatar_sources(self):
-        return {entry: self.resources.urls.get(filename, '/' + filename)
-                for entry, filename, _ in AVATARS}
+        sources = {entry: self.resources.urls.get(filename, '/' + filename)
+                   for entry, filename, _ in AVATARS}
+        custom = image_url(self.runtime)
+        if custom:
+            sources['custom'] = custom
+        return sources
+
+    def avatar_settings(self):
+        with self.lock:
+            return {'avatar': self.avatar(), 'avatars': [{'id': entry, 'src': source}
+                    for entry, source in self.avatar_sources().items()]}
+
+    def upload_avatar(self, data):
+        with self.lock:
+            self.file_signature(self.runtime / 'website-avatar.json')
+            save_image(self.runtime, data)
+            self.set_avatar('custom')
+            return self.avatar_settings()
 
     def briefing_avatar(self, avatar=None):
         return avatar_widget(avatar or self.avatar(), self.avatar_sources(), 'briefing-avatar')
@@ -203,7 +221,7 @@ class BrowserApp:
         return {'defaultMode': 'secretary' if ready else 'initialize', 'connected': bool(self.chamber),
                 **clock_theme(self.profile().get('timezone'), self.now() if self.now else None),
                 'secretary_name': secretary_name, 'avatar': current,
-                'avatars': [{'id': entry, 'src': self.avatar_sources()[entry]} for entry, _, _ in AVATARS]}
+                'avatars': self.avatar_settings()['avatars']}
 
     def chat_page(self):
         settings = self.chat_settings()
@@ -309,12 +327,12 @@ class BrowserApp:
         current_job = self.jobs.get(date+'.'+kind)
         if confirmed and self.preflight and current_job and self.status(current_job['id'])['state'] != 'ready':
             confirmed = False
-        page_key = date, kind, pinned, ui.current(), VERSION
+        page_key = date, kind, pinned, ui.current(), tuple(site_colors.current().items()), VERSION
         page_signature = None
         if confirmed:
             manifest = self.runtime / 'browser-images' / date / 'manifest.json'
             if manifest.parent.is_symlink():raise ValueError('Unsafe image manifest')
-            page_signature = self.file_signature(path), self.file_signature(manifest), week, VERSION, avatar
+            page_signature = self.file_signature(path), self.file_signature(manifest), week, VERSION, avatar, tuple(self.avatar_sources().items())
             with self.lock:
                 cached = self.pages.get(page_key)
                 if cached and cached[0] == page_signature:return cached[1]
@@ -559,12 +577,14 @@ class BrowserApp:
             if not readable():
                 return {'state': 'stopped', 'progress': 95, 'label': invalid, 'forms': [], 'permissions': []}
             return {'state': 'ready', 'progress': 100, 'label': 'Your briefing is ready', 'forms': [], 'permissions': []}
-        result = {'state': job['state'], 'progress': 5, 'label': 'Opening your secretary’s desk', 'forms': [], 'permissions': [],'language':job.get('language')}
+        result = {'state': job['state'], 'progress': 5, 'label': 'Opening your secretary’s desk', 'forms': [], 'permissions': [],
+                  'language':job.get('language'), 'date':job['date'], 'kind':job['kind']}
         if job['state'] == 'preflight':
             from goodmorning.briefings.briefing_job import context_path
             from goodmorning.briefings.briefing_stream import bounded_json
             context = bounded_json(context_path(self.runtime,identifier),300_000)
             return {**result,'state':'waiting','label':ui.text('Before your briefing'),'forms':[context['form']] if context['awaiting'] else [],
+                    'reservation_required': False,
                     'recovery':'Refresh task list' if job['kind'] == 'gn' else None,'recovery_action':'refresh' if job['kind']=='gn' else None}
         if preview_path.exists():
             try:
@@ -577,6 +597,9 @@ class BrowserApp:
         if job.get('session') and self.chamber:
             try:
                 forms, permissions = self.chamber.pending(job['session'])
+                receipts = job.get('replied_inputs', [])
+                forms = [form for form in forms if 'form:'+form['id'] not in receipts]
+                permissions = [permission for permission in permissions if 'permission:'+permission['id'] not in receipts]
                 state = None if forms or permissions else self.chamber.control('session.status', sessionId=job['session'])['sessionStatus']['type']
             except Exception:
                 result.update(state='uncertain', label='The secretary connection is unavailable. Completed preview sections remain readable; check the session in OpenChamber.')
@@ -584,6 +607,8 @@ class BrowserApp:
             result.update(forms=forms, permissions=permissions)
             if forms or permissions:
                 result.update(state='waiting', label='Your secretary needs your answer')
+                if job['state'] not in ('starting', 'uncertain'):
+                    result['reservation_required'] = False
             else:
                 if state == 'idle' and job['state'] == 'running':
                     if saved and readable():
@@ -627,6 +652,8 @@ class BrowserApp:
             return {'answered':True}
         if not job.get('session') or category not in ('form', 'permission'):
             raise ValueError('Invalid reply target')
+        if category+':'+request_id in job.get('replied_inputs', []):
+            return {'answered': True}
         forms, permissions = self.chamber.pending(job['session'])
         pending = forms if category == 'form' else permissions
         if not any(item['id'] == request_id for item in pending):
@@ -638,6 +665,9 @@ class BrowserApp:
                 raise ValueError('Only explicit one-time approval or rejection is allowed')
             body = {'decision': body['decision']}
         self.chamber.request(f'/api/session/{job["session"]}/{category}/{request_id}/reply', body)
+        with self.lock:
+            self.jobs[job['date']+'.'+job['kind']].setdefault('replied_inputs', []).append(category+':'+request_id)
+            self.save_jobs()
         return {'answered': True}
 
 
@@ -664,6 +694,14 @@ def serve_live(app, port, *, gateway_key=None, public_origins=()):
                 try:selected=site_models.model(json.loads(path.read_text())['model']) if path.is_file() else site_models.DEFAULT
                 except (ValueError,KeyError,TypeError,OSError,UnicodeError):selected=site_models.DEFAULT
             site_models.CURRENT.set(selected)
+
+        def select_color_schemes(self):
+            if gateway_key:
+                selected = site_colors.validate({'day': self.headers.get('X-GoodMorning-Day-Scheme', 'classic'),
+                                                 'night': self.headers.get('X-GoodMorning-Night-Scheme', 'classic')})
+            else:
+                selected = site_colors.read(app.runtime)
+            site_colors.CURRENT.set(selected)
 
         def authorized(self, mutation=False):
             if gateway_key:
@@ -724,9 +762,17 @@ def serve_live(app, port, *, gateway_key=None, public_origins=()):
             try:
                 self.select_language()
                 self.select_model()
+                self.select_color_schemes()
                 if path=='/api/language':return self.respond({'language':ui.current()})
                 if path=='/api/model':return self.respond({'model':site_models.current()})
-                if path=='/api/avatar':return self.respond({'avatar': app.avatar()})
+                if path=='/api/color-schemes':return self.respond(site_colors.current())
+                if path=='/api/avatar':return self.respond(app.avatar_settings())
+                avatar_image = re.fullmatch(r'/api/avatar/image/([a-f0-9]{64})\.png', path)
+                if avatar_image:
+                    image = read_image(app.runtime)
+                    if image and image[0] == avatar_image[1]:
+                        return self.respond(image[1], content_type='image/png')
+                    return self.respond({'error': 'Not found'}, 404)
                 if path=='/api/release':return self.respond(release_info())
                 if path=='/api/release/seen':return self.respond({'version':app.release_seen(),'enabled':True})
                 activity = re.fullmatch(ACTIVITY_PATH, path)
@@ -734,6 +780,9 @@ def serve_live(app, port, *, gateway_key=None, public_origins=()):
                     return self.respond(activity_snapshot(app, activity[1], activity[2]))
                 if path == '/api/day':
                     return self.respond({'date': app.today(), 'timezone': app.zone})
+                if path == '/api/queue':
+                    # Standalone viewers have no shared gateway waiting line.
+                    return self.respond({'queue':[], 'depth':0})
                 if path == '/chat':
                     return self.respond(app.chat_page(), content_type='text/html; charset=utf-8', compress=True)
                 if path == '/api/chats':
@@ -800,12 +849,25 @@ def serve_live(app, port, *, gateway_key=None, public_origins=()):
 
         def do_POST(self):
             path=urlsplit(self.path).path
-            form=path in ('/api/language','/api/model') and self.headers.get('Content-Type','').split(';')[0]=='application/x-www-form-urlencoded'
+            form=path in ('/api/language','/api/model','/api/color-schemes') and self.headers.get('Content-Type','').split(';')[0]=='application/x-www-form-urlencoded'
             if not self.authorized(not form):
                 return self.respond({'error': 'Forbidden'}, 403)
             try:
                 self.select_language()
                 self.select_model()
+                self.select_color_schemes()
+                if path == AVATAR_UPLOAD_PATH:
+                    if self.headers.get('Transfer-Encoding') or len(self.headers.get_all('Content-Length', [])) != 1:
+                        raise ValueError('Invalid upload')
+                    length = int(self.headers['Content-Length'])
+                    if length > MAX_AVATAR_BYTES:
+                        return self.respond({'error': 'Avatar images must be 5 MB or smaller.'}, 413)
+                    if length <= 0 or self.headers.get('Content-Type') != 'application/octet-stream':
+                        raise ValueError('Invalid upload')
+                    data = self.rfile.read(length)
+                    if len(data) != length:
+                        raise ValueError('Incomplete upload')
+                    return self.respond(app.upload_avatar(data), 201)
                 upload = UPLOAD_ROUTE.fullmatch(path)
                 if upload:
                     if self.headers.get('Transfer-Encoding') or len(self.headers.get_all('Content-Length', [])) != 1:
@@ -826,6 +888,7 @@ def serve_live(app, port, *, gateway_key=None, public_origins=()):
                 if form:
                     fields=parse_qs(raw.decode(),keep_blank_values=True,strict_parsing=True)
                     expected={'csrf','language','return_to'} if path=='/api/language' else {'csrf','model','return_to'}
+                    if path=='/api/color-schemes':expected={'csrf','day','night','return_to'}
                     if set(fields)!=expected or any(len(values)!=1 for values in fields.values()):raise ValueError('Invalid settings form')
                     body={key:values[0] for key,values in fields.items()}
                     origin=f'http://127.0.0.1:{self.server.server_port}'
@@ -850,6 +913,13 @@ def serve_live(app, port, *, gateway_key=None, public_origins=()):
                     target=body.get('return_to','/')
                     if not re.fullmatch(r'/(?:|chat|(?:gm|gn)\.html|d/\d{4}-\d{2}-\d{2}/(?:gm|gn)\.html)',target):target='/'
                     return self.respond({'model':selected},303 if form else 200,location=target if form else None)
+                if path=='/api/color-schemes':
+                    selected = site_colors.validate({key: body[key] for key in ('day', 'night')} if form else body)
+                    site_colors.write(app.runtime, selected)
+                    site_colors.CURRENT.set(selected)
+                    target=body.get('return_to','/')
+                    if not re.fullmatch(r'/(?:|chat|(?:gm|gn)\.html|d/\d{4}-\d{2}-\d{2}/(?:gm|gn)\.html)',target):target='/'
+                    return self.respond(selected,303 if form else 200,location=target if form else None)
                 if path == '/api/generate':
                     return self.respond(app.start(body['date'], body['kind']), 202)
                 recovery = re.fullmatch(r'/api/jobs/([a-f0-9]{32})/recover', path)

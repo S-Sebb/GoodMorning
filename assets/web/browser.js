@@ -40,24 +40,31 @@ async function pollBriefingQueue() {
   polling = true;
   try {
     const waiting = await api('/api/queue');
-    const mine = (waiting.queue || []).find(item =>
-      (queuedBriefing && item.work === 'generate' && item.date === queuedBriefing.date && item.edition === queuedBriefing.kind) ||
-      (queuedRecovery && item.work === 'recover' && item.job === queuedRecovery));
-    if (mine) {
-      showBriefingQueued(mine.position, waiting.depth);
-      if (queuedBriefing && generate) generate.hidden = true;
-    } else if (queuedBriefing) {
+    // An edition may already exist even if an older duplicate remains queued.
+    if (queuedBriefing) {
       const current = await api(`/api/edition/${queuedBriefing.date}/${queuedBriefing.kind}`);
       if (current.job) {
         job = current.job; queuedBriefing = null; clearBriefingQueued();
         if (generate) generate.hidden = true;
-        poll();
+        pollTimer = setTimeout(poll, 0);
         return;
       }
-      showBriefingQueued(1, 1);
+    }
+    const mine = (waiting.queue || []).find(item =>
+      (queuedBriefing && item.work === 'generate' && item.date === queuedBriefing.date && item.edition === queuedBriefing.kind) ||
+      (queuedRecovery && ['recover', 'reply'].includes(item.work) && item.job === queuedRecovery));
+    if (mine) {
+      showBriefingQueued(mine.position, waiting.depth);
+      if (queuedBriefing && generate) generate.hidden = true;
+    } else if (queuedBriefing) {
+      queuedBriefing = null; clearBriefingQueued();
+      document.querySelector('#generation').hidden = true;
+      if (generate) { generate.hidden = false; generate.disabled = false; }
+      errorBox.textContent = browserT('Your queued request expired. Please try again.');
+      return;
     } else if (queuedRecovery) {
       queuedRecovery = null; clearBriefingQueued();
-      poll();
+      pollTimer = setTimeout(poll, 0);
       return;
     } else return;
   } catch (error) {
@@ -167,8 +174,15 @@ function permissionForm(info) {
   return secretaryPermission(info, replyToAgent, refreshAnswers, briefingRequestLanguage);
 }
 
-function replyToAgent(category, id, body) { return api(`/api/jobs/${job}/${category}/${id}/reply`, body); }
-function refreshAnswers() { formSignature = ''; poll(); }
+async function replyToAgent(category, id, body) {
+  const result = await api(`/api/jobs/${job}/${category}/${id}/reply`, body);
+  if (result.queued) {
+    queuedRecovery = result.job || job;
+    showBriefingQueued(result.position, result.depth);
+  }
+  return result;
+}
+function refreshAnswers() { formSignature = ''; if (queuedRecovery) pollBriefingQueue(); else poll(); }
 
 async function poll() {
   clearTimeout(pollTimer);
@@ -176,10 +190,23 @@ async function poll() {
   polling = true;
   try {
     const state = await api(`/api/jobs/${job}`);
+    if (state.reservation_required === false) {
+      const waiting = await api('/api/queue');
+      const mine = (waiting.queue || []).find(item => item.work === 'reply' && item.job === job);
+      if (mine) {
+        queuedRecovery = job;
+        document.querySelector('#agent-questions').replaceChildren();
+        formSignature = '';
+        showBriefingQueued(mine.position, waiting.depth);
+        pollTimer = setTimeout(pollBriefingQueue, 2500);
+        return;
+      }
+    }
     briefingRequestLanguage = state.language;
     document.querySelector('#generation').hidden = false;
     document.querySelector('#generation-progress').value = state.progress;
-    document.querySelector('#generation-status').textContent = state.label;
+    document.querySelector('#generation-status').textContent = state.label + (state.reservation_required === false
+      ? ' ' + browserT('Take your time. Other requests can continue while you decide.') : '');
     document.querySelector('#generation-status').classList.remove('is-queued');
     const languageNote = document.querySelector('#request-language-note');
     if (languageNote) languageNote.textContent = state.language && typeof goodmorningLanguage !== 'undefined' && state.language !== goodmorningLanguage

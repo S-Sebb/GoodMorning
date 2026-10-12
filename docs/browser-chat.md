@@ -44,6 +44,14 @@ pages share only a non-secret browser language preference. Active requests retai
 their starting language, while new messages use the latest account setting.
 Language changes never translate or rewrite previous conversations or records.
 
+Settings also offers independent Day and Night color schemes. Day has Classic
+and Warm; Night currently has only Classic. The account-wide choice paints the
+whole website through shared color tokens, including briefings, chat, controls
+and the floating desk. Color changes apply without reloads, preserving drafts,
+pending answers and uploaded avatars. The Secretary page still switches between
+day and night at the existing account-local time boundaries; a color scheme is
+not a theme or timezone change.
+
 Conversation continuations stay within the selected mode. If the user wants
 another mode, direct them to the mode switch. Briefing generation remains on the
 Morning/Evening pages; never generate `/gm` or `/gn` inside these conversations.
@@ -68,17 +76,37 @@ Chat requests reference opaque account-local upload IDs, never client-chosen
 filesystem paths or remote URLs. Attachments remain available after restarts;
 failed or rejected sends can leave uploaded files for administrator archival.
 Authenticated Morning, Night and Secretary pages show the account's active work
-in a shared reminder. It distinguishes working, waiting for a question/permission,
-queued and uncertain/unavailable states, linking to the original host/page in a
-new tab. Visible tabs refresh every ten seconds and on focus; idle work disappears.
+in a small bottom-right Little desk window, which can minimize to a compact pill.
+It moves above the back-to-top control when that control is visible.
+Mobile pages start minimized. Its pencil, writing and steam animations run only
+while work is running and respect reduced-motion preferences. Multiple requests
+scroll inside the bounded window rather than growing the page. It distinguishes
+working, waiting for a question/permission,
+queued and uncertain/unavailable states, linking to the original page in the
+current tab. Visible tabs refresh every ten seconds and on focus; idle work disappears.
 Closing or hiding a tab does not cancel pending questions. The activity read does
 not load transcripts, clear reservations, dispatch queues or approve inputs.
 The gateway keeps one bounded global waiting line (about 20 requests) shared by
-briefing generation and all secretary conversations. A waiting question retains
-its reservation until the owning session becomes idle, and queued requests wait
-behind it in arrival order without concurrent dispatch.
+briefing generation and all secretary conversations. A waiting question
+no longer holds the model slot. The form and original session remain available
+while the user considers the question. Submitted answers reacquire the slot in
+arrival order, stay encrypted while queued and do not expire. Unknown dispatches
+still retain their reservation for explicit reconciliation, never blind replay.
 
-The page reads only visible user/assistant text, never reasoning or tool output.
+Question forms and their accepted answers are also saved in the account's
+`browser-chats/chats.json` registry. After submission, the question and selected
+option labels or typed answer appear as ordinary conversation bubbles in their
+original order. Failed submissions are not displayed as accepted answers. These
+exchanges survive refresh and backend restarts; previously discarded exchanges
+are not reconstructed.
+
+The conversation has a bounded, top-aligned scrolling area, with the composer
+outside it. New messages follow the bottom only when the user is already there;
+reading older messages does not move their position. **Jump to latest** returns
+to the bottom. Pending question forms use the same scrolling area.
+
+The page shows visible user/assistant text and user-facing question forms, never
+reasoning or internal tool output.
 Text is rendered without agent HTML. Bounded recent history is displayed; complete
 transcripts remain in the account's encrypted agent storage. Browser storage is
 not used for private messages. Switching modes starts a new draft conversation;

@@ -13,6 +13,8 @@ const errorBox = document.querySelector('#chat-error');
 const fileInput = document.querySelector('#chat-files');
 const attachButton = document.querySelector('#chat-attach');
 const composer = document.querySelector('#chat-compose');
+const chatScroll = document.querySelector('#chat-scroll');
+const latestButton = document.querySelector('#chat-latest');
 let attachments = [];
 const make = secretaryElement;
 const requestedMode = new URLSearchParams(location.search).get('mode');
@@ -26,6 +28,7 @@ let timer;
 let formSignature = '';
 let messageSignature = '';
 let animateMessages = false;
+let followNextUpdate = true;
 let statusLabel = '';
 let revision = 0;
 let requestLanguage = null;
@@ -48,6 +51,7 @@ function scheduleChatTheme() {
 function applySecretaryName() {
   const heading = document.querySelector('#secretary-heading');
   if (heading && secretaryName) heading.textContent = secretaryName + '.';
+  document.querySelector('#conversation-name').textContent = secretaryName || chatT('Your secretary');
   // Force author labels to refresh on next message render.
   messageSignature = '';
 }
@@ -83,11 +87,13 @@ function composeState() {
   textBox.disabled = sending || (chat && state !== 'idle');
   fileInput.disabled = attachButton.disabled = sendButton.disabled;
   document.querySelectorAll('#chat-attachments button').forEach(button => { button.disabled = sendButton.disabled; });
-  sendButton.textContent = chatT(chat ? 'Send reply' : modes[mode][2]);
+  const sendLabel = chatT(chat ? 'Send reply' : modes[mode][2]);
+  sendButton.querySelector('.chat-send-label').textContent = sendLabel;
+  sendButton.setAttribute('aria-label', sendLabel);
   textBox.required = !attachments.length && (!chat && ['todo','eureka'].includes(mode) || Boolean(chat));
   document.querySelector('#compose-note').textContent = chatT(state === 'queued'
     ? 'Your message is queued and will send automatically.' : chat && state !== 'idle'
-     ? 'Answer pending questions below, or wait for your secretary.' : 'Only your chosen mode. No commands needed. Enter sends; Shift+Enter adds a new line.');
+     ? 'Answer the question in the conversation, or wait for your secretary.' : 'Only your chosen mode. No commands needed. Enter sends; Shift+Enter adds a new line.');
   showActivity();
 }
 
@@ -215,6 +221,7 @@ function clearQueued() {
 }
 
 function showMode() {
+  document.querySelector('#conversation-name').textContent = secretaryName || chatT('Your secretary');
   document.querySelectorAll('[data-mode]').forEach(button => {
     const selected = button.dataset.mode === mode;
     button.setAttribute('aria-checked', String(selected)); button.tabIndex = selected ? 0 : -1;
@@ -234,9 +241,12 @@ function newConversation(next = chatConfig.defaultMode) {
   chat = null; state = null; sending = false; mode = next; requestLanguage = null;
   history.replaceState(null, '', '/chat');
   formSignature = ''; messageSignature = ''; animateMessages = false;
+  followNextUpdate = true;
   document.querySelector('#chat-messages').replaceChildren();
   document.querySelector('#chat-questions').replaceChildren();
   document.querySelector('#chat-empty').hidden = false;
+  chatScroll.scrollTop = 0;
+  latestButton.hidden = true;
   statusLabel = '';
   document.querySelector('#chat-status').classList.remove('is-queued');
   errorBox.textContent = '';
@@ -306,29 +316,51 @@ async function historyList() {
   }));
 }
 
+function nearLatest() {
+  return chatScroll.scrollHeight - chatScroll.scrollTop - chatScroll.clientHeight < 80;
+}
+
+function updateScrollTools() {
+  latestButton.hidden = nearLatest();
+}
+
+function scrollToLatest(smooth = false) {
+  chatScroll.scrollTo({top: chatScroll.scrollHeight,
+    behavior: smooth && !matchMedia('(prefers-reduced-motion: reduce)').matches ? 'smooth' : 'instant'});
+  updateScrollTools();
+}
+
+chatScroll.addEventListener('scroll', updateScrollTools, {passive: true});
+latestButton.addEventListener('click', () => scrollToLatest(true));
+window.addEventListener('resize', updateScrollTools);
+
 function showMessages(messages) {
   const signature = JSON.stringify([messages, secretaryName]);
-  if (signature === messageSignature) return;
+  if (signature === messageSignature) return false;
   const log = document.querySelector('#chat-messages');
-  const nearBottom = document.documentElement.scrollHeight - scrollY - innerHeight < 240;
   const existing = new Map([...log.children].map(node => [node.dataset.message, node]));
-  let added = false;
   const nodes = messages.map(item => {
     let bubble = existing.get(item.id);
     if (!bubble) {
-      bubble = make('section', '', 'chat-message ' + item.role);
+      bubble = make('section', '', 'chat-message ' + item.role + (item.kind ? ' ' + item.kind : ''));
       bubble.dataset.message = item.id;
+      if (item.language) bubble.lang = item.language;
       const authorName = item.role === 'user' ? chatT('You') : (secretaryName || chatT('Your secretary'));
       const author=make('p',authorName,'message-author');
       author.dataset.uiText=item.role==='user'?'You':'Your secretary';
       if (item.role !== 'user' && secretaryName) author.dataset.secretaryName = secretaryName;
       bubble.append(author, make('div', '', 'message-text'), make('div', '', 'message-attachments'));
+      if (item.role === 'assistant') {
+        const portrait = make('span', '', 'chat-portrait reply-portrait');
+        portrait.setAttribute('aria-hidden', 'true');
+        const image = make('img'); image.alt = '';
+        portrait.append(image); bubble.append(portrait);
+      }
       if (animateMessages && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
         bubble.classList.add('message-enter');
         bubble.addEventListener('animationend', () => bubble.classList.remove('message-enter'), {once: true});
       }
       log.append(bubble);
-      added = true;
     } else if (item.role !== 'user') {
       const author = bubble.querySelector('.message-author');
       const expected = secretaryName || chatT('Your secretary');
@@ -341,12 +373,25 @@ function showMessages(messages) {
     return bubble;
   });
   [...log.children].filter(node => !nodes.includes(node)).forEach(node => node.remove());
+  nodes.forEach((node, index) => { if (log.children[index] !== node) log.insertBefore(node, log.children[index] || null); });
   document.querySelector('#chat-empty').hidden = messages.length > 0;
   messageSignature = signature;
-  if (nearBottom && messages.length) log.lastElementChild.scrollIntoView({block:'nearest',
-    behavior: animateMessages && added && !matchMedia('(prefers-reduced-motion: reduce)').matches ? 'smooth' : 'auto'});
   animateMessages = true;
+  syncChatAvatar();
+  return true;
 }
+
+function syncChatAvatar() {
+  const figure = document.querySelector('.avatar-display');
+  const source = figure.querySelector('.avatar-image').getAttribute('src');
+  const custom = source.startsWith('/api/avatar/image/');
+  document.querySelectorAll('.chat-portrait').forEach(portrait => {
+    portrait.dataset.chatAvatar = custom ? 'custom' : figure.dataset.avatar;
+    if (portrait.querySelector('img').getAttribute('src') !== source) portrait.querySelector('img').src = source;
+  });
+}
+new MutationObserver(syncChatAvatar).observe(document.querySelector('.avatar-display .avatar-image'), {attributes: true, attributeFilter: ['src']});
+syncChatAvatar();
 
 async function pollQueue() {
   clearTimeout(timer);
@@ -356,7 +401,7 @@ async function pollQueue() {
   try {
     const status = await chatAPI('/api/queue');
     if (version !== revision) return;
-    const mine = (status.queue || []).find(item => item.work === 'chat' && item.chat === current);
+    const mine = (status.queue || []).find(item => ['chat', 'reply'].includes(item.work) && item.chat === current);
     if (mine) {
       state = 'queued';
       showQueued(mine.position, status.depth);
@@ -380,7 +425,7 @@ async function pollQueue() {
 async function recoverQueuedAfterReload() {
   try {
     const status = await chatAPI('/api/queue');
-    const mine = (status.queue || []).find(item => item.work === 'chat' && item.chat === chat);
+    const mine = (status.queue || []).find(item => ['chat', 'reply'].includes(item.work) && item.chat === chat);
     if (mine) {
       state = 'queued';
       errorBox.textContent = '';
@@ -401,6 +446,8 @@ async function pollChat() {
   try {
     const result = await chatAPI('/api/chats/' + current);
     if (version !== revision) return;
+    const follow = followNextUpdate || nearLatest();
+    const replay = !animateMessages;
     mode = result.mode; state = result.state;
     requestLanguage = result.language;
     if (typeof result.secretary_name === 'string' && result.secretary_name && result.secretary_name !== secretaryName) {
@@ -409,17 +456,47 @@ async function pollChat() {
     }
     statusLabel = result.label;
     document.querySelector('#chat-status').classList.remove('is-queued');
-    if (result.messages) showMessages(result.messages);
+    const messagesChanged = result.messages ? showMessages(result.messages) : false;
+    if (result.reservation_required === false) {
+      const waiting = await chatAPI('/api/queue');
+      if (version !== revision) return;
+      const mine = (waiting.queue || []).find(item => item.work === 'reply' && item.chat === current);
+      if (mine) {
+        state = 'queued'; formSignature = '';
+        document.querySelector('#chat-questions').replaceChildren();
+        showQueued(mine.position, waiting.depth); showMode();
+        timer = setTimeout(pollQueue, 2500);
+        return;
+      }
+      statusLabel += ' ' + chatT('Take your time. Other requests can continue while you decide.');
+    }
     const signature = JSON.stringify([result.forms, result.permissions]);
-    if (signature !== formSignature) {
-      const refreshed = () => { formSignature = ''; pollChat(); };
-      const reply = (category, id, body) => chatAPI(`/api/chats/${current}/${category}/${id}/reply`, body);
+    const formsChanged = signature !== formSignature;
+    if (formsChanged) {
+      const refreshed = () => { formSignature = ''; if (state === 'queued') pollQueue(); else pollChat(); };
+      const reply = async (category, id, body) => {
+        const receipt = await chatAPI(`/api/chats/${current}/${category}/${id}/reply`, body);
+        if (version === revision) {
+          followNextUpdate = true;
+          if (receipt.queued) { state = 'queued'; showQueued(receipt.position, receipt.depth); showMode(); }
+        }
+        return receipt;
+      };
       document.querySelector('#chat-questions').replaceChildren(
         ...result.forms.map(info => secretaryQuestion(info, reply, refreshed, result.language)),
         ...result.permissions.map(info => secretaryPermission(info, reply, refreshed, result.language)));
       formSignature = signature;
     }
     showMode();
+    if (follow && (messagesChanged || formsChanged)) {
+      const question = document.querySelector('#chat-questions .agent-form');
+      if (formsChanged && question && question.offsetHeight > chatScroll.clientHeight) {
+        chatScroll.scrollTo({top: chatScroll.scrollTop + question.getBoundingClientRect().top
+          - chatScroll.getBoundingClientRect().top - 12, behavior: 'instant'});
+      } else scrollToLatest(!replay);
+      followNextUpdate = false;
+    }
+    updateScrollTools();
     if (state === 'idle') { await historyList(); focusComposer(); }
   } catch (error) {
     if (version === revision && error.status === 404) {
@@ -462,6 +539,7 @@ document.querySelector('#chat-compose').addEventListener('submit', async event =
       body);
     if (version !== revision) return;
     chat = current; textBox.value = ''; drafts.delete(mode);
+    followNextUpdate = true;
     attachments = []; showAttachments();
     history.replaceState(null, '', '/chat?id=' + chat);
     if (result && result.queued) {

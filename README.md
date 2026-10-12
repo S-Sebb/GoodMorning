@@ -37,6 +37,10 @@ and existing local preferences are not translated or rewritten. Website initiali
 therefore skips the separate reply-language question. For local skill use, the first
 setup question still confirms the secretary's reply language independently of news.
 The Secretary page explains when to choose Secretary, To-do, Eureka or Initialize.
+The avatar picker keeps four defaults and offers **Upload your own avatar** for
+PNG, JPEG or WebP images up to 5 MB. Each account has one private custom avatar,
+shared across chat and briefings; uploading another replaces it. Switching to a
+default keeps the custom avatar available. Photo metadata is removed on upload.
 The website uses beta versions (`0.minor.patch`). A blue update arrow, or a
 checkmark when current, opens bilingual patch notes with a past-version sidebar.
 Each new version appears automatically until dismissed; that preference is

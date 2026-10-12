@@ -1,6 +1,51 @@
 {
   "notes": [
     {
+      "version": "0.22.0", "date": "2026-10-12", "author": "GoodMorning agent",
+      "title_en": "Personal desks and non-blocking questions", "title_zh": "个性化书桌与不阻塞的提问",
+      "changes": [
+        {"category": "Added", "en": [
+          "Choose Classic or Warm for Day, with a separate Classic Night selector. Whole-site palettes are saved per account across devices.",
+          "Upload a private PNG, JPEG or WebP avatar up to 5 MB. Photo metadata is removed; the portrait appears in chat and briefings."
+        ], "zh": [
+          "日间可选择经典或暖色配色，夜间提供独立的经典配色选择器。全站配色按账号保存，并在各设备间同步。",
+          "可上传最大 5 MB 的私人 PNG、JPEG 或 WebP 头像。上传时移除照片元数据，聊天和简报共用此头像。"
+        ]},
+        {"category": "Changed", "en": [
+          "Give chat an avatar-and-name header, softer bubbles, larger portraits and a compact composer.",
+          "Use a bordered, fixed-height conversation box. New replies preserve your reading position; Jump to latest returns to recent messages.",
+          "Replace the activity bar with a minimizable Little desk window. Writing animations stop while waiting and respect reduced motion; mobile starts compact.",
+          "Align Settings controls and separate Day/Night appearance. Close with its button, Escape or an outside click.",
+          "Bring Morning, Evening and Secretary onto gm.love765.me with one login; retire the separate gn and sec hosts."
+        ], "zh": [
+          "聊天新增头像与姓名标题、更柔和的气泡、更大的回复头像及紧凑输入栏。",
+          "对话使用边框清晰、固定高度的滚动窗口。新回复保留阅读位置，可通过“跳至最新消息”返回最新内容。",
+          "活动提示条改为可收起的小书桌悬浮窗口。等待回答时停止书写动画，遵循减少动态效果偏好，移动端默认收起。",
+          "设置控件对齐，日间和夜间配色归入独立外观区域。可通过关闭按钮、Esc 或点击面板外部关闭。",
+          "早报、晚报和秘书统一到 gm.love765.me，共用一次登录；停用独立的 gn 和 sec 域名。"
+        ]},
+        {"category": "Fixed", "en": [
+          "Save accepted question exchanges in conversation history, preserving their order after refresh and restart. Failed answers are not shown as accepted.",
+          "Waiting questions and permissions no longer block other users. Forms survive refresh; encrypted queued answers resume the original session without expiring or replaying prompts.",
+          "Restore existing briefing forms instead of queuing behind their own job, and report expired generation requests instead of showing an endless queue."
+        ], "zh": [
+          "将已接受的提问与回答保存到对话历史，刷新和重启后保留原有顺序。失败的回答不会显示为已接受。",
+          "等待问题或权限回答时不再阻塞其他用户。刷新后保留表单；加密排队的回答不会过期，并返回原会话继续，不重复发送提示。",
+          "恢复已有简报的表单，不再排在自己的任务后面；生成请求过期时明确提示，不再无限显示排队。"
+        ]},
+        {"category": "Tests", "en": [
+          "Cover isolation, record preservation, long deliberation, queued-answer recovery, avatars, palettes, history and desktop/mobile layouts with synthetic tests and no model calls."
+        ], "zh": [
+          "使用合成数据、不调用模型，验证隔离、记录保护、长时间考虑、排队回答恢复、头像、配色、历史及桌面和移动端布局。"
+        ]},
+        {"category": "Notes", "en": [
+          "Previously discarded question exchanges are not reconstructed."
+        ], "zh": [
+          "此前未保存的提问与回答不会被重新恢复。"
+        ]}
+      ]
+    },
+    {
       "version": "0.21.0", "date": "2026-10-12", "author": "GoodMorning agent",
       "title_en": "Compact utility menus", "title_zh": "紧凑型工具菜单",
       "changes": [

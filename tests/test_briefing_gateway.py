@@ -34,6 +34,10 @@ class GatewayTests(unittest.TestCase):
         class Backend(BaseHTTPRequestHandler):
             def do_GET(self):
                 received.append((self.path,dict(self.headers)))
+                if self.path.startswith('/api/edition/'):
+                    self.send_response(200);self.send_header('Content-Type','application/json');self.end_headers()
+                    self.wfile.write(b'{"job":null}')
+                    return
                 self.send_response(200);self.send_header('Content-Type','text/html');self.end_headers()
                 self.wfile.write(('<body><div data-config="{&quot;csrf&quot;: &quot;'+('a'*43)+'&quot;}"></div>Alice private record</body>').encode())
             def do_POST(self):
@@ -88,6 +92,19 @@ class GatewayTests(unittest.TestCase):
         self.assertEqual(status,200)
         self.cookie=headers['Set-Cookie'].split(';')[0]
         self.csrf=self.store.session(self.cookie.split('=',1)[1],'gm.example.test')['csrf']
+
+    def test_single_host_serves_all_tabs_and_rejects_removed_hosts(self):
+        single = Gateway(self.store, {'gm.example.test': 'gm'}, testing=True)
+        self.gateway.hosts = single.hosts
+        self.gateway.language_domain = single.language_domain
+        self.permanent()
+        for path, expected in (('/', '/gm.html'), ('/gm.html', '/gm.html'),
+                               ('/gn.html', '/gn.html'), ('/chat', '/chat'),
+                               ('/chat?id='+'a'*32, '/chat?id='+'a'*32)):
+            self.assertEqual(self.request(path)[0], 200)
+            self.assertEqual(self.received[-1][0], expected)
+        for host in ('gn.example.test', 'sec.example.test'):
+            self.assertEqual(self.request('/chat', headers={'Host': host})[0], 403)
 
     def test_recovery_uses_global_reservation_and_never_replays_duplicate(self):
         job='a'*32;path='/api/jobs/'+job+'/recover';raw=json.dumps({'id':'b'*32}).encode()
@@ -372,6 +389,138 @@ class GatewayTests(unittest.TestCase):
         self.gateway.pump_queue()
         self.assertIsNone(self.gateway.ticket())
 
+    def preflight_ticket(self):
+        ticket = {'user':self.id, 'host':'gm.example.test', 'date':'2026-10-11', 'kind':'gn', 'job':'a'*32}
+        with self.store.db() as db:
+            db.execute('INSERT INTO metadata VALUES (?,?)', ('generation', json.dumps(ticket, separators=(',', ':'))))
+        return ticket
+
+    def test_preflight_yields_slot_and_dispatches_other_user_without_an_answer(self):
+        self.preflight_ticket()
+        waiting = {'user':self.other, 'host':'gm.example.test', 'chat':'b'*32, 'request':'b'*32}
+        self.gateway._reserve_or_queue('chat', waiting, '/api/chats', {'id':'b'*32,'mode':'secretary','text':'Hello'}, 'en')
+        def proxy(user, host, path, method, raw, headers):
+            if method == 'POST': return 202, {}, b'{"accepted":true}'
+            return 200, {}, json.dumps({'state':'waiting','reservation_required':False} if '/jobs/' in path else {'state':'running'}).encode()
+        with patch.object(self.gateway, 'proxy', side_effect=proxy) as calls:
+            self.gateway.pump_queue()
+        self.assertEqual(self.gateway.ticket(), waiting)
+        self.assertEqual(sum(call.args[3] == 'POST' for call in calls.call_args_list), 1)
+
+    def test_waiting_native_session_and_unavailable_work_never_yield(self):
+        ticket = self.preflight_ticket()
+        for status, body in ((200, {'state':'waiting'}), (503, {'state':'waiting','reservation_required':False}),
+                             (200, {'state':'uncertain','reservation_required':False})):
+            with patch.object(self.gateway, 'proxy', return_value=(status, {}, json.dumps(body).encode())):
+                self.gateway.reconcile_ticket()
+            self.assertEqual(self.gateway.ticket(), ticket)
+
+    def test_reopening_existing_briefing_does_not_join_its_own_queue(self):
+        ticket = self.preflight_ticket()
+        with patch.object(self.gateway, 'proxy', return_value=(200, {}, json.dumps({'job':ticket['job']}).encode())) as proxy:
+            status, _, raw = self.gateway.generate(self.id, ticket['host'], b'{"date":"2026-10-11","kind":"gn"}', {})
+        self.assertEqual(status, 202)
+        self.assertEqual(json.loads(raw), {'job':ticket['job']})
+        proxy.assert_called_once()
+        with self.store.db() as db:self.assertEqual(self.gateway._read_queue(db), [])
+
+    def test_answer_queues_durably_then_reacquires_slot_before_dispatch(self):
+        active = {'user':self.other,'host':'gm.example.test','chat':'b'*32,'request':'b'*32}
+        with self.store.db() as db:
+            db.execute('INSERT INTO metadata VALUES (?,?)', ('generation', json.dumps(active, separators=(',', ':'))))
+        form = 'preflight_'+'a'*32
+        path = '/api/jobs/'+('a'*32)+'/form/'+form+'/reply'
+        raw = b'{"answer":{"completed":["none"],"details":"No other updates"}}'
+        state = {'active':True, 'answered':False}
+        def proxy(user, host, path, method, body, headers):
+            if method == 'POST':
+                self.assertTrue(self.gateway.ticket()['dispatching'])
+                # A concurrent maintenance tick must not release an in-flight answer.
+                self.gateway.reconcile_ticket()
+                self.assertTrue(self.gateway.ticket()['dispatching'])
+                state['answered'] = True
+                return 200, {}, b'{"answered":true}'
+            if '/chats/' in path:
+                return 200, {}, json.dumps({'state':'running' if state['active'] else 'idle'}).encode()
+            return 200, {}, json.dumps({'state':'running'} if state['answered'] else {
+                'state':'waiting', 'reservation_required':False, 'forms':[{'id':form}], 'date':'2026-10-11', 'kind':'gn'}).encode()
+        with patch.object(self.gateway, 'proxy', side_effect=proxy):
+            for _ in range(2):
+                status, _, response = self.gateway.input_reply(self.id, 'gm.example.test', path, raw, {})
+                self.assertEqual(status, 202);self.assertTrue(json.loads(response)['queued'])
+            self.assertFalse(state['answered'])
+            with self.store.db() as db:
+                queue = self.gateway._read_queue(db)
+                self.assertEqual(len(queue), 1)
+                queue[0]['enqueued'] = 1
+                self.gateway._write_queue(db, queue)
+            reopened = Gateway(self.store, self.gateway.hosts, testing=True)
+            with patch.object(reopened, 'proxy', side_effect=proxy):
+                self.assertEqual(reopened.queue_status(self.id)['queue'][0]['work'], 'reply')
+            state['active'] = False
+            self.gateway.pump_queue()
+            self.assertTrue(state['answered'])
+            self.assertEqual(self.gateway.ticket()['job'], 'a'*32)
+            self.assertNotIn('dispatching', self.gateway.ticket())
+
+    def test_uncertain_answer_dispatch_keeps_reservation(self):
+        form = 'preflight_'+'a'*32
+        def proxy(user, host, path, method, raw, headers):
+            if method == 'POST': raise TimeoutError('Synthetic uncertain delivery')
+            return 200, {}, json.dumps({'state':'waiting','reservation_required':False,'forms':[{'id':form}]}).encode()
+        with patch.object(self.gateway, 'proxy', side_effect=proxy):
+            with self.assertRaises(TimeoutError):
+                self.gateway.input_reply(self.id, 'gm.example.test', '/api/jobs/'+('a'*32)+'/form/'+form+'/reply', b'{"answer":{}}', {})
+            self.gateway.pump_queue()
+        self.assertTrue(self.gateway.ticket()['dispatching'])
+
+    def test_native_question_waits_indefinitely_and_reply_resumes_original_session(self):
+        from goodmorning.web.briefing_chat import Chats
+        from test_briefing_chat import MockChamber, ImmediateThread
+        runtime=self.root/'synthetic-waiting-chat';runtime.mkdir()
+        chamber=MockChamber(runtime);chats=Chats(runtime,chamber)
+        def proxy(user, host, path, method, raw, headers):
+            if user == self.other:
+                return 200, {}, b'{"state":"running"}'
+            if method == 'GET':
+                return 200, {}, json.dumps(chats.status('a'*32)).encode()
+            if path == '/api/chats':
+                value=chats.start(json.loads(raw))
+            else:
+                parts=path.split('/')
+                value=chats.reply(parts[3],parts[4],parts[5],json.loads(raw))
+            return 202, {}, json.dumps(value).encode()
+        with patch.object(self.gateway,'proxy',side_effect=proxy), patch('goodmorning.web.briefing_chat.threading.Thread',ImmediateThread):
+            self.gateway.chat_message(self.id,'gm.example.test','/api/chats',
+                json.dumps({'id':'a'*32,'mode':'initialize','text':''}).encode(),{})
+            original_session=chats.get('a'*32)['session']
+            self.gateway.pump_queue()
+            self.assertIsNone(self.gateway.ticket())
+            # Long consideration and a viewer reload preserve the native question.
+            reloaded=Chats(runtime,chamber)
+            self.assertEqual(reloaded.status('a'*32)['forms'][0]['id'],'form_city')
+            self.assertEqual(chamber.replies,[])
+            active={'user':self.other,'host':'gm.example.test','chat':'b'*32,'request':'b'*32}
+            self.gateway._reserve_or_queue('chat',active,'/api/chats',{'id':'b'*32,'mode':'secretary','text':'Other work'},'en')
+            path='/api/chats/'+('a'*32)+'/form/form_city/reply'
+            status,_,raw=self.gateway.input_reply(self.id,'gm.example.test',path,b'{"answer":{"city":"London"}}',{})
+            self.assertEqual(status,202);self.assertTrue(json.loads(raw)['queued'])
+            self.assertEqual(chamber.replies,[])
+            with self.store.db() as db:
+                queue=self.gateway._read_queue(db);queue[0]['enqueued']=1;self.gateway._write_queue(db,queue)
+            self.gateway.clear_ticket(active)
+            self.gateway.pump_queue()
+            self.assertEqual(chamber.replies[0][0],'/api/session/'+original_session+'/form/form_city/reply')
+            self.assertEqual(chamber.replies[0][1],{'answer':{'city':'London'}})
+            self.assertEqual(len(chamber.sessions),1)
+            self.assertIsNone(self.gateway.ticket())  # The next permission also yields.
+            permission='/api/chats/'+('a'*32)+'/permission/permission_setup/reply'
+            self.assertEqual(self.gateway.input_reply(self.id,'gm.example.test',permission,b'{"decision":"once"}',{})[0],202)
+            self.gateway.pump_queue()
+            self.assertEqual(chats.status('a'*32)['state'],'idle')
+            self.assertIsNone(self.gateway.ticket())
+            self.assertEqual(len(chamber.replies),2)
+
     def test_uncertain_chat_reservation_is_preserved_on_invalid_duplicate(self):
         self.permanent()
         body={'id':'a'*32,'mode':'secretary','text':'Hello'}
@@ -389,7 +538,7 @@ class GatewayTests(unittest.TestCase):
         self.assertEqual(self.request('/api/chats',{'id':'b'*32,'mode':'todo','text':'Capture this task'})[0],202)
         self.assertEqual(self.gateway.ticket()['chat'],'b'*32)
 
-    def test_real_native_message_limit_releases_finished_chat_but_not_pending_input(self):
+    def test_real_native_message_limit_releases_finished_and_waiting_chat(self):
         from goodmorning.web.briefing_chat import Chats
         from test_briefing_chat import MockChamber, ImmediateThread
         runtime=self.root/'synthetic-secretary';runtime.mkdir()
@@ -404,8 +553,8 @@ class GatewayTests(unittest.TestCase):
                 self.assertEqual(self.gateway.chat_message(self.id,'gm.example.test','/api/chats',json.dumps(body).encode(),{})[0],202)
             status,_,data=self.gateway.chat_message(self.other,'gm.example.test','/api/chats',json.dumps({'id':'d'*32,'mode':'secretary','text':'Other request'}).encode(),{})
             self.assertEqual(status,202)
-            self.assertTrue(json.loads(data).get('queued'))
-            self.assertEqual(self.gateway.ticket()['chat'],'c'*32)
+            self.assertFalse(json.loads(data).get('queued',False))
+            self.assertEqual(self.gateway.ticket()['chat'],'d'*32)
 
     def test_public_release_check_does_not_touch_login_sessions(self):
         from goodmorning.web.release import release_info

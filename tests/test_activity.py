@@ -51,6 +51,11 @@ class SnapshotTests(unittest.TestCase):
         self.assertEqual(panel(rendered, ['gm.example.test']), rendered)
         self.assertIn('id="account-activity" hidden', rendered)
         self.assertIn('/activity.js', rendered)
+        self.assertIn('id="activity-window"', rendered)
+        self.assertIn('id="activity-minimize" type="button"', rendered)
+        self.assertIn('id="activity-restore" type="button" hidden', rendered)
+        self.assertIn('aria-controls="activity-window"', rendered)
+        self.assertIn('<template id="activity-desk-art">', rendered)
 
 
 class GatewayActivityTests(unittest.TestCase):
@@ -105,3 +110,16 @@ class GatewayActivityTests(unittest.TestCase):
                 'url': 'https://gn.example.test/chat?id='+'c'*32}]})
         with self.fixture.store.db() as db:
             self.assertEqual(json.loads(db.execute("SELECT value FROM metadata WHERE key='generation_queue'").fetchone()[0]), [entry, other])
+
+    def test_yielded_preflight_remains_visible_without_a_global_ticket(self):
+        ticket = {'user':self.fixture.id, 'host':'gm.example.test', 'job':'a'*32, 'kind':'gn', 'date':'2026-10-12'}
+        with self.fixture.store.db() as db:
+            db.execute("DELETE FROM metadata WHERE key='generation'")
+            self.gateway.remember_waiting(db, ticket)
+        def proxy(user, host, path, method, body, headers):
+            self.assertEqual(path, '/api/activity/job/'+'a'*32);self.assertEqual(method, 'GET')
+            return 200, {}, b'{"mode":"gn","state":"waiting","date":"2026-10-12"}'
+        with patch.object(self.gateway, 'proxy', side_effect=proxy):
+            self.assertEqual(self.gateway.activity(self.fixture.id), {'activity':[{'mode':'gn','state':'waiting',
+                'url':'https://gm.example.test/d/2026-10-12/gn.html'}]})
+            self.assertEqual(self.gateway.activity(self.fixture.other), {'activity':[]})

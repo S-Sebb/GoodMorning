@@ -1,8 +1,9 @@
 # Website security and account operations
 
-The account-wide interface language is encrypted account metadata, not a profile
-rewrite. Only the non-secret pre-login language cookie uses the hosts' common
-parent domain. Authentication cookies remain host-only. Language changes require
+The account-wide interface language and Day/Night color schemes are encrypted
+account metadata, not profile rewrites. Only the non-secret pre-login language
+and day-palette cookies use the hosts' common parent domain. Authentication
+cookies remain host-only. Language and color changes require
 the same origin and session CSRF checks, including the no-JavaScript form. HTML
 uses `Referrer-Policy: same-origin` so native forms send a verifiable Origin;
 external sites still receive no referrer. Language controls include a CSRF token,
@@ -20,8 +21,8 @@ Only opaque upload IDs and filenames are exposed; files stay in the owning
 account's encrypted runtime. The gateway streams bytes without disk buffering,
 and all ordinary JSON requests retain their 20,000-byte limit. NGINX's 50m ceiling
 allows the binary upload route; it does not expand the other application limits.
-The authenticated `/api/activity` summary includes only the caller's active/
-queued work, status and original-page links, never prompts, question text, private
+The authenticated `/api/activity` summary includes only the caller's active,
+queued or waiting work, status and original-page links, never prompts, question text, private
 paths or another account's activity. Reads never advance the queue or change work
 reservations. Each tab uses its host-only login; no activity is stored in browser
 storage or shared authentication cookies.
@@ -64,11 +65,16 @@ engine downloads or library copies per account. The example engine service point
 to this host's installation; adapt and verify paths on another host.
 
 The gateway reserves one agent request globally before dispatch, shared by chat
-and briefing generation. Other users can browse normally but must retry agent
-requests after the active session finishes. Waiting questions retain the
-reservation is encrypted and survives restarts; unknown dispatches stay blocked
-for SSH reconciliation rather than launching duplicates. This is a bounded
-single-agent pilot, not a tested multi-agent load capacity claim.
+and briefing generation. Confirmed pending questions, permissions and browser
+feedback release that slot without aborting their sessions or discarding forms.
+Users can take their time; forms and account-local activity links survive reloads.
+Replies reacquire the slot through the FIFO queue before reaching the original
+session. Queued answers remain encrypted and do not expire while waiting for
+other work. An in-flight reply retains its reservation until dispatch is confirmed;
+unknown dispatches stay blocked for SSH reconciliation rather than launching
+duplicates. A five-second background check also advances work without browser
+traffic. This is a bounded single-agent pilot, not a tested multi-agent load
+capacity claim.
 
 Disable access/body logs and disk proxy buffering. Private responses/media use
 `no-store`; only public fingerprinted assets cache durably. Credentials never enter
@@ -134,7 +140,7 @@ a certificate alone does not make running workers reload renewed files.
 The encrypted `backends.json` registry maps account IDs only to `{port,key}`. Ports
 must be independent loopback backends. Provision the backend key privately inside
 the account volume and pass `python scripts/goodmorning.py serve --gateway-key-file KEY
---public-origin https://gm.love765.me --public-origin https://gn.love765.me`.
+--public-origin https://gm.love765.me`.
 Run the backend as that account's Linux UID, never root. NGINX cannot choose a
 backend from query strings/usernames. The gateway does not forward browser cookies
 or credentials upstream; it substitutes session-owned CSRF for the reader.

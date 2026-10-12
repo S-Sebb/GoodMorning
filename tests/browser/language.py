@@ -16,7 +16,7 @@ REPO=Path(__file__).resolve().parents[2]
 sys.path.insert(0,str(REPO/'src'));sys.path.insert(0,str(REPO/'tests'))
 
 
-def fixture(root):
+def fixture(root, hosts=None):
     from http.server import ThreadingHTTPServer
     from goodmorning.security.briefing_accounts import Accounts
     from goodmorning.security.briefing_gateway import Gateway, handler_for
@@ -24,7 +24,8 @@ def fixture(root):
     from goodmorning.briefings.briefing_day import briefing_day
     from goodmorning.briefings.briefing_document import encode
     from test_briefing_chat import MockChamber
-    hosts={kind+'.language.test':kind for kind in ('gm','gn','sec')}
+    if hosts is None:
+        hosts={kind+'.language.test':kind for kind in ('gm','gn','sec')}
     origins=['https://'+host for host in hosts]
     (root/'accounts').mkdir(mode=0o700)
     store=Accounts(root/'accounts',testing=True,n=1024)
@@ -57,7 +58,7 @@ def fixture(root):
         deadline=time.monotonic()+15
         while True:
             try:
-                request=Request('http://127.0.0.1:'+str(port)+'/api/chats',headers={'Authorization':'Bearer '+key,'X-GoodMorning-Origin':origins[2]})
+                request=Request('http://127.0.0.1:'+str(port)+'/api/chats',headers={'Authorization':'Bearer '+key,'X-GoodMorning-Origin':origins[-1]})
                 with urlopen(request,timeout=2) as response:assert response.status==200
                 break
             except Exception:
@@ -107,6 +108,8 @@ def run(artifacts):
                     open_prefs(page)
                     page.locator('#website-language').select_option(value)
                     expect(page.locator('html')).to_have_attribute('lang',value)
+                    if page.locator('#prefs-menu').get_attribute('open') is not None:
+                        page.locator('#prefs-menu > summary').click()
                 def no_overflow(page):
                     assert not page.evaluate('document.documentElement.scrollWidth>innerWidth')
                 desktop=context(viewport={'width':1440,'height':900},reduced_motion='reduce')

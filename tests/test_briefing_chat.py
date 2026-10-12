@@ -184,6 +184,103 @@ class ChatTests(unittest.TestCase):
         self.start('initialize', '')
         with self.assertRaises(ValueError): self.chats.send(self.id, {'id': 'b' * 32, 'text': 'Skip'})
 
+    def test_questions_and_selected_answers_survive_refresh_and_restart_in_order(self):
+        self.start('initialize', '')
+        before = self.chats.status(self.id)
+        self.chats.status(self.id)
+        self.assertEqual(len(self.chats.get(self.id)['questions']), 1)
+        self.assertNotIn('question:form_city', [entry['id'] for entry in before['messages']])
+        session = self.chamber.sessions[self.chats.get(self.id)['session']]
+        self.chamber.add(session, 'assistant', 'Take your time choosing.')
+        self.chats.reply(self.id, 'form', 'form_city', {'answer': {'city': 'London'}})
+        self.chats.reply(self.id, 'permission', 'permission_setup', {'decision': 'reject'})
+        expected = ['Start initialize', 'Confirm your location; replies follow the website language.',
+                    'Confirm your location\nCity\n• London', 'Take your time choosing.', 'City: London', 'Nothing saved.']
+        self.assertEqual([entry['text'] for entry in self.chats.status(self.id)['messages']], expected)
+        restored = Chats(self.root, self.chamber)
+        self.assertEqual([entry['text'] for entry in restored.status(self.id)['messages']], expected)
+        with self.assertRaises(ValueError):
+            restored.reply(self.id, 'form', 'form_city', {'answer': {'city': 'London'}})
+        self.assertEqual(len(restored.get(self.id)['questions']), 1)
+
+    def test_answer_history_uses_labels_and_preserves_typed_and_multiple_values(self):
+        self.start()
+        session = self.chamber.sessions[self.chats.get(self.id)['session']]
+        session['forms'] = [{'id': 'preferences', 'title': 'How should we plan?', 'fields': [
+            {'key': 'calendar', 'title': 'Calendar', 'description': 'Choose a source.', 'type': 'string',
+             'options': [{'value': 'ics', 'label': 'Calendar export', 'description': 'Upload a file.'}], 'custom': True},
+            {'key': 'days', 'title': 'Days', 'type': 'multiselect',
+             'options': [{'value': 'mon', 'label': 'Monday'}, {'value': 'tue', 'label': 'Tuesday'}], 'custom': True},
+            {'key': 'notes', 'title': 'Notes', 'type': 'string'},
+            {'key': 'count', 'title': 'Count', 'type': 'integer'},
+            {'key': 'enabled', 'title': 'Enabled', 'type': 'boolean'}]}]
+        answer = {'calendar': 'ics', 'days': ['mon', 'A custom day'], 'notes': '<img>\nKeep my wording.',
+                  'count': 3, 'enabled': False}
+        # Replies also persist the form when the browser has not polled it yet.
+        self.chats.reply(self.id, 'form', 'preferences', {'answer': answer})
+        messages = Chats(self.root, self.chamber).status(self.id)['messages']
+        self.assertIn('Choose a source.\n• Calendar export: Upload a file.', messages[-2]['text'])
+        self.assertEqual(messages[-1]['text'], 'Calendar: Calendar export\nDays: Monday, A custom day\n'
+                         'Notes: <img>\nKeep my wording.\nCount: 3\nEnabled: No')
+        self.assertEqual(self.chats.get(self.id)['questions'][0]['answer'], answer)
+        self.assertEqual(self.chamber.replies[-1][1], {'answer': answer})
+
+    def test_failed_answer_is_not_displayed_as_accepted(self):
+        self.start('initialize', '')
+        original = self.chamber.request
+        def reject(path, body=None):
+            if '/form/' in path:
+                raise ValueError('Synthetic invalid answer')
+            return original(path, body)
+        with patch.object(self.chamber, 'request', side_effect=reject):
+            with self.assertRaises(ValueError):
+                self.chats.reply(self.id, 'form', 'form_city', {'answer': {'city': 'Keep this draft'}})
+        status = Chats(self.root, self.chamber).status(self.id)
+        self.assertEqual(status['state'], 'waiting')
+        self.assertFalse(any(entry.get('kind') == 'answer' for entry in status['messages']))
+        self.assertNotIn('answer', self.chats.get(self.id)['questions'][0])
+
+    def test_saved_questions_keep_their_request_language(self):
+        from goodmorning.web import language as ui
+        token = ui.CURRENT.set('zh-CN')
+        try:
+            self.start('initialize', '')
+            session = self.chamber.sessions[self.chats.get(self.id)['session']]
+            session['forms'] = [{'id': 'confirm', 'fields': [{'key': 'enabled', 'type': 'boolean'}]}]
+            self.chats.status(self.id)
+        finally:
+            ui.CURRENT.reset(token)
+        self.chats.reply(self.id, 'form', 'confirm', {'answer': {'enabled': True}})
+        status = Chats(self.root, self.chamber).status(self.id)
+        self.assertEqual(status['messages'][-2]['text'], '有个问题需要你回答\n你的回答')
+        self.assertEqual(status['messages'][-1]['text'], '你的回答: 是')
+        self.assertEqual(status['messages'][-1]['language'], 'zh-CN')
+
+    def test_question_history_stays_in_its_own_account(self):
+        self.start('initialize', '')
+        self.chats.reply(self.id, 'form', 'form_city', {'answer': {'city': 'Private synthetic city'}})
+        other = self.root / 'other'; other.mkdir()
+        isolated = Chats(other, self.chamber)
+        isolated.start({'id': self.id, 'mode': 'secretary', 'text': 'Other account'})
+        status = isolated.status(self.id)
+        self.assertFalse(any(entry.get('kind') for entry in status['messages']))
+        self.assertNotIn('Private synthetic city', json.dumps(status))
+        with self.assertRaises(ValueError):
+            isolated.reply(self.id, 'form', 'form_city', {'answer': {'city': 'London'}})
+        self.assertEqual(self.chats.get(self.id)['questions'][0]['answer']['city'], 'Private synthetic city')
+
+    def test_old_question_exchanges_do_not_move_to_new_transcript_window(self):
+        self.start('initialize', '')
+        self.chats.reply(self.id, 'form', 'form_city', {'answer': {'city': 'London'}})
+        session = self.chamber.sessions[self.chats.get(self.id)['session']]
+        for index in range(120):
+            self.chamber.add(session, 'assistant', f'Later reply {index}')
+        status = self.chats.status(self.id)
+        self.assertEqual(len(status['messages']), 100)
+        self.assertTrue(status['history_limited'])
+        self.assertFalse(any(entry.get('kind') for entry in status['messages']))
+        self.assertEqual(len(self.chats.get(self.id)['questions']), 1)
+
     def test_restart_preserves_conversation_without_replaying(self):
         self.start()
         count = len(self.chamber.calls)

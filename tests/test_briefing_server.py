@@ -89,6 +89,22 @@ class LiveTests(unittest.TestCase):
             self.app.jobs['2026-10-10.gm']['state'] = 'running'
         return result['job']
 
+    def test_acknowledged_inputs_never_reappear_or_yield_before_engine_catches_up(self):
+        from unittest.mock import patch
+        job=self.start()
+        with patch.object(self.chamber,'request',return_value={}) as reply:
+            self.app.reply(job,'form','frm_test',{'answer':{'progress':['unreported']}})
+            self.app.reply(job,'permission','per_fixture',{'decision':'once'})
+            self.app.reply(job,'permission','per_fixture',{'decision':'once'})
+        self.assertEqual(reply.call_count,2)
+        # The synthetic engine still lists its old inputs after acknowledging them.
+        current=self.app.status(job)
+        self.assertEqual(current['state'],'running')
+        self.assertEqual(current['forms'],[]);self.assertEqual(current['permissions'],[])
+        self.assertNotIn('reservation_required',current)
+        restored=BrowserApp(self.root,self.chamber,now=self.app.now)
+        self.assertEqual(restored.status(job)['permissions'],[])
+
     def test_seven_days_and_missing_archive_do_not_generate(self):
         self.assertEqual(self.app.dates(), [f'2026-10-{i:02}' for i in range(10,3,-1)])
         page = self.app.page('2026-10-04','gn',True).decode()

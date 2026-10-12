@@ -190,6 +190,143 @@ def check_uploads(browser, address, artifacts):
     return checks
 
 
+def check_question_history(browser, address, artifacts):
+    checks = []
+    for width, answer in ((1440, 'London'), (390, 'My typed city <img>')):
+        page = browser.new_page(viewport={'width': width, 'height': 900}, reduced_motion='reduce')
+        errors = []
+        page.on('pageerror', lambda error: errors.append(str(error)))
+        page.goto(address + '/chat?mode=initialize')
+        page.get_by_role('button', name='Start initialization', exact=True).click()
+        expect(page.get_by_role('heading', name='Confirm your location')).to_be_visible()
+        if answer == 'London':
+            page.get_by_role('radio', name='London', exact=True).check()
+        else:
+            page.get_by_placeholder('Or write your own answer').fill(answer)
+        page.get_by_role('button', name='Send answer', exact=True).click()
+        expect(page.get_by_role('heading', name='Permission needed')).to_be_visible()
+        page.get_by_role('button', name='Decline', exact=True).click()
+        expect(page.get_by_role('button', name='Send reply', exact=True)).to_be_enabled()
+        expect(page.locator('.chat-message.question')).to_contain_text('Confirm your location')
+        expect(page.locator('.chat-message.answer')).to_contain_text('City: ' + answer)
+        page.reload()
+        expect(page.locator('.chat-message.question')).to_have_count(1)
+        expect(page.locator('.chat-message.answer')).to_have_count(1)
+        expect(page.locator('.chat-message.answer')).to_contain_text('City: ' + answer)
+        assert page.get_by_role('log').locator('.message-text img, .message-attachments img').count() == 0
+        assert page.locator('#chat-questions .agent-form').count() == 0
+        roles = page.locator('.chat-message').evaluate_all('nodes => nodes.map(node => node.className)')
+        assert 'question' in roles[-3] and 'answer' in roles[-2], roles
+        page.screenshot(path=str(artifacts / f'question-history-{width}.png'), full_page=True)
+        assert page.evaluate('localStorage.length === 0 && sessionStorage.length === 0')
+        assert not errors, errors
+        checks.append({'width': width, 'answer': 'selected' if answer == 'London' else 'typed',
+                       'questionSaved': True, 'answerSaved': True, 'refresh': True, 'pageErrors': 0})
+        page.close()
+    return checks
+
+
+def check_waiting_reply_queue(browser, address, artifacts):
+    page = browser.new_page(viewport={'width':390,'height':844}, reduced_motion='reduce')
+    errors=[];page.on('pageerror',lambda error:errors.append(str(error)))
+    try:
+        page.goto(address+'/chat?mode=initialize')
+        page.get_by_role('button',name='Start initialization',exact=True).click()
+        expect(page.get_by_role('heading',name='Confirm your location')).to_be_visible()
+        expect(page.locator('#chat-status')).to_contain_text('Take your time.')
+        page.reload()
+        expect(page.get_by_role('heading',name='Confirm your location')).to_be_visible()
+        page.get_by_role('radio',name='London',exact=True).check()
+        chat=page.evaluate('chat')
+        reply=f'/api/chats/{chat}/form/form_city/reply'
+        queued={'queue':[], 'depth':0}
+        page.route('**/api/queue',lambda route:route.fulfill(json=queued))
+        def enqueue(route):
+            queued['queue']=[{'work':'reply','chat':chat,'position':1}];queued['depth']=1
+            route.fulfill(status=202,json={'queued':True,'chat':chat,'position':1,'depth':1})
+        page.route('**'+reply,enqueue,times=1)
+        page.get_by_role('button',name='Send answer',exact=True).click()
+        expect(page.locator('#chat-status')).to_contain_text('In queue')
+        page.reload()
+        expect(page.locator('#chat-status')).to_contain_text('In queue')
+        expect(page.get_by_role('button',name='Send answer',exact=True)).to_have_count(0)
+        config=json.loads(page.locator('#chat-config').get_attribute('data-config'))
+        receipt=page.request.post(address+reply,data={'answer':{'city':'London'}},
+            headers={'Origin':address,'X-Briefing-CSRF':config['csrf']})
+        assert receipt.ok
+        queued['queue']=[];queued['depth']=0
+        expect(page.get_by_role('heading',name='Permission needed')).to_be_visible()
+        page.get_by_role('button',name='Decline',exact=True).click()
+        expect(page.get_by_role('button',name='Send reply',exact=True)).to_be_enabled()
+        expect(page.locator('.chat-message.answer')).to_contain_text('City: London')
+        page.screenshot(path=str(artifacts/'queued-answer-resumed-mobile.png'),full_page=True)
+        assert not errors,errors
+    finally:
+        page.close()
+
+
+def check_scroll(browser, address, artifacts):
+    checks = []
+    for width in (1440, 768, 390, 320):
+        page = browser.new_page(viewport={'width': width, 'height': 900}, reduced_motion='reduce')
+        errors = []
+        page.on('pageerror', lambda error: errors.append(str(error)))
+        messages = [{'id': 'first', 'role': 'user', 'text': 'Start at the top.'}]
+        status = {'mode': 'secretary', 'state': 'running', 'language': 'en', 'label': 'Your secretary is working',
+                  'messages': messages, 'forms': [], 'permissions': []}
+        page.route('**/api/chats/*', lambda route: route.fulfill(json=status))
+        page.goto(address + '/chat?id=' + 'f' * 32)
+        expect(page.get_by_role('log')).to_contain_text('Start at the top.')
+        geometry = """() => {
+            const scroll = document.querySelector('#chat-scroll');
+            const panel = document.querySelector('#conversation');
+            const compose = document.querySelector('#chat-compose');
+            return {height: scroll.clientHeight, content: scroll.scrollHeight, top: scroll.scrollTop,
+                pageHeight: document.documentElement.scrollHeight, pageTop: scrollY,
+                panelHeight: panel.offsetHeight, composeTop: compose.offsetTop};
+        }"""
+        baseline = page.evaluate(geometry)
+        top_gap = page.locator('.chat-message').first.evaluate("node => node.getBoundingClientRect().top - document.querySelector('#chat-scroll').getBoundingClientRect().top")
+        assert 0 <= top_gap <= 24, top_gap
+        messages.extend({'id': f'reply-{index}', 'role': 'assistant', 'text': f'Reply {index}\nA calm, useful update.'}
+                        for index in range(35))
+        page.evaluate('pollChat()')
+        expect(page.get_by_role('log')).to_contain_text('Reply 34')
+        page.wait_for_function('nearLatest()')
+        grown = page.evaluate(geometry)
+        for key in ('height', 'pageHeight', 'panelHeight', 'composeTop', 'pageTop'):
+            assert baseline[key] == grown[key], (key, baseline, grown)
+        assert grown['content'] > grown['height']
+        assert page.locator('#chat-scroll').evaluate("node => getComputedStyle(node).overflowY") == 'auto'
+        page.evaluate("document.querySelector('#chat-scroll').scrollTop = 0")
+        expect(page.get_by_role('button', name='Jump to latest')).to_be_visible()
+        messages.append({'id': 'new-reply', 'role': 'assistant', 'text': 'New reply while reading history.'})
+        page.evaluate('pollChat()')
+        expect(page.get_by_role('log')).to_contain_text('New reply while reading history.')
+        assert page.evaluate(geometry)['top'] == 0
+        page.get_by_role('button', name='Jump to latest').click()
+        page.wait_for_function('nearLatest()')
+        expect(page.get_by_role('button', name='Jump to latest')).to_be_hidden()
+
+        # New question forms stay inside the bounded area, including long forms.
+        status['forms'] = [{'id': 'long-form', 'title': 'Choose a schedule source', 'fields': [
+            {'key': 'source', 'type': 'string', 'title': 'Source', 'custom': True,
+             'options': [{'value': str(index), 'label': f'Source {index}'} for index in range(12)]}]}]
+        status.update(state='waiting', label='Your secretary needs your answer')
+        page.evaluate('pollChat()')
+        expect(page.get_by_role('heading', name='Choose a schedule source')).to_be_visible()
+        assert page.evaluate(geometry)['panelHeight'] == baseline['panelHeight']
+        page.locator('#chat-scroll').scroll_into_view_if_needed()
+        page.screenshot(path=str(artifacts / f'bounded-chat-{width}.png'), full_page=True)
+        assert not page.evaluate('document.documentElement.scrollWidth > innerWidth')
+        assert not errors, errors
+        checks.append({'width': width, 'fixedHeight': grown['height'], 'topAligned': True,
+                       'pageDoesNotGrow': True, 'readingPositionPreserved': True, 'jumpToLatest': True,
+                       'longQuestionContained': True, 'pageErrors': 0})
+        page.close()
+    return checks
+
+
 def main():
     artifacts = Path(sys.argv[1]); artifacts.mkdir(parents=True, exist_ok=True, mode=0o700)
     results = []
@@ -204,6 +341,9 @@ def main():
                 browser = playwright.chromium.launch()
                 motion_checks = check_motion(browser, address, artifacts)
                 upload_checks = check_uploads(browser, address, artifacts)
+                question_checks = check_question_history(browser, address, artifacts)
+                check_waiting_reply_queue(browser, address, artifacts)
+                scroll_checks = check_scroll(browser, address, artifacts)
                 for width in (1440, 768, 390, 320):
                     page = browser.new_page(viewport={'width': width, 'height': 900}, reduced_motion='reduce')
                     errors = []; page.on('pageerror', lambda error: errors.append(str(error)))
@@ -250,7 +390,7 @@ def main():
                     expect(page.get_by_label('Your message', exact=True)).to_have_value('Capture a synthetic task')
                     page.get_by_role('button', name='Save to-do', exact=True).click()
                     expect(page.get_by_role('log')).to_contain_text('Synthetic reply')
-                    assert page.get_by_role('log').locator('img').count() == 0
+                    assert page.get_by_role('log').locator('.message-text img, .message-attachments img').count() == 0
                     expect(page.get_by_role('button', name='Send reply', exact=True)).to_be_enabled()
                     chat_url = page.url
                     page.reload()
@@ -298,7 +438,7 @@ def main():
         finally:
             process.terminate(); process.communicate(timeout=5)
     report = {'modelCalls': 0, 'agent': 'synthetic', 'setup': 'mock saved, default changed', 'checks': results,
-              'motion': motion_checks, 'uploads': upload_checks}
+              'motion': motion_checks, 'uploads': upload_checks, 'questions': question_checks, 'scroll': scroll_checks}
     (artifacts / 'result.json').write_text(json.dumps(report, indent=2))
     print(json.dumps(report))
 

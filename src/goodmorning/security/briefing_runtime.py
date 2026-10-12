@@ -85,7 +85,7 @@ def main():
         bridge=LocalBridge('http://127.0.0.1:'+str(config['chamberPort']),source,config['uiPassword'])
         app=BrowserApp(volume/'secretary',bridge,preflight=True)
         serve_live(app,config['viewerPort'],gateway_key=config['gatewayKey'],
-                   public_origins=('https://gm.love765.me','https://gn.love765.me','https://sec.love765.me'))
+                   public_origins=('https://gm.love765.me',))
 
 
 if __name__=='__main__':main()

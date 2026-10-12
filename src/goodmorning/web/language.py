@@ -8,6 +8,7 @@ import re
 
 from goodmorning.paths import WEB_ASSETS
 from .models import MODELS, current as current_model
+from . import color_schemes
 
 LANGUAGES = {'en':'English', 'zh-CN':'Simplified Chinese'}
 CURRENT = ContextVar('website_language', default='en')
@@ -136,9 +137,10 @@ def page(source,csrf,return_to='/'):
         account=match[0]
         source=source[:match.start()]+source[match.end():]
     current_label='简体中文' if current()=='zh-CN' else 'English'
-    prefs=('<details class="menu" id="prefs-menu"><summary><span aria-hidden="true">🌐</span> '
-           '<span id="prefs-current" data-content>'+current_label+'</span></summary>'
-           '<div class="menu-panel">'
+    prefs=('<details class="menu" id="prefs-menu"><summary><span aria-hidden="true">⚙</span> '
+           '<span class="menu-label">Settings</span><span id="prefs-current" class="settings-language" data-content>'+current_label+'</span></summary>'
+           '<div class="menu-panel"><div class="settings-menu-header"><div><h2>Settings</h2><p>Make this space yours.</p></div>'
+           '<button class="settings-close" type="button" aria-label="Close settings"><svg viewBox="0 0 20 20" width="16" height="16" fill="none" aria-hidden="true"><path d="m6 6 8 8m0-8-8 8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></button></div>'
            '<form id="language-form" class="language-toolbar" action="/api/language" method="post">'
            '<label for="website-language">Website language</label><select id="website-language" name="language">'
            +''.join(f'<option value="{code}" lang="{code}"'+(' selected' if code==current() else '')+' data-content>'+label+'</option>'
@@ -165,10 +167,11 @@ def page(source,csrf,return_to='/'):
     marker='<div id="language-config" hidden data-config="'+config+'"></div>'
     if 'id="language-config"' in source:
         source=re.sub(r'<div id="language-config"[^>]*></div>',lambda _:marker,source,count=1)
-        source=re.sub(r'(<input type="hidden" name="csrf" value=")[^"]*(")',lambda match:match[1]+html.escape(csrf or '',quote=True)+match[2],source,count=1)
-        source=re.sub(r'(<input type="hidden" name="return_to" value=")[^"]*(")',lambda match:match[1]+html.escape(return_to,quote=True)+match[2],source,count=1)
+        source=re.sub(r'(<input type="hidden" name="csrf" value=")[^"]*(")',lambda match:match[1]+html.escape(csrf or '',quote=True)+match[2],source)
+        source=re.sub(r'(<input type="hidden" name="return_to" value=")[^"]*(")',lambda match:match[1]+html.escape(return_to,quote=True)+match[2],source)
     else:
         source=source.replace('</head>','<script src="/language.js" defer></script><script src="/model.js" defer></script></head>')
         source=source.replace('</body>',marker+'</body>')
+    source=color_schemes.page(source,csrf,return_to)
     parser=InterfaceHTML();parser.feed(source);parser.close()
     return ''.join(parser.parts)

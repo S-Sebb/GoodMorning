@@ -12,6 +12,7 @@ from . import language as ui
 from . import models as site_models
 from .session_inventory import chat_session_title
 from .chat_uploads import Uploads, attachment_ids, MAX_UPLOAD_BYTES
+from .avatar_images import image_url
 
 MODES = {'initialize': 'Initialize', 'secretary': 'Secretary', 'todo': 'To-do', 'eureka': 'Eureka'}
 
@@ -24,13 +25,17 @@ AVATAR_FILES = {entry[0]: entry[1] for entry in AVATARS}
 
 
 def avatar_widget(selected='f1', sources=None, class_name='desk-figure'):
-    selected = selected if selected in AVATAR_IDS else 'f1'
+    custom = (sources or {}).get('custom')
     sources = {entry: (sources or {}).get(entry, '/' + filename) for entry, filename, _ in AVATARS}
-    options = html.escape(json.dumps([{'id': entry, 'src': sources[entry]} for entry in AVATAR_IDS]), quote=True)
+    if custom:
+        sources['custom'] = custom
+    ids = tuple(sources)
+    selected = selected if selected in ids else 'f1'
+    options = html.escape(json.dumps([{'id': entry, 'src': sources[entry]} for entry in ids]), quote=True)
     previews = ''.join(
         f'<button type="button" class="avatar-preview" role="option" data-avatar-choice="{entry}" aria-selected="{str(entry == selected).lower()}" aria-label="Avatar {index}">'
         f'<img src="{html.escape(sources[entry], quote=True)}" alt="" width="72" height="72" loading="lazy"><span>{index}</span></button>'
-        for index, entry in enumerate(AVATAR_IDS, 1))
+        for index, entry in enumerate(ids, 1))
     return (f'<figure class="{class_name} avatar-display" data-avatar="{selected}" data-avatar-options="{options}">'
             '<div class="avatar-frame">'
             f'<img class="avatar-image" src="{html.escape(sources[selected], quote=True)}" alt="Secretary avatar" width="220" height="220">'
@@ -41,11 +46,14 @@ def avatar_widget(selected='f1', sources=None, class_name='desk-figure'):
             '<div class="avatar-carousel"><button class="avatar-step" type="button" data-avatar-prev aria-label="Previous avatar">‹</button>'
             '<div class="avatar-previews" role="listbox" aria-label="Secretary avatars">' + previews + '</div>'
             '<button class="avatar-step" type="button" data-avatar-next aria-label="Next avatar">›</button></div>'
-            '<p class="avatar-feedback" role="status">Avatar ' + str(AVATAR_IDS.index(selected) + 1) + ' of 4</p></div></figure>')
+            '<button type="button" class="avatar-upload" data-avatar-upload>Upload your own avatar</button>'
+            '<input type="file" data-avatar-file accept="image/png,image/jpeg,image/webp" aria-label="Upload your own avatar" hidden>'
+            '<p class="avatar-upload-note">PNG, JPEG or WebP. Up to 5 MB.</p>'
+            '<p class="avatar-feedback" role="status">Avatar ' + str(ids.index(selected) + 1) + ' of ' + str(len(ids)) + '</p></div></figure>')
 
 
 def avatar_id(value):
-    if value not in AVATAR_IDS:
+    if value not in (*AVATAR_IDS, 'custom'):
         raise ValueError('Unknown secretary avatar')
     return value
 
@@ -62,7 +70,8 @@ def read_avatar(runtime):
     except OSError:
         return 'f1'
     try:
-        return avatar_id(json.loads(raw).get('avatar'))
+        selected = avatar_id(json.loads(raw).get('avatar'))
+        return 'f1' if selected == 'custom' and not image_url(runtime) else selected
     except (ValueError, AttributeError, TypeError):
         return 'f1'
 
@@ -70,6 +79,8 @@ def read_avatar(runtime):
 def write_avatar(runtime, value):
     from pathlib import Path
     avatar_id(value)
+    if value == 'custom' and not image_url(runtime):
+        raise ValueError('Upload a secretary avatar first')
     path = Path(runtime) / 'website-avatar.json'
     if path.is_symlink():
         raise ValueError('Unsafe avatar storage')
@@ -89,6 +100,57 @@ def message(value):
     if re.match(r'^\s*/[a-zA-Z]', value):
         raise ValueError('Choose a mode using the switch instead of typing commands')
     return value.strip()
+
+
+def question_text(form, language):
+    parts = [form.get('title') or ui.text('A question for you', lang=language)]
+    for field in form['fields']:
+        if field.get('hidden'):
+            continue
+        parts.append(field.get('title') or ui.text('Your answer', lang=language))
+        if field.get('description'):
+            parts.append(field['description'])
+        for option in field.get('options', []):
+            parts.append('• ' + option['label'] + (': ' + option['description'] if option.get('description') else ''))
+    return '\n'.join(parts)
+
+
+def answer_text(form, answer, language):
+    parts = []
+    for field in form['fields']:
+        if field['key'] not in answer:
+            continue
+        value = answer[field['key']]
+        options = {option['value']: option['label'] for option in field.get('options', [])}
+        values = value if isinstance(value, list) else [value]
+        labels = [ui.text('Yes' if entry else 'No', lang=language) if isinstance(entry, bool)
+                  else str(options.get(entry, entry)) for entry in values]
+        parts.append((field.get('title') or ui.text('Your answer', lang=language)) + ': ' + (', '.join(labels) or '—'))
+    return '\n'.join(parts) or '—'
+
+
+def question_history(messages, questions, pending):
+    """Insert account-local form exchanges at their original transcript positions."""
+    anchors = {entry['id'] for entry in messages}
+    additions = {}
+    for entry in questions:
+        language = entry['language']
+        exchanges = []
+        if 'answer' in entry or entry['id'] not in pending:
+            exchanges.append((entry['after'], {'id': 'question:' + entry['id'], 'role': 'assistant',
+                'kind': 'question', 'language': language, 'text': question_text(entry['form'], language)}))
+        if 'answer' in entry:
+            exchanges.append((entry['answer_after'], {'id': 'answer:' + entry['id'], 'role': 'user',
+                'kind': 'answer', 'language': language, 'text': answer_text(entry['form'], entry['answer'], language)}))
+        for anchor, exchange in exchanges:
+            # Do not move old exchanges into the newer, bounded transcript window.
+            if anchor in anchors or anchor is None and len(messages) < 100:
+                additions.setdefault(anchor, []).append(exchange)
+    result = list(additions.get(None, []))
+    for entry in messages:
+        result.append(entry)
+        result.extend(additions.get(entry['id'], []))
+    return result
 
 
 class Chats:
@@ -135,6 +197,20 @@ class Chats:
         with self.lock:
             return [{'id': item['id'], 'mode': item['mode'], 'title': item['title']}
                     for item in reversed(list(self.items.values()))][:100]
+
+    def remember_questions(self, chat, forms, messages):
+        with self.lock:
+            item = self.items[chat]
+            questions = item.setdefault('questions', [])
+            known = {entry['id'] for entry in questions}
+            additions = [{'id': form['id'], 'form': form, 'after': messages[-1]['id'] if messages else None,
+                          'language': item['turns'][-1].get('language', 'en')}
+                         for form in forms if form['id'] not in known]
+            if additions:
+                self.capacity(additions)
+                questions.extend(additions)
+                self.save()
+            return list(questions)
 
     def start(self, body):
         if set(body) not in ({'id', 'mode', 'text'}, {'id', 'mode', 'text', 'attachments'}) or body['mode'] not in MODES:
@@ -261,7 +337,16 @@ class Chats:
                             text = turn['text'] or ('' if attachments else ui.text('Start {mode}',lang=turn.get('language','en'),
                                 mode=ui.text(MODES[item['mode']],lang=turn.get('language','en')).lower()))
                     messages.append({'id': entry['id'], 'role': entry['role'], 'text': text, 'attachments': attachments})
-                result.update(messages=messages, forms=forms, permissions=permissions, history_limited=len(messages) >= 100)
+                questions = self.remember_questions(chat, forms, messages)
+                answered = {entry['id'] for entry in questions if 'answer' in entry}
+                forms = [form for form in forms if form['id'] not in answered]
+                receipts = item.get('replied_inputs', [])
+                forms = [form for form in forms if 'form:'+form['id'] not in receipts]
+                permissions = [permission for permission in permissions if 'permission:'+permission['id'] not in receipts]
+                result.update(messages=question_history(messages, questions, {form['id'] for form in forms}),
+                              forms=forms, permissions=permissions, history_limited=len(messages) >= 100)
+                if (forms or permissions) and item['state'] not in ('starting', 'uncertain'):
+                    result['reservation_required'] = False
                 if item['state'] not in ('starting', 'uncertain'):
                     state = transcript['sessionStatus']['type']
                     last_prompt = item['turns'][-1].get('prompt_hash')
@@ -279,24 +364,37 @@ class Chats:
         return result
 
     def reply(self, chat, category, request, body):
-        item = self.get(chat)
-        if not item.get('session') or category not in ('form', 'permission') or not self.chamber:
-            raise ValueError('Invalid reply target')
-        forms, permissions = self.chamber.pending(item['session'])
-        if not any(entry['id'] == request for entry in (forms if category == 'form' else permissions)):
-            raise ValueError('This request is no longer pending in this conversation')
-        if category == 'form':
-            body = {'answer': body['answer']}
-        else:
-            if body.get('decision') not in ('once', 'reject'):
-                raise ValueError('Only one-time approval or rejection is allowed')
-            body = {'decision': body['decision']}
-        self.chamber.request(f'/api/session/{item["session"]}/{category}/{request}/reply', body)
+        with self.lock:
+            item = self.get(chat)
+            if not item.get('session') or category not in ('form', 'permission') or not self.chamber:
+                raise ValueError('Invalid reply target')
+            if category+':'+request in item.get('replied_inputs', []):
+                return {'answered': True}
+            forms, permissions = self.chamber.pending(item['session'])
+            if not any(entry['id'] == request for entry in (forms if category == 'form' else permissions)):
+                raise ValueError('This request is no longer pending in this conversation')
+            if category == 'form':
+                if not isinstance(body.get('answer'), dict):
+                    raise ValueError('Invalid answer')
+                body = {'answer': body['answer']}
+                transcript = self.chamber.control('session.messages', sessionId=item['session'], limit=100)['messages']
+                questions = self.remember_questions(chat, forms, transcript)
+                question = next(entry for entry in questions if entry['id'] == request)
+                self.capacity(body)
+            else:
+                if body.get('decision') not in ('once', 'reject'):
+                    raise ValueError('Only one-time approval or rejection is allowed')
+                body = {'decision': body['decision']}
+            self.chamber.request(f'/api/session/{item["session"]}/{category}/{request}/reply', body)
+            item.setdefault('replied_inputs', []).append(category+':'+request)
+            if category == 'form':
+                question.update(answer=body['answer'], answer_after=transcript[-1]['id'] if transcript else None)
+            self.save()
         return {'answered': True}
 
 
 def page(csrf, ready, connected, secretary_name=None, avatar='f1', avatar_urls=None, timezone='UTC', theme='gm'):
-    if avatar not in AVATAR_IDS:
+    if avatar not in AVATAR_IDS and not (avatar == 'custom' and (avatar_urls or {}).get('custom')):
         avatar = 'f1'
     sources = dict(avatar_urls) if avatar_urls else {}
     for entry, filename in AVATAR_FILES.items():
@@ -305,10 +403,13 @@ def page(csrf, ready, connected, secretary_name=None, avatar='f1', avatar_urls=N
                                     'maxUploadBytes': MAX_UPLOAD_BYTES,
                                     'timezone': timezone,
                                    'connected': connected, 'secretary_name': secretary_name,
-                                   'avatar': avatar, 'avatars': [{'id': entry, 'src': sources[entry]} for entry, _, _ in AVATARS]}), quote=True)
+                                   'avatar': avatar, 'avatars': [{'id': entry, 'src': source} for entry, source in sources.items()]}), quote=True)
     choices = ''.join(f'<button type="button" role="radio" aria-checked="false" data-mode="{mode}">{label}</button>'
                       for mode, label in MODES.items())
     heading = html.escape(secretary_name) + '.' if secretary_name else 'Your secretary.'
+    conversation_name = html.escape(secretary_name) if secretary_name else ui.text('Your secretary')
+    portrait = ('<span class="chat-portrait" data-chat-avatar="'+avatar+'" aria-hidden="true">'
+                '<img src="'+html.escape(sources[avatar], quote=True)+'" alt=""></span>')
     title = (html.escape(secretary_name) + ' — GoodMorning') if secretary_name else 'Your secretary — GoodMorning'
     return ('<!doctype html><html lang="en" data-edition="' + ('gn' if theme == 'gn' else 'gm') + '"><head><meta charset="utf-8">'
             '<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">'
@@ -324,21 +425,27 @@ def page(csrf, ready, connected, secretary_name=None, avatar='f1', avatar_urls=N
             '<h1 id="secretary-heading">' + heading + '</h1><p>A place for your plans, bright ideas, and the details that make this yours.</p>'
             '<button id="new-conversation" type="button">New conversation</button>'
             '<details id="conversation-history"><summary>Previous conversations</summary><nav id="chat-history" aria-label="Previous conversations"></nav></details></aside>'
-            '<section class="conversation-panel" id="conversation" aria-label="Secretary conversation">'
+             '<section class="conversation-panel" id="conversation" aria-label="Secretary conversation">'
+             '<header class="chat-room-header">'+portrait+'<div><h2 id="conversation-name" data-content>'+conversation_name+'</h2>'
+             '<p>A little space to talk.</p></div></header>'
              '<div class="mode-switch" role="radiogroup" aria-label="Secretary mode">'+choices+'</div>'
              '<details id="mode-guide"><summary>Which mode should I use?</summary>'
              '<p>Use Secretary for discussion and planning, To-do for a task, Eureka for an idea, and Initialize for setup or preference review.</p></details>'
-            '<p id="mode-description"></p><div id="chat-empty"><span class="desk-symbol" aria-hidden="true">✦</span>'
+             '<p id="mode-description"></p><div id="chat-scroll" role="region" aria-label="Conversation" tabindex="0">'
+             '<div id="chat-empty"><span class="desk-symbol" aria-hidden="true">✦</span>'
             '<h2 id="chat-welcome"></h2><p id="chat-hint"></p></div>'
             '<div id="chat-messages" role="log" aria-label="Conversation messages" aria-live="polite" aria-relevant="additions text"></div>'
-             '<p id="chat-status" role="status"></p><p id="request-language-note" role="status"></p><div id="chat-questions"></div>'
-            '<form id="chat-compose"><label for="chat-text" id="compose-label">Your message</label>'
-            '<textarea id="chat-text" rows="3" maxlength="8000" placeholder="What’s on your mind?" enterkeyhint="send"></textarea>'
+             '<div id="chat-questions"></div><p id="chat-status" role="status"></p><p id="request-language-note" role="status"></p></div>'
+             '<div class="chat-scroll-tools"><button type="button" id="chat-latest" hidden>Jump to latest</button></div>'
+            '<form id="chat-compose"><label for="chat-text" id="compose-label" class="chat-visually-hidden">Your message</label>'
+            '<div class="chat-input-row"><textarea id="chat-text" rows="1" maxlength="8000" placeholder="Tell me what’s on your mind…" enterkeyhint="send"></textarea>'
+            '<button type="submit" id="chat-send" disabled><span class="chat-send-label chat-visually-hidden">Send message</span>'
+            '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" aria-hidden="true"><path d="m4 5 16 7-16 7 3-7-3-7Zm3 7h13" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button></div>'
             '<input id="chat-files" type="file" multiple hidden><div id="chat-attachments" aria-live="polite"></div>'
             '<div class="attachment-controls"><button type="button" id="chat-attach" disabled>Attach files</button>'
             '<span id="upload-note">Up to 50 MB per file. You can also drag files into this box.</span></div>'
             '<div class="compose-footer"><span id="compose-note">Only your chosen mode. No commands needed. Enter sends; Shift+Enter adds a new line.</span>'
-             '<button type="submit" id="chat-send" disabled>Send message</button></div></form><p id="chat-error" role="alert"></p>'
+             '</div></form><p id="chat-error" role="alert"></p>'
             '<noscript>Enable JavaScript to talk with your secretary. Saved briefings remain readable.</noscript></section></main>'
             '<div id="chat-config" hidden data-config="'+config+'"></div>'
             '<script src="/questions.js" defer></script><script src="/avatar.js" defer></script><script src="/chat.js" defer></script></body></html>')

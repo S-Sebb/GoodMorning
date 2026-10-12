@@ -15,15 +15,43 @@
     const strip = root.querySelector('.avatar-previews');
     const choices = [...root.querySelectorAll('[data-avatar-choice]')];
     const feedback = root.querySelector('.avatar-feedback');
+    const upload = root.querySelector('[data-avatar-upload]');
+    const fileInput = root.querySelector('[data-avatar-file]');
     let saved = root.dataset.avatar;
     let wanted = saved;
     let saving = false;
+    let uploading = false;
     let imageRevision = 0;
     let syncRevision = 0;
     let notice = '';
     menu.id = 'avatar-picker-' + index;
     toggle.setAttribute('aria-controls', menu.id);
     toggle.disabled = false;
+
+    function updateOptions(items) {
+      if (!Array.isArray(items)) return;
+      const custom = items.find(item => item.id === 'custom' && /^\/api\/avatar\/image\/[a-f0-9]{64}\.png$/.test(item.src));
+      if (!custom) return;
+      sources.custom = custom.src;
+      let button = choices.find(item => item.dataset.avatarChoice === 'custom');
+      if (!button) {
+        button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'avatar-preview';
+        button.setAttribute('role', 'option');
+        button.dataset.avatarChoice = 'custom';
+        button.append(document.createElement('img'), document.createElement('span'));
+        button.querySelector('img').alt = '';
+        button.querySelector('img').width = button.querySelector('img').height = 72;
+        button.querySelector('span').textContent = '5';
+        button.addEventListener('click', () => choose('custom'));
+        strip.append(button);
+        choices.push(button);
+        ids.push('custom');
+      }
+      button.setAttribute('aria-label', t('Avatar {number}', {number: 5}));
+      button.querySelector('img').src = custom.src;
+    }
 
     function center(behavior = 'smooth') {
       const selected = choices[ids.indexOf(wanted)];
@@ -53,11 +81,13 @@
         const selected = button.dataset.avatarChoice === wanted;
         button.setAttribute('aria-selected', String(selected));
         button.tabIndex = selected ? 0 : -1;
+        button.disabled = uploading;
       });
-      feedback.textContent = t(notice || (saving ? 'Saving avatar…' : 'Avatar {current} of {total}'),
+      upload.disabled = saving || uploading;
+      feedback.textContent = t(notice || (uploading ? 'Uploading avatar…' : saving ? 'Saving avatar…' : 'Avatar {current} of {total}'),
         {current: ids.indexOf(wanted) + 1, total: ids.length});
       feedback.classList.toggle('is-error', Boolean(notice));
-      root.setAttribute('aria-busy', String(saving));
+      root.setAttribute('aria-busy', String(saving || uploading));
       showImage(wanted);
       if (!menu.hidden) center();
     }
@@ -103,7 +133,7 @@
     }
 
     function choose(id) {
-      if (!ids.includes(id)) return;
+      if (uploading || !ids.includes(id)) return;
       syncRevision++;
       wanted = id;
       notice = '';
@@ -116,19 +146,53 @@
     }
 
     async function sync() {
-      if (saving || document.hidden) return;
+      if (saving || uploading || document.hidden) return;
       const revision = syncRevision;
       try {
         const response = await fetch('/api/avatar', {cache: 'no-store', credentials: 'same-origin'});
         if (!response.ok) return;
         const result = await response.json();
-        if (revision !== syncRevision || saving || !ids.includes(result.avatar)) return;
+        if (revision !== syncRevision || saving || uploading) return;
+        updateOptions(result.avatars);
+        if (!ids.includes(result.avatar)) return;
         saved = wanted = result.avatar;
         render();
       } catch { /* Keep the visible avatar during an outage. */ }
     }
 
     toggle.addEventListener('click', () => menu.hidden ? open() : close());
+    upload.addEventListener('click', () => fileInput.click());
+    fileInput.addEventListener('change', async () => {
+      const file = fileInput.files[0];
+      fileInput.value = '';
+      if (!file || saving || uploading) return;
+      if (!file.size || file.size > 5 * 1024 * 1024) {
+        notice = 'Avatar images must be 5 MB or smaller.';
+        render();
+        return;
+      }
+      syncRevision++;
+      uploading = true;
+      notice = '';
+      render();
+      try {
+        const response = await fetch('/api/avatar/upload', {method: 'POST',
+          headers: {'Content-Type': 'application/octet-stream', 'X-Briefing-CSRF': csrf},
+          body: file, credentials: 'same-origin', cache: 'no-store'});
+        if (response.status === 401) { location.replace('/login'); throw new Error('Sign-in required'); }
+        const result = await response.json();
+        if (!response.ok || result.avatar !== 'custom') throw new Error('Avatar upload failed');
+        updateOptions(result.avatars);
+        if (!ids.includes('custom')) throw new Error('Avatar upload failed');
+        saved = wanted = 'custom';
+        document.dispatchEvent(new Event('secretary:avatar'));
+      } catch {
+        notice = 'Avatar could not be uploaded. Use a PNG, JPEG or WebP image up to 5 MB.';
+      } finally {
+        uploading = false;
+        render();
+      }
+    });
     root.querySelector('[data-avatar-prev]').addEventListener('click', () => step(-1));
     root.querySelector('[data-avatar-next]').addEventListener('click', () => step(1));
     choices.forEach(button => button.addEventListener('click', () => choose(button.dataset.avatarChoice)));
@@ -143,7 +207,7 @@
     document.addEventListener('pointerdown', event => { if (!root.contains(event.target)) close(); });
     root.addEventListener('focusout', event => { if (event.relatedTarget && !root.contains(event.relatedTarget)) close(); });
     document.addEventListener('website:language', render);
-    document.addEventListener('website:before-refresh', event => { if (saving) event.preventDefault(); });
+    document.addEventListener('website:before-refresh', event => { if (saving || uploading) event.preventDefault(); });
     document.addEventListener('secretary:avatar', () => { if (!saving) sync(); });
     document.addEventListener('visibilitychange', () => { if (!document.hidden) sync(); });
     window.addEventListener('focus', sync);

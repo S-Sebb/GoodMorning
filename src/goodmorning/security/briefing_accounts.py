@@ -2,6 +2,7 @@
 from contextlib import contextmanager
 import hashlib
 import hmac
+import json
 import os
 from pathlib import Path
 import re
@@ -216,6 +217,18 @@ class Accounts:
                 return replacement
             row=db.execute('SELECT value FROM metadata WHERE key=?',(key,)).fetchone()
             return model(row[0]) if row else None
+
+    def website_color_schemes(self, identifier, replacement=None):
+        from goodmorning.web.color_schemes import validate
+        with self.db() as db:
+            key = 'website-color-schemes:' + identifier
+            if replacement is not None:
+                replacement = validate(replacement)
+                db.execute('INSERT INTO metadata VALUES (?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value',
+                           (key, json.dumps(replacement)))
+                return replacement
+            row = db.execute('SELECT value FROM metadata WHERE key=?', (key,)).fetchone()
+            return validate(json.loads(row[0])) if row else None
 
     def create(self, name, secret):
         name,secret = username(name),password(secret)

@@ -44,14 +44,39 @@ def check_recovery(browser, artifacts):
             daily.write_text('# '+date+'\n\n## must-do\n- [ ] Original task\n')
             page.locator('#generate').click()
             expect(page.get_by_text('Original task',exact=True)).to_be_visible()
+            # A stale duplicate queue entry must not conceal an existing form.
+            page.route('**/api/edition/*/gn', lambda route:route.fulfill(json={'job':None}), times=1)
+            page.route('**/api/queue', lambda route:route.fulfill(json={'queue':[
+                {'work':'generate','date':date,'edition':'gn','position':1}], 'depth':1}))
+            page.reload()
+            expect(page.get_by_text('Original task',exact=True)).to_be_visible()
+            expect(page.locator('#generation-status')).not_to_contain_text('In queue')
+            page.unroute('**/api/queue')
             daily.write_text(daily.read_text()+'- [ ] New user task\n')
             page.get_by_role('button',name='Refresh task list').click()
             expect(page.get_by_text('New user task',exact=True)).to_be_visible()
             assert not (root/'sends').exists()
             page.get_by_text('None yet',exact=True).click()
             page.get_by_text('No other updates',exact=True).click()
+            job=json.loads((root/'browser-jobs/jobs.json').read_text())[date+'.gn']['id']
+            form=json.loads((root/'browser-jobs'/(job+'.context.json')).read_text())['form']['id']
+            reply=f'/api/jobs/{job}/form/{form}/reply'
+            queued={'queue':[{'work':'reply','job':job,'position':1}], 'depth':1}
+            page.route('**/api/queue',lambda route:route.fulfill(json=queued))
+            page.route('**'+reply,lambda route:route.fulfill(status=202,json={'queued':True,'job':job,'position':1,'depth':1}),times=1)
             page.get_by_role('button',name='Send answer').click()
+            expect(page.locator('#generation-status')).to_contain_text('In queue')
+            page.reload()
+            expect(page.locator('#generation-status')).to_contain_text('In queue')
+            expect(page.get_by_role('button',name='Send answer')).to_have_count(0)
+            assert not (root/'sends').exists()
+            csrf=json.loads(page.locator('#browser-config').get_attribute('data-config'))['csrf']
+            receipt=page.request.post(address+reply,data={'answer':{'completed':['none'],'details':'No other updates'}},
+                headers={'Origin':address,'X-Briefing-CSRF':csrf})
+            assert receipt.ok
+            queued['queue']=[];queued['depth']=0
             expect(page.get_by_role('button',name='Continue existing session')).to_be_visible()
+            page.unroute('**/api/queue')
             page.get_by_role('button',name='Continue existing session').click()
             expect(page.get_by_role('button',name='Continue existing session')).to_be_visible()
             assert (root/'sends').read_text()=='2'

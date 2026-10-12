@@ -53,6 +53,23 @@ document.querySelectorAll('.toolbar-row details.menu').forEach(menu => {
     if (menu.open) document.querySelectorAll('.toolbar-row details.menu').forEach(other => { if (other !== menu) other.open = false; });
   });
 });
+const settingsMenu = document.querySelector('#prefs-menu');
+document.querySelector('.settings-close')?.addEventListener('click', () => {
+  settingsMenu.open = false;
+  settingsMenu.querySelector('summary').focus({preventScroll: true});
+});
+document.addEventListener('pointerdown', event => {
+  document.querySelectorAll('.toolbar-row details.menu[open]').forEach(menu => {
+    if (!menu.contains(event.target)) menu.open = false;
+  });
+});
+document.addEventListener('keydown', event => {
+  if (event.key !== 'Escape') return;
+  document.querySelectorAll('.toolbar-row details.menu[open]').forEach(menu => {
+    menu.open = false;
+    menu.querySelector('summary').focus({preventScroll: true});
+  });
+});
 async function saveWebsiteLanguage(event) {
   event?.preventDefault();
   const feedback = document.querySelector('#language-feedback');

@@ -16,7 +16,7 @@ def main():
     with sync_playwright() as playwright:
         browser=playwright.chromium.launch()
         try:
-            for host in ('gm.love765.me','gn.love765.me','sec.love765.me'):
+            for host in ('gm.love765.me',):
                 for width in (390,768,1440):
                     context=browser.new_context(viewport={'width':width,'height':900},
                                                 is_mobile=width==390,has_touch=width==390)
@@ -84,10 +84,9 @@ def main():
             expect(page.get_by_role('heading',name='登录',exact=True)).to_be_visible()
             expect(page.locator('#account-form button[type=submit]')).to_be_disabled()
             assert page.evaluate('document.documentElement.scrollWidth<=innerWidth')
-            for host in ('gn.love765.me','sec.love765.me'):
-                page.goto('https://'+host+'/login')
-                expect(page.get_by_role('heading',name='登录',exact=True)).to_be_visible()
-            results.append({'noJavascriptNativeRedirect':True,'anonymousLanguageSharedAcrossThreeHosts':True})
+            page.goto('https://gm.love765.me/login')
+            expect(page.get_by_role('heading',name='登录',exact=True)).to_be_visible()
+            results.append({'noJavascriptNativeRedirect':True,'anonymousLanguagePreserved':True})
             plain.close()
         finally:
             browser.close()

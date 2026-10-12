@@ -1,7 +1,7 @@
 # Server deployment runbook
 
-This is the exact procedure for deploying the three GoodMorning websites
-(`gm.love765.me`, `gn.love765.me`, `sec.love765.me`). Follow it in order.
+This is the exact procedure for deploying GoodMorning at `gm.love765.me`.
+Morning, Evening and Secretary use tabs on this one host. Follow it in order.
 Do not improvise substitutions: every guard below exists because a past
 deployment needed it.
 
@@ -99,10 +99,14 @@ The helper then, in order:
 1. Extracts to the new release dir, verifies every file hash, and runs the
    candidate's full Python suite plus Node suite. Any failure aborts before
    touching live state.
-2. Checks the live account DB schema, confirms no `generation` reservation or queued requests,
+2. Checks the live account DB schema, confirms no `generation` reservation, queued requests or suspended input,
    parses every account profile and saved native edition, and confirms all
    engines are idle (no active sessions, no pending questions/permissions).
-3. Snapshots password rows, account-language rows, and hashes of all protected
+   An enabled login without a registered backend is left untouched only if its
+   private runtime does not exist and its vault, engine and viewer units are all
+   inactive. Partial provisioning blocks deployment; never initialize or disable
+   accounts as part of a code deployment.
+3. Snapshots password rows, all account website preferences, and hashes of all protected
    private files (secretary records, `engine.json`, OpenChamber settings).
 4. Backs up the four unit templates and the production NGINX config, atomically confirms the reservation and queue
    are still empty and takes the `generation` ticket, stops the
@@ -116,7 +120,17 @@ The helper then, in order:
    The reviewed helper must include this guarded update and restore the original
    config on rollback; merely shipping `deploy/nginx-goodmorning.conf` does not
    change the live upload ceiling.
-6. Waits until every viewer answers `/chat` and all three HTTPS logins serve,
+   For the single-host migration, the reviewed helper must also remove
+   `gn.love765.me` and `sec.love765.me` from the production NGINX server names,
+   preserving other settings and restoring the original config on rollback.
+   Do not add redirects for these retired hosts. Update the existing certificate's
+   renewal names to only `gm.love765.me` before removing the retired DNS records,
+   so future renewals do not require those records. Retain the existing certificate
+   path. Perform DNS and certificate changes only during the authorized deployment,
+   not during source preparation.
+   Install the candidate's `deploy/goodmorning-certbot-hook.py` at the existing
+   GoodMorning renewal-hook path; back up and restore the old hook on rollback.
+6. Waits until every viewer answers `/chat` and the `gm.love765.me` HTTPS login serves,
    re-verifies idle state, passwords, languages, hashes, active services, and
    that each engine's working directory is the new release. Clears the ticket.
 7. Writes the protected report to
@@ -131,9 +145,12 @@ A manual rollback is the same sequence; never hand-edit the symlink.
 
 ## 4. Post-deploy verification
 
-1. `tests/browser/login.py --artifacts <PRIVATE_DIR>`: all three hosts, both
+1. `tests/browser/login.py --artifacts <PRIVATE_DIR>`: `gm.love765.me`, both
    languages, 390/768/1440 px, secure host-only cookies, 401 on private APIs,
    native no-JavaScript redirects. No logins, no passwords.
+   Confirm Morning, Evening and Secretary share the same host and login, and
+   that retired hosts no longer serve the app. “Open activity” must navigate the
+   current tab to the exact chat or edition without opening another browser tab.
 2. Per account via the engine bridge (read-only): profile readiness, engine
    session titles, no `generation` reservation, all services active.
 3. Confirm the previous release directory is intact under
@@ -162,3 +179,6 @@ the deployment reservation, and rechecks it with account-idle verification.
 These checks never prune, dispatch, or discard pending requests. Wait for normal
 requests to finish; uncertain reservations need the explicit owner authorization
 described above.
+
+The `generation_waiting` metadata key must also be absent or an empty list.
+Never discard suspended questions or permissions to make deployment proceed.

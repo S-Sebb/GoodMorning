@@ -23,18 +23,21 @@ from goodmorning.web.release import VERSION, release_info
 from goodmorning.paths import WEB_ASSETS
 from goodmorning.web import language as ui
 from goodmorning.web import models as site_models
+from goodmorning.web import color_schemes as site_colors
 from goodmorning.web.chat_uploads import MAX_UPLOAD_BYTES, UPLOAD_ROUTE, UploadReader, upload_name, attachment_ids
+from goodmorning.web.avatar_images import AVATAR_UPLOAD_PATH, MAX_AVATAR_BYTES
 from goodmorning.web.activity import ACTIVITY_PATH, panel as activity_panel
 
 ASSETS = WEB_ASSETS
 POLICY = "default-src 'none'; style-src 'self'; script-src 'self'; img-src 'self'; font-src 'self'; connect-src 'self'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'"
-GET_ROUTES = re.compile(r'(?:/|/(?:index|gm|gn)\.html|/chat|/api/avatar|/api/chats(?:/[a-f0-9]{32})?|/api/day|/api/edition/\d{4}-\d{2}-\d{2}/(?:gm|gn)|/api/jobs/[a-f0-9]{32}(?:/preview)?|/d/\d{4}-\d{2}-\d{2}/(?:gm|gn)\.(?:html|json)|/media/(?:thumb-v1/)?[a-f0-9]{64}\.webp|/d/\d{4}-\d{2}-\d{2}/media/[a-f0-9]+\.webp|/(?:assets/[a-f0-9]{64}/)?desk-secretary(?:-f2|-m1|-m2)?\.png|/(?:assets/[a-f0-9]{64}/)?(?:briefing\.css|briefing\.js|browser\.js|questions\.js|chat\.js|chat\.css|avatar\.js|avatar\.css|fonts/(?:lora-italic\.woff2|OFL\.txt)))')
-POST_ROUTES = re.compile(r'(?:/api/avatar|/api/generate|/api/chat-uploads/[a-f0-9]{32}|/api/chats|/api/chats/[a-f0-9]{32}/(?:messages|(?:form|permission)/[A-Za-z0-9_]+/reply)|/api/jobs/[a-f0-9]{32}/(?:recover|(?:form|permission)/[A-Za-z0-9_]+/reply))')
+GET_ROUTES = re.compile(r'(?:/|/(?:index|gm|gn)\.html|/chat|/api/avatar(?:/image/[a-f0-9]{64}\.png)?|/api/chats(?:/[a-f0-9]{32})?|/api/day|/api/edition/\d{4}-\d{2}-\d{2}/(?:gm|gn)|/api/jobs/[a-f0-9]{32}(?:/preview)?|/d/\d{4}-\d{2}-\d{2}/(?:gm|gn)\.(?:html|json)|/media/(?:thumb-v1/)?[a-f0-9]{64}\.webp|/d/\d{4}-\d{2}-\d{2}/media/[a-f0-9]+\.webp|/(?:assets/[a-f0-9]{64}/)?desk-secretary(?:-f2|-m1|-m2)?\.png|/(?:assets/[a-f0-9]{64}/)?(?:briefing\.css|briefing\.js|browser\.js|questions\.js|chat\.js|chat\.css|avatar\.js|avatar\.css|fonts/(?:lora-italic\.woff2|OFL\.txt)))')
+POST_ROUTES = re.compile(r'(?:/api/avatar(?:/upload)?|/api/generate|/api/chat-uploads/[a-f0-9]{32}|/api/chats|/api/chats/[a-f0-9]{32}/(?:messages|(?:form|permission)/[A-Za-z0-9_]+/reply)|/api/jobs/[a-f0-9]{32}/(?:recover|(?:form|permission)/[A-Za-z0-9_]+/reply))')
 QUEUE_KEY = 'generation_queue'
+WAITING_KEY = 'generation_waiting'
 MAX_QUEUE = 20
 QUEUE_TTL = 900
 QUEUE_FULL = 'The secretary queue is full. Please wait for earlier requests to finish.'
-PUMP_INTERVAL = 60
+PUMP_INTERVAL = 5
 
 
 def pump_forever(gateway, interval=PUMP_INTERVAL):
@@ -54,13 +57,14 @@ class NoRedirect(HTTPRedirectHandler):
 
 class Gateway:
     def __init__(self, accounts, hosts, *, testing=False):
-        if not {'gm','gn'} <= set(hosts.values()) <= {'gm','gn','sec'} or any(not re.fullmatch('[a-z0-9.-]+',h) for h in hosts):
-            raise ValueError('Configure explicit morning, evening and optional secretary hostnames')
+        if not (set(hosts.values()) == {'gm'} or {'gm','gn'} <= set(hosts.values()) <= {'gm','gn','sec'}) or any(not re.fullmatch('[a-z0-9.-]+',h) for h in hosts):
+            raise ValueError('Configure a morning hostname or explicit morning, evening and optional secretary hostnames')
         self.accounts, self.hosts, self.testing = accounts, hosts, testing
         self.opener = build_opener(NoRedirect())
         self.icons = Resources(ASSETS, types={**ICON_TYPES,'language.js':'text/javascript','model.js':'text/javascript',
             'auth.js':'text/javascript','auth.css':'text/css','update.js':'text/javascript','update.css':'text/css',
-            'activity.js':'text/javascript','activity.css':'text/css'})
+            'activity.js':'text/javascript','activity.css':'text/css',
+            'color-schemes.js':'text/javascript','color-schemes.css':'text/css'})
         self.html_cache = ByteCache(8 * 1024 * 1024, 32)
         self.html_lock = threading.RLock()
         labels=[host.split('.')[::-1] for host in hosts]
@@ -94,9 +98,11 @@ class Gateway:
             path = '/chat' if self.hosts[host] == 'sec' else '/'+self.hosts[host]+'.html'
         forwarded = {'Authorization':'Bearer '+backend['key'],'X-GoodMorning-Origin':'https://'+host,
                      'X-GoodMorning-Language':self.accounts.website_language(identifier) or ui.current(),
-                     'X-GoodMorning-Model':self.accounts.website_model(identifier) or site_models.DEFAULT}
+                      'X-GoodMorning-Model':self.accounts.website_model(identifier) or site_models.DEFAULT}
+        schemes = self.accounts.website_color_schemes(identifier) or site_colors.DEFAULT
+        forwarded.update({'X-GoodMorning-Day-Scheme': schemes['day'], 'X-GoodMorning-Night-Scheme': schemes['night']})
         if body is not None:
-            if UPLOAD_ROUTE.fullmatch(parsed.path):
+            if UPLOAD_ROUTE.fullmatch(parsed.path) or parsed.path == AVATAR_UPLOAD_PATH:
                 forwarded['Content-Type'] = 'application/octet-stream'
                 forwarded['Content-Length'] = headers['Content-Length']
             else:
@@ -126,6 +132,8 @@ class Gateway:
             row = db.execute("SELECT value FROM metadata WHERE key='generation'").fetchone()
             ticket = json.loads(row[0]) if row else {}
             queue = self._read_queue(db)
+            row = db.execute('SELECT value FROM metadata WHERE key=?', (WAITING_KEY,)).fetchone()
+            suspended = json.loads(row[0]) if row else []
         result = []
         def destination(entry, mode, date=None):
             if entry.get('chat'):
@@ -152,33 +160,82 @@ class Gateway:
                 continue
             candidate = entry['candidate']
             if candidate.get('chat'):
-                mode = entry['body'].get('mode', 'secretary')
+                mode = candidate.get('kind') or entry['body'].get('mode', 'secretary')
             else:
                 mode = candidate.get('kind', 'secretary')
             url = destination({**candidate, 'host': entry['host']}, mode)
             if not any(item['url'] == url for item in result):
                 result.append({'mode': mode, 'state': 'queued', 'url': url})
+        for item in suspended:
+            if item.get('user') != identifier or item.get('host') not in self.hosts:
+                continue
+            key = 'chat' if item.get('chat') else 'job'
+            try:
+                status, _, raw = self.proxy(identifier, item['host'], f'/api/activity/{key}/{item[key]}', 'GET', None, {})
+                value = json.loads(raw)
+                if status != 200 or value.get('mode') not in ('secretary', 'initialize', 'todo', 'eureka', 'gm', 'gn') or value.get('state') not in ('working', 'waiting', 'idle', 'uncertain', 'unavailable'):
+                    raise ValueError('Activity unavailable')
+            except Exception:
+                value = {'mode':item.get('kind') or 'secretary', 'state':'unavailable'}
+            if value['state'] == 'idle':
+                continue
+            url = destination(item, value['mode'], value.get('date'))
+            if not any(entry['url'] == url for entry in result):
+                result.append({'mode':value['mode'], 'state':value['state'], 'url':url})
         return {'activity': result}
 
     def clear_ticket(self,ticket):
         with self.accounts.db() as db:
             db.execute('DELETE FROM metadata WHERE key=? AND value=?',('generation',json.dumps(ticket,separators=(',',':'))))
 
+    def confirm_dispatch(self, ticket):
+        if not ticket.get('dispatching'):
+            return
+        confirmed = {key: value for key, value in ticket.items() if key != 'dispatching'}
+        with self.accounts.db() as db:
+            db.execute('BEGIN IMMEDIATE')
+            updated = db.execute('UPDATE metadata SET value=? WHERE key=? AND value=?',
+                       (json.dumps(confirmed, separators=(',', ':')), 'generation', json.dumps(ticket, separators=(',', ':'))))
+            if updated.rowcount:
+                self.remember_waiting(db, ticket, remove=True)
+
+    def remember_waiting(self, db, ticket, *, remove=False):
+        row = db.execute('SELECT value FROM metadata WHERE key=?', (WAITING_KEY,)).fetchone()
+        waiting = json.loads(row[0]) if row else []
+        key = 'chat' if ticket.get('chat') else 'job'
+        waiting = [item for item in waiting if (item.get('user'), item.get(key)) != (ticket['user'], ticket.get(key))]
+        if not remove:
+            waiting.append(ticket)
+        if waiting:
+            db.execute('INSERT INTO metadata VALUES (?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value',
+                       (WAITING_KEY, json.dumps(waiting, separators=(',', ':'))))
+        else:
+            db.execute('DELETE FROM metadata WHERE key=?', (WAITING_KEY,))
+
     def reconcile_ticket(self):
         current = self.ticket()
-        if current and (current.get('job') or current.get('chat')):
+        if current and not current.get('dispatching') and (current.get('job') or current.get('chat')):
             try:
                 path = '/api/chats/' + current['chat'] if current.get('chat') else '/api/jobs/' + current['job']
                 status, _, data = self.proxy(current['user'], current['host'], path, 'GET', None, {})
                 terminal = ('idle',) if current.get('chat') else ('ready', 'stopped')
-                if status == 200 and json.loads(data).get('state') in terminal:
+                result = json.loads(data)
+                waiting = result.get('state') == 'waiting' and result.get('reservation_required') is False
+                if status == 200 and waiting:
+                    with self.accounts.db() as db:
+                        db.execute('BEGIN IMMEDIATE')
+                        deleted = db.execute('DELETE FROM metadata WHERE key=? AND value=?',
+                                             ('generation', json.dumps(current, separators=(',', ':'))))
+                        if deleted.rowcount:
+                            self.remember_waiting(db, current)
+                elif status == 200 and result.get('state') in terminal:
                     self.clear_ticket(current)
             except Exception:
                 pass  # Uncertain work keeps its reservation. Never launch work blindly.
 
     @staticmethod
     def _valid_queue_entry(entry):
-        if not isinstance(entry, dict) or entry.get('kind') not in ('chat', 'generate', 'recover'):
+        if not isinstance(entry, dict) or entry.get('kind') not in ('chat', 'generate', 'recover', 'reply'):
             return False
         candidate = entry.get('candidate')
         if not isinstance(candidate, dict) or not isinstance(entry.get('user'), str) or not isinstance(entry.get('host'), str):
@@ -213,7 +270,7 @@ class Gateway:
 
     def _prune_queue(self, queue, now):
         return [entry for entry in queue
-                if self._valid_queue_entry(entry) and now - entry['enqueued'] < QUEUE_TTL]
+                if self._valid_queue_entry(entry) and (entry['kind'] == 'reply' or now - entry['enqueued'] < QUEUE_TTL)]
 
     def _reserve_or_queue(self, kind, candidate, path, body, language):
         """Atomically take the active slot or join the bounded global waiting line."""
@@ -224,7 +281,8 @@ class Gateway:
             row = db.execute('SELECT value FROM metadata WHERE key=?', ('generation',)).fetchone()
             queue = self._prune_queue(self._read_queue(db), entry['enqueued'])
             if row:
-                if json.loads(row[0]) == candidate:
+                current = json.loads(row[0])
+                if {key:value for key,value in current.items() if key != 'dispatching'} == {key:value for key,value in candidate.items() if key != 'dispatching'}:
                     self._write_queue(db, queue)
                     return ('active_duplicate', None, len(queue))
                 for index, waiting in enumerate(queue):
@@ -271,6 +329,8 @@ class Gateway:
                     self.clear_ticket(candidate)
             elif 400 <= status < 500:
                 self.clear_ticket(candidate)
+            elif status < 300:
+                self.confirm_dispatch(candidate)
             return status
         finally:
             ui.CURRENT.reset(token)
@@ -295,6 +355,7 @@ class Gateway:
                 self._dispatch_queued(head)
             except Exception:
                 return  # Uncertain dispatch keeps its reservation and blocks the line.
+            self.reconcile_ticket()
             with self.accounts.db() as db:
                 row = db.execute('SELECT value FROM metadata WHERE key=?', ('generation',)).fetchone()
                 if row:
@@ -320,13 +381,14 @@ class Gateway:
                     item['date'] = entry['candidate'].get('date')
                     item['edition'] = entry['candidate'].get('kind')
                 else:
-                    item['job'] = entry['candidate'].get('job')
+                    key = 'chat' if entry['candidate'].get('chat') else 'job'
+                    item[key] = entry['candidate'].get(key)
                 waiting.append(item)
             return {'queue': waiting, 'depth': len(queue), 'active': row is not None}
 
     def queued_response(self, kind, candidate, position, depth):
         payload = {'queued': True, 'position': position, 'depth': depth}
-        if kind == 'chat':
+        if candidate.get('chat'):
             payload['chat'] = candidate['chat']
         elif kind == 'generate':
             payload.update(date=candidate['date'], edition=candidate['kind'])
@@ -348,7 +410,7 @@ class Gateway:
         request = chat_id(body['id'])
         message(body['text'])
         attachment_ids(body)
-        candidate = {'user': identifier, 'host': host, 'chat': chat, 'request': request}
+        candidate = {'user': identifier, 'host': host, 'chat': chat, 'request': request, 'dispatching':True}
         language = self.accounts.website_language(identifier) or ui.current()
         self.pump_queue()
         action, position, depth = self._reserve_or_queue('chat', candidate, path, body, language)
@@ -360,6 +422,8 @@ class Gateway:
         status, upstream, data = self.proxy(identifier, host, path, 'POST', raw, headers)
         if created and 400 <= status < 500:
             self.clear_ticket(candidate)
+        elif created and status < 300:
+            self.confirm_dispatch(candidate)
         return status, upstream, data
 
     def generate(self,identifier,host,raw,headers):
@@ -367,6 +431,12 @@ class Gateway:
         if set(body)!={'date','kind'} or not isinstance(body['date'],str) or not re.fullmatch(r'\d{4}-\d{2}-\d{2}',body['date']) or body['kind'] not in ('gm','gn'):
             raise ValueError('Invalid generation request')
         candidate={'user':identifier,'host':host,'date':body.get('date'),'kind':body.get('kind')}
+        # Reopening an existing edition is a read, not another generation request.
+        status, _, existing = self.proxy(identifier, host, '/api/edition/'+body['date']+'/'+body['kind'], 'GET', None, {})
+        if status == 200:
+            existing_job = json.loads(existing).get('job')
+            if isinstance(existing_job, str) and re.fullmatch('[a-f0-9]{32}', existing_job):
+                return 202, {'Content-Type':'application/json'}, json.dumps({'job':existing_job}).encode()
         language = self.accounts.website_language(identifier) or ui.current()
         self.pump_queue()
         action, position, depth = self._reserve_or_queue('generate', candidate, '/api/generate', body, language)
@@ -390,14 +460,49 @@ class Gateway:
                            (json.dumps(updated,separators=(',',':')),'generation',json.dumps(candidate,separators=(',',':'))))
         elif status<500:
             self.clear_ticket(candidate)
+        if status < 300:
+            self.reconcile_ticket()
         return status,upstream,data
+
+    def input_reply(self, identifier, host, path, raw, headers):
+        match = re.fullmatch(r'/api/(jobs|chats)/([a-f0-9]{32})/(form|permission)/([A-Za-z0-9_]+)/reply', path)
+        collection, target, category, request = match.groups()
+        key = 'job' if collection == 'jobs' else 'chat'
+        status, _, data = self.proxy(identifier, host, '/api/'+collection+'/'+target, 'GET', None, {})
+        value = json.loads(data)
+        # A reply can wake a suspended model. Reacquire its slot before forwarding.
+        if status != 200 or value.get('state') != 'waiting' or value.get('reservation_required') is not False:
+            return 409, {'Content-Type':'application/json'}, b'{"error":"Refresh status before sending this answer again."}'
+        body = json.loads(raw)
+        if category == 'form' and (set(body) != {'answer'} or not isinstance(body['answer'], dict)):
+            raise ValueError('Invalid briefing answer')
+        if category == 'permission' and (set(body) != {'decision'} or body['decision'] not in ('once', 'reject')):
+            raise ValueError('Invalid permission answer')
+        if not any(form.get('id') == request for form in value.get('forms' if category == 'form' else 'permissions', [])):
+            raise ValueError('This feedback form changed; review the current task list')
+        candidate = {'user':identifier, 'host':host, key:target, 'request':request, 'dispatching':True,
+                     'date':value.get('date'), 'kind':value.get('kind') or value.get('mode')}
+        self.pump_queue()
+        action, position, depth = self._reserve_or_queue('reply', candidate, path, body, self.accounts.website_language(identifier) or ui.current())
+        if action in ('queued', 'queued_duplicate'):
+            return self.queued_response('reply', candidate, position, depth)
+        if action == 'full':
+            return 429, {'Content-Type':'application/json'}, json.dumps({'error':QUEUE_FULL}).encode()
+        if action == 'active_duplicate':
+            return 202, {'Content-Type':'application/json'}, json.dumps({key:target}).encode()
+        status, upstream, data = self.proxy(identifier, host, path, 'POST', raw, headers)
+        if 400 <= status < 500:
+            self.clear_ticket(candidate)
+        elif status < 300:
+            self.confirm_dispatch(candidate)
+        return status, upstream, data
 
     def recover(self, identifier, host, path, raw, headers):
         body = json.loads(raw)
         if set(body) != {'id'} or not isinstance(body['id'], str) or not re.fullmatch('[a-f0-9]{32}', body['id']):
             raise ValueError('Invalid recovery request')
         job = re.fullmatch(r'/api/jobs/([a-f0-9]{32})/recover', path)[1]
-        candidate = {'user':identifier, 'host':host, 'job':job, 'request':body['id']}
+        candidate = {'user':identifier, 'host':host, 'job':job, 'request':body['id'], 'dispatching':True}
         language = self.accounts.website_language(identifier) or ui.current()
         self.pump_queue()
         observed = self.ticket()
@@ -453,6 +558,8 @@ class Gateway:
                                (json.dumps(previous,separators=(',',':')),'generation',json.dumps(candidate,separators=(',',':'))))
             else:
                 self.clear_ticket(candidate)
+        elif status < 300:
+            self.confirm_dispatch(candidate)
         return status, upstream, data
 
 
@@ -499,7 +606,7 @@ def handler_for(gateway):
             super().setup()
             self.connection.settimeout(25)
 
-        def respond(self,data,status=200,mime='application/json',*,token=None,cookie_age=SESSION_SECONDS,location=None,cache='no-store',etag=None,language_cookie=None,resource=None):
+        def respond(self,data,status=200,mime='application/json',*,token=None,cookie_age=SESSION_SECONDS,location=None,cache='no-store',etag=None,language_cookie=None,color_cookie=None,resource=None):
             if not isinstance(data,bytes):
                 if isinstance(data,dict) and isinstance(data.get('error'),str):data={**data,'error':ui.text(data['error'])}
                 data=json.dumps(data,separators=(',',':')).encode()
@@ -531,6 +638,10 @@ def handler_for(gateway):
                 value=ui.language(language_cookie)
                 domain='; Domain='+gateway.language_domain if gateway.language_domain else ''
                 self.send_header('Set-Cookie','GoodMorningLanguage='+value+'; Path=/; Secure; SameSite=Lax; Max-Age=31536000'+domain)
+            if color_cookie is not None:
+                value = site_colors.validate(color_cookie)['day']
+                domain = '; Domain='+gateway.language_domain if gateway.language_domain else ''
+                self.send_header('Set-Cookie', 'GoodMorningDayScheme='+value+'; Path=/; Secure; SameSite=Lax; Max-Age=31536000'+domain)
             self.end_headers()
             if self.command!='HEAD' and status!=304:
                 self.wfile.write(data)
@@ -568,6 +679,15 @@ def handler_for(gateway):
         def select_language(self,session=None):
             selected=(gateway.accounts.website_language(session['user_id']) or 'en') if session and session.get('user_id') else self.browser_language()
             ui.CURRENT.set(selected)
+            if session and session.get('user_id'):
+                colors = gateway.accounts.website_color_schemes(session['user_id']) or site_colors.DEFAULT
+            else:
+                try:
+                    cookie = SimpleCookie(); cookie.load(self.headers.get('Cookie', '')[:4096])
+                    colors = site_colors.validate({'day': cookie['GoodMorningDayScheme'].value, 'night': 'classic'})
+                except (KeyError, ValueError, CookieError):
+                    colors = site_colors.DEFAULT
+            site_colors.CURRENT.set(dict(colors))
 
         def account_html(self,session,title,host):
             source=account_page(session,title,gateway.hosts[host]).decode()
@@ -598,6 +718,7 @@ def handler_for(gateway):
                     if path=='/api/release/seen':return self.respond({'version':None,'enabled':False})
                     if path=='/api/language':return self.respond({'language':ui.current()})
                     if path=='/api/model':return self.respond({'model':site_models.DEFAULT})
+                    if path=='/api/color-schemes':return self.respond(site_colors.current())
                     if path!='/login':
                         return self.respond({'error':'Login required'},401) if path.startswith('/api/') else self.respond(b'',302,location='/login')
                     gateway.accounts.limit([('prelogin-ip:'+self.address(),60)])
@@ -609,6 +730,7 @@ def handler_for(gateway):
                     return self.respond({'version':gateway.accounts.release_seen(user) if user else None,'enabled':bool(user)})
                 if path=='/api/language':return self.respond({'language':ui.current()})
                 if path=='/api/model':return self.respond({'model':gateway.accounts.website_model(session['user_id']) or site_models.DEFAULT})
+                if path=='/api/color-schemes':return self.respond(site_colors.current())
                 if path=='/login' and not session['user_id']:
                     return self.respond(self.account_html(session,'Sign in',host),mime='text/html; charset=utf-8')
                 if not session['user_id']:
@@ -626,7 +748,7 @@ def handler_for(gateway):
                 status,headers,data=gateway.proxy(session['user_id'],host,self.path,'GET',None,self.headers)
                 mime=headers.get('Content-Type','application/json')
                 if mime.startswith('text/html'):
-                    cache_key=(session['user_id'],host,self.path,ui.current(),session['csrf'],VERSION,hashlib.sha256(data).digest())
+                    cache_key=(session['user_id'],host,self.path,ui.current(),tuple(site_colors.current().items()),session['csrf'],VERSION,hashlib.sha256(data).digest())
                     with gateway.html_lock:cached=gateway.html_cache.get(cache_key)
                     if cached is not None:return self.respond(cached,status,mime)
                     # Replace backend-wide CSRF with the authenticated session's CSRF.
@@ -659,20 +781,22 @@ def handler_for(gateway):
                 if self.headers.get('Transfer-Encoding') or len(self.headers.get_all('Content-Length',[]))!=1:
                     raise ValueError('Invalid request body')
                 size=int(self.headers['Content-Length'])
-                if UPLOAD_ROUTE.fullmatch(path):
+                if UPLOAD_ROUTE.fullmatch(path) or path == AVATAR_UPLOAD_PATH:
                     if not session['user_id'] or session['temporary']:
                         raise Denied('Sign in with a permanent password before uploading')
                     if not secrets.compare_digest(self.headers.get('X-Briefing-CSRF', ''), session['csrf']):
                         raise Denied('Forbidden')
-                    if size > MAX_UPLOAD_BYTES:
-                        return self.respond({'error': 'Files must be 50 MB or smaller.'}, 413)
+                    avatar_upload = path == AVATAR_UPLOAD_PATH
+                    if size > (MAX_AVATAR_BYTES if avatar_upload else MAX_UPLOAD_BYTES):
+                        return self.respond({'error': 'Avatar images must be 5 MB or smaller.' if avatar_upload else 'Files must be 50 MB or smaller.'}, 413)
                     if size < 0 or self.headers.get('Content-Type') != 'application/octet-stream':
                         raise ValueError('Invalid upload')
-                    upload_name(urlsplit(self.path).query)
+                    if not avatar_upload:
+                        upload_name(urlsplit(self.path).query)
                     status, headers, data = gateway.proxy(session['user_id'], host, self.path, 'POST',
                         UploadReader(self.rfile, size), self.headers)
                     return self.respond(data, status, headers.get('Content-Type', 'application/json'))
-                form=path in ('/api/language','/api/model') and self.headers.get('Content-Type','').split(';')[0]=='application/x-www-form-urlencoded'
+                form=path in ('/api/language','/api/model','/api/color-schemes') and self.headers.get('Content-Type','').split(';')[0]=='application/x-www-form-urlencoded'
                 if not 0<size<=20000 or (not form and self.headers.get('Content-Type')!='application/json'):
                     raise ValueError('Invalid request body')
                 raw=self.rfile.read(size)
@@ -681,6 +805,7 @@ def handler_for(gateway):
                 if form:
                     fields=parse_qs(raw.decode(),keep_blank_values=True,strict_parsing=True)
                     expected={'csrf','language','return_to'} if path=='/api/language' else {'csrf','model','return_to'}
+                    if path=='/api/color-schemes':expected={'csrf','day','night','return_to'}
                     if set(fields)!=expected or any(len(values)!=1 for values in fields.values()):raise ValueError('Invalid settings form')
                     body={key:values[0] for key,values in fields.items()}
                 else:body=json.loads(raw)
@@ -703,6 +828,13 @@ def handler_for(gateway):
                     target=body.get('return_to','/')
                     if form and (len(target)>2048 or any(ord(c)<32 for c in target) or '\\' in target or urlsplit(target).netloc or urlsplit(target).scheme or not (GET_ROUTES.fullmatch(urlsplit(target).path) or target in ('/login','/password'))):target='/'
                     return self.respond({'model':selected},303 if form else 200,location=target if form else None)
+                if path=='/api/color-schemes':
+                    selected = site_colors.validate({key: body[key] for key in ('day', 'night')} if form else body)
+                    if session['user_id']:gateway.accounts.website_color_schemes(session['user_id'], selected)
+                    site_colors.CURRENT.set(selected)
+                    target=body.get('return_to','/')
+                    if form and (len(target)>2048 or any(ord(c)<32 for c in target) or '\\' in target or urlsplit(target).netloc or urlsplit(target).scheme or not (GET_ROUTES.fullmatch(urlsplit(target).path) or target in ('/login','/password'))):target='/'
+                    return self.respond(selected,303 if form else 200,location=target if form else None,color_cookie=selected)
                 if path=='/api/auth/login' and not session['user_id']:
                     if set(body) not in ({'username','password'},{'username','password','remember'}) or type(body.get('remember',False)) is not bool:
                         raise ValueError('Invalid login')
@@ -732,6 +864,8 @@ def handler_for(gateway):
                     status,headers,data=gateway.generate(session['user_id'],host,raw,self.headers)
                 elif re.fullmatch(r'/api/jobs/[a-f0-9]{32}/recover', path):
                     status,headers,data=gateway.recover(session['user_id'],host,path,raw,self.headers)
+                elif re.fullmatch(r'/api/(?:jobs|chats)/[a-f0-9]{32}/(?:form|permission)/[A-Za-z0-9_]+/reply', path):
+                    status,headers,data=gateway.input_reply(session['user_id'],host,path,raw,self.headers)
                 elif path == '/api/chats' or re.fullmatch(r'/api/chats/[a-f0-9]{32}/messages', path):
                     status,headers,data=gateway.chat_message(session['user_id'],host,path,raw,self.headers)
                 else:
@@ -743,7 +877,7 @@ def handler_for(gateway):
                 return self.respond({'error':str(error)},403)
             except (ValueError,KeyError,TypeError):
                 route=urlsplit(self.path).path
-                error='Invalid upload' if UPLOAD_ROUTE.fullmatch(route) else 'Invalid release version' if route=='/api/release/seen' else 'Choose English or Simplified Chinese' if route=='/api/language' else 'Choose one of the offered website models' if route=='/api/model' else 'Invalid request. '+PASSWORD_RULE
+                error='Invalid upload' if UPLOAD_ROUTE.fullmatch(route) else 'Invalid release version' if route=='/api/release/seen' else 'Choose English or Simplified Chinese' if route=='/api/language' else 'Choose one of the offered website models' if route=='/api/model' else 'Choose one of the offered color schemes' if route=='/api/color-schemes' else 'Invalid request. '+PASSWORD_RULE
                 return self.respond({'error':error},400)
             except Exception:
                 return self.respond({'error':'Request could not be confirmed. Refresh before retrying.'},503)
@@ -778,11 +912,13 @@ def main():
     parser.add_argument('--account-mount',type=Path,required=True)
     parser.add_argument('--socket',type=Path,required=True)
     parser.add_argument('--gm-host',required=True)
-    parser.add_argument('--gn-host',required=True)
+    parser.add_argument('--gn-host')
     parser.add_argument('--sec-host')
     args=parser.parse_args()
     os.umask(0o077)
-    hosts = {args.gm_host:'gm',args.gn_host:'gn'}
+    hosts = {args.gm_host:'gm'}
+    if args.gn_host:
+        hosts[args.gn_host] = 'gn'
     if args.sec_host:
         hosts[args.sec_host] = 'sec'
     gateway=Gateway(Accounts(args.account_mount),hosts)
