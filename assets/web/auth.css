@@ -1,6 +1,6 @@
 :root { color-scheme: light; font-family: system-ui, sans-serif; color: #253d45; background: #f2f6f5; }
 * { box-sizing: border-box; }
-body { margin: 0; min-height: 100dvh; display: grid; place-items: center; padding: 1rem; background: radial-gradient(ellipse at top left, #e0ede5, transparent 60%); }
+body { margin: 0; min-height: 100vh; min-height: 100svh; display: grid; place-items: center; padding: 1rem; background: radial-gradient(ellipse at top left, #e0ede5, transparent 60%); }
 .account-card { width: min(100%, 28rem); padding: clamp(1.4rem, 5vw, 2.5rem); border: 1px solid #d5e0db; border-radius: 1.5rem; background: #fffefa; box-shadow: 0 1rem 4rem #253d4512; }
 .eyebrow { font-size: .75rem; letter-spacing: .13em; text-transform: uppercase; color: #56746a; }
 h1 { font-family: Georgia, serif; font-weight: 500; font-size: 2rem; }
@@ -28,5 +28,8 @@ a { color: #315e50; }
 .language-toolbar select, .language-toolbar button { font: inherit; width: auto; min-height: 44px; padding: .45rem .65rem; border: 1px solid #b4c7c0; border-radius: .6rem; }
 .language-toolbar select { max-width: 100%; background: white; color: inherit; }
 #language-feedback, #model-feedback { flex-basis: 100%; font-size: .8rem; }
-body:has(.language-toolbar) { grid-template-rows: auto 1fr; align-items: start; padding-top: 1rem; }
+/* Both selectors need content-sized rows; only the card's row may grow. */
+body:has(.language-toolbar) { grid-template-rows: auto auto 1fr; align-items: start; padding-top: 1rem; }
 body:has(.language-toolbar) .account-card { align-self: center; }
+/* Keep the form anchored while mobile browser bars or the keyboard change height. */
+@media (max-width: 600px) { body, body:has(.language-toolbar) { align-content: start; } .account-card, body:has(.language-toolbar) .account-card { align-self: start; } }
