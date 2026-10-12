@@ -1,6 +1,29 @@
 {
   "notes": [
     {
+      "version": "0.22.2", "date": "2026-10-12", "author": "GoodMorning agent",
+      "title_en": "Safer account provisioning", "title_zh": "更可靠的账号配置",
+      "changes": [
+        {"category": "Fixed", "en": [
+          "Show a readable setup-pending page for accounts without a secretary backend, with language, retry and account controls.",
+          "Keep incomplete accounts out of the global request queue and show readable pages during backend outages."
+        ], "zh": [
+          "未连接秘书服务的账号显示清晰的配置待完成页面，保留语言、重试和账号控件。",
+          "未完成配置的账号不会占用全局请求队列，服务暂时不可用时显示清晰的提示页面。"
+        ]},
+        {"category": "Changed", "en": [
+          "Add an SSH-only backend readiness check and report incomplete provisioning after account creation or enabling."
+        ], "zh": [
+          "新增仅限 SSH 的服务就绪检查，创建或启用账号后明确报告未完成的配置。"
+        ]},
+        {"category": "Tests", "en": [
+          "Cover missing and malformed backends, localized error pages, account controls, queue safety and secret-free diagnostics with synthetic accounts."
+        ], "zh": [
+          "使用合成账号验证服务缺失及配置错误、多语言提示页面、账号控件、队列安全和不泄露凭据的诊断。"
+        ]}
+      ]
+    },
+    {
       "version": "0.22.1", "date": "2026-10-12", "author": "GoodMorning agent",
       "title_en": "Polished controls and public documentation", "title_zh": "优化控件与公开文档",
       "changes": [

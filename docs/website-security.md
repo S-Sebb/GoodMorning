@@ -122,6 +122,40 @@ are normalized ASCII, 3–40 characters; storage uses the immutable random ID, s
 rename/reset never moves or loses records. New accounts are not connected to any
 existing user's data: provision a new encrypted volume/UID and isolated backend.
 
+Account creation is only the login step, not a working secretary. `create` and
+`enable` return exit status 1 when the backend is not ready; the login row is
+retained, so do not repeat `create` or reset a password to fix provisioning.
+An unprovisioned login shows a localized setup-pending page with retry, language,
+password-change and sign-out controls. Private APIs return 503 without reserving
+or queuing an agent request. Backend outages also show a readable page rather
+than a raw JSON document; no exception details or private paths reach the browser.
+
+Before handing over an account, finish this SSH-only checklist:
+
+1. Initialize its new encrypted vault once, assign a dedicated Linux UID, and
+   create private engine/viewer configuration with fresh gateway and bridge keys.
+2. Configure only owner-authorized AI provider credentials and model defaults.
+   Never clone another account's HOME, database, profile, conversations, relay
+   identity, authentication cookies or settings files.
+3. Install account/viewer identity drop-ins and enable its vault, engine and
+   viewer services. Verify their encrypted mount, non-root identity and independent
+   loopback ports; register only that immutable account ID's viewer port and key.
+4. Run the read-only readiness gate and require exit status 0:
+
+   ```sh
+   sudo /opt/goodmorning/python/bin/python -B /opt/goodmorning/current/scripts/goodmorning.py admin \
+     --account-mount /srv/goodmorning/live/accounts check-backend USERNAME --gm-host gm.love765.me
+   ```
+
+   It requests Morning, Evening and Secretary HTML without dispatching models,
+   issuing login tokens or advancing the global queue. This proves the pages
+   respond, not that a paid model call or user initialization has completed.
+5. Confirm the provider connection and the offered model IDs separately through
+   the owning engine's authenticated API. Model discovery is asynchronous after
+   connecting a provider; wait using bounded read-only checks rather than
+   reinitializing the vault or replaying credential creation. Leave personal setup to the account
+   owner; an empty profile is not a reason to copy someone else's profile.
+
 If login rejects an SSH-set password, use the SSH-only `check USERNAME` action with
 the same flags. It reads a hidden password and reports only whether it matches the
 saved hash, without changing the password, issuing a session or clearing rate limits.

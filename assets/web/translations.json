@@ -1,4 +1,8 @@
 {
+  "Secretary setup pending": "秘书服务尚未完成配置",
+  "Secretary temporarily unavailable": "秘书服务暂时不可用",
+  "Your secretary is not set up yet. Please contact the server administrator to complete account setup.": "你的秘书服务尚未完成配置。请联系服务器管理员完成账号配置。",
+  "Try again": "重试",
   "Attach files": "添加附件",
   "Up to 50 MB per file. You can also drag files into this box.": "每个文件最大 50 MB。也可以将文件拖入此消息框。",
   "Files must be 50 MB or smaller.": "文件大小不能超过 50 MB。",
