@@ -403,7 +403,7 @@ def check_images(browser, address, artifacts):
         page.get_by_role('button', name='Close image').click(); expect(dialog).not_to_be_visible()
         expect(saved).to_be_focused()
         page.locator('.conversation-panel').screenshot(path=str(artifacts / f'image-inline-{width}.png'))
-        # Normal text paste remains native. Image paste while busy must not mutate drafts.
+        # Normal text paste remains native. Image paste while working is allowed for interrupts.
         page.evaluate('navigator.clipboard.writeText(" pasted text")')
         text.fill('Existing'); text.focus(); text.press('End'); page.keyboard.press('Control+V')
         expect(text).to_have_value('Existing pasted text')
@@ -415,10 +415,10 @@ def check_images(browser, address, artifacts):
         page.evaluate('''() => {
             state = 'running'; composeState();
             const transfer = new DataTransfer();
-            transfer.items.add(new File(['blocked'], 'blocked.png', {type:'image/png'}));
+            transfer.items.add(new File(['interrupt'], 'interrupt.png', {type:'image/png'}));
             document.querySelector('#chat-text').dispatchEvent(new ClipboardEvent('paste', {clipboardData:transfer, bubbles:true, cancelable:true}));
         }''')
-        expect(preview).to_have_count(0)
+        expect(preview).to_have_count(1)
         assert not page.evaluate('document.documentElement.scrollWidth > innerWidth')
         assert not errors, errors
         checks.append({'width': width, 'realClipboardPaste': True, 'draftPreview': True, 'savedPreview': True,

@@ -95,6 +95,12 @@ Code creates an account-owned dedicated session, saves intent before dispatch,
 and persists conversation IDs and request IDs in the selected encrypted runtime.
 Refresh restores the same session; duplicate requests do not create extra turns.
 Interrupted dispatch stays uncertain and requires inspection, never blind replay.
+Sending a follow-up while the secretary is working steers the same session:
+the composer stays enabled during starting, running and queued states, and the
+new message interrupts the current run instead of waiting behind it. A follow-up
+sent while a question or permission is pending is still rejected; answer the
+pending form first. The gateway reuses the working conversation's reservation
+for its own interrupt and keeps other conversations in the waiting line.
 Uploaded bytes and metadata stay in `browser-uploads/` inside the selected private
 runtime, not in public source or the gateway's temporary directory. The gateway
 streams only authenticated, CSRF-checked uploads to the account's own backend.

@@ -1,6 +1,24 @@
 {
   "notes": [
     {
+      "version": "0.28.0", "date": "2026-10-12", "author": "GoodMorning agent",
+      "title_en": "Interrupt the secretary while it works", "title_zh": "忙碌时也可打断秘书",
+      "changes": [
+        {"category": "Added", "en": [
+          "Keep the message box and attachments enabled while the secretary is working, so a follow-up message interrupts the current run.",
+          "Reuse the working conversation's reservation for its own interrupt; other conversations still wait in the bounded queue."
+        ], "zh": [
+          "秘书忙碌时消息框和附件保持可用，后续消息可直接打断当前任务。",
+          "同一对话的中断沿用当前预留名额，其他对话仍在有限队列中等待。"
+        ]},
+        {"category": "Tests", "en": [
+          "Verify follow-up sends while running, per-message receipts, same-conversation fast path versus queued other conversations, and blocked free text while a question is pending without model calls."
+        ], "zh": [
+          "不调用模型，验证忙碌时可追加发送、每条消息独立回执、同对话快速打断与其他对话排队的区别，以及待答问题时普通文本仍被阻止。"
+        ]}
+      ]
+    },
+    {
       "version": "0.27.0", "date": "2026-10-12", "author": "GoodMorning agent",
       "title_en": "Paste images into your conversations", "title_zh": "在对话中粘贴图片",
       "changes": [

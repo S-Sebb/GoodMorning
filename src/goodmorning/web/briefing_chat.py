@@ -280,7 +280,7 @@ class Chats:
                     'created': time.time()}
             self.items[chat] = item
             self.save()  # Save intent before any model request; never blindly replay.
-            threading.Thread(target=self.dispatch, args=(item, text, True), daemon=True).start()
+            threading.Thread(target=self.dispatch, args=(chat, chat, text, True), daemon=True).start()
         return {'chat': chat}
 
     def send(self, chat, body):
@@ -298,7 +298,12 @@ class Chats:
                 if old['text'] != text or old.get('attachments', []) != attachments:
                     raise ValueError('Request ID already belongs to another message')
                 return {'chat': chat}
-            if self.status(chat)['state'] != 'idle':
+            state = self.status(chat)['state']
+            if state == 'waiting':
+                raise ValueError('Answer the pending question first')
+            if state in ('uncertain', 'unavailable'):
+                raise ValueError('Delivery is uncertain. Ask the administrator to inspect this conversation before sending again.')
+            if state not in ('idle', 'running', 'starting'):
                 raise ValueError('Wait for the secretary or answer the pending question')
             if len(item['turns']) >= 200:
                 raise ValueError('Start a new conversation to keep context bounded')
@@ -306,13 +311,23 @@ class Chats:
             item['turns'].append({'id': request, 'text': text, 'attachments': attachments,'language':ui.current(),'model':site_models.current()})
             item['state'] = 'starting'
             self.save()
-            threading.Thread(target=self.dispatch, args=(item, text, False), daemon=True).start()
+            threading.Thread(target=self.dispatch, args=(item['id'], request, text, False), daemon=True).start()
         return {'chat': chat}
 
-    def dispatch(self, item, text, first):
+    def dispatch(self, chat_id, turn_id, text, first):
         try:
-            selected=item['turns'][-1]['language']
-            chosen=item['turns'][-1].get('model', site_models.DEFAULT)
+            with self.lock:
+                item = self.items.get(chat_id)
+                if item is None:
+                    return
+                turn = next((entry for entry in item['turns'] if entry['id'] == turn_id), None)
+                if turn is None:
+                    return
+                selected = turn.get('language', 'en')
+                chosen = turn.get('model', site_models.DEFAULT)
+                attachments = list(turn.get('attachments', []))
+                mode = item['mode']
+                runtime = self.runtime
             if first:
                 # A custom title disables the engine's built-in AI title generation.
                 result = self.chamber.control('session.create')
@@ -320,37 +335,71 @@ class Chats:
                 if not re.fullmatch('ses[A-Za-z0-9_]+', session):
                     raise ValueError('Invalid session')
                 with self.lock:
+                    item = self.items.get(chat_id)
+                    if item is None:
+                        return
                     item['session'] = session
                     self.save()
-            site_models.apply_to_session(self.chamber, item['session'], chosen)
-            prompt = (f"/{item['mode']}\nBrowser chat: {item['id']}\nRuntime: {self.runtime}\n" if first else '')
+            else:
+                # A follow-up sent while the first dispatch is still opening
+                # has no session yet. Wait briefly rather than failing the
+                # interrupt; the opening dispatch creates it.
+                session = None
+                for _ in range(100):
+                    with self.lock:
+                        item = self.items.get(chat_id)
+                        if item is None:
+                            return
+                        session = item.get('session')
+                    if session:
+                        break
+                    time.sleep(0.1)
+                if not session:
+                    raise ValueError('Wait for the secretary or answer the pending question')
+            site_models.apply_to_session(self.chamber, session, chosen)
+            prompt = (f"/{mode}\nBrowser chat: {chat_id}\nRuntime: {runtime}\n" if first else '')
             prompt += f"Website language: {selected}\n\n{text}"
-            attachments = item['turns'][-1].get('attachments', [])
             if attachments:
                 # Distinguish file-only turns with identical text when matching
                 # acknowledged messages and restoring their attachment labels.
-                prompt += f"\n\nBrowser message: {item['turns'][-1]['id']}"
+                prompt += f"\n\nBrowser message: {turn_id}"
             prompt=prompt.strip()
             with self.lock:
-                item['turns'][-1]['prompt_hash'] = hashlib.sha256(prompt.encode()).hexdigest()
+                item = self.items.get(chat_id)
+                if item is None:
+                    return
+                turn = next((entry for entry in item['turns'] if entry['id'] == turn_id), None)
+                if turn is None:
+                    return
+                turn['prompt_hash'] = hashlib.sha256(prompt.encode()).hexdigest()
                 self.save()
             if attachments:
                 # OpenChamber's composer uses this native V2 prompt API. Control's
                 # text-only session.send drops files, so it cannot carry attachments.
-                result = self.chamber.request(f'/api/session/{item["session"]}/prompt',
+                result = self.chamber.request(f'/api/session/{session}/prompt',
                     {'text': prompt, 'files': self.uploads.files([entry['id'] for entry in attachments])})
                 receipt = result.get('data', {})
                 if not isinstance(receipt.get('id'), str) or not receipt['id']:
                     raise ValueError('Message dispatch was not confirmed')
             else:
-                result = self.chamber.control('session.send', sessionId=item['session'], prompt=prompt)
+                result = self.chamber.control('session.send', sessionId=session, prompt=prompt)
                 if result.get('promptDispatched') is not True:
                     raise ValueError('Message dispatch was not confirmed')
             with self.lock:
+                item = self.items.get(chat_id)
+                if item is None:
+                    return
                 item['state'] = 'running'
                 self.save()
         except Exception:
             with self.lock:
+                item = self.items.get(chat_id)
+                if item is None:
+                    return
+                # A stale dispatch must not mark a newer interrupt as uncertain.
+                if item['turns'] and item['turns'][-1]['id'] != turn_id:
+                    self.save()
+                    return
                 item['state'] = 'uncertain'
                 self.save()
 
