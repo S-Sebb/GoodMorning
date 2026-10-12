@@ -42,7 +42,7 @@ a:focus-visible { outline: 2px solid var(--accent); outline-offset: 5px; }
 .skip-link { position: fixed; left: 16px; top: -80px; z-index: 10; padding: 12px; background: var(--surface); }
 .skip-link:focus { top: 16px; }
 .reading-progress { position: fixed; top: 0; left: 0; width: 100%; height: 3px; transform: scaleX(0); transform-origin: left; background: var(--accent); z-index: 20; transition: transform .12s linear; }
-.masthead { display: flex; justify-content: space-between; align-items: center; max-width: 1440px; margin: auto; padding: 26px 64px; padding-left: max(24px, env(safe-area-inset-left)); padding-right: max(64px, env(safe-area-inset-right)); border-bottom: 1px solid var(--line); gap: 20px; }
+.masthead { display: flex; justify-content: space-between; align-items: center; max-width: 1440px; margin: auto; padding: 26px 64px; padding-left: max(24px, env(safe-area-inset-left)); padding-right: max(64px, env(safe-area-inset-right)); border-bottom: 1px solid transparent; gap: 20px; }
 .wordmark { font-family: Georgia, serif; font-size: 29px; letter-spacing: -1px; text-decoration: none; line-height: 1.15; }
 .wordmark span { display: block; font: italic 13px/1.5 "Lora Commentary", Georgia, serif; letter-spacing: 0; margin-top: 8px; color: var(--muted); }
 .edition-switch { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; font-size: 13px; }

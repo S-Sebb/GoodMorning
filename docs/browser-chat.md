@@ -103,6 +103,14 @@ pairing credentials or protected joining links in chat.
 Code creates an account-owned dedicated session, saves intent before dispatch,
 and persists conversation IDs and request IDs in the selected encrypted runtime.
 Refresh restores the same session; duplicate requests do not create extra turns.
+Before a follow-up dispatch, compare the session's native location with the
+running release. If they differ, move that account-owned session to the running
+release through the native session-move API and verify the location before
+sending. Supply the browser context again with `Workflow refresh: true`; reread
+the current core, browser-chat and matching workflow rules instead of relying
+on earlier copies. Keep the same session, history, records and permissions.
+History reads never move sessions, and a failed or uncertain move never dispatches
+the message or triggers a blind retry.
 Interrupted dispatch stays uncertain and requires inspection, never blind replay.
 Sending a follow-up while the secretary is working steers the same session:
 the composer stays enabled during starting, running and queued states, and the

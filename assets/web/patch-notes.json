@@ -1,6 +1,35 @@
 {
   "notes": [
     {
+      "version": "0.30.2", "date": "2026-10-12", "author": "GoodMorning agent",
+      "title_en": "Refresh workflow rules in existing conversations", "title_zh": "刷新现有对话的工作流程规则",
+      "changes": [
+        {"category": "Fixed", "en": [
+          "Move a resumed secretary conversation from its old release to the running release before sending, preserving its session and history.",
+          "Tell resumed conversations to reread current workflow rules so explicit cross-mode requests no longer rely on outdated capture-only restrictions."
+        ], "zh": [
+          "发送后续消息前，将继续使用的秘书对话从旧版本移至当前运行版本，保留原会话与历史。",
+          "提示继续使用的对话重新读取当前流程规则，使明确的跨模式请求不再依赖过时的仅记录限制。"
+        ]},
+        {"category": "Tests", "en": [
+          "Verify release refresh, history and attachment preservation, unrelated-session isolation and refusal to dispatch after failed or unconfirmed moves without model calls."
+        ], "zh": [
+          "在不调用模型的情况下，验证版本刷新、历史与附件保留、无关会话隔离，以及移动失败或未确认时不发送消息。"
+        ]}
+      ]
+    },
+    {
+      "version": "0.30.1", "date": "2026-10-12", "author": "GoodMorning agent",
+      "title_en": "Remove header divider line", "title_zh": "移除顶部标题分隔线",
+      "changes": [
+        {"category": "Fixed", "en": [
+          "Remove the horizontal divider line under the header across Morning, Evening and Secretary tabs while keeping the existing spacing unchanged."
+        ], "zh": [
+          "移除早间、晚间和秘书三个标签页顶部标题栏下方的水平分隔线，同时保持现有间距不变。"
+        ]}
+      ]
+    },
+    {
       "version": "0.30.0", "date": "2026-10-12", "author": "GoodMorning agent",
       "title_en": "Starry nights and flexible secretary workflows", "title_zh": "繁星夜色与灵活秘书流程",
       "changes": [

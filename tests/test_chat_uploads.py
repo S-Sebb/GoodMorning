@@ -178,6 +178,21 @@ class UploadTests(unittest.TestCase):
             self.assertEqual(messages[-2]['attachments'][0]['name'], '资料 <img>.txt')
             self.assertEqual(Chats(self.root, chamber).status(chat)['state'], 'idle')
 
+    def test_attachment_followup_refreshes_an_old_release_without_losing_files(self):
+        self.upload()
+        chats, chamber = self.chats()
+        chat = 'a'*32
+        with patch('goodmorning.web.briefing_chat.threading.Thread', ImmediateThread):
+            chats.start({'id': chat, 'mode': 'todo', 'text': 'Synthetic task'})
+            session = chats.get(chat)['session']
+            chamber.sessions[session]['directory'] = '/opt/goodmorning/releases/old'
+            chats.send(chat, {'id': 'b'*32, 'text': 'Finish its setup', 'attachments': [self.file_id]})
+        path, payload = chamber.replies[-1]
+        self.assertEqual(path, f'/api/session/{session}/prompt')
+        self.assertIn('Workflow refresh: true', payload['text'])
+        self.assertEqual(payload['files'], self.uploads.files([self.file_id]))
+        self.assertEqual(chats.status(chat)['messages'][-2]['attachments'][0]['id'], self.file_id)
+
     def test_uncertain_native_dispatch_is_not_replayed(self):
         self.upload()
         chats, chamber = self.chats(); chamber.fail = True

@@ -316,6 +316,7 @@ class Chats:
 
     def dispatch(self, chat_id, turn_id, text, first):
         try:
+            refresh = False
             with self.lock:
                 item = self.items.get(chat_id)
                 if item is None:
@@ -356,8 +357,20 @@ class Chats:
                     time.sleep(0.1)
                 if not session:
                     raise ValueError('Wait for the secretary or answer the pending question')
+                # A session keeps its original release location across server updates.
+                # Move only this resumed conversation, without replacing its history.
+                info = self.chamber.request(f'/api/session/{session}')['data']
+                if info['location']['directory'] != self.chamber.directory:
+                    self.chamber.request(f'/api/session/{session}/move',
+                                         {'directory': self.chamber.directory})
+                    info = self.chamber.request(f'/api/session/{session}')['data']
+                    if info['location']['directory'] != self.chamber.directory:
+                        raise ValueError('Conversation release update was not confirmed')
+                    refresh = True
             site_models.apply_to_session(self.chamber, session, chosen)
-            prompt = (f"/{mode}\nBrowser chat: {chat_id}\nRuntime: {runtime}\n" if first else '')
+            prompt = (f"/{mode}\nBrowser chat: {chat_id}\nRuntime: {runtime}\n" if first or refresh else '')
+            if refresh:
+                prompt += 'Workflow refresh: true\n'
             prompt += f"Website language: {selected}\n\n{text}"
             if attachments:
                 # Distinguish file-only turns with identical text when matching

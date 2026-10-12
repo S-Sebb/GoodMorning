@@ -7,7 +7,7 @@
 .avatar-display .avatar-toggle:hover:not(:disabled), .avatar-display .avatar-toggle[aria-expanded="true"] { background: transparent; color: #35765b; }
 .avatar-display .avatar-toggle:active { transform: scale(.95); }
 .avatar-display button:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
-.avatar-menu { position: absolute; top: calc(100% + 10px); left: 0; z-index: 60; width: min(380px, calc(100vw - 32px)); padding: 0; border: 0; background: transparent; color: var(--ink); text-align: left; animation: avatar-menu-enter .18s cubic-bezier(.22, 1, .36, 1) both; }
+.avatar-menu { position: absolute; top: calc(100% + 10px); left: 50%; transform: translateX(-50%); z-index: 60; width: min(380px, calc(100vw - 32px)); padding: 0; border: 0; background: transparent; color: var(--ink); text-align: left; animation: avatar-menu-enter .18s cubic-bezier(.22, 1, .36, 1) both; }
 .avatar-menu[hidden] { display: none; }
 .avatar-menu.is-above { top: auto; bottom: calc(100% + 10px); }
 .avatar-carousel { display: grid; grid-template-columns: 44px minmax(0, 1fr) 44px; align-items: center; gap: 8px; }
@@ -27,5 +27,9 @@
 .avatar-preview[data-avatar-choice="custom"] img { height: 72px; object-fit: cover; }
 .avatar-feedback.is-error { position: static; width: auto; height: auto; padding: 6px 10px; margin: 4px 0 0; overflow: visible; clip: auto; white-space: normal; border-radius: 10px; background: var(--surface); color: #a0362e; font-size: 11px; }
 html[data-edition="gn"] .avatar-feedback.is-error { color: #f1b1a8; }
-@keyframes avatar-menu-enter { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes avatar-menu-enter { from { opacity: 0; transform: translateX(-50%) translateY(5px); } to { opacity: 1; transform: translateX(-50%) translateY(0); } }
 @media (prefers-reduced-motion: reduce) { .avatar-menu { animation: none; } .avatar-display *, .avatar-display *::before { transition: none !important; scroll-behavior: auto !important; } .avatar-display .avatar-preview:hover { transform: none; } }
+@media (max-width: 700px) {
+  .avatar-menu { position: static; transform: none; width: 100%; margin-top: 10px; animation: none; }
+  .avatar-display .avatar-preview { flex-basis: 68px; }
+}

@@ -28,7 +28,8 @@ class MockChamber(Chamber):
         self.calls.append((action, body))
         if action == 'session.create':
             session = 'ses_chat_' + str(len(self.sessions))
-            self.sessions[session] = {'messages': [], 'forms': [], 'permissions': [], 'title': body.get('title', '')}
+            self.sessions[session] = {'messages': [], 'forms': [], 'permissions': [], 'title': body.get('title', ''),
+                                      'directory': self.directory}
             return {'sessionId': session}
         session = self.sessions[body['sessionId']]
         if action == 'session.send':
@@ -55,6 +56,13 @@ class MockChamber(Chamber):
         return entry['forms'], entry['permissions']
 
     def request(self, path, body=None):
+        if path.endswith('/move'):
+            self.replies.append((path, body))
+            self.sessions[path.split('/')[3]]['directory'] = body['directory']
+            return {}
+        if body is None and path.startswith('/api/session/') and len(path.split('/')) == 4:
+            session = self.sessions[path.split('/')[3]]
+            return {'data': {'location': {'directory': session['directory']}}}
         if path.endswith('/prompt'):
             if self.fail:
                 raise OSError('Synthetic dispatch interruption')
@@ -177,6 +185,52 @@ class ChatTests(unittest.TestCase):
         self.assertEqual(sum(action == 'session.send' for action, _ in self.chamber.calls), 2)
         with self.assertRaises(ValueError): self.start('todo')
         with self.assertRaises(ValueError): self.chats.send(self.id, {**body, 'text': 'Changed'})
+
+    def test_resumed_chat_moves_to_current_release_and_refreshes_rules_once(self):
+        self.start('todo', 'Claim salary every Friday')
+        session = self.chats.get(self.id)['session']
+        original = list(self.chamber.sessions[session]['messages'])
+        self.chamber.sessions[session]['directory'] = '/opt/goodmorning/releases/old'
+        self.chamber.sessions['ses_other'] = {'directory': '/opt/goodmorning/releases/old'}
+        self.chats.status(self.id)
+        self.chats.listing()
+        self.assertFalse(any(path.endswith('/move') for path, _ in self.chamber.replies))
+        text = 'Go into secretary mode and finish the setup for me.'
+        self.chats.send(self.id, {'id': 'b'*32, 'text': text})
+        self.assertEqual(self.chats.get(self.id)['session'], session)
+        self.assertEqual(self.chamber.sessions[session]['directory'], self.chamber.directory)
+        self.assertEqual(self.chamber.sessions['ses_other']['directory'], '/opt/goodmorning/releases/old')
+        self.assertEqual(self.chamber.sessions[session]['messages'][:len(original)], original)
+        prompt = [body['prompt'] for action, body in self.chamber.calls if action == 'session.send'][-1]
+        self.assertIn('Workflow refresh: true', prompt)
+        self.assertIn(f'Browser chat: {self.id}', prompt)
+        self.assertIn(f'Runtime: {self.root}', prompt)
+        self.assertTrue(prompt.endswith(text))
+        self.assertEqual(self.chats.status(self.id)['messages'][-2]['text'], text)
+        self.chats.send(self.id, {'id': 'c'*32, 'text': 'Thanks'})
+        moves = [body for path, body in self.chamber.replies if path.endswith('/move')]
+        self.assertEqual(moves, [{'directory': self.chamber.directory}])
+        prompt = [body['prompt'] for action, body in self.chamber.calls if action == 'session.send'][-1]
+        self.assertNotIn('Workflow refresh', prompt)
+
+    def test_failed_or_unconfirmed_release_move_never_dispatches_followup(self):
+        for failure in ('failed', 'unconfirmed'):
+            with self.subTest(failure=failure):
+                chat = ('d' if failure == 'failed' else 'e')*32
+                self.start('eureka', 'Synthetic idea', chat=chat)
+                session = self.chats.get(chat)['session']
+                self.chamber.sessions[session]['directory'] = '/opt/goodmorning/releases/old'
+                request = self.chamber.request
+                def move(path, body=None):
+                    if path.endswith('/move'):
+                        if failure == 'failed': raise OSError('Synthetic move failure')
+                        return {}
+                    return request(path, body)
+                before = len(self.chamber.sessions[session]['messages'])
+                with patch.object(self.chamber, 'request', side_effect=move):
+                    self.chats.send(chat, {'id': 'f'*32, 'text': 'Organize this idea'})
+                self.assertEqual(self.chats.get(chat)['state'], 'uncertain')
+                self.assertEqual(len(self.chamber.sessions[session]['messages']), before)
 
     def test_history_uses_engine_summary_not_clipped_user_text(self):
         raw = 'I think the priority setting for my project needs a careful correction.'

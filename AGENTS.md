@@ -17,6 +17,10 @@ For website prompts marked `Browser chat`, read `docs/core-rules.md`,
 `docs/browser-chat.md`, then the matching workflow. `/initialize` reviews all
 existing preferences without resetting records. Chat supports only initialize,
 secretary, todo and eureka; briefings remain on their own pages.
+`Workflow refresh: true` means this existing conversation moved to the current
+public release. Reread those files from the current working directory; they
+replace earlier workflow rules, not saved user context or permissions. Follow
+the user's current request across modes without requiring a manual switch.
 Every browser request supplies `Website language: en` or `zh-CN`. Use that
 language for replies, questions and titles, not the profile's local reply-language
 preference. Website initialization never asks for a separate reply language.
