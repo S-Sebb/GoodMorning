@@ -205,6 +205,24 @@ class StateTests(unittest.TestCase):
         self.assertEqual(code, 2)
         self.assertEqual(json.loads(output)["error"], "already_ran")
 
+    def test_browser_owned_edition_refuses_foreign_save_even_with_force(self):
+        jobs = self.root / "browser-jobs"
+        jobs.mkdir()
+        (jobs / "jobs.json").write_text(json.dumps(
+            {f"{TODAY}.gm": {"id": "b" * 32, "date": TODAY, "kind": "gm", "state": "complete", "session": "ses-owner"}}))
+        answer = self.root / "answer.txt"
+        answer.write_text(ANSWER)
+        for extra in ([], ["--force"]):
+            code, output, _ = self.invoke("--mark-gm", "--session", "ses-other", "--answer-file", str(answer), "--json", *extra)
+            self.assertEqual(code, 2)
+            self.assertEqual(json.loads(output)["error"], "browser_owned")
+        self.assertFalse((self.root / "daily" / f"{TODAY}.md").exists())
+        code, _, _ = self.invoke("--mark-gm", "--session", "ses-owner", "--answer-file", str(answer), "--json")
+        self.assertEqual(code, 0)
+        (jobs / "jobs.json").write_text("{broken")
+        code, _, _ = self.invoke("--mark-gm", "--session", "ses-after", "--answer-file", str(answer), "--force", "--json")
+        self.assertEqual(code, 0)
+
     def test_oversized_answer_is_rejected_before_writing(self):
         with patch.object(state, "MAX_ANSWER_CHARS", 10), patch.object(sys, "stdin", io.StringIO("x" * 11)):
             code, output, _ = self.invoke("--mark-gm", "--session", "ses-size", "--answer-stdin", "--json")

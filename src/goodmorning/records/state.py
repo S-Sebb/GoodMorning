@@ -138,6 +138,22 @@ def blank_state() -> dict:
             "calendar": {"total": 0, "custom": 0, "imported": 0, "pending": 0}}
 
 
+def browser_owner(secretary_dir: str, day: str, kind: str) -> dict | None:
+    """Live browser job owning this edition, if any; corrupt registries own nothing."""
+    try:
+        path = os.path.join(secretary_dir, "browser-jobs", "jobs.json")
+        if os.path.islink(path) or os.path.getsize(path) > 2_000_000:
+            return None
+        with open(path, encoding="utf-8") as f:
+            jobs = json.load(f)
+        job = jobs.get(f"{day}.{kind}") if isinstance(jobs, dict) else None
+        if isinstance(job, dict) and job.get("state") != "superseded" and isinstance(job.get("id"), str):
+            return job
+    except (OSError, ValueError):
+        pass
+    return None
+
+
 def load_state(secretary_dir: str) -> dict:
     path = os.path.join(secretary_dir, STATE_NAME)
     try:
@@ -548,6 +564,11 @@ def cmd_mark(secretary_dir: str, day: str, kind: str, session: str,
         replacement = 'replacement' in job
     recovering = bool(cur['ran'] and not force and browser_job and cur['session'] == session
                       and cur['answer_file'] == f'daily/{day}{suffix}')
+    if not recovering:
+        owner = browser_owner(secretary_dir, day, kind)
+        if owner is not None and browser_job != owner.get("id") and session != owner.get("session"):
+            return command_error("browser_owned", f"{kind} on {day} is owned by its browser briefing job "
+                                 f"(session {owner.get('session') or '?'}); regenerate on the website instead of saving here", 2, as_json)
     if cur["ran"] and not force and not recovering and not replacement:
         return command_error("already_ran", f"{kind} already ran on {day} "
                               f"(session {cur['session'] or '?'}); use the saved record", 2, as_json)

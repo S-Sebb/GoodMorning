@@ -276,6 +276,7 @@
   "{resolved} of {planned} sections resolved": "已处理 {resolved} / {planned} 个章节",
   "Preparing {section}": "正在准备{section}",
   "The saved edition is not readable. Inspect its format in OpenChamber; your records are unchanged.": "无法读取已保存的简报，请联系管理员检查格式；记录没有改变。",
+  "This edition was updated outside its briefing job and cannot be verified. Regenerate to replace it; your records are unchanged.": "此版本已在简报任务之外被更新，无法确认。请重新生成简报以替换；记录没有改变。",
   "The preview is unreadable. Preserve it and inspect the briefing session.": "无法读取预览，请保留记录并联系管理员检查对话。",
   "The secretary connection is unavailable. Completed preview sections remain readable; check the session in OpenChamber.": "无法连接秘书，已发布的预览章节仍可阅读；请联系管理员检查对话。",
   "Preparation stopped before an edition was saved. Open the session in OpenChamber to continue.": "准备在保存简报之前停止，请继续已有对话或联系管理员。",
