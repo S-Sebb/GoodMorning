@@ -1,6 +1,26 @@
 {
   "notes": [
     {
+      "version": "0.21.0", "date": "2026-10-12", "author": "GoodMorning agent",
+      "title_en": "Compact utility menus", "title_zh": "紧凑型工具菜单",
+      "changes": [
+        {"category": "Changed", "en": [
+          "Replace the stacked language and model selectors with two compact dropdown menus in the top-right corner: a preferences menu for website language and model, and an account menu for password changes and sign-out.",
+          "Show the website update status as an Update pill in a fixed slot at the end of the row, becoming a quiet Up to date pill when the page is current, instead of a floating button.",
+          "Open only one menu at a time; on narrow screens the panels become full-width dropdown sheets."
+        ], "zh": [
+          "将上下堆叠的语言和模型选择器替换为右上角的两个紧凑下拉菜单：偏好设置菜单用于切换网站语言和模型，账号菜单用于修改密码和退出登录。",
+          "网站更新状态改为固定在该行末尾的 pill 按钮：有更新时显示蓝色“更新”，已是最新时显示低调的“已是最新”，不再使用悬浮按钮。",
+          "同一时间只展开一个菜单；在窄屏幕上，菜单面板变为全宽下拉面板。"
+        ]},
+        {"category": "Tests", "en": [
+          "Cover the menu layout, language and model switching, translations and no-JavaScript forms at desktop and mobile widths with the full unit suite and scripted browser checks."
+        ], "zh": [
+          "通过完整单元测试和脚本化浏览器检查，覆盖桌面和移动端宽度的菜单布局、语言与模型切换、翻译及无 JavaScript 表单。"
+        ]}
+      ]
+    },
+    {
       "version": "0.20.0", "date": "2026-10-12", "author": "GoodMorning agent",
       "title_en": "Chat attachments and shared activity reminders", "title_zh": "聊天附件与跨页面任务提醒",
       "changes": [
