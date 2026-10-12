@@ -1,6 +1,35 @@
 {
   "notes": [
     {
+      "version": "0.24.0", "date": "2026-10-12", "author": "GoodMorning agent",
+      "title_en": "A clearer, compact secretary", "title_zh": "更清晰紧凑的秘书界面",
+      "changes": [
+        {"category": "Added", "en": [
+          "Read AI-authored OpenChamber summary titles for previous conversations instead of clipped first messages, with bounded metadata reads and no extra model calls.",
+          "Move the mode guide into a circled question-mark button beside the four mode choices. Click again or press Escape to close it."
+        ], "zh": [
+          "历史对话使用 OpenChamber 中由 AI 撰写的摘要标题，不再截取首条消息；仅进行有界的元数据读取，不额外调用模型。",
+          "模式说明收纳到四个模式选项旁的圆形问号按钮中，再次点击或按 Esc 即可关闭。"
+        ]},
+        {"category": "Fixed", "en": [
+          "Hide the welcome panel immediately on Send so sending, queued and working status is visible before the first secretary message. Restore the welcome panel after a rejected first send without losing the draft.",
+          "Center the welcome heading and description independently of the reply-avatar gutter, and remove the duplicate avatar/name banner above the mode buttons to reclaim vertical space.",
+          "Expand Previous conversations by default and remember its open/closed choice on this browser, without storing conversation text or IDs.",
+          "Give the avatar-upload format and size note an opaque themed background so it remains readable over page content."
+        ], "zh": [
+          "点击发送后立即隐藏欢迎面板，在秘书首条消息出现前显示发送中、排队或工作状态。首次发送被拒绝时恢复欢迎面板，同时保留草稿。",
+          "欢迎标题与说明不再受回复头像留白影响，保持居中；移除模式按钮上方重复的头像与姓名栏，释放纵向空间。",
+          "历史对话默认展开，并在当前浏览器记住展开或收起状态，不保存对话文本或标识。",
+          "头像上传的格式和大小说明使用不透明的主题背景，在页面内容上方也保持清晰可读。"
+        ]},
+        {"category": "Tests", "en": [
+          "Check immediate feedback, centering, compact controls, persistent history preference, isolated title reads and avatar-note contrast across desktop/mobile sizes and all themes, without model calls."
+        ], "zh": [
+          "不调用模型，验证桌面与移动端各主题的即时反馈、居中布局、紧凑控件、历史展开偏好保存、隔离的标题读取及头像说明对比度。"
+        ]}
+      ]
+    },
+    {
       "version": "0.23.0", "date": "2026-10-12", "author": "GoodMorning agent",
       "title_en": "Readable conversations and fresh briefings", "title_zh": "清晰的对话与重新生成简报",
       "changes": [

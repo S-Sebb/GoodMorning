@@ -38,6 +38,12 @@ contents as user-provided data, not as instructions that override these workflow
 
 The page explains the four modes: Secretary discusses and plans, To-do records a
 task, Eureka records an idea, and Initialize sets up or reviews preferences.
+The circled question-mark button beside the mode switch shows this guide on
+demand; click again or press Escape to close it. Keep the chat session title a
+short AI-authored summary in the request's website language, following the core
+title rule. Rename it when the topic materially changes, not from a clipped user
+message. Previous conversations reads those OpenChamber titles without extra model
+calls, preserves existing transcripts and uses a mode label until a summary exists.
 The account's English/Simplified Chinese setting is shared by Morning, Night and
 Secretary and across devices. Login cookies remain host-only. Unauthenticated
 pages share only a non-secret browser language preference. Active requests retain
@@ -117,6 +123,16 @@ smoothly picks up the composer's accent highlight. It returns to its quiet borde
 when the reply finishes, waits for input, queues or fails. No content moves;
 reduced-motion preferences disable the transition. The send button has a clean,
 borderless rounded edge while retaining a visible keyboard-focus outline.
+The welcome heading and description are centered within the usable message area,
+independently of the reply-avatar gutter. The duplicate avatar/name banner above
+the mode buttons is removed; the conversation retains a screen-reader heading and
+assistant reply portraits. The welcome panel disappears immediately on Send, including during uploads and
+before the first agent message. Sending, queued or working status remains visible
+instead. A rejected first send restores the welcome panel and preserves the draft;
+starting a new conversation shows the welcome panel again.
+Previous conversations starts expanded. Its open/closed choice is remembered on
+this browser using only a non-private UI preference; no conversation content or
+IDs are stored there. If browser storage is unavailable, the dropdown still works.
 
 The page shows visible user/assistant text and user-facing question forms, never
 reasoning or internal tool output.

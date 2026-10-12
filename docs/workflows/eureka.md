@@ -47,7 +47,9 @@ Brief grounded interest or a warm closing is optional, not mandatory padding.
    payload (the wrapper supplies `kind: "idea"`). Read `docs/inbox-pipeline.md`
    only for follow-ups/review/organization, not simple capture. Timestamps use the profile.
    After a successful receipt, rename once to `Eureka SUMMARY` in the supplied website language for browser chats, or `secretary_language` for local use,
-   per the shared title rule, using the helper's very short raw summary.
+   per the shared title rule. For browser chats, write a short AI-authored topic
+   summary without changing the captured text; local use keeps the helper's very
+   short raw summary.
    Never read old inbox messages to append. Never persist credentials: ask for
    a redacted idea instead. Verify the write receipt before saying "Saved". If this same
     user turn was already captured, point to its entry rather than appending again.

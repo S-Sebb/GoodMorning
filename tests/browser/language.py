@@ -148,7 +148,7 @@ def run(artifacts):
                 page.get_by_role('radio',name='Eureka',exact=True).click();page.locator('#chat-text').fill('Another idea draft.')
                 switch(page,'zh-CN');page.get_by_role('radio',name='待办',exact=True).click()
                 expect(page.locator('#chat-text')).to_have_value('Keep this unsent draft: 原文。')
-                page.get_by_text('我该选择哪个模式？',exact=True).click()
+                page.get_by_role('button',name='我该选择哪个模式？',exact=True).click()
                 expect(page.locator('#mode-guide')).to_contain_text('首次设置或检查偏好')
                 page.screenshot(path=str(artifacts/'chinese-chat-desktop.png'),full_page=True)
                 no_overflow(page)

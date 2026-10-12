@@ -34,7 +34,9 @@ edge cases. Load other guides only when needed.
     `Eureka SUMMARY`, `Todo SUMMARY`. Helpers supply dates/raw summaries; Secretary
     SUMMARY is a short undated agent summary;
   translate only the prefix for confirmed other languages. Never translate raw
-  summary text. Rename via the available session tool or
+  summary text. Website chats use a short AI-authored topic summary in the request's
+  website language for all four modes, not the helper's clipped raw title; keep
+  captured raw text unchanged. Rename via the available session tool or
   `opencode api patch /api/session/$OPENCODE_SESSION_ID --data '{"title":"..."}'`.
   A rename failure is internal, non-blocking; no rename/fetch on duplicate briefings.
 - Profile-local briefing days begin at 04:00 (`briefing_day.py`); timestamps stay real.

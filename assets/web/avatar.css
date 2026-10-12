@@ -22,7 +22,7 @@
 .avatar-display .avatar-preview:hover { transform: translateY(-2px); }
 .avatar-feedback { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
 .avatar-display .avatar-upload { display: block; margin: 8px auto 0; min-height: 44px; padding: 8px 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); color: var(--ink); cursor: pointer; }
-.avatar-upload-note { margin: 4px 0 0; text-align: center; font-size: 11px; color: var(--muted); }
+.avatar-upload-note { width: fit-content; max-width: 100%; margin: 4px auto 0; padding: 6px 10px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); text-align: center; font-size: 11px; color: var(--muted); }
 .avatar-display[data-avatar="custom"] .avatar-image, .avatar-preview[data-avatar-choice="custom"] img { image-rendering: auto; }
 .avatar-preview[data-avatar-choice="custom"] img { height: 72px; object-fit: cover; }
 .avatar-feedback.is-error { position: static; width: auto; height: auto; padding: 6px 10px; margin: 4px 0 0; overflow: visible; clip: auto; white-space: normal; border-radius: 10px; background: var(--surface); color: #a0362e; font-size: 11px; }

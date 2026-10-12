@@ -35,6 +35,27 @@ let requestLanguage = null;
 let secretaryName = typeof chatConfig.secretary_name === 'string' && chatConfig.secretary_name ? chatConfig.secretary_name : null;
 const drafts = new Map();
 const renderedMessages = new WeakMap();
+const historyPanel = document.querySelector('#conversation-history');
+const historyPreference = 'goodmorning.chat.history';
+try { historyPanel.open = localStorage.getItem(historyPreference) !== 'closed'; } catch { /* Storage may be disabled. */ }
+let historyOpen = historyPanel.open;
+historyPanel.addEventListener('toggle', () => {
+  if (historyPanel.open === historyOpen) return;
+  historyOpen = historyPanel.open;
+  try { localStorage.setItem(historyPreference, historyOpen ? 'open' : 'closed'); } catch { /* Keep the in-page choice. */ }
+});
+const modeHelp = document.querySelector('#mode-help');
+const modeGuide = document.querySelector('#mode-guide');
+modeHelp.addEventListener('click', () => {
+  modeGuide.hidden = !modeGuide.hidden;
+  modeHelp.setAttribute('aria-expanded', String(!modeGuide.hidden));
+});
+document.addEventListener('keydown', event => {
+  if (event.key !== 'Escape' || modeGuide.hidden) return;
+  modeGuide.hidden = true;
+  modeHelp.setAttribute('aria-expanded', 'false');
+  modeHelp.focus({preventScroll: true});
+});
 let themeTimer;
 
 function updateChatTheme(now = new Date()) {
@@ -191,6 +212,8 @@ function focusComposer(force = false) {
 function showActivity() {
   const status = document.querySelector('#chat-status');
   const active = sending || ['starting', 'running'].includes(state);
+  document.querySelector('#chat-empty').hidden = active || Boolean(chat)
+    || document.querySelector('#chat-messages').childElementCount > 0;
   let label = status.querySelector('.chat-status-label');
   if (!label) {
     const dots = make('span', '', 'chat-activity-dots');
@@ -202,6 +225,7 @@ function showActivity() {
   const text = chatT(sending ? 'Sending your message' : state === 'starting'
     ? 'Opening your conversation' : state === 'running' ? 'Your secretary is working' : statusLabel);
   if (label.textContent !== text) label.textContent = text;
+  status.hidden = !text;
   status.classList.toggle('is-working', active);
   chatScroll.classList.toggle('is-working', active);
   status.classList.toggle('is-queued', !sending && state === 'queued');
@@ -507,7 +531,8 @@ async function pollChat() {
       followNextUpdate = false;
     }
     updateScrollTools();
-    if (state === 'idle') { await historyList(); focusComposer(); }
+    if (state === 'idle' || state === 'waiting') await historyList();
+    if (state === 'idle') focusComposer();
   } catch (error) {
     if (version === revision && error.status === 404) {
       if (await recoverQueuedAfterReload()) return;

@@ -104,7 +104,7 @@ def check_highlight(browser, address, artifacts):
             send.hover(); expect(send).to_have_css('border-top-width', '0px')
             send.focus(); expect(send).to_have_css('outline-style', 'solid')
             page.locator('#chat-attach').focus()
-            page.locator('#conversation-name').hover()
+            page.mouse.move(0, 0)
             page.evaluate("state = 'running'; showActivity()")
             expect(scroll).to_have_class('is-working')
             growing = sample_transition()
@@ -140,7 +140,7 @@ def check_motion(browser, address, artifacts):
         page.on('pageerror', lambda error: errors.append(str(error)))
         pending = []
         queue = []
-        messages = [{'id': 'user-1', 'role': 'user', 'text': 'Plan a calm day'}]
+        messages = []
         status = {'mode': 'secretary', 'state': 'running', 'language': 'en', 'label': 'Your secretary is working',
                   'messages': messages, 'forms': [], 'permissions': []}
         page.route('**/api/chats', lambda route: pending.append(route) if route.request.method == 'POST'
@@ -160,10 +160,16 @@ def check_motion(browser, address, artifacts):
             });""")
         page.goto(address + '/chat?mode=secretary')
         expect(page.get_by_role('button', name='Start conversation', exact=True)).to_be_enabled()
+        expect(page.locator('#chat-empty')).to_be_visible()
         page.get_by_label('Your message', exact=True).fill('Plan a calm day')
         with page.expect_request(lambda request: request.method == 'POST' and request.url.endswith('/api/chats')):
             page.get_by_role('button', name='Start conversation', exact=True).click()
         expect(page.locator('#chat-status')).to_have_text('Sending your message')
+        expect(page.locator('#chat-empty')).to_be_hidden()
+        expect(page.locator('.chat-message')).to_have_count(0)
+        status_gap = page.locator('#chat-status').evaluate('node => node.getBoundingClientRect().top - document.querySelector("#chat-scroll").getBoundingClientRect().top')
+        assert 0 <= status_gap <= 48, status_gap
+        page.locator('.conversation-panel').screenshot(path=str(artifacts / f'chat-immediate-send-{width}-{motion}.png'))
         expect(page.locator('#chat-scroll')).to_have_class('is-working')
         expect(page.locator('#chat-send')).to_have_css('border-top-width', '0px')
         expect(page.locator('.chat-activity-dots')).to_be_visible()
@@ -173,6 +179,10 @@ def check_motion(browser, address, artifacts):
         assert dot_animation == ('none' if motion == 'reduce' else 'chat-activity')
         pending.pop().fulfill(json={'accepted': True})
         expect(page.locator('#chat-status')).to_have_text('Your secretary is working')
+        expect(page.locator('#chat-empty')).to_be_hidden()
+        expect(page.locator('.chat-message')).to_have_count(0)
+        messages.append({'id': 'user-1', 'role': 'user', 'text': 'Plan a calm day'})
+        page.evaluate('pollChat()')
         expect(page.locator('#chat-scroll')).to_have_class('is-working')
         expect(page.get_by_role('log')).to_contain_text('Plan a calm day')
         page.screenshot(path=str(artifacts / f'chat-working-{width}-{motion}.png'), full_page=True)
@@ -210,6 +220,7 @@ def check_motion(browser, address, artifacts):
         queue.append({'work': 'chat', 'chat': queued_id, 'position': 1})
         pending.pop().fulfill(json={'queued': True, 'position': 1, 'depth': 1})
         expect(page.locator('#chat-status')).to_contain_text('You are #1 in line')
+        expect(page.locator('#chat-empty')).to_be_hidden()
         expect(page.locator('#chat-scroll')).to_have_class('')
         expect(page.locator('.chat-activity-dots')).to_be_hidden()
         queue.clear()
@@ -219,6 +230,7 @@ def check_motion(browser, address, artifacts):
         expect(page.locator('.chat-activity-dots')).to_be_visible()
         page.get_by_role('button', name='New conversation', exact=True).click()
         expect(page.locator('#chat-status')).to_be_empty()
+        expect(page.locator('#chat-empty')).to_be_visible()
         expect(page.locator('#chat-scroll')).to_have_class('')
 
         # A rejected send stops activity and preserves the unsent draft.
@@ -227,6 +239,7 @@ def check_motion(browser, address, artifacts):
             page.get_by_role('button', name='Start conversation', exact=True).click()
         pending.pop().fulfill(status=400, json={'error': 'Synthetic rejection'})
         expect(page.get_by_role('alert')).to_have_text('Synthetic rejection')
+        expect(page.locator('#chat-empty')).to_be_visible()
         expect(page.locator('#chat-scroll')).to_have_class('')
         expect(page.locator('.chat-activity-dots')).to_be_hidden()
         expect(page.get_by_label('Your message', exact=True)).to_have_value('Keep this draft')
@@ -234,7 +247,8 @@ def check_motion(browser, address, artifacts):
         assert not errors, errors
         checks.append({'width': width, 'motion': motion, 'messageEntrances': entrances,
                        'sampledAnimationFrames': [len(samples) for samples in frames],
-                       'immediateFeedback': True, 'queueRelease': True, 'historyReplay': False, 'pageErrors': 0})
+                       'immediateFeedback': True, 'welcomeHidesBeforeFirstMessage': True,
+                       'welcomeRestoredOnRejectedSend': True, 'queueRelease': True, 'historyReplay': False, 'pageErrors': 0})
         page.close()
     return checks
 
@@ -558,7 +572,7 @@ def main():
                     modes.get_by_role('radio', name='Secretary', exact=True).focus()
                     page.keyboard.press('ArrowRight')
                     expect(modes.get_by_role('radio', name='To-do', exact=True)).to_be_focused()
-                    page.get_by_text('Previous conversations', exact=True).click()
+                    expect(page.locator('#conversation-history')).to_have_attribute('open', '')
                     expect(page.locator('#chat-history a').first).to_be_visible()
                     assert page.evaluate('localStorage.length === 0 && sessionStorage.length === 0')
                     assert not errors, errors

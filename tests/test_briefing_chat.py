@@ -28,7 +28,7 @@ class MockChamber(Chamber):
         self.calls.append((action, body))
         if action == 'session.create':
             session = 'ses_chat_' + str(len(self.sessions))
-            self.sessions[session] = {'messages': [], 'forms': [], 'permissions': []}
+            self.sessions[session] = {'messages': [], 'forms': [], 'permissions': [], 'title': body.get('title', '')}
             return {'sessionId': session}
         session = self.sessions[body['sessionId']]
         if action == 'session.send':
@@ -74,6 +74,12 @@ class MockChamber(Chamber):
             parsed = urlsplit(path);query = parse_qs(parsed.query)
             limit = int(query['limit'][0])
             if limit > 200:raise ValueError('Expected a value less than or equal to 200')
+            if parsed.path == '/api/session':
+                offset = int(query.get('cursor', ['0'])[0])
+                sessions = list(reversed(list(self.sessions.items())))
+                return {'data': [{'id': session, 'title': value.get('title', '')}
+                                 for session, value in sessions[offset:offset+limit]],
+                        'cursor': {'next': str(offset+limit) if len(sessions)>offset+limit else None}}
             session = self.sessions[parsed.path.split('/')[3]]
             offset = int(query.get('cursor', ['0'])[0])
             rows = list(reversed(session['messages']))[offset:offset+limit]
@@ -170,6 +176,51 @@ class ChatTests(unittest.TestCase):
         self.assertEqual(sum(action == 'session.send' for action, _ in self.chamber.calls), 2)
         with self.assertRaises(ValueError): self.start('todo')
         with self.assertRaises(ValueError): self.chats.send(self.id, {**body, 'text': 'Changed'})
+
+    def test_history_uses_engine_summary_not_clipped_user_text(self):
+        raw = 'I think the priority setting for my project needs a careful correction.'
+        self.start(text=raw)
+        session = self.chats.get(self.id)['session']
+        self.assertEqual(self.chats.listing()[0]['title'], 'Secretary')
+        self.chamber.sessions[session]['title'] = 'Secretary Correct project priorities'
+        self.assertEqual(self.chats.status(self.id)['state'], 'idle')
+        before = self.chats.path.read_bytes()
+        self.assertEqual(self.chats.listing()[0]['title'], 'Secretary Correct project priorities')
+        self.assertEqual(self.chats.path.read_bytes(), before)
+        self.assertEqual(self.chats.get(self.id)['turns'][0]['text'], raw)
+
+    def test_history_title_pages_are_bounded_cached_and_filtered_to_owned_sessions(self):
+        self.start()
+        session = self.chats.get(self.id)['session']
+        self.chamber.sessions[session]['title'] = 'GoodMorning · Secretary · Review project plan'
+        for index in range(120):
+            self.chamber.sessions['ses_unregistered_'+str(index)] = {'title':'Unrelated session'}
+        with patch.object(self.chamber, 'request', wraps=self.chamber.request) as request:
+            self.assertEqual(self.chats.listing()[0]['title'], 'Secretary · Review project plan')
+            reads = request.call_count
+            self.assertEqual(reads, 2)
+            self.assertEqual(len(self.chats.listing()), 1)
+            self.assertEqual(request.call_count, reads)
+            self.assertTrue(all('/api/session?' in call.args[0] and 'limit=100' in call.args[0]
+                                for call in request.call_args_list))
+
+    def test_history_preserves_cached_summary_during_engine_outage(self):
+        self.start()
+        session = self.chats.get(self.id)['session']
+        self.chamber.sessions[session]['title'] = '秘书 调整项目优先级'
+        self.assertEqual(self.chats.listing()[0]['title'], '秘书 调整项目优先级')
+        self.chats.titles_checked = float('-inf')
+        with patch.object(self.chamber, 'request', side_effect=OSError('Synthetic title outage')):
+            self.assertEqual(self.chats.listing()[0]['title'], '秘书 调整项目优先级')
+
+    def test_old_seeded_user_fragment_is_not_displayed_as_an_ai_title(self):
+        from goodmorning.web.session_inventory import chat_session_title
+        self.start()
+        session = self.chats.get(self.id)['session']
+        old = 'The original workflow involves me closing the calendar application'
+        self.chats.items[self.id]['title'] = old
+        self.chamber.sessions[session]['title'] = chat_session_title('Secretary', old)
+        self.assertEqual(self.chats.listing()[0]['title'], 'Secretary')
 
     def test_questions_and_permissions_are_bound_to_owning_conversation(self):
         self.start('initialize', '')

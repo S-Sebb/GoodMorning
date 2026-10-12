@@ -5,6 +5,7 @@ import json
 import re
 import threading
 import time
+from urllib.parse import urlencode
 
 from goodmorning.runtime_files import atomic_text
 from .briefing_resources import favicon_links
@@ -158,6 +159,9 @@ class Chats:
         self.runtime, self.chamber = runtime, chamber
         self.uploads = Uploads(runtime)
         self.lock = threading.RLock()
+        self.title_cache = {}
+        self.title_states = {}
+        self.titles_checked = float('-inf')
         self.directory = runtime / 'browser-chats'
         self.path = self.directory / 'chats.json'
         if self.directory.is_symlink() or self.path.is_symlink():
@@ -195,8 +199,45 @@ class Chats:
 
     def listing(self):
         with self.lock:
-            return [{'id': item['id'], 'mode': item['mode'], 'title': item['title']}
-                    for item in reversed(list(self.items.values()))][:100]
+            items = [dict(item) for item in reversed(list(self.items.values()))][:100]
+            sessions = {item['session']: item for item in items if item.get('session')}
+            self.title_cache = {session:title for session,title in self.title_cache.items() if session in sessions}
+            refresh = self.chamber and sessions and time.monotonic() - self.titles_checked >= 30
+            if refresh:
+                self.titles_checked = time.monotonic()
+        if refresh:
+            cursor = None
+            missing = set(sessions)
+            try:
+                for _ in range(5):
+                    query = {'limit': 100, **({'cursor': cursor} if cursor else {'order': 'desc'})}
+                    page = self.chamber.request('/api/session?' + urlencode(query))
+                    for entry in page['data']:
+                        session, title = entry.get('id'), entry.get('title')
+                        if session not in sessions:
+                            continue
+                        missing.discard(session)
+                        if not isinstance(title, str) or not title.strip():
+                            continue
+                        item = sessions[session]
+                        language = item['turns'][0].get('language', 'en')
+                        label = ui.text(MODES[item['mode']], lang=language)
+                        # A seeded raw-message title is not an AI summary.
+                        if title == chat_session_title(label, item['title']) or title == chat_session_title(label, ''):
+                            continue
+                        title = ' '.join(title.removeprefix('GoodMorning · ').split())[:160]
+                        with self.lock:
+                            self.title_cache[session] = title
+                    next_cursor = page.get('cursor', {}).get('next')
+                    if not missing or not next_cursor or next_cursor == cursor:
+                        break
+                    cursor = next_cursor
+            except Exception:
+                pass  # Title lookup must not hide preserved conversations during an outage.
+        with self.lock:
+            return [{'id': item['id'], 'mode': item['mode'],
+                     'title': self.title_cache.get(item.get('session')) or ui.text(MODES[item['mode']])}
+                    for item in items]
 
     def remember_questions(self, chat, forms, messages):
         with self.lock:
@@ -230,7 +271,7 @@ class Chats:
             if len(self.items) >= 500:
                 raise ValueError('Conversation storage needs administrator archival')
             self.capacity({'text': text, 'attachments': attachments})
-            item = {'id': chat, 'mode': body['mode'], 'title': text[:64] or (attachments[0]['name'] if attachments else ui.text(MODES[body['mode']])),
+            item = {'id': chat, 'mode': body['mode'], 'title': ui.text(MODES[body['mode']]),
                     'state': 'starting', 'turns': [{'id': chat, 'text': text, 'attachments': attachments,'language':ui.current(),'model':site_models.current()}],
                     'created': time.time()}
             self.items[chat] = item
@@ -270,7 +311,7 @@ class Chats:
             chosen=item['turns'][-1].get('model', site_models.DEFAULT)
             if first:
                 result = self.chamber.control('session.create', title=chat_session_title(
-                    ui.text(MODES[item['mode']],lang=selected), item['title']))
+                    ui.text(MODES[item['mode']],lang=selected), ''))
                 session = result['sessionId']
                 if not re.fullmatch('ses[A-Za-z0-9_]+', session):
                     raise ValueError('Invalid session')
@@ -356,6 +397,10 @@ class Chats:
                     result['state'] = 'waiting' if forms or permissions else 'idle' if state == 'idle' and seen else 'running' if state in ('busy', 'idle') else 'uncertain'
             except Exception:
                 result['state'] = 'unavailable'
+        with self.lock:
+            if self.title_states.get(chat) != result['state'] and result['state'] in ('idle', 'waiting'):
+                self.titles_checked = float('-inf')
+            self.title_states[chat] = result['state']
         result['label'] = {'starting': 'Opening your conversation', 'running': 'Your secretary is working',
                            'waiting': 'Your secretary needs your answer', 'idle': 'Ready for your reply',
                            'uncertain': 'Delivery is uncertain. Ask the administrator to inspect this conversation before sending again.',
@@ -408,8 +453,6 @@ def page(csrf, ready, connected, secretary_name=None, avatar='f1', avatar_urls=N
                       for mode, label in MODES.items())
     heading = html.escape(secretary_name) + '.' if secretary_name else 'Your secretary.'
     conversation_name = html.escape(secretary_name) if secretary_name else ui.text('Your secretary')
-    portrait = ('<span class="chat-portrait" data-chat-avatar="'+avatar+'" aria-hidden="true">'
-                '<img src="'+html.escape(sources[avatar], quote=True)+'" alt=""></span>')
     title = (html.escape(secretary_name) + ' — GoodMorning') if secretary_name else 'Your secretary — GoodMorning'
     return ('<!doctype html><html lang="en" data-edition="' + ('gn' if theme == 'gn' else 'gm') + '"><head><meta charset="utf-8">'
             '<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">'
@@ -424,13 +467,12 @@ def page(csrf, ready, connected, secretary_name=None, avatar='f1', avatar_urls=N
             '<p class="eyebrow">Your desk</p>'
             '<h1 id="secretary-heading">' + heading + '</h1><p>A place for your plans, bright ideas, and the details that make this yours.</p>'
             '<button id="new-conversation" type="button">New conversation</button>'
-            '<details id="conversation-history"><summary>Previous conversations</summary><nav id="chat-history" aria-label="Previous conversations"></nav></details></aside>'
+            '<details id="conversation-history" open><summary>Previous conversations</summary><nav id="chat-history" aria-label="Previous conversations"></nav></details></aside>'
              '<section class="conversation-panel" id="conversation" aria-label="Secretary conversation">'
-             '<header class="chat-room-header">'+portrait+'<div><h2 id="conversation-name" data-content>'+conversation_name+'</h2>'
-             '<p>A little space to talk.</p></div></header>'
-             '<div class="mode-switch" role="radiogroup" aria-label="Secretary mode">'+choices+'</div>'
-             '<details id="mode-guide"><summary>Which mode should I use?</summary>'
-             '<p>Use Secretary for discussion and planning, To-do for a task, Eureka for an idea, and Initialize for setup or preference review.</p></details>'
+             '<h2 id="conversation-name" class="chat-visually-hidden" data-content>'+conversation_name+'</h2>'
+             '<div class="mode-controls"><div class="mode-switch" role="radiogroup" aria-label="Secretary mode">'+choices+'</div>'
+             '<button id="mode-help" type="button" aria-label="Which mode should I use?" title="Which mode should I use?" aria-controls="mode-guide" aria-expanded="false"><span aria-hidden="true">?</span></button></div>'
+             '<div id="mode-guide" hidden><p>Use Secretary for discussion and planning, To-do for a task, Eureka for an idea, and Initialize for setup or preference review.</p></div>'
              '<p id="mode-description"></p><div id="chat-scroll" role="region" aria-label="Conversation" tabindex="0">'
              '<div id="chat-empty"><span class="desk-symbol" aria-hidden="true">✦</span>'
             '<h2 id="chat-welcome"></h2><p id="chat-hint"></p></div>'
