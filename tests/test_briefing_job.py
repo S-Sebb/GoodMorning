@@ -109,8 +109,11 @@ class JobTests(unittest.TestCase):
     def test_disabled_image_policy_makes_no_fetch(self):
         act(self.root,self.identifier,'ses_fixture','init',{'greeting':'Morning.','opening':'Let’s look.', 'plan':[['news','News — 2026-10-10']]})
         with patch('goodmorning.briefings.briefing_images.cache_previews',side_effect=AssertionError('No consent')):
-            act(self.root,self.identifier,'ses_fixture','publish',{'position':0,'section':['news',[['news','World',[
+            result=act(self.root,self.identifier,'ses_fixture','publish',{'position':0,'section':['news',[['news','World',[
                 ['Headline','Sourced news.',[['Publisher','https://example.org/story']]]]]]]})
+            self.assertTrue(result['images']['disabled'])
+            self.assertEqual(result['images']['unavailable'],1)
+            self.assertEqual(result['images']['cached'],0)
 
     def test_image_cache_errors_do_not_undo_published_news_or_trigger_republication(self):
         import sqlite3

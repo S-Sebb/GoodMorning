@@ -89,7 +89,13 @@ def next_step(runtime, identifier, session, context, checkpoint):
 
 def image_previews(runtime, job, context, checkpoint):
     if context.get('integration_policy', {}).get('publisher_images') is not True:
-        return None
+        # No fetch without consent. Name the disabled state so a future
+        # all-placeholder briefing is offered as a choice, never silent.
+        urls = native.news_urls(checkpoint['document'])
+        if not urls:
+            return None
+        return {'cached': 0, 'unavailable': len(urls), 'disabled': True,
+                'next': 'Publisher previews are disabled by policy; keep honest placeholders and offer the choice separately.'}
     from .briefing_images import cache_previews
     urls = native.news_urls(checkpoint['document'])
     if not urls:
