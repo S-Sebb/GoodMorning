@@ -1,6 +1,31 @@
 {
   "notes": [
     {
+      "version": "0.29.0", "date": "2026-10-12", "author": "GoodMorning agent",
+      "title_en": "Clear commitments and steady project progress", "title_zh": "明确日程承诺与持续项目推进",
+      "changes": [
+        {"category": "Changed", "en": [
+          "Use Schedule for appointments and important day commitments, including urgent project work. Rename Must-do and Nice-to-do to Project steps and Optional project steps for ongoing progress without repeating scheduled actions.",
+          "Keep Reminders and Notes for background nudges and unresolved questions; omit empty project sections instead of inventing tasks."
+        ], "zh": [
+          "日程用于预约事项和当天的重要承诺，包括紧急项目工作；必须完成和可选任务改为项目推进和可选项目推进，用于持续进展，不重复已安排的行动。",
+          "提醒和备注用于背景提示与尚未解决的问题；没有实际任务时省略项目章节，不凭空添加任务。"
+        ]},
+        {"category": "Fixed", "en": [
+          "Require the briefing agent to reconcile confirmed corrections before publication and show only current task wording, without deleting checklist history or changing completions.",
+          "Reject repeated task cards with identical or whitespace-equivalent titles before new publications and saves. Keep distinct dated recurring occurrences and historical briefings readable; do not guess semantic equivalence."
+        ], "zh": [
+          "简报代理须在发布前核对已确认的更正，只显示任务的当前表述，不删除清单历史或改变完成状态。",
+          "新发布和保存前拒绝标题相同或仅空白不同的重复任务卡片；保留不同日期的重复性工作和历史简报的可读性，不猜测语义等价。"
+        ]},
+        {"category": "Tests", "en": [
+          "Verify duplicate rejection before writes, section ownership, bilingual headings, recurring dates and regeneration with preserved task history using synthetic records and no model calls."
+        ], "zh": [
+          "使用合成记录且不调用模型，验证写入前拒绝重复、章节归属、双语标题、重复性工作的日期，以及保留任务历史的重新生成。"
+        ]}
+      ]
+    },
+    {
       "version": "0.28.0", "date": "2026-10-12", "author": "GoodMorning agent",
       "title_en": "Interrupt the secretary while it works", "title_zh": "忙碌时也可打断秘书",
       "changes": [
