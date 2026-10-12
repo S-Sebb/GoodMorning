@@ -106,6 +106,71 @@ class GatewayTests(unittest.TestCase):
         for host in ('gn.example.test', 'sec.example.test'):
             self.assertEqual(self.request('/chat', headers={'Host': host})[0], 403)
 
+    def test_unprovisioned_login_gets_localized_setup_page_and_account_controls(self):
+        self.permanent()
+        (self.root/'backends.json').write_text('{}')
+        for language,heading in (('en','Secretary setup pending'),('zh-CN','秘书服务尚未完成配置')):
+            self.store.website_language(self.id,language)
+            for path in ('/','/gm.html','/gn.html','/chat','/d/2026-10-11/gm.html'):
+                status,headers,data=self.request(path)
+                self.assertEqual(status,503)
+                self.assertTrue(headers['Content-Type'].startswith('text/html'))
+                self.assertEqual(headers['Cache-Control'],'no-store')
+                self.assertEqual(headers['Content-Language'],language)
+                self.assertIn(heading,data.decode())
+                self.assertIn(b'id="sign-out"',data)
+                self.assertIn(b'href="/password"',data)
+                self.assertIn(b'id="language-form"',data)
+                self.assertNotIn(self.id.encode(),data)
+                self.assertNotIn(self.key.encode(),data)
+        self.assertEqual(self.received,[])
+        status,headers,data=self.request('/api/day')
+        self.assertEqual(status,503)
+        self.assertEqual(headers['Content-Type'],'application/json')
+        self.assertIn('管理员',json.loads(data)['error'])
+        self.assertEqual(self.request('/password')[0],200)
+        self.assertEqual(self.request('/api/auth/logout',{})[0],200)
+
+    def test_unprovisioned_mutations_do_not_reserve_or_queue_work(self):
+        self.permanent()
+        (self.root/'backends.json').write_text('{}')
+        for path,body in (('/api/generate',{'date':'2026-10-11','kind':'gm'}),
+                          ('/api/chats',{'mode':'secretary','text':'Synthetic request'}),
+                          ('/api/jobs/'+'a'*32+'/recover',{'id':'b'*32})):
+            self.assertEqual(self.request(path,body)[0],503)
+        with self.store.db() as db:
+            self.assertEqual(db.execute("SELECT COUNT(*) FROM metadata WHERE key IN ('generation','generation_queue','generation_waiting')").fetchone()[0],0)
+        self.assertEqual(self.received,[])
+
+    def test_backend_failure_returns_safe_html_but_apis_keep_json(self):
+        self.permanent()
+        private='synthetic-private-path-and-secret'
+        with patch.object(self.gateway,'proxy',side_effect=RuntimeError(private)):
+            with self.assertLogs('goodmorning.security.briefing_gateway',level='WARNING') as logs:
+                status,headers,data=self.request('/chat?id='+'a'*32)
+            self.assertEqual(status,503)
+            self.assertTrue(headers['Content-Type'].startswith('text/html'))
+            self.assertIn(b'Secretary temporarily unavailable',data)
+            self.assertNotIn(private.encode(),data)
+            self.assertNotIn(private,' '.join(logs.output))
+            self.assertIn('RuntimeError',' '.join(logs.output))
+            with self.assertLogs('goodmorning.security.briefing_gateway',level='WARNING'):
+                status,headers,data=self.request('/api/day')
+            self.assertEqual(status,503)
+            self.assertEqual(headers['Content-Type'],'application/json')
+            self.assertNotIn(private.encode(),data)
+        with patch.object(self.gateway,'proxy',return_value=(503,{'Content-Type':'application/json'},b'{"error":"private"}')):
+            self.assertIn(b'Secretary temporarily unavailable',self.request('/')[2])
+
+    def test_malformed_backend_is_not_reported_as_unprovisioned(self):
+        self.permanent()
+        for registry in ({self.id:{'port':self.backend.server_port}},[]):
+            (self.root/'backends.json').write_text(json.dumps(registry))
+            with self.assertLogs('goodmorning.security.briefing_gateway',level='WARNING'):
+                data=self.request('/')[2]
+            self.assertIn(b'Secretary temporarily unavailable',data)
+            self.assertNotIn(b'Secretary setup pending',data)
+
     def test_recovery_uses_global_reservation_and_never_replays_duplicate(self):
         job='a'*32;path='/api/jobs/'+job+'/recover';raw=json.dumps({'id':'b'*32}).encode()
         with patch.object(self.gateway,'proxy',return_value=(202,{},json.dumps({'job':job}).encode())) as proxy:

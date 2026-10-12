@@ -6,6 +6,7 @@ import html
 from http.cookies import SimpleCookie, CookieError
 from http.server import BaseHTTPRequestHandler
 import json
+import logging
 import os
 from pathlib import Path
 import re
@@ -38,6 +39,13 @@ MAX_QUEUE = 20
 QUEUE_TTL = 900
 QUEUE_FULL = 'The secretary queue is full. Please wait for earlier requests to finish.'
 PUMP_INTERVAL = 5
+PAGE_ROUTES = re.compile(r'(?:/|/(?:index|gm|gn)\.html|/chat|/d/\d{4}-\d{2}-\d{2}/(?:gm|gn)\.html)')
+BACKEND_PENDING = 'Your secretary is not set up yet. Please contact the server administrator to complete account setup.'
+BACKEND_UNAVAILABLE = 'Secretary temporarily unavailable; records are unchanged'
+
+
+class BackendPending(ValueError):
+    """An authenticated login has not been connected to its private runtime."""
 
 
 def pump_forever(gateway, interval=PUMP_INTERVAL):
@@ -82,9 +90,13 @@ class Gateway:
         if path.is_symlink() or path.stat().st_size>100_000:
             raise ValueError('Invalid private backend registry')
         registry = json.loads(path.read_text())
+        if not isinstance(registry,dict):
+            raise ValueError('Invalid private backend registry')
+        if identifier not in registry:
+            raise BackendPending(BACKEND_PENDING)
         entry = registry.get(identifier)
         if not isinstance(entry,dict) or set(entry) != {'port','key'}:
-            raise ValueError('This account is not connected to a secretary yet')
+            raise ValueError('Invalid private backend configuration')
         if type(entry['port']) is not int or not 1024 <= entry['port'] <= 65535 or not re.fullmatch('[A-Za-z0-9_-]{43}',entry['key']):
             raise ValueError('Invalid private backend configuration')
         return entry
@@ -705,10 +717,29 @@ def handler_for(gateway):
             source=account_page(session,title,gateway.hosts[host]).decode()
             return gateway.icons.rewrite(ui.page(source,session['csrf'],urlsplit(self.path).path)).encode()
 
+        def unavailable(self,session=None,host=None,*,pending=False):
+            message = BACKEND_PENDING if pending else BACKEND_UNAVAILABLE
+            path = urlsplit(self.path).path
+            if not session or not session.get('user_id') or not PAGE_ROUTES.fullmatch(path):
+                return self.respond({'error':message},503)
+            title = 'Secretary setup pending' if pending else 'Secretary temporarily unavailable'
+            source = ('<!doctype html><html lang="en"><head><meta charset="utf-8">'
+                      '<meta name="viewport" content="width=device-width,initial-scale=1">'+favicon_links(gateway.hosts[host])+
+                      '<title>'+title+'</title><link rel="stylesheet" href="/auth.css"></head><body>'
+                      '<main class="account-card"><p class="eyebrow">Your personal secretary</p><h1>'+title+'</h1>'
+                      '<p role="status">'+message+'</p><p><a href="'+html.escape(self.path,quote=True)+'">Try again</a></p></main>'
+                      '<nav class="account-tools" aria-label="Account"><a href="/password">Change password</a>'
+                      '<button id="sign-out" data-csrf="'+session['csrf']+'">Sign out</button></nav>'
+                      '<script src="/auth.js" defer></script></body></html>')
+            data = gateway.icons.rewrite(ui.page(source,session['csrf'],path)).encode()
+            return self.respond(data,503,'text/html; charset=utf-8')
+
         def do_HEAD(self):
             self.do_GET()
 
         def do_GET(self):
+            session = None
+            host = None
             try:
                 host=self.host()
                 self.select_language()
@@ -758,6 +789,8 @@ def handler_for(gateway):
                 if path=='/api/activity':
                     return self.respond(gateway.activity(session['user_id']))
                 status,headers,data=gateway.proxy(session['user_id'],host,self.path,'GET',None,self.headers)
+                if status >= 500 and PAGE_ROUTES.fullmatch(path):
+                    return self.unavailable(session,host)
                 mime=headers.get('Content-Type','application/json')
                 if mime.startswith('text/html'):
                     cache_key=(session['user_id'],host,self.path,ui.current(),tuple(site_colors.current().items()),session['csrf'],VERSION,hashlib.sha256(data).digest())
@@ -778,8 +811,12 @@ def handler_for(gateway):
                 return self.respond({'error':str(error)},429)
             except Denied:
                 return self.respond({'error':'Forbidden'},403)
-            except Exception:
-                return self.respond({'error':'Secretary temporarily unavailable; records are unchanged'},503)
+            except BackendPending:
+                return self.unavailable(session,host,pending=True)
+            except Exception as error:
+                # Exception text can contain credentials, private paths or response bodies.
+                logging.getLogger(__name__).warning('Secretary read failed (%s)',type(error).__name__)
+                return self.unavailable(session,host)
 
         def do_POST(self):
             try:
@@ -872,6 +909,8 @@ def handler_for(gateway):
                     return self.respond({'next':'/login'},token='')
                 if session['temporary']:
                     raise Denied('Change your temporary password first')
+                # Reject incomplete setup before taking a global reservation or queue slot.
+                gateway.backend(session['user_id'])
                 if path=='/api/generate':
                     status,headers,data=gateway.generate(session['user_id'],host,raw,self.headers)
                 elif path=='/api/regenerate':
@@ -889,6 +928,8 @@ def handler_for(gateway):
                 return self.respond({'error':str(error)},429)
             except Denied as error:
                 return self.respond({'error':str(error)},403)
+            except BackendPending:
+                return self.respond({'error':BACKEND_PENDING},503)
             except (ValueError,KeyError,TypeError):
                 route=urlsplit(self.path).path
                 error='Invalid upload' if UPLOAD_ROUTE.fullmatch(route) else 'Invalid release version' if route=='/api/release/seen' else 'Choose English or Simplified Chinese' if route=='/api/language' else 'Choose one of the offered website models' if route=='/api/model' else 'Choose one of the offered color schemes' if route=='/api/color-schemes' else 'Invalid request. '+PASSWORD_RULE
