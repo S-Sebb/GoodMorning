@@ -81,8 +81,25 @@ function composeState() {
   textBox.required = !chat && ['todo','eureka'].includes(mode) || Boolean(chat);
   document.querySelector('#compose-note').textContent = chatT(state === 'queued'
     ? 'Your message is queued and will send automatically.' : chat && state !== 'idle'
-     ? 'Answer pending questions below, or wait for your secretary.' : 'Only your chosen mode. No commands needed.');
+     ? 'Answer pending questions below, or wait for your secretary.' : 'Only your chosen mode. No commands needed. Enter sends; Shift+Enter adds a new line.');
   showActivity();
+}
+
+function composerReady() {
+  return !textBox.disabled && !sendButton.disabled;
+}
+
+function focusComposer(force = false) {
+  if (!composerReady() || document.hidden) return;
+  if (document.activeElement === textBox) return;
+  const active = document.activeElement;
+  if (!force && active && active !== document.body && active !== document.documentElement) {
+    if (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || active.tagName === 'SELECT'
+      || active.tagName === 'BUTTON' || active.tagName === 'A' || active.tagName === 'SUMMARY' || active.isContentEditable) return;
+    if (active.closest && active.closest('a, button, summary, details, form, [role="dialog"], [role="listbox"]')) return;
+  }
+  if (!force && typeof matchMedia === 'function' && !matchMedia('(pointer:fine)').matches) return;
+  textBox.focus({preventScroll: true});
 }
 
 function showActivity() {
@@ -146,6 +163,7 @@ function newConversation(next = chatConfig.defaultMode) {
   errorBox.textContent = '';
   textBox.value = drafts.get(mode) || '';
   showMode();
+  focusComposer(true);
 }
 
 document.querySelectorAll('[data-mode]').forEach(button => {
@@ -161,6 +179,28 @@ document.querySelectorAll('[data-mode]').forEach(button => {
   });
 });
 document.querySelector('#new-conversation').addEventListener('click', () => newConversation());
+
+textBox.addEventListener('keydown', event => {
+  if (event.key !== 'Enter' || event.shiftKey || event.isComposing || event.keyCode === 229) return;
+  event.preventDefault();
+  if (sendButton.disabled) return;
+  const form = document.querySelector('#chat-compose');
+  if (typeof form.requestSubmit === 'function') form.requestSubmit();
+  else sendButton.click();
+});
+
+document.addEventListener('keydown', event => {
+  if (event.key !== 'Enter' || event.shiftKey || event.ctrlKey || event.metaKey || event.altKey
+    || event.isComposing || event.keyCode === 229) return;
+  if (document.activeElement === textBox || !composerReady()) return;
+  const target = event.target;
+  if (target instanceof HTMLElement) {
+    if (['INPUT', 'TEXTAREA', 'SELECT', 'BUTTON', 'A', 'SUMMARY'].includes(target.tagName) || target.isContentEditable) return;
+    if (target.closest && target.closest('a, button, summary, details, form, [role="dialog"], [role="listbox"]')) return;
+  }
+  event.preventDefault();
+  focusComposer(true);
+});
 
 async function historyList() {
   const result = await chatAPI('/api/chats');
@@ -296,7 +336,7 @@ async function pollChat() {
       formSignature = signature;
     }
     showMode();
-    if (state === 'idle') await historyList();
+    if (state === 'idle') { await historyList(); focusComposer(); }
   } catch (error) {
     if (version === revision && error.status === 404) {
       if (await recoverQueuedAfterReload()) return;
@@ -356,15 +396,16 @@ function pollVisible() {
 
 document.addEventListener('visibilitychange', () => {
   if (document.hidden) { clearTimeout(timer); clearTimeout(themeTimer); }
-  else { scheduleChatTheme(); pollVisible(); }
+  else { scheduleChatTheme(); pollVisible(); focusComposer(); }
 });
 document.addEventListener('website:language', () => { showMode(); pollVisible(); });
 document.addEventListener('website:before-refresh', event => { if (sending || pendingChatMutations) event.preventDefault(); });
 document.addEventListener('website:refresh-drafts', event => {
   if ([...drafts.values()].some(text => text.trim())) event.preventDefault();
 });
-window.addEventListener('focus', () => { scheduleChatTheme(); pollVisible(); });
+window.addEventListener('focus', () => { scheduleChatTheme(); pollVisible(); focusComposer(); });
 scheduleChatTheme();
 showMode();
+focusComposer();
 historyList().catch(error => { errorBox.textContent = error.message; });
 if (chat) pollChat();

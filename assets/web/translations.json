@@ -86,6 +86,7 @@
   "Your message": "你的消息",
   "What’s on your mind?": "你想说些什么？",
   "Only your chosen mode. No commands needed.": "选择模式即可，无需输入命令。",
+  "Only your chosen mode. No commands needed. Enter sends; Shift+Enter adds a new line.": "选择模式即可，无需输入命令。按回车发送，Shift+回车换行。",
   "Send message": "发送消息",
   "Send reply": "发送回复",
   "You": "你",
