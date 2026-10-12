@@ -27,6 +27,6 @@ a { color: #315e50; }
 .language-toolbar label { display: inline; }
 .language-toolbar select, .language-toolbar button { font: inherit; width: auto; min-height: 44px; padding: .45rem .65rem; border: 1px solid #b4c7c0; border-radius: .6rem; }
 .language-toolbar select { max-width: 100%; background: white; color: inherit; }
-#language-feedback { flex-basis: 100%; font-size: .8rem; }
+#language-feedback, #model-feedback { flex-basis: 100%; font-size: .8rem; }
 body:has(.language-toolbar) { grid-template-rows: auto 1fr; align-items: start; padding-top: 1rem; }
 body:has(.language-toolbar) .account-card { align-self: center; }

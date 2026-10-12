@@ -19,9 +19,10 @@ from urllib.error import HTTPError
 
 from .briefing_accounts import Accounts, COOKIE, Denied, Limited, SESSION_SECONDS, REMEMBER_SECONDS, PASSWORD_MIN, PASSWORD_MAX, PASSWORD_RULE
 from goodmorning.web.briefing_resources import accepts_gzip, Resources, ByteCache, ICON_TYPES, favicon_links
-from goodmorning.web.release import VERSION
+from goodmorning.web.release import VERSION, patch_note
 from goodmorning.paths import WEB_ASSETS
 from goodmorning.web import language as ui
+from goodmorning.web import models as site_models
 
 ASSETS = WEB_ASSETS
 POLICY = "default-src 'none'; style-src 'self'; script-src 'self'; img-src 'self'; font-src 'self'; connect-src 'self'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'"
@@ -55,7 +56,7 @@ class Gateway:
             raise ValueError('Configure explicit morning, evening and optional secretary hostnames')
         self.accounts, self.hosts, self.testing = accounts, hosts, testing
         self.opener = build_opener(NoRedirect())
-        self.icons = Resources(ASSETS, types={**ICON_TYPES,'language.js':'text/javascript',
+        self.icons = Resources(ASSETS, types={**ICON_TYPES,'language.js':'text/javascript','model.js':'text/javascript',
             'auth.js':'text/javascript','auth.css':'text/css','update.js':'text/javascript','update.css':'text/css'})
         self.html_cache = ByteCache(8 * 1024 * 1024, 32)
         self.html_lock = threading.RLock()
@@ -88,7 +89,8 @@ class Gateway:
         if parsed.path in ('/','/index.html'):
             path = '/chat' if self.hosts[host] == 'sec' else '/'+self.hosts[host]+'.html'
         forwarded = {'Authorization':'Bearer '+backend['key'],'X-GoodMorning-Origin':'https://'+host,
-                     'X-GoodMorning-Language':self.accounts.website_language(identifier) or ui.current()}
+                     'X-GoodMorning-Language':self.accounts.website_language(identifier) or ui.current(),
+                     'X-GoodMorning-Model':self.accounts.website_model(identifier) or site_models.DEFAULT}
         if body is not None:
             forwarded['Content-Type']='application/json'
         # Never forward cookies, user-provided proxy headers or credentials.
@@ -533,7 +535,7 @@ def handler_for(gateway):
                 if path == '/api/release':
                     tag='W/"'+VERSION+'"'
                     cached=self.headers.get('If-None-Match')==tag
-                    return self.respond(b'' if cached else {'version':VERSION},304 if cached else 200,cache='public, no-cache',etag=tag)
+                    return self.respond(b'' if cached else {'version':VERSION,'note':patch_note()},304 if cached else 200,cache='public, no-cache',etag=tag)
                 resource=gateway.icons.paths.get(path) or gateway.icons.alias(path)
                 if resource:
                     tag=resource.etag
@@ -545,6 +547,7 @@ def handler_for(gateway):
                     session=self.session(host)
                 except Denied:
                     if path=='/api/language':return self.respond({'language':ui.current()})
+                    if path=='/api/model':return self.respond({'model':site_models.DEFAULT})
                     if path!='/login':
                         return self.respond({'error':'Login required'},401) if path.startswith('/api/') else self.respond(b'',302,location='/login')
                     gateway.accounts.limit([('prelogin-ip:'+self.address(),60)])
@@ -552,6 +555,7 @@ def handler_for(gateway):
                     return self.respond(self.account_html({'csrf':csrf},'Sign in',host),mime='text/html; charset=utf-8',token=token,cookie_age=600)
                 self.select_language(session)
                 if path=='/api/language':return self.respond({'language':ui.current()})
+                if path=='/api/model':return self.respond({'model':gateway.accounts.website_model(session['user_id']) or site_models.DEFAULT})
                 if path=='/login' and not session['user_id']:
                     return self.respond(self.account_html(session,'Sign in',host),mime='text/html; charset=utf-8')
                 if not session['user_id']:
@@ -600,7 +604,7 @@ def handler_for(gateway):
                 if self.headers.get('Transfer-Encoding') or len(self.headers.get_all('Content-Length',[]))!=1:
                     raise ValueError('Invalid request body')
                 size=int(self.headers['Content-Length'])
-                form=path=='/api/language' and self.headers.get('Content-Type','').split(';')[0]=='application/x-www-form-urlencoded'
+                form=path in ('/api/language','/api/model') and self.headers.get('Content-Type','').split(';')[0]=='application/x-www-form-urlencoded'
                 if not 0<size<=20000 or (not form and self.headers.get('Content-Type')!='application/json'):
                     raise ValueError('Invalid request body')
                 raw=self.rfile.read(size)
@@ -608,7 +612,8 @@ def handler_for(gateway):
                     raise ValueError('Incomplete request')
                 if form:
                     fields=parse_qs(raw.decode(),keep_blank_values=True,strict_parsing=True)
-                    if set(fields)!={'csrf','language','return_to'} or any(len(values)!=1 for values in fields.values()):raise ValueError('Invalid language form')
+                    expected={'csrf','language','return_to'} if path=='/api/language' else {'csrf','model','return_to'}
+                    if set(fields)!=expected or any(len(values)!=1 for values in fields.values()):raise ValueError('Invalid settings form')
                     body={key:values[0] for key,values in fields.items()}
                 else:body=json.loads(raw)
                 if not isinstance(body,dict):
@@ -622,6 +627,14 @@ def handler_for(gateway):
                     target=body.get('return_to','/')
                     if form and (len(target)>2048 or any(ord(c)<32 for c in target) or '\\' in target or urlsplit(target).netloc or urlsplit(target).scheme or not (GET_ROUTES.fullmatch(urlsplit(target).path) or target in ('/login','/password'))):target='/'
                     return self.respond({'language':selected},303 if form else 200,location=target if form else None,language_cookie=selected)
+                if path=='/api/model':
+                    if not form and set(body)!={'model'}:raise ValueError('Invalid model choice')
+                    selected=site_models.model(body['model'])
+                    if session['user_id']:gateway.accounts.website_model(session['user_id'],selected)
+                    site_models.CURRENT.set(selected)
+                    target=body.get('return_to','/')
+                    if form and (len(target)>2048 or any(ord(c)<32 for c in target) or '\\' in target or urlsplit(target).netloc or urlsplit(target).scheme or not (GET_ROUTES.fullmatch(urlsplit(target).path) or target in ('/login','/password'))):target='/'
+                    return self.respond({'model':selected},303 if form else 200,location=target if form else None)
                 if path=='/api/auth/login' and not session['user_id']:
                     if set(body) not in ({'username','password'},{'username','password','remember'}) or type(body.get('remember',False)) is not bool:
                         raise ValueError('Invalid login')
@@ -658,7 +671,8 @@ def handler_for(gateway):
             except Denied as error:
                 return self.respond({'error':str(error)},403)
             except (ValueError,KeyError,TypeError):
-                error='Choose English or Simplified Chinese' if urlsplit(self.path).path=='/api/language' else 'Invalid request. '+PASSWORD_RULE
+                route=urlsplit(self.path).path
+                error='Choose English or Simplified Chinese' if route=='/api/language' else 'Choose one of the offered website models' if route=='/api/model' else 'Invalid request. '+PASSWORD_RULE
                 return self.respond({'error':error},400)
             except Exception:
                 return self.respond({'error':'Request could not be confirmed. Refresh before retrying.'},503)

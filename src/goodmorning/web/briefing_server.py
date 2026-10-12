@@ -26,7 +26,8 @@ from goodmorning.runtime_files import atomic_text, profile_fields
 from .briefing_chat import AVATARS, Chats, avatar_id, avatar_widget, page as chat_page, read_avatar, write_avatar
 from goodmorning.paths import ROOT
 from . import language as ui
-from .release import VERSION
+from . import models as site_models
+from .release import VERSION, patch_note
 from .session_inventory import job_session_title
 from .chat_theme import clock_theme
 
@@ -367,7 +368,7 @@ class BrowserApp:
             if key in self.jobs:
                 return {'job': self.jobs[key]['id']}
             job = {'id': secrets.token_hex(16), 'date': date, 'kind': kind, 'state': 'starting','language':ui.current(),
-                   'created': time.time()}
+                   'model':site_models.current(),'created': time.time()}
             if self.preflight:
                 job.update(state='preflight')
             self.jobs[key] = job
@@ -397,6 +398,7 @@ class BrowserApp:
             with self.lock:
                 job['session'] = session
                 self.save_jobs()
+            site_models.apply_to_session(self.chamber, session, job.get('model', site_models.DEFAULT))
             prompt = f"/{job['kind']}\nBrowser job: {job['id']}\nRuntime: {self.runtime}\nWebsite language: {job.get('language','en')}"
             dispatched = self.chamber.control('session.send', sessionId=session, prompt=prompt)
             if dispatched.get('promptDispatched') is not True:
@@ -459,6 +461,7 @@ class BrowserApp:
             forms, permissions = self.chamber.pending(job['session'])
             if forms or permissions or self.chamber.control('session.status', sessionId=job['session'])['sessionStatus']['type'] != 'idle':
                 raise ValueError('Session changed before continuation')
+            site_models.apply_to_session(self.chamber, job['session'], job.get('model', site_models.DEFAULT))
             prompt = f"/{job['kind']}\nBrowser job: {job['id']}\nRuntime: {self.runtime}\nWebsite language: {job.get('language','en')}"
             result = self.chamber.control('session.send', sessionId=job['session'], prompt=prompt)
             if result.get('promptDispatched') is not True:
@@ -641,6 +644,17 @@ def serve_live(app, port, *, gateway_key=None, public_origins=()):
                 selected=ui.language(json.loads(path.read_text())['language']) if path.is_file() else 'en'
             ui.CURRENT.set(selected)
 
+        def select_model(self):
+            if gateway_key:
+                try:selected=site_models.model(self.headers.get('X-GoodMorning-Model',site_models.DEFAULT))
+                except ValueError:selected=site_models.DEFAULT
+            else:
+                path=app.runtime/'website-model.json'
+                if path.is_symlink():raise ValueError('Unsafe website model file')
+                try:selected=site_models.model(json.loads(path.read_text())['model']) if path.is_file() else site_models.DEFAULT
+                except (ValueError,KeyError,TypeError,OSError,UnicodeError):selected=site_models.DEFAULT
+            site_models.CURRENT.set(selected)
+
         def authorized(self, mutation=False):
             if gateway_key:
                 # The public gateway authenticates sessions and checks per-session CSRF.
@@ -699,9 +713,11 @@ def serve_live(app, port, *, gateway_key=None, public_origins=()):
             path = parsed.path
             try:
                 self.select_language()
+                self.select_model()
                 if path=='/api/language':return self.respond({'language':ui.current()})
+                if path=='/api/model':return self.respond({'model':site_models.current()})
                 if path=='/api/avatar':return self.respond({'avatar': app.avatar()})
-                if path=='/api/release':return self.respond({'version': VERSION})
+                if path=='/api/release':return self.respond({'version': VERSION, 'note': patch_note()})
                 if path == '/api/day':
                     return self.respond({'date': app.today(), 'timezone': app.zone})
                 if path == '/chat':
@@ -770,18 +786,20 @@ def serve_live(app, port, *, gateway_key=None, public_origins=()):
 
         def do_POST(self):
             path=urlsplit(self.path).path
-            form=path=='/api/language' and self.headers.get('Content-Type','').split(';')[0]=='application/x-www-form-urlencoded'
+            form=path in ('/api/language','/api/model') and self.headers.get('Content-Type','').split(';')[0]=='application/x-www-form-urlencoded'
             if not self.authorized(not form):
                 return self.respond({'error': 'Forbidden'}, 403)
             try:
                 self.select_language()
+                self.select_model()
                 length = int(self.headers.get('Content-Length', '0'))
                 if not 0 < length <= 20000 or (not form and self.headers.get('Content-Type') != 'application/json'):
                     raise ValueError('Invalid input')
                 raw=self.rfile.read(length)
                 if form:
                     fields=parse_qs(raw.decode(),keep_blank_values=True,strict_parsing=True)
-                    if set(fields)!={'csrf','language','return_to'} or any(len(values)!=1 for values in fields.values()):raise ValueError('Invalid language form')
+                    expected={'csrf','language','return_to'} if path=='/api/language' else {'csrf','model','return_to'}
+                    if set(fields)!=expected or any(len(values)!=1 for values in fields.values()):raise ValueError('Invalid settings form')
                     body={key:values[0] for key,values in fields.items()}
                     origin=f'http://127.0.0.1:{self.server.server_port}'
                     if self.headers.get('Origin')!=origin or not secrets.compare_digest(body['csrf'],app.csrf):return self.respond({'error':'Forbidden'},403)
@@ -794,6 +812,14 @@ def serve_live(app, port, *, gateway_key=None, public_origins=()):
                     target=body.get('return_to','/')
                     if not re.fullmatch(r'/(?:|chat|(?:gm|gn)\.html|d/\d{4}-\d{2}-\d{2}/(?:gm|gn)\.html)',target):target='/'
                     return self.respond({'language':selected},303 if form else 200,location=target if form else None)
+                if path=='/api/model':
+                    if not form and set(body)!={'model'}:raise ValueError('Invalid model choice')
+                    selected=site_models.model(body['model'])
+                    atomic_text(app.runtime/'website-model.json',json.dumps({'model':selected})+'\n')
+                    site_models.CURRENT.set(selected)
+                    target=body.get('return_to','/')
+                    if not re.fullmatch(r'/(?:|chat|(?:gm|gn)\.html|d/\d{4}-\d{2}-\d{2}/(?:gm|gn)\.html)',target):target='/'
+                    return self.respond({'model':selected},303 if form else 200,location=target if form else None)
                 if path == '/api/generate':
                     return self.respond(app.start(body['date'], body['kind']), 202)
                 recovery = re.fullmatch(r'/api/jobs/([a-f0-9]{32})/recover', path)

@@ -7,6 +7,7 @@ import json
 import re
 
 from goodmorning.paths import WEB_ASSETS
+from .models import MODELS, current as current_model
 
 LANGUAGES = {'en':'English', 'zh-CN':'Simplified Chinese'}
 CURRENT = ContextVar('website_language', default='en')
@@ -120,9 +121,14 @@ def page(source,csrf,return_to='/'):
         notice=('<div id="site-release" hidden data-version="'+VERSION+'"></div>'
                 '<aside id="site-update" class="site-update" hidden aria-label="Website update">'
                 '<p role="status" aria-live="polite">A website update is available.</p>'
-                '<button id="update-refresh" type="button">Refresh</button>'
+                '<p id="update-note" role="status" hidden></p>'
+                '<button id="update-refresh" type="button">Update</button>'
                 '<button id="update-later" type="button">Later</button>'
-                '<p id="update-feedback" role="status"></p></aside>')
+                '<p id="update-feedback" role="status"></p></aside>'
+                '<aside id="site-patch-note" class="site-update" hidden aria-label="What\'s new in this update">'
+                '<p role="status" aria-live="polite">Update complete. What\'s new in this update:</p>'
+                '<p id="patch-note-text" role="status"></p>'
+                '<button id="patch-note-dismiss" type="button">Got it</button></aside>')
         source=source.replace('</body>',notice+'</body>')
     else:
         # A proxied backend may have embedded its own fingerprint; the served
@@ -137,7 +143,14 @@ def page(source,csrf,return_to='/'):
                        for code,label in (('en','English'),('zh-CN','简体中文')))+
               '</select><input type="hidden" name="csrf" value="'+html.escape(csrf or '',quote=True)+'">'
               '<input type="hidden" name="return_to" value="'+html.escape(return_to,quote=True)+'">'
-              '<noscript><button type="submit">Apply</button></noscript><span id="language-feedback" role="status"></span></form>')
+              '<noscript><button type="submit">Apply</button></noscript><span id="language-feedback" role="status"></span></form>'
+              '<form id="model-form" class="language-toolbar" action="/api/model" method="post">'
+              '<label for="website-model">Model</label><select id="website-model" name="model">'
+              +''.join(f'<option value="{code}"'+(' selected' if code==current_model() else '')+' data-content>'+html.escape(entry['label'])+'</option>'
+                       for code,entry in MODELS.items())+
+              '</select><input type="hidden" name="csrf" value="'+html.escape(csrf or '',quote=True)+'">'
+              '<input type="hidden" name="return_to" value="'+html.escape(return_to,quote=True)+'">'
+              '<noscript><button type="submit">Apply</button></noscript><span id="model-feedback" role="status"></span></form>')
     source=re.sub(r'<html\b[^>]*\blang="[^"]*"',lambda match:re.sub(r'lang="[^"]*"','lang="'+current()+'"',match[0]),source,count=1)
     if 'id="language-form"' not in source:
         source=re.sub(r'(<body\b[^>]*>)',lambda match:match[0]+controls,source,count=1)
@@ -147,7 +160,7 @@ def page(source,csrf,return_to='/'):
         source=re.sub(r'(<input type="hidden" name="csrf" value=")[^"]*(")',lambda match:match[1]+html.escape(csrf or '',quote=True)+match[2],source,count=1)
         source=re.sub(r'(<input type="hidden" name="return_to" value=")[^"]*(")',lambda match:match[1]+html.escape(return_to,quote=True)+match[2],source,count=1)
     else:
-        source=source.replace('</head>','<script src="/language.js" defer></script></head>')
+        source=source.replace('</head>','<script src="/language.js" defer></script><script src="/model.js" defer></script></head>')
         source=source.replace('</body>',marker+'</body>')
     parser=InterfaceHTML();parser.feed(source);parser.close()
     return ''.join(parser.parts)

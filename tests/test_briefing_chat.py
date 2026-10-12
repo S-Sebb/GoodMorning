@@ -58,6 +58,10 @@ class MockChamber(Chamber):
         if path == '/api/openchamber/control':
             session = self.sessions[body['input']['sessionId']]
             return {'sessionStatus': {'type': 'busy' if session['forms'] or session['permissions'] else 'idle'}}
+        if path.endswith('/model'):
+            session = self.sessions[path.split('/')[3]]
+            session['model'] = body['model']
+            return {}
         if body is None:
             parsed = urlsplit(path);query = parse_qs(parsed.query)
             limit = int(query['limit'][0])

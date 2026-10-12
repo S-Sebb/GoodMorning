@@ -38,7 +38,10 @@ in visible text, without changing saved data or citation destinations.
 ## Explicit generation and chat
 
 Today's missing edition offers a preparation button. It creates a dedicated
-OpenChamber session using the user's configured defaults. Duplicate clicks reuse
+OpenChamber session using the account's selected website model (Muse Spark 1.3
+or DeepSeek V4.1 Flash, chosen beside the website language switch; unset
+accounts use Muse Spark 1.3). The choice is pinned per briefing job and per
+chat turn before any prompt is sent. Duplicate clicks reuse
 the durable date/edition job. Uncertain dispatches are never replayed blindly.
 Questions and permissions belong only to that session; the viewer is not an
 arbitrary session browser or API proxy. Permissions require explicit one-time
@@ -97,8 +100,12 @@ without JavaScript. Restart for renderer/backend changes; saved JSON and image
 manifest changes refresh without a restart.
 
 Open tabs check a public release fingerprint on load, focus and each visible
-minute. A small corner notice offers Refresh or Later; it never reloads by itself.
-Refresh pauses while a mutation is being sent and asks before discarding unsent
+minute. A small corner notice offers Update or Later; it never reloads by itself.
+The notice shows the deployment's patch note, and after a successful update the
+page shows the patch note again until dismissed. Every website deployment
+carries exactly one deployer-authored patch note: the newest entry of
+`assets/web/patch-notes.json` (date, author, English and Simplified Chinese
+text), served inline with `/api/release`. Update pauses while a mutation is being sent and asks before discarding unsent
 drafts. No draft is persisted in browser storage. Public auth/update assets are
 fingerprinted, immutable and precompressed; their unversioned aliases revalidate.
 Tabs opened before this feature was installed need one manual refresh first.

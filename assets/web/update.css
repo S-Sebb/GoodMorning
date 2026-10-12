@@ -3,5 +3,6 @@
 .site-update p { margin: 0 0 12px; }
 .site-update button { width: auto; min-height: 44px; margin-right: 8px; padding: 8px 16px; border: 1px solid var(--line,#b4c7c0); border-radius: 8px; font: inherit; background: var(--wash,#e9f0ed); color: inherit; cursor: pointer; }
 .site-update button:focus-visible { outline: 3px solid var(--accent,#35765b); outline-offset: 3px; }
-.site-update #update-feedback:empty { display: none; }
+.site-update #update-feedback:empty, .site-update #update-note:empty { display: none; }
 .site-update #update-feedback { margin: 12px 0 0; }
+.site-update #update-note, .site-update #patch-note-text { padding: 8px 12px; border-left: 3px solid var(--accent,#35765b); background: var(--wash,#e9f0ed); white-space: pre-wrap; overflow-wrap: anywhere; }

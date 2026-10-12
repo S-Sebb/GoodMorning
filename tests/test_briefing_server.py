@@ -157,6 +157,8 @@ class LiveTests(unittest.TestCase):
         self.assertEqual(sum(action == 'session.create' for action,_ in self.chamber.calls),1)
         self.assertNotIn('model',self.chamber.calls[0][1])
         self.assertNotIn('variant',self.chamber.calls[0][1])
+        from goodmorning.web.models import session_payload, DEFAULT
+        self.assertIn(('/api/session/ses_fixture/model', {'model': session_payload(DEFAULT)}), self.chamber.calls)
         self.assertEqual((self.root / 'browser-jobs/jobs.json').stat().st_mode & 0o777,0o600)
 
     def test_question_and_permission_pause_progress_and_reply_to_owned_session(self):

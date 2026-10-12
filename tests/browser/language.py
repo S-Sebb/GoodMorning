@@ -233,12 +233,19 @@ def run(artifacts):
                 assert all(cookie['domain'].startswith('.') is False and cookie['httpOnly'] for cookie in cookies if cookie['name']=='__Host-GoodMorning')
                 assert any(cookie['domain']=='.language.test' and not cookie['httpOnly'] for cookie in cookies if cookie['name']=='GoodMorningLanguage')
                 plain=context(viewport={'width':320,'height':760},java_script_enabled=False)
+                model_page=plain.new_page();model_page.goto('https://gm.language.test/login')
+                model_page.locator('#website-model').select_option('deepseek-flash')
+                with model_page.expect_response('https://gm.language.test/api/model') as switched:
+                    model_page.locator('#model-form').get_by_role('button',name='Apply',exact=True).click()
+                assert switched.value.status==303
+                assert switched.value.headers['location']=='/login'
+                model_page.close()
                 fallback=plain.new_page();fallback.goto('https://gm.language.test/login')
                 fallback.locator('#website-language').select_option('zh-CN')
                 # Redirected navigations bypass Playwright routing. Follow the verified
                 # native redirect explicitly here; live HTTPS checks use no routing.
                 with fallback.expect_response('https://gm.language.test/api/language') as changed:
-                    fallback.get_by_role('button',name='Apply',exact=True).click()
+                    fallback.locator('#language-form').get_by_role('button',name='Apply',exact=True).click()
                 assert changed.value.status==303
                 assert changed.value.headers['location']=='/login'
                 fallback.close();fallback=plain.new_page()

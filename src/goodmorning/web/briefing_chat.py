@@ -9,6 +9,7 @@ import time
 from goodmorning.runtime_files import atomic_text
 from .briefing_resources import favicon_links
 from . import language as ui
+from . import models as site_models
 from .session_inventory import chat_session_title
 
 MODES = {'initialize': 'Initialize', 'secretary': 'Secretary', 'todo': 'To-do', 'eureka': 'Eureka'}
@@ -151,7 +152,7 @@ class Chats:
                 raise ValueError('Conversation storage needs administrator archival')
             self.capacity(text)
             item = {'id': chat, 'mode': body['mode'], 'title': text[:64] or ui.text(MODES[body['mode']]),
-                    'state': 'starting', 'turns': [{'id': chat, 'text': text,'language':ui.current()}],
+                    'state': 'starting', 'turns': [{'id': chat, 'text': text,'language':ui.current(),'model':site_models.current()}],
                     'created': time.time()}
             self.items[chat] = item
             self.save()  # Save intent before any model request; never blindly replay.
@@ -177,7 +178,7 @@ class Chats:
             if len(item['turns']) >= 200:
                 raise ValueError('Start a new conversation to keep context bounded')
             self.capacity(text)
-            item['turns'].append({'id': request, 'text': text,'language':ui.current()})
+            item['turns'].append({'id': request, 'text': text,'language':ui.current(),'model':site_models.current()})
             item['state'] = 'starting'
             self.save()
             threading.Thread(target=self.dispatch, args=(item, text, False), daemon=True).start()
@@ -186,6 +187,7 @@ class Chats:
     def dispatch(self, item, text, first):
         try:
             selected=item['turns'][-1]['language']
+            chosen=item['turns'][-1].get('model', site_models.DEFAULT)
             if first:
                 result = self.chamber.control('session.create', title=chat_session_title(
                     ui.text(MODES[item['mode']],lang=selected), item['title']))
@@ -195,6 +197,7 @@ class Chats:
                 with self.lock:
                     item['session'] = session
                     self.save()
+            site_models.apply_to_session(self.chamber, item['session'], chosen)
             prompt = (f"/{item['mode']}\nBrowser chat: {item['id']}\nRuntime: {self.runtime}\n" if first else '')
             prompt += f"Website language: {selected}\n\n{text}"
             prompt=prompt.strip()

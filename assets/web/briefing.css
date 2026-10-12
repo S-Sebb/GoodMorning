@@ -8,7 +8,7 @@ body { margin: 0; background: var(--bg); color: var(--ink); font-family: ui-sans
 .language-toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: .6rem; max-width: 1440px; margin: auto; padding: .65rem max(24px,env(safe-area-inset-right)); font-size: .8rem; }
 .language-toolbar select, .language-toolbar button { font: inherit; min-height: 44px; padding: .4rem .65rem; border: 1px solid var(--line); border-radius: .6rem; background: var(--surface); color: var(--ink); }
 .language-toolbar button { cursor: pointer; }
-#language-feedback { font-size: .75rem; overflow-wrap: anywhere; }
+#language-feedback, #model-feedback { font-size: .75rem; overflow-wrap: anywhere; }
 h1:lang(zh-CN), h1:lang(zh) { letter-spacing: 0; font-family: system-ui,"PingFang SC","Hiragino Sans GB","Microsoft YaHei","Noto Sans CJK SC","Source Han Sans SC",sans-serif; }
 #mode-guide { margin: .6rem 0 1rem; color: var(--muted); font-size: .85rem; }
 #mode-guide summary { cursor: pointer; }

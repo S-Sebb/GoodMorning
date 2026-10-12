@@ -23,7 +23,10 @@ deployment needed it.
 ## 1. Preconditions (local checkout)
 
 1. `git status --short` shows only intended files; `git diff --check` is clean.
-2. Full suites pass with no model calls:
+2. The deployer authors the patch note for this deployment as the newest entry
+   of `assets/web/patch-notes.json` (date, author, English and Simplified
+   Chinese text, each within the limits in `src/goodmorning/web/release.py`).
+3. Full suites pass with no model calls:
    `python -m unittest discover -s tests -p 'test_*.py' -q`,
    `node --test tests/test_projects.mjs`, plus the affected
    `tests/browser/*.py` suites with private artifact directories.
