@@ -235,7 +235,7 @@ def parse_daily(path: str) -> dict:
                 day["sections"]["news"] = True
             elif "schedul" in h or "calendar" in h:
                 day["sections"]["schedule"] = True
-            elif "must" in h or "todo" in h or "to-do" in h or "task" in h or "nice-to" in h:
+            elif h == "flexible" or "must" in h or "todo" in h or "to-do" in h or "task" in h or "nice-to" in h:
                 day["sections"]["tasks"] = True
             elif "feedback" in h or "progress" in h:
                 day["sections"]["feedback"] = True
@@ -593,7 +593,7 @@ def cmd_mark(secretary_dir: str, day: str, kind: str, session: str,
         if kind == 'gm':
             from .daily import amend, planned_tasks, read_record, record_path
             try:
-                groups = planned_tasks(document)
+                groups = planned_tasks(document, day)
             except ValueError as error:
                 return command_error('briefing_invalid',str(error),2,as_json)
             if groups:

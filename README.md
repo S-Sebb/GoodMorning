@@ -26,6 +26,9 @@ user's configured timezone; all behavior lives in this package's source.
 Live pages render on demand with shared cacheable assets, bounded memory caches
 and deduplicated publisher images, rather than duplicating webpages/resources daily.
 Briefings are delivered on their browser pages, not as inline OpenCode image cards.
+Schedule and Tomorrow show timed events followed by a flexible schedule for
+untimed work. No appointments does not imply a free day; dated plans stay visible
+in the schedule instead of being buried in reminders.
 No image-delivery plugin is required.
 The website offers English and Simplified Chinese, with one account-wide setting
 shared by Morning, Night and Secretary, including other devices. New agent requests

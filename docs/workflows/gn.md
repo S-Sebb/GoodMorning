@@ -78,13 +78,17 @@ decisions; publish Today from actual answers, then Still open, before tomorrow's
     Inspect preparation details, surface pending review, and remind about pending
     inbox ideas. Ask focused questions for pending clarification per the shared
     reminder rule; deferral leaves ideas pending without blocking the summary.
-    Treat `kind: "todo"` entries as open task reminders, not automatic clarification
+     Treat `kind: "todo"` entries as open tasks, not automatic clarification
     questions. Mark them done only on user-confirmed completion.
     Do not treat unfinished tasks as new calendar appointments.
-   Show date/time/timezone, event, place and prep in chronological rows. A clear
-   calendar can be stated in one short planning-relevant line; do not manufacture
-   events or pad it with empty rows. Omit empty reminder sections. Keep unfinished
-    priorities separate from scheduled events and ask before assigning new dates.
+    Show date/time/timezone, event, place and prep in chronological rows. After
+    timed events, append a typed `flexible` block for tomorrow's date-confirmed
+    TODOs, agreed untimed work and applicable recurring tasks. This belongs in
+    Tomorrow, not Notes, even when there are no appointments. A clear calendar
+    means no timed appointments, not an empty/free day. Keep unknown appointment
+    times explicit in agenda; never manufacture clock times. Unfinished work
+    without an agreed tomorrow date stays in Still open; ask before assigning new
+    dates. Unresolved ideas/background nudges stay in Notes; omit it when empty.
 6. End in the user's tone, respecting actual time or special instruction. Browser
    jobs use `job finish`; no separate state save is required. Otherwise save
     feedback/progress and the edition per `docs/briefing-format.md` with

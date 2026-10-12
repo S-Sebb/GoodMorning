@@ -62,6 +62,18 @@ Block shapes (all positional fields shown below are required unless marked `?`):
 - `['table', [column, ...], [[cell, ...], ...]]`: arbitrary table; rows must exactly
   match the columns. Use for reported progress with outcomes/next steps or extra
   event metadata not covered by the agenda shape. Every cell is a string.
+- `['flexible', [[date,status,title,detail], ...]]`: untimed work at the end of
+  `schedule` or `tomorrow`, after all `agenda` blocks. The viewer supplies the
+  localized Flexible schedule heading and groups task cards by date. Date is ISO
+  `YYYY-MM-DD` when supported, otherwise `""` (No date assigned); status/title/detail
+  follow `tasks`. Preserve known deadlines, estimates, recurrence, place and
+  preparation in detail, never invent a clock time. An appointment whose time is
+  unknown stays in `agenda` with `TBC`; it is not a flexible task. Include relevant
+  date-confirmed TODOs, agreed plans and applicable recurring work, not every
+  backlog item or unresolved idea. An empty calendar is not proof of a free day.
+  Morning rows dated today synchronize into the daily `flexible` checklist group
+  if not already listed under Must-do/Nice-to-do; future/undated rows do not.
+  Night rows do not create, complete or reschedule daily tasks.
 
 Use actual JSON double quotes. The single quotes above distinguish the shapes
 from a document to save. Limits: 150,000 UTF-8 bytes, 1–80 sections, 1–100 blocks

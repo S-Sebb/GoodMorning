@@ -173,6 +173,22 @@ class HelpersTests(unittest.TestCase):
         receipt = daily.amend(self.root, DAY, view["sha256"], {"tasks": {"must-do": [{"text": "Changed reminder", "ref": ref}]}})
         self.assertFalse(receipt["changed"])
 
+    def test_flexible_checklist_uses_exact_completion_and_cross_group_deduplication(self):
+        path=self.file(f"# {DAY}\n## must-do\n- [x] Important task\n")
+        daily.amend(self.root,DAY,daily.show(self.root,DAY)['sha256'],{'tasks':{'flexible':[
+            {'text':'Important task'},{'text':'Untimed task'}]}})
+        view=daily.show(self.root,DAY)
+        self.assertEqual(len(view['tasks']),2)
+        task=next(t for t in view['tasks'] if t['section']=='flexible')
+        with self.assertRaisesRegex(ValueError,'confirmation_required'):
+            daily.amend(self.root,DAY,view['sha256'],{'complete':[task['id']]})
+        for mode in ('append','replace'):
+            with self.assertRaisesRegex(ValueError,'unsupported section'):
+                daily.amend(self.root,DAY,view['sha256'],{mode:{'flexible':['Do not erase task states']}})
+        daily.amend(self.root,DAY,view['sha256'],{'complete':[task['id']],'confirmed_completion':True})
+        self.assertIn('- [x] Untimed task',path.read_text())
+        self.assertEqual(path.read_text().count('Important task'),1)
+
     def test_daily_updates_are_exact_noops_not_duplicate_diary_entries(self):
         payload = {"append": {"feedback": ["User reported a blocker."]}, "tasks": {"nice-to-do": [{"text": "Optional reading"}]}}
         daily.amend(self.root, DAY, "missing", payload)

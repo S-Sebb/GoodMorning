@@ -1,5 +1,6 @@
 """Section publication browser experiment with an isolated agent, never a paid model."""
 from copy import deepcopy
+from datetime import date as Date, timedelta
 import json
 from pathlib import Path
 import subprocess
@@ -80,6 +81,7 @@ def run(artifacts):
                         expect(page.locator('#agent-questions')).to_be_empty()
                         config = json.loads(page.locator('#browser-config').get_attribute('data-config'))
                         date = config['date']
+                        schedule_date = (Date.fromisoformat(date) + timedelta(days=1)).isoformat() if kind == 'gn' else date
                         jobs = json.loads((root / 'browser-jobs/jobs.json').read_text())
                         job = jobs[date + '.' + kind]['id']
                         tags = ['weather', 'news', 'schedule', 'nice-to-do', 'reminders'] if kind == 'gm' else ['today', 'still-open', 'tomorrow', 'notes']
@@ -106,15 +108,20 @@ def run(artifacts):
                                 continue
                             block = first_block if index == 0 else (
                                 ['news', 'World', [['Synthetic headline', 'A full cited summary for the experiment.', [['Publisher', 'https://example.org/story']]]]] if tag == 'news' else
-                                ['agenda', [[date, '10:00', 'Synthetic planning meeting', 'Office', 'Bring the notes.']]] if tag in ('schedule', 'tomorrow') else
+                                ['agenda', [[schedule_date, '10:00', 'Synthetic planning meeting', 'Office', 'Bring the notes.']]] if tag in ('schedule', 'tomorrow') else
                                 ['p', 'Clarify the pending idea before changing the plan.'])
                             note = notes[0] if index == 0 else 'Keep a little space around the next step.'
-                            document['sections'].append([tag, [block], note, title])
+                            blocks=[block]
+                            if tag in ('schedule','tomorrow'):
+                                blocks.append(['flexible',[[schedule_date,'open','Synthetic untimed work','Keep it in the schedule, not notes.']]])
+                            document['sections'].append([tag, blocks, note, title])
                             draft.write_text(json.dumps(document))
                             command('stream', '--job', job, '--answer-file', str(draft))
                             expect(page.locator(f'#section-{index + 1}')).not_to_have_attribute('data-pending', 'true')
                             assert not (root / 'daily' / f'{date}.{kind}.json').exists()
                             assert not page.evaluate('document.documentElement.scrollWidth > innerWidth')
+                            if tag in ('schedule','tomorrow'):
+                                expect(page.locator(f'#section-{index + 1} .flexible-schedule')).to_contain_text('Synthetic untimed work')
                             if index == 0:
                                 page.locator('#section-1').scroll_into_view_if_needed()
                                 page.evaluate('window.firstPublished = document.querySelector("#section-1")')
@@ -166,6 +173,7 @@ def run(artifacts):
                         expect(page.locator('.briefing-tools')).to_have_count(0)
                         expect(page.locator('.preview-notice')).to_have_count(0)
                         expect(page.locator('.briefing-section')).to_have_count(len(document['sections']))
+                        expect(page.locator('.flexible-schedule')).to_contain_text('Synthetic untimed work')
                         expect(page.locator('.scroll-chunk')).to_have_count(len(document['sections']))
                         assert not (root / 'browser-jobs' / (job + '.preview.json')).exists()
                         assert len(json.loads((root / 'browser-jobs/jobs.json').read_text())) == 1

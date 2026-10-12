@@ -338,6 +338,59 @@ class JobTests(unittest.TestCase):
         recipe=next_step(self.root,self.identifier,'ses_fixture',context,{'outcomes':[1,1],
             'plan':[['today','Today'],['still-open','Still open'],['tomorrow','Tomorrow']]})
         self.assertIn('--from 2026-10-12 --days 1',recipe['read'][0])
+        self.assertIn('No timed appointments does not mean a free day',recipe['instruction'])
+        self.assertIn('[date,status,title,detail]',recipe['instruction'])
+
+    def test_schedule_recipe_includes_untimed_work_without_a_calendar(self):
+        context=json.loads(context_path(self.root,self.identifier).read_text())
+        context['paths']['calendar_db']=None
+        recipe=next_step(self.root,self.identifier,'ses_fixture',context,{'outcomes':[], 'plan':[['schedule','Schedule']]})
+        self.assertEqual(recipe['read'],[])
+        self.assertIn('active inbox/project constraints',recipe['instruction'])
+        self.assertIn('flexible rows',recipe['instruction'])
+
+    def test_flexible_today_tasks_sync_once_and_keep_priority_and_completion(self):
+        path=self.root/'daily/2026-10-11.md'
+        path.write_text('# 2026-10-11\n\n## must-do\n- [x] Prior task\n- [ ] Unrelated task\n')
+        act(self.root,self.identifier,'ses_fixture','init',{'greeting':'Morning.','opening':'Plan carefully.',
+            'plan':[['schedule','Schedule'],['must-do','Must-do']]})
+        section=['schedule',[['flexible',[
+            ['2026-10-11','open','Prior task',''],['2026-10-11','partial','Untimed work','Still open.'],
+            ['2026-10-11','open','Important task',''],['2026-10-12','open','Future work',''],
+            ['','open','Undated work','']]]]]
+        bad=deepcopy(section);bad[1][0][1][1][1]='done'
+        with self.assertRaisesRegex(ValueError,'planned_task_completion'):
+            act(self.root,self.identifier,'ses_fixture','publish',{'position':0,'section':bad})
+        act(self.root,self.identifier,'ses_fixture','publish',{'position':0,'section':section})
+        act(self.root,self.identifier,'ses_fixture','publish',{'position':1,'section':
+            ['must-do',[['tasks',[['open','Important task','']]]]]})
+        act(self.root,self.identifier,'ses_fixture','finish',{})
+        text=path.read_text();tasks=inspect(text,'2026-10-11')[2]
+        self.assertIn('- [x] Prior task',text)
+        self.assertEqual(len(tasks),4)
+        self.assertEqual(next(t for t in tasks if t['text']=='Important task')['section'],'must-do')
+        self.assertEqual(next(t for t in tasks if t['text']=='Untimed work')['section'],'flexible')
+        self.assertFalse(next(t for t in tasks if t['text']=='Untimed work')['done'])
+        self.assertNotIn('Future work',text)
+        self.assertNotIn('Undated work',text)
+
+    def test_night_flexible_work_does_not_create_or_complete_daily_tasks(self):
+        path=self.root/'daily/2026-10-11.md'
+        path.write_text('# 2026-10-11\n\n## flexible\n- [ ] Untimed work\n')
+        self.assertTrue(state.parse_daily(str(path))['sections']['tasks'])
+        self.job['kind']='gn';self.app.jobs={'2026-10-11.gn':self.job};self.app.save_jobs()
+        context=initialize(self.root,self.job)
+        self.assertEqual(context['daily']['tasks'][0]['section'],'flexible')
+        self.assertIn('Untimed work',str(context['form']))
+        answer(self.root,self.job,{'completed':['none'],'details':'No other updates'})
+        act(self.root,self.identifier,'ses_fixture','init',{'greeting':'Evening.','opening':'Plan carefully.',
+            'plan':[['tomorrow','Tomorrow']]})
+        act(self.root,self.identifier,'ses_fixture','publish',{'position':0,'section':
+            ['tomorrow',[['flexible',[['2026-10-12','open','Tomorrow task','No fixed time.']]]]]})
+        act(self.root,self.identifier,'ses_fixture','finish',{})
+        self.assertIn('- [ ] Untimed work',path.read_text())
+        self.assertNotIn('Tomorrow task',path.read_text())
+        self.assertFalse((self.root/'daily/2026-10-12.md').exists())
 
 
 if __name__=='__main__':

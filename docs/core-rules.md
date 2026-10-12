@@ -125,7 +125,13 @@ edge cases. Load other guides only when needed.
   intimacy or dependency. Preserve agency; serious news/safety receive sober care.
 - Short opening, useful sections/lists, restrained bold, optional grounded takeaways/
   closing; no forced verbosity limit. Weather order: temperature, precipitation,
-  applicable extreme warning, AQI/health. Calendar is a chronological timetable.
+   applicable extreme warning, AQI/health. Calendar is a chronological timetable.
+   Schedule/Tomorrow ends with a typed `flexible` block for relevant untimed work,
+   including date-confirmed TODOs and applicable recurring tasks. Use supported
+   dates or an empty date for unassigned work; never invent appointment times or
+   roll unfinished tasks into tomorrow. No timed appointments does not mean a
+   free day. Reminders/Notes hold background nudges, reviews and unresolved ideas,
+   not work already planned for the displayed day.
   News is factual and cited; neutral assessment stays separate. Read the reply
   voice guide and native authoring guides for briefings; do not create text/card copies.
 - Materiality gate: omit healthy retrieval, retries/cache/delivery bookkeeping,

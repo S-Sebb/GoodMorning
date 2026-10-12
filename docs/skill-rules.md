@@ -190,7 +190,11 @@ the GoodMorning root; specialized guides load only for the operation needed.
   Follow `docs/reply-voice.md` for briefings or detailed replies; simple capture
   needs these essentials, not its examples.
 - Weather order: temperature, precipitation, applicable extreme warning, then AQI.
-  Calendar: chronological timetable with date/time/timezone, place and preparation.
+   Calendar: chronological timetable with date/time/timezone, place and preparation.
+   Schedule/Tomorrow ends with typed `flexible` rows for relevant untimed plans,
+   dated TODOs and applicable recurring work, not reminders-only tasks. Keep
+   supported dates or an empty unassigned date, never invented time slots or
+   automatic next-day rollover. No timed appointments does not establish a free day.
   News: factual cited summaries. Neutral assessment stays separate and grounded.
 - Human-like means responsive language, not fabricated feelings, progress, human
   identity or physical presence. Never diagnose mood, invent intimacy, claim

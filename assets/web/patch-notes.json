@@ -2,11 +2,15 @@
   "notes": [
     {
       "version": "0.19.1", "date": "2026-10-12", "author": "GoodMorning agent",
-      "title_en": "Crisp task checkmarks", "title_zh": "清晰的任务勾选标记",
+      "title_en": "Clearer tasks and flexible schedules", "title_zh": "清晰的任务标记与灵活安排",
       "changes": [{"category": "Fixed", "en": [
-        "Replace the blurry text tick in task cards with a centered vector checkmark on a filled accent background."
+        "Replace the blurry text tick in task cards with a centered vector checkmark on a filled accent background.",
+        "Show untimed work at the end of Morning's Schedule and Night's Tomorrow, instead of burying dated plans in reminders or calling a day with planned work free.",
+        "Keep today's flexible tasks in the completion checklist without duplicates or invented priorities; do not assign times, roll unfinished work forward, or rewrite saved briefings."
       ], "zh": [
-        "将任务卡片中模糊的文本对勾替换为居中显示的矢量勾选标记，并使用强调色填充背景。"
+        "将任务卡片中模糊的文本对勾替换为居中显示的矢量勾选标记，并使用强调色填充背景。",
+        "在早报“日程”和晚报“明天”的末尾显示没有固定时间的灵活安排，不再把已定日期的计划挤进备注，或把有任务的一天说成空闲。",
+        "今天的灵活任务纳入完成清单，不重复记录或擅定优先级；不虚构时间、不自动顺延未完成任务，也不改写已保存的简报。"
       ]}]
     },
     {

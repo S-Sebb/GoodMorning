@@ -38,6 +38,11 @@ There is no arbitrary length target. Never create Markdown snapshots or image ca
 - Schedule is a chronological timetable: date, local time, event, place and
   preparation. Identify the timezone once, distinguish elapsed/upcoming dates,
   and put material conflicts directly beneath the table. No duplicate prose list.
+  End Schedule with a typed `flexible` block (localized Flexible schedule heading)
+  for relevant work without clock times, including chosen today tasks, dated TODOs
+  and applicable recurring work. Preserve supported dates, or leave unassigned
+  dates empty. No appointments means no timed events, not a free day. Keep these
+  plans out of Reminders; priority sections may explain them with identical titles.
 - Use the user's importance preferences, source roles, feed excerpts and ranking
   explanations internally to select consequential developments. Present concise
   source-based summaries, not long narrative or flavor text. Prefer an existing

@@ -69,8 +69,10 @@ Amendment JSON example:
 - `append` adds exact nonduplicate bullet lines under weather/news/schedule/
   feedback/progress. `replace` replaces only explicitly named such sections for
   an authorized amendment; omitted sections/run lines/unknown text are untouched.
-- `tasks` adds unchecked must-do/nice-to-do items. Existing checked items are never
-  reset or deleted. Exact wording deduplicates across both lists; an explicit
+- `tasks` adds unchecked must-do/nice-to-do/flexible items. Flexible is a checklist
+  group for today's untimed plans without an assigned priority, not a calendar
+  appointment. Existing checked items are never reset or deleted. Exact wording
+  deduplicates across all three lists; an explicit
   inbox `ref` deduplicates a changed reminder without erasing its completion.
   Omit refs for unrelated project subtasks; code never guesses equivalent meaning.
 - `complete` changes only exact IDs from the current view and requires the caller's

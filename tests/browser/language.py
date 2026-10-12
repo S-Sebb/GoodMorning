@@ -46,7 +46,8 @@ def fixture(root):
             (runtime/'daily').mkdir()
             document={'v':1,'lang':'en','greeting':'Existing English briefing','opening':'Original saved introduction.',
                       'sections':[['notes',[['p','Password']]],['today',[['tasks',[['open','Original task','Keep this exact wording.']]]]],
-                                  ['schedule',[['agenda',[[(Date.fromisoformat(day)+timedelta(days=offset)).isoformat(),'09:00',f'Original event {offset}','Room','Bring notes'] for offset in (1,2)]]]]]}
+                                  ['schedule',[['agenda',[[(Date.fromisoformat(day)+timedelta(days=offset)).isoformat(),'09:00',f'Original event {offset}','Room','Bring notes'] for offset in (1,2)]],
+                                               ['flexible',[[(Date.fromisoformat(day)+timedelta(days=1)).isoformat(),'open','Original untimed work','Keep this detail.']]]]]]}
             for kind in ('gm','gn'):(runtime/'daily'/(day+'.'+kind+'.json')).write_text(encode(document))
         with socket.socket() as check:
             check.bind(('127.0.0.1',0));port=check.getsockname()[1]
@@ -154,9 +155,14 @@ def run(artifacts):
                     expect(other.locator('article')).to_contain_text('Password')
                     expect(other.locator('.briefing-tools')).to_have_count(0)
                     expect(other.locator('.agenda-day').first).to_contain_text('明天')
-                    expect(other.locator('.agenda-day')).to_have_count(2)
+                    expect(other.locator('.agenda .agenda-day')).to_have_count(2)
                     expect(other.locator('.agenda-event')).to_have_count(2)
+                    expect(other.locator('.flexible-title')).to_have_text('灵活安排')
+                    expect(other.locator('.flexible-schedule .agenda-day')).to_contain_text('明天')
+                    expect(other.locator('.flexible-schedule')).to_contain_text('Original untimed work')
                     switch(other,'en')
+                    expect(other.locator('.flexible-title')).to_have_text('Flexible schedule')
+                    expect(other.locator('.flexible-schedule .agenda-day')).to_contain_text('Tomorrow')
                     expect(other.locator('.agenda-day').first).to_contain_text('Tomorrow')
                     tomorrow=Date.fromisoformat(settings['date'])+timedelta(days=1)
                     expect(other.locator('.agenda-day').first).to_contain_text(tomorrow.strftime('%A'))
@@ -166,12 +172,15 @@ def run(artifacts):
                         no_overflow(other)
                         expect(other.locator('.agenda-day').first).to_be_visible()
                         other.locator('.agenda').screenshot(path=str(artifacts/(host+'-agenda-'+str(width)+'-en.png')))
+                        other.locator('.flexible-schedule').screenshot(path=str(artifacts/(host+'-flexible-'+str(width)+'-en.png')))
                     switch(other,'zh-CN')
                     for width in (320,390,1440):
                         other.set_viewport_size({'width':width,'height':900})
                         no_overflow(other)
                         expect(other.locator('.agenda-day').first).to_contain_text('明天')
                         other.locator('.agenda').screenshot(path=str(artifacts/(host+'-agenda-'+str(width)+'-zh-CN.png')))
+                        expect(other.locator('.flexible-title')).to_have_text('灵活安排')
+                        other.locator('.flexible-schedule').screenshot(path=str(artifacts/(host+'-flexible-'+str(width)+'-zh-CN.png')))
                     other.goto(f'https://{host}.language.test/d/{settings["date"]}/{host}.html')
                     expect(other.get_by_role('heading',name='Existing English briefing',exact=True)).to_be_visible()
                     no_overflow(other);other.screenshot(path=str(artifacts/(host+'-chinese-archive.png')),full_page=True);other.close()

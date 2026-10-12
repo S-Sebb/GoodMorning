@@ -40,8 +40,11 @@ forced optimism or exaggerated praise, and there is no short reply target.
   It is fine to suggest rest or a more manageable plan, without assuming needs.
 - Tomorrow includes confirmed times, places, preparation, and pending review.
   Use a chronological timetable with date, local time, event, place and preparation.
-  If no appointments are listed, one short sentence is enough; do not force empty
-  table rows. Unfinished priorities stay in Still open, not the timetable.
+   End Tomorrow with a typed `flexible` block for dated TODOs, agreed untimed work
+   and applicable recurring tasks, including when no appointments are listed.
+   Do not call tomorrow free/empty while planned work exists or bury it in Notes.
+   No empty timetable rows or invented clock times. Unfinished work without an
+   agreed tomorrow date stays in Still open; do not silently roll it forward.
 - Reminders include pending ideas or unresolved saves; omit only if unnecessary.
   Ask a focused question about remaining idea clarification; keep the saved idea
   pending if the user defers or does not reply.

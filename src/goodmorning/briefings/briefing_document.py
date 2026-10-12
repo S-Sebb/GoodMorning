@@ -80,12 +80,22 @@ def block(value, path):
             sequence(value[1], path + '.items', 1, 200)
             for item in value[1]:
                 text(item, path + '.item')
-    elif tag == 'tasks':
+    elif tag in ('tasks', 'flexible'):
         sequence(value, path, 2, 2)
         sequence(value[1], path + '.items', 1, 200)
         for index, row in enumerate(value[1]):
             here = f'{path}.items[{index}]'
-            sequence(row, here, 3, 3)
+            sequence(row, here, 4 if tag == 'flexible' else 3, 4 if tag == 'flexible' else 3)
+            if tag == 'flexible':
+                text(row[0], here + '.date', 10, empty=True)
+                if row[0]:
+                    try:
+                        valid = Date.fromisoformat(row[0]).isoformat() == row[0]
+                    except ValueError:
+                        valid = False
+                    if not valid:
+                        fail(here + '.date', 'use YYYY-MM-DD or an empty string for no assigned date')
+                row = row[1:]
             if row[0] not in ('open', 'done', 'partial', 'blocked'):
                 fail(here, 'status must be open/done/partial/blocked')
             text(row[1], here + '.title', 600)
@@ -135,7 +145,7 @@ def block(value, path):
         if len(value) == 4 and (not isinstance(value[3], str) or not re.fullmatch('[A-Z]{2}', value[3])):
             fail(path, 'country flag requires a two-letter country code')
     else:
-        fail(path, 'unknown block type; use p/list/table/agenda/tasks/weather/news')
+        fail(path, 'unknown block type; use p/list/table/agenda/tasks/weather/news/flexible')
 
 
 def validate(data, partial=False):
@@ -157,8 +167,15 @@ def validate(data, partial=False):
         if not isinstance(section[0], str) or section[0] not in TITLES:
             fail(path, 'unknown section type; use notes plus an explicit title for custom content')
         sequence(section[1], path + '.blocks', 1, 100)
+        flexible_seen = False
         for number, value in enumerate(section[1]):
             block(value, f'{path}.blocks[{number}]')
+            if value[0] == 'flexible':
+                if section[0] not in ('schedule', 'tomorrow'):
+                    fail(path, 'flexible schedules belong in schedule or tomorrow, not reminders/notes')
+                flexible_seen = True
+            elif value[0] == 'agenda' and flexible_seen:
+                fail(path, 'put timed agenda blocks before flexible schedules')
         if len(section) >= 3:
             text(section[2], path + '.note', 600, empty=True)
         if len(section) == 4:
@@ -232,6 +249,15 @@ def render_block(value, images, briefing_date=None):
             label = '<span class="task-status">' + ui.ui(status.capitalize()) + '</span> ' if status in ('partial', 'blocked') else ''
             items.append(f'<li class="task-card task"><div class="task-title">{mark}{escaped(title)}</div><div class="task-detail">{label}{escaped(detail)}</div></li>')
         return '<ul class="task-list">' + ''.join(items) + '</ul>'
+    if tag == 'flexible':
+        groups = {}
+        for date, status, title, detail in value[1]:
+            groups.setdefault(date, []).append([status, title, detail])
+        body = ''.join('<div class="flexible-group"><h4 class="agenda-day">' +
+                       (ui.agenda_day(date, briefing_date) if date else ui.ui('No date assigned')) +
+                       '</h4>' + render_block(['tasks', rows], images, briefing_date) + '</div>'
+                       for date, rows in groups.items())
+        return '<div class="flexible-schedule"><h3 class="flexible-title">' + ui.ui('Flexible schedule') + '</h3>' + body + '</div>'
     if tag == 'table':
         columns, rows = value[1:]
         headers = ''.join('<th>' + escaped(label) + '</th>' for label in columns)

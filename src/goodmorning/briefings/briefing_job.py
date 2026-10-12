@@ -82,9 +82,16 @@ def next_step(runtime, identifier, session, context, checkpoint):
         reads.append(shlex.join(['python','scripts/goodmorning.py','calendar','--secretary-dir',str(runtime),
             '--db',selected['calendar_db'],'--from',context['tomorrow'] if tag == 'tomorrow' else context['date'],
             '--days','1' if tag == 'tomorrow' else '3','--timezone',context['timezone'],'--json','--details']))
+    instruction = 'Gather only this section; follow returned pages/review requirements, then publish immediately. Use saved context first.'
+    if tag in ('schedule', 'tomorrow'):
+        instruction += (' Review saved daily tasks and relevant active inbox/project constraints before describing availability. '
+                        'After timed agenda blocks, use flexible rows [date,status,title,detail] for relevant untimed work; '
+                        'use ISO dates only when supported, otherwise an empty date. Keep actual appointment times TBC in agenda. '
+                        'No timed appointments does not mean a free day. Do not bury planned work in reminders/notes, '
+                        'invent times, or move unfinished work to tomorrow without an existing date or user agreement.')
     return {'action':'publish','command':shlex.join(command + ['publish']), 'position':position,
             'section':[tag,title], 'read':reads,
-            'instruction':'Gather only this section; follow returned pages/review requirements, then publish immediately. Use saved context first.'}
+            'instruction':instruction}
 
 
 def image_previews(runtime, job, context, checkpoint):

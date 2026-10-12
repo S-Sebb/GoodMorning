@@ -13,8 +13,8 @@ import sys
 from goodmorning.calendar.calendar_safety import safe_text
 from goodmorning.runtime_files import atomic_text, runtime_lock, secretary_path
 
-SECTIONS = ("weather", "news", "schedule", "must-do", "nice-to-do", "feedback", "progress")
-TASK_SECTIONS = ("must-do", "nice-to-do")
+SECTIONS = ("weather", "news", "schedule", "must-do", "nice-to-do", "flexible", "feedback", "progress")
+TASK_SECTIONS = ("must-do", "nice-to-do", "flexible")
 TASK = re.compile(r"^\s*[-*] \[([ xX])\] (.+?)(?:\r?\n)?$")
 REF = re.compile(r"\s*<!-- inbox:(ib_[0-9a-f]{16}) -->$")
 
@@ -109,7 +109,7 @@ def amend(directory, date, expected, payload, *, locked=False, dry_run=False):
         raise ValueError("confirmation_required: only user-confirmed task IDs can be completed")
     for mode in ("append", "replace", "tasks"):
         groups = payload.get(mode, {})
-        if not isinstance(groups, dict) or set(groups) - set(TASK_SECTIONS if mode == "tasks" else SECTIONS[:3] + SECTIONS[5:]):
+        if not isinstance(groups, dict) or set(groups) - set(TASK_SECTIONS if mode == "tasks" else tuple(s for s in SECTIONS if s not in TASK_SECTIONS)):
             raise ValueError("invalid_input: unsupported section or task group")
         for values in groups.values():
             if not isinstance(values, list) or len(values) > 100:
@@ -191,7 +191,7 @@ def amend(directory, date, expected, payload, *, locked=False, dry_run=False):
                  "sha256": hashlib.sha256(text.encode()).hexdigest()}
 
 
-def planned_tasks(document):
+def planned_tasks(document, date):
     """Persist exactly the visible plan, without turning agent status into completion."""
     groups = {}
     for section in document['sections']:
@@ -207,6 +207,18 @@ def planned_tasks(document):
                 items.append({'text': one_line(title)})
         if items:
             groups.setdefault(section[0], []).extend(items)
+    # Priority sections win exact-title deduplication. Flexible-only work keeps
+    # its own group rather than acquiring an invented must-do/nice-to-do priority.
+    for section in document['sections']:
+        for block in section[1]:
+            if block[0] != 'flexible':
+                continue
+            for day, status, title, detail in block[1]:
+                if status == 'done':
+                    raise ValueError('planned_task_completion: new plans cannot assert completion')
+                item = {'text': one_line(title)}
+                if day == date:
+                    groups.setdefault('flexible', []).append(item)
     return groups
 
 

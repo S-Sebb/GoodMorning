@@ -68,12 +68,20 @@ decisions, before fetching; follow its recipes and publish top-down, not at step
 4. Query `calendar --from DATE --days 3 --timezone ZONE --json --details`.
    Use approved events only, show pending review counts, and inspect relevant
     details for preparation. Show a chronological timetable with date/time/timezone,
-     event, place and prep where known. Put conflicts beneath it; no duplicate prose.
+      event, place and prep where known. Put conflicts beneath it; no duplicate prose.
+    Before publishing Schedule, review preparation's tasks and relevant active
+    inbox/project constraints (including further pages where needed). Append a
+    typed `flexible` block after the timetable for today's chosen work, dated TODOs
+    and applicable recurring tasks without fixed times. Include supported future
+    dates within the schedule window; unassigned work keeps an empty date. Never
+    manufacture time slots or describe the day as free from calendar emptiness.
 5. Read relevant project records; use authorized project access only if needed.
     Build weekly project steps, then choose today's must-do versus
    nice-to-do tasks with priority, fixed times, and clearly labeled estimates.
      Give grounded advice in the user's tone.
-   Do not invent deadlines or progress.
+    Do not invent deadlines or progress. Must-do/Nice-to-do express priorities;
+    keep titles identical when also showing those tasks in the flexible schedule
+    so checklist synchronization creates one task, not duplicate completions.
       Use preparation's inbox page; fetch further `inbox --list` filters/pages only
       as needed, then `--show ID` only for relevant
      current constraints. Never read archived discussions. Review flagged new

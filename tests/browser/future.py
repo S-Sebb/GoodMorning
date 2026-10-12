@@ -32,6 +32,18 @@ def main():
                             expect(page.locator('.scroll-chunk')).to_have_count(page.locator('.briefing-section').count())
                             assert f'CONTENT_END_{kind}_2034-03-{day}' in page.locator('article').inner_text()
                             assert not page.evaluate('document.documentElement.scrollWidth>innerWidth')
+                            if day in (16,17):
+                                schedule=page.locator('.schedule' if kind=='gm' else '.tomorrow')
+                                expect(schedule.locator('.flexible-schedule')).to_have_count(1)
+                                expect(schedule.locator('.flexible-schedule .task-card')).to_have_count(2)
+                                expect(schedule.locator('.flexible-title')).to_have_text('Flexible schedule')
+                                expect(schedule.locator('.flexible-schedule')).to_contain_text('Synthetic reimbursement')
+                                expect(schedule.locator('.flexible-schedule')).to_contain_text('No fixed time; keep the receipt.')
+                                if day==16:expect(schedule.locator('.agenda-event')).to_have_count(0)
+                                else:
+                                    assert schedule.locator('.agenda-event').count()>0
+                                    assert schedule.locator('.flexible-schedule').bounding_box()['y']>schedule.locator('.agenda').bounding_box()['y']
+                                if artifacts:schedule.screenshot(path=str(artifacts/f'flexible-{day}-{kind}-{width}.png'))
                             if artifacts and day == 17:
                                 page.screenshot(path=str(artifacts/f'native-full-{kind}-{width}.png'), full_page=True)
                             page.evaluate("scrollTo({top:document.documentElement.scrollHeight,behavior:'instant'})")

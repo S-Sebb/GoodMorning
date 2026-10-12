@@ -118,7 +118,7 @@ def publish(runtime, identifier, document=None, plan=None, skip=False, *, positi
             raise ValueError('Remove noncritical boilerplate before publishing; keep material warnings')
         if job['kind'] == 'gm':
             from goodmorning.records.daily import planned_tasks
-            planned_tasks(document)
+            planned_tasks(document, job['date'])
         if len(checkpoint['outcomes']) == len(checkpoint['plan']) and not document['sections']:
             raise ValueError('Publish at least one section before resolving the plan')
         for entry, section in zip((item for item, outcome in zip(checkpoint['plan'], checkpoint['outcomes']) if outcome == 'ready'), document['sections']):

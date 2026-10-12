@@ -82,7 +82,10 @@ Repair only the new input. Never alter published sections to resolve a failure.
    empty section. Required sections cannot be skipped.
 4. After all positions resolve, `finish`: `{"closing":"…"}` or `{}`. Code checks
    the owning session, pinned date, edition and exact preview; synchronizes visible
-   gm task titles into the daily checklist; then saves JSON and the run marker.
+    gm task titles into the daily checklist; then saves JSON and the run marker.
+    Flexible rows dated today join the checklist without invented priority;
+    future/undated rows do not become today's tasks. Exact-title duplicates keep
+    existing completion and explicit Must-do/Nice-to-do classification.
    New tasks are unchecked; existing completions and unrelated work are preserved.
    Must-do/Nice-to-do tasks use typed `tasks` blocks, never hidden in prose/lists.
    The model may still make authorized project/daily amendments for other records.
@@ -110,6 +113,15 @@ the viewer owns navigation. JSON strings are plain UTF-8, not Markdown/HTML. Do
 not invent feelings, availability, deadlines or progress. No generic reassurance,
 empty-queue bookkeeping, or commentary merely restating timetable rows. Distinguish
 free calendar slots from confirmed availability; use exact known times.
+For Schedule/Tomorrow, review the saved task context and relevant active inbox/
+project constraints before any availability statement. Publish timed agenda rows
+first, then a `flexible` block for relevant untimed work, even when there are no
+appointments. Use the pinned target date only for work supported on that day;
+unassigned work keeps an empty date. Unknown appointment times remain `TBC` in
+agenda, not flexible tasks. Leave undated unfinished work in Still open unless
+the user has agreed to move it; never call tomorrow empty while it has planned
+tasks. Reminders/Notes are for background nudges and unresolved ideas, not a
+substitute for the flexible schedule.
 
 Return the browser link, not repeated text/JSON. No Markdown, presentation, card
 or dated HTML copies. Private records must not be overwritten by cleanup.

@@ -29,6 +29,8 @@ Browser jobs follow `docs/browser-generation.md` and `scripts/goodmorning.py job
 from saved browser context, publish only the next section, then finish. Code owns
 the cumulative document, task synchronization and final save. Never count previews
 as completed runs or repeat saved browser decisions/progress questions.
+Schedule/Tomorrow includes timed events followed by typed `flexible` untimed work.
+Never equate no appointments with a free day or bury dated plans in reminders.
 Website conversations marked `Browser chat` follow `docs/browser-chat.md`.
 `/eureka` and `/todo` are capture requests, not instructions to do the captured
 work. Save, confirm, then stop. Supplied details do not authorize discussion or

@@ -14,7 +14,7 @@ from unittest.mock import patch
 from urllib.error import HTTPError
 from urllib.request import urlopen
 
-from support import TEMP_ROOT
+from support import TEMP_ROOT, returning_viewer
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'src'))
 from goodmorning.briefings import briefing_document as native
 from goodmorning.briefings import briefing_web as web
@@ -105,6 +105,53 @@ class DocumentTests(unittest.TestCase):
         self.assertEqual(page.count('data-ui-full-date='),2)
         self.assertEqual(page.count('<ol class="agenda-events">'),5)
         self.assertEqual(page.count('</ol>'),5)
+
+    def test_flexible_work_renders_without_timed_events_and_preserves_dates_and_status(self):
+        from goodmorning.web import language as ui
+        doc={'v':1,'greeting':'Hello','opening':'Plan ahead','sections':[['tomorrow',[['flexible',[
+            ['2026-10-12','open','Upload reimbursement','Due tomorrow; no fixed time.'],
+            ['2026-10-12','partial','Ask about the experiment','Keep the reported progress.'],
+            ['','blocked','Undated work <script>bad</script>','Awaiting a decision.']]]]]]}
+        original=copy.deepcopy(doc)
+        self.assertEqual(native.parse(native.encode(doc)),doc)
+        for language in ('en','zh-CN'):
+            token=ui.CURRENT.set(language)
+            try: page=web.edition(doc,'2026-10-11','gn',{'gn':True})
+            finally: ui.CURRENT.reset(token)
+            self.assertIn('Flexible schedule' if language=='en' else '灵活安排',page)
+            self.assertIn('No date assigned' if language=='en' else '尚未指定日期',page)
+            self.assertIn('>Tomorrow</bdi>' if language=='en' else '>明天</bdi>',page)
+            self.assertEqual(page.count('class="flexible-group"'),2)
+            self.assertEqual(page.count('class="task-card task"'),3)
+            self.assertNotIn('class="agenda-event"',page)
+            self.assertNotIn('class="event-time"',page)
+            self.assertIn('&lt;script&gt;bad&lt;/script&gt;',page)
+            self.assertIn('data-ui-text="Partial"',page)
+            self.assertIn('data-ui-text="Blocked"',page)
+        self.assertEqual(doc,original)
+
+    def test_flexible_block_requires_valid_shape_and_schedule_placement(self):
+        flexible=['flexible',[['2026-10-12','open','Untimed task','']]]
+        agenda=['agenda',[['2026-10-12','TBC','Appointment time unknown','','']]]
+        doc={'v':1,'greeting':'Hello','opening':'Plan ahead','sections':[['schedule',[agenda,flexible]]]}
+        page=web.edition(doc,'2026-10-11','gm',{'gm':True})
+        self.assertLess(page.index('class="agenda"'),page.index('class="flexible-schedule"'))
+        self.assertIn('TBC',page)
+        bad_blocks=[['flexible',[]],['flexible',[['Tomorrow','open','Task','']]],
+                    ['flexible',[['2026-02-30','open','Task','']]],
+                    ['flexible',[['20261012','open','Task','']]],
+                    ['flexible',[['2026-10-12','complete','Task','']]],
+                    ['flexible',[['2026-10-12','open','','']]],
+                    ['flexible',[['2026-10-12','open','Task']]],
+                    ['flexible',[[None,'open','Task','']]]]
+        for value in bad_blocks:
+            changed=copy.deepcopy(doc);changed['sections'][0][1]=[value]
+            with self.subTest(value=value),self.assertRaises(ValueError):native.validate(changed)
+        for tag in ('notes','reminders','must-do'):
+            changed=copy.deepcopy(doc);changed['sections'][0][0]=tag
+            with self.assertRaisesRegex(ValueError,'belong in schedule or tomorrow'):native.validate(changed)
+        doc['sections'][0][1]=[flexible,agenda]
+        with self.assertRaisesRegex(ValueError,'before flexible'):native.validate(doc)
 
     def test_headlines_with_dashes_and_every_citation_are_preserved(self):
         doc = document()
@@ -405,12 +452,21 @@ class NativeHTTPTests(server_tests.HTTPTests):
 def serve_fixture(directory):
     from goodmorning.web.briefing_server import serve_live
     root = Path(directory); (root / 'daily').mkdir(exist_ok=True)
+    returning_viewer(root)
     (root / 'profile.md').write_text('timezone: Europe/London\n')
     current = datetime(2034, 3, 17, 12, tzinfo=timezone.utc)
     for offset in range(7):
         day = (current - timedelta(days=offset)).date().isoformat()
         for kind in ('gm', 'gn'):
             doc = document(kind)
+            if offset in (0,1):
+                target=day if kind=='gm' else (current-timedelta(days=offset)+timedelta(days=1)).date().isoformat()
+                section=next(section for section in doc['sections'] if section[0] == ('schedule' if kind=='gm' else 'tomorrow'))
+                if offset==1:
+                    section[1]=[['p','No timed appointments; the untimed tasks still need attention.']]
+                    section[2]='Leave room for the untimed work.'
+                section[1].append(['flexible',[[target,'open','Synthetic reimbursement','No fixed time; keep the receipt.'],
+                                             [target,'partial','Synthetic experiment question','Preserve the reported constraints.']]])
             if offset == 1:
                 doc['lang'] = 'zh-CN'
                 doc['greeting'] = '早上好。' if kind == 'gm' else '晚上好。'
