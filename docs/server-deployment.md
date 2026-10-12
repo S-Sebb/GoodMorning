@@ -23,15 +23,41 @@ deployment needed it.
 ## 1. Preconditions (local checkout)
 
 1. `git status --short` shows only intended files; `git diff --check` is clean.
-2. The deployer authors the patch note for this deployment as the newest entry
-   of `assets/web/patch-notes.json` (date, author, English and Simplified
-   Chinese text, each within the limits in `src/goodmorning/web/release.py`).
+2. Author the patch note for this deployment (procedure below); it must be
+   committed as part of the deployed HEAD.
 3. Full suites pass with no model calls:
    `python -m unittest discover -s tests -p 'test_*.py' -q`,
    `node --test tests/test_projects.mjs`, plus the affected
    `tests/browser/*.py` suites with private artifact directories.
-3. Commit and push to `origin/main`. Record the commit hash.
+4. Commit and push to `origin/main`. Record the commit hash.
    The deployed archive must be built from the pushed HEAD.
+
+## Patch note procedure
+
+Every website deployment carries exactly one deployer-authored patch note: the
+newest entry of `assets/web/patch-notes.json`. The Update prompt shows it
+before the user updates, and the page shows it again after a successful update
+until dismissed. An invalid file does not break `/api/release`; it silently
+yields no note — so always verify.
+
+1. Prepend a new object to the `notes` array (newest first). Never edit or
+   reorder older entries; git preserves the history:
+   ```json
+   {"notes": [{"date": "2026-10-12", "author": "Deployer name",
+     "en": "What changed, in one or two sentences.",
+     "zh": "一两句话说明本次变化。"}]}
+   ```
+   Rules: `date` is `YYYY-MM-DD`; `author` is 1–40 characters (whoever
+   deploys); `en`/`zh` are each 1–2000 characters, plain text (rendered
+   without HTML). Describe user-visible changes only.
+2. Verify it parses and is current:
+   ```sh
+   python3 -c "import sys;sys.path.insert(0,'src');from goodmorning.web.release import patch_note;print(patch_note())"
+   ```
+   The printed note must be the entry just written. `tests/test_release.py`
+   covers the validation rules; run it after any manual edit.
+3. Commit the file together with the release. The release fingerprint covers
+   it, so the new note ships as part of the new version it describes.
 
 ## 2. Build the filtered public archive
 
