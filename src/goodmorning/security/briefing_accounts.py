@@ -225,6 +225,18 @@ class Accounts:
                        (identifier,name,salt,self.derive(secret,salt)))
         return identifier
 
+    def release_seen(self, identifier, replacement=None):
+        from goodmorning.web.release import acknowledge_version
+        with self.db() as db:
+            db.execute('BEGIN IMMEDIATE')
+            key = 'release-seen:' + identifier
+            row = db.execute('SELECT value FROM metadata WHERE key=?', (key,)).fetchone()
+            seen = row[0] if row else None
+            if replacement is not None:
+                seen = acknowledge_version(replacement, seen)
+                db.execute('INSERT INTO metadata VALUES (?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value', (key, seen))
+            return seen
+
     def check_password(self, name, secret):
         """Read-only SSH-admin diagnostic; never an unauthenticated website route."""
         name = username(name)

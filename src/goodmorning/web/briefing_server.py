@@ -27,7 +27,7 @@ from .briefing_chat import AVATARS, Chats, avatar_id, avatar_widget, page as cha
 from goodmorning.paths import ROOT
 from . import language as ui
 from . import models as site_models
-from .release import VERSION, patch_note
+from .release import VERSION, release_info, acknowledge_version
 from .session_inventory import job_session_title
 from .chat_theme import clock_theme
 
@@ -144,6 +144,16 @@ class BrowserApp:
 
     def avatar(self):
         return read_avatar(self.runtime)
+
+    def release_seen(self, replacement=None):
+        with self.lock:
+            path = self.runtime / 'release-seen.json'
+            self.file_signature(path)
+            seen = json.loads(path.read_text())['version'] if path.exists() else None
+            if replacement is not None:
+                seen = acknowledge_version(replacement, seen)
+                atomic_text(path, json.dumps({'version': seen}) + '\n')
+            return seen
 
     def set_avatar(self, value):
         with self.lock:
@@ -717,7 +727,8 @@ def serve_live(app, port, *, gateway_key=None, public_origins=()):
                 if path=='/api/language':return self.respond({'language':ui.current()})
                 if path=='/api/model':return self.respond({'model':site_models.current()})
                 if path=='/api/avatar':return self.respond({'avatar': app.avatar()})
-                if path=='/api/release':return self.respond({'version': VERSION, 'note': patch_note()})
+                if path=='/api/release':return self.respond(release_info())
+                if path=='/api/release/seen':return self.respond({'version':app.release_seen(),'enabled':True})
                 if path == '/api/day':
                     return self.respond({'date': app.today(), 'timezone': app.zone})
                 if path == '/chat':
@@ -804,6 +815,9 @@ def serve_live(app, port, *, gateway_key=None, public_origins=()):
                     origin=f'http://127.0.0.1:{self.server.server_port}'
                     if self.headers.get('Origin')!=origin or not secrets.compare_digest(body['csrf'],app.csrf):return self.respond({'error':'Forbidden'},403)
                 else:body=json.loads(raw)
+                if path=='/api/release/seen':
+                    if not isinstance(body,dict) or set(body)!={'version'} or body['version'] is None:raise ValueError('Invalid release version')
+                    return self.respond({'version':app.release_seen(body['version']),'enabled':True})
                 if path=='/api/language':
                     if not form and set(body)!={'language'}:raise ValueError('Invalid language choice')
                     selected=ui.language(body['language'])

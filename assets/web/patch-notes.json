@@ -1,1 +1,386 @@
-{"notes": [{"author": "GoodMorning agent", "date": "2026-10-12", "en": "Fixed the mobile sign-in and password-change layout so the form stays in place during repeated scrolling and the buttons remain reachable on short screens.", "zh": "修复移动端登录和修改密码页面的布局，避免反复滑动时表单位置下移，并确保小屏幕上的按钮可以滚动到并点击。"}, {"author": "GoodMorning agent", "date": "2026-10-12", "en": "New: pick your secretary's model beside the website language — Muse Spark 1.3 or DeepSeek V4.1 Flash. The refresh prompt is now an Update button, and every update shows its patch note afterwards.", "zh": "新增：可在网站语言旁选择秘书使用的模型（Muse Spark 1.3 或 DeepSeek V4.1 Flash）。刷新提示改为“更新”按钮，更新完成后会显示本次补丁说明。"}]}
+{
+  "notes": [
+    {
+      "version": "0.19.0", "date": "2026-10-12", "author": "GoodMorning agent",
+      "title_en": "A complete patch-note history", "title_zh": "完整的更新日志",
+      "changes": [
+        {"category": "Added", "en": [
+          "Browse past versions in the patch-note sidebar, with categorized bullet points in English and Simplified Chinese.",
+          "Reopen update details with a blue upward arrow, or view history with a checkmark when your page is current.",
+          "Share patch-note dismissals across the account's devices.",
+          "Use readable beta versions (0.minor.patch), with notes reconstructed for every past public Git commit."
+        ], "zh": [
+          "通过更新日志侧栏浏览历史版本，使用中英文分类标题和要点列表。",
+          "网站有新版本时，通过蓝色向上箭头打开更新详情；页面已是最新版本时，通过勾选图标查看历史。",
+          "更新日志的关闭状态在同一账号的各设备间共享。",
+          "采用易读的测试版版本号（0.功能版本.修订版本），并根据每一次历史公开 Git 提交补全日志。"
+        ]},
+        {"category": "Fixed", "en": [
+          "Show unseen patch notes for new accounts and manual refreshes, without requiring a click on Update."
+        ], "zh": [
+          "新账号和手动刷新页面的用户现在会看到尚未关闭的更新日志，无需先点击“更新”。"
+        ]},
+        {"category": "Notes", "en": [
+          "Updates remain optional and continue to protect unsent messages.",
+          "Historical dates refer to Git commits, not independently verified deployments."
+        ], "zh": [
+          "更新仍由你决定，并继续保护尚未发送的消息。",
+          "历史日期对应 Git 提交，不代表经独立核实的上线日期。"
+        ]}
+      ]
+    },
+    {
+      "version": "0.18.3", "date": "2026-10-12", "author": "GoodMorning agent", "commits": ["f1f79d1"],
+      "title_en": "Stable mobile sign-in forms", "title_zh": "稳定的移动端登录表单",
+      "changes": [{"category": "Fixed", "en": [
+        "Keep mobile sign-in and password-change forms in place during repeated scrolling.",
+        "Keep form buttons reachable on short screens."
+      ], "zh": [
+        "避免移动端登录和修改密码表单在反复滑动时位置下移。",
+        "确保小屏幕上的表单按钮可以滚动到并点击。"
+      ]}]
+    },
+    {
+      "version": "0.18.2", "date": "2026-10-12", "author": "Git history", "commits": ["db9fe43"],
+      "title_en": "Documented patch-note publishing", "title_zh": "完善更新日志发布说明",
+      "changes": [{"category": "Documentation", "en": [
+        "Document how deployers write, validate and publish bilingual patch notes with each website release. This was a documentation-only change."
+      ], "zh": [
+        "完善每次网站发布时编写、验证和发布中英文更新日志的部署说明。本次仅修改文档。"
+      ]}]
+    },
+    {
+      "version": "0.18.1", "date": "2026-10-12", "author": "Git history", "commits": ["1eb6d8f"],
+      "title_en": "No-JavaScript settings test correction", "title_zh": "修正无 JavaScript 设置测试",
+      "changes": [{"category": "Tests", "en": [
+        "Select the language form's Apply button rather than the model form's button in the live browser test. No website behavior changed."
+      ], "zh": [
+        "修正线上浏览器测试，明确点击语言表单的“应用”按钮，避免误选模型表单的按钮。网站功能未改变。"
+      ]}]
+    },
+    {
+      "version": "0.18.0", "date": "2026-10-12", "author": "GoodMorning agent", "commits": ["25dd208"],
+      "title_en": "Choose your secretary's model", "title_zh": "选择秘书使用的模型",
+      "changes": [
+        {"category": "Added", "en": [
+          "Choose Muse Spark 1.3 or DeepSeek V4.1 Flash with an account-wide model selector beside the website language.",
+          "Apply the selected model to new chats and briefing requests; active work keeps its original selection.",
+          "Show bilingual deployment patch notes before and after updating with the website button."
+        ], "zh": [
+          "在网站语言旁新增账号级模型选择，可选择 Muse Spark 1.3 或 DeepSeek V4.1 Flash。",
+          "新的聊天和简报请求使用所选模型，正在进行的任务保持原有选择。",
+          "在通过网站按钮更新前后显示中英文发布说明。"
+        ]},
+        {"category": "Changed", "en": ["Rename the refresh prompt to Update."], "zh": ["刷新提示改为“更新”。"]}
+      ]
+    },
+    {
+      "version": "0.17.3", "date": "2026-10-12", "author": "Git history", "commits": ["bb1748f"],
+      "title_en": "Explain unavailable article previews", "title_zh": "明确说明文章预览不可用",
+      "changes": [{"category": "Fixed", "en": [
+        "Explain when publisher previews are disabled instead of leaving unexplained placeholder images in briefings."
+      ], "zh": [
+        "简报中发布方预览被禁用时会明确说明原因，不再留下没有解释的占位图片。"
+      ]}]
+    },
+    {
+      "version": "0.17.2", "date": "2026-10-12", "author": "Git history", "commits": ["7c1da64"],
+      "title_en": "Chinese typography and sharper previews", "title_zh": "中文字体与预览图片修复",
+      "changes": [
+        {"category": "Changed", "en": ["Use appropriate CJK sans-serif fonts for Chinese briefings."], "zh": ["中文简报改用合适的中日韩无衬线字体。"]},
+        {"category": "Fixed", "en": ["Repair preview image srcset markup so browsers can choose the correct resolution."], "zh": ["修复预览图片的 srcset 标记，使浏览器能够选择正确的分辨率。"]}
+      ]
+    },
+    {
+      "version": "0.17.1", "date": "2026-10-12", "author": "Git history", "commits": ["4339508"],
+      "title_en": "Release completed secretary work promptly", "title_zh": "及时释放已完成的秘书任务",
+      "changes": [{"category": "Fixed", "en": [
+        "Release the shared work slot as soon as secretary tasks finish, without waiting for another website request, so queued work can continue sooner."
+      ], "zh": [
+        "秘书任务完成后主动释放共享执行位置，不再等待下一次网站请求，让排队任务更及时地继续。"
+      ]}]
+    },
+    {
+      "version": "0.17.0", "date": "2026-10-12", "author": "Git history", "commits": ["0261b81"],
+      "title_en": "Send chat with Enter", "title_zh": "按 Enter 发送聊天消息",
+      "changes": [{"category": "Added", "en": [
+        "Send secretary messages with Enter and insert a new line with Shift+Enter.",
+        "Focus the message composer automatically.",
+        "Respect text composition so Enter does not send unfinished input."
+      ], "zh": [
+        "按 Enter 发送秘书消息，按 Shift+Enter 换行。",
+        "消息输入框自动获得焦点。",
+        "输入法正在组字时，不会因按 Enter 而误发尚未完成的内容。"
+      ]}]
+    },
+    {
+      "version": "0.16.0", "date": "2026-10-11", "author": "Git history", "commits": ["8785be1"],
+      "title_en": "Refined briefings and a shared avatar picker", "title_zh": "优化简报与共享形象选择器",
+      "changes": [
+        {"category": "Added", "en": ["Use a shared floating avatar picker with outline-shirt controls and account-wide selection."], "zh": ["新增共享的悬浮形象选择器，使用衣服轮廓按钮，所选形象在账号内共享。"]},
+        {"category": "Changed", "en": [
+          "Refine desktop alignment and restore filled briefing cards while retaining the secretary sidebar.",
+          "Follow the account's local time for day and night colors."
+        ], "zh": [
+          "优化桌面布局对齐，恢复简报卡片背景，同时保留秘书侧栏。",
+          "昼夜配色跟随账号所在地时间。"
+        ]}
+      ]
+    },
+    {
+      "version": "0.15.1", "date": "2026-10-11", "author": "Git history", "commits": ["14c2ca8"],
+      "title_en": "Keep the briefing sun and moon", "title_zh": "保留简报的太阳与月亮",
+      "changes": [{"category": "Fixed", "en": [
+        "Restore the morning sun and evening moon alongside secretary avatars, preserving each edition's visual identity."
+      ], "zh": [
+        "在秘书形象旁恢复早报的太阳和晚报的月亮，保留不同简报的视觉标识。"
+      ]}]
+    },
+    {
+      "version": "0.15.0", "date": "2026-10-11", "author": "Git history", "commits": ["c2c92a5"],
+      "title_en": "Shared avatars and clearer chat feedback", "title_zh": "共享秘书形象与更清晰的聊天反馈",
+      "changes": [
+        {"category": "Added", "en": ["Choose secretary avatars shared across chat and briefings."], "zh": ["新增可选秘书形象，在聊天和简报中共享。"]},
+        {"category": "Changed", "en": ["Improve responsive chat feedback and release-refresh handling."], "zh": ["改善响应式聊天反馈和版本刷新处理。"]},
+        {"category": "Documentation", "en": ["Add a guarded deployment runbook to preserve account records and avoid interrupting active work."], "zh": ["新增带有安全检查的部署流程，保护账号记录并避免中断正在进行的任务。"]}
+      ]
+    },
+    {
+      "version": "0.14.1", "date": "2026-10-11", "author": "Git history", "commits": ["3929630"],
+      "title_en": "Find cities written in their native script", "title_zh": "支持以本地文字查找城市",
+      "changes": [{"category": "Fixed", "en": [
+        "Find Chinese, Japanese, Korean and Cyrillic city names using suitable native-script indexes with an English fallback.",
+        "Resolve valid names such as 上海 that failed in an English-only weather lookup."
+      ], "zh": [
+        "天气城市查询为中文、日文、韩文和西里尔文字尝试合适的本地语言索引，并保留英文回退。",
+        "修复“上海”等有效名称在仅使用英文索引查询天气时查不到的问题。"
+      ]}]
+    },
+    {
+      "version": "0.14.0", "date": "2026-10-11", "author": "Git history", "commits": ["f8d7939"],
+      "title_en": "A waiting line instead of busy errors", "title_zh": "用排队取代忙碌错误",
+      "changes": [{"category": "Added", "en": [
+        "Queue secretary chats, briefing generation and recovery in a bounded shared waiting line instead of immediately returning busy errors.",
+        "Process waiting requests in arrival order when active work finishes.",
+        "Show queue position and total waiters on chat and briefing pages."
+      ], "zh": [
+        "秘书聊天、简报生成和恢复操作共享有限的等待队列，不再直接返回忙碌错误。",
+        "当前任务结束后，按请求到达顺序处理等待中的请求。",
+        "聊天和简报页面显示排队位置与等待人数。"
+      ]}]
+    },
+    {
+      "version": "0.13.0", "date": "2026-10-11", "author": "Git history", "commits": ["1cc1a08"],
+      "title_en": "Give your secretary a name", "title_zh": "为秘书取名",
+      "changes": [{"category": "Added", "en": [
+        "Set an optional secretary display name during initialization.",
+        "Use the saved spelling in greetings, headings, conversation titles and message authors.",
+        "Show a secretary desk illustration with a fallback when the image is unavailable."
+      ], "zh": [
+        "初始化时可选择为秘书设置显示名称。",
+        "问候、标题、对话名称和消息署名使用保存的原始写法。",
+        "新增秘书桌面插画，图片不可用时也能正常显示页面。"
+      ]}]
+    },
+    {
+      "version": "0.12.0", "date": "2026-10-11", "author": "Git history", "commits": ["4320ad4"],
+      "title_en": "Safer updates and reliable chat history", "title_zh": "更安全的更新与可靠的聊天历史",
+      "changes": [
+        {"category": "Added", "en": [
+          "Cache saved pages in memory.",
+          "Show website-update notices without automatic reloads, pause updates during outgoing messages and check for unsent drafts."
+        ], "zh": [
+          "为已保存页面增加内存缓存。",
+          "新增网站更新提示，不自动刷新，在消息发送期间暂停更新，并检查未发送草稿。"
+        ]},
+        {"category": "Changed", "en": ["Organize engine sessions by website conversation and briefing."], "zh": ["按网站对话和简报组织引擎会话。"]},
+        {"category": "Fixed", "en": ["Bound chat-history reads to prevent stuck busy flags."], "zh": ["限制聊天历史读取范围，避免忙碌状态卡住。"]}
+      ]
+    },
+    {
+      "version": "0.11.1", "date": "2026-10-11", "author": "Git history", "commits": ["1ea7b73"],
+      "title_en": "Clearer schedule dates and instant language changes", "title_zh": "清晰的日程日期与即时语言切换",
+      "changes": [{"category": "Changed", "en": [
+        "Show clear calendar dates and appropriate relative labels in schedule entries.",
+        "Apply website language changes immediately, including date labels, without a separate Apply click when JavaScript is enabled."
+      ], "zh": [
+        "日程条目显示明确日期，并在适当时附上相对日期标签。",
+        "启用 JavaScript 时，选择网站语言立即应用，包括日期标签，无需另点“应用”。"
+      ]}]
+    },
+    {
+      "version": "0.11.0", "date": "2026-10-11", "author": "Git history", "commits": ["1fda35a"],
+      "title_en": "English and Simplified Chinese websites", "title_zh": "英文与简体中文网站",
+      "changes": [
+        {"category": "Added", "en": ["Share an account-wide English/Simplified Chinese website setting across Morning, Night, Secretary and other devices."], "zh": ["新增账号级英文/简体中文网站设置，在早报、晚报、秘书页面及不同设备间共享。"]},
+        {"category": "Changed", "en": ["Use the website language for new agent requests while keeping active requests in their starting language."], "zh": ["新的代理请求使用网站语言，正在进行的请求保持开始时的语言。"]},
+        {"category": "Notes", "en": ["Existing saved content and local reply-language preferences remain unchanged."], "zh": ["已有内容和本地回复语言偏好保持不变。"]}
+      ]
+    },
+    {
+      "version": "0.10.0", "date": "2026-10-11", "author": "Git history", "commits": ["1490548"],
+      "title_en": "Native browser briefings and private accounts", "title_zh": "原生浏览器简报与私有账号",
+      "changes": [
+        {"category": "Added", "en": [
+          "Deliver new briefings as validated native JSON on dedicated browser pages.",
+          "Add website chat, section-by-section publication, briefing archives and edition-specific icons."
+        ], "zh": [
+          "新简报采用经验证的原生 JSON，在独立浏览器页面交付。",
+          "新增网站聊天、逐节发布、简报归档和不同简报的图标。"
+        ]},
+        {"category": "Changed", "en": [
+          "Improve recovery for stopped preparation and interrupted final saves without overwriting personal records.",
+          "Reorganize the public source into focused modules."
+        ], "zh": [
+          "改进准备中断与最终保存中断的恢复，不覆盖个人记录。",
+          "将公开源码整理为职责清晰的模块。"
+        ]},
+        {"category": "Removed", "en": ["Replace the earlier image-card plugin with native browser briefings."], "zh": ["以原生浏览器简报取代此前的图片卡片插件。"]},
+        {"category": "Security", "en": ["Add authenticated multi-user deployment with encrypted records and isolated agent homes."], "zh": ["新增需要身份验证的多用户部署，使用加密记录和隔离的代理目录。"]}
+      ]
+    },
+    {
+      "version": "0.9.1", "date": "2026-10-10", "author": "Git history", "commits": ["b3e24f1"],
+      "title_en": "Image briefings in ordinary OpenChamber chats", "title_zh": "普通 OpenChamber 聊天中的图片简报",
+      "changes": [
+        {"category": "Changed", "en": ["Adjust the historical plugin's installation and delivery handling."], "zh": ["调整历史插件的安装与交付处理。"]},
+        {"category": "Fixed", "en": ["Allow image briefings to appear in ordinary OpenChamber chats through the historical briefing-card integration."], "zh": ["修复当时的简报卡片集成，使图片简报能够显示在普通 OpenChamber 聊天中。"]},
+        {"category": "Notes", "en": ["This delivery approach was later replaced by native browser pages in 0.10.0."], "zh": ["此交付方式后来在 0.10.0 被原生浏览器页面取代。"]}
+      ]
+    },
+    {
+      "version": "0.9.0", "date": "2026-10-10", "author": "Git history", "commits": ["d6854f8"],
+      "title_en": "Historical image-card briefings", "title_zh": "历史图片卡片简报",
+      "changes": [
+        {"category": "Added", "en": ["Introduce a briefing-card rendering plugin and deployment package for compact image briefings."], "zh": ["引入简报卡片渲染插件与部署包，用于交付紧凑的图片简报。"]},
+        {"category": "Notes", "en": ["This early delivery experiment was later removed in favor of native browser briefings in 0.10.0."], "zh": ["这是早期交付实验，后来在 0.10.0 被原生浏览器简报取代。"]}
+      ]
+    },
+    {
+      "version": "0.8.1", "date": "2026-10-10", "author": "Git history", "commits": ["3fcd7f2"],
+      "title_en": "Keep idea capture separate from execution", "title_zh": "将灵感记录与执行分开",
+      "changes": [{"category": "Fixed", "en": [
+        "Keep Eureka idea capture separate from planning, research and task execution unless separately requested.",
+        "Keep follow-up details capture-only; clarification and organization require explicit direction."
+      ], "zh": [
+        "明确 Eureka 只记录灵感，除非另行要求，否则不规划、不研究、不执行任务。",
+        "补充信息仍仅记录，澄清与整理需要明确指示。"
+      ]}]
+    },
+    {
+      "version": "0.8.0", "date": "2026-10-10", "author": "Git history", "commits": ["38925bd"],
+      "title_en": "Structured inbox memory and simpler workflows", "title_zh": "结构化收件记忆与简化流程",
+      "changes": [
+        {"category": "Added", "en": [
+          "Store inbox memory in SQLite with stable IDs, original input history, duplicate-safe capture and revision-checked updates.",
+          "Add focused workflow preparation/capture helpers and safe daily amendments."
+        ], "zh": [
+          "新增基于 SQLite 的收件记忆，提供稳定编号、原始输入历史、防重复记录和修订校验更新。",
+          "新增聚焦的流程准备与记录工具，以及安全的每日记录修改。"
+        ]},
+        {"category": "Changed", "en": [
+          "Streamline shared workflow instructions.",
+          "Separate news editorial judgment from collection and delivery bookkeeping."
+        ], "zh": [
+          "简化共享流程规则。",
+          "将新闻编辑判断与收集、交付记账分开。"
+        ]}
+      ]
+    },
+    {
+      "version": "0.7.0", "date": "2026-10-10", "author": "Git history", "commits": ["9c67ed2"],
+      "title_en": "Record-only to-do capture", "title_zh": "仅记录的待办流程",
+      "changes": [{"category": "Added", "en": [
+        "Capture to-dos in a dedicated workflow that saves the user's wording without questions, planning or execution.",
+        "Keep deadlines and priorities user-supplied, with completion requiring user confirmation."
+      ], "zh": [
+        "新增独立待办流程，保存用户原话，不提问、不规划、不执行任务。",
+        "不擅自添加截止日期或优先级，完成状态需要用户确认。"
+      ]}]
+    },
+    {
+      "version": "0.6.0", "date": "2026-10-10", "author": "Git history", "commits": ["7b617ea"],
+      "title_en": "Localized conversation titles", "title_zh": "本地化对话标题",
+      "changes": [
+        {"category": "Added", "en": ["Localize conversation-title prefixes using the confirmed secretary reply language across Morning, Night, Secretary and Eureka."], "zh": ["早报、晚报、秘书和灵感流程的对话标题前缀跟随已确认的秘书回复语言。"]},
+        {"category": "Notes", "en": ["ISO dates and the user's raw Eureka summary wording remain unchanged."], "zh": ["ISO 日期与用户原始灵感摘要保持不变。"]}
+      ]
+    },
+    {
+      "version": "0.5.0", "date": "2026-10-10", "author": "Git history", "commits": ["c4fb65f"],
+      "title_en": "Review calendar imports each evening", "title_zh": "每晚审核日历导入",
+      "changes": [{"category": "Changed", "en": [
+        "Stage authorized Betterbird calendar imports for review during Night workflows before displaying or applying them.",
+        "Do not silently treat imported entries as approved schedule changes."
+      ], "zh": [
+        "晚报流程先暂存已授权的 Betterbird 日历导入供审核，再显示或应用。",
+        "导入条目不会被默认为已批准的日程变更。"
+      ]}]
+    },
+    {
+      "version": "0.4.0", "date": "2026-10-10", "author": "Git history", "commits": ["2ae8554"],
+      "title_en": "One self-contained global skill", "title_zh": "单一自包含全局技能",
+      "changes": [
+        {"category": "Changed", "en": ["Use one manually copied, self-contained global GoodMorning skill."], "zh": ["改用一个手动复制、自包含的 GoodMorning 全局技能。"]},
+        {"category": "Removed", "en": ["Replace checkout-registered commands and separate workflow skills."], "zh": ["替换仓库注册的命令和独立流程技能。"]},
+        {"category": "Notes", "en": ["Installation remains separate from personal setup, and records stay outside the public package."], "zh": ["安装与个人初始化保持分离，记录保存在公开包之外。"]}
+      ]
+    },
+    {
+      "version": "0.3.0", "date": "2026-10-10", "author": "Git history", "commits": ["2d7339c"],
+      "title_en": "Save ideas before asking for clarification", "title_zh": "先保存灵感，再澄清",
+      "changes": [{"category": "Changed", "en": [
+        "Preserve ideas and project updates before asking for clarification.",
+        "Keep unresolved questions visible for later follow-up.",
+        "Separate unconfirmed proposals from approved plans and calendars."
+      ], "zh": [
+        "灵感和项目进展在澄清前先保存。",
+        "未解决的问题保留以便后续跟进。",
+        "未确认的建议与已批准的计划和日历分开。"
+      ]}]
+    },
+    {
+      "version": "0.2.0", "date": "2026-10-09", "author": "Git history", "commits": ["fb066df"],
+      "title_en": "Consistent morning and night titles", "title_zh": "统一早报与晚报标题",
+      "changes": [{"category": "Changed", "en": [
+        "Use fixed-format Morning and Night conversation titles with the briefing date, making editions easier to find in OpenChamber."
+      ], "zh": [
+        "早报和晚报流程采用包含简报日期的固定格式对话标题，方便在 OpenChamber 中查找。"
+      ]}]
+    },
+    {
+      "version": "0.1.1", "date": "2026-10-09", "author": "Git history", "commits": ["cba3e45"],
+      "title_en": "Recurring Betterbird calendar events", "title_zh": "Betterbird 重复日历事件",
+      "changes": [
+        {"category": "Changed", "en": ["Bound calendar import handling."], "zh": ["增加有范围限制的日历导入处理。"]},
+        {"category": "Fixed", "en": ["Expand recurring calendar imports to cover recurrence rules, exceptions and overridden occurrences."], "zh": ["扩展重复日历事件导入，支持重复规则、例外日期和单次覆盖。"]},
+        {"category": "Tests", "en": ["Add regression coverage for repeated events."], "zh": ["增加重复事件回归测试。"]}
+      ]
+    },
+    {
+      "version": "0.1.0", "date": "2026-10-09", "author": "Git history", "commits": ["affa5f5"],
+      "title_en": "The first secretary workflows", "title_zh": "首批秘书流程",
+      "changes": [
+        {"category": "Added", "en": [
+          "Introduce Morning, Night, Secretary and Eureka workflows with reply templates.",
+          "Add weather and air quality, news review, calendar handling and daily state.",
+          "Add permission-controlled project access."
+        ], "zh": [
+          "新增早报、晚报、秘书和灵感流程，以及回复模板。",
+          "新增天气与空气质量、新闻审核、日历处理和每日状态。",
+          "新增受权限控制的项目访问。"
+        ]},
+        {"category": "Documentation", "en": ["Add setup and deployment instructions."], "zh": ["加入初始化与部署说明。"]},
+        {"category": "Tests", "en": ["Add automated tests."], "zh": ["加入自动测试。"]}
+      ]
+    },
+    {
+      "version": "0.0.0", "date": "2026-10-09", "author": "Git history", "commits": ["9bf676f"],
+      "title_en": "Repository foundation", "title_zh": "仓库基础",
+      "changes": [
+        {"category": "Added", "en": ["Create the public repository with its initial README and ignore rules."], "zh": ["创建公开仓库，加入初始 README 和忽略规则。"]},
+        {"category": "Notes", "en": ["No secretary application or website was present yet."], "zh": ["当时尚无秘书应用或网站。"]}
+      ]
+    }
+  ]
+}

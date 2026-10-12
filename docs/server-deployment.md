@@ -34,30 +34,31 @@ deployment needed it.
 
 ## Patch note procedure
 
-Every website deployment carries exactly one deployer-authored patch note: the
-newest entry of `assets/web/patch-notes.json`. The Update prompt shows it
-before the user updates, and the page shows it again after a successful update
-until dismissed. An invalid file does not break `/api/release`; it silently
-yields no note — so always verify.
+Prepend one release to `assets/web/patch-notes.json`, then commit it with the code.
+Keep older entries unchanged. Use `0.minor.patch`: increase minor for features or
+redesigns (reset patch to zero); increase patch for fixes, docs or tests. Never reuse a version.
 
-1. Prepend a new object to the `notes` array (newest first). Never edit or
-   reorder older entries; git preserves the history:
-   ```json
-   {"notes": [{"date": "2026-10-12", "author": "Deployer name",
-     "en": "What changed, in one or two sentences.",
-     "zh": "一两句话说明本次变化。"}]}
-   ```
-   Rules: `date` is `YYYY-MM-DD`; `author` is 1–40 characters (whoever
-   deploys); `en`/`zh` are each 1–2000 characters, plain text (rendered
-   without HTML). Describe user-visible changes only.
-2. Verify it parses and is current:
-   ```sh
-   python3 -c "import sys;sys.path.insert(0,'src');from goodmorning.web.release import patch_note;print(patch_note())"
-   ```
-   The printed note must be the entry just written. `tests/test_release.py`
-   covers the validation rules; run it after any manual edit.
-3. Commit the file together with the release. The release fingerprint covers
-   it, so the new note ships as part of the new version it describes.
+```json
+{"version": "0.19.1", "date": "2026-10-12", "author": "Deployer name",
+ "title_en": "Mobile layout fix", "title_zh": "移动端布局修复",
+ "changes": [{"category": "Fixed",
+   "en": ["Keep sign-in buttons reachable on short screens."],
+   "zh": ["确保小屏幕上的登录按钮可以点击。"]}]}
+```
+
+- Use short, factual bullets under `Added`, `Changed`, `Fixed`, `Removed`,
+  `Security`, `Documentation`, `Tests` or `Notes`. Omit empty categories.
+- Match English/Chinese bullets one-to-one. Use plain text, not HTML or Markdown.
+  Titles and each language's complete note must fit within 2000 characters; author: 1–40.
+- Optional `commits` lists existing Git hashes. Historical dates are commit dates,
+  not verified deployment dates; label obsolete features as historical.
+
+Validate the history before deploying; invalid history produces no notes:
+
+```sh
+python3 -c "import sys;sys.path.insert(0,'src');from goodmorning.web.release import patch_notes;notes=patch_notes();assert notes;print(notes[0]['version'])"
+python3 -m unittest discover -s tests -p test_release.py -q
+```
 
 ## 2. Build the filtered public archive
 

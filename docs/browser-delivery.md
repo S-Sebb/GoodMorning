@@ -100,13 +100,29 @@ without JavaScript. Restart for renderer/backend changes; saved JSON and image
 manifest changes refresh without a restart.
 
 Open tabs check a public release fingerprint on load, focus and each visible
-minute. A small corner notice offers Update or Later; it never reloads by itself.
-The notice shows the deployment's patch note, and after a successful update the
-page shows the patch note again until dismissed. Every website deployment
-carries exactly one deployer-authored patch note: the newest entry of
-`assets/web/patch-notes.json` (date, author, English and Simplified Chinese
-text), served inline with `/api/release`. Update pauses while a mutation is being sent and asks before discarding unsent
-drafts. No draft is persisted in browser storage. Public auth/update assets are
+minute. The fingerprint detects changed deployments; a separate readable
+`0.minor.patch` version identifies each beta release. `/api/release` supplies
+the current version and the complete bilingual history from
+`assets/web/patch-notes.json`. Each release uses category headings and real bullet
+lists in both languages; older open tabs receive a plain-text summary derived
+from the same categorized data.
+
+Signed-in accounts automatically see the patch-note dialog for each version
+until dismissed, including on first visits and ordinary refreshes. Dismissals
+are stored per account in the encrypted account database and shared across
+hosts and devices, not in browser storage. The private local viewer stores the
+same preference in its isolated runtime's `release-seen.json`. Guests can open
+the public history manually; automatic display starts after sign-in, when the
+site can identify the person. `/api/release/seen` is private and `no-store`;
+its writes require authentication, same-origin requests and CSRF protection.
+
+A persistent blue upward-arrow button opens the dialog when the page has an
+available update. It becomes a checkmark when the page is current and still
+opens history. The dialog has a version sidebar, an Update button for stale
+pages, and a Dismiss button. Dismissing keeps the arrow available. Reading old
+notes does not install old code. Update never reloads automatically, pauses
+while a mutation is being sent and asks before discarding unsent drafts. No
+draft is persisted in browser storage. Public auth/update assets are
 fingerprinted, immutable and precompressed; their unversioned aliases revalidate.
 Tabs opened before this feature was installed need one manual refresh first.
 

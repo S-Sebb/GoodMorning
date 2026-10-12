@@ -266,6 +266,8 @@ class HTTPTests(unittest.TestCase):
 if __name__=='__main__':
     if '--serve-fixture' in sys.argv:
         root = Path(sys.argv[-1])
+        from support import returning_viewer
+        returning_viewer(root)
         class CompletingFixture(FakeChamber):
             def request(self, path, body):
                 result = super().request(path,body)

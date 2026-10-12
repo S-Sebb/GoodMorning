@@ -14,6 +14,8 @@ from test_briefing_server import FakeChamber
 
 
 def fixture(root):
+    from support import returning_viewer
+    returning_viewer(root)
     class StreamChamber(FakeChamber):
         def pending(self, session):
             if (root / 'outage').exists():

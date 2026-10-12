@@ -14,6 +14,8 @@ def recovery_fixture(root):
     sys.path.insert(0, str(REPO / 'tests'))
     from goodmorning.web.briefing_server import BrowserApp, serve_live
     from test_briefing_server import FakeChamber
+    from support import returning_viewer
+    returning_viewer(root)
     class IdleChamber(FakeChamber):
         def __init__(self):
             super().__init__()

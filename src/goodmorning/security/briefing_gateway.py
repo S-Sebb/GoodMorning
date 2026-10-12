@@ -19,7 +19,7 @@ from urllib.error import HTTPError
 
 from .briefing_accounts import Accounts, COOKIE, Denied, Limited, SESSION_SECONDS, REMEMBER_SECONDS, PASSWORD_MIN, PASSWORD_MAX, PASSWORD_RULE
 from goodmorning.web.briefing_resources import accepts_gzip, Resources, ByteCache, ICON_TYPES, favicon_links
-from goodmorning.web.release import VERSION, patch_note
+from goodmorning.web.release import VERSION, release_info
 from goodmorning.paths import WEB_ASSETS
 from goodmorning.web import language as ui
 from goodmorning.web import models as site_models
@@ -535,7 +535,7 @@ def handler_for(gateway):
                 if path == '/api/release':
                     tag='W/"'+VERSION+'"'
                     cached=self.headers.get('If-None-Match')==tag
-                    return self.respond(b'' if cached else {'version':VERSION,'note':patch_note()},304 if cached else 200,cache='public, no-cache',etag=tag)
+                    return self.respond(b'' if cached else release_info(),304 if cached else 200,cache='public, no-cache',etag=tag)
                 resource=gateway.icons.paths.get(path) or gateway.icons.alias(path)
                 if resource:
                     tag=resource.etag
@@ -546,6 +546,7 @@ def handler_for(gateway):
                 try:
                     session=self.session(host)
                 except Denied:
+                    if path=='/api/release/seen':return self.respond({'version':None,'enabled':False})
                     if path=='/api/language':return self.respond({'language':ui.current()})
                     if path=='/api/model':return self.respond({'model':site_models.DEFAULT})
                     if path!='/login':
@@ -554,6 +555,9 @@ def handler_for(gateway):
                     token,csrf=gateway.accounts.anonymous(host)
                     return self.respond(self.account_html({'csrf':csrf},'Sign in',host),mime='text/html; charset=utf-8',token=token,cookie_age=600)
                 self.select_language(session)
+                if path=='/api/release/seen':
+                    user=session.get('user_id')
+                    return self.respond({'version':gateway.accounts.release_seen(user) if user else None,'enabled':bool(user)})
                 if path=='/api/language':return self.respond({'language':ui.current()})
                 if path=='/api/model':return self.respond({'model':gateway.accounts.website_model(session['user_id']) or site_models.DEFAULT})
                 if path=='/login' and not session['user_id']:
@@ -647,6 +651,9 @@ def handler_for(gateway):
                     return self.respond({'next':'/password' if temporary else '/'},token=token,cookie_age=REMEMBER_SECONDS if remember else SESSION_SECONDS,language_cookie=selected)
                 if not session['user_id']:
                     raise Denied('Login required')
+                if path=='/api/release/seen':
+                    if set(body)!={'version'} or body['version'] is None:raise ValueError('Invalid release version')
+                    return self.respond({'version':gateway.accounts.release_seen(session['user_id'],body['version']),'enabled':True})
                 if path=='/api/auth/password':
                     if set(body)!={'current','replacement'}:
                         raise ValueError('Invalid password change')
@@ -672,7 +679,7 @@ def handler_for(gateway):
                 return self.respond({'error':str(error)},403)
             except (ValueError,KeyError,TypeError):
                 route=urlsplit(self.path).path
-                error='Choose English or Simplified Chinese' if route=='/api/language' else 'Choose one of the offered website models' if route=='/api/model' else 'Invalid request. '+PASSWORD_RULE
+                error='Invalid release version' if route=='/api/release/seen' else 'Choose English or Simplified Chinese' if route=='/api/language' else 'Choose one of the offered website models' if route=='/api/model' else 'Invalid request. '+PASSWORD_RULE
                 return self.respond({'error':error},400)
             except Exception:
                 return self.respond({'error':'Request could not be confirmed. Refresh before retrying.'},503)

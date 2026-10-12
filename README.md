@@ -34,6 +34,10 @@ and existing local preferences are not translated or rewritten. Website initiali
 therefore skips the separate reply-language question. For local skill use, the first
 setup question still confirms the secretary's reply language independently of news.
 The Secretary page explains when to choose Secretary, To-do, Eureka or Initialize.
+The website uses beta versions (`0.minor.patch`). A blue update arrow, or a
+checkmark when current, opens bilingual patch notes with a past-version sidebar.
+Each new version appears automatically until dismissed; that preference is
+shared across the account's devices. See the [patch-note guide](docs/server-deployment.md#patch-note-procedure).
 One self-contained `goodmorning` skill is copied only into
 `~/.agents/skills/goodmorning/`. The inactive source lives in
 `skill-source/goodmorning.md`; this checkout registers no skills or commands.

@@ -118,17 +118,7 @@ def page(source,csrf,return_to='/'):
     from .release import VERSION
     if 'id="site-release"' not in source:
         source=source.replace('</head>','<link rel="stylesheet" href="/update.css"><script src="/update.js" defer></script></head>')
-        notice=('<div id="site-release" hidden data-version="'+VERSION+'"></div>'
-                '<aside id="site-update" class="site-update" hidden aria-label="Website update">'
-                '<p role="status" aria-live="polite">A website update is available.</p>'
-                '<p id="update-note" role="status" hidden></p>'
-                '<button id="update-refresh" type="button">Update</button>'
-                '<button id="update-later" type="button">Later</button>'
-                '<p id="update-feedback" role="status"></p></aside>'
-                '<aside id="site-patch-note" class="site-update" hidden aria-label="What\'s new in this update">'
-                '<p role="status" aria-live="polite">Update complete. What\'s new in this update:</p>'
-                '<p id="patch-note-text" role="status"></p>'
-                '<button id="patch-note-dismiss" type="button">Got it</button></aside>')
+        notice='<div id="site-release" hidden data-version="'+VERSION+'"></div>'
         source=source.replace('</body>',notice+'</body>')
     else:
         # A proxied backend may have embedded its own fingerprint; the served

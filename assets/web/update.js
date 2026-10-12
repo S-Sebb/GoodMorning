@@ -1,84 +1,195 @@
-// Only a public release fingerprint and its patch note are read. Never reload automatically.
+// Public release history; dismissals live with the account, never with browser drafts.
 (() => {
-  const marker = document.querySelector('#site-release');
-  const initial = marker ? marker.getAttribute('data-version') : null;
-  let notice = document.querySelector('#site-update');
-  if (!notice) {
-    notice = document.createElement('aside');
-    notice.id = 'site-update';
-    notice.className = 'site-update';
-    notice.setAttribute('aria-label', 'Website update');
-    notice.hidden = true;
-    notice.innerHTML = '<p role="status" aria-live="polite">A website update is available.</p>'
-      + '<p id="update-note" role="status" hidden></p>'
-      + '<button id="update-refresh" type="button">Update</button>'
-      + '<button id="update-later" type="button">Later</button>'
-      + '<p id="update-feedback" role="status"></p>';
-    document.body.appendChild(notice);
-  }
-  let patch = document.querySelector('#site-patch-note');
-  if (!patch) {
-    patch = document.createElement('aside');
-    patch.id = 'site-patch-note';
-    patch.className = 'site-update';
-    patch.setAttribute('aria-label', "What's new in this update");
-    patch.hidden = true;
-    patch.innerHTML = '<p role="status" aria-live="polite">Update complete. What\'s new in this update:</p>'
-      + '<p id="patch-note-text" role="status"></p>'
-      + '<button id="patch-note-dismiss" type="button">Got it</button>';
-    document.body.appendChild(patch);
-  }
-  const noteLine = document.querySelector('#update-note');
-  const feedback = document.querySelector('#update-feedback');
-  const refreshButton = document.querySelector('#update-refresh');
-  const laterButton = document.querySelector('#update-later');
-  const patchText = document.querySelector('#patch-note-text');
-  const patchDismiss = document.querySelector('#patch-note-dismiss');
+  const initial = document.querySelector('#site-release')?.dataset.version ?? null;
   const t = key => typeof goodmorningT === 'function' ? goodmorningT(key) : key;
-  const noteText = note => {
-    if (!note || typeof note.en !== 'string' || typeof note.zh !== 'string') return '';
-    return document.documentElement.lang === 'zh-CN' ? note.zh : note.en;
+  const localized = (note, prefix = '') => note[prefix + (document.documentElement.lang === 'zh-CN' ? 'zh' : 'en')];
+  const toggle = document.createElement('button');
+  toggle.id = 'site-update-toggle';
+  toggle.type = 'button';
+  toggle.hidden = true;
+  toggle.setAttribute('aria-haspopup', 'dialog');
+  toggle.setAttribute('aria-controls', 'site-patch-note');
+  toggle.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">'
+    + '<path class="update-arrow" d="M12 19V5m-6 6 6-6 6 6"/>'
+    + '<path class="update-check" d="m5 12 4 4L19 6"/></svg>';
+  const patch = document.createElement('dialog');
+  patch.id = 'site-patch-note';
+  patch.setAttribute('aria-labelledby', 'patch-note-heading');
+  patch.innerHTML = '<div class="patch-layout">'
+    + '<header class="patch-header"><h2 id="patch-note-heading"></h2><span id="patch-beta"></span></header>'
+    + '<nav id="patch-note-versions"></nav>'
+    + '<section class="patch-content" tabindex="0" aria-labelledby="patch-note-version">'
+    + '<p id="patch-note-version"></p><h3 id="patch-note-title"></h3><p id="patch-note-date"></p>'
+    + '<div id="patch-note-text"></div><p id="patch-note-source"></p></section>'
+    + '<footer class="patch-footer"><p id="update-status" role="status"></p>'
+    + '<div><button id="update-refresh" type="button"></button><button id="patch-note-dismiss" type="button"></button></div>'
+    + '<p id="update-feedback" role="status" aria-live="polite"></p></footer></div>';
+  document.body.append(toggle, patch);
+  const versions = patch.querySelector('#patch-note-versions');
+  const feedback = patch.querySelector('#update-feedback');
+  const refreshButton = patch.querySelector('#update-refresh');
+  const dismissButton = patch.querySelector('#patch-note-dismiss');
+  let latest = initial, release = null, notes = [], selected = null;
+  let checking = false, checkedAt = 0, shown = null, seen = null, accountEnabled = false;
+  let returnFocus = null;
+  let renderedChanges = null;
+  const stale = () => initial === null || latest !== initial;
+  const unseen = () => {
+    if (typeof seen !== 'string') return true;
+    const [, minor, patchNumber] = release.split('.').map(Number);
+    const [, seenMinor, seenPatch] = seen.split('.').map(Number);
+    return minor > seenMinor || (minor === seenMinor && patchNumber > seenPatch);
   };
-  const renderNotes = () => {
-    if (latestNote && !notice.hidden && noteLine) {
-      const text = noteText(latestNote);
-      noteLine.textContent = text; noteLine.hidden = !text;
-    } else if (noteLine) { noteLine.textContent = ''; noteLine.hidden = true; }
-  };
-  document.addEventListener('website:language', renderNotes);
-  let justUpdated = null;
-  try { justUpdated = sessionStorage.getItem('gm-just-updated'); sessionStorage.removeItem('gm-just-updated'); } catch { justUpdated = null; }
-  if (patchDismiss) patchDismiss.addEventListener('click', () => { patch.hidden = true; });
-  let checking = false, latest = initial, latestNote = null, dismissed = null, checkedAt = 0, patchShown = false;
+
+  function render() {
+    toggle.hidden = notes.length === 0;
+    toggle.dataset.state = stale() ? 'available' : 'current';
+    const label = t(stale() ? 'Update available. View patch notes' : 'Up to date. View patch notes');
+    toggle.setAttribute('aria-label', label);
+    toggle.title = label;
+    patch.querySelector('#patch-note-heading').textContent = t('Patch notes');
+    patch.querySelector('#patch-beta').textContent = t('Beta');
+    versions.setAttribute('aria-label', t('Patch note versions'));
+    refreshButton.textContent = t('Update');
+    refreshButton.hidden = !stale();
+    dismissButton.textContent = t('Dismiss');
+    patch.querySelector('#update-status').textContent = t(stale() ? 'A website update is available.' : "You're up to date.")
+      + (release ? ' · v' + release : '');
+    // Polling must not replace a focused history button or reset reading position.
+    if ([...versions.children].map(button => button.dataset.version).join(',') !== notes.map(note => note.version).join(',')) {
+      versions.replaceChildren();
+      for (const note of notes) {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.dataset.version = note.version;
+        button.textContent = 'v' + note.version;
+        const day = document.createElement('span');
+        day.textContent = note.date;
+        button.appendChild(day);
+        button.addEventListener('click', () => {
+          selected = note.version;
+          renderSelection();
+          patch.querySelector('.patch-content').scrollTop = 0;
+        });
+        versions.appendChild(button);
+      }
+    }
+    renderSelection();
+  }
+
+  function renderSelection() {
+    const note = notes.find(entry => entry.version === selected) || notes[0];
+    if (!note) return;
+    selected = note.version;
+    for (const button of versions.children) button.setAttribute('aria-current', String(button.dataset.version === selected));
+    patch.querySelector('#patch-note-version').textContent = 'v' + note.version;
+    patch.querySelector('#patch-note-title').textContent = localized(note, 'title_');
+    patch.querySelector('#patch-note-date').textContent = note.date + ' · ' + note.author;
+    const contentKey = JSON.stringify([note.version, document.documentElement.lang, note.changes]);
+    if (renderedChanges !== contentKey) {
+      const content = document.createDocumentFragment();
+      for (const group of note.changes) {
+        const section = document.createElement('section');
+        section.className = 'patch-category';
+        section.dataset.category = group.category;
+        const heading = document.createElement('h4');
+        heading.textContent = t(group.category);
+        const list = document.createElement('ul');
+        for (const item of localized(group)) {
+          const bullet = document.createElement('li');
+          bullet.textContent = item;
+          list.appendChild(bullet);
+        }
+        section.append(heading, list);
+        content.appendChild(section);
+      }
+      patch.querySelector('#patch-note-text').replaceChildren(content);
+      renderedChanges = contentKey;
+    }
+    patch.querySelector('#patch-note-source').textContent = note.commits?.length
+      ? t('Reconstructed from Git commits:') + ' ' + note.commits.join(', ') : '';
+  }
+
+  function open() {
+    if (!notes.length || patch.open) return;
+    returnFocus = document.activeElement;
+    selected = release;
+    feedback.textContent = '';
+    render();
+    patch.querySelector('.patch-content').scrollTop = 0;
+    patch.showModal();
+    dismissButton.focus();
+  }
+
+  async function acknowledge() {
+    if (!accountEnabled || !release) return;
+    const version = release;
+    try {
+      const config = JSON.parse(document.querySelector('#language-config').dataset.config);
+      const response = await fetch('/api/release/seen', {method:'POST', credentials:'same-origin', cache:'no-store',
+        headers:{'Content-Type':'application/json', 'X-Briefing-CSRF':config.csrf}, body:JSON.stringify({version})});
+      if (!response.ok) throw new Error();
+      seen = (await response.json()).version;
+    } catch {
+      // Dismiss this visit even offline, but never pretend the account save succeeded.
+      toggle.title = t('Dismissal could not be saved. Patch notes may appear again.');
+    }
+  }
+
+  async function dismiss() {
+    dismissButton.disabled = true;
+    await acknowledge();
+    patch.close();
+    dismissButton.disabled = false;
+  }
+  patch.addEventListener('cancel', event => { event.preventDefault(); dismiss(); });
+  patch.addEventListener('close', () => {
+    if (returnFocus?.isConnected && !returnFocus.closest('dialog')) returnFocus.focus();
+    else toggle.focus();
+  });
+  toggle.addEventListener('click', open);
+  dismissButton.addEventListener('click', dismiss);
+  document.addEventListener('website:language', render);
+
   async function check(force = false) {
     if (document.hidden || checking || (!force && Date.now() - checkedAt < 10000)) return;
     checking = true; checkedAt = Date.now();
     try {
-      const response = await fetch('/api/release', {cache:'no-cache',credentials:'omit'});
+      const [response, state] = await Promise.all([
+        fetch('/api/release', {cache:'no-cache', credentials:'omit'}),
+        fetch('/api/release/seen', {cache:'no-store', credentials:'same-origin'})
+      ]);
       if (!response.ok) return;
       const result = await response.json();
       if (!/^[a-f0-9]{64}$/.test(result.version)) return;
       latest = result.version;
-      const note = result.note;
-      latestNote = (note && typeof note === 'object' && typeof note.en === 'string' && typeof note.zh === 'string'
-        && note.en.length <= 2000 && note.zh.length <= 2000) ? note : null;
-      // Pages that predate the marker have no baseline: any valid release means they are stale.
-      notice.hidden = (initial !== null && latest === initial) || latest === dismissed;
-      renderNotes();
-      if (!patchShown && justUpdated !== null && initial !== null && latest === initial && latest !== justUpdated && latestNote) {
-        patchShown = true;
-        patchText.textContent = noteText(latestNote);
-        patch.hidden = false;
+      if (!Array.isArray(result.notes) || !result.notes.length) return;
+      if (!result.notes.every(note => /^0\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/.test(note.version)
+        && ['title_en','title_zh'].every(key => typeof note[key] === 'string' && note[key].length <= 2000)
+        && Array.isArray(note.changes) && note.changes.length && note.changes.every(group => typeof group.category === 'string'
+          && ['en','zh'].every(lang => Array.isArray(group[lang]) && group[lang].length
+            && group[lang].every(item => typeof item === 'string' && item.length > 0 && item.length <= 2000))
+          && group.en.length === group.zh.length))) return;
+      notes = result.notes;
+      release = notes[0].version;
+      selected = selected && notes.some(note => note.version === selected) ? selected : release;
+      if (state.ok) {
+        const status = await state.json();
+        accountEnabled = status.enabled === true;
+        seen = status.version;
       }
-    } catch { /* Quietly keep the readable page during a deployment or outage. */ }
+      render();
+      if (accountEnabled && unseen() && shown !== release) {
+        shown = release;
+        open();
+      }
+    } catch { /* Preserve readable pages and drafts during outages. */ }
     finally { checking = false; }
   }
-  if (laterButton) laterButton.addEventListener('click', () => {
-    dismissed = latest; notice.hidden = true; renderNotes();
-  });
-  if (refreshButton) refreshButton.addEventListener('click', () => {
+
+  refreshButton.addEventListener('click', async () => {
     if (!document.dispatchEvent(new Event('website:before-refresh', {cancelable:true}))) {
-      if (feedback) feedback.textContent = t('Wait for your message to finish sending before refreshing.');
+      feedback.textContent = t('Wait for your message to finish sending before refreshing.');
       return;
     }
     const dirty = [...document.querySelectorAll('input,textarea,select')].some(field => {
@@ -89,7 +200,8 @@
     });
     const event = new Event('website:refresh-drafts', {cancelable:true});
     if ((dirty || !document.dispatchEvent(event)) && !window.confirm(t('Refreshing will discard unsent text. Refresh anyway?'))) return;
-    try { sessionStorage.setItem('gm-just-updated', initial || 'unknown'); } catch { /* Storage is optional; the update still applies. */ }
+    refreshButton.disabled = true;
+    await acknowledge();
     location.reload();
   });
   window.addEventListener('focus', () => { check(); });

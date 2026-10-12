@@ -408,10 +408,10 @@ class GatewayTests(unittest.TestCase):
             self.assertEqual(self.gateway.ticket()['chat'],'c'*32)
 
     def test_public_release_check_does_not_touch_login_sessions(self):
-        from goodmorning.web.release import VERSION, patch_note
+        from goodmorning.web.release import release_info
         with self.store.db() as db:before=[tuple(row) for row in db.execute('SELECT * FROM sessions')]
         status,headers,data=self.request('/api/release')
-        self.assertEqual(status,200);self.assertEqual(json.loads(data),{'version':VERSION,'note':patch_note()})
+        self.assertEqual(status,200);self.assertEqual(json.loads(data),release_info())
         self.assertEqual(headers['Cache-Control'],'public, no-cache')
         self.assertNotIn('Set-Cookie',headers)
         self.assertEqual(self.request('/api/release',headers={'If-None-Match':headers['ETag']})[0],304)

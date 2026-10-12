@@ -253,6 +253,9 @@ class ChatTests(unittest.TestCase):
 if __name__ == '__main__':
     if '--serve-fixture' in sys.argv:
         runtime = Path(sys.argv[-1])
+        if '--unseen-release' not in sys.argv:
+            from support import returning_viewer
+            returning_viewer(runtime)
         serve_live(BrowserApp(runtime, MockChamber(runtime)), 0)
     else:
         unittest.main()
