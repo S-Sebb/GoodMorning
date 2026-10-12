@@ -152,7 +152,8 @@ class ChatTests(unittest.TestCase):
         (self.root / 'profile.md').write_text('secretary_name: Aria\nsecretary_language: English\ncity: London\ntimezone: Europe/London\nnews_country: GB\n')
         self.assertEqual(app.chat_settings()['secretary_name'], 'Aria')
         page = app.chat_page().decode()
-        self.assertIn('Aria.', page)
+        self.assertIn('id="secretary-heading">Aria</h1>', page)
+        self.assertNotIn('Aria.', page)
         self.assertIn('id="secretary-heading"', page)
         with patch('goodmorning.web.briefing_chat.threading.Thread', ImmediateThread):
             self.start('secretary', 'Hello')
@@ -188,6 +189,29 @@ class ChatTests(unittest.TestCase):
         self.assertEqual(self.chats.listing()[0]['title'], 'Secretary Correct project priorities')
         self.assertEqual(self.chats.path.read_bytes(), before)
         self.assertEqual(self.chats.get(self.id)['turns'][0]['text'], raw)
+
+    def test_all_chat_modes_leave_native_title_generation_enabled(self):
+        for index, mode in enumerate(MODES):
+            self.start(mode=mode, text='Synthetic request', chat=str(index)*32)
+        creates = [body for action,body in self.chamber.calls if action=='session.create']
+        self.assertEqual(len(creates), 4)
+        self.assertTrue(all('title' not in body for body in creates))
+
+    def test_native_timestamp_placeholder_is_hidden_and_late_title_is_read(self):
+        self.start()
+        session = self.chats.get(self.id)['session']
+        self.chamber.sessions[session]['title'] = 'New session - 2026-10-12T19:00:00.000Z'
+        before = self.chats.path.read_bytes()
+        with patch('goodmorning.web.briefing_chat.time.monotonic', return_value=10):
+            listing = self.chats.listing()[0]
+        self.assertEqual(listing['title'], 'Secretary')
+        self.assertTrue(listing['title_pending'])
+        self.chamber.sessions[session]['title'] = 'Review project priorities'
+        with patch('goodmorning.web.briefing_chat.time.monotonic', return_value=14):
+            listing = self.chats.listing()[0]
+        self.assertEqual(listing['title'], 'Review project priorities')
+        self.assertFalse(listing['title_pending'])
+        self.assertEqual(self.chats.path.read_bytes(), before)
 
     def test_history_title_pages_are_bounded_cached_and_filtered_to_owned_sessions(self):
         self.start()

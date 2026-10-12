@@ -134,9 +134,10 @@ overflow. Pending input and uncertain delivery still retain the global busy flag
 
 Each website conversation and each briefing owns exactly one OpenChamber
 session. Follow-up messages reuse that session; only a new conversation or a
-new briefing date creates another one. New sessions are titled
-`GoodMorning · <mode or briefing> · <topic or date>` so the engine dashboard
-stays searchable as counts grow across accounts.
+new briefing date creates another one. Briefing sessions are titled
+`GoodMorning · <briefing> · <date>`. Chat sessions start without a custom title,
+so the native engine automatically generates an AI summary. Assigning a custom
+mode label at creation disables that automatic generation.
 
 Local registries stay bounded without deleting engine history:
 
@@ -151,7 +152,7 @@ job entries older than the window plus their transient preview/context files;
 saved editions are never touched. Archival moves only idle chats to a preserved
 local archive; active, waiting, running, uncertain, or unavailable chats are
 retained. Engine sessions are never deleted by these commands; use the engine
-dashboard search for `GoodMorning ·` to review unreferenced sessions.
+dashboard and the registry's owned-session IDs to review unreferenced sessions.
 
 ## Validation and evidence
 

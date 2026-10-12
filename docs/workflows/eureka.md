@@ -46,10 +46,10 @@ Brief grounded interest or a warm closing is optional, not mandatory padding.
    It produces the English title suggestion and reply preferences. No `kind` in this
    payload (the wrapper supplies `kind: "idea"`). Read `docs/inbox-pipeline.md`
    only for follow-ups/review/organization, not simple capture. Timestamps use the profile.
-   After a successful receipt, rename once to `Eureka SUMMARY` in the supplied website language for browser chats, or `secretary_language` for local use,
-   per the shared title rule. For browser chats, write a short AI-authored topic
-   summary without changing the captured text; local use keeps the helper's very
-   short raw summary.
+    After a successful local receipt, rename once to `Eureka SUMMARY` in
+    `secretary_language`, using the helper's very short raw summary per the shared
+    title rule. Browser chats keep the native engine's automatically generated
+    title; do not overwrite it. Captured text stays unchanged.
    Never read old inbox messages to append. Never persist credentials: ask for
    a redacted idea instead. Verify the write receipt before saying "Saved". If this same
     user turn was already captured, point to its entry rather than appending again.

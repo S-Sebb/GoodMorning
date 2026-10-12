@@ -2,10 +2,10 @@
 const chatConfig = JSON.parse(document.querySelector('#chat-config').dataset.config);
 const chatT = (key, values) => typeof goodmorningT === 'function' ? goodmorningT(key, values) : key;
 const modes = {
-  initialize: ['Let’s make this yours.', 'Set up your secretary, or review every existing preference. Your saved work stays safe.', 'Start initialization'],
-  secretary: ['A little room to plan.', 'Ask about your schedule, preferences, or secretary records.', 'Start conversation'],
-  todo: ['Make space for what matters.', 'Write a task to capture. Saving it does not start the work.', 'Save to-do'],
-  eureka: ['Keep that spark.', 'Capture an idea before it slips away. No automatic research or execution.', 'Save idea']
+  initialize: ['Let’s make this yours.', 'Start initialization'],
+  secretary: ['A little room to plan.', 'Start conversation'],
+  todo: ['Make space for what matters.', 'Save to-do'],
+  eureka: ['Keep that spark.', 'Save idea']
 };
 const textBox = document.querySelector('#chat-text');
 const sendButton = document.querySelector('#chat-send');
@@ -25,6 +25,8 @@ let sending = false;
 let pendingChatMutations = 0;
 let polling = false;
 let timer;
+let titleTimer;
+let titleRetries = 0;
 let formSignature = '';
 let messageSignature = '';
 let animateMessages = false;
@@ -72,7 +74,7 @@ function scheduleChatTheme() {
 
 function applySecretaryName() {
   const heading = document.querySelector('#secretary-heading');
-  if (heading && secretaryName) heading.textContent = secretaryName + '.';
+  if (heading) heading.textContent = secretaryName || chatT('Your secretary');
   document.querySelector('#conversation-name').textContent = secretaryName || chatT('Your secretary');
   // Force author labels to refresh on next message render.
   messageSignature = '';
@@ -109,13 +111,10 @@ function composeState() {
   textBox.disabled = sending || (chat && state !== 'idle');
   fileInput.disabled = attachButton.disabled = sendButton.disabled;
   document.querySelectorAll('#chat-attachments button').forEach(button => { button.disabled = sendButton.disabled; });
-  const sendLabel = chatT(chat ? 'Send reply' : modes[mode][2]);
+  const sendLabel = chatT(chat ? 'Send reply' : modes[mode][1]);
   sendButton.querySelector('.chat-send-label').textContent = sendLabel;
   sendButton.setAttribute('aria-label', sendLabel);
   textBox.required = !attachments.length && (!chat && ['todo','eureka'].includes(mode) || Boolean(chat));
-  document.querySelector('#compose-note').textContent = chatT(state === 'queued'
-    ? 'Your message is queued and will send automatically.' : chat && state !== 'idle'
-     ? 'Answer the question in the conversation, or wait for your secretary.' : 'Only your chosen mode. No commands needed. Enter sends; Shift+Enter adds a new line.');
   showActivity();
 }
 
@@ -253,7 +252,6 @@ function showMode() {
     button.setAttribute('aria-checked', String(selected)); button.tabIndex = selected ? 0 : -1;
   });
   document.querySelector('#chat-welcome').textContent = chatT(modes[mode][0]);
-  document.querySelector('#mode-description').textContent = chatT(modes[mode][1]);
   document.querySelector('#chat-hint').textContent = chatT(mode === 'initialize'
     ? 'Review location, timezone and preferences a few answers at a time. Replies follow the website language.' : 'Write in your own words. Your secretary will take it from here.');
   document.querySelector('#request-language-note').textContent = requestLanguage && state !== 'idle' && typeof goodmorningLanguage !== 'undefined' && requestLanguage !== goodmorningLanguage
@@ -264,6 +262,7 @@ function showMode() {
 function newConversation(next = chatConfig.defaultMode) {
   drafts.set(mode, {text: textBox.value, attachments});
   clearTimeout(timer); revision++;
+  clearTimeout(titleTimer); titleRetries = 0;
   chat = null; state = null; sending = false; mode = next; requestLanguage = null;
   history.replaceState(null, '', '/chat');
   formSignature = ''; messageSignature = ''; animateMessages = false;
@@ -321,6 +320,7 @@ document.addEventListener('keydown', event => {
 });
 
 async function historyList() {
+  clearTimeout(titleTimer);
   const result = await chatAPI('/api/chats');
   chatConfig.defaultMode = result.defaultMode;
   chatConfig.connected = result.connected;
@@ -340,6 +340,9 @@ async function historyList() {
     if (item.id === chat) link.setAttribute('aria-current', 'page');
     return link;
   }));
+  if (result.chats.some(item => item.title_pending) && titleRetries++ < 20) {
+    titleTimer = setTimeout(() => { if (!document.hidden) historyList().catch(() => {}); }, 3000);
+  }
 }
 
 function nearLatest() {

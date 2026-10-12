@@ -1,6 +1,33 @@
 {
   "notes": [
     {
+      "version": "0.25.0", "date": "2026-10-12", "author": "GoodMorning agent",
+      "title_en": "Native AI titles and a roomier chat", "title_zh": "原生 AI 标题与更宽敞的聊天界面",
+      "changes": [
+        {"category": "Fixed", "en": [
+          "Restore native automatic AI titles by creating chat sessions without a custom mode title, which previously disabled the engine's generator. Browser workflows no longer overwrite these summaries with raw-message titles.",
+          "Hide native timestamp placeholders and briefly refresh history while a new AI title is pending. History reads never generate titles or change messages."
+        ], "zh": [
+          "创建聊天会话时不再指定模式标题，恢复此前被覆盖标题禁用的引擎原生 AI 自动命名；浏览器工作流不再用原始消息标题覆盖摘要。",
+          "隐藏原生时间戳占位标题，并在新 AI 标题生成期间短暂刷新历史列表；读取历史不会生成标题或修改消息。"
+        ]},
+        {"category": "Changed", "en": [
+          "Expand the folded mode guide with detailed capabilities, approval boundaries and an invitation to try more. Remove the separate mode caption and composer disclaimer.",
+          "Put an accessible paperclip button at the far left inside the message composer, preserving file uploads and drag-and-drop while saving vertical space.",
+          "Remove added punctuation after default and custom secretary names. Make desktop chat fill the available screen, with avatar and chat aligned 16 px from the screen top at the page bottom; long conversation history scrolls independently."
+        ], "zh": [
+          "折叠的模式说明增加详细能力介绍、授权边界和鼓励尝试的提示；移除独立模式说明及输入框下方的说明文字。",
+          "将可无障碍操作的回形针按钮放到消息输入框最左侧，保留附件上传与拖放功能，节省纵向空间。",
+          "默认与自定义秘书姓名不再附加句号；桌面聊天区域利用屏幕高度，页面滚至底部时头像与聊天顶部距屏幕顶端 16 像素，较长的历史列表独立滚动。"
+        ]},
+        {"category": "Tests", "en": [
+          "Reproduce the native-title failure and fix using the actual deployed engine version and a loopback synthetic provider, with zero external model calls. Check delayed title arrival, desktop/short-screen alignment, uploads and all themes in both website languages."
+        ], "zh": [
+          "使用实际部署的引擎版本和本地模拟模型服务复现原生标题故障并验证修复，不调用外部模型；验证标题延迟更新、桌面与矮屏对齐、附件上传及双语各主题。"
+        ]}
+      ]
+    },
+    {
       "version": "0.24.0", "date": "2026-10-12", "author": "GoodMorning agent",
       "title_en": "A clearer, compact secretary", "title_zh": "更清晰紧凑的秘书界面",
       "changes": [

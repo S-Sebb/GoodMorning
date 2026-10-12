@@ -149,7 +149,8 @@ def run(artifacts):
                 switch(page,'zh-CN');page.get_by_role('radio',name='待办',exact=True).click()
                 expect(page.locator('#chat-text')).to_have_value('Keep this unsent draft: 原文。')
                 page.get_by_role('button',name='我该选择哪个模式？',exact=True).click()
-                expect(page.locator('#mode-guide')).to_contain_text('首次设置或检查偏好')
+                expect(page.locator('#mode-guide')).to_contain_text('首次设置秘书')
+                expect(page.locator('#mode-guide')).to_contain_text('它能做的，比你想象的更多')
                 page.screenshot(path=str(artifacts/'chinese-chat-desktop.png'),full_page=True)
                 no_overflow(page)
                 # Each host has its own login, but the same account's saved language wins.
@@ -234,7 +235,7 @@ def run(artifacts):
                 assert 'secretary_language' not in (Path(settings['runtimes']['bob'])/'profile.md').read_text()
                 switch(new,'zh-CN');new.get_by_role('button',name='新建对话').click()
                 for label in ('秘书','待办','灵感','初始化'):
-                    new.get_by_role('radio',name=label,exact=True).click();expect(new.locator('#mode-description')).not_to_be_empty();no_overflow(new)
+                    new.get_by_role('radio',name=label,exact=True).click();expect(new.locator('#chat-welcome')).not_to_be_empty();expect(new.locator('#mode-description')).to_have_count(0);no_overflow(new)
                 new.goto('https://sec.language.test/gm.html');expect(new.get_by_role('button',name='准备我的早报')).to_be_visible()
                 no_overflow(new);new.screenshot(path=str(artifacts/'chinese-waiting-mobile.png'),full_page=True)
                 new.goto('https://sec.language.test/gn.html');new.get_by_role('button',name='准备我的晚报').click()

@@ -21,7 +21,7 @@ def check_composer(browser, address, artifacts):
         layout = 'node => [node.offsetLeft, node.offsetTop, node.offsetWidth, node.offsetHeight]'
         for edition, scheme in (('gm', 'classic'), ('gm', 'warm'), ('gn', 'classic')):
             text.fill('Keep this draft')
-            page.locator('#chat-attach').focus()
+            page.locator('#new-conversation').focus()
             page.evaluate("([edition, scheme]) => { document.documentElement.dataset.edition = edition; document.documentElement.dataset.dayScheme = scheme; }", [edition, scheme])
             page.evaluate("async () => { await Promise.all(document.querySelector('.chat-input-row').getAnimations().map(a => a.finished)); }")
             before = row.evaluate(layout)
@@ -30,7 +30,7 @@ def check_composer(browser, address, artifacts):
             expect(text).to_be_focused()
             expect(text).to_have_css('outline-style', 'none')
             if motion != 'reduce':
-                page.wait_for_function("document.querySelector('.chat-input-row').getAnimations().length > 0")
+                page.wait_for_function("() => document.querySelector('.chat-input-row').getAnimations().length > 0")
                 transition = row.evaluate('''node => {
                     const animations = node.getAnimations();
                     animations.forEach(a => { a.pause(); a.currentTime = a.effect.getTiming().duration / 2; });
@@ -50,7 +50,7 @@ def check_composer(browser, address, artifacts):
             page.keyboard.press('Tab')
             expect(page.locator('#chat-send')).to_be_focused()
             expect(page.locator('#chat-send')).to_have_css('outline-style', 'solid')
-            page.locator('#chat-attach').focus()
+            page.locator('#new-conversation').focus()
             page.evaluate("async () => { await Promise.all(document.querySelector('.chat-input-row').getAnimations().map(a => a.finished)); }")
             expect(row).to_have_css('border-color', plain)
             expect(text).to_have_value('Keep this draft')
@@ -437,7 +437,7 @@ def check_scroll(browser, address, artifacts):
                         for index in range(35))
         page.evaluate('pollChat()')
         expect(page.get_by_role('log')).to_contain_text('Reply 34')
-        page.wait_for_function('nearLatest()')
+        page.wait_for_function('() => nearLatest()')
         grown = page.evaluate(geometry)
         for key in ('height', 'pageHeight', 'panelHeight', 'composeTop', 'pageTop'):
             assert baseline[key] == grown[key], (key, baseline, grown)
@@ -450,7 +450,7 @@ def check_scroll(browser, address, artifacts):
         expect(page.get_by_role('log')).to_contain_text('New reply while reading history.')
         assert page.evaluate(geometry)['top'] == 0
         page.get_by_role('button', name='Jump to latest').click()
-        page.wait_for_function('nearLatest()')
+        page.wait_for_function('() => nearLatest()')
         expect(page.get_by_role('button', name='Jump to latest')).to_be_hidden()
 
         # New question forms stay inside the bounded area, including long forms.

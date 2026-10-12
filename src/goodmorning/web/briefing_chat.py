@@ -202,7 +202,8 @@ class Chats:
             items = [dict(item) for item in reversed(list(self.items.values()))][:100]
             sessions = {item['session']: item for item in items if item.get('session')}
             self.title_cache = {session:title for session,title in self.title_cache.items() if session in sessions}
-            refresh = self.chamber and sessions and time.monotonic() - self.titles_checked >= 30
+            pending = any(item.get('native_title') and session not in self.title_cache for session,item in sessions.items())
+            refresh = self.chamber and sessions and time.monotonic() - self.titles_checked >= (3 if pending else 30)
             if refresh:
                 self.titles_checked = time.monotonic()
         if refresh:
@@ -223,7 +224,8 @@ class Chats:
                         language = item['turns'][0].get('language', 'en')
                         label = ui.text(MODES[item['mode']], lang=language)
                         # A seeded raw-message title is not an AI summary.
-                        if title == chat_session_title(label, item['title']) or title == chat_session_title(label, ''):
+                        if (title == chat_session_title(label, item['title']) or title == chat_session_title(label, '')
+                            or title == label or re.fullmatch(r'New session - \d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z', title)):
                             continue
                         title = ' '.join(title.removeprefix('GoodMorning · ').split())[:160]
                         with self.lock:
@@ -236,7 +238,8 @@ class Chats:
                 pass  # Title lookup must not hide preserved conversations during an outage.
         with self.lock:
             return [{'id': item['id'], 'mode': item['mode'],
-                     'title': self.title_cache.get(item.get('session')) or ui.text(MODES[item['mode']])}
+                     'title': self.title_cache.get(item.get('session')) or ui.text(MODES[item['mode']]),
+                     'title_pending': bool(item.get('native_title') and item.get('session') not in self.title_cache)}
                     for item in items]
 
     def remember_questions(self, chat, forms, messages):
@@ -272,6 +275,7 @@ class Chats:
                 raise ValueError('Conversation storage needs administrator archival')
             self.capacity({'text': text, 'attachments': attachments})
             item = {'id': chat, 'mode': body['mode'], 'title': ui.text(MODES[body['mode']]),
+                    'native_title': True,
                     'state': 'starting', 'turns': [{'id': chat, 'text': text, 'attachments': attachments,'language':ui.current(),'model':site_models.current()}],
                     'created': time.time()}
             self.items[chat] = item
@@ -310,8 +314,8 @@ class Chats:
             selected=item['turns'][-1]['language']
             chosen=item['turns'][-1].get('model', site_models.DEFAULT)
             if first:
-                result = self.chamber.control('session.create', title=chat_session_title(
-                    ui.text(MODES[item['mode']],lang=selected), ''))
+                # A custom title disables the engine's built-in AI title generation.
+                result = self.chamber.control('session.create')
                 session = result['sessionId']
                 if not re.fullmatch('ses[A-Za-z0-9_]+', session):
                     raise ValueError('Invalid session')
@@ -451,7 +455,7 @@ def page(csrf, ready, connected, secretary_name=None, avatar='f1', avatar_urls=N
                                    'avatar': avatar, 'avatars': [{'id': entry, 'src': source} for entry, source in sources.items()]}), quote=True)
     choices = ''.join(f'<button type="button" role="radio" aria-checked="false" data-mode="{mode}">{label}</button>'
                       for mode, label in MODES.items())
-    heading = html.escape(secretary_name) + '.' if secretary_name else 'Your secretary.'
+    heading = html.escape(secretary_name) if secretary_name else 'Your secretary'
     conversation_name = html.escape(secretary_name) if secretary_name else ui.text('Your secretary')
     title = (html.escape(secretary_name) + ' — GoodMorning') if secretary_name else 'Your secretary — GoodMorning'
     return ('<!doctype html><html lang="en" data-edition="' + ('gn' if theme == 'gn' else 'gm') + '"><head><meta charset="utf-8">'
@@ -472,22 +476,28 @@ def page(csrf, ready, connected, secretary_name=None, avatar='f1', avatar_urls=N
              '<h2 id="conversation-name" class="chat-visually-hidden" data-content>'+conversation_name+'</h2>'
              '<div class="mode-controls"><div class="mode-switch" role="radiogroup" aria-label="Secretary mode">'+choices+'</div>'
              '<button id="mode-help" type="button" aria-label="Which mode should I use?" title="Which mode should I use?" aria-controls="mode-guide" aria-expanded="false"><span aria-hidden="true">?</span></button></div>'
-             '<div id="mode-guide" hidden><p>Use Secretary for discussion and planning, To-do for a task, Eureka for an idea, and Initialize for setup or preference review.</p></div>'
-             '<p id="mode-description"></p><div id="chat-scroll" role="region" aria-label="Conversation" tabindex="0">'
+             '<div id="mode-guide" hidden>'
+             '<p><strong>Initialize</strong> — Set up your secretary for the first time, or review your location, timezone, name and preferences. Existing records and saved work stay intact.</p>'
+             '<p><strong>Secretary</strong> — Talk through plans, review your schedule and saved records, clarify priorities, or update preferences. Ask follow-up questions in your own words; changes that need your approval will be confirmed first.</p>'
+             '<p><strong>To-do</strong> — Capture a task and add details such as a project, deadline or priority when useful. Saving a task records it; it does not automatically start the work.</p>'
+             '<p><strong>Eureka</strong> — Save an idea, observation or question before it slips away, then develop it through follow-up discussion. Capturing an idea does not automatically research or execute it.</p>'
+             '<p>When in doubt, try it—it can do a lot more than you think!</p>'
+             '<p>Write naturally; no commands are needed. Enter sends your message; Shift+Enter adds a new line. Use the paperclip or drag files into the composer to attach them.</p></div>'
+             '<div id="chat-scroll" role="region" aria-label="Conversation" tabindex="0">'
              '<div id="chat-empty"><span class="desk-symbol" aria-hidden="true">✦</span>'
             '<h2 id="chat-welcome"></h2><p id="chat-hint"></p></div>'
             '<div id="chat-messages" role="log" aria-label="Conversation messages" aria-live="polite" aria-relevant="additions text"></div>'
              '<div id="chat-questions"></div><p id="chat-status" role="status"></p><p id="request-language-note" role="status"></p></div>'
              '<div class="chat-scroll-tools"><button type="button" id="chat-latest" hidden>Jump to latest</button></div>'
             '<form id="chat-compose"><label for="chat-text" id="compose-label" class="chat-visually-hidden">Your message</label>'
-            '<div class="chat-input-row"><textarea id="chat-text" rows="1" maxlength="8000" placeholder="Tell me what’s on your mind…" enterkeyhint="send"></textarea>'
+             '<div class="chat-input-row"><button type="button" id="chat-attach" aria-label="Attach files" aria-describedby="upload-note" title="Attach files" disabled>'
+             '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" aria-hidden="true"><path d="m8 12 6-6a3 3 0 0 1 4 4l-8 8a5 5 0 0 1-7-7l9-9" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>'
+             '<textarea id="chat-text" rows="1" maxlength="8000" placeholder="Your message…" enterkeyhint="send"></textarea>'
             '<button type="submit" id="chat-send" disabled><span class="chat-send-label chat-visually-hidden">Send message</span>'
             '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" aria-hidden="true"><path d="m4 5 16 7-16 7 3-7-3-7Zm3 7h13" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button></div>'
             '<input id="chat-files" type="file" multiple hidden><div id="chat-attachments" aria-live="polite"></div>'
-            '<div class="attachment-controls"><button type="button" id="chat-attach" disabled>Attach files</button>'
-            '<span id="upload-note">Up to 50 MB per file. You can also drag files into this box.</span></div>'
-            '<div class="compose-footer"><span id="compose-note">Only your chosen mode. No commands needed. Enter sends; Shift+Enter adds a new line.</span>'
-             '</div></form><p id="chat-error" role="alert"></p>'
+             '<span id="upload-note" class="chat-visually-hidden">Up to 50 MB per file. You can also drag files into this box.</span>'
+             '</form><p id="chat-error" role="alert"></p>'
             '<noscript>Enable JavaScript to talk with your secretary. Saved briefings remain readable.</noscript></section></main>'
             '<div id="chat-config" hidden data-config="'+config+'"></div>'
             '<script src="/questions.js" defer></script><script src="/avatar.js" defer></script>'

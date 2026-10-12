@@ -68,7 +68,9 @@ replies, `docs/reply-voice.md`: personable useful content, no routine bookkeepin
 
 ## Normal work
 
-1. Rename this conversation to `Secretary SUMMARY` in the supplied website language for browser chats, or `secretary_language` for local use, per the shared title rule (simple summary, no date).
+1. For local use, rename to `Secretary SUMMARY` in `secretary_language`, per the
+   shared title rule (simple summary, no date). Browser chats keep the native
+   engine's automatically generated title; do not overwrite it.
    Use `workflow --secretary-dir RUNTIME --prepare secretary` once for relevant
    preferences, local date, paths and active inbox summaries. Do not repeat these reads.
    Identify the requested read/change and any ambiguity. Read only

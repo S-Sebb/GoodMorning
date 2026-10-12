@@ -2,8 +2,8 @@
 
 Every GoodMorning conversation or briefing owns exactly one OpenChamber
 session. Follow-up messages reuse that session; a new conversation, briefing
-date or explicitly regenerated briefing creates another one. Titles carry a fixed ``GoodMorning`` ·
-``prefix so the engine dashboard stays searchable as the count grows.
+date or explicitly regenerated briefing creates another one. Briefing titles carry
+a fixed ``GoodMorning ·`` prefix; chat titles come from native AI auto-titling.
 
 Local registries stay bounded: old briefing jobs are pruned and old chats move
 to a preserved local archive. Engine sessions are never deleted here; the
@@ -210,7 +210,7 @@ def main(argv=None):
             result = archive_chats(runtime, args.keep, args.older_than_days, apply=args.apply)
         else:
             result = summarize_local(runtime)
-            result = {**result, 'titles_prefixed': PREFIX.strip()}
+            result = {**result, 'briefing_title_prefix': PREFIX.strip()}
         print(json.dumps(result, ensure_ascii=False, separators=(',', ':')))
         return 0
     except (ValueError, OSError, KeyError, TypeError) as error:

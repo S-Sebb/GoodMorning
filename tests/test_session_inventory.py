@@ -22,7 +22,7 @@ class SessionInventoryTests(unittest.TestCase):
         self.assertIn('2026-10-11', inventory.job_session_title('Morning briefing', '2026-10-11'))
         self.assertLessEqual(len(inventory.chat_session_title('Secretary', 'x' * 500)), 120)
 
-    def test_new_chat_and_job_sessions_use_prefixed_titles(self):
+    def test_chat_leaves_native_auto_title_enabled_and_briefing_keeps_its_prefix(self):
         with tempfile.TemporaryDirectory(dir=TEMP_ROOT) as directory:
             root = Path(directory)
             (root / 'profile.md').write_text('city: London\ntimezone: Europe/London\nnews_country: GB\nsecretary_language: English\n')
@@ -31,11 +31,11 @@ class SessionInventoryTests(unittest.TestCase):
             with patch('goodmorning.web.briefing_chat.threading.Thread', ImmediateThread):
                 chats.start({'id': 'a' * 32, 'mode': 'secretary', 'text': 'Plan tonight'})
             created = next(call for call in chamber.calls if call[0] == 'session.create')
-            self.assertTrue(created[1]['title'].startswith('GoodMorning · '))
+            self.assertNotIn('title', created[1])
             app = BrowserApp(root, chamber)
             with patch('goodmorning.web.briefing_server.threading.Thread', ImmediateThread):
                 app.start(app.today(), 'gm')
-            created = next(call for call in chamber.calls if call[0] == 'session.create' and 'briefing' in call[1]['title'])
+            created = next(call for call in chamber.calls if call[0] == 'session.create' and 'briefing' in call[1].get('title',''))
             self.assertTrue(created[1]['title'].startswith('GoodMorning · '))
             self.assertIn(app.today(), created[1]['title'])
             self.assertIn(app.jobs[app.today() + '.gm']['session'], inventory.owned_sessions(root))
