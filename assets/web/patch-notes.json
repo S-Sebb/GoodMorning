@@ -1,6 +1,23 @@
 {
   "notes": [
     {
+      "version": "0.29.2", "date": "2026-10-12", "author": "GoodMorning agent",
+      "title_en": "Chat history navigation and image corners", "title_zh": "聊天历史导航与图片圆角",
+      "changes": [
+        {"category": "Fixed", "en": [
+          "Remove rounding from the top-left and bottom-left corners of inline chat image previews; right corners keep their rounding and composer drafts are unchanged.",
+          "Open previous conversations without reloading the page, with back and forward button support and a correct current-conversation highlight.",
+          "Keep separate message drafts per conversation as well as per mode, and clear them when the message is sent.",
+          "Preserve history and page scroll position when conversation titles refresh."
+        ], "zh": [
+          "取消聊天内联图片预览左上与左下圆角；右侧保持圆角，编辑器草稿预览不变。",
+          "点击历史对话无需重新加载页面即可打开，支持浏览器前进后退，并正确高亮当前对话。",
+          "每个对话以及每种模式分别保留消息草稿，发送后清除对应草稿。",
+          "对话标题刷新时保持历史列表与页面滚动位置不变。"
+        ]}
+      ]
+    },
+    {
       "version": "0.29.1", "date": "2026-10-12", "author": "GoodMorning agent",
       "title_en": "Guard briefing ownership and name outside edits", "title_zh": "保护简报归属并提示外部更改",
       "changes": [

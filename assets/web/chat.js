@@ -347,12 +347,17 @@ function showMode() {
   composeState();
 }
 
+function draftKey() {
+  return chat ? 'id:' + chat : mode;
+}
+
 function newConversation(next = chatConfig.defaultMode) {
-  drafts.set(mode, {text: textBox.value, attachments});
+  drafts.set(draftKey(), {text: textBox.value, attachments});
   clearTimeout(timer); revision++;
   clearTimeout(titleTimer); titleRetries = 0;
   chat = null; state = null; sending = false; mode = next; requestLanguage = null;
   history.replaceState(null, '', '/chat');
+  document.querySelectorAll('#chat-history [aria-current]').forEach(link => link.removeAttribute('aria-current'));
   formSignature = ''; messageSignature = ''; animateMessages = false;
   followNextUpdate = true;
   document.querySelector('#chat-messages').replaceChildren();
@@ -385,6 +390,68 @@ document.querySelectorAll('[data-mode]').forEach(button => {
   });
 });
 document.querySelector('#new-conversation').addEventListener('click', () => newConversation());
+
+function markCurrentHistoryLink(id) {
+  document.querySelectorAll('#chat-history [aria-current]').forEach(link => link.removeAttribute('aria-current'));
+  if (!id) return;
+  const current = document.querySelector(`#chat-history a[href="/chat?id=${id}"]`);
+  if (current) current.setAttribute('aria-current', 'page');
+}
+
+function openConversation(id, {push = true} = {}) {
+  if (!id || id === chat) {
+    markCurrentHistoryLink(chat);
+    return;
+  }
+  drafts.set(draftKey(), {text: textBox.value, attachments});
+  clearTimeout(timer); revision++;
+  clearTimeout(titleTimer); titleRetries = 0;
+  chat = id; state = 'starting'; sending = false; requestLanguage = null;
+  if (push) history.pushState(null, '', '/chat?id=' + id);
+  else history.replaceState(null, '', '/chat?id=' + id);
+  markCurrentHistoryLink(id);
+  formSignature = ''; messageSignature = ''; animateMessages = false;
+  followNextUpdate = true;
+  document.querySelector('#chat-messages').replaceChildren();
+  document.querySelector('#chat-questions').replaceChildren();
+  document.querySelector('#chat-empty').hidden = false;
+  chatScroll.scrollTop = 0;
+  latestButton.hidden = true;
+  statusLabel = '';
+  document.querySelector('#chat-status').classList.remove('is-queued');
+  errorBox.textContent = '';
+  const draft = drafts.get('id:' + id);
+  textBox.value = draft?.text || '';
+  resizeComposer();
+  attachments = draft?.attachments || [];
+  showAttachments();
+  showActivity();
+  composeState();
+  pollChat();
+}
+
+document.querySelector('#chat-history').addEventListener('click', event => {
+  if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+  const link = event.target.closest('a[href]');
+  if (!link) return;
+  let url;
+  try { url = new URL(link.href, location.origin); }
+  catch { return; }
+  if (url.origin !== location.origin || url.pathname !== '/chat') return;
+  const id = url.searchParams.get('id');
+  if (!id) return;
+  event.preventDefault();
+  openConversation(id);
+});
+
+window.addEventListener('popstate', () => {
+  const id = new URLSearchParams(location.search).get('id');
+  if (!id) {
+    if (chat !== null) newConversation(chatConfig.defaultMode);
+    return;
+  }
+  if (id !== chat) openConversation(id, {push: false});
+});
 
 textBox.addEventListener('keydown', event => {
   if (event.key !== 'Enter' || event.shiftKey || event.isComposing || event.keyCode === 229) return;
@@ -422,13 +489,21 @@ async function historyList() {
     applySecretaryName();
   }
   if (typeof result.avatar === 'string') document.dispatchEvent(new CustomEvent('secretary:avatar', {detail: result.avatar}));
-  document.querySelector('#chat-history').replaceChildren(...result.chats.map(item => {
+  const historyNav = document.querySelector('#chat-history');
+  const historyDetails = document.querySelector('#conversation-history');
+  const historyTop = historyNav.scrollTop;
+  const detailsTop = historyDetails ? historyDetails.scrollTop : 0;
+  const pageTop = window.scrollY;
+  historyNav.replaceChildren(...result.chats.map(item => {
     const link = make('a', item.title); link.href = '/chat?id=' + item.id;
     const label=item.mode === 'todo' ? 'To-do' : item.mode[0].toUpperCase() + item.mode.slice(1);
     const badge=make('small',chatT(label));badge.dataset.uiText=label;link.append(badge);
     if (item.id === chat) link.setAttribute('aria-current', 'page');
     return link;
   }));
+  if (historyNav.scrollTop !== historyTop) historyNav.scrollTop = historyTop;
+  if (historyDetails && historyDetails.scrollTop !== detailsTop) historyDetails.scrollTop = detailsTop;
+  if (window.scrollY !== pageTop) window.scrollTo({left: window.scrollX, top: pageTop, behavior: 'instant'});
   if (result.chats.some(item => item.title_pending) && titleRetries++ < 20) {
     titleTimer = setTimeout(() => { if (!document.hidden) historyList().catch(() => {}); }, 3000);
   }
@@ -677,7 +752,7 @@ document.querySelector('#chat-compose').addEventListener('submit', async event =
     const result = await chatAPI(first ? '/api/chats' : `/api/chats/${current}/messages`,
       body);
     if (version !== revision) return;
-    chat = current; textBox.value = ''; drafts.delete(mode);
+    chat = current; textBox.value = ''; drafts.delete(mode); drafts.delete('id:' + current);
     releasePreviews(selectedFiles);
     resizeComposer();
     followNextUpdate = true;

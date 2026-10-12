@@ -116,7 +116,7 @@
 #chat-attachments { max-height: 150px; overflow-y: auto; }
 .message-attachments { display: flex; flex-wrap: wrap; gap: 12px; }
 .message-attachment { min-width: 0; max-width: 100%; margin-top: 8px; }
-.chat-page .message-attachment .attachment-preview, .chat-page .message-attachment .attachment-preview:hover { border: 0; background: transparent; }
+.chat-page .message-attachment .attachment-preview, .chat-page .message-attachment .attachment-preview:hover { border: 0; background: transparent; border-top-left-radius: 0; border-bottom-left-radius: 0; }
 .message-attachment .attachment-preview img { width: auto; height: auto; max-width: min(160px, 100%); max-height: 160px; background: transparent; }
 .chat-image-dialog { max-width: calc(100vw - 32px); max-height: calc(100dvh - 32px); padding: 48px 12px 12px; border: 1px solid var(--line); border-radius: 16px; background: var(--surface); color: var(--ink); }
 .chat-image-dialog::backdrop { background: #000b; }
