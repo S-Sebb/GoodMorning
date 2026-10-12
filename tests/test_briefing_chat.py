@@ -55,6 +55,14 @@ class MockChamber(Chamber):
         return entry['forms'], entry['permissions']
 
     def request(self, path, body=None):
+        if path.endswith('/prompt'):
+            if self.fail:
+                raise OSError('Synthetic dispatch interruption')
+            self.replies.append((path, body))
+            session = self.sessions[path.split('/')[3]]
+            self.add(session, 'user', body['text'])
+            self.add(session, 'assistant', 'Synthetic attachment reply')
+            return {'data': {'id': 'inbox_synthetic'}}
         if path == '/api/openchamber/control':
             session = self.sessions[body['input']['sessionId']]
             return {'sessionStatus': {'type': 'busy' if session['forms'] or session['permissions'] else 'idle'}}

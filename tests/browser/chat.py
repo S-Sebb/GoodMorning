@@ -108,6 +108,88 @@ def check_motion(browser, address, artifacts):
     return checks
 
 
+def check_uploads(browser, address, artifacts):
+    checks = []
+    for width in (1440, 390, 320):
+        page = browser.new_page(viewport={'width': width, 'height': 900}, reduced_motion='reduce')
+        errors = []
+        page.on('pageerror', lambda error: errors.append(str(error)))
+        page.goto(address + '/chat?mode=secretary')
+        expect(page.get_by_role('button', name='Attach files', exact=True)).to_be_enabled()
+        with page.expect_file_chooser() as chooser:
+            page.get_by_role('button', name='Attach files', exact=True).click()
+        chooser.value.set_files([{'name': '资料 <img>.txt', 'mimeType': 'text/plain', 'buffer': b'Synthetic notes'},
+                                 {'name': 'remove.txt', 'mimeType': 'text/plain', 'buffer': b'Remove this'}])
+        expect(page.locator('#chat-attachments')).to_contain_text('资料 <img>.txt')
+        page.get_by_role('button', name='Remove remove.txt', exact=True).click()
+        expect(page.locator('#chat-attachments .attachment-chip')).to_have_count(1)
+        page.get_by_role('radio', name='To-do', exact=True).click()
+        expect(page.locator('#chat-attachments .attachment-chip')).to_have_count(0)
+        page.get_by_role('radio', name='Secretary', exact=True).click()
+        expect(page.locator('#chat-attachments .attachment-chip')).to_have_count(1)
+        assert page.locator('#chat-attachments img').count() == 0
+        assert not page.evaluate('document.documentElement.scrollWidth > innerWidth')
+        page.screenshot(path=str(artifacts / f'attachments-{width}.png'), full_page=True)
+        with page.expect_response('**/api/chat-uploads/*') as uploaded:
+            page.get_by_role('button', name='Start conversation', exact=True).click()
+        assert uploaded.value.status == 201
+        expect(page.get_by_role('log')).to_contain_text('资料 <img>.txt')
+        expect(page.get_by_role('button', name='Send reply', exact=True)).to_be_enabled()
+        expect(page.locator('#chat-attachments .attachment-chip')).to_have_count(0)
+        page.reload()
+        expect(page.get_by_role('log')).to_contain_text('资料 <img>.txt')
+        page.locator('#chat-files').set_input_files({'name': 'follow-up.txt', 'mimeType': 'text/plain', 'buffer': b'Follow-up'})
+        page.get_by_role('button', name='Send reply', exact=True).click()
+        expect(page.get_by_role('log')).to_contain_text('follow-up.txt')
+        expect(page.get_by_role('button', name='Send reply', exact=True)).to_be_enabled()
+        page.get_by_role('button', name='New conversation', exact=True).click()
+        page.get_by_role('radio', name='Secretary', exact=True).click()
+        requests = []
+        page.on('request', lambda request: requests.append(request) if request.method == 'POST' else None)
+        page.route('**/api/chat-uploads/*', lambda route: route.fulfill(status=413,
+                   json={'error': 'Files must be 50 MB or smaller.'}), times=1)
+        page.locator('#chat-files').set_input_files({'name': 'keep.txt', 'mimeType': 'text/plain', 'buffer': b'Keep draft'})
+        page.get_by_role('button', name='Start conversation', exact=True).click()
+        expect(page.get_by_role('alert')).to_have_text('Files must be 50 MB or smaller.')
+        expect(page.locator('#chat-attachments')).to_contain_text('keep.txt')
+        expect(page.get_by_role('button', name='Start conversation', exact=True)).to_be_enabled()
+        assert not any(request.url.endswith('/api/chats') for request in requests)
+        page.get_by_role('button', name='Remove keep.txt', exact=True).click()
+        if width == 1440:
+            dropped = page.evaluate_handle("""() => {
+                const transfer = new DataTransfer();
+                transfer.items.add(new File(['Dropped synthetic notes'], 'dropped.txt', {type: 'text/plain'}));
+                return transfer;
+            }""")
+            page.locator('#chat-text').dispatch_event('dragenter', {'dataTransfer': dropped})
+            expect(page.locator('#chat-compose')).to_have_class('is-dragging')
+            page.locator('#chat-text').dispatch_event('dragover', {'dataTransfer': dropped})
+            page.locator('#chat-text').dispatch_event('drop', {'dataTransfer': dropped})
+            expect(page.locator('#chat-compose')).not_to_have_class('is-dragging')
+            expect(page.locator('#chat-attachments')).to_contain_text('dropped.txt')
+            page.get_by_role('button', name='Start conversation', exact=True).click()
+            expect(page.get_by_role('log')).to_contain_text('dropped.txt')
+            expect(page.get_by_role('button', name='Send reply', exact=True)).to_be_enabled()
+            page.get_by_role('button', name='New conversation', exact=True).click()
+            page.get_by_role('radio', name='Secretary', exact=True).click()
+            page.evaluate("""() => {
+                const input = document.querySelector('#chat-files');
+                const transfer = new DataTransfer();
+                transfer.items.add(new File([new Uint8Array(50 * 1024 * 1024 + 1)], 'oversize.txt'));
+                input.files = transfer.files;
+                input.dispatchEvent(new Event('change', {bubbles: true}));
+            }""")
+            expect(page.get_by_role('alert')).to_have_text('Files must be 50 MB or smaller.')
+            expect(page.locator('#chat-attachments .attachment-chip')).to_have_count(0)
+        assert not errors, errors
+        assert page.evaluate('localStorage.length === 0 && sessionStorage.length === 0')
+        checks.append({'width': width, 'fileOnlySend': True, 'followUp': True, 'refresh': True,
+                       'draftRemoval': True, 'rejectedUploadDoesNotDispatch': True,
+                       'dragDrop': width == 1440, 'overflow': False, 'pageErrors': 0})
+        page.close()
+    return checks
+
+
 def main():
     artifacts = Path(sys.argv[1]); artifacts.mkdir(parents=True, exist_ok=True, mode=0o700)
     results = []
@@ -121,6 +203,7 @@ def main():
             with sync_playwright() as playwright:
                 browser = playwright.chromium.launch()
                 motion_checks = check_motion(browser, address, artifacts)
+                upload_checks = check_uploads(browser, address, artifacts)
                 for width in (1440, 768, 390, 320):
                     page = browser.new_page(viewport={'width': width, 'height': 900}, reduced_motion='reduce')
                     errors = []; page.on('pageerror', lambda error: errors.append(str(error)))
@@ -215,7 +298,7 @@ def main():
         finally:
             process.terminate(); process.communicate(timeout=5)
     report = {'modelCalls': 0, 'agent': 'synthetic', 'setup': 'mock saved, default changed', 'checks': results,
-              'motion': motion_checks}
+              'motion': motion_checks, 'uploads': upload_checks}
     (artifacts / 'result.json').write_text(json.dumps(report, indent=2))
     print(json.dumps(report))
 

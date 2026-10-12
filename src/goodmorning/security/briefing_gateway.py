@@ -23,11 +23,12 @@ from goodmorning.web.release import VERSION, release_info
 from goodmorning.paths import WEB_ASSETS
 from goodmorning.web import language as ui
 from goodmorning.web import models as site_models
+from goodmorning.web.chat_uploads import MAX_UPLOAD_BYTES, UPLOAD_ROUTE, UploadReader, upload_name, attachment_ids
 
 ASSETS = WEB_ASSETS
 POLICY = "default-src 'none'; style-src 'self'; script-src 'self'; img-src 'self'; font-src 'self'; connect-src 'self'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'"
 GET_ROUTES = re.compile(r'(?:/|/(?:index|gm|gn)\.html|/chat|/api/avatar|/api/chats(?:/[a-f0-9]{32})?|/api/day|/api/edition/\d{4}-\d{2}-\d{2}/(?:gm|gn)|/api/jobs/[a-f0-9]{32}(?:/preview)?|/d/\d{4}-\d{2}-\d{2}/(?:gm|gn)\.(?:html|json)|/media/(?:thumb-v1/)?[a-f0-9]{64}\.webp|/d/\d{4}-\d{2}-\d{2}/media/[a-f0-9]+\.webp|/(?:assets/[a-f0-9]{64}/)?desk-secretary(?:-f2|-m1|-m2)?\.png|/(?:assets/[a-f0-9]{64}/)?(?:briefing\.css|briefing\.js|browser\.js|questions\.js|chat\.js|chat\.css|avatar\.js|avatar\.css|fonts/(?:lora-italic\.woff2|OFL\.txt)))')
-POST_ROUTES = re.compile(r'(?:/api/avatar|/api/generate|/api/chats|/api/chats/[a-f0-9]{32}/(?:messages|(?:form|permission)/[A-Za-z0-9_]+/reply)|/api/jobs/[a-f0-9]{32}/(?:recover|(?:form|permission)/[A-Za-z0-9_]+/reply))')
+POST_ROUTES = re.compile(r'(?:/api/avatar|/api/generate|/api/chat-uploads/[a-f0-9]{32}|/api/chats|/api/chats/[a-f0-9]{32}/(?:messages|(?:form|permission)/[A-Za-z0-9_]+/reply)|/api/jobs/[a-f0-9]{32}/(?:recover|(?:form|permission)/[A-Za-z0-9_]+/reply))')
 QUEUE_KEY = 'generation_queue'
 MAX_QUEUE = 20
 QUEUE_TTL = 900
@@ -92,7 +93,11 @@ class Gateway:
                      'X-GoodMorning-Language':self.accounts.website_language(identifier) or ui.current(),
                      'X-GoodMorning-Model':self.accounts.website_model(identifier) or site_models.DEFAULT}
         if body is not None:
-            forwarded['Content-Type']='application/json'
+            if UPLOAD_ROUTE.fullmatch(parsed.path):
+                forwarded['Content-Type'] = 'application/octet-stream'
+                forwarded['Content-Length'] = headers['Content-Length']
+            else:
+                forwarded['Content-Type']='application/json'
         # Never forward cookies, user-provided proxy headers or credentials.
         if headers.get('If-None-Match'):
             forwarded['If-None-Match']=headers['If-None-Match'][:256]
@@ -290,15 +295,16 @@ class Gateway:
         from goodmorning.web.briefing_chat import identifier as chat_id, message, MODES
         body = json.loads(raw)
         if path == '/api/chats':
-            if set(body) != {'id', 'mode', 'text'} or body['mode'] not in MODES:
+            if set(body) not in ({'id', 'mode', 'text'}, {'id', 'mode', 'text', 'attachments'}) or body['mode'] not in MODES:
                 raise ValueError('Invalid secretary mode')
             chat = chat_id(body['id'])
         else:
-            if set(body) != {'id', 'text'}:
+            if set(body) not in ({'id', 'text'}, {'id', 'text', 'attachments'}):
                 raise ValueError('Invalid conversation message')
             chat = re.fullmatch(r'/api/chats/([a-f0-9]{32})/messages', path)[1]
         request = chat_id(body['id'])
         message(body['text'])
+        attachment_ids(body)
         candidate = {'user': identifier, 'host': host, 'chat': chat, 'request': request}
         language = self.accounts.website_language(identifier) or ui.current()
         self.pump_queue()
@@ -608,6 +614,19 @@ def handler_for(gateway):
                 if self.headers.get('Transfer-Encoding') or len(self.headers.get_all('Content-Length',[]))!=1:
                     raise ValueError('Invalid request body')
                 size=int(self.headers['Content-Length'])
+                if UPLOAD_ROUTE.fullmatch(path):
+                    if not session['user_id'] or session['temporary']:
+                        raise Denied('Sign in with a permanent password before uploading')
+                    if not secrets.compare_digest(self.headers.get('X-Briefing-CSRF', ''), session['csrf']):
+                        raise Denied('Forbidden')
+                    if size > MAX_UPLOAD_BYTES:
+                        return self.respond({'error': 'Files must be 50 MB or smaller.'}, 413)
+                    if size < 0 or self.headers.get('Content-Type') != 'application/octet-stream':
+                        raise ValueError('Invalid upload')
+                    upload_name(urlsplit(self.path).query)
+                    status, headers, data = gateway.proxy(session['user_id'], host, self.path, 'POST',
+                        UploadReader(self.rfile, size), self.headers)
+                    return self.respond(data, status, headers.get('Content-Type', 'application/json'))
                 form=path in ('/api/language','/api/model') and self.headers.get('Content-Type','').split(';')[0]=='application/x-www-form-urlencoded'
                 if not 0<size<=20000 or (not form and self.headers.get('Content-Type')!='application/json'):
                     raise ValueError('Invalid request body')
@@ -679,7 +698,7 @@ def handler_for(gateway):
                 return self.respond({'error':str(error)},403)
             except (ValueError,KeyError,TypeError):
                 route=urlsplit(self.path).path
-                error='Invalid release version' if route=='/api/release/seen' else 'Choose English or Simplified Chinese' if route=='/api/language' else 'Choose one of the offered website models' if route=='/api/model' else 'Invalid request. '+PASSWORD_RULE
+                error='Invalid upload' if UPLOAD_ROUTE.fullmatch(route) else 'Invalid release version' if route=='/api/release/seen' else 'Choose English or Simplified Chinese' if route=='/api/language' else 'Choose one of the offered website models' if route=='/api/model' else 'Invalid request. '+PASSWORD_RULE
                 return self.respond({'error':error},400)
             except Exception:
                 return self.respond({'error':'Request could not be confirmed. Refresh before retrying.'},503)

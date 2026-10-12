@@ -12,6 +12,7 @@ from urllib.request import Request, build_opener
 from .briefing_accounts import encrypted_mount
 from goodmorning.web.briefing_server import BrowserApp, Chamber, NoRedirect, serve_live
 from goodmorning.paths import ROOT
+from goodmorning.web.bridge_json import read_json
 
 
 class LocalBridge(Chamber):
@@ -44,9 +45,7 @@ class LocalBridge(Chamber):
             request=Request(self.url+path,data=json.dumps(body).encode() if body is not None else None,headers=headers)
             try:
                 with build_opener(NoRedirect).open(request,timeout=20) as response:
-                    raw=response.read(2_000_001)
-                    if len(raw)>2_000_000:raise ValueError('Private engine response exceeds its limit')
-                    return json.loads(raw) if raw else {}
+                    return read_json(response, attachment_data=path.split('?')[0].endswith(('/prompt', '/message')))
             except HTTPError as error:
                 if error.code!=401 or attempt:raise
                 # An explicit authentication rejection guarantees no requested mutation ran.

@@ -1,4 +1,11 @@
 {
+  "Attach files": "添加附件",
+  "Up to 50 MB per file. You can also drag files into this box.": "每个文件最大 50 MB。也可以将文件拖入此消息框。",
+  "Files must be 50 MB or smaller.": "文件大小不能超过 50 MB。",
+  "Attach up to 100 files per message.": "每条消息最多添加 100 个文件。",
+  "Remove {name}": "移除 {name}",
+  "Sign in with a permanent password before uploading": "请使用正式密码登录后再上传文件",
+  "Invalid upload": "上传请求无效",
   "Website language": "网站语言",
   "Model": "模型",
   "Model saved.": "模型设置已保存。",

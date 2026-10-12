@@ -30,6 +30,8 @@ from . import models as site_models
 from .release import VERSION, release_info, acknowledge_version
 from .session_inventory import job_session_title
 from .chat_theme import clock_theme
+from .chat_uploads import MAX_UPLOAD_BYTES, UPLOAD_ROUTE, upload_name
+from .bridge_json import read_json
 
 DESK_ART = '<svg viewBox="0 0 64 64" width="64" height="64" fill="none" aria-hidden="true"><rect x="15" y="8" width="36" height="48" rx="7" fill="var(--surface)" stroke="currentColor" stroke-width="1.5"/><path d="M24 19h18M24 25h12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" opacity=".4"/><circle cx="27" cy="36" r="1.5" fill="currentColor"/><circle cx="39" cy="36" r="1.5" fill="currentColor"/><path d="M28 43q5 5 10 0" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>'
 
@@ -55,10 +57,7 @@ class Chamber:
             headers['Content-Type'] = 'application/json'
         request = Request(self.url + path, data=json.dumps(body).encode() if body is not None else None, headers=headers)
         with build_opener(NoRedirect).open(request, timeout=20) as response:
-            raw = response.read(2_000_001)
-            if len(raw) > 2_000_000:
-                raise ValueError('Upstream response exceeds limit')
-            return json.loads(raw) if raw else {}
+            return read_json(response, attachment_data=urlsplit(path).path.endswith(('/prompt', '/message')))
 
     def control(self, action, **parameters):
         if action == 'session.messages':
@@ -803,6 +802,19 @@ def serve_live(app, port, *, gateway_key=None, public_origins=()):
             try:
                 self.select_language()
                 self.select_model()
+                upload = UPLOAD_ROUTE.fullmatch(path)
+                if upload:
+                    if self.headers.get('Transfer-Encoding') or len(self.headers.get_all('Content-Length', [])) != 1:
+                        raise ValueError('Invalid upload')
+                    length = int(self.headers['Content-Length'])
+                    if length > MAX_UPLOAD_BYTES:
+                        return self.respond({'error': 'Files must be 50 MB or smaller.'}, 413)
+                    if length < 0 or self.headers.get('Content-Type') != 'application/octet-stream':
+                        raise ValueError('Invalid upload')
+                    if not app.chamber:
+                        raise ValueError('The secretary is not connected')
+                    name = upload_name(urlsplit(self.path).query)
+                    return self.respond(app.chats.uploads.receive(upload[1], name, self.rfile, length), 201)
                 length = int(self.headers.get('Content-Length', '0'))
                 if not 0 < length <= 20000 or (not form and self.headers.get('Content-Type') != 'application/json'):
                     raise ValueError('Invalid input')

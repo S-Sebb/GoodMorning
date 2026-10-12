@@ -10,6 +10,10 @@ const modes = {
 const textBox = document.querySelector('#chat-text');
 const sendButton = document.querySelector('#chat-send');
 const errorBox = document.querySelector('#chat-error');
+const fileInput = document.querySelector('#chat-files');
+const attachButton = document.querySelector('#chat-attach');
+const composer = document.querySelector('#chat-compose');
+let attachments = [];
 const make = secretaryElement;
 const requestedMode = new URLSearchParams(location.search).get('mode');
 let mode = Object.hasOwn(modes, requestedMode) ? requestedMode : chatConfig.defaultMode;
@@ -48,18 +52,18 @@ function applySecretaryName() {
   messageSignature = '';
 }
 
-async function chatAPI(path, body) {
+async function chatAPI(path, body, binary = false) {
   if (body) pendingChatMutations++;
-  try { return await chatRequest(path, body); }
+  try { return await chatRequest(path, body, binary); }
   finally { if (body) pendingChatMutations--; }
 }
 
-async function chatRequest(path, body) {
+async function chatRequest(path, body, binary = false) {
   let response;
   try {
     response = await fetch(path, { method: body ? 'POST' : 'GET',
-      headers: body ? {'Content-Type':'application/json','X-Briefing-CSRF':chatConfig.csrf} : {},
-      body: body ? JSON.stringify(body) : undefined, cache:'no-store', credentials:'same-origin' });
+      headers: body ? {'Content-Type':binary ? 'application/octet-stream' : 'application/json','X-Briefing-CSRF':chatConfig.csrf} : {},
+      body: body ? (binary ? body : JSON.stringify(body)) : undefined, cache:'no-store', credentials:'same-origin' });
   } catch {
     const error = new Error(chatT('The connection was interrupted. Refresh to check delivery before sending again.'));
     error.uncertain = true; throw error;
@@ -77,13 +81,88 @@ async function chatRequest(path, body) {
 function composeState() {
   sendButton.disabled = sending || !chatConfig.connected || (chat && state !== 'idle');
   textBox.disabled = sending || (chat && state !== 'idle');
+  fileInput.disabled = attachButton.disabled = sendButton.disabled;
+  document.querySelectorAll('#chat-attachments button').forEach(button => { button.disabled = sendButton.disabled; });
   sendButton.textContent = chatT(chat ? 'Send reply' : modes[mode][2]);
-  textBox.required = !chat && ['todo','eureka'].includes(mode) || Boolean(chat);
+  textBox.required = !attachments.length && (!chat && ['todo','eureka'].includes(mode) || Boolean(chat));
   document.querySelector('#compose-note').textContent = chatT(state === 'queued'
     ? 'Your message is queued and will send automatically.' : chat && state !== 'idle'
      ? 'Answer pending questions below, or wait for your secretary.' : 'Only your chosen mode. No commands needed. Enter sends; Shift+Enter adds a new line.');
   showActivity();
 }
+
+function fileSize(size) {
+  return size < 1024 * 1024 ? `${Math.ceil(size / 1024)} KB` : `${(size / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function showAttachments() {
+  document.querySelector('#chat-attachments').replaceChildren(...attachments.map(entry => {
+    const chip = make('div', '', 'attachment-chip');
+    chip.append(make('span', `${entry.file.name} · ${fileSize(entry.file.size)}`));
+    const remove = make('button', '×');
+    remove.type = 'button';
+    remove.setAttribute('aria-label', chatT('Remove {name}', {name: entry.file.name}));
+    remove.addEventListener('click', () => {
+      attachments = attachments.filter(item => item !== entry);
+      showAttachments(); composeState();
+    });
+    chip.append(remove);
+    return chip;
+  }));
+  composeState();
+}
+
+attachButton.addEventListener('click', () => fileInput.click());
+function addFiles(files) {
+  errorBox.textContent = '';
+  for (const file of files) {
+    if (file.size > chatConfig.maxUploadBytes) {
+      errorBox.textContent = chatT('Files must be 50 MB or smaller.');
+      continue;
+    }
+    if (attachments.length >= 100) {
+      errorBox.textContent = chatT('Attach up to 100 files per message.');
+      break;
+    }
+    attachments.push({file, id: crypto.randomUUID().replaceAll('-', ''), uploaded: false});
+  }
+  showAttachments();
+}
+fileInput.addEventListener('change', () => {
+  addFiles(fileInput.files);
+  fileInput.value = '';
+});
+
+const draggingFiles = event => Array.from(event.dataTransfer?.types || []).includes('Files');
+let dragDepth = 0;
+composer.addEventListener('dragenter', event => {
+  if (!draggingFiles(event) || attachButton.disabled) return;
+  event.preventDefault(); dragDepth++;
+  composer.classList.add('is-dragging');
+});
+composer.addEventListener('dragover', event => {
+  if (!draggingFiles(event)) return;
+  event.preventDefault();
+  event.dataTransfer.dropEffect = attachButton.disabled ? 'none' : 'copy';
+});
+composer.addEventListener('dragleave', event => {
+  if (!draggingFiles(event)) return;
+  dragDepth = Math.max(0, dragDepth - 1);
+  if (!dragDepth) composer.classList.remove('is-dragging');
+});
+composer.addEventListener('drop', event => {
+  if (!draggingFiles(event)) return;
+  event.preventDefault(); dragDepth = 0;
+  composer.classList.remove('is-dragging');
+  if (!attachButton.disabled) addFiles(event.dataTransfer.files);
+});
+// A dropped file must not navigate away from private, unsent conversation data.
+for (const name of ['dragover', 'drop']) document.addEventListener(name, event => {
+  if (draggingFiles(event)) {
+    event.preventDefault();
+    if (name === 'drop') { dragDepth = 0; composer.classList.remove('is-dragging'); }
+  }
+});
 
 function composerReady() {
   return !textBox.disabled && !sendButton.disabled;
@@ -150,7 +229,7 @@ function showMode() {
 }
 
 function newConversation(next = chatConfig.defaultMode) {
-  drafts.set(mode, textBox.value);
+  drafts.set(mode, {text: textBox.value, attachments});
   clearTimeout(timer); revision++;
   chat = null; state = null; sending = false; mode = next; requestLanguage = null;
   history.replaceState(null, '', '/chat');
@@ -161,7 +240,10 @@ function newConversation(next = chatConfig.defaultMode) {
   statusLabel = '';
   document.querySelector('#chat-status').classList.remove('is-queued');
   errorBox.textContent = '';
-  textBox.value = drafts.get(mode) || '';
+  const draft = drafts.get(mode);
+  textBox.value = draft?.text || '';
+  attachments = draft?.attachments || [];
+  showAttachments();
   showMode();
   focusComposer(true);
 }
@@ -240,7 +322,7 @@ function showMessages(messages) {
       const author=make('p',authorName,'message-author');
       author.dataset.uiText=item.role==='user'?'You':'Your secretary';
       if (item.role !== 'user' && secretaryName) author.dataset.secretaryName = secretaryName;
-      bubble.append(author, make('div', '', 'message-text'));
+      bubble.append(author, make('div', '', 'message-text'), make('div', '', 'message-attachments'));
       if (animateMessages && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
         bubble.classList.add('message-enter');
         bubble.addEventListener('animationend', () => bubble.classList.remove('message-enter'), {once: true});
@@ -254,6 +336,8 @@ function showMessages(messages) {
     }
     const content = bubble.querySelector('.message-text');
     if (content.textContent !== item.text) content.textContent = item.text;
+    bubble.querySelector('.message-attachments').replaceChildren(...(item.attachments || []).map(entry =>
+      make('p', `${entry.name} · ${fileSize(entry.size)}`, 'attachment-name')));
     return bubble;
   });
   [...log.children].filter(node => !nodes.includes(node)).forEach(node => node.remove());
@@ -360,12 +444,25 @@ document.querySelector('#chat-compose').addEventListener('submit', async event =
   const request = crypto.randomUUID().replaceAll('-', '');
   const current = chat || request;
   const version = revision;
+  const selectedFiles = attachments;
+  let dispatching = false;
   sending = true; animateMessages = true; errorBox.textContent = ''; composeState();
   try {
+    for (const entry of selectedFiles) {
+      if (!entry.uploaded) {
+        await chatAPI(`/api/chat-uploads/${entry.id}?name=${encodeURIComponent(entry.file.name)}`, entry.file, true);
+        entry.uploaded = true;
+      }
+      if (version !== revision) return;
+    }
+    const body = first ? {id: current, mode, text: textBox.value} : {id: request, text: textBox.value};
+    if (selectedFiles.length) body.attachments = selectedFiles.map(entry => entry.id);
+    dispatching = true;
     const result = await chatAPI(first ? '/api/chats' : `/api/chats/${current}/messages`,
-      first ? {id: current, mode, text: textBox.value} : {id: request, text: textBox.value});
+      body);
     if (version !== revision) return;
     chat = current; textBox.value = ''; drafts.delete(mode);
+    attachments = []; showAttachments();
     history.replaceState(null, '', '/chat?id=' + chat);
     if (result && result.queued) {
       state = 'queued';
@@ -377,7 +474,7 @@ document.querySelector('#chat-compose').addEventListener('submit', async event =
   } catch (error) {
     if (version !== revision) return;
     errorBox.textContent = error.status === 429 ? chatT(error.message) : error.message;
-    if (error.uncertain) {
+    if (dispatching && error.uncertain) {
       chat = current; state = 'uncertain';
       history.replaceState(null, '', '/chat?id=' + chat);
     }
@@ -398,10 +495,10 @@ document.addEventListener('visibilitychange', () => {
   if (document.hidden) { clearTimeout(timer); clearTimeout(themeTimer); }
   else { scheduleChatTheme(); pollVisible(); focusComposer(); }
 });
-document.addEventListener('website:language', () => { showMode(); pollVisible(); });
+document.addEventListener('website:language', () => { showMode(); showAttachments(); pollVisible(); });
 document.addEventListener('website:before-refresh', event => { if (sending || pendingChatMutations) event.preventDefault(); });
 document.addEventListener('website:refresh-drafts', event => {
-  if ([...drafts.values()].some(text => text.trim())) event.preventDefault();
+  if (attachments.length || [...drafts.values()].some(draft => draft.text.trim() || draft.attachments.length)) event.preventDefault();
 });
 window.addEventListener('focus', () => { scheduleChatTheme(); pollVisible(); focusComposer(); });
 scheduleChatTheme();

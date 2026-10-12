@@ -14,6 +14,12 @@ OpenChamber UI proxy. It permits login, current-password changes, logout and
 account-owned briefing viewing/generation/questions and the four secretary chat
 modes. No web registration, account
 creation, username edit, forgotten-password shortcut or arbitrary agent API exists.
+Secretary chat also accepts private attachments up to 50 MB per file. Uploads
+require a permanent authenticated account, the exact origin and session CSRF token.
+Only opaque upload IDs and filenames are exposed; files stay in the owning
+account's encrypted runtime. The gateway streams bytes without disk buffering,
+and all ordinary JSON requests retain their 20,000-byte limit. NGINX's 50m ceiling
+allows the binary upload route; it does not expand the other application limits.
 
 The explicit `gm`, `gn`, and optional `sec` hosts share accounts, not login cookies.
 The secretary host opens `/chat`; briefing hosts open their matching edition.

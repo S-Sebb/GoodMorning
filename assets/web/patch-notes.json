@@ -1,6 +1,36 @@
 {
   "notes": [
     {
+      "version": "0.20.0", "date": "2026-10-12", "author": "GoodMorning agent",
+      "title_en": "File attachments for secretary chats", "title_zh": "秘书聊天支持文件附件",
+      "changes": [
+        {"category": "Added", "en": [
+          "Choose files with the Attach files button on desktop and phone browsers, or drag files into the message box on desktop.",
+          "Attach files in all four secretary modes and follow-up replies using OpenChamber's native file-attachment format, with a 50 MB limit per file.",
+          "Show filenames and sizes, remove attachments before sending, and keep unsent files when switching modes. File-only messages are supported."
+        ], "zh": [
+          "桌面和手机浏览器均可通过“添加附件”按钮选择文件；桌面浏览器还可将文件拖入消息框。",
+          "四种秘书模式和后续回复均支持附件，使用 OpenChamber 的原生文件附件格式，每个文件最大 50 MB。",
+          "显示文件名和大小，发送前可移除附件，切换模式时保留未发送的文件，也可仅发送附件而不输入文字。"
+        ]},
+        {"category": "Security", "en": [
+          "Stream uploads into the owning account's private runtime with authentication, origin and CSRF checks; browsers cannot select server filesystem paths."
+        ], "zh": [
+          "通过流式上传将文件保存到所属账号的私有运行目录，并检查登录、请求来源和 CSRF；浏览器不能指定服务器文件路径。"
+        ]},
+        {"category": "Tests", "en": [
+          "Verify exact-limit uploads, oversized-file rejection, account isolation, attachment history and desktop/mobile interactions with synthetic files and no model calls."
+        ], "zh": [
+          "使用合成文件验证最大容量上传、超限拒绝、账号隔离、附件历史及桌面和移动端交互，不调用模型。"
+        ]},
+        {"category": "Notes", "en": [
+          "Deployers must apply the updated NGINX upload ceiling. Ordinary JSON requests retain their existing size limit; model file-format support still applies."
+        ], "zh": [
+          "部署时需应用更新后的 NGINX 上传容量限制。普通 JSON 请求保持原有大小限制，文件格式仍需模型支持。"
+        ]}
+      ]
+    },
+    {
       "version": "0.19.1", "date": "2026-10-12", "author": "GoodMorning agent",
       "title_en": "Clearer tasks and flexible schedules", "title_zh": "清晰的任务标记与灵活安排",
       "changes": [{"category": "Fixed", "en": [

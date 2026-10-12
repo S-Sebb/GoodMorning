@@ -11,6 +11,7 @@ from .briefing_resources import favicon_links
 from . import language as ui
 from . import models as site_models
 from .session_inventory import chat_session_title
+from .chat_uploads import Uploads, attachment_ids, MAX_UPLOAD_BYTES
 
 MODES = {'initialize': 'Initialize', 'secretary': 'Secretary', 'todo': 'To-do', 'eureka': 'Eureka'}
 
@@ -93,6 +94,7 @@ def message(value):
 class Chats:
     def __init__(self, runtime, chamber):
         self.runtime, self.chamber = runtime, chamber
+        self.uploads = Uploads(runtime)
         self.lock = threading.RLock()
         self.directory = runtime / 'browser-chats'
         self.path = self.directory / 'chats.json'
@@ -135,24 +137,25 @@ class Chats:
                     for item in reversed(list(self.items.values()))][:100]
 
     def start(self, body):
-        if set(body) != {'id', 'mode', 'text'} or body['mode'] not in MODES:
+        if set(body) not in ({'id', 'mode', 'text'}, {'id', 'mode', 'text', 'attachments'}) or body['mode'] not in MODES:
             raise ValueError('Choose one of the four secretary modes')
         chat, text = identifier(body['id']), message(body['text'])
-        if not text and body['mode'] not in ('initialize', 'secretary'):
+        attachments = [self.uploads.get(value) for value in attachment_ids(body)]
+        if not text and not attachments and body['mode'] not in ('initialize', 'secretary'):
             raise ValueError('Write the task or idea you want to save')
         with self.lock:
             if chat in self.items:
                 item = self.items[chat]
-                if item['mode'] != body['mode'] or item['turns'][0]['text'] != text:
+                if item['mode'] != body['mode'] or item['turns'][0]['text'] != text or item['turns'][0].get('attachments', []) != attachments:
                     raise ValueError('Request ID already belongs to another conversation')
                 return {'chat': chat}
             if not self.chamber:
                 raise ValueError('The secretary is not connected')
             if len(self.items) >= 500:
                 raise ValueError('Conversation storage needs administrator archival')
-            self.capacity(text)
-            item = {'id': chat, 'mode': body['mode'], 'title': text[:64] or ui.text(MODES[body['mode']]),
-                    'state': 'starting', 'turns': [{'id': chat, 'text': text,'language':ui.current(),'model':site_models.current()}],
+            self.capacity({'text': text, 'attachments': attachments})
+            item = {'id': chat, 'mode': body['mode'], 'title': text[:64] or (attachments[0]['name'] if attachments else ui.text(MODES[body['mode']])),
+                    'state': 'starting', 'turns': [{'id': chat, 'text': text, 'attachments': attachments,'language':ui.current(),'model':site_models.current()}],
                     'created': time.time()}
             self.items[chat] = item
             self.save()  # Save intent before any model request; never blindly replay.
@@ -160,25 +163,26 @@ class Chats:
         return {'chat': chat}
 
     def send(self, chat, body):
-        if set(body) != {'id', 'text'}:
+        if set(body) not in ({'id', 'text'}, {'id', 'text', 'attachments'}):
             raise ValueError('Invalid message')
         request, text = identifier(body['id']), message(body['text'])
-        if not text:
+        attachments = [self.uploads.get(value) for value in attachment_ids(body)]
+        if not text and not attachments:
             raise ValueError('Write a reply first')
         with self.lock:
             self.get(chat)
             item = self.items[chat]
             old = next((turn for turn in item['turns'] if turn['id'] == request), None)
             if old:
-                if old['text'] != text:
+                if old['text'] != text or old.get('attachments', []) != attachments:
                     raise ValueError('Request ID already belongs to another message')
                 return {'chat': chat}
             if self.status(chat)['state'] != 'idle':
                 raise ValueError('Wait for the secretary or answer the pending question')
             if len(item['turns']) >= 200:
                 raise ValueError('Start a new conversation to keep context bounded')
-            self.capacity(text)
-            item['turns'].append({'id': request, 'text': text,'language':ui.current(),'model':site_models.current()})
+            self.capacity({'text': text, 'attachments': attachments})
+            item['turns'].append({'id': request, 'text': text, 'attachments': attachments,'language':ui.current(),'model':site_models.current()})
             item['state'] = 'starting'
             self.save()
             threading.Thread(target=self.dispatch, args=(item, text, False), daemon=True).start()
@@ -200,13 +204,27 @@ class Chats:
             site_models.apply_to_session(self.chamber, item['session'], chosen)
             prompt = (f"/{item['mode']}\nBrowser chat: {item['id']}\nRuntime: {self.runtime}\n" if first else '')
             prompt += f"Website language: {selected}\n\n{text}"
+            attachments = item['turns'][-1].get('attachments', [])
+            if attachments:
+                # Distinguish file-only turns with identical text when matching
+                # acknowledged messages and restoring their attachment labels.
+                prompt += f"\n\nBrowser message: {item['turns'][-1]['id']}"
             prompt=prompt.strip()
             with self.lock:
                 item['turns'][-1]['prompt_hash'] = hashlib.sha256(prompt.encode()).hexdigest()
                 self.save()
-            result = self.chamber.control('session.send', sessionId=item['session'], prompt=prompt)
-            if result.get('promptDispatched') is not True:
-                raise ValueError('Message dispatch was not confirmed')
+            if attachments:
+                # OpenChamber's composer uses this native V2 prompt API. Control's
+                # text-only session.send drops files, so it cannot carry attachments.
+                result = self.chamber.request(f'/api/session/{item["session"]}/prompt',
+                    {'text': prompt, 'files': self.uploads.files([entry['id'] for entry in attachments])})
+                receipt = result.get('data', {})
+                if not isinstance(receipt.get('id'), str) or not receipt['id']:
+                    raise ValueError('Message dispatch was not confirmed')
+            else:
+                result = self.chamber.control('session.send', sessionId=item['session'], prompt=prompt)
+                if result.get('promptDispatched') is not True:
+                    raise ValueError('Message dispatch was not confirmed')
             with self.lock:
                 item['state'] = 'running'
                 self.save()
@@ -229,16 +247,20 @@ class Chats:
                 forms, permissions = self.chamber.pending(item['session'])
                 transcript = self.chamber.control('session.messages', sessionId=item['session'], limit=100)
                 messages = []
-                originals = {turn.get('prompt_hash'): turn['text'] or ui.text('Start {mode}',lang=turn.get('language','en'),
-                             mode=ui.text(MODES[item['mode']],lang=turn.get('language','en')).lower())
-                              for turn in item['turns']}
+                originals = {turn.get('prompt_hash'): turn
+                               for turn in item['turns']}
                 for entry in transcript['messages']:
                     if entry.get('role') not in ('user', 'assistant') or not isinstance(entry.get('text'), str):
                         continue
                     text = entry['text']
+                    attachments = []
                     if entry['role'] == 'user':
-                        text = originals.get(hashlib.sha256(text.encode()).hexdigest(), text)
-                    messages.append({'id': entry['id'], 'role': entry['role'], 'text': text})
+                        turn = originals.get(hashlib.sha256(text.encode()).hexdigest())
+                        if turn:
+                            attachments = turn.get('attachments', [])
+                            text = turn['text'] or ('' if attachments else ui.text('Start {mode}',lang=turn.get('language','en'),
+                                mode=ui.text(MODES[item['mode']],lang=turn.get('language','en')).lower()))
+                    messages.append({'id': entry['id'], 'role': entry['role'], 'text': text, 'attachments': attachments})
                 result.update(messages=messages, forms=forms, permissions=permissions, history_limited=len(messages) >= 100)
                 if item['state'] not in ('starting', 'uncertain'):
                     state = transcript['sessionStatus']['type']
@@ -280,6 +302,7 @@ def page(csrf, ready, connected, secretary_name=None, avatar='f1', avatar_urls=N
     for entry, filename in AVATAR_FILES.items():
         sources.setdefault(entry, '/' + filename)
     config = html.escape(json.dumps({'csrf': csrf, 'defaultMode': 'secretary' if ready else 'initialize',
+                                    'maxUploadBytes': MAX_UPLOAD_BYTES,
                                     'timezone': timezone,
                                    'connected': connected, 'secretary_name': secretary_name,
                                    'avatar': avatar, 'avatars': [{'id': entry, 'src': sources[entry]} for entry, _, _ in AVATARS]}), quote=True)
@@ -311,6 +334,9 @@ def page(csrf, ready, connected, secretary_name=None, avatar='f1', avatar_urls=N
              '<p id="chat-status" role="status"></p><p id="request-language-note" role="status"></p><div id="chat-questions"></div>'
             '<form id="chat-compose"><label for="chat-text" id="compose-label">Your message</label>'
             '<textarea id="chat-text" rows="3" maxlength="8000" placeholder="What’s on your mind?" enterkeyhint="send"></textarea>'
+            '<input id="chat-files" type="file" multiple hidden><div id="chat-attachments" aria-live="polite"></div>'
+            '<div class="attachment-controls"><button type="button" id="chat-attach" disabled>Attach files</button>'
+            '<span id="upload-note">Up to 50 MB per file. You can also drag files into this box.</span></div>'
             '<div class="compose-footer"><span id="compose-note">Only your chosen mode. No commands needed. Enter sends; Shift+Enter adds a new line.</span>'
              '<button type="submit" id="chat-send" disabled>Send message</button></div></form><p id="chat-error" role="alert"></p>'
             '<noscript>Enable JavaScript to talk with your secretary. Saved briefings remain readable.</noscript></section></main>'
