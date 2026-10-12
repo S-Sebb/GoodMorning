@@ -5,6 +5,7 @@ import json
 from pathlib import Path
 import sys
 import tempfile
+from threading import Thread
 import unittest
 from unittest.mock import patch
 
@@ -24,6 +25,19 @@ class JobTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory(dir=TEMP_ROOT)
         self.addCleanup(self.temp.cleanup)
+        workers = []
+        def worker(*args, **kwargs):
+            thread = Thread(*args, **kwargs)
+            workers.append(thread)
+            return thread
+        def join_workers():
+            for thread in workers:
+                thread.join(5)
+                self.assertFalse(thread.is_alive(), 'Fixture worker must finish before deleting its runtime')
+        patcher = patch('goodmorning.web.briefing_server.threading.Thread', side_effect=worker)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+        self.addCleanup(join_workers)
         self.root = Path(self.temp.name)
         (self.root/'profile.md').write_text('city: London, GB\ntimezone: Europe/London\nnews_country: GB\nsecretary_language: English\n')
         (self.root/'daily').mkdir()

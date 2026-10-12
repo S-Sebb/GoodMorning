@@ -67,6 +67,12 @@ streams only authenticated, CSRF-checked uploads to the account's own backend.
 Chat requests reference opaque account-local upload IDs, never client-chosen
 filesystem paths or remote URLs. Attachments remain available after restarts;
 failed or rejected sends can leave uploaded files for administrator archival.
+Authenticated Morning, Night and Secretary pages show the account's active work
+in a shared reminder. It distinguishes working, waiting for a question/permission,
+queued and uncertain/unavailable states, linking to the original host/page in a
+new tab. Visible tabs refresh every ten seconds and on focus; idle work disappears.
+Closing or hiding a tab does not cancel pending questions. The activity read does
+not load transcripts, clear reservations, dispatch queues or approve inputs.
 The gateway keeps one bounded global waiting line (about 20 requests) shared by
 briefing generation and all secretary conversations. A waiting question retains
 its reservation until the owning session becomes idle, and queued requests wait

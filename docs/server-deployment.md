@@ -104,23 +104,29 @@ The helper then, in order:
    engines are idle (no active sessions, no pending questions/permissions).
 3. Snapshots password rows, account-language rows, and hashes of all protected
    private files (secretary records, `engine.json`, OpenChamber settings).
-4. Backs up the four unit templates, atomically confirms the reservation and queue
+4. Backs up the four unit templates and the production NGINX config, atomically confirms the reservation and queue
    are still empty and takes the `generation` ticket, stops the
    gateway and viewers, re-verifies idle state and hashes, then stops account
    engines. Mounted encrypted vaults are never restarted.
 5. Installs unit files from the candidate's `deploy/`, atomically switches the
    `current` symlink (never overwrites a release), reloads systemd, and starts
-   gateway, account engines, and viewers.
+   gateway, account engines, and viewers. For attachments, update only the existing
+   `client_max_body_size` directive from `20k` to the candidate's `50m`, preserving
+   other production NGINX settings. Validate with `nginx -t`, then reload NGINX.
+   The reviewed helper must include this guarded update and restore the original
+   config on rollback; merely shipping `deploy/nginx-goodmorning.conf` does not
+   change the live upload ceiling.
 6. Waits until every viewer answers `/chat` and all three HTTPS logins serve,
    re-verifies idle state, passwords, languages, hashes, active services, and
    that each engine's working directory is the new release. Clears the ticket.
 7. Writes the protected report to
    `/srv/goodmorning/live/accounts/<RELEASE-NAME>-deployment.json` (mode
    `0600`) and prints a JSON summary. Record `verifiedPublicFiles`,
-   `candidatePythonTests`, `candidateNodeTests`, `protectedPrivateFiles`.
+   `candidatePythonTests`, `candidateNodeTests`, `protectedPrivateFiles`, and
+   `nginxUploadCeiling`.
 
 On any error the helper stops services, restores the symlink to the previous
-release, restores unit files, restarts, clears the ticket, and re-raises.
+release, restores unit files and any changed NGINX config, restarts, clears the ticket, and re-raises.
 A manual rollback is the same sequence; never hand-edit the symlink.
 
 ## 4. Post-deploy verification

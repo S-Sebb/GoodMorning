@@ -20,6 +20,11 @@ Only opaque upload IDs and filenames are exposed; files stay in the owning
 account's encrypted runtime. The gateway streams bytes without disk buffering,
 and all ordinary JSON requests retain their 20,000-byte limit. NGINX's 50m ceiling
 allows the binary upload route; it does not expand the other application limits.
+The authenticated `/api/activity` summary includes only the caller's active/
+queued work, status and original-page links, never prompts, question text, private
+paths or another account's activity. Reads never advance the queue or change work
+reservations. Each tab uses its host-only login; no activity is stored in browser
+storage or shared authentication cookies.
 
 The explicit `gm`, `gn`, and optional `sec` hosts share accounts, not login cookies.
 The secretary host opens `/chat`; briefing hosts open their matching edition.

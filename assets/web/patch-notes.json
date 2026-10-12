@@ -2,16 +2,18 @@
   "notes": [
     {
       "version": "0.20.0", "date": "2026-10-12", "author": "GoodMorning agent",
-      "title_en": "File attachments for secretary chats", "title_zh": "秘书聊天支持文件附件",
+      "title_en": "Chat attachments and shared activity reminders", "title_zh": "聊天附件与跨页面任务提醒",
       "changes": [
         {"category": "Added", "en": [
           "Choose files with the Attach files button on desktop and phone browsers, or drag files into the message box on desktop.",
           "Attach files in all four secretary modes and follow-up replies using OpenChamber's native file-attachment format, with a 50 MB limit per file.",
-          "Show filenames and sizes, remove attachments before sending, and keep unsent files when switching modes. File-only messages are supported."
+          "Show filenames and sizes, remove attachments before sending, and keep unsent files when switching modes. File-only messages are supported.",
+          "Show your ongoing secretary or briefing activity across Morning, Night and Secretary tabs, with working, waiting-for-answer and queued states and a link to the original page. Reminders disappear when work finishes."
         ], "zh": [
           "桌面和手机浏览器均可通过“添加附件”按钮选择文件；桌面浏览器还可将文件拖入消息框。",
           "四种秘书模式和后续回复均支持附件，使用 OpenChamber 的原生文件附件格式，每个文件最大 50 MB。",
-          "显示文件名和大小，发送前可移除附件，切换模式时保留未发送的文件，也可仅发送附件而不输入文字。"
+          "显示文件名和大小，发送前可移除附件，切换模式时保留未发送的文件，也可仅发送附件而不输入文字。",
+          "在早报、晚报和秘书的各个标签页显示自己正在进行的任务，区分处理中、等待回答和排队状态，并提供原页面链接；任务结束后提醒自动消失。"
         ]},
         {"category": "Security", "en": [
           "Stream uploads into the owning account's private runtime with authentication, origin and CSRF checks; browsers cannot select server filesystem paths."
@@ -19,9 +21,11 @@
           "通过流式上传将文件保存到所属账号的私有运行目录，并检查登录、请求来源和 CSRF；浏览器不能指定服务器文件路径。"
         ]},
         {"category": "Tests", "en": [
-          "Verify exact-limit uploads, oversized-file rejection, account isolation, attachment history and desktop/mobile interactions with synthetic files and no model calls."
+          "Verify exact-limit uploads, oversized-file rejection, account isolation, attachment history and desktop/mobile interactions with synthetic files and no model calls.",
+          "Wait for briefing test workers before deleting their temporary runtimes, preventing a cleanup race."
         ], "zh": [
-          "使用合成文件验证最大容量上传、超限拒绝、账号隔离、附件历史及桌面和移动端交互，不调用模型。"
+          "使用合成文件验证最大容量上传、超限拒绝、账号隔离、附件历史及桌面和移动端交互，不调用模型。",
+          "简报测试会等待后台线程结束后再删除临时运行目录，避免清理过程中的竞争错误。"
         ]},
         {"category": "Notes", "en": [
           "Deployers must apply the updated NGINX upload ceiling. Ordinary JSON requests retain their existing size limit; model file-format support still applies."

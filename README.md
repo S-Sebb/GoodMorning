@@ -41,6 +41,9 @@ The website uses beta versions (`0.minor.patch`). A blue update arrow, or a
 checkmark when current, opens bilingual patch notes with a past-version sidebar.
 Each new version appears automatically until dismissed; that preference is
 shared across the account's devices. See the [patch-note guide](docs/server-deployment.md#patch-note-procedure).
+Authenticated pages also share an active-work reminder across Morning, Night and
+Secretary tabs. It links to work that is running, waiting for an answer or queued;
+idle work disappears. Closing a tab never cancels a pending question.
 One self-contained `goodmorning` skill is copied only into
 `~/.agents/skills/goodmorning/`. The inactive source lives in
 `skill-source/goodmorning.md`; this checkout registers no skills or commands.

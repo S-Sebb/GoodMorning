@@ -32,6 +32,7 @@ from .session_inventory import job_session_title
 from .chat_theme import clock_theme
 from .chat_uploads import MAX_UPLOAD_BYTES, UPLOAD_ROUTE, upload_name
 from .bridge_json import read_json
+from .activity import ACTIVITY_PATH, snapshot as activity_snapshot
 
 DESK_ART = '<svg viewBox="0 0 64 64" width="64" height="64" fill="none" aria-hidden="true"><rect x="15" y="8" width="36" height="48" rx="7" fill="var(--surface)" stroke="currentColor" stroke-width="1.5"/><path d="M24 19h18M24 25h12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" opacity=".4"/><circle cx="27" cy="36" r="1.5" fill="currentColor"/><circle cx="39" cy="36" r="1.5" fill="currentColor"/><path d="M28 43q5 5 10 0" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>'
 
@@ -728,6 +729,9 @@ def serve_live(app, port, *, gateway_key=None, public_origins=()):
                 if path=='/api/avatar':return self.respond({'avatar': app.avatar()})
                 if path=='/api/release':return self.respond(release_info())
                 if path=='/api/release/seen':return self.respond({'version':app.release_seen(),'enabled':True})
+                activity = re.fullmatch(ACTIVITY_PATH, path)
+                if activity:
+                    return self.respond(activity_snapshot(app, activity[1], activity[2]))
                 if path == '/api/day':
                     return self.respond({'date': app.today(), 'timezone': app.zone})
                 if path == '/chat':

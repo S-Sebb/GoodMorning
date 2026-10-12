@@ -24,6 +24,7 @@ from goodmorning.paths import WEB_ASSETS
 from goodmorning.web import language as ui
 from goodmorning.web import models as site_models
 from goodmorning.web.chat_uploads import MAX_UPLOAD_BYTES, UPLOAD_ROUTE, UploadReader, upload_name, attachment_ids
+from goodmorning.web.activity import ACTIVITY_PATH, panel as activity_panel
 
 ASSETS = WEB_ASSETS
 POLICY = "default-src 'none'; style-src 'self'; script-src 'self'; img-src 'self'; font-src 'self'; connect-src 'self'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'"
@@ -58,7 +59,8 @@ class Gateway:
         self.accounts, self.hosts, self.testing = accounts, hosts, testing
         self.opener = build_opener(NoRedirect())
         self.icons = Resources(ASSETS, types={**ICON_TYPES,'language.js':'text/javascript','model.js':'text/javascript',
-            'auth.js':'text/javascript','auth.css':'text/css','update.js':'text/javascript','update.css':'text/css'})
+            'auth.js':'text/javascript','auth.css':'text/css','update.js':'text/javascript','update.css':'text/css',
+            'activity.js':'text/javascript','activity.css':'text/css'})
         self.html_cache = ByteCache(8 * 1024 * 1024, 32)
         self.html_lock = threading.RLock()
         labels=[host.split('.')[::-1] for host in hosts]
@@ -85,7 +87,8 @@ class Gateway:
     def proxy(self, identifier, host, path, method, body, headers):
         backend = self.backend(identifier)
         parsed = urlsplit(path)
-        if not (POST_ROUTES if method=='POST' else GET_ROUTES).fullmatch(parsed.path):
+        if not ((POST_ROUTES if method=='POST' else GET_ROUTES).fullmatch(parsed.path) or
+                method == 'GET' and re.fullmatch(ACTIVITY_PATH, parsed.path)):
             raise Denied('Not found')
         if parsed.path in ('/','/index.html'):
             path = '/chat' if self.hosts[host] == 'sec' else '/'+self.hosts[host]+'.html'
@@ -116,6 +119,46 @@ class Gateway:
         with self.accounts.db() as db:
             row=db.execute('SELECT value FROM metadata WHERE key=?',('generation',)).fetchone()
             return json.loads(row[0]) if row else None
+
+    def activity(self, identifier):
+        # Read only: never reconcile reservations, prune queues or dispatch work.
+        with self.accounts.db() as db:
+            row = db.execute("SELECT value FROM metadata WHERE key='generation'").fetchone()
+            ticket = json.loads(row[0]) if row else {}
+            queue = self._read_queue(db)
+        result = []
+        def destination(entry, mode, date=None):
+            if entry.get('chat'):
+                return 'https://' + entry['host'] + '/chat?id=' + entry['chat']
+            day = entry.get('date') or date
+            kind = entry.get('kind') or mode
+            path = f'/d/{day}/{kind}.html' if isinstance(day, str) and re.fullmatch(r'\d{4}-\d{2}-\d{2}', day) and kind in ('gm', 'gn') else '/'
+            return 'https://' + entry['host'] + path
+        if ticket.get('user') == identifier and ticket.get('host') in self.hosts:
+            kind = 'chat' if ticket.get('chat') else 'job'
+            target = ticket.get(kind)
+            if isinstance(target, str) and re.fullmatch('[a-f0-9]{32}', target):
+                try:
+                    status, _, raw = self.proxy(identifier, ticket['host'], f'/api/activity/{kind}/{target}', 'GET', None, {})
+                    value = json.loads(raw)
+                    if status != 200 or value.get('mode') not in ('secretary', 'initialize', 'todo', 'eureka', 'gm', 'gn') or value.get('state') not in ('working', 'waiting', 'idle', 'uncertain', 'unavailable'):
+                        raise ValueError('Activity unavailable')
+                except Exception:
+                    value = {'mode': 'secretary' if kind == 'chat' or self.hosts[ticket['host']] == 'sec' else self.hosts[ticket['host']], 'state': 'unavailable'}
+                if value['state'] != 'idle':
+                    result.append({'mode': value['mode'], 'state': value['state'], 'url': destination(ticket, value['mode'], value.get('date'))})
+        for entry in queue:
+            if not self._valid_queue_entry(entry) or entry['user'] != identifier or entry['host'] not in self.hosts:
+                continue
+            candidate = entry['candidate']
+            if candidate.get('chat'):
+                mode = entry['body'].get('mode', 'secretary')
+            else:
+                mode = candidate.get('kind', 'secretary')
+            url = destination({**candidate, 'host': entry['host']}, mode)
+            if not any(item['url'] == url for item in result):
+                result.append({'mode': mode, 'state': 'queued', 'url': url})
+        return {'activity': result}
 
     def clear_ticket(self,ticket):
         with self.accounts.db() as db:
@@ -578,6 +621,8 @@ def handler_for(gateway):
                     return self.respond(b'',302,location='/')
                 if path=='/api/queue':
                     return self.respond(gateway.queue_status(session['user_id']))
+                if path=='/api/activity':
+                    return self.respond(gateway.activity(session['user_id']))
                 status,headers,data=gateway.proxy(session['user_id'],host,self.path,'GET',None,self.headers)
                 mime=headers.get('Content-Type','application/json')
                 if mime.startswith('text/html'):
@@ -589,7 +634,7 @@ def handler_for(gateway):
                     text=re.sub(r'(&quot;csrf&quot;:\s*&quot;)[A-Za-z0-9_-]{43}(&quot;)',r'\g<1>'+session['csrf']+r'\g<2>',text)
                     controls='<nav class="account-tools" aria-label="Account"><a href="/password">Change password</a><button id="sign-out" data-csrf="'+session['csrf']+'">Sign out</button></nav><script src="/auth.js" defer></script>'
                     data=text.replace('</body>',controls+'</body>').encode()
-                    data=gateway.icons.rewrite(ui.page(data.decode(),session['csrf'],self.path)).encode()
+                    data=gateway.icons.rewrite(ui.page(activity_panel(data.decode(),gateway.hosts),session['csrf'],self.path)).encode()
                     if status == 200:
                         with gateway.html_lock:gateway.html_cache.put(cache_key,data,len(data))
                 # Personal pages/media never enter durable browser or shared proxy caches.
