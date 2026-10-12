@@ -51,7 +51,7 @@ class JobTests(unittest.TestCase):
 
     def init(self):
         return act(self.root,self.identifier,'ses_fixture','init',{'greeting':'Morning.','opening':'Let’s plan carefully.',
-            'plan':[['must-do','Must-do'],['nice-to-do','Nice-to-do']]})
+            'plan':[['must-do','Project steps'],['nice-to-do','Optional project steps']]})
 
     def test_owner_and_prepared_context_are_code_owned(self):
         with self.assertRaises(ValueError): act(self.root,self.identifier,'ses_other','prepare')
@@ -411,7 +411,7 @@ class JobTests(unittest.TestCase):
         path=self.root/'daily/2026-10-11.md'
         path.write_text('# 2026-10-11\n\n## must-do\n- [x] Prior task\n- [ ] Unrelated task\n')
         act(self.root,self.identifier,'ses_fixture','init',{'greeting':'Morning.','opening':'Plan carefully.',
-            'plan':[['schedule','Schedule'],['must-do','Must-do']]})
+            'plan':[['schedule','Schedule'],['must-do','Project steps']]})
         section=['schedule',[['flexible',[
             ['2026-10-11','open','Prior task',''],['2026-10-11','partial','Untimed work','Still open.'],
             ['2026-10-11','open','Important task',''],['2026-10-12','open','Future work',''],
@@ -421,12 +421,13 @@ class JobTests(unittest.TestCase):
             act(self.root,self.identifier,'ses_fixture','publish',{'position':0,'section':bad})
         act(self.root,self.identifier,'ses_fixture','publish',{'position':0,'section':section})
         act(self.root,self.identifier,'ses_fixture','publish',{'position':1,'section':
-            ['must-do',[['tasks',[['open','Important task','']]]]]})
+            ['must-do',[['tasks',[['open','Project: compare validation settings','']]]]]})
         act(self.root,self.identifier,'ses_fixture','finish',{})
         text=path.read_text();tasks=inspect(text,'2026-10-11')[2]
         self.assertIn('- [x] Prior task',text)
-        self.assertEqual(len(tasks),4)
-        self.assertEqual(next(t for t in tasks if t['text']=='Important task')['section'],'must-do')
+        self.assertEqual(len(tasks),5)
+        self.assertEqual(next(t for t in tasks if t['text']=='Important task')['section'],'flexible')
+        self.assertEqual(next(t for t in tasks if t['text']=='Project: compare validation settings')['section'],'must-do')
         self.assertEqual(next(t for t in tasks if t['text']=='Untimed work')['section'],'flexible')
         self.assertFalse(next(t for t in tasks if t['text']=='Untimed work')['done'])
         self.assertNotIn('Future work',text)
@@ -449,6 +450,26 @@ class JobTests(unittest.TestCase):
         self.assertIn('- [ ] Untimed work',path.read_text())
         self.assertNotIn('Tomorrow task',path.read_text())
         self.assertFalse((self.root/'daily/2026-10-12.md').exists())
+
+    def test_duplicate_project_card_cannot_change_the_published_schedule(self):
+        act(self.root,self.identifier,'ses_fixture','init',{'greeting':'Morning.','opening':'Current plan.',
+            'plan':[['schedule','Schedule'],['must-do','Project steps']]})
+        schedule=['schedule',[['flexible',[['2026-10-11','open','Project: prepare review','Agreed today.']]]]]
+        act(self.root,self.identifier,'ses_fixture','publish',{'position':0,'section':schedule})
+        target=self.app.job_dir/(self.identifier+'.preview.json')
+        before=target.read_bytes()
+        with self.assertRaisesRegex(ValueError,'duplicate task card'):
+            act(self.root,self.identifier,'ses_fixture','publish',{'position':1,'section':
+                ['must-do',[['tasks',[['open','Project: prepare review','Repeated project action.']]]]]})
+        self.assertEqual(target.read_bytes(),before)
+        self.assertEqual(list((self.root/'daily').iterdir()),[])
+        act(self.root,self.identifier,'ses_fixture','publish',{'position':1,'section':
+            ['must-do',[['tasks',[['open','Project: compare validation settings','Sustained progress.']]]]]})
+        self.assertTrue(act(self.root,self.identifier,'ses_fixture','finish',{})['saved'])
+        saved=json.loads((self.root/'daily/2026-10-11.gm.json').read_text())
+        self.assertEqual(saved['sections'][0],schedule)
+        tasks=inspect((self.root/'daily/2026-10-11.md').read_text(),'2026-10-11')[2]
+        self.assertEqual(len(tasks),2)
 
     def save_original(self):
         self.init()
@@ -495,7 +516,7 @@ class JobTests(unittest.TestCase):
         self.assertEqual(self.app.status(self.identifier)['state'],'stopped')
         self.assertIn('id="regenerate"',self.app.page('2026-10-11','gm',False).decode())
         act(self.root,identifier,'ses_replacement','init',{'greeting':'A fresh morning.','opening':'Use the current plan.',
-            'plan':[['must-do','Must-do']]})
+            'plan':[['must-do','Project steps']]})
         act(self.root,identifier,'ses_replacement','publish',{'position':0,'section':
             ['must-do',[['tasks',[['open','Ranking',''],['open','New task','']]]]]})
         self.assertEqual(source.read_bytes(),original)
@@ -506,6 +527,37 @@ class JobTests(unittest.TestCase):
                      '- gm: yes (session ses_replacement)'):self.assertIn(line,text)
         self.assertEqual(text.count('Ranking'),1)
         self.assertNotEqual(source.read_bytes(),original)
+
+    def test_regeneration_uses_selected_current_actions_without_republishing_daily_history(self):
+        self.save_original()
+        path=self.root/'daily/2026-10-11.md'
+        old='Project: prepare Tuesday review'
+        current='Project: prepare moved Friday review'
+        path.write_text(path.read_text()+'\n## nice-to-do\n- [ ] '+old+'\n- [ ] '+current+'\n- [x] Finished personal task\n')
+        before={task['id']:task for task in inspect(path.read_text(),'2026-10-11')[2]}
+        identifier,_=self.regenerate()
+        context=act(self.root,identifier,'ses_replacement','prepare')
+        self.assertEqual({task['text'] for task in context['daily']['tasks']},
+                         {'Ranking',old,current,'Finished personal task'})
+        act(self.root,identifier,'ses_replacement','init',{'greeting':'Morning.','opening':'Current commitments and progress.',
+            'plan':[['schedule','Schedule'],['must-do','Project steps'],['nice-to-do','Optional project steps']]})
+        sections=[
+            ['schedule',[['flexible',[['2026-10-11','open',current,'Preparation agreed for today.']]]]],
+            ['must-do',[['tasks',[['open','Project: compare validation settings','Next necessary step.']]]]],
+            ['nice-to-do',[['tasks',[['open','Project: explore an extra control','Optional improvement.']]]]]]
+        for position,section in enumerate(sections):
+            act(self.root,identifier,'ses_replacement','publish',{'position':position,'section':section})
+        act(self.root,identifier,'ses_replacement','finish',{})
+        saved=json.loads((self.root/'daily/2026-10-11.gm.json').read_text())
+        self.assertEqual(saved['sections'],sections)
+        page=self.app.page('2026-10-11','gm',False).decode()
+        self.assertNotIn(old,page)
+        self.assertEqual(page.count(current+'</div>'),1)
+        self.assertEqual(page.count('class="task-card task"'),3)
+        after={task['id']:task for task in inspect(path.read_text(),'2026-10-11')[2]}
+        for identifier,task in before.items():
+            self.assertEqual({key:value for key,value in after[identifier].items() if key!='line'},
+                             {key:value for key,value in task.items() if key!='line'})
 
     def test_regeneration_reuses_saved_night_feedback_without_reapplying_it(self):
         path=self.root/'daily/2026-10-11.md'

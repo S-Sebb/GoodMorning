@@ -153,6 +153,45 @@ class DocumentTests(unittest.TestCase):
         doc['sections'][0][1]=[flexible,agenda]
         with self.assertRaisesRegex(ValueError,'before flexible'):native.validate(doc)
 
+    def test_authoring_rejects_repeated_task_cards_but_keeps_historical_readability(self):
+        scheduled = ['schedule', [['flexible', [['2026-10-12', 'open', 'Project: prepare review', 'Due today.']]]]]
+        required = ['must-do', [['tasks', [['open', 'Project: prepare review', 'A project step.']]]]]
+        optional = ['nice-to-do', [['tasks', [['open', 'Project: prepare review', 'Optional.']]]]]
+        cases = ([scheduled, required], [required, scheduled], [required, optional],
+                 [required, required], [['must-do', [['tasks', [required[1][0][1][0]] * 2]]]])
+        for sections in cases:
+            doc = {'v': 1, 'greeting': 'Hello.', 'opening': 'Current work.', 'sections': copy.deepcopy(sections)}
+            with self.subTest(sections=sections):
+                self.assertEqual(native.parse(native.encode(doc)), doc)
+                with self.assertRaisesRegex(ValueError, 'duplicate task card.*already listed at'):
+                    native.validate_task_ownership(doc)
+                page = web.edition(doc, DATE, 'gm', {'gm': True})
+                self.assertEqual(page.count('class="task-card task"'), 2)
+
+    def test_task_ownership_normalizes_whitespace_not_meaning_and_retains_recurrence(self):
+        doc = {'v': 1, 'greeting': 'Hello.', 'opening': 'Current work.', 'sections': [
+            ['schedule', [['flexible', [
+                ['2026-10-12', 'open', 'Daily review', ''],
+                ['2026-10-13', 'open', 'Daily review', '']]]]],
+            ['must-do', [['tasks', [['open', 'Project: compare two settings', '']]]]],
+            ['nice-to-do', [['tasks', [['open', 'Project: compare three settings', '']]]]] ]}
+        self.assertIs(native.validate_task_ownership(native.validate(doc)), doc)
+        doc['sections'][0][1][0][1].append(['2026-10-12', 'partial', 'Daily  review', ''])
+        with self.assertRaisesRegex(ValueError, 'duplicate task card'):
+            native.validate_task_ownership(doc)
+        doc['sections'][0][1][0][1] = [['', 'open', '核对报告', ''], ['', 'open', '核对报告', '']]
+        with self.assertRaisesRegex(ValueError, 'duplicate task card'):
+            native.validate_task_ownership(doc)
+
+    def test_project_section_labels_are_localized_and_custom_titles_are_preserved(self):
+        for tag, english, chinese in (('must-do', 'Project steps', '项目推进'),
+                                      ('nice-to-do', 'Optional project steps', '可选项目推进')):
+            section = [tag, [['tasks', [['open', 'Project: next step', '']]]]]
+            self.assertEqual(native.section_title(section, DATE), english)
+            self.assertEqual(native.section_title(section, DATE, 'zh-CN'), chinese)
+            section.extend(['', 'My saved title'])
+            self.assertEqual(native.section_title(section, DATE, 'zh-CN'), 'My saved title')
+
     def test_headlines_with_dashes_and_every_citation_are_preserved(self):
         doc = document()
         news = doc['sections'][1][1][0]
@@ -311,6 +350,18 @@ class SaveAndViewTests(unittest.TestCase):
         self.assertIn('v:', result['next'])
         self.assertEqual(list((self.root / 'daily').iterdir()), [])
         self.assertFalse((self.root / 'state.json').exists())
+
+    def test_duplicate_task_save_rejects_before_any_record_writes_for_both_editions(self):
+        doc = {'v': 1, 'greeting': 'Hello.', 'opening': 'Current work.', 'sections': [
+            ['must-do', [['tasks', [['open', 'Project: next step', '']]]]],
+            ['nice-to-do', [['tasks', [['open', 'Project: next step', '']]]]] ]}
+        for kind in ('gm', 'gn'):
+            code, result = self.save(doc, kind)
+            self.assertEqual(code, 2)
+            self.assertEqual(result['error'], 'briefing_invalid')
+            self.assertIn('duplicate task card', result['next'])
+            self.assertEqual(list((self.root / 'daily').iterdir()), [])
+            self.assertFalse((self.root / 'state.json').exists())
 
     def test_json_escapes_cannot_hide_boilerplate_from_the_existing_lint(self):
         doc = document(); doc['opening'] = 'Weather retrieval returned\nno warnings.'

@@ -91,6 +91,8 @@ edge cases. Load other guides only when needed.
   IDs selected from actual user feedback; no inference from silence. Deduplication
   is by exact wording or explicit inbox ref, not semantic guesses. Agent judgment
   still supplies priorities, progress interpretation and concise factual summaries.
+  For briefings, reconcile confirmed replacements before selecting tasks; daily
+  history is not the current plan. Follow task selection in `docs/briefing-format.md`.
   Save gm/gn via `docs/briefing-format.md` and `scripts/goodmorning.py state`
   with real session/input. Native JSON only. No bookkeeping in replies.
 - Prefer the interactive `question` tool for decisions, progress, ambiguity and
@@ -137,16 +139,19 @@ edge cases. Load other guides only when needed.
   Briefings remain native JSON with plain-text strings, never embedded Markdown.
   Weather order: temperature, precipitation,
    applicable extreme warning, AQI/health. Calendar is a chronological timetable.
-   Schedule/Tomorrow ends with a typed `flexible` block for relevant untimed work,
-   including date-confirmed TODOs and applicable recurring tasks. Use supported
+   Schedule/Tomorrow holds appointments and important day commitments, with a
+   typed `flexible` block when eligible untimed work remains, including
+   date-confirmed TODOs and applicable recurring tasks. Use supported
    dates or an empty date for unassigned work; never invent appointment times or
    roll unfinished tasks into tomorrow. No timed appointments does not mean a
    free day. Reminders/Notes hold background nudges, reviews and unresolved ideas,
    not work already planned for the displayed day.
-   Both gm and gn include project Must-do/Nice-to-do priorities when saved project
-   records and confirmed reports support actual outstanding work. Name the project
-   and concrete next action; separate necessary/time-sensitive work from optional
-   improvements. Omit a priority section when it has no supported tasks; never
+   Both gm and gn include Project steps / Optional project steps (JSON
+   `must-do`/`nice-to-do`) when saved project records and confirmed reports support
+   actual outstanding work. Name the project and concrete next action; separate
+   necessary ongoing steps from optional improvements, excluding actions already
+   in Schedule/Tomorrow. Each action has one section owner per
+   `docs/briefing-format.md`. Omit a project section when it has no supported tasks; never
    invent busywork, deadlines, completion or execution consent. Night priorities
    do not assign tomorrow dates or roll unfinished work forward.
   News is factual and cited; neutral assessment stays separate. Read the reply

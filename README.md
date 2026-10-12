@@ -31,8 +31,9 @@ combines an agent-assisted workflow with a browser interface you can host yourse
 ## A day with GoodMorning
 
 **Morning · Find your bearings.** Local weather and air quality, a source-linked
-news digest, appointments, flexible plans, and a clear distinction between must-do
-and nice-to-do. Sections appear as they are prepared, so you can start reading
+news digest, appointments and important day commitments, followed by necessary
+and optional steps for ongoing projects without repeated tasks. Sections appear
+as they are prepared, so you can start reading
 before the whole briefing is ready.
 
 **Evening · Put the day down.** Review the progress you report, keep unfinished

@@ -43,7 +43,7 @@ def fixture(root, port=0):
         app.jobs[day+'.'+kind]=job;app.save_jobs()
         initialize(root,job)
         if kind=='gn':answer(root,job,{'completed':['none'],'details':'Open task is still partial.'})
-        tag,title=('must-do','Must-do') if kind=='gm' else ('today','Today')
+        tag,title=('must-do','Project steps') if kind=='gm' else ('today','Today')
         act(root,identifier,job['session'],'init',{'greeting':'Good morning.' if kind=='gm' else 'Good night.',
             'opening':'Your plans and progress are safely recorded.','plan':[[tag,title]]})
         section=[tag,[['tasks',[['open','Open task','Continue when ready.']]]]] if kind=='gm' else [tag,[['p','Finished task is complete. Open task is still partial.']]]

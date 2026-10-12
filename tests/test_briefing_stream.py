@@ -31,7 +31,7 @@ class StreamTests(unittest.TestCase):
         self.app.jobs['2026-10-10.gm'] = {'id': self.identifier, 'date': '2026-10-10', 'kind': 'gm', 'state': 'running', 'session': 'ses_fixture'}
         self.app.save_jobs()
         self.target = self.app.job_dir / (self.identifier + '.preview.json')
-        self.plan = [['weather', 'Weather'], ['news', 'News — 2026-10-09'], ['nice-to-do', 'Nice-to-do']]
+        self.plan = [['weather', 'Weather'], ['news', 'News — 2026-10-09'], ['nice-to-do', 'Optional project steps']]
         self.document = {'v': 1, 'greeting': 'Morning, take it gently.', 'opening': 'Let’s see what today needs.', 'sections': []}
         self.weather = ['weather', [['weather', [['temperature', '14°C', 'A jacket will help.']]]], 'Leave room for the weather.']
         self.news = ['news', [['news', 'World', [['A factual headline', 'A sourced account.', [['Publisher', 'https://example.org/story']]]]]], 'Keep the uncertainty in mind.']

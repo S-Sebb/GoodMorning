@@ -191,10 +191,15 @@ the GoodMorning root; specialized guides load only for the operation needed.
   needs these essentials, not its examples.
 - Weather order: temperature, precipitation, applicable extreme warning, then AQI.
    Calendar: chronological timetable with date/time/timezone, place and preparation.
-   Schedule/Tomorrow ends with typed `flexible` rows for relevant untimed plans,
+   Schedule/Tomorrow holds appointments and important day commitments, ending
+   with typed `flexible` rows when eligible untimed plans remain,
    dated TODOs and applicable recurring work, not reminders-only tasks. Keep
    supported dates or an empty unassigned date, never invented time slots or
    automatic next-day rollover. No timed appointments does not establish a free day.
+   Project steps / Optional project steps hold ongoing project progress, excluding
+   scheduled actions. Reconcile confirmed replacements and give each action one
+   section owner under `docs/briefing-format.md`; preserved daily history is not
+   the current plan. Reminders/Notes do not repeat planned actions.
   News: factual cited summaries. Neutral assessment stays separate and grounded.
 - Human-like means responsive language, not fabricated feelings, progress, human
   identity or physical presence. Never diagnose mood, invent intimacy, claim

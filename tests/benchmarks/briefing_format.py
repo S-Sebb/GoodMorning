@@ -40,14 +40,14 @@ def fixtures():
                 rows=[[f'2034-03-{17+i//3}',f'{9+i%3:02}:00–{10+i%3:02}:00',f'Review {i}','Room A','Bring notes; timing is confirmed.'] for i in range(count)]
                 sections.append(['schedule' if kind=='gm' else 'tomorrow','Schedule' if kind=='gm' else 'Tomorrow',[
                     ['p','Timezone: Europe/London. Only approved events are shown.'],['table',columns,rows]],'Keep the gaps between appointments available.'])
-                for section_type,title in ([('must-do','Must-do'),('nice-to-do','Nice-to-do')] if kind=='gm' else [('still-open','Still open')]):
-                    items=[['open',f'Analysis task {i}','Compare the two validation settings; due 2034-03-20.'] for i in range(count)]
+                for section_type,title in ([('must-do','Project steps'),('nice-to-do','Optional project steps')] if kind=='gm' else [('still-open','Still open')]):
+                    items=[['open',f'{title}: analysis task {i}','Compare the two validation settings; due 2034-03-20.'] for i in range(count)]
                     sections.append([section_type,title,[['tasks',items]],'Choose one focused block before adding another experiment.'])
                 doc={'v':1,'greeting':greeting,'opening':opening,'sections':sections,'closing':'A grounded closing, without inventing progress.'}
                 if language=='zh':
                     doc['lang']='zh-CN'
                     translated={'weather':'天气','news':'新闻 — 2034-03-16','today':'今日进展','schedule':'日程',
-                                'tomorrow':'明日日程','must-do':'必做事项','nice-to-do':'可选事项','still-open':'尚未完成'}
+                                'tomorrow':'明日日程','must-do':'项目推进','nice-to-do':'可选项目推进','still-open':'尚未完成'}
                     for section in sections:
                         section[1]=translated[section[0]]
                         for block in section[2]:
@@ -109,7 +109,7 @@ def named(doc):
 def compact(sample):
     """Omit standard UI labels; custom/translated labels remain explicit."""
     defaults={'weather':'Weather','news':'News — '+(date.fromisoformat(sample['date'])-timedelta(days=1)).isoformat(),
-              'schedule':'Schedule','tomorrow':'Tomorrow','today':'Today','must-do':'Must-do','nice-to-do':'Nice-to-do','still-open':'Still open','reminders':'Reminders','notes':'Notes'}
+              'schedule':'Schedule','tomorrow':'Tomorrow','today':'Today','must-do':'Project steps','nice-to-do':'Optional project steps','still-open':'Still open','reminders':'Reminders','notes':'Notes'}
     sections=[]
     for kind,title,blocks,*note in sample['doc']['sections']:
         native=[]

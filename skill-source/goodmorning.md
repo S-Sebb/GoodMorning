@@ -29,7 +29,11 @@ Browser jobs follow `docs/browser-generation.md` and `scripts/goodmorning.py job
 from saved browser context, publish only the next section, then finish. Code owns
 the cumulative document, task synchronization and final save. Never count previews
 as completed runs or repeat saved browser decisions/progress questions.
-Schedule/Tomorrow includes timed events followed by typed `flexible` untimed work.
+Schedule/Tomorrow holds appointments and important day commitments, with typed
+`flexible` rows for eligible untimed work. Project steps / Optional project steps
+hold ongoing project progress, excluding scheduled actions. Follow task selection
+and section ownership in `docs/briefing-format.md`; show only confirmed current
+wording, not superseded daily history. Each action has one section owner.
 Never equate no appointments with a free day or bury dated plans in reminders.
 Website conversations marked `Browser chat` follow `docs/browser-chat.md`.
 `/eureka` and `/todo` are capture requests, not instructions to do the captured

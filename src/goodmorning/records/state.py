@@ -568,9 +568,11 @@ def cmd_mark(secretary_dir: str, day: str, kind: str, session: str,
             return command_error("answer_too_large", "answer exceeds 1,048,576 characters", 2, as_json)
         if not text.strip():
             return command_error("answer_empty", "answer text is empty, not saving", 2, as_json)
-        from goodmorning.briefings.briefing_document import parse, encode, strings
+        from goodmorning.briefings.briefing_document import parse, encode, strings, validate_task_ownership
         try:
             document = parse(text)
+            if not recovering:
+                validate_task_ownership(document)
             text = encode(document)
             if browser_job:
                 from goodmorning.briefings.briefing_stream import require_final

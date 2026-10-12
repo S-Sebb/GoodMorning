@@ -82,21 +82,24 @@ decisions; publish Today from actual answers, then Still open, before tomorrow's
     questions. Mark them done only on user-confirmed completion.
     Do not treat unfinished tasks as new calendar appointments.
     Show date/time/timezone, event, place and prep in chronological rows. After
-    timed events, append a typed `flexible` block for tomorrow's date-confirmed
-    TODOs, agreed untimed work and applicable recurring tasks. This belongs in
+    timed events, append a typed `flexible` block when tomorrow has important
+    date-confirmed TODOs, agreed untimed work and applicable recurring tasks. This belongs in
     Tomorrow, not Notes, even when there are no appointments. A clear calendar
     means no timed appointments, not an empty/free day. Keep unknown appointment
     times explicit in agenda; never manufacture clock times. Unfinished work
     without an agreed tomorrow date stays in Still open; ask before assigning new
     dates. Unresolved ideas/background nudges stay in Notes; omit it when empty.
-    Review relevant saved project records against confirmed progress. Include
-    Must-do/Nice-to-do sections for actual outstanding work on projects:
-    necessary/time-sensitive next actions versus optional improvements. Name each
+    Reconcile current actions and confirmed replacements against relevant saved
+    project records and progress before publishing Tomorrow, following task
+    selection and section ownership in `docs/briefing-format.md`. Do not relist
+    obsolete daily titles. Include Project steps / Optional project steps (formerly
+    Must-do/Nice-to-do; JSON `must-do`/`nice-to-do`) for actual outstanding work on
+    ongoing projects: necessary sustained progress versus optional improvements. Name each
     project, retain known priorities, dates and blockers, and omit either section
     if it has no supported tasks. Use typed `tasks` blocks, keeping partial/blocked
     work open. These are priorities, not automatic tomorrow assignments or consent
-    to execute. Tomorrow contains only date-confirmed/agreed work, with identical
-    titles when also shown in priorities; Still open summarizes unresolved status
+    to execute. Tomorrow contains only date-confirmed/agreed work, which never
+    repeats in project sections. Still open summarizes unresolved status
     without repeating every task. No invented work or deadlines to fill sections.
 6. End in the user's tone, respecting actual time or special instruction. Browser
    jobs use `job finish`; no separate state save is required. Otherwise save

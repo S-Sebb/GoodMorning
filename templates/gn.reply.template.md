@@ -38,17 +38,18 @@ forced optimism or exaggerated praise, and there is no short reply target.
   attended-calendar assumptions or a rendered briefing as user project progress.
 - Discuss incomplete work or blockers constructively, with practical next steps.
   It is fine to suggest rest or a more manageable plan, without assuming needs.
-- Include project Must-do/Nice-to-do sections when saved records and confirmed
-  progress support actual outstanding work. Name each project and concrete next
-  action; separate necessary/time-sensitive work from optional improvements.
+- Include Project steps / Optional project steps (`must-do`/`nice-to-do`) when saved records and confirmed
+   progress support actual outstanding work. Name each project and concrete next
+   action; separate necessary sustained progress from optional improvements.
   Use typed `tasks` blocks with actual open/partial/blocked status, retaining
   explicit priorities and known dates. Omit empty categories, never invent work
   or deadlines. Priorities neither authorize execution nor move work to tomorrow;
-  reuse identical titles only for tasks already agreed for tomorrow.
+   exclude actions already in Tomorrow. Apply task selection and section ownership
+   in `docs/briefing-format.md`; keep confirmed replacement wording, not both versions.
 - Tomorrow includes confirmed times, places, preparation, and pending review.
   Use a chronological timetable with date, local time, event, place and preparation.
-   End Tomorrow with a typed `flexible` block for dated TODOs, agreed untimed work
-   and applicable recurring tasks, including when no appointments are listed.
+   End Tomorrow with a typed `flexible` block when important dated TODOs, agreed untimed work
+   or applicable recurring tasks remain, including when no appointments are listed.
    Do not call tomorrow free/empty while planned work exists or bury it in Notes.
    No empty timetable rows or invented clock times. Unfinished work without an
    agreed tomorrow date stays in Still open; do not silently roll it forward.

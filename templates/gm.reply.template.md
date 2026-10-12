@@ -25,7 +25,7 @@ There is no arbitrary length target. Never create Markdown snapshots or image ca
   directly to Weather. Do not scan old greetings to enforce uniqueness.
   Author the native browser document per `docs/browser-generation.md`, with its
   opening and useful section takeaways included in that document.
-  Include Nice-to-do commentary when that section exists. Never show internal
+   Include Optional project steps commentary when that section exists. Never show internal
   inbox/task/session identifiers; use meaningful descriptions instead.
 - Weather must have clearly separated parts in this order: temperature,
   precipitation forecast/advice, extreme-weather warning only if applicable,
@@ -38,11 +38,13 @@ There is no arbitrary length target. Never create Markdown snapshots or image ca
 - Schedule is a chronological timetable: date, local time, event, place and
   preparation. Identify the timezone once, distinguish elapsed/upcoming dates,
   and put material conflicts directly beneath the table. No duplicate prose list.
-  End Schedule with a typed `flexible` block (localized Flexible schedule heading)
-  for relevant work without clock times, including chosen today tasks, dated TODOs
+   End Schedule with a typed `flexible` block (localized Flexible schedule heading)
+   when important day commitments have no clock times, including agreed tasks, dated TODOs
   and applicable recurring work. Preserve supported dates, or leave unassigned
   dates empty. No appointments means no timed events, not a free day. Keep these
-  plans out of Reminders; priority sections may explain them with identical titles.
+   plans out of Reminders and both project sections. Follow task selection and
+   section ownership in `docs/briefing-format.md`; reconcile confirmed corrections
+   before publication instead of copying every historical daily title.
 - Use the user's importance preferences, source roles, feed excerpts and ranking
   explanations internally to select consequential developments. Present concise
   source-based summaries, not long narrative or flavor text. Prefer an existing
@@ -60,12 +62,13 @@ There is no arbitrary length target. Never create Markdown snapshots or image ca
   unless stale information would mislead the user.
 - Help the user understand which tasks deserve attention and why. Include priority
   and estimated time when supported, with realistic, considerate suggestions.
-  Include project Must-do/Nice-to-do tasks only when saved records and confirmed
-  reports support actual outstanding work relevant to today's plan. Name the
+   Include Project steps / Optional project steps (`must-do`/`nice-to-do`) only when saved records and confirmed
+   reports support actual outstanding work for sustained project progress. Name the
   project and concrete next action, distinguish necessary work from optional
   improvements, and use typed `tasks` blocks. Omit empty categories rather than
-  invent work, dates or deadlines. Preserve explicit priorities and identical
-  titles across priority and Flexible schedule cards.
+   invent work, dates or deadlines. Preserve explicit priorities, but exclude
+   actions already scheduled. One action has one section owner; project sections
+   are not a second daily plan or a home for unrelated personal errands.
   Never show tasks as completed simply because a morning briefing was created.
   Connect advice to their actual priorities, offer a manageable next step, and
   preserve their agency. Avoid clipped instructions and patronizing pep talks.

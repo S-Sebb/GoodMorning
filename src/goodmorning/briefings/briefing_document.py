@@ -11,7 +11,7 @@ from goodmorning.web import language as ui
 
 MAX_BYTES = 150_000
 TITLES = {'weather': 'Weather', 'news': 'News', 'schedule': 'Schedule',
-          'must-do': 'Must-do', 'nice-to-do': 'Nice-to-do', 'reminders': 'Reminders',
+          'must-do': 'Project steps', 'nice-to-do': 'Optional project steps', 'reminders': 'Reminders',
           'today': 'Today', 'still-open': 'Still open', 'tomorrow': 'Tomorrow', 'notes': 'Notes'}
 WEATHER = {'temperature': ('Temperature', 'thermometer', 'temperature cool'),
            'precipitation': ('Precipitation', 'rain', 'precipitation'),
@@ -211,6 +211,25 @@ def encode(data):
     if len(source.encode('utf-8')) > MAX_BYTES:
         fail('document', 'canonical form exceeds 150000 bytes')
     return source
+
+
+def validate_task_ownership(data):
+    """Reject repeated task cards on write; historical documents remain readable."""
+    seen = {}
+    for index, section in enumerate(data['sections']):
+        for number, value in enumerate(section[1]):
+            if value[0] not in ('tasks', 'flexible'):
+                continue
+            for row_number, row in enumerate(value[1]):
+                day = row[0] if value[0] == 'flexible' else None
+                title = ' '.join(row[-2].split())
+                path = f'sections[{index}].blocks[{number}].items[{row_number}]'
+                previous = seen.setdefault(title, {})
+                # Distinct dated occurrences of recurring work are not duplicates.
+                if previous and (day is None or None in previous or day in previous):
+                    fail(path, 'duplicate task card; keep one section owner, already listed at ' + next(iter(previous.values())))
+                previous[day] = path
+    return data
 
 
 def strings(value):

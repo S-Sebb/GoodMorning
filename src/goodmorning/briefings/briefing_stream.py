@@ -118,6 +118,7 @@ def publish(runtime, identifier, document=None, plan=None, skip=False, *, positi
                 raise ValueError('Publish exactly one next section at a time')
             checkpoint = {'plan': old['plan'], 'outcomes': outcomes, 'document': document}
         validate(checkpoint)
+        native.validate_task_ownership(document)
         from goodmorning.reply_policy import boilerplate_categories
         if any(boilerplate_categories(value) for value in native.strings(document)):
             raise ValueError('Remove noncritical boilerplate before publishing; keep material warnings')

@@ -19,11 +19,13 @@ Each section is `[type, blocks, note?, title?]`. Omit trailing optional fields.
 `type` is `weather`, `news`, `schedule`, `must-do`, `nice-to-do`, `reminders`,
 `today`, `still-open`, `tomorrow`, or `notes`. Use `notes` plus an explicit title for
 custom content. `blocks` is a nonempty ordered array. `note` is a separate grounded
-takeaway, not news facts; include useful notes, explicitly Nice-to-do when present.
+takeaway, not news facts; include useful notes for Optional project steps when present.
 Use `""` for note if only overriding a title. Multiple sections of the same type
 are permitted; their notes stay independent. Omit empty sections.
 
-English default titles follow the type (e.g. `must-do` becomes `Must-do`);
+English default titles follow the type, except `must-do` is `Project steps` and
+`nice-to-do` is `Optional project steps`. These stable JSON types and daily groups
+remain compatible with existing records; they do not mean general day obligations.
 `news` defaults to `News — YESTERDAY` using the pinned briefing date. **Always
 override titles for other languages and different news windows**, e.g. same-day
 latest or explicitly requested older news. Default labels save repeated UI tokens,
@@ -71,8 +73,9 @@ Block shapes (all positional fields shown below are required unless marked `?`):
   unknown stays in `agenda` with `TBC`; it is not a flexible task. Include relevant
   date-confirmed TODOs, agreed plans and applicable recurring work, not every
   backlog item or unresolved idea. An empty calendar is not proof of a free day.
-  Morning rows dated today synchronize into the daily `flexible` checklist group
-  if not already listed under Must-do/Nice-to-do; future/undated rows do not.
+  Morning rows dated today synchronize into the daily `flexible` checklist group;
+  future/undated rows do not. Existing exact-title tasks keep their stored group
+  and completion; stored groups are not instructions for briefing placement.
   Night rows do not create, complete or reschedule daily tasks.
 
 Use actual JSON double quotes. The single quotes above distinguish the shapes
@@ -86,8 +89,61 @@ Split long content into appropriate blocks; report material size failures.
 Minimal shape example, not wording to repeat:
 
 ```json
-{"v":1,"greeting":"Good morning.","opening":"Leave some room for the important work today.","sections":[["weather",[["weather",[["temperature","14°C","London; bring a jacket."],["precipitation","40%","Rain possible after 15:00."],["air","31","Good air."]]]],"Allow extra time if the afternoon turns wet."],["nice-to-do",[["tasks",[["open","Read one paper","Choose a focused gap, not a new deadline."]]]],"A small reading slot is enough."]]}
+{"v":1,"greeting":"Good morning.","opening":"Leave some room for the important work today.","sections":[["weather",[["weather",[["temperature","14°C","London; bring a jacket."],["precipitation","40%","Rain possible after 15:00."],["air","31","Good air."]]]],"Allow extra time if the afternoon turns wet."],["nice-to-do",[["tasks",[["open","Demo project: read one relevant paper","Explore a method gap; no deadline assigned."]]]],"A small reading slot is enough."]]}
 ```
+
+## Task selection and section ownership
+
+Before publishing the first task-bearing section, reconcile the relevant prepared
+daily tasks with current active inbox constraints, saved project records and
+confirmed feedback. Read only relevant details/pages, not the whole briefing or
+archived history. Daily records are preserved history, not a list to copy verbatim.
+
+- Identify each distinct action using exact wording, an explicit task/inbox link,
+  or a confirmed correction that clearly names the earlier action. A shared project
+  or similar wording alone is not proof of equivalence; one inbox entry can contain
+  several distinct subtasks. Ask when identity or the effective change is unclear.
+- If a confirmed update replaces a task's wording, date, scope or priority, select
+  one current title and the latest confirmed constraints. Do not display the old
+  version as another task, optional alternative, reminder or preparation card.
+  A moved meeting does not create two prep actions or prove prep is due today.
+  Pending proposals do not replace confirmed plans. Keep necessary distinctions
+  and supported dates; do not invent a deadline or clock time.
+- Reuse an existing exact title when the action has not changed. For a confirmed
+  replacement, use the current title consistently. Omitting obsolete presentation
+  is not deleting, completing, reopening or renaming daily history. Do not claim
+  the old checklist row was removed or replay mutations during regeneration.
+  If completion is ambiguous across linked versions, ask; never invent progress.
+
+Assign each current action one owner, in this order:
+
+| Section | What belongs here | What stays out |
+| --- | --- | --- |
+| Schedule / Tomorrow | Approved appointments, plus important work committed to the displayed day: dated obligations, agreed plans and applicable recurring work. Urgent project actions also belong here when their day commitment is supported. Use `agenda` for appointments and `flexible` for untimed actions. | A dump of daily history, the project backlog, optional ideas, or an unfinished task moved to tomorrow without agreement. |
+| Project steps (`must-do`) | Concrete necessary next steps for sustained progress on ongoing projects, supported by current records and confirmed reports. Name the project and why this step matters. | Anything already scheduled, one-off personal obligations, completed or obsolete work, or invented busywork. |
+| Optional project steps (`nice-to-do`) | Useful but optional project improvements or exploratory next steps. Preserve explicit user priorities. | Scheduled actions, required project steps, unrelated personal errands, or alternative wording for the same action. |
+| Reminders / Notes | Relevant background nudges, pending reviews and unresolved questions that are not already represented as an action. | Repeated schedule/project tasks or new execution plans from unconfirmed ideas. |
+
+Do not downgrade scheduled work into Optional project steps to fill a section.
+An explicit user priority is retained in the owning task's detail even when that
+task belongs in Schedule. A flexible block is optional when no eligible actions
+remain; omit empty optional sections. No timed appointments does not establish
+a free day, especially when project steps remain. Undated work keeps an empty
+date only when it is an explicitly agreed important plan, not backlog padding.
+
+For `/gn`, Today reports actual outcomes; Still open summarizes remaining work
+and blockers without relisting every action from Tomorrow or the project sections.
+Mentioning reported progress is not another task card. Project steps do not assign
+tomorrow dates. Unassigned unfinished work remains open, never silently rolled over.
+
+Before each publish, compare the new actions with earlier published sections and
+the reconciled current task choices. One task card per action per occurrence;
+recurring actions on distinct confirmed dates may have separate schedule rows.
+Do not repeat actions in prose, takeaways or Reminders to bypass this rule. New
+publications and saves reject exact-title/whitespace-equivalent duplicate task
+cards before writes; code does not guess semantic equivalence. Old saved documents
+remain readable without being rewritten. Different-title replacements require the
+source reconciliation above, not a claim that checklist deduplication will fix them.
 
 ## Validate and save once
 

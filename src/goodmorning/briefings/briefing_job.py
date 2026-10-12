@@ -95,11 +95,15 @@ def next_step(runtime, identifier, session, context, checkpoint):
             '--days','1' if tag == 'tomorrow' else '3','--timezone',context['timezone'],'--json','--details']))
     instruction = 'Gather only this section; follow returned pages/review requirements, then publish immediately. Use saved context first.'
     if tag in ('schedule', 'tomorrow'):
-        instruction += (' Review saved daily tasks and relevant active inbox/project constraints before describing availability. '
-                        'After timed agenda blocks, use flexible rows [date,status,title,detail] for relevant untimed work; '
+        instruction += (' Reconcile current tasks and confirmed corrections under docs/briefing-format.md before publishing. '
+                        'Review relevant active inbox/project constraints before describing availability. '
+                        'After timed agenda blocks, use flexible rows [date,status,title,detail] for important day commitments, not the project backlog; '
                         'use ISO dates only when supported, otherwise an empty date. Keep actual appointment times TBC in agenda. '
                         'No timed appointments does not mean a free day. Do not bury planned work in reminders/notes, '
                         'invent times, or move unfinished work to tomorrow without an existing date or user agreement.')
+    elif tag in ('must-do', 'nice-to-do'):
+        instruction += (' Use ongoing project next steps only, excluding tasks already owned by Schedule/Tomorrow. '
+                        'Follow task selection and section ownership in docs/briefing-format.md; skip if no supported tasks remain.')
     return {'action':'publish','command':shlex.join(command + ['publish']), 'position':position,
             'section':[tag,title], 'read':reads,
             'instruction':instruction}

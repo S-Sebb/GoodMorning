@@ -69,24 +69,29 @@ decisions, before fetching; follow its recipes and publish top-down, not at step
    Use approved events only, show pending review counts, and inspect relevant
     details for preparation. Show a chronological timetable with date/time/timezone,
       event, place and prep where known. Put conflicts beneath it; no duplicate prose.
-    Before publishing Schedule, review preparation's tasks and relevant active
-    inbox/project constraints (including further pages where needed). Append a
-    typed `flexible` block after the timetable for today's chosen work, dated TODOs
+    Before publishing Schedule, reconcile preparation's tasks with relevant active
+    inbox constraints, saved project records and confirmed changes (including
+    further pages where needed) under `docs/briefing-format.md`. Choose one current
+    action and section owner; do not copy obsolete daily titles into the plan.
+    Append a typed `flexible` block when important untimed day commitments remain:
+    agreed work, dated TODOs
     and applicable recurring tasks without fixed times. Include supported future
     dates within the schedule window; unassigned work keeps an empty date. Never
     manufacture time slots or describe the day as free from calendar emptiness.
-5. Read relevant saved project records and confirmed reports; use authorized live
-   project access only if needed and allowed. Include concrete project next actions
-   in Must-do/Nice-to-do when there is actual outstanding work relevant to today's
-   plan. Name the project in each task and explain why it matters. Must-do is
-   necessary or time-sensitive work; Nice-to-do is optional progress or improvement.
+5. Reuse relevant saved project records and confirmed reports reviewed for Schedule;
+   use authorized live project access only if needed and allowed. Include concrete
+   ongoing project next actions in Project steps / Optional project steps (formerly
+   Must-do/Nice-to-do; JSON `must-do`/`nice-to-do`) when there is actual outstanding work.
+   Exclude every action already in Schedule, including urgent project work.
+   Name the project in each task and explain why it matters. Project steps covers
+   necessary sustained progress; Optional project steps covers optional improvement.
    Preserve explicit user priorities. Omit either section when it has no supported
    tasks; do not invent weekly steps, busywork, fixed times or deadlines to fill it.
    Use only confirmed fixed times and clearly labeled, grounded estimates.
      Give grounded advice in the user's tone.
-    Do not invent deadlines or progress. Must-do/Nice-to-do express priorities;
-    keep titles identical when also showing those tasks in the flexible schedule
-    so checklist synchronization creates one task, not duplicate completions.
+   Do not invent deadlines or progress. These are ongoing project steps, not a
+   second copy of today's schedule. Keep each action in one section only; retain
+   explicit priorities in its detail rather than creating another task card.
       Use preparation's inbox page; fetch further `inbox --list` filters/pages only
       as needed, then `--show ID` only for relevant
      current constraints. Never read archived discussions. Review flagged new

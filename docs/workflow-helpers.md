@@ -75,6 +75,9 @@ Amendment JSON example:
   deduplicates across all three lists; an explicit
   inbox `ref` deduplicates a changed reminder without erasing its completion.
   Omit refs for unrelated project subtasks; code never guesses equivalent meaning.
+  These are preserved record groups, not briefing section assignments. A confirmed
+  replacement may leave an old row in history; select only its current version in
+  the briefing under `docs/briefing-format.md`, without removing or completing it.
 - `complete` changes only exact IDs from the current view and requires the caller's
   `confirmed_completion:true`, representing actual user confirmation, not permission
   to infer it. Partial/blocked work stays open. No automatic reopening/removal.

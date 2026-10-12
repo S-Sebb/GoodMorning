@@ -37,6 +37,8 @@ new exact-title tasks through the normal merge; it does not remove old tasks.
 Regeneration authorizes a new presentation and the helper's final save only,
 not replaying daily/inbox/project/calendar mutations or earlier execution consent.
 Use current records for progress and reuse saved feedback without reapplying it.
+Reconcile confirmed replacements under `docs/briefing-format.md`; do not republish
+every preserved daily title or present obsolete wording alongside its replacement.
 
 ```sh
 python scripts/goodmorning.py job --secretary-dir RUNTIME --job JOB prepare
@@ -102,9 +104,11 @@ Repair only the new input. Never alter published sections to resolve a failure.
     gm task titles into the daily checklist; then saves JSON and the run marker.
     Flexible rows dated today join the checklist without invented priority;
     future/undated rows do not become today's tasks. Exact-title duplicates keep
-    existing completion and explicit Must-do/Nice-to-do classification.
+    existing completion and stored checklist classification. Stored groups do not
+    determine the section that owns an action in the current briefing.
    New tasks are unchecked; existing completions and unrelated work are preserved.
-   Must-do/Nice-to-do tasks use typed `tasks` blocks, never hidden in prose/lists.
+   Project steps / Optional project steps use typed `tasks` blocks under the
+   stable `must-do`/`nice-to-do` types, never hidden in prose/lists.
    The model may still make authorized project/daily amendments for other records.
 
 Example invocation (use the same flags for every action):
@@ -116,15 +120,19 @@ JSON
 ```
 
 Typical order: gm Weather, yesterday's News, opted-in dated latest News, Schedule,
-Must-do, Nice-to-do, material Reminders. gn Today, Still open, Tomorrow, Must-do,
-Nice-to-do, material Notes. Both editions reserve optional priority sections:
+Project steps, Optional project steps, material Reminders. gn Today, Still open,
+Tomorrow, Project steps, Optional project steps, material Notes.
+Both editions reserve optional project sections:
 review relevant saved project records and confirmed reports, publish typed `tasks`
 for actual outstanding project work, and skip either priority section if there are
 no supported tasks for it. Name each project and concrete next action; distinguish
-necessary/time-sensitive work from optional improvements, preserving explicit
+necessary ongoing steps from optional improvements, preserving explicit
 priorities. Do not invent work, deadlines or progress, access live projects against
 policy, or treat a priority as execution consent. Night priorities do not reschedule
 unfinished work or create tomorrow tasks; retain only supported/agreed dates.
+Scheduled actions never repeat in project sections. Apply the task selection and
+section ownership contract in `docs/briefing-format.md` before Schedule/Tomorrow
+becomes immutable; reuse those reconciled choices for later sections.
 Review all selected news and retain citations before publishing its section.
 Do not use `--force`; check every receipt's exit/error/next. Failed/interrupted
 previews remain readable. Finish retries may reconcile only an identical saved
@@ -133,15 +141,16 @@ document bound to the same job. Snapshot existence alone never means ready.
 ## Presentation and delivery
 
 Use the confirmed language/tone throughout. Short natural greeting, useful content
-and grounded section notes (including Nice-to-do when present). No repeated date:
+and grounded section notes (including Optional project steps when present). No repeated date:
 the viewer owns navigation. JSON strings are plain UTF-8, not Markdown/HTML. Do
 not invent feelings, availability, deadlines or progress. No generic reassurance,
 empty-queue bookkeeping, or commentary merely restating timetable rows. Distinguish
 free calendar slots from confirmed availability; use exact known times.
 For Schedule/Tomorrow, review the saved task context and relevant active inbox/
 project constraints before any availability statement. Publish timed agenda rows
-first, then a `flexible` block for relevant untimed work, even when there are no
-appointments. Use the pinned target date only for work supported on that day;
+first, then a `flexible` block for important untimed day commitments when present,
+even when there are no appointments. Use the pinned target date only for work
+supported on that day;
 unassigned work keeps an empty date. Unknown appointment times remain `TBC` in
 agenda, not flexible tasks. Leave undated unfinished work in Still open unless
 the user has agreed to move it; never call tomorrow empty while it has planned
