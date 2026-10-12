@@ -207,6 +207,12 @@ class BrowserApp:
         text = re.sub(r'<article\b', navigation + '<article', text, count=1)
         text = text.replace('</head>', '<link rel="stylesheet" href="/avatar.css"></head>')
         text = text.replace('</body>', '<script src="/avatar.js" defer></script></body>')
+        picker = ('<button id="mobile-sections" type="button" hidden aria-controls="mobile-section-dialog" aria-expanded="false" aria-label="Browse sections">'
+                  '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" aria-hidden="true"><path d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg><span>Sections</span></button>'
+                  '<dialog id="mobile-section-dialog" aria-labelledby="mobile-section-heading"><header><h2 id="mobile-section-heading">Briefing sections</h2>'
+                  '<button id="close-sections" type="button" aria-label="Close sections"><svg viewBox="0 0 20 20" width="20" height="20" fill="none" aria-hidden="true"><path d="m6 6 8 8m0-8-8 8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></button></header>'
+                  '<nav id="mobile-section-list" aria-label="Briefing sections"></nav></dialog>')
+        text = text.replace('</body>', picker + '</body>')
         return text
 
     def chat_settings(self):

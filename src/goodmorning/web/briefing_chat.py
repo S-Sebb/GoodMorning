@@ -479,8 +479,8 @@ def page(csrf, ready, connected, secretary_name=None, avatar='f1', avatar_urls=N
             + avatar_widget(avatar, sources) +
             '<p class="eyebrow">Your desk</p>'
             '<h1 id="secretary-heading">' + heading + '</h1><p>A place for your plans, bright ideas, and the details that make this yours.</p>'
-            '<button id="new-conversation" type="button">New conversation</button>'
-            '<details id="conversation-history" open><summary>Previous conversations</summary><nav id="chat-history" aria-label="Previous conversations"></nav></details></aside>'
+             '<details id="conversation-history" open><summary>Previous conversations</summary><nav id="chat-history" aria-label="Previous conversations"></nav></details>'
+             '<button id="new-conversation" type="button">New conversation</button></aside>'
              '<section class="conversation-panel" id="conversation" aria-label="Secretary conversation">'
              '<h2 id="conversation-name" class="chat-visually-hidden" data-content>'+conversation_name+'</h2>'
              '<div class="mode-controls"><div class="mode-switch" role="radiogroup" aria-label="Secretary mode">'+choices+'</div>'

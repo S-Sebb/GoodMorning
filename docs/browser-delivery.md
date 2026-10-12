@@ -156,6 +156,14 @@ dashboard and the registry's owned-session IDs to review unreferenced sessions.
 
 ## Validation and evidence
 
+On narrow mobile screens, the floating Sections button opens a native modal
+bottom sheet containing only currently visible briefing sections. Selecting an
+anchor closes it and focuses the destination; Escape, its close button and an
+outside tap dismiss it. It marks the current reading section and updates during
+section publication and website-language changes. The desktop minimap and
+top-of-briefing native anchor list remain available; the latter also works without
+JavaScript. Navigation never changes saved briefing data or dispatches model work.
+
 Use isolated synthetic runtimes. These commands make no model calls:
 
 ```sh

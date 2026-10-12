@@ -89,6 +89,19 @@ class LiveTests(unittest.TestCase):
             self.app.jobs['2026-10-10.gm']['state'] = 'running'
         return result['job']
 
+    def test_mobile_section_picker_is_inert_markup_and_does_not_change_records(self):
+        (self.root/'daily/2026-10-10.gm.json').write_text(GM)
+        before={path:path.read_bytes() for path in self.root.rglob('*') if path.is_file()}
+        page=self.app.page('2026-10-10','gm',False).decode()
+        self.assertIn('id="mobile-sections" type="button" hidden',page)
+        self.assertIn('id="mobile-section-dialog" aria-labelledby="mobile-section-heading"',page)
+        self.assertIn('class="briefing-section-nav"',page)
+        self.assertEqual({path:path.read_bytes() for path in before},before)
+
+    def test_new_conversation_action_follows_the_preserved_history(self):
+        page=self.app.chat_page().decode()
+        self.assertLess(page.index('id="conversation-history"'),page.index('id="new-conversation"'))
+
     def test_acknowledged_inputs_never_reappear_or_yield_before_engine_catches_up(self):
         from unittest.mock import patch
         job=self.start()
