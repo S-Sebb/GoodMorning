@@ -1,6 +1,15 @@
 {
   "notes": [
     {
+      "version": "0.19.1", "date": "2026-10-12", "author": "GoodMorning agent",
+      "title_en": "Crisp task checkmarks", "title_zh": "清晰的任务勾选标记",
+      "changes": [{"category": "Fixed", "en": [
+        "Replace the blurry text tick in task cards with a centered vector checkmark on a filled accent background."
+      ], "zh": [
+        "将任务卡片中模糊的文本对勾替换为居中显示的矢量勾选标记，并使用强调色填充背景。"
+      ]}]
+    },
+    {
       "version": "0.19.0", "date": "2026-10-12", "author": "GoodMorning agent",
       "title_en": "A complete patch-note history", "title_zh": "完整的更新日志",
       "changes": [

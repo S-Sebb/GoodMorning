@@ -227,7 +227,8 @@ def render_block(value, images, briefing_date=None):
         items = []
         for status, title, detail in value[1]:
             status_label='Completed' if status=='done' else 'Not completed'
-            mark = '<span class="check" data-ui-aria-label="'+status_label+'" aria-label="'+ui.text(status_label)+'">'+('✓' if status=='done' else '')+'</span>'
+            tick = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="m5 12.5 4.5 4.5L19 7"/></svg>' if status=='done' else ''
+            mark = '<span class="check'+(' is-done' if status=='done' else '')+'" data-ui-aria-label="'+status_label+'" aria-label="'+ui.text(status_label)+'">'+tick+'</span>'
             label = '<span class="task-status">' + ui.ui(status.capitalize()) + '</span> ' if status in ('partial', 'blocked') else ''
             items.append(f'<li class="task-card task"><div class="task-title">{mark}{escaped(title)}</div><div class="task-detail">{label}{escaped(detail)}</div></li>')
         return '<ul class="task-list">' + ''.join(items) + '</ul>'

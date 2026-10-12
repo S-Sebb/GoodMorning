@@ -131,7 +131,9 @@ h3 { font-size: 12px; text-transform: uppercase; letter-spacing: 1.6px; color: v
 .section-body tr { transition: background-color .25s ease; }
 .table-scroll { overflow-x: auto; }
 .section-body li.task { list-style: none; position: relative; }
-.check { position: absolute; left: -24px; top: 17px; width: 13px; height: 13px; border: 1px solid var(--accent); border-radius: 3px; color: var(--accent); font-size: 11px; line-height: 11px; }
+.check { position: absolute; left: -24px; top: 17px; width: 16px; height: 16px; display: inline-grid; place-items: center; border: 1px solid var(--accent); border-radius: 5px; color: var(--accent); background: transparent; }
+.check svg { width: 11px; height: 11px; display: block; }
+.check.is-done { background: var(--accent); border-color: var(--accent); color: var(--bg); }
 /* Distinct information layouts: weather tiles, an agenda, and editorial cards. */
 .data-icon { width: 22px; height: 22px; display: inline-block; flex-shrink: 0; vertical-align: middle; }
 .section-symbol { margin-left: auto; color: var(--accent); display: grid; place-items: center; width: 42px; height: 42px; border-radius: 12px; background: var(--wash); }
@@ -198,7 +200,8 @@ html[data-edition="gn"] .weather-tile.air { --tile-accent: #aed4b7; --tile-bg: #
 .section-body .task-list { margin: 0; padding: 0; list-style: none; display: grid; gap: 12px; }
 .section-body .task-card { position: relative; border: 1px solid var(--line); border-radius: 12px; padding: 20px; background: var(--surface); font-size: 14px; transition: background-color .25s ease, border-color .25s ease, box-shadow .25s ease; }
 .section-body .task-card.task { padding-left: 48px; }
-.task-card .check { left: 20px; top: 25px; width: 15px; height: 15px; line-height: 13px; }
+.task-card .check { left: 20px; top: 24px; width: 18px; height: 18px; border-radius: 6px; }
+.task-card .check svg { width: 12px; height: 12px; }
 .task-title { font-weight: 600; line-height: 1.5; margin-bottom: 8px; }
 .task-detail { font-size: 13px; line-height: 1.8; color: var(--muted); }
 @media (max-width: 1000px) { .section-body .news-grid { grid-template-columns: minmax(0, 1fr); } .weather-tiles { gap: 12px; } .weather-tile { padding: 18px; } .weather-label { gap: 8px; } .weather-label h3 { letter-spacing: .8px; font-size: 10px; } }
