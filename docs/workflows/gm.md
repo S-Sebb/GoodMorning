@@ -75,9 +75,14 @@ decisions, before fetching; follow its recipes and publish top-down, not at step
     and applicable recurring tasks without fixed times. Include supported future
     dates within the schedule window; unassigned work keeps an empty date. Never
     manufacture time slots or describe the day as free from calendar emptiness.
-5. Read relevant project records; use authorized project access only if needed.
-    Build weekly project steps, then choose today's must-do versus
-   nice-to-do tasks with priority, fixed times, and clearly labeled estimates.
+5. Read relevant saved project records and confirmed reports; use authorized live
+   project access only if needed and allowed. Include concrete project next actions
+   in Must-do/Nice-to-do when there is actual outstanding work relevant to today's
+   plan. Name the project in each task and explain why it matters. Must-do is
+   necessary or time-sensitive work; Nice-to-do is optional progress or improvement.
+   Preserve explicit user priorities. Omit either section when it has no supported
+   tasks; do not invent weekly steps, busywork, fixed times or deadlines to fill it.
+   Use only confirmed fixed times and clearly labeled, grounded estimates.
      Give grounded advice in the user's tone.
     Do not invent deadlines or progress. Must-do/Nice-to-do express priorities;
     keep titles identical when also showing those tasks in the flexible schedule

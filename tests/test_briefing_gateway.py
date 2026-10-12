@@ -137,7 +137,51 @@ class GatewayTests(unittest.TestCase):
             self.assertEqual(self.request(path)[0],302)
         self.assertEqual(self.request('/api/jobs/'+('a'*32))[0],401)
         self.assertEqual(self.request('/api/generate',{'date':'2026-10-11','kind':'gm'})[0],403)
+        self.assertEqual(self.request('/api/regenerate',{'date':'2026-10-11','kind':'gm','id':'b'*32,'previous':'a'*32})[0],403)
         self.assertEqual(self.received,[])
+
+    def test_markdown_scripts_are_public_immutable_assets_without_backend_access(self):
+        from goodmorning.web.briefing_resources import Resources
+        from goodmorning.paths import WEB_ASSETS
+        resources = Resources(WEB_ASSETS)
+        for name in ('marked.js', 'markdown.js'):
+            url = resources.urls[name]
+            status, headers, body = self.request(url)
+            self.assertEqual(status, 200)
+            self.assertEqual(headers['Content-Type'], 'text/javascript')
+            self.assertIn('immutable', headers['Cache-Control'])
+            self.assertEqual(body, resources.paths[url].data)
+        self.assertEqual(self.received, [])
+
+    def test_regeneration_reserves_global_slot_and_retries_do_not_dispatch_twice(self):
+        old='a'*32;new='c'*32;request='b'*32
+        body={'date':'2026-10-11','kind':'gm','id':request,'previous':old}
+        editions={self.id:{'job':old},self.other:{'job':old}}
+        def proxy(user,host,path,method,raw,headers):
+            if path.startswith('/api/edition/'):
+                return 200,{},json.dumps(editions[user]).encode()
+            if method=='GET':return 200,{},b'{"state":"running"}'
+            self.assertEqual(path,'/api/regenerate')
+            self.assertEqual(json.loads(raw),body)
+            editions[user]={'job':new,'regeneration_request':request}
+            return 202,{},json.dumps({'job':new}).encode()
+        with patch.object(self.gateway,'proxy',side_effect=proxy) as forwarded:
+            raw=json.dumps(body).encode()
+            self.assertEqual(self.gateway.generate(self.id,'gm.example.test',raw,{},regenerate=True)[0],202)
+            self.assertEqual(self.gateway.ticket()['job'],new)
+            self.assertEqual(self.gateway.generate(self.id,'gm.example.test',raw,{},regenerate=True)[0],202)
+            self.assertEqual(sum(call.args[3]=='POST' for call in forwarded.call_args_list),1)
+            _,_,data=self.gateway.generate(self.other,'gm.example.test',raw,{},regenerate=True)
+            self.assertTrue(json.loads(data)['queued'])
+            queue=self.gateway.queue_status(self.other)
+            self.assertEqual(queue['queue'][0],{'work':'regenerate','date':'2026-10-11','edition':'gm','previous':old,'position':1})
+            self.assertEqual(self.gateway.queue_status(self.id)['queue'],[])
+            self.assertEqual(sum(call.args[3]=='POST' for call in forwarded.call_args_list),1)
+            self.gateway.clear_ticket(self.gateway.ticket())
+            self.gateway.pump_queue()
+            self.assertEqual(sum(call.args[3]=='POST' for call in forwarded.call_args_list),2)
+            self.assertEqual(self.gateway.ticket()['user'],self.other)
+            self.assertEqual(self.gateway.ticket()['job'],new)
 
     def test_public_icons_match_each_host_without_exposing_private_routes(self):
         self.gateway.hosts['sec.example.test']='sec'

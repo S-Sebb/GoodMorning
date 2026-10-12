@@ -5,6 +5,7 @@ from copy import deepcopy
 import io
 import json
 import os
+import re
 from pathlib import Path
 import shlex
 import sqlite3
@@ -17,8 +18,13 @@ from goodmorning.web import language as ui
 
 
 def context_path(runtime, identifier):
-    directory, _, _ = paths(runtime, identifier)
-    return directory / (identifier + '.context.json')
+    if not isinstance(identifier, str) or not re.fullmatch('[a-f0-9]{32}', identifier):
+        raise ValueError('Invalid job')
+    directory = Path(runtime).expanduser().resolve() / 'browser-jobs'
+    target = directory / (identifier + '.context.json')
+    if directory.is_symlink() or target.is_symlink() or target.resolve() != target:
+        raise ValueError('Unsafe browser context path')
+    return target
 
 
 def owned(runtime, identifier, session):
@@ -53,9 +59,14 @@ def next_step(runtime, identifier, session, context, checkpoint):
     """One compact recipe; no speculative flags or whole-briefing fetching."""
     command = ['python', 'scripts/goodmorning.py', 'job', '--secretary-dir', str(runtime), '--job', identifier, '--session', session]
     if not checkpoint:
+        instruction = 'Initialize now, before any provider or additional record reads. Translate plan titles if needed.'
+        if context.get('regenerating'):
+            instruction += (' This is an explicitly authorized replacement, not a duplicate run. Reuse saved feedback and current records; '
+                            'do not replay daily, inbox, project or calendar mutations, or renew earlier execution consent. '
+                            'The final helper owns snapshot replacement and the normal checklist merge.')
         return {'action':'init', 'command':shlex.join(command + ['init']),
                 'input':{'greeting':'…','opening':'…','plan':default_plan(context)},
-                'instruction':'Initialize now, before any provider or additional record reads. Translate plan titles if needed.'}
+                'instruction':instruction}
     position = len(checkpoint['outcomes'])
     if position == len(checkpoint['plan']):
         return {'action':'finish', 'command':shlex.join(command + ['finish']), 'input':{}}
@@ -118,8 +129,12 @@ def image_previews(runtime, job, context, checkpoint):
 def act(runtime, identifier, session, action, payload=None):
     directory, target, job, context = owned(runtime, identifier, session)
     with runtime_lock(directory, identifier + '.workflow.lock'):
+        directory, target, job, context = owned(runtime, identifier, session)
         checkpoint = load(target)
-        if not checkpoint and native.source_path(runtime, job['date'], job['kind']).exists():
+        if 'replacement' in job:
+            from .briefing_replacement import check
+            check(runtime, job, checkpoint['document'] if checkpoint else None)
+        if not checkpoint and 'replacement' not in job and native.source_path(runtime, job['date'], job['kind']).exists():
             raise ValueError('A saved edition already exists; stop and inspect its owning run, without fetching or rewriting')
         def receipt(value):
             return {**value, 'next':next_step(runtime, identifier, session, context, load(target))}
@@ -175,11 +190,17 @@ def act(runtime, identifier, session, action, payload=None):
             if 'closing' in payload:
                 document['closing'] = payload['closing']
             source = native.source_path(runtime, job['date'], job['kind'])
-            if source.exists():
+            if source.exists() and 'replacement' not in job:
                 if native.parse(source.read_text()) != document:
                     raise ValueError('An existing saved edition does not match this job; preserve it')
             else:
-                publish(runtime, identifier, document, position=position)
+                # An interrupted replacement may already have committed this exact document.
+                try:
+                    matches = source.exists() and native.parse(source.read_text()) == document
+                except (ValueError, UnicodeError):
+                    matches = False
+                if not matches:
+                    publish(runtime, identifier, document, position=position)
             require_final(runtime, identifier, job['date'], job['kind'], session, document)
             # Code assembles the cumulative draft; the model never re-emits its prefix.
             draft = directory / (identifier + '.draft.json')

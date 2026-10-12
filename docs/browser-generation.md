@@ -21,6 +21,23 @@ no pending inputs, retaining its published sections. Uncertain dispatches requir
 inspection in OpenChamber and are never automatically replayed. Recovery is
 account-local, limited to today, and uses the global request reservation.
 
+“Regenerate today’s briefing” starts a new owning job and session after explicit
+confirmation. It is limited to today and refuses active sessions, pending engine
+inputs and uncertain dispatches. Old jobs are superseded and cannot publish,
+save or accept replies. Their context and previews remain preserved.
+The previous saved JSON and run marker stay in place during preparation; a
+private backup is retained. The replacement checks the original snapshot and
+edition's run marker before saving, and refuses unrelated changes. Final-save
+retries accept only this job's exact completed document. No `--force` is needed.
+Saved `/gn` feedback is reused without completing tasks or appending it again;
+uncertain feedback saves must reconcile first. New feedback is collected only
+when none was saved. Existing checklist tasks, completions, other edition's run,
+news delivery records and preferences are never reset. A regenerated `/gm` adds
+new exact-title tasks through the normal merge; it does not remove old tasks.
+Regeneration authorizes a new presentation and the helper's final save only,
+not replaying daily/inbox/project/calendar mutations or earlier execution consent.
+Use current records for progress and reuse saved feedback without reapplying it.
+
 ```sh
 python scripts/goodmorning.py job --secretary-dir RUNTIME --job JOB prepare
 ```
@@ -99,8 +116,16 @@ JSON
 ```
 
 Typical order: gm Weather, yesterday's News, opted-in dated latest News, Schedule,
-Must-do, Nice-to-do, material Reminders. gn Today, Still open, Tomorrow, material
-Notes. Review all selected news and retain citations before publishing its section.
+Must-do, Nice-to-do, material Reminders. gn Today, Still open, Tomorrow, Must-do,
+Nice-to-do, material Notes. Both editions reserve optional priority sections:
+review relevant saved project records and confirmed reports, publish typed `tasks`
+for actual outstanding project work, and skip either priority section if there are
+no supported tasks for it. Name each project and concrete next action; distinguish
+necessary/time-sensitive work from optional improvements, preserving explicit
+priorities. Do not invent work, deadlines or progress, access live projects against
+policy, or treat a priority as execution consent. Night priorities do not reschedule
+unfinished work or create tomorrow tasks; retain only supported/agreed dates.
+Review all selected news and retain citations before publishing its section.
 Do not use `--force`; check every receipt's exit/error/next. Failed/interrupted
 previews remain readable. Finish retries may reconcile only an identical saved
 document bound to the same job. Snapshot existence alone never means ready.

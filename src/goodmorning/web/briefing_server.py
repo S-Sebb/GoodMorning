@@ -1,5 +1,6 @@
 """Private live seven-day viewer and narrowly scoped OpenChamber generation bridge."""
 import argparse
+from contextlib import ExitStack
 import gzip
 import hashlib
 from datetime import date as Date, timedelta
@@ -22,7 +23,7 @@ from goodmorning.briefings.briefing_images import checked_image, small_preview, 
 from goodmorning.briefings.briefing_document import source_path
 from goodmorning.briefings import briefing_document as native
 from goodmorning.briefings.briefing_stream import DEFAULT_PLANS, load as load_preview, require_final
-from goodmorning.runtime_files import atomic_text, profile_fields
+from goodmorning.runtime_files import atomic_text, profile_fields, runtime_lock
 from .briefing_chat import AVATARS, Chats, avatar_id, avatar_widget, page as chat_page, read_avatar, write_avatar
 from goodmorning.paths import ROOT
 from . import language as ui
@@ -332,7 +333,7 @@ class BrowserApp:
         if confirmed:
             manifest = self.runtime / 'browser-images' / date / 'manifest.json'
             if manifest.parent.is_symlink():raise ValueError('Unsafe image manifest')
-            page_signature = self.file_signature(path), self.file_signature(manifest), week, VERSION, avatar, tuple(self.avatar_sources().items())
+            page_signature = self.file_signature(path), self.file_signature(manifest), week, VERSION, avatar, tuple(self.avatar_sources().items()), current_job and (current_job['id'], current_job['state'])
             with self.lock:
                 cached = self.pages.get(page_key)
                 if cached and cached[0] == page_signature:return cached[1]
@@ -364,10 +365,24 @@ class BrowserApp:
                 text = text.replace('href="briefing.css"', 'href="/briefing.css"').replace('src="briefing.js"', 'src="/briefing.js"').replace('href="fonts/', 'href="/fonts/').replace('href="index.html"', f'href="/{kind}.html"')
                 text = text.replace(f'{date} / {KINDS[kind]} edition', f'{KINDS[kind]} edition')
         text = self.briefing_layout(text, avatar)
+        can_restart = date == self.today() and bool(self.chamber) and self.preflight
+        if can_restart:
+            hidden = '' if confirmed or current_job else ' hidden'
+            disabled = '' if confirmed else ' disabled'
+            tools = ('<div class="briefing-actions"><button id="regenerate" type="button" aria-haspopup="dialog"' + hidden + disabled + '>'
+                     '<svg viewBox="0 0 20 20" width="16" height="16" fill="none" aria-hidden="true"><path d="M16 8a6 6 0 1 0 .2 3M16 3v5h-5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+                     '<span>Regenerate today’s briefing</span></button><p id="regeneration-status" role="status"></p><p id="regeneration-error" role="alert"></p></div>')
+            text = re.sub(r'(<nav class="briefing-section-nav")', tools + r'\1', text, count=1)
+            dialog = ('<dialog id="regenerate-dialog" aria-labelledby="regenerate-title" aria-describedby="regenerate-description">'
+                      '<form method="dialog"><p class="eyebrow">A fresh start</p><h2 id="regenerate-title">Regenerate today’s briefing?</h2>'
+                      '<p id="regenerate-description">Your last saved briefing stays safe until the new one is saved. Tasks, completions and saved feedback are kept. A new secretary session will prepare the replacement.</p>'
+                      '<div class="dialog-actions"><button value="cancel">Keep this briefing</button><button value="regenerate" id="confirm-regenerate">Regenerate briefing</button></div></form></dialog>')
+            text = text.replace('</body>', dialog + '</body>')
         text = text.replace('<span>▱</span>', '<span>' + DESK_ART + '</span>')
         text=text.replace('<p id="generation-status" role="status"></p>','<p id="generation-status" role="status"></p><p id="request-language-note" role="status"></p>')
         missing = not confirmed
-        config = json.dumps({'date': date, 'kind': kind, 'pinned': pinned, 'csrf': self.csrf if missing else None, 'missing': missing}).replace('<', '\\u003c')
+        config = json.dumps({'date': date, 'kind': kind, 'pinned': pinned, 'csrf': self.csrf if missing or can_restart else None, 'missing': missing,
+                             'job': current_job['id'] if current_job else None}).replace('<', '\\u003c')
         # Inert JSON in a data attribute; no inline scripts or unsafe HTML.
         marker = '<div id="browser-config" hidden data-config="' + html.escape(config, quote=True) + '"></div><script src="/questions.js" defer></script><script src="/browser.js" defer></script>'
         text = re.sub(r'(<nav class="edition-switch"[^>]*>.*?)(</nav>)', r'\1<a class="edition-link" href="/chat">Secretary</a>\2', text, count=1)
@@ -439,12 +454,72 @@ class BrowserApp:
                 job['state'] = 'uncertain'
                 self.save_jobs()  # Never blindly replay a possibly dispatched request.
 
+    def regenerate(self, body):
+        """Replace only an explicitly confirmed, quiescent edition; never erase its records."""
+        if (not isinstance(body, dict) or set(body) != {'date', 'kind', 'id', 'previous'}
+                or not isinstance(body['id'], str) or not re.fullmatch('[a-f0-9]{32}', body['id'])):
+            raise ValueError('Invalid regeneration request')
+        date, kind = body['date'], body['kind']
+        self.source(date, kind)
+        if not self.preflight or not self.chamber or date != self.today():
+            raise ValueError('Only today’s connected workflow can be regenerated')
+        if self.chat_settings()['defaultMode'] == 'initialize':
+            raise ValueError('Initialize your secretary before preparing a briefing')
+        from goodmorning.briefings.briefing_replacement import snapshot
+        from goodmorning.briefings.briefing_job import context_path
+        from goodmorning.briefings.briefing_preflight import answer, initialize
+        from goodmorning.briefings.briefing_stream import bounded_json
+        with self.lock, ExitStack() as locks:
+            key = date + '.' + kind
+            previous = self.jobs.get(key)
+            if previous and previous.get('regeneration_request') == body['id']:
+                return {'job': previous['id']}
+            if body['previous'] != (previous['id'] if previous else None):
+                raise ValueError('This briefing changed; refresh before regenerating')
+            baseline, raw = snapshot(self.runtime, date, kind)
+            if not previous and raw is None and not baseline['run']['ran']:
+                raise ValueError('Prepare a briefing before regenerating it')
+            if previous:
+                if previous['state'] in ('starting', 'uncertain'):
+                    raise ValueError('Inspect uncertain dispatches in OpenChamber before regenerating')
+                locks.enter_context(runtime_lock(self.job_dir, previous['id'] + '.workflow.lock'))
+                locks.enter_context(runtime_lock(self.job_dir, previous['id'] + '.preview.lock'))
+            session = previous.get('session') if previous else baseline['run']['session']
+            if session:
+                forms, permissions = self.chamber.pending(session)
+                if forms or permissions or self.chamber.control('session.status', sessionId=session)['sessionStatus']['type'] != 'idle':
+                    raise ValueError('Finish or stop the existing session and resolve pending inputs before regenerating')
+            context = None
+            if previous:
+                target = context_path(self.runtime, previous['id'])
+                context = bounded_json(target, 300_000) if target.exists() else None
+                if context and context.get('awaiting') and context.get('browser_answer') is not None:
+                    context = answer(self.runtime, previous, context['browser_answer'])
+            locks.enter_context(runtime_lock(self.runtime, '.state.lock'))
+            baseline, raw = snapshot(self.runtime, date, kind)
+            job = {'id': secrets.token_hex(16), 'date': date, 'kind': kind, 'state': 'preflight',
+                   'language': ui.current(), 'model': site_models.current(), 'created': time.time(),
+                   'replacement': baseline, 'regeneration_request': body['id']}
+            context = initialize(self.runtime, job, previous=context)
+            if raw is not None:
+                atomic_text(self.job_dir / (job['id'] + '.previous.json'), raw.decode('utf-8'))
+            if previous:
+                self.jobs[key + '.' + previous['id']] = {**previous, 'state': 'superseded'}
+            job['state'] = 'preflight' if context['awaiting'] else 'starting'
+            self.jobs[key] = job
+            self.save_jobs()  # Commit the new owner before any dispatch; old helpers now refuse writes.
+            if job['state'] == 'starting':
+                threading.Thread(target=self.dispatch, args=(job,), daemon=True).start()
+            return {'job': job['id']}
+
     def recover(self, identifier, body):
         """Explicit recovery only: refresh undispatched feedback or resume a known idle session."""
         if not isinstance(body, dict) or set(body) != {'id'} or not isinstance(body['id'], str) or not re.fullmatch('[a-f0-9]{32}', body['id']):
             raise ValueError('Invalid recovery request')
         with self.lock:
             job = self.job(identifier)
+            if job['state'] == 'superseded':
+                raise ValueError('This browser job was replaced; refresh the briefing')
             if job.get('recovery_request') == body['id']:
                 return {'job':identifier}
             if not self.preflight or not self.chamber or job['date'] != self.today():
@@ -551,6 +626,8 @@ class BrowserApp:
 
     def status(self, identifier):
         job = self.job(identifier)
+        if job['state'] == 'superseded':
+            return {'state': 'stopped', 'progress': 0, 'label': 'This briefing was replaced. Refresh to open the new edition.', 'forms': [], 'permissions': []}
         saved = self.source(job['date'], job['kind']).is_file()
 
         def readable():
@@ -575,7 +652,8 @@ class BrowserApp:
         preview_path = self.job_dir / (identifier + '.preview.json')
         if saved and job['state'] == 'complete':
             if not readable():
-                return {'state': 'stopped', 'progress': 95, 'label': invalid, 'forms': [], 'permissions': []}
+                return {'state': 'stopped', 'progress': 95, 'label': invalid, 'forms': [], 'permissions': [],
+                        'regeneratable': self.preflight and job['date'] == self.today()}
             return {'state': 'ready', 'progress': 100, 'label': 'Your briefing is ready', 'forms': [], 'permissions': []}
         result = {'state': job['state'], 'progress': 5, 'label': 'Opening your secretary’s desk', 'forms': [], 'permissions': [],
                   'language':job.get('language'), 'date':job['date'], 'kind':job['kind']}
@@ -613,6 +691,8 @@ class BrowserApp:
                 if state == 'idle' and job['state'] == 'running':
                     if saved and readable():
                         with self.lock:
+                            if self.jobs[job['date'] + '.' + job['kind']]['id'] != identifier:
+                                return self.status(identifier)  # An older poll must never complete its replacement.
                             self.jobs[job['date'] + '.' + job['kind']]['state'] = 'complete'
                             self.save_jobs()
                             # Only this job's verified transient preview; never delete unrelated records.
@@ -620,7 +700,9 @@ class BrowserApp:
                                 preview_path.unlink()
                         result.update(state='ready', progress=100, label='Your briefing is ready')
                     else:
-                        result.update(state='stopped', label=invalid if saved else 'Preparation stopped before an edition was saved. Open the session in OpenChamber to continue.')
+                        replacement = 'replacement' in job
+                        result.update(state='stopped', label='Regeneration stopped before the new briefing was saved. Your previous briefing is preserved.' if replacement
+                                      else invalid if saved else 'Preparation stopped before an edition was saved. Open the session in OpenChamber to continue.')
         elif job.get('session'):
             result.update(state='uncertain', label='The secretary is not connected. Completed preview sections remain readable; check the session in OpenChamber.')
         if result['state'] == 'uncertain':
@@ -628,17 +710,23 @@ class BrowserApp:
         if self.preflight and job['date'] == self.today() and result['state'] == 'stopped' and job['state'] not in ('starting', 'uncertain', 'complete'):
             result['recovery'] = 'Continue existing session' if job.get('session') else 'Prepare again'
             result['recovery_action']='resume' if job.get('session') else 'restart'
+        result['regeneratable'] = (self.preflight and job['date'] == self.today() and result['state'] == 'stopped'
+                                   and job['state'] not in ('starting', 'uncertain'))
         result['label']=ui.text(result['label'])
         return result
 
     def reply(self, identifier, category, request_id, body):
         job = self.job(identifier)
+        if job['state'] == 'superseded':
+            raise ValueError('This browser job was replaced; refresh the briefing')
         if job['state'] == 'preflight' and category == 'form':
             from goodmorning.briefings.briefing_preflight import answer
             from goodmorning.briefings.briefing_job import context_path
             from goodmorning.briefings.briefing_stream import bounded_json
             with self.lock:
                 live = self.jobs[job['date']+'.'+job['kind']]
+                if live['id'] != identifier:
+                    raise ValueError('This browser job was replaced; refresh the briefing')
                 if live['state'] != 'preflight':
                     return {'answered':True}
                 context = bounded_json(context_path(self.runtime, identifier), 300_000)
@@ -666,7 +754,10 @@ class BrowserApp:
             body = {'decision': body['decision']}
         self.chamber.request(f'/api/session/{job["session"]}/{category}/{request_id}/reply', body)
         with self.lock:
-            self.jobs[job['date']+'.'+job['kind']].setdefault('replied_inputs', []).append(category+':'+request_id)
+            live = self.jobs[job['date']+'.'+job['kind']]
+            if live['id'] != identifier:
+                return {'answered': True}  # The old reply must never alter the replacement's input receipts.
+            live.setdefault('replied_inputs', []).append(category+':'+request_id)
             self.save_jobs()
         return {'answered': True}
 
@@ -801,7 +892,8 @@ def serve_live(app, port, *, gateway_key=None, public_origins=()):
                 if existing:
                     app.source(existing[1], existing[2])
                     item = app.jobs.get(existing[1] + '.' + existing[2])
-                    return self.respond({'job': item['id'] if item else None})
+                    return self.respond({'job': item['id'] if item else None,
+                                         'regeneration_request': item.get('regeneration_request') if item else None})
                 if path in ('/', '/index.html', '/gm.html', '/gn.html'):
                     kind = 'gn' if path == '/gn.html' else 'gm'
                     if not app.profile().get('timezone'):
@@ -922,6 +1014,11 @@ def serve_live(app, port, *, gateway_key=None, public_origins=()):
                     return self.respond(selected,303 if form else 200,location=target if form else None)
                 if path == '/api/generate':
                     return self.respond(app.start(body['date'], body['kind']), 202)
+                if path == '/api/regenerate':
+                    try:
+                        return self.respond(app.regenerate(body), 202)
+                    except ValueError as error:
+                        return self.respond({'error': str(error)}, 409)
                 recovery = re.fullmatch(r'/api/jobs/([a-f0-9]{32})/recover', path)
                 if recovery:
                     return self.respond(app.recover(recovery[1], body), 202)

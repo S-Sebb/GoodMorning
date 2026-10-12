@@ -31,7 +31,7 @@ from goodmorning.web.activity import ACTIVITY_PATH, panel as activity_panel
 ASSETS = WEB_ASSETS
 POLICY = "default-src 'none'; style-src 'self'; script-src 'self'; img-src 'self'; font-src 'self'; connect-src 'self'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'"
 GET_ROUTES = re.compile(r'(?:/|/(?:index|gm|gn)\.html|/chat|/api/avatar(?:/image/[a-f0-9]{64}\.png)?|/api/chats(?:/[a-f0-9]{32})?|/api/day|/api/edition/\d{4}-\d{2}-\d{2}/(?:gm|gn)|/api/jobs/[a-f0-9]{32}(?:/preview)?|/d/\d{4}-\d{2}-\d{2}/(?:gm|gn)\.(?:html|json)|/media/(?:thumb-v1/)?[a-f0-9]{64}\.webp|/d/\d{4}-\d{2}-\d{2}/media/[a-f0-9]+\.webp|/(?:assets/[a-f0-9]{64}/)?desk-secretary(?:-f2|-m1|-m2)?\.png|/(?:assets/[a-f0-9]{64}/)?(?:briefing\.css|briefing\.js|browser\.js|questions\.js|chat\.js|chat\.css|avatar\.js|avatar\.css|fonts/(?:lora-italic\.woff2|OFL\.txt)))')
-POST_ROUTES = re.compile(r'(?:/api/avatar(?:/upload)?|/api/generate|/api/chat-uploads/[a-f0-9]{32}|/api/chats|/api/chats/[a-f0-9]{32}/(?:messages|(?:form|permission)/[A-Za-z0-9_]+/reply)|/api/jobs/[a-f0-9]{32}/(?:recover|(?:form|permission)/[A-Za-z0-9_]+/reply))')
+POST_ROUTES = re.compile(r'(?:/api/avatar(?:/upload)?|/api/(?:generate|regenerate)|/api/chat-uploads/[a-f0-9]{32}|/api/chats|/api/chats/[a-f0-9]{32}/(?:messages|(?:form|permission)/[A-Za-z0-9_]+/reply)|/api/jobs/[a-f0-9]{32}/(?:recover|(?:form|permission)/[A-Za-z0-9_]+/reply))')
 QUEUE_KEY = 'generation_queue'
 WAITING_KEY = 'generation_waiting'
 MAX_QUEUE = 20
@@ -64,6 +64,7 @@ class Gateway:
         self.icons = Resources(ASSETS, types={**ICON_TYPES,'language.js':'text/javascript','model.js':'text/javascript',
             'auth.js':'text/javascript','auth.css':'text/css','update.js':'text/javascript','update.css':'text/css',
             'activity.js':'text/javascript','activity.css':'text/css',
+            'marked.js':'text/javascript','markdown.js':'text/javascript',
             'color-schemes.js':'text/javascript','color-schemes.css':'text/css'})
         self.html_cache = ByteCache(8 * 1024 * 1024, 32)
         self.html_lock = threading.RLock()
@@ -235,7 +236,7 @@ class Gateway:
 
     @staticmethod
     def _valid_queue_entry(entry):
-        if not isinstance(entry, dict) or entry.get('kind') not in ('chat', 'generate', 'recover', 'reply'):
+        if not isinstance(entry, dict) or entry.get('kind') not in ('chat', 'generate', 'regenerate', 'recover', 'reply'):
             return False
         candidate = entry.get('candidate')
         if not isinstance(candidate, dict) or not isinstance(entry.get('user'), str) or not isinstance(entry.get('host'), str):
@@ -315,7 +316,7 @@ class Gateway:
             raw = json.dumps(entry['body']).encode()
             status, upstream, data = self.proxy(entry['user'], entry['host'], entry['path'], 'POST', raw, {})
             candidate = entry['candidate']
-            if entry['kind'] == 'generate':
+            if entry['kind'] in ('generate', 'regenerate'):
                 try:
                     result = json.loads(data)
                 except (TypeError, ValueError):
@@ -377,9 +378,11 @@ class Gateway:
                 item = {'work': entry['kind'], 'position': index + 1}
                 if entry['kind'] == 'chat':
                     item['chat'] = entry['candidate'].get('chat')
-                elif entry['kind'] == 'generate':
+                elif entry['kind'] in ('generate', 'regenerate'):
                     item['date'] = entry['candidate'].get('date')
                     item['edition'] = entry['candidate'].get('kind')
+                    if entry['kind'] == 'regenerate':
+                        item['previous'] = entry['body'].get('previous')
                 else:
                     key = 'chat' if entry['candidate'].get('chat') else 'job'
                     item[key] = entry['candidate'].get(key)
@@ -390,7 +393,7 @@ class Gateway:
         payload = {'queued': True, 'position': position, 'depth': depth}
         if candidate.get('chat'):
             payload['chat'] = candidate['chat']
-        elif kind == 'generate':
+        elif kind in ('generate', 'regenerate'):
             payload.update(date=candidate['date'], edition=candidate['kind'])
         else:
             payload['job'] = candidate['job']
@@ -426,22 +429,31 @@ class Gateway:
             self.confirm_dispatch(candidate)
         return status, upstream, data
 
-    def generate(self,identifier,host,raw,headers):
+    def generate(self,identifier,host,raw,headers, *, regenerate=False):
         body=json.loads(raw)
-        if set(body)!={'date','kind'} or not isinstance(body['date'],str) or not re.fullmatch(r'\d{4}-\d{2}-\d{2}',body['date']) or body['kind'] not in ('gm','gn'):
+        expected = {'date', 'kind', 'id', 'previous'} if regenerate else {'date', 'kind'}
+        if set(body)!=expected or not isinstance(body['date'],str) or not re.fullmatch(r'\d{4}-\d{2}-\d{2}',body['date']) or body['kind'] not in ('gm','gn'):
             raise ValueError('Invalid generation request')
+        if regenerate and (not isinstance(body['id'], str) or not re.fullmatch('[a-f0-9]{32}', body['id'])
+                           or body['previous'] is not None and (not isinstance(body['previous'], str) or not re.fullmatch('[a-f0-9]{32}', body['previous']))):
+            raise ValueError('Invalid regeneration request')
+        work = 'regenerate' if regenerate else 'generate'
+        path = '/api/' + work
         candidate={'user':identifier,'host':host,'date':body.get('date'),'kind':body.get('kind')}
+        if regenerate:
+            candidate['request'] = body['id']
         # Reopening an existing edition is a read, not another generation request.
         status, _, existing = self.proxy(identifier, host, '/api/edition/'+body['date']+'/'+body['kind'], 'GET', None, {})
         if status == 200:
-            existing_job = json.loads(existing).get('job')
-            if isinstance(existing_job, str) and re.fullmatch('[a-f0-9]{32}', existing_job):
+            edition = json.loads(existing)
+            existing_job = edition.get('job')
+            if isinstance(existing_job, str) and re.fullmatch('[a-f0-9]{32}', existing_job) and (not regenerate or edition.get('regeneration_request') == body['id']):
                 return 202, {'Content-Type':'application/json'}, json.dumps({'job':existing_job}).encode()
         language = self.accounts.website_language(identifier) or ui.current()
         self.pump_queue()
-        action, position, depth = self._reserve_or_queue('generate', candidate, '/api/generate', body, language)
+        action, position, depth = self._reserve_or_queue(work, candidate, path, body, language)
         if action in ('queued', 'queued_duplicate'):
-            return self.queued_response('generate', candidate, position, depth)
+            return self.queued_response(work, candidate, position, depth)
         if action == 'full':
             return 429,{'Content-Type':'application/json'},json.dumps({'error':QUEUE_FULL}).encode()
         if action == 'active_duplicate':
@@ -450,8 +462,8 @@ class Gateway:
                 if not current.get('job'):
                     return 409,{'Content-Type':'application/json'},b'{"error":"A generation request needs administrator reconciliation before retrying."}'
                 return 202,{'Content-Type':'application/json'},json.dumps({'job':current['job']}).encode()
-            return self.queued_response('generate', candidate, position or 1, depth)
-        status,upstream,data=self.proxy(identifier,host,'/api/generate','POST',raw,headers)
+            return self.queued_response(work, candidate, position or 1, depth)
+        status,upstream,data=self.proxy(identifier,host,path,'POST',raw,headers)
         result=json.loads(data)
         if status<300 and re.fullmatch('[a-f0-9]{32}',result.get('job','')):
             updated={**candidate,'job':result['job']}
@@ -862,6 +874,8 @@ def handler_for(gateway):
                     raise Denied('Change your temporary password first')
                 if path=='/api/generate':
                     status,headers,data=gateway.generate(session['user_id'],host,raw,self.headers)
+                elif path=='/api/regenerate':
+                    status,headers,data=gateway.generate(session['user_id'],host,raw,self.headers,regenerate=True)
                 elif re.fullmatch(r'/api/jobs/[a-f0-9]{32}/recover', path):
                     status,headers,data=gateway.recover(session['user_id'],host,path,raw,self.headers)
                 elif re.fullmatch(r'/api/(?:jobs|chats)/[a-f0-9]{32}/(?:form|permission)/[A-Za-z0-9_]+/reply', path):

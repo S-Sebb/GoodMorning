@@ -63,6 +63,75 @@ def check_composer(browser, address, artifacts):
     return checks
 
 
+def check_highlight(browser, address, artifacts):
+    checks = []
+    for width, motion in ((1440, 'no-preference'), (390, 'no-preference'), (320, 'reduce')):
+        page = browser.new_page(viewport={'width': width, 'height': 900}, reduced_motion=motion, device_scale_factor=2)
+        errors = []; page.on('pageerror', lambda error: errors.append(str(error)))
+        page.goto(address + '/chat?mode=secretary')
+        expect(page.locator('#chat-send')).to_be_enabled()
+        page.evaluate('document.fonts.ready')
+        page.evaluate('messages => showMessages(messages)', [
+            {'id': 'user', 'role': 'user', 'text': 'Review the confirmed project priorities.'},
+            {'id': 'reply', 'role': 'assistant', 'text': '## Reviewing your plan\n\nKeeping **the confirmed work** in focus.'}
+        ])
+        scroll = page.locator('#chat-scroll')
+        send = page.locator('#chat-send')
+        geometry = 'node => [node.offsetWidth, node.offsetHeight, node.clientWidth, node.clientHeight]'
+        def settle():
+            page.evaluate("async () => { await Promise.all(document.querySelector('#chat-scroll').getAnimations().map(a => a.finished)); }")
+        def sample_transition():
+            if motion == 'reduce':
+                assert scroll.evaluate('node => node.getAnimations().length') == 0
+                return None
+            page.wait_for_function("() => document.querySelector('#chat-scroll').getAnimations().length > 0")
+            return scroll.evaluate('''node => {
+                const animations = node.getAnimations();
+                animations.forEach(a => { a.pause(); a.currentTime = a.effect.getTiming().duration / 2; });
+                const middle = getComputedStyle(node).borderColor;
+                animations.forEach(a => a.finish());
+                return {middle, final: getComputedStyle(node).borderColor};
+            }''')
+        for edition, scheme in (('gm', 'classic'), ('gm', 'warm'), ('gn', 'classic')):
+            page.evaluate("([edition, scheme]) => { clearTimeout(themeTimer); document.documentElement.dataset.edition = edition; document.documentElement.dataset.dayScheme = scheme; state = 'idle'; showActivity(); }", [edition, scheme])
+            settle()
+            before = scroll.evaluate(geometry)
+            plain = scroll.evaluate('node => getComputedStyle(node).borderColor')
+            accent = page.locator('.desk-symbol').evaluate('node => getComputedStyle(node).color')
+            for side in ('top', 'right', 'bottom', 'left'):
+                expect(send).to_have_css(f'border-{side}-width', '0px')
+            assert send.evaluate('node => [node.offsetWidth, node.offsetHeight]') == [44, 44]
+            send.hover(); expect(send).to_have_css('border-top-width', '0px')
+            send.focus(); expect(send).to_have_css('outline-style', 'solid')
+            page.locator('#chat-attach').focus()
+            page.locator('#conversation-name').hover()
+            page.evaluate("state = 'running'; showActivity()")
+            expect(scroll).to_have_class('is-working')
+            growing = sample_transition()
+            expect(scroll).to_have_css('border-color', accent)
+            assert scroll.evaluate("node => getComputedStyle(node).boxShadow.endsWith('0px 0px 0px 1px inset')")
+            assert scroll.evaluate(geometry) == before
+            page.locator('.conversation-panel').screenshot(path=str(artifacts / f'reply-highlight-{edition}-{scheme}-{width}-working.png'))
+            page.evaluate("state = 'idle'; showActivity()")
+            fading = sample_transition()
+            expect(scroll).to_have_class('')
+            expect(scroll).to_have_css('border-color', plain)
+            if motion != 'reduce':
+                for transition in (growing, fading):
+                    assert transition['middle'] not in (plain, accent), transition
+            assert scroll.evaluate(geometry) == before
+            page.locator('.conversation-panel').screenshot(path=str(artifacts / f'reply-highlight-{edition}-{scheme}-{width}-idle.png'))
+            for status in ('waiting', 'queued', 'unavailable'):
+                page.evaluate('status => { state = status; showActivity(); }', status)
+                expect(scroll).to_have_class('')
+            checks.append({'width': width, 'edition': edition, 'scheme': scheme, 'borderlessSend': True,
+                           'workingHighlight': True, 'fadesToQuiet': True, 'animated': motion != 'reduce', 'layoutShift': False})
+        assert not errors, errors
+        assert not page.evaluate('document.documentElement.scrollWidth > innerWidth')
+        page.close()
+    return checks
+
+
 def check_motion(browser, address, artifacts):
     checks = []
     for width, motion in ((1440, 'no-preference'), (390, 'no-preference'), (390, 'reduce')):
@@ -95,6 +164,8 @@ def check_motion(browser, address, artifacts):
         with page.expect_request(lambda request: request.method == 'POST' and request.url.endswith('/api/chats')):
             page.get_by_role('button', name='Start conversation', exact=True).click()
         expect(page.locator('#chat-status')).to_have_text('Sending your message')
+        expect(page.locator('#chat-scroll')).to_have_class('is-working')
+        expect(page.locator('#chat-send')).to_have_css('border-top-width', '0px')
         expect(page.locator('.chat-activity-dots')).to_be_visible()
         assert page.locator('.chat-activity-dots').get_attribute('aria-hidden') == 'true'
         dot_animation = page.locator('.chat-activity-dots span').first.evaluate(
@@ -102,6 +173,7 @@ def check_motion(browser, address, artifacts):
         assert dot_animation == ('none' if motion == 'reduce' else 'chat-activity')
         pending.pop().fulfill(json={'accepted': True})
         expect(page.locator('#chat-status')).to_have_text('Your secretary is working')
+        expect(page.locator('#chat-scroll')).to_have_class('is-working')
         expect(page.get_by_role('log')).to_contain_text('Plan a calm day')
         page.screenshot(path=str(artifacts / f'chat-working-{width}-{motion}.png'), full_page=True)
         messages.append({'id': 'assistant-1', 'role': 'assistant', 'text': 'Let’s leave room to breathe.\nOne priority at a time.'})
@@ -109,6 +181,7 @@ def check_motion(browser, address, artifacts):
         page.evaluate('pollChat()')
         expect(page.get_by_role('log')).to_contain_text('One priority at a time.')
         expect(page.locator('.chat-activity-dots')).to_be_hidden()
+        expect(page.locator('#chat-scroll')).to_have_class('')
         expect(page.get_by_role('button', name='Send reply', exact=True)).to_be_enabled()
         page.evaluate("""async () => {
             await Promise.all([...document.querySelectorAll('.chat-message')].flatMap(
@@ -137,6 +210,7 @@ def check_motion(browser, address, artifacts):
         queue.append({'work': 'chat', 'chat': queued_id, 'position': 1})
         pending.pop().fulfill(json={'queued': True, 'position': 1, 'depth': 1})
         expect(page.locator('#chat-status')).to_contain_text('You are #1 in line')
+        expect(page.locator('#chat-scroll')).to_have_class('')
         expect(page.locator('.chat-activity-dots')).to_be_hidden()
         queue.clear()
         status.update(state='running', label='Your secretary is working')
@@ -145,6 +219,7 @@ def check_motion(browser, address, artifacts):
         expect(page.locator('.chat-activity-dots')).to_be_visible()
         page.get_by_role('button', name='New conversation', exact=True).click()
         expect(page.locator('#chat-status')).to_be_empty()
+        expect(page.locator('#chat-scroll')).to_have_class('')
 
         # A rejected send stops activity and preserves the unsent draft.
         page.get_by_label('Your message', exact=True).fill('Keep this draft')
@@ -152,6 +227,7 @@ def check_motion(browser, address, artifacts):
             page.get_by_role('button', name='Start conversation', exact=True).click()
         pending.pop().fulfill(status=400, json={'error': 'Synthetic rejection'})
         expect(page.get_by_role('alert')).to_have_text('Synthetic rejection')
+        expect(page.locator('#chat-scroll')).to_have_class('')
         expect(page.locator('.chat-activity-dots')).to_be_hidden()
         expect(page.get_by_label('Your message', exact=True)).to_have_value('Keep this draft')
         assert not page.evaluate('document.documentElement.scrollWidth > innerWidth')
@@ -395,6 +471,7 @@ def main():
             with sync_playwright() as playwright:
                 browser = playwright.chromium.launch()
                 composer_checks = check_composer(browser, address, artifacts)
+                highlight_checks = check_highlight(browser, address, artifacts)
                 motion_checks = check_motion(browser, address, artifacts)
                 upload_checks = check_uploads(browser, address, artifacts)
                 question_checks = check_question_history(browser, address, artifacts)
@@ -494,7 +571,7 @@ def main():
         finally:
             process.terminate(); process.communicate(timeout=5)
     report = {'modelCalls': 0, 'agent': 'synthetic', 'setup': 'mock saved, default changed', 'checks': results,
-              'composer': composer_checks, 'motion': motion_checks, 'uploads': upload_checks, 'questions': question_checks, 'scroll': scroll_checks}
+              'composer': composer_checks, 'highlight': highlight_checks, 'motion': motion_checks, 'uploads': upload_checks, 'questions': question_checks, 'scroll': scroll_checks}
     (artifacts / 'result.json').write_text(json.dumps(report, indent=2))
     print(json.dumps(report))
 

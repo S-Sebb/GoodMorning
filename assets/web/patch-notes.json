@@ -1,6 +1,41 @@
 {
   "notes": [
     {
+      "version": "0.23.0", "date": "2026-10-12", "author": "GoodMorning agent",
+      "title_en": "Readable conversations and fresh briefings", "title_zh": "清晰的对话与重新生成简报",
+      "changes": [
+        {"category": "Added", "en": [
+          "Render assistant Markdown with readable headings, lists, links, code, quotes and tables in Classic Day, Warm Day and Classic Night. User wording and saved question exchanges remain literal.",
+          "Regenerate today's briefing after confirmation, preserving the previous edition until the replacement is saved, existing tasks, completions and saved feedback. Active sessions and pending inputs must finish first."
+        ], "zh": [
+          "助手回复支持 Markdown 标题、列表、链接、代码、引用和表格，适配经典日间、暖色日间及经典夜间主题。用户原文与已保存的提问记录保持原样。",
+          "确认后可重新生成今日简报。新简报保存前保留旧版，并保留现有任务、完成状态和已保存的反馈；须先结束活动会话并处理待回复的问题。"
+        ]},
+        {"category": "Changed", "en": [
+          "Encourage Markdown only where it improves clarity. Morning and Evening project priorities distinguish necessary work from optional improvements only when actual work remains, without inventing deadlines or rescheduling unfinished tasks.",
+          "Smoothly highlight the message box while the secretary is working, then return to its quiet border. Respect reduced motion and preserve the layout."
+        ], "zh": [
+          "仅在有助于理解时鼓励使用 Markdown。早晚简报根据实际待办工作区分项目必做事项与可选改进，不虚构期限或自动调整未完成任务的日期。",
+          "秘书工作时平滑高亮消息区域，结束后恢复低调边框；遵循减少动态效果偏好，保持布局不变。"
+        ]},
+        {"category": "Fixed", "en": [
+          "Remove the send button's contrasting border for a clean rounded edge while retaining keyboard focus visibility."
+        ], "zh": [
+          "移除发送按钮的对比色边框，使圆角边缘更平滑，并保留清晰的键盘焦点提示。"
+        ]},
+        {"category": "Security", "en": [
+          "Build assistant Markdown from an allowlisted DOM, reject unsafe links, and show image alternative text without fetching private or remote URLs."
+        ], "zh": [
+          "使用允许列表中的 DOM 元素渲染助手 Markdown，拒绝不安全链接，仅显示图片替代文本，不请求私人或远程地址。"
+        ]},
+        {"category": "Tests", "en": [
+          "Verify theme contrast, desktop/mobile layouts, activity transitions, literal unsafe markup, regeneration recovery and record preservation using synthetic data without model calls."
+        ], "zh": [
+          "使用合成数据且不调用模型，验证主题对比度、桌面与移动端布局、活动状态过渡、不安全标记的原样显示、重新生成恢复及记录保护。"
+        ]}
+      ]
+    },
+    {
       "version": "0.22.1", "date": "2026-10-12", "author": "GoodMorning agent",
       "title_en": "Polished controls and public documentation", "title_zh": "优化控件与公开文档",
       "changes": [

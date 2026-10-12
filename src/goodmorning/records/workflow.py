@@ -20,7 +20,7 @@ PERSONAL = ("secretary_name", "secretary_language", "secretary_tone", "special_n
             "work_days", "work_hours", "sleep_time", "industry", "knowledge_area", "project_scope")
 
 
-def prepare(directory, kind, today=None, cache=None, *, task_limit=7, website_language=None):
+def prepare(directory, kind, today=None, cache=None, *, task_limit=7, website_language=None, replacement=False):
     fields = profile_fields(directory)
     ready = profile_status(directory, fields, website_language)
     if website_language is not None:fields={**fields,'secretary_language':ready['secretary_language']}
@@ -45,7 +45,7 @@ def prepare(directory, kind, today=None, cache=None, *, task_limit=7, website_la
         if daily_path.parent.is_symlink() or daily_path.is_symlink():
             raise ValueError("unsafe_path: daily records must not be symlinks")
         run = parse_daily(str(daily_path))[kind]
-        if run["ran"]:
+        if run["ran"] and not replacement:
             canonical = source_path(Path(directory), date, kind)
             pointer = run["answer_file"]
             valid = canonical.is_file() and not canonical.is_symlink() and (not pointer or

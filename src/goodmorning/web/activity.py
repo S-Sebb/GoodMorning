@@ -23,7 +23,7 @@ def snapshot(app, kind, identifier):
     mode = item['mode'] if kind == 'chat' else item['kind']
     def summary(state):
         return {'mode': mode, 'state': state, **({'date': item['date']} if kind == 'job' else {})}
-    if item['state'] == 'complete':
+    if item['state'] in ('complete', 'superseded'):
         return summary('idle')
     if kind == 'job' and not item.get('session'):
         path = context_path(app.runtime, identifier)

@@ -355,6 +355,50 @@ class JobTests(unittest.TestCase):
         self.assertIn('No timed appointments does not mean a free day',recipe['instruction'])
         self.assertIn('[date,status,title,detail]',recipe['instruction'])
 
+    def test_night_default_project_priorities_save_without_rescheduling_or_completion(self):
+        path = self.root/'daily/2026-10-11.md'
+        path.write_text('# 2026-10-11\n\n## must-do\n- [x] Confirmed completion\n- [ ] Project A: prepare update\n')
+        self.job['kind'] = 'gn'; self.app.jobs = {'2026-10-11.gn': self.job}; self.app.save_jobs()
+        initialize(self.root, self.job)
+        answer(self.root, self.job, {'completed':['none'], 'details':'The project update remains open.'})
+        before = [{key:value for key,value in task.items() if key != 'line'}
+                  for task in inspect(path.read_text(), '2026-10-11')[2]]
+        result = act(self.root, self.identifier, 'ses_fixture', 'init', {'greeting':'Evening.', 'opening':'Review the confirmed work.'})
+        self.assertEqual(result['next']['section'], ['today','Today'])
+        sections = [
+            ['today', [['p','The confirmed completion is saved.']]],
+            None,
+            ['tomorrow', [['p','No date has been agreed for the remaining project work.']]],
+            ['must-do', [['tasks', [['open','Project A: prepare update','Necessary next action; no date assigned.']]]]],
+            ['nice-to-do', [['tasks', [['open','Project A: tidy notes','Optional improvement; no date assigned.']]]]],
+            None,
+        ]
+        for position, section in enumerate(sections):
+            payload = {'position':position, **({'section':section} if section else {})}
+            result = act(self.root, self.identifier, 'ses_fixture', 'publish' if section else 'skip', payload)
+        self.assertEqual(result['next']['action'], 'finish')
+        act(self.root, self.identifier, 'ses_fixture', 'finish', {})
+        document = json.loads((self.root/'daily/2026-10-11.gn.json').read_text())
+        self.assertEqual([section[0] for section in document['sections']], ['today','tomorrow','must-do','nice-to-do'])
+        self.assertEqual([{key:value for key,value in task.items() if key != 'line'}
+                          for task in inspect(path.read_text(), '2026-10-11')[2]], before)
+        self.assertFalse((self.root/'daily/2026-10-12.md').exists())
+
+    def test_night_empty_project_priority_sections_are_skippable(self):
+        self.job['kind'] = 'gn'; self.app.jobs = {'2026-10-11.gn': self.job}; self.app.save_jobs()
+        initialize(self.root, self.job)
+        answer(self.root, self.job, {'completed':['none'], 'details':'No project work to report.'})
+        act(self.root, self.identifier, 'ses_fixture', 'init', {'greeting':'Evening.', 'opening':'A quiet review.'})
+        for position, tag in enumerate(('today','still-open','tomorrow','must-do','nice-to-do','notes')):
+            if tag in ('today','tomorrow'):
+                act(self.root, self.identifier, 'ses_fixture', 'publish', {'position':position,
+                    'section':[tag, [['p','Only confirmed records are included.']]]})
+            else:
+                act(self.root, self.identifier, 'ses_fixture', 'skip', {'position':position})
+        act(self.root, self.identifier, 'ses_fixture', 'finish', {})
+        document = json.loads((self.root/'daily/2026-10-11.gn.json').read_text())
+        self.assertEqual([section[0] for section in document['sections']], ['today','tomorrow'])
+
     def test_schedule_recipe_includes_untimed_work_without_a_calendar(self):
         context=json.loads(context_path(self.root,self.identifier).read_text())
         context['paths']['calendar_db']=None
@@ -405,6 +449,211 @@ class JobTests(unittest.TestCase):
         self.assertIn('- [ ] Untimed work',path.read_text())
         self.assertNotIn('Tomorrow task',path.read_text())
         self.assertFalse((self.root/'daily/2026-10-12.md').exists())
+
+    def save_original(self):
+        self.init()
+        act(self.root,self.identifier,'ses_fixture','publish',{'position':0,'section':
+            ['must-do',[['tasks',[['open','Ranking','']]]]]})
+        act(self.root,self.identifier,'ses_fixture','skip',{'position':1})
+        act(self.root,self.identifier,'ses_fixture','finish',{})
+        self.chamber.forms=[];self.chamber.permissions=[];self.chamber.busy=False
+        self.assertEqual(self.app.status(self.identifier)['state'],'ready')
+
+    def regenerate(self, request='b'*32):
+        self.chamber.pending=lambda session:(self.chamber.forms,self.chamber.permissions)
+        previous=self.app.jobs['2026-10-11.'+self.job['kind']]['id']
+        body={'date':'2026-10-11','kind':self.job['kind'],'id':request,'previous':previous}
+        # Dispatch synchronously with a distinct engine session, without model calls.
+        with patch('goodmorning.web.briefing_server.threading.Thread'):
+            result=self.app.regenerate(body)
+        job=self.app.jobs['2026-10-11.'+self.job['kind']]
+        if job['state']=='starting':
+            control=self.chamber.control
+            def create(action, **kwargs):
+                if action=='session.create':
+                    self.chamber.calls.append((action,kwargs))
+                    return {'sessionId':'ses_replacement'}
+                return control(action,**kwargs)
+            with patch.object(self.chamber,'control',side_effect=create):self.app.dispatch(job)
+        return result['job'],body
+
+    def test_regeneration_preserves_last_edition_until_save_and_merges_tasks(self):
+        self.save_original()
+        path=self.root/'daily/2026-10-11.md'
+        path.write_text(path.read_text().replace('- [ ] Ranking','- [x] Ranking')+
+                        '\n## nice-to-do\n- [ ] Unrelated task\n- gn: yes (session ses_night)\n')
+        source=self.root/'daily/2026-10-11.gm.json';original=source.read_bytes()
+        identifier,body=self.regenerate()
+        self.assertEqual(source.read_bytes(),original)
+        self.assertEqual((self.app.job_dir/(identifier+'.previous.json')).read_bytes(),original)
+        self.assertEqual(self.app.regenerate(body),{'job':identifier})
+        with self.assertRaisesRegex(ValueError,'briefing changed'):
+            self.app.regenerate({**body,'id':'c'*32})
+        self.assertEqual(sum(a=='session.create' for a,_ in self.chamber.calls),1)
+        with self.assertRaisesRegex(ValueError,'replaced'):
+            act(self.root,self.identifier,'ses_fixture','init',{})
+        self.assertEqual(self.app.status(self.identifier)['state'],'stopped')
+        self.assertIn('id="regenerate"',self.app.page('2026-10-11','gm',False).decode())
+        act(self.root,identifier,'ses_replacement','init',{'greeting':'A fresh morning.','opening':'Use the current plan.',
+            'plan':[['must-do','Must-do']]})
+        act(self.root,identifier,'ses_replacement','publish',{'position':0,'section':
+            ['must-do',[['tasks',[['open','Ranking',''],['open','New task','']]]]]})
+        self.assertEqual(source.read_bytes(),original)
+        act(self.root,identifier,'ses_replacement','finish',{})
+        self.assertEqual(self.app.status(identifier)['state'],'ready')
+        text=path.read_text()
+        for line in ('- [x] Ranking','- [ ] Unrelated task','- [ ] New task','- gn: yes (session ses_night)',
+                     '- gm: yes (session ses_replacement)'):self.assertIn(line,text)
+        self.assertEqual(text.count('Ranking'),1)
+        self.assertNotEqual(source.read_bytes(),original)
+
+    def test_regeneration_reuses_saved_night_feedback_without_reapplying_it(self):
+        path=self.root/'daily/2026-10-11.md'
+        path.write_text('# 2026-10-11\n\n## must-do\n- [ ] Ranking\n- [ ] Travel\n')
+        self.job['kind']='gn';self.app.jobs={'2026-10-11.gn':self.job};self.app.save_jobs()
+        context=initialize(self.root,self.job)
+        payload={'completed':[context['daily']['tasks'][0]['id']],'details':'Travel is partial.'}
+        answer(self.root,self.job,payload)
+        act(self.root,self.identifier,'ses_fixture','init',{'greeting':'Night.','opening':'Rest carefully.','plan':[['today','Today']]})
+        act(self.root,self.identifier,'ses_fixture','publish',{'position':0,'section':['today',[['p','Ranking is finished.']]]})
+        act(self.root,self.identifier,'ses_fixture','finish',{})
+        self.chamber.forms=[];self.chamber.permissions=[];self.chamber.busy=False
+        before=path.read_bytes()
+        identifier,_=self.regenerate()
+        context=act(self.root,identifier,'ses_replacement','prepare')
+        self.assertTrue(context['regenerating'])
+        self.assertEqual(context['feedback'],{'completed':['Ranking'],'details':'Travel is partial.','saved':True})
+        self.assertEqual(path.read_bytes(),before)
+        act(self.root,identifier,'ses_replacement','init',{'greeting':'Night again.','opening':'Your progress is preserved.','plan':[['today','Today']]})
+        act(self.root,identifier,'ses_replacement','publish',{'position':0,'section':['today',[['p','Ranking is finished; travel remains partial.']]]})
+        act(self.root,identifier,'ses_replacement','finish',{})
+        self.assertEqual(path.read_text().count('Completed: Ranking'),1)
+        self.assertEqual(path.read_text().count('Travel is partial.'),1)
+        self.assertIn('- [x] Ranking',path.read_text())
+        self.assertIn('- [ ] Travel',path.read_text())
+
+    def test_regeneration_refuses_busy_pending_uncertain_and_stale_requests(self):
+        self.save_original()
+        before={p:p.read_bytes() for p in (self.root/'daily').iterdir()}
+        body={'date':'2026-10-11','kind':'gm','id':'b'*32,'previous':self.identifier}
+        for job_state,busy,forms in [('starting',False,[]),('uncertain',False,[]),('complete',True,[]),
+                                      ('complete',False,[{'id':'frm_pending'}])]:
+            self.job['state']=job_state;self.app.save_jobs();self.chamber.busy=busy;self.chamber.forms=forms
+            with self.assertRaises(ValueError):self.app.regenerate(body)
+        self.job['state']='complete';self.app.save_jobs();self.chamber.forms=[]
+        for changed in ({**body,'date':'2026-10-10'},{**body,'previous':'c'*32}):
+            with self.assertRaises(ValueError):self.app.regenerate(changed)
+        self.assertEqual(before,{p:p.read_bytes() for p in (self.root/'daily').iterdir()})
+        self.assertEqual(sum(a=='session.create' for a,_ in self.chamber.calls),0)
+
+    def test_regeneration_refuses_changed_snapshot_or_run_without_overwriting(self):
+        self.save_original()
+        identifier,_=self.regenerate()
+        act(self.root,identifier,'ses_replacement','init',{'greeting':'Morning again.','opening':'Plan carefully.','plan':[['weather','Weather']]})
+        source=self.root/'daily/2026-10-11.gm.json'
+        original=source.read_bytes();source.write_bytes(original+b' ')
+        with self.assertRaisesRegex(ValueError,'changed after regeneration'):
+            act(self.root,identifier,'ses_replacement','publish',{'position':0,'section':['weather',[['p','Forecast unavailable; check before travelling.']]]})
+        self.assertEqual(source.read_bytes(),original+b' ')
+        source.write_bytes(original)
+        path=self.root/'daily/2026-10-11.md'
+        changed=path.read_text().replace('session ses_fixture','session ses_foreign');path.write_text(changed)
+        with self.assertRaisesRegex(ValueError,'changed after regeneration'):
+            act(self.root,identifier,'ses_replacement','prepare')
+        self.assertEqual(path.read_text(),changed)
+
+    def test_interrupted_replacement_save_finishes_exact_document_without_force(self):
+        self.save_original()
+        identifier,_=self.regenerate()
+        act(self.root,identifier,'ses_replacement','init',{'greeting':'Morning again.','opening':'Plan carefully.','plan':[['weather','Weather']]})
+        act(self.root,identifier,'ses_replacement','publish',{'position':0,'section':['weather',[['p','Forecast unavailable; check before travelling.']]]})
+        with patch.object(state,'ensure_daily_line',side_effect=OSError('Synthetic marker interruption')):
+            with self.assertRaises(ValueError):act(self.root,identifier,'ses_replacement','finish',{})
+        source=self.root/'daily/2026-10-11.gm.json';saved=source.read_bytes()
+        self.assertIn('ses_fixture',(self.root/'daily/2026-10-11.md').read_text())
+        self.assertTrue(act(self.root,identifier,'ses_replacement','finish',{})['saved'])
+        self.assertEqual(source.read_bytes(),saved)
+        self.assertEqual(self.app.status(identifier)['state'],'ready')
+
+    def test_stopped_partial_preview_can_start_fresh_without_deleting_it(self):
+        self.init()
+        target=self.app.job_dir/(self.identifier+'.preview.json');old=target.read_bytes()
+        self.chamber.forms=[];self.chamber.permissions=[];self.chamber.busy=False
+        identifier,_=self.regenerate()
+        self.assertEqual(target.read_bytes(),old)
+        self.assertFalse((self.root/'daily/2026-10-11.gm.json').exists())
+        self.assertEqual(act(self.root,identifier,'ses_replacement','prepare')['next_position'],0)
+
+    def test_saved_edition_without_browser_job_can_be_regenerated(self):
+        self.save_original();self.app.jobs={};self.app.save_jobs()
+        with patch('goodmorning.web.briefing_server.threading.Thread'):
+            result=self.app.regenerate({'date':'2026-10-11','kind':'gm','id':'b'*32,'previous':None})
+        self.assertNotEqual(result['job'],self.identifier)
+        self.assertIn('replacement',self.app.jobs['2026-10-11.gm'])
+        self.assertIn('id="regenerate"',self.app.page('2026-10-11','gm',False).decode())
+
+    def test_regeneration_reconciles_uncertain_feedback_before_reusing_it(self):
+        path=self.root/'daily/2026-10-11.md';path.write_text('# 2026-10-11\n\n## must-do\n- [ ] Ranking\n')
+        self.job.update(kind='gn',state='preflight');self.job.pop('session')
+        self.app.jobs={'2026-10-11.gn':self.job};self.app.save_jobs()
+        context=initialize(self.root,self.job)
+        payload={'completed':[context['daily']['tasks'][0]['id']],'details':'No other updates'}
+        def interrupted(*args,**kwargs):
+            result=daily_amend(*args,**kwargs)
+            if not kwargs.get('dry_run'):raise OSError('Synthetic lost receipt')
+            return result
+        with patch('goodmorning.briefings.briefing_preflight.amend',side_effect=interrupted):
+            with self.assertRaises(OSError):answer(self.root,self.job,payload)
+        self.chamber.forms=[];self.chamber.permissions=[];self.chamber.busy=False
+        identifier,_=self.regenerate()
+        self.assertTrue(act(self.root,identifier,'ses_replacement','prepare')['feedback']['saved'])
+        self.assertEqual(path.read_text().count('Completed: Ranking'),1)
+
+    def test_old_status_poll_cannot_complete_replacement_job(self):
+        self.save_original();self.job['state']='running';self.app.save_jobs()
+        control=self.chamber.control
+        replacement=[]
+        def during_status(action, **kwargs):
+            if action=='session.status' and not replacement:
+                replacement.append(True)
+                replacement.append(self.regenerate()[0])
+            return control(action,**kwargs)
+        with patch.object(self.chamber,'control',side_effect=during_status):
+            self.assertEqual(self.app.status(self.identifier)['state'],'stopped')
+        self.assertEqual(self.app.jobs['2026-10-11.gm']['id'],replacement[1])
+        self.assertEqual(self.app.jobs['2026-10-11.gm']['state'],'running')
+
+    def test_regeneration_can_replace_unreadable_json_without_erasing_backup(self):
+        self.save_original()
+        source=self.root/'daily/2026-10-11.gm.json';source.write_text('{broken JSON\n')
+        self.assertTrue(self.app.status(self.identifier)['regeneratable'])
+        identifier,_=self.regenerate()
+        act(self.root,identifier,'ses_replacement','init',{'greeting':'A fresh morning.','opening':'Plan carefully.','plan':[['weather','Weather']]})
+        act(self.root,identifier,'ses_replacement','publish',{'position':0,'section':['weather',[['p','Forecast unavailable; check before travelling.']]]})
+        act(self.root,identifier,'ses_replacement','finish',{})
+        self.assertEqual((self.app.job_dir/(identifier+'.previous.json')).read_text(),'{broken JSON\n')
+        self.assertEqual(self.app.status(identifier)['state'],'ready')
+
+    def test_stale_preflight_reply_cannot_answer_replacement_question(self):
+        self.job.update(kind='gn',state='preflight');self.job.pop('session')
+        self.app.jobs={'2026-10-11.gn':self.job};self.app.save_jobs()
+        context=initialize(self.root,self.job)
+        before=self.app.job
+        replaced=[]
+        def racing_read(identifier):
+            job=before(identifier)
+            if identifier==self.identifier and not replaced:
+                replaced.append(True)
+                with patch('goodmorning.web.briefing_server.threading.Thread'):
+                    replaced.append(self.app.regenerate({'date':'2026-10-11','kind':'gn','id':'b'*32,'previous':identifier})['job'])
+            return job
+        with patch.object(self.app,'job',side_effect=racing_read):
+            with self.assertRaisesRegex(ValueError,'replaced'):
+                self.app.reply(self.identifier,'form',context['form']['id'],{'answer':{'completed':['none'],'details':'No other updates'}})
+        pending=json.loads(context_path(self.root,replaced[1]).read_text())
+        self.assertTrue(pending['awaiting'])
+        self.assertNotIn('feedback',pending)
+        self.assertEqual(self.chamber.calls,[])
 
 
 if __name__=='__main__':

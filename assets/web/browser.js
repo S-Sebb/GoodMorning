@@ -13,6 +13,8 @@ let briefingRequestLanguage = null;
 let pendingBriefingMutations = 0;
 let queuedBriefing = null;
 let queuedRecovery = null;
+let queuedRegeneration = null;
+let regenerationRequest = null;
 document.addEventListener('website:before-refresh', event => { if (pendingBriefingMutations) event.preventDefault(); });
 
 function queueLabel(position, depth) {
@@ -166,6 +168,30 @@ function element(tag, text, className) {
   return node;
 }
 
+async function pollRegenerationQueue() {
+  clearTimeout(pollTimer);
+  if (document.hidden || !queuedRegeneration) return;
+  if (polling) { pollTimer = setTimeout(pollRegenerationQueue, 250); return; }
+  polling = true;
+  try {
+    const waiting = await api('/api/queue');
+    const current = await api(`/api/edition/${config.date}/${config.kind}`);
+    if (current.job && current.job !== queuedRegeneration.previous) { location.reload(); return; }
+    const mine = (waiting.queue || []).find(item => item.work === 'regenerate' && item.date === config.date && item.edition === config.kind);
+    if (mine) {
+      document.querySelector('#regeneration-status').textContent = queueLabel(mine.position, waiting.depth);
+    } else {
+      queuedRegeneration = null;
+      document.querySelector('#regeneration-status').textContent = '';
+      regenerate.disabled = false;
+      document.querySelector('#regeneration-error').textContent = browserT('Regeneration did not start. Refresh the briefing before trying again.');
+      return;
+    }
+  } catch (error) { document.querySelector('#regeneration-error').textContent = error.message; }
+  finally { polling = false; }
+  pollTimer = setTimeout(pollRegenerationQueue, 2500);
+}
+
 function questionForm(info) {
   return secretaryQuestion(info, replyToAgent, refreshAnswers, briefingRequestLanguage);
 }
@@ -186,10 +212,18 @@ function refreshAnswers() { formSignature = ''; if (queuedRecovery) pollBriefing
 
 async function poll() {
   clearTimeout(pollTimer);
+  if (queuedRegeneration) { pollRegenerationQueue(); return; }
   if (!job || document.hidden || polling) return;
   polling = true;
   try {
     const state = await api(`/api/jobs/${job}`);
+    if (regenerate) {
+      regenerate.hidden = false;
+      regenerate.disabled = !state.regeneratable || !!queuedRegeneration;
+      regenerate.title = state.regeneratable ? '' : browserT(state.state === 'uncertain'
+        ? 'Inspect uncertain dispatches in OpenChamber before regenerating'
+        : 'Finish or stop the existing session and resolve pending inputs before regenerating');
+    }
     if (state.reservation_required === false) {
       const waiting = await api('/api/queue');
       const mine = (waiting.queue || []).find(item => item.work === 'reply' && item.job === job);
@@ -268,6 +302,28 @@ async function checkDay() {
 }
 
 const generate = document.querySelector('#generate');
+const regenerate = document.querySelector('#regenerate');
+const regenerationDialog = document.querySelector('#regenerate-dialog');
+regenerate?.addEventListener('click', () => {
+  regenerationDialog.returnValue = '';
+  regenerationDialog.showModal();
+});
+regenerationDialog?.addEventListener('close', async () => {
+  if (regenerationDialog.returnValue !== 'regenerate') return;
+  regenerate.disabled = true;
+  const errors = document.querySelector('#regeneration-error');
+  errors.textContent = '';
+  // Keep the same request key if the response is lost; never create another attempt automatically.
+  regenerationRequest ||= {date: config.date, kind: config.kind, previous: job || config.job, id: crypto.randomUUID().replaceAll('-', '')};
+  const body = regenerationRequest;
+  try {
+    const result = await api('/api/regenerate', body);
+    if (result.queued) {
+      queuedRegeneration = body;
+      pollRegenerationQueue();
+    } else location.reload();
+  } catch (error) { errors.textContent = error.message; regenerate.disabled = false; }
+});
 generate?.addEventListener('click', async () => {
   generate.disabled = true; errorBox.textContent = '';
   try {
@@ -285,6 +341,18 @@ generate?.addEventListener('click', async () => {
 });
 
 async function resume() {
+  if (regenerate) {
+    try {
+      const waiting = await api('/api/queue');
+      const mine = (waiting.queue || []).find(item => item.work === 'regenerate' && item.date === config.date && item.edition === config.kind);
+      if (mine) {
+        queuedRegeneration = {previous: mine.previous};
+        regenerate.hidden = false; regenerate.disabled = true;
+        pollRegenerationQueue();
+        return;
+      }
+    } catch { /* Server checks remain authoritative when queue status is unavailable. */ }
+  }
   if (!config.missing) return;
   try {
     const current = await api(`/api/edition/${config.date}/${config.kind}`);
@@ -303,9 +371,9 @@ async function resume() {
 }
 document.addEventListener('visibilitychange', () => {
   if (document.hidden) clearTimeout(pollTimer);
-  else { checkDay(); if (job) poll(); else if (queuedBriefing || queuedRecovery) pollBriefingQueue(); }
+  else { checkDay(); if (queuedRegeneration) pollRegenerationQueue(); else if (job) poll(); else if (queuedBriefing || queuedRecovery) pollBriefingQueue(); }
 });
 window.addEventListener('focus', checkDay);
-document.addEventListener('website:language', () => { if (job) poll(); else if (queuedBriefing || queuedRecovery) pollBriefingQueue(); });
+document.addEventListener('website:language', () => { if (queuedRegeneration) pollRegenerationQueue(); else if (job) poll(); else if (queuedBriefing || queuedRecovery) pollBriefingQueue(); });
 setInterval(checkDay, 60000);
 checkDay(); resume();

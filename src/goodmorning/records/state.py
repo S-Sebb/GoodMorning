@@ -541,9 +541,14 @@ def cmd_mark(secretary_dir: str, day: str, kind: str, session: str,
         return command_error("session_invalid", "--session must be a nonempty session identifier", 2, as_json)
     state = rebuild_index(secretary_dir, load_state(secretary_dir), day)
     cur = state["days"].get(day, {"gm": blank_run(), "gn": blank_run()})[kind]
+    replacement = False
+    if browser_job:
+        from goodmorning.briefings.briefing_stream import paths
+        _, _, job = paths(secretary_dir, browser_job)
+        replacement = 'replacement' in job
     recovering = bool(cur['ran'] and not force and browser_job and cur['session'] == session
                       and cur['answer_file'] == f'daily/{day}{suffix}')
-    if cur["ran"] and not force and not recovering:
+    if cur["ran"] and not force and not recovering and not replacement:
         return command_error("already_ran", f"{kind} already ran on {day} "
                               f"(session {cur['session'] or '?'}); use the saved record", 2, as_json)
     if not (answer_file or answer_stdin):
@@ -570,6 +575,8 @@ def cmd_mark(secretary_dir: str, day: str, kind: str, session: str,
             if browser_job:
                 from goodmorning.briefings.briefing_stream import require_final
                 require_final(secretary_dir, browser_job, day, kind, session, document)
+                from goodmorning.briefings.briefing_replacement import check
+                check(secretary_dir, job, document)
         except ValueError as error:
             return command_error('briefing_invalid', str(error), 2, as_json)
         boilerplate = any(boilerplate_categories(value) for value in strings(document))
@@ -586,7 +593,7 @@ def cmd_mark(secretary_dir: str, day: str, kind: str, session: str,
             else:
                 print(f'verified {kind} on {day} (session {session}).')
             return 0
-        if os.path.isfile(dest) and not force:
+        if os.path.isfile(dest) and not force and not replacement:
             # An interrupted save can resume only from this job's exact, owned preview.
             if not (browser_job and parse(Path(dest).read_text()) == document):
                 return command_error("snapshot_exists", "snapshot exists; inspect it before an authorized replacement", 2, as_json)

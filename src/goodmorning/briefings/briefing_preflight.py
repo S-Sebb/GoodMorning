@@ -14,9 +14,10 @@ def write(path, value):
     atomic_text(path, json.dumps(value, ensure_ascii=False, separators=(',',':'))+'\n')
 
 
-def initialize(runtime, job):
+def initialize(runtime, job, previous=None):
     selected=job.get('language',ui.current())
-    context = prepare(runtime, job['kind'], job['date'], Path(runtime)/'cache', task_limit=200, website_language=selected)
+    context = prepare(runtime, job['kind'], job['date'], Path(runtime)/'cache', task_limit=200, website_language=selected,
+                      replacement='replacement' in job)
     context['website_language']=selected
     policy_path = Path(runtime)/'browser-policy.json'
     policy = bounded_json(policy_path,2000) if policy_path.exists() else {}
@@ -28,11 +29,17 @@ def initialize(runtime, job):
     if context['daily'].get('next_offset') is not None:
         raise ValueError('Daily list exceeds the browser feedback limit; review it before generation')
     fields = []
+    if 'replacement' in job:
+        context['regenerating'] = True
+    if previous and previous.get('past_missing_choice') == 'continue_today':
+        context.update(missed=[], missed_total=0, past_missing_choice='continue_today')
+    if previous and previous.get('feedback', {}).get('saved') is True:
+        context['feedback'] = previous['feedback']
     if context['missed_total']:
         fields.append({'key':'continue','title':'Past missing editions','type':'string','required':True,
                        'description':'Past missing editions stay read-only. Continue with today’s briefing?',
                        'options':[{'value':'today','label':'Continue today'},{'value':'stop','label':'Stop for now'}]})
-    if job['kind'] == 'gn':
+    if job['kind'] == 'gn' and not context.get('feedback'):
         tasks = [t for t in context['daily']['tasks'] if not t['done']]
         fields.extend([
             {'key':'completed','title':'What did you fully complete?','type':'multiselect','required':True,

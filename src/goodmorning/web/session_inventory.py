@@ -1,8 +1,8 @@
 """Organized OpenChamber session bookkeeping for website chats and briefings.
 
 Every GoodMorning conversation or briefing owns exactly one OpenChamber
-session. Follow-up messages reuse that session; only a new conversation or a
-new briefing date creates another one. Titles carry a fixed ``GoodMorning`` ·
+session. Follow-up messages reuse that session; a new conversation, briefing
+date or explicitly regenerated briefing creates another one. Titles carry a fixed ``GoodMorning`` ·
 ``prefix so the engine dashboard stays searchable as the count grows.
 
 Local registries stay bounded: old briefing jobs are pruned and old chats move
@@ -103,7 +103,7 @@ def prune_jobs(runtime, older_than_days=14, today=None, apply=False):
         today = Date.today().isoformat()
     candidates = []
     for key, job in jobs.items():
-        if not isinstance(job, dict) or job.get('state') not in ('complete', 'stopped'):
+        if not isinstance(job, dict) or job.get('state') not in ('complete', 'stopped', 'superseded'):
             continue
         day = job.get('date')
         try:

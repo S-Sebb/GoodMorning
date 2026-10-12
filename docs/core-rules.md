@@ -45,6 +45,9 @@ edge cases. Load other guides only when needed.
    browser job's saved missing-edition choice replaces that question; never repeat
    it or reconstruct past editions. Saving is not delivery. Full replacement/`--force`
   requires an explicit request; ordinary amendments keep original snapshots.
+  A browser preparation with `regenerating: true` is that explicit replacement
+  authorization, not a duplicate run. Use only its owning job helper to save it;
+  regeneration does not renew permission to replay record or project mutations.
 
 ## Memory, daily records and consent
 
@@ -124,7 +127,12 @@ edge cases. Load other guides only when needed.
   is welcome; never fabricate feelings, progress, human identity, physical presence,
   intimacy or dependency. Preserve agency; serious news/safety receive sober care.
 - Short opening, useful sections/lists, restrained bold, optional grounded takeaways/
-  closing; no forced verbosity limit. Weather order: temperature, precipitation,
+  closing; no forced verbosity limit. In conversational replies, use Markdown only
+  when it makes the answer clearer: short headings for distinct topics, lists for
+  separate items, restrained emphasis and code formatting for literal text. Keep
+  simple confirmations simple; do not force headings, tables or decoration.
+  Briefings remain native JSON with plain-text strings, never embedded Markdown.
+  Weather order: temperature, precipitation,
    applicable extreme warning, AQI/health. Calendar is a chronological timetable.
    Schedule/Tomorrow ends with a typed `flexible` block for relevant untimed work,
    including date-confirmed TODOs and applicable recurring tasks. Use supported
@@ -132,6 +140,12 @@ edge cases. Load other guides only when needed.
    roll unfinished tasks into tomorrow. No timed appointments does not mean a
    free day. Reminders/Notes hold background nudges, reviews and unresolved ideas,
    not work already planned for the displayed day.
+   Both gm and gn include project Must-do/Nice-to-do priorities when saved project
+   records and confirmed reports support actual outstanding work. Name the project
+   and concrete next action; separate necessary/time-sensitive work from optional
+   improvements. Omit a priority section when it has no supported tasks; never
+   invent busywork, deadlines, completion or execution consent. Night priorities
+   do not assign tomorrow dates or roll unfinished work forward.
   News is factual and cited; neutral assessment stays separate. Read the reply
   voice guide and native authoring guides for briefings; do not create text/card copies.
 - Materiality gate: omit healthy retrieval, retries/cache/delivery bookkeeping,

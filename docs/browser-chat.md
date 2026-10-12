@@ -44,6 +44,14 @@ pages share only a non-secret browser language preference. Active requests retai
 their starting language, while new messages use the latest account setting.
 Language changes never translate or rewrite previous conversations or records.
 
+Assistant replies support Markdown: paragraphs, headings, emphasis, lists, links,
+inline/fenced code, quotes and tables. Use it selectively to improve readability,
+not to decorate every reply. A short confirmation usually needs only a sentence
+or two; longer explanations benefit from descriptive headings or grouped bullets.
+Use tables only for genuinely comparable details. Raw HTML is displayed as text;
+images show their alternative text without fetching URLs. User text and saved
+question/answer history remain literal. Briefing JSON strings stay plain text.
+
 Settings also offers independent Day and Night color schemes. Day has Classic
 and Warm; Night currently has only Classic. The account-wide choice paints the
 whole website through shared color tokens, including briefings, chat, controls
@@ -104,10 +112,16 @@ The conversation has a bounded, top-aligned scrolling area, with the composer
 outside it. New messages follow the bottom only when the user is already there;
 reading older messages does not move their position. **Jump to latest** returns
 to the bottom. Pending question forms use the same scrolling area.
+While sending or the secretary is working, the message area's rounded border
+smoothly picks up the composer's accent highlight. It returns to its quiet border
+when the reply finishes, waits for input, queues or fails. No content moves;
+reduced-motion preferences disable the transition. The send button has a clean,
+borderless rounded edge while retaining a visible keyboard-focus outline.
 
 The page shows visible user/assistant text and user-facing question forms, never
 reasoning or internal tool output.
-Text is rendered without agent HTML. Bounded recent history is displayed; complete
+Assistant Markdown is rendered into an allowlisted DOM without agent HTML or
+unsafe links. Bounded recent history is displayed; complete
 transcripts remain in the account's encrypted agent storage. Browser storage is
 not used for private messages. Switching modes starts a new draft conversation;
 previous conversations remain accessible. It does not cancel an active agent.

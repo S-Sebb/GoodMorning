@@ -448,4 +448,5 @@ def page(csrf, ready, connected, secretary_name=None, avatar='f1', avatar_urls=N
              '</div></form><p id="chat-error" role="alert"></p>'
             '<noscript>Enable JavaScript to talk with your secretary. Saved briefings remain readable.</noscript></section></main>'
             '<div id="chat-config" hidden data-config="'+config+'"></div>'
-            '<script src="/questions.js" defer></script><script src="/avatar.js" defer></script><script src="/chat.js" defer></script></body></html>')
+            '<script src="/questions.js" defer></script><script src="/avatar.js" defer></script>'
+            '<script src="/marked.js" defer></script><script src="/markdown.js" defer></script><script src="/chat.js" defer></script></body></html>')

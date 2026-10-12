@@ -34,6 +34,7 @@ let revision = 0;
 let requestLanguage = null;
 let secretaryName = typeof chatConfig.secretary_name === 'string' && chatConfig.secretary_name ? chatConfig.secretary_name : null;
 const drafts = new Map();
+const renderedMessages = new WeakMap();
 let themeTimer;
 
 function updateChatTheme(now = new Date()) {
@@ -202,6 +203,7 @@ function showActivity() {
     ? 'Opening your conversation' : state === 'running' ? 'Your secretary is working' : statusLabel);
   if (label.textContent !== text) label.textContent = text;
   status.classList.toggle('is-working', active);
+  chatScroll.classList.toggle('is-working', active);
   status.classList.toggle('is-queued', !sending && state === 'queued');
 }
 
@@ -367,7 +369,15 @@ function showMessages(messages) {
       if (author && author.textContent !== expected) author.textContent = expected;
     }
     const content = bubble.querySelector('.message-text');
-    if (content.textContent !== item.text) content.textContent = item.text;
+    if (renderedMessages.get(content) !== item.text) {
+      const markdown = item.role === 'assistant' && !item.kind;
+      content.classList.toggle('message-markdown', markdown);
+      if (markdown) {
+        try { content.replaceChildren(secretaryMarkdown(item.text)); }
+        catch { content.classList.remove('message-markdown'); content.textContent = item.text; }
+      } else content.textContent = item.text;
+      renderedMessages.set(content, item.text);
+    }
     bubble.querySelector('.message-attachments').replaceChildren(...(item.attachments || []).map(entry =>
       make('p', `${entry.name} · ${fileSize(entry.size)}`, 'attachment-name')));
     return bubble;

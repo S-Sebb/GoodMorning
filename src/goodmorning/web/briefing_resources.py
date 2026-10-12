@@ -73,6 +73,7 @@ class Resources:
                  'briefing.js': 'text/javascript', 'browser.js': 'text/javascript',
                    'questions.js': 'text/javascript', 'chat.js': 'text/javascript', 'chat.css': 'text/css', 'language.js':'text/javascript',
                     'model.js':'text/javascript',
+                    'marked.js': 'text/javascript', 'markdown.js': 'text/javascript',
                     'color-schemes.js': 'text/javascript', 'color-schemes.css': 'text/css',
                    'update.js': 'text/javascript', 'update.css': 'text/css',
                    'avatar.js': 'text/javascript', 'avatar.css': 'text/css',

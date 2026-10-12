@@ -9,7 +9,7 @@ from goodmorning.runtime_files import atomic_text, runtime_lock
 
 DEFAULT_PLANS = {
     'gm': [[tag, native.TITLES[tag]] for tag in ('weather', 'news', 'schedule', 'must-do', 'nice-to-do', 'reminders')],
-    'gn': [[tag, native.TITLES[tag]] for tag in ('today', 'still-open', 'tomorrow', 'notes')],
+    'gn': [[tag, native.TITLES[tag]] for tag in ('today', 'still-open', 'tomorrow', 'must-do', 'nice-to-do', 'notes')],
 }
 MAX_CHECKPOINT = native.MAX_BYTES + 30_000
 
@@ -37,6 +37,8 @@ def paths(runtime, identifier):
     job = next((item for item in jobs.values() if item.get('id') == identifier), None)
     if not job:
         raise ValueError('Unknown job')
+    if job['state'] == 'superseded':
+        raise ValueError('This browser job was replaced; stop without fetching or rewriting it')
     return directory, target, job
 
 
@@ -78,7 +80,10 @@ def publish(runtime, identifier, document=None, plan=None, skip=False, *, positi
     if job['state'] not in ('starting', 'running', 'uncertain'):
         raise ValueError('Job no longer accepts previews')
     with runtime_lock(directory, identifier + '.preview.lock'):
-        if native.source_path(Path(runtime).expanduser().resolve(), job['date'], job['kind']).exists():
+        _, _, job = paths(runtime, identifier)
+        from .briefing_replacement import check
+        replacement = check(runtime, job)
+        if not replacement and native.source_path(Path(runtime).expanduser().resolve(), job['date'], job['kind']).exists():
             raise ValueError('A saved edition already exists')
         old = load(target)
         if position is not None and (old is None or len(old['outcomes']) != position):
