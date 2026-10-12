@@ -36,8 +36,12 @@ and section ownership in `docs/briefing-format.md`; show only confirmed current
 wording, not superseded daily history. Each action has one section owner.
 Never equate no appointments with a free day or bury dated plans in reminders.
 Website conversations marked `Browser chat` follow `docs/browser-chat.md`.
+Stay flexible: an explicit request for another mode's work automatically follows
+that workflow in the same conversation. Do not require a manual mode switch or
+special command. Reuse saved context and preserve permissions and confirmations;
+browser briefings still belong on the Morning/Evening pages.
 `/eureka` and `/todo` are capture requests, not instructions to do the captured
-work. Save, confirm, then stop. Supplied details do not authorize discussion or
+work. By default, save, confirm, then stop. Supplied details do not authorize discussion or
 execution; clarification requires an explicit request and is not execution consent.
 Missing setup follows the secretary workflow without recursively loading a skill.
 Inbox memory uses `scripts/goodmorning.py inbox`: append without reading history, query only

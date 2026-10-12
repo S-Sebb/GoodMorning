@@ -17,6 +17,12 @@ Run helpers from root with explicit absolute runtime paths.
 Apply the shared materiality gate and the user's customised tone throughout.
 Keep the current session and model; do not delegate.
 
+If the user explicitly requests another mode's work, automatically follow
+`docs/workflows/secretary.md` or the matching workflow in this conversation.
+Do not require a manual mode switch or special command. Reuse the saved TODO
+and preserve scope and confirmation requirements; task wording alone is not
+authorization to do the task.
+
 ## Steps
 
 1. Check existing setup without unrelated questions. If setup is missing, retain

@@ -6,8 +6,8 @@ import re
 
 from goodmorning.runtime_files import atomic_text
 
-OPTIONS = {'day': {'classic': 'Classic', 'warm': 'Warm'}, 'night': {'classic': 'Classic'}}
-DEFAULT = {'day': 'classic', 'night': 'classic'}
+OPTIONS = {'day': {'classic': 'Classic', 'warm': 'Warm'}, 'night': {'classic': 'Classic', 'starry': 'Starry'}}
+DEFAULT = {'day': 'classic', 'night': 'starry'}
 CURRENT = ContextVar('website_color_schemes', default=DEFAULT)
 
 

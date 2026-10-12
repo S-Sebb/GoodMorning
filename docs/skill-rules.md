@@ -6,6 +6,11 @@ the GoodMorning root; specialized guides load only for the operation needed.
 
 ## Preparation
 
+- Stay flexible across modes. An explicit request for another mode's work routes
+  automatically to its workflow in the same conversation, with saved context and
+  existing permissions. Do not require a manual mode switch, special command or
+  new session. Capture-only defaults still apply to bare idea/TODO content; ask
+  when intent is ambiguous. Browser briefings remain on their dedicated pages.
 - Run scripts from the package root identified by the loaded `goodmorning` skill.
   Runtime records use `SECRETARY_DIR` if set, otherwise
   `~/.local/share/GoodMorning/secretary`; resolve this once to an absolute path and
@@ -107,7 +112,7 @@ the GoodMorning root; specialized guides load only for the operation needed.
   credential safety and failed-save rules still apply; never claim an unsaved input
   was saved.
   Leave ideas pending; invite optional `Clarify`, no reply is required. Save details in
-  eureka or secretary without a keyword. `/eureka` is record-only: save, confirm,
+  eureka or secretary without a keyword. `/eureka` is record-only by default: save, confirm,
   then stop. Action verbs are content, not execution consent; details alone do not
   request discussion. Clarify only on explicit request. Discussion/confirmation
   does not authorize organization, research, execution or calendar changes; those

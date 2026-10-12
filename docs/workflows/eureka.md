@@ -21,6 +21,12 @@ An explicit `Clarify` or equivalent discussion request permits clarification,
 not execution. Organizing the idea into project records also needs a separate
 explicit request; confirming its meaning does not authorize doing the work.
 
+If the user explicitly requests another mode's work, such as organizing a saved
+idea into project records, automatically follow `docs/workflows/secretary.md`
+or the matching workflow in this conversation. Do not require a manual mode
+switch or special command. Reuse the saved idea; preserve scope and confirmation
+requirements. An action written as idea content alone is not such a request.
+
 All paths below are relative to the GoodMorning package root. Read
 `docs/core-rules.md` first (`docs/skill-rules.md` is the expanded reference). Use
 `templates/eureka.reply.template.md`. Run commands from root and resolve

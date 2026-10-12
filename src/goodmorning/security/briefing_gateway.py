@@ -73,6 +73,7 @@ class Gateway:
             'auth.js':'text/javascript','auth.css':'text/css','update.js':'text/javascript','update.css':'text/css',
             'activity.js':'text/javascript','activity.css':'text/css',
             'marked.js':'text/javascript','markdown.js':'text/javascript',
+            'starry-sky.svg':'image/svg+xml',
             'color-schemes.js':'text/javascript','color-schemes.css':'text/css'})
         self.html_cache = ByteCache(8 * 1024 * 1024, 32)
         self.html_lock = threading.RLock()
@@ -741,7 +742,7 @@ def handler_for(gateway):
             else:
                 try:
                     cookie = SimpleCookie(); cookie.load(self.headers.get('Cookie', '')[:4096])
-                    colors = site_colors.validate({'day': cookie['GoodMorningDayScheme'].value, 'night': 'classic'})
+                    colors = site_colors.validate({'day': cookie['GoodMorningDayScheme'].value, 'night': site_colors.DEFAULT['night']})
                 except (KeyError, ValueError, CookieError):
                     colors = site_colors.DEFAULT
             site_colors.CURRENT.set(dict(colors))

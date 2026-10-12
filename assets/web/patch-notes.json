@@ -1,6 +1,27 @@
 {
   "notes": [
     {
+      "version": "0.30.0", "date": "2026-10-12", "author": "GoodMorning agent",
+      "title_en": "Starry nights and flexible secretary workflows", "title_zh": "繁星夜色与灵活秘书流程",
+      "changes": [
+        {"category": "Added", "en": [
+          "Add a Starry night palette with a static, irregular star field across the website; use it when no color preference has been saved."
+        ], "zh": [
+          "新增繁星夜间配色，在整个网站显示静态、不规则星空；未保存配色偏好时默认使用。"
+        ]},
+        {"category": "Changed", "en": [
+          "Automatically follow another mode's workflow when explicitly requested in the current conversation, without requiring a manual mode switch; keep capture defaults and approval rules."
+        ], "zh": [
+          "在当前对话中明确请求其他模式的工作时，自动采用对应流程，无需手动切换模式；保留默认记录边界与审批规则。"
+        ]},
+        {"category": "Tests", "en": [
+          "Check star-field assets, saved palette preservation, account isolation and whole-site switching with synthetic records and no model calls."
+        ], "zh": [
+          "使用合成记录且不调用模型，验证星空资源、已保存配色的保留、账户隔离与全站配色切换。"
+        ]}
+      ]
+    },
+    {
       "version": "0.29.2", "date": "2026-10-12", "author": "GoodMorning agent",
       "title_en": "Chat history navigation and image corners", "title_zh": "聊天历史导航与图片圆角",
       "changes": [

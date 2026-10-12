@@ -74,7 +74,8 @@ class Resources:
                    'questions.js': 'text/javascript', 'chat.js': 'text/javascript', 'chat.css': 'text/css', 'language.js':'text/javascript',
                     'model.js':'text/javascript',
                     'marked.js': 'text/javascript', 'markdown.js': 'text/javascript',
-                    'color-schemes.js': 'text/javascript', 'color-schemes.css': 'text/css',
+                     'starry-sky.svg': 'image/svg+xml',
+                     'color-schemes.js': 'text/javascript', 'color-schemes.css': 'text/css',
                    'update.js': 'text/javascript', 'update.css': 'text/css',
                    'avatar.js': 'text/javascript', 'avatar.css': 'text/css',
                  'fonts/OFL.txt': 'text/plain', 'desk-secretary.png': 'image/png',
@@ -94,6 +95,8 @@ class Resources:
                 data = ('const goodmorningCatalog = '+json.dumps(CATALOG,ensure_ascii=False,separators=(',',':'))+';\n').encode()+data
             if name == 'briefing.css':
                 data = data.replace(b'fonts/lora-italic.woff2', self.urls['fonts/lora-italic.woff2'].encode())
+            if name == 'color-schemes.css':
+                data = data.replace(b'/starry-sky.svg', self.urls['starry-sky.svg'].encode())
             digest = hashlib.sha256(data).hexdigest()
             path = f'/assets/{digest}/{name}'
             compressed = gzip.compress(data, compresslevel=6, mtime=0) if mime.startswith('text/') else data

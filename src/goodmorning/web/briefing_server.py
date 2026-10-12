@@ -801,8 +801,8 @@ def serve_live(app, port, *, gateway_key=None, public_origins=()):
 
         def select_color_schemes(self):
             if gateway_key:
-                selected = site_colors.validate({'day': self.headers.get('X-GoodMorning-Day-Scheme', 'classic'),
-                                                 'night': self.headers.get('X-GoodMorning-Night-Scheme', 'classic')})
+                selected = site_colors.validate({'day': self.headers.get('X-GoodMorning-Day-Scheme', site_colors.DEFAULT['day']),
+                                                 'night': self.headers.get('X-GoodMorning-Night-Scheme', site_colors.DEFAULT['night'])})
             else:
                 selected = site_colors.read(app.runtime)
             site_colors.CURRENT.set(selected)

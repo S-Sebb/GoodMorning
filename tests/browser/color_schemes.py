@@ -70,22 +70,25 @@ def main():
                         page.locator('#account-form button[type=submit]').click()
                     assert changed.value.status == 200, changed.value.json()
                     expect(page.locator('#chat-compose')).to_be_visible()
-                def choose(page, value):
+                def choose(page, value, theme='day'):
                     prefs(page)
                     expect(page.locator('#day-color-scheme option')).to_have_count(2)
-                    expect(page.locator('#night-color-scheme option')).to_have_count(1)
-                    expect(page.locator('#night-color-scheme')).to_have_value('classic')
+                    expect(page.locator('#night-color-scheme option')).to_have_count(2)
                     with page.expect_response('**/api/color-schemes') as response:
-                        page.locator('#day-color-scheme').select_option(value)
+                        page.locator('#'+theme+'-color-scheme').select_option(value)
                     assert response.value.status == 200
-                    expect(page.locator('html')).to_have_attribute('data-day-scheme', value)
-                    expect(page.locator('#day-color-scheme')).to_be_enabled()
+                    expect(page.locator('html')).to_have_attribute('data-'+theme+'-scheme', value)
+                    expect(page.locator('#'+theme+'-color-scheme')).to_be_enabled()
                 def background(page):
                     return page.locator('body').evaluate('node => getComputedStyle(node).backgroundColor')
+                def stars(page):
+                    return page.locator('body').evaluate('node => getComputedStyle(node).backgroundImage')
 
                 owner = context(); chat = page_in(owner)
                 login(chat, 'sec', 'alice', 'a1alice-temporary'); permanent(chat, 'alice')
                 expect(chat.locator('html')).to_have_attribute('data-edition', 'gm')
+                expect(chat.locator('html')).to_have_attribute('data-night-scheme', 'starry')
+                choose(chat, 'classic', 'night')
                 chat.locator('#chat-text').fill('Keep this private, unsent draft.')
                 original_url = chat.url
                 choose(chat, 'warm')
@@ -125,30 +128,69 @@ def main():
                 expect(evening.locator('html')).to_have_attribute('data-night-scheme', 'classic')
                 assert background(evening) == 'rgb(17, 28, 42)'
                 evening.screenshot(path=str(artifacts/'classic-night-full.png'), full_page=True)
+                choose(evening, 'starry', 'night')
+                sky = evening.evaluate("fetch('/starry-sky.svg').then(response => ({status: response.status, type: response.headers.get('content-type')}))")
+                assert sky['status'] == 200 and sky['type'].startswith('image/svg+xml')
+                assert background(evening) == 'rgb(8, 15, 32)' and 'radial-gradient' in stars(evening)
+                assert 'starry-sky.svg' in stars(evening)
+                expect(evening.locator('body')).to_have_css('background-repeat', 'no-repeat, no-repeat')
+                expect(evening.locator('.briefing-section').first).to_have_css('background-color', 'rgb(17, 28, 50)')
+                evening.locator('#prefs-menu > summary').click()
+                evening.screenshot(path=str(artifacts/'starry-night-full.png'), full_page=True)
+                evening.screenshot(path=str(artifacts/'starry-night-viewport.png'))
+                evening.locator('footer').first.scroll_into_view_if_needed()
+                evening.screenshot(path=str(artifacts/'starry-night-scrolled.png'))
+                evening.evaluate('window.scrollTo(0, 0)')
+                evening.reload()
+                expect(evening.locator('html')).to_have_attribute('data-night-scheme', 'starry')
+                assert background(evening) == 'rgb(8, 15, 32)'
+                for width in (390, 320):
+                    evening.set_viewport_size({'width': width, 'height': 1000})
+                    assert not evening.evaluate('document.documentElement.scrollWidth > innerWidth')
+                    evening.screenshot(path=str(artifacts/f'starry-night-{width}.png'), full_page=True)
+                    evening.screenshot(path=str(artifacts/f'starry-night-{width}-viewport.png'))
+                evening.set_viewport_size({'width': 1440, 'height': 1000})
+                choose(evening, 'classic', 'night')
+                assert background(evening) == 'rgb(17, 28, 42)' and stars(evening) == 'none'
+                choose(evening, 'starry', 'night')
                 choose(evening, 'classic')
-                assert background(evening) == 'rgb(17, 28, 42)'
+                assert background(evening) == 'rgb(8, 15, 32)'
                 chat.bring_to_front(); chat.evaluate('window.dispatchEvent(new Event("focus"))')
                 expect(chat.locator('html')).to_have_attribute('data-day-scheme', 'classic')
+                expect(chat.locator('html')).to_have_attribute('data-night-scheme', 'starry')
+                assert stars(chat) == 'none'
                 expect(chat.locator('#chat-text')).to_have_value('Keep this private, unsent draft.')
                 chat.locator('#prefs-menu > summary').click() if chat.locator('#prefs-menu').get_attribute('open') else None
                 chat.screenshot(path=str(artifacts/'classic-chat-full.png'), full_page=True)
                 choose(chat, 'warm')
                 chat.reload(); expect(chat.locator('html')).to_have_attribute('data-day-scheme', 'warm')
+                chat.locator('#chat-text').fill('Keep this private, unsent draft.')
                 chat.clock.set_system_time(datetime.fromisoformat('2026-10-12T18:00:00+00:00'))
                 chat.evaluate('window.dispatchEvent(new Event("focus"))')
                 expect(chat.locator('html')).to_have_attribute('data-edition', 'gn')
-                assert background(chat) == 'rgb(17, 28, 42)'
+                assert background(chat) == 'rgb(8, 15, 32)' and 'radial-gradient' in stars(chat)
+                expect(chat.locator('.conversation-panel')).to_have_css('background-color', 'rgb(17, 28, 50)')
+                expect(chat.locator('#chat-text')).to_have_value('Keep this private, unsent draft.')
+                choose(chat, 'classic', 'night')
+                assert background(chat) == 'rgb(17, 28, 42)' and stars(chat) == 'none'
+                expect(chat.locator('#chat-text')).to_have_value('Keep this private, unsent draft.')
+                choose(chat, 'starry', 'night')
+                expect(chat.locator('#chat-text')).to_have_value('Keep this private, unsent draft.')
+                chat.locator('#prefs-menu > summary').click()
+                chat.screenshot(path=str(artifacts/'starry-chat-full.png'), full_page=True)
                 expect(chat.locator('#day-color-scheme')).to_have_value('warm')
                 chat.clock.set_system_time(datetime.fromisoformat('2026-10-12T10:00:00+00:00'))
                 chat.evaluate('window.dispatchEvent(new Event("focus"))')
                 expect(chat.locator('html')).to_have_attribute('data-edition', 'gm')
                 assert background(chat) == 'rgb(246, 238, 227)'
+                assert stars(chat) == 'none'
 
                 chat.goto('https://sec.language.test/password')
                 expect(chat.locator('.account-card')).to_have_css('background-color', 'rgb(255, 251, 245)')
                 assert background(chat) == 'rgb(246, 238, 227)'
                 prefs(chat); chat.locator('#website-language').select_option('zh-CN')
                 expect(chat.locator('#day-color-scheme option[value=warm]')).to_have_text('暖色')
+                expect(chat.locator('#night-color-scheme option[value=starry]')).to_have_text('星空')
                 expect(chat.locator('label[for=night-color-scheme]')).to_have_text('夜间配色')
                 chat.locator('#website-language').select_option('en')
                 chat.goto('https://sec.language.test/chat')
@@ -177,11 +219,11 @@ def main():
                 other = context(390); bob = page_in(other)
                 login(bob, 'sec', 'bob', 'a1bob-temporary'); permanent(bob, 'bob')
                 expect(bob.locator('html')).to_have_attribute('data-day-scheme', 'classic')
-                assert bob.evaluate("fetch('/api/color-schemes').then(response => response.json())") == {'day': 'classic', 'night': 'classic'}
+                assert bob.evaluate("fetch('/api/color-schemes').then(response => response.json())") == {'day': 'classic', 'night': 'starry'}
                 assert not errors, errors
                 browser.close()
             assert all(hashlib.sha256(path.read_bytes()).hexdigest() == digest for path, digest in preserved.items())
-            report = {'modelCalls': 0, 'wholeSitePalette': True, 'nightUnchanged': True,
+            report = {'modelCalls': 0, 'wholeSitePalette': True, 'classicNightUnchanged': True, 'starryNight': True,
                       'clockThemeIndependent': True, 'refreshAndCrossHost': True, 'draftPreserved': True,
                       'savedRecordsUnchanged': True, 'accountIsolation': True, 'bilingual': True,
                       'customAvatarsPreserved': True,

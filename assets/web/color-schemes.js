@@ -7,7 +7,7 @@
   const feedback = document.querySelector('#color-scheme-feedback');
   const t = key => typeof goodmorningT === 'function' ? goodmorningT(key) : key;
   let saved = config.schemes, saving = false, syncing = false, revision = 0;
-  const valid = value => value && ['classic', 'warm'].includes(value.day) && value.night === 'classic';
+  const valid = value => value && ['classic', 'warm'].includes(value.day) && ['classic', 'starry'].includes(value.night);
   function apply(value) {
     if (!valid(value)) throw new Error(t('Color schemes could not be saved. Try again.'));
     saved = {day: value.day, night: value.night};

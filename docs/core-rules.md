@@ -5,6 +5,18 @@ edge cases. Load other guides only when needed.
 
 ## Scope, setup and preparation
 
+- Stay flexible: modes are starting points, not barriers. When the user explicitly
+  requests work covered by another mode, automatically follow that workflow in
+  the current conversation; do not require a command, manual mode switch or new
+  session. For example, an `/eureka` user asking to organize a saved idea into
+  project records should receive authorized `/secretary` help. Read the matching
+  workflow, reuse saved context and complete the requested work within existing
+  permissions. “Finish setting this up” about a saved TODO is a request for
+  secretary work, not merely more capture content. Do not refuse because the
+  conversation started in `/todo` or `/eureka`; ask only for missing details or
+  required approvals. Switching workflows does not grant new consent: bare idea/TODO
+  content remains capture-only, and ambiguous intent requires clarification.
+  Browser briefings still belong on the Morning/Evening pages.
 - `Browser chat`: read `docs/browser-chat.md`.
 - Run from the package root. Use absolute `SECRETARY_DIR`, defaulting to
   `~/.local/share/GoodMorning/secretary`; cache defaults to
@@ -78,7 +90,7 @@ edge cases. Load other guides only when needed.
 - Unresolved idea/project questions recur as an unchecked `/gm` clarification TODO,
   focused `/gn` question or `/secretary` reminder, without blocking unrelated work
   or duplicating existing reminders. Reuse answers. No scheduler is implied.
-- `/eureka` and `/todo` are record-only: save, confirm, then stop. Action verbs
+- `/eureka` and `/todo` are record-only by default: save, confirm, then stop. Action verbs
   and requirements are content, not execution consent. Supplied details alone
   do not request discussion. Discuss only on `Clarify`/equivalent explicit request.
   No unsolicited questions, plans, research, implementation, delegation, jobs,
