@@ -25,7 +25,7 @@ from goodmorning.paths import WEB_ASSETS
 from goodmorning.web import language as ui
 from goodmorning.web import models as site_models
 from goodmorning.web import color_schemes as site_colors
-from goodmorning.web.chat_uploads import MAX_UPLOAD_BYTES, UPLOAD_ROUTE, UploadReader, upload_name, attachment_ids
+from goodmorning.web.chat_uploads import MAX_UPLOAD_BYTES, UPLOAD_ROUTE, IMAGE_ROUTE, UploadReader, upload_name, attachment_ids
 from goodmorning.web.avatar_images import AVATAR_UPLOAD_PATH, MAX_AVATAR_BYTES
 from goodmorning.web.activity import ACTIVITY_PATH, panel as activity_panel
 
@@ -105,6 +105,7 @@ class Gateway:
         backend = self.backend(identifier)
         parsed = urlsplit(path)
         if not ((POST_ROUTES if method=='POST' else GET_ROUTES).fullmatch(parsed.path) or
+                (method in ('GET', 'HEAD') and IMAGE_ROUTE.fullmatch(parsed.path)) or
                 method == 'GET' and re.fullmatch(ACTIVITY_PATH, parsed.path)):
             raise Denied('Not found')
         if parsed.path in ('/','/index.html'):
@@ -129,8 +130,9 @@ class Gateway:
         except HTTPError as error:
             response = error
         with response:
-            data=response.read(4_000_001)
-            if len(data)>4_000_000:
+            limit = MAX_UPLOAD_BYTES if IMAGE_ROUTE.fullmatch(parsed.path) else 4_000_000
+            data=response.read(limit + 1)
+            if len(data)>limit:
                 raise ValueError('Secretary response exceeds its limit')
             return response.status,dict(response.headers),data
 
@@ -643,7 +645,8 @@ def handler_for(gateway):
             self.send_header('Cache-Control',cache)
             self.send_header('Content-Language',ui.current())
             self.send_header('Vary','Accept-Encoding')
-            self.send_header('Content-Security-Policy',POLICY)
+            policy = POLICY.replace("img-src 'self'", "img-src 'self' blob:") if mime.startswith('text/html') and b'id="chat-config"' in data else POLICY
+            self.send_header('Content-Security-Policy',policy)
             self.send_header('X-Content-Type-Options','nosniff')
             # Native same-origin forms need a non-null Origin for strict CSRF checks.
             # This policy still sends no referrer to external sites.

@@ -114,6 +114,21 @@ class UploadTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             UploadReader(io.BytesIO(b''), 1).read(10)
 
+    def test_images_use_content_not_filename_and_active_formats_are_not_served(self):
+        for index, (data, mime) in enumerate(((b'\x89PNG\r\n\x1a\n', 'image/png'),
+                (b'\xff\xd8\xff', 'image/jpeg'), (b'GIF89a', 'image/gif'),
+                (b'RIFFxxxxWEBP', 'image/webp'))):
+            identifier = format(index, '032x')
+            entry = self.upload(name='image.txt', data=data, identifier=identifier)
+            self.assertEqual(entry['mime'], mime)
+            self.assertEqual(self.uploads.image(identifier), (data, mime))
+        for data in (b'<svg onload="alert(1)"></svg>', b'<html>not an image</html>'):
+            identifier = 'a' * 32 if data.startswith(b'<svg') else 'b' * 32
+            entry = self.upload(name='image.png', data=data, identifier=identifier)
+            self.assertNotIn('mime', entry)
+            with self.assertRaises(ValueError):
+                self.uploads.image(identifier)
+
     def test_paths_remote_urls_symlinks_and_cross_account_ids_are_rejected(self):
         for name in ('../secret', '..', '/etc/passwd', 'a\\b', 'a\x00b', 'a\nb'):
             with self.assertRaises(ValueError):
@@ -172,6 +187,19 @@ class UploadTests(unittest.TestCase):
             self.assertEqual(chats.status(body['id'])['state'], 'uncertain')
             chats.start(body)
             self.assertEqual(sum(action == 'session.create' for action, _ in chamber.calls), 1)
+
+    def test_existing_image_history_gets_preview_metadata_without_rewriting_records(self):
+        self.upload(name='existing.png', data=b'\x89PNG\r\n\x1a\n')
+        chats, _ = self.chats()
+        chat = 'a' * 32
+        with patch('goodmorning.web.briefing_chat.threading.Thread', ImmediateThread):
+            chats.start({'id': chat, 'mode': 'secretary', 'text': '', 'attachments': [self.file_id]})
+        item = chats.get(chat)
+        del item['turns'][0]['attachments'][0]['mime']
+        chats.save()
+        before = chats.path.read_bytes()
+        self.assertEqual(chats.status(chat)['messages'][0]['attachments'][0]['mime'], 'image/png')
+        self.assertEqual(chats.path.read_bytes(), before)
 
 
 class UploadHTTPTests(unittest.TestCase):
@@ -240,6 +268,34 @@ class UploadHTTPTests(unittest.TestCase):
         self.assertEqual(self.request_upload(name='../private.txt')[0], 400)
         self.assertEqual(list(self.app.chats.uploads.directory.iterdir()), [])
         self.assertEqual(self.fixture.request('/api/chat-uploads/' + 'f' * 32)[0], 403)
+
+    def test_image_reads_are_authenticated_private_and_account_scoped(self):
+        path = '/api/chat-uploads/' + 'f' * 32 + '/image'
+        self.assertEqual(self.fixture.request(path)[0], 401)
+        self.fixture.permanent()
+        # Image reads have their own bounded response limit, not the JSON limit.
+        data = b'\x89PNG\r\n\x1a\n' + b'x' * 4_000_000
+        status, entry = self.request_upload(data, name='private.png')
+        self.assertEqual(status, 201)
+        self.assertEqual(entry['mime'], 'image/png')
+        status, headers, raw = self.fixture.request(path)
+        self.assertEqual(status, 200)
+        self.assertEqual(raw, data)
+        self.assertEqual(headers['Content-Type'], 'image/png')
+        self.assertEqual(headers['Cache-Control'], 'no-store')
+        self.assertEqual(headers['X-Content-Type-Options'], 'nosniff')
+        self.assertEqual(self.fixture.request('/api/chat-uploads/' + 'a' * 32 + '/image')[0], 404)
+        other = self.fixture.root / 'other'; other.mkdir()
+        with self.assertRaises(ValueError):
+            Uploads(other).image(entry['id'])
+        self.request_upload(b'<svg></svg>', identifier='b' * 32, name='active.svg')
+        self.assertEqual(self.fixture.request('/api/chat-uploads/' + 'b' * 32 + '/image')[0], 404)
+        cookie = self.fixture.cookie
+        self.fixture.cookie = None
+        self.assertEqual(self.fixture.request(path)[0], 401)
+        self.fixture.cookie = cookie
+        self.assertIn("img-src 'self' blob:", self.fixture.request('/chat')[1]['Content-Security-Policy'])
+        self.assertNotIn('blob:', self.fixture.request('/gm.html')[1]['Content-Security-Policy'])
 
     def test_fifty_megabytes_cross_gateway_and_backend_without_whole_file_buffer(self):
         self.fixture.permanent()

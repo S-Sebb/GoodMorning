@@ -10,6 +10,21 @@ from goodmorning.runtime_files import atomic_text
 
 MAX_UPLOAD_BYTES = 50 * 1024 * 1024
 UPLOAD_ROUTE = re.compile(r'/api/chat-uploads/([a-f0-9]{32})')
+IMAGE_ROUTE = re.compile(r'/api/chat-uploads/([a-f0-9]{32})/image')
+
+
+def image_type(path):
+    with path.open('rb') as source:
+        header = source.read(16)
+    if header.startswith(b'\x89PNG\r\n\x1a\n'):
+        return 'image/png'
+    if header.startswith(b'\xff\xd8\xff'):
+        return 'image/jpeg'
+    if header.startswith((b'GIF87a', b'GIF89a')):
+        return 'image/gif'
+    if header.startswith(b'RIFF') and header[8:12] == b'WEBP':
+        return 'image/webp'
+    return None
 
 
 def upload_name(query):
@@ -73,7 +88,18 @@ class Uploads:
         if (path.parent.is_symlink() or path.is_symlink() or not path.is_file()
                 or path.stat().st_size != entry['size'] or not 0 <= entry['size'] <= MAX_UPLOAD_BYTES):
             raise ValueError('Attachment unavailable')
-        return {'id': identifier, 'name': name, 'size': entry['size']}
+        result = {'id': identifier, 'name': name, 'size': entry['size']}
+        mime = image_type(path)
+        if mime:
+            result['mime'] = mime
+        return result
+
+    def image(self, identifier):
+        entry = self.get(identifier)
+        if not entry.get('mime'):
+            raise ValueError('Attachment is not a supported image')
+        path = self.directory / identifier / 'files' / entry['name']
+        return path.read_bytes(), entry['mime']
 
     def files(self, identifiers):
         entries = [self.get(identifier) for identifier in identifiers]
@@ -115,4 +141,4 @@ class Uploads:
                 files.rmdir()
                 directory.rmdir()
                 raise
-            return {'id': identifier, 'name': name, 'size': size}
+            return self.get(identifier)

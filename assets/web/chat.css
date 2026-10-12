@@ -107,6 +107,18 @@
 .attachment-chip { display: flex; align-items: center; gap: 8px; max-width: 100%; margin-top: 8px; padding: 4px 8px 4px 12px; background: var(--wash); border: 1px solid var(--line); border-radius: 12px; font-size: 12px; }
 .attachment-chip span { min-width: 0; overflow-wrap: anywhere; }
 .attachment-chip button { flex-shrink: 0; padding: 4px 10px; }
+.chat-page .attachment-preview { display: block; flex-shrink: 0; max-width: 100%; padding: 0; overflow: hidden; border-radius: 10px; cursor: zoom-in; }
+.attachment-preview img { display: block; width: 160px; max-width: 100%; height: 100px; object-fit: contain; background: var(--wash); }
+.attachment-chip .attachment-preview img { width: 56px; height: 48px; }
+#chat-attachments { max-height: 150px; overflow-y: auto; }
+.message-attachments { display: flex; flex-wrap: wrap; gap: 12px; }
+.message-attachment { min-width: 0; max-width: 100%; margin-top: 8px; }
+.chat-page .message-attachment .attachment-preview, .chat-page .message-attachment .attachment-preview:hover { border: 0; background: transparent; }
+.message-attachment .attachment-preview img { width: auto; height: auto; max-width: min(160px, 100%); max-height: 160px; background: transparent; }
+.chat-image-dialog { max-width: calc(100vw - 32px); max-height: calc(100dvh - 32px); padding: 48px 12px 12px; border: 1px solid var(--line); border-radius: 16px; background: var(--surface); color: var(--ink); }
+.chat-image-dialog::backdrop { background: #000b; }
+.chat-image-dialog > button { position: absolute; top: 6px; right: 6px; }
+.chat-image-dialog > img { display: block; max-width: 100%; max-height: calc(100dvh - 100px); object-fit: contain; }
 .attachment-name { font-size: 12px; color: var(--muted); overflow-wrap: anywhere; margin: 8px 0 0; }
 #chat-send { flex-shrink: 0; background: var(--ink); color: var(--surface); }
 #chat-send:hover:not(:disabled) { background: var(--accent); color: var(--surface); }

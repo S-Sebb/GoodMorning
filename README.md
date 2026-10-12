@@ -40,7 +40,8 @@ work visible, and see tomorrow's schedule. Completion comes from you, not an AI 
 
 **Secretary · Keep a little room to think.** Talk through your plans, save to-dos
 in your own words, capture ideas with Eureka, and revisit your preferences without
-resetting your records. Conversations support file attachments and saved history.
+resetting your records. Conversations support file attachments, pasted images with
+click-to-enlarge previews, and saved history.
 
 <table>
   <tr>

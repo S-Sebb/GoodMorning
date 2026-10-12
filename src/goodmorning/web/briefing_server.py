@@ -32,7 +32,7 @@ from . import color_schemes as site_colors
 from .release import VERSION, release_info, acknowledge_version
 from .session_inventory import job_session_title
 from .chat_theme import clock_theme
-from .chat_uploads import MAX_UPLOAD_BYTES, UPLOAD_ROUTE, upload_name
+from .chat_uploads import MAX_UPLOAD_BYTES, UPLOAD_ROUTE, IMAGE_ROUTE, upload_name
 from .avatar_images import MAX_AVATAR_BYTES, AVATAR_UPLOAD_PATH, image_url, read_image, save_image
 from .bridge_json import read_json
 from .activity import ACTIVITY_PATH, snapshot as activity_snapshot
@@ -837,7 +837,8 @@ def serve_live(app, port, *, gateway_key=None, public_origins=()):
                 self.send_header('ETag', tag)
             self.send_header('X-Content-Type-Options', 'nosniff')
             self.send_header('Referrer-Policy', 'same-origin' if content_type.startswith('text/html') else 'no-referrer')
-            self.send_header('Content-Security-Policy', "default-src 'none'; style-src 'self'; script-src 'self'; img-src 'self'; font-src 'self'; connect-src 'self'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'")
+            image_sources = "'self' blob:" if urlsplit(self.path).path == '/chat' else "'self'"
+            self.send_header('Content-Security-Policy', f"default-src 'none'; style-src 'self'; script-src 'self'; img-src {image_sources}; font-src 'self'; connect-src 'self'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'")
             self.end_headers()
             if self.command != 'HEAD' and status != 304:
                 self.wfile.write(data)
@@ -878,6 +879,10 @@ def serve_live(app, port, *, gateway_key=None, public_origins=()):
                     return self.respond(app.chat_page(), content_type='text/html; charset=utf-8', compress=True)
                 if path == '/api/chats':
                     return self.respond({**app.chat_settings(), 'chats': app.chats.listing()}, compress=True)
+                attachment_image = IMAGE_ROUTE.fullmatch(path)
+                if attachment_image:
+                    data, mime = app.chats.uploads.image(attachment_image[1])
+                    return self.respond(data, content_type=mime)
                 chat = re.fullmatch(r'/api/chats/([a-f0-9]{32})', path)
                 if chat:
                     return self.respond(app.chats.status(chat[1]), compress=True)

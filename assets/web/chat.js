@@ -110,7 +110,7 @@ function composeState() {
   sendButton.disabled = sending || !chatConfig.connected || (chat && state !== 'idle');
   textBox.disabled = sending || (chat && state !== 'idle');
   fileInput.disabled = attachButton.disabled = sendButton.disabled;
-  document.querySelectorAll('#chat-attachments button').forEach(button => { button.disabled = sendButton.disabled; });
+  document.querySelectorAll('#chat-attachments .attachment-remove').forEach(button => { button.disabled = sendButton.disabled; });
   const sendLabel = chatT(chat ? 'Send reply' : modes[mode][1]);
   sendButton.querySelector('.chat-send-label').textContent = sendLabel;
   sendButton.setAttribute('aria-label', sendLabel);
@@ -122,14 +122,49 @@ function fileSize(size) {
   return size < 1024 * 1024 ? `${Math.ceil(size / 1024)} KB` : `${(size / (1024 * 1024)).toFixed(1)} MB`;
 }
 
+const imageTypes = new Set(['image/png', 'image/jpeg', 'image/gif', 'image/webp']);
+const imageDialog = make('dialog', '', 'chat-image-dialog');
+const imageClose = make('button', '×');
+imageClose.type = 'button';
+imageClose.setAttribute('aria-label', chatT('Close image'));
+imageDialog.setAttribute('aria-label', chatT('Image preview'));
+const enlargedImage = make('img');
+imageDialog.append(imageClose, enlargedImage);
+document.body.append(imageDialog);
+imageClose.addEventListener('click', () => imageDialog.close());
+imageDialog.addEventListener('click', event => { if (event.target === imageDialog) imageDialog.close(); });
+imageDialog.addEventListener('close', () => enlargedImage.removeAttribute('src'));
+
+function imagePreview(source, name) {
+  const button = make('button', '', 'attachment-preview');
+  button.type = 'button';
+  button.setAttribute('aria-label', chatT('Enlarge {name}', {name}));
+  const image = make('img');
+  image.alt = name;
+  image.src = source;
+  button.append(image);
+  button.addEventListener('click', () => {
+    enlargedImage.alt = name;
+    enlargedImage.src = source;
+    imageDialog.showModal();
+  });
+  return button;
+}
+
+function releasePreviews(entries) {
+  for (const entry of entries) if (entry.preview) URL.revokeObjectURL(entry.preview);
+}
+
 function showAttachments() {
   document.querySelector('#chat-attachments').replaceChildren(...attachments.map(entry => {
     const chip = make('div', '', 'attachment-chip');
+    if (entry.preview) chip.append(imagePreview(entry.preview, entry.file.name));
     chip.append(make('span', `${entry.file.name} · ${fileSize(entry.file.size)}`));
-    const remove = make('button', '×');
+    const remove = make('button', '×', 'attachment-remove');
     remove.type = 'button';
     remove.setAttribute('aria-label', chatT('Remove {name}', {name: entry.file.name}));
     remove.addEventListener('click', () => {
+      releasePreviews([entry]);
       attachments = attachments.filter(item => item !== entry);
       showAttachments(); composeState();
     });
@@ -151,13 +186,29 @@ function addFiles(files) {
       errorBox.textContent = chatT('Attach up to 100 files per message.');
       break;
     }
-    attachments.push({file, id: crypto.randomUUID().replaceAll('-', ''), uploaded: false});
+    attachments.push({file, id: crypto.randomUUID().replaceAll('-', ''), uploaded: false,
+      preview: imageTypes.has(file.type) ? URL.createObjectURL(file) : null});
   }
   showAttachments();
 }
 fileInput.addEventListener('change', () => {
   addFiles(fileInput.files);
   fileInput.value = '';
+});
+textBox.addEventListener('paste', event => {
+  const clipboard = event.clipboardData;
+  const files = Array.from(clipboard?.items || []).filter(item => item.kind === 'file')
+    .map(item => item.getAsFile()).filter(Boolean);
+  if (!files.length) files.push(...Array.from(clipboard?.files || []));
+  if (!files.length) return;
+  event.preventDefault();
+  if (attachButton.disabled) return;
+  addFiles(files);
+  const text = clipboard.getData('text/plain');
+  if (text) {
+    textBox.setRangeText(text, textBox.selectionStart, textBox.selectionEnd, 'end');
+    textBox.dispatchEvent(new Event('input', {bubbles: true}));
+  }
 });
 
 const draggingFiles = event => Array.from(event.dataTransfer?.types || []).includes('Files');
@@ -196,7 +247,7 @@ function composerReady() {
 }
 
 function focusComposer(force = false) {
-  if (!composerReady() || document.hidden) return;
+  if (!composerReady() || document.hidden || imageDialog.open) return;
   if (document.activeElement === textBox) return;
   const active = document.activeElement;
   if (!force && active && active !== document.body && active !== document.documentElement) {
@@ -405,8 +456,20 @@ function showMessages(messages) {
       } else content.textContent = item.text;
       renderedMessages.set(content, item.text);
     }
-    bubble.querySelector('.message-attachments').replaceChildren(...(item.attachments || []).map(entry =>
-      make('p', `${entry.name} · ${fileSize(entry.size)}`, 'attachment-name')));
+    const attachmentBox = bubble.querySelector('.message-attachments');
+    const attachmentSignature = JSON.stringify(item.attachments || []);
+    if (attachmentBox.dataset.signature !== attachmentSignature) {
+      attachmentBox.replaceChildren(...(item.attachments || []).map(entry => {
+        const file = make('div', '', 'message-attachment');
+        if (imageTypes.has(entry.mime) && /^[a-f0-9]{32}$/.test(entry.id)) {
+          file.append(imagePreview(`/api/chat-uploads/${entry.id}/image`, entry.name));
+        } else {
+          file.append(make('p', `${entry.name} · ${fileSize(entry.size)}`, 'attachment-name'));
+        }
+        return file;
+      }));
+      attachmentBox.dataset.signature = attachmentSignature;
+    }
     return bubble;
   });
   [...log.children].filter(node => !nodes.includes(node)).forEach(node => node.remove());
@@ -577,6 +640,7 @@ document.querySelector('#chat-compose').addEventListener('submit', async event =
       body);
     if (version !== revision) return;
     chat = current; textBox.value = ''; drafts.delete(mode);
+    releasePreviews(selectedFiles);
     followNextUpdate = true;
     attachments = []; showAttachments();
     history.replaceState(null, '', '/chat?id=' + chat);
@@ -611,7 +675,14 @@ document.addEventListener('visibilitychange', () => {
   if (document.hidden) { clearTimeout(timer); clearTimeout(themeTimer); }
   else { scheduleChatTheme(); pollVisible(); focusComposer(); }
 });
-document.addEventListener('website:language', () => { showMode(); showAttachments(); pollVisible(); });
+document.addEventListener('website:language', () => {
+  imageClose.setAttribute('aria-label', chatT('Close image'));
+  imageDialog.setAttribute('aria-label', chatT('Image preview'));
+  document.querySelectorAll('.attachment-preview').forEach(button => {
+    button.setAttribute('aria-label', chatT('Enlarge {name}', {name: button.querySelector('img').alt}));
+  });
+  showMode(); showAttachments(); pollVisible();
+});
 document.addEventListener('website:before-refresh', event => { if (sending || pendingChatMutations) event.preventDefault(); });
 document.addEventListener('website:refresh-drafts', event => {
   if (attachments.length || [...drafts.values()].some(draft => draft.text.trim() || draft.attachments.length)) event.preventDefault();

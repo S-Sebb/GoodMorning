@@ -1,4 +1,6 @@
 """Rendered mode switch and conversation flow using an isolated synthetic agent."""
+import base64
+import io
 import json
 from pathlib import Path
 import subprocess
@@ -6,6 +8,7 @@ import sys
 import tempfile
 
 from playwright.sync_api import sync_playwright, expect
+from PIL import Image, ImageDraw
 
 
 def check_composer(browser, address, artifacts):
@@ -335,6 +338,95 @@ def check_uploads(browser, address, artifacts):
     return checks
 
 
+def check_images(browser, address, artifacts):
+    image = Image.new('RGB', (640, 400), '#ddebe5')
+    draw = ImageDraw.Draw(image)
+    draw.rectangle((60, 60, 580, 340), fill='#4d766b')
+    draw.text((100, 180), 'Synthetic chat image', fill='white')
+    buffer = io.BytesIO(); image.save(buffer, format='PNG')
+    encoded = base64.b64encode(buffer.getvalue()).decode()
+    checks = []
+    for width in (1440, 390, 320):
+        page = browser.new_page(viewport={'width': width, 'height': 900}, reduced_motion='reduce',
+                                permissions=['clipboard-read', 'clipboard-write'])
+        errors = []; page.on('pageerror', lambda error: errors.append(str(error)))
+        page.goto(address + '/chat?mode=secretary')
+        expect(page.locator('#chat-attach')).to_be_enabled()
+        text = page.locator('#chat-text')
+        text.fill('Caption stays here')
+        page.evaluate('''async encoded => {
+            const bytes = Uint8Array.from(atob(encoded), char => char.charCodeAt(0));
+            await navigator.clipboard.write([new ClipboardItem({'image/png': new Blob([bytes], {type:'image/png'})})]);
+        }''', encoded)
+        text.focus(); page.keyboard.press('Control+V')
+        preview = page.locator('#chat-attachments .attachment-preview')
+        expect(preview).to_have_count(1)
+        expect(text).to_have_value('Caption stays here')
+        page.wait_for_function('document.querySelector("#chat-attachments img").naturalWidth === 640')
+        source = preview.locator('img').get_attribute('src')
+        name = preview.locator('img').get_attribute('alt')
+        assert source.startswith('blob:')
+        preview.click()
+        dialog = page.get_by_role('dialog', name='Image preview')
+        expect(dialog).to_be_visible()
+        expect(page.get_by_role('button', name='Close image')).to_be_focused()
+        assert dialog.locator('img').bounding_box()['width'] > preview.locator('img').bounding_box()['width']
+        page.keyboard.press('Escape'); expect(dialog).not_to_be_visible()
+        expect(preview).to_be_focused()
+        page.get_by_role('radio', name='To-do', exact=True).click()
+        expect(preview).to_have_count(0)
+        page.get_by_role('radio', name='Secretary', exact=True).click()
+        expect(preview).to_have_count(1)
+        assert preview.locator('img').get_attribute('src') == source
+        page.locator('.conversation-panel').screenshot(path=str(artifacts / f'image-draft-{width}.png'))
+        page.get_by_role('button', name='Start conversation', exact=True).click()
+        expect(page.get_by_role('button', name='Send reply', exact=True)).to_be_enabled()
+        saved = page.locator('.message-attachments .attachment-preview')
+        expect(saved).to_have_count(1)
+        page.wait_for_function('document.querySelector(".message-attachments img").naturalWidth === 640')
+        expect(page.locator('.message-attachments .attachment-name')).to_have_count(0)
+        expect(saved).to_have_css('border-top-width', '0px')
+        expect(saved).to_have_css('background-color', 'rgba(0, 0, 0, 0)')
+        box = saved.locator('img').bounding_box()
+        assert abs(box['width'] / box['height'] - 1.6) < .01, box
+        url = saved.locator('img').get_attribute('src')
+        assert url.startswith('/api/chat-uploads/') and url.endswith('/image')
+        assert page.evaluate('async source => { try { await fetch(source); return false; } catch { return true; } }', source)
+        page.reload()
+        expect(saved).to_have_count(1)
+        page.wait_for_function('document.querySelector(".message-attachments img").naturalWidth === 640')
+        saved.click(); expect(dialog).to_be_visible()
+        page.wait_for_function('document.querySelector(".chat-image-dialog img").naturalWidth === 640')
+        assert dialog.locator('img').bounding_box()['width'] > 160
+        assert dialog.bounding_box()['width'] <= width - 30
+        page.screenshot(path=str(artifacts / f'image-enlarged-{width}.png'))
+        page.get_by_role('button', name='Close image').click(); expect(dialog).not_to_be_visible()
+        expect(saved).to_be_focused()
+        page.locator('.conversation-panel').screenshot(path=str(artifacts / f'image-inline-{width}.png'))
+        # Normal text paste remains native. Image paste while busy must not mutate drafts.
+        page.evaluate('navigator.clipboard.writeText(" pasted text")')
+        text.fill('Existing'); text.focus(); text.press('End'); page.keyboard.press('Control+V')
+        expect(text).to_have_value('Existing pasted text')
+        page.locator('#chat-files').set_input_files({'name': name, 'mimeType': 'image/png', 'buffer': buffer.getvalue()})
+        removed_source = preview.locator('img').get_attribute('src')
+        page.get_by_role('button', name='Remove ' + name, exact=True).click()
+        expect(preview).to_have_count(0)
+        assert page.evaluate('async source => { try { await fetch(source); return false; } catch { return true; } }', removed_source)
+        page.evaluate('''() => {
+            state = 'running'; composeState();
+            const transfer = new DataTransfer();
+            transfer.items.add(new File(['blocked'], 'blocked.png', {type:'image/png'}));
+            document.querySelector('#chat-text').dispatchEvent(new ClipboardEvent('paste', {clipboardData:transfer, bubbles:true, cancelable:true}));
+        }''')
+        expect(preview).to_have_count(0)
+        assert not page.evaluate('document.documentElement.scrollWidth > innerWidth')
+        assert not errors, errors
+        checks.append({'width': width, 'realClipboardPaste': True, 'draftPreview': True, 'savedPreview': True,
+                       'enlargeAndClose': True, 'reload': True, 'draftRestored': True, 'urlsReleased': True})
+        page.close()
+    return checks
+
+
 def check_question_history(browser, address, artifacts):
     checks = []
     for width, answer in ((1440, 'London'), (390, 'My typed city <img>')):
@@ -488,6 +580,7 @@ def main():
                 highlight_checks = check_highlight(browser, address, artifacts)
                 motion_checks = check_motion(browser, address, artifacts)
                 upload_checks = check_uploads(browser, address, artifacts)
+                image_checks = check_images(browser, address, artifacts)
                 question_checks = check_question_history(browser, address, artifacts)
                 check_waiting_reply_queue(browser, address, artifacts)
                 scroll_checks = check_scroll(browser, address, artifacts)
@@ -585,7 +678,7 @@ def main():
         finally:
             process.terminate(); process.communicate(timeout=5)
     report = {'modelCalls': 0, 'agent': 'synthetic', 'setup': 'mock saved, default changed', 'checks': results,
-              'composer': composer_checks, 'highlight': highlight_checks, 'motion': motion_checks, 'uploads': upload_checks, 'questions': question_checks, 'scroll': scroll_checks}
+              'composer': composer_checks, 'highlight': highlight_checks, 'motion': motion_checks, 'uploads': upload_checks, 'images': image_checks, 'questions': question_checks, 'scroll': scroll_checks}
     (artifacts / 'result.json').write_text(json.dumps(report, indent=2))
     print(json.dumps(report))
 
