@@ -22,8 +22,8 @@
     + '<p id="patch-note-version"></p><h3 id="patch-note-title"></h3><p id="patch-note-date"></p>'
     + '<div id="patch-note-text"></div><p id="patch-note-source"></p></section>'
     + '<footer class="patch-footer"><p id="update-status" role="status"></p>'
-    + '<div><button id="update-refresh" type="button"></button><button id="patch-note-dismiss" type="button"></button></div>'
-    + '<p id="update-feedback" role="status" aria-live="polite"></p></footer></div>';
+    + '<p id="update-feedback" role="status" aria-live="polite"></p>'
+    + '<div><button id="patch-note-dismiss" type="button"></button><button id="update-refresh" type="button"></button></div></footer></div>';
   document.body.append(patch);
   // The toggle lives in the top utility row's fixed slot; without it (older
   // cached pages) it falls back to a body-level button as before.

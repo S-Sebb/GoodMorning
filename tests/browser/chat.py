@@ -8,6 +8,61 @@ import tempfile
 from playwright.sync_api import sync_playwright, expect
 
 
+def check_composer(browser, address, artifacts):
+    checks = []
+    for width, motion in ((1440, 'no-preference'), (390, 'no-preference'), (320, 'reduce')):
+        page = browser.new_page(viewport={'width': width, 'height': 900}, reduced_motion=motion)
+        errors = []
+        page.on('pageerror', lambda error: errors.append(str(error)))
+        page.goto(address + '/chat?mode=secretary')
+        page.evaluate('document.fonts.ready')
+        row = page.locator('.chat-input-row')
+        text = page.get_by_label('Your message', exact=True)
+        layout = 'node => [node.offsetLeft, node.offsetTop, node.offsetWidth, node.offsetHeight]'
+        for edition, scheme in (('gm', 'classic'), ('gm', 'warm'), ('gn', 'classic')):
+            text.fill('Keep this draft')
+            page.locator('#chat-attach').focus()
+            page.evaluate("([edition, scheme]) => { document.documentElement.dataset.edition = edition; document.documentElement.dataset.dayScheme = scheme; }", [edition, scheme])
+            page.evaluate("async () => { await Promise.all(document.querySelector('.chat-input-row').getAnimations().map(a => a.finished)); }")
+            before = row.evaluate(layout)
+            plain = row.evaluate('node => getComputedStyle(node).borderColor')
+            text.click()
+            expect(text).to_be_focused()
+            expect(text).to_have_css('outline-style', 'none')
+            if motion != 'reduce':
+                page.wait_for_function("document.querySelector('.chat-input-row').getAnimations().length > 0")
+                transition = row.evaluate('''node => {
+                    const animations = node.getAnimations();
+                    animations.forEach(a => { a.pause(); a.currentTime = a.effect.getTiming().duration / 2; });
+                    const middle = getComputedStyle(node).borderColor;
+                    animations.forEach(a => a.finish());
+                    return {middle, final: getComputedStyle(node).borderColor};
+                }''')
+                assert transition['middle'] not in (plain, transition['final']), transition
+            else:
+                assert row.evaluate('node => node.getAnimations().length') == 0
+            accent = page.locator('.desk-symbol').evaluate('node => getComputedStyle(node).color')
+            expect(row).to_have_css('border-color', accent)
+            assert row.evaluate("node => getComputedStyle(node).boxShadow.endsWith('0px 0px 0px 1px inset')")
+            assert row.evaluate(layout) == before, 'Focus moved or resized the composer'
+            if motion != 'reduce':
+                row.screenshot(path=str(artifacts / f'composer-focus-{edition}-{scheme}-{width}.png'))
+            page.keyboard.press('Tab')
+            expect(page.locator('#chat-send')).to_be_focused()
+            expect(page.locator('#chat-send')).to_have_css('outline-style', 'solid')
+            page.locator('#chat-attach').focus()
+            page.evaluate("async () => { await Promise.all(document.querySelector('.chat-input-row').getAnimations().map(a => a.finished)); }")
+            expect(row).to_have_css('border-color', plain)
+            expect(text).to_have_value('Keep this draft')
+            assert row.evaluate(layout) == before
+            assert not page.evaluate('document.documentElement.scrollWidth > innerWidth')
+        assert not errors, errors
+        checks.append({'width': width, 'motion': motion, 'palettes': 3, 'roundedFocus': True,
+                       'animatedFocus': motion != 'reduce', 'layoutShift': False, 'keyboardFocus': True})
+        page.close()
+    return checks
+
+
 def check_motion(browser, address, artifacts):
     checks = []
     for width, motion in ((1440, 'no-preference'), (390, 'no-preference'), (390, 'reduce')):
@@ -339,6 +394,7 @@ def main():
         try:
             with sync_playwright() as playwright:
                 browser = playwright.chromium.launch()
+                composer_checks = check_composer(browser, address, artifacts)
                 motion_checks = check_motion(browser, address, artifacts)
                 upload_checks = check_uploads(browser, address, artifacts)
                 question_checks = check_question_history(browser, address, artifacts)
@@ -438,7 +494,7 @@ def main():
         finally:
             process.terminate(); process.communicate(timeout=5)
     report = {'modelCalls': 0, 'agent': 'synthetic', 'setup': 'mock saved, default changed', 'checks': results,
-              'motion': motion_checks, 'uploads': upload_checks, 'questions': question_checks, 'scroll': scroll_checks}
+              'composer': composer_checks, 'motion': motion_checks, 'uploads': upload_checks, 'questions': question_checks, 'scroll': scroll_checks}
     (artifacts / 'result.json').write_text(json.dumps(report, indent=2))
     print(json.dumps(report))
 

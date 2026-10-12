@@ -21,6 +21,24 @@ NOTE = {'version': '0.20.0', 'date': '2026-10-12', 'author': 'Synthetic deployer
         'changes': [{'category': 'Fixed', 'en': [NOTE_EN], 'zh': [NOTE_ZH]}], 'commits': []}
 
 
+def check_actions(page):
+    assert page.locator('.patch-footer').evaluate('''footer => {
+        const style = getComputedStyle(footer), box = footer.getBoundingClientRect();
+        const buttons = [...footer.querySelectorAll('button')].filter(button => !button.hidden);
+        const last = buttons.at(-1).getBoundingClientRect();
+        return Math.abs(last.right - (box.right - parseFloat(style.paddingRight))) < 1
+            && Math.abs(last.bottom - (box.bottom - parseFloat(style.paddingBottom))) < 1
+            && buttons.every(button => {
+                const rect = button.getBoundingClientRect();
+                return rect.left >= box.left && rect.right <= box.right;
+            });
+    }'''), 'Popup actions must stay at the bottom right'
+    expect(page.locator('#patch-note-dismiss')).to_be_in_viewport()
+    if page.locator('#update-refresh').is_visible():
+        expect(page.locator('#update-refresh')).to_be_in_viewport()
+        assert page.locator('#update-refresh').bounding_box()['x'] > page.locator('#patch-note-dismiss').bounding_box()['x']
+
+
 def main():
     artifacts = Path(sys.argv[1]); artifacts.mkdir(parents=True, exist_ok=True, mode=0o700)
     cases = []
@@ -71,6 +89,7 @@ def main():
                         expect(page.locator('#patch-note-version')).to_have_text('v' + current['release'])
                         expect(page.locator('#site-update-toggle')).to_have_attribute('data-state', 'current')
                         expect(page.locator('#update-refresh')).to_be_hidden()
+                        check_actions(page)
                         expected_categories = [group['category'] for group in current['notes'][0]['changes']]
                         expect(page.locator('#patch-note-text h4')).to_have_text(expected_categories)
                         expect(page.locator('#patch-note-text li')).to_have_count(sum(len(group['en']) for group in current['notes'][0]['changes']))
@@ -80,6 +99,7 @@ def main():
                         if width < 500:
                             page.set_viewport_size({'width': width, 'height': 380})
                             expect(page.locator('#patch-note-dismiss')).to_be_in_viewport()
+                            check_actions(page)
                             assert not page.evaluate('document.documentElement.scrollWidth > innerWidth')
                             position = page.locator('.patch-content').evaluate('node => { node.scrollTop = 80; return node.scrollTop; }')
                             page.clock.run_for(61000)
@@ -99,6 +119,7 @@ def main():
                         expect(page.locator('#patch-note-title')).to_have_text('仓库基础')
                         expect(page.locator('#patch-note-text h4')).to_have_text(['新增', '备注'])
                         expect(page.locator('#patch-note-text li').first).to_have_text('创建公开仓库，加入初始 README 和忽略规则。')
+                        check_actions(page)
                         page.get_by_role('button', name='关闭', exact=True).click()
                         expect(modal).to_be_hidden()
                         assert state['seen'] == current['release']
@@ -120,6 +141,7 @@ def main():
                         expect(page.locator('#patch-note-text li')).to_have_text(NOTE_EN)
                         expect(page.locator('#site-update-toggle')).to_have_attribute('data-state', 'available')
                         expect(page.locator('#update-refresh')).to_be_visible()
+                        check_actions(page)
                         assert not page.evaluate('document.documentElement.scrollWidth > innerWidth')
                         if path == '/chat':
                             expect(page.locator('#chat-text')).to_have_value('Preserve this unsent draft.')
@@ -136,6 +158,7 @@ def main():
                         expect(page.locator('#patch-note-text h4')).to_have_text('修复')
                         expect(page.locator('#patch-note-text li')).to_have_text(NOTE_ZH)
                         expect(page.locator('#site-patch-note')).to_contain_text('网站有新版本可用')
+                        check_actions(page)
                         page.screenshot(path=str(artifacts/(path.strip('/').replace('.html', '')+'-'+str(width)+'.png')))
 
                         def new_document(route):
@@ -200,6 +223,7 @@ def main():
                 expect(page.locator('#site-patch-note')).to_be_visible()
                 page.locator('#update-refresh').click()
                 expect(page.locator('#update-feedback')).to_contain_text('finish sending')
+                check_actions(page)
                 expect(page.locator('#chat-text')).to_have_value('Synthetic pending request')
                 assert len(held) == 1
                 held[0].fulfill(status=400, json={'error': 'Synthetic rejected request; no dispatch.'})

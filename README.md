@@ -1,133 +1,121 @@
-# GoodMorning
+<p align="center">
+  <img src="assets/web/icons/gm.svg" width="64" alt="GoodMorning sun" />
+</p>
 
-Browser-based AI secretary, helper commands, and templates. Installed personal runtime data belongs in
-`~/.local/share/GoodMorning/secretary/`, outside the skill package. An explicitly
-selected checkout runtime remains git-ignored. Requires Python 3.9+. Bounded setup, state and managed news
-backfill use Linux file locks; project access also requires Linux and Node.js
-22.18+. No npm install is needed. This is an agent-assisted project, not an
-autonomous background service. See [deployment](docs/deployment.md) for manual
-file copying, updates and supported integration boundaries.
+<h1 align="center">GoodMorning</h1>
 
-Start with [setup and configuration](config.example.md).
+<p align="center">
+  <strong>A calmer start. A clearer finish. A little space to think.</strong><br />
+  Your personal AI secretary for the plans, stories, and ideas that make up your day.
+</p>
 
-Public multi-user deployment uses the [website security boundary](docs/website-security.md):
-SSH-only accounts, HTTPS login, encrypted volumes and isolated agent homes.
+<p align="center">
+  <a href="#a-day-with-goodmorning">Explore</a> ·
+  <a href="#inside-the-briefings">Screenshots</a> ·
+  <a href="#make-it-yours">Get started</a> ·
+  <a href="docs/deployment.md">Documentation</a> ·
+  <a href="https://github.com/S-Sebb/GoodMorning/issues">Feedback</a>
+</p>
 
-New gm/gn editions use [validated browser-native JSON](docs/briefing-format.md),
-without Markdown or presentation copies. The [private browser viewer](docs/browser-delivery.md)
-renders saved briefings as HTML with inline sections and clickable sources;
-its live mode offers a seven-day archive and explicit generation in a dedicated OpenChamber
-session, with browser questions and permissions. New browser jobs publish sections
-top-down with individual loading placeholders; finished sections are readable while
-later ones are prepared. Previews remain explicitly unfinished until the final save.
-Public deployment adds authenticated HTTPS and isolated encrypted accounts.
-Briefing days roll over at 04:00 in each
-user's configured timezone; all behavior lives in this package's source.
-Live pages render on demand with shared cacheable assets, bounded memory caches
-and deduplicated publisher images, rather than duplicating webpages/resources daily.
-Briefings are delivered on their browser pages, not as inline OpenCode image cards.
-Schedule and Tomorrow show timed events followed by a flexible schedule for
-untimed work. No appointments does not imply a free day; dated plans stay visible
-in the schedule instead of being buried in reminders.
-No image-delivery plugin is required.
-The website offers English and Simplified Chinese, with one account-wide setting
-shared by Morning, Night and Secretary, including other devices. New agent requests
-use that setting; active requests finish in their starting language. Saved content
-and existing local preferences are not translated or rewritten. Website initialization
-therefore skips the separate reply-language question. For local skill use, the first
-setup question still confirms the secretary's reply language independently of news.
-The Secretary page explains when to choose Secretary, To-do, Eureka or Initialize.
-The avatar picker keeps four defaults and offers **Upload your own avatar** for
-PNG, JPEG or WebP images up to 5 MB. Each account has one private custom avatar,
-shared across chat and briefings; uploading another replaces it. Switching to a
-default keeps the custom avatar available. Photo metadata is removed on upload.
-The website uses beta versions (`0.minor.patch`). A blue update arrow, or a
-checkmark when current, opens bilingual patch notes with a past-version sidebar.
-Each new version appears automatically until dismissed; that preference is
-shared across the account's devices. See the [patch-note guide](docs/server-deployment.md#patch-note-procedure).
-Authenticated pages also share an active-work reminder across Morning, Night and
-Secretary tabs. It links to work that is running, waiting for an answer or queued;
-idle work disappears. Closing a tab never cancels a pending question.
-One self-contained `goodmorning` skill is copied only into
-`~/.agents/skills/goodmorning/`. The inactive source lives in
-`skill-source/goodmorning.md`; this checkout registers no skills or commands.
-Workflow instructions are in `docs/workflows/`. Use `/gm`, `/gn`, `/eureka`, `/todo`, or
-`/secretary` as plain workflow requests, not custom slash commands, or ask in
-natural language. Start with `/secretary` to confirm setup before
-creating personal records. See [agent workflows](docs/agent-usage.md).
-`/todo` records the user's wording without questions, planning, or doing the task.
-Clarification or a more detailed explanation happens only when explicitly requested.
-Initialization now separates saved local preferences from optional verification;
-see [the staged setup workflow](docs/initialization.md). Failed integrations stay
-pending rather than restarting setup or launching code repairs.
+![Morning briefing with a personal desk, daily archive, and weather cards](assets/readme/morning.png)
 
-| Task | Command | Guidance |
-|---|---|---|
-| Setup preflight | `python scripts/goodmorning.py setup --secretary-dir RUNTIME` | [Initialization](docs/initialization.md) |
-| Weather/AQI | `python scripts/goodmorning.py weather` | [Weather](docs/weather-pipeline.md) |
-| News backfill | `python scripts/goodmorning.py news --backfill` | [News and delivery tracking](docs/news-pipeline.md) |
-| Schedule | `python scripts/goodmorning.py calendar --days 3` | [Calendar](docs/calendar-pipeline.md) |
-| State and missed runs | `python scripts/goodmorning.py state --check --json` | [State](docs/state-pipeline.md) |
-| Capture and active memory | `python scripts/goodmorning.py inbox --secretary-dir RUNTIME --list` | [Inbox](docs/inbox-pipeline.md) |
-| Workflow context / fast capture | `python scripts/goodmorning.py workflow --secretary-dir RUNTIME --prepare gm` | [Helpers](docs/workflow-helpers.md) |
-| Safe daily amendments | `python scripts/goodmorning.py daily --secretary-dir RUNTIME --date DATE --show` | [Helpers](docs/workflow-helpers.md) |
-| Local/remote projects | `node scripts/projects.mjs --help` | [Project access](docs/project-access.md) |
+GoodMorning turns scattered daily information into a quiet, readable place to begin.
+Check the weather, catch up on news with sources, see what is on your calendar, and
+give the important work some room. In the evening, reflect on what actually happened
+and look ahead—without pretending unfinished work is done.
 
-Run from the repository or installed skill root. Replace example settings with confirmed values.
-Use compact output by default; open only the guide needed for an operation.
-Calendar changes need confirmation, imports need review, and project writes need
-an authorized target and current hash.
+Between briefings, your secretary is there to help you think, remember a to-do, or
+catch an idea before it disappears. Built around **OpenCode and OpenChamber**, it
+combines an agent-assisted workflow with a browser interface you can host yourself.
 
-News collection is not delivery: read saved reports with `--show`, present them,
-then acknowledge their exact IDs with `--ack`. Empty sections remain unresolved.
-Default news now requires assistant editorial review of collected candidates with
-source citations and importance reasons; keyword scores are only shortlist aids.
-Optional `--latest` keeps current developments separately dated from yesterday.
-Secretary replies use a materiality gate: routine diagnostics and non-critical
-disclaimers stay internal. Only actionable or materially important warnings appear.
-That gate is not a brevity filter: personality and useful explanations belong
-within clearly divided sections, with optional brief takeaways and a warm closing.
-Avoid long introductions, repeated summaries or routine disclaimers.
-See [secretary voice](docs/reply-voice.md): headings/rules, ordered weather parts,
-source-based news summaries and calendar timetables make replies easy to scan.
-State summaries are paged; do not bulk-read the index or answer snapshots.
-Inbox memory uses SQLite, stable IDs, bounded current-state queries, idempotent
-capture and revision-checked updates. Save material inputs and decisions, not
-every exchange. Original wording/history stays separate from normal model context.
-No Markdown inbox or calendar migration is supported.
+## A day with GoodMorning
 
-Reply shapes are in `templates/*.reply.template.md`; shared skill rules are in
-`docs/core-rules.md`. The expanded `docs/skill-rules.md` loads only for edge cases.
-User-facing replies prioritize clean formatting and clarity,
-with the user's customised tone throughout, not just greetings and closings.
-There are no sentence limits or token budgets for replies. Internal records and
-script output stay compact. Validate with `python -m unittest discover -s tests -q`
-and measure synthetic reply size with `python tests/benchmarks/reply_templates.py`.
-Workflow preparation/capture and daily bookkeeping are deterministic helpers;
-editorial judgment, prioritization, clarification and consent remain with the agent.
-Measure context savings with `python tests/benchmarks/workflow.py`; see the
-[workflow audit](docs/workflow-audit.md) for decisions and boundaries.
+**Morning · Find your bearings.** Local weather and air quality, a source-linked
+news digest, appointments, flexible plans, and a clear distinction between must-do
+and nice-to-do. Sections appear as they are prepared, so you can start reading
+before the whole briefing is ready.
 
-To set up the skill, copy `skill-source/goodmorning.md` as `SKILL.md` into
-`~/.agents/skills/goodmorning/`, with the public directories listed in
-[deployment](docs/deployment.md). No pip installation or package builder is needed.
-See [manual deployment](docs/deployment.md) for the file layout and safe updates.
-Do not copy profiles, caches, credentials, or sandbox fixtures. Personal records
-stay at `~/.local/share/GoodMorning/secretary/` (or the explicitly selected
-`SECRETARY_DIR`). Copying files does not initialize personal records.
+**Evening · Put the day down.** Review the progress you report, keep unfinished
+work visible, and see tomorrow's schedule. Completion comes from you, not an AI guess.
 
-## Project layout
+**Secretary · Keep a little room to think.** Talk through your plans, save to-dos
+in your own words, capture ideas with Eureka, and revisit your preferences without
+resetting your records. Conversations support file attachments and saved history.
 
-- `src/goodmorning/`: Python application code, grouped by responsibility.
-- `scripts/`: only the Python and Node.js command entry points.
-- `assets/web/`: browser styles, JavaScript, templates, and fonts.
-- `integrations/projects/`: local/relay project adapter and its internal helper.
-- `vendor/`: unchanged third-party relay source, license, and integrity manifest.
-- `requirements/`: optional browser-rendering dependencies.
-- `tests/test_*.py`, `tests/test_projects.mjs`: automated unit/contract tests.
-- `tests/browser/`, `tests/benchmarks/`: opt-in browser and performance experiments.
-- `deploy/`: service and HTTPS deployment templates.
-- `docs/`, `skill-source/`, `templates/`: instructions, inactive skill entry, and reply guides.
+<table>
+  <tr>
+    <td width="50%" valign="top"><img src="assets/readme/evening.png" alt="Evening briefing in the night palette, showing completed and partial progress" /></td>
+    <td width="50%" valign="top"><img src="assets/readme/secretary.png" alt="Secretary conversation with Aria, planning focused work in a personal desk interface" /></td>
+  </tr>
+  <tr>
+    <td align="center"><em>A clear ending to the day.</em></td>
+    <td align="center"><em>A place for plans and bright ideas.</em></td>
+  </tr>
+</table>
 
-See [structure and command migration](docs/project-structure.md). The original
-design plan is preserved in `docs/history/plan.md`; it is not current setup guidance.
+<sub>Real interface, fictional demo data. The weather, plans, and conversation above are examples, not personal records or live reports.</sub>
+
+## Inside the briefings
+
+From the forecast to your next focused block, everything has its own place.
+These close-ups use fictional data; click a screenshot to see it at full size.
+
+![Weather detail showing temperature, rain probability, air quality, and practical advice](assets/readme/weather.png)
+
+<table>
+  <tr>
+    <td width="50%" valign="top"><a href="assets/readme/news.png"><img src="assets/readme/news.png" alt="Source-linked news cards grouped into AI and research, world, and United Kingdom stories" /></a></td>
+    <td width="50%" valign="top"><a href="assets/readme/schedule.png"><img src="assets/readme/schedule.png" alt="Daily agenda with appointment times, locations, preparation notes, and flexible untimed work" /></a></td>
+  </tr>
+  <tr>
+    <td align="center"><strong>News with context.</strong><br /><em>Categories, summaries, limitations, and sources.</em></td>
+    <td align="center"><strong>A schedule, not just a list.</strong><br /><em>Appointments and flexible work, clearly separated.</em></td>
+  </tr>
+  <tr>
+    <td width="50%" valign="top"><a href="assets/readme/priorities.png"><img src="assets/readme/priorities.png" alt="Must-do and nice-to-do sections separating essential work from optional ideas" /></a></td>
+    <td width="50%" valign="top"><a href="assets/readme/tomorrow.png"><img src="assets/readme/tomorrow.png" alt="Evening briefing showing tomorrow's appointments, preparation, and flexible plans in the night palette" /></a></td>
+  </tr>
+  <tr>
+    <td align="center"><strong>Room for priorities.</strong><br /><em>Keep the essentials distinct from the possibilities.</em></td>
+    <td align="center"><strong>A gentler tomorrow.</strong><br /><em>See the next day's plan before closing this one.</em></td>
+  </tr>
+</table>
+
+## Thoughtful by design
+
+- **Personal, not generic.** Choose your secretary's name, tone, avatar, and appearance.
+  The website supports English and Simplified Chinese.
+- **Comfortable to read.** Distinct day and night palettes, phone-friendly layouts,
+  clickable sources, section navigation, and reduced-motion support.
+- **Continuity without clutter.** Saved briefings, a seven-day browser archive,
+  and persistent task and idea records keep useful context close.
+- **You stay in control.** Generation is an explicit action. Questions and permissions
+  stay visible; calendar changes and project writes require authorization.
+- **Your own space.** Personal records stay separate from the source. The multi-user
+  deployment supports authenticated HTTPS, encrypted storage, and isolated agent accounts.
+
+## Make it yours
+
+GoodMorning is currently **beta** and designed for Linux with Python 3.9+ and an
+OpenCode/OpenChamber agent. It is not a standalone chatbot or an unattended daily service.
+
+Start with the [deployment guide](docs/deployment.md), then
+[guided setup](docs/initialization.md). You can use the browser pages or ask the
+installed skill naturally for a morning briefing, an evening review, a to-do, or an idea capture.
+Optional project access requires Node.js 22.18+.
+
+For hosted use, read the [security and privacy boundaries](docs/website-security.md).
+Self-hosting does not hide requests from the AI provider you choose.
+
+Ideas, feedback, and focused improvements are welcome in
+[GitHub Issues](https://github.com/S-Sebb/GoodMorning/issues).
+
+## License
+
+GoodMorning is licensed under the [MIT License](LICENSE).
+Bundled [relay code](vendor/openchamber-relay/LICENSE) and
+[fonts](assets/web/fonts/OFL.txt) retain their respective license notices.
+
+---
+
+<p align="center"><em>Less noise. More room for your day.</em></p>

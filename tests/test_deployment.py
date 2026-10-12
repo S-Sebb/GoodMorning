@@ -23,12 +23,14 @@ class DeploymentTests(unittest.TestCase):
             skill = home / '.agents/skills/goodmorning'
             skill.mkdir(parents=True)
             shutil.copy2(ROOT / 'skill-source/goodmorning.md', skill / 'SKILL.md')
+            shutil.copy2(ROOT / 'LICENSE', skill / 'LICENSE')
             shutil.copy2(ROOT / 'config.example.md', skill / 'config.example.md')
             for name in ('scripts', 'src', 'assets', 'integrations', 'vendor', 'requirements', 'docs', 'templates'):
                 shutil.copytree(ROOT / name, skill / name,
                                 ignore=shutil.ignore_patterns('__pycache__', '*.pyc'))
             text = (skill / 'SKILL.md').read_text()
             self.assertEqual(text, (ROOT / 'skill-source/goodmorning.md').read_text())
+            self.assertEqual((skill / 'LICENSE').read_bytes(), (ROOT / 'LICENSE').read_bytes())
             self.assertNotIn('../', text)
             for reference in re.findall(r'`((?:docs|templates)/[^`]+\.md)`', text):
                 self.assertTrue((skill / reference).is_file(), reference)

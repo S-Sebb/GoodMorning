@@ -1,6 +1,38 @@
 {
   "notes": [
     {
+      "version": "0.22.1", "date": "2026-10-12", "author": "GoodMorning agent",
+      "title_en": "Polished controls and public documentation", "title_zh": "优化控件与公开文档",
+      "changes": [
+        {"category": "Fixed", "en": [
+          "Keep patch-note actions at the bottom right, with Update last and feedback above the buttons.",
+          "Highlight the message composer's existing rounded border with a smooth, slightly thicker focus state, without moving content. Reduced-motion preferences remain respected.",
+          "Place the activity window and its minimized button at the bottom left on the Secretary page, while keeping them at the bottom right elsewhere."
+        ], "zh": [
+          "更新日志的操作按钮固定在右下角，更新按钮位于最右侧，反馈信息显示在按钮上方。",
+          "消息输入栏聚焦时平滑加粗并高亮原有圆角边框，不移动内容，并遵循减少动态效果偏好。",
+          "秘书页面的活动窗口及其收起后的按钮改为左下角，其他页面仍保留在右下角。"
+        ]},
+        {"category": "Documentation", "en": [
+          "Refresh the README with fictional demo screenshots and clearer getting-started links; record the pre-publication disclosure review.",
+          "Add the MIT license and retain it in copied skills and public deployment archives, alongside existing third-party notices."
+        ], "zh": [
+          "更新 README，加入虚构演示数据截图和更清晰的入门链接，并记录公开发布前的信息披露检查。",
+          "新增 MIT 许可证，并在技能副本与公开部署归档中保留该许可证及现有第三方许可证声明。"
+        ]},
+        {"category": "Security", "en": [
+          "Ignore environment-file variants and common private-key bundles to reduce accidental additions to Git."
+        ], "zh": [
+          "忽略环境文件变体及常见私钥文件，降低意外加入 Git 的风险。"
+        ]},
+        {"category": "Tests", "en": [
+          "Check rounded focus, animation, keyboard access, popup alignment and page-specific activity placement on desktop and mobile using synthetic records."
+        ], "zh": [
+          "使用合成数据验证桌面和移动端的圆角聚焦、动画、键盘操作、弹窗对齐及各页面的活动窗口位置。"
+        ]}
+      ]
+    },
+    {
       "version": "0.22.0", "date": "2026-10-12", "author": "GoodMorning agent",
       "title_en": "Personal desks and non-blocking questions", "title_zh": "个性化书桌与不阻塞的提问",
       "changes": [

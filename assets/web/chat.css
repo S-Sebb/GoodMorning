@@ -60,8 +60,10 @@
 #chat-status.is-queued { display: inline-block; margin-top: 4px; padding: 6px 12px; border: 1px solid var(--line); border-radius: 999px; background: var(--wash); color: var(--ink); font-size: 12px; }
 #chat-compose { margin-top: 16px; padding-top: 0; }
 #chat-compose.is-dragging { border-color: var(--accent); border-radius: 12px; box-shadow: inset 0 0 0 2px var(--accent); background: var(--wash); }
-.chat-input-row { display: flex; align-items: flex-end; gap: 8px; padding: 7px; border: 1px solid var(--line); border-radius: 18px; background: var(--bubble, var(--surface)); }
+.chat-input-row { display: flex; align-items: flex-end; gap: 8px; padding: 7px; border: 1px solid var(--line); border-radius: 18px; background: var(--bubble, var(--surface)); box-shadow: inset 0 0 0 1px transparent; transition: border-color .2s ease, box-shadow .2s ease; }
+.chat-input-row:focus-within { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
 #chat-text { display: block; flex: 1; min-width: 0; width: 100%; min-height: 44px; max-height: 160px; resize: vertical; background: transparent; border: 0; border-radius: 0; padding: 10px 4px; color: var(--ink); font-size: 16px; line-height: 24px; }
+#chat-text:focus { outline: none; }
 #chat-send { display: grid; place-items: center; width: 44px; min-width: 44px; height: 44px; padding: 0; border-radius: 13px; }
 .attachment-controls { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; margin-top: 12px; }
 #upload-note { color: var(--muted); font-size: 11px; }

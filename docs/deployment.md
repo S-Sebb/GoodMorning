@@ -22,6 +22,7 @@ Create `~/.agents/skills/goodmorning/` and copy these files from the checkout:
 
 | Source | Destination inside the skill |
 |---|---|
+| `LICENSE` | `LICENSE` |
 | `skill-source/goodmorning.md` | `SKILL.md` |
 | `config.example.md` | `config.example.md` |
 | `scripts/` | `scripts/` |
@@ -140,7 +141,7 @@ starting language; new requests receive the latest language explicitly.
 - Feed reachability, historical RSS coverage and model-authored editorial relevance
   are not guaranteed by passing tests. Source attribution and material gaps remain.
 - Open-Meteo's free tier is for non-commercial use. Check provider/feed terms for
-  the intended deployment. Copying files grants no new project-wide open-source
-  license; retain the supplied upstream vendor license/manifest.
+  the intended deployment. GoodMorning uses the root MIT license; retain it and
+  the supplied upstream vendor license/manifest and font license notices.
 - Real-host pairing repair, optional WAQI verification and deployment-specific
   permissions remain owner steps.

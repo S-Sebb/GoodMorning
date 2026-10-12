@@ -80,6 +80,16 @@ def run(artifacts):
                     page.goto('https://gm.language.test/chat')
                     expect(page.locator('#chat-compose')).to_be_visible()
                 errors = []
+                def check_position(page):
+                    width = page.viewport_size['width']
+                    gutter = 16 if width <= 700 else 24
+                    side = 'left' if urlsplit(page.url).path == '/chat' else 'right'
+                    expect(page.locator('#account-activity')).to_have_css(side, f'{gutter}px')
+                    visible = page.locator('#activity-window') if page.locator('#activity-window').is_visible() else page.locator('#activity-restore')
+                    box = visible.bounding_box()
+                    distance = box['x'] if side == 'left' else page.evaluate('document.documentElement.clientWidth') - box['x'] - box['width']
+                    assert abs(distance - gutter) < 1, (side, width, box)
+                    expect(visible).to_be_in_viewport()
                 owner = context()
                 source = owner.new_page(); source.on('pageerror', lambda error: errors.append(str(error)))
                 login(source, 'gm', 'alice', 'a1alice-temporary'); permanent(source, 'alice')
@@ -101,9 +111,13 @@ def run(artifacts):
                     assert page.locator('#account-activity a').get_attribute('target') is None
                     expect(page.locator('#account-activity')).to_have_css('position', 'fixed')
                     expect(page.locator('.activity-pencil')).to_have_css('animation-name', 'none')
-                    assert not page.evaluate('document.documentElement.scrollWidth > innerWidth')
-                page = pages[-1]
-                expect(page.locator('#account-activity')).to_have_css('right', '24px')
+                    for width in (1440, 390, 320):
+                        page.set_viewport_size({'width': width, 'height': 900})
+                        check_position(page)
+                        assert not page.evaluate('document.documentElement.scrollWidth > innerWidth')
+                        page.screenshot(path=str(artifacts/f'position-{urlsplit(page.url).path.strip("/")}-{width}.png'))
+                    page.set_viewport_size({'width': 1440, 'height': 900})
+                page = pages[0]
                 page.evaluate("""() => {
                     const button = document.createElement('button');
                     button.id = 'fixture-corner-control';
@@ -115,18 +129,23 @@ def run(artifacts):
                 assert page.locator('#account-activity').evaluate("node => node.getBoundingClientRect().bottom < document.querySelector('#fixture-corner-control').getBoundingClientRect().top")
                 page.locator('#fixture-corner-control').evaluate('node => node.remove()')
                 expect(page.locator('#account-activity')).to_have_css('bottom', '24px')
+                page = pages[-1]
                 page.get_by_role('button', name='Minimize activity', exact=True).click()
                 expect(page.locator('#activity-window')).to_be_hidden()
                 expect(page.locator('#activity-restore')).to_be_focused()
+                check_position(page)
                 page.locator('#activity-restore').click()
                 expect(page.locator('#activity-window')).to_be_visible()
                 expect(page.get_by_role('button', name='Minimize activity', exact=True)).to_be_focused()
+                check_position(page)
                 phone = owner.new_page(); phone.set_viewport_size({'width': 390, 'height': 900})
                 phone.goto('https://gm.language.test/chat')
                 expect(phone.locator('#activity-restore')).to_be_visible()
                 expect(phone.locator('#activity-window')).to_be_hidden()
+                check_position(phone)
                 phone.locator('#activity-restore').click()
                 expect(phone.locator('#activity-window')).to_be_visible()
+                check_position(phone)
                 phone.close()
                 other = context(390); bob = other.new_page()
                 login(bob, 'gm', 'bob', 'a1bob-temporary'); permanent(bob, 'bob')
@@ -191,7 +210,7 @@ def run(artifacts):
                 'waitingWorkingIdle': True, 'ownerIsolation': True, 'outageKeepsLink': True,
                 'floatingDesk': True, 'minimizeAndRestore': True, 'mobileStartsMinimized': True,
                 'workingAnimation': True, 'reducedMotion': True, 'boundedQueue': 20,
-                'bottomRight': True, 'backToTopCollisionAvoided': True,
+                'chatBottomLeft': True, 'otherPagesBottomRight': True, 'backToTopCollisionAvoided': True,
                 'widths': [1440, 390, 320], 'languages': ['en', 'zh-CN'], 'pageErrors': 0}))
         finally:
             process.terminate(); process.communicate(timeout=5)

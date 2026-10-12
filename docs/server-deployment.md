@@ -62,7 +62,8 @@ python3 -m unittest discover -s tests -p test_release.py -q
 
 ## 2. Build the filtered public archive
 
-The helper refuses any archive containing non-public files, so filter first:
+The helper refuses any archive containing non-public files, so filter first.
+Ensure its public-file allowlist includes the root `LICENSE`; retain that file in every release:
 
 ```sh
 git archive --format=tar.gz --output=/tmp/opencode/<NAME>.tar.gz HEAD
@@ -70,7 +71,7 @@ python3 - <<'PY'
 import hashlib,tarfile
 from pathlib import Path
 source=Path('/tmp/opencode/<NAME>.tar.gz');target=Path('/tmp/opencode/<NAME>-public.tar.gz')
-allowed={'.gitignore','README.md','AGENTS.md','config.example.md','skill-source','scripts','src','assets','integrations','vendor','requirements','docs','templates','deploy','tests'}
+allowed={'.gitignore','LICENSE','README.md','AGENTS.md','config.example.md','skill-source','scripts','src','assets','integrations','vendor','requirements','docs','templates','deploy','tests'}
 count=0
 with tarfile.open(source) as archive,tarfile.open(target,'w:gz') as public:
  for member in archive.getmembers():
