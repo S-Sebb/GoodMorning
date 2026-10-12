@@ -48,6 +48,8 @@ def open_picker(page):
 
 def check_picker(page, address, artifacts):
     page.goto(address + '/chat')
+    if page.locator('#prefs-menu').get_attribute('open') is None:
+        page.locator('#prefs-menu > summary').click()
     page.locator('#website-language').select_option('en')
     expect(page.locator('html')).to_have_attribute('lang', 'en')
     for path in ('/gm.html', '/gn.html', '/chat'):
@@ -237,6 +239,8 @@ def main():
                     check_picker(page, address, artifacts)
                     for language, label in (('en', 'Your secretary'), ('zh-CN', '你的秘书')):
                         page.goto(address + '/chat')
+                        if page.locator('#prefs-menu').get_attribute('open') is None:
+                            page.locator('#prefs-menu > summary').click()
                         page.locator('#website-language').select_option(language)
                         expect(page.locator('html')).to_have_attribute('lang', language)
                         for selected in ('f1', 'f2', 'm1', 'm2'):

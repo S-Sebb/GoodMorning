@@ -99,8 +99,12 @@ def run(artifacts):
                     page.locator('#password-password').fill(password)
                     page.locator('#account-form button[type=submit]').click()
                     expect(page).not_to_have_url('https://'+host+'.language.test/login')
+                def open_prefs(page):
+                    if page.locator('#prefs-menu').get_attribute('open') is None:
+                        page.locator('#prefs-menu > summary').click()
                 def switch(page,value):
                     expect(page.locator('#language-form button[type=submit]')).to_have_count(0)
+                    open_prefs(page)
                     page.locator('#website-language').select_option(value)
                     expect(page.locator('html')).to_have_attribute('lang',value)
                 def no_overflow(page):
@@ -251,6 +255,7 @@ def run(artifacts):
                 assert any(cookie['domain']=='.language.test' and not cookie['httpOnly'] for cookie in cookies if cookie['name']=='GoodMorningLanguage')
                 plain=context(viewport={'width':320,'height':760},java_script_enabled=False)
                 model_page=plain.new_page();model_page.goto('https://gm.language.test/login')
+                model_page.locator('#prefs-menu > summary').click()
                 model_page.locator('#website-model').select_option('deepseek-flash')
                 with model_page.expect_response('https://gm.language.test/api/model') as switched:
                     model_page.locator('#model-form').get_by_role('button',name='Apply',exact=True).click()
@@ -258,6 +263,7 @@ def run(artifacts):
                 assert switched.value.headers['location']=='/login'
                 model_page.close()
                 fallback=plain.new_page();fallback.goto('https://gm.language.test/login')
+                fallback.locator('#prefs-menu > summary').click()
                 fallback.locator('#website-language').select_option('zh-CN')
                 # Redirected navigations bypass Playwright routing. Follow the verified
                 # native redirect explicitly here; live HTTPS checks use no routing.

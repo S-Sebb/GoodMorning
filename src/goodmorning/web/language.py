@@ -127,23 +127,41 @@ def page(source,csrf,return_to='/'):
         if '/update.js' not in source:
             source=source.replace('</head>','<link rel="stylesheet" href="/update.css"><script src="/update.js" defer></script></head>')
     config=html.escape(json.dumps({'language':current(),'csrf':csrf}),quote=True)
-    controls=('<form id="language-form" class="language-toolbar" action="/api/language" method="post">'
-              '<label for="website-language">Website language</label><select id="website-language" name="language">'
-              +''.join(f'<option value="{code}" lang="{code}"'+(' selected' if code==current() else '')+' data-content>'+label+'</option>'
-                       for code,label in (('en','English'),('zh-CN','简体中文')))+
-              '</select><input type="hidden" name="csrf" value="'+html.escape(csrf or '',quote=True)+'">'
-              '<input type="hidden" name="return_to" value="'+html.escape(return_to,quote=True)+'">'
-              '<noscript><button type="submit">Apply</button></noscript><span id="language-feedback" role="status"></span></form>'
-              '<form id="model-form" class="language-toolbar" action="/api/model" method="post">'
-              '<label for="website-model">Model</label><select id="website-model" name="model">'
-              +''.join(f'<option value="{code}"'+(' selected' if code==current_model() else '')+' data-content>'+html.escape(entry['label'])+'</option>'
-                       for code,entry in MODELS.items())+
-              '</select><input type="hidden" name="csrf" value="'+html.escape(csrf or '',quote=True)+'">'
-              '<input type="hidden" name="return_to" value="'+html.escape(return_to,quote=True)+'">'
-              '<noscript><button type="submit">Apply</button></noscript><span id="model-feedback" role="status"></span></form>')
+    # Top-right utility cluster: two compact menus plus the update pill's fixed
+    # slot. Native details/summary keeps every control usable without
+    # JavaScript; each panel is an absolutely positioned dropdown.
+    account=''
+    match=re.search(r'<nav class="account-tools".*?</nav>',source,flags=re.S)
+    if match:
+        account=match[0]
+        source=source[:match.start()]+source[match.end():]
+    current_label='简体中文' if current()=='zh-CN' else 'English'
+    prefs=('<details class="menu" id="prefs-menu"><summary><span aria-hidden="true">🌐</span> '
+           '<span id="prefs-current" data-content>'+current_label+'</span></summary>'
+           '<div class="menu-panel">'
+           '<form id="language-form" class="language-toolbar" action="/api/language" method="post">'
+           '<label for="website-language">Website language</label><select id="website-language" name="language">'
+           +''.join(f'<option value="{code}" lang="{code}"'+(' selected' if code==current() else '')+' data-content>'+label+'</option>'
+                    for code,label in (('en','English'),('zh-CN','简体中文')))+
+           '</select><input type="hidden" name="csrf" value="'+html.escape(csrf or '',quote=True)+'">'
+           '<input type="hidden" name="return_to" value="'+html.escape(return_to,quote=True)+'">'
+           '<noscript><button type="submit">Apply</button></noscript><span id="language-feedback" role="status"></span></form>'
+           '<form id="model-form" class="language-toolbar" action="/api/model" method="post">'
+           '<label for="website-model">Model</label><select id="website-model" name="model">'
+           +''.join(f'<option value="{code}"'+(' selected' if code==current_model() else '')+' data-content>'+html.escape(entry['label'])+'</option>'
+                    for code,entry in MODELS.items())+
+           '</select><input type="hidden" name="csrf" value="'+html.escape(csrf or '',quote=True)+'">'
+           '<input type="hidden" name="return_to" value="'+html.escape(return_to,quote=True)+'">'
+           '<noscript><button type="submit">Apply</button></noscript><span id="model-feedback" role="status"></span></form>'
+           '</div></details>')
+    account_menu=('<details class="menu" id="account-menu"><summary><span class="menu-label">Account</span></summary>'
+                  '<div class="menu-panel">'+account+'</div></details>') if account else ''
+    controls=('<div class="toolbar-row">'+prefs+account_menu+'<span id="update-slot"></span></div>')
     source=re.sub(r'<html\b[^>]*\blang="[^"]*"',lambda match:re.sub(r'lang="[^"]*"','lang="'+current()+'"',match[0]),source,count=1)
     if 'id="language-form"' not in source:
         source=re.sub(r'(<body\b[^>]*>)',lambda match:match[0]+controls,source,count=1)
+    elif account and 'id="account-menu"' not in source:
+        source=source.replace('<span id="update-slot">',account_menu+'<span id="update-slot">',1)
     marker='<div id="language-config" hidden data-config="'+config+'"></div>'
     if 'id="language-config"' in source:
         source=re.sub(r'<div id="language-config"[^>]*></div>',lambda _:marker,source,count=1)

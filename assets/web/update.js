@@ -11,7 +11,7 @@
   toggle.setAttribute('aria-controls', 'site-patch-note');
   toggle.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">'
     + '<path class="update-arrow" d="M12 19V5m-6 6 6-6 6 6"/>'
-    + '<path class="update-check" d="m5 12 4 4L19 6"/></svg>';
+    + '<path class="update-check" d="m5 12 4 4L19 6"/></svg><span></span>';
   const patch = document.createElement('dialog');
   patch.id = 'site-patch-note';
   patch.setAttribute('aria-labelledby', 'patch-note-heading');
@@ -24,7 +24,11 @@
     + '<footer class="patch-footer"><p id="update-status" role="status"></p>'
     + '<div><button id="update-refresh" type="button"></button><button id="patch-note-dismiss" type="button"></button></div>'
     + '<p id="update-feedback" role="status" aria-live="polite"></p></footer></div>';
-  document.body.append(toggle, patch);
+  document.body.append(patch);
+  // The toggle lives in the top utility row's fixed slot; without it (older
+  // cached pages) it falls back to a body-level button as before.
+  const slot = document.querySelector('#update-slot');
+  if (slot) slot.append(toggle); else document.body.append(toggle);
   const versions = patch.querySelector('#patch-note-versions');
   const feedback = patch.querySelector('#update-feedback');
   const refreshButton = patch.querySelector('#update-refresh');
@@ -47,6 +51,7 @@
     const label = t(stale() ? 'Update available. View patch notes' : 'Up to date. View patch notes');
     toggle.setAttribute('aria-label', label);
     toggle.title = label;
+    toggle.querySelector('span').textContent = t(stale() ? 'Update' : 'Up to date');
     patch.querySelector('#patch-note-heading').textContent = t('Patch notes');
     patch.querySelector('#patch-beta').textContent = t('Beta');
     versions.setAttribute('aria-label', t('Patch note versions'));

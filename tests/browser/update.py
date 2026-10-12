@@ -105,6 +105,8 @@ def main():
                         page.reload()
                         expect(page.locator('#site-update-toggle')).to_be_visible()
                         expect(page.locator('#site-patch-note')).to_be_hidden()  # Ordinary refresh, already dismissed.
+                        if page.locator('#prefs-menu').get_attribute('open') is None:
+                            page.locator('#prefs-menu > summary').click()
                         page.locator('#website-language').select_option('en')
                         expect(page.locator('html')).to_have_attribute('lang', 'en')
                         if path == '/chat': page.locator('#chat-text').fill('Preserve this unsent draft.')

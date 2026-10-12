@@ -23,13 +23,33 @@ button:disabled { opacity: .65; cursor: wait; }
 a { color: #315e50; }
 #account-error { color: #9b3d32; overflow-wrap: anywhere; }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+.toolbar-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: .5rem .75rem; width: min(100%,28rem); margin: 0 0 .75rem; font-size: .85rem; position: relative; }
+#update-slot { display: contents; }
+.toolbar-row .menu { position: relative; }
+.toolbar-row .menu > summary { display: inline-flex; align-items: center; gap: .45rem; list-style: none; cursor: pointer; font-size: .85rem; min-height: 44px; padding: .45rem .8rem; border: 1px solid #b4c7c0; border-radius: 999px; background: white; color: #253d45; white-space: nowrap; }
+.toolbar-row .menu > summary::-webkit-details-marker { display: none; }
+.toolbar-row .menu > summary::marker { content: ''; }
+.toolbar-row .menu > summary::after { content: '▾'; font-size: .7em; color: #56746a; }
+.toolbar-row .menu[open] > summary::after { transform: rotate(180deg); display: inline-block; }
+.toolbar-row .menu > summary:hover { border-color: #315e50; }
+.toolbar-row .menu > summary:focus-visible { outline: 3px solid #719bb8; outline-offset: 3px; }
+.toolbar-row .menu-panel { position: absolute; right: 0; top: calc(100% + 8px); width: min(300px, calc(100vw - 32px)); background: white; border: 1px solid #b4c7c0; border-radius: .9rem; box-shadow: 0 12px 40px #253d4518; padding: .9rem; z-index: 50; }
+.menu-panel .language-toolbar { display: grid; gap: .35rem; width: auto; margin: 0 0 .8rem; font-size: .85rem; }
+.menu-panel #model-form { margin-bottom: 0; }
+.menu-panel .language-toolbar label { display: grid; gap: .35rem; font-size: .8rem; color: #56746a; }
+.menu-panel .language-toolbar select, .menu-panel .language-toolbar button { font: inherit; width: 100%; min-height: 44px; padding: .45rem .65rem; border: 1px solid #b4c7c0; border-radius: .6rem; background: #f2f6f5; color: #253d45; }
 .language-toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: .6rem; width: min(100%,28rem); margin: 0 0 .75rem; font-size: .85rem; }
 .language-toolbar label { display: inline; }
 .language-toolbar select, .language-toolbar button { font: inherit; width: auto; min-height: 44px; padding: .45rem .65rem; border: 1px solid #b4c7c0; border-radius: .6rem; }
 .language-toolbar select { max-width: 100%; background: white; color: inherit; }
 #language-feedback, #model-feedback { flex-basis: 100%; font-size: .8rem; }
+#language-feedback:empty, #model-feedback:empty { display: none; }
 /* Both selectors need content-sized rows; only the card's row may grow. */
 body:has(.language-toolbar) { grid-template-rows: auto auto 1fr; align-items: start; padding-top: 1rem; }
 body:has(.language-toolbar) .account-card { align-self: center; }
+body:has(.toolbar-row) { grid-template-rows: auto 1fr; align-items: start; padding-top: 1rem; }
+body:has(.toolbar-row) .account-card { align-self: center; }
 /* Keep the form anchored while mobile browser bars or the keyboard change height. */
-@media (max-width: 600px) { body, body:has(.language-toolbar) { align-content: start; } .account-card, body:has(.language-toolbar) .account-card { align-self: start; } }
+@media (max-width: 600px) { body, body:has(.language-toolbar), body:has(.toolbar-row) { align-content: start; } .account-card, body:has(.language-toolbar) .account-card, body:has(.toolbar-row) .account-card { align-self: start; } }
+/* Narrow bars become full-width dropdown sheets anchored to the row. */
+@media (max-width: 700px) { .toolbar-row .menu { position: static; } .toolbar-row .menu-panel { left: 1rem; right: 1rem; top: auto; width: auto; margin-top: 8px; } }

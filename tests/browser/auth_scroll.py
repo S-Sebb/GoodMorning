@@ -67,7 +67,7 @@ def main():
                     submit = page.locator('#account-form button[type=submit]')
                     expect(submit).to_be_enabled()
                     initial = geometry(page)
-                    toolbar_bottom = page.locator('#model-form').evaluate(
+                    toolbar_bottom = page.locator('#prefs-menu').evaluate(
                         '(element) => element.getBoundingClientRect().bottom + scrollY')
                     assert 0 <= initial['top'] - toolbar_bottom <= 24, initial
                     cdp = context.new_cdp_session(page)

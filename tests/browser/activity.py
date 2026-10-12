@@ -105,6 +105,8 @@ def run(artifacts):
                 page = pages[-1]
                 for width in (1440, 390, 320):
                     page.set_viewport_size({'width': width, 'height': 900})
+                    if page.locator('#prefs-menu').get_attribute('open') is None:
+                        page.locator('#prefs-menu > summary').click()
                     page.locator('#website-language').select_option('zh-CN')
                     expect(page.locator('#account-activity')).to_contain_text('秘书需要你的回答')
                     assert not page.evaluate('document.documentElement.scrollWidth > innerWidth')

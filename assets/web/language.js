@@ -42,9 +42,17 @@ function applyWebsiteLanguage(language) {
     node.textContent = new Intl.DateTimeFormat(language, {weekday:'long',month:'long',day:'2-digit',year:'numeric',timeZone:'UTC'}).format(new Date(node.dataset.uiFullDate + 'T12:00:00Z'));
   });
   document.querySelector('#website-language').value = language;
+  const prefsCurrent = document.querySelector('#prefs-current');
+  if (prefsCurrent) prefsCurrent.textContent = language === 'zh-CN' ? '简体中文' : 'English';
   document.dispatchEvent(new Event('website:language'));
 }
 const languageForm = document.querySelector('#language-form');
+// Compact menus behave like one dropdown: opening one closes the other.
+document.querySelectorAll('.toolbar-row details.menu').forEach(menu => {
+  menu.addEventListener('toggle', () => {
+    if (menu.open) document.querySelectorAll('.toolbar-row details.menu').forEach(other => { if (other !== menu) other.open = false; });
+  });
+});
 async function saveWebsiteLanguage(event) {
   event?.preventDefault();
   const feedback = document.querySelector('#language-feedback');
