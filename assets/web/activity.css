@@ -1,7 +1,11 @@
 #account-activity { position: fixed; right: max(24px, env(safe-area-inset-right)); bottom: max(24px, env(safe-area-inset-bottom)); z-index: 25; width: 306px; max-width: calc(100vw - 32px); color: var(--ink, #233c36); font: 13px/1.6 ui-sans-serif, system-ui, sans-serif; }
 .chat-page #account-activity { left: max(24px, env(safe-area-inset-left)); right: auto; }
 #account-activity[hidden], #account-activity [hidden] { display: none; }
-#activity-window { padding: 12px 16px 14px; border: 1px solid var(--line, #d8dfd4); border-radius: 20px; background: var(--surface, #fffefa); box-shadow: 0 14px 44px #233c361c, 0 2px 8px #233c360a; animation: activity-window-enter .4s ease-out both; }
+#account-activity { display: grid; transform-origin: bottom right; }
+.chat-page #account-activity { transform-origin: bottom left; }
+#activity-window, #activity-restore { grid-area: 1 / 1; align-self: end; transform-origin: bottom right; }
+.chat-page #activity-window, .chat-page #activity-restore { transform-origin: bottom left; }
+#activity-window { padding: 12px 16px 14px; border: 1px solid var(--line, #d8dfd4); border-radius: 20px; background: var(--surface, #fffefa); box-shadow: 0 14px 44px #233c361c, 0 2px 8px #233c360a; }
 html[data-edition="gn"] #activity-window { box-shadow: 0 14px 44px #0005; }
 .activity-window-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 28px; }
 #activity-heading { margin: 0; color: var(--muted, #607169); font-size: 9px; font-weight: 600; letter-spacing: 1.65px; text-transform: uppercase; }
@@ -40,7 +44,6 @@ html[data-edition="gn"] #activity-window { box-shadow: 0 14px 44px #0005; }
 #activity-summary { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .activity-chip-light { flex-shrink: 0; width: 7px; height: 7px; border-radius: 50%; background: var(--accent, #35765b); }
 #account-activity[data-state="working"] .activity-chip-light { animation: activity-chip-pulse 2s ease-in-out infinite; }
-@keyframes activity-window-enter { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
 @keyframes activity-pencil-write { 0%, 100% { transform: translate(0, 0) rotate(-4deg); } 45% { transform: translate(-3px, 3px) rotate(5deg); } 70% { transform: translate(1px, 1px) rotate(-2deg); } }
 @keyframes activity-paper-write { 0%, 8% { stroke-dashoffset: 24; opacity: .45; } 50%, 80% { stroke-dashoffset: 0; opacity: .75; } 100% { stroke-dashoffset: 0; opacity: 0; } }
 @keyframes activity-steam-drift { 0%, 100% { transform: translateY(1px); opacity: .25; } 50% { transform: translateY(-2px); opacity: .7; } }
@@ -48,4 +51,4 @@ html[data-edition="gn"] #activity-window { box-shadow: 0 14px 44px #0005; }
 @keyframes activity-chip-pulse { 0%, 100% { box-shadow: 0 0 0 0 #35765b00; } 50% { box-shadow: 0 0 0 4px #35765b18; } }
 @media (max-width: 700px) { #account-activity { right: max(16px, env(safe-area-inset-right)); bottom: max(16px, env(safe-area-inset-bottom)); } .chat-page #account-activity { left: max(16px, env(safe-area-inset-left)); right: auto; } }
 body:not(.chat-page):has(.back-to-top.is-visible) #account-activity { bottom: max(88px, calc(env(safe-area-inset-bottom) + 80px)); }
-@media (prefers-reduced-motion: reduce) { #account-activity *, #account-activity *::before { animation: none !important; } .activity-paper-lines path { stroke-dashoffset: 0; } }
+@media (prefers-reduced-motion: reduce) { #account-activity, #account-activity *, #account-activity *::before { animation: none !important; } .activity-paper-lines path { stroke-dashoffset: 0; } }

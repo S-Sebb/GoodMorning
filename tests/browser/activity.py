@@ -4,6 +4,7 @@ from pathlib import Path
 import subprocess
 import sys
 import tempfile
+import time
 from urllib.parse import urlsplit
 
 REPO = Path(__file__).resolve().parents[2]
@@ -94,7 +95,10 @@ def run(artifacts):
                 source = owner.new_page(); source.on('pageerror', lambda error: errors.append(str(error)))
                 login(source, 'gm', 'alice', 'a1alice-temporary'); permanent(source, 'alice')
                 source.get_by_role('radio', name='Initialize', exact=True).click()
-                source.get_by_role('button', name='Start initialization', exact=True).click()
+                started = time.monotonic()
+                with source.expect_response('**/api/activity', timeout=1000):
+                    source.get_by_role('button', name='Start initialization', exact=True).click()
+                submit_refresh = round((time.monotonic()-started)*1000)
                 expect(source.get_by_role('heading', name='Confirm your location')).to_be_visible()
                 original_url = source.url
                 pages = []
@@ -177,6 +181,50 @@ def run(artifacts):
                 page.locator('#activity-window').screenshot(path=str(artifacts/'little-desk-working.png'))
                 page.emulate_media(reduced_motion='reduce')
                 expect(page.locator('.activity-pencil')).to_have_css('animation-name', 'none')
+                # Observe real server changes without focus events or manual refreshes.
+                page.bring_to_front()
+                latency = {}
+                (root/'activity-state').write_text('idle')
+                started = time.monotonic()
+                expect(page.locator('#account-activity')).to_be_hidden(timeout=2500)
+                latency['finishMs'] = round((time.monotonic()-started)*1000)
+                page.emulate_media(reduced_motion='no-preference')
+                (root/'activity-state').write_text('waiting')
+                started = time.monotonic()
+                expect(page.locator('#account-activity')).to_be_visible(timeout=2500)
+                latency['startMs'] = round((time.monotonic()-started)*1000)
+                def pause_motion(selector, current_time):
+                    page.wait_for_function('''selector => document.querySelector(selector).getAnimations()
+                        .some(animation => animation.playState === 'running')''', arg=selector)
+                    return page.locator(selector).evaluate('''(node, time) => {
+                        const animation = node.getAnimations().find(item => item.playState === 'running');
+                        animation.pause(); animation.currentTime = time;
+                        return {opacity: Number(getComputedStyle(node).opacity), hidden: node.hidden, inert: node.inert};
+                    }''', current_time)
+                entering = pause_motion('#account-activity', 100)
+                assert 0 < entering['opacity'] < 1 and not entering['hidden'], entering
+                page.locator('#account-activity').evaluate('node => node.getAnimations().forEach(animation => animation.finish())')
+                page.locator('#account-activity a').focus()
+                page.evaluate('window.activityRow = document.querySelector(".activity-item")')
+                (root/'activity-state').write_text('working')
+                started = time.monotonic()
+                expect(page.locator('.activity-item')).to_have_attribute('data-state', 'working', timeout=1500)
+                latency['changeMs'] = round((time.monotonic()-started)*1000)
+                changing = pause_motion('.activity-item', 100)
+                assert 0 < changing['opacity'] < 1, changing
+                assert page.evaluate('window.activityRow === document.querySelector(".activity-item")')
+                expect(page.locator('#account-activity a')).to_be_focused()
+                page.locator('.activity-item').evaluate('node => node.getAnimations().forEach(animation => animation.finish())')
+                (root/'activity-state').write_text('idle')
+                exiting = pause_motion('#account-activity', 100)
+                assert 0 < exiting['opacity'] < 1 and not exiting['hidden'] and exiting['inert'], exiting
+                # A new request during the exit must cancel that exit, not hide new work.
+                (root/'activity-state').write_text('working')
+                with page.expect_response('**/api/activity'):
+                    page.evaluate('document.dispatchEvent(new Event("activity:refresh"))')
+                expect(page.locator('#account-activity')).to_have_css('opacity', '1')
+                assert page.locator('#account-activity').evaluate('node => !node.hidden && !node.inert')
+                page.emulate_media(reduced_motion='reduce')
                 # Multiple queued requests remain bounded and preserve every original link.
                 queued = [{'mode': 'todo', 'state': 'queued', 'url': 'https://gm.language.test/chat?id='+format(index, '032x')}
                           for index in range(20)]
@@ -210,6 +258,9 @@ def run(artifacts):
                 'waitingWorkingIdle': True, 'ownerIsolation': True, 'outageKeepsLink': True,
                 'floatingDesk': True, 'minimizeAndRestore': True, 'mobileStartsMinimized': True,
                 'workingAnimation': True, 'reducedMotion': True, 'boundedQueue': 20,
+                'submitRefreshMs': submit_refresh, 'automaticRefreshMs': latency,
+                'enterChangeExitMotion': True, 'exitReversal': True,
+                'stateChangesPreserveFocus': True,
                 'chatBottomLeft': True, 'otherPagesBottomRight': True, 'backToTopCollisionAvoided': True,
                 'widths': [1440, 390, 320], 'languages': ['en', 'zh-CN'], 'pageErrors': 0}))
         finally:

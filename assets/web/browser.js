@@ -148,7 +148,12 @@ function sectionActivity(state) {
 async function api(path, body) {
   if (body !== undefined) pendingBriefingMutations++;
   try { return await requestAPI(path, body); }
-  finally { if (body !== undefined) pendingBriefingMutations--; }
+  finally {
+    if (body !== undefined) {
+      pendingBriefingMutations--;
+      document.dispatchEvent(new Event('activity:refresh'));
+    }
+  }
 }
 
 async function requestAPI(path, body) {

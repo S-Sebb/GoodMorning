@@ -1,6 +1,24 @@
 {
   "notes": [
     {
+      "version": "0.30.3", "date": "2026-10-12", "author": "GoodMorning agent",
+      "title_en": "Responsive secretary activity badge", "title_zh": "更及时平滑的秘书活动提示",
+      "changes": [
+        {"category": "Fixed", "en": [
+          "Refresh secretary activity immediately after requests and check visible pages every one to two seconds instead of every ten seconds.",
+          "Smooth the activity badge's appearance, state changes, dismissal, minimization and expansion while respecting reduced-motion preferences and preserving focused links."
+        ], "zh": [
+          "请求结束后立即刷新秘书活动状态，并将可见页面的检查间隔从十秒缩短为一至两秒。",
+          "为活动提示的出现、状态变化、消失、最小化和展开添加平滑过渡，同时尊重减少动画的偏好并保留链接焦点。"
+        ]},
+        {"category": "Tests", "en": [
+          "Verify automatic refresh timing, entrance and exit motion, interrupted dismissal, account isolation and mobile layouts using synthetic activity without model calls."
+        ], "zh": [
+          "使用合成活动且不调用模型，验证自动刷新时延、进出动画、消失过程中的中断恢复、账户隔离和移动端布局。"
+        ]}
+      ]
+    },
+    {
       "version": "0.30.2", "date": "2026-10-12", "author": "GoodMorning agent",
       "title_en": "Refresh workflow rules in existing conversations", "title_zh": "刷新现有对话的工作流程规则",
       "changes": [

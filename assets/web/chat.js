@@ -99,7 +99,12 @@ function applySecretaryName() {
 async function chatAPI(path, body, binary = false) {
   if (body) pendingChatMutations++;
   try { return await chatRequest(path, body, binary); }
-  finally { if (body) pendingChatMutations--; }
+  finally {
+    if (body) {
+      pendingChatMutations--;
+      document.dispatchEvent(new Event('activity:refresh'));
+    }
+  }
 }
 
 async function chatRequest(path, body, binary = false) {
