@@ -10,6 +10,10 @@
 </p>
 
 <p align="center">
+  <strong>English</strong> · <a href="README.zh-CN.md">简体中文</a>
+</p>
+
+<p align="center">
   <a href="#a-day-with-goodmorning">Explore</a> ·
   <a href="#inside-the-briefings">Screenshots</a> ·
   <a href="#make-it-yours">Get started</a> ·
