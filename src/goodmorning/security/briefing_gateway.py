@@ -430,6 +430,36 @@ class Gateway:
         candidate = {'user': identifier, 'host': host, 'chat': chat, 'request': request, 'dispatching':True}
         language = self.accounts.website_language(identifier) or ui.current()
         self.pump_queue()
+        # An interrupt targets the same working conversation and steers its
+        # existing session. Reuse its reservation instead of queueing behind
+        # other work; a different conversation still joins the waiting line.
+        previous = None
+        with self.accounts.db() as db:
+            db.execute('BEGIN IMMEDIATE')
+            row = db.execute('SELECT value FROM metadata WHERE key=?', ('generation',)).fetchone()
+            if row:
+                try:
+                    current = json.loads(row[0])
+                except (TypeError, ValueError):
+                    current = None
+                if (isinstance(current, dict) and not current.get('dispatching')
+                        and current.get('user') == identifier and current.get('host') == host
+                        and current.get('chat') == chat):
+                    previous = current
+                    db.execute('UPDATE metadata SET value=? WHERE key=? AND value=?',
+                               (json.dumps(candidate, separators=(',', ':')), 'generation', json.dumps(current, separators=(',', ':'))))
+        if previous is not None:
+            try:
+                status, upstream, data = self.proxy(identifier, host, path, 'POST', raw, headers)
+            except Exception:
+                raise
+            if 400 <= status < 500:
+                with self.accounts.db() as db:
+                    db.execute('UPDATE metadata SET value=? WHERE key=? AND value=?',
+                               (json.dumps(previous, separators=(',', ':')), 'generation', json.dumps(candidate, separators=(',', ':'))))
+            elif status < 300:
+                self.confirm_dispatch(candidate)
+            return status, upstream, data
         action, position, depth = self._reserve_or_queue('chat', candidate, path, body, language)
         if action in ('queued', 'queued_duplicate'):
             return self.queued_response('chat', candidate, position, depth)

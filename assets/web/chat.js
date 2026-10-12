@@ -143,8 +143,9 @@ async function chatRequest(path, body, binary = false) {
 }
 
 function composeState() {
-  sendButton.disabled = sending || !chatConfig.connected || (chat && state !== 'idle');
-  textBox.disabled = sending || (chat && state !== 'idle');
+  const blocked = chat && ['waiting', 'uncertain', 'unavailable'].includes(state);
+  sendButton.disabled = sending || !chatConfig.connected || blocked;
+  textBox.disabled = sending || blocked;
   fileInput.disabled = attachButton.disabled = sendButton.disabled;
   document.querySelectorAll('#chat-attachments .attachment-remove').forEach(button => { button.disabled = sendButton.disabled; });
   const sendLabel = chatT(chat ? 'Send reply' : modes[mode][1]);
