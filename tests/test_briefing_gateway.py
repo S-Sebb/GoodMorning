@@ -354,6 +354,24 @@ class GatewayTests(unittest.TestCase):
         self.assertEqual(dispatched,['a'*32,'b'*32])
         self.assertEqual(self.gateway.ticket()['chat'],'b'*32)
 
+    def test_idle_ticket_is_released_without_new_traffic(self):
+        self.permanent()
+        states={'active':True}
+        def proxy(user,host,path,method,raw,headers):
+            if method=='GET':
+                return (200,{},b'{"state":"idle"}') if not states['active'] else (200,{},b'{"state":"running"}')
+            return 202,{},b'{"chat":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}'
+        self.gateway.proxy=proxy
+        self.assertEqual(self.request('/api/chats',{'id':'a'*32,'mode':'secretary','text':'Hello'})[0],202)
+        self.assertIsNotNone(self.gateway.ticket())
+        # The holder goes idle and stops polling; nothing else arrives.
+        # The background pump still releases the finished slot on its own.
+        self.gateway.pump_queue()
+        self.assertIsNotNone(self.gateway.ticket())
+        states['active']=False
+        self.gateway.pump_queue()
+        self.assertIsNone(self.gateway.ticket())
+
     def test_uncertain_chat_reservation_is_preserved_on_invalid_duplicate(self):
         self.permanent()
         body={'id':'a'*32,'mode':'secretary','text':'Hello'}

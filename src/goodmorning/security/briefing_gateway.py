@@ -31,6 +31,17 @@ QUEUE_KEY = 'generation_queue'
 MAX_QUEUE = 20
 QUEUE_TTL = 900
 QUEUE_FULL = 'The secretary queue is full. Please wait for earlier requests to finish.'
+PUMP_INTERVAL = 60
+
+
+def pump_forever(gateway, interval=PUMP_INTERVAL):
+    """Release finished tickets and advance queued work without waiting for traffic."""
+    while True:
+        time.sleep(interval)
+        try:
+            gateway.pump_queue()
+        except Exception:
+            pass  # Background maintenance must never stop serving.
 
 
 class NoRedirect(HTTPRedirectHandler):
@@ -690,6 +701,8 @@ def main():
     if args.sec_host:
         hosts[args.sec_host] = 'sec'
     gateway=Gateway(Accounts(args.account_mount),hosts)
+    maintenance=threading.Thread(target=pump_forever,args=(gateway,),daemon=True)
+    maintenance.start()
     # systemd owns RuntimeDirectory and removes the Unix socket on service stop.
     with Server(str(args.socket),handler_for(gateway)) as server:
         os.chmod(args.socket,0o660)
