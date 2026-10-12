@@ -1,10 +1,33 @@
 """SSH-only account administration. Secrets are read with getpass, never argv/logs."""
 import argparse
 import getpass
+import json
 import os
 from pathlib import Path
+import stat
 
 from .briefing_accounts import Accounts, username
+
+
+def server_defaults(store):
+    """Read the root-owned hosted policy without printing provider credentials."""
+    from goodmorning.web.models import MODELS, model
+    store.check()
+    path = store.directory/'server-defaults.json'
+    with os.fdopen(os.open(path,os.O_RDONLY|os.O_NOFOLLOW)) as stream:
+        info = os.fstat(stream.fileno())
+        if not stat.S_ISREG(info.st_mode) or info.st_uid != 0 or info.st_mode & 0o077 or info.st_size > 20000:
+            raise ValueError('Unsafe server defaults')
+        value = json.load(stream)
+    if not isinstance(value,dict) or set(value) != {'model','providerID','credential'}:
+        raise ValueError('Invalid server defaults')
+    selected = model(value['model'])
+    credential = value['credential']
+    if (value['providerID'] != MODELS[selected]['providerID'] or not isinstance(credential,dict)
+            or set(credential) != {'type','key'} or credential['type'] != 'key'
+            or not isinstance(credential['key'],str) or not credential['key'].strip()):
+        raise ValueError('Invalid server defaults')
+    return value
 
 
 def backend_status(store,name,host):
@@ -59,11 +82,20 @@ def main():
         matches=store.check_password(args.username,getpass.getpass('Password to check (not saved): '))
         print('Password matches the saved account.' if matches else 'Password does not match the saved account.')
         return 0 if matches else 1
+    if args.action == 'create':
+        try:
+            defaults = server_defaults(store)
+        except Exception as error:
+            print('Server defaults are not ready ('+type(error).__name__+'); configure the encrypted hosted policy before creating accounts.')
+            return 1
     if args.action in ('create','reset'):
         secret = getpass.getpass('Temporary password (6–32 characters, with a letter and digit): ')
         if secret != getpass.getpass('Repeat temporary password: '):
             parser.error('Passwords do not match')
         identifier = store.create(args.username,secret) if args.action=='create' else store.administer(args.username,temporary=secret)
+        if args.action == 'create':
+            store.website_model(identifier,defaults['model'])
+            print('New account uses the server-default AI configuration; provision its isolated backend with the encrypted server defaults.')
     elif args.action == 'rename':
         if not args.new_name:
             parser.error('--new-name is required')

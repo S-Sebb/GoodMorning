@@ -130,11 +130,26 @@ password-change and sign-out controls. Private APIs return 503 without reserving
 or queuing an agent request. Backend outages also show a readable page rather
 than a raw JSON document; no exception details or private paths reach the browser.
 
+All future hosted users use the server-default AI configuration. The root-owned
+`server-defaults.json` (mode 0600) in the encrypted accounts mount holds only
+`model` (a website model ID), `providerID`, and `credential` (a native OpenCode
+key credential). Never display this file or copy it into public source. Account
+creation refuses missing or unsafe defaults before asking for a password or
+creating a login, and saves the configured default model for each new account.
+Existing account preferences are not rewritten. Users retain the website's
+existing model selector; this policy defines their initial hosted configuration.
+
 Before handing over an account, finish this SSH-only checklist:
 
 1. Initialize its new encrypted vault once, assign a dedicated Linux UID, and
    create private engine/viewer configuration with fresh gateway and bridge keys.
-2. Configure only owner-authorized AI provider credentials and model defaults.
+2. Use `goodmorning.security.briefing_admin.server_defaults(store)` over SSH to
+   load the encrypted server policy. Configure the new engine's default model
+   and variant from `goodmorning.web.models.MODELS[defaults['model']]`, then
+   connect only `defaults['credential']` for `defaults['providerID']` through the
+   owning engine's authenticated native `POST /api/credential` API. Never pass
+   keys on the command line or log request/response bodies. Do not ask new users
+   for separate AI credentials or copy provider configuration from another user.
    Never clone another account's HOME, database, profile, conversations, relay
    identity, authentication cookies or settings files.
 3. Install account/viewer identity drop-ins and enable its vault, engine and

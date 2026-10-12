@@ -1,6 +1,7 @@
 """SSH password diagnostics must not disclose or change account secrets."""
 from contextlib import redirect_stdout
 import io
+import json
 from pathlib import Path
 import sys
 import tempfile
@@ -10,7 +11,7 @@ from unittest.mock import patch
 from support import TEMP_ROOT
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'src'))
 from goodmorning.security.briefing_accounts import Accounts
-from goodmorning.security.briefing_admin import main, backend_status
+from goodmorning.security.briefing_admin import main, backend_status, server_defaults
 
 
 class AdminTests(unittest.TestCase):
@@ -81,12 +82,43 @@ class AdminTests(unittest.TestCase):
         with patch('sys.argv',['briefing_admin.py','--account-mount',str(self.root),'create','new-user']), \
              patch('goodmorning.security.briefing_admin.Accounts',return_value=self.store), \
              patch('goodmorning.security.briefing_admin.os.geteuid',return_value=0), \
+             patch('goodmorning.security.briefing_admin.server_defaults',return_value={'model':'deepseek-flash'}), \
              patch('goodmorning.security.briefing_admin.getpass.getpass',return_value=self.secret),redirect_stdout(output):
             self.assertEqual(main(),1)
         self.assertIn('setup is incomplete',output.getvalue())
         self.assertNotIn(self.secret,output.getvalue())
         with self.store.db() as db:
-            self.assertIsNotNone(db.execute('SELECT id FROM users WHERE name=?',('new-user',)).fetchone())
+            identifier=db.execute('SELECT id FROM users WHERE name=?',('new-user',)).fetchone()[0]
+        self.assertEqual(self.store.website_model(identifier),'deepseek-flash')
+
+    def test_create_without_server_defaults_does_not_create_login_or_request_password(self):
+        output=io.StringIO()
+        with patch('sys.argv',['briefing_admin.py','--account-mount',str(self.root),'create','new-user']), \
+             patch('goodmorning.security.briefing_admin.Accounts',return_value=self.store), \
+             patch('goodmorning.security.briefing_admin.os.geteuid',return_value=0), \
+             patch('goodmorning.security.briefing_admin.getpass.getpass') as prompt,redirect_stdout(output):
+            self.assertEqual(main(),1)
+        prompt.assert_not_called()
+        with self.store.db() as db:
+            self.assertIsNone(db.execute('SELECT id FROM users WHERE name=?',('new-user',)).fetchone())
+
+    def test_server_defaults_validate_private_policy_without_disclosing_key(self):
+        from types import SimpleNamespace
+        path=self.root/'server-defaults.json'
+        value={'model':'muse-spark','providerID':'opencode-go','credential':{'type':'key','key':'synthetic-provider-secret'}}
+        path.write_text(json.dumps(value));path.chmod(0o600)
+        info=SimpleNamespace(st_mode=path.stat().st_mode,st_uid=0,st_size=path.stat().st_size)
+        with patch('goodmorning.security.briefing_admin.os.fstat',return_value=info):
+            self.assertEqual(server_defaults(self.store),value)
+            value['providerID']='different-provider';path.write_text(json.dumps(value))
+            with self.assertRaisesRegex(ValueError,'Invalid server defaults'):server_defaults(self.store)
+        info.st_mode |= 0o044
+        with patch('goodmorning.security.briefing_admin.os.fstat',return_value=info):
+            with self.assertRaisesRegex(ValueError,'Unsafe server defaults'):server_defaults(self.store)
+
+    def test_server_defaults_refuse_symlink(self):
+        (self.root/'server-defaults.json').symlink_to(self.root/'accounts.sqlite')
+        with self.assertRaises(OSError):server_defaults(self.store)
 
 
 if __name__=='__main__':unittest.main()

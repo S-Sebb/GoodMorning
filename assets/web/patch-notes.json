@@ -1,6 +1,15 @@
 {
   "notes": [
     {
+      "version": "0.22.3", "date": "2026-10-12", "author": "GoodMorning agent",
+      "title_en": "Server defaults for new accounts", "title_zh": "新账号使用服务器默认配置",
+      "changes": [
+        {"category": "Changed", "en": ["New hosted accounts inherit the server-default model and use the encrypted server-managed AI provider configuration."], "zh": ["新托管账号继承服务器默认模型，并使用加密保存的服务器统一 AI 服务配置。"]},
+        {"category": "Security", "en": ["Refuse account creation when server defaults are missing, unsafe or invalid, without exposing provider credentials."], "zh": ["服务器默认配置缺失、不安全或无效时拒绝创建账号，不暴露 AI 服务凭据。"]},
+        {"category": "Tests", "en": ["Verify default inheritance, missing-policy refusal, private file permissions and provider consistency with synthetic data."], "zh": ["使用合成数据验证默认配置继承、配置缺失时的拒绝行为、私人文件权限和服务提供方一致性。"]}
+      ]
+    },
+    {
       "version": "0.22.2", "date": "2026-10-12", "author": "GoodMorning agent",
       "title_en": "Safer account provisioning", "title_zh": "更可靠的账号配置",
       "changes": [
