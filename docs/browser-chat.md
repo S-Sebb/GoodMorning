@@ -48,6 +48,14 @@ without its own generation calls, briefly retries while a new title is pending,
 preserves transcripts and uses a mode label until a summary exists. Repairing old
 overridden titles requires owner-authorized native title regeneration and a
 protected rollback backup; never regenerate titles from a history GET request.
+The composer grows upward to five visible lines, then scrolls internally. It
+shrinks on deletion or a successful send and resizes restored drafts without
+moving the conversation's reading position. On phones the chat panel fills the
+dynamic browser viewport at the page bottom; New conversation follows history.
+Unreadable API responses produce a translated connection notice, never a raw JSON
+parser error. Only the read-only history listing retries once; queue reads,
+uploads, messages and answers never replay automatically. Uncertain delivery
+preserves the draft and requires a delivery check before another send.
 The account's English/Simplified Chinese setting is shared by Morning, Night and
 Secretary and across devices. Login cookies remain host-only. Unauthenticated
 pages share only a non-secret browser language preference. Active requests retain

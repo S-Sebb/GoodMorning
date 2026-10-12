@@ -15,6 +15,21 @@ const attachButton = document.querySelector('#chat-attach');
 const composer = document.querySelector('#chat-compose');
 const chatScroll = document.querySelector('#chat-scroll');
 const latestButton = document.querySelector('#chat-latest');
+function resizeComposer(event) {
+  const follow = nearLatest();
+  const previousHeight = textBox.offsetHeight;
+  const previousScroll = textBox.scrollTop;
+  textBox.style.height = 'auto';
+  const maxHeight = parseFloat(getComputedStyle(textBox).maxHeight);
+  const height = Math.min(textBox.scrollHeight, maxHeight);
+  textBox.style.height = `${height}px`;
+  textBox.style.overflowY = textBox.scrollHeight > height ? 'auto' : 'hidden';
+  textBox.scrollTop = event?.type === 'input' && textBox.selectionEnd === textBox.value.length
+    ? textBox.scrollHeight : previousScroll;
+  if (follow && previousHeight !== textBox.offsetHeight) scrollToLatest();
+}
+textBox.addEventListener('input', resizeComposer);
+window.addEventListener('resize', resizeComposer);
 let attachments = [];
 const make = secretaryElement;
 const requestedMode = new URLSearchParams(location.search).get('mode');
@@ -32,6 +47,7 @@ let messageSignature = '';
 let animateMessages = false;
 let followNextUpdate = true;
 let statusLabel = '';
+let readError = null;
 let revision = 0;
 let requestLanguage = null;
 let secretaryName = typeof chatConfig.secretary_name === 'string' && chatConfig.secretary_name ? chatConfig.secretary_name : null;
@@ -87,23 +103,43 @@ async function chatAPI(path, body, binary = false) {
 }
 
 async function chatRequest(path, body, binary = false) {
-  let response;
-  try {
-    response = await fetch(path, { method: body ? 'POST' : 'GET',
-      headers: body ? {'Content-Type':binary ? 'application/octet-stream' : 'application/json','X-Briefing-CSRF':chatConfig.csrf} : {},
-      body: body ? (binary ? body : JSON.stringify(body)) : undefined, cache:'no-store', credentials:'same-origin' });
-  } catch {
-    const error = new Error(chatT('The connection was interrupted. Refresh to check delivery before sending again.'));
-    error.uncertain = true; throw error;
+  // Only the read-only history listing may retry. Queue reads and sends can dispatch work.
+  const attempts = !body && path === '/api/chats' ? 2 : 1;
+  for (let attempt = 0; attempt < attempts; attempt++) {
+    let response;
+    try {
+      response = await fetch(path, { method: body ? 'POST' : 'GET',
+        headers: body ? {'Content-Type':binary ? 'application/octet-stream' : 'application/json','X-Briefing-CSRF':chatConfig.csrf} : {},
+        body: body ? (binary ? body : JSON.stringify(body)) : undefined, cache:'no-store', credentials:'same-origin' });
+    } catch {
+      if (attempt + 1 < attempts) continue;
+      const error = new Error(chatT('The connection was interrupted. Refresh to check delivery before sending again.'));
+      error.uncertain = Boolean(body);
+      if (!body) readError = error.message;
+      throw error;
+    }
+    if (response.status === 401) { location.replace('/login'); throw new Error(chatT('Please sign in again.')); }
+    let result;
+    try {
+      result = await response.json();
+      if (!result || typeof result !== 'object' || Array.isArray(result)) throw new Error('Invalid response');
+    } catch {
+      if (attempt + 1 < attempts) continue;
+      const error = new Error(chatT('The server returned an unreadable response. Your draft is safe.'));
+      error.status = response.status;
+      error.uncertain = Boolean(body) && (response.ok || response.status >= 500);
+      if (error.uncertain) error.message += ' ' + chatT('Refresh to check delivery before sending again.');
+      if (!body) readError = error.message;
+      throw error;
+    }
+    if (!response.ok) {
+      const error = new Error(result.error || chatT('The secretary is unavailable.'));
+      error.status = response.status;
+      error.uncertain = response.status >= 500; throw error;
+    }
+    if (!body && errorBox.textContent === readError) { errorBox.textContent = ''; readError = null; }
+    return result;
   }
-  if (response.status === 401) { location.replace('/login'); throw new Error(chatT('Please sign in again.')); }
-  const result = await response.json();
-  if (!response.ok) {
-    const error = new Error(result.error || chatT('The secretary is unavailable.'));
-    error.status = response.status;
-    error.uncertain = response.status >= 500; throw error;
-  }
-  return result;
 }
 
 function composeState() {
@@ -277,6 +313,7 @@ function newConversation(next = chatConfig.defaultMode) {
   errorBox.textContent = '';
   const draft = drafts.get(mode);
   textBox.value = draft?.text || '';
+  resizeComposer();
   attachments = draft?.attachments || [];
   showAttachments();
   showMode();
@@ -577,6 +614,7 @@ document.querySelector('#chat-compose').addEventListener('submit', async event =
       body);
     if (version !== revision) return;
     chat = current; textBox.value = ''; drafts.delete(mode);
+    resizeComposer();
     followNextUpdate = true;
     attachments = []; showAttachments();
     history.replaceState(null, '', '/chat?id=' + chat);
@@ -618,6 +656,7 @@ document.addEventListener('website:refresh-drafts', event => {
 });
 window.addEventListener('focus', () => { scheduleChatTheme(); pollVisible(); focusComposer(); });
 scheduleChatTheme();
+resizeComposer();
 showMode();
 focusComposer();
 historyList().catch(error => { errorBox.textContent = error.message; });

@@ -472,6 +472,56 @@ def check_scroll(browser, address, artifacts):
     return checks
 
 
+def check_autogrow(browser, address, artifacts):
+    checks = []
+    for width,height in ((1440,900),(768,900),(390,844),(320,568)):
+        page=browser.new_page(viewport={'width':width,'height':height},reduced_motion='reduce',has_touch=width<700)
+        errors=[];page.on('pageerror',lambda error:errors.append(str(error)))
+        page.goto(address+'/chat?mode=secretary')
+        expect(page.locator('#chat-send')).to_be_enabled()
+        assert page.evaluate("Boolean(document.querySelector('#conversation-history').compareDocumentPosition(document.querySelector('#new-conversation')) & Node.DOCUMENT_POSITION_FOLLOWING)")
+        page.evaluate('window.scrollTo(0,document.documentElement.scrollHeight)')
+        panel=page.locator('.conversation-panel');composer=page.locator('.chat-input-row')
+        text=page.locator('#chat-text');scroll=page.locator('#chat-scroll')
+        original=panel.bounding_box();bottom=composer.bounding_box()['y']+composer.bounding_box()['height']
+        original_scroll=scroll.bounding_box()['height']
+        assert abs(original['y']-(16 if width>700 else 0))<1,original
+        if width<700:assert abs(original['height']-height)<1,original
+        for lines in range(1,9):
+            text.fill('\n'.join('Line '+str(index) for index in range(lines)))
+            expect(text).to_have_css('height',str(24*min(lines,5))+'px')
+            box=composer.bounding_box()
+            assert abs(box['y']+box['height']-bottom)<1,box
+            assert panel.bounding_box()==original,'Typing moved the outer chat panel'
+            assert abs(scroll.bounding_box()['height']-(original_scroll-max(0,24*min(lines,5)-44)))<1
+            if lines>5:
+                assert text.evaluate('node => Math.abs(node.scrollTop-(node.scrollHeight-node.clientHeight))<1'),'Last draft line is not visible'
+        assert text.evaluate('node => node.scrollHeight>node.clientHeight && getComputedStyle(node).overflowY==="auto" && node.clientHeight/parseFloat(getComputedStyle(node).lineHeight)===5')
+        text.press('End')
+        page.locator('.conversation-panel').screenshot(path=str(artifacts/f'five-line-composer-{width}.png'))
+        text.fill('Line one\nLine two');expect(text).to_have_css('height','48px')
+        page.get_by_role('radio',name='To-do',exact=True).click();expect(text).to_have_css('height','24px')
+        page.get_by_role('radio',name='Secretary',exact=True).click()
+        expect(text).to_have_value('Line one\nLine two');expect(text).to_have_css('height','48px')
+        text.fill('word '*20)
+        page.set_viewport_size({'width':320,'height':568});expect(text).to_have_css('height','120px')
+        page.set_viewport_size({'width':1440,'height':900});expect(text).to_have_css('height','24px')
+        expect(text).to_have_value('word '*20)
+        text.fill('Reply line one\nReply line two')
+        page.get_by_role('button',name='Start conversation',exact=True).click()
+        expect(text).to_have_value('');expect(text).to_have_css('height','24px')
+        expect(page.get_by_role('button',name='Send reply',exact=True)).to_be_enabled()
+        page.evaluate('showMessages([{id:"long",role:"assistant",text:"Synthetic reading position.\\n".repeat(200)}])')
+        scroll.evaluate('node => node.scrollTop=120')
+        text.fill('Keep reading\nEarlier messages\nWhile typing')
+        assert abs(scroll.evaluate('node=>node.scrollTop')-120)<1
+        assert not errors,errors
+        checks.append({'width':width,'height':height,'upwardGrowth':True,'fiveLineCap':True,'draftRestored':True,
+                       'responsiveReflow':True,'readingPositionPreserved':True,'newConversationBelowHistory':True})
+        page.close()
+    return checks
+
+
 def main():
     artifacts = Path(sys.argv[1]); artifacts.mkdir(parents=True, exist_ok=True, mode=0o700)
     results = []
@@ -485,6 +535,7 @@ def main():
             with sync_playwright() as playwright:
                 browser = playwright.chromium.launch()
                 composer_checks = check_composer(browser, address, artifacts)
+                autogrow_checks = check_autogrow(browser, address, artifacts)
                 highlight_checks = check_highlight(browser, address, artifacts)
                 motion_checks = check_motion(browser, address, artifacts)
                 upload_checks = check_uploads(browser, address, artifacts)
@@ -585,7 +636,7 @@ def main():
         finally:
             process.terminate(); process.communicate(timeout=5)
     report = {'modelCalls': 0, 'agent': 'synthetic', 'setup': 'mock saved, default changed', 'checks': results,
-              'composer': composer_checks, 'highlight': highlight_checks, 'motion': motion_checks, 'uploads': upload_checks, 'questions': question_checks, 'scroll': scroll_checks}
+              'composer': composer_checks, 'autogrow': autogrow_checks, 'highlight': highlight_checks, 'motion': motion_checks, 'uploads': upload_checks, 'questions': question_checks, 'scroll': scroll_checks}
     (artifacts / 'result.json').write_text(json.dumps(report, indent=2))
     print(json.dumps(report))
 

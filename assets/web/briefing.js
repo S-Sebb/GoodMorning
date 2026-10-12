@@ -9,6 +9,38 @@ const track = document.querySelector('.scroll-track');
 const cursor = document.querySelector('.scroll-cursor');
 const hero = document.querySelector('.hero');
 const backTop = document.querySelector('.back-to-top');
+const sectionButton = document.querySelector('#mobile-sections');
+const sectionDialog = document.querySelector('#mobile-section-dialog');
+const sectionList = document.querySelector('#mobile-section-list');
+const mobile = matchMedia('(max-width: 700px)');
+if (sectionButton) {
+  sectionButton.addEventListener('click', () => {
+    sectionDialog.showModal();
+    document.documentElement.classList.add('section-picker-open');
+    sectionButton.setAttribute('aria-expanded', 'true');
+    sectionList.querySelector('[aria-current]')?.focus();
+  });
+  document.querySelector('#close-sections').addEventListener('click', () => sectionDialog.close());
+  sectionDialog.addEventListener('close', () => {
+    if (sectionDialog.open) return;
+    document.documentElement.classList.remove('section-picker-open');
+    sectionButton.setAttribute('aria-expanded', 'false');
+  });
+  sectionDialog.addEventListener('click', event => {
+    const rect = sectionDialog.getBoundingClientRect();
+    if (event.target === sectionDialog && (event.clientX < rect.left || event.clientX > rect.right
+      || event.clientY < rect.top || event.clientY > rect.bottom)) sectionDialog.close();
+  });
+  sectionList.addEventListener('click', event => {
+    const link = event.target.closest('a');
+    if (!link) return;
+    sectionDialog.close();
+    const target = document.querySelector(link.getAttribute('href'));
+    target.tabIndex = -1;
+    requestAnimationFrame(() => target.focus({preventScroll: true}));
+  });
+  mobile.addEventListener('change', () => { if (!mobile.matches && sectionDialog.open) sectionDialog.close(); });
+}
 backTop.hidden = false;
 let scheduled = false;
 let positions = [];
@@ -125,6 +157,11 @@ function updateReading() {
       sections[index].classList.toggle('is-current', active);
       if (active) link.setAttribute('aria-current', 'location');
       else link.removeAttribute('aria-current');
+      const item = sectionList?.children[index];
+      if (item) {
+        if (active) item.setAttribute('aria-current', 'location');
+        else item.removeAttribute('aria-current');
+      }
     }
   });
   let cursorTop = cursorPositions[current].top - (trackScroll - measuredTrackScroll);
@@ -185,7 +222,8 @@ if ('IntersectionObserver' in window) {
 function refreshBriefing() {
   const previousSections = sections;
   sections = Array.from(document.querySelectorAll('.briefing-section:not([hidden])'));
-  links = Array.from(document.querySelectorAll('.scroll-segment:not([hidden]) .scroll-chunk'));
+  const visibleIds = new Set(sections.map(section => '#' + section.id));
+  links = Array.from(document.querySelectorAll('.scroll-segment:not([hidden]) .scroll-chunk')).filter(link => visibleIds.has(link.hash));
   const inlineNav = document.querySelector('.briefing-section-nav');
   if (inlineNav) inlineNav.replaceChildren(...sections.map(section => {
     const link = document.createElement('a');
@@ -198,6 +236,11 @@ function refreshBriefing() {
     return link;
   }));
   fills = links.map(() => -1);
+  if (sectionList && inlineNav) {
+    sectionList.replaceChildren(...Array.from(inlineNav.children, link => link.cloneNode(true)));
+    sectionButton.hidden = !sections.length;
+    if (!sections.length && sectionDialog.open) sectionDialog.close();
+  }
   map.hidden = !sections.length;
   bindLinks();
   resizeObserver?.disconnect();

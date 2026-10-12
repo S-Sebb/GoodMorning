@@ -79,6 +79,25 @@ h1 { font: normal clamp(48px, 6.5vw, 92px)/1.05 Georgia, serif; margin: 18px 0; 
 .briefing-section-nav { display: flex; flex-wrap: wrap; gap: 8px 20px; margin: 0 0 24px; border-bottom: 1px solid var(--line); }
 .briefing-section-nav a { display: inline-flex; align-items: center; min-height: 44px; font-size: 12px; text-decoration: none; color: var(--muted); }
 .briefing-section-nav a:hover { color: var(--accent); }
+#mobile-sections { display: none; }
+#mobile-section-dialog { position: fixed; inset: auto 12px max(12px, env(safe-area-inset-bottom)) 12px; width: calc(100% - 24px); max-width: 460px; max-height: min(70dvh, 560px); margin: 0 auto; padding: 20px; border: 1px solid var(--line); border-radius: 24px; background: var(--surface); color: var(--ink); box-shadow: 0 16px 60px #0003; }
+#mobile-section-dialog[open] { display: flex; flex-direction: column; }
+#mobile-section-dialog::backdrop { background: #10182080; }
+#mobile-section-dialog > header { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-shrink: 0; margin-bottom: 12px; }
+#mobile-section-dialog h2 { font-size: 24px; }
+#close-sections { display: grid; place-items: center; flex-shrink: 0; width: 44px; height: 44px; padding: 0; border: 1px solid var(--line); border-radius: 50%; background: var(--wash); color: var(--ink); cursor: pointer; }
+#mobile-section-list { display: grid; gap: 6px; overflow-y: auto; overscroll-behavior: contain; }
+#mobile-section-list a { display: flex; align-items: center; min-height: 48px; padding: 10px 14px; border: 1px solid var(--line); border-radius: 12px; color: var(--ink); background: var(--surface); font-size: 14px; text-decoration: none; overflow-wrap: anywhere; }
+#mobile-section-list a[aria-current] { background: var(--wash); border-color: var(--accent); }
+#mobile-sections:focus-visible, #close-sections:focus-visible, #mobile-section-list a:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+#mobile-sections, #close-sections, #mobile-section-list a { -webkit-tap-highlight-color: transparent; }
+html.section-picker-open { overflow: hidden; }
+@media (max-width: 700px) {
+  #mobile-sections { position: fixed; z-index: 35; left: max(16px, env(safe-area-inset-left)); bottom: max(24px, calc(env(safe-area-inset-bottom) + 16px)); display: inline-flex; align-items: center; gap: 8px; min-height: 48px; max-width: calc(100vw - 96px); padding: 10px 16px; border: 1px solid var(--accent); border-radius: 999px; background: var(--ink); color: var(--bg); font: inherit; font-size: 13px; box-shadow: 0 5px 20px #0002; cursor: pointer; }
+  #mobile-sections[hidden] { display: none; }
+  .briefing-letter footer { padding-bottom: max(88px, calc(env(safe-area-inset-bottom) + 80px)); }
+}
+@media print { #mobile-sections, #mobile-section-dialog { display: none; } }
 .briefing-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px 16px; margin: 0 0 16px; }
 #regenerate { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 8px 16px; border: 1px solid var(--line); border-radius: 999px; background: transparent; color: var(--muted); font: inherit; font-size: 12px; cursor: pointer; }
 #regenerate[hidden] { display: none; }

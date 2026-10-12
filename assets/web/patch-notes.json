@@ -1,6 +1,36 @@
 {
   "notes": [
     {
+      "version": "0.26.0", "date": "2026-10-12", "author": "GoodMorning agent",
+      "title_en": "Roomier mobile chat and quick section jumps", "title_zh": "更宽敞的移动聊天与便捷章节跳转",
+      "changes": [
+        {"category": "Added", "en": [
+          "Grow the message composer upward while typing, wrapping or pasting, up to five visible lines; longer drafts scroll internally. Shrink on deletion or a successful send and resize restored drafts without losing text.",
+          "Add a mobile Sections button with a touch-friendly bottom-sheet picker, current-section indication, native anchor navigation and close/Escape/outside-tap dismissal. Keep desktop navigation and the no-JavaScript anchor list."
+        ], "zh": [
+          "输入、自动换行或粘贴时，消息输入框向上扩展，最多同时显示五行，较长草稿在框内滚动；删除或成功发送后缩小，恢复草稿时重新调整高度且保留原文。",
+          "移动端新增章节按钮和适合触控的底部章节选择面板，显示当前章节，使用原生锚点跳转，可通过关闭按钮、Esc 或点按外部关闭；保留桌面导航及无 JavaScript 的锚点列表。"
+        ]},
+        {"category": "Changed", "en": [
+          "Let mobile chat fill the dynamic browser viewport and align its top with the browser at the page bottom, instead of leaving a half-height message area.",
+          "Move New conversation below Previous conversations on desktop and mobile."
+        ], "zh": [
+          "移动端聊天区域填满浏览器动态可视高度，页面滚到底部时顶部与浏览器对齐，不再仅提供半屏消息区域。",
+          "桌面和移动端的新对话按钮移至历史对话下方。"
+        ]},
+        {"category": "Fixed", "en": [
+          "Handle unreadable API responses with a translated draft-safe connection notice instead of exposing JSON.parse errors. Retry only the read-only history listing once, clear its notice after recovery, and never automatically replay sends or queue reads."
+        ], "zh": [
+          "API 返回无法读取的内容时显示已保留草稿的本地化连接提示，不再暴露 JSON.parse 错误；仅对只读历史列表重试一次，恢复后清除提示，绝不自动重发消息或重复读取队列。"
+        ]},
+        {"category": "Tests", "en": [
+          "Check five-line growth, viewport alignment, draft restoration, touch section jumps, dynamic sections, themes/languages, and synthetic malformed responses without model calls."
+        ], "zh": [
+          "不调用模型，验证五行扩展、视口对齐、草稿恢复、触控章节跳转、动态章节、多主题双语，以及模拟的异常响应。"
+        ]}
+      ]
+    },
+    {
       "version": "0.25.0", "date": "2026-10-12", "author": "GoodMorning agent",
       "title_en": "Native AI titles and a roomier chat", "title_zh": "原生 AI 标题与更宽敞的聊天界面",
       "changes": [
