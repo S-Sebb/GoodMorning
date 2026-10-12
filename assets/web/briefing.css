@@ -9,7 +9,7 @@ body { margin: 0; background: var(--bg); color: var(--ink); font-family: ui-sans
 .language-toolbar select, .language-toolbar button { font: inherit; min-height: 44px; padding: .4rem .65rem; border: 1px solid var(--line); border-radius: .6rem; background: var(--surface); color: var(--ink); }
 .language-toolbar button { cursor: pointer; }
 #language-feedback { font-size: .75rem; overflow-wrap: anywhere; }
-h1:lang(zh-CN) { letter-spacing: 0; font-family: system-ui,"Noto Sans CJK SC",sans-serif; }
+h1:lang(zh-CN), h1:lang(zh) { letter-spacing: 0; font-family: system-ui,"PingFang SC","Hiragino Sans GB","Microsoft YaHei","Noto Sans CJK SC","Source Han Sans SC",sans-serif; }
 #mode-guide { margin: .6rem 0 1rem; color: var(--muted); font-size: .85rem; }
 #mode-guide summary { cursor: pointer; }
 #request-language-note { color: var(--muted); font-size: .8rem; }
@@ -342,3 +342,16 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
 .account-tools { display: flex; justify-content: center; align-items: center; gap: 1.2rem; padding: 1.5rem; font-size: .85rem; }
 .account-tools button { font: inherit; color: inherit; background: transparent; border: 1px solid currentColor; padding: .45rem .8rem; border-radius: .6rem; cursor: pointer; }
 .account-tools button:hover { opacity: .7; }
+/* Simplified Chinese typography: dense Han glyphs need a true CJK sans.
+   Georgia/Lora lack CJK glyphs, negative tracking crushes strokes together,
+   synthetic bold/italics blur them. Use system CJK fonts, upright, no
+   negative tracking, and a 600 weight that exists as a true bold face. */
+:lang(zh) { --cn-sans: system-ui,"PingFang SC","Hiragino Sans GB","Microsoft YaHei","Noto Sans CJK SC","Source Han Sans SC","WenQuanYi Micro Hei",sans-serif; }
+body:lang(zh) { font-family: var(--cn-sans); }
+h1:lang(zh), .briefing-letter h1:lang(zh) { font-family: var(--cn-sans); letter-spacing: 0; font-weight: 600; line-height: 1.3; }
+h2:lang(zh), .preview-title:lang(zh) { font-family: var(--cn-sans); letter-spacing: 0; font-weight: 600; }
+.news-copy h4:lang(zh), .event-copy h4:lang(zh), .task-title:lang(zh), .agenda-day:lang(zh) { font-family: var(--cn-sans); letter-spacing: 0; font-weight: 600; line-height: 1.65; }
+.section-body strong:lang(zh) { font-weight: 600; }
+.subtitle:lang(zh), .briefing-closing:lang(zh), .section-body > p.section-takeaway:lang(zh), .news .section-body > p:lang(zh), .weather .section-body > p:lang(zh), .weather-detailed .section-body > p:lang(zh) { font-family: var(--cn-sans); font-style: normal; letter-spacing: 0; }
+.eyebrow:lang(zh), h3:lang(zh), .weather-label h3:lang(zh) { letter-spacing: .1em; }
+.news-summary:lang(zh), .section-body:lang(zh) { line-height: 1.9; }

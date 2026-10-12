@@ -77,7 +77,7 @@ def news_visual(url, source_label, category, images):
         if cached.get('small_src'):
             desktop_width = max(108, round(120 * cached['width'] / cached['height']))
             mobile_floor = round(136 * cached['width'] / cached['height'])
-            responsive = f' srcset="{html.escape(cached["small_src"], quote=True)} {cached["small_width"]}w, /{html.escape(cached["src"], quote=True)} {cached["width"]}w" sizes="(max-width: 700px) max(calc(100vw - 196px), {mobile_floor}px), {desktop_width}px"'
+            responsive = f' srcset="{html.escape(cached["small_src"], quote=True)} {cached["small_width"]}w, /{html.escape(cached["src"].lstrip("/"), quote=True)} {cached["width"]}w" sizes="(max-width: 700px) max(calc(100vw - 196px), {mobile_floor}px), {desktop_width}px"'
         alt=cached.get('alt') or ui.text('Publisher article preview')
         caption=ui.ui('Publisher preview · {publisher}',publisher=html.unescape(source_label))
         picture = f'<figure class="news-visual"><img src="{html.escape(cached["src"], quote=True)}"{responsive} alt="{html.escape(alt, quote=True)}" width="{cached.get("width", 640)}" height="{cached.get("height", 480)}" loading="lazy" decoding="async"><figcaption>{caption}</figcaption></figure>'
