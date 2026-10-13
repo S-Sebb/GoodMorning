@@ -103,6 +103,72 @@ let requestLanguage = null;
 let secretaryName = typeof chatConfig.secretary_name === 'string' && chatConfig.secretary_name ? chatConfig.secretary_name : null;
 const drafts = new Map();
 const renderedMessages = new WeakMap();
+const specialLabels = {question: 'Question for you', answer: 'Your answer', permission: 'Your permission'};
+const actionTargets = {task: 'Task', event: 'Event', draft: 'Event draft', idea: 'Idea', record: 'Record'};
+const actionLabels = {added: '{target} added', updated: '{target} updated', cancelled: '{target} cancelled',
+  completed: '{target} completed', approved: '{target} approved', declined: '{target} declined'};
+
+// Original rounded line icons: inherit the palette, never fetch external images.
+function specialIcon(kind, action = {}) {
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  for (const [key, value] of Object.entries({viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor',
+    'stroke-width': '1.7', 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'aria-hidden': 'true', focusable: 'false'})) svg.setAttribute(key, value);
+  const shapes = {
+    question: ['M19 15a4 4 0 0 1-4 4H9l-5 2v-6a4 4 0 0 1-1-3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4v5',
+      'M9 8a3 3 0 0 1 6 0c0 2-3 2-3 4', 'M12 15h.01'],
+    answer: ['M20 14a5 5 0 0 1-5 5H9l-5 2V9a5 5 0 0 1 5-5h7a4 4 0 0 1 4 4', 'm9 11 2 2 5-5'],
+    permission: ['m12 3 8 3v6c0 5-8 9-8 9S4 17 4 12V6l8-3Z', 'M12 8v4', 'M12 16h.01']
+  };
+  const bases = {
+    event: 'M4 7h16M8 3v4m8-4v4M11 21H6a3 3 0 0 1-3-3V7a3 3 0 0 1 3-3h12a3 3 0 0 1 3 3v4M7 11h2m-2 4h2',
+    draft: 'M4 7h16M8 3v4m8-4v4M11 21H6a3 3 0 0 1-3-3V7a3 3 0 0 1 3-3h12a3 3 0 0 1 3 3v4M8 12h.01',
+    idea: 'M9 18H8v-2c-3-2-4-7-1-10s7-3 10 0c2 2 2 4 1 6M9 21h2M8 3 7 2m13 2 1-1',
+    task: 'M11 21H6a3 3 0 0 1-3-3V6a3 3 0 0 1 3-3h12a3 3 0 0 1 3 3v5M7 8l1 1 2-2m3 1h4M7 13h3',
+    record: 'M11 21H6a3 3 0 0 1-3-3V6a3 3 0 0 1 3-3h12a3 3 0 0 1 3 3v5M7 8h10M7 13h3'
+  };
+  const marks = {added: 'M18 14v8m-4-4h8', updated: 'm14 19 6-6 2 2-6 6-3 1 1-3Z',
+    cancelled: 'M14 18h8', completed: 'm14 18 3 3 5-6', approved: 'm14 18 3 3 5-6', declined: 'm15 15 6 6m0-6-6 6'};
+  for (const d of shapes[kind] || [bases[action.target] || bases.record, marks[action.operation] || marks.updated]) {
+    const path = document.createElementNS(svg.namespaceURI, 'path'); path.setAttribute('d', d); svg.append(path);
+  }
+  return svg;
+}
+
+function specialBadge(kind, action = {}) {
+  const badge = make('div', '', 'chat-special-label');
+  const icon = make('span', '', 'chat-special-icon'); icon.append(specialIcon(kind, action));
+  const label = make('span');
+  if (kind === 'action') {
+    badge.dataset.target = action.target;
+    badge.dataset.operation = action.operation;
+    const target = chatT(actionTargets[action.target] || 'Record');
+    label.textContent = chatT(actionLabels[action.operation] || '{target} updated', {target});
+  } else { label.dataset.uiText = specialLabels[kind]; label.textContent = chatT(specialLabels[kind]); }
+  if (typeof goodmorningLanguage !== 'undefined') label.lang = goodmorningLanguage;
+  badge.append(icon, label);
+  return badge;
+}
+
+function enterMessage(node, animate) {
+  if (!animate || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  node.classList.add('message-enter');
+  node.addEventListener('animationend', event => {
+    if (event.target === node) node.classList.remove('message-enter');
+  });
+}
+
+function specialForm(info, category, reply, refreshed, language, replay, existing) {
+  const key = category + ':' + info.id;
+  const signature = JSON.stringify([info, language]);
+  const previous = existing.get(key);
+  if (previous?.dataset.signature === signature) return previous;
+  const form = category === 'question' ? secretaryQuestion(info, reply, refreshed, language)
+    : secretaryPermission(info, reply, refreshed, language);
+  form.dataset.input = key; form.dataset.signature = signature; form.dataset.special = category;
+  form.prepend(specialBadge(category));
+  enterMessage(form, !replay && !previous);
+  return form;
+}
 const historyPanel = document.querySelector('#conversation-history');
 const historyPreference = 'goodmorning.chat.history';
 let historyStored = null;
@@ -427,6 +493,7 @@ function newConversation(next = chatConfig.defaultMode) {
   followNextUpdate = true;
   document.querySelector('#chat-messages').replaceChildren();
   document.querySelector('#chat-questions').replaceChildren();
+  document.querySelector('#chat-action-notice').hidden = true;
   document.querySelector('#chat-empty').hidden = false;
   chatScroll.scrollTop = 0;
   latestButton.hidden = true;
@@ -479,6 +546,7 @@ function openConversation(id, {push = true} = {}) {
   followNextUpdate = true;
   document.querySelector('#chat-messages').replaceChildren();
   document.querySelector('#chat-questions').replaceChildren();
+  document.querySelector('#chat-action-notice').hidden = true;
   document.querySelector('#chat-empty').hidden = false;
   chatScroll.scrollTop = 0;
   latestButton.hidden = true;
@@ -602,22 +670,25 @@ function showMessages(messages) {
     if (!bubble) {
       bubble = make('section', '', 'chat-message ' + item.role + (item.kind ? ' ' + item.kind : ''));
       bubble.dataset.message = item.id;
+      const special = item.kind === 'action' || Object.hasOwn(specialLabels, item.kind) ? item.kind : null;
+      if (special) {
+        bubble.dataset.special = special;
+        if (special === 'action') bubble.dataset.operation = item.action?.operation || 'updated';
+        bubble.append(specialBadge(special, item.action));
+      }
       if (item.language) bubble.lang = item.language;
       const authorName = item.role === 'user' ? chatT('You') : (secretaryName || chatT('Your secretary'));
       const author=make('p',authorName,'message-author');
       author.dataset.uiText=item.role==='user'?'You':'Your secretary';
       if (item.role !== 'user' && secretaryName) author.dataset.secretaryName = secretaryName;
       bubble.append(author, make('div', '', 'message-text'), make('div', '', 'message-attachments'));
-      if (item.role === 'assistant') {
+      if (item.role === 'assistant' && item.kind !== 'action') {
         const portrait = make('span', '', 'chat-portrait reply-portrait');
         portrait.setAttribute('aria-hidden', 'true');
         const image = make('img'); image.alt = '';
         portrait.append(image); bubble.append(portrait);
       }
-      if (animateMessages && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
-        bubble.classList.add('message-enter');
-        bubble.addEventListener('animationend', () => bubble.classList.remove('message-enter'), {once: true});
-      }
+      enterMessage(bubble, animateMessages);
       log.append(bubble);
     } else if (item.role !== 'user') {
       const author = bubble.querySelector('.message-author');
@@ -735,6 +806,9 @@ async function pollChat() {
     statusLabel = result.label;
     document.querySelector('#chat-status').classList.remove('is-queued');
     const messagesChanged = result.messages ? showMessages(result.messages) : false;
+    const notice = document.querySelector('#chat-action-notice');
+    notice.hidden = !result.action_history_unavailable;
+    notice.textContent = chatT(notice.dataset.uiText);
     if (result.reservation_required === false) {
       const waiting = await chatAPI('/api/queue');
       if (version !== revision) return;
@@ -760,9 +834,11 @@ async function pollChat() {
         }
         return receipt;
       };
-      document.querySelector('#chat-questions').replaceChildren(
-        ...result.forms.map(info => secretaryQuestion(info, reply, refreshed, result.language)),
-        ...result.permissions.map(info => secretaryPermission(info, reply, refreshed, result.language)));
+      const questions = document.querySelector('#chat-questions');
+      const existing = new Map([...questions.children].map(node => [node.dataset.input, node]));
+      questions.replaceChildren(
+        ...result.forms.map(info => specialForm(info, 'question', reply, refreshed, result.language, replay, existing)),
+        ...result.permissions.map(info => specialForm(info, 'permission', reply, refreshed, result.language, replay, existing)));
       formSignature = signature;
     }
     showMode();
@@ -857,6 +933,15 @@ document.addEventListener('visibilitychange', () => {
   else { scheduleChatTheme(); pollVisible(); focusComposer(); }
 });
 document.addEventListener('website:language', () => {
+  document.querySelectorAll('.chat-special-label[data-target]').forEach(badge => {
+    const target = chatT(actionTargets[badge.dataset.target] || 'Record');
+    badge.lastElementChild.textContent = chatT(actionLabels[badge.dataset.operation] || '{target} updated', {target});
+    if (typeof goodmorningLanguage !== 'undefined') badge.lastElementChild.lang = goodmorningLanguage;
+  });
+  document.querySelectorAll('.chat-special-label [data-ui-text]').forEach(label => {
+    label.textContent = chatT(label.dataset.uiText);
+    if (typeof goodmorningLanguage !== 'undefined') label.lang = goodmorningLanguage;
+  });
   imageClose.setAttribute('aria-label', chatT('Close image'));
   imageDialog.setAttribute('aria-label', chatT('Image preview'));
   document.querySelectorAll('.attachment-preview').forEach(button => {
