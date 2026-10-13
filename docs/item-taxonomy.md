@@ -94,13 +94,15 @@ heading. Use `scripts/goodmorning.py` with the selected absolute runtime.
     actual outcomes and previews agreed work. Evening completion choices cover
     today's planned occurrences plus still-open tasks in today's saved morning briefing.
     Group browser completion choices by current canonical project; unassigned
-    work belongs under “Other tasks” and “None yet” stays outside the groups.
+    work belongs under “Other tasks”, after every named project. “None of these
+    today” stays outside the groups. Use clear, friendly wording and place the
+    progress text box above the mutually exclusive “Nothing else to add” choice.
     Selecting an undated or differently dated morning task reports actual completion
     today without assigning a workday or changing recurring rules. Archived titles,
     revisions and statuses never override current task state. Unchecked choices stay
     open, not assumed failed or overdue. If there are no choices, ask about actual
-    accomplishments/progress with a text answer or “No updates today”; omit the
-    completion checkbox question and “None yet.”
+    accomplishments/progress with a text answer or “Nothing extra to add today”;
+    omit the completion checkbox question and “None of these today.”
    Reuse browser feedback. Never infer progress or roll work into tomorrow.
    Say "still open on its original workday", not "carries/rolls over", unless a
    new date was explicitly agreed. Say "no other saved appointments", not a
