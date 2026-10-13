@@ -131,7 +131,7 @@ the GoodMorning root; specialized guides load only for the operation needed.
   Follow the pending project-update workflow below; silence is never confirmation.
 - TODO capture is record-only by default. Follow `docs/workflows/todo.md` for
   entries with `kind: "todo"`, including follow-ups in other workflows. Save exact
-   clear wording/details immediately; do not unnecessarily clarify, plan, research, execute, delegate,
+   raw wording plus a revised clear title and useful grounded detail immediately; do not unnecessarily clarify, plan, research, execute, delegate,
   or offer calendar changes unless separately requested. Supplied details alone
   do not request discussion. Ask clarification questions only after `Clarify` or
   an equivalent explicit request; give detailed explanations only when requested.

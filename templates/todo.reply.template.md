@@ -18,7 +18,8 @@ or separately authorized changes, except missing-input/setup/credential safety.
 {capture_status}
 ```
 
-`capture_status`: a concise confirmation identifying the saved TODO, or not saved
-with the reason and necessary next step. For example: “Saved your TODO: buy milk.”
+`capture_status`: a concise confirmation identifying the saved TODO with its revised
+clear title, or not saved
+with the reason and necessary next step. For example: “Saved your TODO: Buy milk for the weekend shop.”
 Adapt the reply for an explicit discussion request or a material failure; do not
 append routine bookkeeping, a mandatory question, or an unsolicited explanation.

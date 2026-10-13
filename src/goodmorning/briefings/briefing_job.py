@@ -108,6 +108,9 @@ def next_step(runtime, identifier, session, context, checkpoint):
         instruction += (' Follow docs/item-taxonomy.md. Use source-linked events/actions/decisions from code-owned rows. '
                         'Do not create work from a briefing, move deadlines into appointments, assign dates, infer completion, '
                         'or question every idea. Schedule owns events; Tasks owns work; Reminders owns due decisions. '
+                        'For Tasks: first read the section rows and polish materially vague titles/details with '
+                        'revision-checked task --update (title/detail only, same meaning, no scheduling change), then reread '
+                        'and pack the exact updated rows so cards read as clear imperative actions with useful detail. '
                         'Follow next_offset for remaining pages and retain material warnings. This is presentation, not execution consent.')
     return {'action':'publish','command':shlex.join(command + ['publish']), 'position':position,
             'section':[tag,title], 'read':reads,

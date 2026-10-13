@@ -25,17 +25,28 @@ not repeated cards or news facts. Use `""` for note when only overriding title.
 `task --briefing gm|gn --date DATE` returns normalized rows and ready-made `blocks`.
 Copy nonempty blocks; follow each returned `next_offset` with the same date/edition.
 Add grounded explanations without changing source identity, revision, date/status.
-Secretary review is required before packing: group, clarify and warm the prose
-so the page reads clear, informative, cute and comfortable, never a raw dump.
+Secretary review is required before packing: polish vague task copy, then group,
+clarify and warm the prose so the page reads clear, informative, cute and
+comfortable, never a raw dump. For Tasks, first read the section rows; where a
+title/detail is materially vague, update the canonical row with revision-checked
+`task --update` (title/detail only, same meaning, no scheduling change), then reread
+and pack the exact updated rows. Details may additionally be lightly clarified for
+display (they are not part of source validation) but must never repeat the title or
+restate project/due text code already shows.
 
 - `["actions",[[task_id,revision,occurrence_id,date,status,title,detail],...]]`:
   only in Tasks or Today. Empty occurrence/date means no agreed workday. Date is
   ISO `YYYY-MM-DD`; status is open, partial, blocked or user-confirmed done.
   Code groups cards by workday, then by project, lifting a shared due target to
   the project heading. Keep source order inside each project so relevance stays
-  deterministic. Titles/dates/status/revisions must match code rows exactly;
+  deterministic. After any wording-polish updates, titles/dates/status/revisions must
+  match the reread code rows exactly;
   details may be clarified for display (they are not part of source validation)
   but must never repeat the title or restate project/due text code already shows.
+  Titles must be imperative, specific, free of filler openers or trailing periods,
+  and free of project prefixes (the project heading already shows the project).
+  Leave detail empty when no grounded why/state exists. Material vagueness means a
+  missing object, filler opener or `etc.` fog — not mere punctuation.
   Add a short warm section note naming the top 1–3 project groups and the next
   useful step (for example which group to pick today); do not repeat every card.
 - `["events",[[event_or_draft_id,revision,date,time,title,place,preparation],...]]`:
