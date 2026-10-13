@@ -1,6 +1,24 @@
 {
   "notes": [
     {
+      "version": "0.30.5", "date": "2026-10-13", "author": "GoodMorning agent",
+      "title_en": "Keep login assets available during connection bursts", "title_zh": "修复连接突发时登录资源加载失败",
+      "changes": [
+        {"category": "Fixed", "en": [
+          "Increase the gateway's bounded connection backlog so ordinary browser asset bursts do not fail with HTTP 502.",
+          "Wait for an available worker instead of resetting connections, keeping the 16-worker cap and existing authentication and login rate limits. Sustained overload returns HTTP 503 without dispatching the request."
+        ], "zh": [
+          "增大网关的有界连接等待队列，避免浏览器正常的资源请求突发导致 HTTP 502。",
+          "等待空闲工作线程而非重置连接，保留 16 个工作线程的上限、身份验证和现有登录限流。持续过载时返回 HTTP 503，不执行该请求。"
+        ]},
+        {"category": "Tests", "en": [
+          "Verify connection bursts, queued assets at full worker capacity and explicit overload responses using synthetic Unix sockets without accounts or model calls."
+        ], "zh": [
+          "使用合成 Unix 套接字且不访问账户或调用模型，验证连接突发、工作线程满载时的资源等待，以及明确的过载响应。"
+        ]}
+      ]
+    },
+    {
       "version": "0.30.4", "date": "2026-10-13", "author": "GoodMorning agent",
       "title_en": "Keep large secretary transcripts connected", "title_zh": "修复大型秘书对话的连接与排队",
       "changes": [

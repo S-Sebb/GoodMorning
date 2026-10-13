@@ -76,6 +76,13 @@ duplicates. A five-second background check also advances work without browser
 traffic. This is a bounded single-agent pilot, not a tested multi-agent load
 capacity claim.
 
+The Unix gateway listener keeps a 64-connection backlog for simultaneous browser
+assets while retaining its 16-worker cap. An accepted connection waits at most
+20 seconds for a worker; sustained overload receives a non-cacheable HTTP 503
+without dispatch. This connection queue is separate from the durable secretary
+work queue. Authentication, request-size checks and NGINX login rate limits are
+unchanged; no mutation is replayed automatically on overload.
+
 Disable access/body logs and disk proxy buffering. Private responses/media use
 `no-store`; only public fingerprinted assets cache durably. Credentials never enter
 URLs, browser storage, command arguments or report output. Services use no core

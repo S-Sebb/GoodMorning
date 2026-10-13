@@ -975,13 +975,25 @@ def handler_for(gateway):
 
 class Server(socketserver.ThreadingMixIn,socketserver.UnixStreamServer):
     daemon_threads=True
+    # NGINX opens one upstream connection per concurrent browser asset request.
+    # Keep a bounded backlog without creating more account-processing workers.
+    request_queue_size=64
+    request_wait_seconds=20
     def __init__(self,*args):
         self.slots=threading.BoundedSemaphore(16)
         super().__init__(*args)
 
     def process_request(self,request,address):
-        if not self.slots.acquire(blocking=False):
-            request.close()
+        if not self.slots.acquire(timeout=self.request_wait_seconds):
+            data=json.dumps({'error':BACKEND_UNAVAILABLE},separators=(',',':')).encode()
+            try:
+                request.sendall(b'HTTP/1.1 503 Service Unavailable\r\nContent-Type: application/json\r\n'
+                    b'Cache-Control: no-store\r\nRetry-After: 1\r\nConnection: close\r\nContent-Length: '+
+                    str(len(data)).encode()+b'\r\n\r\n'+data)
+            except OSError:
+                pass  # A disconnected peer must not stop the listener.
+            finally:
+                self.shutdown_request(request)
             return
         try:
             super().process_request(request,address)
