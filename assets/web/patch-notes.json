@@ -1,6 +1,31 @@
 {
   "notes": [
     {
+      "version": "0.32.9", "date": "2026-10-13", "author": "GoodMorning agent",
+      "title_en": "Clearer secretary questions and saved changes", "title_zh": "秘书提问与保存结果更清晰",
+      "changes": [
+        {"category": "Added", "en": [
+          "Give questions, accepted answers and permission requests unified rounded icons, visible labels and gentle highlighted backgrounds across all four color schemes.",
+          "Show confirmed task, idea, record, event-draft and calendar changes as compact cards with distinct added, updated, cancelled, completed, approved and declined treatments; read existing session-owned audit receipts without exposing commands or private tool output.",
+          "Add short, one-time entrance and icon animations for newly created blocks; saved history and unchanged polling do not replay them, and reduced-motion preferences disable them."
+        ], "zh": [
+          "提问、已提交的回答与授权请求统一使用圆润图标、明确标签和柔和底色，适配全部四种配色。",
+          "将已确认的待办、灵感、记录、日程草稿与日历变更显示为紧凑卡片，清楚区分添加、更新、取消、完成、确认与拒绝；只读取当前对话所属会话的已有保存记录，不展示命令或工具内部输出。",
+          "新出现的内容带有短暂、仅播放一次的入场与图标动画；打开历史对话或重复刷新不会重播，减少动态效果设置会禁用动画。"
+        ]},
+        {"category": "Fixed", "en": [
+          "Keep typed answers when an unrelated permission request arrives, keep repeated identical replies in their own turns, and update interface labels locally when the website language changes."
+        ], "zh": [
+          "收到无关授权请求时保留已填写的回答；相同文字的重复回复仍归属于各自轮次；切换网站语言时，界面标签即时在本地更新。"
+        ]},
+        {"category": "Tests", "en": [
+          "Check committed receipts, retries, session isolation and bounded history with synthetic records; verify English and Chinese, desktop and phone layouts, readable contrast, literal unsafe text and one-shot animations without model calls."
+        ], "zh": [
+          "用合成记录验证保存结果、重试、会话隔离与有界历史；不调用模型，检查中英界面、桌面与手机布局、文字对比度、不安全文本的字面显示及一次性动画。"
+        ]}
+      ]
+    },
+    {
       "version": "0.32.8", "date": "2026-10-14", "author": "GoodMorning agent",
       "title_en": "Grouped tasks and calmer reminders", "title_zh": "待办按项目分组，提醒更清爽",
       "changes": [
