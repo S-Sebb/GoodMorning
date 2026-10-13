@@ -1,6 +1,6 @@
 ---
 name: gm
-description: Morning plan with Schedule, Tasks, Needs attention, weather and sourced news.
+description: Morning plan with weather, sourced news, Schedule, Tasks and Reminders in fixed order.
 ---
 
 # Morning briefing
@@ -9,33 +9,34 @@ Read `docs/core-rules.md`, `docs/item-taxonomy.md`, `docs/briefing-format.md` an
 `docs/reply-voice.md`. Browser jobs also read `docs/browser-generation.md`.
 Run `python scripts/goodmorning.py` from the package root with selected absolute
 runtime/cache paths. Keep the current session/model and use the confirmed language.
+Fixed section order is Weather, News, Schedule, Tasks, Reminders. Do not reorder, add or remove sections.
 
 1. Browser jobs start with `job --secretary-dir RUNTIME --job JOB prepare`, then
-   immediately init; use saved decisions/date/context. Local invocations use
+   immediately init using the supplied default plan unchanged; use saved decisions/date/context. Local invocations use
    `workflow --prepare gm` once. Handle setup, migration, duplicate/missed-edition
    decisions before fetching. Duplicate editions identify the original and stop.
-2. Publish Schedule from the normalized approved event/draft rows. Morning covers
-   today and the next two days. Unknown-time confirmed appointments stay TBC;
-   tentative proposals and unseen imports are not attendance commitments. Surface
-   pending changes and material availability failures, not healthy bookkeeping.
-3. Publish Tasks from code-owned rows: agreed/recurring work, deadline attention,
-   still-open work and selected undated actions. Project and optional labels are
-   attributes. Preserve dates, details, source IDs and revisions; follow pages.
-   Do not promote ideas, copy project Markdown into new tasks or assign a workday
-   merely by showing a task. No appointments does not establish a free day.
-4. Needs attention contains due decisions/reviews. Ask only missing material facts
-   or permissions affecting today's useful/safe plan. Do not interview every task,
-   invent clarification work from clear ideas or re-ask saved answers. Skip an
-   empty section; pending optional decisions do not block unrelated work.
-5. Weather: fetch once with qualified city and explicit profile/cache paths.
+2. Weather: fetch once with qualified city and explicit profile/cache paths.
    Order temperature, precipitation/advice, applicable extreme warning, AQI/health.
    Retain material stale/unavailable data. Historical editions never use today's
    weather as historical fact.
-6. News: follow `docs/news-delivery.md`. Default is yesterday in the saved timezone,
+3. News: follow `docs/news-delivery.md`. Default is yesterday in the saved timezone,
    per confirmed country. Review actual candidates and retain every selected story,
    citation and material coverage gap. Latest collection requires saved opt-in or
    explicit permission and a separate dated heading. A snapshot is not delivery;
    acknowledge only after actual visible delivery is verified.
+4. Publish Schedule from the normalized approved event/draft rows. Morning covers
+   today and the next two days. Unknown-time confirmed appointments stay TBC;
+   tentative proposals and unseen imports are not attendance commitments. Surface
+   pending changes and material availability failures, not healthy bookkeeping.
+5. Publish Tasks from code-owned rows: agreed/recurring work, deadline attention,
+   still-open work and selected undated actions. Project and optional labels are
+   attributes. Preserve dates, details, source IDs and revisions; follow pages.
+   Do not promote ideas, copy project Markdown into new tasks or assign a workday
+   merely by showing a task. No appointments does not establish a free day.
+6. Reminders contains due decisions/reviews. Ask only missing material facts
+   or permissions affecting today's useful/safe plan. Do not interview every task,
+   invent clarification work from clear ideas or re-ask saved answers. Skip an
+   empty section; pending optional decisions do not block unrelated work.
 7. Browser jobs publish one complete next section and finish through `job`. Local
    saves use native v2 JSON and `state --mark-gm` with the actual session/date.
    Neither path schedules or creates tasks from the presentation. Return the

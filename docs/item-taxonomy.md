@@ -81,8 +81,8 @@ heading. Use `scripts/goodmorning.py` with the selected absolute runtime.
 8. Code owns placement. `task --briefing gm|gn --date PINNED_DATE` returns normalized
    items and ready-to-use source-linked `blocks`; omit empty blocks. Follow
    `next_offset` with the same date/edition and retain counts/material warnings.
-   **Schedule** owns events; **Tasks** owns project/personal actions; **Needs
-   attention** owns due reviews and real unresolved decisions. Preserve source
+   **Schedule** owns events; **Tasks** owns project/personal actions; **Reminders**
+   owns due reviews and real unresolved decisions. Preserve source
    IDs/revisions/titles/dates/status. One actionable card per occurrence.
    Browser recipes use `--section schedule|tasks|attention|today`: return only that
    section's rows, `block`, counts and warnings, avoiding repeated whole-plan reads.

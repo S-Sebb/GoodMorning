@@ -60,7 +60,7 @@ def next_step(runtime, identifier, session, context, checkpoint):
     """One compact recipe; no speculative flags or whole-briefing fetching."""
     command = ['python', 'scripts/goodmorning.py', 'job', '--secretary-dir', str(runtime), '--job', identifier, '--session', session]
     if not checkpoint:
-        instruction = 'Initialize now, before any provider or additional record reads. Translate plan titles if needed.'
+        instruction = 'Initialize now, before any provider or additional record reads. Use the supplied default plan unchanged; do not reorder, add or remove sections. Translate plan titles only if needed for the pinned language, preserving order.'
         if context.get('regenerating'):
             instruction += (' This is an explicitly authorized replacement, not a duplicate run. Reuse saved feedback and current records; '
                             'do not replay daily, inbox, project or calendar mutations, or renew earlier execution consent. '
@@ -107,7 +107,7 @@ def next_step(runtime, identifier, session, context, checkpoint):
     if context.get('document_version') == 2 and tag in ('schedule', 'tasks', 'attention', 'today'):
         instruction += (' Follow docs/item-taxonomy.md. Use source-linked events/actions/decisions from code-owned rows. '
                         'Do not create work from a briefing, move deadlines into appointments, assign dates, infer completion, '
-                        'or question every idea. Schedule owns events; Tasks owns work; Needs attention owns due decisions. '
+                        'or question every idea. Schedule owns events; Tasks owns work; Reminders owns due decisions. '
                         'Follow next_offset for remaining pages and retain material warnings. This is presentation, not execution consent.')
     return {'action':'publish','command':shlex.join(command + ['publish']), 'position':position,
             'section':[tag,title], 'read':reads,
@@ -165,7 +165,13 @@ def act(runtime, identifier, session, action, payload=None):
             selected=context.get('website_language','en')
             if 'lang' in payload and payload['lang']!=selected:raise ValueError('Use this job’s pinned website language')
             document = {'v': context.get('document_version', 1), 'greeting': payload['greeting'], 'opening': payload['opening'], 'sections': [],'lang':selected}
-            plan = payload.get('plan', default_plan(context))
+            expected = default_plan(context)
+            if context.get('document_version') == 2 and checkpoint is None:
+                if 'plan' in payload and payload['plan'] != expected:
+                    raise ValueError('Briefing plan order is fixed; use the default plan unchanged (gm Weather, News, Schedule, Tasks, Reminders; gn Today, Schedule, Tasks, Reminders)')
+                plan = expected
+            else:
+                plan = payload.get('plan', expected)
             if checkpoint:
                 if checkpoint['plan'] != plan or {k:v for k,v in checkpoint['document'].items() if k not in ('sections','closing')} != {k:v for k,v in document.items() if k != 'sections'}:
                     raise ValueError('An existing preview cannot be reinitialized differently')

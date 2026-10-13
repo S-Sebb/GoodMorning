@@ -1,6 +1,22 @@
 {
   "notes": [
     {
+      "version": "0.32.6", "date": "2026-10-13", "author": "GoodMorning agent",
+      "title_en": "Fixed morning briefing order and Reminders name", "title_zh": "修正早报顺序并改用提醒",
+      "changes": [
+        {"category": "Fixed", "en": [
+          "Fix the live morning briefing order to Weather, News, Schedule, Tasks, then Reminders; the briefing plan is now fixed and the secretary cannot reorder, add or remove sections."
+        ], "zh": [
+          "修正线上早报顺序为天气、新闻、日程、待办、提醒；简报计划固定，秘书不能调整顺序、增减章节。"
+        ]},
+        {"category": "Changed", "en": [
+          "Rename Needs attention to Reminders, keeping the same section key and behavior."
+        ], "zh": [
+          "将需要关注改名为提醒，内部标识与行为不变。"
+        ]}
+      ]
+    },
+    {
       "version": "0.32.5", "date": "2026-10-13", "author": "GoodMorning agent",
       "title_en": "Warmer Simplified Chinese website copy", "title_zh": "更温暖自然的简体中文界面文案",
       "changes": [

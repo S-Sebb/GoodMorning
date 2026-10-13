@@ -198,7 +198,7 @@ the GoodMorning root; specialized guides load only for the operation needed.
   needs these essentials, not its examples.
 - Weather order: temperature, precipitation, applicable extreme warning, then AQI.
    Calendar: chronological timetable with date/time/timezone, place and preparation.
-   Schedule owns events, Tasks owns personal/project work and Needs attention owns
+   Schedule owns events, Tasks owns personal/project work and Reminders owns
    due reviews/decisions under `docs/item-taxonomy.md`. Workday is not deadline;
    no invented time slots, completion or rollover. SQLite owns task identity/state.
    Publication is not scheduling; daily history is not the current plan.
@@ -311,7 +311,7 @@ the GoodMorning root; specialized guides load only for the operation needed.
   Use revision-checked inbox
   updates; inbox counts are live and need no full rebuild. Unresolved writes remain pending too.
 - If the user does not answer, retain the note and questions across sessions.
-  Surface due questions in Needs attention; respect review dates, deferrals and
+  Surface due questions in Reminders; respect review dates, deferrals and
   answered questions. Unanswered optional decisions do not prevent summarizing
   confirmed progress. Do not create a daily task merely from a pending idea.
   Use compact inbox counts first, then filtered active summaries/current entries;

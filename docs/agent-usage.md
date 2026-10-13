@@ -15,7 +15,7 @@ needed; `docs/skill-rules.md` is an edge-case reference, not a default read.
 - Website editions use `docs/browser-generation.md`: `job prepare`, immediate
   `init`, one next section at a time through returned recipes, then `finish`.
   Reuse the pinned date and actual browser feedback; code owns cumulative JSON.
-- Schedule owns events, Tasks owns all work, Needs attention owns due decisions.
+- Schedule owns events, Tasks owns all work, Reminders owns due decisions.
   Evening Today reports actual outcomes; morning includes weather/sourced news.
   Showing/regenerating work never schedules, completes or executes it.
 - The Schedule tab reads approved events, confirmed TBC drafts and agreed dated

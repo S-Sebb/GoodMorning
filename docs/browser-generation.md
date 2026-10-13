@@ -79,8 +79,9 @@ backfill. No historical reconstruction through the generation button.
 
 Each success receipt supplies `next`: the exact command, position and only the
 next section's read recipes. Run `init` immediately after preparation, **before**
-weather/news/calendar collection or additional record reads. Use the default plan
-unless the confirmed language/window needs different titles. Do not invent flags;
+weather/news/calendar collection or additional record reads. Use the supplied
+default plan unchanged; do not reorder, add or remove sections. Only translated
+titles for the confirmed language/window may differ, preserving order. Do not invent flags;
 use receipt commands or a script's `--help`. Inbox filters use `--status pending`
 and bounded page receipts, not larger limits.
 
@@ -94,7 +95,8 @@ failures report line/column; schema failures report the field and accepted shape
 Repair only the new input. Never alter published sections to resolve a failure.
 
 1. `init`: `{"greeting":"…","opening":"…","lang":"en","plan":[["weather","Weather"],…]}`.
-   Language and plan are optional; code supplies the dated default plan. Plan titles must match eventual section titles, including
+   Language and plan are optional; code supplies the dated default plan. The plan order is fixed
+   and cannot be changed; a supplied plan must equal the default. Plan titles must match eventual section titles, including
    custom language and dated news windows. Greeting/opening cannot change later.
    Keep the opening suitable before facts are gathered; no speculative overview.
 2. Gather and author the **next section only**, then immediately `publish`:
@@ -122,11 +124,11 @@ python scripts/goodmorning.py job --secretary-dir RUNTIME --job JOB publish <<'J
 JSON
 ```
 
-Canonical order: gm Schedule, Tasks, Needs attention, Weather, yesterday's News
-and opted-in dated latest News. gn Today, Schedule, Tasks, Needs attention.
+Canonical order: gm Weather, yesterday's News and opted-in dated latest News, Schedule, Tasks, Reminders.
+gn Today, Schedule, Tasks, Reminders. The order is fixed; the model must not reorder, add or remove planned sections.
 Project/personal and optional/required are task labels, not competing sections.
-Use normalized rows/blocks from `task --briefing` and follow pages. Tasks and Needs
-attention can be skipped when empty. Do not promote project prose/ideas into new
+Use normalized rows/blocks from `task --briefing` and follow pages. Tasks and Reminders
+can be skipped when empty. Do not promote project prose/ideas into new
 actions, invent work/dates/completion or treat a presentation as execution consent.
 Review all selected news and retain citations before publishing its section.
 Do not use `--force`; check every receipt's exit/error/next. Failed/interrupted
@@ -142,7 +144,7 @@ not invent feelings, availability, deadlines or progress. No generic reassurance
 empty-queue bookkeeping, or commentary merely restating timetable rows. Distinguish
 free calendar slots from confirmed availability; use exact known times.
 Schedule contains events only, including confirmed TBC drafts. Tasks contains all
-actions with explicit workday/deadline labels; Needs attention contains due reviews
+actions with explicit workday/deadline labels; Reminders contains due reviews
 and real questions. No appointments does not mean free time. Do not assign a date
 to open work or re-ask clear ideas nightly. Follow `docs/item-taxonomy.md`.
 

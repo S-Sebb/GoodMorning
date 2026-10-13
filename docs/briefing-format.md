@@ -13,8 +13,8 @@ The filename supplies date/edition; do not repeat internal IDs in visible prose.
 
 Each section is `[type,blocks,note?,title?]`. Omit trailing optional fields.
 Types: `schedule`, `tasks`, `attention`, `today`, `weather`, `news`. Blocks are
-nonempty. Morning defaults to Schedule, Tasks, Needs attention, Weather, News;
-evening defaults to Today, Schedule, Tasks, Needs attention. Omit empty optional
+nonempty. Morning defaults to Weather, News, Schedule, Tasks, Reminders in that fixed order;
+evening defaults to Today, Schedule, Tasks, Reminders. Omit empty optional
 sections. A material failed retrieval is unavailable, not an empty/free day.
 Override section titles for the selected language or a different news window;
 published titles must match the saved browser plan. Notes are grounded takeaways,
@@ -32,8 +32,8 @@ Add grounded explanations without changing source identity, revision, date/statu
 - `["events",[[event_or_draft_id,revision,date,time,title,place,preparation],...]]`:
   only in Schedule. Code supplies approved events and confirmed TBC drafts;
   retain timezone in adjacent prose, actual dates and pending-change markers.
-- `["decisions",[[entry_draft_or_calendar_id,revision,title,detail],...]]`: only in Needs
-  attention. These are actual pending questions, unreviewed material or due reviews.
+- `["decisions",[[entry_draft_or_calendar_id,revision,title,detail],...]]`: only in Reminders.
+  These are actual pending questions, unreviewed material or due reviews.
 
 IDs/revisions are hidden data references, never visible titles. One actionable
 card per occurrence; Today may separately report its historical outcome. A task

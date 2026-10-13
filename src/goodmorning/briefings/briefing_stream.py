@@ -8,7 +8,7 @@ from . import briefing_document as native
 from goodmorning.runtime_files import atomic_text, runtime_lock
 
 DEFAULT_PLANS = {
-    'gm': [[tag, native.TITLES[tag]] for tag in ('schedule', 'tasks', 'attention', 'weather', 'news')],
+    'gm': [[tag, native.TITLES[tag]] for tag in ('weather', 'news', 'schedule', 'tasks', 'attention')],
     'gn': [[tag, native.TITLES[tag]] for tag in ('today', 'schedule', 'tasks', 'attention')],
 }
 LEGACY_PLANS = {

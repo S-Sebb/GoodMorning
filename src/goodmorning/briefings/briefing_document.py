@@ -13,7 +13,7 @@ MAX_BYTES = 150_000
 TITLES = {'weather': 'Weather', 'news': 'News', 'schedule': 'Schedule',
           'must-do': 'Project steps', 'nice-to-do': 'Optional project steps', 'reminders': 'Reminders',
           'today': 'Today', 'still-open': 'Still open', 'tomorrow': 'Tomorrow', 'notes': 'Notes',
-          'tasks': 'Tasks', 'attention': 'Needs attention'}
+          'tasks': 'Tasks', 'attention': 'Reminders'}
 WEATHER = {'temperature': ('Temperature', 'thermometer', 'temperature cool'),
            'precipitation': ('Precipitation', 'rain', 'precipitation'),
            'warning': ('Extreme warning', 'warning', 'other'), 'air': ('AQI', 'leaf', 'air')}
@@ -201,7 +201,7 @@ def validate(data, partial=False):
                 fail(path, 'source-linked blocks require native v2')
             if data['v'] == 2:
                 if section[0] in ('must-do', 'nice-to-do', 'reminders', 'still-open', 'tomorrow', 'notes'):
-                    fail(path, 'v2 uses Schedule, Tasks, Needs attention and Today review')
+                    fail(path, 'v2 uses Schedule, Tasks, Reminders and Today review')
                 owner = {'actions': ('tasks', 'today'), 'events': ('schedule',), 'decisions': ('attention',)}
                 if value[0] in ('tasks', 'flexible', 'agenda'):
                     fail(path, 'v2 actions/events require source-linked blocks')
