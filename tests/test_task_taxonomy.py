@@ -588,7 +588,7 @@ class TaxonomyTests(unittest.TestCase):
             answer(self.root, job, {'completed':[occurrence_id(task,DAY)], 'details':'No other updates'})
         self.assertEqual(self.tasks.show(task)['status'],'open')
 
-    def test_regeneration_with_reused_feedback_can_answer_only_a_missed_run_choice(self):
+    def test_regeneration_with_reused_feedback_does_not_ask_about_archive_gaps(self):
         (self.root/'daily').mkdir(exist_ok=True)
         (self.root/'daily'/'2026-10-12.md').write_text('# 2026-10-12\n- gn: yes (session ses_old)\n')
         app = BrowserApp(self.root, now=lambda: datetime(2026,10,13,12,tzinfo=timezone.utc), preflight=True)
@@ -596,10 +596,39 @@ class TaxonomyTests(unittest.TestCase):
         app.jobs[DAY+'.gn']=job; app.save_jobs()
         previous = {'feedback':{'completed':[], 'details':'No other updates', 'saved':True}}
         context = preflight(self.root,job,previous=previous)
-        self.assertEqual([f['key'] for f in context['form']['fields']],['continue'])
-        result = answer(self.root,job,{'continue':'today'})
-        self.assertEqual(result['feedback'],previous['feedback'])
+        self.assertIsNone(context['form'])
+        self.assertFalse(context['awaiting'])
+        self.assertEqual(context['feedback'],previous['feedback'])
         self.assertFalse((self.root/'daily'/f'{DAY}.md').exists())
+
+    def test_evening_options_keep_current_project_context_and_unassigned_group(self):
+        first=self.capture(task={'title':'Review results','project':'Atlas','planned_date':DAY})['task_id']
+        second=self.capture(task={'title':'Review results','project':'Paper','planned_date':DAY})['task_id']
+        other=self.capture(task={'title':'Personal work','planned_date':DAY})['task_id']
+        self.tasks.mutate(first,1,{'project':'Atlas revised'},'ses_test','project-rename',NOW)
+        (self.root/'daily').mkdir(exist_ok=True)
+        historical=self.root/'daily/2026-10-12.md'
+        historical.write_text('# 2026-10-12\n- gn: yes (session ses_old)\n')
+        context=preflight(self.root,{'id':'7'*32,'date':DAY,'kind':'gn','state':'preflight'})
+        fields={f['key']:f for f in context['form']['fields']}
+        self.assertEqual(set(fields),{'completed','details'})
+        options=fields['completed']['options']
+        self.assertNotIn('group',options[0])
+        self.assertEqual({o['value']:o['group'] for o in options[1:]},
+            {occurrence_id(first,DAY):'Atlas revised',occurrence_id(second,DAY):'Paper',occurrence_id(other,DAY):'Other tasks'})
+        self.assertEqual(historical.read_text(),'# 2026-10-12\n- gn: yes (session ses_old)\n')
+        result=answer(self.root,{'id':'7'*32,'date':DAY,'kind':'gn'},
+            {'completed':[occurrence_id(second,DAY)],'details':'No other updates'})
+        self.assertTrue(result['feedback']['saved'])
+        self.assertEqual(self.tasks.show(first)['status'],'open')
+        self.assertEqual(self.tasks.show(second)['status'],'done')
+
+    def test_unassigned_group_uses_website_language_without_translating_project_names(self):
+        self.capture(task={'title':'Task','planned_date':DAY})
+        self.capture(task={'title':'Project task','project':'Atlas','planned_date':DAY})
+        context=preflight(self.root,{'id':'6'*32,'date':DAY,'kind':'gn','state':'preflight','language':'zh-CN'})
+        options=next(f for f in context['form']['fields'] if f['key']=='completed')['options']
+        self.assertEqual([o.get('group') for o in options],[None,'其他任务','Atlas'])
 
     def test_section_recipe_returns_identical_sources_without_unrelated_payload(self):
         for n in range(9):

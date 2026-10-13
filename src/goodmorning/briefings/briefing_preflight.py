@@ -41,28 +41,25 @@ def initialize(runtime, job, previous=None):
                 if len(rows) > 200:
                     raise ValueError('Review tasks exceed the feedback limit; review before generation')
                 context['feedback_tasks'] = [{'id': r['occurrence_id'], 'task_id': r['id'], 'revision': r['revision'],
-                                             'text': r['title'], 'done': r['status'] == 'done',
+                                             'text': r['title'], 'project': r['project'], 'done': r['status'] == 'done',
                                              **({'actual': True} if r.get('actual') else {})} for r in rows]
         finally:
             inbox.close()
     fields = []
     if 'replacement' in job:
         context['regenerating'] = True
-    if previous and previous.get('past_missing_choice') == 'continue_today':
-        context.update(missed=[], missed_total=0, past_missing_choice='continue_today')
+    # Browser generation is today-only. Archive gaps never require a blocking decision.
+    context.update(missed=[], missed_total=0, past_missing_choice='continue_today')
     if previous and previous.get('feedback', {}).get('saved') is True:
         context['feedback'] = previous['feedback']
-    if context['missed_total']:
-        fields.append({'key':'continue','title':'Past missing editions','type':'string','required':True,
-                       'description':'Past missing editions stay read-only. Continue with today’s briefing?',
-                       'options':[{'value':'today','label':'Continue today'},{'value':'stop','label':'Stop for now'}]})
     if job['kind'] == 'gn' and not context.get('feedback'):
         tasks = [t for t in context.get('feedback_tasks', context['daily']['tasks']) if not t['done']]
         if tasks:
             fields.extend([
                 {'key':'completed','title':'What did you fully complete?','type':'multiselect','required':True,
                  'minItems':1,'description':'Choose completed tasks, or “None yet.” Partial work stays open.',
-                 'options':[{'value':'none','label':'None yet'}]+[{'value':t['id'],'label':t['text']} for t in tasks]},
+                 'options':[{'value':'none','label':'None yet'}]+[
+                     {'value':t['id'],'label':t['text'],'group':t.get('project') or ui.text('Other tasks',lang=selected)} for t in tasks]},
                 {'key':'details','title':'Partial, blocked, changed or extra work','type':'string','required':True,
                  'custom':True,'options':[{'value':'No other updates','label':'No other updates'}],
                  'description':'Give actual details, or choose “No other updates.”'}])

@@ -22,7 +22,17 @@ function secretaryQuestion(info, send, refreshed, language) {
     let custom;
     if (field.options) {
       const single = field.type !== 'multiselect' || field.maxItems === 1;
+      const optionGroups = new Map();
       for (const option of field.options) {
+        let target = group;
+        if (typeof option.group === 'string' && option.group) {
+          if (!optionGroups.has(option.group)) {
+            const section = make('fieldset', '', 'answer-project-group');
+            section.append(make('legend', option.group));
+            optionGroups.set(option.group, section); group.append(section);
+          }
+          target = optionGroups.get(option.group);
+        }
         const label = make('label', '', 'answer-option');
         const input = make('input');
         input.type = single ? 'radio' : 'checkbox';
@@ -30,7 +40,7 @@ function secretaryQuestion(info, send, refreshed, language) {
         input.checked = Array.isArray(field.default) ? field.default.includes(option.value) : field.default === option.value;
         label.append(input, make('span', option.label));
         if (option.description) label.append(make('small', option.description));
-        group.append(label); inputs.push(input);
+        target.append(label); inputs.push(input);
       }
       if (field.custom) {
         custom = make('input'); custom.type = 'text'; custom.placeholder = questionT('Or write your own answer');

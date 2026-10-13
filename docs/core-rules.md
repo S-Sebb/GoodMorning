@@ -63,10 +63,11 @@ and already published legacy previews remain preserved.
 - Profile-local briefing days begin at 04:00 (`briefing_day.py`); timestamps stay real.
   Historical gm/gn needs an explicitly chosen `--today` date;
   label reconstruction and never substitute today's weather. Duplicate gm/gn:
-  identify original session and stop, no fetch/mark. If older runs are missing,
-  ask whether to finish the oldest or continue today, once per invocation. A
-   browser job's saved missing-edition choice replaces that question; never repeat
-   it or reconstruct past editions. Saving is not delivery. Full replacement/`--force`
+   identify original session and stop, no fetch/mark. For local invocations with
+   older missing runs, ask whether to finish the oldest or continue today, once
+   per invocation. Browser jobs always continue today without a missing-edition
+   question; leave archive gaps untouched and never reconstruct past editions.
+   Saving is not delivery. Full replacement/`--force`
   requires an explicit request; ordinary amendments keep original snapshots.
   A browser preparation with `regenerating: true` is that explicit replacement
   authorization, not a duplicate run. Use only its owning job helper to save it;
