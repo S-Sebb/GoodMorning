@@ -202,10 +202,30 @@ class BrowserApp:
             text = text.replace(questions, '', 1)
             text = re.sub(r'<article\b', questions + '<article', text, count=1)
         links = []
-        for match in re.finditer(r'<a class="scroll-chunk" href="(#section-\d+)"([^>]*)>', text):
-            label = re.search(r'aria-label="\d+: ([^"]+)"', match[2])
-            if label:
-                links.append(f'<a href="{match[1]}" data-content>{label[1]}</a>')
+        layouts = {}
+        for section_match in re.finditer(r'<section id="section-(\d+)" class="briefing-section ([^"]+)"', text):
+            layouts[section_match.group(1)] = section_match.group(2).split()[0] if section_match.group(2).strip() else 'notes'
+        symbols = {'weather': 'sun', 'news': 'news', 'schedule': 'calendar',
+                   'must-do': 'check', 'nice-to-do': 'list', 'reminders': 'bell', 'tomorrow': 'calendar',
+                   'today': 'sun', 'still-open': 'list', 'tasks': 'check', 'attention': 'bell'}
+        from goodmorning.briefings.briefing_layout import icon as section_icon
+        for match in re.finditer(r'<a class="scroll-chunk" href="(#section-(\d+))"([^>]*)>', text):
+            label = re.search(r'aria-label="\d+: ([^"]+)"', match.group(3))
+            if not label:
+                continue
+            full = html.unescape(label.group(1))
+            base, iso = native.split_dated_title(full)
+            number = match.group(2)
+            layout = layouts.get(number, 'notes')
+            symbol = symbols.get(layout, 'list')
+            if iso:
+                human = native.humanize_iso_date(iso)
+                visible = (section_icon(symbol) + '<span class="nav-label" data-content>' + html.escape(base) + '</span>' +
+                           ' <span class="nav-date" data-date="' + html.escape(iso, quote=True) + '" data-content>· ' + html.escape(human) + '</span>')
+                links.append(f'<a href="{match.group(1)}" data-layout="{html.escape(layout, quote=True)}" aria-label="{html.escape(full, quote=True)}" data-content>{visible}</a>')
+            else:
+                visible = section_icon(symbol) + '<span class="nav-label" data-content>' + html.escape(base) + '</span>'
+                links.append(f'<a href="{match.group(1)}" data-layout="{html.escape(layout, quote=True)}" data-content>{visible}</a>')
         navigation = '<nav class="briefing-section-nav" aria-label="Briefing sections">' + ''.join(links) + '</nav>'
         text = re.sub(r'<article\b', navigation + '<article', text, count=1)
         text = text.replace('</head>', '<link rel="stylesheet" href="/avatar.css"></head>')

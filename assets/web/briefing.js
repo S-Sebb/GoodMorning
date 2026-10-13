@@ -141,6 +141,8 @@ function updateReading() {
   });
   const atEnd = max <= 0 || window.scrollY >= max - 2;
   if (atEnd) current = positions.length - 1;
+  const inlineNav = document.querySelector('.briefing-section-nav');
+  const inlineLinks = inlineNav ? Array.from(inlineNav.children) : [];
   links.forEach((link, index) => {
     const position = positions[index];
     // End-of-page selection must agree with the fills, even when the last
@@ -161,6 +163,12 @@ function updateReading() {
       if (item) {
         if (active) item.setAttribute('aria-current', 'location');
         else item.removeAttribute('aria-current');
+      }
+      const inline = inlineLinks[index];
+      if (inline) {
+        inline.classList.toggle('active', active);
+        if (active) inline.setAttribute('aria-current', 'location');
+        else inline.removeAttribute('aria-current');
       }
     }
   });
@@ -225,14 +233,63 @@ function refreshBriefing() {
   const visibleIds = new Set(sections.map(section => '#' + section.id));
   links = Array.from(document.querySelectorAll('.scroll-segment:not([hidden]) .scroll-chunk')).filter(link => visibleIds.has(link.hash));
   const inlineNav = document.querySelector('.briefing-section-nav');
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   if (inlineNav) inlineNav.replaceChildren(...sections.map(section => {
     const link = document.createElement('a');
     const heading = section.querySelector('h2');
     link.href = '#' + section.id;
-    link.textContent = heading.textContent;
-    const label = heading.querySelector('[data-ui-text]');
-    if (label) link.dataset.uiText = label.dataset.uiText;
-    else link.dataset.content = '';
+    const layout = (section.className.match(/briefing-section\s+(\S+)/) || [])[1] || 'notes';
+    link.dataset.layout = layout;
+    const symbol = section.querySelector('.section-symbol svg');
+    if (symbol) link.appendChild(symbol.cloneNode(true));
+    const dateBadge = heading.querySelector('[data-date]');
+    const iso = dateBadge?.dataset.date;
+    // Base title without date badges or screen-reader-only suffixes.
+    const clean = heading.cloneNode(true);
+    clean.querySelectorAll('.section-date,.preview-date,.nav-date,.visually-hidden').forEach(node => node.remove());
+    const base = clean.textContent.trim();
+    const uiLabel = heading.querySelector('[data-ui-text]');
+    const labelSpan = document.createElement('span');
+    labelSpan.className = 'nav-label';
+    if (iso) {
+      labelSpan.textContent = base;
+      if (uiLabel) labelSpan.dataset.uiText = uiLabel.dataset.uiText;
+      else labelSpan.dataset.content = '';
+      link.appendChild(labelSpan);
+      const parts = iso.split('-').map(Number);
+      const dateSpan = document.createElement('span');
+      dateSpan.className = 'nav-date';
+      dateSpan.textContent = '· ' + parts[2] + ' ' + months[parts[1] - 1];
+      dateSpan.dataset.date = iso;
+      dateSpan.dataset.content = '';
+      link.appendChild(document.createTextNode(' '));
+      link.appendChild(dateSpan);
+      link.setAttribute('aria-label', base + ' — ' + iso);
+    } else {
+      const full = heading.textContent.trim();
+      const dated = full.match(/^(.*)\s+—\s+(\d{4}-\d{2}-\d{2})$/);
+      if (dated) {
+        labelSpan.textContent = dated[1].trim();
+        if (uiLabel) labelSpan.dataset.uiText = uiLabel.dataset.uiText;
+        else labelSpan.dataset.content = '';
+        link.appendChild(labelSpan);
+        const parts = dated[2].split('-').map(Number);
+        const dateSpan = document.createElement('span');
+        dateSpan.className = 'nav-date';
+        dateSpan.textContent = '· ' + parts[2] + ' ' + months[parts[1] - 1];
+        dateSpan.dataset.date = dated[2];
+        dateSpan.dataset.content = '';
+        link.appendChild(document.createTextNode(' '));
+        link.appendChild(dateSpan);
+        link.setAttribute('aria-label', full);
+      } else {
+        labelSpan.textContent = base || full;
+        if (uiLabel) labelSpan.dataset.uiText = uiLabel.dataset.uiText;
+        else labelSpan.dataset.content = '';
+        link.appendChild(labelSpan);
+        if (!uiLabel) link.dataset.content = '';
+      }
+    }
     return link;
   }));
   fills = links.map(() => -1);

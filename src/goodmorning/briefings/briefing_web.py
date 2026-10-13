@@ -39,11 +39,35 @@ def visible_text(source):
     return re.sub(r'(?<![\w/])(?:ib_[0-9a-f]{16,64}|ses_[A-Za-z0-9]+|(?:task|todo)_[0-9a-f]{16,64})(?!\w)', '', source)
 
 
+def display_heading(title, translate=False):
+    """Section heading with a subtle date badge instead of a raw ISO suffix."""
+    base, iso = native.split_dated_title(title.strip())
+    if not iso:
+        return ui.ui(title.strip()) if translate else native.escaped(title.strip())
+    human = native.humanize_iso_date(iso)
+    badge = (f' <span class="section-date" data-date="{html.escape(iso, quote=True)}">'
+             f'<span aria-hidden="true">· {html.escape(human)}</span>'
+             f'<span class="visually-hidden"> ({html.escape(iso)})</span></span>')
+    if translate:
+        return ui.ui(base) + badge
+    return html.escape(base) + badge
+
+
 def navigation(number, title, body, kind, ui_title=False):
     label = html.escape(title.strip())
     attributes=f' data-ui-section-title="{label}" data-ui-section-number="{number:02d}"' if ui_title else ''
     accessible=html.escape(ui.text(title.strip())) if ui_title else label
-    visible=ui.ui(title.strip()) if ui_title else label
+    base, iso = native.split_dated_title(title.strip())
+    if iso:
+        human = native.humanize_iso_date(iso)
+        badge = (f' <span class="preview-date" data-date="{html.escape(iso, quote=True)}">'
+                 f'· {html.escape(human)}</span>')
+        if ui_title:
+            visible = ui.ui(base) + badge
+        else:
+            visible = html.escape(base) + badge
+    else:
+        visible=ui.ui(title.strip()) if ui_title else label
     preview = html.escape(PreviewText().excerpt(body))
     return f'<div class="scroll-segment"><a class="scroll-chunk" href="#section-{number}"{attributes} aria-label="{number:02d}: {accessible}" aria-describedby="preview-{number}"><span class="chunk-bar" aria-hidden="true"></span><span class="chunk-number" aria-hidden="true">{number:02d}</span></a><span class="nav-preview" id="preview-{number}" role="tooltip"><span class="preview-eyebrow">{ui.ui("SECTION {number} / "+KINDS[kind].upper()+" EDITION",number=f"{number:02d}")}</span><span class="preview-title" data-content>{visible}</span><span class="preview-excerpt" data-content>{ui.ui(PreviewText().excerpt(body)) if ui_title else preview}</span><span class="preview-footer"><span class="preview-lines" aria-hidden="true"></span><span class="pointer-hint">{ui.ui("Jump to section ↗")}</span><span class="touch-hint">{ui.ui("Tap again to jump ↗")}</span></span></span></div>'
 
@@ -61,7 +85,7 @@ def loading_body(layout):
 
 
 def preview_shell(plan, kind, ui_titles=False):
-    sections = ''.join(section_markup(n, ui.ui(title) if ui_titles else native.escaped(title), loading_body(tag), tag, pending=True)
+    sections = ''.join(section_markup(n, display_heading(title, translate=ui_titles), loading_body(tag), tag, pending=True)
                        for n, (tag, title) in enumerate(plan, 1))
     nav = ''.join(navigation(n, title, '<p>Waiting its turn</p>', kind,ui_title=ui_titles) for n, (_, title) in enumerate(plan, 1))
     return sections, nav
@@ -76,7 +100,7 @@ def edition(document, date, kind, available, images=None, preview_plan=None, ui_
         if len(section) >= 3 and section[2]:
             content += '<p class="section-takeaway">' + native.escaped(section[2]) + '</p>'
         nav.append(navigation(number, title, content, kind))
-        sections.append(section_markup(number, native.escaped(title), content, section[0]))
+        sections.append(section_markup(number, display_heading(title), content, section[0]))
     if preview_plan is not None:
         panels, chunks = preview_shell(preview_plan, kind,ui_titles=ui_intro)
         sections, nav = [panels], [chunks]

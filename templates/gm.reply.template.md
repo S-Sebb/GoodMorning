@@ -15,5 +15,8 @@ automatic questions about every idea. Copy source-linked blocks from the helper.
 Ask only material missing facts/consent needed for today. Never invent work,
 availability, dates or completion. Publishing work does not schedule or authorize it.
 Weather order is temperature, precipitation, applicable warning, AQI/health.
+Weather values use °C (e.g. `16°C (14.5–20.4°C)`), natural precipitation words
+(e.g. `65% – Rain likely`, never `rain yes`), and plain AQI number plus level
+(e.g. `30 – good`, never `US AQI` prefix).
 News keeps selected facts/dates/citations and separates assessment. Grounded
 takeaways are optional, not repetition of the cards. Return the browser link.

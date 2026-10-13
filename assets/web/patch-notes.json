@@ -1,6 +1,29 @@
 {
   "notes": [
     {
+      "version": "0.34.0", "date": "2026-10-14", "author": "GoodMorning agent",
+      "title_en": "Calmer weather cards and section jumps", "title_zh": "天气卡片更清爽，章节跳转更顺手",
+      "changes": [
+        {"category": "Fixed", "en": [
+          "Show temperature with °C and en-dash ranges such as 16°C (14.5–20.4°C), precipitation as percent plus words such as 65% – Rain likely, and AQI as number plus level such as 30 – good; raw rain yes/no and US AQI prefixes no longer appear, including in already-saved briefings.",
+          "Show dated news titles as a short badge such as News · 12 Oct in navigation, headers and previews instead of the raw News — 2026-10-12; the full date stays in accessible labels."
+        ], "zh": [
+          "温度显示 °C 与连接号区间（如 16°C (14.5–20.4°C)），降水显示百分比加自然文字（如 65% – 可能降雨），空气质量只显示数字加等级（如 30 – 良好）；原始的 rain yes/no 与 US AQI 前缀不再出现，已保存的简报同样修正显示。",
+          "新闻等带日期的标题在导航、章节标题和预览中改用简短徽标（如新闻 · 10 月 12 日），不再显示原始的 News — 2026-10-12；完整日期保留在无障碍标签中。"
+        ]},
+        {"category": "Changed", "en": [
+          "Give the section switcher the same pill treatment as the Morning/Evening tabs, with each section's icon on the left and a highlighted active section that follows the reading position on desktop and in the mobile Sections sheet."
+        ], "zh": [
+          "章节切换器采用与早晚标签相同的胶囊样式，左侧显示各章节图标，当前章节随阅读位置高亮，桌面与移动端章节面板保持一致。"
+        ]},
+        {"category": "Tests", "en": [
+          "Verify weather normalization, dated-title badges, icon navigation and active states with synthetic briefings; existing briefing suites pass without model calls."
+        ], "zh": [
+          "用合成简报验证天气规范化、日期徽标、图标导航与当前状态；现有简报测试套件在不调用模型的情况下通过。"
+        ]}
+      ]
+    },
+    {
       "version": "0.33.1", "date": "2026-10-13", "author": "GoodMorning agent",
       "title_en": "Secretary header fix and clearer task grouping", "title_zh": "秘书页眉修复与更清晰的待办分组",
       "changes": [
