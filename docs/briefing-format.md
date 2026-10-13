@@ -85,7 +85,7 @@ conflict, reread affected records; never infer progress or alter immutable secti
   temperature uses °C with an en-dash range, e.g. `16°C (14.5–20.4°C)`;
   precipitation uses percent plus natural words, e.g. `65% – Rain likely`,
   never raw `rain yes/no/unknown`;
-  air uses number plus level, e.g. `30 – good`, never a `US AQI`/`EU AQI` prefix
+  air uses number plus level, e.g. `30 – Good`, never a `US AQI`/`EU AQI` prefix
   (the card label already says AQI; sources belong in detail).
 - `["news",category,[[headline,summary,sources],...],country?]`: retain every
   selected story and all citations. Sources are nonempty `[[label,url],...]` with

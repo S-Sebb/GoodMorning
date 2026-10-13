@@ -79,7 +79,39 @@ def weather_display(card, metric):
     elif card == 'air':
         text = re.sub(r'^(?:US\s*AQI|EU\s*AQI|AQI)\s*', '', text, flags=re.IGNORECASE)
         text = re.sub(r'\s+-\s+', ' – ', text)
+        head, sep, tail = text.partition('–')
+        if sep and tail.strip():
+            tail = tail.strip()
+            tail = tail[:1].upper() + tail[1:] if tail[:1].isalpha() else tail
+            text = head.strip() + ' – ' + tail
     return text.strip() or text
+
+
+def weather_parts(card, metric):
+    """Split a normalized weather value into (main, sub|None) for card display.
+
+    Main stays prominent on its own line; sub moves to a smaller second line
+    with no connecting dash, e.g. '15°C (14.5–20.4°C)' -> ('15°C', '(14.5–20.4°C)'),
+    '65% – Rain likely' -> ('65%', 'Rain likely'), '27 – Good' -> ('27', 'Good').
+    """
+    display = weather_display(card, metric)
+    if display is None:
+        return None, None
+    if card == 'temperature' and '(' in display:
+        main, _, rest = display.partition('(')
+        main = main.strip()
+        sub = ('(' + rest).strip()
+        if main:
+            return main, (sub or None)
+        return display.strip(), None
+    if '–' in display:
+        main, _, sub = display.partition('–')
+        main, sub = main.strip(), sub.strip()
+        if main and sub:
+            if sub[:1].isalpha():
+                sub = sub[:1].upper() + sub[1:]
+            return main, sub
+    return display.strip(), None
 
 
 def source_path(runtime, date, kind):
@@ -570,8 +602,14 @@ def render_block(value, images, briefing_date=None):
         for row in value[1]:
             card, metric, detail, *custom = row
             label, symbol, style = WEATHER[card]
-            display = weather_display(card, metric) if metric is not None else None
-            metric = '<p class="weather-value">' + escaped(display) + '</p>' if display is not None else ''
+            main, sub = weather_parts(card, metric) if metric is not None else (None, None)
+            if main is None:
+                metric = ''
+            elif sub:
+                metric = ('<p class="weather-value"><span class="weather-main">' + escaped(main) +
+                          '</span><span class="weather-sub">' + escaped(sub) + '</span></p>')
+            else:
+                metric = '<p class="weather-value"><span class="weather-main">' + escaped(main) + '</span></p>'
             cards.append(f'<div class="weather-tile {style}"><div class="weather-label">{icon(symbol)}<h3>{escaped(custom[0]) if custom else ui.ui(label)}</h3></div>{metric}<div class="weather-detail"><p>{escaped(detail)}</p></div></div>')
         return '<div class="weather-tiles">' + ''.join(cards) + '</div>'
     if tag == 'news':

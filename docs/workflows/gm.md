@@ -18,7 +18,7 @@ Fixed section order is Weather, News, Schedule, Tasks, Reminders. Do not reorder
 2. Weather: fetch once with qualified city and explicit profile/cache paths.
    Order temperature, precipitation/advice, applicable extreme warning, AQI/health.
    Values are display-ready: `16°C (14.5–20.4°C)`, `65% – Rain likely`
-   (never `rain yes`), `30 – good` (never `US AQI` prefix).
+   (never `rain yes`), `30 – Good` (never `US AQI` prefix).
    Retain material stale/unavailable data. Historical editions never use today's
    weather as historical fact.
 3. News: follow `docs/news-delivery.md`. Default is yesterday in the saved timezone,

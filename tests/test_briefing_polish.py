@@ -26,12 +26,22 @@ class WeatherDisplayTests(unittest.TestCase):
         ]], {}, '2026-10-13')
         for bad in ('16C (', 'rain yes', 'US AQI 30'):
             self.assertNotIn(bad, rendered)
-        for good in ('16°C (14.5–20.4°C)', '65% – Rain likely', '30 – good'):
+        for good in ('weather-main">16°C<', 'weather-sub">(14.5–20.4°C)<',
+                     'weather-main">65%<', 'weather-sub">Rain likely<',
+                     'weather-main">30<', 'weather-sub">Good<'):
             self.assertIn(good, rendered)
+        for bad_joined in ('16°C (14.5–20.4°C)', '65% – Rain likely', '30 – Good'):
+            self.assertNotIn(bad_joined, rendered)
 
     def test_aqi_strips_scale_prefix(self):
-        self.assertEqual(native.weather_display('air', 'US AQI 30 - good'), '30 – good')
+        self.assertEqual(native.weather_display('air', 'US AQI 30 - good'), '30 – Good')
         self.assertEqual(native.weather_display('air', '31'), '31')
+
+    def test_weather_parts_split_main_and_sub(self):
+        self.assertEqual(native.weather_parts('temperature', '15°C (14.5–20.4°C)'), ('15°C', '(14.5–20.4°C)'))
+        self.assertEqual(native.weather_parts('precipitation', '65% - rain yes'), ('65%', 'Rain likely'))
+        self.assertEqual(native.weather_parts('air', 'US AQI 27 - good'), ('27', 'Good'))
+        self.assertEqual(native.weather_parts('temperature', '14°C'), ('14°C', None))
 
 
 class DatedTitleTests(unittest.TestCase):
