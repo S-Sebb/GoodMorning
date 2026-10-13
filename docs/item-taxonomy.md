@@ -18,7 +18,9 @@ heading. Use `scripts/goodmorning.py` with the selected absolute runtime.
    scheduling is ambiguous; never infer duration, timezone or another person's agreement.
 4. `/todo` uses `workflow --capture todo`: original input and a minimal open task
    commit together. Optional `task` fields preserve supplied explicit timing and
-   project facts. `/eureka` captures only an idea, even with action verbs/dates.
+   project facts. `detail` is extra notes only: never repeat the title, project,
+   deadline or priority — those live in structured fields and the page already
+   shows them once per project group. `/eureka` captures only an idea, even with action verbs/dates.
    For clear input, capture, confirm, stop. The clarification-before-recording rule
    above applies to ambiguous scheduling; no unsolicited calendar offer or execution.
    Keep `/todo` in its capture helper even when dates are supplied: use its optional

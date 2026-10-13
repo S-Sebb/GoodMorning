@@ -273,7 +273,28 @@ html[data-edition="gn"] .weather-tile.air { --tile-accent: #aed4b7; --tile-bg: #
 .task-card .check { left: 20px; top: 24px; width: 18px; height: 18px; border-radius: 6px; }
 .task-card .check svg { width: 12px; height: 12px; }
 .task-title { font-weight: 600; line-height: 1.5; margin-bottom: 8px; }
+.task-title:last-child { margin-bottom: 0; }
 .task-detail { font-size: 13px; line-height: 1.8; color: var(--muted); }
+/* Project subgroups keep long backlogs scannable: one heading per project, not per card. */
+.task-project { border: 1px solid var(--line); border-radius: 12px; padding: 16px 18px; background: var(--surface); }
+.task-project + .task-project { margin-top: 12px; }
+details.task-project { padding: 0; }
+details.task-project > summary { list-style: none; cursor: pointer; padding: 16px 18px; display: flex; align-items: center; flex-wrap: wrap; gap: 8px 10px; }
+details.task-project > summary::-webkit-details-marker { display: none; }
+details.task-project > summary::after { content: '▾'; margin-left: auto; color: var(--muted); font-size: 12px; transition: transform .2s; }
+details.task-project:not([open]) > summary::after { transform: rotate(-90deg); }
+details.task-project .task-list { padding: 0 18px 18px; }
+.task-project-heading { margin: 0 0 12px; font-size: 13px; letter-spacing: .4px; color: var(--ink); display: flex; align-items: center; flex-wrap: wrap; gap: 8px 10px; }
+details.task-project .task-project-heading { margin: 0; }
+.project-name { font-weight: 650; }
+.project-count { color: var(--muted); background: var(--wash); border-radius: 20px; font-size: 11px; font-weight: 400; padding: 3px 10px; }
+.project-due { color: var(--muted); font-size: 12px; font-weight: 400; }
+/* Needs-attention cards: same warmth as tasks, with a gentle left accent. */
+.section-body .decision-list { margin: 0; padding: 0; list-style: none; display: grid; gap: 12px; }
+.section-body .decision-card { border: 1px solid var(--line); border-left: 3px solid var(--accent); border-radius: 12px; padding: 18px 20px; background: var(--surface); }
+.decision-title { font-weight: 600; line-height: 1.5; margin-bottom: 6px; }
+.decision-title:last-child { margin-bottom: 0; }
+.decision-detail { font-size: 13px; line-height: 1.8; color: var(--muted); }
 @media (max-width: 1000px) { .section-body .news-grid { grid-template-columns: minmax(0, 1fr); } .weather-tiles { gap: 12px; } .weather-tile { padding: 18px; } .weather-label { gap: 8px; } .weather-label h3 { letter-spacing: .8px; font-size: 10px; } }
 @media (max-width: 700px) {
   .section-symbol { width: 34px; height: 34px; border-radius: 9px; }

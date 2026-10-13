@@ -301,6 +301,149 @@ def citations(value):
     return ' '.join(f'<a href="{html.escape(url, quote=True)}" target="_blank" rel="noopener noreferrer">{escaped(label)}</a>' for label, url in value)
 
 
+def _project_of(detail):
+    import re as _re
+    if not detail or not isinstance(detail, str):
+        return ''
+    match = _re.search(r'(?:Project|项目)\s*[:：]\s*([^·|\n]+)', detail)
+    return match.group(1).strip() if match else ''
+
+
+def _detail_for_project_group(detail, project, title=''):
+    import re as _re
+    if not detail or not isinstance(detail, str):
+        return ''
+    text = detail.strip()
+    if title:
+        title_norm = ' '.join(title.split())
+        collapsed = ' '.join(text.split())
+        if collapsed == title_norm:
+            text = ''
+        elif collapsed.startswith(title_norm):
+            remainder = collapsed[len(title_norm):].lstrip()
+            remainder = _re.sub(r'^[|·—\-–:;,.]+\s*', '', remainder)
+            text = remainder
+    if not text.strip():
+        # Title-only duplication: nothing extra to show; structured badges follow.
+        return ''
+    text = _re.sub(r'\|\s*deadline\s+\d{4}-\d{2}-\d{2}(\s*\(soft\))?', '', text, flags=_re.IGNORECASE)
+    text = _re.sub(r'(?:^|[·|])\s*deadline\s+\d{4}-\d{2}-\d{2}(\s*\(soft\))?', '', text, flags=_re.IGNORECASE)
+    if project:
+        text = _re.sub(r'(?:Project|项目)\s*[:：]\s*' + _re.escape(project), '', text)
+    else:
+        # Still drop any embedded project badge; the subgroup heading owns it.
+        text = _re.sub(r'(?:Project|项目)\s*[:：]\s*[^·|\n]+', '', text)
+    # Group heading already explains the date; drop the inline suffix.
+    text = _re.sub(r'No workday assigned|还没定在哪天做', '', text)
+    parts = [p.strip(' \t|·—-–:;,') for p in _re.split(r'[·\n]+', text.replace('|', '·'))]
+    parts = [p for p in parts if p and p not in ('.',)]
+    return ' · '.join(parts).strip(' \t·|')
+
+
+def _humanize_iso_in_text(text):
+    import re as _re
+    import datetime as _dt
+
+    def _fmt(raw):
+        try:
+            value = _dt.datetime.fromisoformat(raw)
+            return value.strftime('%a %d %b %H:%M')
+        except Exception:
+            return raw
+
+    return _re.sub(r'\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2})?(?:[+-]\d{2}:?\d{2}|Z|\+00:00)?',
+                   lambda m: _fmt(m.group(0)), text or '')
+
+
+def _decision_display(title, detail):
+    import re as _re
+    clean_title = _re.sub(r'^(?:Review calendar change|Calendar (?:change|update))\s*[:：]\s*', '', (title or '').strip(), flags=_re.IGNORECASE).strip() or title
+    text = _humanize_iso_in_text(detail)
+    parts = [p.strip() for p in _re.split(r'[·\n]+', text.replace('|', '·')) if p.strip()]
+    # Bare default status adds noise; the card title already carries cancellations.
+    parts = [p for p in parts if p.lower() not in ('confirmed', 'cancelled', '已确认', '已取消')]
+    # Combine same-day pairs like "Fri 23 Oct 11:00 · Fri 23 Oct 12:00" into a range.
+    if len(parts) >= 2:
+        combined = []
+        skip_next = False
+        for index, part in enumerate(parts):
+            if skip_next:
+                skip_next = False
+                continue
+            nxt = parts[index + 1] if index + 1 < len(parts) else ''
+            first = _re.match(r'^(\w{3} \d{2} \w{3}) (\d{2}:\d{2})$', part)
+            second = _re.match(r'^(\w{3} \d{2} \w{3}) (\d{2}:\d{2})$', nxt)
+            if first and second and first.group(1) == second.group(1):
+                combined.append(f"{first.group(1)} {first.group(2)}–{second.group(2)}")
+                skip_next = True
+            else:
+                combined.append(part)
+        parts = combined
+    return clean_title, ' · '.join(parts)
+
+
+def _render_project_subgroups(rows, images, briefing_date):
+    import re as _re
+    # rows: [[status, title, detail]] in code-owned relevance order; keep it inside groups.
+    subgroups = {}
+    for status, title, detail in rows:
+        project = _project_of(detail)
+        subgroups.setdefault(project, []).append([status, title, _detail_for_project_group(detail, project, title)])
+
+    def _urgency(items):
+        hard_dates, soft_dates = [], []
+        for _, _, detail in items:
+            for match in _re.finditer(r'(Soft target|Due|弹性目标日期|截止)\s*[:：]\s*(\d{4}-\d{2}-\d{2})', detail):
+                (hard_dates if match.group(1) in ('Due', '截止') else soft_dates).append(match.group(2))
+        if hard_dates:
+            return (False, min(hard_dates), True)
+        if soft_dates:
+            return (True, min(soft_dates), False)
+        return (True, '9999', False)
+
+    ordered = sorted(subgroups.items(),
+                     key=lambda kv: (*_urgency(kv[1])[:2], kv[0] == '', -len(kv[1]), kv[0].lower()))
+    urgencies = {id(items): _urgency(items) for _, items in ordered}
+    collapsible = sum(len(items) for _, items in ordered) > 4
+    body = []
+    for index, (project, items) in enumerate(ordered):
+        # Lift a shared due date to the heading so it is not repeated per card.
+        # Compare date tokens so mixed hard/soft labels on the same date still lift (hard wins).
+        dates = set()
+        for _, _, detail in items:
+            found = _re.findall(r'(?:Soft target|Due|弹性目标日期|截止)\s*[:：]\s*(\d{4}-\d{2}-\d{2})', detail)
+            dates.add(found[0] if len(found) == 1 else '')
+        shared_date = next(iter(dates)) if len(dates) == 1 and next(iter(dates)) else ''
+        shared_due = ''
+        if shared_date:
+            hards = sum('Due' in d or '截止' in d for _, _, d in items)
+            at = next((_re.search(r'(?:Due|截止)\s*[:：]\s*\S+', d) for _, _, d in items if _re.search(r'(?:Due|截止)\s*[:：]', d)), None)
+            soft = next((_re.search(r'(?:Soft target|弹性目标日期)\s*[:：]\s*\S+', d) for _, _, d in items if _re.search(r'(?:Soft target|弹性目标日期)\s*[:：]', d)), None)
+            picked = (at.group(0) if at else None) if hards else (soft.group(0) if soft else None)
+            shared_due = picked.strip() if picked else ''
+        display_items = []
+        for status, title, detail in items:
+            if shared_due:
+                detail = detail.replace(shared_due, '')
+                parts = [p.strip(' \t|·—-–:;,') for p in _re.split(r'[·\n]+', detail.replace('|', '·'))]
+                detail = ' · '.join(p for p in parts if p).strip(' \t·|')
+            display_items.append([status, title, detail])
+        label = project if project else ui.ui('General')
+        count = f'<span class="project-count">{len(display_items)}</span>'
+        due_badge = f' <span class="project-due">{escaped(shared_due)}</span>' if shared_due else ''
+        heading = f'<span class="project-name" data-content>{escaped(project) if project else label}</span>{due_badge} {count}'
+        task_list = render_block(['tasks', display_items], images, briefing_date)
+        if len(ordered) == 1 and not project:
+            body.append(task_list)
+        elif collapsible:
+            has_hard = urgencies[id(items)][2]
+            open_attr = ' open' if (index < 2 or has_hard) else ''
+            body.append(f'<details class="task-project"{open_attr}><summary class="task-project-heading">{heading}</summary>{task_list}</details>')
+        else:
+            body.append(f'<div class="task-project"><h4 class="task-project-heading">{heading}</h4>{task_list}</div>')
+    return ''.join(body)
+
+
 def render_block(value, images, briefing_date=None):
     tag = value[0]
     if tag == 'actions':
@@ -309,11 +452,16 @@ def render_block(value, images, briefing_date=None):
             groups.setdefault(row[3], []).append([row[4], row[5], row[6]])
         return ''.join('<div class="action-group"><h3 class="agenda-day">' +
                        (ui.agenda_day(day, briefing_date) if day else ui.ui('No workday assigned')) + '</h3>' +
-                       render_block(['tasks', rows], images, briefing_date) + '</div>' for day, rows in groups.items())
+                       _render_project_subgroups(rows, images, briefing_date) + '</div>' for day, rows in groups.items())
     if tag == 'events':
         return render_block(['agenda', [r[2:] for r in value[1]]], images, briefing_date)
     if tag == 'decisions':
-        return '<ul>' + ''.join('<li><strong>' + escaped(r[2]) + '</strong><p>' + escaped(r[3]) + '</p></li>' for r in value[1]) + '</ul>'
+        items = []
+        for row in value[1]:
+            disp_title, disp_detail = _decision_display(row[2], row[3])
+            items.append('<li class="decision-card"><div class="decision-title">' + escaped(disp_title) +
+                         '</div>' + (f'<div class="decision-detail">{escaped(disp_detail)}</div>' if disp_detail else '') + '</li>')
+        return '<ul class="decision-list">' + ''.join(items) + '</ul>'
     if tag == 'p':
         return '<p>' + escaped(value[1]) + (' ' + citations(value[2]) if len(value) == 3 else '') + '</p>'
     if tag == 'list':
@@ -325,7 +473,8 @@ def render_block(value, images, briefing_date=None):
             tick = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="m5 12.5 4.5 4.5L19 7"/></svg>' if status=='done' else ''
             mark = '<span class="check'+(' is-done' if status=='done' else '')+'" data-ui-aria-label="'+status_label+'" aria-label="'+ui.text(status_label)+'">'+tick+'</span>'
             label = '<span class="task-status">' + ui.ui(status.capitalize()) + '</span> ' if status in ('partial', 'blocked') else ''
-            items.append(f'<li class="task-card task"><div class="task-title">{mark}{escaped(title)}</div><div class="task-detail">{label}{escaped(detail)}</div></li>')
+            detail_html = f'<div class="task-detail">{label}{escaped(detail)}</div>' if (detail or label) else ''
+            items.append(f'<li class="task-card task"><div class="task-title">{mark}{escaped(title)}</div>{detail_html}</li>')
         return '<ul class="task-list">' + ''.join(items) + '</ul>'
     if tag == 'flexible':
         groups = {}
