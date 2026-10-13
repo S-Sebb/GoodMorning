@@ -105,7 +105,13 @@ const drafts = new Map();
 const renderedMessages = new WeakMap();
 const historyPanel = document.querySelector('#conversation-history');
 const historyPreference = 'goodmorning.chat.history';
-try { historyPanel.open = localStorage.getItem(historyPreference) !== 'closed'; } catch { /* Storage may be disabled. */ }
+let historyStored = null;
+try { historyStored = localStorage.getItem(historyPreference); } catch { /* Storage may be disabled. */ }
+// Small screens start with history collapsed so the chat is in view;
+// an explicit open/closed choice is always respected.
+historyPanel.open = historyStored !== null
+  ? historyStored !== 'closed'
+  : !matchMedia('(max-width: 700px)').matches;
 let historyOpen = historyPanel.open;
 historyPanel.addEventListener('toggle', () => {
   if (historyPanel.open === historyOpen) return;

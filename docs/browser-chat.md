@@ -177,7 +177,8 @@ assistant reply portraits. The welcome panel disappears immediately on Send, inc
 before the first agent message. Sending, queued or working status remains visible
 instead. A rejected first send restores the welcome panel and preserves the draft;
 starting a new conversation shows the welcome panel again.
-Previous conversations starts expanded. Its open/closed choice is remembered on
+Previous conversations starts expanded on desktop and collapsed on small
+screens so the chat stays in view. Its open/closed choice is remembered on
 this browser using only a non-private UI preference; no conversation content or
 IDs are stored there. If browser storage is unavailable, the dropdown still works.
 
