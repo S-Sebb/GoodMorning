@@ -107,14 +107,18 @@ and already published legacy previews remain preserved.
   dates, constraints, sources, uncertainty and permissions in concise current state.
 - Actual unresolved questions and due reviews belong in Reminders. Clear ideas
   do not create recurring clarification TODOs. Respect saved review dates/answers.
-- `/eureka` and `/todo` are record-only by default: save, confirm, then stop. Action verbs
+- `/eureka` and `/todo` are record-only by default: save with improved wording, confirm,
+  then stop. Action verbs
   and requirements are content, not execution consent. Supplied details alone
   do not request discussion. Discuss only on `Clarify`/equivalent explicit request.
   Except required clarification before an ambiguous scheduling write, no unsolicited
   questions, plans, research, implementation, delegation, jobs,
   project/work-file edits or calendar offers. Discussion never authorizes
   organization/execution; request those separately. Follow-ups keep this boundary.
-  TODOs get no invented deadlines, forced priorities or auto-clarification.
+  TODOs get no invented deadlines, forced priorities or auto-clarification, but the
+  secretary always revises the title into a clear imperative and records useful
+  grounded detail from supplied facts. `raw` stays verbatim; `summary`/`title`/`detail`
+  carry the improved copy.
   `done` needs user-confirmed completion, not the agent's work.
 - Use `scripts/goodmorning.py task` for canonical work and occurrence reports;
   use `daily` for hash-checked factual feedback/history amendments. Legacy tasks stay unchecked;

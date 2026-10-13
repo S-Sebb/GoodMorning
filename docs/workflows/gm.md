@@ -34,10 +34,21 @@ Fixed section order is Weather, News, Schedule, Tasks, Reminders. Do not reorder
    Meeting IDs, help/meeting-options links or privacy footers into it.
 5. Publish Tasks from code-owned rows: agreed/recurring work, deadline attention,
    still-open work and selected undated actions. Project and optional labels are
-   attributes. Preserve dates, details, source IDs and revisions; follow pages.
+   attributes. First walk through today's displayed rows from
+   `task --briefing gm --date DATE --section tasks` (follow `next_offset`); where a
+   title/detail is materially vague (missing object, filler opener, `etc.`/parens fog,
+   verb at the end — not mere punctuation or capitalization), fix it with
+   revision-checked `task --update`
+   using title/detail only (same meaning, no date/status/project/scheduling change,
+   stable `polish:SESSION:taskID:revision` keys), then reread and pack the exact
+   updated rows. Preserve dates, details, source IDs and revisions; follow pages.
    Code groups cards by workday then project with a shared due target in the
    heading; review with a short warm note naming the top project groups and the
    next useful step instead of repeating every card.
+   Titles must read as clear imperative actions with specific objects and no project
+   prefix (the project heading already shows it); details add
+   why plus current state or next step without repeating title/project/due text.
+   Leave detail empty when no grounded why/state was supplied; never invent one.
    Do not promote ideas, copy project Markdown into new tasks or assign a workday
    merely by showing a task. No appointments does not establish a free day.
 6. Reminders contains due decisions/reviews. Code humanizes calendar times and

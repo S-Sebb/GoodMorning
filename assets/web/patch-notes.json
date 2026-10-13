@@ -1,6 +1,29 @@
 {
   "notes": [
     {
+      "version": "0.35.0", "date": "2026-10-13", "author": "GoodMorning agent",
+      "title_en": "Clearer task titles and details", "title_zh": "待办标题与详情更清晰",
+      "changes": [
+        {"category": "Changed", "en": [
+          "Secretary todo capture now saves a revised clear title plus useful grounded detail while keeping the exact raw input for audit; titles use an imperative verb with a specific object and no project prefix, and details never invent deadlines or repeat title, project or due text.",
+          "Morning briefings review today's displayed tasks and polish materially vague copy with tracked title and detail updates before packing, so Tasks cards read clearly under their project groupings."
+        ], "zh": [
+          "秘书保存待办时改写出清晰具体的行动标题，并保存有依据的补充详情；用户原文保留备查。标题使用行动动词加具体对象，不再重复项目名，详情不虚构期限，也不重复标题、项目或截止信息。",
+          "早报先检查今日待办并修正含糊文案，再按项目分组呈现，待办卡片更清晰。"
+        ]},
+        {"category": "Fixed", "en": [
+          "Fallback titles strip trailing periods and capitalize the first letter instead of copying raw text exactly."
+        ], "zh": [
+          "无修订标题时自动去掉末尾句号并首字母大写，不再原样照抄用户原文。"
+        ]},
+        {"category": "Tests", "en": [
+          "Cover revised capture with verbatim raw preservation, fallback cleanup, and polish-then-pack validation with synthetic records, plus wording simulations on two production models; the full unit suite passes."
+        ], "zh": [
+          "用合成记录覆盖修订保存与原文保留、默认标题清理，以及先修正后打包的校验，并用两个线上模型做文案模拟；全部单元测试通过。"
+        ]}
+      ]
+    },
+    {
       "version": "0.34.1", "date": "2026-10-13", "author": "GoodMorning agent",
       "title_en": "Reminders name schedule clashes", "title_zh": "提醒直接点名日程冲突",
       "changes": [

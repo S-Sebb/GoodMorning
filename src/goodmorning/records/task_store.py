@@ -149,6 +149,28 @@ def defaults(title, project=''):
             'calendar_event_id': ''}
 
 
+def default_title(raw, limit=280):
+    """Deterministic fallback title when the secretary supplies no revised summary.
+
+    Collapses whitespace, strips trailing periods, capitalizes the first letter and
+    truncates cleanly. Semantic rewrites (imperative verb, specific object, useful
+    detail) remain the secretary's job per docs/workflows/todo.md; this only stops
+    the worst verbatim artifacts such as trailing periods and lowercase starts.
+    """
+    collapsed = ' '.join((raw or '').split())
+    if not collapsed:
+        return collapsed
+    text = collapsed[:limit].rstrip()
+    text = text.rstrip('.').rstrip()
+    if not text:
+        return collapsed[:limit].rstrip()
+    first = next((c for c in text if c.isalpha()), '')
+    if first and first.islower():
+        index = text.index(first)
+        text = text[:index] + first.upper() + text[index + 1:]
+    return text
+
+
 def occurrence_id(identifier, day):
     return 'oc_' + hashlib.sha256((identifier + '\0' + day).encode()).hexdigest()[:16]
 
@@ -176,7 +198,7 @@ def capture(db, entry, payload, now):
         fields = payload.get('task', {})
         if fields.get('status', 'open') != 'open':
             raise ValueError('confirmation_required: capture cannot assert completion')
-        summary = payload.get('summary') or ' '.join(payload['raw'].split())[:280]
+        summary = payload.get('summary') or default_title(payload['raw'])
         data = validate({**defaults(summary, payload.get('project', '')), **fields})
         identifier = 'task_' + uuid.uuid4().hex[:16]
         db.execute('INSERT INTO tasks VALUES (?,?,?,?,?,?)', (identifier, entry, 1, now, now, encode(data)))
@@ -184,7 +206,7 @@ def capture(db, entry, payload, now):
     if payload['kind'] == 'event_proposal':
         if payload.get('draft', {}).get('state') in ('converted', 'withdrawn'):
             raise ValueError('invalid_input: new event proposal cannot be closed')
-        data = validate({'title': payload.get('summary') or ' '.join(payload['raw'].split())[:280],
+        data = validate({'title': payload.get('summary') or default_title(payload['raw']),
                          'date': '', 'timezone': '', 'location': '', 'detail': '',
                          'confirmed_day': False, 'state': 'needs-details', 'calendar_event_id': '',
                          **payload.get('draft', {})}, draft=True)

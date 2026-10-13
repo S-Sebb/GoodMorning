@@ -16,10 +16,12 @@ heading. Use `scripts/goodmorning.py` with the selected absolute runtime.
    timestamps separate. "By Friday" is a deadline; "work on Friday" is a workday.
    A timestamp alone does not establish a reserved interval. Ask when requested
    scheduling is ambiguous; never infer duration, timezone or another person's agreement.
-4. `/todo` uses `workflow --capture todo`: original input and a minimal open task
-   commit together. Optional `task` fields preserve supplied explicit timing and
-   project facts. `detail` is extra notes only: never repeat the title, project,
-   deadline or priority — those live in structured fields and the page already
+4. `/todo` uses `workflow --capture todo`: exact raw input plus a revised clear task
+   commit together. `raw` stays verbatim for audit; `summary` and `task.title` carry the
+   improved imperative title and `task.detail` carries 1–2 grounded sentences (why it
+   matters plus current state or next step from supplied facts only). Optional `task`
+   fields preserve supplied explicit timing and project facts. `detail` is useful extra
+   notes only: never repeat the title, project, deadline or priority — those live in structured fields and the page already
    shows them once per project group. `/eureka` captures only an idea, even with action verbs/dates.
    For clear input, capture, confirm, stop. The clarification-before-recording rule
    above applies to ambiguous scheduling; no unsolicited calendar offer or execution.
@@ -106,7 +108,11 @@ heading. Use `scripts/goodmorning.py` with the selected absolute runtime.
     It records the actual day, not a replacement workday. One-off actions close;
     recurring series retain their original rule.
 11. Publishing/regenerating a v2 briefing never creates/schedules/completes tasks.
-    Project Markdown supplies goals/reports, daily Markdown supplies historical
+    The one allowed pre-presentation maintenance is wording polish: after reading the
+    Tasks section rows, the secretary may fix materially vague titles/details with
+    revision-checked `task --update` (title/detail only, same meaning, no date/status/
+    project/scheduling changes, stable `polish:SESSION:taskID:revision` keys), then reread
+    and pack the exact updated rows. Project Markdown supplies goals/reports, daily Markdown supplies historical
     feedback, and SQLite owns live task state. No task table represents a section.
 12. Clear ideas are not nightly questions. Surface actual saved questions,
     unreviewed material or a due `review_after`; respect future review dates and

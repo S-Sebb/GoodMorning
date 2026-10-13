@@ -282,7 +282,8 @@ class InboxStore:
             if action == "add":
                 identifier = "ib_" + uuid.uuid4().hex[:16]
                 revision = 1
-                summary = payload.get("summary") or " ".join(payload["raw"].split())[:280]
+                from .task_store import default_title
+                summary = payload.get("summary") or default_title(payload["raw"])
                 self.db.execute("INSERT INTO entries (id,revision,kind,status,project,created_at,updated_at,"
                                 "raw,summary,context,questions) VALUES (?,?,?,?,?,?,?,?,?,?,?)",
                                 (identifier, revision, payload["kind"], "pending", payload.get("project", ""),

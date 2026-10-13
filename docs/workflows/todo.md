@@ -1,14 +1,15 @@
 ---
 name: todo
-description: Record a user's TODO via /todo without clarification, planning, or doing the task. Preserve supplied wording and details; discuss only when explicitly requested.
+description: Record a user's TODO via /todo without clarification, planning, or doing the task. Preserve exact raw input, but save a revised clear title and useful detail.
 ---
 
 # TODO capture
 
 Trigger: `/todo`, or an explicit request to record a TODO in GoodMorning.
 Inputs: the user's raw TODO, confirmed runtime/timezone, optional confirmed
-project, and supplied follow-up details. Output: a verified saved pending TODO,
-not execution of the task or a change to the confirmed project plan.
+project, conversation context, and supplied follow-up details. Output: a verified saved pending TODO
+with a revised clear title and useful detail, not execution of the task or a
+change to the confirmed project plan.
 
 All paths below are relative to the GoodMorning package root. Read
 `docs/core-rules.md` first (`docs/skill-rules.md` is the expanded reference), then use `templates/todo.reply.template.md` and
@@ -36,7 +37,22 @@ authorization to do the task.
    --input-stdin` with `raw` containing the user's exact wording and optional confirmed
    project/current context. No `kind` in the payload (the wrapper supplies `kind: "todo"`).
    It checks setup and returns the receipt, title suggestion and reply preferences;
-   no separate preparation/profile/state read. Read `docs/inbox-pipeline.md` only
+   no separate preparation/profile/state read. Always revise the wording before saving:
+   keep `raw` verbatim for audit, but supply an improved `summary` plus a `task`
+   object with the same revised `title` and a useful `detail`. Title rules: imperative
+   verb first, specific object, no filler openers ("currently", "there is", "please"),
+   no trailing period, capitalize the first letter, keep it under ~80 characters where
+   possible, and do not prefix the project name when the structured `project` field
+   already holds it (use topic wording such as "Draft convincing-paper outline", not
+   "Draft MRHarmon convincing-paper outline"). Detail rules: 1–2 grounded sentences with why it matters plus the
+   current state or next concrete step, drawn only from supplied facts and conversation
+   context; never invent deadlines, priorities, projects or progress. If no grounded
+   why/state exists, leave `detail` empty. Example payload:
+   `{"raw":"Currently there's a weird stretch of the message box ...",
+   "summary":"Fix secretary page message-box stretch blocking input",
+   "task":{"title":"Fix secretary page message-box stretch blocking input",
+   "detail":"Message box sometimes stretches and blocks typing; keep open until Seb confirms after deployment."}}`.
+   Read `docs/inbox-pipeline.md` only
     for follow-ups/completion/discussion, not simple capture. Append material
     follow-ups with `inbox --append ENTRY --session SESSION --request-key KEY`
     and `{"detail":"exact supplied wording"}`. Then reconcile supplied task facts
@@ -51,12 +67,20 @@ authorization to do the task.
    timezone. Use only a confirmed project; otherwise leave `project` empty.
    Never read old inbox messages to add a TODO; verify its compact receipt.
     After a successful local capture, rename once to `Todo SUMMARY` in
-    `secretary_language`, using the helper's very short raw summary per the shared
+    `secretary_language`, using the revised clear title (not the verbatim raw) per the shared
     title rule. Browser chats keep the native engine's automatically generated
-    title; do not overwrite it. Captured text stays unchanged.
+    title; do not overwrite it. Raw input stays verbatim in storage; the saved
+    `summary`/`title`/`detail` carry the improved wording.
    Do not ask for a project, deadline, priority, or task breakdown by default.
-   When supplied, keep `detail` to extra notes only: never repeat the title,
-   project, deadline or priority in it. Code shows each once per project group;
+   When supplied, keep `detail` to useful extra notes only: never repeat the title,
+   project, deadline or priority in it; put supplied timing in structured `task`
+   fields (`due_date`, `planned_date`), never in prose. A vague user title such as "Write convincing
+   paper" (project MRHarmon) must become something specific like "Draft convincing-paper outline",
+   with detail drawn only from supplied context (paper, current state, agreed next step).
+   If no why/state was supplied, leave `detail` empty rather than inventing facts;
+   an honest empty detail beats a fabricated one. Punctuation or capitalization alone
+   is not a reason to bump a revision; polish only materially vague copy.
+   Code shows each once per project group;
    duplication is what makes the Tasks page read as a billion identical cards.
    If this same user turn was already captured, reuse its entry instead of
    duplicating it. Save follow-up details immediately with the same entry,
@@ -69,9 +93,12 @@ authorization to do the task.
    Never mark gm/gn for TODO capture. Confirm the saved TODO briefly, using the
    reply template. Do not require a reply or a now/later choice. A brief optional
    `Clarify` invitation is allowed, not a clarification question.
-4. For clear requests, just record what the user says. Do not ask unnecessary clarification questions,
+4. For clear requests, record what the user means with clearer wording, not a verbatim
+   title copy. Do not ask unnecessary clarification questions,
    infer missing details, research, plan, execute the TODO, launch agents/jobs,
    scan projects, fetch news/weather, or change project/work files or calendars.
+   Improving the title/detail wording from supplied facts needs no extra question;
+   only ambiguous scheduling/targets require asking before any write.
    A dated TODO stays a TODO; do not offer calendar confirmation during capture.
    Recording a task is not authorization to do it. Leave it pending until the
    user explicitly reports completion or authorizes its organization elsewhere.
