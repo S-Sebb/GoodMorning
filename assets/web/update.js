@@ -134,7 +134,7 @@
       const response = await fetch('/api/release/seen', {method:'POST', credentials:'same-origin', cache:'no-store',
         headers:{'Content-Type':'application/json', 'X-Briefing-CSRF':config.csrf}, body:JSON.stringify({version})});
       if (!response.ok) throw new Error();
-      seen = (await response.json()).version;
+      seen = (await goodmorningJSON(response)).version;
     } catch {
       // Dismiss this visit even offline, but never pretend the account save succeeded.
       toggle.title = t('Dismissal could not be saved. Patch notes may appear again.');
@@ -165,7 +165,7 @@
         fetch('/api/release/seen', {cache:'no-store', credentials:'same-origin'})
       ]);
       if (!response.ok) return;
-      const result = await response.json();
+      const result = await goodmorningJSON(response);
       if (!/^[a-f0-9]{64}$/.test(result.version)) return;
       latest = result.version;
       if (!Array.isArray(result.notes) || !result.notes.length) return;
@@ -179,7 +179,7 @@
       release = notes[0].version;
       selected = selected && notes.some(note => note.version === selected) ? selected : release;
       if (state.ok) {
-        const status = await state.json();
+        const status = await goodmorningJSON(state);
         accountEnabled = status.enabled === true;
         seen = status.version;
       }

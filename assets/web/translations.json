@@ -1,4 +1,7 @@
 {
+  "Too many requests. Please wait a moment, then check the page again.": "请求过于频繁。请稍等片刻，再查看页面。",
+  "The secretary is temporarily unavailable. Refresh to check status before trying again.": "秘书服务暂时不可用。再次尝试前，请刷新查看状态。",
+  "The server returned an unreadable response. Refresh to check status before trying again.": "服务器返回了无法读取的响应。再次尝试前，请刷新查看状态。",
   "Use the requested firmer follow-up: a prior planned workout remains unconfirmed. Ask for an actual completion report; do not assume failure or shame the user.": "按用户要求使用更坚定的跟进语气：此前计划的锻炼仍未确认完成。请询问实际完成情况，不要认定失败或羞辱用户。",
   "Soft target: {date}": "弹性目标日期：{date}",
   "Not reminded on days with fixed-time plans": "已有明确时间安排的日期不提醒",

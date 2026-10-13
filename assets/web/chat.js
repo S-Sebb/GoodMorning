@@ -176,11 +176,11 @@ async function chatRequest(path, body, binary = false) {
     if (response.status === 401) { location.replace('/login'); throw new Error(chatT('Please sign in again.')); }
     let result;
     try {
-      result = await response.json();
+      result = await goodmorningJSON(response);
       if (!result || typeof result !== 'object' || Array.isArray(result)) throw new Error('Invalid response');
-    } catch {
+    } catch (cause) {
       if (attempt + 1 < attempts) continue;
-      const error = new Error(chatT('The server returned an unreadable response. Your draft is safe.'));
+      const error = new Error(response.status === 429 ? cause.message : chatT('The server returned an unreadable response. Your draft is safe.'));
       error.status = response.status;
       error.uncertain = Boolean(body) && (response.ok || response.status >= 500);
       if (error.uncertain) error.message += ' ' + chatT('Refresh to check delivery before sending again.');

@@ -24,7 +24,7 @@
       const response = await fetch('/api/color-schemes', {method: 'POST', credentials: 'same-origin', cache: 'no-store',
         headers: {'Content-Type': 'application/json', 'X-Briefing-CSRF': config.csrf},
         body: JSON.stringify({day: day.value, night: night.value})});
-      const value = await response.json();
+      const value = await goodmorningJSON(response);
       if (!response.ok) throw new Error(value.error || t('Color schemes could not be saved. Try again.'));
       apply(value); feedback.textContent = t('Color schemes saved.');
     } catch (error) {
@@ -39,7 +39,7 @@
     try {
       const response = await fetch('/api/color-schemes', {credentials: 'same-origin', cache: 'no-store'});
       if (response.ok) {
-        const value = await response.json();
+        const value = await goodmorningJSON(response);
         if (version === revision && valid(value) && (value.day !== saved.day || value.night !== saved.night)) apply(value);
       }
     } catch { /* Preserve the last confirmed palette and all drafts during an outage. */ }

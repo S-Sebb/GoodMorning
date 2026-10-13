@@ -40,7 +40,7 @@ if (form) form.addEventListener('submit', async event => {
       method: 'POST', headers: {'Content-Type':'application/json','X-Briefing-CSRF':form.dataset.csrf},
       body: JSON.stringify(values), cache: 'no-store', credentials: 'same-origin'
     });
-    const result = await response.json();
+    const result = await goodmorningJSON(response);
     if (!response.ok) throw new Error(result.error || authT('Sign-in unavailable.'));
     form.reset();
     location.replace(result.next);

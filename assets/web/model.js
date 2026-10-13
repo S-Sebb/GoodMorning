@@ -14,7 +14,7 @@ if (modelForm) {
     try {
       const response = await fetch('/api/model', {method:'POST',headers:{'Content-Type':'application/json','X-Briefing-CSRF':modelConfig.csrf},
         body:JSON.stringify({model:modelSelected.value}),credentials:'same-origin',cache:'no-store'});
-      const result = await response.json().catch(() => ({error:t('Model could not be saved. Try again.')}));
+      const result = await goodmorningJSON(response);
       if (!response.ok) throw new Error(result.error || t('Model could not be saved. Try again.'));
       if (typeof result.model !== 'string' || !modelSelected.querySelector(`option[value="${result.model}"]`)) throw new Error(t('Model could not be saved. Try again.'));
       modelSelected.value = result.model; modelFeedback.textContent = t('Model saved.');

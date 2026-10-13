@@ -128,7 +128,7 @@
       const response = await fetch('/api/activity', {credentials: 'same-origin', cache: 'no-store'});
       if ([401, 403].includes(response.status)) { activity = []; render(); return; }
       if (!response.ok) throw new Error('Unavailable');
-      const value = await response.json();
+      const value = await goodmorningJSON(response);
       if (!Array.isArray(value.activity)) throw new Error('Invalid activity');
       activity = value.activity.filter(entry => {
         if (!Object.hasOwn(states, entry.state) || !Object.hasOwn(modes, entry.mode)) return false;

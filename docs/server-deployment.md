@@ -172,6 +172,13 @@ A manual rollback is the same sequence; never hand-edit the symlink.
 
 ## Queue-aware deployment guard
 
+The NGINX credential limiter must use the candidate's method/path map: only
+POST `/api/auth/login` and `/api/auth/password` receive a nonempty key. Never
+apply a per-IP login bucket to assets, pages, or read-only polling. Preserve
+the application's own credential/session limits, CSRF checks and private routing.
+Back up and review this exact configuration change before `nginx -t` and reload;
+shipping the template alone does not update the live configuration.
+
 The global secretary queue stores pending work in the `generation_queue`
 metadata key. Reading `GET /api/queue` can dispatch queued work, so deployment
 checks read the database directly instead. The reviewed helper rejects every

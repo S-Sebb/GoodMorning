@@ -30,7 +30,7 @@ async function refreshSchedule(week = scheduleWeek, navigate = false) {
   refresh.disabled = true;
   try {
     const response = await fetch(`/api/schedule?week=${week}`, {signal: controller.signal, credentials: 'same-origin', cache: 'no-store'});
-    const result = await response.json();
+    const result = await goodmorningJSON(response);
     if (!response.ok) throw new Error(result.error || goodmorningT('Saved plans could not be refreshed. Your last view is kept.'));
     if (controller !== scheduleController) return;
     if (result.revision !== scheduleRevision) {

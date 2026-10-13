@@ -109,6 +109,27 @@ class GatewayTests(unittest.TestCase):
         for host in ('gn.example.test', 'sec.example.test'):
             self.assertEqual(self.request('/chat', headers={'Host': host})[0], 403)
 
+    def test_every_public_asset_is_served_without_login_or_account_proxy(self):
+        from goodmorning.web.briefing_resources import Resources
+        from goodmorning.paths import WEB_ASSETS
+        viewer=Resources(WEB_ASSETS)
+        for name,path in viewer.urls.items():
+            with self.subTest(asset=name):
+                self.assertEqual(self.gateway.icons.urls[name],path)
+                status,headers,body=self.request(path)
+                self.assertEqual(status,200)
+                self.assertEqual(headers['Content-Type'].split(';')[0],viewer.paths[path].mime)
+                self.assertEqual(body,viewer.paths[path].data)
+                self.assertNotIn('Set-Cookie',headers)
+        self.assertEqual(self.received,[])
+        self.assertEqual(self.request('/api/chats')[0],401)
+
+    def test_css_dependencies_resolve_to_registered_public_assets(self):
+        for filename in ('briefing.css','color-schemes.css'):
+            css=self.gateway.icons.paths[self.gateway.icons.urls[filename]].data.decode()
+            for url in re.findall(r'url\([\"\']?([^\"\')]+)',css):
+                self.assertIn(url.split('#')[0],tuple(self.gateway.icons.paths))
+
     def test_generation_clock_is_trusted_and_client_headers_are_not_forwarded(self):
         header={'X-GoodMorning-Requested-At':'123'}
         self.gateway.proxy(self.id,'gm.example.test','/api/generate','POST',b'{}',header)

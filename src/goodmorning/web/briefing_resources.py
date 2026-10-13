@@ -75,6 +75,8 @@ class Resources:
                   'briefing.js': 'text/javascript', 'browser.js': 'text/javascript',
                   'scroll-rails.js': 'text/javascript', 'scroll-rails.css': 'text/css',
                    'questions.js': 'text/javascript', 'chat.js': 'text/javascript', 'chat.css': 'text/css', 'language.js':'text/javascript',
+                   'network.js':'text/javascript', 'auth.js':'text/javascript','auth.css':'text/css',
+                   'activity.js':'text/javascript','activity.css':'text/css',
                      'model.js':'text/javascript', 'schedule.js':'text/javascript', 'schedule.css':'text/css',
                     'marked.js': 'text/javascript', 'markdown.js': 'text/javascript',
                      'starry-sky.svg': 'image/svg+xml',

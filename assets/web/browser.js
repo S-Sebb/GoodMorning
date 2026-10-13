@@ -161,7 +161,7 @@ async function requestAPI(path, body) {
     method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Briefing-CSRF': config.csrf },
     body: JSON.stringify(body)
   });
-  const data = await response.json();
+  const data = await goodmorningJSON(response);
   if (!response.ok) throw new Error(data.error || browserT('The secretary could not be reached.'));
   return data;
 }

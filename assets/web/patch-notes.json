@@ -1,6 +1,19 @@
 {
   "notes": [
     {
+      "version": "0.32.1", "date": "2026-10-13", "author": "GoodMorning agent",
+      "title_en": "Restore website assets and clear connection errors", "title_zh": "恢复网站资源并改善连接错误提示",
+      "changes": [{"category": "Fixed", "en": [
+        "Apply the NGINX authentication rate limit only to credential submissions, not ordinary pages, images, stylesheets or API reads.",
+        "Serve the same public asset registry at the gateway and viewer, restoring navigation icons, fonts and scroll scripts without exposing private records.",
+        "Show readable connection errors when a server returns HTML instead of JSON; do not automatically retry actions that might already have been received."
+      ], "zh": [
+        "NGINX 登录限流仅作用于凭据提交，不再限制普通页面、图片、样式表或 API 读取。",
+        "网关和查看器使用同一公开资源列表，恢复导航图标、字体和滚动脚本，不公开私人记录。",
+        "服务器返回 HTML 而非 JSON 时显示清晰的连接错误，不自动重试可能已经收到的操作。"
+      ]}]
+    },
+    {
       "version": "0.32.0", "date": "2026-10-13", "author": "GoodMorning agent",
       "title_en": "Schedule, durable tasks and faithful reminder rules", "title_zh": "日程、持久待办与准确的提醒规则",
       "changes": [

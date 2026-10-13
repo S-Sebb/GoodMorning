@@ -79,7 +79,7 @@ async function saveWebsiteLanguage(event) {
   try {
     const response = await fetch('/api/language', {method:'POST',headers:{'Content-Type':'application/json','X-Briefing-CSRF':languageConfig.csrf},
       body:JSON.stringify({language:selected.value}),credentials:'same-origin',cache:'no-store'});
-    const result = await response.json().catch(() => ({error:goodmorningT('Language could not be saved. Try again.')}));
+    const result = await goodmorningJSON(response);
     if (!response.ok) throw new Error(result.error || goodmorningT('Language could not be saved. Try again.'));
     if (!['en','zh-CN'].includes(result.language)) throw new Error(goodmorningT('Language could not be saved. Try again.'));
     applyWebsiteLanguage(result.language); feedback.textContent = goodmorningT('Language saved.');
@@ -98,7 +98,7 @@ async function syncWebsiteLanguage() {
   const version = languageRevision;
   try {
     const response = await fetch('/api/language', {credentials:'same-origin',cache:'no-store'});
-    if (response.ok) { const result = await response.json(); if (version === languageRevision && result.language !== goodmorningLanguage) applyWebsiteLanguage(result.language); }
+    if (response.ok) { const result = await goodmorningJSON(response); if (version === languageRevision && result.language !== goodmorningLanguage) applyWebsiteLanguage(result.language); }
   } catch { /* Keep readable content and unsent drafts during an outage. */ }
   finally { languageSyncing = false; }
 }

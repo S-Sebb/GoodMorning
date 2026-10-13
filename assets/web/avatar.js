@@ -118,7 +118,7 @@
           const response = await fetch('/api/avatar', {method: 'POST', headers: {'Content-Type': 'application/json', 'X-Briefing-CSRF': csrf},
             body: JSON.stringify({avatar: requested}), credentials: 'same-origin', cache: 'no-store'});
           if (response.status === 401) { location.replace('/login'); throw new Error('Sign-in required'); }
-          const result = await response.json();
+          const result = await goodmorningJSON(response);
           if (!response.ok || !ids.includes(result.avatar)) throw new Error('Avatar save failed');
           saved = result.avatar;
           if (wanted === requested) wanted = saved;
@@ -151,7 +151,7 @@
       try {
         const response = await fetch('/api/avatar', {cache: 'no-store', credentials: 'same-origin'});
         if (!response.ok) return;
-        const result = await response.json();
+        const result = await goodmorningJSON(response);
         if (revision !== syncRevision || saving || uploading) return;
         updateOptions(result.avatars);
         if (!ids.includes(result.avatar)) return;
@@ -180,7 +180,7 @@
           headers: {'Content-Type': 'application/octet-stream', 'X-Briefing-CSRF': csrf},
           body: file, credentials: 'same-origin', cache: 'no-store'});
         if (response.status === 401) { location.replace('/login'); throw new Error('Sign-in required'); }
-        const result = await response.json();
+        const result = await goodmorningJSON(response);
         if (!response.ok || result.avatar !== 'custom') throw new Error('Avatar upload failed');
         updateOptions(result.avatars);
         if (!ids.includes('custom')) throw new Error('Avatar upload failed');

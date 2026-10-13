@@ -117,6 +117,9 @@ class InterfaceHTML(HTMLParser):
 
 def page(source,csrf,return_to='/'):
     from .release import VERSION
+    # Load the shared response reader before every deferred page script.
+    if '/network.js' not in source:
+        source=re.sub(r'(<head\b[^>]*>)',r'\1<script src="/network.js" defer></script>',source,count=1)
     if 'id="site-release"' not in source:
         source=source.replace('</head>','<link rel="stylesheet" href="/update.css"><script src="/update.js" defer></script></head>')
         notice='<div id="site-release" hidden data-version="'+VERSION+'"></div>'

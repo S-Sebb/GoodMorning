@@ -70,12 +70,9 @@ class Gateway:
             raise ValueError('Configure a morning hostname or explicit morning, evening and optional secretary hostnames')
         self.accounts, self.hosts, self.testing = accounts, hosts, testing
         self.opener = build_opener(NoRedirect())
-        self.icons = Resources(ASSETS, types={**ICON_TYPES,'language.js':'text/javascript','model.js':'text/javascript',
-            'auth.js':'text/javascript','auth.css':'text/css','update.js':'text/javascript','update.css':'text/css',
-            'activity.js':'text/javascript','activity.css':'text/css',
-            'marked.js':'text/javascript','markdown.js':'text/javascript',
-            'starry-sky.svg':'image/svg+xml',
-            'color-schemes.js':'text/javascript','color-schemes.css':'text/css'})
+        # Public assets share the viewer's exact registry and CSS fingerprints.
+        # They must not fall through the private account route allowlist.
+        self.icons = Resources(ASSETS)
         self.html_cache = ByteCache(8 * 1024 * 1024, 32)
         self.html_lock = threading.RLock()
         labels=[host.split('.')[::-1] for host in hosts]
