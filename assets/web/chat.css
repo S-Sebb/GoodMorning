@@ -131,6 +131,10 @@
 .attachment-name { font-size: 12px; color: var(--muted); overflow-wrap: anywhere; margin: 8px 0 0; }
 #chat-send { flex-shrink: 0; background: var(--ink); color: var(--surface); }
 #chat-send:hover:not(:disabled) { background: var(--accent); color: var(--surface); }
+#chat-compose.is-initializing .chat-input-row { padding: 0; border: 0; background: transparent; }
+#chat-compose.is-initializing :is(#chat-text, #chat-attach, #chat-attachments, #chat-send svg) { display: none; }
+#chat-compose.is-initializing #chat-send { flex: 1; width: 100%; height: auto; padding: 14px 18px; }
+#chat-compose.is-initializing .chat-send-label { position: static; width: auto; height: auto; margin: 0; overflow: visible; clip: auto; white-space: normal; }
 #chat-error { color: #a0362e; overflow-wrap: anywhere; font-size: 13px; }
 #chat-error:empty { display: none; }
 html[data-edition="gn"] #chat-error { color: #f1b1a8; }
