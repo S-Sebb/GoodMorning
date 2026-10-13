@@ -246,7 +246,7 @@ class JobTests(unittest.TestCase):
         result=self.app.start('2026-10-11','gn')
         self.assertEqual(self.app.status(result['job'])['state'],'waiting')
         self.assertEqual(self.chamber.calls,[])
-        self.app.reply(result['job'],'form','preflight_'+result['job'],{'answer':{'completed':['none'],'details':'No other updates'}})
+        self.app.reply(result['job'],'form','preflight_'+result['job'],{'answer':{'details':'No updates today'}})
         self.assertTrue(self.chamber.sent.wait(2))
         self.assertEqual(sum(a=='session.create' for a,_ in self.chamber.calls),1)
 
@@ -408,7 +408,7 @@ class JobTests(unittest.TestCase):
     def test_night_empty_project_priority_sections_are_skippable(self):
         self.job['kind'] = 'gn'; self.app.jobs = {'2026-10-11.gn': self.job}; self.app.save_jobs()
         initialize(self.root, self.job)
-        answer(self.root, self.job, {'completed':['none'], 'details':'No project work to report.'})
+        answer(self.root, self.job, {'details':'No project work to report.'})
         act(self.root, self.identifier, 'ses_fixture', 'init', {'greeting':'Evening.', 'opening':'A quiet review.'})
         for position, tag in enumerate(('today','still-open','tomorrow','must-do','nice-to-do','notes')):
             if tag in ('today','tomorrow'):

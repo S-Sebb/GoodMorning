@@ -346,7 +346,7 @@ class TaskStore:
             return result
 
     def complete_day(self, selections, day, session, key, now, details):
-        """One browser feedback receipt and atomic exact-occurrence completions."""
+        """One browser receipt: exact planned or explicitly selected actual-day completions."""
         checked(session, 200, False); checked(key, 240, False); checked(details)
         digest = hashlib.sha256(encode([selections, day, session, details]).encode()).hexdigest()
         with self.inbox.transaction():
@@ -359,7 +359,19 @@ class TaskStore:
                 task = self.show(selection['task_id'])
                 if task['revision'] != selection['revision']:
                     raise ValueError('write_conflict: planned task changed; refresh feedback')
-                occ = self.occurrence(task, day)
+                if selection.get('actual'):
+                    date(day)
+                    reported = dt.datetime.fromisoformat(now)
+                    if task.get('timezone'):
+                        reported = reported.astimezone(ZoneInfo(task['timezone']))
+                    if day > reported.date().isoformat():
+                        raise ValueError('invalid_date: future work cannot already be completed')
+                try:
+                    occ = self.occurrence(task, day)
+                except ValueError:
+                    if not selection.get('actual'):
+                        raise
+                    occ = {'id': occurrence_id(task['id'], day), 'revision': 0, 'status': task['status']}
                 if selection['id'] != occ['id'] or occ['status'] == 'cancelled':
                     raise ValueError('unknown_occurrence: complete only exact planned occurrences')
                 self.db.execute('INSERT INTO task_occurrences VALUES (?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET '
