@@ -36,7 +36,10 @@ def check_compact(browser, address, artifacts):
         expect(clip.locator('svg')).to_have_count(1)
         assert clip.text_content()==''
         assert clip.evaluate("node => node.parentElement.classList.contains('chat-input-row') && node===node.parentElement.firstElementChild")
-        expect(page.locator('#conversation-history')).to_have_attribute('open', '')
+        if width>700:
+            expect(page.locator('#conversation-history')).to_have_attribute('open', '')
+        else:
+            expect(page.locator('#conversation-history')).not_to_have_attribute('open')
         expect(page.locator('.chat-room-header')).to_have_count(0)
         expect(page.locator('#conversation-name')).to_have_css('clip', 'rect(0px, 0px, 0px, 0px)')
         page.evaluate('document.fonts.ready')
@@ -86,24 +89,39 @@ def check_compact(browser, address, artifacts):
             page.locator('.conversation-panel').screenshot(path=str(artifacts/f'compact-chat-{edition}-{scheme}-{width}.png'))
             assert not page.evaluate('document.documentElement.scrollWidth > innerWidth')
             if width>700:
-                page.evaluate('window.scrollTo(0, document.documentElement.scrollHeight)')
+                # Viewport-fit desktop: no page scroll, composer visible without scrolling.
+                expect(page.locator('#chat-send')).to_be_in_viewport()
                 aligned = page.evaluate('''() => {
                     const panel=document.querySelector('.conversation-panel').getBoundingClientRect();
                     const avatar=document.querySelector('.desk-figure').getBoundingClientRect();
                     const scroll=document.querySelector('#chat-scroll').getBoundingClientRect();
                     const composer=document.querySelector('#chat-compose').getBoundingClientRect();
+                    const hist=document.querySelector('#chat-history');
                     return {panelTop:panel.top,avatarTop:avatar.top,panelBottom:panel.bottom,
-                        scrollHeight:scroll.height,composerBottom:composer.bottom};
+                        scrollHeight:scroll.height,composerBottom:composer.bottom,
+                        pageScrollable:document.documentElement.scrollHeight-innerHeight,
+                        histClient:hist.clientHeight,histScroll:hist.scrollHeight};
                 }''')
-                assert abs(aligned['panelTop']-16)<1 and abs(aligned['avatarTop']-16)<1, aligned
+                assert aligned['pageScrollable']<=1, aligned
+                assert 100<aligned['panelTop']<300 and abs(aligned['avatarTop']-aligned['panelTop'])<1, aligned
                 assert aligned['panelBottom']<=1000 and aligned['composerBottom']<=1000, aligned
-                assert aligned['scrollHeight']>=750, aligned
+                assert 350<=aligned['scrollHeight']<=700, aligned
+                assert aligned['histClient']<=241 and aligned['histScroll']>aligned['histClient'], aligned
                 page.screenshot(path=str(artifacts/f'desktop-bottom-{edition}-{scheme}-{width}.png'))
             checks.append({'width':width,'edition':edition,'scheme':scheme, **geometry, 'avatarNoteContrast':round(contrast(colors['ink'],colors['paper']),2)})
         history = page.locator('#conversation-history')
         summary = history.locator('summary')
-        summary.click()
-        expect(history).not_to_have_attribute('open')
+        if width>700:
+            expect(history).to_have_attribute('open', '')
+            summary.click()
+            expect(history).not_to_have_attribute('open')
+        else:
+            # Small screens start collapsed so the chat is in view.
+            expect(history).not_to_have_attribute('open')
+            summary.click()
+            expect(history).to_have_attribute('open', '')
+            summary.click()
+            expect(history).not_to_have_attribute('open')
         page.wait_for_function("() => localStorage.getItem('goodmorning.chat.history') === 'closed'")
         page.reload(); expect(history).not_to_have_attribute('open')
         summary.click()
@@ -115,11 +133,12 @@ def check_compact(browser, address, artifacts):
         expect(page.locator('#secretary-heading')).to_have_text('Aurora')
         if width>700:
             page.set_viewport_size({'width':width,'height':600})
-            page.evaluate('window.scrollTo(0, document.documentElement.scrollHeight)')
             expect(page.locator('#chat-send')).to_be_in_viewport()
             short = page.locator('.conversation-panel').bounding_box()
             avatar = page.locator('.desk-figure').bounding_box()
-            assert abs(short['y']-16)<1 and abs(avatar['y']-16)<1, (short,avatar)
+            assert page.evaluate('document.documentElement.scrollHeight-innerHeight')<=1
+            assert 100<short['y']<300 and abs(avatar['y']-short['y'])<1, (short,avatar)
+            assert short['y']+short['height']<=601, short
             page.locator('#mode-help').click()
             expect(page.locator('#chat-send')).to_be_in_viewport()
             page.locator('.conversation-panel').screenshot(path=str(artifacts/f'short-desktop-help-{width}.png'))
@@ -127,9 +146,9 @@ def check_compact(browser, address, artifacts):
     page = browser.new_page(viewport={'width':390,'height':1000})
     page.add_init_script("Object.defineProperty(window, 'localStorage', {get() { throw new Error('Synthetic disabled storage'); }});")
     page.goto(address+'/chat?mode=secretary')
-    expect(page.locator('#conversation-history')).to_have_attribute('open','')
-    page.locator('#conversation-history summary').click()
     expect(page.locator('#conversation-history')).not_to_have_attribute('open')
+    page.locator('#conversation-history summary').click()
+    expect(page.locator('#conversation-history')).to_have_attribute('open', '')
     page.close()
     return checks
 
