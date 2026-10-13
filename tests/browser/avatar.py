@@ -77,6 +77,8 @@ def check_picker(page, address, artifacts):
         expect(page.get_by_role('button', name='Upload your own avatar')).to_be_visible()
         expect(page.locator('[data-avatar-choice]')).to_have_count(4)
         expect(page.locator('[data-avatar-toggle]')).to_have_attribute('aria-expanded', 'true')
+        assert page.locator('.avatar-previews').evaluate('node => node.clientWidth') >= 68
+        assert not page.evaluate('document.documentElement.scrollWidth > innerWidth')
         page.locator('[data-avatar-choice="f1"]').click()
         expect(page.locator('.avatar-feedback')).to_have_text('Avatar 1 of 4')
         page.locator('[data-avatar-next]').click()
@@ -86,7 +88,7 @@ def check_picker(page, address, artifacts):
         expect(page.locator('.avatar-feedback')).to_have_text('Avatar 4 of 4')
         page.wait_for_function("""() => {
             const strip = document.querySelector('.avatar-previews').getBoundingClientRect();
-            const selected = document.querySelector('[aria-selected="true"]').getBoundingClientRect();
+            const selected = document.querySelector('.avatar-previews [aria-selected="true"]').getBoundingClientRect();
             return selected.left >= strip.left - 1 && selected.right <= strip.right + 1;
         }""")
         page.locator('[data-avatar-choice="m2"]').focus()
@@ -147,10 +149,13 @@ def check_picker(page, address, artifacts):
 
 
 def check_motion(browser, address):
-    page = browser.new_page(viewport={'width': 390, 'height': 900}, reduced_motion='no-preference')
+    page = browser.new_page(viewport={'width': 1440, 'height': 900}, reduced_motion='no-preference')
     page.goto(address + '/chat')
     open_picker(page)
-    assert page.locator('.avatar-menu').evaluate('node => getComputedStyle(node).animationName') == 'avatar-menu-enter'
+    expect(page.locator('.avatar-menu')).to_have_css('animation-name', 'avatar-menu-enter')
+    page.set_viewport_size({'width': 390, 'height': 900})
+    # The existing mobile picker is an inline carousel, not an animated popup.
+    expect(page.locator('.avatar-menu')).to_have_css('animation-name', 'none')
     page.evaluate("""window.avatarFrames = [];
         const image = document.querySelector('.avatar-image');
         const observer = new MutationObserver(() => {

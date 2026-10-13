@@ -112,6 +112,19 @@ replies, `docs/reply-voice.md`: personable useful content, no routine bookkeepin
    Use the reply template: outcome first, useful context/open items next, in the
    user's customised tone. Clean formatting and clarity take priority.
    Do not mark gm/gn merely because this general skill was used.
+9. For explicitly requested avatar creation or comparison, inspect only relevant
+   reference images. Use `avatar-preview --secretary-dir RUNTIME --source PATH`
+   through `scripts/goodmorning.py`, then read the returned private WebP preview.
+   Up to four explicitly selected sources can share one invocation. On the hosted
+   server use `/opt/goodmorning/python/bin/python -B` for this Pillow-based helper;
+   local use requires Python with Pillow. It keeps original files unchanged and
+   reuses content-identical previews. Write drafts only in the account's private
+   runtime/temporary space, never the shared public assets. Publish the original
+   full-quality final image through the existing custom-avatar mechanism, not the
+   inspection preview. Use the original or a focused crop when precise detail is
+   needed; never use avatar previews for OCR, scientific figures or document work.
+   See `docs/storage-efficiency.md`. Do not read avatar references on ordinary
+   planning, setup or capture requests without an image task.
 
 ## Errors
 

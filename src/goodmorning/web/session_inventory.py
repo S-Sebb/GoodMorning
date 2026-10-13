@@ -189,6 +189,8 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--secretary-dir')
     parser.add_argument('--list', action='store_true', help='Show the local session inventory (default)')
+    parser.add_argument('--storage', action='store_true', help='Read-only filesystem sizes; never load file contents or contact models')
+    parser.add_argument('--cache-dir', type=Path)
     parser.add_argument('--prune-jobs', action='store_true')
     parser.add_argument('--archive-chats', action='store_true')
     parser.add_argument('--keep', type=int, default=200)
@@ -199,12 +201,15 @@ def main(argv=None):
     args = parser.parse_args(argv)
     from goodmorning.runtime_files import secretary_path
     try:
-        if sum([bool(args.prune_jobs), bool(args.archive_chats)]) > 1:
+        if sum([bool(args.prune_jobs), bool(args.archive_chats), bool(args.storage)]) > 1:
             raise ValueError('Choose only one maintenance action')
         if args.keep < 0 or not 0 < args.older_than_days <= 3650 or not 0 < args.jobs_older_than_days <= 3650:
             raise ValueError('Use a non-negative keep count and a 1-3650 day window')
         runtime = secretary_path(args.secretary_dir)
-        if args.prune_jobs:
+        if args.storage:
+            from goodmorning.storage_usage import inventory
+            result = inventory(runtime, args.cache_dir)
+        elif args.prune_jobs:
             result = prune_jobs(runtime, args.jobs_older_than_days, apply=args.apply)
         elif args.archive_chats:
             result = archive_chats(runtime, args.keep, args.older_than_days, apply=args.apply)

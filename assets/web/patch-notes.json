@@ -1,6 +1,34 @@
 {
   "notes": [
     {
+      "version": "0.31.0", "date": "2026-10-13", "author": "GoodMorning agent",
+      "title_en": "Smaller avatar inspection records and storage visibility", "title_zh": "精简头像检查记录并提供存储统计",
+      "changes": [
+        {"category": "Fixed", "en": [
+          "Keep the mobile Morning and Evening avatar picker wide enough to show its selected portrait instead of squeezing it into the narrow main portrait column."
+        ], "zh": [
+          "确保移动端晨报和晚报的头像选择器足够宽，能够显示选中的头像，不再挤在狭窄的主头像栏中。"
+        ]},
+        {"category": "Added", "en": [
+          "Create private, reusable 512-pixel lossless WebP inspection previews for avatar work, preserving original files and full-quality published images.",
+          "Add a bounded, read-only storage inventory separating records, uploads, previews, engine data, caches and fixed native-library files without reading file contents or calling models."
+        ], "zh": [
+          "为头像制作生成私有、可复用的 512 像素无损 WebP 检查预览，保留原始文件和完整质量的发布图片。",
+          "新增有界、只读的存储统计，区分记录、上传文件、预览、引擎数据、缓存和固定原生库文件，不读取文件内容或调用模型。"
+        ]},
+        {"category": "Documentation", "en": [
+          "Use compact previews only for requested avatar inspection, not OCR or scientific images. Existing histories, originals, preferences, models and retention policies remain unchanged."
+        ], "zh": [
+          "仅在用户请求头像检查时使用精简预览，不用于文字识别或科学图像。现有历史、原图、偏好、模型和保留策略均不变。"
+        ]},
+        {"category": "Tests", "en": [
+          "Verify image and record preservation, private permissions, preview reuse, storage reduction including the preview cache, disjoint accounting and content-free diagnostics."
+        ], "zh": [
+          "验证图像与记录保留、私有权限、预览复用、计入预览缓存后的存储减少、无重复统计，以及不读取内容的诊断。"
+        ]}
+      ]
+    },
+    {
       "version": "0.30.5", "date": "2026-10-13", "author": "GoodMorning agent",
       "title_en": "Keep login assets available during connection bursts", "title_zh": "修复连接突发时登录资源加载失败",
       "changes": [
