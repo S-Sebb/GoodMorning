@@ -371,13 +371,6 @@ def schedule(runtime, today, kind, store=None, offset=0, limit=7):
         result['pending'] = calendar.stats()['pending']
         from goodmorning.web import language as ui
         pendings = calendar.pending(limit=-1)
-        approved_windows = []
-        for approved in result['items']:
-            if approved.get('draft') or approved.get('all_day') or approved.get('status') == 'cancelled':
-                continue
-            window = _review_interval(approved.get('start'), approved.get('end'), zone)
-            if window:
-                approved_windows.append((approved, window))
         pending_windows = {}
         for candidate in pendings:
             if str(candidate.get('status') or '') == 'cancelled' or candidate.get('all_day'):
@@ -385,15 +378,29 @@ def schedule(runtime, today, kind, store=None, offset=0, limit=7):
             window = _review_interval(candidate.get('start'), candidate.get('end'), zone)
             if window:
                 pending_windows[candidate['id']] = window
+        # Pending reviews carry no date filter, so a clash partner can sit far
+        # outside the 3-day display window. Check each pending's own interval.
+        approved_by_pending: dict[str, list] = {}
+        for candidate in pendings:
+            window = pending_windows.get(candidate['id'])
+            if not window:
+                continue
+            try:
+                neighbours = calendar.query(window[0], window[1], details=True, limit=-1)
+            except (ValueError, KeyError, OSError, sqlite3.Error):
+                neighbours = []
+            approved_by_pending[candidate['id']] = [
+                approved for approved in neighbours
+                if not approved.get('draft') and not approved.get('all_day')
+                and approved.get('status') != 'cancelled']
         for pending in pendings:
             title, facts = calendar_review_copy(pending, zone, ui)
             window = pending_windows.get(pending['id'])
             if window:
                 clashes = []
-                for approved, (start, end) in approved_windows:
-                    if window[0] < end and start < window[1]:
-                        clashes.append(_clash_label(approved.get('subject'), approved.get('start'),
-                                                    approved.get('end'), approved.get('all_day'), zone))
+                for approved in approved_by_pending.get(pending['id'], []):
+                    clashes.append(_clash_label(approved.get('subject'), approved.get('start'),
+                                                approved.get('end'), approved.get('all_day'), zone))
                 for other in pendings:
                     if other['id'] == pending['id']:
                         continue
