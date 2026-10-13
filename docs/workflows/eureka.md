@@ -75,7 +75,7 @@ Brief grounded interest or a warm closing is optional, not mandatory padding.
      capture. If clarification is explicitly requested, continue with step 5.
 4. Default / later: leave it pending without requiring an explicit "later" reply.
     Follow `docs/item-taxonomy.md`: surface actual open questions or a due review
-    in Needs attention, not automatic daily clarification work. Keep unresolved
+    in Reminders, not automatic daily clarification work. Keep unresolved
    input pending even without a follow-up reply. Do not install a scheduler.
 5. Clarification: accept `Clarify` or an equivalent explicit discussion request;
    no special keyword is required, but details alone are not such a request.

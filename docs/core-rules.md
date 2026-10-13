@@ -105,7 +105,7 @@ and already published legacy previews remain preserved.
   confirmation. Uncertain proposals stay out of confirmed plans and calendars;
   another person's position is not proof of agreement. Keep outstanding questions,
   dates, constraints, sources, uncertainty and permissions in concise current state.
-- Actual unresolved questions and due reviews belong in Needs attention. Clear ideas
+- Actual unresolved questions and due reviews belong in Reminders. Clear ideas
   do not create recurring clarification TODOs. Respect saved review dates/answers.
 - `/eureka` and `/todo` are record-only by default: save, confirm, then stop. Action verbs
   and requirements are content, not execution consent. Supplied details alone

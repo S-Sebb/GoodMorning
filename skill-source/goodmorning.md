@@ -30,7 +30,7 @@ from saved browser context, publish only the next section, then finish. Code own
 the cumulative document and final save, never task scheduling from presentation. Never count previews
 as completed runs or repeat saved browser decisions/progress questions.
 Read `docs/item-taxonomy.md`: Schedule owns events, Tasks owns all actions, and
-Needs attention owns due reviews/decisions. Code owns routing from stable IDs,
+Reminders owns due reviews/decisions. Code owns routing from stable IDs,
 explicit workdays/deadlines/recurrence and confirmed progress. Clear ideas are not
 automatic nightly questions. Showing work never schedules or authorizes it.
 Website conversations marked `Browser chat` follow `docs/browser-chat.md`.

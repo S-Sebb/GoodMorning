@@ -45,7 +45,7 @@ Use selected absolute paths, actual session, pinned date and confirmed language.
    actionable card. Follow code-owned sources and remaining pages.
    In prose keep unfinished work on its original date; "carries over" is not a
    synonym for still open. Appointment-free dates are not known free time.
-6. Needs attention shows due reviews and material unknowns affecting tomorrow.
+6. Reminders shows due reviews and material unknowns affecting tomorrow.
    Ask focused outstanding questions only, reuse answers and respect deferrals.
    Clear ideas are not automatic nightly questions. Ask before changing dates;
    unanswered optional decisions do not block confirmed outcome reporting.
