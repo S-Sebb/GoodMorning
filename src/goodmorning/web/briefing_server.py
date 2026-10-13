@@ -36,6 +36,7 @@ from .chat_uploads import MAX_UPLOAD_BYTES, UPLOAD_ROUTE, IMAGE_ROUTE, upload_na
 from .avatar_images import MAX_AVATAR_BYTES, AVATAR_UPLOAD_PATH, image_url, read_image, save_image
 from .bridge_json import read_json
 from .activity import ACTIVITY_PATH, snapshot as activity_snapshot
+from . import schedule
 
 DESK_ART = '<svg viewBox="0 0 64 64" width="64" height="64" fill="none" aria-hidden="true"><rect x="15" y="8" width="36" height="48" rx="7" fill="var(--surface)" stroke="currentColor" stroke-width="1.5"/><path d="M24 19h18M24 25h12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" opacity=".4"/><circle cx="27" cy="36" r="1.5" fill="currentColor"/><circle cx="39" cy="36" r="1.5" fill="currentColor"/><path d="M28 43q5 5 10 0" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>'
 
@@ -236,7 +237,7 @@ class BrowserApp:
         return self.resources.rewrite(ui.page(chat_page(self.csrf, settings['defaultMode'] == 'secretary', settings['connected'], settings.get('secretary_name'), settings['avatar'], {item['id']: item['src'] for item in settings['avatars']}, settings['timezone'], settings['theme']),self.csrf,'/chat')).encode()
 
     def initialization_page(self, kind):
-        switches = ''.join(f'<a class="edition-link{" selected" if other == kind else ""}" href="/{other}.html">{label}</a>' for other, label in KINDS.items())
+        switches = ''.join(f'<a class="edition-link{" selected" if other == kind else ""}" href="/{other}.html">{label}</a>' for other, label in KINDS.items()) + '<a class="edition-link" href="/schedule">Schedule</a>'
         text = f'<!doctype html><html lang="en" data-edition="{kind}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><title>Initialize your secretary — GoodMorning</title><link rel="stylesheet" href="/briefing.css"></head><body><header class="masthead"><a class="wordmark" href="/{kind}.html">GoodMorning<span>A personal secretary just for you</span></a><nav class="edition-switch" aria-label="Edition">{switches}<a class="edition-link" href="/chat">Secretary</a></nav></header><main><section class="waiting-room"><div class="waiting-art">{celestial(kind)}</div><p class="eyebrow">{KINDS[kind]} edition</p><h1>Let’s make this yours.</h1><p class="subtitle">Complete your secretary’s setup before preparing a briefing. Your saved records stay unchanged.</p><a id="initialize" class="initialize-button" href="/chat?mode=initialize">Initialize my secretary</a></section></main></body></html>'
         text = self.briefing_layout(text)
         return self.resources.rewrite(ui.page(text.replace('</head>', favicon_links(kind) + '</head>'),self.csrf,'/'+kind+'.html')).encode()
@@ -392,7 +393,7 @@ class BrowserApp:
                              'job': current_job['id'] if current_job else None}).replace('<', '\\u003c')
         # Inert JSON in a data attribute; no inline scripts or unsafe HTML.
         marker = '<div id="browser-config" hidden data-config="' + html.escape(config, quote=True) + '"></div><script src="/questions.js" defer></script><script src="/browser.js" defer></script>'
-        text = re.sub(r'(<nav class="edition-switch"[^>]*>.*?)(</nav>)', r'\1<a class="edition-link" href="/chat">Secretary</a>\2', text, count=1)
+        text = re.sub(r'(<nav class="edition-switch"[^>]*>.*?)(</nav>)', r'\1<a class="edition-link" href="/schedule">Schedule</a><a class="edition-link" href="/chat">Secretary</a>\2', text, count=1)
         text = text.replace('href="icons/', 'href="/icons/')
         if '<link rel="icon"' not in text:
             text = text.replace('</head>', favicon_links(kind) + '</head>')
@@ -886,6 +887,11 @@ def serve_live(app, port, *, gateway_key=None, public_origins=()):
                     return self.respond(activity_snapshot(app, activity[1], activity[2]))
                 if path == '/api/day':
                     return self.respond({'date': app.today(), 'timezone': app.zone})
+                if path in ('/schedule', '/api/schedule'):
+                    offset = schedule.week_offset(parse_qs(parsed.query, keep_blank_values=True))
+                    if path == '/api/schedule':
+                        return self.respond(schedule.snapshot(app, offset), compress=True)
+                    return self.respond(schedule.page(app, offset), content_type='text/html; charset=utf-8')
                 if path == '/api/queue':
                     # Standalone viewers have no shared gateway waiting line.
                     return self.respond({'queue':[], 'depth':0})
@@ -1017,7 +1023,7 @@ def serve_live(app, port, *, gateway_key=None, public_origins=()):
                     atomic_text(app.runtime/'website-language.json',json.dumps({'language':selected})+'\n')
                     ui.CURRENT.set(selected)
                     target=body.get('return_to','/')
-                    if not re.fullmatch(r'/(?:|chat|(?:gm|gn)\.html|d/\d{4}-\d{2}-\d{2}/(?:gm|gn)\.html)',target):target='/'
+                    if not re.fullmatch(r'/(?:|chat|schedule|(?:gm|gn)\.html|d/\d{4}-\d{2}-\d{2}/(?:gm|gn)\.html)',target):target='/'
                     return self.respond({'language':selected},303 if form else 200,location=target if form else None)
                 if path=='/api/model':
                     if not form and set(body)!={'model'}:raise ValueError('Invalid model choice')
@@ -1025,14 +1031,14 @@ def serve_live(app, port, *, gateway_key=None, public_origins=()):
                     atomic_text(app.runtime/'website-model.json',json.dumps({'model':selected})+'\n')
                     site_models.CURRENT.set(selected)
                     target=body.get('return_to','/')
-                    if not re.fullmatch(r'/(?:|chat|(?:gm|gn)\.html|d/\d{4}-\d{2}-\d{2}/(?:gm|gn)\.html)',target):target='/'
+                    if not re.fullmatch(r'/(?:|chat|schedule|(?:gm|gn)\.html|d/\d{4}-\d{2}-\d{2}/(?:gm|gn)\.html)',target):target='/'
                     return self.respond({'model':selected},303 if form else 200,location=target if form else None)
                 if path=='/api/color-schemes':
                     selected = site_colors.validate({key: body[key] for key in ('day', 'night')} if form else body)
                     site_colors.write(app.runtime, selected)
                     site_colors.CURRENT.set(selected)
                     target=body.get('return_to','/')
-                    if not re.fullmatch(r'/(?:|chat|(?:gm|gn)\.html|d/\d{4}-\d{2}-\d{2}/(?:gm|gn)\.html)',target):target='/'
+                    if not re.fullmatch(r'/(?:|chat|schedule|(?:gm|gn)\.html|d/\d{4}-\d{2}-\d{2}/(?:gm|gn)\.html)',target):target='/'
                     return self.respond(selected,303 if form else 200,location=target if form else None)
                 if path == '/api/generate':
                     return self.respond(app.start(body['date'], body['kind']), 202)

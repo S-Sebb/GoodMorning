@@ -43,6 +43,11 @@ before the whole briefing is ready.
 **Evening · Put the day down.** Review the progress you report, keep unfinished
 work visible, and see tomorrow's schedule. Completion comes from you, not an AI guess.
 
+**Schedule · See the shape of your week.** Reviewed appointments and dated work
+share a clear Monday–Sunday view, with today highlighted and three weeks of
+navigation on either side. Saved changes refresh without another AI briefing;
+[content and update rules](docs/weekly-schedule.md) keep the boundaries explicit.
+
 **Secretary · Keep a little room to think.** Talk through your plans, save to-dos
 in your own words, capture ideas with Eureka, and revisit your preferences without
 resetting your records. Conversations support file attachments, pasted images with

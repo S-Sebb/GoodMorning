@@ -100,6 +100,8 @@ class GatewayTests(unittest.TestCase):
         self.permanent()
         for path, expected in (('/', '/gm.html'), ('/gm.html', '/gm.html'),
                                ('/gn.html', '/gn.html'), ('/chat', '/chat'),
+                               ('/schedule?week=-3', '/schedule?week=-3'),
+                               ('/api/schedule?week=3', '/api/schedule?week=3'),
                                ('/chat?id='+'a'*32, '/chat?id='+'a'*32)):
             self.assertEqual(self.request(path)[0], 200)
             self.assertEqual(self.received[-1][0], expected)
@@ -111,7 +113,7 @@ class GatewayTests(unittest.TestCase):
         (self.root/'backends.json').write_text('{}')
         for language,heading in (('en','Secretary setup pending'),('zh-CN','秘书服务尚未完成配置')):
             self.store.website_language(self.id,language)
-            for path in ('/','/gm.html','/gn.html','/chat','/d/2026-10-11/gm.html'):
+            for path in ('/','/gm.html','/gn.html','/chat','/schedule','/d/2026-10-11/gm.html'):
                 status,headers,data=self.request(path)
                 self.assertEqual(status,503)
                 self.assertTrue(headers['Content-Type'].startswith('text/html'))

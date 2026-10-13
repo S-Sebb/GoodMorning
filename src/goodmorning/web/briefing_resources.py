@@ -72,7 +72,7 @@ class Resources:
         types = types if types is not None else {'fonts/lora-italic.woff2': 'font/woff2', 'briefing.css': 'text/css',
                  'briefing.js': 'text/javascript', 'browser.js': 'text/javascript',
                    'questions.js': 'text/javascript', 'chat.js': 'text/javascript', 'chat.css': 'text/css', 'language.js':'text/javascript',
-                    'model.js':'text/javascript',
+                     'model.js':'text/javascript', 'schedule.js':'text/javascript', 'schedule.css':'text/css',
                     'marked.js': 'text/javascript', 'markdown.js': 'text/javascript',
                      'starry-sky.svg': 'image/svg+xml',
                      'color-schemes.js': 'text/javascript', 'color-schemes.css': 'text/css',

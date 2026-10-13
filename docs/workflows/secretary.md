@@ -68,6 +68,13 @@ replies, `docs/reply-voice.md`: personable useful content, no routine bookkeepin
 
 ## Normal work
 
+The website's Schedule tab is a live read-only view of approved calendar events
+and dated daily checklists. When the user asks to schedule untimed work for an
+explicit date, use the hash-checked `daily` helper to save that day's task, keeping
+its inbox reference where applicable. Do not assign dates to raw captures or
+move unfinished tasks without authorization. See `docs/weekly-schedule.md` for
+the display, content sources, and update contract.
+
 1. For local use, rename to `Secretary SUMMARY` in `secretary_language`, per the
    shared title rule (simple summary, no date). Browser chats keep the native
    engine's automatically generated title; do not overwrite it.
