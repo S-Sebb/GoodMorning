@@ -25,6 +25,13 @@ and phone widths in English/Chinese. Optional `--screenshots /ABS/PRIVATE/PATH`
 keeps synthetic visual evidence outside the checkout. These mocks test rendering,
 not live-account authentication or model intent extraction.
 
+`python tests/browser/chat_actions.py /ABS/PRIVATE/PATH` checks secretary question,
+answer, permission and confirmed-change styling across all four palettes, English
+and Chinese, desktop and phone widths. It measures text contrast, preserves pending
+drafts, checks literal unsafe text and verifies one-shot/reduced-motion animation.
+`test_chat_actions.py` covers committed receipts, retry deduplication, session
+isolation, bounded/read-only projections, turn order and queue-read separation.
+
 `python tests/browser/schedule.py --canonical` checks the real Schedule tab with
 v2 tasks, reported statuses and TBC appointments, including refresh/navigation,
 Chinese, mobile layouts, source failures and no-JavaScript operation.

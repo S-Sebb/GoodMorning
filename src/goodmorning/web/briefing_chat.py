@@ -308,7 +308,7 @@ class Chats:
             if len(item['turns']) >= 200:
                 raise ValueError('Start a new conversation to keep context bounded')
             self.capacity({'text': text, 'attachments': attachments})
-            item['turns'].append({'id': request, 'text': text, 'attachments': attachments,'language':ui.current(),'model':site_models.current()})
+            item['turns'].append({'id': request, 'text': text, 'attachments': attachments,'language':ui.current(),'model':site_models.current(), 'created': time.time()})
             item['state'] = 'starting'
             self.save()
             threading.Thread(target=self.dispatch, args=(item['id'], request, text, False), daemon=True).start()
@@ -438,15 +438,24 @@ class Chats:
                     transcript = {**status, 'messages': [
                         {**entry, 'role': 'user'} for entry in page['data'] if entry.get('type') == 'user']}
                 messages = []
-                originals = {turn.get('prompt_hash'): turn
-                               for turn in item['turns']}
+                originals, matched_turns = {}, {}
+                for turn in item['turns']:
+                    originals.setdefault(turn.get('prompt_hash'), []).append(turn)
+                # Match from the newest end of the bounded window. Repeated text
+                # (for example, two "Yes" replies) still belongs to distinct turns.
+                for entry in reversed(transcript['messages'] if include_messages else []):
+                    if entry.get('role') == 'user' and isinstance(entry.get('text'), str):
+                        candidates = originals.get(hashlib.sha256(entry['text'].encode()).hexdigest())
+                        if candidates:
+                            matched_turns[entry['id']] = candidates.pop()
                 for entry in (transcript['messages'] if include_messages else []):
                     if entry.get('role') not in ('user', 'assistant') or not isinstance(entry.get('text'), str):
                         continue
                     text = entry['text']
                     attachments = []
+                    turn = None
                     if entry['role'] == 'user':
-                        turn = originals.get(hashlib.sha256(text.encode()).hexdigest())
+                        turn = matched_turns.get(entry['id'])
                         if turn:
                             attachments = [dict(attachment) for attachment in turn.get('attachments', [])]
                             for attachment in attachments:
@@ -460,7 +469,10 @@ class Chats:
                                     attachment['mime'] = mime
                             text = turn['text'] or ('' if attachments else ui.text('Start {mode}',lang=turn.get('language','en'),
                                 mode=ui.text(MODES[item['mode']],lang=turn.get('language','en')).lower()))
-                    messages.append({'id': entry['id'], 'role': entry['role'], 'text': text, 'attachments': attachments})
+                    visible = {'id': entry['id'], 'role': entry['role'], 'text': text, 'attachments': attachments}
+                    if turn:
+                        visible['_turn'] = turn['id']
+                    messages.append(visible)
                 questions = self.remember_questions(chat, forms, messages) if include_messages else item.get('questions', [])
                 answered = {entry['id'] for entry in questions if 'answer' in entry}
                 forms = [form for form in forms if form['id'] not in answered]
@@ -469,7 +481,11 @@ class Chats:
                 permissions = [permission for permission in permissions if 'permission:'+permission['id'] not in receipts]
                 result.update(forms=forms, permissions=permissions)
                 if include_messages:
-                    result.update(messages=question_history(messages, questions, {form['id'] for form in forms}),
+                    from .chat_actions import read_changes, action_history
+                    changes, unavailable = read_changes(self.runtime, item['session'])
+                    history = question_history(messages, questions, {form['id'] for form in forms})
+                    result.update(messages=action_history(history, changes, item['turns'], item['created']),
+                                  action_history_unavailable=unavailable,
                                   history_limited=len(messages) >= 100)
                 if (forms or permissions) and item['state'] not in ('starting', 'uncertain'):
                     result['reservation_required'] = False
@@ -569,7 +585,8 @@ def page(csrf, ready, connected, secretary_name=None, avatar='f1', avatar_urls=N
              '<div id="chat-empty"><span class="desk-symbol" aria-hidden="true">✦</span>'
             '<h2 id="chat-welcome"></h2><p id="chat-hint"></p></div>'
             '<div id="chat-messages" role="log" aria-label="Conversation messages" aria-live="polite" aria-relevant="additions text"></div>'
-             '<div id="chat-questions"></div><p id="chat-status" role="status"></p><p id="request-language-note" role="status"></p></div>'
+              '<p id="chat-action-notice" role="status" hidden data-ui-text="Saved changes are temporarily unavailable. Your conversation is preserved."></p>'
+              '<div id="chat-questions"></div><p id="chat-status" role="status"></p><p id="request-language-note" role="status"></p></div>'
              '<div class="chat-scroll-tools"><button type="button" id="chat-latest" hidden>Jump to latest</button></div>'
             '<form id="chat-compose"><label for="chat-text" id="compose-label" class="chat-visually-hidden">Your message</label>'
              '<div class="chat-input-row"><button type="button" id="chat-attach" aria-label="Attach files" aria-describedby="upload-note" title="Attach files" disabled>'
