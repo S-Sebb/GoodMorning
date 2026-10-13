@@ -25,9 +25,7 @@ def main():
     artifacts = Path(sys.argv[1])
     artifacts.mkdir(parents=True, exist_ok=True, mode=0o700)
     results = []
-    resources = Resources(ASSETS, types={'auth.css': 'text/css', 'auth.js': 'text/javascript',
-                                       'language.js': 'text/javascript', 'model.js': 'text/javascript',
-                                       'update.css': 'text/css', 'update.js': 'text/javascript'})
+    resources = Resources(ASSETS)
     with sync_playwright() as playwright:
         browser = playwright.chromium.launch()
         for width in (320, 390):

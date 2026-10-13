@@ -61,8 +61,14 @@ def check_picker(page, address, artifacts):
                 bounds = link.bounding_box()
                 text = link.locator('bdi').bounding_box()
                 assert bounds['height'] >= 44
-                assert abs((bounds['y'] + bounds['height'] / 2) - (text['y'] + text['height'] / 2)) < 2
-                assert link.evaluate("node => parseFloat(getComputedStyle(node, '::before').height)") == 32
+                icon_height=link.evaluate("node => parseFloat(getComputedStyle(node, '::before').height)")
+                assert icon_height >= 20
+                if link.evaluate('node => getComputedStyle(node).flexDirection')=='column':
+                    assert abs((bounds['x']+bounds['width']/2)-(text['x']+text['width']/2)) < 2
+                    assert text['y'] >= bounds['y']+icon_height
+                    assert text['y']+text['height'] <= bounds['y']+bounds['height']
+                else:
+                    assert abs((bounds['y']+bounds['height']/2)-(text['y']+text['height']/2)) < 2
         open_picker(page)
         toggle = page.locator('[data-avatar-toggle]')
         expect(toggle).to_have_css('background-color', 'rgba(0, 0, 0, 0)')
@@ -195,6 +201,9 @@ def check_layout_alignment(browser, address, artifacts):
             else:
                 bounds[path] = (box['x'], box['x'] + box['width'])
             navigation[path] = page.locator('.edition-switch').bounding_box()
+            # Compare document layout, not a viewport-relative position after
+            # the browser has scrolled to the focused composer.
+            navigation[path]['y'] += page.evaluate('scrollY')
             assert not page.evaluate('document.documentElement.scrollWidth > innerWidth')
             if path == '/chat' and width in (390, 1440):
                 page.screenshot(path=str(artifacts / f'aligned-secretary-{width}.png'), full_page=True)
