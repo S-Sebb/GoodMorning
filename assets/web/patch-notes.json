@@ -1,6 +1,22 @@
 {
   "notes": [
     {
+      "version": "0.34.1", "date": "2026-10-13", "author": "GoodMorning agent",
+      "title_en": "Reminders name schedule clashes", "title_zh": "提醒直接点名日程冲突",
+      "changes": [
+        {"category": "Fixed", "en": [
+          "Annotate each pending calendar review with its direct clock overlaps, e.g. Schedule clash needs review: overlaps Reinforcement Learning Lab (Fri 23 Oct 11:00-13:00); cancelled, all-day and back-to-back events never count as clashes, and the approved clash partner stays in Schedule."
+        ], "zh": [
+          "每条待确认日历在详情里写清直接冲突，例如日程冲突待确认：与 Reinforcement Learning Lab (Fri 23 Oct 11:00-13:00) 时间重叠；已取消、全天与首尾相接不算冲突，已批准的冲突方仍在日程中。"
+        ]},
+        {"category": "Tests", "en": [
+          "Cover overlapping, touching-boundary, cancelled and all-day cases plus Chinese copy with synthetic records; the full unit suite passes."
+        ], "zh": [
+          "用合成记录覆盖重叠、首尾相接、已取消、全天与中文文案，并跑通全部单元测试。"
+        ]}
+      ]
+    },
+    {
       "version": "0.34.0", "date": "2026-10-14", "author": "GoodMorning agent",
       "title_en": "Calmer weather cards and section jumps", "title_zh": "天气卡片更清爽，章节跳转更顺手",
       "changes": [

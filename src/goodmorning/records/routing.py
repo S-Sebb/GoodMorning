@@ -95,6 +95,35 @@ def calendar_review_copy(pending, zone, ui):
     return title, facts
 
 
+def _review_interval(start_raw, end_raw, zone):
+    """Aware clock interval for clash checks; all-day never reserves clock time."""
+    try:
+        if not start_raw or not end_raw:
+            return None
+        start = dt.datetime.fromisoformat(str(start_raw))
+        end = dt.datetime.fromisoformat(str(end_raw))
+        if start.tzinfo is None or end.tzinfo is None:
+            from zoneinfo import ZoneInfo
+            tz = ZoneInfo(zone) if zone else dt.timezone.utc
+            if start.tzinfo is None:
+                start = start.replace(tzinfo=tz)
+            if end.tzinfo is None:
+                end = end.replace(tzinfo=tz)
+        if end <= start:
+            return None
+        return (start, end)
+    except Exception:
+        return None
+
+
+def _clash_label(subject, start_raw, end_raw, all_day, zone):
+    when = _human_when(start_raw, end_raw, all_day, zone)
+    subject = (subject or '').strip()
+    if when and subject:
+        return f'{subject} ({when})'
+    return subject or when
+
+
 def reminder_eligible(store, task, day):
     """Missing trigger evidence is unknown, never guessed from wake time or the clock now."""
     if task.get('defer_until') and day < task['defer_until']:
@@ -341,8 +370,43 @@ def schedule(runtime, today, kind, store=None, offset=0, limit=7):
         converted = converted_draft_ids(calendar)
         result['pending'] = calendar.stats()['pending']
         from goodmorning.web import language as ui
-        for pending in calendar.pending(limit=-1):
+        pendings = calendar.pending(limit=-1)
+        approved_windows = []
+        for approved in result['items']:
+            if approved.get('draft') or approved.get('all_day') or approved.get('status') == 'cancelled':
+                continue
+            window = _review_interval(approved.get('start'), approved.get('end'), zone)
+            if window:
+                approved_windows.append((approved, window))
+        pending_windows = {}
+        for candidate in pendings:
+            if str(candidate.get('status') or '') == 'cancelled' or candidate.get('all_day'):
+                continue
+            window = _review_interval(candidate.get('start'), candidate.get('end'), zone)
+            if window:
+                pending_windows[candidate['id']] = window
+        for pending in pendings:
             title, facts = calendar_review_copy(pending, zone, ui)
+            window = pending_windows.get(pending['id'])
+            if window:
+                clashes = []
+                for approved, (start, end) in approved_windows:
+                    if window[0] < end and start < window[1]:
+                        clashes.append(_clash_label(approved.get('subject'), approved.get('start'),
+                                                    approved.get('end'), approved.get('all_day'), zone))
+                for other in pendings:
+                    if other['id'] == pending['id']:
+                        continue
+                    sibling = pending_windows.get(other['id'])
+                    if sibling and window[0] < sibling[1] and sibling[0] < window[1]:
+                        clashes.append(_clash_label(other.get('subject'), other.get('start'),
+                                                    other.get('end'), other.get('all_day'), zone))
+                seen = set()
+                unique = [entry for entry in clashes if entry and not (entry in seen or seen.add(entry))]
+                if unique:
+                    clash_text = ui.text('Schedule clash needs review: overlaps {events}',
+                                         events='; '.join(unique))
+                    facts = (facts + ' · ' + clash_text) if facts else clash_text
             result['reviews'].append({'id': pending['id'], 'revision': pending['revision'], 'title': title,
                                       'questions': [facts], 'needs_review': True, 'owner': 'attention'})
         result['timezone'] = zone
