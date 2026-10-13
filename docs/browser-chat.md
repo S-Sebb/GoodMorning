@@ -2,9 +2,13 @@
 
 The separate `/chat` page has four modes: Initialize, Secretary, To-do and Eureka.
 The browser sends the selected workflow; users never need to type commands.
-The first message supplies only the workflow, browser conversation ID, selected
-runtime, website language, and user text. Every later turn also supplies its
-website language. Keep the configured model and current session. Never
+The first message supplies the workflow, browser conversation ID, selected
+runtime, native session ID, website language, and user text. Every turn explicitly supplies the
+native session ID for helper `--session` and calendar `--actor`, including
+follow-ups, attachments and resumed sessions. Browser chat and browser message
+IDs identify website requests, not native sessions; never substitute them for
+the supplied native session ID. Every later turn also supplies its website
+language. Keep the configured model and current session. Never
 delegate. Read `docs/core-rules.md` and the matching workflow, as for local use.
 
 All four modes support file attachments, including file-only messages. Each file
@@ -172,8 +176,13 @@ while user-authored titles and earlier answers remain unchanged.
 
 Change cards read only existing committed inbox/task/calendar audit receipts owned
 by this conversation's actual session ID (calendar `--actor`); no raw tool states,
-commands, context or full snapshots reach the browser. The latest 30
-receipts have bounded titles and appear at the end of their original user turn,
+commands, context or full snapshots reach the browser. Receipts also recognize
+this account's registry-verified conversation and user turn IDs, recovering older
+helper writes that used a website ID by mistake.
+No arbitrary label or another conversation's IDs are included. An ID shared by
+multiple conversations is excluded, with a notice rather than guessed attribution.
+This read-only compatibility does not rewrite audit history, resave tasks or
+replay mutations. The latest 30 receipts have bounded titles and appear at the end of their original user turn,
 before the next user message. Retries do not create duplicate receipts; uncommitted
 conversion intent and failed mutations are not successful change cards. Conversion
 uses the calendar receipt once, not an extra duplicate task receipt. Reads never

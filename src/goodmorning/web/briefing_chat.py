@@ -371,6 +371,8 @@ class Chats:
             prompt = (f"/{mode}\nBrowser chat: {chat_id}\nRuntime: {runtime}\n" if first or refresh else '')
             if refresh:
                 prompt += 'Workflow refresh: true\n'
+            prompt += (f"Native session ID: {session}\n"
+                       "Use this ID for --session and calendar --actor; browser chat/message IDs are not session IDs.\n")
             prompt += f"Website language: {selected}\n\n{text}"
             if attachments:
                 # Distinguish file-only turns with identical text when matching
@@ -482,7 +484,14 @@ class Chats:
                 result.update(forms=forms, permissions=permissions)
                 if include_messages:
                     from .chat_actions import read_changes, action_history
-                    changes, unavailable = read_changes(self.runtime, item['session'])
+                    with self.lock:
+                        aliases = {item['id'], *(turn['id'] for turn in item['turns'])}
+                        expected_aliases = len(aliases)
+                        for other in self.items.values():
+                            if other['id'] != item['id']:
+                                aliases.difference_update((other['id'], *(turn['id'] for turn in other['turns'])))
+                    changes, unavailable = read_changes(self.runtime, item['session'], aliases=aliases)
+                    unavailable = unavailable or len(aliases) != expected_aliases
                     history = question_history(messages, questions, {form['id'] for form in forms})
                     result.update(messages=action_history(history, changes, item['turns'], item['created']),
                                   action_history_unavailable=unavailable,

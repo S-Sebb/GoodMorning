@@ -216,6 +216,30 @@ class ChatTests(unittest.TestCase):
         prompt = [body['prompt'] for action, body in self.chamber.calls if action == 'session.send'][-1]
         self.assertNotIn('Workflow refresh', prompt)
 
+    def test_every_text_turn_identifies_native_audit_owner_in_all_modes(self):
+        for index, mode in enumerate(MODES):
+            with self.subTest(mode=mode):
+                chat = format(index, '032x')
+                self.start(mode, 'Synthetic request', chat=chat)
+                session = self.chats.get(chat)['session']
+                if mode == 'initialize':
+                    self.chats.reply(chat, 'form', 'form_city', {'answer': {'city': 'London'}})
+                    self.chats.reply(chat, 'permission', 'permission_setup', {'decision': 'reject'})
+                self.chats.send(chat, {'id': 'e' * 32, 'text': 'Ordinary follow-up'})
+                self.chamber.sessions[session]['directory'] = '/opt/goodmorning/releases/old'
+                self.chats.send(chat, {'id': 'f' * 32, 'text': 'Resumed follow-up'})
+                prompts = [body['prompt'] for action, body in self.chamber.calls
+                           if action == 'session.send' and body['sessionId'] == session]
+                self.assertEqual(len(prompts), 3)
+                for prompt in prompts:
+                    metadata = prompt.split('\n\n', 1)[0]
+                    self.assertIn(f'Native session ID: {session}\n', metadata)
+                    self.assertIn('--session and calendar --actor', metadata)
+                    self.assertNotIn(f'Native session ID: {chat}', metadata)
+                    self.assertIn('Website language: en', metadata)
+                self.assertNotIn('Workflow refresh:', prompts[1])
+                self.assertIn('Workflow refresh: true', prompts[2])
+
     def test_failed_or_unconfirmed_release_move_never_dispatches_followup(self):
         for failure in ('failed', 'unconfirmed'):
             with self.subTest(failure=failure):

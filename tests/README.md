@@ -31,6 +31,10 @@ and Chinese, desktop and phone widths. It measures text contrast, preserves pend
 drafts, checks literal unsafe text and verifies one-shot/reduced-motion animation.
 `test_chat_actions.py` covers committed receipts, retry deduplication, session
 isolation, bounded/read-only projections, turn order and queue-read separation.
+`python tests/browser/chat_action_ownership.py /ABS/PRIVATE/PATH` exercises the
+real chat API and renderer with synthetic native-session, browser-conversation
+and browser-turn receipts in all four modes, without mocked chat responses or
+model calls. Unit regressions also reject ambiguous IDs shared by conversations.
 
 `python tests/browser/schedule.py --canonical` checks the real Schedule tab with
 v2 tasks, reported statuses and TBC appointments, including refresh/navigation,

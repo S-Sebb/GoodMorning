@@ -158,6 +158,8 @@ class UploadTests(unittest.TestCase):
                 path, payload = chamber.replies[-1]
                 self.assertTrue(path.endswith('/prompt'))
                 self.assertEqual(payload['files'], self.uploads.files([self.file_id]))
+                self.assertIn(f"Native session ID: {chats.get(chat)['session']}\n", payload['text'])
+                self.assertNotIn(f'Native session ID: {chat}', payload['text'])
                 status = chats.status(chat)
                 self.assertEqual(status['state'], 'idle')
                 self.assertEqual(status['messages'][0]['attachments'][0]['name'], '资料 <img>.txt')
@@ -173,6 +175,9 @@ class UploadTests(unittest.TestCase):
             self.upload(name='second.txt', data=b'Second file', identifier='e' * 32)
             chats.send(chat, {'id': 'b' * 32, 'text': '', 'attachments': ['e' * 32]})
             chats.send(chat, {'id': 'c' * 32, 'text': '', 'attachments': [self.file_id]})
+            for path, payload in chamber.replies:
+                session = path.split('/')[3]
+                self.assertIn(f'Native session ID: {session}\n', payload['text'])
             messages = chats.status(chat)['messages']
             self.assertEqual(messages[-4]['attachments'][0]['name'], 'second.txt')
             self.assertEqual(messages[-2]['attachments'][0]['name'], '资料 <img>.txt')
@@ -190,6 +195,7 @@ class UploadTests(unittest.TestCase):
         path, payload = chamber.replies[-1]
         self.assertEqual(path, f'/api/session/{session}/prompt')
         self.assertIn('Workflow refresh: true', payload['text'])
+        self.assertIn(f'Native session ID: {session}\n', payload['text'])
         self.assertEqual(payload['files'], self.uploads.files([self.file_id]))
         self.assertEqual(chats.status(chat)['messages'][-2]['attachments'][0]['id'], self.file_id)
 

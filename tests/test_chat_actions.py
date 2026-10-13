@@ -1,5 +1,7 @@
 """Confirmed change cards use read-only, bounded, session-owned audit projections."""
 from datetime import datetime
+import contextlib
+import io
 import json
 import os
 from pathlib import Path
@@ -12,9 +14,10 @@ from support import TEMP_ROOT
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'src'))
 from goodmorning.records.inbox_store import InboxStore, initialize
 from goodmorning.records.task_store import TaskStore
+from goodmorning.records import workflow
 from goodmorning.calendar.calendar_store import CalendarStore
 from goodmorning.web.chat_actions import read_changes, action_history, LIMIT
-from goodmorning.web.briefing_chat import Chats
+from goodmorning.web.briefing_chat import Chats, MODES
 from test_briefing_chat import MockChamber, ImmediateThread
 
 NOW = '2026-10-13T12:00:00+01:00'
@@ -139,6 +142,101 @@ class ActionTests(unittest.TestCase):
         self.assertEqual(status['state'], 'idle')
         with patch('goodmorning.web.chat_actions.read_changes', side_effect=AssertionError('Queue must not scan audits')):
             self.assertEqual(chats.status(chat, include_messages=False)['state'], 'idle')
+
+    def test_browser_id_capture_through_real_helper_survives_polling_and_restart_in_all_modes(self):
+        (self.root / 'profile.md').write_text('city: London\ntimezone: Europe/London\nnews_country: GB\nsecretary_language: English\n')
+        chamber = MockChamber(self.root)
+        chats = Chats(self.root, chamber)
+        for index, mode in enumerate(MODES):
+            with self.subTest(mode=mode):
+                chat = str(index + 1) * 32
+                with patch('goodmorning.web.briefing_chat.threading.Thread', ImmediateThread), patch('time.time', return_value=0):
+                    chats.start({'id': chat, 'mode': mode, 'text': 'Save a task'})
+                session = chats.get(chat)['session']
+                args = ['--secretary-dir', str(self.root), '--capture', 'todo', '--session', chat,
+                        '--request-key', mode, '--input-stdin']
+                for _ in range(2):
+                    with patch('sys.stdin', io.StringIO('{"raw":"Prepare slides"}')), contextlib.redirect_stdout(io.StringIO()):
+                        self.assertEqual(workflow.main(args), 0)
+                # This reproduces the production failure: the native-only query sees nothing.
+                self.assertEqual(read_changes(self.root, session)[0], [])
+                before = self.inbox.db.execute('SELECT COUNT(*) FROM events').fetchone()[0]
+                for reader in (chats, Chats(self.root, chamber)):
+                    for _ in range(2):
+                        status = reader.status(chat)
+                        cards = [entry for entry in status['messages'] if entry.get('kind') == 'action']
+                        self.assertEqual(len(cards), 1)
+                        self.assertEqual(cards[0]['action'], {'operation': 'added', 'target': 'task'})
+                        self.assertEqual(cards[0]['text'], 'Prepare slides')
+                        self.assertFalse(status['action_history_unavailable'])
+                self.assertEqual(self.inbox.db.execute('SELECT COUNT(*) FROM events').fetchone()[0], before)
+
+    def test_registry_aliases_cover_task_edits_calendar_and_ideas_without_other_chats(self):
+        chamber = MockChamber(self.root)
+        chats = Chats(self.root, chamber)
+        chat, reply, other = 'a' * 32, 'b' * 32, 'c' * 32
+        with patch('goodmorning.web.briefing_chat.threading.Thread', ImmediateThread), patch('time.time', return_value=0):
+            chats.start({'id': chat, 'mode': 'secretary', 'text': 'Save a task'})
+            chats.send(chat, {'id': reply, 'text': 'Update it'})
+            chats.start({'id': other, 'mode': 'secretary', 'text': 'Other conversation'})
+        task = self.capture('aliased-task', session=chat)
+        TaskStore(self.inbox).mutate(task['task_id'], 1, {'title': 'Updated slides'}, reply, 'aliased-update', NOW)
+        self.capture('aliased-idea', session=reply, kind='idea', raw='Garden idea')
+        event = {'subject': 'Team lunch', 'start': '2026-10-14T14:00:00+01:00', 'end': '2026-10-14T15:00:00+01:00'}
+        identifier = self.calendar.add(event, actor=reply)
+        self.calendar.change(identifier, 'cancel', 1, actor=chat)
+        self.capture('other-chat', session=other, raw='OTHER CHAT PRIVATE')
+        self.capture('other-native', session=chats.get(other)['session'], raw='OTHER NATIVE PRIVATE')
+        self.capture('arbitrary', session='unverified-label', raw='UNVERIFIED PRIVATE')
+        status = chats.status(chat)
+        cards = [entry for entry in status['messages'] if entry.get('kind') == 'action']
+        self.assertEqual(len(cards), 5)
+        self.assertNotIn('PRIVATE', json.dumps(status))
+        self.assertEqual({(entry['action']['target'], entry['action']['operation']) for entry in cards},
+                         {('task', 'added'), ('task', 'updated'), ('idea', 'added'), ('event', 'added'), ('event', 'cancelled')})
+        # Repeated aliases cannot duplicate receipts. Another account with the
+        # same website IDs has no access to these account-local databases.
+        session = chats.get(chat)['session']
+        self.assertEqual(len(read_changes(self.root, session, aliases=[chat, reply, chat, session])[0]), 5)
+        with tempfile.TemporaryDirectory(dir=TEMP_ROOT) as directory:
+            other_root = Path(directory)
+            initialize(other_root)
+            other_store = InboxStore(other_root, write=True)
+            try:
+                other_store.mutate('add', {'kind': 'idea', 'raw': 'Other account only'}, chat, 'same-browser-id', NOW)
+                isolated, unavailable = read_changes(other_root, session, aliases=[chat, reply])
+                self.assertFalse(unavailable)
+                self.assertEqual([entry['text'] for entry in isolated], ['Other account only'])
+                self.assertEqual(len(read_changes(self.root, session, aliases=[chat, reply])[0]), 5)
+            finally:
+                other_store.close()
+
+    def test_aliases_keep_limits_and_use_bound_sql_parameters(self):
+        aliases = ['a' * 32, 'b' * 32, "not-a-session' OR 1=1 --"]
+        for index in range(LIMIT + 5):
+            self.capture(str(index), session=aliases[index % 2])
+        self.capture('unowned', session='ses_other', raw='PRIVATE')
+        cards, unavailable = read_changes(self.root, SESSION, aliases=aliases)
+        self.assertFalse(unavailable)
+        self.assertEqual(len(cards), LIMIT)
+        self.assertNotIn('PRIVATE', json.dumps(cards))
+
+    def test_colliding_request_id_never_claims_another_conversations_receipts(self):
+        chamber = MockChamber(self.root)
+        chats = Chats(self.root, chamber)
+        first, second = 'a' * 32, 'b' * 32
+        with patch('goodmorning.web.briefing_chat.threading.Thread', ImmediateThread), patch('time.time', return_value=0):
+            chats.start({'id': first, 'mode': 'secretary', 'text': 'First conversation'})
+            chats.start({'id': second, 'mode': 'secretary', 'text': 'Second conversation'})
+            # Valid request IDs are not globally unique across conversations.
+            chats.send(first, {'id': second, 'text': 'A colliding request ID'})
+        self.capture('collision', session=second, raw='PRIVATE other conversation')
+        self.capture('native', session=chats.get(first)['session'], raw='Verified native change')
+        status = chats.status(first)
+        cards = [entry for entry in status['messages'] if entry.get('kind') == 'action']
+        self.assertEqual([entry['text'] for entry in cards], ['Verified native change'])
+        self.assertNotIn('PRIVATE', json.dumps(status))
+        self.assertTrue(status['action_history_unavailable'])
 
     def test_repeated_user_text_keeps_changes_in_distinct_turns(self):
         chamber = MockChamber(self.root)
