@@ -1,4 +1,12 @@
 {
+  "Page": "页面",
+  "Messages": "消息",
+  "Top": "顶部",
+  "Bottom": "底部",
+  "Start": "开头",
+  "Latest": "最新",
+  "Scroll page": "滚动页面",
+  "Scroll messages": "滚动消息",
   "Regenerate today’s briefing": "重新生成今日简报",
   "A fresh start": "重新开始",
   "Regenerate today’s briefing?": "重新生成今日简报？",

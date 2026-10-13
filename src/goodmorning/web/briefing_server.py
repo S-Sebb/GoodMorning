@@ -187,6 +187,7 @@ class BrowserApp:
         return avatar_widget(avatar or self.avatar(), self.avatar_sources(), 'briefing-avatar')
 
     def briefing_layout(self, text, avatar=None):
+        text = text.replace('</head>', '<link rel="stylesheet" href="/scroll-rails.css"><script src="/scroll-rails.js" defer></script></head>')
         portrait = self.briefing_avatar(avatar)
         text = re.sub(r'<body([^>]*)>', lambda match: '<body' + match[1] + ' class="briefing-letter">', text, count=1)
         text, count = re.subn(r'<div class="hero-copy">(.*?)</div>',

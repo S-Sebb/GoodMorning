@@ -15,8 +15,57 @@ const attachButton = document.querySelector('#chat-attach');
 const composer = document.querySelector('#chat-compose');
 const chatScroll = document.querySelector('#chat-scroll');
 const latestButton = document.querySelector('#chat-latest');
-function resizeComposer(event) {
-  const follow = nearLatest();
+const chatLayout = document.querySelector('.chat-layout');
+const conversationPanel = document.querySelector('#conversation');
+const chatViewport = window.visualViewport;
+let viewportFrame;
+let viewportSignature;
+
+function resizeChatViewport() {
+  cancelAnimationFrame(viewportFrame);
+  viewportFrame = requestAnimationFrame(() => {
+    const mobile = matchMedia('(max-width: 700px)').matches;
+    const signature = [mobile, innerHeight, chatViewport.width, chatViewport.height,
+      chatViewport.offsetTop, chatViewport.scale].join(':');
+    // Page scrolling must not resize the panel or pull readers back to the input.
+    if (signature === viewportSignature) return;
+    viewportSignature = signature;
+    if (!mobile || chatViewport.scale !== 1) {
+      chatLayout.style.removeProperty('--chat-viewport-height');
+      chatLayout.style.removeProperty('--chat-keyboard-inset');
+      resizeComposer(undefined, false);
+      updateScrollTools();
+      return;
+    }
+    const follow = nearLatest();
+    const followDraft = textBox.scrollHeight - textBox.scrollTop - textBox.clientHeight < 1;
+    const previousTop = chatScroll.scrollTop;
+    const previousHeight = conversationPanel.offsetHeight;
+    chatLayout.style.setProperty('--chat-viewport-height', `${chatViewport.height}px`);
+    // Keep the page's scroll range when only the visual viewport shrinks.
+    chatLayout.style.setProperty('--chat-keyboard-inset', `${Math.max(0, innerHeight - chatViewport.height)}px`);
+    if (previousHeight !== conversationPanel.offsetHeight) resizeComposer(undefined, follow, followDraft);
+    if (follow && previousHeight !== conversationPanel.offsetHeight) scrollToLatest();
+    else {
+      if (!follow) chatScroll.scrollTop = previousTop;
+      updateScrollTools();
+    }
+    if (document.activeElement === textBox) {
+      const gap = conversationPanel.getBoundingClientRect().bottom - chatViewport.offsetTop - chatViewport.height;
+      if (gap > 1 || composer.getBoundingClientRect().top < chatViewport.offsetTop) {
+        window.scrollBy({top: gap, behavior: 'instant'});
+      }
+    }
+  });
+}
+
+if (chatViewport) {
+  chatViewport.addEventListener('resize', resizeChatViewport);
+  chatViewport.addEventListener('scroll', resizeChatViewport);
+  window.addEventListener('resize', resizeChatViewport);
+}
+
+function resizeComposer(event, follow = nearLatest(), followDraft = false) {
   const previousHeight = textBox.offsetHeight;
   const previousScroll = textBox.scrollTop;
   textBox.style.height = 'auto';
@@ -24,12 +73,13 @@ function resizeComposer(event) {
   const height = Math.min(textBox.scrollHeight, maxHeight);
   textBox.style.height = `${height}px`;
   textBox.style.overflowY = textBox.scrollHeight > height ? 'auto' : 'hidden';
-  textBox.scrollTop = event?.type === 'input' && textBox.selectionEnd === textBox.value.length
+  textBox.scrollTop = (event?.type === 'input' || followDraft) && textBox.selectionEnd === textBox.value.length
     ? textBox.scrollHeight : previousScroll;
   if (follow && previousHeight !== textBox.offsetHeight) scrollToLatest();
 }
 textBox.addEventListener('input', resizeComposer);
 window.addEventListener('resize', resizeComposer);
+document.addEventListener('scrollrails:layout', resizeComposer);
 let attachments = [];
 const make = secretaryElement;
 const requestedMode = new URLSearchParams(location.search).get('mode');
@@ -809,6 +859,7 @@ document.addEventListener('website:refresh-drafts', event => {
 window.addEventListener('focus', () => { scheduleChatTheme(); pollVisible(); focusComposer(); });
 scheduleChatTheme();
 resizeComposer();
+if (chatViewport) resizeChatViewport();
 showMode();
 focusComposer();
 historyList().catch(error => { errorBox.textContent = error.message; });
