@@ -170,7 +170,15 @@ def check_mobile(browser, address, artifacts, width, height):
     assert geometry['composer']['bottom'] <= height - 300, geometry
     page.set_viewport_size({'width': 1440, 'height': 900})
     settle(page)
-    assert page.locator('#conversation').bounding_box()['height'] == 868
+    desktop = page.evaluate("""() => {
+        const panel = document.querySelector('#conversation').getBoundingClientRect();
+        const composer = document.querySelector('#chat-compose').getBoundingClientRect();
+        return {height: panel.height, composerBottom: composer.bottom,
+            pageScrollable: document.documentElement.scrollHeight - innerHeight};
+    }""")
+    assert desktop['pageScrollable'] <= 1, desktop
+    assert 400 < desktop['height'] < 900, desktop
+    assert desktop['composerBottom'] <= 900, desktop
     assert not page.evaluate('document.documentElement.scrollWidth > innerWidth')
     assert not errors, errors
     page.close()

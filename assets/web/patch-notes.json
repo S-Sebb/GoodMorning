@@ -1,6 +1,26 @@
 {
   "notes": [
     {
+      "version": "0.32.2", "date": "2026-10-13", "author": "GoodMorning agent",
+      "title_en": "Secretary page fits the screen", "title_zh": "秘书页面适配屏幕高度",
+      "changes": [
+        {"category": "Changed", "en": [
+          "Fit the desktop secretary page to the viewport height so the conversation and send bar are visible without page scrolling; long messages and history scroll inside their own areas with a more compact sidebar.",
+          "Start Previous conversations collapsed on small screens while keeping the desktop default; an explicit open/closed choice is still remembered on each browser.",
+          "Keep narrow-desktop mode-switch labels inside their buttons."
+        ], "zh": [
+          "桌面端秘书页面锁定为视口高度，对话与发送栏无需滚动页面即可见；较长的消息与历史列表在各自区域内滚动，侧栏更紧凑。",
+          "小屏幕上历史对话默认收起，桌面默认展开不变；手动选择的展开或收起状态仍会被记住。",
+          "窄桌面宽度下模式切换按钮文字不再溢出按钮。"
+        ]},
+        {"category": "Tests", "en": [
+          "Check no-page-scroll desktop layout, collapsed mobile history, composer growth and bounded scrolling with synthetic records and no model calls."
+        ], "zh": [
+          "使用合成记录且不调用模型，验证桌面无页面滚动、移动端历史默认收起、输入框增长与有界滚动。"
+        ]}
+      ]
+    },
+    {
       "version": "0.32.1", "date": "2026-10-13", "author": "GoodMorning agent",
       "title_en": "Restore website assets and clear connection errors", "title_zh": "恢复网站资源并改善连接错误提示",
       "changes": [{"category": "Fixed", "en": [

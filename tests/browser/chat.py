@@ -572,13 +572,20 @@ def check_autogrow(browser, address, artifacts):
         page.goto(address+'/chat?mode=secretary')
         expect(page.locator('#chat-send')).to_be_enabled()
         assert page.evaluate("Boolean(document.querySelector('#conversation-history').compareDocumentPosition(document.querySelector('#new-conversation')) & Node.DOCUMENT_POSITION_FOLLOWING)")
-        page.evaluate('window.scrollTo(0,document.documentElement.scrollHeight)')
+        if width<700:
+            page.evaluate("window.scrollTo({top: document.querySelector('#conversation').getBoundingClientRect().top + scrollY, behavior: 'instant'})")
+        expect(page.locator('#chat-send')).to_be_in_viewport()
         panel=page.locator('.conversation-panel');composer=page.locator('.chat-input-row')
         text=page.locator('#chat-text');scroll=page.locator('#chat-scroll')
         original=panel.bounding_box();bottom=composer.bounding_box()['y']+composer.bounding_box()['height']
         original_scroll=scroll.bounding_box()['height']
-        assert abs(original['y']-(16 if width>700 else 0))<1,original
-        if width<700:assert abs(original['height']-height)<1,original
+        if width>700:
+            assert page.evaluate('document.documentElement.scrollHeight-innerHeight')<=1
+            assert 100<original['y']<300,original
+            assert original['y']+original['height']<=height+1,original
+        else:
+            assert abs(original['y']-0)<1,original
+            assert abs(original['height']-height)<1,original
         for lines in range(1,9):
             text.fill('\n'.join('Line '+str(index) for index in range(lines)))
             expect(text).to_have_css('height',str(24*min(lines,5))+'px')
@@ -716,8 +723,12 @@ def main():
                     modes.get_by_role('radio', name='Secretary', exact=True).focus()
                     page.keyboard.press('ArrowRight')
                     expect(modes.get_by_role('radio', name='To-do', exact=True)).to_be_focused()
-                    expect(page.locator('#conversation-history')).to_have_attribute('open', '')
-                    expect(page.locator('#chat-history a').first).to_be_visible()
+                    if width>700:
+                        expect(page.locator('#conversation-history')).to_have_attribute('open', '')
+                        expect(page.locator('#chat-history a').first).to_be_visible()
+                    else:
+                        expect(page.locator('#conversation-history')).not_to_have_attribute('open', '')
+                        assert page.locator('#chat-history a').count() > 0
                     assert page.evaluate('localStorage.length === 0 && sessionStorage.length === 0')
                     assert not errors, errors
                     assert not page.evaluate('document.documentElement.scrollWidth > innerWidth')
