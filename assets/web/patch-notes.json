@@ -1,6 +1,22 @@
 {
   "notes": [
     {
+      "version": "0.34.2", "date": "2026-10-13", "author": "GoodMorning agent",
+      "title_en": "Clash check covers the pending's own dates", "title_zh": "冲突检查覆盖待确认事项自身日期",
+      "changes": [
+        {"category": "Fixed", "en": [
+          "Check each pending calendar review against approved events on its own dates, not just the 3-day Schedule window, so a clash 10 days out (e.g. Fri 23 Oct reviews in an Oct 13 briefing) still names its overlap."
+        ], "zh": [
+          "每条待确认日历按其自身日期检查已批准日程的冲突，不再只看 3 天日程窗口；10 天后的冲突（如 10 月 13 日简报里的 10 月 23 日事项）也能点名重叠方。"
+        ]},
+        {"category": "Tests", "en": [
+          "Reproduce the live Oct-13-briefing/Oct-23-clash case with synthetic records; edge cases and the full unit suite pass."
+        ], "zh": [
+          "用合成记录复现线上 10 月 13 日简报/10 月 23 日冲突的情形；边界情形与全部单元测试通过。"
+        ]}
+      ]
+    },
+    {
       "version": "0.34.1", "date": "2026-10-13", "author": "GoodMorning agent",
       "title_en": "Reminders name schedule clashes", "title_zh": "提醒直接点名日程冲突",
       "changes": [
