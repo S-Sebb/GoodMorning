@@ -6,7 +6,9 @@ import re
 
 from goodmorning.runtime_files import atomic_text
 
-OPTIONS = {'day': {'classic': 'Classic', 'warm': 'Warm'}, 'night': {'classic': 'Classic', 'starry': 'Starry'}}
+OPTIONS = {'day': {'classic': 'Classic', 'warm': 'Warm', 'morning-sky': 'Morning Sky',
+                   'first-light': 'First Light'},
+           'night': {'classic': 'Classic', 'starry': 'Starry'}}
 DEFAULT = {'day': 'classic', 'night': 'starry'}
 CURRENT = ContextVar('website_color_schemes', default=DEFAULT)
 
@@ -23,11 +25,18 @@ def current():
     return dict(CURRENT.get())
 
 
+def saved(value):
+    """Retired day palettes fall back without changing the saved night preference."""
+    if isinstance(value, dict) and value.get('day') == 'sunlit-garden':
+        value = {**value, 'day': DEFAULT['day']}
+    return validate(value)
+
+
 def read(runtime):
     path = runtime / 'website-color-schemes.json'
     if path.is_symlink():
         raise ValueError('Unsafe website color scheme file')
-    return validate(json.loads(path.read_text())) if path.is_file() else dict(DEFAULT)
+    return saved(json.loads(path.read_text())) if path.is_file() else dict(DEFAULT)
 
 
 def write(runtime, value):

@@ -24,23 +24,50 @@ html[data-edition="gn"][data-night-scheme="starry"] body {
 }
 html:not([data-edition="gn"])[data-day-scheme="warm"] { color-scheme: light; --bg: #f6eee3; --surface: #fffbf5; --ink: #554032; --muted: #7d6858; --accent: #987052; --line: #e0cbb8; --wash: #f1e4d4; --warm: #d8b471; --chat-paper: #fbf4e9; --chat-border: #ceb29a; --bubble: #fffdf9; --your-bubble: #f3d7c1; --bubble-line: #ead8c5; --your-line: #e1bc9f; color: var(--ink); background: var(--bg); }
 html:not([data-edition="gn"])[data-day-scheme="warm"] body { color: var(--ink); background: var(--bg); }
-html:not([data-edition="gn"])[data-day-scheme="warm"] .avatar-display .avatar-toggle { color: var(--ink); }
-html:not([data-edition="gn"])[data-day-scheme="warm"] .avatar-display .avatar-toggle:hover:not(:disabled) { color: var(--accent); }
-/* Account pages use their original Classic styles; Warm inherits the same site palette. */
-html:not([data-edition="gn"])[data-day-scheme="warm"] .account-card { background: var(--surface); border-color: var(--line); }
-html:not([data-edition="gn"])[data-day-scheme="warm"] .account-card .eyebrow,
-html:not([data-edition="gn"])[data-day-scheme="warm"] .account-card a,
-html:not([data-edition="gn"])[data-day-scheme="warm"] .toolbar-row .menu > summary::after,
-html:not([data-edition="gn"])[data-day-scheme="warm"] .menu-panel .language-toolbar label { color: var(--muted); }
-html:not([data-edition="gn"])[data-day-scheme="warm"] .account-card input { background: var(--bubble); border-color: var(--line); color: var(--ink); }
-html:not([data-edition="gn"])[data-day-scheme="warm"] .account-card button { background: var(--accent); color: var(--surface); }
-html:not([data-edition="gn"])[data-day-scheme="warm"] .account-card .password-toggle { background: var(--wash); color: var(--ink); }
-html:not([data-edition="gn"])[data-day-scheme="warm"] .toolbar-row .menu > summary,
-html:not([data-edition="gn"])[data-day-scheme="warm"] .toolbar-row .menu-panel { background: var(--surface); border-color: var(--line); color: var(--ink); }
-html:not([data-edition="gn"])[data-day-scheme="warm"] .menu-panel .language-toolbar select,
-html:not([data-edition="gn"])[data-day-scheme="warm"] .menu-panel .language-toolbar button { background: var(--bg); border-color: var(--line); color: var(--ink); }
-html:not([data-edition="gn"])[data-day-scheme="warm"] .account-card :focus-visible,
-html:not([data-edition="gn"])[data-day-scheme="warm"] .toolbar-row .menu > summary:focus-visible { outline-color: var(--accent); }
+html:not([data-edition="gn"])[data-day-scheme="morning-sky"] { --bg: #f3f8f9; --surface: #fffdf7; --ink: #293e50; --muted: #304758; --accent: #27465e; --line: #cfdae0; --wash: #e5eef3; --warm: #d3af64; --chat-border: #9eb8c8; --your-bubble: #e2edf4; --day-scene: url("/morning-sky.svg"), url("/morning-clouds.webp"); }
+html:not([data-edition="gn"])[data-day-scheme="first-light"] { --bg: #dce4d1; --surface: #fffaf5; --ink: #48443c; --muted: #594f43; --accent: #784a30; --line: #e3d8c7; --wash: #f4ebdc; --warm: #c69c55; --chat-border: #c6b798; --your-bubble: #f5e5ce; --day-scene: url("/first-light.svg"); }
+html:not([data-edition="gn"]):is([data-day-scheme="morning-sky"], [data-day-scheme="first-light"]) { color-scheme: light; color: var(--ink); background: var(--bg); }
+@media screen {
+  html:not([data-edition="gn"]):is([data-day-scheme="morning-sky"], [data-day-scheme="first-light"]) body {
+    min-height: 100svh;
+    color: var(--ink);
+    background-color: var(--bg);
+    background-image: var(--day-scene);
+    background-position: center top;
+    background-size: cover;
+    background-repeat: no-repeat;
+    background-attachment: fixed;
+  }
+  /* Preserve the upper composition, but let the valley continue down the actual page. */
+  html:not([data-edition="gn"])[data-day-scheme="first-light"] body {
+    background-attachment: scroll;
+    background-size: max(100%, 160svh) auto;
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  html:not([data-edition="gn"])[data-day-scheme="morning-sky"] { --day-scene: url("/morning-sky.svg#drift"), url("/morning-clouds.webp"); }
+}
+/* Keep atmospheric details in view when a portrait screen crops the wide scene. */
+@media screen and (max-width: 700px) {
+  html:not([data-edition="gn"]):is([data-day-scheme="morning-sky"], [data-day-scheme="first-light"]) body { background-position: right top; }
+}
+/* Account pages retain Classic; every other day palette uses shared site tokens. */
+html:not([data-edition="gn"])[data-day-scheme]:not([data-day-scheme="classic"]) .avatar-display .avatar-toggle { color: var(--ink); }
+html:not([data-edition="gn"])[data-day-scheme]:not([data-day-scheme="classic"]) .avatar-display .avatar-toggle:hover:not(:disabled) { color: var(--accent); }
+html:not([data-edition="gn"])[data-day-scheme]:not([data-day-scheme="classic"]) .account-card { background: var(--surface); border-color: var(--line); }
+html:not([data-edition="gn"])[data-day-scheme]:not([data-day-scheme="classic"]) .account-card .eyebrow,
+html:not([data-edition="gn"])[data-day-scheme]:not([data-day-scheme="classic"]) .account-card a,
+html:not([data-edition="gn"])[data-day-scheme]:not([data-day-scheme="classic"]) .toolbar-row .menu > summary::after,
+html:not([data-edition="gn"])[data-day-scheme]:not([data-day-scheme="classic"]) .menu-panel .language-toolbar label { color: var(--muted); }
+html:not([data-edition="gn"])[data-day-scheme]:not([data-day-scheme="classic"]) .account-card input { background: var(--bubble); border-color: var(--line); color: var(--ink); }
+html:not([data-edition="gn"])[data-day-scheme]:not([data-day-scheme="classic"]) .account-card button { background: var(--accent); color: var(--surface); }
+html:not([data-edition="gn"])[data-day-scheme]:not([data-day-scheme="classic"]) .account-card .password-toggle { background: var(--wash); color: var(--ink); }
+html:not([data-edition="gn"])[data-day-scheme]:not([data-day-scheme="classic"]) .toolbar-row .menu > summary,
+html:not([data-edition="gn"])[data-day-scheme]:not([data-day-scheme="classic"]) .toolbar-row .menu-panel { background: var(--surface); border-color: var(--line); color: var(--ink); }
+html:not([data-edition="gn"])[data-day-scheme]:not([data-day-scheme="classic"]) .menu-panel .language-toolbar select,
+html:not([data-edition="gn"])[data-day-scheme]:not([data-day-scheme="classic"]) .menu-panel .language-toolbar button { background: var(--bg); border-color: var(--line); color: var(--ink); }
+html:not([data-edition="gn"])[data-day-scheme]:not([data-day-scheme="classic"]) .account-card :focus-visible,
+html:not([data-edition="gn"])[data-day-scheme]:not([data-day-scheme="classic"]) .toolbar-row .menu > summary:focus-visible { outline-color: var(--accent); }
 #prefs-menu > .menu-panel { display: grid; gap: 14px; width: min(340px, calc(100vw - 32px)); padding: 18px; border-radius: 18px; }
 .settings-menu-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; border-bottom: 1px solid var(--line, #b4c7c0); padding-bottom: 12px; }
 #prefs-menu .settings-close { display: grid; place-items: center; width: 28px; min-width: 28px; height: 28px; min-height: 28px; padding: 0; border: 0; border-radius: 8px; background: transparent; color: var(--muted, #56746a); }

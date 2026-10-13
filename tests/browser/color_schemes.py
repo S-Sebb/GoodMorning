@@ -25,6 +25,17 @@ def main():
                     settings = json.loads(line); break
                 if not line: raise RuntimeError('Synthetic palette fixture did not start.')
             runtime = Path(settings['runtimes']['alice'])
+            sys.path.insert(0, str(REPO/'src'))
+            from goodmorning.briefings.briefing_document import encode
+            # Only this isolated fixture gets editorial sample content for visual review.
+            sample = {'v': 1, 'lang': 'en', 'greeting': 'A little room for today.',
+                      'opening': 'A fresh start, a clear plan, and one thing at a time.',
+                      'sections': [['notes', [['p', 'Start slowly. There is room to do good work today.'],
+                                             ['p', 'Take a moment to settle in, then give your best attention to what matters.']]],
+                                   ['today', [['tasks', [['open', 'Make space for focused work', 'Choose one meaningful task and protect a quiet hour.'],
+                                                        ['open', 'Step outside', 'A short walk and a change of light can make a difference.']]]]]]}
+            for path in (runtime/'daily').glob('*.json'):
+                path.write_text(encode(sample))
             preserved = {path: hashlib.sha256(path.read_bytes()).hexdigest()
                          for path in [runtime/'profile.md', *sorted((runtime/'daily').glob('*.json'))]}
             errors = []
@@ -72,7 +83,7 @@ def main():
                     expect(page.locator('#chat-compose')).to_be_visible()
                 def choose(page, value, theme='day'):
                     prefs(page)
-                    expect(page.locator('#day-color-scheme option')).to_have_count(2)
+                    expect(page.locator('#day-color-scheme option')).to_have_count(4)
                     expect(page.locator('#night-color-scheme option')).to_have_count(2)
                     with page.expect_response('**/api/color-schemes') as response:
                         page.locator('#'+theme+'-color-scheme').select_option(value)
@@ -124,6 +135,58 @@ def main():
                 assert background(morning) == background(chat)
                 expect(morning.locator('.briefing-section').first).to_have_css('background-color', 'rgb(255, 251, 245)')
                 morning.screenshot(path=str(artifacts/'warm-morning-full.png'), full_page=True)
+                day_results = []
+                for scheme, surface, translation in (
+                        ('morning-sky', 'rgb(255, 253, 247)', '晨空'),
+                        ('first-light', 'rgb(255, 250, 245)', '曙光')):
+                    choose(morning, scheme)
+                    morning.get_by_role('button', name='Close settings', exact=True).click()
+                    scene = morning.evaluate("name => fetch('/' + name + '.svg').then(r => ({status: r.status, type: r.headers.get('content-type')}))", scheme)
+                    assert scene['status'] == 200 and scene['type'].startswith('image/svg+xml')
+                    if scheme == 'morning-sky':
+                        clouds = morning.evaluate("fetch('/morning-clouds.webp').then(r => ({status: r.status, type: r.headers.get('content-type')}))")
+                        assert clouds['status'] == 200 and clouds['type'].startswith('image/webp')
+                    assert scheme + '.svg' in stars(morning) and '#' not in stars(morning)
+                    expect(morning.locator('.briefing-section').first).to_have_css('background-color', surface)
+                    morning.reload()
+                    expect(morning.locator('html')).to_have_attribute('data-day-scheme', scheme)
+                    morning.screenshot(path=str(artifacts/(scheme+'-full-page.png')), full_page=True, animations='disabled')
+                    for width in (768, 390, 320):
+                        morning.set_viewport_size({'width': width, 'height': 1000})
+                        assert not morning.evaluate('document.documentElement.scrollWidth > innerWidth')
+                        morning.screenshot(path=str(artifacts/(scheme+f'-{width}-full-page.png')), full_page=True, animations='disabled')
+                    morning.set_viewport_size({'width': 1440, 'height': 1000})
+                    morning.locator('footer').first.scroll_into_view_if_needed()
+                    morning.screenshot(path=str(artifacts/(scheme+'-scrolled.png')), animations='disabled')
+                    morning.evaluate('window.scrollTo(0, 0)')
+                    morning.emulate_media(reduced_motion='no-preference')
+                    if scheme == 'morning-sky':
+                        assert '#drift' in stars(morning)
+                    else:
+                        assert '#' not in stars(morning)
+                    morning.emulate_media(reduced_motion='reduce')
+                    assert '#' not in stars(morning)
+                    morning.emulate_media(media='print')
+                    assert stars(morning) == 'none'
+                    morning.emulate_media(media='screen')
+                    chat.bring_to_front(); chat.evaluate('window.dispatchEvent(new Event("focus"))')
+                    expect(chat.locator('html')).to_have_attribute('data-day-scheme', scheme)
+                    expect(chat.locator('#chat-text')).to_have_value('Keep this private, unsent draft.')
+                    expect(chat.locator('.conversation-panel')).to_have_css('background-color', surface)
+                    chat.screenshot(path=str(artifacts/(scheme+'-chat.png')), animations='disabled')
+                    chat.goto('https://sec.language.test/password')
+                    expect(chat.locator('.account-card')).to_have_css('background-color', surface)
+                    assert scheme + '.svg' in stars(chat)
+                    prefs(chat); chat.locator('#website-language').select_option('zh-CN')
+                    expect(chat.locator(f'#day-color-scheme option[value={scheme}]')).to_have_text(translation)
+                    chat.locator('#website-language').select_option('en')
+                    chat.goto('https://sec.language.test/chat')
+                    chat.locator('#chat-text').fill('Keep this private, unsent draft.')
+                    day_results.append(scheme)
+                choose(morning, 'warm')
+                morning.get_by_role('button', name='Close settings', exact=True).click()
+                chat.bring_to_front(); chat.evaluate('window.dispatchEvent(new Event("focus"))')
+                expect(chat.locator('html')).to_have_attribute('data-day-scheme', 'warm')
                 evening = page_in(owner); login(evening, 'gn', 'alice', 'a1alice-permanent')
                 expect(evening.locator('html')).to_have_attribute('data-night-scheme', 'classic')
                 assert background(evening) == 'rgb(17, 28, 42)'
@@ -224,6 +287,7 @@ def main():
                 browser.close()
             assert all(hashlib.sha256(path.read_bytes()).hexdigest() == digest for path, digest in preserved.items())
             report = {'modelCalls': 0, 'wholeSitePalette': True, 'classicNightUnchanged': True, 'starryNight': True,
+                       'atmosphericDayThemes': day_results, 'dayReducedMotion': True, 'dayPrintClean': True,
                       'clockThemeIndependent': True, 'refreshAndCrossHost': True, 'draftPreserved': True,
                       'savedRecordsUnchanged': True, 'accountIsolation': True, 'bilingual': True,
                       'customAvatarsPreserved': True,

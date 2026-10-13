@@ -79,7 +79,10 @@ class Resources:
                    'activity.js':'text/javascript','activity.css':'text/css',
                      'model.js':'text/javascript', 'schedule.js':'text/javascript', 'schedule.css':'text/css',
                     'marked.js': 'text/javascript', 'markdown.js': 'text/javascript',
-                     'starry-sky.svg': 'image/svg+xml',
+                      'starry-sky.svg': 'image/svg+xml',
+                      'morning-sky.svg': 'image/svg+xml',
+                      'morning-clouds.webp': 'image/webp',
+                      'first-light.svg': 'image/svg+xml',
                      'color-schemes.js': 'text/javascript', 'color-schemes.css': 'text/css',
                    'update.js': 'text/javascript', 'update.css': 'text/css',
                    'avatar.js': 'text/javascript', 'avatar.css': 'text/css',
@@ -105,7 +108,9 @@ class Resources:
                     if icon in self.urls:
                         data = data.replace(icon.encode(), self.urls[icon].encode())
             if name == 'color-schemes.css':
-                data = data.replace(b'/starry-sky.svg', self.urls['starry-sky.svg'].encode())
+                for sky in ('starry-sky.svg', 'morning-sky.svg', 'morning-clouds.webp', 'first-light.svg'):
+                    if sky in self.urls:
+                        data = data.replace(('/' + sky).encode(), self.urls[sky].encode())
             digest = hashlib.sha256(data).hexdigest()
             path = f'/assets/{digest}/{name}'
             compressed = gzip.compress(data, compresslevel=6, mtime=0) if mime.startswith('text/') else data
