@@ -1,4 +1,4 @@
-"""Read-only weekly agenda, built from this account's approved calendar and daily plans."""
+"""Read-only account-local events, confirmed TBC appointments and planned task occurrences."""
 from datetime import date, datetime, time, timedelta, timezone
 import hashlib
 import html
@@ -9,6 +9,7 @@ from zoneinfo import ZoneInfo
 from goodmorning.calendar.calendar_store import CalendarStore, endpoints
 from goodmorning.calendar.calendar_safety import safe_value
 from goodmorning.records.daily import inspect, read_record, record_path
+from goodmorning.records.routing import converted_draft_ids
 from . import language as ui
 from .briefing_resources import favicon_links
 from .chat_theme import clock_theme
@@ -33,6 +34,8 @@ def saved_week(runtime, zone, now, offset):
              'plan_error': False} for i in range(7)]
     warnings = []
     pending = 0
+    converted = set()
+    calendar_error = False
     calendar = runtime / 'calendar.sqlite'
     try:
         if calendar.is_symlink():
@@ -44,6 +47,7 @@ def saved_week(runtime, zone, now, offset):
                 start = datetime.combine(monday, time(), local.tzinfo)
                 end = datetime.combine(monday + timedelta(days=7), time(), local.tzinfo)
                 events = safe_value(store.query(start, end, limit=-1, details=True))
+                converted = converted_draft_ids(store)
                 pending = store.stats()['pending']
                 for event in events:
                     begins, ends = endpoints(event)
@@ -55,6 +59,7 @@ def saved_week(runtime, zone, now, offset):
             finally:
                 store.close()
     except (ValueError, OSError, KeyError, sqlite3.Error):
+        calendar_error = True
         warnings.append('Calendar records could not be read. Other saved plans are still shown.')
     for day in days:
         try:
@@ -68,11 +73,46 @@ def saved_week(runtime, zone, now, offset):
                     seen.add(key)
         except (ValueError, OSError, UnicodeError):
             day['plan_error'] = True
+    if (runtime/'inbox.sqlite').exists():
+        from goodmorning.records.inbox_store import InboxStore
+        from goodmorning.records.task_store import TaskStore
+        from goodmorning.records.routing import planned_day, confirmed_drafts
+        inbox = None
+        try:
+            inbox = InboxStore(runtime)
+            if inbox.version == 2:
+                store = TaskStore(inbox)
+                inbox.db.execute('BEGIN')
+                drafts = safe_value(confirmed_drafts(store, monday.isoformat(),
+                    (monday + timedelta(days=7)).isoformat(), converted))
+                for day in days:
+                    day['plan_error'] = False  # Legacy history is not a canonical source failure.
+                    day['tasks'] = [dict(r, id=r['occurrence_id'], text=r['title'], done=r['status'] == 'done',
+                        section='nice-to-do' if r['optional'] else 'flexible')
+                        for r in safe_value(planned_day(store, day['date']))]
+                    day['events'].extend(draft for draft in drafts if draft['date'] == day['date'])
+        except (ValueError, OSError, sqlite3.Error, KeyError, TypeError):
+            warnings.append('Task records could not be read; no availability is inferred.')
+            for day in days:
+                day['plan_error'] = 'tasks'
+                day['tasks'] = []
+        finally:
+            if inbox:
+                inbox.close()
     return {'today': today.isoformat(), 'start': monday.isoformat(), 'offset': offset,
-            'timezone': zone, 'days': days, 'pending': pending, 'warnings': warnings}
+            'timezone': zone, 'days': days, 'pending': pending, 'warnings': warnings, 'calendar_error': calendar_error}
 
 
 def event_card(event, day, zone):
+    if event.get('draft'):
+        identifier = html.escape(event['id'], quote=True)
+        location = '<span class="event-location" data-content>' + html.escape(event['location']) + '</span>' if event['location'] else ''
+        notes = '<p class="event-notes" data-content>' + html.escape(event['detail']) + '</p>' if event['detail'] else ''
+        return ('<details class="schedule-event is-tbc" id="event-' + day + '-' + identifier + '">'
+            '<summary id="summary-' + day + '-' + identifier + '"><span class="event-time">' + ui.ui('TBC') + '</span>'
+            '<span class="event-title" data-content>' + html.escape(event['title']) + '</span>' + location + '</summary>'
+            '<div class="event-detail"><p>' + ui.ui('Appointment time not yet confirmed') + '</p>' + notes
+            + '<p class="event-source">' + ui.ui('Time zone') + ' · <span data-content>' + html.escape(event['timezone']) + '</span></p></div></details>')
     begins, ends = (point.astimezone(ZoneInfo(zone)) for point in endpoints(event))
     label = ui.ui('All day') if event['all_day'] else html.escape(begins.strftime('%H:%M') if begins.date().isoformat() == day else ui.text('Continues'))
     end_label = ends.strftime('%H:%M')
@@ -91,10 +131,24 @@ def event_card(event, day, zone):
 
 
 def task_card(task):
-    optional = '<small class="task-kind">' + ui.ui('Optional') + '</small>' if task['section'] == 'nice-to-do' and not task['done'] else ''
-    return ('<li class="schedule-task' + (' is-done' if task['done'] else '') + '"><span class="task-state" aria-label="'
-            + html.escape(ui.text('Done' if task['done'] else 'Not completed'), quote=True) + '">' + ('✓' if task['done'] else '○') + '</span>'
-            '<div><span class="task-title" data-content>' + html.escape(task['text']) + '</span>' + optional + '</div></li>')
+    state = task.get('status', 'done' if task['done'] else 'open')
+    metadata = []
+    if task.get('project'):
+        metadata.append('<small class="task-project">' + ui.ui('Project: {name}', name=task['project']) + '</small>')
+    if task['section'] == 'nice-to-do':
+        metadata.append('<small class="task-kind">' + ui.ui('Optional') + '</small>')
+    if state in ('partial', 'blocked'):
+        metadata.append('<small class="task-progress">' + ui.ui(state.capitalize()) + '</small>')
+    if task.get('due_date'):
+        deadline = task.get('due_at') or task['due_date']
+        metadata.append('<small class="task-deadline">' + ui.ui('Due: {date}', date=deadline) + '</small>')
+    detail = ' · '.join(value for value in (task.get('detail'), task.get('report_detail')) if value)
+    if detail:
+        metadata.append('<small class="task-detail" data-content>' + html.escape(detail) + '</small>')
+    label = {'done': 'Done', 'partial': 'Partial', 'blocked': 'Blocked'}.get(state, 'Not completed')
+    return ('<li class="schedule-task is-' + state + '"><span class="task-state" aria-label="'
+            + html.escape(ui.text(label), quote=True) + '">' + ('✓' if task['done'] else '○') + '</span>'
+            '<div><span class="task-title" data-content>' + html.escape(task['text']) + '</span>' + ''.join(metadata) + '</div></li>')
 
 
 def date_part(day, part):
@@ -160,17 +214,17 @@ def view(data, checked):
         if day['events']:
             columns += ''.join(event_card(event, day['date'], data['timezone']) for event in day['events'])
         else:
-            empty_label = 'Calendar unavailable' if data['warnings'] else 'No calendar events saved'
+            empty_label = 'Calendar unavailable' if data.get('calendar_error') else 'No calendar events saved'
             columns += '<span class="schedule-empty" role="img" aria-label="' + empty_label + '" title="' + empty_label + '">—</span>'
         columns += '</div><div class="schedule-work"><h4>' + ui.ui('To-dos') + '</h4>'
         if day['tasks']:
             columns += '<ul class="schedule-tasks">' + ''.join(task_card(task) for task in day['tasks']) + '</ul>'
         if day['plan_error']:
-            columns += '<p class="schedule-empty">' + ui.ui('Daily plan unavailable') + '</p>'
+            columns += '<p class="schedule-empty">' + ui.ui('Task records unavailable' if day['plan_error'] == 'tasks' else 'Daily plan unavailable') + '</p>'
         elif not day['tasks']:
             columns += '<span class="schedule-empty" role="img" aria-label="No to-dos saved" title="No to-dos saved">—</span>'
         columns += '</div></section>'
-    notice = ''.join('<p class="schedule-warning" role="status" title="' + html.escape(warning, quote=True) + '">' + ui.ui('Calendar unavailable') + '</p>' for warning in data['warnings'])
+    notice = ''.join('<p class="schedule-warning" role="status">' + ui.ui(warning) + '</p>' for warning in data['warnings'])
     return controls + notice + overview + '</nav>' + columns + '</div>'
 
 

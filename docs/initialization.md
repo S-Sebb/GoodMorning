@@ -63,6 +63,10 @@ After consent, create only missing profile, project records, runtime folders
 and agreed configuration. Initialize an empty SQLite calendar and inbox
 (`inbox --secretary-dir RUNTIME --init`), then rebuild state. Do not overwrite
 unrelated private files. See `docs/inbox-pipeline.md` for the storage contract.
+An existing v1 inbox must not be reinitialized. Review `task --migrate` with the
+owner, then use `--migrate --confirm` only after explicit upgrade consent. It keeps
+a private backup and flags legacy identity/date reconciliation. A declined upgrade
+leaves generation pending, not confirmed profile setup undone.
 Include an authorized runtime `tmp/` folder; set `TMPDIR` to its absolute path
 for calendar import commands so disposable source snapshots stay in the runtime.
 No daily tasks/completions, briefing snapshots/marks, news reports/acknowledgements,

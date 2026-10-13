@@ -12,7 +12,8 @@ from goodmorning.web import language as ui
 MAX_BYTES = 150_000
 TITLES = {'weather': 'Weather', 'news': 'News', 'schedule': 'Schedule',
           'must-do': 'Project steps', 'nice-to-do': 'Optional project steps', 'reminders': 'Reminders',
-          'today': 'Today', 'still-open': 'Still open', 'tomorrow': 'Tomorrow', 'notes': 'Notes'}
+          'today': 'Today', 'still-open': 'Still open', 'tomorrow': 'Tomorrow', 'notes': 'Notes',
+          'tasks': 'Tasks', 'attention': 'Needs attention'}
 WEATHER = {'temperature': ('Temperature', 'thermometer', 'temperature cool'),
            'precipitation': ('Precipitation', 'rain', 'precipitation'),
            'warning': ('Extreme warning', 'warning', 'other'), 'air': ('AQI', 'leaf', 'air')}
@@ -70,7 +71,33 @@ def sources(value, path):
 def block(value, path):
     sequence(value, path, 2, 4)
     tag = value[0]
-    if tag in ('p', 'list'):
+    if tag in ('actions', 'events', 'decisions'):
+        sequence(value, path, 2, 2)
+        sequence(value[1], path + '.items', 1, 200)
+        width = {'actions': 7, 'events': 7, 'decisions': 4}[tag]
+        for row in value[1]:
+            sequence(row, path + '.row', width, width)
+            pattern = {'actions': r'task_[0-9a-f]{16}', 'events': r'(?:[0-9a-f]{16}|draft_[0-9a-f]{16})', 'decisions': r'(?:[0-9a-f]{16}|(?:ib|draft)_[0-9a-f]{16})'}[tag]
+            if not isinstance(row[0], str) or not re.fullmatch(pattern, row[0]) or type(row[1]) is not int or row[1] < 1:
+                fail(path, 'source-linked rows need a durable ID and positive revision')
+            for cell in row[2:]:
+                text(cell, path + '.cell', empty=True)
+            if tag == 'actions':
+                if row[2] and not re.fullmatch(r'oc_[0-9a-f]{16}', row[2]):
+                    fail(path, 'invalid occurrence ID')
+                if row[3]:
+                    try:
+                        valid = Date.fromisoformat(row[3]).isoformat() == row[3]
+                    except ValueError:
+                        valid = False
+                    if not valid:
+                        fail(path, 'invalid agreed action date')
+                if row[4] not in ('open', 'partial', 'blocked', 'done'):
+                    fail(path, 'invalid action status')
+                text(row[5], path + '.title', 600)
+            else:
+                text(row[4] if tag == 'events' else row[2], path + '.title', 600)
+    elif tag in ('p', 'list'):
         sequence(value, path, 2, 3 if tag == 'p' else 2)
         if tag == 'p':
             text(value[1], path + '.text')
@@ -152,7 +179,7 @@ def validate(data, partial=False):
     required = {'v', 'greeting', 'opening', 'sections'}
     if not isinstance(data, dict) or not required <= data.keys() or data.keys() - required - {'closing', 'lang'}:
         fail('document', 'required keys v/greeting/opening/sections; optional closing/lang only')
-    if type(data['v']) is not int or data['v'] != 1:
+    if type(data['v']) is not int or data['v'] not in (1, 2):
         fail('v', 'unsupported version; preserve the original')
     for key in ('greeting', 'opening'):
         text(data[key], key, 350)
@@ -170,6 +197,16 @@ def validate(data, partial=False):
         flexible_seen = False
         for number, value in enumerate(section[1]):
             block(value, f'{path}.blocks[{number}]')
+            if data['v'] == 1 and value[0] in ('actions', 'events', 'decisions'):
+                fail(path, 'source-linked blocks require native v2')
+            if data['v'] == 2:
+                if section[0] in ('must-do', 'nice-to-do', 'reminders', 'still-open', 'tomorrow', 'notes'):
+                    fail(path, 'v2 uses Schedule, Tasks, Needs attention and Today review')
+                owner = {'actions': ('tasks', 'today'), 'events': ('schedule',), 'decisions': ('attention',)}
+                if value[0] in ('tasks', 'flexible', 'agenda'):
+                    fail(path, 'v2 actions/events require source-linked blocks')
+                if value[0] in owner and section[0] not in owner[value[0]]:
+                    fail(path, 'source-linked block has the wrong section owner')
             if value[0] == 'flexible':
                 if section[0] not in ('schedule', 'tomorrow'):
                     fail(path, 'flexible schedules belong in schedule or tomorrow, not reminders/notes')
@@ -229,6 +266,17 @@ def validate_task_ownership(data):
                 if previous and (day is None or None in previous or day in previous):
                     fail(path, 'duplicate task card; keep one section owner, already listed at ' + next(iter(previous.values())))
                 previous[day] = path
+    if data['v'] == 2:
+        identities = set()
+        for section in data['sections']:
+            for value in section[1]:
+                if value[0] not in ('actions', 'events', 'decisions'):
+                    continue
+                for row in value[1]:
+                    identity = (value[0], 'outcome' if section[0] == 'today' else 'action', row[0], row[2] if value[0] == 'actions' else '')
+                    if identity in identities:
+                        fail('sections', 'duplicate source card; keep one owner per occurrence')
+                    identities.add(identity)
     return data
 
 
@@ -255,6 +303,17 @@ def citations(value):
 
 def render_block(value, images, briefing_date=None):
     tag = value[0]
+    if tag == 'actions':
+        groups = {}
+        for row in value[1]:
+            groups.setdefault(row[3], []).append([row[4], row[5], row[6]])
+        return ''.join('<div class="action-group"><h3 class="agenda-day">' +
+                       (ui.agenda_day(day, briefing_date) if day else ui.ui('No workday assigned')) + '</h3>' +
+                       render_block(['tasks', rows], images, briefing_date) + '</div>' for day, rows in groups.items())
+    if tag == 'events':
+        return render_block(['agenda', [r[2:] for r in value[1]]], images, briefing_date)
+    if tag == 'decisions':
+        return '<ul>' + ''.join('<li><strong>' + escaped(r[2]) + '</strong><p>' + escaped(r[3]) + '</p></li>' for r in value[1]) + '</ul>'
     if tag == 'p':
         return '<p>' + escaped(value[1]) + (' ' + citations(value[2]) if len(value) == 3 else '') + '</p>'
     if tag == 'list':

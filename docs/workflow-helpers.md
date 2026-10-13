@@ -4,6 +4,22 @@ All paths below are absolute selected runtime paths. Run from the installed root
 Helpers automate mechanical operations, never choose goals, grant permissions,
 decide task completion, approve imports, select news or claim delivery.
 
+## Canonical tasks and event drafts
+
+Follow `docs/item-taxonomy.md`. `workflow --capture todo` accepts an optional
+`task` object for explicit title/detail/project/optionality/priority, due_date or
+due_at, planned_date, repeat/timezone, defer_until. It atomically saves raw input
+and a minimal open task. Capture verbs do not grant execution consent.
+
+`task --show ID` returns canonical fields/revision; `--draft` selects an event
+draft. `task --update ID --expect-revision REV` changes explicit fields;
+`task --report ID --date DATE --expect-revision REV` records occurrence status.
+Writes use actual `--session`, stable `--request-key`, and JSON stdin or
+`--input-json`; done needs `confirmed_completion:true`. `task --briefing gm|gn
+--date DATE` supplies code-owned rows/blocks with bounded continuation pages.
+Only `planned_date` or recurrence assigns a workday; a deadline never reserves one.
+Native v2 presentation saves do not copy tasks into daily files.
+
 ## Prepare once
 
 ```bash
@@ -43,7 +59,11 @@ capture. `--input-file PATH` is also supported. No user text means ask first.
 No weather/news, task execution, project reads, calendar changes or auto-setup.
 Follow-ups/organization/completion use `docs/inbox-pipeline.md`.
 
-## Daily records without full-file rewrites
+## Daily history without full-file rewrites
+
+Canonical task writes use the task helper above. The checklist amendment shapes
+below are compatibility operations for legacy records, not a way to create live
+work in a migrated runtime. Daily feedback/progress and run history remain valid.
 
 ```bash
 python scripts/goodmorning.py daily --secretary-dir RUNTIME --date DATE --show

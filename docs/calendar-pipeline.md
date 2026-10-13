@@ -8,6 +8,12 @@ server is needed. Personal data remains under the git-ignored `secretary/`.
 
 ## Conversational workflow (all secretary skills)
 
+Use `docs/item-taxonomy.md` to distinguish events from work. An untimed task or a
+task deadline is not a calendar event. Unknown-time appointments persist through
+`task --capture-draft`; confirmed days can display TBC without inventing an all-day
+event. Exact confirmed details convert using `task --convert`. Imports keep this
+calendar staging/review contract; new task storage does not change their identity.
+
 The user talks to the secretary to add, import, review, reschedule, or cancel
 events. These commands are implementation details, not required user work.
 

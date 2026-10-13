@@ -12,6 +12,7 @@ COMMANDS = {
     'sessions': 'web.session_inventory',
     'avatar-preview': 'web.avatar_preview',
     'inbox': 'records.inbox',
+    'task': 'records.task',
     'workflow': 'records.workflow',
     'daily': 'records.daily',
     'job': 'briefings.briefing_job',

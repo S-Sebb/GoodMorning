@@ -592,8 +592,18 @@ def cmd_mark(secretary_dir: str, day: str, kind: str, session: str,
         from goodmorning.briefings.briefing_document import parse, encode, strings, validate_task_ownership
         try:
             document = parse(text)
+            if document['v'] == 1 and not browser_job and Path(secretary_dir, 'inbox.sqlite').exists():
+                from .inbox_store import InboxStore
+                inbox = InboxStore(secretary_dir)
+                try:
+                    if inbox.version == 2:
+                        raise ValueError('Canonical task storage requires native v2 for new editions; v1 archives remain readable')
+                finally:
+                    inbox.close()
             if not recovering:
                 validate_task_ownership(document)
+                from .routing import validate_sources
+                validate_sources(secretary_dir, document, day, kind)
             text = encode(document)
             if browser_job:
                 from goodmorning.briefings.briefing_stream import require_final

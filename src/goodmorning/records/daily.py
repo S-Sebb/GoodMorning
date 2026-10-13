@@ -193,6 +193,8 @@ def amend(directory, date, expected, payload, *, locked=False, dry_run=False):
 
 def planned_tasks(document, date):
     """Persist exactly the visible plan, without turning agent status into completion."""
+    if document['v'] == 2:
+        return {}  # A presentation never assigns a workday or creates another task store.
     groups = {}
     for section in document['sections']:
         if section[0] not in TASK_SECTIONS:

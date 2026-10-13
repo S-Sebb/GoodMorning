@@ -1,0 +1,100 @@
+"""Task/draft operations with explicit timing, revision checks and save receipts."""
+import argparse
+import json
+import os
+import sqlite3
+import sys
+
+from goodmorning.runtime_files import secretary_path
+from .inbox_store import InboxStore, encode, stamp
+from .task_store import TaskStore, migrate
+
+
+def main(argv=None):
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--secretary-dir')
+    parser.add_argument('--website-language', choices=('en', 'zh-CN'))
+    actions = parser.add_mutually_exclusive_group(required=True)
+    actions.add_argument('--add', action='store_true')
+    actions.add_argument('--capture-draft', action='store_true')
+    actions.add_argument('--migrate', action='store_true')
+    actions.add_argument('--briefing', choices=('gm', 'gn'))
+    parser.add_argument('--section', choices=('schedule', 'tasks', 'attention', 'today'), help='Return only this briefing section and its continuation')
+    for name in ('show', 'update', 'report', 'adopt', 'convert'):
+        actions.add_argument('--' + name)
+    parser.add_argument('--draft', action='store_true')
+    parser.add_argument('--date')
+    parser.add_argument('--confirm', action='store_true')
+    parser.add_argument('--session', default=os.environ.get('OPENCODE_SESSION_ID'))
+    parser.add_argument('--request-key')
+    parser.add_argument('--expect-revision', type=int)
+    parser.add_argument('--offset', type=int, default=0)
+    parser.add_argument('--limit', type=int, default=7)
+    inputs = parser.add_mutually_exclusive_group()
+    inputs.add_argument('--input-stdin', action='store_true')
+    inputs.add_argument('--input-json')
+    args = parser.parse_args(argv)
+    inbox = None
+    language_token = None
+    try:
+        if args.website_language:
+            from goodmorning.web import language as ui
+            language_token = ui.CURRENT.set(args.website_language)
+        runtime = secretary_path(args.secretary_dir)
+        if args.offset < 0 or not 1 <= args.limit <= 200:
+            raise ValueError('invalid_input: invalid page size')
+        if args.migrate:
+            result = migrate(runtime, args.confirm)
+        elif args.briefing:
+            from .routing import prepare
+            if not args.date:
+                raise ValueError('date_required: briefing query needs its pinned date')
+            result = prepare(runtime, args.date, args.briefing, args.offset, args.limit)
+            if args.section:
+                if args.section == 'today':
+                    page = {'items': result.get('today', []), 'total': result.get('today_total', 0),
+                            'next_offset': result.get('today_next_offset')}
+                else:
+                    page = result[args.section]
+                result = {**page, 'block': result.get('blocks', {}).get(args.section),
+                          'warnings': result.get('warnings', []) + result['schedule'].get('warnings', []),
+                          'timezone': result['schedule'].get('timezone')}
+        else:
+            writing = bool(args.add or args.capture_draft or args.update or args.report or args.adopt or args.convert)
+            if writing and not (args.session and args.request_key):
+                raise ValueError('input_required: writes need actual session and stable request key')
+            inbox = InboxStore(runtime, write=writing)
+            store = TaskStore(inbox)
+            if args.show:
+                result = store.show(args.show, args.draft)
+            else:
+                text = args.input_json if args.input_json is not None else sys.stdin.read(100001) if args.input_stdin else None
+                if text is None or len(text) > 100000:
+                    raise ValueError('input_required: supply bounded JSON')
+                payload = json.loads(text)
+                now = stamp(runtime)
+                if args.add or args.capture_draft:
+                    result = inbox.mutate('add', {**payload, 'kind': 'event_proposal' if args.capture_draft else 'todo'}, args.session, args.request_key, now)
+                elif args.adopt or args.convert:
+                    if not args.confirm or args.expect_revision is None:
+                        raise ValueError('confirmation_required: adoption needs explicit organization consent and entry revision')
+                    result = (store.adopt(args.adopt, args.expect_revision, payload, args.session, args.request_key, now)
+                              if args.adopt else store.convert(runtime, args.convert, args.expect_revision, payload, args.session, args.request_key, now))
+                else:
+                    if args.expect_revision is None:
+                        raise ValueError('revision_required: supply revision from task --show')
+                    if args.report and not args.date:
+                        raise ValueError('date_required: occurrence reporting needs its agreed date')
+                    result = store.mutate(args.update or args.report, args.expect_revision, payload, args.session,
+                                          args.request_key, now, day=args.date if args.report else None, draft=args.draft)
+        print(encode(result))
+        return 0
+    except (ValueError, OSError, sqlite3.Error, KeyError, TypeError) as error:
+        message = str(error) if isinstance(error, ValueError) and not isinstance(error, json.JSONDecodeError) else 'task_unavailable: preserve storage and inspect input/schema'
+        print(encode({'error': message.split(':', 1)[0], 'next': message}))
+        return 1
+    finally:
+        if inbox:
+            inbox.close()
+        if language_token is not None:
+            ui.CURRENT.reset(language_token)

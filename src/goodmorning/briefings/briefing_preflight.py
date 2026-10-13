@@ -26,8 +26,24 @@ def initialize(runtime, job, previous=None):
     context['integration_policy'] = policy
     if not context.get('ready') or context.get('duplicate'):
         raise ValueError('Configured profile and a new edition are required')
-    if context['daily'].get('next_offset') is not None:
+    if context.get('document_version') != 2 and context['daily'].get('next_offset') is not None:
         raise ValueError('Daily list exceeds the browser feedback limit; review it before generation')
+    if (Path(runtime)/'inbox.sqlite').exists():
+        from goodmorning.records.inbox_store import InboxStore
+        from goodmorning.records.task_store import TaskStore
+        from goodmorning.records.routing import planned_day
+        inbox = InboxStore(runtime)
+        try:
+            if inbox.version == 1:
+                raise ValueError('migration_required: review and explicitly upgrade task storage before a new edition')
+            if inbox.version == 2:
+                rows = planned_day(TaskStore(inbox), job['date'])
+                if len(rows) > 200:
+                    raise ValueError('Planned occurrences exceed the feedback limit; review before generation')
+                context['feedback_tasks'] = [{'id': r['occurrence_id'], 'task_id': r['id'], 'revision': r['revision'],
+                                             'text': r['title'], 'done': r['status'] == 'done'} for r in rows]
+        finally:
+            inbox.close()
     fields = []
     if 'replacement' in job:
         context['regenerating'] = True
@@ -40,7 +56,7 @@ def initialize(runtime, job, previous=None):
                        'description':'Past missing editions stay read-only. Continue with today’s briefing?',
                        'options':[{'value':'today','label':'Continue today'},{'value':'stop','label':'Stop for now'}]})
     if job['kind'] == 'gn' and not context.get('feedback'):
-        tasks = [t for t in context['daily']['tasks'] if not t['done']]
+        tasks = [t for t in context.get('feedback_tasks', context['daily']['tasks']) if not t['done']]
         fields.extend([
             {'key':'completed','title':'What did you fully complete?','type':'multiselect','required':True,
              'minItems':1,'description':'Choose completed tasks, or “None yet.” Partial work stays open.',
@@ -76,9 +92,9 @@ def answer(runtime, job, value):
         context.update(awaiting=False,cancelled=True,browser_answer=value)
         write(target, context)
         return context
-    if job['kind'] == 'gn':
+    if job['kind'] == 'gn' and 'completed' in keys:
         chosen, details = value['completed'], value['details']
-        known = {t['id']:t for t in context['daily']['tasks'] if not t['done']}
+        known = {t['id']:t for t in context.get('feedback_tasks', context['daily']['tasks']) if not t['done']}
         if not isinstance(chosen,list) or not chosen or any(not isinstance(x,str) for x in chosen) or len(set(chosen)) != len(chosen):
             raise ValueError('Select completed tasks or explicitly select None yet')
         if 'none' in chosen and chosen != ['none'] or set(chosen)-set(known)-{'none'}:
@@ -93,7 +109,7 @@ def answer(runtime, job, value):
         previous = context.get('browser_answer')
         if previous is not None and previous != value:
             raise ValueError('A pending feedback save must be reconciled before replacing its input')
-        amendment = {'complete':complete,'confirmed_completion':True,'append':{'feedback':feedback}}
+        amendment = {'complete':[] if 'feedback_tasks' in context else complete,'confirmed_completion':True,'append':{'feedback':feedback}}
         with runtime_lock(runtime, '.state.lock'):
             current = read_record(record_path(runtime, job['date']))[1]
             expected = context['daily']['sha256']
@@ -101,6 +117,16 @@ def answer(runtime, job, value):
                 receipt = amend(runtime, job['date'], expected, amendment, locked=True, dry_run=True)
                 context.update(browser_answer=value, feedback_result_sha256=receipt['sha256'])
                 write(target, context)
+                if 'feedback_tasks' in context:
+                    from goodmorning.records.inbox_store import InboxStore, stamp
+                    from goodmorning.records.task_store import TaskStore
+                    inbox = InboxStore(runtime, write=True)
+                    try:
+                        # Preflight precedes agent-session creation. Audit the browser job itself.
+                        TaskStore(inbox).complete_day([known[x] for x in complete], job['date'],
+                            'browser:' + job['id'], 'browser-feedback:' + job['id'], stamp(runtime), details)
+                    finally:
+                        inbox.close()
                 receipt = amend(runtime, job['date'], expected, amendment, locked=True)
             elif previous == value and current == context.get('feedback_result_sha256'):
                 receipt = {'sha256':current}  # Previous atomic amendment committed before its receipt.
@@ -108,7 +134,7 @@ def answer(runtime, job, value):
                 raise ValueError('The daily plan changed; reconcile feedback before continuing')
         context['feedback'] = {'completed':[known[x]['text'] for x in complete],'details':details,'saved':True}
         context['daily']['sha256'] = receipt['sha256']
-        for task in context['daily']['tasks']:
+        for task in context.get('feedback_tasks', context['daily']['tasks']):
             if task['id'] in complete:
                 task['done'] = True
     context.update(awaiting=False,browser_answer=value)

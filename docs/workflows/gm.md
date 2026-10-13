@@ -1,120 +1,46 @@
 ---
 name: gm
-description: Morning briefing: weather, yesterday's news, approved schedule, priorities and optional dated latest developments. Save without duplicate runs.
+description: Morning plan with Schedule, Tasks, Needs attention, weather and sourced news.
 ---
 
 # Morning briefing
 
-Trigger: `/gm` or a morning briefing request.
-Inputs: preferences, session/date and records.
-Output: JSON and daily record; delivery is separate.
+Read `docs/core-rules.md`, `docs/item-taxonomy.md`, `docs/briefing-format.md` and
+`docs/reply-voice.md`. Browser jobs also read `docs/browser-generation.md`.
+Run `python scripts/goodmorning.py` from the package root with selected absolute
+runtime/cache paths. Keep the current session/model and use the confirmed language.
 
-Paths are package-root relative. Read `docs/core-rules.md`; `docs/skill-rules.md` is for audits.
-Use `docs/briefing-format.md` and `templates/daily.template.md`; the native authoring
-guide is `templates/gm.reply.template.md`. Python commands below use
-`python scripts/goodmorning.py COMMAND`. Run from root with shared runtime/date rules;
-use `question` for missed runs, unclear tasks and consent.
-Apply the materiality gate and `docs/reply-voice.md`: personable sections, ordered
-weather, cited factual news and calendar timetables. Omit routine bookkeeping and repetition.
+1. Browser jobs start with `job --secretary-dir RUNTIME --job JOB prepare`, then
+   immediately init; use saved decisions/date/context. Local invocations use
+   `workflow --prepare gm` once. Handle setup, migration, duplicate/missed-edition
+   decisions before fetching. Duplicate editions identify the original and stop.
+2. Publish Schedule from the normalized approved event/draft rows. Morning covers
+   today and the next two days. Unknown-time confirmed appointments stay TBC;
+   tentative proposals and unseen imports are not attendance commitments. Surface
+   pending changes and material availability failures, not healthy bookkeeping.
+3. Publish Tasks from code-owned rows: agreed/recurring work, deadline attention,
+   still-open work and selected undated actions. Project and optional labels are
+   attributes. Preserve dates, details, source IDs and revisions; follow pages.
+   Do not promote ideas, copy project Markdown into new tasks or assign a workday
+   merely by showing a task. No appointments does not establish a free day.
+4. Needs attention contains due decisions/reviews. Ask only missing material facts
+   or permissions affecting today's useful/safe plan. Do not interview every task,
+   invent clarification work from clear ideas or re-ask saved answers. Skip an
+   empty section; pending optional decisions do not block unrelated work.
+5. Weather: fetch once with qualified city and explicit profile/cache paths.
+   Order temperature, precipitation/advice, applicable extreme warning, AQI/health.
+   Retain material stale/unavailable data. Historical editions never use today's
+   weather as historical fact.
+6. News: follow `docs/news-delivery.md`. Default is yesterday in the saved timezone,
+   per confirmed country. Review actual candidates and retain every selected story,
+   citation and material coverage gap. Latest collection requires saved opt-in or
+   explicit permission and a separate dated heading. A snapshot is not delivery;
+   acknowledge only after actual visible delivery is verified.
+7. Browser jobs publish one complete next section and finish through `job`. Local
+   saves use native v2 JSON and `state --mark-gm` with the actual session/date.
+   Neither path schedules or creates tasks from the presentation. Return the
+   browser link, not repeated JSON, Markdown/card/presentation/HTML copies.
 
-## Steps
-
-Browser jobs: read `docs/browser-generation.md` before step 1. Initialize after its
-decisions, before fetching; follow its recipes and publish top-down, not at step 6.
-
-1. Browser jobs use the job helper's saved preparation; do not rerun it or repeat
-   answered decisions. Other invocations use the confirmed tone and run
-   `workflow --secretary-dir RUNTIME --prepare gm`. Use its dates,
-   preferences, paths, daily task page and active inbox page; do not repeat those reads.
-   Handle duplicates and missed runs
-   before fetching. For a duplicate, identify its session and stop; no refresh.
-    Rename new runs to `GoodMorning DATE` in the browser job's website language, or `secretary_language` for local use, per the shared title rule.
-2. For today, run `weather` once with the profile's qualified city using
-   explicit `--city CITY` (and `--profile PATH` when relocated). Read its compact
-   brief, not JSON. Present distinct parts in this order: temperature, precipitation
-   forecast/advice, extreme-weather warning only if applicable, then AQI/health.
-     Keep routine diagnostics internal; surface material stale/unavailable data
-     and health warnings without generic caveats.
-    For historical work, label unavailable weather; never substitute today's data.
-3. Read `docs/news-delivery.md`. Run `news --backfill --today DATE` per confirmed country; inspect manifest and
-   window diagnostics. Scores are proxies. Use `--audit` for suspect selection on a narrow
-   window; never acknowledge a report whose selected stories were omitted.
-   When `editorial_review_pending` is set, read that day's collected candidates
-    with `--show DATE --view candidates`, following `next_offset` pages. Select distinct consequential stories using semantic judgment,
-    not just proxy scores; record candidate_id/reason choices in runtime JSON and
-   run `--curate DATE --selection-file PATH --expect REPORT_ID --session NAME`
-   with the matching country/runtime/sources and `--view stories`. Use the returned
-   saved stories directly. Do not skip review or invent citations; fewer items are fine.
-   For historical work,
-   use an explicit `--ending` date before the requested briefing date. Read
-   `--show DATE --view stories` for yesterday's undelivered report; show already-delivered news
-    only when requested. Use AI/world/national news blocks with explicit dates/countries.
-     Paraphrase faithfully, cite, keep quotes brief and separate assessment from
-     facts. No news preambles, flavor text or partisan commentary.
-   Preserve sources and
-   material gaps. Keep unrequested older-report availability internal.
-    Follow the shared post-delivery acknowledgement rule; never acknowledge drafts.
-   Default news is yesterday only in the profile timezone; today's news waits
-   until tomorrow. With `news_latest: false`, omit same-day collection/sections.
-   Only if `news_latest: true` or separately requested, run
-   `news --latest --country CODE --timezone ZONE --format json` separately for
-   each country with selected runtime/source/cache paths and a distinct date/as-of
-   heading. Do not mix dates or treat submissions as new publications. Latest is
-   stateless; keep mechanics internal, show material gaps and deduplicate stories.
-   If editorial review is required, save the exact latest JSON inside the runtime
-   and use `--curate-latest FILE --selection-file PATH --expect CANDIDATE_BATCH_ID
-   --session NAME --secretary-dir RUNTIME --view stories` after reviewing its candidates. Preserve
-    cutoff/freshness notes and label analysis or social discovery appropriately.
-4. Query `calendar --from DATE --days 3 --timezone ZONE --json --details`.
-   Use approved events only, show pending review counts, and inspect relevant
-    details for preparation. Show a chronological timetable with date/time/timezone,
-      event, place and prep where known. Put conflicts beneath it; no duplicate prose.
-    Before publishing Schedule, reconcile preparation's tasks with relevant active
-    inbox constraints, saved project records and confirmed changes (including
-    further pages where needed) under `docs/briefing-format.md`. Choose one current
-    action and section owner; do not copy obsolete daily titles into the plan.
-    Append a typed `flexible` block when important untimed day commitments remain:
-    agreed work, dated TODOs
-    and applicable recurring tasks without fixed times. Include supported future
-    dates within the schedule window; unassigned work keeps an empty date. Never
-    manufacture time slots or describe the day as free from calendar emptiness.
-5. Reuse relevant saved project records and confirmed reports reviewed for Schedule;
-   use authorized live project access only if needed and allowed. Include concrete
-   ongoing project next actions in Project steps / Optional project steps (formerly
-   Must-do/Nice-to-do; JSON `must-do`/`nice-to-do`) when there is actual outstanding work.
-   Exclude every action already in Schedule, including urgent project work.
-   Name the project in each task and explain why it matters. Project steps covers
-   necessary sustained progress; Optional project steps covers optional improvement.
-   Preserve explicit user priorities. Omit either section when it has no supported
-   tasks; do not invent weekly steps, busywork, fixed times or deadlines to fill it.
-   Use only confirmed fixed times and clearly labeled, grounded estimates.
-     Give grounded advice in the user's tone.
-   Do not invent deadlines or progress. These are ongoing project steps, not a
-   second copy of today's schedule. Keep each action in one section only; retain
-   explicit priorities in its detail rather than creating another task card.
-      Use preparation's inbox page; fetch further `inbox --list` filters/pages only
-      as needed, then `--show ID` only for relevant
-     current constraints. Never read archived discussions. Review flagged new
-     details per `docs/inbox-pipeline.md`; do not silently omit reminders from later pages.
-     Read relevant pending ideas and add unchecked clarification TODOs to the reply
-    and daily task list per the shared reminder rule, preserving existing tasks.
-     Use the shared pending project-update workflow: clarification TODOs, not actions.
-     TODOs: record-only.
-6. Browser jobs finish through `job`; code synchronizes typed visible
-   task titles and saves the edition/run together. Do not duplicate that work.
-   Other amendments use `daily --date DATE --amend --expect HASH` from
-   the preparation result for concise sections/task additions, preserving existing content.
-    See `docs/workflow-helpers.md` for payloads. New tasks
-    are unchecked. Author/validate/save per `docs/briefing-format.md` using
-     `state --mark-gm` with actual session, native JSON input, `--today DATE`
-     and `--json`; verify success.
-      Do not create text or card copies.
-    Acknowledge only reports whose actual delivery is now verifiable.
-
-7. Return the browser link, not JSON/repeated text. Do not attach image cards in chat.
-
-## Errors and follow-up
-
-Preserve warnings; show material failures as unavailable, not empty or complete.
-Respect duplicate refusals and shared confirmation rules. In-thread amendments
-use daily/project helpers; original snapshots remain unchanged.
+New tasks, changes or feedback supplied in the conversation follow the capture/task
+workflow before presentation. No execution is implied. Preserve archived snapshots,
+unrelated records, failed/unknown writes and existing completions.

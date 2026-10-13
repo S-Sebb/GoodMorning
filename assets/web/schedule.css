@@ -68,6 +68,9 @@
 .task-state { color: var(--muted); flex-shrink: 0; }
 .schedule-task small { display: block; font-size: 10px; color: var(--muted); margin-top: 3px; }
 .schedule-task.is-done .task-title { color: var(--muted); text-decoration: line-through; text-decoration-color: var(--line); }
+.schedule-task .task-progress { color: var(--ink); font-weight: 600; }
+.schedule-task .task-detail { white-space: pre-line; }
+.schedule-event.is-tbc { border-left-style: dashed; }
 .schedule-empty { display: block; font-size: 12px; color: var(--muted); margin: 0; line-height: 1.6; }
 .schedule-day-strip { display: none; }
 #schedule-error, .schedule-warning { font-size: 12px; border-left: 2px solid var(--warm); padding-left: 12px; }

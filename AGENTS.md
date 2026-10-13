@@ -1,5 +1,9 @@
 # GoodMorning source
 
+For website requests, this working directory is the selected release/package
+root. Read workflows and run helpers here, not from another installed GoodMorning
+copy. A globally loaded skill never changes the browser request's release or runtime.
+
 For `/gm` or `/gn` browser-generation prompts, read `docs/core-rules.md` and
 `docs/browser-generation.md`, then the matching workflow. Stable rules belong in
 those files, not in dispatch prompts. The prompt supplies only an edition, browser
@@ -9,8 +13,9 @@ and actual browser feedback. Use the real session ID from the environment or an
 explicit `--session`; never guess it.
 
 New briefings are web-only native JSON. Publish one new section at a time using
-the job helper; code owns the cumulative document, checklist synchronization and
-final save. Do not create text/card/presentation/HTML copies. Private records and
+the job helper; code owns the cumulative document, source validation and final
+save. Read `docs/item-taxonomy.md`: new v2 publications never schedule tasks from
+their presentation. Do not create text/card/presentation/HTML copies. Private records and
 saved preferences must not be deleted or overwritten during source cleanup.
 
 For website prompts marked `Browser chat`, read `docs/core-rules.md`,

@@ -12,7 +12,7 @@ import sqlite3
 import sys
 
 from . import briefing_document as native
-from .briefing_stream import DEFAULT_PLANS, bounded_json, load, paths, publish, require_final
+from .briefing_stream import DEFAULT_PLANS, LEGACY_PLANS, bounded_json, load, paths, publish, require_final
 from goodmorning.runtime_files import atomic_text, runtime_lock, secretary_path
 from goodmorning.web import language as ui
 
@@ -44,14 +44,15 @@ def owned(runtime, identifier, session):
 
 
 def default_plan(context):
-    plan = deepcopy(DEFAULT_PLANS[context['workflow']])
+    plan = deepcopy((DEFAULT_PLANS if context.get('document_version') == 2 else LEGACY_PLANS)[context['workflow']])
     selected=context.get('website_language','en')
     for item in plan:
         item[1]=ui.text(item[1],lang=selected)
         if item[0] == 'news':
             item[1] += ' — ' + context['yesterday']
     if context.get('news', {}).get('latest_enabled'):
-        plan.insert(2, ['news', ui.text('Latest news — {date}',lang=selected,date=context['date'])])
+        index = next((n + 1 for n, item in enumerate(plan) if item[0] == 'news'), len(plan))
+        plan.insert(index, ['news', ui.text('Latest news — {date}',lang=selected,date=context['date'])])
     return plan
 
 
@@ -63,7 +64,7 @@ def next_step(runtime, identifier, session, context, checkpoint):
         if context.get('regenerating'):
             instruction += (' This is an explicitly authorized replacement, not a duplicate run. Reuse saved feedback and current records; '
                             'do not replay daily, inbox, project or calendar mutations, or renew earlier execution consent. '
-                            'The final helper owns snapshot replacement and the normal checklist merge.')
+                             'The final helper owns snapshot replacement; v2 never schedules tasks from it.')
         return {'action':'init', 'command':shlex.join(command + ['init']),
                 'input':{'greeting':'…','opening':'…','plan':default_plan(context)},
                 'instruction':instruction}
@@ -89,21 +90,25 @@ def next_step(runtime, identifier, session, context, checkpoint):
             reads.append(shlex.join(base + (['--latest','--format','json'] if latest else ['--backfill','--today',context['date']])))
             if not latest:
                 reads.append(shlex.join(base + ['--show',context['yesterday'],'--view','candidates','--limit','10']))
-    elif tag in ('schedule','tomorrow') and selected.get('calendar_db'):
+    elif context.get('document_version', 1) == 1 and tag in ('schedule', 'tomorrow') and selected.get('calendar_db'):
         reads.append(shlex.join(['python','scripts/goodmorning.py','calendar','--secretary-dir',str(runtime),
             '--db',selected['calendar_db'],'--from',context['tomorrow'] if tag == 'tomorrow' else context['date'],
             '--days','1' if tag == 'tomorrow' else '3','--timezone',context['timezone'],'--json','--details']))
+    elif context.get('document_version') == 2 and tag in ('schedule', 'tasks', 'attention', 'today'):
+        reads.append(shlex.join(['python', 'scripts/goodmorning.py', 'task', '--secretary-dir', str(runtime),
+                                '--briefing', context['workflow'], '--date', context['date'],
+                                '--section', tag,
+                                '--website-language', context.get('website_language', 'en')]))
     instruction = 'Gather only this section; follow returned pages/review requirements, then publish immediately. Use saved context first.'
-    if tag in ('schedule', 'tomorrow'):
-        instruction += (' Reconcile current tasks and confirmed corrections under docs/briefing-format.md before publishing. '
-                        'Review relevant active inbox/project constraints before describing availability. '
-                        'After timed agenda blocks, use flexible rows [date,status,title,detail] for important day commitments, not the project backlog; '
-                        'use ISO dates only when supported, otherwise an empty date. Keep actual appointment times TBC in agenda. '
-                        'No timed appointments does not mean a free day. Do not bury planned work in reminders/notes, '
-                        'invent times, or move unfinished work to tomorrow without an existing date or user agreement.')
-    elif tag in ('must-do', 'nice-to-do'):
-        instruction += (' Use ongoing project next steps only, excluding tasks already owned by Schedule/Tomorrow. '
-                        'Follow task selection and section ownership in docs/briefing-format.md; skip if no supported tasks remain.')
+    if context.get('document_version', 1) == 1 and tag in ('schedule', 'tomorrow'):
+        instruction += (' Legacy preview: review active inbox/project constraints; preserve flexible rows '
+                        '[date,status,title,detail], TBC appointments and existing history; no automatic rollover. '
+                        'No timed appointments does not mean a free day.')
+    if context.get('document_version') == 2 and tag in ('schedule', 'tasks', 'attention', 'today'):
+        instruction += (' Follow docs/item-taxonomy.md. Use source-linked events/actions/decisions from code-owned rows. '
+                        'Do not create work from a briefing, move deadlines into appointments, assign dates, infer completion, '
+                        'or question every idea. Schedule owns events; Tasks owns work; Needs attention owns due decisions. '
+                        'Follow next_offset for remaining pages and retain material warnings. This is presentation, not execution consent.')
     return {'action':'publish','command':shlex.join(command + ['publish']), 'position':position,
             'section':[tag,title], 'read':reads,
             'instruction':instruction}
@@ -144,14 +149,22 @@ def act(runtime, identifier, session, action, payload=None):
             return {**value, 'next':next_step(runtime, identifier, session, context, load(target))}
         if action == 'prepare':
             # Preparation is saved once by the server, not reread by the agent.
-            return receipt({**{k:v for k,v in context.items() if k not in ('form','browser_answer','awaiting')}, 'job': identifier, 'session': session,
+            prepared = {k:v for k,v in context.items() if k not in ('form','browser_answer','awaiting')}
+            if context.get('document_version') == 2:
+                # Sources are reread per section. Do not invite reuse of stale/legacy plans.
+                prepared.pop('items', None)
+                prepared['daily'] = {k:v for k,v in context['daily'].items() if k not in ('tasks','tasks_total','next_offset')}
+                prepared['inbox'] = {'total': context.get('inbox', {}).get('total', 0)}
+                if job['kind'] == 'gm':
+                    prepared.pop('feedback_tasks', None)
+            return receipt({**prepared, 'job': identifier, 'session': session,
                     'next_position': len(checkpoint['outcomes']) if checkpoint else 0})
         if action == 'init':
             if not isinstance(payload, dict) or not {'greeting','opening'} <= payload.keys() or set(payload) - {'greeting', 'opening', 'lang', 'plan'}:
                 raise ValueError('Initialize with greeting, opening, optional lang and plan')
             selected=context.get('website_language','en')
             if 'lang' in payload and payload['lang']!=selected:raise ValueError('Use this job’s pinned website language')
-            document = {'v': 1, 'greeting': payload['greeting'], 'opening': payload['opening'], 'sections': [],'lang':selected}
+            document = {'v': context.get('document_version', 1), 'greeting': payload['greeting'], 'opening': payload['opening'], 'sections': [],'lang':selected}
             plan = payload.get('plan', default_plan(context))
             if checkpoint:
                 if checkpoint['plan'] != plan or {k:v for k,v in checkpoint['document'].items() if k not in ('sections','closing')} != {k:v for k,v in document.items() if k != 'sections'}:

@@ -25,8 +25,9 @@ does not require a connected agent or a new morning/evening briefing.
   An overnight/multi-day event appears on every day it overlaps; an exclusive
   midnight end does not add another day. The weekly appointment count counts
   each event once.
-- Untimed work stays separate. Daily `must-do`, `nice-to-do`, and `flexible`
-  checklists appear as project steps, optional steps, and untimed work. Confirmed
+- Untimed work stays separate. Canonical agreed workdays and recurrence appear
+  with project/optional labels and explicit partial/blocked/completed status.
+  Legacy daily checklists remain a pre-migration fallback only. Confirmed
   completion remains visible. Empty days say nothing is saved, not that the day
   is free. Past weeks are the current saved records, not immutable snapshots.
 - The corner **Schedule details** menu holds appointment/task counts, confirmed
@@ -49,28 +50,26 @@ There is no second schedule store and no extraction from chat text.
    an already approved import show its last approved version and a review notice;
    approving a cancellation removes it. Recurrence uses the existing import
    expansion, not a new browser recurrence engine.
-2. **Dated work:** ask the secretary to save a task for an explicit day. After
-   resolving ambiguity, save it through the existing hash-checked `daily` helper
-   in that date's `must-do`, `nice-to-do`, or `flexible` checklist. Preserve an
-   inbox reference when applicable. For example, after reading the date's hash,
-   an authorized amendment payload can be
-   `{"tasks":{"flexible":[{"text":"Prepare the meeting outline"}]}}`.
-   Saving only an inbox entry does not put it on this schedule.
-3. **Briefing plans:** the existing native briefing save workflow synchronizes
-   today's planned tasks into the daily checklist. Those saved tasks appear here
-   without another AI call. A preview, tomorrow's suggested work, or an undated
-   flexible block is not automatically a dated daily task. Explicitly save a
-   confirmed future task against its date to show it before that day's briefing.
-4. **Completion:** user-confirmed task IDs are completed through `daily --amend`
-   with `confirmed_completion: true`. The next read shows the checkmark. Neither
+2. **Dated work:** use canonical `task` writes with an explicit `planned_date` or
+   confirmed recurrence under `docs/item-taxonomy.md`. Deadline-only and undated
+   tasks do not reserve a workday. Project/optional are attributes.
+   The tab shows project, optionality, supplied deadline, partial/blocked status
+   and reported detail with the task, without creating another calendar event.
+   Confirmed appointments with unknown time appear under Events as TBC, never
+   all-day. Tentative or awaiting-confirmation proposals reserve nothing.
+3. **Briefing plans:** native v2 snapshots do not create task occurrences. Saved
+   canonical plans appear here without another AI call. Legacy daily checklists
+   remain preserved history and require explicit reconciliation during migration.
+4. **Completion:** user-confirmed IDs use revision-checked `task --update` or
+   per-occurrence `task --report`, with `confirmed_completion: true`. Neither
    opening the page nor an elapsed date marks work done or moves it forward.
 5. **Excluded:** raw/undated TODOs, ideas, speculative project steps, unapproved
    new imports, cancelled events, and inferred deadlines. No browser action
    changes calendar or daily records. The secretary link starts ordinary chat;
    it does not send a prompt or create a task automatically.
 
-The web account reads only its own `calendar.sqlite` and seven selected
-`daily/YYYY-MM-DD.md` files. Process-wide calendar environment overrides and
+The web account reads only its own `calendar.sqlite` and `inbox.sqlite` task
+occurrences (legacy daily files remain readable until migration). Process-wide calendar environment overrides and
 browser-supplied paths do not select another calendar. Records are opened
 read-only; viewing does not initialize or migrate a database. Existing calendar
 credential redaction and HTML escaping apply to all displayed content.

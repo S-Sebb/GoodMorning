@@ -73,8 +73,8 @@ Brief grounded interest or a warm closing is optional, not mandatory padding.
      and optional invitation. A dated idea stays pending; no calendar offer during
      capture. If clarification is explicitly requested, continue with step 5.
 4. Default / later: leave it pending without requiring an explicit "later" reply.
-   Follow the shared reminder rule: next `/gm` as an unchecked clarification TODO,
-   `/gn` as a clarification question, and `/secretary` as a reminder. Keep unresolved
+    Follow `docs/item-taxonomy.md`: surface actual open questions or a due review
+    in Needs attention, not automatic daily clarification work. Keep unresolved
    input pending even without a follow-up reply. Do not install a scheduler.
 5. Clarification: accept `Clarify` or an equivalent explicit discussion request;
    no special keyword is required, but details alone are not such a request.
@@ -91,7 +91,9 @@ Brief grounded interest or a warm closing is optional, not mandatory padding.
    the confirmed idea into scoped records, updating `last_update` and preserving
    unrelated work. Saving a project TODO is not permission to complete that TODO.
 6. Use `inbox --update ID --expect-revision REVISION` to change the entry to
-   `confirmed` only after the user confirms and the agreed organization succeeds.
+    `confirmed` only after the user confirms and the agreed organization succeeds.
+    Task adoption uses `task --adopt` with explicit action fields; it links the
+    idea to stable task IDs without another capture or execution consent.
    If any required write is unresolved, keep it pending and describe what remains.
    State checks/marks already read current records; do not rebuild after every
    record edit. Never mark gm/gn for idea capture.

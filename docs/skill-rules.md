@@ -117,9 +117,8 @@ the GoodMorning root; specialized guides load only for the operation needed.
   request discussion. Clarify only on explicit request. Discussion/confirmation
   does not authorize organization, research, execution or calendar changes; those
   need separate requests. Follow-ups keep this boundary; no calendar offers.
-  Keep unresolved clarification pending: on the next `/gm`, include an unchecked
-  clarification TODO in the reply and daily task list; on `/gn`, ask a focused
-  clarification question; on `/secretary`, include a reminder. Read the relevant
+  Keep unresolved clarification pending under `docs/item-taxonomy.md`: Needs
+  attention surfaces actual questions and due reviews, not new daily TODOs. Read the relevant
   active summaries/current entries through filtered, paginated queries, not history
   or just their count. Repeat while unresolved, reusing answers;
   do not block a briefing or unrelated work if the user defers or does not reply.
@@ -196,15 +195,10 @@ the GoodMorning root; specialized guides load only for the operation needed.
   needs these essentials, not its examples.
 - Weather order: temperature, precipitation, applicable extreme warning, then AQI.
    Calendar: chronological timetable with date/time/timezone, place and preparation.
-   Schedule/Tomorrow holds appointments and important day commitments, ending
-   with typed `flexible` rows when eligible untimed plans remain,
-   dated TODOs and applicable recurring work, not reminders-only tasks. Keep
-   supported dates or an empty unassigned date, never invented time slots or
-   automatic next-day rollover. No timed appointments does not establish a free day.
-   Project steps / Optional project steps hold ongoing project progress, excluding
-   scheduled actions. Reconcile confirmed replacements and give each action one
-   section owner under `docs/briefing-format.md`; preserved daily history is not
-   the current plan. Reminders/Notes do not repeat planned actions.
+   Schedule owns events, Tasks owns personal/project work and Needs attention owns
+   due reviews/decisions under `docs/item-taxonomy.md`. Workday is not deadline;
+   no invented time slots, completion or rollover. SQLite owns task identity/state.
+   Publication is not scheduling; daily history is not the current plan.
   News: factual cited summaries. Neutral assessment stays separate and grounded.
 - Human-like means responsive language, not fabricated feelings, progress, human
   identity or physical presence. Never diagnose mood, invent intimacy, claim
@@ -314,12 +308,9 @@ the GoodMorning root; specialized guides load only for the operation needed.
   Use revision-checked inbox
   updates; inbox counts are live and need no full rebuild. Unresolved writes remain pending too.
 - If the user does not answer, retain the note and questions across sessions.
-  At the next `/gm`, add an unchecked clarification TODO referencing the pending
-  entry, not the unconfirmed project action. At `/gn`, ask its outstanding
-  clarification questions alongside progress questions; unanswered plan questions
-  stay pending and do not prevent summarizing otherwise confirmed progress.
-  At `/secretary`, remind about outstanding questions. Repeat until resolved;
-  do not duplicate an existing open clarification TODO or repeat answered questions.
+  Surface due questions in Needs attention; respect review dates, deferrals and
+  answered questions. Unanswered optional decisions do not prevent summarizing
+  confirmed progress. Do not create a daily task merely from a pending idea.
   Use compact inbox counts first, then filtered active summaries/current entries;
   page without silently omitting unresolved reminders. Never load closed history. These are
   workflow reminders, not permission to install a scheduler or change appointments.
