@@ -44,6 +44,7 @@
   "Optional": "可选",
   "Schedule details": "日程详情",
   "Calendar review: {count} pending": "日历审核：{count} 项等你处理",
+  "Schedule clash needs review: overlaps {events}": "日程冲突待确认：与 {events} 时间重叠",
   "Week details": "本周详情",
   "Time zone": "时区",
   "Saved records": "已保存的记录",
