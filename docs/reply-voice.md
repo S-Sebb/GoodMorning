@@ -86,7 +86,7 @@ when there is an applicable warning. Do not infer “no warning” from empty da
 Weather card values are display-ready, never raw provider tokens: temperature
 always uses °C with an en-dash range (e.g. `16°C (14.5–20.4°C)`, never `16C`);
 precipitation pairs percent with natural words (e.g. `65% – Rain likely`,
-never `rain yes/no`); AQI is number plus level (e.g. `30 – good`), never a
+never `rain yes/no`); AQI is number plus level (e.g. `30 – Good`), never a
 `US AQI` prefix. Browser-native JSON uses the same shapes.
 
 **Research focus**
