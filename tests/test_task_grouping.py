@@ -15,9 +15,14 @@ class GroupingTests(unittest.TestCase):
         self.assertEqual(routing.clean_task_detail('Write paper', 'Write paper'), '')
         self.assertEqual(routing.clean_task_detail('Write paper', 'Write paper | deadline 2026-12-31 (soft)'), '')
         self.assertEqual(routing.clean_task_detail('Buy milk', 'Attach signed figures.'), 'Attach signed figures.')
-        cleaned = routing.clean_task_detail('T', 'T · Project: Atlas · Due: 2026-10-16 · No workday assigned')
+        cleaned = routing.clean_task_detail('T', 'T · Project: Atlas · Due: 2026-10-16 · To be scheduled')
         self.assertNotIn('Project', cleaned)
-        self.assertNotIn('No workday', cleaned)
+        self.assertNotIn('To be scheduled', cleaned)
+        # Legacy saved rows used the previous heading; they still read cleanly.
+        legacy = routing.clean_task_detail('T', 'T · Project: Atlas · Due: 2026-10-16 · No workday assigned')
+        self.assertNotIn('No workday', legacy)
+        legacy_zh = routing.clean_task_detail('T', 'T · Project: Atlas · Due: 2026-10-16 · 还没定在哪天做')
+        self.assertNotIn('还没定在哪天做', legacy_zh)
 
     def test_action_cells_have_no_title_echo_or_workday_suffix(self):
         row = {'id': 'task_1', 'revision': 1, 'occurrence_id': '', 'date': '', 'status': 'open',
@@ -28,18 +33,18 @@ class GroupingTests(unittest.TestCase):
         cells = routing.action_cells(row)
         detail = cells[-1]
         self.assertNotIn('Calculate ranking |', detail)
-        self.assertNotIn('No workday assigned', detail)
+        self.assertNotIn('To be scheduled', detail)
         self.assertIn('Project: YuQuant', detail)
         self.assertIn('Due: 2026-10-11', detail)
 
     def test_actions_group_by_project_and_lift_shared_due(self):
         rows = [
             ['task_aaaaaaaaaaaaaaaa', 1, '', '', 'open', 'Write paper',
-             'Write paper | deadline 2026-12-31 (soft) · Project: MRHarmon · Soft target: 2026-12-31 · No workday assigned'],
+             'Write paper | deadline 2026-12-31 (soft) · Project: MRHarmon · Soft target: 2026-12-31 · To be scheduled'],
             ['task_dddddddddddddddd', 1, '', '', 'open', 'Fix blur',
-             'Fix blur | deadline 2026-12-31 (soft) · Project: MRHarmon · Soft target: 2026-12-31 · No workday assigned'],
+             'Fix blur | deadline 2026-12-31 (soft) · Project: MRHarmon · Soft target: 2026-12-31 · To be scheduled'],
             ['task_aaaaaaaaaaaaaaaa2', 1, '', '', 'open', 'Calculate ranking',
-             'Calculate ranking | deadline 2026-10-11 · Project: YuQuant · Due: 2026-10-11 · No workday assigned'],
+             'Calculate ranking | deadline 2026-10-11 · Project: YuQuant · Due: 2026-10-11 · To be scheduled'],
         ]
         html = native.render_block(['actions', rows], {}, '2026-10-11')
         self.assertIn('MRHarmon', html)
@@ -48,8 +53,8 @@ class GroupingTests(unittest.TestCase):
         # Shared soft target appears once in the heading, not per card.
         self.assertEqual(html.count('Soft target: 2026-12-31'), 1)
         self.assertNotIn('Project: MRHarmon', html)
-        self.assertNotIn('No workday assigned</div>', html)
-        self.assertIn('No workday assigned</bdi>', html)  # date group heading stays
+        self.assertNotIn('To be scheduled</div>', html)
+        self.assertIn('To be scheduled</bdi>', html)  # date group heading stays
 
     def test_urgent_hard_due_group_sorts_first_and_stays_open(self):
         import re

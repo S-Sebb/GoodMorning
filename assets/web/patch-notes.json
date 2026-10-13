@@ -1,6 +1,24 @@
 {
   "notes": [
     {
+      "version": "0.33.1", "date": "2026-10-13", "author": "GoodMorning agent",
+      "title_en": "Secretary header fix and clearer task grouping", "title_zh": "秘书页眉修复与更清晰的待办分组",
+      "changes": [
+        {"category": "Fixed", "en": [
+          "Fix the desktop secretary page header: the settings/account bar, GoodMorning wordmark and Morning/Evening/Schedule/Secretary tabs now span the full width like other pages instead of bunching in the center.",
+          "Rename the Tasks group for undated work from 'No workday assigned' to 'To be scheduled' (待安排) so it no longer reads as a missing profile schedule; profile workdays record availability while each task still needs its own agreed day."
+        ], "zh": [
+          "修复桌面端秘书页页眉：设置/账户栏、GoodMorning 标识与早报/晚报/日程/秘书切换与其它页面一样撑满宽度，不再挤在中间。",
+          "待办中无约定日期的分组由 No workday assigned 改名为 To be scheduled（待安排），不再被误读为未设置工作时间；个人资料的工作日只是可联络时间，每个任务仍需要各自约定的日期。"
+        ]},
+        {"category": "Tests", "en": [
+          "Cover the renamed heading in English and Chinese with legacy-phrase cleanup, and run the full unit suite with synthetic records."
+        ], "zh": [
+          "用合成记录覆盖新标题的中英呈现与旧文案清理，并跑通全部单元测试。"
+        ]}
+      ]
+    },
+    {
       "version": "0.33.0", "date": "2026-10-14", "author": "GoodMorning agent",
       "title_en": "Grouped tasks and calmer reminders", "title_zh": "待办按项目分组，提醒更清爽",
       "changes": [

@@ -334,7 +334,7 @@ def _detail_for_project_group(detail, project, title=''):
         # Still drop any embedded project badge; the subgroup heading owns it.
         text = _re.sub(r'(?:Project|项目)\s*[:：]\s*[^·|\n]+', '', text)
     # Group heading already explains the date; drop the inline suffix.
-    text = _re.sub(r'No workday assigned|还没定在哪天做', '', text)
+    text = _re.sub(r'To be scheduled|No workday assigned|待安排|还没定在哪天做', '', text)
     parts = [p.strip(' \t|·—-–:;,') for p in _re.split(r'[·\n]+', text.replace('|', '·'))]
     parts = [p for p in parts if p and p not in ('.',)]
     return ' · '.join(parts).strip(' \t·|')
@@ -451,7 +451,7 @@ def render_block(value, images, briefing_date=None):
         for row in value[1]:
             groups.setdefault(row[3], []).append([row[4], row[5], row[6]])
         return ''.join('<div class="action-group"><h3 class="agenda-day">' +
-                       (ui.agenda_day(day, briefing_date) if day else ui.ui('No workday assigned')) + '</h3>' +
+                       (ui.agenda_day(day, briefing_date) if day else ui.ui('To be scheduled')) + '</h3>' +
                        _render_project_subgroups(rows, images, briefing_date) + '</div>' for day, rows in groups.items())
     if tag == 'events':
         return render_block(['agenda', [r[2:] for r in value[1]]], images, briefing_date)

@@ -35,7 +35,7 @@ def clean_task_detail(title, detail):
     text = re.sub(r'(?:^|[·|])\s*deadline\s+\d{4}-\d{2}-\d{2}(\s*\(soft\))?', '', text, flags=re.IGNORECASE)
     text = re.sub(r'(?:Project|项目)\s*[:：]\s*[^·|\n]+', '', text)
     text = re.sub(r'(?:Soft target|Due|弹性目标日期|截止)\s*[:：]\s*\S+', '', text)
-    text = re.sub(r'No workday assigned|还没定在哪天做', '', text)
+    text = re.sub(r'To be scheduled|No workday assigned|待安排|还没定在哪天做', '', text)
     parts = [p.strip(' \t|·—-–:;,') for p in re.split(r'[·\n]+', text.replace('|', '·'))]
     parts = [p for p in parts if p and p not in ('.',)]
     text = ' · '.join(parts).strip(' \t·|')
@@ -472,7 +472,7 @@ def action_cells(row):
         detail.append(ui.text('Not reminded on days with confirmed experiment plans'))
     if (row.get('when') or {}).get('unless_timed_plan'):
         detail.append(ui.text('Not reminded on days with fixed-time plans'))
-    # No "No workday assigned" suffix: the date group heading already says it.
+    # No "To be scheduled" suffix: the date group heading already says it.
     if row['report_detail']:
         detail.append(row['report_detail'])
     return [row['id'], row['revision'], row['occurrence_id'], row['date'], row['status'], row['title'], ' · '.join(detail)]

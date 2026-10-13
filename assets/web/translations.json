@@ -26,7 +26,7 @@
   "Task records unavailable": "任务记录暂时不可用",
   "Tasks": "待办任务",
   "Needs attention": "需要关注",
-  "No workday assigned": "还没定在哪天做",
+  "To be scheduled": "待安排",
   "General": "通用事项",
   "Due: {date}": "截止：{date}",
   "Project: {name}": "项目：{name}",
