@@ -1,6 +1,24 @@
 {
   "notes": [
     {
+      "version": "0.32.5", "date": "2026-10-13", "author": "GoodMorning agent",
+      "title_en": "Warmer Simplified Chinese website copy", "title_zh": "更温暖自然的简体中文界面文案",
+      "changes": [
+        {"category": "Changed", "en": [
+          "Rewrite the Simplified Chinese interface copy to read warm and natural instead of a literal translation, covering empty states, mode taglines, hints and status messages.",
+          "Keep important wording exact: limits, permissions, security notices and save or delivery results retain their meaning and next step."
+        ], "zh": [
+          "重写简体中文界面文案，让空状态、模式说明、提示和状态文字读起来温暖自然，不再逐字直译。",
+          "保留重要文案的准确性：容量限制、权限、安全提示以及保存或发送结果的含义与下一步不变。"
+        ]},
+        {"category": "Documentation", "en": [
+          "Add a Simplified Chinese copy style guide that separates atmosphere text, neutral labels and important information, with shared terminology and examples."
+        ], "zh": [
+          "新增简体中文文案风格指南，区分氛围文案、中性标签与重要信息，并统一术语、附上示例。"
+        ]}
+      ]
+    },
+    {
       "version": "0.32.3", "date": "2026-10-13", "author": "GoodMorning agent",
       "title_en": "Isolated browser regression coverage", "title_zh": "隔离浏览器回归测试覆盖",
       "changes": [{"category": "Tests", "en": [
