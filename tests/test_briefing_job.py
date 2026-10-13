@@ -257,6 +257,13 @@ class JobTests(unittest.TestCase):
         identifier,_=self.regenerate()
         self.assertEqual(self.app.job(identifier)['generation_started_at'],self.job['generation_started_at'])
 
+    def test_legacy_dispatch_time_is_not_guessed_as_the_original_request_trigger(self):
+        self.job['created']=datetime(2026,10,11,1,59,tzinfo=timezone.utc).timestamp()
+        self.app.save_jobs()
+        self.save_original()
+        identifier,_=self.regenerate()
+        self.assertIsNone(self.app.job(identifier)['generation_started_at'])
+
     def test_new_job_uses_the_original_request_timestamp_instead_of_dispatch_clock(self):
         self.app.jobs={};self.app.save_jobs()
         started=datetime(2026,10,11,1,59,tzinfo=timezone.utc).timestamp()

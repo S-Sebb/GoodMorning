@@ -513,7 +513,7 @@ class BrowserApp:
                    'language': ui.current(), 'model': site_models.current(), 'created': time.time(),
                     'replacement': baseline, 'regeneration_request': body['id']}
             # Replacing presentation must not change a reminder's original trigger.
-            job['generation_started_at'] = previous.get('generation_started_at', previous.get('created')) if previous else None
+            job['generation_started_at'] = previous.get('generation_started_at') if previous else None
             context = initialize(self.runtime, job, previous=context)
             if raw is not None:
                 atomic_text(self.job_dir / (job['id'] + '.previous.json'), raw.decode('utf-8'))
