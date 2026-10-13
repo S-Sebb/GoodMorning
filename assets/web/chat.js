@@ -3,7 +3,7 @@ const chatConfig = JSON.parse(document.querySelector('#chat-config').dataset.con
 const chatT = (key, values) => typeof goodmorningT === 'function' ? goodmorningT(key, values) : key;
 const modes = {
   initialize: ['Let’s make this yours.', 'Start initialization'],
-  secretary: ['A little room to plan.', 'Start conversation'],
+  secretary: ['A little space to plan.', 'Start conversation'],
   todo: ['Make space for what matters.', 'Save to-do'],
   eureka: ['Keep that spark.', 'Save idea']
 };

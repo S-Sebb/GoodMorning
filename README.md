@@ -25,7 +25,7 @@
 
 GoodMorning turns scattered daily information into a quiet, readable place to begin.
 Check the weather, catch up on news with sources, see what is on your calendar, and
-give the important work some room. In the evening, reflect on what actually happened
+give the important work some space. In the evening, reflect on what actually happened
 and look ahead—without pretending unfinished work is done.
 
 Between briefings, your secretary is there to help you think, remember a to-do, or
@@ -48,7 +48,7 @@ share a clear Monday–Sunday view, with today highlighted and three weeks of
 navigation on either side. Saved changes refresh without another AI briefing;
 [content and update rules](docs/weekly-schedule.md) keep the boundaries explicit.
 
-**Secretary · Keep a little room to think.** Talk through your plans, save to-dos
+**Secretary · Keep a little space to think.** Talk through your plans, save to-dos
 in your own words, capture ideas with Eureka, and revisit your preferences without
 resetting your records. Conversations support file attachments, pasted images with
 click-to-enlarge previews, and saved history.
@@ -87,7 +87,7 @@ These close-ups use fictional data; click a screenshot to see it at full size.
     <td width="50%" valign="top"><a href="assets/readme/tomorrow.png"><img src="assets/readme/tomorrow.png" alt="Evening briefing showing tomorrow's appointments, preparation, and flexible plans in the night palette" /></a></td>
   </tr>
   <tr>
-    <td align="center"><strong>Room for priorities.</strong><br /><em>Keep the essentials distinct from the possibilities.</em></td>
+    <td align="center"><strong>Space for priorities.</strong><br /><em>Keep the essentials distinct from the possibilities.</em></td>
     <td align="center"><strong>A gentler tomorrow.</strong><br /><em>See the next day's plan before closing this one.</em></td>
   </tr>
 </table>
@@ -129,4 +129,4 @@ Bundled [relay code](vendor/openchamber-relay/LICENSE) and
 
 ---
 
-<p align="center"><em>Less noise. More room for your day.</em></p>
+<p align="center"><em>Less noise. More space for your day.</em></p>

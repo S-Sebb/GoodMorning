@@ -10,7 +10,7 @@
   const modes = {secretary: 'Secretary', initialize: 'Initialize', todo: 'To-do', eureka: 'Eureka', gm: 'Morning briefing', gn: 'Evening briefing'};
   const states = {working: 'Your secretary is working', waiting: 'Your secretary needs your answer', queued: 'Your request is queued.',
     uncertain: 'Activity needs checking. Open it before trying again.', unavailable: 'Activity status is unavailable. Open it to check.'};
-  const titles = {working: 'Making a little room for you.', waiting: 'A little question for you.',
+  const titles = {working: 'Making a little space for you.', waiting: 'A little question for you.',
     queued: 'Your request is in line.', uncertain: 'Let’s check on this.', unavailable: 'Let’s check on this.'};
   const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
   const animations = new WeakMap();

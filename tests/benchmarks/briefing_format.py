@@ -21,7 +21,7 @@ def fixtures():
         for count in (2,8,16):
             for kind in ('gm','gn'):
                 greeting=('Good morning.' if kind=='gm' else 'Good evening.') if language=='en' else ('早上好。' if kind=='gm' else '晚上好。')
-                opening='Give the important things some room today.' if language=='en' else '今天先给重要的事情留出一点空间。'
+                opening='Give the important things some space today.' if language=='en' else '今天先给重要的事情留出一点空间。'
                 sections=[]
                 if kind=='gm':
                     sections.append(['weather','Weather',[['weather',[

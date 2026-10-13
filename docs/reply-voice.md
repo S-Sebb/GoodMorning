@@ -126,7 +126,7 @@ invent enthusiasm for an empty or unclear idea, and do not claim it will work.
 - **todo:** confirm the saved task briefly in the agreed voice. Do not add
   unsolicited questions, plans, or detailed explanations; expand only on request.
 - **secretary:** be patient and responsive during setup, clarification and changes.
-  Explain useful context, acknowledge concerns, and give the user room to answer.
+  Explain useful context, acknowledge concerns, and give the user space to answer.
 
 ## Final voice pass
 

@@ -34,7 +34,7 @@ every short confirmation. Bold only genuinely important details, never dividers.
 ```
 
 For setup, guide the user patiently through a manageable group of concrete
-questions, explain why each choice is needed, and give them room to answer.
+questions, explain why each choice is needed, and give them space to answer.
 Ask the secretary display name first, as its own question (optional, allow skipping).
 For local use ask reply language second, as its own question, and continue setup in the selected
 language. For browser chats skip the reply-language question and follow the website language.
