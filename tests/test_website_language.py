@@ -160,6 +160,33 @@ class LanguageTests(unittest.TestCase):
         self.assertEqual(chats.get('a'*32)['turns'][0]['language'],'zh-CN')
         self.assertEqual(chats.status('a'*32)['messages'][0]['text'],'Keep original wording.')
 
+    def test_chinese_followups_keep_language_in_workers_with_english_defaults(self):
+        root=self.root();profile=root/'profile.md'
+        profile.write_text(profile.read_text()+'secretary_language: English\n')
+        original=profile.read_bytes()
+        chamber=MockChamber(root);chats=Chats(root,chamber);pending=[]
+        class DeferredThread:
+            def __init__(self,target,args,**_):
+                self.target,self.args=target,args
+            def start(self):
+                pending.append(lambda:self.target(*self.args))
+        messages=('像素格介于之前两版之间。','再微调一点，保留 Pixel size 标签。')
+        with patch('goodmorning.web.briefing_chat.threading.Thread',DeferredThread):
+            with selected('zh-CN'):
+                chats.start({'id':'a'*32,'mode':'secretary','text':messages[0]})
+            with selected('en'):pending.pop(0)()
+            with selected('zh-CN'):
+                chats.send('a'*32,{'id':'b'*32,'text':messages[1]})
+            with selected('en'):pending.pop(0)()
+        prompts=[body['prompt'] for action,body in chamber.calls if action=='session.send']
+        self.assertEqual(len(prompts),2)
+        for prompt,text in zip(prompts,messages):
+            metadata,raw=prompt.split('\n\n',1)
+            self.assertIn('Website language: zh-CN',metadata)
+            self.assertEqual(raw,text)
+        self.assertEqual([turn['language'] for turn in chats.get('a'*32)['turns']],['zh-CN','zh-CN'])
+        self.assertEqual(profile.read_bytes(),original)
+
     def test_briefing_language_stays_pinned_after_interface_change(self):
         root=self.root();(root/'daily').mkdir();chamber=FakeChamber()
         app=BrowserApp(root,chamber,now=lambda:datetime(2026,10,11,12,tzinfo=timezone.utc),preflight=True)

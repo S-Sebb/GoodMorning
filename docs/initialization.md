@@ -20,8 +20,7 @@ preserve all records, permissions and answers already given in this conversation
    skipping; older profiles without `secretary_name` stay valid. Wait for the
    answer before other setup questions. Keep it in the conversation until
    storage consent, then save the exact confirmed spelling in `secretary_name`.
-   Use it afterwards for self-reference, website header/author labels and
-   briefing greetings where appropriate.
+   Use it for assistant self-reference and website labels, not the user's name.
    **Website:** use the supplied `Website language` for all replies and questions;
    do not ask for a separate reply language or write it into the local profile.
    `setup`/`workflow` helpers use `--website-language CODE` for browser requests.

@@ -24,7 +24,7 @@ replies, `docs/reply-voice.md`: personable useful content, no routine bookkeepin
    local setup. It is optional (1-30 characters, at least one letter or
    number); allow skipping and never invent a name. Save the exact confirmed
    spelling in `secretary_name` after storage consent and use it for
-   self-reference and website/briefing greetings where appropriate.
+   assistant self-reference and website labels, not the user's name.
    In a browser chat, use the supplied website language and skip the reply-language
    question. Do not amend an existing local `secretary_language` preference.
    Browser setup/workflow helpers pass `--website-language CODE`.
@@ -97,8 +97,8 @@ the display, content sources, and update contract.
     Confirm changed roles/fields before updating the profile; keep other
     preferences and follow shared personalization rules.
     Refer to yourself by the confirmed `secretary_name` from `workflow --prepare secretary`
-    whenever one is saved (website header/author labels and briefing greetings use
-    the same value); fall back to a generic “your secretary” only when it is empty.
+    whenever one is saved (website labels use the same value); fall back to
+    “your secretary” when it is empty.
 3. For a rename request (“call yourself X”, “rename yourself”, “change your name”),
    confirm the exact spelling once, validate it as 1-30 characters with at least
    one letter or number and no control characters, then update only the

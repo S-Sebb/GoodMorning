@@ -41,8 +41,8 @@ Never put passwords or keys here. -->
   name (1-30 characters, at least one letter or number, no control characters
   or newlines). Allow skipping; older profiles without this field stay valid.
   Save the exact confirmed spelling in `secretary_name` after storage consent
-  and use it for self-reference, website header/author labels and briefing
-  greetings where appropriate. A later `/secretary` rename updates only this
+  for assistant self-reference and website labels, not the user's name.
+  A later `/secretary` rename updates only this
   line and keeps all other preferences unchanged.
 - For local use, ask for `secretary_language` second, before location/schedule/
   tone/news. Save the explicit language/script or bilingual preference;

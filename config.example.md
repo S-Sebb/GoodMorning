@@ -15,7 +15,7 @@ they do not require repeating preferences or fixing integrations during setup.
 ## User-local files
 
 The first initialization question confirms the secretary's display name, saved
-as `secretary_name` after storage consent (optional, 1-30 characters, allow skipping; existing profiles without it stay valid). Use it for self-reference and website/briefing greetings where appropriate.
+as `secretary_name` after storage consent (optional, 1-30 characters, allow skipping; existing profiles without it stay valid). Use it for assistant self-reference and website labels, not the user's name.
 
 For local use, the second initialization question confirms the secretary's reply language, saved
 as `secretary_language` after storage consent. It applies to all five workflows,
