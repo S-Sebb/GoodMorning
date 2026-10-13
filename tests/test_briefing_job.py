@@ -188,14 +188,26 @@ class JobTests(unittest.TestCase):
         self.assertEqual(text.count('Travel planning is partial.'),1)
         self.assertFalse((self.root/'daily/2026-10-11.gn.json').exists())
 
-    def test_missed_choice_is_resolved_once_without_model(self):
+    def test_archive_gaps_do_not_block_morning_preflight(self):
         (self.root/'daily/2026-10-10.md').write_text('# 2026-10-10\n- gn: yes (session ses_old)\n')
         context=initialize(self.root,self.job)
-        self.assertTrue(context['awaiting'])
+        self.assertFalse(context['awaiting'])
+        self.assertIsNone(context['form'])
         self.assertEqual(self.chamber.calls,[])
-        result=answer(self.root,self.job,{'continue':'today'})
-        self.assertEqual(result['missed_total'],0)
-        self.assertEqual(result['past_missing_choice'],'continue_today')
+        self.assertEqual(context['missed_total'],0)
+        self.assertEqual(context['past_missing_choice'],'continue_today')
+        self.assertEqual((self.root/'daily/2026-10-10.md').read_text(),'# 2026-10-10\n- gn: yes (session ses_old)\n')
+
+    def test_morning_dispatches_without_archive_gap_confirmation(self):
+        self.app.jobs={};self.app.save_jobs()
+        (self.root/'daily/2026-10-10.md').write_text('# 2026-10-10\n- gn: yes (session ses_old)\n')
+        result=self.app.start('2026-10-11','gm')
+        self.assertTrue(self.chamber.sent.wait(2))
+        self.assertEqual(sum(action=='session.create' for action,_ in self.chamber.calls),1)
+        context=json.loads(context_path(self.root,result['job']).read_text())
+        self.assertFalse(context['awaiting'])
+        self.assertIsNone(context['form'])
+        self.assertFalse((self.root/'daily/2026-10-10.gm.json').exists())
 
     def test_feedback_retry_recovers_atomic_amendment_without_double_recording(self):
         path=self.root/'daily/2026-10-11.md'
@@ -321,17 +333,23 @@ class JobTests(unittest.TestCase):
         self.assertTrue((self.root/'state.json').exists())
         self.assertEqual(self.app.status(self.identifier)['state'],'ready')
 
-    def test_explicit_recovery_reopens_stopped_undispatched_preflight(self):
-        self.app.jobs={};self.app.save_jobs()
+    def test_explicit_recovery_reopens_legacy_stopped_preflight_without_archive_question(self):
         (self.root/'daily/2026-10-10.md').write_text('# 2026-10-10\n- gn: yes (session ses_old)\n')
-        identifier=self.app.start('2026-10-11','gm')['job']
-        self.app.reply(identifier,'form','preflight_'+identifier,{'answer':{'continue':'stop'}})
+        identifier=self.identifier
+        job={'id':identifier,'date':'2026-10-11','kind':'gn','state':'preflight'}
+        self.app.jobs={'2026-10-11.gn':job};self.app.save_jobs()
+        context=initialize(self.root,job)
+        context['form']['fields'].insert(0,{'key':'continue','title':'Past missing editions','type':'string','required':True,
+            'options':[{'value':'today','label':'Continue today'},{'value':'stop','label':'Stop for now'}]})
+        context_path(self.root,identifier).write_text(json.dumps(context))
+        self.app.reply(identifier,'form','preflight_'+identifier,{'answer':{'continue':'stop','details':'No updates today'}})
         self.assertEqual(self.app.status(identifier)['state'],'stopped')
         body={'id':'b'*32}
         self.app.recover(identifier,body)
         current=self.app.status(identifier)
         self.assertEqual(current['state'],'waiting')
         self.assertNotEqual(current['forms'][0]['id'],'preflight_'+identifier)
+        self.assertNotIn('continue',{f['key'] for f in current['forms'][0]['fields']})
         self.app.recover(identifier,body)
         self.assertEqual(self.app.status(identifier),current)
         self.assertEqual(self.chamber.calls,[])

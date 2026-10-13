@@ -26,11 +26,21 @@ def fixture(root, scenario):
             super().__init__()
             self.forms=[]; self.permissions=[]; self.busy=False
     app = BrowserApp(root, IdleChamber(), preflight=True)
+    # Archive gaps must not add a question to either edition.
+    from datetime import date, timedelta
+    (root/'daily').mkdir(exist_ok=True)
+    old=(date.fromisoformat(app.today())-timedelta(days=1)).isoformat()
+    (root/'daily'/(old+'.md')).write_text('# '+old+'\n- gn: yes (session ses_old)\n')
     if scenario == 'tasks':
         inbox = InboxStore(root, write=True)
         try:
             inbox.mutate('add', {'kind':'todo','raw':'Morning option','task':{'title':'Morning option'}},
                          'ses_fixture','morning-option',stamp(root))
+            for key,title,project in [('atlas-first','Review results','Atlas'),
+                                      ('paper','Review results','Paper <review>'),
+                                      ('atlas-second','Write summary','Atlas')]:
+                inbox.mutate('add',{'kind':'todo','raw':title,'task':{'title':title,'project':project}},
+                             'ses_fixture',key,stamp(root))
             day = app.today()
             block = prepare(root,day,'gm')['blocks']['tasks']
             (root/'daily').mkdir(exist_ok=True)
@@ -62,6 +72,8 @@ def main():
                         page.goto(address+'/gn.html')
                         if width == 390:
                             page.locator('#generate').click()
+                        expect(page.get_by_text('Past missing editions',exact=True)).to_have_count(0)
+                        expect(page.get_by_text('Continue today',exact=True)).to_have_count(0)
                         if scenario == 'empty':
                             expect(page.get_by_text('What did you accomplish today?',exact=True)).to_be_visible()
                             expect(page.get_by_text('None yet',exact=True)).to_have_count(0)
@@ -71,6 +83,19 @@ def main():
                             expect(page.get_by_text('Morning option',exact=True)).to_be_visible()
                             expect(page.get_by_text('Unshown backlog',exact=True)).to_have_count(0)
                             expect(page.get_by_text('None yet',exact=True)).to_be_visible()
+                            expect(page.locator('.answer-project-group')).to_have_count(3)
+                            atlas=page.get_by_role('group',name='Atlas',exact=True)
+                            paper=page.get_by_role('group',name='Paper <review>',exact=True)
+                            other=page.get_by_role('group',name='Other tasks',exact=True)
+                            expect(atlas.get_by_role('checkbox')).to_have_count(2)
+                            expect(other.get_by_text('Morning option',exact=True)).to_be_visible()
+                            expect(page.locator('.answer-project-group img')).to_have_count(0)
+                            expect(page.locator('.answer-project-group').get_by_text('None yet',exact=True)).to_have_count(0)
+                            atlas.get_by_role('checkbox',name='Review results',exact=True).check()
+                            paper.get_by_role('checkbox',name='Review results',exact=True).check()
+                            page.evaluate('poll()')
+                            expect(atlas.get_by_role('checkbox',name='Review results',exact=True)).to_be_checked()
+                            expect(paper.get_by_role('checkbox',name='Review results',exact=True)).to_be_checked()
                         assert not page.evaluate('document.documentElement.scrollWidth>innerWidth')
                         assert not errors, errors
                         if artifacts:
@@ -79,7 +104,6 @@ def main():
                             if scenario == 'empty':
                                 page.get_by_text('No updates today',exact=True).click()
                             else:
-                                page.get_by_text('Morning option',exact=True).click()
                                 page.get_by_text('No other updates',exact=True).click()
                             with page.expect_response(lambda response:'/form/' in response.url and response.request.method=='POST') as receipt:
                                 page.get_by_role('button',name='Send answer').click()
@@ -88,12 +112,16 @@ def main():
                             job=next(j for j in jobs.values() if j['kind']=='gn')
                             context=json.loads((root/'browser-jobs'/(job['id']+'.context.json')).read_text())
                             assert context['feedback']['saved']
-                            assert context['feedback']['completed']==(['Morning option'] if scenario=='tasks' else [])
+                            assert context['feedback']['completed']==(['Review results','Review results'] if scenario=='tasks' else [])
+                            if scenario=='tasks':
+                                selected=[t for t in context['feedback_tasks'] if t['done']]
+                                assert len({t['task_id'] for t in selected})==2
                         page.close()
                 finally:
                     process.terminate();process.communicate(timeout=5)
         browser.close()
-    print(json.dumps({'morning_choices':'pass','adaptive_empty_state':'pass','feedback_save':'pass','viewports':2,'model_calls':0}))
+    print(json.dumps({'morning_choices':'pass','project_groups':'pass','selection_during_poll':'preserved',
+                      'archive_gap_question':'absent','adaptive_empty_state':'pass','feedback_save':'pass','viewports':2,'model_calls':0}))
 
 
 if __name__ == '__main__':

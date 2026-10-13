@@ -19,8 +19,9 @@ If preparation reports `migration_required`, use Secretary to review
 `task --migrate` and obtain explicit backed-up upgrade consent; do not reset the
 runtime or repeatedly press generation. Profile setup stays saved.
 
-The page offers explicit recovery controls. “Prepare again” reopens an
-undispatched preflight after “Stop for now”. “Refresh task list” preserves the
+The page offers explicit recovery controls. “Prepare again” reopens a stopped
+undispatched preflight (including legacy “Stop for now” answers).
+“Refresh task list” preserves the
 previous question and presents the changed daily plan for fresh confirmation.
 It never invents completions or discards an uncertain feedback save.
 “Continue existing session” sends a new prompt only to a known idle session with
@@ -66,9 +67,11 @@ Saved `integration_policy` false values prohibit live project access, calendar
 synchronization, publisher images or news acknowledgement, even if an imported
 profile describes those normal integrations. Use only authorized copied records.
 
-The server resolves missing-edition choices once before model dispatch. Past
-missing editions remain read-only; users can continue today or stop. For `/gn`,
-the browser collects actual completed tasks and other progress first. Code saves
+Browser generation always continues with today; missing past editions remain
+read-only in the archive and never create a blocking question. For `/gn`, the
+browser collects actual completed tasks and other progress first, grouping choices
+by their current canonical project, with “Other tasks” for unassigned work and
+“None yet” outside all project groups. Code saves
 that feedback and completes only selected exact IDs. Partial work stays open.
 No edition/run is marked while waiting. Failed feedback saves block dispatch.
 
