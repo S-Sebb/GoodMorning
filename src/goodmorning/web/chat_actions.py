@@ -15,14 +15,18 @@ def change(source, row):
             'at': row['at']}
 
 
-def read_changes(runtime, session):
+def read_changes(runtime, session, *, aliases=()):
     """Project only committed receipts; missing stores are normal for new accounts."""
+    # Callers supply aliases only from this account's selected conversation,
+    # never from a browser request or an unverified label in an audit record.
+    owners = tuple(dict.fromkeys((session, *aliases)))
+    placeholders = ','.join('?' for _ in owners)
     changes, unavailable = [], False
     if (runtime / 'inbox.sqlite').exists():
         store = None
         try:
             store = InboxStore(runtime)
-            rows = store.db.execute("""
+            rows = store.db.execute(f"""
                 SELECT e.seq,e.created_at at,
                     CASE WHEN e.action='add' THEN 'added'
                          WHEN json_extract(e.changes,'$.status')='done' THEN 'completed'
@@ -34,12 +38,12 @@ def read_changes(runtime, session):
                     substr(coalesce(json_extract(e.changes,'$.task.title'),
                         json_extract(e.changes,'$.draft.title'),json_extract(e.changes,'$.summary'),
                         json_extract(e.changes,'$.raw'),''),1,160) title
-                FROM events e WHERE e.session=? AND json_extract(e.receipt,'$.saved')=1
+                FROM events e WHERE e.session IN ({placeholders}) AND json_extract(e.receipt,'$.saved')=1
                 ORDER BY e.seq DESC LIMIT ?
-                """, (session, LIMIT)).fetchall()
+                """, (*owners, LIMIT)).fetchall()
             changes.extend(change('inbox', row) for row in rows)
             if store.version == 2:
-                rows = store.db.execute("""
+                rows = store.db.execute(f"""
                     SELECT seq,at,
                         CASE WHEN action='adopt' THEN 'added'
                              WHEN json_extract(snapshot,'$.input.status')='cancelled'
@@ -49,9 +53,9 @@ def read_changes(runtime, session):
                         CASE WHEN json_extract(snapshot,'$.item.state') IS NOT NULL THEN 'draft'
                              ELSE 'task' END target,
                         substr(coalesce(json_extract(snapshot,'$.item.title'),''),1,160) title
-                    FROM task_events WHERE session=? AND action IN ('adopt','update','report')
+                    FROM task_events WHERE session IN ({placeholders}) AND action IN ('adopt','update','report')
                         AND json_extract(receipt,'$.saved')=1 ORDER BY seq DESC LIMIT ?
-                    """, (session, LIMIT)).fetchall()
+                    """, (*owners, LIMIT)).fetchall()
                 changes.extend(change('task', row) for row in rows)
         except (ValueError, OSError, sqlite3.Error):
             unavailable = True
@@ -63,7 +67,7 @@ def read_changes(runtime, session):
         path = calendar_path(runtime)
         if path.is_file():
             store = CalendarStore(str(path), readonly=True)
-            rows = store.con.execute("""
+            rows = store.con.execute(f"""
                 SELECT seq,at,
                     CASE action WHEN 'cancel' THEN 'cancelled' WHEN 'add' THEN 'added'
                          WHEN 'approve' THEN 'approved' WHEN 'reject' THEN 'declined'
@@ -72,9 +76,9 @@ def read_changes(runtime, session):
                     substr(CASE WHEN action='reject' THEN json_extract(snapshot,'$.raw.subject')
                         ELSE coalesce(json_extract(snapshot,'$.approved.subject'),
                             json_extract(snapshot,'$.raw.subject'),'') END,1,160) title
-                FROM history WHERE actor=? AND action IN ('add','update','cancel','approve','reject')
+                FROM history WHERE actor IN ({placeholders}) AND action IN ('add','update','cancel','approve','reject')
                 ORDER BY seq DESC LIMIT ?
-                """, (session, LIMIT)).fetchall()
+                """, (*owners, LIMIT)).fetchall()
             changes.extend(change('calendar', row) for row in rows)
     except (ValueError, OSError, sqlite3.Error):
         unavailable = True
