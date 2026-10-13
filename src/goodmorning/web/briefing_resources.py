@@ -70,7 +70,8 @@ class Resources:
     def __init__(self, assets, *, types=None):
         self.paths, self.urls = {}, {}
         types = types if types is not None else {'fonts/lora-italic.woff2': 'font/woff2', 'briefing.css': 'text/css',
-                 'briefing.js': 'text/javascript', 'browser.js': 'text/javascript',
+                  'briefing.js': 'text/javascript', 'browser.js': 'text/javascript',
+                  'scroll-rails.js': 'text/javascript', 'scroll-rails.css': 'text/css',
                    'questions.js': 'text/javascript', 'chat.js': 'text/javascript', 'chat.css': 'text/css', 'language.js':'text/javascript',
                     'model.js':'text/javascript',
                     'marked.js': 'text/javascript', 'markdown.js': 'text/javascript',
