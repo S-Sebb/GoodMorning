@@ -61,7 +61,8 @@ class Chamber:
             headers['Content-Type'] = 'application/json'
         request = Request(self.url + path, data=json.dumps(body).encode() if body is not None else None, headers=headers)
         with build_opener(NoRedirect).open(request, timeout=20) as response:
-            return read_json(response, attachment_data=urlsplit(path).path.endswith(('/prompt', '/message')))
+            return read_json(response, attachment_data=urlsplit(path).path.endswith(('/prompt', '/message')),
+                             message_data=urlsplit(path).path.endswith('/message'))
 
     def control(self, action, **parameters):
         if action == 'session.messages':
@@ -896,6 +897,9 @@ def serve_live(app, port, *, gateway_key=None, public_origins=()):
                 if attachment_image:
                     data, mime = app.chats.uploads.image(attachment_image[1])
                     return self.respond(data, content_type=mime)
+                chat_status = re.fullmatch(r'/api/chats/([a-f0-9]{32})/status', path)
+                if chat_status:
+                    return self.respond(app.chats.status(chat_status[1], include_messages=False), compress=True)
                 chat = re.fullmatch(r'/api/chats/([a-f0-9]{32})', path)
                 if chat:
                     return self.respond(app.chats.status(chat[1]), compress=True)

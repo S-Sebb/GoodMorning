@@ -1,6 +1,24 @@
 {
   "notes": [
     {
+      "version": "0.30.4", "date": "2026-10-13", "author": "GoodMorning agent",
+      "title_en": "Keep large secretary transcripts connected", "title_zh": "修复大型秘书对话的连接与排队",
+      "changes": [
+        {"category": "Fixed", "en": [
+          "Stream past private native tool results before checking the chat response limit, so large tool outputs do not disconnect preserved conversations.",
+          "Reconcile the secretary queue using native status and confirmation of the latest user message, independently of transcript rendering, without replaying uncertain requests."
+        ], "zh": [
+          "检查对话响应大小前，流式跳过不展示的原生工具结果，避免大型工具输出使已保留的对话显示断开连接。",
+          "使用原生状态和最新用户消息的接收确认协调秘书队列，不再依赖对话内容的渲染，也不会重发未确认的请求。"
+        ]},
+        {"category": "Tests", "en": [
+          "Verify large tool-result streaming, chunk boundaries, visible-text limits, both account bridges and transcript-independent FIFO progress with synthetic data and no model calls."
+        ], "zh": [
+          "使用合成数据且不调用模型，验证大型工具结果的流式处理、数据块边界、可见文本限制、两种账户桥接，以及不依赖对话内容的先进先出队列推进。"
+        ]}
+      ]
+    },
+    {
       "version": "0.30.3", "date": "2026-10-12", "author": "GoodMorning agent",
       "title_en": "Responsive secretary activity badge", "title_zh": "更及时平滑的秘书活动提示",
       "changes": [

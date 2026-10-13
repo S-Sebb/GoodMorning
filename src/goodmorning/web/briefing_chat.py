@@ -416,7 +416,7 @@ class Chats:
                 item['state'] = 'uncertain'
                 self.save()
 
-    def status(self, chat):
+    def status(self, chat, *, include_messages=True):
         item = self.get(chat)
         try:
             from goodmorning.runtime_files import profile_fields, normalize_secretary_name
@@ -428,11 +428,19 @@ class Chats:
         if item.get('session') and self.chamber:
             try:
                 forms, permissions = self.chamber.pending(item['session'])
-                transcript = self.chamber.control('session.messages', sessionId=item['session'], limit=100)
+                if include_messages:
+                    transcript = self.chamber.control('session.messages', sessionId=item['session'], limit=100)
+                else:
+                    # Queue reconciliation must not depend on a renderable transcript.
+                    # Confirm the latest user turn was accepted before releasing idle work.
+                    status = self.chamber.control('session.status', sessionId=item['session'])
+                    page = self.chamber.request(f'/api/session/{item["session"]}/message?type=user&limit=1&order=desc')
+                    transcript = {**status, 'messages': [
+                        {**entry, 'role': 'user'} for entry in page['data'] if entry.get('type') == 'user']}
                 messages = []
                 originals = {turn.get('prompt_hash'): turn
                                for turn in item['turns']}
-                for entry in transcript['messages']:
+                for entry in (transcript['messages'] if include_messages else []):
                     if entry.get('role') not in ('user', 'assistant') or not isinstance(entry.get('text'), str):
                         continue
                     text = entry['text']
@@ -453,21 +461,23 @@ class Chats:
                             text = turn['text'] or ('' if attachments else ui.text('Start {mode}',lang=turn.get('language','en'),
                                 mode=ui.text(MODES[item['mode']],lang=turn.get('language','en')).lower()))
                     messages.append({'id': entry['id'], 'role': entry['role'], 'text': text, 'attachments': attachments})
-                questions = self.remember_questions(chat, forms, messages)
+                questions = self.remember_questions(chat, forms, messages) if include_messages else item.get('questions', [])
                 answered = {entry['id'] for entry in questions if 'answer' in entry}
                 forms = [form for form in forms if form['id'] not in answered]
                 receipts = item.get('replied_inputs', [])
                 forms = [form for form in forms if 'form:'+form['id'] not in receipts]
                 permissions = [permission for permission in permissions if 'permission:'+permission['id'] not in receipts]
-                result.update(messages=question_history(messages, questions, {form['id'] for form in forms}),
-                              forms=forms, permissions=permissions, history_limited=len(messages) >= 100)
+                result.update(forms=forms, permissions=permissions)
+                if include_messages:
+                    result.update(messages=question_history(messages, questions, {form['id'] for form in forms}),
+                                  history_limited=len(messages) >= 100)
                 if (forms or permissions) and item['state'] not in ('starting', 'uncertain'):
                     result['reservation_required'] = False
                 if item['state'] not in ('starting', 'uncertain'):
                     state = transcript['sessionStatus']['type']
                     last_prompt = item['turns'][-1].get('prompt_hash')
                     seen = any(entry.get('role') == 'user' and isinstance(entry.get('text'), str)
-                               and hashlib.sha256(entry['text'].encode()).hexdigest() == last_prompt
+                               and hashlib.sha256(entry['text'].strip().encode()).hexdigest() == last_prompt
                                for entry in transcript['messages'])
                     result['state'] = 'waiting' if forms or permissions else 'idle' if state == 'idle' and seen else 'running' if state in ('busy', 'idle') else 'uncertain'
             except Exception:

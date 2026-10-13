@@ -31,7 +31,7 @@ from goodmorning.web.activity import ACTIVITY_PATH, panel as activity_panel
 
 ASSETS = WEB_ASSETS
 POLICY = "default-src 'none'; style-src 'self'; script-src 'self'; img-src 'self'; font-src 'self'; connect-src 'self'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'"
-GET_ROUTES = re.compile(r'(?:/|/(?:index|gm|gn)\.html|/chat|/api/avatar(?:/image/[a-f0-9]{64}\.png)?|/api/chats(?:/[a-f0-9]{32})?|/api/day|/api/edition/\d{4}-\d{2}-\d{2}/(?:gm|gn)|/api/jobs/[a-f0-9]{32}(?:/preview)?|/d/\d{4}-\d{2}-\d{2}/(?:gm|gn)\.(?:html|json)|/media/(?:thumb-v1/)?[a-f0-9]{64}\.webp|/d/\d{4}-\d{2}-\d{2}/media/[a-f0-9]+\.webp|/(?:assets/[a-f0-9]{64}/)?desk-secretary(?:-f2|-m1|-m2)?\.png|/(?:assets/[a-f0-9]{64}/)?(?:briefing\.css|briefing\.js|browser\.js|questions\.js|chat\.js|chat\.css|avatar\.js|avatar\.css|fonts/(?:lora-italic\.woff2|OFL\.txt)))')
+GET_ROUTES = re.compile(r'(?:/|/(?:index|gm|gn)\.html|/chat|/api/avatar(?:/image/[a-f0-9]{64}\.png)?|/api/chats(?:/[a-f0-9]{32}(?:/status)?)?|/api/day|/api/edition/\d{4}-\d{2}-\d{2}/(?:gm|gn)|/api/jobs/[a-f0-9]{32}(?:/preview)?|/d/\d{4}-\d{2}-\d{2}/(?:gm|gn)\.(?:html|json)|/media/(?:thumb-v1/)?[a-f0-9]{64}\.webp|/d/\d{4}-\d{2}-\d{2}/media/[a-f0-9]+\.webp|/(?:assets/[a-f0-9]{64}/)?desk-secretary(?:-f2|-m1|-m2)?\.png|/(?:assets/[a-f0-9]{64}/)?(?:briefing\.css|briefing\.js|browser\.js|questions\.js|chat\.js|chat\.css|avatar\.js|avatar\.css|fonts/(?:lora-italic\.woff2|OFL\.txt)))')
 POST_ROUTES = re.compile(r'(?:/api/avatar(?:/upload)?|/api/(?:generate|regenerate)|/api/chat-uploads/[a-f0-9]{32}|/api/chats|/api/chats/[a-f0-9]{32}/(?:messages|(?:form|permission)/[A-Za-z0-9_]+/reply)|/api/jobs/[a-f0-9]{32}/(?:recover|(?:form|permission)/[A-Za-z0-9_]+/reply))')
 QUEUE_KEY = 'generation_queue'
 WAITING_KEY = 'generation_waiting'
@@ -232,7 +232,7 @@ class Gateway:
         current = self.ticket()
         if current and not current.get('dispatching') and (current.get('job') or current.get('chat')):
             try:
-                path = '/api/chats/' + current['chat'] if current.get('chat') else '/api/jobs/' + current['job']
+                path = '/api/chats/' + current['chat'] + '/status' if current.get('chat') else '/api/jobs/' + current['job']
                 status, _, data = self.proxy(current['user'], current['host'], path, 'GET', None, {})
                 terminal = ('idle',) if current.get('chat') else ('ready', 'stopped')
                 result = json.loads(data)
@@ -525,7 +525,7 @@ class Gateway:
         match = re.fullmatch(r'/api/(jobs|chats)/([a-f0-9]{32})/(form|permission)/([A-Za-z0-9_]+)/reply', path)
         collection, target, category, request = match.groups()
         key = 'job' if collection == 'jobs' else 'chat'
-        status, _, data = self.proxy(identifier, host, '/api/'+collection+'/'+target, 'GET', None, {})
+        status, _, data = self.proxy(identifier, host, '/api/'+collection+'/'+target+('/status' if key == 'chat' else ''), 'GET', None, {})
         value = json.loads(data)
         # A reply can wake a suspended model. Reacquire its slot before forwarding.
         if status != 200 or value.get('state') != 'waiting' or value.get('reservation_required') is not False:

@@ -498,6 +498,28 @@ class GatewayTests(unittest.TestCase):
         self.gateway.pump_queue()
         self.assertIsNone(self.gateway.ticket())
 
+    def test_queue_reconciliation_uses_transcript_independent_chat_status(self):
+        first = {'id': 'a' * 32, 'mode': 'secretary', 'text': 'First'}
+        second = {'id': 'b' * 32, 'mode': 'secretary', 'text': 'Second'}
+        finished = False
+        dispatched = []
+        def proxy(user, host, path, method, raw, headers):
+            if method == 'GET':
+                self.assertTrue(path.endswith('/status'), 'Queue attempted to load a transcript')
+                state = 'idle' if finished and path == '/api/chats/' + first['id'] + '/status' else 'running'
+                return 200, {}, json.dumps({'state': state}).encode()
+            dispatched.append((user, json.loads(raw)['id']))
+            return 202, {}, b'{"accepted":true}'
+        self.gateway.proxy = proxy
+        self.gateway.chat_message(self.id, 'gm.example.test', '/api/chats', json.dumps(first).encode(), {})
+        self.gateway.chat_message(self.other, 'gm.example.test', '/api/chats', json.dumps(second).encode(), {})
+        self.assertEqual(dispatched, [(self.id, first['id'])])
+        finished = True
+        self.gateway.pump_queue()
+        self.assertEqual(dispatched, [(self.id, first['id']), (self.other, second['id'])])
+        self.assertEqual(self.gateway.ticket()['user'], self.other)
+        self.assertEqual(self.gateway.queue_status(self.other)['queue'], [])
+
     def preflight_ticket(self):
         ticket = {'user':self.id, 'host':'gm.example.test', 'date':'2026-10-11', 'kind':'gn', 'job':'a'*32}
         with self.store.db() as db:
@@ -653,7 +675,7 @@ class GatewayTests(unittest.TestCase):
         runtime=self.root/'synthetic-secretary';runtime.mkdir()
         chats=Chats(runtime,MockChamber(runtime))
         def proxy(user,host,path,method,raw,headers):
-            result=chats.status(path.rsplit('/',1)[-1]) if method=='GET' else chats.start(json.loads(raw))
+            result=chats.status(path.split('/')[3], include_messages=not path.endswith('/status')) if method=='GET' else chats.start(json.loads(raw))
             return 200 if method=='GET' else 202,{},json.dumps(result).encode()
         self.gateway.proxy=proxy
         with patch('goodmorning.web.briefing_chat.threading.Thread',ImmediateThread):

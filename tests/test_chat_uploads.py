@@ -240,6 +240,27 @@ class UploadHTTPTests(unittest.TestCase):
         (self.fixture.root / 'backends.json').write_text(json.dumps({self.fixture.id: {
             'port': self.backend.server_port, 'key': self.fixture.key}}))
 
+    def test_account_scoped_progress_endpoint_survives_unrenderable_transcript(self):
+        path = '/api/chats/' + 'a' * 32 + '/status'
+        self.assertEqual(self.fixture.request(path)[0], 401)
+        self.fixture.permanent()
+        with patch('goodmorning.web.briefing_chat.threading.Thread', ImmediateThread):
+            self.app.chats.start({'id': 'a' * 32, 'mode': 'secretary', 'text': 'Synthetic prompt'})
+        control = self.chamber.control
+        def without_transcript(action, **body):
+            if action == 'session.messages':
+                raise ValueError('Upstream response exceeds limit')
+            return control(action, **body)
+        with patch.object(self.chamber, 'control', side_effect=without_transcript):
+            self.assertEqual(json.loads(self.fixture.request(path.removesuffix('/status'))[2])['state'], 'unavailable')
+            code, _, raw = self.fixture.request(path)
+            self.assertEqual(code, 200)
+            progress = json.loads(raw)
+            self.assertEqual(progress['state'], 'idle')
+            self.assertNotIn('messages', progress)
+            self.assertNotIn('Synthetic prompt', raw.decode())
+            self.assertEqual(self.fixture.request('/api/chats/' + 'b' * 32 + '/status')[0], 404)
+
     def request_upload(self, data=b'Synthetic upload', *, name='notes.txt', headers=None, identifier='f' * 32):
         fixture = self.fixture
         values = {'Host': 'gm.example.test', 'X-Forwarded-Proto': 'https', 'X-Real-IP': '192.0.2.1',

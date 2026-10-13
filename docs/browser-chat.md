@@ -142,6 +142,13 @@ while the user considers the question. Submitted answers reacquire the slot in
 arrival order, stay encrypted while queued and do not expire. Unknown dispatches
 still retain their reservation for explicit reconciliation, never blind replay.
 
+Native message reads discard private tool states and provider metadata while
+streaming, before applying the visible response-size limit. Queue reconciliation
+uses the account-owned `/api/chats/ID/status` route without loading assistant
+history. It checks native status and acknowledgment of the latest user turn;
+an idle engine alone never proves an interrupted dispatch finished. Large or
+unrenderable transcripts therefore cannot keep completed work in the global slot.
+
 Question forms and their accepted answers are also saved in the account's
 `browser-chats/chats.json` registry. After submission, the question and selected
 option labels or typed answer appear as ordinary conversation bubbles in their

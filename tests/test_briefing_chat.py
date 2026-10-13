@@ -44,7 +44,7 @@ class MockChamber(Chamber):
             else:
                 self.add(session, 'assistant', 'Synthetic reply. Your text stays text: <img src=x onerror=alert(1)>')
             return {'promptDispatched': True}
-        if action == 'session.messages':
+        if action in ('session.messages', 'session.status'):
             return super().control(action, **body)
         raise ValueError('Unexpected control action')
 
@@ -90,7 +90,10 @@ class MockChamber(Chamber):
                         'cursor': {'next': str(offset+limit) if len(sessions)>offset+limit else None}}
             session = self.sessions[parsed.path.split('/')[3]]
             offset = int(query.get('cursor', ['0'])[0])
-            rows = list(reversed(session['messages']))[offset:offset+limit]
+            rows = list(reversed(session['messages']))
+            if query.get('type'):
+                rows = [row for row in rows if row['role'] == query['type'][0]]
+            rows = rows[offset:offset+limit]
             return {'data': [{'id': row['id'], 'type': row['role'], **({'text': row['text']} if row['role']=='user'
                     else {'content':[{'type':'text','text':row['text']}]})} for row in rows],
                     'cursor': {'next': str(offset+limit) if len(session['messages'])>offset+limit else None}}
@@ -448,6 +451,37 @@ class ChatTests(unittest.TestCase):
         session = self.chamber.sessions[self.chats.get(self.id)['session']]
         session['messages'] = []
         self.assertEqual(self.chats.status(self.id)['state'], 'running')
+
+    def test_queue_status_does_not_read_transcript_and_confirms_latest_user_turn(self):
+        self.start()
+        control = self.chamber.control
+        def without_transcript(action, **body):
+            if action == 'session.messages':
+                raise ValueError('Upstream response exceeds limit')
+            return control(action, **body)
+        with patch.object(self.chamber, 'control', side_effect=without_transcript):
+            self.assertEqual(self.chats.status(self.id)['state'], 'unavailable')
+            status = self.chats.status(self.id, include_messages=False)
+            self.assertEqual(status['state'], 'idle')
+            self.assertNotIn('messages', status)
+            self.chats.items[self.id]['turns'][0]['attachments'] = [{'id': 'f' * 32, 'name': 'old.txt', 'size': 1}]
+            with patch.object(self.chats.uploads, 'get', side_effect=OSError('Synthetic unavailable preview')) as preview:
+                self.assertEqual(self.chats.status(self.id, include_messages=False)['state'], 'idle')
+                preview.assert_not_called()
+            self.chamber.sessions[self.chats.get(self.id)['session']]['messages'] = []
+            self.assertEqual(self.chats.status(self.id, include_messages=False)['state'], 'running')
+
+    def test_queue_status_keeps_pending_and_uncertain_work_and_does_not_save_forms(self):
+        self.start('initialize', '')
+        before = self.chats.path.read_bytes()
+        status = self.chats.status(self.id, include_messages=False)
+        self.assertEqual(status['state'], 'waiting')
+        self.assertFalse(status['reservation_required'])
+        self.assertEqual(self.chats.path.read_bytes(), before)
+        self.chats.items[self.id]['state'] = 'uncertain'
+        self.assertEqual(self.chats.status(self.id, include_messages=False)['state'], 'uncertain')
+        with self.assertRaises(ValueError):
+            self.chats.status('b' * 32, include_messages=False)
 
     def test_native_message_read_preserves_100_messages_without_400_record_prefetch(self):
         self.start()

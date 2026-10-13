@@ -45,7 +45,8 @@ class LocalBridge(Chamber):
             request=Request(self.url+path,data=json.dumps(body).encode() if body is not None else None,headers=headers)
             try:
                 with build_opener(NoRedirect).open(request,timeout=20) as response:
-                    return read_json(response, attachment_data=path.split('?')[0].endswith(('/prompt', '/message')))
+                    return read_json(response, attachment_data=path.split('?')[0].endswith(('/prompt', '/message')),
+                                     message_data=path.split('?')[0].endswith('/message'))
             except HTTPError as error:
                 if error.code!=401 or attempt:raise
                 # An explicit authentication rejection guarantees no requested mutation ran.
