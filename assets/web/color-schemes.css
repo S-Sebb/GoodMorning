@@ -2,7 +2,7 @@
 :root { --chat-paper: var(--bg); --chat-border: #b9c7b4; --bubble: var(--surface); --your-bubble: var(--wash); --bubble-line: var(--line); --your-line: var(--line); }
 html[data-edition="gn"] { --chat-border: #637286; }
 html[data-edition="gn"][data-night-scheme="starry"] { color-scheme: dark; --bg: #080f20; --surface: #111c32; --ink: #eef2fb; --muted: #b0bed6; --accent: #b8c9f4; --line: #2d3d59; --wash: #1b2a44; --warm: #d8c493; --chat-border: #526789; color: var(--ink); background: var(--bg); }
-/* One irregular, non-repeating sky stays behind content without animation. */
+/* One irregular, non-repeating sky stays fixed behind content. */
 html[data-edition="gn"][data-night-scheme="starry"] body {
   min-height: 100svh;
   color: var(--ink);
@@ -14,6 +14,13 @@ html[data-edition="gn"][data-night-scheme="starry"] body {
   background-position: center top;
   background-repeat: no-repeat;
   background-attachment: fixed;
+}
+@media (prefers-reduced-motion: no-preference) {
+  html[data-edition="gn"][data-night-scheme="starry"] body {
+    background-image:
+      url("/starry-sky.svg#twinkle"),
+      radial-gradient(ellipse at 65% 12%, #24385b66, transparent 65%);
+  }
 }
 html:not([data-edition="gn"])[data-day-scheme="warm"] { color-scheme: light; --bg: #f6eee3; --surface: #fffbf5; --ink: #554032; --muted: #7d6858; --accent: #987052; --line: #e0cbb8; --wash: #f1e4d4; --warm: #d8b471; --chat-paper: #fbf4e9; --chat-border: #ceb29a; --bubble: #fffdf9; --your-bubble: #f3d7c1; --bubble-line: #ead8c5; --your-line: #e1bc9f; color: var(--ink); background: var(--bg); }
 html:not([data-edition="gn"])[data-day-scheme="warm"] body { color: var(--ink); background: var(--bg); }

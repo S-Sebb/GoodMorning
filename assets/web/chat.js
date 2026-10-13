@@ -198,15 +198,19 @@ async function chatRequest(path, body, binary = false) {
 }
 
 function composeState() {
+  const initializing = !chat && mode === 'initialize';
+  const changed = composer.classList.contains('is-initializing') !== initializing;
+  composer.classList.toggle('is-initializing', initializing);
   const blocked = chat && ['waiting', 'uncertain', 'unavailable'].includes(state);
   sendButton.disabled = sending || !chatConfig.connected || blocked;
-  textBox.disabled = sending || blocked;
-  fileInput.disabled = attachButton.disabled = sendButton.disabled;
+  textBox.disabled = initializing || sending || blocked;
+  fileInput.disabled = attachButton.disabled = initializing || sendButton.disabled;
   document.querySelectorAll('#chat-attachments .attachment-remove').forEach(button => { button.disabled = sendButton.disabled; });
   const sendLabel = chatT(chat ? 'Send reply' : modes[mode][1]);
   sendButton.querySelector('.chat-send-label').textContent = sendLabel;
   sendButton.setAttribute('aria-label', sendLabel);
-  textBox.required = !attachments.length && (!chat && ['todo','eureka'].includes(mode) || Boolean(chat));
+  textBox.required = !initializing && !attachments.length && (!chat && ['todo','eureka'].includes(mode) || Boolean(chat));
+  if (changed) resizeComposer();
   showActivity();
 }
 
@@ -787,6 +791,8 @@ document.querySelector('#chat-compose').addEventListener('submit', async event =
   event.preventDefault();
   if (sendButton.disabled) return;
   const first = !chat;
+  const text = first && mode === 'initialize'
+    ? chatT('Start the initialization process with me.') : textBox.value;
   const request = crypto.randomUUID().replaceAll('-', '');
   const current = chat || request;
   const version = revision;
@@ -801,7 +807,7 @@ document.querySelector('#chat-compose').addEventListener('submit', async event =
       }
       if (version !== revision) return;
     }
-    const body = first ? {id: current, mode, text: textBox.value} : {id: request, text: textBox.value};
+    const body = first ? {id: current, mode, text} : {id: request, text};
     if (selectedFiles.length) body.attachments = selectedFiles.map(entry => entry.id);
     dispatching = true;
     const result = await chatAPI(first ? '/api/chats' : `/api/chats/${current}/messages`,
