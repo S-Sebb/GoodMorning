@@ -55,6 +55,9 @@ authorization to do the task.
     title rule. Browser chats keep the native engine's automatically generated
     title; do not overwrite it. Captured text stays unchanged.
    Do not ask for a project, deadline, priority, or task breakdown by default.
+   When supplied, keep `detail` to extra notes only: never repeat the title,
+   project, deadline or priority in it. Code shows each once per project group;
+   duplication is what makes the Tasks page read as a billion identical cards.
    If this same user turn was already captured, reuse its entry instead of
    duplicating it. Save follow-up details immediately with the same entry,
    preserving `raw`; supplied details alone do not request clarification.

@@ -1,10 +1,98 @@
 """Deterministic edition views. Dates and action identity never come from headings."""
 import datetime as dt
+import re
 from pathlib import Path
 import sqlite3
 
 from .inbox_store import InboxStore
 from .task_store import TaskStore
+
+
+def clean_task_detail(title, detail):
+    """Extra notes only: never repeat the title or structured project/due text.
+
+    Display-time cleanup so both future captures and existing polluted rows
+    read cleanly without rewriting canonical history. Secretary capture rules
+    (docs/workflows/todo.md, docs/item-taxonomy.md) prevent new duplication;
+    this handles what is already saved.
+    """
+    if not detail or not isinstance(detail, str):
+        return ''
+    text = detail.strip()
+    if not text:
+        return ''
+    title_norm = ' '.join((title or '').split())
+    if title_norm and (' '.join(text.split()) == title_norm):
+        return ''
+    if title_norm and ' '.join(text.split()).startswith(title_norm):
+        remainder = ' '.join(text.split())[len(title_norm):].lstrip()
+        remainder = re.sub(r'^[|·—\-–:;,.]+\s*', '', remainder)
+        text = remainder.strip()
+        if not text:
+            return ''
+    # Drop legacy fragments that duplicate structured fields code already emits.
+    text = re.sub(r'\|\s*deadline\s+\d{4}-\d{2}-\d{2}(\s*\(soft\))?', '', text, flags=re.IGNORECASE)
+    text = re.sub(r'(?:^|[·|])\s*deadline\s+\d{4}-\d{2}-\d{2}(\s*\(soft\))?', '', text, flags=re.IGNORECASE)
+    text = re.sub(r'(?:Project|项目)\s*[:：]\s*[^·|\n]+', '', text)
+    text = re.sub(r'(?:Soft target|Due|弹性目标日期|截止)\s*[:：]\s*\S+', '', text)
+    text = re.sub(r'No workday assigned|还没定在哪天做', '', text)
+    parts = [p.strip(' \t|·—-–:;,') for p in re.split(r'[·\n]+', text.replace('|', '·'))]
+    parts = [p for p in parts if p and p not in ('.',)]
+    text = ' · '.join(parts).strip(' \t·|')
+    text = re.sub(r'\s{2,}', ' ', text)
+    text = re.sub(r'(^|[·|]\s*)[|·]\s*', r'\1', text).strip(' \t·|')
+    return text
+
+
+def _human_when(start_raw, end_raw, all_day, zone):
+    """Human range for calendar review cards; raw ISO is never shown."""
+    try:
+        if all_day:
+            start_day = dt.date.fromisoformat(str(start_raw)[:10])
+            end_day = dt.date.fromisoformat(str(end_raw)[:10]) if end_raw else start_day + dt.timedelta(days=1)
+            last = end_day - dt.timedelta(days=1)
+            if last <= start_day:
+                return start_day.strftime('%a %d %b')
+            return f"{start_day.strftime('%a %d %b')} → {last.strftime('%a %d %b')}"
+        start = dt.datetime.fromisoformat(str(start_raw))
+        end = dt.datetime.fromisoformat(str(end_raw)) if end_raw else None
+        if zone:
+            from zoneinfo import ZoneInfo
+            try:
+                start = start.astimezone(ZoneInfo(zone))
+                if end:
+                    end = end.astimezone(ZoneInfo(zone))
+            except Exception:
+                pass
+        if end and end.date() == start.date():
+            return f"{start.strftime('%a %d %b')} {start.strftime('%H:%M')}–{end.strftime('%H:%M')}"
+        if end:
+            return f"{start.strftime('%a %d %b %H:%M')} → {end.strftime('%a %d %b %H:%M')}"
+        return start.strftime('%a %d %b %H:%M')
+    except Exception:
+        return ''
+
+
+def calendar_review_copy(pending, zone, ui):
+    """Concise, comfortable review copy: action prefix + subject, human time detail."""
+    subject = (pending.get('subject') or '').strip() or ui.text('Cancellation')
+    subject = re.sub(r'^(?:Review calendar change|Calendar (?:change|update))\s*[:：]\s*', '', subject, flags=re.IGNORECASE).strip() or subject
+    status = str(pending.get('status') or '')
+    raw_revision = pending.get('raw_revision') or 0
+    if status == 'cancelled' or re.match(r'(?i)^cancell?ed\s*[:：]', subject):
+        clean = re.sub(r'(?i)^cancell?ed\s*[:：]\s*', '', subject).strip() or subject
+        title = ui.text('Canceled: {title}', title=clean)
+    elif (raw_revision or 0) > 1:
+        title = ui.text('Updated: {title}', title=subject)
+    else:
+        # New imports keep the plain subject; the section title already says review.
+        title = subject
+    when = _human_when(pending.get('start'), pending.get('end'), pending.get('all_day'), zone)
+    source = str(pending.get('source') or '').strip()
+    facts = ' · '.join(p for p in (source, when) if p)
+    if not facts:
+        facts = ui.text('Review the supplied details.')
+    return title, facts
 
 
 def reminder_eligible(store, task, day):
@@ -254,8 +342,7 @@ def schedule(runtime, today, kind, store=None, offset=0, limit=7):
         result['pending'] = calendar.stats()['pending']
         from goodmorning.web import language as ui
         for pending in calendar.pending(limit=-1):
-            title = ui.text('Review calendar change: {title}', title=pending.get('subject') or ui.text('Cancellation'))
-            facts = ' · '.join(str(pending[k]) for k in ('source', 'start', 'end', 'status') if pending.get(k))
+            title, facts = calendar_review_copy(pending, zone, ui)
             result['reviews'].append({'id': pending['id'], 'revision': pending['revision'], 'title': title,
                                       'questions': [facts], 'needs_review': True, 'owner': 'attention'})
         result['timezone'] = zone
@@ -368,7 +455,8 @@ def events_timezone(runtime):
 
 def action_cells(row):
     from goodmorning.web import language as ui
-    detail = [row['detail']] if row['detail'] else []
+    cleaned = clean_task_detail(row.get('title', ''), row.get('detail', ''))
+    detail = [cleaned] if cleaned else []
     if row['project']:
         detail.append(ui.text('Project: {name}', name=row['project']))
     if row['optional']:
@@ -384,8 +472,7 @@ def action_cells(row):
         detail.append(ui.text('Not reminded on days with confirmed experiment plans'))
     if (row.get('when') or {}).get('unless_timed_plan'):
         detail.append(ui.text('Not reminded on days with fixed-time plans'))
-    if not row['date']:
-        detail.append(ui.text('No workday assigned'))
+    # No "No workday assigned" suffix: the date group heading already says it.
     if row['report_detail']:
         detail.append(row['report_detail'])
     return [row['id'], row['revision'], row['occurrence_id'], row['date'], row['status'], row['title'], ' · '.join(detail)]

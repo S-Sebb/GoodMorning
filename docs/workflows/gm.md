@@ -33,9 +33,14 @@ Fixed section order is Weather, News, Schedule, Tasks, Reminders. Do not reorder
 5. Publish Tasks from code-owned rows: agreed/recurring work, deadline attention,
    still-open work and selected undated actions. Project and optional labels are
    attributes. Preserve dates, details, source IDs and revisions; follow pages.
+   Code groups cards by workday then project with a shared due target in the
+   heading; review with a short warm note naming the top project groups and the
+   next useful step instead of repeating every card.
    Do not promote ideas, copy project Markdown into new tasks or assign a workday
    merely by showing a task. No appointments does not establish a free day.
-6. Reminders contains due decisions/reviews. Ask only missing material facts
+6. Reminders contains due decisions/reviews. Code humanizes calendar times and
+   uses `Canceled:`/`Updated:` prefixes. Keep titles exact, keep details grounded,
+   and add a brief note with the count and single next action. Ask only missing material facts
    or permissions affecting today's useful/safe plan. Do not interview every task,
    invent clarification work from clear ideas or re-ask saved answers. Skip an
    empty section; pending optional decisions do not block unrelated work.

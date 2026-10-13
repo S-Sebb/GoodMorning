@@ -1,6 +1,29 @@
 {
   "notes": [
     {
+      "version": "0.32.8", "date": "2026-10-14", "author": "GoodMorning agent",
+      "title_en": "Grouped tasks and calmer reminders", "title_zh": "待办按项目分组，提醒更清爽",
+      "changes": [
+        {"category": "Fixed", "en": [
+          "Group Tasks by workday then project with counts, ordering urgent hard dues first and lifting a shared due target into the project heading; strip repeated titles, project labels and workday suffixes from card details so long backlogs read as a few tidy groups.",
+          "Humanize Reminders calendar cards with action prefixes (Canceled/Updated), friendly times like Fri 23 Oct 11:00-12:00, and no raw timestamps or duplicated review prefixes."
+        ], "zh": [
+          "待办先按日期、再按项目分组并显示数量，同一项目的共同截止目标只在组标题出现一次；去掉卡片里重复的标题、项目标签和日期后缀，长积压看起来是几个清爽的分组。",
+          "提醒日历卡片改用已取消/有更新前缀与易读时间（如 10 月 23 日周五 11:00-12:00），不再显示原始时间戳与重复的审核前缀。"
+        ]},
+        {"category": "Changed", "en": [
+          "Secretary review now governs presentation: details carry extra notes only and never repeat title, project or due text; Tasks notes name the top project groups and next step, Reminders notes give the count and single next action."
+        ], "zh": [
+          "秘书审核统管呈现方式：详情只写补充说明，不重复标题、项目或截止信息；待办小结写清主要项目分组与下一步，提醒小结写清数量与唯一的下一步。"
+        ]},
+        {"category": "Tests", "en": [
+          "Cover detail hygiene, project grouping with shared-due lifting, and humanized reminder cards with synthetic records."
+        ], "zh": [
+          "用合成记录覆盖详情去重、项目分组与共同截止上移，以及提醒卡片的人性化时间。"
+        ]}
+      ]
+    },
+    {
       "version": "0.32.7", "date": "2026-10-13", "author": "GoodMorning agent",
       "title_en": "Fixed morning briefing order and Reminders name", "title_zh": "修正早报顺序并改用提醒",
       "changes": [

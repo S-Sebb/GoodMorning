@@ -25,10 +25,19 @@ not repeated cards or news facts. Use `""` for note when only overriding title.
 `task --briefing gm|gn --date DATE` returns normalized rows and ready-made `blocks`.
 Copy nonempty blocks; follow each returned `next_offset` with the same date/edition.
 Add grounded explanations without changing source identity, revision, date/status.
+Secretary review is required before packing: group, clarify and warm the prose
+so the page reads clear, informative, cute and comfortable, never a raw dump.
 
 - `["actions",[[task_id,revision,occurrence_id,date,status,title,detail],...]]`:
   only in Tasks or Today. Empty occurrence/date means no agreed workday. Date is
   ISO `YYYY-MM-DD`; status is open, partial, blocked or user-confirmed done.
+  Code groups cards by workday, then by project, lifting a shared due target to
+  the project heading. Keep source order inside each project so relevance stays
+  deterministic. Titles/dates/status/revisions must match code rows exactly;
+  details may be clarified for display (they are not part of source validation)
+  but must never repeat the title or restate project/due text code already shows.
+  Add a short warm section note naming the top 1–3 project groups and the next
+  useful step (for example which group to pick today); do not repeat every card.
 - `["events",[[event_or_draft_id,revision,date,time,title,place,preparation],...]]`:
   only in Schedule. Code supplies approved events and confirmed TBC drafts;
   retain timezone in adjacent prose, actual dates and pending-change markers.
@@ -37,6 +46,11 @@ Add grounded explanations without changing source identity, revision, date/statu
   system references or privacy footers). Join via the original invitation.
 - `["decisions",[[entry_draft_or_calendar_id,revision,title,detail],...]]`: only in Reminders.
   These are actual pending questions, unreviewed material or due reviews.
+  Code already humanizes calendar times (`Fri 23 Oct 11:00–12:00`) and uses
+  `Canceled:`/`Updated:` prefixes instead of raw ISO/status dumps. Keep titles
+  exact; details may be clarified for display but must stay grounded in the
+  returned source/time. Add a brief note with the count and the single next
+  action (for example review with the secretary); never paste raw timestamps.
 
 IDs/revisions are hidden data references, never visible titles. One actionable
 card per occurrence; Today may separately report its historical outcome. A task
