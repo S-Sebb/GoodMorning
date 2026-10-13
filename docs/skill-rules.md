@@ -30,7 +30,7 @@ the GoodMorning root; specialized guides load only for the operation needed.
   unchanged and pass `--website-language CODE` to setup/workflow helpers.
   Ask `secretary_name` first in new setup (both browser and local); it is
   optional, 1-30 characters with at least one letter or number, and is reused
-  for self-reference, website header/author labels and briefing greetings.
+  for assistant self-reference and website labels, not the user's name.
 - For local use, `secretary_language` controls all user-facing replies, setup, question widgets,
   confirmations and errors, and OpenChamber conversation titles, across gm/gn/eureka/todo/secretary.
   Ask it second in new local setup, after `secretary_name`;

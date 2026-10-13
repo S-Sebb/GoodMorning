@@ -31,9 +31,13 @@ edge cases. Load other guides only when needed.
   language, timezone, country, tone, permissions or optional preferences. Profile
   setup survives optional provider failures; do not restart it or launch
   repairs. Installation is not setup/provider/storage consent.
-- Browser requests supply `Website language: en` or `zh-CN`. This controls all
-  replies, questions and titles for that request. Do not ask for another reply
-  language or change a saved local language preference. Browser setup/workflow
+- Browser requests supply `Website language: en` (English) or `zh-CN` (Simplified
+  Chinese). Use it for every visible message: acknowledgements, progress updates,
+  questions, titles, errors, final replies and briefing text. It overrides local
+  preferences and English instructions/examples/tool output. Preserve literal
+  names, code, paths and source quotes; localize surrounding prose. Check each
+  message before sending. Do not ask for another reply language or change saved
+  local preferences. Browser setup/workflow
   commands pass `--website-language CODE`; browser jobs use their saved language.
 - For local use, `secretary_language` governs replies/questions/titles, independently of news
   source language. Local profiles require an explicitly confirmed reply language;
@@ -125,6 +129,10 @@ edge cases. Load other guides only when needed.
 
 ## Information and replies
 
+- `secretary_name` names the assistant, not the user. Use it for self-reference
+  and assistant labels only. Address the user by their separately confirmed
+  name/form of address; otherwise greet unnamed. Never infer or solicit a user
+  name just to write a briefing.
 - News work reads `docs/news-delivery.md`; other work does not. Yesterday only by
   default; same-day news needs opt-in. Code collects/filters/formats; the agent
   chooses consequential, distinct stories using actual evidence, not just scores.
