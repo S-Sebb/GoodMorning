@@ -73,6 +73,27 @@ class ColorSchemeTests(unittest.TestCase):
         self.assertIn(resources.urls['starry-sky.svg'].encode(), css)
         self.assertIn(b'background-repeat: no-repeat', css)
 
+    def test_twinkle_only_dims_highlights_and_keeps_the_static_sky(self):
+        resources = Resources(Path(__file__).resolve().parents[1] / 'assets/web')
+        root = ET.fromstring(resources.paths[resources.urls['starry-sky.svg']].data)
+        self.assertEqual(root.attrib['id'], 'twinkle')
+        paths = root.findall('{http://www.w3.org/2000/svg}path')
+        self.assertEqual([path.attrib['stroke-width'] for path in paths],
+            ['0.9', '1.3', '1.8', '2.3', '0.9', '1.3', '1.8', '2.3'])
+        self.assertEqual([path.attrib['stroke-opacity'] for path in paths],
+            ['0.28', '0.45', '0.65', '0.82', '0.28', '0.45', '0.65', '0.82'])
+        self.assertEqual(len(root.findall('{http://www.w3.org/2000/svg}circle')), 8)
+        style = root.find('{http://www.w3.org/2000/svg}style').text
+        self.assertIn(':root:target path[stroke-width="1.8"]', style)
+        self.assertIn(':root:target path[stroke-width="2.3"]', style)
+        self.assertIn(':root:target circle', style)
+        self.assertIn('0%, 20%, 100% { opacity: 1; } 55%, 65% { opacity: .12; }', style)
+        self.assertIn('animation: twinkle 3.2s ease-in-out infinite', style)
+        self.assertNotIn('transform', style)
+        css = resources.paths[resources.urls['color-schemes.css']].data
+        self.assertIn(b'@media (prefers-reduced-motion: no-preference)', css)
+        self.assertIn((resources.urls['starry-sky.svg'] + '#twinkle').encode(), css)
+
     def test_server_markup_and_gateway_rewrapping_use_current_palette_and_csrf(self):
         source = '<html lang="en"><head></head><body><header>Desk</header></body></html>'
         with selected(colors.DEFAULT):
