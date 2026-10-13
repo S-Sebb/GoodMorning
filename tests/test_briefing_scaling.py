@@ -75,6 +75,18 @@ class ResourceTests(unittest.TestCase):
         self.assertLess(len(css.compressed), len(css.data) * .3)
         self.assertLess(len(one.paths[one.urls['fonts/lora-italic.woff2']].data), 100000)
 
+    def test_desk_icons_are_shared_immutable_css_dependencies(self):
+        resources = Resources(web.ASSETS)
+        from goodmorning.web.briefing_resources import DESK_ICON_TYPES
+        for name in DESK_ICON_TYPES:
+            resource = resources.alias('/' + name)
+            self.assertEqual(resource.mime, 'image/svg+xml')
+            self.assertIn(b'<svg', resource.data)
+        for name in ('briefing.css', 'schedule.css', 'chat.css'):
+            css = resources.alias('/' + name).data
+            self.assertNotIn(b'url("icons/desk-', css)
+            self.assertIn(resources.urls['icons/desk-schedule.svg'].encode(), css)
+
 
 class TransportTests(server_tests.HTTPTests):
     def test_assets_compress_and_revalidate_without_caching_private_pages(self):

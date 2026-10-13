@@ -30,7 +30,14 @@ def icon(name):
 def celestial(kind):
     """Decorative edition artwork, not a moon-phase or weather claim."""
     if kind == 'gm':
-        drawing = '<defs><linearGradient id="sun-light" x2="0" y2="1"><stop stop-color="#f5d99b"/><stop offset="1" stop-color="#e6aa5d"/></linearGradient></defs><circle cx="100" cy="68" r="51" fill="none" stroke="#d5ae6b" stroke-width=".8" opacity=".4"/><circle cx="100" cy="68" r="34" fill="url(#sun-light)"/><g stroke="#c79a52" stroke-width="1.6" stroke-linecap="round"><path d="M100 6v8M100 122v8M38 68h8M154 68h8M56 24l6 6M138 106l6 6M56 112l6-6M138 30l6-6"/></g>'
+        drawing = ('<defs><linearGradient id="sun-light" x1="0" y1="0" x2="0" y2="1">'
+                   '<stop stop-color="#fff0bf"/><stop offset=".55" stop-color="#f0cb83"/>'
+                   '<stop offset="1" stop-color="#dfa45f"/></linearGradient></defs>'
+                   '<circle cx="100" cy="68" r="32" fill="url(#sun-light)"/>'
+                   '<g stroke="#c79a52" stroke-width="1.3" stroke-linecap="round" opacity=".8">'
+                   '<path d="M100 15v9m0 88v9M47 68h9m88 0h9M73.5 22.1l4.5 7.8m44 76.2 4.5 7.8'
+                   'M54.1 41.5l7.8 4.5m76.2 44 7.8 4.5M54.1 94.5l7.8-4.5m76.2-44 7.8-4.5'
+                   'M73.5 113.9l4.5-7.8m44-76.2 4.5-7.8"/></g>')
     else:
         drawing = '<defs><linearGradient id="moon-light" x2="0" y2="1"><stop stop-color="#f4f0df"/><stop offset="1" stop-color="#bccbdc"/></linearGradient></defs><path d="M111 26a44 44 0 1 0 43 60 37 37 0 0 1-43-60Z" fill="url(#moon-light)"/><g stroke="#d8bd8b" stroke-width="1.3" stroke-linecap="round"><path d="M148 25v10m-5-5h10M57 35v6m-3-3h6"/></g><circle cx="154" cy="57" r="1.5" fill="#d8bd8b"/>'
     return '<svg class="celestial-art" viewBox="0 0 200 145" aria-hidden="true" focusable="false"><path d="M26 112a80 80 0 0 1 148 0" fill="none" stroke="currentColor" stroke-width=".8" opacity=".3"/>' + drawing + '</svg>'

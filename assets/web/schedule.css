@@ -2,7 +2,8 @@
 .schedule-page main { padding: 0 max(24px, env(safe-area-inset-right)) 48px max(24px, env(safe-area-inset-left)); }
 .schedule-page .masthead { padding-top: 18px; padding-bottom: 18px; padding-right: max(24px, env(safe-area-inset-right)); }
 .schedule-toolbar { display: flex; justify-content: space-between; align-items: center; gap: 24px; padding: 32px 0 24px; }
-.schedule-date { min-width: 0; }
+.schedule-date { min-width: 0; position: relative; padding-left: 58px; }
+.schedule-date::before { content: ""; position: absolute; left: 0; top: 2px; width: 42px; height: 42px; background: url("icons/desk-schedule.svg") center / contain no-repeat; }
 .schedule-date h1 { margin: 0; font: normal clamp(28px, 3vw, 40px)/1.2 Georgia, serif; letter-spacing: -.8px; text-wrap: balance; }
 .schedule-date h1:lang(zh-CN) { letter-spacing: 0; }
 .schedule-range { margin: 8px 0 0; font-size: 12px; color: var(--muted); }
@@ -42,7 +43,9 @@
 .is-today .schedule-day-number { background: var(--ink); color: var(--bg); border-radius: 50%; }
 .schedule-today { min-height: 15px; margin-top: 2px; color: var(--accent); font-size: 10px; line-height: 1.5; }
 .schedule-calendar, .schedule-work { min-width: 0; padding: 20px 16px 16px; }
-.schedule-day h4 { font-size: 11px; letter-spacing: 0; text-transform: none; font-weight: 500; color: var(--muted); margin: 0 0 14px; }
+.schedule-day h4 { display: flex; align-items: center; gap: 6px; font-size: 11px; letter-spacing: 0; text-transform: none; font-weight: 500; color: var(--muted); margin: 0 0 14px; }
+.schedule-day h4::before { content: ""; flex: 0 0 16px; width: 16px; height: 16px; background: url("icons/desk-schedule.svg") center / contain no-repeat; }
+.schedule-work h4::before { background-image: url("icons/desk-secretary.svg"); }
 .schedule-event { position: relative; border-left: 2px solid var(--accent); padding: 0 0 0 10px; margin: 0 0 20px; }
 .schedule-event summary { position: relative; display: block; list-style: none; cursor: pointer; min-height: 44px; padding-right: 10px; }
 .schedule-event summary::-webkit-details-marker { display: none; }

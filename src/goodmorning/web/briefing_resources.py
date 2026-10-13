@@ -7,6 +7,8 @@ import hashlib
 ICON_TYPES = {f'icons/{kind}.{extension}': mime
               for kind in ('gm', 'gn', 'secretary')
               for extension, mime in (('svg', 'image/svg+xml'), ('png', 'image/png'))}
+DESK_ICON_TYPES = {f'icons/desk-{name}.svg': 'image/svg+xml'
+                  for name in ('morning', 'evening', 'schedule', 'secretary', 'sprout', 'idea')}
 
 
 def favicon_links(kind, prefix='/'):
@@ -69,7 +71,7 @@ class Resource:
 class Resources:
     def __init__(self, assets, *, types=None):
         self.paths, self.urls = {}, {}
-        types = types if types is not None else {'fonts/lora-italic.woff2': 'font/woff2', 'briefing.css': 'text/css',
+        types = types if types is not None else {**DESK_ICON_TYPES, 'fonts/lora-italic.woff2': 'font/woff2', 'briefing.css': 'text/css',
                   'briefing.js': 'text/javascript', 'browser.js': 'text/javascript',
                   'scroll-rails.js': 'text/javascript', 'scroll-rails.css': 'text/css',
                    'questions.js': 'text/javascript', 'chat.js': 'text/javascript', 'chat.css': 'text/css', 'language.js':'text/javascript',
@@ -96,6 +98,10 @@ class Resources:
                 data = ('const goodmorningCatalog = '+json.dumps(CATALOG,ensure_ascii=False,separators=(',',':'))+';\n').encode()+data
             if name == 'briefing.css':
                 data = data.replace(b'fonts/lora-italic.woff2', self.urls['fonts/lora-italic.woff2'].encode())
+            if mime == 'text/css':
+                for icon in DESK_ICON_TYPES:
+                    if icon in self.urls:
+                        data = data.replace(icon.encode(), self.urls[icon].encode())
             if name == 'color-schemes.css':
                 data = data.replace(b'/starry-sky.svg', self.urls['starry-sky.svg'].encode())
             digest = hashlib.sha256(data).hexdigest()

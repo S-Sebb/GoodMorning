@@ -23,7 +23,13 @@
 .mode-controls .mode-switch { flex: 1; min-width: 0; }
 #mode-help { display: grid; place-items: center; flex: 0 0 36px; width: 36px; height: 36px; min-height: 36px; padding: 0; border-radius: 50%; background: transparent; color: var(--muted); font-size: 18px; }
 #mode-help[aria-expanded="true"] { background: var(--wash); color: var(--accent); border-color: var(--accent); }
-.mode-switch button { border-color: transparent; padding: 10px 4px; background: transparent; font-size: 13px; }
+.mode-switch button { display: flex; align-items: center; justify-content: center; gap: 6px; border-color: transparent; padding: 10px 4px; background: transparent; font-size: 13px; }
+.mode-switch button::before { content: ""; flex: 0 0 20px; width: 20px; height: 20px; background: var(--mode-icon) center / contain no-repeat; }
+.mode-switch [data-mode="initialize"] { --mode-icon: url("icons/desk-sprout.svg"); }
+.mode-switch [data-mode="secretary"] { --mode-icon: url("icons/desk-secretary.svg"); }
+.mode-switch [data-mode="todo"] { --mode-icon: url("icons/desk-schedule.svg"); }
+.mode-switch [data-mode="eureka"] { --mode-icon: url("icons/desk-idea.svg"); }
+@media (max-width: 700px) { .mode-switch button { flex-direction: column; gap: 4px; } }
 .mode-switch button[aria-checked="true"] { background: var(--ink); color: var(--surface); box-shadow: 0 2px 8px #233c361a; }
 .mode-switch button[aria-checked="true"]:hover { background: var(--accent); color: var(--surface); }
 #mode-guide p { margin: 0 0 12px; }
