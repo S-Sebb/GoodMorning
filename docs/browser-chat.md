@@ -156,10 +156,38 @@ unrenderable transcripts therefore cannot keep completed work in the global slot
 
 Question forms and their accepted answers are also saved in the account's
 `browser-chats/chats.json` registry. After submission, the question and selected
-option labels or typed answer appear as ordinary conversation bubbles in their
+option labels or typed answer appear as highlighted conversation bubbles in their
 original order. Failed submissions are not displayed as accepted answers. These
 exchanges survive refresh and backend restarts; previously discarded exchanges
 are not reconstructed.
+
+Native questions, accepted answers and pending permissions have distinct rounded
+line icons, visible labels and quiet tinted backgrounds. Confirmed task, idea,
+record, event-draft and calendar changes also appear as compact change cards.
+Added/completed/approved changes use a green accent, updates use lavender, and
+cancellations/declines use rose. Questions use amber and answers use blue-green.
+Labels and icon shapes carry the meaning without relying on color alone. All four
+palettes support the same treatment; interface labels follow the website language,
+while user-authored titles and earlier answers remain unchanged.
+
+Change cards read only existing committed inbox/task/calendar audit receipts owned
+by this conversation's actual session ID (calendar `--actor`); no raw tool states,
+commands, context or full snapshots reach the browser. The latest 30
+receipts have bounded titles and appear at the end of their original user turn,
+before the next user message. Retries do not create duplicate receipts; uncommitted
+conversion intent and failed mutations are not successful change cards. Conversion
+uses the calendar receipt once, not an extra duplicate task receipt. Reads never
+initialize/migrate storage, and queue status does not read change history. An audit
+read failure leaves the conversation available with a small notice. Old multi-turn
+chats without turn timestamps are not retroactively assigned guessed positions;
+new turns can show their own changes. Writes outside these audited helpers do not
+produce inferred cards.
+
+New blocks have a short, one-time entrance and icon-settle animation. Opening saved
+history or polling unchanged content never replays it. Reduced-motion preferences
+disable it entirely. An unchanged pending question keeps its typed answer when an
+unrelated permission arrives. Icons are original inline vectors, use theme colors,
+and need no external image service or API key.
 
 The conversation has a bounded, top-aligned scrolling area, with the composer
 outside it. New messages follow the bottom only when the user is already there;
