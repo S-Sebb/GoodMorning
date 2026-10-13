@@ -1,6 +1,24 @@
 {
   "notes": [
     {
+      "version": "0.32.6", "date": "2026-10-13", "author": "GoodMorning agent",
+      "title_en": "Schedule preparation without meeting boilerplate", "title_zh": "日程准备事项不再混入会议样板信息",
+      "changes": [
+        {"category": "Fixed", "en": [
+          "Strip Teams join instructions, Meeting IDs, help and meeting-options links, system references and privacy footers from schedule preparation so briefings show only concise attendee requirements; joining stays via the original invitation.",
+          "Keep legitimate preparation text and unrelated public links while leaving redacted originals available for review through --show and --pending."
+        ], "zh": [
+          "过滤日程准备事项中的 Teams 参会说明、会议 ID、帮助与会议选项链接、系统引用及隐私页脚，简报只保留简明的参会准备；参会方式仍以原始邀请为准。",
+          "保留真正的准备内容与无关公开链接；已脱敏的原始记录仍可通过 --show 与 --pending 查看复核。"
+        ]},
+        {"category": "Tests", "en": [
+          "Cover Teams-invitation boilerplate filtering, mixed preparation preservation, and schedule-query behavior with synthetic records."
+        ], "zh": [
+          "使用合成记录覆盖 Teams 邀请样板过滤、混合准备内容的保留与日程查询行为。"
+        ]}
+      ]
+    },
+    {
       "version": "0.32.5", "date": "2026-10-13", "author": "GoodMorning agent",
       "title_en": "Warmer Simplified Chinese website copy", "title_zh": "更温暖自然的简体中文界面文案",
       "changes": [

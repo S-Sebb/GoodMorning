@@ -393,6 +393,7 @@ def action_cells(row):
 
 def event_cells(event, timezone):
     from goodmorning.calendar.calendar_store import endpoints
+    from goodmorning.calendar.calendar_safety import clean_preparation
     from zoneinfo import ZoneInfo
     from goodmorning.web import language as ui
     if event.get('draft'):
@@ -405,7 +406,8 @@ def event_cells(event, timezone):
     else:
         finish = (end.date().isoformat() + ' ' if end.date() != start.date() else '') + end.strftime('%H:%M')
         clock = start.strftime('%H:%M') + '–' + finish
-    prep = [event['notes']] if event.get('notes') else []
+    notes = clean_preparation(event.get('notes', '')) if event.get('notes') else ''
+    prep = [notes] if notes else []
     for action in event.get('linked_actions', []):
         prep.append(action['title'] + ('\n' + action['detail'] if action['detail'] else ''))
     return [start.date().isoformat(), clock, event['subject'], event.get('location', ''), '\n'.join(prep)]

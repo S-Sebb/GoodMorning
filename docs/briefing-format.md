@@ -32,6 +32,9 @@ Add grounded explanations without changing source identity, revision, date/statu
 - `["events",[[event_or_draft_id,revision,date,time,title,place,preparation],...]]`:
   only in Schedule. Code supplies approved events and confirmed TBC drafts;
   retain timezone in adjacent prose, actual dates and pending-change markers.
+  Preparation is concise attendee requirements only, never meeting-invitation
+  boilerplate (join instructions, Meeting IDs, help/meeting-options links,
+  system references or privacy footers). Join via the original invitation.
 - `["decisions",[[entry_draft_or_calendar_id,revision,title,detail],...]]`: only in Needs
   attention. These are actual pending questions, unreviewed material or due reviews.
 

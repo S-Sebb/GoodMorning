@@ -73,6 +73,42 @@ class StoreTests(unittest.TestCase):
         self.assertIn("https://example.org/registration?p=2", redacted)
         self.assertEqual(safe_text(redacted), redacted)
 
+    def test_teams_boilerplate_is_not_briefing_preparation(self):
+        from goodmorning.calendar.calendar_safety import clean_preparation
+        boilerplate = (
+            "______________________________________________________________________\n"
+            "Microsoft Teams meeting Join: [protected link omitted; use original invitation] "
+            "Meeting ID: 385 888 978 982 162 Passcode: [omitted; use original invitation]\n"
+            "______________________________________________________________________\n"
+            "Need help?https://aka.ms/JoinTeamsMeeting?omkt=en-GB> | "
+            "System reference:<[protected link omitted; use original invitation]> "
+            "For organisers: Meeting options<https://teams.microsoft.com/meetingOptions/?organizerId=abc>\n"
+            "[Company Logo] Privacy and security<https://www.imperial.ac.uk/media/x.pdf>\n"
+            "______________________________________________________________________"
+        )
+        self.assertEqual(clean_preparation(boilerplate), "")
+        self.assertEqual(clean_preparation(clean_preparation(boilerplate)), "")
+        mixed = ("Bring slides.\nMicrosoft Teams meeting Join: "
+                 "https://teams.microsoft.com/l/meetup-join/abc\nMeeting ID: 123")
+        self.assertEqual(clean_preparation(mixed), "Bring slides.")
+        public = "Bring slides. https://example.org/registration?p=2"
+        self.assertEqual(clean_preparation(public), public)
+
+    def test_schedule_query_filters_boilerplate_but_show_keeps_original_for_review(self):
+        notes = ("Bring slides.\nMicrosoft Teams meeting Join: "
+                 "https://teams.microsoft.com/l/meetup-join/abc\nMeeting ID: 123")
+        eid = self.imported(notes=notes)
+        self.store.change(eid, "approve", 1)
+        rows = self.store.query(START, END, details=True)
+        self.assertEqual(rows[0]["notes"], "Bring slides.")
+        shown = self.store.get(eid)
+        self.assertIn("Microsoft Teams meeting Join", shown["approved"]["notes"])
+        # Pure boilerplate yields no preparation notes in schedule reads.
+        self.store.change(eid, "update", shown["revision"],
+                          {"notes": "Microsoft Teams meeting Join: https://teams.microsoft.com/l/meetup-join/abc"})
+        rows = self.store.query(START, END, details=True)
+        self.assertNotIn("notes", rows[0])
+
     def test_legacy_record_output_is_redacted_without_rewriting_database(self):
         secret = "fictional-legacy-secret"
         eid = self.store.add(event())

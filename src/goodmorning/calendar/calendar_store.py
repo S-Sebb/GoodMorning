@@ -8,7 +8,7 @@ import sqlite3
 import uuid
 from datetime import date, datetime, time, timezone, timedelta
 from pathlib import Path
-from .calendar_safety import safe_value
+from .calendar_safety import clean_preparation, safe_value
 
 FIELDS = {"subject", "start", "end", "timezone", "all_day", "location", "online",
           "organizer", "notes", "status", "repeat"}
@@ -341,6 +341,14 @@ class CalendarStore:
             data = json.loads(row["approved_json"])
             if not details:
                 data = {k: v for k, v in data.items() if k not in ("notes", "organizer") and v != ""}
+            elif "notes" in data:
+                # Schedule reads show concise preparation, never join boilerplate.
+                # Review of originals/revisions still uses --show/--pending.
+                cleaned = clean_preparation(data.get("notes", ""))
+                if cleaned:
+                    data["notes"] = cleaned
+                else:
+                    data.pop("notes", None)
             out.append({"id": row["id"], "source": row["source"], "revision": row["revision"],
                          **data, **({"pending_change": True} if row["review"] == "pending" else {})})
         if series:
@@ -361,6 +369,12 @@ class CalendarStore:
                         continue
                     if not details:
                         value={k:v for k,v in value.items() if k not in ('notes','organizer') and v!=''}
+                    elif 'notes' in value:
+                        cleaned=clean_preparation(value.get('notes',''))
+                        if cleaned:
+                            value['notes']=cleaned
+                        else:
+                            value.pop('notes',None)
                     out.append({'id':projected['id'],'source':row['source'],'revision':row['revision'],
                         **value,'series_event_id':row['id'], 'projected':True,
                         **({'pending_change':True} if row['review']=='pending' else {})})

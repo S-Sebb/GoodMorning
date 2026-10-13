@@ -18,6 +18,8 @@ runtime/cache paths. Keep the current session/model and use the confirmed langua
    today and the next two days. Unknown-time confirmed appointments stay TBC;
    tentative proposals and unseen imports are not attendance commitments. Surface
    pending changes and material availability failures, not healthy bookkeeping.
+   Preparation is concise requirements only; never copy join instructions,
+   Meeting IDs, help/meeting-options links or privacy footers into it.
 3. Publish Tasks from code-owned rows: agreed/recurring work, deadline attention,
    still-open work and selected undated actions. Project and optional labels are
    attributes. Preserve dates, details, source IDs and revisions; follow pages.
