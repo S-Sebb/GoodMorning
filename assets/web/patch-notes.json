@@ -1,7 +1,7 @@
 {
   "notes": [
     {
-      "version": "0.32.8", "date": "2026-10-14", "author": "GoodMorning agent",
+      "version": "0.33.0", "date": "2026-10-14", "author": "GoodMorning agent",
       "title_en": "Grouped tasks and calmer reminders", "title_zh": "待办按项目分组，提醒更清爽",
       "changes": [
         {"category": "Fixed", "en": [

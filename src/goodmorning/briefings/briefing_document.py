@@ -357,7 +357,7 @@ def _humanize_iso_in_text(text):
 
 def _decision_display(title, detail):
     import re as _re
-    clean_title = _re.sub(r'^(?:Review calendar change|Calendar (?:change|update))\s*[:：]\s*', '', (title or '').strip(), flags=_re.IGNORECASE).strip() or title
+    clean_title = _re.sub(r'^(?:Review calendar change|Calendar (?:change|update)|有日历变更等你确认)\s*[:：]\s*', '', (title or '').strip(), flags=_re.IGNORECASE).strip() or title
     text = _humanize_iso_in_text(detail)
     parts = [p.strip() for p in _re.split(r'[·\n]+', text.replace('|', '·')) if p.strip()]
     # Bare default status adds noise; the card title already carries cancellations.
