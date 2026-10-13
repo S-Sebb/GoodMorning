@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1800" viewBox="0 0 1600 1800">
+  <defs>
+    <linearGradient id="dawn" x2="0" y2="1"><stop stop-color="#e2edf2"/><stop offset=".36" stop-color="#f6e8dc"/><stop offset=".62" stop-color="#fae8c8"/><stop offset="1" stop-color="#f7ead6"/></linearGradient>
+    <linearGradient id="far-rock" gradientUnits="userSpaceOnUse" x1="0" y1="468" x2="0" y2="1000"><stop stop-color="#d1ddd9"/><stop offset="1" stop-color="#e7e8db"/></linearGradient>
+    <linearGradient id="near-rock" gradientUnits="userSpaceOnUse" x1="0" y1="608" x2="0" y2="1000"><stop stop-color="#cbd7cf"/><stop offset="1" stop-color="#e5e5d6"/></linearGradient>
+    <linearGradient id="meadow" gradientUnits="userSpaceOnUse" x1="0" y1="1050" x2="0" y2="1800"><stop stop-color="#d5dfca"/><stop offset="1" stop-color="#dce4d1"/></linearGradient>
+    <path id="fir" d="M0-105L-16-74H-7L-25-49H-13L-33-22H-18L-41 2H-3V14H3V2H41L18-22H33L13-49H25L7-74H16Z"/>
+  </defs>
+  <path fill="url(#dawn)" d="M0 0h1600v1000H0z"/>
+  <!-- Angular ridgelines and separate rock faces define actual mountain relief. -->
+  <path fill="url(#far-rock)" d="M0 683L72 624L108 637L155 548L199 590L238 575L316 641L404 595L502 661L637 586L710 617L784 570L938 637L1053 590L1153 655L1240 574L1318 605L1440 468L1470 511L1495 548L1532 531L1600 624V1800H0Z"/>
+  <path fill="#e5ebe3" d="M155 548L173 587L162 606L216 665L108 637ZM784 570L817 603L806 625L880 663L710 617ZM1440 468L1452 510L1431 542L1490 630L1318 605Z"/>
+  <path fill="#f5f7ed" d="M155 548L130 595L149 582L161 591L170 580L184 576ZM1440 468L1393 521L1420 510L1432 519L1449 501L1460 517L1470 511Z"/>
+  <path fill="url(#near-rock)" d="M0 786L58 739L113 758L210 664L248 706L283 693L377 766L487 731L584 787L672 747L801 790L895 750L1013 797L1124 723L1201 748L1328 645L1380 680L1453 608L1497 669L1536 648L1600 717V1800H0Z"/>
+  <path fill="#e2e8dc" d="M210 664L225 709L208 734L276 795L113 758ZM1328 645L1321 689L1351 733L1201 748ZM1453 608L1465 654L1440 702L1504 753L1380 680Z"/>
+  <path d="M1440 468L1431 542L1490 630M210 664L208 734M1453 608L1440 702" fill="none" stroke="#b6c9c1" stroke-width="1.2" stroke-opacity=".35"/>
+  <!-- The mountains descend into a complete valley, not a viewport-sized yellow wash. -->
+  <path fill="#dce3d1" d="M0 939L170 986L328 979L522 1065L771 1040L996 1109L1250 1040L1430 979L1600 1005V1800H0Z"/>
+  <path fill="url(#meadow)" d="M0 1180L152 1121L354 1165L567 1212L752 1184L1008 1253L1239 1172L1445 1136L1600 1196V1800H0Z"/>
+  <path fill="#e5ebda" d="M0 1180L152 1121L354 1165L567 1212L120 1238ZM1008 1253L1239 1172L1445 1136L1372 1244L1161 1289Z"/>
+  <path fill="#f2f5e9" d="M994 1069C947 1130 1110 1201 1005 1251S848 1337 930 1420S1106 1540 1000 1650L952 1800H1001L1048 1640C1150 1522 974 1456 965 1389S1131 1282 1062 1209S988 1131 1010 1069Z"/>
+  <g fill="#b7c7ad" opacity=".6">
+    <use href="#fir" transform="translate(38 1242) scale(1.3)"/>
+    <use href="#fir" transform="translate(116 1280) scale(1.05)"/>
+    <use href="#fir" transform="translate(174 1262) scale(.85)"/>
+    <use href="#fir" transform="translate(242 1322) scale(1.2)"/>
+    <use href="#fir" transform="translate(319 1350) scale(.85)"/>
+    <use href="#fir" transform="translate(1448 1243) scale(1.4)"/>
+    <use href="#fir" transform="translate(1522 1260) scale(1.1)"/>
+    <use href="#fir" transform="translate(1584 1292) scale(1.3)"/>
+  </g>
+  <g fill="none" stroke="#bdcdb0" stroke-width="1.5" stroke-linecap="round" opacity=".6">
+    <path d="M33 1373l4-8 5 8M72 1402l3-7 5 7M170 1434l4-8 5 8M252 1370l4-8 5 8M1385 1359l4-8 5 8M1510 1393l4-8 5 8M1453 1450l4-8 5 8"/>
+    <path d="M65 1550l4-8 5 8M390 1588l4-8 5 8M1237 1557l4-8 5 8M1455 1609l4-8 5 8"/>
+  </g>
+</svg>

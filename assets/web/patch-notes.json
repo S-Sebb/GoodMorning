@@ -1,6 +1,29 @@
 {
   "notes": [
     {
+      "version": "0.36.0", "date": "2026-10-13", "author": "GoodMorning agent",
+      "title_en": "Morning Sky and First Light", "title_zh": "晨空与曙光主题",
+      "changes": [
+        {"category": "Added", "en": [
+          "Choose Morning Sky or First Light in Settings > Appearance alongside Classic and Warm. Day and night choices remain independent, saved per account, and applied without losing unsent drafts.",
+          "Morning Sky pairs a locally bundled photographic cloud texture with visible birds. First Light keeps the existing sun illustration and adds sharp mountain ridges, snowcaps, fir trees and a winding valley stream that continues down the page."
+        ], "zh": [
+          "在设置的外观中新增晨空与曙光主题，保留经典和暖色。日间与夜间配色仍独立选择、按账号保存，切换时不会丢失未发送的草稿。",
+          "晨空采用本地提供的真实云层照片纹理与清晰可见的飞鸟；曙光保留原有太阳插画，新增清晰的山脊、雪顶、冷杉与延伸到页面下方的山谷溪流。"
+        ]},
+        {"category": "Documentation", "en": [
+          "Record the cloud photograph's CC0 source and image modifications. Theme images are served locally without third-party requests."
+        ], "zh": [
+          "记录云层照片的 CC0 来源与图片修改方式。主题图片由本地提供，不请求第三方服务。"
+        ]},
+        {"category": "Tests", "en": [
+          "Verify desktop and mobile layouts, account persistence, bilingual controls, draft and record preservation, text contrast including the lower valley, reduced motion and unchanged Starry Night behavior with synthetic accounts and no model calls."
+        ], "zh": [
+          "使用合成账号且不调用模型，验证桌面与移动端布局、账号偏好保存、双语控件、草稿与记录保护、包含下方山谷的文字对比度、减少动态效果，以及星空主题行为保持不变。"
+        ]}
+      ]
+    },
+    {
       "version": "0.35.0", "date": "2026-10-13", "author": "GoodMorning agent",
       "title_en": "Clearer task titles and details", "title_zh": "待办标题与详情更清晰",
       "changes": [

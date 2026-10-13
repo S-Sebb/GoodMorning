@@ -39,12 +39,54 @@ class ColorSchemeTests(unittest.TestCase):
 
     def test_catalog_and_invalid_requests(self):
         self.assertEqual(colors.DEFAULT, {'day': 'classic', 'night': 'starry'})
-        self.assertEqual(set(colors.OPTIONS['day']), {'classic', 'warm'})
+        self.assertEqual(set(colors.OPTIONS['day']), {'classic', 'warm', 'morning-sky', 'first-light'})
         self.assertEqual(set(colors.OPTIONS['night']), {'classic', 'starry'})
         self.assertEqual(colors.validate({'day': 'warm', 'night': 'starry'}), {'day': 'warm', 'night': 'starry'})
+        for scheme in ('morning-sky', 'first-light'):
+            self.assertEqual(colors.validate({'day': scheme, 'night': 'starry'})['day'], scheme)
         for value in (None, True, [], {}, {'day': 'warm'}, {'day': 'warm', 'night': 'warm'},
+                      {'day': 'sunlit-garden', 'night': 'starry'},
                       {'day': {}, 'night': 'classic'}, {'day': 'warm', 'night': 'classic', 'user': 'other'}):
             with self.assertRaises(ValueError): colors.validate(value)
+
+    def test_day_scenes_are_immutable_and_translated(self):
+        resources = Resources(Path(__file__).resolve().parents[1] / 'assets/web')
+        css = resources.paths[resources.urls['color-schemes.css']].data
+        for scheme in ('morning-sky', 'first-light'):
+            scene = resources.paths[resources.urls[scheme + '.svg']]
+            self.assertEqual(scene.mime, 'image/svg+xml')
+            root = ET.fromstring(scene.data)
+            self.assertEqual(root.findall('{http://www.w3.org/2000/svg}filter'), [])
+            if scheme == 'first-light':
+                self.assertEqual(root.findall('{http://www.w3.org/2000/svg}circle'), [])
+                self.assertEqual(root.findall('{http://www.w3.org/2000/svg}ellipse'), [])
+            self.assertIn(resources.urls[scheme + '.svg'].encode(), css)
+            self.assertIn(colors.OPTIONS['day'][scheme], ui.CATALOG)
+        self.assertIn((resources.urls['morning-sky.svg'] + '#drift').encode(), css)
+        self.assertEqual(resources.paths[resources.urls['morning-clouds.webp']].mime, 'image/webp')
+        self.assertIn(resources.urls['morning-clouds.webp'].encode(), css)
+        first_light = ET.fromstring(resources.paths[resources.urls['first-light.svg']].data)
+        self.assertEqual(first_light.attrib['viewBox'], '0 0 1600 1800')
+
+    def test_retired_day_preference_preserves_night_and_does_not_rewrite_records(self):
+        retired = {'day': 'sunlit-garden', 'night': 'classic'}
+        expected = {'day': colors.DEFAULT['day'], 'night': 'classic'}
+        with tempfile.TemporaryDirectory(dir=TEMP_ROOT) as directory:
+            runtime = Path(directory)
+            path = runtime / 'website-color-schemes.json'
+            path.write_text(json.dumps(retired))
+            original = path.read_bytes()
+            self.assertEqual(colors.read(runtime), expected)
+            self.assertEqual(path.read_bytes(), original)
+        fixture = self.gateway(); fixture.permanent()
+        key = 'website-color-schemes:' + fixture.id
+        with fixture.store.db() as db:
+            db.execute('INSERT INTO metadata VALUES (?,?)', (key, json.dumps(retired)))
+        self.assertEqual(fixture.store.website_color_schemes(fixture.id), expected)
+        self.assertEqual(json.loads(fixture.request('/api/color-schemes')[2]), expected)
+        self.assertEqual(fixture.request('/api/color-schemes', retired)[0], 400)
+        with fixture.store.db() as db:
+            self.assertEqual(json.loads(db.execute('SELECT value FROM metadata WHERE key=?', (key,)).fetchone()[0]), retired)
 
     def test_default_applies_only_without_a_saved_preference(self):
         with tempfile.TemporaryDirectory(dir=TEMP_ROOT) as directory:

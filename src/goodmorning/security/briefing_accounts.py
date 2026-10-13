@@ -219,7 +219,7 @@ class Accounts:
             return model(row[0]) if row else None
 
     def website_color_schemes(self, identifier, replacement=None):
-        from goodmorning.web.color_schemes import validate
+        from goodmorning.web.color_schemes import saved, validate
         with self.db() as db:
             key = 'website-color-schemes:' + identifier
             if replacement is not None:
@@ -228,7 +228,7 @@ class Accounts:
                            (key, json.dumps(replacement)))
                 return replacement
             row = db.execute('SELECT value FROM metadata WHERE key=?', (key,)).fetchone()
-            return validate(json.loads(row[0])) if row else None
+            return saved(json.loads(row[0])) if row else None
 
     def create(self, name, secret):
         name,secret = username(name),password(secret)
