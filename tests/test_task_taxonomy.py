@@ -452,6 +452,110 @@ class TaxonomyTests(unittest.TestCase):
         self.assertEqual(self.inbox.show(self.tasks.show(task)['source_entry_id'])['status'], 'done')
         self.assertEqual(answer(self.root, job, {'completed': [occurrence_id(task, DAY)], 'details': 'No other updates'}), result)
 
+    def test_evening_includes_saved_morning_tasks_with_current_identity_and_actual_day(self):
+        undated = self.capture(task={'title':'Morning choice'})['task_id']
+        old = self.capture(task={'title':'Older work','planned_date':'2026-10-11'})['task_id']
+        planned = self.capture(task={'title':'Today work','planned_date':DAY})['task_id']
+        recurring = self.capture(task={'title':'Recurring work','timezone':'Europe/London',
+            'repeat':{'weekdays':[2], 'start':DAY}})['task_id']
+        closed = self.capture(task={'title':'Later cancelled'})['task_id']
+        block = routing.prepare(self.root, DAY, 'gm', limit=200)['blocks']['tasks']
+        (self.root/'daily').mkdir(exist_ok=True)
+        (self.root/'daily'/f'{DAY}.gm.json').write_text(native.encode(self.document(block)))
+        self.capture('Not shown this morning')
+        future = self.capture(task={'title':'Future only','planned_date':'2026-11-11'})['task_id']
+        self.tasks.mutate(closed,1,{'status':'cancelled'},'ses_test','cancel',NOW)
+        self.tasks.mutate(undated,1,{'title':'Revised morning choice'},'ses_test','rename',NOW)
+        job = {'id':'e'*32,'date':DAY,'kind':'gn','state':'preflight'}
+        context = preflight(self.root,job)
+        known = {t['task_id']:t for t in context['feedback_tasks'] if not t['done']}
+        self.assertEqual(set(known),{undated,old,planned,recurring})
+        self.assertEqual(known[undated]['text'],'Revised morning choice')
+        self.assertEqual(known[undated]['revision'],2)
+        self.assertNotIn(future,known)
+        selected = [known[id]['id'] for id in (undated,old,recurring)]
+        payload = {'completed':selected,'details':'Today work is partial.'}
+        result = answer(self.root,job,payload)
+        self.assertEqual(answer(self.root,job,payload),result)
+        for id in (undated,old,recurring):
+            self.assertEqual(self.tasks.occurrence(self.tasks.show(id),DAY)['status'],'done')
+        self.assertEqual(self.tasks.show(undated)['planned_date'],'')
+        self.assertEqual(self.tasks.show(old)['planned_date'],'2026-10-11')
+        self.assertEqual(self.tasks.show(old)['status'],'done')
+        self.assertEqual(self.tasks.show(recurring)['status'],'open')
+        self.assertEqual(self.tasks.occurrence(self.tasks.show(recurring),'2026-10-21')['status'],'open')
+        self.assertEqual(self.tasks.show(planned)['status'],'open')
+        self.assertEqual({r['id'] for r in routing.reported_day(self.tasks,DAY)}, {undated,old,recurring})
+
+    def test_empty_evening_asks_about_actual_work_without_completion_checkbox(self):
+        self.capture('Undated work not shown in a morning briefing')
+        job = {'id':'f'*32,'date':DAY,'kind':'gn','state':'preflight'}
+        context = preflight(self.root,job)
+        fields = {f['key']:f for f in context['form']['fields']}
+        self.assertNotIn('completed',fields)
+        self.assertEqual(fields['details']['title'],'What did you accomplish today?')
+        self.assertEqual(fields['details']['options'],[{'value':'No updates today','label':'No updates today'}])
+        with self.assertRaisesRegex(ValueError,'Give actual details'):
+            answer(self.root,job,{'details':'   '})
+        result = answer(self.root,job,{'details':'Read a paper and made progress.'})
+        self.assertEqual(result['feedback']['completed'],[])
+        text = (self.root/'daily'/f'{DAY}.md').read_text()
+        self.assertIn('Read a paper and made progress.',text)
+        self.assertNotIn('No listed tasks were fully completed.',text)
+        self.assertEqual(len(routing.reported_day(self.tasks,DAY)),0)
+
+    def test_empty_evening_question_is_localized(self):
+        job = {'id':'9'*32,'date':DAY,'kind':'gn','state':'preflight','language':'zh-CN'}
+        context = preflight(self.root,job)
+        field = next(f for f in context['form']['fields'] if f['key']=='details')
+        self.assertEqual(field['title'],'你今天完成了哪些事情？')
+        self.assertEqual(field['options'][0]['label'],'今天没有更新')
+        result = answer(self.root,job,{'details':'No updates today'})
+        self.assertTrue(result['feedback']['saved'])
+
+    def test_morning_recurring_completion_does_not_reappear_as_actual_choice(self):
+        id = self.capture(task={'title':'Weekly','timezone':'Europe/London',
+            'repeat':{'weekdays':[2],'start':DAY}})['task_id']
+        block = self.view()['blocks']['tasks']
+        (self.root/'daily').mkdir(exist_ok=True)
+        (self.root/'daily'/f'{DAY}.gm.json').write_text(native.encode(self.document(block)))
+        self.tasks.mutate(id,1,{'status':'done','confirmed_completion':True},'ses_test','report',NOW,day=DAY,actual=True)
+        context = preflight(self.root,{'id':'8'*32,'date':DAY,'kind':'gn','state':'preflight'})
+        self.assertNotIn('completed',{f['key'] for f in context['form']['fields']})
+
+    def test_actual_feedback_conflict_rolls_back_all_selected_completions(self):
+        first = self.capture(task={'title':'First'})['task_id']
+        second = self.capture(task={'title':'Second'})['task_id']
+        selections = [{'task_id':id,'id':occurrence_id(id,DAY),'revision':1,'actual':True}
+                      for id in (first,second)]
+        self.tasks.mutate(second,1,{'title':'Changed'},'ses_test','changed',NOW)
+        with self.assertRaisesRegex(ValueError,'write_conflict'):
+            self.tasks.complete_day(selections,DAY,'ses_test','feedback',NOW,'No other updates')
+        self.assertEqual(self.tasks.show(first)['status'],'open')
+        self.assertEqual(routing.reported_day(self.tasks,DAY),[])
+        self.assertIsNone(self.inbox.db.execute("SELECT 1 FROM task_events WHERE request_key='feedback'").fetchone())
+
+    def test_actual_feedback_rejects_future_completion_and_foreign_occurrence(self):
+        id = self.capture(task={'title':'Undated'})['task_id']
+        selection = {'task_id':id,'id':occurrence_id(id,'2026-10-14'),'revision':1,'actual':True}
+        with self.assertRaisesRegex(ValueError,'future work'):
+            self.tasks.complete_day([selection],'2026-10-14','ses_test','future',NOW,'No other updates')
+        with self.assertRaisesRegex(ValueError,'unknown_occurrence'):
+            self.tasks.complete_day([selection],DAY,'ses_test','foreign',NOW,'No other updates')
+        self.assertEqual(self.tasks.show(id)['status'],'open')
+
+    def test_morning_choices_keep_distinct_ids_and_deduplicate_multiple_days(self):
+        first = self.capture(task={'title':'Same title','timezone':'Europe/London',
+            'repeat':{'interval_days':1,'start':DAY}})['task_id']
+        second = self.capture(task={'title':'Same title'})['task_id']
+        (self.root/'daily').mkdir(exist_ok=True)
+        block = routing.prepare(self.root,DAY,'gm',limit=200)['blocks']['tasks']
+        (self.root/'daily'/f'{DAY}.gm.json').write_text(native.encode(self.document(block)))
+        rows = routing.feedback_day(self.tasks,DAY)
+        self.assertEqual({r['id'] for r in rows},{first,second})
+        self.assertEqual(len(rows),2)
+        self.assertTrue(all(r['occurrence_id']==occurrence_id(r['id'],DAY) for r in rows))
+
     def test_account_isolation_and_readonly_missing_store(self):
         self.capture(task={'title': 'Private task'})
         other = self.root/'other'; other.mkdir()

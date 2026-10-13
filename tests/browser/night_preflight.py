@@ -1,0 +1,103 @@
+"""Evening completion choices and adaptive empty state; synthetic data, no models."""
+import json
+from pathlib import Path
+import subprocess
+import sys
+import tempfile
+
+from playwright.sync_api import sync_playwright, expect
+
+REPO = Path(__file__).resolve().parents[2]
+
+
+def fixture(root, scenario):
+    sys.path.insert(0, str(REPO/'src'))
+    sys.path.insert(0, str(REPO/'tests'))
+    from support import returning_viewer
+    from test_briefing_server import FakeChamber
+    from goodmorning.web.briefing_server import BrowserApp, serve_live
+    from goodmorning.records.inbox_store import initialize, InboxStore, stamp
+    from goodmorning.records.routing import prepare
+    from goodmorning.briefings.briefing_document import encode
+    returning_viewer(root)
+    initialize(root)
+    class IdleChamber(FakeChamber):
+        def __init__(self):
+            super().__init__()
+            self.forms=[]; self.permissions=[]; self.busy=False
+    app = BrowserApp(root, IdleChamber(), preflight=True)
+    if scenario == 'tasks':
+        inbox = InboxStore(root, write=True)
+        try:
+            inbox.mutate('add', {'kind':'todo','raw':'Morning option','task':{'title':'Morning option'}},
+                         'ses_fixture','morning-option',stamp(root))
+            day = app.today()
+            block = prepare(root,day,'gm')['blocks']['tasks']
+            (root/'daily').mkdir(exist_ok=True)
+            (root/'daily'/f'{day}.gm.json').write_text(encode(
+                {'v':2,'greeting':'Morning.','opening':'Choices.','sections':[['tasks',[block]]]}))
+            inbox.mutate('add', {'kind':'todo','raw':'Unshown backlog'},'ses_fixture','unshown',stamp(root))
+        finally:
+            inbox.close()
+    serve_live(app,0)
+
+
+def main():
+    artifacts = Path(sys.argv[1]) if len(sys.argv)>1 else None
+    if artifacts:
+        artifacts.mkdir(parents=True,exist_ok=True,mode=0o700)
+    with sync_playwright() as p:
+        browser = p.chromium.launch()
+        for scenario in ('empty','tasks'):
+            with tempfile.TemporaryDirectory(dir='/tmp/opencode',prefix='gm-night-preflight-') as directory:
+                root = Path(directory)
+                (root/'profile.md').write_text('secretary_language: English\ntimezone: Europe/London\ncity: London, GB\nnews_country: GB\n')
+                process = subprocess.Popen([sys.executable,__file__,'--serve',directory,scenario],
+                                           stdout=subprocess.PIPE,stderr=subprocess.PIPE,text=True)
+                address = process.stdout.readline().strip().removeprefix('Private live viewer: ')
+                try:
+                    for width in (390,1440):
+                        page = browser.new_page(viewport={'width':width,'height':900},reduced_motion='reduce')
+                        errors=[]; page.on('pageerror',lambda error:errors.append(str(error)))
+                        page.goto(address+'/gn.html')
+                        if width == 390:
+                            page.locator('#generate').click()
+                        if scenario == 'empty':
+                            expect(page.get_by_text('What did you accomplish today?',exact=True)).to_be_visible()
+                            expect(page.get_by_text('None yet',exact=True)).to_have_count(0)
+                            expect(page.locator('input[type=checkbox]')).to_have_count(0)
+                            expect(page.get_by_text('No updates today',exact=True)).to_be_visible()
+                        else:
+                            expect(page.get_by_text('Morning option',exact=True)).to_be_visible()
+                            expect(page.get_by_text('Unshown backlog',exact=True)).to_have_count(0)
+                            expect(page.get_by_text('None yet',exact=True)).to_be_visible()
+                        assert not page.evaluate('document.documentElement.scrollWidth>innerWidth')
+                        assert not errors, errors
+                        if artifacts:
+                            page.screenshot(path=str(artifacts/f'{scenario}-{width}.png'),full_page=True)
+                        if width == 1440:
+                            if scenario == 'empty':
+                                page.get_by_text('No updates today',exact=True).click()
+                            else:
+                                page.get_by_text('Morning option',exact=True).click()
+                                page.get_by_text('No other updates',exact=True).click()
+                            with page.expect_response(lambda response:'/form/' in response.url and response.request.method=='POST') as receipt:
+                                page.get_by_role('button',name='Send answer').click()
+                            assert receipt.value.ok
+                            jobs=json.loads((root/'browser-jobs/jobs.json').read_text())
+                            job=next(j for j in jobs.values() if j['kind']=='gn')
+                            context=json.loads((root/'browser-jobs'/(job['id']+'.context.json')).read_text())
+                            assert context['feedback']['saved']
+                            assert context['feedback']['completed']==(['Morning option'] if scenario=='tasks' else [])
+                        page.close()
+                finally:
+                    process.terminate();process.communicate(timeout=5)
+        browser.close()
+    print(json.dumps({'morning_choices':'pass','adaptive_empty_state':'pass','feedback_save':'pass','viewports':2,'model_calls':0}))
+
+
+if __name__ == '__main__':
+    if '--serve' in sys.argv:
+        fixture(Path(sys.argv[-2]),sys.argv[-1])
+    else:
+        main()

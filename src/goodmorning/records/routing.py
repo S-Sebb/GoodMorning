@@ -5,7 +5,7 @@ from pathlib import Path
 import sqlite3
 
 from .inbox_store import InboxStore
-from .task_store import TaskStore
+from .task_store import TaskStore, occurrence_id
 
 
 def clean_task_detail(title, detail):
@@ -301,6 +301,32 @@ def reported_day(store, day):
     """Actual dated reports only; a global status/audit timestamp is not daily evidence."""
     return [task_row(store.show(row['task_id']), day, dict(row), 'reported')
             for row in store.db.execute('SELECT * FROM task_occurrences WHERE date=? AND status!=?', (day, 'cancelled'))]
+
+
+def feedback_day(store, day):
+    """Today's plan plus saved morning choices, without assigning new workdays."""
+    rows = {row['id']: row for row in planned_day(store, day)}
+    morning = store.inbox.directory / 'daily' / (day + '.gm.json')
+    if not morning.exists():
+        return list(rows.values())
+    from goodmorning.briefings.briefing_document import validate
+    from goodmorning.briefings.briefing_stream import bounded_json
+    document = validate(bounded_json(morning, 150_000))
+    identifiers = {row[0] for section in document['sections'] if section[0] == 'tasks'
+                   for block in section[1] if block[0] == 'actions' for row in block[1]}
+    for task in store.all():
+        if task['id'] not in identifiers or task['id'] in rows or task['status'] in ('done', 'cancelled'):
+            continue
+        # Selection reports actual work today; the archived date/revision is not a live plan.
+        occurrence = store.db.execute('SELECT * FROM task_occurrences WHERE task_id=? AND date=?',
+                                      (task['id'], day)).fetchone()
+        occurrence = dict(occurrence) if occurrence else {'id': occurrence_id(task['id'], day), 'status': task['status'], 'detail': ''}
+        if occurrence['status'] == 'cancelled':
+            continue
+        row = task_row(task, day, occurrence, 'reported')
+        row['actual'] = True
+        rows[task['id']] = row
+    return list(rows.values())
 
 
 def attention(store, today, offset=0, limit=7, calendar_reviews=()):

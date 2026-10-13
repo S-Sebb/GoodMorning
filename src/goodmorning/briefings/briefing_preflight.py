@@ -31,17 +31,18 @@ def initialize(runtime, job, previous=None):
     if (Path(runtime)/'inbox.sqlite').exists():
         from goodmorning.records.inbox_store import InboxStore
         from goodmorning.records.task_store import TaskStore
-        from goodmorning.records.routing import planned_day
+        from goodmorning.records.routing import feedback_day, planned_day
         inbox = InboxStore(runtime)
         try:
             if inbox.version == 1:
                 raise ValueError('migration_required: review and explicitly upgrade task storage before a new edition')
             if inbox.version == 2:
-                rows = planned_day(TaskStore(inbox), job['date'])
+                rows = (feedback_day if job['kind'] == 'gn' else planned_day)(TaskStore(inbox), job['date'])
                 if len(rows) > 200:
-                    raise ValueError('Planned occurrences exceed the feedback limit; review before generation')
+                    raise ValueError('Review tasks exceed the feedback limit; review before generation')
                 context['feedback_tasks'] = [{'id': r['occurrence_id'], 'task_id': r['id'], 'revision': r['revision'],
-                                             'text': r['title'], 'done': r['status'] == 'done'} for r in rows]
+                                             'text': r['title'], 'done': r['status'] == 'done',
+                                             **({'actual': True} if r.get('actual') else {})} for r in rows]
         finally:
             inbox.close()
     fields = []
@@ -57,19 +58,24 @@ def initialize(runtime, job, previous=None):
                        'options':[{'value':'today','label':'Continue today'},{'value':'stop','label':'Stop for now'}]})
     if job['kind'] == 'gn' and not context.get('feedback'):
         tasks = [t for t in context.get('feedback_tasks', context['daily']['tasks']) if not t['done']]
-        fields.extend([
-            {'key':'completed','title':'What did you fully complete?','type':'multiselect','required':True,
-             'minItems':1,'description':'Choose completed tasks, or “None yet.” Partial work stays open.',
-             'options':[{'value':'none','label':'None yet'}]+[{'value':t['id'],'label':t['text']} for t in tasks]},
-            {'key':'details','title':'Partial, blocked, changed or extra work','type':'string','required':True,
-             'custom':True,'options':[{'value':'No other updates','label':'No other updates'}],
-             'description':'Give actual details, or choose “No other updates.”'}])
+        if tasks:
+            fields.extend([
+                {'key':'completed','title':'What did you fully complete?','type':'multiselect','required':True,
+                 'minItems':1,'description':'Choose completed tasks, or “None yet.” Partial work stays open.',
+                 'options':[{'value':'none','label':'None yet'}]+[{'value':t['id'],'label':t['text']} for t in tasks]},
+                {'key':'details','title':'Partial, blocked, changed or extra work','type':'string','required':True,
+                 'custom':True,'options':[{'value':'No other updates','label':'No other updates'}],
+                 'description':'Give actual details, or choose “No other updates.”'}])
+        else:
+            fields.append({'key':'details','title':'What did you accomplish today?','type':'string','required':True,
+                           'custom':True,'options':[{'value':'No updates today','label':'No updates today'}],
+                           'description':'There are no saved tasks to check off for this review. Tell me about completed work, partial progress, or anything that got in the way.'})
     context['awaiting'] = bool(fields)
     for field in fields:
         for key in ('title','description'):
             if key in field:field[key]=ui.text(field[key],lang=selected)
         for option in field.get('options',[]):
-            if option['value'] in ('today','stop','none','No other updates'):option['label']=ui.text(option['label'],lang=selected)
+            if option['value'] in ('today','stop','none','No other updates','No updates today'):option['label']=ui.text(option['label'],lang=selected)
     revision = '_'+str(job['preflight_revision']) if job.get('preflight_revision') else ''
     context['form'] = {'id':'preflight_'+job['id']+revision,'title':ui.text('Before your briefing',lang=selected),'fields':fields} if fields else None
     write(context_path(runtime, job['id']), context)
@@ -92,8 +98,8 @@ def answer(runtime, job, value):
         context.update(awaiting=False,cancelled=True,browser_answer=value)
         write(target, context)
         return context
-    if job['kind'] == 'gn' and 'completed' in keys:
-        chosen, details = value['completed'], value['details']
+    if job['kind'] == 'gn' and 'details' in keys:
+        chosen, details = value.get('completed', ['none']), value['details']
         known = {t['id']:t for t in context.get('feedback_tasks', context['daily']['tasks']) if not t['done']}
         if not isinstance(chosen,list) or not chosen or any(not isinstance(x,str) for x in chosen) or len(set(chosen)) != len(chosen):
             raise ValueError('Select completed tasks or explicitly select None yet')
@@ -101,9 +107,11 @@ def answer(runtime, job, value):
             raise ValueError('Choose only listed task IDs; None yet cannot be combined with completions')
         if not isinstance(details,str) or len(details)>1800:
             raise ValueError('Progress details exceed their limit')
+        if not details.strip():
+            raise ValueError('Give actual details or choose the no-updates option')
         details = one_line(details)
         complete = [] if chosen == ['none'] else chosen
-        feedback = ['Completed: '+known[x]['text'] for x in complete] or ['No listed tasks were fully completed.']
+        feedback = ['Completed: '+known[x]['text'] for x in complete] or (['No listed tasks were fully completed.'] if 'completed' in keys else [])
         feedback.append('Other updates: '+details)
         # Store the exact explicit input before applying it, making uncertain retries recoverable.
         previous = context.get('browser_answer')

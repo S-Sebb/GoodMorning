@@ -10,8 +10,11 @@ Read `docs/core-rules.md`, `docs/item-taxonomy.md`, `docs/briefing-format.md` an
 Use selected absolute paths, actual session, pinned date and confirmed language.
 
 1. Browser jobs start with `job prepare`, then init. Browser preflight already asks
-   which of today's planned occurrences were fully completed and for partial,
-   blocked, changed or additional work. Reuse saved exact answers; never apply
+    which of today's planned occurrences or saved morning tasks were fully completed and for partial,
+    blocked, changed or additional work. With no choices, it asks about actual
+    accomplishments/progress instead of showing an empty checklist. Celebrate
+    confirmed accomplishments and make unfinished reviewed work visible without
+    implying every unchecked morning option was due today. Reuse saved exact answers; never apply
    completions again. Local invocations use `workflow --prepare gn` once and ask
    about actual work, not the entire undated project backlog. Handle setup,
    migration, duplicates and missing editions first. Do not save a waiting edition.

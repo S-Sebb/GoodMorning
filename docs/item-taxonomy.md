@@ -91,8 +91,14 @@ heading. Use `scripts/goodmorning.py` with the selected absolute runtime.
    Browser recipes use `--section schedule|tasks|attention|today`: return only that
    section's rows, `block`, counts and warnings, avoiding repeated whole-plan reads.
 9. Morning shows agreed work, deadlines and other open actions; evening reviews
-   actual outcomes and previews agreed work. Evening completion choices cover
-   today's planned occurrences, not every undated action shown in the morning.
+    actual outcomes and previews agreed work. Evening completion choices cover
+    today's planned occurrences plus still-open tasks in today's saved morning briefing.
+    Selecting an undated or differently dated morning task reports actual completion
+    today without assigning a workday or changing recurring rules. Archived titles,
+    revisions and statuses never override current task state. Unchecked choices stay
+    open, not assumed failed or overdue. If there are no choices, ask about actual
+    accomplishments/progress with a text answer or “No updates today”; omit the
+    completion checkbox question and “None yet.”
    Reuse browser feedback. Never infer progress or roll work into tomorrow.
    Say "still open on its original workday", not "carries/rolls over", unless a
    new date was explicitly agreed. Say "no other saved appointments", not a
