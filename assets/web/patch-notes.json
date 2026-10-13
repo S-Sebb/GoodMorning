@@ -1,6 +1,19 @@
 {
   "notes": [
     {
+      "version": "0.32.3", "date": "2026-10-13", "author": "GoodMorning agent",
+      "title_en": "Isolated browser regression coverage", "title_zh": "隔离浏览器回归测试覆盖",
+      "changes": [{"category": "Tests", "en": [
+        "Add browser checks through the real public gateway and a synthetic viewer, covering navigation icons, images, fonts and readable HTML error responses without production requests or model calls.",
+        "Update authentication fixtures to load the shared response reader and complete public asset registry.",
+        "Correct responsive-image, stacked-navigation, document-alignment and short-screen gesture assertions; verify actual overflow when checking scroll controls."
+      ], "zh": [
+        "新增经过真实公开网关与模拟查看器的浏览器检查，覆盖导航图标、图片、字体及清晰的 HTML 错误响应，不请求生产网站或调用模型。",
+        "更新身份验证测试环境，加载共用响应读取器和完整公开资源列表。",
+        "修正响应式图片、纵向导航、文档对齐与小屏触摸手势断言，并依据实际溢出情况检查滚动控件。"
+      ]}]
+    },
+    {
       "version": "0.32.2", "date": "2026-10-13", "author": "GoodMorning agent",
       "title_en": "Kinder past briefing empty state", "title_zh": "更温柔的过去简报空状态",
       "changes": [{"category": "Fixed", "en": [

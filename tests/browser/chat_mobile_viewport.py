@@ -45,8 +45,11 @@ def keyboard_viewport(page, height, top=0, scale=1):
 def swipe(page, client, direction):
     box = page.locator('#chat-scroll').bounding_box()
     # The centered "Jump to latest" button can cover a short message viewport.
-    x, y = box['x'] + 8, box['y'] + box['height'] / 2
-    distance = min(100, box['height'] / 3) * direction
+    x = box['x'] + 8
+    # Short keyboard-reduced viewports still need a gesture beyond Chromium's
+    # touch slop, with both endpoints inside the message area.
+    y = box['y'] + (6 if direction > 0 else box['height'] - 6)
+    distance = min(100, box['height'] - 12) * direction
     client.send('Input.dispatchTouchEvent', {'type': 'touchStart', 'touchPoints': [{'x': x, 'y': y}]})
     for step in range(1, 9):
         client.send('Input.dispatchTouchEvent', {'type': 'touchMove',

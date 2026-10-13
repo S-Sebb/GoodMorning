@@ -3,7 +3,6 @@ from copy import deepcopy
 import hashlib
 import json
 from pathlib import Path
-import re
 import subprocess
 import sys
 import tempfile
@@ -55,9 +54,20 @@ def main():
                 expect(page.locator('#section-1 img')).to_have_count(1)
                 expect(page.locator('#section-1 img')).to_have_attribute('src','/media/'+digest+'.webp')
                 page.locator('#section-1 img').scroll_into_view_if_needed()
-                expect(page.locator('#section-1 img')).to_have_js_property('naturalWidth',64)
+                # With width-descriptor srcset, naturalWidth is density-corrected
+                # for `sizes`, not necessarily the underlying 64-pixel bitmap.
+                selected=page.locator('#section-1 img')
+                expect(selected).to_have_js_property('complete',True)
+                assert selected.evaluate('img => img.naturalWidth > 0')
+                dimensions=page.evaluate('''async src => {
+                    const image=new Image(); image.src=src; await image.decode();
+                    return [image.naturalWidth,image.naturalHeight];
+                }''',selected.evaluate('img => img.currentSrc'))
+                assert dimensions==[64,48], dimensions
                 assert page.evaluate('savedNewsNode===document.querySelector("#section-1") && savedNewsText===savedNewsNode.querySelector(".news-copy").innerText')
-                expect(page.locator('#section-1')).not_to_have_class(re.compile(r'\barriving\b'))
+                # Arrival classes can persist; reduced motion must disable their
+                # animation, and the image-only update must preserve the section.
+                assert page.locator('#section-1').evaluate('el => getComputedStyle(el).animationName')=='none'
                 expect(page.locator('#section-2')).to_have_attribute('data-pending','true')
                 assert before==(runtime/'browser-jobs'/(job['id']+'.preview.json')).read_bytes()
                 assert not list((runtime/'daily').iterdir()) and not errors

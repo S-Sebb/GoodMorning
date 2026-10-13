@@ -153,7 +153,15 @@ def check_chat(browser, address, artifacts, width, height):
     # Growing or clearing the history updates scrollability without stale handles.
     status['messages'] = []
     page.evaluate('pollChat()')
-    expect(inner).to_be_hidden()
+    expect(page.locator('.chat-message')).to_have_count(0)
+    page.clock.run_for(100)  # Deliver the resize observer and its animation frame.
+    metrics=scroll.evaluate('node => ({top:node.scrollTop, maximum:node.scrollHeight-node.clientHeight})')
+    if metrics['maximum'] <= 1:
+        expect(inner).to_be_hidden()
+    else:
+        # The welcome panel can overflow a short screen even without messages.
+        expect(inner).to_be_visible()
+        expect(inner).to_have_attribute('aria-valuenow',str(round(metrics['top']/metrics['maximum']*100)))
     page.set_viewport_size({'width': 1200, 'height': 900})
     expect(outer).to_be_hidden()
     expect(page.locator('html')).not_to_have_class('scroll-rails-ready')

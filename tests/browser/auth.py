@@ -23,7 +23,7 @@ def main():
             page.on('pageerror', lambda error: errors.append(str(error)))
             def route(request):
                 path = urlsplit(request.request.url).path
-                if path in ('/auth.js', '/auth.css'):
+                if path in ('/auth.js', '/auth.css', '/network.js'):
                     request.fulfill(body=(ASSETS / path.lstrip('/')).read_bytes(),
                                     content_type='text/javascript' if path.endswith('js') else 'text/css')
                 elif path == '/api/auth/login' or path == '/api/auth/password':
@@ -32,7 +32,9 @@ def main():
                 else:
                     session = {'csrf': 'a' * 64}
                     if path == '/password': session.update(user_id='synthetic', temporary=True)
-                    request.fulfill(body=account_page(session, 'Sign in' if path != '/password' else 'Change password'), content_type='text/html')
+                    markup=account_page(session, 'Sign in' if path != '/password' else 'Change password').decode()
+                    markup=markup.replace('<head>','<head><script src="/network.js" defer></script>',1)
+                    request.fulfill(body=markup, content_type='text/html')
             page.route('https://gm.example.test/**', route)
             page.goto('https://gm.example.test/login')
             password = page.get_by_label('Password', exact=True)
