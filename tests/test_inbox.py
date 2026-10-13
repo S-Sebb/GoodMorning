@@ -90,7 +90,7 @@ class InboxTests(InboxFixture):
     def test_followup_capture_without_reading_or_revision_check(self):
         store = self.store()
         identifier = self.add(store)["id"]
-        store.mutate("update", {"status": "done"}, "ses-test", "close", NOW, identifier, 1)
+        store.mutate("update", {"status": "done", "confirmed_completion": True}, "ses-test", "close", NOW, identifier, 1)
         receipt = store.mutate("append", {"detail": "Also buy bread."},
                                "ses-test", "followup", NOW, identifier)
         self.assertEqual(receipt["revision"], 3)
@@ -139,7 +139,7 @@ class InboxTests(InboxFixture):
         for number in range(15):
             identifier = self.add(store, key=str(number), project="Demo" if number % 2 else "Other")["id"]
             ids.append(identifier)
-        store.mutate("update", {"status": "done"}, "ses-test", "complete", NOW, ids[0], 1)
+        store.mutate("update", {"status": "done", "confirmed_completion": True}, "ses-test", "complete", NOW, ids[0], 1)
         first = store.list(limit=7)
         second = store.list(after=first["next_after"], limit=7)
         self.assertEqual([x["id"] for x in first["items"] + second["items"]], ids[1:])

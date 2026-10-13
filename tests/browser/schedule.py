@@ -12,12 +12,14 @@ import tempfile
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from support import TEMP_ROOT, returning_viewer
-from test_weekly_schedule import make_runtime, start_server
+from test_weekly_schedule import make_runtime, start_server, canonical_records
+from goodmorning.records.inbox_store import InboxStore
+from goodmorning.records.task_store import TaskStore
 from goodmorning.calendar.calendar_store import CalendarStore
 from goodmorning.web.briefing_server import serve_live
 
 
-def check(app, url, shots):
+def check(app, url, shots, canonical=False):
     from playwright.sync_api import expect, sync_playwright
     with sync_playwright() as playwright:
         browser = playwright.chromium.launch()
@@ -31,6 +33,14 @@ def check(app, url, shots):
         expect(page.locator('#schedule-refresh')).to_be_enabled()
         assert page.locator('#schedule-refresh svg').bounding_box()['width'] == 18
         expect(page.locator('.schedule-info-panel')).to_be_hidden()
+        if canonical:
+            expect(page.locator('.schedule-event.is-tbc')).to_have_count(1)
+            expect(page.locator('.schedule-event.is-tbc')).to_contain_text('TBC')
+            expect(page.locator('.task-project').first).to_contain_text('Atlas')
+            expect(page.locator('.task-deadline')).to_contain_text('Due: 2026-10-16')
+            expect(page.locator('.schedule-task.is-partial')).to_contain_text('First baseline compared.')
+            expect(page.locator('.schedule-task.is-blocked')).to_contain_text('Awaiting lab approval.')
+            expect(page.get_by_text('Deadline only, not a workday', exact=True)).to_have_count(0)
         expect(page.get_by_label('Schedule details', exact=True)).to_have_accessible_description('Calendar review: 1 pending')
         # Routine metadata has one home, without competing with the calendar.
         visible_text = page.locator('main').inner_text()
@@ -58,8 +68,17 @@ def check(app, url, shots):
         expect(page.locator('.schedule-event').first).to_have_attribute('open', '')
         expanded_work_top = aligned_work()
         assert expanded_work_top > initial_work_top, (initial_work_top, expanded_work_top)
-        daily = app.runtime / 'daily/2026-10-13.md'
-        daily.write_text(daily.read_text().replace('[ ] Pick up', '[x] Pick up'))
+        if canonical:
+            inbox = InboxStore(app.runtime, write=True)
+            try:
+                store = TaskStore(inbox)
+                parcel = next(t for t in store.all() if t['title'] == 'Pick up a parcel')
+                store.mutate(parcel['id'], parcel['revision'], {'status':'done', 'confirmed_completion':True}, 'ses_synthetic', 'parcel-done', app.now().isoformat())
+            finally:
+                inbox.close()
+        else:
+            daily = app.runtime / 'daily/2026-10-13.md'
+            daily.write_text(daily.read_text().replace('[ ] Pick up', '[x] Pick up'))
         page.locator('#schedule-refresh').click()
         expect(page.locator('.schedule-task.is-done')).to_have_count(2)
         expect(page.locator('.schedule-event').first).to_have_attribute('open', '')
@@ -87,6 +106,9 @@ def check(app, url, shots):
         page.locator('#prefs-menu summary').click()
         page.locator('#schedule-refresh').click()
         expect(page.locator('#schedule-status')).to_contain_text('已检查')
+        if canonical:
+            expect(page.locator('.schedule-event.is-tbc')).to_contain_text('时间待确认')
+            expect(page.locator('.task-progress').first).to_contain_text('部分完成')
         page.set_viewport_size({'width': 820, 'height': 1180})
         expect(page.locator('.schedule-grid')).to_have_css('grid-template-columns', re.compile(r'^[\d.]+px [\d.]+px$'))
         assert not page.evaluate('document.documentElement.scrollWidth > innerWidth')
@@ -179,18 +201,21 @@ def main():
     parser.add_argument('--screenshots', type=Path)
     parser.add_argument('--preview', action='store_true')
     parser.add_argument('--port', type=int, default=18791)
+    parser.add_argument('--canonical', action='store_true', help='Check task-store v2, occurrence reports and TBC drafts')
     args = parser.parse_args()
     if args.screenshots:
         args.screenshots.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(dir=TEMP_ROOT) as temporary:
         app = make_runtime(Path(temporary))
+        if args.canonical:
+            canonical_records(app.runtime)
         returning_viewer(app.runtime)
         if args.preview:
             serve_live(app, args.port)
         else:
             server = start_server(app)
             try:
-                check(app, f'http://127.0.0.1:{server.server_port}', args.screenshots)
+                check(app, f'http://127.0.0.1:{server.server_port}', args.screenshots, args.canonical)
                 print('Weekly schedule browser checks passed (desktop, mobile, Chinese, refresh, bounds, no JavaScript).')
             finally:
                 server.shutdown()

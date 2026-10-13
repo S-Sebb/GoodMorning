@@ -53,7 +53,10 @@ replies, `docs/reply-voice.md`: personable useful content, no routine bookkeepin
    `state --rebuild --json`, using `python scripts/goodmorning.py COMMAND`.
     Use SQLite storage per `docs/inbox-pipeline.md`.
     Never overwrite existing records or create Markdown schedules, tasks/completions,
-   gm/gn marks, or a news report store during setup. Keep setup resumable.
+    gm/gn marks, or a news report store during setup. Keep setup resumable.
+    For existing v1 storage, review read-only `task --migrate` with the owner.
+    Obtain explicit upgrade consent before `task --migrate --confirm`; preserve
+    preferences/history and never silently upgrade or reset existing records.
 6. After explicit verification consent, use `python scripts/goodmorning.py setup --secretary-dir RUNTIME
    --verify SELECTED_CHECKS --budget 20` once. Inspect statuses, country counts and
    warnings, not just exit codes. Selected checks share one elapsed deadline;
@@ -68,12 +71,11 @@ replies, `docs/reply-voice.md`: personable useful content, no routine bookkeepin
 
 ## Normal work
 
-The website's Schedule tab is a live read-only view of approved calendar events
-and dated daily checklists. When the user asks to schedule untimed work for an
-explicit date, use the hash-checked `daily` helper to save that day's task, keeping
-its inbox reference where applicable. Do not assign dates to raw captures or
-move unfinished tasks without authorization. See `docs/weekly-schedule.md` for
-the display, content sources, and update contract.
+The website's Schedule tab reads approved events and canonical task occurrences.
+Follow `docs/item-taxonomy.md`: save tasks through `task`, with `planned_date` only
+when supplied/agreed. Deadline-only and undated work does not reserve a day. Save
+incomplete appointments as event drafts. Do not move unfinished work or adopt
+ideas without authorization. Daily Markdown is history, not live task storage.
 
 1. For local use, rename to `Secretary SUMMARY` in `secretary_language`, per the
    shared title rule (simple summary, no date). Browser chats keep the native

@@ -21,10 +21,11 @@ last_update: ""
 
 <!-- Record completed work, active work, and blockers; do not invent progress. -->
 
-## TODO
+## Task references
 
-<!-- One task per bullet: - [ ] Task | priority | estimated time | deadline
-Leave uncertain estimates or deadlines unspecified and ask when needed. -->
+<!-- Link authorized canonical task IDs with their purpose or milestone.
+Use the task helper for current timing/status. Do not maintain another checkbox
+completion list here or turn proposed project prose into work without adoption. -->
 
 ## Deadlines
 
@@ -37,7 +38,9 @@ Likely scheduled events also require confirmation before adding to SQLite. -->
 - Record confirmed ideas and reported progress here. Update work project files
   when authorized so other agents see the same plan; preserve unrelated work.
 - Keep unconfirmed ideas and project updates in the configured runtime's
-  `inbox.md`, not in the confirmed plan. Save raw reports immediately, before
+   `inbox.sqlite`, not in the confirmed plan. Canonical actions and completion use
+   `task` helpers; this record keeps goals, reports and authorized task references,
+   not a second independently completed checklist. Save raw reports immediately, before
   clarification; retain unresolved questions for gm/gn/secretary follow-up.
 - Resolve ambiguous changes before applying them here. Update `last_update` after edits.
 - Use the confirmed `registry_alias` with `scripts/projects.mjs`; the private

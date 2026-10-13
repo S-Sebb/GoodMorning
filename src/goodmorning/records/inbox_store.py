@@ -20,8 +20,8 @@ from goodmorning.calendar.calendar_safety import safe_text
 from goodmorning.runtime_files import profile_fields, runtime_lock
 
 NAME = "inbox.sqlite"
-VERSION = 1
-KINDS = ("idea", "todo", "project_update")
+VERSION = 2
+KINDS = ("idea", "todo", "project_update", "event_proposal")
 STATUSES = ("pending", "confirmed", "done")
 ACTIVE = "(status='pending' OR needs_review=1)"
 META = "seq,id,revision,kind,status,project,created_at,updated_at,summary,needs_review"
@@ -42,9 +42,9 @@ def check_text(value, maximum, field, empty=True):
 def validate(payload, action):
     if not isinstance(payload, dict):
         raise ValueError("invalid_input: expected a JSON object")
-    allowed = {"kind", "raw", "summary", "context", "questions", "project"} if action == "add" else (
+    allowed = {"kind", "raw", "summary", "context", "questions", "project", "task", "draft", "review_after"} if action == "add" else (
         {"detail"} if action == "append" else
-        {"kind", "summary", "context", "questions", "project", "status", "reviewed"})
+        {"kind", "summary", "context", "questions", "project", "status", "reviewed", "review_after", "confirmed_completion"})
     if not payload or set(payload) - allowed:
         raise ValueError("invalid_input: empty payload or unsupported fields")
     if action == "add" and not {"kind", "raw"} <= set(payload):
@@ -61,6 +61,19 @@ def validate(payload, action):
         raise ValueError("invalid_input: unknown status")
     if "reviewed" in payload and type(payload["reviewed"]) is not bool:
         raise ValueError("invalid_input: reviewed must be a boolean")
+    from .task_store import date, validate as validate_task
+    if 'review_after' in payload:
+        check_text(payload['review_after'], 10, 'review_after')
+        if payload['review_after']:
+            date(payload['review_after'])
+    if 'task' in payload:
+        if payload.get('kind') != 'todo':
+            raise ValueError('invalid_input: only TODO capture accepts task fields')
+        validate_task(payload['task'])
+    if 'draft' in payload:
+        if payload.get('kind') != 'event_proposal':
+            raise ValueError('invalid_input: only event proposals accept draft fields')
+        validate_task(payload['draft'], draft=True)
     if "questions" in payload:
         questions = payload["questions"]
         if not isinstance(questions, list) or len(questions) > 12:
@@ -82,17 +95,18 @@ def stamp(directory):
 def create_schema(path):
     db = sqlite3.connect(path, timeout=0)
     try:
-        db.executescript("""
+        schema = """
             BEGIN IMMEDIATE;
             CREATE TABLE entries (
                 seq INTEGER PRIMARY KEY AUTOINCREMENT, id TEXT UNIQUE NOT NULL,
                 revision INTEGER NOT NULL CHECK(revision>0),
-                kind TEXT NOT NULL CHECK(kind IN ('idea','todo','project_update')),
+                 kind TEXT NOT NULL CHECK(kind IN ('idea','todo','project_update','event_proposal')),
                 status TEXT NOT NULL CHECK(status IN ('pending','confirmed','done')),
                 project TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL,
                 raw TEXT NOT NULL, summary TEXT NOT NULL, context TEXT NOT NULL,
                 questions TEXT NOT NULL, needs_review INTEGER NOT NULL DEFAULT 0,
-                reviewed_event INTEGER NOT NULL DEFAULT 0);
+                 reviewed_event INTEGER NOT NULL DEFAULT 0,
+                 review_after TEXT NOT NULL DEFAULT '');
             CREATE INDEX active_entries ON entries(status,seq);
             CREATE INDEX review_entries ON entries(needs_review,seq);
             CREATE INDEX project_entries ON entries(project,seq);
@@ -103,9 +117,9 @@ def create_schema(path):
                 detail TEXT NOT NULL, changes TEXT NOT NULL,
                 request_key TEXT UNIQUE NOT NULL, fingerprint TEXT NOT NULL, receipt TEXT NOT NULL);
             CREATE INDEX entry_events ON events(entry_id,seq);
-            PRAGMA user_version=1;
-            COMMIT;
-        """)
+         """
+        from .task_store import SCHEMA
+        db.executescript(schema + SCHEMA + 'PRAGMA user_version=2;COMMIT;')
     finally:
         db.close()
 
@@ -135,10 +149,22 @@ class InboxStore:
         self.db.row_factory = sqlite3.Row
         try:
             self.db.execute("PRAGMA foreign_keys=ON")
-            version = self.db.execute("PRAGMA user_version").fetchone()[0]
+            version = self.version = self.db.execute("PRAGMA user_version").fetchone()[0]
             tables = {r[0] for r in self.db.execute("SELECT name FROM sqlite_master WHERE type='table'")}
-            if version != VERSION or not {"entries", "events"} <= tables:
+            if version not in (1, VERSION) or not {"entries", "events"} <= tables:
                 raise ValueError("unsupported_schema: preserve inbox database and check the installed version")
+            if version == 2 and not {'tasks', 'task_occurrences', 'task_events', 'event_drafts'} <= tables:
+                raise ValueError('unsupported_schema: incomplete task schema; preserve the database')
+            if write and version == 1:
+                raise ValueError('migration_required: review task --migrate, then explicitly upgrade with --confirm')
+            self.status_sql = """(CASE WHEN kind='todo' AND EXISTS(SELECT 1 FROM tasks WHERE source_entry_id=entries.id)
+                THEN CASE WHEN EXISTS(SELECT 1 FROM tasks WHERE source_entry_id=entries.id
+                    AND json_extract(data,'$.status') IN ('open','partial','blocked')) THEN 'pending'
+                WHEN EXISTS(SELECT 1 FROM tasks WHERE source_entry_id=entries.id
+                    AND json_extract(data,'$.status')='done') THEN 'done' ELSE 'confirmed' END
+                ELSE status END)""" if version == 2 else 'status'
+            self.meta_sql = META.replace('status,', self.status_sql + ' AS status,')
+            self.active_sql = '(' + self.status_sql + "='pending' OR needs_review=1)"
         except Exception:
             self.close()
             raise
@@ -157,17 +183,17 @@ class InboxStore:
             raise
 
     def stats(self):
-        row = self.db.execute(f"SELECT COUNT(*) total,COALESCE(SUM({ACTIVE}),0) pending,"
-                              f"MIN(CASE WHEN {ACTIVE} THEN substr(created_at,1,10) END) oldest FROM entries").fetchone()
+        row = self.db.execute(f"SELECT COUNT(*) total,COALESCE(SUM({self.active_sql}),0) pending,"
+                              f"MIN(CASE WHEN {self.active_sql} THEN substr(created_at,1,10) END) oldest FROM entries").fetchone()
         return {"pending": row["pending"], "oldest_pending_date": row["oldest"], "total": row["total"]}
 
     @read_snapshot
     def list(self, status="active", kind=None, project=None, after=0, limit=7, budget=8000, search=None):
         conditions, params = [], []
         if status == "active":
-            conditions.append(ACTIVE)
+            conditions.append(self.active_sql)
         elif status != "all":
-            conditions.append("status=?")
+            conditions.append(self.status_sql + "=?")
             params.append(status)
         for field, value in (("kind", kind), ("project", project)):
             if value is not None:
@@ -180,7 +206,7 @@ class InboxStore:
             params.extend([literal] * 3)
         where = " AND ".join(conditions) or "1"
         total = self.db.execute("SELECT COUNT(*) FROM entries WHERE " + where, params).fetchone()[0]
-        rows = self.db.execute(f"SELECT {META},questions,length(context) context_chars,length(raw) raw_chars "
+        rows = self.db.execute(f"SELECT {self.meta_sql},questions,length(context) context_chars,length(raw) raw_chars "
                                f"FROM entries WHERE {where} AND seq>? ORDER BY seq LIMIT ?",
                                [*params, after, limit + 1]).fetchall()
         items, size = [], 256
@@ -200,7 +226,8 @@ class InboxStore:
 
     @read_snapshot
     def show(self, identifier):
-        row = self.db.execute(f"SELECT {META},context,questions,length(raw) raw_chars,reviewed_event "
+        review = ',review_after' if self.version == 2 else ''
+        row = self.db.execute(f"SELECT {self.meta_sql},context,questions,length(raw) raw_chars,reviewed_event{review} "
                                "FROM entries WHERE id=?", (identifier,)).fetchone()
         if row is None:
             raise ValueError("not_found: inbox ID does not exist")
@@ -210,6 +237,8 @@ class InboxStore:
         item["unreviewed_details"] = self.db.execute(
             "SELECT COUNT(*) FROM events WHERE entry_id=? AND action='append' AND seq>?",
             (identifier, item["reviewed_event"])).fetchone()[0]
+        if self.version == 2:
+            item['task_ids'] = [r[0] for r in self.db.execute('SELECT id FROM tasks WHERE source_entry_id=?', (identifier,))]
         return item
 
     @read_snapshot
@@ -239,6 +268,8 @@ class InboxStore:
         check_text(request_key, 240, "request_key", False)
         digest = hashlib.sha256(encode([action, identifier, revision, payload, session]).encode()).hexdigest()
         with self.transaction():
+            if self.db.execute('SELECT 1 FROM task_events WHERE request_key=?', (request_key,)).fetchone():
+                raise ValueError('request_conflict: request key belongs to a task operation')
             previous = self.db.execute("SELECT fingerprint,receipt FROM events WHERE request_key=?",
                                        (request_key,)).fetchone()
             if previous:
@@ -253,8 +284,13 @@ class InboxStore:
                                 "raw,summary,context,questions) VALUES (?,?,?,?,?,?,?,?,?,?,?)",
                                 (identifier, revision, payload["kind"], "pending", payload.get("project", ""),
                                  now, now, payload["raw"], summary, payload.get("context", ""),
-                                 encode(payload.get("questions", []))))
+                                  encode(payload.get("questions", []))))
+                if 'review_after' in payload:
+                    self.db.execute('UPDATE entries SET review_after=? WHERE id=?', (payload['review_after'], identifier))
+                from .task_store import capture
+                linked = capture(self.db, identifier, payload, now)
             else:
+                linked = {}
                 current = self.show(identifier)
                 if action == "update" and revision != current["revision"]:
                     raise ValueError("write_conflict: revision changed; show the entry and reconcile")
@@ -264,17 +300,33 @@ class InboxStore:
                                     (revision, now, identifier))
                 else:
                     reviewed = payload.get("reviewed", False)
+                    if payload.get('kind') == 'todo' and current['kind'] != 'todo':
+                        raise ValueError('organization_required: use task --adopt to create source-linked actions')
+                    if current['kind'] == 'todo' and payload.get('kind', 'todo') != 'todo':
+                        from .task_store import TaskStore
+                        if any(TaskStore(self).show(task_id)['status'] not in ('done', 'cancelled') for task_id in current['task_ids']):
+                            raise ValueError('organization_required: resolve live actions before reclassifying their capture')
                     if current["needs_review"] and payload.get("status", "pending") != "pending" and not reviewed:
                         raise ValueError("unreviewed_details: incorporate saved follow-ups before closing")
+                    if current['kind'] == 'todo' and payload.get('status') == 'done':
+                        if payload.get('confirmed_completion') is not True or len(current['task_ids']) != 1:
+                            raise ValueError('confirmation_required: complete exact task IDs with confirmed_completion')
+                        from .task_store import TaskStore
+                        task = TaskStore(self).show(current['task_ids'][0])
+                        if task['repeat']:
+                            raise ValueError('occurrence_required: use task --report for one recurring day')
+                        data = {k: v for k, v in task.items() if k not in ('id', 'source_entry_id', 'revision', 'created_at', 'updated_at')}
+                        data['status'] = 'done'
+                        self.db.execute('UPDATE tasks SET revision=revision+1,updated_at=?,data=? WHERE id=?', (now, encode(data), task['id']))
                     updates = {k: encode(v) if k == "questions" else v
-                               for k, v in payload.items() if k != "reviewed"}
+                               for k, v in payload.items() if k not in ('reviewed', 'confirmed_completion')}
                     updates.update(revision=revision, updated_at=now)
                     if reviewed:
                         updates.update(needs_review=0, reviewed_event=self.db.execute(
                             "SELECT COALESCE(MAX(seq),0) FROM events WHERE entry_id=?", (identifier,)).fetchone()[0])
                     self.db.execute("UPDATE entries SET " + ",".join(k + "=?" for k in updates) + " WHERE id=?",
                                     [*updates.values(), identifier])
-            receipt = {"saved": True, "id": identifier, "revision": revision, "action": action}
+            receipt = {"saved": True, "id": identifier, "revision": revision, "action": action, **linked}
             event = self.db.execute("INSERT INTO events (entry_id,revision,action,created_at,session,detail,"
                                     "changes,request_key,fingerprint,receipt) VALUES (?,?,?,?,?,?,?,?,?,?)",
                                     (identifier, revision, action, now, session, payload.get("detail", ""),
@@ -300,4 +352,3 @@ def initialize(directory):
             path.unlink()
             raise
     return {"initialized": True}
-

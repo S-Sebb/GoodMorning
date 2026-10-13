@@ -1,5 +1,12 @@
 # Inbox: durable memory, not a transcript
 
+Schema v2 also owns canonical `tasks`, `task_occurrences`, `task_events` and
+`event_drafts`. Follow `docs/item-taxonomy.md`. Capture-review state in `entries`
+is not independently writable task completion. Use `task` for exact live task
+status/timing; raw TODO capture creates its task atomically. Clear ideas do not
+automatically become clarification tasks. Existing v1 stores require an explicitly
+approved `task --migrate` upgrade; reads never perform one.
+
 Use `scripts/goodmorning.py inbox` from the package root with absolute `--secretary-dir RUNTIME`.
 All commands return compact JSON. `inbox.sqlite` is the source of truth; never
 read it directly, dump it, or edit it with SQL. No Markdown inbox is supported.
@@ -78,7 +85,7 @@ python scripts/goodmorning.py inbox --secretary-dir RUNTIME --add --session NAME
   --input-json '{"kind":"todo","raw":"Buy milk","summary":"Buy milk"}'
 ```
 
-`kind` is `idea`, `todo` or `project_update`. `raw` is the user's exact wording,
+`kind` is `idea`, `todo`, `project_update` or `event_proposal`. `raw` is the user's exact wording,
 including multiline text; JSON preserves quotes and pipes. Optional fields are
 `summary` (280 characters), `context` (6,000), `questions` (up to 12, combined
 2,200), and `project` (confirmed alias only). Omit unknown fields rather than guess.
@@ -117,8 +124,10 @@ counts. Rebuild after daily/project edits as those workflows require.
 
 Save receipts include `saved`, ID, revision and event ID—not previous messages.
 Successful exit and receipt verify the transaction; do not reread the whole inbox.
-`confirmed` means authorized organization succeeded; `done` on a TODO requires
-user-confirmed completion. Pending input never authorizes plan/calendar changes.
+`confirmed` means authorized organization succeeded. Live task completion uses
+the revision-checked task helper and actual user confirmation; compatibility
+`inbox --update status:done` requires `confirmed_completion:true` and exactly one
+nonrecurring linked task. Pending input never authorizes plan/calendar changes.
 Only separately requested work permits executing a captured task.
 
 ## Setup and recovery (only when authorized)

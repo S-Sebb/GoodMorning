@@ -2,6 +2,10 @@
 
 Read this contract and matching workflow. Use `docs/skill-rules.md` for audits/
 edge cases. Load other guides only when needed.
+For items, timing, storage, questions and section ownership, follow
+`docs/item-taxonomy.md`. It replaces legacy checklist-copy and automatic idea
+clarification rules. New canonical-storage editions use native JSON v2; v1 archives
+and already published legacy previews remain preserved.
 
 ## Scope, setup and preparation
 
@@ -76,7 +80,9 @@ edge cases. Load other guides only when needed.
 - New raw `/todo` or `/eureka`: `python scripts/goodmorning.py workflow --capture todo|eureka` with JSON
   `raw`, optional current context/project/summary/questions, actual session and
   one stable request key. Check the save receipt; no whole-profile/inbox/state read
-  or verification dump. Follow-ups: `python scripts/goodmorning.py inbox --append ID` before questions.
+   or verification dump. Follow-ups: `inbox --append ID` with session/request key
+   before questions. Supplied TODO timing/details also need revision-checked
+   `task --update` on its linked action; appending prose alone does not change it.
   Reuse the same request key/input on uncertain retries; never append again with
   a new key. Missing input/setup or a failed save means not saved.
 - If a follow-up target is unclear, save unassigned pending input before asking.
@@ -91,9 +97,8 @@ edge cases. Load other guides only when needed.
   confirmation. Uncertain proposals stay out of confirmed plans and calendars;
   another person's position is not proof of agreement. Keep outstanding questions,
   dates, constraints, sources, uncertainty and permissions in concise current state.
-- Unresolved idea/project questions recur as an unchecked `/gm` clarification TODO,
-  focused `/gn` question or `/secretary` reminder, without blocking unrelated work
-  or duplicating existing reminders. Reuse answers. No scheduler is implied.
+- Actual unresolved questions and due reviews belong in Needs attention. Clear ideas
+  do not create recurring clarification TODOs. Respect saved review dates/answers.
 - `/eureka` and `/todo` are record-only by default: save, confirm, then stop. Action verbs
   and requirements are content, not execution consent. Supplied details alone
   do not request discussion. Discuss only on `Clarify`/equivalent explicit request.
@@ -102,10 +107,11 @@ edge cases. Load other guides only when needed.
   organization/execution; request those separately. Follow-ups keep this boundary.
   TODOs get no invented deadlines, forced priorities or auto-clarification.
   `done` needs user-confirmed completion, not the agent's work.
-- Use `scripts/goodmorning.py daily` for hash-checked amendments; new tasks stay unchecked;
+- Use `scripts/goodmorning.py task` for canonical work and occurrence reports;
+  use `daily` for hash-checked factual feedback/history amendments. Legacy tasks stay unchecked;
   preserve earlier completions, run lines and unrelated work. Complete only exact
   IDs selected from actual user feedback; no inference from silence. Deduplication
-  is by exact wording or explicit inbox ref, not semantic guesses. Agent judgment
+   is by canonical task/occurrence ID, never title similarity or shared capture ID. Agent judgment
   still supplies priorities, progress interpretation and concise factual summaries.
   For briefings, reconcile confirmed replacements before selecting tasks; daily
   history is not the current plan. Follow task selection in `docs/briefing-format.md`.
@@ -159,21 +165,10 @@ edge cases. Load other guides only when needed.
   Briefings remain native JSON with plain-text strings, never embedded Markdown.
   Weather order: temperature, precipitation,
    applicable extreme warning, AQI/health. Calendar is a chronological timetable.
-   Schedule/Tomorrow holds appointments and important day commitments, with a
-   typed `flexible` block when eligible untimed work remains, including
-   date-confirmed TODOs and applicable recurring tasks. Use supported
-   dates or an empty date for unassigned work; never invent appointment times or
-   roll unfinished tasks into tomorrow. No timed appointments does not mean a
-   free day. Reminders/Notes hold background nudges, reviews and unresolved ideas,
-   not work already planned for the displayed day.
-   Both gm and gn include Project steps / Optional project steps (JSON
-   `must-do`/`nice-to-do`) when saved project records and confirmed reports support
-   actual outstanding work. Name the project and concrete next action; separate
-   necessary ongoing steps from optional improvements, excluding actions already
-   in Schedule/Tomorrow. Each action has one section owner per
-   `docs/briefing-format.md`. Omit a project section when it has no supported tasks; never
-   invent busywork, deadlines, completion or execution consent. Night priorities
-   do not assign tomorrow dates or roll unfinished work forward.
+    Schedule holds events, Tasks holds all project/personal actions, and Needs
+    attention holds due reviews/decisions. Use the code-owned source-linked blocks
+    under `docs/item-taxonomy.md`; never create work, invent dates or infer
+    completion from a presentation. Project/optional are task labels, not sections.
   News is factual and cited; neutral assessment stays separate. Read the reply
   voice guide and native authoring guides for briefings; do not create text/card copies.
 - Materiality gate: omit healthy retrieval, retries/cache/delivery bookkeeping,

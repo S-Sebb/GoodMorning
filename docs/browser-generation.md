@@ -11,6 +11,9 @@ including questions, titles and the document's `lang`. It overrides the local
 profile's reply language. Never ask for another language during initialization.
 Changing the interface language does not restart or translate an active edition;
 it affects future requests. Preserve all earlier published and saved content.
+If preparation reports `migration_required`, use Secretary to review
+`task --migrate` and obtain explicit backed-up upgrade consent; do not reset the
+runtime or repeatedly press generation. Profile setup stays saved.
 
 The page offers explicit recovery controls. “Prepare again” reopens an
 undispatched preflight after “Stop for now”. “Refresh task list” preserves the
@@ -31,9 +34,9 @@ edition's run marker before saving, and refuses unrelated changes. Final-save
 retries accept only this job's exact completed document. No `--force` is needed.
 Saved `/gn` feedback is reused without completing tasks or appending it again;
 uncertain feedback saves must reconcile first. New feedback is collected only
-when none was saved. Existing checklist tasks, completions, other edition's run,
-news delivery records and preferences are never reset. A regenerated `/gm` adds
-new exact-title tasks through the normal merge; it does not remove old tasks.
+when none was saved. Tasks, completions, other edition's run, news delivery records
+and preferences are never reset. A regenerated v2 edition changes only its
+presentation, never the task plan.
 Regeneration authorizes a new presentation and the helper's final save only,
 not replaying daily/inbox/project/calendar mutations or earlier execution consent.
 Use current records for progress and reuse saved feedback without reapplying it.
@@ -100,15 +103,11 @@ Repair only the new input. Never alter published sections to resolve a failure.
    weather/news/schedule retrieval must appear as material unavailability, not an
    empty section. Required sections cannot be skipped.
 4. After all positions resolve, `finish`: `{"closing":"…"}` or `{}`. Code checks
-   the owning session, pinned date, edition and exact preview; synchronizes visible
-    gm task titles into the daily checklist; then saves JSON and the run marker.
-    Flexible rows dated today join the checklist without invented priority;
-    future/undated rows do not become today's tasks. Exact-title duplicates keep
-    existing completion and stored checklist classification. Stored groups do not
-    determine the section that owns an action in the current briefing.
-   New tasks are unchecked; existing completions and unrelated work are preserved.
-   Project steps / Optional project steps use typed `tasks` blocks under the
-   stable `must-do`/`nice-to-do` types, never hidden in prose/lists.
+   the owning session, pinned date, edition and exact preview; saves JSON and the
+   run marker. Canonical v2 publication never copies tasks into daily checklists.
+   Use code-owned source-linked blocks under `docs/item-taxonomy.md`. Preserve
+   existing completions and unrelated work. Old already-published v1 previews can
+   finish under their saved contract; do not use them for new canonical plans.
    The model may still make authorized project/daily amendments for other records.
 
 Example invocation (use the same flags for every action):
@@ -119,20 +118,12 @@ python scripts/goodmorning.py job --secretary-dir RUNTIME --job JOB publish <<'J
 JSON
 ```
 
-Typical order: gm Weather, yesterday's News, opted-in dated latest News, Schedule,
-Project steps, Optional project steps, material Reminders. gn Today, Still open,
-Tomorrow, Project steps, Optional project steps, material Notes.
-Both editions reserve optional project sections:
-review relevant saved project records and confirmed reports, publish typed `tasks`
-for actual outstanding project work, and skip either priority section if there are
-no supported tasks for it. Name each project and concrete next action; distinguish
-necessary ongoing steps from optional improvements, preserving explicit
-priorities. Do not invent work, deadlines or progress, access live projects against
-policy, or treat a priority as execution consent. Night priorities do not reschedule
-unfinished work or create tomorrow tasks; retain only supported/agreed dates.
-Scheduled actions never repeat in project sections. Apply the task selection and
-section ownership contract in `docs/briefing-format.md` before Schedule/Tomorrow
-becomes immutable; reuse those reconciled choices for later sections.
+Canonical order: gm Schedule, Tasks, Needs attention, Weather, yesterday's News
+and opted-in dated latest News. gn Today, Schedule, Tasks, Needs attention.
+Project/personal and optional/required are task labels, not competing sections.
+Use normalized rows/blocks from `task --briefing` and follow pages. Tasks and Needs
+attention can be skipped when empty. Do not promote project prose/ideas into new
+actions, invent work/dates/completion or treat a presentation as execution consent.
 Review all selected news and retain citations before publishing its section.
 Do not use `--force`; check every receipt's exit/error/next. Failed/interrupted
 previews remain readable. Finish retries may reconcile only an identical saved
@@ -141,21 +132,15 @@ document bound to the same job. Snapshot existence alone never means ready.
 ## Presentation and delivery
 
 Use the confirmed language/tone throughout. Short natural greeting, useful content
-and grounded section notes (including Optional project steps when present). No repeated date:
+and grounded section notes when useful. No repeated date:
 the viewer owns navigation. JSON strings are plain UTF-8, not Markdown/HTML. Do
 not invent feelings, availability, deadlines or progress. No generic reassurance,
 empty-queue bookkeeping, or commentary merely restating timetable rows. Distinguish
 free calendar slots from confirmed availability; use exact known times.
-For Schedule/Tomorrow, review the saved task context and relevant active inbox/
-project constraints before any availability statement. Publish timed agenda rows
-first, then a `flexible` block for important untimed day commitments when present,
-even when there are no appointments. Use the pinned target date only for work
-supported on that day;
-unassigned work keeps an empty date. Unknown appointment times remain `TBC` in
-agenda, not flexible tasks. Leave undated unfinished work in Still open unless
-the user has agreed to move it; never call tomorrow empty while it has planned
-tasks. Reminders/Notes are for background nudges and unresolved ideas, not a
-substitute for the flexible schedule.
+Schedule contains events only, including confirmed TBC drafts. Tasks contains all
+actions with explicit workday/deadline labels; Needs attention contains due reviews
+and real questions. No appointments does not mean free time. Do not assign a date
+to open work or re-ask clear ideas nightly. Follow `docs/item-taxonomy.md`.
 
 Return the browser link, not repeated text/JSON. No Markdown, presentation, card
 or dated HTML copies. Private records must not be overwritten by cleanup.

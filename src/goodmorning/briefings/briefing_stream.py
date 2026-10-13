@@ -8,6 +8,10 @@ from . import briefing_document as native
 from goodmorning.runtime_files import atomic_text, runtime_lock
 
 DEFAULT_PLANS = {
+    'gm': [[tag, native.TITLES[tag]] for tag in ('schedule', 'tasks', 'attention', 'weather', 'news')],
+    'gn': [[tag, native.TITLES[tag]] for tag in ('today', 'schedule', 'tasks', 'attention')],
+}
+LEGACY_PLANS = {
     'gm': [[tag, native.TITLES[tag]] for tag in ('weather', 'news', 'schedule', 'must-do', 'nice-to-do', 'reminders')],
     'gn': [[tag, native.TITLES[tag]] for tag in ('today', 'still-open', 'tomorrow', 'must-do', 'nice-to-do', 'notes')],
 }
@@ -119,6 +123,8 @@ def publish(runtime, identifier, document=None, plan=None, skip=False, *, positi
             checkpoint = {'plan': old['plan'], 'outcomes': outcomes, 'document': document}
         validate(checkpoint)
         native.validate_task_ownership(document)
+        from goodmorning.records.routing import validate_sources
+        validate_sources(runtime, document, job['date'], job['kind'])
         from goodmorning.reply_policy import boilerplate_categories
         if any(boilerplate_categories(value) for value in native.strings(document)):
             raise ValueError('Remove noncritical boilerplate before publishing; keep material warnings')

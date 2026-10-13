@@ -35,11 +35,13 @@ class MarkdownTests(unittest.TestCase):
         self.assertIn('use Markdown only', core)
         self.assertIn('Keep simple confirmations simple', voice)
         self.assertIn('not Markdown', voice)
-        for kind in ('gm', 'gn'):
-            workflow = (ROOT / f'docs/workflows/{kind}.md').read_text()
-            self.assertIn('actual outstanding work', workflow)
-            self.assertIn('Must-do/Nice-to-do', workflow)
-        self.assertIn('no supported tasks', (ROOT / 'docs/browser-generation.md').read_text())
+        from goodmorning.briefings import briefing_document as native
+        doc = {'v': 2, 'greeting': 'Hello.', 'opening': 'Plain text.', 'sections': [
+            ['tasks', [['actions', [['task_'+'a'*16, 1, '', '', 'open', '**Literal title**', '']]]]]]}
+        rendered = native.render_block(doc['sections'][0][1][0], {})
+        self.assertIn('**Literal title**', rendered)
+        self.assertNotIn('<strong>Literal title</strong>', rendered)
+        self.assertEqual(native.parse(native.encode(doc)), doc)
 
 
 if __name__ == '__main__':

@@ -1,5 +1,10 @@
 # daily/YYYY-MM-DD.md (user-local, git-ignored)
 
+Legacy checklist example below is retained for existing records only. New live
+tasks/occurrences belong in `inbox.sqlite` through `task`; native v2 editions do
+not copy displayed actions here. Daily files retain run lines and factual feedback.
+Follow `docs/item-taxonomy.md` rather than the historical checklist lifecycle below.
+
 One file per day. Short lines, fixed headings (lowercase match is enough:
 `state.py` detects headings case-insensitively). Full verbatim agent
 replies live in sibling native snapshots `YYYY-MM-DD.gm.json` / `.gn.json` — this

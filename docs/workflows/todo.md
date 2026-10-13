@@ -35,8 +35,14 @@ authorization to do the task.
    project/current context. No `kind` in the payload (the wrapper supplies `kind: "todo"`).
    It checks setup and returns the receipt, title suggestion and reply preferences;
    no separate preparation/profile/state read. Read `docs/inbox-pipeline.md` only
-   for follow-ups/completion/discussion, not simple capture. Save material follow-ups with
-   `--append ID`; maintain concise current constraints, not discussion history.
+    for follow-ups/completion/discussion, not simple capture. Append material
+    follow-ups with `inbox --append ENTRY --session SESSION --request-key KEY`
+    and `{"detail":"exact supplied wording"}`. Then reconcile supplied task facts
+    through `task --show TASK_ID` and revision-checked `task --update` with a separate
+    stable operation key. "Also work on it tomorrow" updates `planned_date` on the
+    existing task; a new deadline updates only `due_date`. This records the stated
+    plan, not execution or unsolicited discussion. After verified reconciliation,
+    mark the source reviewed with its current inbox revision; ambiguity stays pending.
    JSON preserves multiline text, quotes, and pipes. The helper uses the profile
    timezone. Use only a confirmed project; otherwise leave `project` empty.
    Never read old inbox messages to add a TODO; verify its compact receipt.
@@ -72,8 +78,9 @@ authorization to do the task.
 6. Later `/gm`, `/gn`, and `/secretary` workflows may surface an open TODO as a
    task/reminder, not an automatic clarification TODO or question. Do not invent
    a due date, force it into today's must-do list, or duplicate an existing task.
-   Only user-confirmed completion permits marking it `done`; use revision-checked
-   `inbox --update`. No scheduler is needed.
+    Only user-confirmed completion permits marking the canonical task/occurrence
+    done; use revision-checked `task --update`/`--report` under
+    `docs/item-taxonomy.md`. No scheduler is needed.
 
 ## Errors
 

@@ -63,6 +63,7 @@ def prepare(directory, kind, today=None, cache=None, *, task_limit=7, website_la
         store = InboxStore(directory)
         try:
             result["inbox"] = store.list()
+            result['document_version'] = store.version
         finally:
             store.close()
     cache = cache_path(cache)
@@ -80,6 +81,17 @@ def prepare(directory, kind, today=None, cache=None, *, task_limit=7, website_la
         result["city"] = fields["city"]
     if kind == "gn":
         result["calendar_source"] = fields.get("calendar_source", "")
+    if kind in ('gm', 'gn'):
+        from .routing import prepare as item_prepare
+        from goodmorning.web import language as ui
+        token = ui.CURRENT.set(website_language) if website_language else None
+        try:
+            result['items'] = item_prepare(directory, date, 'gm' if kind == 'secretary' else kind)
+        except (ValueError, OSError, sqlite3.Error) as error:
+            result['items'] = {'error': 'items_unavailable', 'next': str(error)}
+        finally:
+            if token is not None:
+                ui.CURRENT.reset(token)
     return result
 
 

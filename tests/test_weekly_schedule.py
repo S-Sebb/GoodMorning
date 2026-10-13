@@ -18,6 +18,8 @@ from goodmorning.calendar.calendar_store import CalendarStore
 from goodmorning.web import language as ui
 from goodmorning.web.briefing_server import BrowserApp, serve_live
 from goodmorning.web.schedule import saved_week, snapshot, week_offset
+from goodmorning.records.inbox_store import InboxStore, initialize
+from goodmorning.records.task_store import TaskStore
 
 NOW = datetime(2026, 10, 13, 12, tzinfo=timezone.utc)
 
@@ -57,6 +59,33 @@ def make_runtime(root):
     return BrowserApp(root, now=lambda: NOW)
 
 
+def canonical_records(root):
+    initialize(root)
+    inbox = InboxStore(root, write=True)
+    tasks = TaskStore(inbox)
+    receipts = {}
+    try:
+        for key, fields in {
+            'outline': {'title': 'Review the outline', 'planned_date': '2026-10-12'},
+            'methods': {'title': 'Draft the methods', 'project': 'Atlas', 'planned_date': '2026-10-13', 'due_date': '2026-10-16', 'detail': 'Compare the two baselines.'},
+            'parcel': {'title': 'Pick up a parcel', 'planned_date': '2026-10-13'},
+            'layout': {'title': 'Try the new figure layout', 'project': 'Atlas', 'optional': True, 'planned_date': '2026-10-15'},
+            'blocked': {'title': 'Request the dataset', 'project': 'Atlas', 'planned_date': '2026-10-13'},
+            'towels': {'title': 'Wash towels', 'timezone': 'Europe/London', 'repeat': {'weekdays': [5], 'start': '2026-10-13'}},
+            'deadline': {'title': 'Deadline only, not a workday', 'due_date': '2026-10-16'},
+        }.items():
+            receipts[key] = inbox.mutate('add', {'kind': 'todo', 'raw': fields['title'], 'task': fields}, 'ses_synthetic', key, NOW.isoformat())
+        tasks.mutate(receipts['outline']['task_id'], 1, {'status': 'done', 'confirmed_completion': True}, 'ses_synthetic', 'done', NOW.isoformat())
+        tasks.mutate(receipts['methods']['task_id'], 1, {'status': 'partial', 'detail': 'First baseline compared.'}, 'ses_synthetic', 'partial', NOW.isoformat(), day='2026-10-13')
+        tasks.mutate(receipts['blocked']['task_id'], 1, {'status': 'blocked', 'detail': 'Awaiting lab approval.'}, 'ses_synthetic', 'blocked-report', NOW.isoformat(), day='2026-10-13')
+        receipts['dentist'] = inbox.mutate('add', {'kind': 'event_proposal', 'raw': 'Dentist Thursday, time unknown',
+            'draft': {'title': 'Dentist', 'date': '2026-10-15', 'timezone': 'Europe/London', 'confirmed_day': True,
+                      'location': 'Town Clinic', 'detail': 'Bring the referral.'}}, 'ses_synthetic', 'dentist', NOW.isoformat())
+        return receipts
+    finally:
+        inbox.close()
+
+
 class ScheduleTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory(dir=TEMP_ROOT)
@@ -68,6 +97,92 @@ class ScheduleTests(unittest.TestCase):
 
     def data(self, offset=0):
         return saved_week(self.root, 'Europe/London', self.app.now(), offset)
+
+    def test_canonical_week_shows_tbc_attributes_reports_and_only_agreed_workdays(self):
+        canonical_records(self.root)
+        markup = snapshot(self.app, 0)['view']
+        self.assertIn('Dentist', markup)
+        self.assertIn('TBC', markup)
+        self.assertIn('Appointment time not yet confirmed', markup)
+        self.assertIn('Project: Atlas', markup)
+        self.assertIn('Due: 2026-10-16', markup)
+        self.assertIn('Partial', markup)
+        self.assertIn('First baseline compared.', markup)
+        self.assertIn('Blocked', markup)
+        self.assertIn('Awaiting lab approval.', markup)
+        self.assertNotIn('Deadline only, not a workday', markup)
+        self.assertEqual([r['text'] for r in self.data()['days'][5]['tasks']], ['Wash towels'])
+        self.assertFalse(any(r.get('draft') for r in self.data()['days'][5]['events']))
+        ui.CURRENT.set('zh-CN')
+        translated = snapshot(self.app, 0)['view']
+        self.assertIn('时间待确认', translated)
+        self.assertIn('Atlas', translated)
+        self.assertIn('Dentist', translated)
+
+    def test_canonical_reads_ignore_legacy_failures_and_do_not_mutate_records(self):
+        canonical_records(self.root)
+        (self.root/'daily/2026-10-13.md').write_text('## flexible\n## flexible\n')
+        before = {p:p.read_bytes() for p in self.root.rglob('*') if p.is_file()}
+        first = snapshot(self.app, 0)
+        self.assertIn('Draft the methods', first['view'])
+        self.assertFalse(any(day['plan_error'] for day in self.data()['days']))
+        self.assertEqual({p:p.read_bytes() for p in before}, before)
+        # Canonical state, not legacy checkboxes, drives refresh.
+        inbox = InboxStore(self.root, write=True)
+        try:
+            parcel = next(t for t in TaskStore(inbox).all() if t['title'] == 'Pick up a parcel')
+            TaskStore(inbox).mutate(parcel['id'], parcel['revision'], {'status':'done', 'confirmed_completion':True}, 'ses_synthetic', 'parcel-done', NOW.isoformat())
+        finally:
+            inbox.close()
+        self.assertNotEqual(first['revision'], snapshot(self.app, 0)['revision'])
+
+    def test_tbc_conversion_and_pending_proposals_do_not_duplicate_or_reserve_days(self):
+        receipts = canonical_records(self.root)
+        inbox = InboxStore(self.root, write=True)
+        try:
+            inbox.mutate('add', {'kind':'event_proposal', 'raw':'Maybe meet Sam', 'draft':{'title':'Tentative Sam', 'date':'2026-10-15', 'timezone':'Europe/London', 'state':'tentative'}}, 'ses_synthetic', 'sam', NOW.isoformat())
+            self.assertNotIn('Tentative Sam', snapshot(self.app, 0)['view'])
+            draft = receipts['dentist']['draft_id']
+            event = {'subject':'Dentist', 'start':'2026-10-15T14:00:00+01:00', 'end':'2026-10-15T15:00:00+01:00'}
+            calendar = CalendarStore(str(self.root/'calendar.sqlite'))
+            calendar.add(event, external_id=draft)  # Interrupted conversion after calendar commit.
+            calendar.close()
+            self.assertEqual(sum(e['subject']=='Dentist' for day in self.data()['days'] for e in day['events']), 1)
+            TaskStore(inbox).convert(self.root, draft, 1, {'event':event}, 'ses_synthetic', 'convert', NOW.isoformat())
+            self.assertEqual(sum(e['subject']=='Dentist' for day in self.data()['days'] for e in day['events']), 1)
+        finally:
+            inbox.close()
+
+    def test_task_store_failure_is_not_reported_as_a_calendar_outage(self):
+        canonical_records(self.root)
+        (self.root/'inbox.sqlite').write_bytes(b'not a task database')
+        result=snapshot(self.app,0)
+        self.assertIn('Task records unavailable',result['view'])
+        self.assertIn('Team check-in',result['view'])
+        self.assertNotIn('Calendar unavailable',result['view'])
+        self.assertNotIn('Atlas: draft the methods',result['view'])
+
+    def test_malformed_task_record_keeps_approved_calendar_readable(self):
+        canonical_records(self.root)
+        inbox=InboxStore(self.root,write=True)
+        try:
+            inbox.db.execute("UPDATE tasks SET data=? WHERE id=(SELECT id FROM tasks LIMIT 1)", ('{"title":"Incomplete record"}',))
+        finally:
+            inbox.close()
+        markup=snapshot(self.app,0)['view']
+        self.assertIn('Team check-in',markup)
+        self.assertIn('Task records unavailable',markup)
+
+    def test_interrupted_conversion_moved_to_another_week_hides_the_old_tbc_card(self):
+        receipts=canonical_records(self.root)
+        store=CalendarStore(str(self.root/'calendar.sqlite'))
+        try:
+            store.add({'subject':'Dentist','start':'2026-10-22T14:00:00+01:00','end':'2026-10-22T15:00:00+01:00'},
+                      external_id=receipts['dentist']['draft_id'])
+        finally:
+            store.close()
+        self.assertNotIn('Dentist',snapshot(self.app,0)['view'])
+        self.assertIn('Dentist',snapshot(self.app,1)['view'])
 
     def test_current_week_uses_actual_midnight_not_briefing_cutoff(self):
         self.app.now = lambda: datetime(2026, 10, 11, 23, 30, tzinfo=timezone.utc)

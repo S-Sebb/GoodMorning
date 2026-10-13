@@ -18,6 +18,10 @@ from goodmorning.calendar.secretary_calendar import main as calendar_main
 from goodmorning.news.news_reports import ReportStore, context_key
 from goodmorning.records.inbox_store import InboxStore, initialize
 from goodmorning.records.state import main as state_main, scan_inbox
+from goodmorning.records.task_store import TaskStore
+from goodmorning.records.routing import prepare
+from goodmorning.records import daily as daily_records
+from goodmorning.briefings import briefing_document as native
 
 
 class SkillTests(unittest.TestCase):
@@ -67,8 +71,16 @@ class SkillTests(unittest.TestCase):
                 context = context_key('UTC', 'US', sources)
                 row = store.save(context, report)
                 daily = root / 'daily/2026-10-09.md'
+                planned = inbox.mutate('add', {'kind': 'todo', 'raw': 'Draft outline', 'task': {
+                    'title': 'Demo: draft outline', 'planned_date': '2026-10-09'}}, 'ses_fixture', 'outline', '2026-10-09T07:00:00+00:00')
+                inbox.mutate('add', {'kind': 'todo', 'raw': 'Optional reading', 'task': {
+                    'title': 'Demo: optional reading', 'optional': True, 'planned_date': '2026-10-10'}}, 'ses_fixture', 'reading', '2026-10-09T07:00:00+00:00')
                 for kind, document in (('gm', morning), ('gn', night)):
-                    reply = render(kind, document)
+                    legacy = native.parse(render(kind, document))
+                    items = prepare(root, '2026-10-09', kind)
+                    sections = [s for s in legacy['sections'] if s[0] in ('weather', 'news')] if kind == 'gm' else []
+                    sections += [[tag, [items['blocks'][tag]]] for tag in ('schedule', 'tasks') if items['blocks'][tag][1]]
+                    reply = native.encode({'v': 2, 'greeting': legacy['greeting'], 'opening': legacy['opening'], 'sections': sections})
                     with patch.object(sys, 'stdin', io.StringIO(reply)):
                         receipt = call(state_main, ['--today', '2026-10-09', '--mark-'+kind,
                                                    '--session', 'ses_fixture', '--answer-stdin', '--json'])
@@ -78,13 +90,15 @@ class SkillTests(unittest.TestCase):
                         self.assertNotIn('- [x]', daily.read_text())
                         self.assertEqual(store.get(context, report['date'])['status'], 'collected')
                         store.acknowledge(context, report['date'], row['report_id'], 'ses_fixture')
-                        daily.write_text(daily.read_text().replace('- [ ] Demo: draft outline', '- [x] Demo: draft outline')
-                                         + '\n## feedback\n- User confirmed outline complete; reading not done.\n')
+                        TaskStore(inbox).mutate(planned['task_id'], 1, {'status': 'done', 'confirmed_completion': True},
+                            'ses_fixture', 'complete-outline', '2026-10-09T20:00:00+00:00')
+                        daily_records.amend(root, '2026-10-09', daily_records.show(root, '2026-10-09')['sha256'],
+                            {'append': {'feedback': ['User confirmed outline complete; reading not done.']}})
                 summary = call(state_main, ['--today', '2026-10-09', '--check', '--json'])
                 self.assertTrue(summary['gm_today']['ran'] and summary['gn_today']['ran'])
                 self.assertTrue(summary['sections_today']['feedback'])
-                self.assertIn('- [ ] Demo: optional reading', daily.read_text())
-                self.assertEqual(scan_inbox(directory)['pending'], 1)
+                self.assertEqual(daily_records.show(root, '2026-10-09')['tasks_total'], 0)
+                self.assertEqual(scan_inbox(directory)['pending'], 2)
                 self.assertEqual(summary['news']['delivered'], 1)
 
 

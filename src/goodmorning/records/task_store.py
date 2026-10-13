@@ -1,0 +1,407 @@
+"""Canonical actions and event drafts in the inbox transaction, never section tables."""
+import datetime as dt
+import hashlib
+import json
+import sqlite3
+import uuid
+from pathlib import Path
+from zoneinfo import ZoneInfo
+
+SCHEMA = """
+CREATE TABLE tasks (
+    id TEXT PRIMARY KEY, source_entry_id TEXT NOT NULL REFERENCES entries(id),
+    revision INTEGER NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL,
+    data TEXT NOT NULL);
+CREATE INDEX task_sources ON tasks(source_entry_id);
+CREATE TABLE task_occurrences (
+    id TEXT PRIMARY KEY, task_id TEXT NOT NULL REFERENCES tasks(id),
+    date TEXT NOT NULL, revision INTEGER NOT NULL, status TEXT NOT NULL,
+    detail TEXT NOT NULL, UNIQUE(task_id,date));
+CREATE TABLE task_events (
+    seq INTEGER PRIMARY KEY, item_id TEXT NOT NULL, action TEXT NOT NULL,
+    at TEXT NOT NULL, session TEXT NOT NULL, snapshot TEXT NOT NULL,
+    request_key TEXT UNIQUE NOT NULL, fingerprint TEXT NOT NULL, receipt TEXT NOT NULL);
+CREATE TABLE event_drafts (
+    id TEXT PRIMARY KEY, source_entry_id TEXT NOT NULL REFERENCES entries(id),
+    revision INTEGER NOT NULL, data TEXT NOT NULL);
+"""
+STATES = ('open', 'partial', 'blocked', 'done', 'cancelled')
+FIELDS = {'title', 'detail', 'project', 'optional', 'priority', 'status', 'due_date',
+          'due_at', 'planned_date', 'timezone', 'repeat', 'defer_until', 'calendar_event_id'}
+DRAFT_FIELDS = {'title', 'date', 'timezone', 'location', 'detail', 'confirmed_day',
+                'state', 'calendar_event_id', 'event'}
+
+
+def encode(value):
+    return json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(',', ':'))
+
+
+def date(value):
+    if not isinstance(value, str) or dt.date.fromisoformat(value).isoformat() != value:
+        raise ValueError('invalid_date: use YYYY-MM-DD')
+    return value
+
+
+def checked(value, maximum=5000, empty=True):
+    from .inbox_store import check_text
+    return check_text(value, maximum, 'task field', empty)
+
+
+def validate(data, *, draft=False):
+    if not isinstance(data, dict) or set(data) - (DRAFT_FIELDS if draft else FIELDS):
+        raise ValueError('invalid_input: unsupported task or event-draft fields')
+    out = dict(data)
+    for key in ('title', 'detail', 'project', 'location', 'calendar_event_id'):
+        if key in out:
+            checked(out[key], 600 if key == 'title' else 5000, key != 'title')
+    for key in ('date', 'planned_date', 'due_date', 'defer_until'):
+        if out.get(key):
+            date(out[key])
+        elif key in out and out[key] != '':
+            raise ValueError('invalid_date: unset dates use an empty string')
+    if out.get('timezone'):
+        checked(out['timezone'], 160, False)
+        ZoneInfo(out['timezone'])
+    elif 'timezone' in out and out['timezone'] != '':
+        raise ValueError('invalid_input: unset timezone uses an empty string')
+    for key in ('optional', 'confirmed_day'):
+        if key in out and type(out[key]) is not bool:
+            raise ValueError('invalid_input: optional/confirmed_day must be boolean')
+    if draft:
+        if out.get('state', 'needs-details') not in ('tentative', 'needs-details', 'ready-for-confirmation', 'converted', 'withdrawn'):
+            raise ValueError('invalid_input: unknown event draft state')
+        if out.get('confirmed_day') and not (out.get('date') and out.get('timezone')):
+            raise ValueError('invalid_input: confirmed appointment day needs date and timezone')
+        if 'event' in out:
+            from goodmorning.calendar.calendar_store import normalize
+            out['event'] = normalize(out['event'])
+        if out.get('state') == 'ready-for-confirmation' and not out.get('event'):
+            raise ValueError('invalid_input: ready draft needs explicit event endpoints')
+        return out
+    if out.get('status', 'open') not in STATES or out.get('priority', '') not in ('', 'high', 'normal', 'low'):
+        raise ValueError('invalid_input: unknown action status or explicit priority')
+    if out.get('due_at'):
+        checked(out['due_at'], 100, False)
+        value = dt.datetime.fromisoformat(out['due_at'])
+        if value.utcoffset() is None or not out.get('timezone'):
+            raise ValueError('invalid_input: deadline timestamp needs offset and timezone')
+        local = value.astimezone(ZoneInfo(out['timezone'])).date().isoformat()
+        if out.get('due_date') and out['due_date'] != local:
+            raise ValueError('invalid_input: deadline date disagrees with timestamp')
+        out['due_date'] = local
+    elif 'due_at' in out and out['due_at'] != '':
+        raise ValueError('invalid_input: unset deadline timestamp uses an empty string')
+    if out.get('repeat'):
+        rule = out['repeat']
+        if not isinstance(rule, dict) or set(rule) - {'weekdays', 'start', 'until'} or not {'weekdays', 'start'} <= rule.keys():
+            raise ValueError('invalid_input: recurrence needs weekdays and start; optional until')
+        weekdays = rule['weekdays']
+        if not isinstance(weekdays, list) or not 1 <= len(weekdays) <= 7 or any(type(d) is not int or not 0 <= d <= 6 for d in weekdays) or len(set(weekdays)) != len(weekdays):
+            raise ValueError('invalid_input: weekdays are distinct integers 0=Monday..6=Sunday')
+        date(rule['start'])
+        if rule.get('until') and date(rule['until']) < rule['start']:
+            raise ValueError('invalid_input: recurrence end precedes start')
+        if not out.get('timezone') or out.get('planned_date'):
+            raise ValueError('invalid_input: recurrence needs timezone and no single planned_date')
+    elif 'repeat' in out and out['repeat'] is not None:
+        raise ValueError('invalid_input: unset recurrence uses null')
+    if out.get('calendar_event_id'):
+        import re
+        if not re.fullmatch('[0-9a-f]{16}', out['calendar_event_id']):
+            raise ValueError('invalid_input: calendar link needs a saved event ID')
+    return out
+
+
+def defaults(title, project=''):
+    return {'title': title, 'detail': '', 'project': project, 'optional': False,
+            'priority': '', 'status': 'open', 'due_date': '', 'due_at': '',
+            'planned_date': '', 'timezone': '', 'repeat': None, 'defer_until': '',
+            'calendar_event_id': ''}
+
+
+def occurrence_id(identifier, day):
+    return 'oc_' + hashlib.sha256((identifier + '\0' + day).encode()).hexdigest()[:16]
+
+
+def capture(db, entry, payload, now):
+    """Called inside InboxStore.mutate: raw input, action and receipt commit together."""
+    if payload['kind'] == 'todo':
+        fields = payload.get('task', {})
+        if fields.get('status', 'open') != 'open':
+            raise ValueError('confirmation_required: capture cannot assert completion')
+        summary = payload.get('summary') or ' '.join(payload['raw'].split())[:280]
+        data = validate({**defaults(summary, payload.get('project', '')), **fields})
+        identifier = 'task_' + uuid.uuid4().hex[:16]
+        db.execute('INSERT INTO tasks VALUES (?,?,?,?,?,?)', (identifier, entry, 1, now, now, encode(data)))
+        return {'task_id': identifier}
+    if payload['kind'] == 'event_proposal':
+        if payload.get('draft', {}).get('state') in ('converted', 'withdrawn'):
+            raise ValueError('invalid_input: new event proposal cannot be closed')
+        data = validate({'title': payload.get('summary') or ' '.join(payload['raw'].split())[:280],
+                         'date': '', 'timezone': '', 'location': '', 'detail': '',
+                         'confirmed_day': False, 'state': 'needs-details', 'calendar_event_id': '',
+                         **payload.get('draft', {})}, draft=True)
+        identifier = 'draft_' + uuid.uuid4().hex[:16]
+        db.execute('INSERT INTO event_drafts VALUES (?,?,?,?)', (identifier, entry, 1, encode(data)))
+        return {'draft_id': identifier}
+    return {}
+
+
+class TaskStore:
+    def __init__(self, inbox):
+        self.inbox, self.db = inbox, inbox.db
+        if inbox.version != 2:
+            raise ValueError('migration_required: use task --migrate --confirm after reviewing its dry run')
+
+    def show(self, identifier, draft=False):
+        row = self.db.execute('SELECT * FROM ' + ('event_drafts' if draft else 'tasks') + ' WHERE id=?', (identifier,)).fetchone()
+        if row is None:
+            raise ValueError('not_found: task/event draft does not exist')
+        item = dict(row)
+        item.update(json.loads(item.pop('data')))
+        return item
+
+    def all(self, draft=False):
+        table = 'event_drafts' if draft else 'tasks'
+        for row in self.db.execute('SELECT * FROM ' + table + ' ORDER BY rowid'):
+            item = dict(row)
+            item.update(json.loads(item.pop('data')))
+            yield item
+
+    def occurrence(self, task, day):
+        date(day)
+        identifier = occurrence_id(task['id'], day)
+        row = self.db.execute('SELECT * FROM task_occurrences WHERE id=?', (identifier,)).fetchone()
+        if row:
+            return dict(row)  # A confirmed report survives later rescheduling/recurrence edits.
+        rule = task['repeat']
+        matches = (rule and day >= rule['start'] and (not rule.get('until') or day <= rule['until'])
+                   and dt.date.fromisoformat(day).weekday() in rule['weekdays'])
+        if not matches and task['planned_date'] != day:
+            raise ValueError('unknown_occurrence: day is not agreed or recurring work')
+        return {'id': identifier, 'task_id': task['id'], 'date': day,
+                'revision': 0, 'status': task['status'], 'detail': ''}
+
+    def adopt(self, identifier, expected, payload, session, key, now):
+        checked(session, 200, False); checked(key, 240, False)
+        if not isinstance(payload, dict) or 'tasks' not in payload or set(payload) - {'tasks', 'replace'} or not isinstance(payload['tasks'], list) or not 1 <= len(payload['tasks']) <= 50:
+            raise ValueError('invalid_input: adoption needs tasks, an explicit list of 1..50 actions')
+        digest = hashlib.sha256(encode([identifier, expected, payload, session]).encode()).hexdigest()
+        with self.inbox.transaction():
+            previous = self.db.execute('SELECT fingerprint,receipt FROM task_events WHERE request_key=?', (key,)).fetchone()
+            if previous:
+                if previous['fingerprint'] != digest:
+                    raise ValueError('request_conflict: key belongs to different input')
+                return {**json.loads(previous['receipt']), 'replayed': True}
+            if self.db.execute('SELECT 1 FROM events WHERE request_key=?', (key,)).fetchone():
+                raise ValueError('request_conflict: key belongs to capture')
+            current = self.inbox.show(identifier)
+            if current['revision'] != expected or current['kind'] not in ('idea', 'project_update', 'todo'):
+                raise ValueError('write_conflict: read the current idea/project report before adopting')
+            if current['needs_review'] or current['status'] != 'pending':
+                raise ValueError('unreviewed_details: reconcile input or reuse existing adopted tasks')
+            if current['questions']:
+                raise ValueError('unresolved_questions: reconcile saved questions before adopting actions')
+            replacements = payload.get('replace', [])
+            if not isinstance(replacements, list) or (current['kind'] == 'todo' and not replacements) or (current['kind'] != 'todo' and replacements):
+                raise ValueError('scope_required: splitting a TODO needs exact replace task IDs/revisions')
+            seen = set()
+            for target in replacements:
+                if not isinstance(target, dict) or set(target) != {'id', 'revision'} or target['id'] in seen:
+                    raise ValueError('invalid_input: replace needs distinct task IDs and revisions')
+                original = self.show(target['id'])
+                if original['source_entry_id'] != identifier or original['revision'] != target['revision'] or original['status'] in ('done', 'cancelled'):
+                    raise ValueError('write_conflict: replacement scope changed or includes another/completed task')
+                seen.add(target['id'])
+            for fields in payload['tasks']:
+                validate(fields)
+            for identifier_to_replace in seen:
+                original = self.show(identifier_to_replace)
+                fields = {k: v for k, v in original.items() if k in FIELDS}
+                fields['status'] = 'cancelled'  # Superseded, not completed or deleted.
+                self.db.execute('UPDATE tasks SET revision=revision+1,updated_at=?,data=? WHERE id=?', (now, encode(fields), identifier_to_replace))
+            tasks = [capture(self.db, identifier, {'kind': 'todo', 'raw': current['summary'],
+                                                  'project': current['project'], 'task': fields}, now)['task_id'] for fields in payload['tasks']]
+            self.db.execute("UPDATE entries SET status='confirmed',revision=revision+1 WHERE id=?", (identifier,))
+            result = {'saved': True, 'id': identifier, 'revision': expected + 1, 'task_ids': tasks}
+            self.db.execute('INSERT INTO task_events(item_id,action,at,session,snapshot,request_key,fingerprint,receipt) VALUES (?,?,?,?,?,?,?,?)',
+                            (identifier, 'adopt', now, session, encode(payload), key, digest, encode(result)))
+            return result
+
+    def convert(self, runtime, identifier, expected, payload, session, key, now):
+        """Persist conversion intent, use stable calendar identity, then finalize the receipt."""
+        from goodmorning.calendar.calendar_store import CalendarStore, normalize
+        from goodmorning.runtime_files import calendar_path
+        checked(session, 200, False); checked(key, 240, False)
+        if not isinstance(payload, dict) or set(payload) != {'event'}:
+            raise ValueError('invalid_input: conversion needs an explicitly confirmed event')
+        event = normalize(payload['event'])
+        path = calendar_path(runtime)
+        if not path.is_file() or path.is_symlink():
+            raise ValueError('setup_required: existing authorized calendar is required')
+        digest = hashlib.sha256(encode([identifier, expected, payload, session]).encode()).hexdigest()
+        with self.inbox.transaction():
+            previous = self.db.execute('SELECT fingerprint,receipt FROM task_events WHERE request_key=?', (key,)).fetchone()
+            if previous:
+                if previous['fingerprint'] != digest:
+                    raise ValueError('request_conflict: key belongs to different conversion')
+                receipt = json.loads(previous['receipt'])
+                if receipt['saved']:
+                    return {**receipt, 'replayed': True}
+            else:
+                if self.db.execute('SELECT 1 FROM events WHERE request_key=?', (key,)).fetchone():
+                    raise ValueError('request_conflict: key belongs to capture')
+                draft = self.show(identifier, True)
+                if draft['revision'] != expected or draft['state'] in ('converted', 'withdrawn'):
+                    raise ValueError('write_conflict: draft changed; inspect its current state')
+                if self.db.execute("SELECT 1 FROM task_events WHERE item_id=? AND action='convert-pending'", (identifier,)).fetchone():
+                    raise ValueError('outcome_unknown: resume the original conversion key/input, not another operation')
+                self.db.execute('INSERT INTO task_events(item_id,action,at,session,snapshot,request_key,fingerprint,receipt) VALUES (?,?,?,?,?,?,?,?)',
+                                (identifier, 'convert-pending', now, session, encode(payload), key, digest, encode({'saved': False})))
+        calendar = CalendarStore(str(path))
+        try:
+            event_id = calendar.add(event, actor=session, external_id=identifier)
+        finally:
+            calendar.close()
+        with self.inbox.transaction():
+            draft = self.show(identifier, True)
+            if draft['revision'] != expected:
+                raise ValueError('outcome_unknown: calendar saved but draft changed; inspect before finalizing')
+            data = {k: v for k, v in draft.items() if k in DRAFT_FIELDS}
+            data.update(state='converted', calendar_event_id=event_id)
+            self.db.execute('UPDATE event_drafts SET revision=revision+1,data=? WHERE id=?', (encode(data), identifier))
+            result = {'saved': True, 'id': identifier, 'revision': expected + 1, 'calendar_event_id': event_id}
+            self.db.execute("UPDATE task_events SET action='convert',receipt=? WHERE request_key=?", (encode(result), key))
+            return result
+
+    def complete_day(self, selections, day, session, key, now, details):
+        """One browser feedback receipt and atomic exact-occurrence completions."""
+        checked(session, 200, False); checked(key, 240, False); checked(details)
+        digest = hashlib.sha256(encode([selections, day, session, details]).encode()).hexdigest()
+        with self.inbox.transaction():
+            previous = self.db.execute('SELECT fingerprint,receipt FROM task_events WHERE request_key=?', (key,)).fetchone()
+            if previous:
+                if previous['fingerprint'] != digest:
+                    raise ValueError('request_conflict: feedback input changed')
+                return {**json.loads(previous['receipt']), 'replayed': True}
+            for selection in selections:
+                task = self.show(selection['task_id'])
+                if task['revision'] != selection['revision']:
+                    raise ValueError('write_conflict: planned task changed; refresh feedback')
+                occ = self.occurrence(task, day)
+                if selection['id'] != occ['id'] or occ['status'] == 'cancelled':
+                    raise ValueError('unknown_occurrence: complete only exact planned occurrences')
+                self.db.execute('INSERT INTO task_occurrences VALUES (?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET '
+                                'revision=excluded.revision,status=excluded.status,detail=excluded.detail',
+                                (occ['id'], task['id'], day, occ['revision'] + 1, 'done', ''))
+                data = {k: v for k, v in task.items() if k in FIELDS}
+                if not task['repeat']:
+                    data['status'] = 'done'
+                self.db.execute('UPDATE tasks SET revision=revision+1,updated_at=?,data=? WHERE id=?', (now, encode(data), task['id']))
+            result = {'saved': True, 'completed': [s['id'] for s in selections]}
+            self.db.execute('INSERT INTO task_events(item_id,action,at,session,snapshot,request_key,fingerprint,receipt) VALUES (?,?,?,?,?,?,?,?)',
+                            ('feedback:' + day, 'feedback', now, session, encode({'selected': selections, 'details': details}), key, digest, encode(result)))
+            return result
+
+    def mutate(self, identifier, expected, payload, session, key, now, *, day=None, draft=False):
+        if not isinstance(payload, dict) or not payload:
+            raise ValueError('invalid_input: nonempty update required')
+        checked(session, 200, False); checked(key, 240, False)
+        data = dict(payload)
+        confirmed = data.pop('confirmed_completion', False)
+        if type(confirmed) is not bool:
+            raise ValueError('confirmation_required: confirmed_completion must be boolean')
+        digest = hashlib.sha256(encode([identifier, expected, payload, session, day, draft]).encode()).hexdigest()
+        with self.inbox.transaction():
+            previous = self.db.execute('SELECT fingerprint,receipt FROM task_events WHERE request_key=?', (key,)).fetchone()
+            if previous:
+                if previous['fingerprint'] != digest:
+                    raise ValueError('request_conflict: request key belongs to different input')
+                return {**json.loads(previous['receipt']), 'replayed': True}
+            if self.db.execute('SELECT 1 FROM events WHERE request_key=?', (key,)).fetchone():
+                raise ValueError('request_conflict: request key belongs to a capture')
+            current = self.show(identifier, draft)
+            if draft and self.db.execute("SELECT 1 FROM task_events WHERE item_id=? AND action='convert-pending'", (identifier,)).fetchone():
+                raise ValueError('outcome_unknown: reconcile pending calendar conversion before editing this draft')
+            if expected != current['revision']:
+                raise ValueError('write_conflict: task/draft revision changed; reread and reconcile')
+            if data.get('status') == 'done' and not confirmed:
+                raise ValueError('confirmation_required: completion requires actual user confirmation')
+            if day:
+                if draft or set(data) - {'status', 'detail'} or data.get('status') not in STATES:
+                    raise ValueError('invalid_input: occurrence report needs status and optional detail')
+                occ = self.occurrence(current, day)
+                checked(data.get('detail', ''))
+                self.db.execute('INSERT INTO task_occurrences VALUES (?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET '
+                                'revision=excluded.revision,status=excluded.status,detail=excluded.detail',
+                                (occ['id'], identifier, day, occ['revision'] + 1, data['status'], data.get('detail', '')))
+                # Daily effort is not automatically completion of a multi-day action.
+                self.db.execute('UPDATE tasks SET revision=revision+1,updated_at=? WHERE id=?', (now, identifier))
+            else:
+                if current.get('repeat') and data.get('status') == 'done':
+                    raise ValueError('occurrence_required: complete one recurring day, not the series')
+                merged = {k: v for k, v in current.items() if k in (DRAFT_FIELDS if draft else FIELDS)}
+                merged.update(data)
+                merged = validate(merged, draft=draft)
+                if draft:
+                    if data.get('state') == 'converted' or 'calendar_event_id' in data:
+                        raise ValueError('confirmation_required: use --convert after exact event confirmation')
+                    self.db.execute('UPDATE event_drafts SET revision=revision+1,data=? WHERE id=?', (encode(merged), identifier))
+                else:
+                    self.db.execute('UPDATE tasks SET revision=revision+1,updated_at=?,data=? WHERE id=?', (now, encode(merged), identifier))
+            result = {'saved': True, 'id': identifier, 'revision': expected + 1}
+            if day:
+                result['occurrence_id'] = occurrence_id(identifier, day)
+            self.db.execute('INSERT INTO task_events(item_id,action,at,session,snapshot,request_key,fingerprint,receipt) '
+                            'VALUES (?,?,?,?,?,?,?,?)', (identifier, 'report' if day else 'update', now, session,
+                            encode({'item': self.show(identifier, draft), 'day': day, 'input': payload}), key, digest, encode(result)))
+            return result
+
+
+def migrate(directory, confirm=False):
+    """Explicit schema upgrade with an SQLite backup. Legacy daily dates remain untrusted."""
+    from .inbox_store import InboxStore, NAME
+    from goodmorning.runtime_files import runtime_lock
+    with runtime_lock(directory, '.inbox.lock'):
+        inbox = InboxStore(directory)
+        try:
+            report = {'version': inbox.version, 'target': 2, 'dry_run': not confirm,
+                      'todo_captures': inbox.db.execute("SELECT COUNT(*) FROM entries WHERE kind='todo'").fetchone()[0],
+                      'legacy_daily': [p.name for p in sorted(Path(directory, 'daily').glob('*.md'))[:200]],
+                      'legacy_daily_total': sum(1 for p in Path(directory, 'daily').glob('*.md')),
+                      'next': 'Legacy daily/project tasks need explicit identity/date reconciliation; no files are rewritten.'}
+            if not confirm or inbox.version == 2:
+                return report
+        finally:
+            inbox.close()
+        path = Path(directory) / NAME
+        backup = Path(directory) / 'inbox.v1.backup.sqlite'
+        if backup.exists():
+            raise ValueError('backup_exists: preserve the existing backup and inspect before upgrading')
+        with sqlite3.connect(path) as db:
+            import os
+            fd = os.open(backup, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
+            os.close(fd)
+            with sqlite3.connect(backup) as target:
+                db.backup(target)
+            # Rebuild only the CHECK-constrained entry table; preserve IDs/audit bytes.
+            db.execute('PRAGMA foreign_keys=OFF')
+            old_sql = db.execute("SELECT sql FROM sqlite_master WHERE name='entries'").fetchone()[0]
+            new_sql = old_sql.replace('CREATE TABLE entries', 'CREATE TABLE upgraded_entries').replace("'project_update'", "'project_update','event_proposal'")
+            db.executescript('BEGIN IMMEDIATE;' + new_sql + ';INSERT INTO upgraded_entries SELECT * FROM entries;'
+                             'DROP TABLE entries;ALTER TABLE upgraded_entries RENAME TO entries;'
+                             'CREATE INDEX active_entries ON entries(status,seq);'
+                             'CREATE INDEX review_entries ON entries(needs_review,seq);'
+                             'CREATE INDEX project_entries ON entries(project,seq);' + SCHEMA +
+                             'ALTER TABLE entries ADD COLUMN review_after TEXT NOT NULL DEFAULT "";')
+            for row in db.execute("SELECT id,raw,summary,project,status,created_at,context FROM entries WHERE kind='todo'").fetchall():
+                data = defaults(row[2] or ' '.join(row[1].split())[:280], row[3])
+                data['detail'] = row[6] if len(row[6]) <= 5000 else 'Read the source entry for its full saved constraints: ' + row[0]
+                if row[4] == 'done':
+                    data['status'] = 'done'
+                validate(data)
+                identifier = 'task_' + hashlib.sha256(row[0].encode()).hexdigest()[:16]
+                db.execute('INSERT INTO tasks VALUES (?,?,?,?,?,?)', (identifier, row[0], 1, row[5], row[5], encode(data)))
+            db.execute('PRAGMA user_version=2')
+            db.commit()
+        return {**report, 'saved': True, 'backup': backup.name}
