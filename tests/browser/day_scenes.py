@@ -64,12 +64,14 @@ def main():
 
         page.route('https://day.test/**', serve)
         for scheme in schemes:
-            for width in (1440, 390, 320):
+            for width in (1920, 1440, 390, 320):
                 page.set_viewport_size({'width': width, 'height': 1000})
                 page.emulate_media(reduced_motion='reduce')
                 page.goto('https://day.test/' + scheme)
-                expect(page.locator('body')).to_have_css('background-repeat', 'no-repeat, no-repeat' if scheme == 'morning-sky' else 'no-repeat')
-                expect(page.locator('body')).to_have_css('background-attachment', 'fixed, fixed' if scheme == 'morning-sky' else 'scroll')
+                expect(page.locator('body')).to_have_css('background-repeat',
+                    'no-repeat, no-repeat, repeat-y, repeat-y' if scheme == 'morning-sky' else 'no-repeat, repeat-y')
+                expect(page.locator('body')).to_have_css('background-attachment',
+                    'scroll, scroll, scroll, scroll' if scheme == 'morning-sky' else 'scroll, scroll')
                 static = Image.open(BytesIO(page.screenshot(path=str(artifacts / f'{scheme}-{width}.png')))).convert('RGB')
                 colors = static.getcolors(static.width * static.height)
                 tokens = page.evaluate('''() => {
@@ -94,21 +96,31 @@ def main():
                 assert page.locator('body').bounding_box() == layout
                 page.emulate_media(reduced_motion='reduce')
                 assert ImageChops.difference(static, sample_frame(page)).getbbox() is None
-                if scheme == 'first-light':
-                    page.evaluate('document.body.style.minHeight = "1800px"')
-                    full = Image.open(BytesIO(page.screenshot(
-                        path=str(artifacts / f'valley-{width}-full.png'), full_page=True))).convert('RGB')
-                    valley = full.crop((0, 1050, full.width, 1750))
-                    valley_colors = valley.getcolors(valley.width * valley.height)
-                    assert len(valley_colors) > 20, 'The lower scene is a solid fallback color.'
+                page.evaluate('document.body.style.minHeight = "12000px"')
+                for depth in (2000, 4200, 8000, 11000):
+                    page.evaluate('y => window.scrollTo(0, y)', depth)
+                    lower = Image.open(BytesIO(page.screenshot(
+                        path=str(artifacts / f'{scheme}-{width}-depth-{depth}.png')))).convert('RGB')
+                    lower_colors = lower.getcolors(lower.width * lower.height)
+                    assert len(lower_colors) > 20, (scheme, width, depth, 'Solid fallback background')
                     for key in ('ink', 'muted', 'accent'):
-                        ratio = min(contrast(rgb[key], pixel) for _, pixel in valley_colors)
-                        assert ratio >= 4.5, (scheme, width, 'valley', key, ratio)
-                    page.evaluate('document.body.style.minHeight = ""')
+                        ratio = min(contrast(rgb[key], pixel) for _, pixel in lower_colors)
+                        assert ratio >= 4.5, (scheme, width, depth, key, ratio)
+                    assert ImageChops.difference(lower, sample_frame(page)).getbbox() is None
+                scale = max(width, 1600) / 1600
+                units = (1000, 2000, 3000, 5000, 9000) if scheme == 'morning-sky' else (1800, 3600, 5400, 9000)
+                seams = [round(seam * scale) for seam in units]
+                for seam in seams:
+                    page.evaluate('y => window.scrollTo(0, y - 50)', seam)
+                    image = Image.open(BytesIO(page.screenshot())).convert('RGB')
+                    delta = ImageChops.difference(image.crop((0, 49, width, 50)), image.crop((0, 50, width, 51)))
+                    assert max(high for low, high in delta.getextrema()) <= 32, (scheme, width, seam, 'Visible seam')
+                page.evaluate('document.body.style.minHeight = ""; window.scrollTo(0, 0)')
                 assert not page.evaluate('document.documentElement.scrollWidth > innerWidth')
                 results.append({'scheme': scheme, 'width': width,
                                 'minimumSceneContrast': {key: round(ratio, 2) for key, ratio in ratios.items()},
-                                'motion': moving, 'reducedMotionStatic': True})
+                                'motion': moving, 'reducedMotionStatic': True,
+                                'continuedAt': [2000, 4200, 8000, 11000], 'seamsChecked': list(seams)})
         assert not errors, errors
         browser.close()
     report = {'scenes': results, 'pageErrors': 0}

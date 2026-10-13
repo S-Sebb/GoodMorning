@@ -1,0 +1,22 @@
+<svg id="drift" xmlns="http://www.w3.org/2000/svg" width="1600" height="3000" viewBox="0 0 1600 3000">
+  <style>
+    @keyframes drift { 50% { transform: translate(5px, -2px); } }
+    :root:target .birds { animation: drift 18s ease-in-out infinite; }
+  </style>
+  <defs>
+    <path id="bird" d="M-21 3C-15-5-7-7 0 2C5-10 14-13 22-10" fill="none" stroke="#9eb8c9" stroke-width="3.3" stroke-linecap="round"/>
+  </defs>
+  <!-- Different cloud and flock periods avoid repeating the whole composition together. -->
+  <g class="birds">
+    <use href="#bird" transform="translate(1230 799) rotate(8)"/>
+    <use href="#bird" transform="translate(1300 823) scale(.75) rotate(-9)"/>
+    <use href="#bird" transform="translate(1390 801) scale(.9)"/>
+    <use href="#bird" transform="translate(92 1321) scale(1.1) rotate(-12)"/>
+    <use href="#bird" transform="translate(162 1349) scale(.8) rotate(10)"/>
+    <use href="#bird" transform="translate(216 1302) scale(.65)"/>
+    <use href="#bird" transform="translate(1280 2379) scale(.75) rotate(-8)"/>
+    <use href="#bird" transform="translate(1346 2409) scale(1.2) rotate(7)"/>
+    <use href="#bird" transform="translate(1416 2386) scale(.9)"/>
+    <use href="#bird" transform="translate(1493 2417) scale(.65) rotate(9)"/>
+  </g>
+</svg>

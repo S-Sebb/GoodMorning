@@ -67,6 +67,9 @@ class ColorSchemeTests(unittest.TestCase):
         self.assertIn(resources.urls['morning-clouds.webp'].encode(), css)
         first_light = ET.fromstring(resources.paths[resources.urls['first-light.svg']].data)
         self.assertEqual(first_light.attrib['viewBox'], '0 0 1600 1800')
+        for name in ('first-light-continuation.svg', 'morning-sky-continuation.svg', 'morning-clouds-continuation.webp'):
+            self.assertIn(resources.urls[name].encode(), css)
+        self.assertIn(b'--day-repeat: no-repeat, repeat-y', css)
 
     def test_retired_day_preference_preserves_night_and_does_not_rewrite_records(self):
         retired = {'day': 'sunlit-garden', 'night': 'classic'}

@@ -151,6 +151,24 @@ def main():
                     morning.reload()
                     expect(morning.locator('html')).to_have_attribute('data-day-scheme', scheme)
                     morning.screenshot(path=str(artifacts/(scheme+'-full-page.png')), full_page=True, animations='disabled')
+                    # Extend only the synthetic DOM, not saved records, to inspect several repeat lengths.
+                    morning.evaluate('''() => {
+                        const source = document.querySelector('.briefing-section');
+                        for (let index = 1; index <= 12; index++) {
+                            const section = source.cloneNode(true);
+                            section.removeAttribute('id');
+                            section.querySelectorAll('[id]').forEach(node => node.removeAttribute('id'));
+                            section.querySelector('h2').textContent = 'A quiet moment · ' + index;
+                            document.querySelector('main').append(section);
+                        }
+                    }''')
+                    morning.screenshot(path=str(artifacts/(scheme+'-long-full-page.png')), full_page=True, animations='disabled')
+                    morning.locator('footer').first.scroll_into_view_if_needed()
+                    morning.screenshot(path=str(artifacts/(scheme+'-long-bottom.png')), animations='disabled')
+                    morning.set_viewport_size({'width': 390, 'height': 1000})
+                    morning.screenshot(path=str(artifacts/(scheme+'-long-mobile-full-page.png')), full_page=True, animations='disabled')
+                    morning.set_viewport_size({'width': 1440, 'height': 1000})
+                    morning.reload()
                     for width in (768, 390, 320):
                         morning.set_viewport_size({'width': width, 'height': 1000})
                         assert not morning.evaluate('document.documentElement.scrollWidth > innerWidth')
