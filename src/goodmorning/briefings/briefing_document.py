@@ -18,6 +18,68 @@ WEATHER = {'temperature': ('Temperature', 'thermometer', 'temperature cool'),
            'precipitation': ('Precipitation', 'rain', 'precipitation'),
            'warning': ('Extreme warning', 'warning', 'other'), 'air': ('AQI', 'leaf', 'air')}
 AGENDA_LABELS = ['Date', 'Time', 'Event', 'Place', 'Preparation']
+DATED_TITLE_RE = re.compile(r'^(.*)\s+—\s+(\d{4}-\d{2}-\d{2})$')
+
+
+def split_dated_title(title):
+    """Split a section title like 'News — 2026-10-12' into (base, iso_date|None)."""
+    if not isinstance(title, str):
+        return title, None
+    match = DATED_TITLE_RE.match(title.strip())
+    if not match:
+        return title.strip(), None
+    try:
+        Date.fromisoformat(match.group(2))
+    except ValueError:
+        return title.strip(), None
+    return match.group(1).strip(), match.group(2)
+
+
+def humanize_iso_date(iso_date):
+    """Short human date for display badges, e.g. '2026-10-12' -> '12 Oct'."""
+    try:
+        value = Date.fromisoformat(iso_date)
+    except (ValueError, TypeError):
+        return iso_date
+    return f'{value.day} {value.strftime("%b")}'
+
+
+def heading_html(title):
+    """Display heading with a subtle date badge; keeps full date for screen readers."""
+    from .briefing_web import visible_text
+    base, iso = split_dated_title(visible_text(title))
+    if not iso:
+        return html.escape(visible_text(title))
+    human = humanize_iso_date(iso)
+    return (html.escape(base) + ' <span class="section-date" data-date="' +
+            html.escape(iso, quote=True) + '"><span aria-hidden="true">· ' +
+            html.escape(human) + '</span><span class="visually-hidden"> (' +
+            html.escape(iso) + ')</span></span>')
+
+
+def weather_display(card, metric):
+    """Normalize LLM-composed weather values for display; saved data is unchanged."""
+    if metric is None:
+        return None
+    text = str(metric).strip()
+    if not text:
+        return text
+    if card == 'temperature':
+        # 16C -> 16°C, 14.5-20.4C -> 14.5–20.4°C; leave existing °C alone.
+        text = re.sub(r'(?<!°)(?<=\d)C\b', '°C', text)
+        text = re.sub(r'(?<!°)(?<=\d)c\b', '°C', text)
+        text = re.sub(r'(?<=\d)-(?=\d)', '–', text)
+        text = re.sub(r'\s+-\s+', ' – ', text)
+    elif card == 'precipitation':
+        text = re.sub(r'\brain\s+yes\b', 'Rain likely', text, flags=re.IGNORECASE)
+        text = re.sub(r'\brain\s+no\b', 'No rain', text, flags=re.IGNORECASE)
+        text = re.sub(r'\brain\s+unknown\b', 'Rain unknown', text, flags=re.IGNORECASE)
+        text = re.sub(r'\s+-\s+', ' – ', text)
+        text = re.sub(r'(?<=\d)-(?=\d)', '–', text)
+    elif card == 'air':
+        text = re.sub(r'^(?:US\s*AQI|EU\s*AQI|AQI)\s*', '', text, flags=re.IGNORECASE)
+        text = re.sub(r'\s+-\s+', ' – ', text)
+    return text.strip() or text
 
 
 def source_path(runtime, date, kind):
@@ -508,7 +570,8 @@ def render_block(value, images, briefing_date=None):
         for row in value[1]:
             card, metric, detail, *custom = row
             label, symbol, style = WEATHER[card]
-            metric = '<p class="weather-value">' + escaped(metric) + '</p>' if metric is not None else ''
+            display = weather_display(card, metric) if metric is not None else None
+            metric = '<p class="weather-value">' + escaped(display) + '</p>' if display is not None else ''
             cards.append(f'<div class="weather-tile {style}"><div class="weather-label">{icon(symbol)}<h3>{escaped(custom[0]) if custom else ui.ui(label)}</h3></div>{metric}<div class="weather-detail"><p>{escaped(detail)}</p></div></div>')
         return '<div class="weather-tiles">' + ''.join(cards) + '</div>'
     if tag == 'news':
