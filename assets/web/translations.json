@@ -1,4 +1,10 @@
 {
+  "Use the requested firmer follow-up: a prior planned workout remains unconfirmed. Ask for an actual completion report; do not assume failure or shame the user.": "按用户要求使用更坚定的跟进语气：此前计划的锻炼仍未确认完成。请询问实际完成情况，不要认定失败或羞辱用户。",
+  "Soft target: {date}": "弹性目标日期：{date}",
+  "Not reminded on days with fixed-time plans": "已有明确时间安排的日期不提醒",
+  "One outstanding reminder; completion is not yet confirmed. No makeup backlog and no change to the original cadence.": "仅保留一条未完成提醒；完成情况尚未确认。不累计补做事项，也不改变原有周期。",
+  "Not reminded on days with confirmed experiment plans": "已有明确实验安排的日期不提醒",
+  "Reminder trigger: morning starts before {time} ({zone})": "提醒条件：晨报开始生成时间早于 {time}（{zone}）",
   "Appointment time not yet confirmed": "约定时间尚未确认",
   "Task records could not be read; no availability is inferred.": "无法读取任务记录；不能据此判断空闲时间。",
   "Task records unavailable": "任务记录暂不可用",

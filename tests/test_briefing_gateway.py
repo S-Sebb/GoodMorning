@@ -16,6 +16,7 @@ from support import TEMP_ROOT
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'src'))
 from goodmorning.security.briefing_accounts import Accounts, COOKIE, REMEMBER_SECONDS, SESSION_SECONDS
 from goodmorning.security.briefing_gateway import Gateway, handler_for
+from goodmorning.web.generation_clock import REQUESTED_AT
 
 
 class NoRedirect(HTTPRedirectHandler):
@@ -107,6 +108,40 @@ class GatewayTests(unittest.TestCase):
             self.assertEqual(self.received[-1][0], expected)
         for host in ('gn.example.test', 'sec.example.test'):
             self.assertEqual(self.request('/chat', headers={'Host': host})[0], 403)
+
+    def test_generation_clock_is_trusted_and_client_headers_are_not_forwarded(self):
+        header={'X-GoodMorning-Requested-At':'123'}
+        self.gateway.proxy(self.id,'gm.example.test','/api/generate','POST',b'{}',header)
+        self.assertNotIn('x-goodmorning-requested-at',{k.lower() for k in self.received[-1][1]})
+        token=REQUESTED_AT.set(456)
+        try:
+            self.gateway.proxy(self.id,'gm.example.test','/api/generate','POST',b'{}',header)
+        finally:
+            REQUESTED_AT.reset(token)
+        normalized={k.lower():v for k,v in self.received[-1][1].items()}
+        self.assertEqual(normalized['x-goodmorning-requested-at'],'456')
+
+    def test_queued_generation_retains_arrival_time_not_later_dispatch_time(self):
+        first={'user':self.id,'host':'gm.example.test','chat':'a'*32,'request':'a'*32}
+        with self.store.db() as db:
+            db.execute('INSERT INTO metadata VALUES (?,?)',('generation',json.dumps(first,separators=(',',':'))))
+        observed=[]
+        def proxy(user,host,path,method,raw,headers):
+            if path.startswith('/api/edition/'):
+                return 200,{},b'{"job":null}'
+            if method=='GET':
+                return 200,{},b'{"state":"running"}'
+            observed.append(REQUESTED_AT.get())
+            return 202,{},json.dumps({'job':'b'*32}).encode()
+        with patch.object(self.gateway,'proxy',side_effect=proxy), patch('goodmorning.security.briefing_gateway.time.time',return_value=1000):
+            status,_,_=self.gateway.generate(self.other,'gm.example.test',json.dumps({'date':'2026-10-13','kind':'gm'}).encode(),{})
+            self.assertEqual(status,202)
+            self.assertEqual(observed,[])
+        with patch.object(self.gateway,'proxy',side_effect=proxy), patch('goodmorning.security.briefing_gateway.time.time',return_value=1100):
+            self.gateway.clear_ticket(first)
+            self.gateway.pump_queue()
+        self.assertEqual(observed,[1000])
+        self.assertIsNone(REQUESTED_AT.get())
 
     def test_unprovisioned_login_gets_localized_setup_page_and_account_controls(self):
         self.permanent()

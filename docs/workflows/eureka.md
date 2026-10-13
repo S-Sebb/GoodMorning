@@ -63,7 +63,8 @@ Brief grounded interest or a warm closing is optional, not mandatory padding.
    using `--append ID`. Keep a concise current context and focused questions,
     not a transcript; note what still requires clarification. Supplied details
     alone do not request discussion or execution. If their target is unclear,
-    save unassigned pending input before asking which entry it belongs to.
+    ask a native question before appending or capturing unassigned input; the
+    conversation preserves the original message while the question waits.
 3. Apply the user's customised tone throughout the confirmation, questions, and
    reminders, while prioritizing clean formatting and clarity. Confirm what was
     saved in a natural reply using the template. By default, leave it pending and

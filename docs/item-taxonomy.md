@@ -3,8 +3,11 @@
 This is the shared routing contract. Never choose a database table from a briefing
 heading. Use `scripts/goodmorning.py` with the selected absolute runtime.
 
-1. Save material input before questions. Use the actual session, one stable request
-   key and a verified receipt. Reuse the key/input on uncertain retries.
+1. Save clear material input with the actual session, stable key and receipt.
+   Ambiguous scheduling must first use a native browser question: write no inbox
+   entry, pending note, task, draft or calendar event until answered. Conversation
+   messages/forms stay durable and visible through the Little desk waiting badge.
+   Save the resolved input once; reuse the key/input on uncertain retries.
 2. **Event** means attendance, an explicit all-day observance or reserved time.
    **Task** means an action with a completion condition. **Idea** means a possibility
    not adopted as work. Custom/imported is provenance; project/personal and
@@ -16,13 +19,36 @@ heading. Use `scripts/goodmorning.py` with the selected absolute runtime.
 4. `/todo` uses `workflow --capture todo`: original input and a minimal open task
    commit together. Optional `task` fields preserve supplied explicit timing and
    project facts. `/eureka` captures only an idea, even with action verbs/dates.
-   Capture, confirm, stop. No automatic clarification, calendar offer or execution.
+   For clear input, capture, confirm, stop. The clarification-before-recording rule
+   above applies to ambiguous scheduling; no unsolicited calendar offer or execution.
    Keep `/todo` in its capture helper even when dates are supplied: use its optional
    `task` object, not a second `task --add` capture.
 5. Secretary task writes use `task --add` or revision-checked `--update`.
    `planned_date` assigns a workday; `due_date`/`due_at` does not. A repeat rule is
    `{"weekdays":[5],"start":"YYYY-MM-DD"}` with timezone (0=Monday, 6=Sunday),
-   optional `until`. Unsupported recurrence remains recorded for clarification.
+   optional `until`. Clarify ambiguous requested recurrence before recording it.
+   Repeats also support `interval_days` or explicit `dates` instead of `weekdays`,
+   and optional `include`/`exclude` dates for confirmed exceptions; every rule needs
+   `start` and timezone. Exclusions win; bounds still apply to inclusions. Never
+   approximate an every-two-day rule with weekly weekdays. Unsupported or ambiguous
+   requested rules require clarification before a write, not an unscheduled capture.
+   A confirmed morning trigger uses task `when:{"morning_before":"10:00"}` with
+   explicit timezone and any weekday rule. Code checks the original generation
+   request timestamp, including queue arrival, not completion time or wake time.
+   Exactly 10:00 is excluded. Unknown future triggers reserve no day; regeneration
+   retains the original trigger. The underlying task can still have actual reports.
+   `when:{"unless_experiment_plan":true}` suppresses a reminder only on dates with
+   approved calendar text containing “实验” or dated, concrete task plans tagged
+   `work_kind:"experiment"`. Generic ideas/mentions are not experiment plans.
+   `follow_up:"one-outstanding"` with an interval rule keeps one latest outstanding
+   reminder, no makeup backlog. Confirmed actual completion clears that reminder
+   without changing the original cadence or claiming completion on missed dates.
+   `when:{"unless_timed_plan":true}` also suppresses on days with approved timed
+   calendar appointments, even outside the activity window; an all-day birthday
+   is not a reserved-time plan. A clothing reminder uses
+   `when:{"planned_task_id":"task_ID"}` without its own repeat/planned date, so it
+   follows the canonical workout plan, not off-cadence actual completions.
+   Soft project targets use `due_soft:true` and are labelled as soft, not hard deadlines.
    "Plan shopping Thursday, no fixed time" already supplies a workday: save that
    task without asking for a clock time or place. An undated unblocked backlog
    task is a morning option, not automatically an evening still-open card. Trust
@@ -33,11 +59,11 @@ heading. Use `scripts/goodmorning.py` with the selected absolute runtime.
    Never substitute all-day. Complete drafts convert through `task --convert ID
    --expect-revision REV --confirm` with `{"event":CALENDAR_PAYLOAD}` after exact
    confirmation. Resume the same conversion key/input after uncertain outcomes.
-   Save complete appointment requests before awaiting confirmation too: draft
-   `state:"ready-for-confirmation"` with `event:CALENDAR_PAYLOAD` preserves known
-   times without adding an approved event. Needs attention requests confirmation.
+   Obtain any missing facts and exact appointment approval through a question
+   before capturing the draft. After approval, `state:"ready-for-confirmation"`
+   with `event:CALENDAR_PAYLOAD` can be the retry-safe intermediate before conversion.
    Both fields are inside `draft`; set `confirmed_day:false` until approval:
-   `{"raw":"Add dentist Thursday...","draft":{"title":"Dentist",
+   After the user has answered/approved: `{"raw":"Add dentist Thursday...","draft":{"title":"Dentist",
    "state":"ready-for-confirmation","confirmed_day":false,"event":{
    "subject":"Dentist","start":"2026-10-15T14:00:00+01:00",
    "end":"2026-10-15T15:00:00+01:00","location":"Town Clinic"}}}`.
@@ -73,6 +99,10 @@ heading. Use `scripts/goodmorning.py` with the selected absolute runtime.
     and `confirmed_completion:true` for done. A work-session report does not
     establish completion of its larger action. Stop a recurring series explicitly;
     completing one occurrence never completes later dates.
+    A confirmed completion outside the planned dates uses `--report ID --actual
+    --date ACTUAL_DAY` with `confirmed_completion:true`; future completion is refused.
+    It records the actual day, not a replacement workday. One-off actions close;
+    recurring series retain their original rule.
 11. Publishing/regenerating a v2 briefing never creates/schedules/completes tasks.
     Project Markdown supplies goals/reports, daily Markdown supplies historical
     feedback, and SQLite owns live task state. No task table represents a section.
@@ -94,3 +124,12 @@ captures/history and imports inbox TODOs without guessing dates. Legacy daily an
 project checklists require explicit identity/date reconciliation; never silently
 merge titles or infer that a legacy daily row was an agreed workday. Do not run
 migrations or project-file edits without owner authorization.
+
+For a reviewed v1 migration, supply JSON `{"reviewed_tasks":{"ib_ID":[TASK_FIELDS],...}}`
+to `task --migrate` with the actual session; confirm only after the dry run and
+encrypted rollback snapshot. Account for every captured TODO, including an empty
+list for reference-only records, duplicates and calendar-owned attendance.
+Use explicit `status:"cancelled"` for cancelled actions, not `done`. Additional
+authorized actions may reference existing idea/project-update captures. The
+upgrade preserves every original capture/audit row and records a separate reviewed
+migration receipt. It creates no guessed daily outcomes and rewrites no Markdown.

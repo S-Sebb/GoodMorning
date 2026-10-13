@@ -67,7 +67,7 @@ python scripts/goodmorning.py inbox --secretary-dir RUNTIME --show ID
   History returns metadata, not whole event contents. Never open old records
   merely to capture a new message.
 
-## Writes: save first, return receipts only
+## Writes: clarify ambiguous scheduling first, return receipts only
 
 Use exactly one JSON source: `--input-json JSON`, `--input-file PATH` under the
 runtime, or `--input-stdin`. Do not echo payloads or print the inbox for verification.
@@ -78,7 +78,11 @@ reuse it on retry. Never generate another key to replay an uncertain write.
 The same key/input returns its original receipt without duplication; a reused
 key with different input fails. A replay receipt is not the entry's live revision.
 
-Capture has no historical read prerequisite:
+Clear capture has no historical read prerequisite. For ambiguous scheduling,
+first use a native question: no raw pending entry, task, draft or event is saved
+until answered. Nonempty unresolved `questions` on new TODO/event captures are
+rejected with `clarification_required`. Conversation messages/forms remain durable;
+the Little desk indicator lets the owner return and answer later.
 
 ```bash
 python scripts/goodmorning.py inbox --secretary-dir RUNTIME --add --session NAME --request-key KEY \
@@ -92,7 +96,8 @@ including multiline text; JSON preserves quotes and pipes. Optional fields are
 Long original input is preserved separately (up to 65,536 characters); if it is
 larger, explain the limit and ask how to divide it. No silent clipping of inputs.
 
-Save each material follow-up immediately, before questions or interpretation:
+Save clear material follow-ups immediately; resolve ambiguous targets or scheduling
+facts through a native question before any append:
 
 ```bash
 python scripts/goodmorning.py inbox --secretary-dir RUNTIME --append ID --session NAME --request-key KEY \
@@ -101,9 +106,8 @@ python scripts/goodmorning.py inbox --secretary-dir RUNTIME --append ID --sessio
 
 Appending does not require a revision or old history. It saves exact input,
 increments the revision and marks `needs_review`; it never overwrites current
-state or silently changes completion. If the target is unclear, save unassigned
-pending input before asking. After identification, attach that saved wording to
-the target, then resolve the unassigned entry with a context reference to its ID.
+state or silently changes completion. An unclear target is a question, not an
+unassigned pending capture. After identification, save to the confirmed target once.
 
 Reconcile only the affected current entry, preserving important known information:
 

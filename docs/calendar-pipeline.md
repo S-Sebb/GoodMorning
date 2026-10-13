@@ -1,5 +1,11 @@
 # Calendar usage
 
+Annual all-day observances can use `repeat:{"yearly":true,"start":"YYYY-MM-DD"}`.
+Keep the original approved calendar identity and history. Queries project one
+source-linked occurrence per year without materializing future rows; read/refresh
+never saves events. Editing a projected occurrence requires clarification of
+series scope before changing its source. Do not guess February 29 handling.
+
 Storage is `secretary/calendar.sqlite`, not Markdown.
 Read commands now open an existing database read-only; missing storage requires
 authorized setup and is not treated as an empty schedule. Reads never initialize it.

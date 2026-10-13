@@ -29,7 +29,9 @@ authorization to do the task.
    the TODO in the conversation, follow `docs/workflows/secretary.md`, and say it
    is not saved yet. If no TODO text was supplied, ask for it; never save an empty
    entry. Never persist credentials; ask for redacted wording instead.
-2. Python helpers use `python scripts/goodmorning.py COMMAND`.
+2. Apply the core-rule exception first: ambiguous scheduling uses a native question
+   before any capture or pending note. Clear input keeps the fast path below.
+   Python helpers use `python scripts/goodmorning.py COMMAND`.
    For new raw input use `workflow --capture todo --session SESSION --request-key KEY
    --input-stdin` with `raw` containing the user's exact wording and optional confirmed
    project/current context. No `kind` in the payload (the wrapper supplies `kind: "todo"`).
@@ -39,7 +41,9 @@ authorization to do the task.
     follow-ups with `inbox --append ENTRY --session SESSION --request-key KEY`
     and `{"detail":"exact supplied wording"}`. Then reconcile supplied task facts
     through `task --show TASK_ID` and revision-checked `task --update` with a separate
-    stable operation key. "Also work on it tomorrow" updates `planned_date` on the
+    stable operation key. If the target or scheduling meaning is unclear, ask a
+    native question before appending/capturing anything, per core rules.
+    "Also work on it tomorrow" updates `planned_date` on the
     existing task; a new deadline updates only `due_date`. This records the stated
     plan, not execution or unsolicited discussion. After verified reconciliation,
     mark the source reviewed with its current inbox revision; ambiguity stays pending.
@@ -54,15 +58,15 @@ authorization to do the task.
    If this same user turn was already captured, reuse its entry instead of
    duplicating it. Save follow-up details immediately with the same entry,
    preserving `raw`; supplied details alone do not request clarification.
-   If the target is unclear, save them as unassigned pending TODO input first;
-   leave them unassigned unless the user identifies the target or requests discussion.
+   If the target is unclear, ask a native question before recording anything;
+   do not save an unassigned pending TODO. Update the identified action after the answer.
 3. Verify the write receipt from
    `python scripts/goodmorning.py workflow --secretary-dir RUNTIME --capture todo` (with the required payload,
    session and request key). No full state rebuild is needed for inbox changes.
    Never mark gm/gn for TODO capture. Confirm the saved TODO briefly, using the
    reply template. Do not require a reply or a now/later choice. A brief optional
    `Clarify` invitation is allowed, not a clarification question.
-4. By default, just record what the user says. Do not ask clarification questions,
+4. For clear requests, just record what the user says. Do not ask unnecessary clarification questions,
    infer missing details, research, plan, execute the TODO, launch agents/jobs,
    scan projects, fetch news/weather, or change project/work files or calendars.
    A dated TODO stays a TODO; do not offer calendar confirmation during capture.
@@ -70,7 +74,7 @@ authorization to do the task.
    user explicitly reports completion or authorizes its organization elsewhere.
 5. Discuss only if the user says `Clarify`, explicitly asks for equivalent
    clarification, or requests a more detailed explanation. Save all supplied
-   input first, reuse existing answers, and use `question` only for remaining
+   clear input first, reuse existing answers, and use `question` only for remaining
    ambiguity within the requested discussion. Explain only what was requested;
    discussion still does not authorize execution or project/calendar changes.
    Any separately requested organization follows shared scope and confirmation

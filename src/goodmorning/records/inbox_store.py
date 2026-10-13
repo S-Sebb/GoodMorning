@@ -82,6 +82,8 @@ def validate(payload, action):
             check_text(question, 1000, "question", False)
         if len(encode(questions)) > 2200:
             raise ValueError("invalid_input: questions exceed 2200 characters; keep focused questions")
+        if action == 'add' and questions and payload.get('kind') in ('todo', 'event_proposal'):
+            raise ValueError('clarification_required: ask the browser question before saving this task or event; do not capture a pending note')
     return dict(payload)
 
 
@@ -141,6 +143,7 @@ def read_snapshot(function):
 
 class InboxStore:
     def __init__(self, directory, write=False, path=None):
+        self.directory = Path(directory).resolve()
         path = Path(path) if path else Path(directory) / NAME
         if path.is_symlink():
             raise ValueError("unsafe_path: inbox database must be a regular file inside the selected runtime")
@@ -292,6 +295,8 @@ class InboxStore:
             else:
                 linked = {}
                 current = self.show(identifier)
+                if action == 'update' and payload.get('questions') and current['kind'] in ('todo', 'event_proposal'):
+                    raise ValueError('clarification_required: ask the browser question before changing this task or event; do not save pending questions in the inbox')
                 if action == "update" and revision != current["revision"]:
                     raise ValueError("write_conflict: revision changed; show the entry and reconcile")
                 revision = current["revision"] + 1

@@ -6,12 +6,12 @@ import hashlib
 import json
 import sqlite3
 import uuid
-from datetime import date, datetime, time, timezone
+from datetime import date, datetime, time, timezone, timedelta
 from pathlib import Path
 from .calendar_safety import safe_value
 
 FIELDS = {"subject", "start", "end", "timezone", "all_day", "location", "online",
-          "organizer", "notes", "status"}
+          "organizer", "notes", "status", "repeat"}
 IMPORT_FIELDS = FIELDS | {"external_id", "occurrence_id"}
 
 
@@ -27,7 +27,7 @@ def normalize(data: dict) -> dict:
     status = out.setdefault("status", "confirmed")
     if status not in ("confirmed", "cancelled"):
         raise ValueError("status must be confirmed or cancelled")
-    for key in FIELDS - {"all_day"}:
+    for key in FIELDS - {"all_day", "repeat"}:
         if key in out and not isinstance(out[key], str):
             raise ValueError(f"{key} must be a string")
     for key in ("location", "online", "organizer", "notes"):
@@ -58,6 +58,16 @@ def normalize(data: dict) -> dict:
         end = end.astimezone(timezone.utc)
     if end <= start:
         raise ValueError("end must be after start; all-day end is exclusive")
+    if 'repeat' in out:
+        rule = out['repeat']
+        if (not all_day or end != start + timedelta(days=1) or not isinstance(rule,dict)
+                or set(rule) != {'yearly','start'} or rule['yearly'] is not True
+                or not isinstance(rule['start'],str) or date.fromisoformat(rule['start']).isoformat()!=rule['start']):
+            raise ValueError('annual observance needs one all-day date and repeat {yearly:true,start:YYYY-MM-DD}')
+        if (start.month,start.day)==(2,29):
+            raise ValueError('clarification_required: define non-leap-year handling before recording an annual February 29 observance')
+        if rule['start'] > start.isoformat():
+            raise ValueError('annual series start must not follow its original approved occurrence')
     out["start"], out["end"] = start.isoformat(), end.isoformat()
     return out
 
@@ -125,12 +135,41 @@ class CalendarStore:
     def get(self, event_id: str) -> dict:
         row = self.con.execute("SELECT * FROM events WHERE id=?", (event_id,)).fetchone()
         if row is None:
+            import re
+            if isinstance(event_id,str) and re.fullmatch('[0-9a-f]{16}',event_id):
+                year=int(event_id[:4],16)
+                candidates=self.con.execute("SELECT * FROM events WHERE substr(id,1,12)=? AND json_type(approved_json,'$.repeat')='object'",(event_id[4:],)).fetchall()
+                if 1 <= year <= 9999 and len(candidates)==1:
+                    projected=self.annual_occurrence(candidates[0],year)
+                    if projected and projected['id']==event_id:
+                        out=dict(candidates[0]);out['id']=event_id
+                        out['raw']=json.loads(out.pop('raw_json')) if out.get('raw_json') else None
+                        out.pop('raw_json',None);out.pop('approved_json')
+                        out.update(approved=projected['approved'],series_event_id=candidates[0]['id'],projected=True)
+                        a,b=endpoints(out['approved']);out.update(starts=a.timestamp(),ends=b.timestamp())
+                        return out
             raise ValueError(f"unknown event {event_id}")
         out = dict(row)
         for key in ("raw_json", "approved_json"):
             value = out.pop(key)
             out[key.removesuffix("_json")] = json.loads(value) if value else None
         return out
+
+    def annual_occurrence(self, row, year):
+        data=normalize(json.loads(row['approved_json']))
+        if self.con.execute("SELECT COUNT(*) FROM events WHERE substr(id,1,12)=? AND json_type(approved_json,'$.repeat')='object'",(row['id'][:12],)).fetchone()[0]!=1:
+            raise ValueError('annual series identity is ambiguous; preserve both sources and inspect')
+        original=date.fromisoformat(data['start'])
+        target=date(year,original.month,original.day)
+        if target.isoformat()<data['repeat']['start']:
+            return None
+        if target==original:
+            return {'id':row['id'],'approved':data}
+        identifier=format(year,'04x')+row['id'][:12]
+        if self.con.execute('SELECT 1 FROM events WHERE id=?',(identifier,)).fetchone():
+            raise ValueError('annual occurrence identity conflicts with a saved event; preserve both and inspect')
+        data={**data,'start':target.isoformat(),'end':(target+timedelta(days=1)).isoformat()}
+        return {'id':identifier,'approved':data}
 
     def _audit(self, event_id: str, action: str, actor: str):
         item = self.get(event_id)
@@ -229,6 +268,8 @@ class CalendarStore:
         with self.con:
             self.con.execute("BEGIN IMMEDIATE")
             old = self.get(event_id)
+            if old.get('projected'):
+                raise ValueError('clarification_required: this annual occurrence is projected; confirm series scope before editing its source event')
             if old["revision"] != expected:
                 raise ValueError("event changed; read it again before writing")
             if action in ("approve", "reject"):
@@ -269,13 +310,30 @@ class CalendarStore:
     def query(self, start: datetime, end: datetime, source: str = "auto",
               no_custom: bool = False, limit: int = 100, offset: int = 0,
               details: bool = False) -> list[dict]:
+        owned=not self.con.in_transaction
+        if owned:
+            self.con.execute('BEGIN')
+        try:
+            return self._query(start,end,source,no_custom,limit,offset,details)
+        finally:
+            if owned:
+                self.con.rollback()
+
+    def _query(self, start, end, source, no_custom, limit, offset, details):
         clauses, params = ["starts < ?", "ends > ?"], [end.timestamp(), start.timestamp()]
         if source != "auto":
             clauses.append("source=?")
             params.append(source)
         if no_custom:
             clauses.append("source!='custom'")
-        params.extend([limit, offset])
+        series_clauses=["starts IS NOT NULL", "json_type(approved_json,'$.repeat')='object'"]
+        series_params=[]
+        if source!='auto':
+            series_clauses.append('source=?');series_params.append(source)
+        if no_custom:
+            series_clauses.append("source!='custom'")
+        series=self.con.execute('SELECT id,source,revision,review,approved_json FROM events WHERE '+ ' AND '.join(series_clauses),series_params).fetchall()
+        params.extend([limit+offset if series and limit>=0 else limit, 0 if series else offset])
         rows = self.con.execute("SELECT id,source,revision,review,approved_json FROM events WHERE "
                                 + " AND ".join(clauses) + " ORDER BY starts,id LIMIT ? OFFSET ?", params)
         out = []
@@ -284,11 +342,35 @@ class CalendarStore:
             if not details:
                 data = {k: v for k, v in data.items() if k not in ("notes", "organizer") and v != ""}
             out.append({"id": row["id"], "source": row["source"], "revision": row["revision"],
-                        **data, **({"pending_change": True} if row["review"] == "pending" else {})})
+                         **data, **({"pending_change": True} if row["review"] == "pending" else {})})
+        if series:
+            from zoneinfo import ZoneInfo
+            for row in series:
+                data=json.loads(row['approved_json'])
+                zone=ZoneInfo(data['timezone'])
+                first=max(start.astimezone(zone).year,date.fromisoformat(data['repeat']['start']).year)
+                last=end.astimezone(zone).year
+                if limit>=0:
+                    last=min(last,first+limit+offset)
+                for year in range(first,last+1):
+                    projected=self.annual_occurrence(row,year)
+                    if not projected or projected['id']==row['id']:
+                        continue  # The original approved occurrence was already queried.
+                    value=projected['approved'];begin,finish=endpoints(value)
+                    if begin>=end or finish<=start:
+                        continue
+                    if not details:
+                        value={k:v for k,v in value.items() if k not in ('notes','organizer') and v!=''}
+                    out.append({'id':projected['id'],'source':row['source'],'revision':row['revision'],
+                        **value,'series_event_id':row['id'], 'projected':True,
+                        **({'pending_change':True} if row['review']=='pending' else {})})
+            out.sort(key=lambda item:(endpoints(item)[0].timestamp(),item['id']))
+            out=out[offset:offset+limit] if limit>=0 else out[offset:]
         return out
 
     def history(self, event_id: str, limit: int = 20, offset: int = 0) -> list[dict]:
-        self.get(event_id)
+        item=self.get(event_id)
+        event_id=item.get('series_event_id',event_id)
         rows = self.con.execute("SELECT revision,action,actor,at,snapshot FROM history "
                                 "WHERE event_id=? ORDER BY revision DESC LIMIT ? OFFSET ?",
                                 (event_id, limit, offset))

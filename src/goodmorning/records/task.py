@@ -10,6 +10,13 @@ from .inbox_store import InboxStore, encode, stamp
 from .task_store import TaskStore, migrate
 
 
+def decode_input(args):
+    text = args.input_json if args.input_json is not None else sys.stdin.read(100001) if args.input_stdin else None
+    if text is None or len(text) > 100000:
+        raise ValueError('input_required: supply bounded JSON')
+    return json.loads(text)
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--secretary-dir')
@@ -24,6 +31,7 @@ def main(argv=None):
         actions.add_argument('--' + name)
     parser.add_argument('--draft', action='store_true')
     parser.add_argument('--date')
+    parser.add_argument('--actual', action='store_true', help='Confirmed completion on its actual date, even outside the planned recurrence')
     parser.add_argument('--confirm', action='store_true')
     parser.add_argument('--session', default=os.environ.get('OPENCODE_SESSION_ID'))
     parser.add_argument('--request-key')
@@ -41,10 +49,16 @@ def main(argv=None):
             from goodmorning.web import language as ui
             language_token = ui.CURRENT.set(args.website_language)
         runtime = secretary_path(args.secretary_dir)
+        if args.actual and not args.report:
+            raise ValueError('invalid_input: --actual applies only to --report')
         if args.offset < 0 or not 1 <= args.limit <= 200:
             raise ValueError('invalid_input: invalid page size')
         if args.migrate:
-            result = migrate(runtime, args.confirm)
+            review = decode_input(args) if (args.input_json or args.input_stdin) else None
+            if review is not None and (not isinstance(review,dict) or set(review)!={'reviewed_tasks'}):
+                raise ValueError('invalid_input: reviewed migration accepts only reviewed_tasks')
+            result = migrate(runtime, args.confirm, reviewed_tasks=review['reviewed_tasks'] if review is not None else None,
+                             session=args.session, now=stamp(runtime) if review is not None else None)
         elif args.briefing:
             from .routing import prepare
             if not args.date:
@@ -68,10 +82,7 @@ def main(argv=None):
             if args.show:
                 result = store.show(args.show, args.draft)
             else:
-                text = args.input_json if args.input_json is not None else sys.stdin.read(100001) if args.input_stdin else None
-                if text is None or len(text) > 100000:
-                    raise ValueError('input_required: supply bounded JSON')
-                payload = json.loads(text)
+                payload = decode_input(args)
                 now = stamp(runtime)
                 if args.add or args.capture_draft:
                     result = inbox.mutate('add', {**payload, 'kind': 'event_proposal' if args.capture_draft else 'todo'}, args.session, args.request_key, now)
@@ -86,7 +97,7 @@ def main(argv=None):
                     if args.report and not args.date:
                         raise ValueError('date_required: occurrence reporting needs its agreed date')
                     result = store.mutate(args.update or args.report, args.expect_revision, payload, args.session,
-                                          args.request_key, now, day=args.date if args.report else None, draft=args.draft)
+                                          args.request_key, now, day=args.date if args.report else None, draft=args.draft, actual=args.actual)
         print(encode(result))
         return 0
     except (ValueError, OSError, sqlite3.Error, KeyError, TypeError) as error:

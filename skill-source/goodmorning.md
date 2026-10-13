@@ -40,7 +40,10 @@ special command. Reuse saved context and preserve permissions and confirmations;
 browser briefings still belong on the Morning/Evening pages.
 `/eureka` and `/todo` are capture requests, not instructions to do the captured
 work. By default, save, confirm, then stop. Supplied details do not authorize discussion or
-execution; clarification requires an explicit request and is not execution consent.
+execution. Ambiguous scheduling is the exception: native question first, no inbox,
+task, draft, calendar or pending-note write until answered. The message/form stays
+in the conversation and the Little desk waiting indicator links back to it.
+Other discussion requires an explicit request and is not execution consent.
 Missing setup follows the secretary workflow without recursively loading a skill.
 Inbox memory uses `scripts/goodmorning.py inbox`: append without reading history, query only
 active summaries/relevant IDs, and keep material current state—not a transcript.

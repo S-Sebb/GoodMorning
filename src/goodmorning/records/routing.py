@@ -7,14 +7,98 @@ from .inbox_store import InboxStore
 from .task_store import TaskStore
 
 
+def reminder_eligible(store, task, day):
+    """Missing trigger evidence is unknown, never guessed from wake time or the clock now."""
+    if task.get('defer_until') and day < task['defer_until']:
+        return False
+    if not task.get('when'):
+        return True
+    from zoneinfo import ZoneInfo
+    if task['when'].get('unless_experiment_plan'):
+        for candidate in store.all():
+            if candidate.get('work_kind') != 'experiment' or candidate['status'] == 'cancelled':
+                continue
+            try:
+                if store.occurrence(candidate, day)['status'] != 'cancelled':
+                    return False
+            except ValueError:
+                pass
+    if task['when'].get('unless_experiment_plan') or task['when'].get('unless_timed_plan'):
+        from goodmorning.calendar.calendar_store import CalendarStore
+        target = dt.datetime.combine(dt.date.fromisoformat(day), dt.time(), ZoneInfo(task['timezone']))
+        calendar_path = store.inbox.directory/'calendar.sqlite'
+        if calendar_path.is_symlink():
+            raise ValueError('unsafe_path: calendar conditions must belong to this runtime')
+        calendar = CalendarStore(str(calendar_path), readonly=True)
+        try:
+            for row in calendar.query(target, target + dt.timedelta(days=1), details=True, limit=-1):
+                if task['when'].get('unless_experiment_plan') and '实验' in (row['subject'] + ' ' + row.get('notes','')):
+                    return False
+                if task['when'].get('unless_timed_plan') and not row.get('all_day'):
+                    return False
+        finally:
+            calendar.close()
+    if 'morning_before' not in task['when']:
+        return True
+    from goodmorning.briefings.briefing_stream import bounded_json
+    from goodmorning.web.generation_clock import timestamp
+    path = store.inbox.directory/'browser-jobs/jobs.json'
+    if path.is_symlink() or path.parent.is_symlink():
+        raise ValueError('unsafe_path: generation trigger must belong to this runtime')
+    if not path.exists():
+        return False
+    jobs = bounded_json(path, 2_000_000)
+    job = jobs.get(day + '.gm', {})
+    started = job.get('generation_started_at')
+    if started is None:
+        return False
+    local = dt.datetime.fromtimestamp(timestamp(started), ZoneInfo(task['timezone']))
+    return local.date().isoformat() == day and local.strftime('%H:%M') < task['when']['morning_before']
+
+
+def outstanding_reminder(store, task, today):
+    """One outstanding reminder; actual completion clears it without rewriting missed days."""
+    rule = task['repeat']
+    stop = min(today, rule.get('until') or today)
+    if stop < rule['start']:
+        return None
+    start = dt.date.fromisoformat(rule['start'])
+    distance = (dt.date.fromisoformat(stop) - start).days
+    due = start + dt.timedelta(days=distance // rule['interval_days'] * rule['interval_days'])
+    while due.isoformat() in rule.get('exclude', []):
+        due -= dt.timedelta(days=rule['interval_days'])
+    if due < start:
+        return None
+    day = due.isoformat()
+    completed = store.db.execute("SELECT MAX(date) FROM task_occurrences WHERE task_id=? AND status='done'", (task['id'],)).fetchone()[0]
+    if completed and completed >= day:
+        return None
+    occurrence = store.occurrence(task, day)
+    if occurrence['status'] in ('done','cancelled'):
+        return None
+    row = task_row(task, day, occurrence, 'still-open')
+    from goodmorning.web import language as ui
+    row['detail'] += ('\n' if row['detail'] else '') + ui.text('One outstanding reminder; completion is not yet confirmed. No makeup backlog and no change to the original cadence.')
+    first = start
+    if completed:
+        elapsed = (dt.date.fromisoformat(completed) - start).days
+        first = start + dt.timedelta(days=max(0, elapsed // rule['interval_days'] + 1) * rule['interval_days'])
+    while first < due and (first.isoformat() in rule.get('exclude', []) or store.occurrence(task, first.isoformat())['status'] == 'cancelled'):
+        first += dt.timedelta(days=rule['interval_days'])
+    if first.isoformat() < today:
+        row['detail'] += '\n' + ui.text('Use the requested firmer follow-up: a prior planned workout remains unconfirmed. Ask for an actual completion report; do not assume failure or shame the user.')
+    return row
+
+
 def task_row(task, day='', occurrence=None, group='other'):
     return {'id': task['id'], 'revision': task['revision'], 'occurrence_id': occurrence['id'] if occurrence else '',
             'date': day, 'status': occurrence['status'] if occurrence else task['status'],
             'title': task['title'], 'detail': task['detail'], 'project': task['project'],
             'optional': task['optional'], 'priority': task['priority'], 'due_date': task['due_date'],
             'due_at': task['due_at'], 'timezone': task['timezone'], 'group': group,
-            'source_entry_id': task['source_entry_id'], 'owner': 'tasks',
-            'report_detail': occurrence['detail'] if occurrence else '', 'created_at': task['created_at']}
+             'source_entry_id': task['source_entry_id'], 'owner': 'tasks',
+              'report_detail': occurrence['detail'] if occurrence else '', 'created_at': task['created_at'],
+              **{key:task[key] for key in ('when','due_soft') if task.get(key)}}
 
 
 def task_view(store, today, kind='gm', offset=0, limit=7, owned=()):
@@ -29,12 +113,18 @@ def task_view(store, today, kind='gm', offset=0, limit=7, owned=()):
         scheduled = []
         for n in range(3):
             target = (start + dt.timedelta(days=n)).isoformat()
+            if not reminder_eligible(store, task, target):
+                continue
             try:
                 occ = store.occurrence(task, target)
             except ValueError:
                 continue
             if occ['status'] not in ('done', 'cancelled'):
                 scheduled.append(task_row(task, target, occ, 'planned'))
+        if task.get('when') and not scheduled and not (kind == 'gn' and reminder_eligible(store, task, today)):
+            continue  # A future morning's trigger has not been established.
+        if task.get('defer_until') and today < task['defer_until']:
+            continue
         if scheduled:
             rows.extend(scheduled)
         elif task['due_date'] and task['due_date'] <= deadline_end.isoformat():
@@ -54,6 +144,16 @@ def task_view(store, today, kind='gm', offset=0, limit=7, owned=()):
                 rows.append(task_row(task, task['planned_date'], occ, 'still-open'))
         elif kind == 'gm' and not task['planned_date'] and not task['repeat'] and (not task['defer_until'] or task['defer_until'] <= today):
             rows.append(task_row(task))
+    for task in store.all():
+        if task['status'] in ('done','cancelled') or task.get('follow_up') != 'one-outstanding':
+            continue
+        row = outstanding_reminder(store, task, today)
+        if row:
+            existing = next((r for r in rows if (r['id'],r['occurrence_id']) == (row['id'],row['occurrence_id'])), None)
+            if existing:
+                existing['detail'] = row['detail']
+            else:
+                rows.append(row)
     rows = [row for row in rows if (row['id'], row['occurrence_id']) not in owned]
     rank = {'planned': 0, 'deadline': 1, 'still-open': 2, 'other': 3}
     priority = {'high': 0, 'normal': 1, '': 2, 'low': 3}
@@ -67,11 +167,13 @@ def planned_day(store, day, completed=True):
     for task in store.all():
         if task['status'] == 'cancelled':
             continue
+        if not reminder_eligible(store, task, day):
+            continue
         try:
             occ = store.occurrence(task, day)
         except ValueError:
             continue
-        if task['status'] == 'done':
+        if task['status'] == 'done' and occ['revision'] == 0:
             occ = {**occ, 'status': 'done'}
         if occ['status'] != 'cancelled' and (completed or occ['status'] != 'done'):
             rows.append(task_row(task, day, occ, 'planned'))
@@ -274,7 +376,14 @@ def action_cells(row):
     if row['priority']:
         detail.append(ui.text('Priority: {priority}', priority=row['priority']))
     if row['due_date']:
-        detail.append(ui.text('Due: {date}', date=row['due_at'] or row['due_date']))
+        detail.append(ui.text('Soft target: {date}' if row.get('due_soft') else 'Due: {date}', date=row['due_at'] or row['due_date']))
+    if (row.get('when') or {}).get('morning_before'):
+        detail.append(ui.text('Reminder trigger: morning starts before {time} ({zone})',
+                              time=row['when']['morning_before'], zone=row['timezone']))
+    if (row.get('when') or {}).get('unless_experiment_plan'):
+        detail.append(ui.text('Not reminded on days with confirmed experiment plans'))
+    if (row.get('when') or {}).get('unless_timed_plan'):
+        detail.append(ui.text('Not reminded on days with fixed-time plans'))
     if not row['date']:
         detail.append(ui.text('No workday assigned'))
     if row['report_detail']:

@@ -93,7 +93,9 @@ ideas without authorization. Daily Markdown is history, not live task storage.
     On requested discussion, reuse prior answers; ask only about remaining ambiguity. Confirm only after
     user confirmation and successful authorized organization.
     TODOs follow `docs/workflows/todo.md`.
-2. Use the shared pending project-update workflow before asking questions;
+2. Apply the core-rule clarification-before-recording exception for ambiguous
+   scheduling/targets; use a native question and no pending note until answered.
+   Otherwise use the shared project-update workflow before asking questions;
     catch up; remind about outstanding project-update questions. Respect write-back
     scope and update `last_update` for confirmed changes.
     Confirm changed roles/fields before updating the profile; keep other

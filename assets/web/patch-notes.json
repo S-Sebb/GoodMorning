@@ -1,6 +1,40 @@
 {
   "notes": [
     {
+      "version": "0.32.0", "date": "2026-10-13", "author": "GoodMorning agent",
+      "title_en": "Schedule, durable tasks and faithful reminder rules", "title_zh": "日程、持久待办与准确的提醒规则",
+      "changes": [
+        {"category": "Added", "en": [
+          "Keep events, personal and project tasks, and decisions separate with stable identities, completion reports and revision-checked changes.",
+          "Show saved appointments, untimed tasks and unknown-time attendance in the weekly Schedule, with navigation three weeks backward and forward.",
+          "Support every-N-day and explicit-date reminders, confirmed recurrence exceptions, linked workout-day reminders and annual all-day observances without copying future events."
+        ], "zh": [
+          "将事件、个人与项目待办、待确认事项分开管理，提供稳定身份、完成记录与带版本检查的修改。",
+          "在每周日程中显示已保存的预约、无固定时刻的待办与时间待定的安排，可查看前后三周。",
+          "支持每隔若干天、指定日期、已确认的周期例外、关联锻炼日期的提醒，以及每年全天纪念事项，不复制未来事件。"
+        ]},
+        {"category": "Changed", "en": [
+          "Clarify ambiguous scheduling before saving any task, event or pending note; native questions remain reachable through the waiting-question indicator.",
+          "New briefing publication and regeneration present saved records without scheduling or completing tasks. Preserve existing briefing archives."
+        ], "zh": [
+          "对含糊的日程请求先提问，再保存待办、事件或待确认笔记；原生问题可通过待回答提示返回处理。",
+          "新简报的发布和重新生成只呈现已保存的记录，不安排或完成待办，并保留已有简报档案。"
+        ]},
+        {"category": "Fixed", "en": [
+          "Evaluate confirmed early-morning reminders using the original request time and account timezone, preserving the trigger across queue delays and regeneration.",
+          "Keep soft targets distinct from hard deadlines, and actual workout completion dates distinct from missed dates and the original cadence."
+        ], "zh": [
+          "使用原始请求时间与账户时区判断已确认的早间提醒条件，排队延迟和重新生成不会改变触发依据。",
+          "区分弹性目标与硬性截止日期，并区分实际锻炼完成日期、错过的日期及原有周期。"
+        ]},
+        {"category": "Notes", "en": [
+          "Legacy record migration remains an explicitly reviewed, backed-up maintenance operation, never an automatic deployment or page-read side effect."
+        ], "zh": [
+          "旧记录迁移仍须明确审核并备份后进行维护操作，不会因部署或读取页面而自动发生。"
+        ]}
+      ]
+    },
+    {
       "version": "0.31.0", "date": "2026-10-13", "author": "GoodMorning agent",
       "title_en": "Smaller avatar inspection records and storage visibility", "title_zh": "精简头像检查记录并提供存储统计",
       "changes": [

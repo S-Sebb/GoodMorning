@@ -141,7 +141,10 @@ def task_card(task):
         metadata.append('<small class="task-progress">' + ui.ui(state.capitalize()) + '</small>')
     if task.get('due_date'):
         deadline = task.get('due_at') or task['due_date']
-        metadata.append('<small class="task-deadline">' + ui.ui('Due: {date}', date=deadline) + '</small>')
+        metadata.append('<small class="task-deadline">' + ui.ui('Soft target: {date}' if task.get('due_soft') else 'Due: {date}', date=deadline) + '</small>')
+    if (task.get('when') or {}).get('morning_before'):
+        metadata.append('<small class="task-trigger">' + ui.ui('Reminder trigger: morning starts before {time} ({zone})',
+            time=task['when']['morning_before'], zone=task['timezone']) + '</small>')
     detail = ' · '.join(value for value in (task.get('detail'), task.get('report_detail')) if value)
     if detail:
         metadata.append('<small class="task-detail" data-content>' + html.escape(detail) + '</small>')

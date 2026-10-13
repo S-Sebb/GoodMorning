@@ -11,6 +11,10 @@ including questions, titles and the document's `lang`. It overrides the local
 profile's reply language. Never ask for another language during initialization.
 Changing the interface language does not restart or translate an active edition;
 it affects future requests. Preserve all earlier published and saved content.
+Conditional morning reminders use the code-owned original request timestamp
+(including queue arrival), not model completion time or assumed wake time.
+Regeneration preserves that trigger. Never schedule unknown future conditions
+or invent a timed calendar booking from a conditional reminder.
 If preparation reports `migration_required`, use Secretary to review
 `task --migrate` and obtain explicit backed-up upgrade consent; do not reset the
 runtime or repeatedly press generation. Profile setup stays saved.

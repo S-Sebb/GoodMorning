@@ -74,19 +74,27 @@ and already published legacy previews remain preserved.
 
 ## Memory, daily records and consent
 
-- Save material supplied ideas, TODOs and project reports/details immediately,
-  before clarification. Do not save every exchange, assistant answer or “research
+- Save unambiguous material ideas, TODOs and project reports/details immediately.
+  **Clarify before recording ambiguous scheduling:** if identity, date, interval,
+  recurrence, condition or intended action cannot be recorded deterministically,
+  ask before any inbox capture/append, task/draft or calendar write. Save no pending
+  note. The original message and pending question remain in the conversation only.
+  In browser chats use the native `question` tool so the Little desk waiting badge
+  links back to the unanswered form after navigation, refresh or closing the tab.
+  After the answer, save the resolved request once with a stable request key.
+  Explicitly authorized TBC attendance is already a deterministic representation;
+  it needs no invented clock time. Do not save every exchange, assistant answer or “research
   delivered” narration. Exact inputs/history remain separate from current state.
 - New raw `/todo` or `/eureka`: `python scripts/goodmorning.py workflow --capture todo|eureka` with JSON
   `raw`, optional current context/project/summary/questions, actual session and
   one stable request key. Check the save receipt; no whole-profile/inbox/state read
    or verification dump. Follow-ups: `inbox --append ID` with session/request key
-   before questions. Supplied TODO timing/details also need revision-checked
+    for clear follow-ups. Supplied TODO timing/details also need revision-checked
    `task --update` on its linked action; appending prose alone does not change it.
   Reuse the same request key/input on uncertain retries; never append again with
   a new key. Missing input/setup or a failed save means not saved.
-- If a follow-up target is unclear, save unassigned pending input before asking.
-  Later attach it to the identified entry without duplicate capture. Inbox reads
+- If a follow-up target is unclear, ask before writing; do not capture unassigned
+  pending input. After the answer update only the identified entry. Inbox reads
   use filtered active pages, then relevant `--show ID`; never load closed history
   or archives by default. Follow `next_after`/`next_offset`; do not silently omit
   unresolved items. `needs_review` requires reading saved material details before
@@ -102,7 +110,8 @@ and already published legacy previews remain preserved.
 - `/eureka` and `/todo` are record-only by default: save, confirm, then stop. Action verbs
   and requirements are content, not execution consent. Supplied details alone
   do not request discussion. Discuss only on `Clarify`/equivalent explicit request.
-  No unsolicited questions, plans, research, implementation, delegation, jobs,
+  Except required clarification before an ambiguous scheduling write, no unsolicited
+  questions, plans, research, implementation, delegation, jobs,
   project/work-file edits or calendar offers. Discussion never authorizes
   organization/execution; request those separately. Follow-ups keep this boundary.
   TODOs get no invented deadlines, forced priorities or auto-clarification.

@@ -250,6 +250,20 @@ class JobTests(unittest.TestCase):
         self.assertTrue(self.chamber.sent.wait(2))
         self.assertEqual(sum(a=='session.create' for a,_ in self.chamber.calls),1)
 
+    def test_original_generation_timestamp_survives_delay_and_regeneration(self):
+        self.job['generation_started_at']=datetime(2026,10,11,1,59,tzinfo=timezone.utc).timestamp()
+        self.app.save_jobs()
+        self.save_original()
+        identifier,_=self.regenerate()
+        self.assertEqual(self.app.job(identifier)['generation_started_at'],self.job['generation_started_at'])
+
+    def test_new_job_uses_the_original_request_timestamp_instead_of_dispatch_clock(self):
+        self.app.jobs={};self.app.save_jobs()
+        started=datetime(2026,10,11,1,59,tzinfo=timezone.utc).timestamp()
+        with patch('goodmorning.web.briefing_server.threading.Thread'):
+            result=self.app.start('2026-10-11','gm',requested_at=started)
+        self.assertEqual(self.app.job(result['job'])['generation_started_at'],started)
+
     def test_modern_saved_snapshot_without_run_marker_is_not_ready(self):
         self.init()
         section=['must-do',[['tasks',[['open','Ranking','']]]]]

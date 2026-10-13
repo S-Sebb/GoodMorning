@@ -66,6 +66,178 @@ class TaxonomyTests(unittest.TestCase):
             self.capture('Must roll back raw input too')
         self.assertEqual(self.inbox.stats()['total'], 2)
 
+    def test_ambiguous_task_or_event_is_not_even_a_pending_capture(self):
+        before = (self.root/'inbox.sqlite').read_bytes()
+        for kind in ('todo', 'event_proposal'):
+            with self.assertRaisesRegex(ValueError, 'clarification_required'):
+                self.capture('Next Friday, or perhaps Saturday?', kind, questions=['Which date?'])
+        self.assertEqual(self.inbox.stats()['total'], 0)
+        self.assertEqual(self.inbox.db.execute('SELECT COUNT(*) FROM events').fetchone()[0], 0)
+        self.assertEqual((self.root/'inbox.sqlite').read_bytes(), before)
+        receipt=self.capture('Friday is confirmed', task={'title':'Buy milk','planned_date':'2026-10-16'})
+        self.assertTrue(receipt['saved'])
+        with self.assertRaisesRegex(ValueError,'clarification_required'):
+            self.inbox.mutate('update',{'questions':['Change to Saturday?']},'ses_test','unanswered-change',NOW,receipt['id'],1)
+        self.assertEqual(self.inbox.show(receipt['id'])['revision'],1)
+
+    def test_interval_and_explicit_date_recurrence_are_not_weekday_approximations(self):
+        first = self.capture(task={'title':'Training','timezone':'Asia/Shanghai',
+            'repeat':{'interval_days':2,'start':'2026-10-12'}})['task_id']
+        task = self.tasks.show(first)
+        self.tasks.occurrence(task,'2026-10-14')
+        self.tasks.occurrence(task,'2026-10-18')
+        with self.assertRaisesRegex(ValueError,'unknown_occurrence'):
+            self.tasks.occurrence(task,'2026-10-15')
+        second = self.capture(task={'title':'Rebalance reminder','timezone':'Asia/Shanghai',
+            'repeat':{'dates':['2026-11-12','2026-12-14'],'start':'2026-10-12'}})['task_id']
+        self.tasks.occurrence(self.tasks.show(second),'2026-12-14')
+        with self.assertRaisesRegex(ValueError,'unknown_occurrence'):
+            self.tasks.occurrence(self.tasks.show(second),'2026-12-12')
+
+    def test_excluded_weekly_date_is_not_recreated(self):
+        receipt = self.capture(task={'title':'Prepare meeting','timezone':'Europe/London',
+            'repeat':{'weekdays':[3],'start':'2026-10-12','exclude':['2026-10-15']}})
+        task = self.tasks.show(receipt['task_id'])
+        with self.assertRaisesRegex(ValueError,'unknown_occurrence'):
+            self.tasks.occurrence(task,'2026-10-15')
+        self.tasks.occurrence(task,'2026-10-22')
+
+    def test_moved_meeting_preparation_is_one_series_with_explicit_exception(self):
+        receipt=self.capture(task={'title':'Prepare presentation','timezone':'Europe/London',
+            'repeat':{'weekdays':[3],'start':'2026-10-12','include':['2026-10-12'],'exclude':['2026-10-15']}})
+        task=self.tasks.show(receipt['task_id'])
+        self.tasks.occurrence(task,'2026-10-12')
+        self.tasks.occurrence(task,'2026-10-22')
+        with self.assertRaisesRegex(ValueError,'unknown_occurrence'):
+            self.tasks.occurrence(task,'2026-10-15')
+
+    def test_morning_condition_uses_account_date_and_original_request_not_finish_or_wake(self):
+        identifier = self.capture(task={'title':'Craft reminder','timezone':'Asia/Shanghai',
+            'repeat':{'weekdays':[0,1,2,3,4],'start':'2026-10-12'}, 'when':{'morning_before':'10:00'}})['task_id']
+        directory=self.root/'browser-jobs';directory.mkdir()
+        path=directory/'jobs.json'
+        def at(day, clock):
+            started=datetime.fromisoformat(day+'T'+clock+':00+08:00').timestamp()
+            path.write_text(json.dumps({day+'.gm':{'generation_started_at':started}}))
+        self.assertEqual(self.view()['tasks']['total'],0)
+        at(DAY,'09:59')
+        self.assertEqual(self.view()['tasks']['items'][0]['id'],identifier)
+        self.assertEqual(self.view('gn')['tasks']['items'][0]['group'],'still-open')
+        self.assertEqual(routing.planned_day(self.tasks,'2026-10-14'),[])
+        at(DAY,'10:00')
+        self.assertEqual(self.view()['tasks']['total'],0)
+        at('2026-10-17','09:00')
+        self.assertEqual(self.view(day='2026-10-17')['tasks']['total'],0)
+        self.tasks.mutate(identifier,1,{'status':'done','confirmed_completion':True},'ses_test','craft-done',NOW,day=DAY)
+        self.assertEqual(self.view('gn')['today'][0]['status'],'done')
+
+    def test_future_defer_date_hides_an_undated_reminder_until_its_confirmed_start(self):
+        self.capture(task={'title':'Confirm trip','defer_until':'2026-11-01'})
+        self.assertEqual(self.view()['tasks']['total'],0)
+        self.assertEqual(self.view(day='2026-11-01')['tasks']['items'][0]['date'],'')
+
+    def test_one_outstanding_reminder_keeps_actual_completion_and_original_cadence(self):
+        identifier=self.capture(task={'title':'Training','timezone':'Asia/Shanghai',
+            'repeat':{'interval_days':2,'start':'2026-10-12'},'follow_up':'one-outstanding'})['task_id']
+        self.tasks.mutate(identifier,1,{'status':'done','confirmed_completion':True},'ses_test','first-session',NOW,day='2026-10-12')
+        pending=self.view(day='2026-10-15')['tasks']['items']
+        self.assertEqual([r['date'] for r in pending if r['group']=='still-open'],['2026-10-14'])
+        self.assertIn('firmer follow-up',next(r['detail'] for r in pending if r['date']=='2026-10-14'))
+        overlapping=self.view(day='2026-10-16')['tasks']['items']
+        self.assertIn('firmer follow-up',next(r['detail'] for r in overlapping if r['date']=='2026-10-16'))
+        self.assertNotIn('2026-10-14',[r['date'] for r in overlapping])
+        self.tasks.mutate(identifier,2,{'status':'done','confirmed_completion':True},'ses_test','actual-session',
+                          '2026-10-15T12:00:00+08:00',day='2026-10-15',actual=True)
+        self.assertEqual([r['date'] for r in self.view(day='2026-10-15')['tasks']['items']],['2026-10-16'])
+        self.assertNotIn('firmer follow-up',self.view(day='2026-10-16')['tasks']['items'][0]['detail'])
+        self.assertEqual(self.view('gn',day='2026-10-15')['today'][0]['date'],'2026-10-15')
+        self.assertIsNone(self.inbox.db.execute('SELECT * FROM task_occurrences WHERE task_id=? AND date=?',(identifier,'2026-10-14')).fetchone())
+        later=self.view(day='2026-10-19')['tasks']['items']
+        self.assertEqual([r['date'] for r in later if r['group']=='still-open'],['2026-10-18'])
+        self.assertEqual(self.tasks.show(identifier)['repeat']['start'],'2026-10-12')
+
+    def test_actual_completion_closes_an_undated_action_but_cannot_claim_future_work(self):
+        identifier=self.capture(task={'title':'Send receipt'})['task_id']
+        with self.assertRaisesRegex(ValueError,'future work'):
+            self.tasks.mutate(identifier,1,{'status':'done','confirmed_completion':True},'ses_test','future',NOW,day='2026-10-20',actual=True)
+        self.tasks.mutate(identifier,1,{'status':'done','confirmed_completion':True},'ses_test','actual',NOW,day=DAY,actual=True)
+        self.assertEqual(self.tasks.show(identifier)['status'],'done')
+        self.assertEqual(self.view('gn')['today'][0]['date'],DAY)
+        self.assertEqual(self.view()['tasks']['total'],0)
+
+    def test_experiment_condition_uses_concrete_plans_not_generic_mentions(self):
+        reminder=self.capture(task={'title':'Use expiring tokens','timezone':'Europe/London',
+            'repeat':{'weekdays':list(range(7)),'start':DAY,'until':'2026-10-19'},
+            'when':{'unless_experiment_plan':True}})['task_id']
+        self.capture(task={'title':'Maybe advance a little experiment work','planned_date':DAY})
+        self.assertIn(reminder,[r['id'] for r in self.view()['tasks']['items']])
+        self.capture(task={'title':'Run the confirmed culture experiment','planned_date':DAY,'work_kind':'experiment'})
+        self.assertNotIn(reminder,[r['id'] for r in self.view()['tasks']['items'] if r['date']==DAY])
+
+    def test_craft_suppression_uses_fixed_plans_not_all_day_observances(self):
+        identifier=self.capture(task={'title':'Craft reminder','timezone':'Asia/Shanghai',
+            'repeat':{'weekdays':[0,1,2,3,4],'start':'2026-10-12'},
+            'when':{'morning_before':'10:00','unless_timed_plan':True,'unless_experiment_plan':True}})['task_id']
+        directory=self.root/'browser-jobs';directory.mkdir()
+        (directory/'jobs.json').write_text(json.dumps({DAY+'.gm':{'generation_started_at':datetime.fromisoformat(DAY+'T09:00:00+08:00').timestamp()}}))
+        calendar=CalendarStore(str(self.root/'calendar.sqlite'))
+        try:
+            calendar.add({'subject':'A birthday','all_day':True,'timezone':'Asia/Shanghai','start':DAY,'end':'2026-10-14'})
+            self.assertIn(identifier,[r['id'] for r in self.view()['tasks']['items']])
+            event=calendar.add({'subject':'Evening appointment','start':DAY+'T18:00:00+08:00','end':DAY+'T19:00:00+08:00'})
+            self.assertNotIn(identifier,[r['id'] for r in self.view()['tasks']['items']])
+            calendar.change(event,'cancel',1)
+            self.assertIn(identifier,[r['id'] for r in self.view()['tasks']['items']])
+        finally:
+            calendar.close()
+
+    def test_clothing_reminder_follows_the_canonical_training_plan_not_makeup_days(self):
+        parent=self.capture(task={'title':'Training','timezone':'Asia/Shanghai',
+            'repeat':{'interval_days':2,'start':'2026-10-12'}})['task_id']
+        child=self.capture(task={'title':'Bring clothing','timezone':'Asia/Shanghai',
+            'when':{'planned_task_id':parent}})['task_id']
+        self.tasks.occurrence(self.tasks.show(child),'2026-10-14')
+        self.tasks.mutate(parent,1,{'status':'done','confirmed_completion':True},'ses_test','off-plan-session',
+            '2026-10-15T12:00:00+08:00',day='2026-10-15',actual=True)
+        with self.assertRaisesRegex(ValueError,'unknown_occurrence'):
+            self.tasks.occurrence(self.tasks.show(child),'2026-10-15')
+        self.tasks.mutate(parent,2,{'repeat':{'interval_days':2,'start':'2026-10-13'}},'ses_test','change-plan',NOW)
+        self.tasks.occurrence(self.tasks.show(child),'2026-10-15')
+        with self.assertRaisesRegex(ValueError,'unknown_occurrence'):
+            self.tasks.occurrence(self.tasks.show(child),'2026-10-14')
+        self.tasks.mutate(parent,3,{'status':'cancelled'},'ses_test','stop-plan',NOW)
+        with self.assertRaisesRegex(ValueError,'unknown_occurrence'):
+            self.tasks.occurrence(self.tasks.show(child),'2026-10-15')
+
+    def test_soft_target_remains_explicitly_soft_in_source_linked_presentation(self):
+        self.capture(task={'title':'Write paper','due_date':DAY,'due_soft':True})
+        view=self.view()
+        self.assertTrue(view['tasks']['items'][0]['due_soft'])
+        self.assertIn('Soft target:',view['blocks']['tasks'][1][0][-1])
+
+    def test_annual_observance_projects_from_approved_source_without_materializing(self):
+        (self.root/'profile.md').write_text((self.root/'profile.md').read_text().replace('Europe/London','Asia/Shanghai'))
+        calendar=CalendarStore(str(self.root/'calendar.sqlite'))
+        try:
+            identifier=calendar.add({'subject':'Synthetic birthday','all_day':True,'timezone':'Asia/Shanghai',
+                'start':'2027-01-06','end':'2027-01-07','repeat':{'yearly':True,'start':'2026-10-11'}})
+            start=datetime.fromisoformat('2028-01-06T00:00:00+08:00')
+            end=datetime.fromisoformat('2028-01-07T00:00:00+08:00')
+            rows=calendar.query(start,end)
+            self.assertEqual(len(rows),1)
+            self.assertEqual(rows[0]['series_event_id'],identifier)
+            self.assertEqual(calendar.get(rows[0]['id'])['approved']['start'],'2028-01-06')
+            self.assertEqual(calendar.stats()['total'],1)
+            with self.assertRaisesRegex(ValueError,'clarification_required'):
+                calendar.change(rows[0]['id'],'cancel',1)
+            self.assertEqual(calendar.stats()['total'],1)
+            self.assertEqual(len(calendar.history(identifier)),1)
+        finally:
+            calendar.close()
+        view=self.view(day='2028-01-06')
+        document=self.document(view['blocks']['schedule'],'schedule')
+        routing.validate_sources(self.root,document,'2028-01-06','gm')
+
     def test_deadline_is_not_workday_and_undated_tasks_are_not_dated_on_publication(self):
         receipt = self.capture(task={'title': 'Send report', 'due_date': '2026-10-16', 'detail': 'Attach signed figures.', 'project': 'Atlas'})
         row = self.view()['tasks']['items'][0]
@@ -371,7 +543,7 @@ class TaxonomyTests(unittest.TestCase):
         self.assertIn('Compare baselines', view['blocks']['schedule'][1][0][-1])
         routing.validate_sources(self.root, self.document(view['blocks']['schedule'], 'schedule'), DAY, 'gm')
 
-    def test_migration_is_explicit_backed_up_and_preserves_raw_history_without_dates(self):
+    def legacy_runtime(self):
         old = self.root/'legacy'; old.mkdir()
         path = old/'inbox.sqlite'
         with sqlite3.connect(path) as db:
@@ -392,6 +564,11 @@ class TaxonomyTests(unittest.TestCase):
             db.execute('INSERT INTO entries(id,revision,kind,status,project,created_at,updated_at,raw,summary,context,questions) VALUES (?,?,?,?,?,?,?,?,?,?,?)',
                        ('ib_'+'a'*16, 1, 'todo', 'pending', '', NOW, NOW, 'Send report by Friday', 'Send report', 'Important constraint', '[]'))
             db.execute('INSERT INTO events VALUES (?,?,?,?,?,?,?,?,?,?,?)', (1, 'ib_'+'a'*16, 1, 'add', NOW, 'ses_old', '', 'original bytes', 'old-key', 'hash', 'receipt'))
+        return old
+
+    def test_migration_is_explicit_backed_up_and_preserves_raw_history_without_dates(self):
+        old=self.legacy_runtime()
+        path=old/'inbox.sqlite'
         before = path.read_bytes()
         report = migrate(old)
         self.assertTrue(report['dry_run'])
@@ -408,6 +585,54 @@ class TaxonomyTests(unittest.TestCase):
             self.assertEqual(inbox.db.execute('SELECT changes FROM events').fetchone()[0], 'original bytes')
             self.assertEqual(inbox.db.execute('PRAGMA foreign_key_check').fetchall(), [])
             self.assertIn('draft_id', inbox.mutate('add', {'kind': 'event_proposal', 'raw': 'Unknown time'}, 'ses_test', 'draft', NOW))
+        finally:
+            inbox.close()
+
+    def test_reviewed_migration_preserves_capture_and_audit_bytes_without_fake_completion(self):
+        old=self.legacy_runtime()
+        source='ib_'+'a'*16
+        with sqlite3.connect(old/'inbox.sqlite') as db:
+            db.execute("UPDATE entries SET status='done',context='Cancelled, not completed'")
+            db.execute("INSERT INTO entries(id,revision,kind,status,project,created_at,updated_at,raw,summary,context,questions) VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+                ('ib_'+'b'*16,1,'todo','pending','',NOW,NOW,'Reference when asked','Reference','No current action','[]'))
+            originals=db.execute('SELECT * FROM entries').fetchall()
+            events=db.execute('SELECT * FROM events').fetchall()
+        plan={source:[{'title':'Cancelled request','status':'cancelled'}], 'ib_'+'b'*16:[]}
+        before=(old/'inbox.sqlite').read_bytes()
+        with self.assertRaisesRegex(ValueError,'scope_required'):
+            migrate(old,True,reviewed_tasks={source:plan[source]},session='ses_test',now=NOW)
+        self.assertEqual((old/'inbox.sqlite').read_bytes(),before)
+        self.assertFalse((old/'inbox.v1.backup.sqlite').exists())
+        preview=migrate(old,reviewed_tasks=plan,session='ses_test',now=NOW)
+        self.assertEqual(preview['reviewed_tasks'],1)
+        self.assertEqual((old/'inbox.sqlite').read_bytes(),before)
+        result=migrate(old,True,reviewed_tasks=plan,session='ses_test',now=NOW)
+        self.assertTrue(result['saved'])
+        inbox=InboxStore(old,write=True)
+        try:
+            self.assertEqual([tuple(r)[:-1] for r in inbox.db.execute('SELECT * FROM entries')],originals)
+            self.assertEqual([tuple(r) for r in inbox.db.execute('SELECT * FROM events')],events)
+            tasks=list(TaskStore(inbox).all())
+            self.assertEqual([t['status'] for t in tasks],['cancelled'])
+            self.assertEqual(inbox.db.execute('SELECT COUNT(*) FROM task_occurrences').fetchone()[0],0)
+            receipt=json.loads(inbox.db.execute('SELECT receipt FROM task_events').fetchone()[0])
+            self.assertTrue(receipt['source_records_preserved'])
+        finally:
+            inbox.close()
+        with self.assertRaisesRegex(ValueError,'migration_conflict'):
+            migrate(old,True,reviewed_tasks=plan,session='ses_test',now=NOW)
+
+    def test_reviewed_migration_can_import_an_authorized_action_from_an_idea(self):
+        old=self.legacy_runtime()
+        with sqlite3.connect(old/'inbox.sqlite') as db:
+            db.execute("UPDATE entries SET kind='idea'")
+        plan={'ib_'+'a'*16:[{'title':'Monitor price manually','detail':'No automatic purchase or scheduler'}]}
+        result=migrate(old,True,reviewed_tasks=plan,session='ses_test',now=NOW)
+        self.assertTrue(result['saved'])
+        inbox=InboxStore(old)
+        try:
+            self.assertEqual(len(list(TaskStore(inbox).all())),1)
+            self.assertEqual(inbox.show('ib_'+'a'*16)['kind'],'idea')
         finally:
             inbox.close()
 

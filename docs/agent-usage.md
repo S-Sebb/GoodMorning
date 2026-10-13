@@ -20,7 +20,9 @@ needed; `docs/skill-rules.md` is an edge-case reference, not a default read.
   Showing/regenerating work never schedules, completes or executes it.
 - The Schedule tab reads approved events, confirmed TBC drafts and agreed dated
   occurrences under `docs/weekly-schedule.md`. Deadlines alone reserve no workday.
-- New TODO/idea: `workflow --capture todo|eureka`, exact raw JSON, actual session,
+- Clarify ambiguous scheduling/targets through a native question before saving
+  anything outside the conversation. The waiting badge links back; no pending note.
+- Clear TODO/idea: `workflow --capture todo|eureka`, exact raw JSON, actual session,
   stable input key and selected runtime. Verify, confirm, stop. TODO capture also
   creates its open action; an idea creates no work or daily clarification task.
 - Follow-ups append exact wording to the same entry with session/request key.

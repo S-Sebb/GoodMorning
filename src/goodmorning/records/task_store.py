@@ -27,7 +27,7 @@ CREATE TABLE event_drafts (
 """
 STATES = ('open', 'partial', 'blocked', 'done', 'cancelled')
 FIELDS = {'title', 'detail', 'project', 'optional', 'priority', 'status', 'due_date',
-          'due_at', 'planned_date', 'timezone', 'repeat', 'defer_until', 'calendar_event_id'}
+          'due_at', 'planned_date', 'timezone', 'repeat', 'defer_until', 'calendar_event_id', 'when', 'follow_up', 'work_kind', 'due_soft'}
 DRAFT_FIELDS = {'title', 'date', 'timezone', 'location', 'detail', 'confirmed_day',
                 'state', 'calendar_event_id', 'event'}
 
@@ -64,7 +64,7 @@ def validate(data, *, draft=False):
         ZoneInfo(out['timezone'])
     elif 'timezone' in out and out['timezone'] != '':
         raise ValueError('invalid_input: unset timezone uses an empty string')
-    for key in ('optional', 'confirmed_day'):
+    for key in ('optional', 'confirmed_day', 'due_soft'):
         if key in out and type(out[key]) is not bool:
             raise ValueError('invalid_input: optional/confirmed_day must be boolean')
     if draft:
@@ -93,11 +93,22 @@ def validate(data, *, draft=False):
         raise ValueError('invalid_input: unset deadline timestamp uses an empty string')
     if out.get('repeat'):
         rule = out['repeat']
-        if not isinstance(rule, dict) or set(rule) - {'weekdays', 'start', 'until'} or not {'weekdays', 'start'} <= rule.keys():
-            raise ValueError('invalid_input: recurrence needs weekdays and start; optional until')
-        weekdays = rule['weekdays']
-        if not isinstance(weekdays, list) or not 1 <= len(weekdays) <= 7 or any(type(d) is not int or not 0 <= d <= 6 for d in weekdays) or len(set(weekdays)) != len(weekdays):
-            raise ValueError('invalid_input: weekdays are distinct integers 0=Monday..6=Sunday')
+        modes = {'weekdays', 'interval_days', 'dates'}
+        if not isinstance(rule, dict) or set(rule) - (modes | {'start', 'until', 'exclude', 'include'}) or 'start' not in rule or len(set(rule) & modes) != 1:
+            raise ValueError('invalid_input: recurrence needs start and exactly one of weekdays, interval_days or dates')
+        if 'weekdays' in rule:
+            weekdays = rule['weekdays']
+            if not isinstance(weekdays, list) or not 1 <= len(weekdays) <= 7 or any(type(d) is not int or not 0 <= d <= 6 for d in weekdays) or len(set(weekdays)) != len(weekdays):
+                raise ValueError('invalid_input: weekdays are distinct integers 0=Monday..6=Sunday')
+        if 'interval_days' in rule and (type(rule['interval_days']) is not int or not 1 <= rule['interval_days'] <= 366):
+            raise ValueError('invalid_input: interval_days must be an integer 1..366')
+        for field in ('dates', 'exclude', 'include'):
+            if field in rule:
+                values = rule[field]
+                if not isinstance(values, list) or not values or len(values) > 1000 or any(not isinstance(v, str) for v in values) or len(set(values)) != len(values):
+                    raise ValueError('invalid_input: recurrence dates must be distinct date strings, at most 1000')
+                for value in values:
+                    date(value)
         date(rule['start'])
         if rule.get('until') and date(rule['until']) < rule['start']:
             raise ValueError('invalid_input: recurrence end precedes start')
@@ -105,6 +116,25 @@ def validate(data, *, draft=False):
             raise ValueError('invalid_input: recurrence needs timezone and no single planned_date')
     elif 'repeat' in out and out['repeat'] is not None:
         raise ValueError('invalid_input: unset recurrence uses null')
+    if out.get('when'):
+        rule = out['when']
+        import re
+        if not isinstance(rule, dict) or set(rule) - {'morning_before', 'unless_experiment_plan', 'unless_timed_plan', 'planned_task_id'} or not out.get('timezone'):
+            raise ValueError('invalid_input: unsupported reminder condition or missing timezone')
+        if 'morning_before' in rule and (not isinstance(rule['morning_before'], str) or not re.fullmatch(r'(?:[01]\d|2[0-3]):[0-5]\d', rule['morning_before'])):
+            raise ValueError('invalid_input: morning_before must be HH:MM')
+        for field in ('unless_experiment_plan', 'unless_timed_plan'):
+            if field in rule and type(rule[field]) is not bool:
+                raise ValueError('invalid_input: plan suppression must be boolean')
+        if 'planned_task_id' in rule:
+            if not isinstance(rule['planned_task_id'], str) or not re.fullmatch(r'task_[0-9a-f]{16}', rule['planned_task_id']) or out.get('repeat') or out.get('planned_date'):
+                raise ValueError('invalid_input: linked planned-day reminder needs a task ID and no separate schedule')
+    elif 'when' in out and out['when'] is not None:
+        raise ValueError('invalid_input: unset condition uses null')
+    if out.get('work_kind', '') not in ('', 'experiment'):
+        raise ValueError('invalid_input: work_kind must be empty or experiment')
+    if out.get('follow_up', '') not in ('', 'one-outstanding') or (out.get('follow_up') and not (out.get('repeat') or {}).get('interval_days')):
+        raise ValueError('invalid_input: one-outstanding follow-up requires an interval_days rule')
     if out.get('calendar_event_id'):
         import re
         if not re.fullmatch('[0-9a-f]{16}', out['calendar_event_id']):
@@ -121,6 +151,23 @@ def defaults(title, project=''):
 
 def occurrence_id(identifier, day):
     return 'oc_' + hashlib.sha256((identifier + '\0' + day).encode()).hexdigest()[:16]
+
+
+def planned_on(task, day):
+    """A planned date, never an actual off-cadence report, qualifies a linked reminder."""
+    if task['planned_date'] == day:
+        return True
+    rule = task['repeat']
+    if not rule or day < rule['start'] or (rule.get('until') and day > rule['until']) or day in rule.get('exclude', []):
+        return False
+    target = dt.date.fromisoformat(day)
+    if day in rule.get('include', []):
+        return True
+    if 'weekdays' in rule:
+        return target.weekday() in rule['weekdays']
+    if 'interval_days' in rule:
+        return (target - dt.date.fromisoformat(rule['start'])).days % rule['interval_days'] == 0
+    return day in rule['dates']
 
 
 def capture(db, entry, payload, now):
@@ -174,10 +221,12 @@ class TaskStore:
         row = self.db.execute('SELECT * FROM task_occurrences WHERE id=?', (identifier,)).fetchone()
         if row:
             return dict(row)  # A confirmed report survives later rescheduling/recurrence edits.
-        rule = task['repeat']
-        matches = (rule and day >= rule['start'] and (not rule.get('until') or day <= rule['until'])
-                   and dt.date.fromisoformat(day).weekday() in rule['weekdays'])
-        if not matches and task['planned_date'] != day:
+        matches = planned_on(task, day)
+        parent = (task.get('when') or {}).get('planned_task_id')
+        if parent:
+            source = self.show(parent)
+            matches = source['status'] != 'cancelled' and planned_on(source, day)
+        if not matches:
             raise ValueError('unknown_occurrence: day is not agreed or recurring work')
         return {'id': identifier, 'task_id': task['id'], 'date': day,
                 'revision': 0, 'status': task['status'], 'detail': ''}
@@ -303,7 +352,7 @@ class TaskStore:
                             ('feedback:' + day, 'feedback', now, session, encode({'selected': selections, 'details': details}), key, digest, encode(result)))
             return result
 
-    def mutate(self, identifier, expected, payload, session, key, now, *, day=None, draft=False):
+    def mutate(self, identifier, expected, payload, session, key, now, *, day=None, draft=False, actual=False):
         if not isinstance(payload, dict) or not payload:
             raise ValueError('invalid_input: nonempty update required')
         checked(session, 200, False); checked(key, 240, False)
@@ -311,7 +360,12 @@ class TaskStore:
         confirmed = data.pop('confirmed_completion', False)
         if type(confirmed) is not bool:
             raise ValueError('confirmation_required: confirmed_completion must be boolean')
-        digest = hashlib.sha256(encode([identifier, expected, payload, session, day, draft]).encode()).hexdigest()
+        if type(actual) is not bool or actual and (not day or draft or data.get('status') != 'done' or not confirmed):
+            raise ValueError('confirmation_required: an actual-date report requires confirmed completion and its actual day')
+        fingerprint = [identifier, expected, payload, session, day, draft]
+        if actual:
+            fingerprint.append(True)  # Keep existing non-actual retry fingerprints compatible.
+        digest = hashlib.sha256(encode(fingerprint).encode()).hexdigest()
         with self.inbox.transaction():
             previous = self.db.execute('SELECT fingerprint,receipt FROM task_events WHERE request_key=?', (key,)).fetchone()
             if previous:
@@ -330,13 +384,30 @@ class TaskStore:
             if day:
                 if draft or set(data) - {'status', 'detail'} or data.get('status') not in STATES:
                     raise ValueError('invalid_input: occurrence report needs status and optional detail')
-                occ = self.occurrence(current, day)
+                if actual:
+                    date(day)
+                    reported = dt.datetime.fromisoformat(now)
+                    if current.get('timezone'):
+                        reported = reported.astimezone(ZoneInfo(current['timezone']))
+                    if day > reported.date().isoformat():
+                        raise ValueError('invalid_date: future work cannot already be completed')
+                try:
+                    occ = self.occurrence(current, day)
+                except ValueError:
+                    if not actual:
+                        raise
+                    occ = {'id':occurrence_id(identifier, day),'revision':0}
                 checked(data.get('detail', ''))
                 self.db.execute('INSERT INTO task_occurrences VALUES (?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET '
                                 'revision=excluded.revision,status=excluded.status,detail=excluded.detail',
                                 (occ['id'], identifier, day, occ['revision'] + 1, data['status'], data.get('detail', '')))
                 # Daily effort is not automatically completion of a multi-day action.
-                self.db.execute('UPDATE tasks SET revision=revision+1,updated_at=? WHERE id=?', (now, identifier))
+                if actual and not current['repeat']:
+                    completed = {k:v for k,v in current.items() if k in FIELDS}
+                    completed['status'] = 'done'
+                    self.db.execute('UPDATE tasks SET revision=revision+1,updated_at=?,data=? WHERE id=?', (now, encode(completed), identifier))
+                else:
+                    self.db.execute('UPDATE tasks SET revision=revision+1,updated_at=? WHERE id=?', (now, identifier))
             else:
                 if current.get('repeat') and data.get('status') == 'done':
                     raise ValueError('occurrence_required: complete one recurring day, not the series')
@@ -354,22 +425,43 @@ class TaskStore:
                 result['occurrence_id'] = occurrence_id(identifier, day)
             self.db.execute('INSERT INTO task_events(item_id,action,at,session,snapshot,request_key,fingerprint,receipt) '
                             'VALUES (?,?,?,?,?,?,?,?)', (identifier, 'report' if day else 'update', now, session,
-                            encode({'item': self.show(identifier, draft), 'day': day, 'input': payload}), key, digest, encode(result)))
+                             encode({'item': self.show(identifier, draft), 'day': day, 'input': payload, 'actual': actual}), key, digest, encode(result)))
             return result
 
 
-def migrate(directory, confirm=False):
+def migrate(directory, confirm=False, *, reviewed_tasks=None, session=None, now=None):
     """Explicit schema upgrade with an SQLite backup. Legacy daily dates remain untrusted."""
     from .inbox_store import InboxStore, NAME
     from goodmorning.runtime_files import runtime_lock
     with runtime_lock(directory, '.inbox.lock'):
         inbox = InboxStore(directory)
         try:
+            if reviewed_tasks is not None:
+                checked(session, 200, False)
+                if not isinstance(now, str) or dt.datetime.fromisoformat(now).utcoffset() is None:
+                    raise ValueError('invalid_input: reviewed migration requires an offset-aware maintenance timestamp')
+                if not isinstance(reviewed_tasks, dict):
+                    raise ValueError('invalid_input: reviewed_tasks must map exact capture IDs to task lists')
+                sources = {r['id']:dict(r) for r in inbox.db.execute('SELECT * FROM entries')}
+                todos = {key for key,row in sources.items() if row['kind']=='todo'}
+                if not todos <= reviewed_tasks.keys() or not reviewed_tasks.keys() <= sources.keys():
+                    raise ValueError('scope_required: reviewed migration must account for every TODO and reference only existing captures')
+                for key, fields in reviewed_tasks.items():
+                    if not isinstance(fields, list) or len(fields)>50:
+                        raise ValueError('invalid_input: each reviewed source needs an explicit list of at most 50 tasks, empty for non-actions')
+                    for task in fields:
+                        validate(task)
+                        validate({**defaults(sources[key]['summary'],sources[key]['project']), **task})
             report = {'version': inbox.version, 'target': 2, 'dry_run': not confirm,
                       'todo_captures': inbox.db.execute("SELECT COUNT(*) FROM entries WHERE kind='todo'").fetchone()[0],
                       'legacy_daily': [p.name for p in sorted(Path(directory, 'daily').glob('*.md'))[:200]],
                       'legacy_daily_total': sum(1 for p in Path(directory, 'daily').glob('*.md')),
                       'next': 'Legacy daily/project tasks need explicit identity/date reconciliation; no files are rewritten.'}
+            if reviewed_tasks is not None:
+                report['reviewed_sources'] = len(reviewed_tasks)
+                report['reviewed_tasks'] = sum(map(len, reviewed_tasks.values()))
+                if inbox.version != 1:
+                    raise ValueError('migration_conflict: reviewed imports require an unmigrated v1 snapshot, not an existing task store')
             if not confirm or inbox.version == 2:
                 return report
         finally:
@@ -394,7 +486,16 @@ def migrate(directory, confirm=False):
                              'CREATE INDEX review_entries ON entries(needs_review,seq);'
                              'CREATE INDEX project_entries ON entries(project,seq);' + SCHEMA +
                              'ALTER TABLE entries ADD COLUMN review_after TEXT NOT NULL DEFAULT "";')
-            for row in db.execute("SELECT id,raw,summary,project,status,created_at,context FROM entries WHERE kind='todo'").fetchall():
+            for row in db.execute("SELECT id,raw,summary,project,status,created_at,context,kind FROM entries").fetchall():
+                if reviewed_tasks is not None:
+                    for index, fields in enumerate(reviewed_tasks.get(row[0], [])):
+                        data = validate({**defaults(row[2],row[3]), **fields})
+                        seed = row[0] if index==0 else row[0] + ':' + str(index)
+                        identifier = 'task_' + hashlib.sha256(seed.encode()).hexdigest()[:16]
+                        db.execute('INSERT INTO tasks VALUES (?,?,?,?,?,?)', (identifier,row[0],1,row[5],now,encode(data)))
+                    continue
+                if row[7]!='todo':
+                    continue
                 data = defaults(row[2] or ' '.join(row[1].split())[:280], row[3])
                 data['detail'] = row[6] if len(row[6]) <= 5000 else 'Read the source entry for its full saved constraints: ' + row[0]
                 if row[4] == 'done':
@@ -402,6 +503,11 @@ def migrate(directory, confirm=False):
                 validate(data)
                 identifier = 'task_' + hashlib.sha256(row[0].encode()).hexdigest()[:16]
                 db.execute('INSERT INTO tasks VALUES (?,?,?,?,?,?)', (identifier, row[0], 1, row[5], row[5], encode(data)))
+            if reviewed_tasks is not None:
+                digest = hashlib.sha256(encode(reviewed_tasks).encode()).hexdigest()
+                receipt = {'saved':True,'reviewed_tasks':report['reviewed_tasks'],'source_records_preserved':True}
+                db.execute('INSERT INTO task_events(item_id,action,at,session,snapshot,request_key,fingerprint,receipt) VALUES (?,?,?,?,?,?,?,?)',
+                    ('migration:v1','reviewed-migration',now,session,encode(reviewed_tasks),'migration:'+digest,digest,encode(receipt)))
             db.execute('PRAGMA user_version=2')
             db.commit()
         return {**report, 'saved': True, 'backup': backup.name}

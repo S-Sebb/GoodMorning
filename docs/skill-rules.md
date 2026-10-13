@@ -106,9 +106,9 @@ the GoodMorning root; specialized guides load only for the operation needed.
   the inbox immediately, before asking clarification or waiting for a reply. Use
   `python scripts/goodmorning.py inbox --add`/`--append ID` per `docs/inbox-pipeline.md` and verify the receipt.
   Preserve raw wording and current constraints/questions, not a diary or duplicate.
-  If the target is unclear, save the details
-  as unassigned pending input before asking which idea they belong to, then attach
-  after identification. Do not lose input when the user stops replying. Setup,
+   If the target is unclear, ask before a write rather than saving unassigned input.
+   The original message and native question remain in the conversation when the
+   user stops replying. Setup,
   credential safety and failed-save rules still apply; never claim an unsaved input
   was saved.
   Leave ideas pending; invite optional `Clarify`, no reply is required. Save details in
@@ -123,12 +123,15 @@ the GoodMorning root; specialized guides load only for the operation needed.
   or just their count. Repeat while unresolved, reusing answers;
   do not block a briefing or unrelated work if the user defers or does not reply.
   No scheduler is needed.
-- Project-update capture follows the same save-first boundary: save the user's
+- The core-rule ambiguity exception overrides all save-first instructions here:
+  ambiguous scheduling/targets require a native question, no inbox/pending note
+  or active record until answered; the waiting activity indicator links back.
+- Project-update capture follows the same save-first boundary for clear reports: save the user's
   report before asking for clarification, not an interpretation or plan mutation.
   Follow the pending project-update workflow below; silence is never confirmation.
 - TODO capture is record-only by default. Follow `docs/workflows/todo.md` for
   entries with `kind: "todo"`, including follow-ups in other workflows. Save exact
-  wording/details immediately; do not clarify, plan, research, execute, delegate,
+   clear wording/details immediately; do not unnecessarily clarify, plan, research, execute, delegate,
   or offer calendar changes unless separately requested. Supplied details alone
   do not request discussion. Ask clarification questions only after `Clarify` or
   an equivalent explicit request; give detailed explanations only when requested.
@@ -299,8 +302,8 @@ the GoodMorning root; specialized guides load only for the operation needed.
   tasks and calendar events. Preserve the existing plan until meaning and write
   scope are confirmed. Saving a pending note does not authorize external write-back.
 - On follow-up, locate the existing entry and save details before asking questions.
-  If the target is ambiguous, capture unassigned pending input before asking which
-  entry it belongs to, then merge it after identification. Preserve
+  If the target or scheduling meaning is ambiguous, use the core-rule native
+  question before any pending capture or write, then save after the answer. Preserve
   `raw`, and attach material details/questions through its stable ID without duplicate capture. No command
   or keyword is required. Keep it `pending` until clarification and all agreed,
   authorized record updates succeed; then mark it `confirmed`, maintain project

@@ -124,7 +124,7 @@ class InboxTests(InboxFixture):
     def test_current_state_replaces_not_accumulates_and_raw_stays_immutable(self):
         store = self.store()
         identifier = self.add(store, context="Initial constraints")["id"]
-        store.mutate("update", {"context": "Final constraints", "questions": ["Which store?"]},
+        store.mutate("update", {"context": "Final constraints", "questions": []},
                      "ses-test", "revise", NOW, identifier, 1)
         self.assertEqual(store.show(identifier)["context"], "Final constraints")
         self.assertNotIn("Initial constraints", encode(store.show(identifier)))
@@ -151,8 +151,8 @@ class InboxTests(InboxFixture):
     def test_list_budget_preserves_whole_questions_and_excludes_context_raw(self):
         store = self.store()
         for n in range(7):
-            self.add(store, raw="x" * 60000, key=str(n), context="C" * 6000,
-                     questions=["Q" * 1000, "R" * 1000])
+            store.mutate('add', {'kind':'idea', 'raw':'x' * 60000, 'context':'C' * 6000,
+                                'questions':['Q' * 1000, 'R' * 1000]}, 'ses-test', str(n), NOW)
         page = store.list(budget=4096)
         self.assertLess(len(encode(page)), 4096)
         self.assertEqual(len(page["items"]), 1)

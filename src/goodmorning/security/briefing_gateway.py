@@ -28,6 +28,7 @@ from goodmorning.web import color_schemes as site_colors
 from goodmorning.web.chat_uploads import MAX_UPLOAD_BYTES, UPLOAD_ROUTE, IMAGE_ROUTE, UploadReader, upload_name, attachment_ids
 from goodmorning.web.avatar_images import AVATAR_UPLOAD_PATH, MAX_AVATAR_BYTES
 from goodmorning.web.activity import ACTIVITY_PATH, panel as activity_panel
+from goodmorning.web.generation_clock import REQUESTED_AT
 
 ASSETS = WEB_ASSETS
 POLICY = "default-src 'none'; style-src 'self'; script-src 'self'; img-src 'self'; font-src 'self'; connect-src 'self'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'"
@@ -116,6 +117,8 @@ class Gateway:
                       'X-GoodMorning-Model':self.accounts.website_model(identifier) or site_models.DEFAULT}
         schemes = self.accounts.website_color_schemes(identifier) or site_colors.DEFAULT
         forwarded.update({'X-GoodMorning-Day-Scheme': schemes['day'], 'X-GoodMorning-Night-Scheme': schemes['night']})
+        if method == 'POST' and parsed.path in ('/api/generate', '/api/regenerate') and REQUESTED_AT.get() is not None:
+            forwarded['X-GoodMorning-Requested-At'] = str(REQUESTED_AT.get())
         if body is not None:
             if UPLOAD_ROUTE.fullmatch(parsed.path) or parsed.path == AVATAR_UPLOAD_PATH:
                 forwarded['Content-Type'] = 'application/octet-stream'
@@ -288,10 +291,10 @@ class Gateway:
         return [entry for entry in queue
                 if self._valid_queue_entry(entry) and (entry['kind'] == 'reply' or now - entry['enqueued'] < QUEUE_TTL)]
 
-    def _reserve_or_queue(self, kind, candidate, path, body, language):
+    def _reserve_or_queue(self, kind, candidate, path, body, language, enqueued=None):
         """Atomically take the active slot or join the bounded global waiting line."""
         entry = {'kind': kind, 'candidate': candidate, 'user': candidate['user'], 'host': candidate['host'],
-                 'path': path, 'body': body, 'language': language, 'enqueued': time.time()}
+                 'path': path, 'body': body, 'language': language, 'enqueued': time.time() if enqueued is None else enqueued}
         with self.accounts.db() as db:
             db.execute('BEGIN IMMEDIATE')
             row = db.execute('SELECT value FROM metadata WHERE key=?', ('generation',)).fetchone()
@@ -327,6 +330,7 @@ class Gateway:
 
     def _dispatch_queued(self, entry):
         token = ui.CURRENT.set(entry.get('language') or 'en')
+        clock_token = REQUESTED_AT.set(entry['enqueued'])
         try:
             raw = json.dumps(entry['body']).encode()
             status, upstream, data = self.proxy(entry['user'], entry['host'], entry['path'], 'POST', raw, {})
@@ -349,6 +353,7 @@ class Gateway:
                 self.confirm_dispatch(candidate)
             return status
         finally:
+            REQUESTED_AT.reset(clock_token)
             ui.CURRENT.reset(token)
 
     def pump_queue(self):
@@ -475,6 +480,7 @@ class Gateway:
         return status, upstream, data
 
     def generate(self,identifier,host,raw,headers, *, regenerate=False):
+        requested_at = time.time()
         body=json.loads(raw)
         expected = {'date', 'kind', 'id', 'previous'} if regenerate else {'date', 'kind'}
         if set(body)!=expected or not isinstance(body['date'],str) or not re.fullmatch(r'\d{4}-\d{2}-\d{2}',body['date']) or body['kind'] not in ('gm','gn'):
@@ -496,7 +502,7 @@ class Gateway:
                 return 202, {'Content-Type':'application/json'}, json.dumps({'job':existing_job}).encode()
         language = self.accounts.website_language(identifier) or ui.current()
         self.pump_queue()
-        action, position, depth = self._reserve_or_queue(work, candidate, path, body, language)
+        action, position, depth = self._reserve_or_queue(work, candidate, path, body, language, enqueued=requested_at)
         if action in ('queued', 'queued_duplicate'):
             return self.queued_response(work, candidate, position, depth)
         if action == 'full':
@@ -508,7 +514,11 @@ class Gateway:
                     return 409,{'Content-Type':'application/json'},b'{"error":"A generation request needs administrator reconciliation before retrying."}'
                 return 202,{'Content-Type':'application/json'},json.dumps({'job':current['job']}).encode()
             return self.queued_response(work, candidate, position or 1, depth)
-        status,upstream,data=self.proxy(identifier,host,path,'POST',raw,headers)
+        clock_token = REQUESTED_AT.set(requested_at)
+        try:
+            status,upstream,data=self.proxy(identifier,host,path,'POST',raw,headers)
+        finally:
+            REQUESTED_AT.reset(clock_token)
         result=json.loads(data)
         if status<300 and re.fullmatch('[a-f0-9]{32}',result.get('job','')):
             updated={**candidate,'job':result['job']}

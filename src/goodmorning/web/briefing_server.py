@@ -404,7 +404,7 @@ class BrowserApp:
             with self.lock:self.pages.put(page_key, (page_signature, output), len(output))
         return output
 
-    def start(self, date, kind):
+    def start(self, date, kind, requested_at=None):
         if self.chat_settings()['defaultMode'] == 'initialize':
             raise ValueError('Initialize your secretary before preparing a briefing')
         self.source(date, kind)
@@ -420,7 +420,10 @@ class BrowserApp:
             if key in self.jobs:
                 return {'job': self.jobs[key]['id']}
             job = {'id': secrets.token_hex(16), 'date': date, 'kind': kind, 'state': 'starting','language':ui.current(),
-                   'model':site_models.current(),'created': time.time()}
+                    'model':site_models.current(),'created': time.time()}
+            from .generation_clock import timestamp
+            started = requested_at if requested_at is not None else (self.now().timestamp() if self.now else time.time())
+            job['generation_started_at'] = timestamp(started)
             if self.preflight:
                 job.update(state='preflight')
             self.jobs[key] = job
@@ -508,7 +511,9 @@ class BrowserApp:
             baseline, raw = snapshot(self.runtime, date, kind)
             job = {'id': secrets.token_hex(16), 'date': date, 'kind': kind, 'state': 'preflight',
                    'language': ui.current(), 'model': site_models.current(), 'created': time.time(),
-                   'replacement': baseline, 'regeneration_request': body['id']}
+                    'replacement': baseline, 'regeneration_request': body['id']}
+            # Replacing presentation must not change a reminder's original trigger.
+            job['generation_started_at'] = previous.get('generation_started_at', previous.get('created')) if previous else None
             context = initialize(self.runtime, job, previous=context)
             if raw is not None:
                 atomic_text(self.job_dir / (job['id'] + '.previous.json'), raw.decode('utf-8'))
@@ -1042,7 +1047,8 @@ def serve_live(app, port, *, gateway_key=None, public_origins=()):
                     if not re.fullmatch(r'/(?:|chat|schedule|(?:gm|gn)\.html|d/\d{4}-\d{2}-\d{2}/(?:gm|gn)\.html)',target):target='/'
                     return self.respond(selected,303 if form else 200,location=target if form else None)
                 if path == '/api/generate':
-                    return self.respond(app.start(body['date'], body['kind']), 202)
+                    requested_at = self.headers.get('X-GoodMorning-Requested-At') if gateway_key else None
+                    return self.respond(app.start(body['date'], body['kind'], float(requested_at) if requested_at is not None else None), 202)
                 if path == '/api/regenerate':
                     try:
                         return self.respond(app.regenerate(body), 202)
