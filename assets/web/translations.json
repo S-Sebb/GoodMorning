@@ -328,6 +328,8 @@
   "Complete your secretary’s setup before preparing a briefing. Your saved records stay unchanged.": "请先完成秘书设置，再生成简报；已保存的记录不会改变。",
   "Initialize my secretary": "初始化我的秘书",
   "Your briefing awaits.": "你的简报等你开启。",
+  "No story was told by you for this day.": "这一天你没有讲述故事。",
+  "Let the past pages stay as they are.": "就让过去的页面保持原样吧。",
   "Would you like your secretary to put it together?": "要让秘书开始准备吗？",
   "This edition was not generated. Past dates are read-only.": "这份简报尚未生成。过去的日期只供查看。",
   "Generation is not connected. Start this viewer with an OpenChamber connection.": "尚未连接生成服务，请联系管理员。",

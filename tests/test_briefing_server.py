@@ -121,7 +121,9 @@ class LiveTests(unittest.TestCase):
     def test_seven_days_and_missing_archive_do_not_generate(self):
         self.assertEqual(self.app.dates(), [f'2026-10-{i:02}' for i in range(10,3,-1)])
         page = self.app.page('2026-10-04','gn',True).decode()
-        self.assertIn('Past dates are read-only', page)
+        self.assertIn('No story was told by you for this day.', page)
+        self.assertIn('Let the past pages stay as they are.', page)
+        self.assertNotIn('Your briefing awaits.', page)
         self.assertNotIn('id="generate"', page)
         self.assertIn('&quot;pinned&quot;: true', page)
         with self.assertRaises(ValueError): self.app.start('2026-10-09','gm')

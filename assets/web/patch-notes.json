@@ -1,6 +1,15 @@
 {
   "notes": [
     {
+      "version": "0.32.2", "date": "2026-10-13", "author": "GoodMorning agent",
+      "title_en": "Kinder past briefing empty state", "title_zh": "更温柔的过去简报空状态",
+      "changes": [{"category": "Fixed", "en": [
+        "Show \"No story was told by you for this day.\" with \"Let the past pages stay as they are.\" for past dates without a saved briefing, instead of the misleading waiting message."
+      ], "zh": [
+        "过去日期没有已保存简报时，显示“这一天你没有讲述故事。”与“就让过去的页面保持原样吧。”，不再使用容易误解的等待提示。"
+      ]}]
+    },
+    {
       "version": "0.32.1", "date": "2026-10-13", "author": "GoodMorning agent",
       "title_en": "Restore website assets and clear connection errors", "title_zh": "恢复网站资源并改善连接错误提示",
       "changes": [{"category": "Fixed", "en": [
