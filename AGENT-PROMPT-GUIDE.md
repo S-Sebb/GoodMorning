@@ -19,8 +19,10 @@ Write the shortest instructions that fully define the intended behavior.
 - Remove repetition, filler, and unnecessary explanation—not essential constraints.
   For complex tasks, add one or two short examples that illustrate the rules
   without introducing exceptions.
-- Before accepting any new or modified prompt, test it with every model and variant
-  configured in `src/goodmorning/web/models.py`. Use synthetic normal, ambiguous and
-  failure cases; verify actual actions, outputs and the user's tone. Retest fixes
-  on every affected model and preserve evidence. Unavailable models or unresolved
+- Test only new or modified prompts, plus directly affected neighbors, on every model and variant
+  configured in `src/goodmorning/web/models.py`. Determine the changed set from the diff against its merge-base;
+  do not rerun the full matrix for unchanged established prompts. Use synthetic normal, ambiguous and
+  failure cases for the changed behavior; verify actual actions, outputs and the user's tone. Retest fixes
+  on every affected model and preserve evidence. Run the full matrix only for shared prompt infrastructure
+  or release validation. Unavailable models or unresolved
   behavior mismatches mean validation is incomplete, not a pass.

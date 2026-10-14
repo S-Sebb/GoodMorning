@@ -1,6 +1,21 @@
 {
   "notes": [
     {
+      "version": "0.40.0", "date": "2026-10-14", "author": "GoodMorning agent",
+      "title_en": "Custom schedules for flexible habits", "title_zh": "灵活习惯的自定义安排",
+      "changes": [
+        {"category": "Added", "en": [
+          "Custom schedules for habits that fixed repeats cannot express: the secretary asks until rhythm, start, restart, miss handling, weekly limit and nightly checks are clear, then saves the rule once.",
+          "Morning briefings show due custom schedules from code-owned rows, and evening checks list them as tick boxes with exact completion. Chat highlights saved custom schedules as Custom schedule cards.",
+          "Live prompt trials test only new or changed prompts plus affected neighbors on every website model; unchanged prompts no longer rerun full matrices."
+        ], "zh": [
+          "为固定重复无法表达的习惯提供自定义安排：秘书问清节奏、起始、重计时、漏做处理、每周上限与晚间检查后，一次性保存规则。",
+          "早间简报按代码给出的行展示到期的自定义安排，晚间检查将其作为勾选项并精确完成。聊天以自定义安排卡片高亮已保存的内容。",
+          "真机提示词试验仅覆盖新增或修改的提示词及直接相关项，并在所有网站模型上验证；未变更的提示词不再重跑完整矩阵。"
+        ]}
+      ]
+    },
+    {
       "version": "0.39.0", "date": "2026-10-14", "author": "GoodMorning agent",
       "title_en": "Secretary setup, voice and language routing", "title_zh": "秘书设置、语气与语言路由",
       "changes": [

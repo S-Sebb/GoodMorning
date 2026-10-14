@@ -51,6 +51,20 @@ heading. Use `scripts/goodmorning.py` with the selected absolute runtime.
    `follow_up:"one-outstanding"` with an interval rule keeps one latest outstanding
    reminder, no makeup backlog. Confirmed actual completion clears that reminder
    without changing the original cadence or claiming completion on missed dates.
+   Fixed repeats never shift, re-anchor to a finish, or stop after a weekly count.
+   When a request needs that flexibility, use a custom schedule, not a fixed repeat.
+   Ask with native questions until rhythm, start, restart rule, miss rule, weekly
+   limit and nightly checks are unambiguous; write nothing until answered. Save once
+   with `custom --add` (session, stable key, receipt). Code computes due dates from
+   the saved rule plus user-confirmed completions; the secretary words the result
+   without inventing dates. Example: every 2 days from 2026-10-13, restart from each
+   finish, chase misses daily, stop at 3 per Mon-Sun week, check every evening.
+   Counter-example: “gym regularly” without rhythm or limit stays in conversation only.
+   Completions use `custom --report --date ACTUAL_DAY` with revision, session, key
+   and `confirmed_completion:true`; future dates are refused. Confirmations name
+   the workflow's pinned date as today; never advance it by a day. Morning and evening
+   briefings read code-owned `custom --briefing` rows; evening checkboxes complete
+   exact custom IDs like tasks. Silence never counts.
    `when:{"unless_timed_plan":true}` also suppresses on days with approved timed
    calendar appointments, even outside the activity window; an all-day birthday
    is not a reserved-time plan. A clothing reminder uses

@@ -85,6 +85,33 @@ def read_changes(runtime, session, *, aliases=()):
     finally:
         if store:
             store.close()
+    store = None
+    try:
+        from pathlib import Path as _Path
+        custom_path = _Path(runtime) / "custom.sqlite"
+        if custom_path.is_symlink():
+            raise ValueError("unsafe_path: custom store must belong to this runtime")
+        if custom_path.is_file():
+            connection = sqlite3.connect(custom_path.resolve().as_uri() + "?mode=ro",
+                                         uri=True, timeout=0, isolation_level=None)
+            connection.row_factory = sqlite3.Row
+            try:
+                rows = connection.execute(f"""
+                    SELECT e.seq,e.at at,
+                        CASE e.action WHEN 'add' THEN 'added' WHEN 'update' THEN 'updated'
+                             WHEN 'report' THEN 'completed' ELSE 'updated' END operation,
+                        'custom' target,
+                        substr(coalesce(json_extract(e.snapshot,'$.title'),
+                            json_extract(r.data,'$.title'),''),1,160) title
+                    FROM custom_events e LEFT JOIN custom_rules r ON r.id=e.item_id
+                    WHERE e.session IN ({placeholders}) AND json_extract(e.receipt,'$.saved')=1
+                    ORDER BY e.seq DESC LIMIT ?
+                    """, (*owners, LIMIT)).fetchall()
+                changes.extend(change('custom', row) for row in rows)
+            finally:
+                connection.close()
+    except (ValueError, OSError, sqlite3.Error):
+        unavailable = True
     # Audit timestamps include offsets; string order is not chronological across zones.
     try:
         changes.sort(key=lambda entry: (datetime.fromisoformat(entry['at']).timestamp(),

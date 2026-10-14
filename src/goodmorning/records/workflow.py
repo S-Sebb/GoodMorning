@@ -87,12 +87,23 @@ def prepare(directory, kind, today=None, cache=None, *, task_limit=7, website_la
         from goodmorning.web import language as ui
         token = ui.CURRENT.set(website_language) if website_language else None
         try:
-            result['items'] = item_prepare(directory, date, 'gm' if kind == 'secretary' else kind)
+            result['items'] = item_prepare(directory, date, kind)
         except (ValueError, OSError, sqlite3.Error) as error:
             result['items'] = {'error': 'items_unavailable', 'next': str(error)}
         finally:
             if token is not None:
                 ui.CURRENT.reset(token)
+    if kind in ('gm', 'gn', 'secretary'):
+        try:
+            from .custom_store import CustomStore
+            custom = CustomStore(directory, write=False)
+            try:
+                rows = custom.briefing(date, 'gm' if kind == 'secretary' else kind)
+            finally:
+                custom.close()
+            result['custom'] = {'items': rows, 'total': len(rows)}
+        except (ValueError, OSError, sqlite3.Error):
+            result['custom'] = {'items': [], 'total': 0}
     return result
 
 

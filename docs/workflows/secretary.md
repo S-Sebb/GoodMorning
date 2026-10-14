@@ -64,8 +64,8 @@ guides only for the requested operation; do not recursively reload the skill.
    or save every exchange. Local sessions use `Secretary SUMMARY` without a date;
    browser titles remain engine-owned. Use saved `secretary_name`, or “your secretary”.
 2. Route an explicit gm/gn/todo/eureka request to its workflow. For other changes,
-   resolve ambiguous scheduling/targets through a native question before writing
-   any pending note. Save clear material reports/details first; reuse existing
+   resolve ambiguous scheduling/targets through native questions, repeating until rhythm, start, restart, miss, weekly limit and nightly checks are unambiguous, before writing
+   any pending note. Schedules that fit no fixed repeat type go to `custom --add`, never to profile text. Save clear material reports/details first; reuse existing
    entries and prior answers. Keep proposals pending until meaning/scope are
    confirmed and all authorized organization succeeds. Remind only due open questions.
 3. Use `task` for canonical actions/occurrences and `docs/item-taxonomy.md` for

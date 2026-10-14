@@ -21,8 +21,9 @@ date or evidence of enough time;
 encouragement must not invent capacity, progress or future automatic action.
 
 When writing agent prompts or instructions, follow `AGENT-PROMPT-GUIDE.md`.
-Test every new or modified agent prompt against all website-configured models and
-their configured variants in `src/goodmorning/web/models.py`. Verify behavior and
+Test new or modified agent prompts, plus directly affected neighbors, against all website-configured models and
+their configured variants in `src/goodmorning/web/models.py`. Scope live trials to the changed set from the diff;
+do not rerun full matrices for unchanged established prompts. Verify behavior and
 tone with isolated synthetic cases before accepting the change. Report unavailable
 models or unmet requirements; do not substitute models or treat code tests as
 proof of model behavior.

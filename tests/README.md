@@ -95,10 +95,12 @@ build agent's base prompt in the copied trial location, never global configurati
 or permissions. Native inspection verifies the exact base prompt before model work;
 session metadata must retain the build agent and selected model/variant. Resume
 requires the same prompt hash. Do not treat this experiment as website deployment.
-`--tone-only` runs a fresh six-setting follow-up after a prompt fix. New/modified
-agent prompts must be validated against every entry/variant in
+`--tone-only` runs a fresh six-setting follow-up after a prompt fix. Scope live validation to
+new/modified prompts plus directly affected neighbors, determined from the diff, on every entry/variant in
 `src/goodmorning/web/models.py`, with both behavior and tone reviewed; a missing
-model or unmet requirement is incomplete validation, not permission to skip it.
+model or unmet requirement is incomplete validation, not permission to skip it. Use
+`--model`/`--language` filters and `--tone-only` for tone-only fixes. Do not rerun full
+matrices for unchanged established prompts; run them for shared prompt infrastructure or release validation.
 Each task/tone matrix holds an exclusive process lock for its output directory.
 After a server restart, do not assume the original runner stopped: a refused
 `--resume` means it still owns the matrix. Never delete the lock to bypass it.

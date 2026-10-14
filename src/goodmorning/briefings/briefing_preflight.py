@@ -43,6 +43,22 @@ def initialize(runtime, job, previous=None):
                 context['feedback_tasks'] = [{'id': r['occurrence_id'], 'task_id': r['id'], 'revision': r['revision'],
                                              'text': r['title'], 'project': r['project'], 'done': r['status'] == 'done',
                                              **({'actual': True} if r.get('actual') else {})} for r in rows]
+                try:
+                    from goodmorning.records.custom_store import CustomStore
+                    custom_store = CustomStore(runtime, write=False)
+                    try:
+                        for s in custom_store.briefing(job['date'], 'gn' if job['kind'] == 'gn' else 'gm'):
+                            if job['kind'] != 'gn' and not s['due']:
+                                continue
+                            context['feedback_tasks'].append({
+                                'id': s['occurrence_id'], 'task_id': s['id'], 'revision': s['revision'],
+                                'text': s['title'], 'project': '', 'done': False, 'custom': True,
+                                'custom_reason': s['reason'], 'weekly_count': s['weekly_count'],
+                            })
+                    finally:
+                        custom_store.close()
+                except (ValueError, OSError):
+                    pass
         finally:
             inbox.close()
     fields = []
@@ -131,13 +147,26 @@ def answer(runtime, job, value):
                 if 'feedback_tasks' in context:
                     from goodmorning.records.inbox_store import InboxStore, stamp
                     from goodmorning.records.task_store import TaskStore
-                    inbox = InboxStore(runtime, write=True)
-                    try:
-                        # Preflight precedes agent-session creation. Audit the browser job itself.
-                        TaskStore(inbox).complete_day([known[x] for x in complete], job['date'],
-                            'browser:' + job['id'], 'browser-feedback:' + job['id'], stamp(runtime), details)
-                    finally:
-                        inbox.close()
+                    task_choices = [known[x] for x in complete if not known[x].get('custom')]
+                    custom_choices = [known[x] for x in complete if known[x].get('custom')]
+                    if task_choices:
+                        inbox = InboxStore(runtime, write=True)
+                        try:
+                            # Preflight precedes agent-session creation. Audit the browser job itself.
+                            TaskStore(inbox).complete_day(task_choices, job['date'],
+                                'browser:' + job['id'], 'browser-feedback:' + job['id'], stamp(runtime), details)
+                        finally:
+                            inbox.close()
+                    for entry in custom_choices:
+                        from goodmorning.records.custom_store import CustomStore
+                        custom_store = CustomStore(runtime, write=True)
+                        try:
+                            custom_store.report(entry['task_id'], entry['revision'],
+                                {'status': 'done', 'confirmed_completion': True, 'detail': ''},
+                                'browser:' + job['id'], 'browser-feedback:' + job['id'] + ':custom:' + entry['task_id'],
+                                stamp(runtime), job['date'])
+                        finally:
+                            custom_store.close()
                 receipt = amend(runtime, job['date'], expected, amendment, locked=True)
             elif previous == value and current == context.get('feedback_result_sha256'):
                 receipt = {'sha256':current}  # Previous atomic amendment committed before its receipt.

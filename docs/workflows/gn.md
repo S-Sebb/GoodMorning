@@ -37,7 +37,7 @@ Use selected absolute paths, actual session, pinned date and confirmed language.
    today's agreed occurrences; otherwise use `task --update` for action state,
    retaining any existing future workday. Never date a report tomorrow because
    tomorrow is the task's planned workday. Give each write
-    a stable `gn-report:JOB:TASK` key; reread its receipt before rendering. Never
+    a stable `gn-report:JOB:TASK` key; reread its receipt before rendering. Custom completions use `custom --report --date PINNED_DATE` with a stable `gn-custom:JOB:RULE` key. Never
     reapply selected completions. A regenerated run reports current state without
    repeating these mutations. If attribution or scheduling is ambiguous, ask before
     a write and keep unresolved input in the conversation, not an unassigned pending note.

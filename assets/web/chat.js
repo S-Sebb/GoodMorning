@@ -204,7 +204,7 @@ window.addEventListener('beforeunload', event => {
 window.addEventListener('pageshow', event => { if (event.persisted) returnToSecretary(); });
 const renderedMessages = new WeakMap();
 const specialLabels = {question: 'Question for you', answer: 'Your answer', permission: 'Your permission'};
-const actionTargets = {task: 'Task', event: 'Event', draft: 'Event draft', idea: 'Idea', record: 'Record'};
+const actionTargets = {task: 'Task', event: 'Event', draft: 'Event draft', idea: 'Idea', record: 'Record', custom: 'Custom schedule'};
 const actionLabels = {added: '{target} added', updated: '{target} updated', cancelled: '{target} cancelled',
   completed: '{target} completed', approved: '{target} approved', declined: '{target} declined'};
 

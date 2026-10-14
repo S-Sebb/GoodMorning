@@ -6,6 +6,7 @@
   "Event draft": "日程草稿",
   "Idea": "灵感",
   "Record": "记录",
+  "Custom schedule": "自定义安排",
   "{target} added": "已添加{target}",
   "{target} updated": "已更新{target}",
   "{target} cancelled": "已取消{target}",
