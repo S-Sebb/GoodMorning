@@ -8,7 +8,7 @@ ICON_TYPES = {f'icons/{kind}.{extension}': mime
               for kind in ('gm', 'gn', 'secretary')
               for extension, mime in (('svg', 'image/svg+xml'), ('png', 'image/png'))}
 DESK_ICON_TYPES = {f'icons/desk-{name}.svg': 'image/svg+xml'
-                  for name in ('morning', 'evening', 'schedule', 'secretary', 'sprout', 'idea')}
+                  for name in ('morning', 'evening', 'schedule', 'secretary', 'sprout', 'idea', 'appearance', 'language')}
 
 
 def favicon_links(kind, prefix='/'):

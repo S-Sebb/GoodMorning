@@ -1,6 +1,19 @@
 {
   "notes": [
     {
+      "version": "0.38.0", "date": "2026-10-14", "author": "GoodMorning agent",
+      "title_en": "Morning Sky day default and icons for settings titles", "title_zh": "默认日间配色改为晨空，设置项标题配上图标",
+      "changes": [
+        {"category": "Changed", "en": [
+          "Make Morning Sky the default day color scheme for accounts without a saved choice; Starry stays the night default. Saved choices are unchanged.",
+          "Add a desk icon to the left of each settings title, matching the tab switcher style: a globe for Website language, a bulb for Model, a T-shirt for Appearance, and the Morning sun and Evening moon for the day and night schemes."
+        ], "zh": [
+          "未保存配色的账号，默认日间配色改为晨空，夜间默认仍为星空；已保存的选择不受影响。",
+          "每个设置项标题左侧加上桌面图标，与标签页切换风格一致：网站语言用地球、模型用灯泡、外观用T恤、日间配色用晨阳、夜间配色用晚月。"
+        ]}
+      ]
+    },
+    {
       "version": "0.37.0", "date": "2026-10-14", "author": "GoodMorning agent",
       "title_en": "Clearer secretary history and calmer phone scrolling", "title_zh": "秘书历史对话更清晰，手机滚动更清爽",
       "changes": [

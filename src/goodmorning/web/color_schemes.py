@@ -9,7 +9,7 @@ from goodmorning.runtime_files import atomic_text
 OPTIONS = {'day': {'classic': 'Classic', 'warm': 'Warm', 'morning-sky': 'Morning Sky',
                    'first-light': 'First Light'},
            'night': {'classic': 'Classic', 'starry': 'Starry'}}
-DEFAULT = {'day': 'classic', 'night': 'starry'}
+DEFAULT = {'day': 'morning-sky', 'night': 'starry'}
 CURRENT = ContextVar('website_color_schemes', default=DEFAULT)
 
 
