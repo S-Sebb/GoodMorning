@@ -38,7 +38,7 @@ class ColorSchemeTests(unittest.TestCase):
         return fixture
 
     def test_catalog_and_invalid_requests(self):
-        self.assertEqual(colors.DEFAULT, {'day': 'classic', 'night': 'starry'})
+        self.assertEqual(colors.DEFAULT, {'day': 'morning-sky', 'night': 'starry'})
         self.assertEqual(set(colors.OPTIONS['day']), {'classic', 'warm', 'morning-sky', 'first-light'})
         self.assertEqual(set(colors.OPTIONS['night']), {'classic', 'starry'})
         self.assertEqual(colors.validate({'day': 'warm', 'night': 'starry'}), {'day': 'warm', 'night': 'starry'})
@@ -210,7 +210,7 @@ class ColorSchemeTests(unittest.TestCase):
         headers = {key.lower(): value for key, value in fixture.received[-1][1].items()}
         self.assertEqual(headers['x-goodmorning-day-scheme'], 'warm')
         self.assertEqual(headers['x-goodmorning-night-scheme'], 'starry')
-        self.assertIn(b'&quot;day&quot;: &quot;classic&quot;', classic)
+        self.assertIn(b'&quot;day&quot;: &quot;morning-sky&quot;', classic)
         self.assertIn(b'&quot;day&quot;: &quot;warm&quot;', warm)
         self.assertIn(b'&quot;night&quot;: &quot;starry&quot;', warm)
         fixture.request('/api/auth/logout', {})
