@@ -23,7 +23,7 @@ package-qualified; no legacy module aliases or duplicate implementations remain.
 | `requirements/` | Optional dependency lists |
 | `tests/` | Unit contracts, shared fixtures, `browser/` checks, and `benchmarks/` |
 | `deploy/` | Public service and HTTPS configuration |
-| `docs/history/` | Historical plans, not active workflow instructions |
+| `docs/history/` | Historical plans and point-in-time reviews, not active workflow instructions |
 
 Keep personal runtimes, logs, reports, generated screenshots, caches, backups,
 and credentials outside the source tree. Existing ignored private records are
