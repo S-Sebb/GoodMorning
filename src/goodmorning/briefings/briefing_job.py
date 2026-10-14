@@ -43,6 +43,38 @@ def owned(runtime, identifier, session):
     return directory, target, job, context
 
 
+def session_job(runtime, session):
+    """Bind active browser actors even when a model omits the read recipe's flag."""
+    registry = Path(runtime)/'browser-jobs/jobs.json'
+    if not session or not registry.exists():
+        return None
+    jobs = bounded_json(registry, 2_000_000)
+    identifiers = {job['id'] for job in jobs.values() if job.get('session') == session
+                   and job.get('state') in ('starting','running','uncertain')
+                   and context_path(runtime, job['id']).exists()
+                   and bounded_json(context_path(runtime, job['id']), 300_000).get('document_version') == 2}
+    if len(identifiers) > 1:
+        raise ValueError('browser_job_ambiguous: inspect this actor\'s owning job before reading')
+    return next(iter(identifiers), None)
+
+
+def require_section(runtime, identifier, session, kind, date, section):
+    _, target, job, context = owned(runtime, identifier, session)
+    if (kind, date) != (job['kind'], job['date']) or not section:
+        raise ValueError('browser_section_scope: use the owning job\'s edition, pinned date and explicit section')
+    checkpoint = load(target)
+    if not checkpoint:
+        raise ValueError('browser_section_not_ready: initialize the preview before section reads')
+    position = len(checkpoint['outcomes'])
+    if position == len(checkpoint['plan']):
+        raise ValueError('browser_sections_resolved: finish the job; no further section reads')
+    expected = checkpoint['plan'][position][0]
+    reconcile = kind == 'gn' and position == 0 and section == 'tasks' and not context.get('regenerating')
+    if section != expected and not reconcile:
+        raise ValueError(f'browser_section_not_ready: publish {expected} before reading {section}; this is not a provider failure')
+    return context.get('website_language','en')
+
+
 def default_plan(context):
     plan = deepcopy((DEFAULT_PLANS if context.get('document_version') == 2 else LEGACY_PLANS)[context['workflow']])
     selected=context.get('website_language','en')
@@ -95,23 +127,29 @@ def next_step(runtime, identifier, session, context, checkpoint):
             '--db',selected['calendar_db'],'--from',context['tomorrow'] if tag == 'tomorrow' else context['date'],
             '--days','1' if tag == 'tomorrow' else '3','--timezone',context['timezone'],'--json','--details']))
     elif context.get('document_version') == 2 and tag in ('schedule', 'tasks', 'attention', 'today'):
-        reads.append(shlex.join(['python', 'scripts/goodmorning.py', 'task', '--secretary-dir', str(runtime),
+        read_command = ['python', 'scripts/goodmorning.py', 'task', '--secretary-dir', str(runtime),
                                 '--briefing', context['workflow'], '--date', context['date'],
+                                '--browser-job', identifier,
                                 '--section', tag,
-                                '--website-language', context.get('website_language', 'en')]))
-    instruction = 'Gather only this section; follow returned pages/review requirements, then publish immediately. Use saved context first.'
+                                '--website-language', context.get('website_language', 'en')]
+        reads.append(shlex.join(read_command))
+        if tag == 'today' and not context.get('regenerating') and context.get('feedback',{}).get('details') not in ('No other updates','No updates today',None):
+            candidates = read_command.copy()
+            candidates[candidates.index('--section') + 1] = 'tasks'
+            reads.insert(0, shlex.join(candidates))
+    instruction = ('Use saved context first. Run only this section\'s read recipes and required pages/review, '
+                   'then publish it before collecting any later section. Do not batch future sections\' reads.')
     if context.get('document_version', 1) == 1 and tag in ('schedule', 'tomorrow'):
         instruction += (' Legacy preview: review active inbox/project constraints; preserve flexible rows '
                         '[date,status,title,detail], TBC appointments and existing history; no automatic rollover. '
                         'No timed appointments does not mean a free day.')
     if context.get('document_version') == 2 and tag in ('schedule', 'tasks', 'attention', 'today'):
-        instruction += (' Follow docs/item-taxonomy.md. Use source-linked events/actions/decisions from code-owned rows. '
-                        'Do not create work from a briefing, move deadlines into appointments, assign dates, infer completion, '
-                        'or question every idea. Schedule owns events; Tasks owns work; Reminders owns due decisions. '
-                        'For Tasks: first read the section rows and polish materially vague titles/details with '
-                        'revision-checked task --update (title/detail only, same meaning, no scheduling change), then reread '
-                        'and pack the exact updated rows so cards read as clear imperative actions with useful detail. '
-                        'Follow next_offset for remaining pages and retain material warnings. This is presentation, not execution consent.')
+        instruction += (' Follow docs/item-taxonomy.md and docs/briefing-format.md. Copy this section\'s code-owned '
+                        'source-linked blocks; follow next_offset and preserve material warnings. '
+                         'For Tasks, first polish materially vague title/detail with revision-checked task --update '
+                         '(same meaning, title/detail only, no scheduling changes), then reread and pack the exact rows. '
+                         'Leave already-clear titles and factual details unchanged; a project name inside a specific object is not a decorative prefix. '
+                        'Presentation does not create, schedule, execute or complete work.')
     return {'action':'publish','command':shlex.join(command + ['publish']), 'position':position,
             'section':[tag,title], 'read':reads,
             'instruction':instruction}
@@ -138,6 +176,32 @@ def image_previews(runtime, job, context, checkpoint):
         return {'unavailable':True, 'next':'Keep honest placeholders; preserve the image cache and inspect it separately.'}
 
 
+def writing_rule(context, next_action):
+    """Compact, localized source-meaning reminders at the point of authoring."""
+    chinese = context.get('website_language') == 'zh-CN'
+    action = next_action['action']
+    tag = next_action.get('section', [''])[0]
+    if action == 'init':
+        return ('开场只说明即将回顾的内容，不要在获取数据前说已经整理完毕。' if chinese else
+                'Opening describes what will be reviewed; do not claim collection is already complete.')
+    if action == 'finish':
+        return ('结尾可省略；没有待办、完成记录或实际反馈可回顾时，不写结尾。否则只回应已核实的结果。空日程只能说明没有已保存的约定，不能说“日程清空”、日子清闲、可以随意安排或时间充裕。不要承诺来源恢复后自动更新，不推断空闲、就绪或未来完成。' if chinese else
+                'Closing is optional; omit it when there are no tasks, completions or actual feedback to reflect. Otherwise use verified results only. An empty calendar means no saved appointments, not a clear schedule, quiet/free day or time to spare. Do not promise automatic updates after recovery, readiness or future completion.')
+    if tag == 'tasks':
+        return ('动作行的日期是约定工作日，不是截止日期；只有明确的 due_date/due_at 才是期限。不要建议把明天的工作提前到今天。open 仅表示尚未完成，不能据此说已就绪或没有阻碍；也不能保证一个阻碍消失后即可完成。不要猜测哪项更轻松或需要多久。已经明确的受阻原因保持原文，不做润色写入；受阻不能改写成“暂未推进”或“没有进展”。' if chinese else
+                'Action-row dates are agreed workdays, not deadlines; only explicit due_date/due_at establish a deadline. Do not suggest moving tomorrow\'s work into today. Open means unfinished; it does not establish readiness or absence of blockers. Resolving one blocker does not guarantee readiness/completion. Do not invent comparative ease or duration. Preserve already-clear blocker details without polishing writes; blocked does not mean no progress.')
+    if tag == 'today':
+        return ('只回顾该报告日明确反馈的结果。报告受阻不等于完全没做过工作；不要增加明天的建议，也不要断言数据到位后即可推进或完成。' if chinese else
+                'Report only outcomes explicitly supplied for the reporting day. A blocker does not prove no work was done. Do not add tomorrow\'s advice or assert readiness/completion after a dependency arrives.')
+    if tag == 'schedule':
+        return ('复制返回的代码生成块，覆盖完整窗口；空日程也使用返回的段落，不自行改写日期、星期或缩短窗口。没有已保存的约定不能证明空闲、没有准备工作或没有冲突。' if chinese else
+                'Copy returned code-owned blocks for the whole window. Use the returned empty-schedule paragraph without recalculating dates/weekdays or shortening the range. No saved appointments does not establish free time, absence of preparation or absence of conflicts.')
+    if tag in ('weather','news'):
+        return ('来源不可用时，只说明本次无法获取相应日期的数据，不补写预测或报道，也不推断没有新闻、预警或风险。没有安排自动重试或后续更新；不能说“恢复后我再整理”“稍后补上”。只说明当前失败，不编造失败原因或恢复入口。' if chinese else
+                'If the source is unavailable, report only that this edition could not obtain the requested dated data. Do not invent forecasts/stories or infer no news, warnings or risks. No automatic retry or later update is scheduled; do not promise to fill it in after recovery. Do not invent a failure cause or recovery route.')
+    return None
+
+
 def act(runtime, identifier, session, action, payload=None):
     directory, target, job, context = owned(runtime, identifier, session)
     with runtime_lock(directory, identifier + '.workflow.lock'):
@@ -148,11 +212,22 @@ def act(runtime, identifier, session, action, payload=None):
             check(runtime, job, checkpoint['document'] if checkpoint else None)
         if not checkpoint and 'replacement' not in job and native.source_path(runtime, job['date'], job['kind']).exists():
             raise ValueError('A saved edition already exists; stop and inspect its owning run, without fetching or rewriting')
+        reply_context = {'language':context.get('website_language','en'),
+                         'tone':context.get('profile',{}).get('secretary_tone') or 'warm and helpful'}
+        reply_context['instruction'] = ('所有可见文字，包括进度和提问，均用简体中文并遵循保存的语气；不要描述读取契约或检查格式。' if reply_context['language'] == 'zh-CN' else
+                                        'All visible text, including progress and questions, uses English and the saved tone; do not narrate reading contracts or format checks.')
         def receipt(value):
-            return {**value, 'next':next_step(runtime, identifier, session, context, load(target))}
+            next_action = next_step(runtime, identifier, session, context, load(target))
+            rule = writing_rule(context, next_action)
+            if rule:
+                next_action['writing'] = rule
+            return {**value, 'reply_context':reply_context, 'next':next_action}
         if action == 'prepare':
             # Preparation is saved once by the server, not reread by the agent.
             prepared = {k:v for k,v in context.items() if k not in ('form','browser_answer','awaiting')}
+            if context.get('feedback'):
+                prepared['feedback'] = {**context['feedback'], 'date':context['date']}
+                prepared['feedback_task_scope'] = 'feedback_tasks are completion choices only, not all attribution candidates. Reports may concern future or undated actions; read the permitted Tasks lookup before offering named report choices.'
             if context.get('document_version') == 2:
                 # Sources are reread per section. Do not invite reuse of stale/legacy plans.
                 prepared.pop('items', None)
@@ -240,7 +315,15 @@ def act(runtime, identifier, session, action, payload=None):
             if code:
                 raise ValueError('Final save was not confirmed: '+output.getvalue().strip())
             draft.unlink()  # Only this confirmed job's temporary cumulative input.
-            return {'saved':True,'date':job['date'],'kind':job['kind'], 'next':'Return the browser link; stop without rewriting or acknowledging news.'}
+            return {'saved':True,'date':job['date'],'kind':job['kind'],
+                    'url':f"/d/{job['date']}/{job['kind']}.html",
+                    'reply_context':reply_context,
+                    'next':('保存已经核实，正文已在网页中。现在只交付链接：用保存的语气写简短的交付标签并附上这个相对链接。'
+                            '不要再回顾任务、完成情况、受阻事项、日程或服务失败，不追加邀请。不要查找主机、继续读取、改写记录或确认新闻。'
+                            if reply_context['language'] == 'zh-CN' else
+                            'Save is verified; the page already contains the briefing. Hand over the relative link with a brief delivery label in the saved tone. '
+                            'Do not repeat tasks, completions, blockers, schedules or provider failures, or append an invitation. '
+                            'No host lookup, further reads, record rewriting or news acknowledgement.')}
         raise ValueError('Unknown browser workflow action')
 
 

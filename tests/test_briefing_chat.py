@@ -149,6 +149,9 @@ class ChatTests(unittest.TestCase):
         app = BrowserApp(self.root, self.chamber)
         self.assertEqual(app.chat_settings()['defaultMode'], 'initialize')
         self.assertIn(b'role="radiogroup"', app.chat_page())
+        self.assertIn(b'data-mode="initialize"', app.chat_page())
+        for mode in ('secretary', 'todo', 'eureka'):
+            self.assertNotIn(f'data-mode="{mode}"'.encode(), app.chat_page())
         self.assertFalse((self.root / 'profile.md').exists())
         with self.assertRaises(ValueError): app.today()
         self.start('initialize', '')
@@ -170,12 +173,47 @@ class ChatTests(unittest.TestCase):
             self.start('secretary', 'Hello')
         self.assertEqual(self.chats.status(self.id)['secretary_name'], 'Aria')
 
+    def test_saved_tone_is_available_before_each_turn_without_leaking_prompt_metadata(self):
+        tone='Professional and reserved; use "clear" wording.'
+        profile=self.root/'profile.md'
+        profile.write_text('secretary_tone: '+tone+'\n')
+        self.start('todo','Record a task')
+        prompts=[body['prompt'] for action,body in self.chamber.calls if action=='session.send']
+        line=next(line for line in prompts[-1].splitlines() if line.startswith('Secretary tone at request start: '))
+        self.assertEqual(json.loads(line.split(': ',1)[1]),{'value':tone,'source':'saved'})
+        self.assertEqual(profile.read_text(),'secretary_tone: '+tone+'\n')
+        profile.write_text('secretary_tone: Warm and lightly playful\n')
+        self.chats.send(self.id,{'id':'b'*32,'text':'Follow up'})
+        prompts=[body['prompt'] for action,body in self.chamber.calls if action=='session.send']
+        self.assertIn('Warm and lightly playful',prompts[-1])
+        self.assertIn(tone.replace('"','\\"'),prompts[0])
+        user_texts=[message['text'] for message in self.chats.status(self.id)['messages'] if message['role']=='user']
+        self.assertEqual(user_texts,['Record a task','Follow up'])
+
+    def test_unsaved_tone_is_labeled_default_not_stored_as_a_preference(self):
+        self.start('todo','Record a task')
+        prompt=next(body['prompt'] for action,body in self.chamber.calls if action=='session.send')
+        line=next(line for line in prompt.splitlines() if line.startswith('Secretary tone at request start: '))
+        self.assertEqual(json.loads(line.split(': ',1)[1]),{'value':'warm and helpful','source':'default'})
+        self.assertFalse((self.root/'profile.md').exists())
+
     def test_saved_profile_changes_default_without_restart_or_provider_verification(self):
         app = BrowserApp(self.root, self.chamber)
         (self.root / 'profile.md').write_text('secretary_language: English\ncity: London\ntimezone: Europe/London\nnews_country: GB\n')
         self.assertEqual(app.chat_settings()['defaultMode'], 'secretary')
+        self.assertNotIn(b'data-mode="initialize"', app.chat_page())
+        for mode in ('secretary', 'todo', 'eureka'):
+            self.assertIn(f'data-mode="{mode}"'.encode(), app.chat_page())
         self.assertRegex(app.today(), r'\d{4}-\d{2}-\d{2}')
         self.assertIn(b'href="/chat"', app.page(app.today(), 'gm', False))
+
+    def test_incomplete_or_invalid_profile_keeps_only_initialization(self):
+        app = BrowserApp(self.root, self.chamber)
+        for fields in ('city: London\n', 'city: London\ntimezone: Invalid/Zone\nnews_country: GB\n'):
+            (self.root / 'profile.md').write_text(fields)
+            self.assertEqual(app.chat_settings()['defaultMode'], 'initialize')
+            self.assertNotIn(b'data-mode="secretary"', app.chat_page())
+            self.assertEqual((self.root / 'profile.md').read_text(), fields)
 
     def test_duplicate_creation_and_turn_do_not_dispatch_twice(self):
         self.start()

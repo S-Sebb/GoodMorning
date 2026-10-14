@@ -92,7 +92,10 @@ class JobTests(unittest.TestCase):
         self.init()
         act(self.root,self.identifier,'ses_fixture','publish',{'position':0,'section':['must-do',[['tasks',[['open','Ranking','']]]]]})
         act(self.root,self.identifier,'ses_fixture','skip',{'position':1})
-        act(self.root,self.identifier,'ses_fixture','finish',{})
+        result=act(self.root,self.identifier,'ses_fixture','finish',{})
+        self.assertEqual(result['url'],'/d/2026-10-11/gm.html')
+        self.assertEqual(result['reply_context']['language'],'en')
+        self.assertEqual(result['reply_context']['tone'],'warm and helpful')
         self.chamber.forms=[];self.chamber.permissions=[];self.chamber.busy=False
         self.assertEqual(self.app.status(self.identifier)['state'],'ready')
         self.assertFalse((self.app.job_dir/(self.identifier+'.preview.json')).exists())
@@ -101,6 +104,28 @@ class JobTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError,'complete; stop'):
                 act(self.root,self.identifier,'ses_fixture',action,{})
         self.assertEqual(before,{path:path.read_bytes() for path in (self.root/'daily').iterdir()})
+
+    def test_verified_link_uses_job_date_and_edition_not_profile_domains(self):
+        self.job['language']='zh-CN'
+        self.app.jobs['2026-10-11.gm']=self.job;self.app.save_jobs()
+        initialize(self.root,self.job)
+        (self.root/'profile.md').write_text((self.root/'profile.md').read_text()+'website: https://wrong.example\n')
+        self.init()
+        act(self.root,self.identifier,'ses_fixture','publish',{'position':0,'section':['must-do',[['tasks',[['open','Ranking','']]]],'','Project steps']})
+        act(self.root,self.identifier,'ses_fixture','skip',{'position':1})
+        result=act(self.root,self.identifier,'ses_fixture','finish',{})
+        self.assertEqual(result['url'],'/d/2026-10-11/gm.html')
+        self.assertEqual(result['reply_context']['language'],'zh-CN')
+        self.assertIn('现在只交付链接',result['next'])
+        self.assertIn('不要再回顾任务',result['next'])
+        self.chamber.forms=[];self.chamber.permissions=[];self.chamber.busy=False
+        self.assertEqual(self.app.status(self.identifier)['state'],'ready')
+        from goodmorning.web import language
+        token=language.CURRENT.set('zh-CN')
+        try:
+            self.assertTrue('Ranking' in self.app.page('2026-10-11','gm',True).decode())
+        finally:
+            language.CURRENT.reset(token)
 
     def test_authorized_images_only_after_news_is_published(self):
         context = json.loads(context_path(self.root,self.identifier).read_text())
@@ -629,7 +654,7 @@ class JobTests(unittest.TestCase):
         identifier,_=self.regenerate()
         context=act(self.root,identifier,'ses_replacement','prepare')
         self.assertTrue(context['regenerating'])
-        self.assertEqual(context['feedback'],{'completed':['Ranking'],'details':'Travel is partial.','saved':True})
+        self.assertEqual(context['feedback'],{'completed':['Ranking'],'details':'Travel is partial.','saved':True,'date':'2026-10-11'})
         self.assertEqual(path.read_bytes(),before)
         act(self.root,identifier,'ses_replacement','init',{'greeting':'Night again.','opening':'Your progress is preserved.','plan':[['today','Today']]})
         act(self.root,identifier,'ses_replacement','publish',{'position':0,'section':['today',[['p','Ranking is finished; travel remains partial.']]]})

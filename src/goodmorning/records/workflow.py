@@ -36,6 +36,7 @@ def prepare(directory, kind, today=None, cache=None, *, task_limit=7, website_la
     elif kind == "secretary":
         result["title"] = None
     if kind in ("todo", "eureka"):
+        result["capture_date"] = dt.datetime.fromisoformat(stamp(directory)).date().isoformat()
         result["profile"] = {key: fields[key] for key in ("secretary_name", "secretary_language", "secretary_tone") if fields.get(key)}
         return result
     result.update(yesterday=(day - dt.timedelta(days=1)).isoformat(), tomorrow=(day + dt.timedelta(days=1)).isoformat())

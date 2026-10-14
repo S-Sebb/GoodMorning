@@ -110,8 +110,7 @@ class Gateway:
         if parsed.path in ('/','/index.html'):
             path = '/chat' if self.hosts[host] == 'sec' else '/'+self.hosts[host]+'.html'
         forwarded = {'Authorization':'Bearer '+backend['key'],'X-GoodMorning-Origin':'https://'+host,
-                     'X-GoodMorning-Language':self.accounts.website_language(identifier) or ui.current(),
-                      'X-GoodMorning-Model':self.accounts.website_model(identifier) or site_models.DEFAULT}
+                      'X-GoodMorning-Language':self.accounts.website_language(identifier) or ui.current()}
         schemes = self.accounts.website_color_schemes(identifier) or site_colors.DEFAULT
         forwarded.update({'X-GoodMorning-Day-Scheme': schemes['day'], 'X-GoodMorning-Night-Scheme': schemes['night']})
         if method == 'POST' and parsed.path in ('/api/generate', '/api/regenerate') and REQUESTED_AT.get() is not None:
@@ -801,7 +800,7 @@ def handler_for(gateway):
                 except Denied:
                     if path=='/api/release/seen':return self.respond({'version':None,'enabled':False})
                     if path=='/api/language':return self.respond({'language':ui.current()})
-                    if path=='/api/model':return self.respond({'model':site_models.DEFAULT})
+                    if path=='/api/model':return self.respond({'model':site_models.for_language(ui.current())})
                     if path=='/api/color-schemes':return self.respond(site_colors.current())
                     if path!='/login':
                         return self.respond({'error':'Login required'},401) if path.startswith('/api/') else self.respond(b'',302,location='/login')
@@ -813,7 +812,7 @@ def handler_for(gateway):
                     user=session.get('user_id')
                     return self.respond({'version':gateway.accounts.release_seen(user) if user else None,'enabled':bool(user)})
                 if path=='/api/language':return self.respond({'language':ui.current()})
-                if path=='/api/model':return self.respond({'model':gateway.accounts.website_model(session['user_id']) or site_models.DEFAULT})
+                if path=='/api/model':return self.respond({'model':site_models.for_language(ui.current())})
                 if path=='/api/color-schemes':return self.respond(site_colors.current())
                 if path=='/login' and not session['user_id']:
                     return self.respond(self.account_html(session,'Sign in',host),mime='text/html; charset=utf-8')
@@ -914,13 +913,7 @@ def handler_for(gateway):
                     if form and (len(target)>2048 or any(ord(c)<32 for c in target) or '\\' in target or urlsplit(target).netloc or urlsplit(target).scheme or not (GET_ROUTES.fullmatch(urlsplit(target).path) or target in ('/login','/password'))):target='/'
                     return self.respond({'language':selected},303 if form else 200,location=target if form else None,language_cookie=selected)
                 if path=='/api/model':
-                    if not form and set(body)!={'model'}:raise ValueError('Invalid model choice')
-                    selected=site_models.model(body['model'])
-                    if session['user_id']:gateway.accounts.website_model(session['user_id'],selected)
-                    site_models.CURRENT.set(selected)
-                    target=body.get('return_to','/')
-                    if form and (len(target)>2048 or any(ord(c)<32 for c in target) or '\\' in target or urlsplit(target).netloc or urlsplit(target).scheme or not (GET_ROUTES.fullmatch(urlsplit(target).path) or target in ('/login','/password'))):target='/'
-                    return self.respond({'model':selected},303 if form else 200,location=target if form else None)
+                    return self.respond({'error':'Model selection is automatic from the website language.'},405)
                 if path=='/api/color-schemes':
                     selected = site_colors.validate({key: body[key] for key in ('day', 'night')} if form else body)
                     if session['user_id']:gateway.accounts.website_color_schemes(session['user_id'], selected)

@@ -13,7 +13,8 @@ data and keep content-hashed, cacheable URLs.
 The public website adds a security boundary to the local viewer; it is not an
 OpenChamber UI proxy. It permits login, current-password changes, logout and
 account-owned briefing viewing/generation/questions and the four secretary chat
-modes. No web registration, account
+modes (Initialize alone before setup; Secretary, To-do and Eureka afterward).
+No web registration, account
 creation, username edit, forgotten-password shortcut or arbitrary agent API exists.
 Secretary chat also accepts private attachments up to 50 MB per file. Uploads
 require a permanent authenticated account, the exact origin and session CSRF token.
@@ -92,6 +93,10 @@ Existing host swap is not reformatted or disabled by this deployment.
 
 ## Accounts
 
+Coding agents provisioning a hosted user must follow the root-level
+[server user guide](../SERVER-USER-GUIDE.md), including private random temporary
+password generation and the complete isolated-backend readiness gate.
+
 Passwords use scrypt N=131072, r=8, p=1 and independent salts (128 MiB per check).
 New temporary and permanent passwords require 6–32 characters inclusive, at least
 one letter and one digit; symbols are optional and no uppercase is required.
@@ -143,8 +148,10 @@ All future hosted users use the server-default AI configuration. The root-owned
 key credential). Never display this file or copy it into public source. Account
 creation refuses missing or unsafe defaults before asking for a password or
 creating a login, and saves the configured default model for each new account.
-Existing account preferences are not rewritten. Users retain the website's
-existing model selector; this policy defines their initial hosted configuration.
+Existing account preferences are not rewritten. Website requests automatically
+route by website language (English: Muse Spark Contributor XHigh; Chinese:
+DeepSeek Flash High). The provisioning default does not override this routing;
+saved legacy model preferences remain intact but no longer select new requests.
 
 Before handing over an account, finish this SSH-only checklist:
 

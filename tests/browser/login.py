@@ -79,7 +79,7 @@ def main():
             page=plain.new_page();page.goto('https://gm.love765.me/login')
             page.locator('#prefs-menu > summary').click()
             page.locator('#website-language').select_option('zh-CN')
-            expect(page.locator('#website-model option')).to_have_count(2)
+            expect(page.locator('#website-model')).to_have_count(0)
             page.locator('#language-form').get_by_role('button',name='Apply',exact=True).click()
             expect(page.get_by_role('heading',name='登录',exact=True)).to_be_visible()
             expect(page.locator('#account-form button[type=submit]')).to_be_disabled()

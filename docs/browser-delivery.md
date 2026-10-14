@@ -38,9 +38,9 @@ in visible text, without changing saved data or citation destinations.
 ## Explicit generation and chat
 
 Today's missing edition offers a preparation button. It creates a dedicated
-OpenChamber session using the account's selected website model (Muse Spark 1.3
-or DeepSeek V4.1 Flash, chosen beside the website language switch; unset
-accounts use Muse Spark 1.3). The choice is pinned per briefing job and per
+OpenChamber session using automatic website-language routing: English uses
+Muse Spark 1.3 Contributor XHigh; Chinese uses DeepSeek V4.1 Flash High.
+There is no manual model selector. The model is pinned per briefing job and per
 chat turn before any prompt is sent. Duplicate clicks reuse
 the durable date/edition job. Uncertain dispatches are never replayed blindly.
 Questions and permissions belong only to that session; the viewer is not an

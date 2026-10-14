@@ -27,6 +27,7 @@ def main(argv=None):
     actions.add_argument('--migrate', action='store_true')
     actions.add_argument('--briefing', choices=('gm', 'gn'))
     parser.add_argument('--section', choices=('schedule', 'tasks', 'attention', 'today'), help='Return only this briefing section and its continuation')
+    parser.add_argument('--browser-job', help='Bind a browser section read to its owning job and next position')
     for name in ('show', 'update', 'report', 'adopt', 'convert'):
         actions.add_argument('--' + name)
     parser.add_argument('--draft', action='store_true')
@@ -49,6 +50,8 @@ def main(argv=None):
             from goodmorning.web import language as ui
             language_token = ui.CURRENT.set(args.website_language)
         runtime = secretary_path(args.secretary_dir)
+        if args.browser_job and not args.briefing:
+            raise ValueError('invalid_input: --browser-job applies only to --briefing')
         if args.actual and not args.report:
             raise ValueError('invalid_input: --actual applies only to --report')
         if args.offset < 0 or not 1 <= args.limit <= 200:
@@ -63,6 +66,15 @@ def main(argv=None):
             from .routing import prepare
             if not args.date:
                 raise ValueError('date_required: briefing query needs its pinned date')
+            from goodmorning.briefings.briefing_job import session_job, require_section
+            browser_job = args.browser_job or session_job(runtime, os.environ.get('OPENCODE_SESSION_ID') or args.session)
+            if browser_job:
+                selected = require_section(runtime, browser_job, args.session, args.briefing, args.date, args.section)
+                if args.website_language and args.website_language != selected:
+                    raise ValueError('browser_section_scope: use the job\'s pinned website language')
+                if not args.website_language:
+                    from goodmorning.web import language as ui
+                    language_token = ui.CURRENT.set(selected)
             result = prepare(runtime, args.date, args.briefing, args.offset, args.limit)
             if args.section:
                 if args.section == 'today':
@@ -71,8 +83,13 @@ def main(argv=None):
                 else:
                     page = result[args.section]
                 result = {**page, 'block': result.get('blocks', {}).get(args.section),
-                          'warnings': result.get('warnings', []) + result['schedule'].get('warnings', []),
-                          'timezone': result['schedule'].get('timezone')}
+                           'warnings': result.get('warnings', []) + result['schedule'].get('warnings', []),
+                           'timezone': result['schedule'].get('timezone')}
+                if args.section == 'schedule' and not result.get('total') and not result['warnings']:
+                    from goodmorning.web import language as ui
+                    window = result['window']
+                    result['block'] = ['p', ui.text('No saved appointments for {start} through {end} ({timezone}).',
+                        start=ui.day_text(window['start']), end=ui.day_text(window['end']), timezone=result['timezone'])]
         else:
             writing = bool(args.add or args.capture_draft or args.update or args.report or args.adopt or args.convert)
             if writing and not (args.session and args.request_key):

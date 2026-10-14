@@ -373,7 +373,11 @@ class Chats:
                 prompt += 'Workflow refresh: true\n'
             prompt += (f"Native session ID: {session}\n"
                        "Use this ID for --session and calendar --actor; browser chat/message IDs are not session IDs.\n")
-            prompt += f"Website language: {selected}\n\n{text}"
+            from goodmorning.runtime_files import profile_fields
+            tone=profile_fields(runtime).get('secretary_tone')
+            tone_context={'value':tone or 'warm and helpful','source':'saved' if tone else 'default'}
+            prompt += (f"Website language: {selected}\n"
+                       f"Secretary tone at request start: {json.dumps(tone_context,ensure_ascii=False)}\n\n{text}")
             if attachments:
                 # Distinguish file-only turns with identical text when matching
                 # acknowledged messages and restoring their attachment labels.
@@ -561,7 +565,7 @@ def page(csrf, ready, connected, secretary_name=None, avatar='f1', avatar_urls=N
                                    'connected': connected, 'secretary_name': secretary_name,
                                    'avatar': avatar, 'avatars': [{'id': entry, 'src': source} for entry, source in sources.items()]}), quote=True)
     choices = ''.join(f'<button type="button" role="radio" aria-checked="false" data-mode="{mode}">{label}</button>'
-                      for mode, label in MODES.items())
+                      for mode, label in MODES.items() if (mode != 'initialize') == ready)
     heading = html.escape(secretary_name) if secretary_name else 'Your secretary'
     conversation_name = html.escape(secretary_name) if secretary_name else ui.text('Your secretary')
     title = (html.escape(secretary_name) + ' — GoodMorning') if secretary_name else 'Your secretary — GoodMorning'
@@ -591,10 +595,10 @@ def page(csrf, ready, connected, secretary_name=None, avatar='f1', avatar_urls=N
              '<div class="mode-controls"><div class="mode-switch" role="radiogroup" aria-label="Secretary mode">'+choices+'</div>'
              '<button id="mode-help" type="button" aria-label="Which mode should I use?" title="Which mode should I use?" aria-controls="mode-guide" aria-expanded="false"><span aria-hidden="true">?</span></button></div>'
              '<div id="mode-guide" hidden>'
-             '<p><strong>Initialize</strong> — Set up your secretary for the first time, or review your location, timezone, name and preferences. Existing records and saved work stay intact.</p>'
-             '<p><strong>Secretary</strong> — Talk through plans, review your schedule and saved records, clarify priorities, or update preferences. Ask follow-up questions in your own words; changes that need your approval will be confirmed first.</p>'
-             '<p><strong>To-do</strong> — Capture a task and add details such as a project, deadline or priority when useful. Saving a task records it; it does not automatically start the work.</p>'
-             '<p><strong>Eureka</strong> — Save an idea, observation or question before it slips away, then develop it through follow-up discussion. Capturing an idea does not automatically research or execute it.</p>'
+              '<p data-mode-guide="initialize"' + (' hidden' if ready else '') + '><strong>Initialize</strong> — Set up your secretary for the first time, or review your location, timezone, name and preferences. Existing records and saved work stay intact.</p>'
+              '<p data-mode-guide="secretary"' + ('' if ready else ' hidden') + '><strong>Secretary</strong> — Talk through plans, review your schedule and saved records, clarify priorities, or update preferences. Ask follow-up questions in your own words; changes that need your approval will be confirmed first.</p>'
+              '<p data-mode-guide="todo"' + ('' if ready else ' hidden') + '><strong>To-do</strong> — Capture a task and add details such as a project, deadline or priority when useful. Saving a task records it; it does not automatically start the work.</p>'
+              '<p data-mode-guide="eureka"' + ('' if ready else ' hidden') + '><strong>Eureka</strong> — Save an idea, observation or question before it slips away, then develop it through follow-up discussion. Capturing an idea does not automatically research or execute it.</p>'
              '<p>When in doubt, try it—it can do a lot more than you think!</p>'
               '<p>Choosing another mode starts a fresh draft. Returning from another website tab resumes your conversation. After 15 minutes away, settled conversations open as a fresh draft; your history is preserved.</p>'
               '<p>Write naturally; no commands are needed. Enter sends your message; Shift+Enter adds a new line. Use the paperclip, paste images, or drag files into the composer to attach them. Click an image preview to enlarge it.</p></div>'

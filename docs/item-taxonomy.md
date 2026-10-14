@@ -33,8 +33,12 @@ heading. Use `scripts/goodmorning.py` with the selected absolute runtime.
    optional `until`. Clarify ambiguous requested recurrence before recording it.
    Repeats also support `interval_days` or explicit `dates` instead of `weekdays`,
    and optional `include`/`exclude` dates for confirmed exceptions; every rule needs
-   `start` and timezone. Exclusions win; bounds still apply to inclusions. Never
-   approximate an every-two-day rule with weekly weekdays. Unsupported or ambiguous
+    `start` and timezone. Exclusions win; bounds still apply to inclusions.
+    A forward-looking repeat without a supplied start uses the confirmed current
+    local capture date and saved timezone. Ask about start only when the user
+    indicates a different or ambiguous effective date; ask only for other unresolved
+    fields, such as an unclear interval. This default applies to all supported repeats.
+    Never approximate an every-two-day rule with weekly weekdays. Unsupported or ambiguous
    requested rules require clarification before a write, not an unscheduled capture.
    A confirmed morning trigger uses task `when:{"morning_before":"10:00"}` with
    explicit timezone and any weekday rule. Code checks the original generation
@@ -59,21 +63,24 @@ heading. Use `scripts/goodmorning.py` with the selected absolute runtime.
    code's date-window eligibility rather than guessing which days are displayed.
 6. Unknown-time appointments use `task --capture-draft` with raw input and a
    `draft` object: title, date, timezone, location/detail, `confirmed_day` boolean.
-   A confirmed day displays TBC in Schedule; a tentative proposal reserves nothing.
+    A confirmed day displays TBC in Schedule; a tentative proposal reserves nothing.
+    If the user already confirms attendance, a clear day and place, and explicitly
+    leaves the time unknown, save the confirmed TBC draft directly. Resolve a clear
+    weekday from the confirmed current date/timezone. Do not ask for a clock time,
+    duration or repeated approval merely to save that draft; ask only genuinely
+    missing or ambiguous facts. Timed conversion still requires exact approved details.
    Never substitute all-day. Complete drafts convert through `task --convert ID
    --expect-revision REV --confirm` with `{"event":CALENDAR_PAYLOAD}` after exact
    confirmation. Resume the same conversion key/input after uncertain outcomes.
-   Obtain any missing facts and exact appointment approval through a question
-   before capturing the draft. After approval, `state:"ready-for-confirmation"`
+    For a complete appointment awaiting conversion, obtain any missing facts and
+    exact approval through a question only if not already supplied. After approval,
+    `state:"ready-for-confirmation"`
    with `event:CALENDAR_PAYLOAD` can be the retry-safe intermediate before conversion.
    Both fields are inside `draft`; set `confirmed_day:false` until approval:
    After the user has answered/approved: `{"raw":"Add dentist Thursday...","draft":{"title":"Dentist",
    "state":"ready-for-confirmation","confirmed_day":false,"event":{
    "subject":"Dentist","start":"2026-10-15T14:00:00+01:00",
    "end":"2026-10-15T15:00:00+01:00","location":"Town Clinic"}}}`.
-   A bare "every Saturday" request is forward-looking; anchor its repeat start to
-   the confirmed current local capture date, not a guessed historical start. Ask
-   about start only when the user indicates a different or ambiguous effective date.
 7. Ideas/project reports become actions only on requested organization: `task
    --adopt ENTRY --expect-revision REV --confirm` with `{"tasks":[TASK_FIELDS,...]}`.
    Reconcile saved follow-ups first. Several actions can share one capture; do not

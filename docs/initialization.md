@@ -1,146 +1,114 @@
 # Initialization: save locally, verify separately
 
-Initialization should establish confirmed preferences and permissions, not become
-an integration-development session. Failures do not erase answers or authorize
-extra reads, retries, imports, or code changes.
+Result: confirmed preferences/permissions, saved local records, and separate
+verified/pending provider statuses. Initialization never authorizes integration
+development, extra access, retries or code changes.
 
-## Conversation
+## Conversation, in order
 
-An explicit `/initialize` reviews all existing preferences in small groups. Show
-saved values and allow retaining them. Change only explicitly confirmed values;
-preserve all records, permissions and answers already given in this conversation.
+If a review request already confirms keeping all saved settings and skipping blank
+optional fields, check mandatory setup locally. If it is ready, summarize the
+retained values and finish without re-confirming them or writing anything. If
+mandatory values are missing, ask only those. Reviewing settings grants no new
+integration access or verification consent.
 
-1. Resolve the runtime once, including its cache and temporary paths. A sandbox
-   request must not read or initialize the real secretary runtime. Inspect existing
-   filenames first; preserve existing data and confirm a private ignore rule if
-    needed. Never read `.env` or pairing credentials.
-2. Ask for the secretary's display name first, alone: “What would you like
-   to call me as your secretary?” It is an optional short name (1-30
-   characters, at least one letter or number, no control characters). Allow
-   skipping; older profiles without `secretary_name` stay valid. Wait for the
-   answer before other setup questions. Keep it in the conversation until
-   storage consent, then save the exact confirmed spelling in `secretary_name`.
-   Use it for assistant self-reference and website labels, not the user's name.
-   **Website:** use the supplied `Website language` for all replies and questions;
-   do not ask for a separate reply language or write it into the local profile.
-   `setup`/`workflow` helpers use `--website-language CODE` for browser requests.
-   **Local use:** the second initialization question is the secretary's reply language, alone:
-   “Which language would you like me to use as your secretary?” Use the current
-   conversation language only to ask that initial question; it is not consent to
-   save a preference. Offer genuine language/script choices and custom answers,
-   including bilingual or “follow my message language.” Reuse a language preference
-   only when explicitly given. Wait for the answer before other setup questions.
-   Keep it in the conversation until storage consent, then save `secretary_language`
-   in the selected profile. Continue all setup/questions in the chosen language.
-   It does not set news-source language, country, timezone, industry or persona.
-3. Reuse all clear answers. Ask only missing details in a few small related groups:
-   location/timezone; schedule/tone; news/calendar/project preferences. Invite
-   optional roles/fields, special needs and knowledge interests without redundant
-   industry/expertise questions. Optional skips are explicit, not invented defaults.
-4. Use real choices in question widgets. Do not offer buttons such as “Provide a
-   city” or “Specify a time”: clicking them supplies no data and creates another
-   round. For text-only questions, use the built-in custom input without dummy
-   options when supported; otherwise ask plainly and wait. Explain the current
-   date/timezone so the user can give a complete correction in one answer.
-5. A clear answer within an already stated date/timezone/scope need not be reconfirmed.
-   Ask once about genuine ambiguity or a substantive change; combine related event
-   discrepancies into one review. Mention scheduling conflicts without silently
-   cancelling either event. Offer unsupported-tone alternatives once, not repeatedly.
-6. Confirm national-news countries separately from location. Save primary
-   `news_country` and any comma-separated `news_additional_countries`; never infer
-   a primary when the user's order/intent is unclear. Each country uses its own
-   news run/report namespace. A full local feed config preserves bundled feeds
-   and adds confirmed outlets; no arbitrary feed substitution after failure.
-7. Explain the file formats and present one storage/access summary covering exact
-   runtime, authorized remote reads/writes, and selected provider checks. Existing
-   consent is reusable for those exact actions; new scope still needs consent.
-   Check-only remote access uses empty write targets and disabled execution, so
-   there is no need to seek write-lock consent for it.
+1. Resolve the selected absolute runtime/cache/tmp paths once. A sandbox request
+   must not access the real runtime. Inspect existing filenames and preserve data;
+   confirm a private ignore rule when needed. Do not read `.env` or pairing credentials.
+2. Ask the optional secretary display name first, alone. It must be 1–30 characters,
+   contain a letter/number, and contain no control characters. Allow skipping;
+   older profiles without a name remain valid. Reuse an answer already supplied.
+    After storage consent, save exact `secretary_name` spelling for the assistant,
+    never the user's name. Refer to it as the secretary's name, not “you are NAME”.
+3. Browser requests use supplied `Website language`; never ask for reply language
+   or rewrite local `secretary_language`. Pass `--website-language CODE` to setup/workflow.
+   Local setup asks reply language second, alone; offer genuine choices/custom
+   answers, including bilingual/follow-message language. The current conversation
+   language is not consent to save it. Wait for the explicit choice, use it throughout,
+   and save it only after storage consent. Source language/country/persona remain separate.
+4. For explicit Initialize, review all remaining preferences in small related
+   groups, showing saved values and allowing retention. For missing-setup recovery,
+   ask only missing settings. Reuse confirmed answers; change only explicitly
+   confirmed values. Group location/timezone, work/sleep/tone, news/calendar/project
+   scope. Optional roles/fields, special needs and interests may be skipped; reuse
+   industry/expertise answers and never invent optional defaults.
+5. Prefer `question` with meaningful options and built-in custom input; no dummy
+   “Provide a city” buttons. For unsupported text-only forms, ask plainly and wait.
+   State date/timezone where needed. Clear answers within an agreed scope need no
+   repeat confirmation; ask only genuine ambiguity/substantive changes. Combine
+   related event discrepancies, mention conflicts without cancelling, and offer
+   unsupported-tone alternatives once.
+6. Confirm news countries independently of location: one primary `news_country`
+   and comma-separated `news_additional_countries`. Ask if primary intent is unclear.
+   Keep separate country namespaces. Confirm a full local feed configuration that
+   preserves bundled feeds/adds selected outlets; never substitute feeds after failure.
+7. Present one exact file-format/storage/access summary, including runtime,
+   authorized remote reads/writes and selected checks. Reuse existing consent only
+   for its exact scope. Check-only registry access uses empty write targets and
+   disabled execution; do not request write-lock consent for read-only checks.
 
-## Local checkpoint
+## Save checkpoint
 
-After consent, create only missing profile, project records, runtime folders
-and agreed configuration. Initialize an empty SQLite calendar and inbox
-(`inbox --secretary-dir RUNTIME --init`), then rebuild state. Do not overwrite
-unrelated private files. See `docs/inbox-pipeline.md` for the storage contract.
-An existing v1 inbox must not be reinitialized. Review `task --migrate` with the
-owner, then use `--migrate --confirm` only after explicit upgrade consent. It keeps
-a private backup and flags legacy identity/date reconciliation. A declined upgrade
-leaves generation pending, not confirmed profile setup undone.
-Include an authorized runtime `tmp/` folder; set `TMPDIR` to its absolute path
-for calendar import commands so disposable source snapshots stay in the runtime.
-No daily tasks/completions, briefing snapshots/marks, news reports/acknowledgements,
-scheduled jobs, or external calendar events belong to this checkpoint.
+After consent, create only missing authorized profile/projects/configuration and
+runtime folders, initialize missing SQLite calendar/inbox, then rebuild state.
+Use `python scripts/goodmorning.py COMMAND`; see `docs/inbox-pipeline.md`.
+Keep runtime `tmp/` private and set absolute `TMPDIR` for calendar imports.
+No daily task/completion checklists, briefing snapshots/marks, news reports/delivery
+acknowledgements, scheduled jobs or external events belong to this checkpoint.
 
-`python scripts/goodmorning.py setup --secretary-dir RUNTIME` is a compact local check.
-It never fetches, creates files or accesses configured external projects/calendar
-caches. `profile_ready` requires city, timezone, primary news country and an
-explicitly confirmed reply language for local use. A browser check passes
-`--website-language en|zh-CN`, using the website setting instead of a profile
-language field. Neither mode changes existing preferences during a check.
-The check does not determine whether
-every optional preference has been discussed or providers verified. Ask only for
-missing required settings; never reset existing answers or infer a language.
-Missing optional context is not a reason to restart setup.
+Never reinitialize v1 storage. Review read-only `task --migrate` with the owner;
+require explicit backed-up upgrade consent before `--migrate --confirm`. Preserve
+history/preferences and flagged legacy reconciliation. A declined upgrade blocks
+generation, not the already saved profile.
 
-Save a concise setup-status record with confirmed answers, permissions and separate
-saved/verified/pending items. Provider failures leave setup **saved with verification
-pending**, not “fully verified” or a reason to repeat preference collection.
+`setup --secretary-dir RUNTIME` checks locally without fetching, creating files or
+external access. Local `profile_ready` requires city, timezone, primary news country
+and confirmed reply language. Browser checks add `--website-language en|zh-CN`
+instead of requiring a local language field. Neither check changes preferences or
+proves optional settings/provider verification complete. Do not restart setup for
+missing optional context. Save concise confirmed answers/permissions and separate
+saved/verified/pending statuses; a provider failure leaves verification pending.
+Without authorized checks, say no checks were performed this time. Do not infer
+that integrations are disabled, available or verified, or that all daily functions
+work, from `profile_ready` alone.
 
-## Bounded verification
+## Verify only authorized providers
 
-After explicit consent, select only authorized checks:
+Run selected checks once with a shared elapsed budget:
 
-```bash
-python scripts/goodmorning.py setup --secretary-dir RUNTIME --verify weather news projects calendar --budget 20
+```sh
+python scripts/goodmorning.py setup --secretary-dir RUNTIME --verify SELECTED_CHECKS --budget 20
 ```
 
-The checks run concurrently with a **shared 20-second elapsed budget**, including
-DNS, response reading and subprocess shutdown. This is different from a socket
-timeout, which can be exceeded by DNS or several sequential requests. Failed
-workers are stopped; queued checks with no time left stay pending. The budget is
-configurable, not permission to retry repeatedly. Output is counts/statuses, not
-whole news reports, event descriptions or private settings.
+Replace `SELECTED_CHECKS` with only approved names: `weather`, `news`, `projects`,
+`calendar`. Browser calls also pass website language. The shared 20-second budget
+covers DNS, reads and worker shutdown; unfinished checks remain pending. Inspect
+statuses/counts/warnings, not exit codes alone; no private output dumps.
 
-- Weather checks the confirmed qualified location and model AQI. A country/region
-  mismatch or multiple matches is unresolved, never the first arbitrary city.
-  Warnings, stale data or missing AQI are not a fully verified weather setup.
-- News uses fresh `--verify-sources` checks for national feeds only, with no
-  archive/cache fallback and no headline/report/delivery writes. Inspect each
-  requested country's dated-item counts. Reachable feeds do not prove historical
-  coverage, language compliance of every story, or editorial truth.
-- Projects check only an already authorized registry, without probes or writes.
-  More detailed project-note reads are separate authorized work; batch related
-  reads and reuse the connection. Pairing repair belongs to the owner.
-- Betterbird uses `--probe-betterbird` for compatibility metadata only. It does not
-  initialize secretary storage, read descriptions, or stage events. A busy cache
-  needs owner action (usually closing Betterbird). Modern recurrence schemas are
-  supported; metadata preflight does not validate individual rules. Unsupported
-  schemas or rules need deferral or expanded event data, not a code-writing detour
-  inside initialization. See `calendar-pipeline.md` for expansion limits.
+- Weather: confirmed qualified city/model AQI; mismatches, multiple matches, stale
+  values, warnings or missing AQI are unresolved, not a fully verified setup.
+- News: fresh national-feed `--verify-sources` only, no archive/cache fallback or
+  headline/report/delivery writes. Inspect each country's dated counts. Reachability
+  does not prove historical coverage, every story's language or editorial truth.
+- Projects: already authorized registry only; no probes/writes. Detailed reads are
+  separate scoped work; batch them. Pairing repair belongs to the owner.
+- Betterbird: `--probe-betterbird` checks metadata compatibility only, not descriptions,
+  staging or storage initialization. Busy caches need owner action. Supported schema
+  does not prove every recurrence rule valid; defer unsupported rules or request
+  expanded event data under `docs/calendar-pipeline.md`, not a coding detour.
 
-Do not auto-fetch omitted checks, retry failures, change outlets, refresh caches,
-expand access or adopt a sandbox prototype. Surface actionable pending items once.
-Resume checks only after the user requests them or resolves a stated prerequisite.
+Do not fetch omitted checks, retry failures, refresh caches, change outlets, expand
+access or adopt a sandbox prototype automatically. State actionable pending items
+once. Resume only after a request or owner resolution of the stated prerequisite.
 
-## Calendar review is optional follow-up
+## Optional calendar follow-up
 
-Metadata access is not consent to read event contents. Before importing, confirm
-the exact source calendar and date window (including timezone and exclusive end).
-Use a consistent SQLite backup, never a raw live-file copy as “verified.” Stage
-credential-redacted originals; keep passcodes/protected joining links in source
-invitations. Review each event and current revision before approval. Ask only about
-ambiguous details or substantive edits, preserve preparation requirements, and do
-not infer attendance or task completion. Initialization need not import any events.
+Metadata permission does not authorize event contents. Confirm source calendar,
+timezone and exact date window/exclusive end before importing. Use a consistent
+SQLite backup, not a raw live copy. Stage credential-redacted originals; protected
+links/passcodes stay in source invitations. Inspect each event/current revision
+before approval, preserve preparation, and ask only ambiguous/substantive changes.
+Never infer attendance/completion. Initialization need not import events.
 
-## Failure lessons and validation
-
-The walkthrough exposed repeated dummy-button questions, long socket-timeout runs,
-first-result geocoding, changed-feed cache contamination, late recurrence discovery,
-locked-calendar copies, and credentials persisted before review. Regressions cover
-these code failures and instruction boundaries with synthetic inputs. No real
-preferences, project paths, calendar descriptions or credentials belong in tests.
-
-Run `python -m unittest discover -s tests -p 'test_*.py'` and
-`node --test tests/test_projects.mjs`. A passing suite proves these contracts, not
-that an actual model will ask fewer questions or that live providers will work.
+Validate changes with synthetic records, never personal data. Unit/helper checks
+verify mechanics, not actual model behavior or live-provider availability.

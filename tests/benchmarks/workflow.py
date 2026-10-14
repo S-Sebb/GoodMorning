@@ -53,14 +53,15 @@ def main():
     full, brief = len(encode(report_view(row, "full"))), len(encode(report_view(row, "stories")))
     assert report_view(row, "stories")["stories"] == payload["stories"]
     assert after < before and brief < full
-    rules_before = len((ROOT / "docs/skill-rules.md").read_text())
-    rules_after = len((ROOT / "docs/core-rules.md").read_text())
+    core_size = len((ROOT / "docs/core-rules.md").read_text())
+    reference_size = len((ROOT / "docs/skill-rules.md").read_text())
     print(encode({"synthetic": True, "measures": "characters, not billed model tokens",
                   "preparation": {"before": before, "after": after, "reduction_percent": round(100 * (1-after/before), 1)},
                   "reviewed_news": {"before": full, "after": brief, "all_selected_stories_preserved": True,
                                     "reduction_percent": round(100 * (1-brief/full), 1)},
-                  "default_rules": {"before": rules_before, "after": rules_after,
-                                    "reduction_percent": round(100 * (1-rules_after/rules_before), 1)}}))
+                  "instruction_sizes": {"core_characters": core_size,
+                                        "edge_reference_characters": reference_size,
+                                        "note": "Current documents, not a before/after agent-quality comparison"}}))
 
 
 if __name__ == "__main__":

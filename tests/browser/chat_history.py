@@ -242,6 +242,9 @@ def previews(browser, address, artifacts):
 def main():
     artifacts = Path(sys.argv[1]); artifacts.mkdir(parents=True, exist_ok=True, mode=0o700)
     with tempfile.TemporaryDirectory(dir='/tmp/opencode', prefix='gm-history-') as directory:
+        # This suite mocks ready conversations; the initial server-rendered page
+        # must describe the same ready account before async history arrives.
+        (Path(directory)/'profile.md').write_text('secretary_language: English\ncity: London\ntimezone: Europe/London\nnews_country: GB\n')
         server = subprocess.Popen([sys.executable, str(REPO / 'tests/test_briefing_chat.py'), '--serve-fixture', directory], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
         try:
             address = server.stdout.readline().strip().removeprefix('Private live viewer: ')

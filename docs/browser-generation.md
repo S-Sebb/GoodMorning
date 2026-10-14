@@ -1,130 +1,79 @@
 # Browser generation contract
 
-The dispatch request contains only `/gm` or `/gn`, the browser job ID, and its
-selected runtime and website language. Read core rules, this contract, the matching workflow and
-`docs/briefing-format.md`. Stable instructions belong here, never in dispatch.
+Inputs: `/gm|/gn`, browser job ID, selected runtime and website language. Read
+`docs/core-rules.md`, the matching workflow and `docs/briefing-format.md`. Stable
+rules belong in those documents, not dispatch prompts. Result: a verified saved
+edition and browser link; code owns cumulative JSON, validation and final save.
 
-## Prepare once
-
-Use the saved `website_language` from `job prepare` for this entire edition,
-including questions, titles and the document's `lang`. It overrides the local
-profile's reply language. Never ask for another language during initialization.
-Changing the interface language does not restart or translate an active edition;
-it affects future requests. Preserve all earlier published and saved content.
-Conditional morning reminders use the code-owned original request timestamp
-(including queue arrival), not model completion time or assumed wake time.
-Regeneration preserves that trigger. Never schedule unknown future conditions
-or invent a timed calendar booking from a conditional reminder.
-If preparation reports `migration_required`, use Secretary to review
-`task --migrate` and obtain explicit backed-up upgrade consent; do not reset the
-runtime or repeatedly press generation. Profile setup stays saved.
-
-The page offers explicit recovery controls. “Prepare again” reopens a stopped
-undispatched preflight (including legacy “Stop for now” answers).
-“Refresh task list” preserves the
-previous question and presents the changed daily plan for fresh confirmation.
-It never invents completions or discards an uncertain feedback save.
-“Continue existing session” sends a new prompt only to a known idle session with
-no pending inputs, retaining its published sections. Uncertain dispatches require
-inspection in OpenChamber and are never automatically replayed. Recovery is
-account-local, limited to today, and uses the global request reservation.
-
-“Regenerate today’s briefing” starts a new owning job and session after explicit
-confirmation. It is limited to today and refuses active sessions, pending engine
-inputs and uncertain dispatches. Old jobs are superseded and cannot publish,
-save or accept replies. Their context and previews remain preserved.
-The previous saved JSON and run marker stay in place during preparation; a
-private backup is retained. The replacement checks the original snapshot and
-edition's run marker before saving, and refuses unrelated changes. Final-save
-retries accept only this job's exact completed document. No `--force` is needed.
-Saved `/gn` feedback is reused without completing tasks or appending it again;
-uncertain feedback saves must reconcile first. New feedback is collected only
-when none was saved. Tasks, completions, other edition's run, news delivery records
-and preferences are never reset. A regenerated v2 edition changes only its
-presentation, never the task plan.
-Regeneration authorizes a new presentation and the helper's final save only,
-not replaying daily/inbox/project/calendar mutations or earlier execution consent.
-Use current records for progress and reuse saved feedback without reapplying it.
-Reconcile confirmed replacements under `docs/briefing-format.md`; do not republish
-every preserved daily title or present obsolete wording alongside its replacement.
+## Prepare and resolve gates
 
 ```sh
 python scripts/goodmorning.py job --secretary-dir RUNTIME --job JOB prepare
 ```
 
-Publication rejects final-save content errors before making a section immutable.
-If final saving is interrupted, retry `finish` in the same owning job. Matching
-saved editions and run markers are verified without rewriting them; only the
-derived index is repaired. Never use `--force` to recover a browser job.
+Use the real session from `OPENCODE_SESSION_ID`, or `--session REAL_SESSION`.
+Ownership is checked. Reuse returned preparation, pinned date/paths/preferences,
+actual browser feedback and `website_language`. The edition retains this language
+through questions/titles/document `lang`; later interface changes affect future
+requests, not this edition or earlier content. Never ask another reply language.
+Each success receipt includes `reply_context`: use its pinned language and saved
+tone for any visible text, even when helper instructions are written in English.
+Chinese requests state the edition and label the job/runtime in Chinese; the job ID, selected paths and
+`Website language` pin are unchanged. All labels refer to the same saved job.
 
-Use the real session ID from `OPENCODE_SESSION_ID`, or pass `--session REAL_SESSION`.
-The helper checks ownership and returns saved preparation, pinned date/paths,
-preferences, inbox/task context, and actual browser feedback. Do not rerun
-`scripts/goodmorning.py workflow`, ask another missed-run question, or ask for progress already supplied.
-Additional questions use the normal question tool, only for unresolved material
-ambiguity or consent. Never auto-approve permissions or infer user progress.
-Saved `integration_policy` false values prohibit live project access, calendar
-synchronization, publisher images or news acknowledgement, even if an imported
-profile describes those normal integrations. Use only authorized copied records.
+- Follow each receipt's `next` command/position/read recipes. For a fresh job,
+  immediately `init` before fetching or additional reads. Use the default plan
+  unchanged, including titles. For an existing checkpoint, resume its returned
+  next step; do not replace its greeting/opening/plan. Never invent flags.
+- Do not rerun `workflow`, ask missing-edition questions or re-ask supplied progress.
+  Additional questions cover unresolved material ambiguity/consent only. Browser
+  jobs use their pinned current briefing day (04:00 profile-timezone rollover),
+  leaving archive gaps read-only. News uses completed calendar days; weather keeps
+  actual timestamps. Pass the pinned date to backfill, not the shell's date.
+- `migration_required`: stop generation and use Secretary for read-only
+  `task --migrate` review and explicit backed-up upgrade consent. Keep saved setup;
+  never reset the runtime or loop on generation.
+- False saved `integration_policy` values prohibit live project access, calendar
+  sync, publisher images or news acknowledgement despite imported profile settings.
+  Use authorized copied records only; never auto-approve or infer progress.
+- Conditional reminders use the original request timestamp, including queue arrival,
+  not model finish/wake time. Regeneration keeps that trigger; unknown future
+  conditions do not assign a day or create timed calendar bookings.
 
-Browser generation always continues with today; missing past editions remain
-read-only in the archive and never create a blocking question. For `/gn`, the
-browser collects actual completed tasks and other progress first, grouping choices
-by their current canonical project, with “Other tasks” for unassigned work and
-“Other tasks” after all named projects. “None of these today” stays outside the
-project groups. Use clear, friendly review questions; show the progress text box
-above “Nothing else to add”, or “Nothing extra to add today” when no tasks are
-available. Typing and the no-extra-updates choice are mutually exclusive. Existing
-wire values and saved feedback remain compatible; wording changes never rewrite
-earlier replies. Code saves
-that feedback and completes only selected exact IDs. Partial work stays open.
-No edition/run is marked while waiting. Failed feedback saves block dispatch.
+## Publish only the next section
 
-Briefing days roll over at 04:00 in the profile timezone. Use the pinned date,
-not the shell's calendar day. News windows still cover completed calendar days;
-weather retains actual observation/forecast timestamps. Pass the pinned date to
-backfill. No historical reconstruction through the generation button.
+Workflow steps describe section content, not permission to collect the entire
+edition before publication. After allowed feedback reconciliation, publish Today
+before reading Schedule or Reminders; then follow each receipt's next position.
+Task-section recipes carry `--browser-job`; reads check owner, date, edition,
+language and next position. Active browser actors remain bound if that flag is
+omitted. An out-of-turn read error means publish the current section first, not
+that the provider is unavailable. Original evening attribution may read Tasks;
+regeneration cannot use that prerequisite exception.
 
-Each success receipt supplies `next`: the exact command, position and only the
-next section's read recipes. Run `init` immediately after preparation, **before**
-weather/news/calendar collection or additional record reads. Use the supplied
-default plan unchanged; do not reorder, add or remove sections. Only translated
-titles for the confirmed language/window may differ, preserving order. Do not invent flags;
-use receipt commands or a script's `--help`. Inbox filters use `--status pending`
-and bounded page receipts, not larger limits.
+Use small JSON objects on stdin. Serialize nontrivial text with
+`json.dumps(..., ensure_ascii=False)`; do not manually escape nested quotes or
+write agent-owned cumulative drafts. Check exits and `error`/`next` after every call.
 
-## Publish one section at a time
+1. **init:** `{"greeting":"…","opening":"…"}`. Optional `lang` must equal the
+   pinned language; optional `plan` must equal the default. Greeting/opening remain
+   immutable. Keep the opening factual before collection, not a speculative overview.
+2. **publish:** gather only the next section from saved context/returned recipes,
+   follow pages/review requirements, then submit
+   `{"position":N,"section":[TYPE,BLOCKS,NOTE?,TITLE?]}`. This notation describes
+   fields, not literal JSON: omit unused trailing fields. `position` is zero-based
+   and includes skipped positions. Submit one complete section, not the whole
+   briefing. Its title must match the saved plan; earlier sections cannot change.
+3. **skip:** `{"position":N}` only for genuinely empty Tasks/Reminders positions.
+   Never skip required Weather/News/Schedule/Today or turn failed retrieval into
+   empty success. Publish material unavailability instead; keep all plan positions.
+4. **finish:** `{"closing":"…"}` or `{}` after every position is resolved.
+   Code verifies owner/session/date/edition/exact preview, saves native JSON/run
+   marker, and repairs its derived index. A snapshot alone never proves completion.
+   New v2 editions copy no tasks to daily checklists. Already-published v1 previews
+   may finish under their saved contract, never as new canonical plans.
 
-All actions below consume a small JSON object from standard input. Do not write
-agent-owned cumulative draft files: code assembles, validates and saves them.
-For nontrivial text, serialize the object with `json.dumps(..., ensure_ascii=False)`
-and pipe it to the receipt command. Do not manually escape nested quotes. Syntax
-failures report line/column; schema failures report the field and accepted shape.
-Repair only the new input. Never alter published sections to resolve a failure.
-
-1. `init`: `{"greeting":"…","opening":"…","lang":"en","plan":[["weather","Weather"],…]}`.
-   Language and plan are optional; code supplies the dated default plan. The plan order is fixed
-   and cannot be changed; a supplied plan must equal the default. Plan titles must match eventual section titles, including
-   custom language and dated news windows. Greeting/opening cannot change later.
-   Keep the opening suitable before facts are gathered; no speculative overview.
-2. Gather and author the **next section only**, then immediately `publish`:
-   `{"position":0,"section":["weather",[…],"Grounded takeaway."]}`.
-   Position is the zero-based plan index, including skipped entries. Only one
-   complete section arrives per call. Earlier sections cannot change; an identical
-   position/input retry is reused. Read prerequisite context as needed, but never
-   collect the whole briefing before publication.
-3. `skip`: `{"position":N}` only for a genuinely empty optional section. Failed
-   weather/news/schedule retrieval must appear as material unavailability, not an
-   empty section. Required sections cannot be skipped.
-4. After all positions resolve, `finish`: `{"closing":"…"}` or `{}`. Code checks
-   the owning session, pinned date, edition and exact preview; saves JSON and the
-   run marker. Canonical v2 publication never copies tasks into daily checklists.
-   Use code-owned source-linked blocks under `docs/item-taxonomy.md`. Preserve
-   existing completions and unrelated work. Old already-published v1 previews can
-   finish under their saved contract; do not use them for new canonical plans.
-   The model may still make authorized project/daily amendments for other records.
-
-Example invocation (use the same flags for every action):
+Example (replace `RUNTIME`/`JOB` with supplied values; use the same flags throughout):
 
 ```sh
 python scripts/goodmorning.py job --secretary-dir RUNTIME --job JOB publish <<'JSON'
@@ -132,40 +81,74 @@ python scripts/goodmorning.py job --secretary-dir RUNTIME --job JOB publish <<'J
 JSON
 ```
 
-Canonical order: gm Weather, yesterday's News and opted-in dated latest News, Schedule, Tasks, Reminders.
-gn Today, Schedule, Tasks, Reminders. The order is fixed; the model must not reorder, add or remove planned sections.
-Project/personal and optional/required are task labels, not competing sections.
-Use normalized rows/blocks from `task --briefing` and follow pages. Tasks and Reminders
-can be skipped when empty. Do not promote project prose/ideas into new
-actions, invent work/dates/completion or treat a presentation as execution consent.
-Review all selected news and retain citations before publishing its section.
-Do not use `--force`; check every receipt's exit/error/next. Failed/interrupted
-previews remain readable. Finish retries may reconcile only an identical saved
-document bound to the same job. Snapshot existence alone never means ready.
+Order: gm Weather, yesterday's News, opted-in dated latest News if planned,
+Schedule, Tasks, Reminders; gn Today, Schedule, Tasks, Reminders. Do not alter the
+default plan. Use code-owned blocks/pages under `docs/item-taxonomy.md`. Project/
+personal and optional/required are task labels, not new sections. Read all selected
+news/citations before publishing. Presentation grants no task creation, scheduling,
+completion or execution; authorized unrelated record changes retain their own scope.
+
+## Feedback, recovery and replacement
+
+- Browser preflight saves gn feedback and completes only selected exact IDs under
+  `docs/item-taxonomy.md`; partial work stays open. Reuse those answers without
+  applying completions again. No choices means ask about actual accomplishments,
+  not an empty checklist. Failed/uncertain feedback saves block dispatch; no run
+  marker while waiting. Reconcile original-run partial/blocked reports only as the
+  gn workflow specifies, never during regeneration.
+- **Prepare again** reopens stopped undispatched preflight. **Refresh task list**
+  preserves earlier questions and requests fresh confirmation of changed plans;
+  neither discards uncertain saves nor invents completions.
+- **Continue existing session** targets a known idle owner with no pending inputs,
+  retaining published sections. Uncertain dispatch requires inspection, never
+  automatic replay. Recovery is account-local, today-only and reservation-controlled.
+- **Regenerate today's briefing** needs explicit confirmation and a new owning job/
+  session. It refuses active/pending/uncertain work; superseded jobs cannot publish,
+  save or accept replies. Old context/previews, saved JSON/run marker and private
+  rollback backup remain preserved until verified replacement. Original snapshot/run
+  checks reject unrelated changes. Do not use `--force` or save from a foreign session.
+- Regeneration replaces presentation only. Reuse saved feedback/current records;
+  never replay completions, daily/inbox/project/calendar writes or earlier execution.
+  Tasks, other editions, delivery records and preferences stay unchanged. Reconcile
+  confirmed replacements under `docs/briefing-format.md`, not obsolete daily titles.
+  Feedback's returned `date` is its reporting day. Anchor relative words to the
+  pinned edition date, not the host clock: regenerating the same day's report does
+  not make today's blocker yesterday's or move its agreed workday.
+- Schema/content errors: fix only unpublished input using returned field/line errors.
+  Source conflicts: reread affected rows, never rewrite immutable sections. Identical
+  published-position retries reuse their result. Interrupted final save: inspect,
+  then retry `finish` only in the same job with its exact document/closing. Matching
+  saves/run markers are verified, not rewritten; unknown mutations are never blindly replayed.
 
 ## Presentation and delivery
 
-Use the confirmed language/tone throughout. Short natural greeting, useful content
-and grounded section notes when useful. No repeated date:
-the viewer owns navigation. JSON strings are plain UTF-8, not Markdown/HTML. Do
-not invent feelings, availability, deadlines or progress. No generic reassurance,
-empty-queue bookkeeping, or commentary merely restating timetable rows. Distinguish
-free calendar slots from confirmed availability; use exact known times.
-Schedule contains events only, including confirmed TBC drafts. Tasks contains all
-actions with explicit workday/deadline labels; Reminders contains due reviews
-and real questions. No appointments does not mean free time. Do not assign a date
-to open work or re-ask clear ideas nightly. Follow `docs/item-taxonomy.md`.
+Use confirmed language/tone, a short greeting/opening and grounded optional notes.
+Visible progress may name the user's section (for example, checking the weather),
+not helper actions such as `init`, schema checks or numbered publication positions.
+The viewer owns date navigation; no repeated date, Markdown/HTML in JSON strings,
+generic reassurance or restated timetable rows. Preserve material failures, actual
+times and uncertainty. No appointments does not establish free time; open actions
+have no invented workday. Clear ideas are not nightly interviews.
+The next receipt's localized `writing` reminder applies at that authoring step.
+Action-row dates are workdays, not deadlines. Open work is not proven ready or
+unblocked; one removed blocker does not prove all prerequisites are met. Do not
+promise automatic updates when a provider recovers. Keep warmth in verified facts.
 
-Return the browser link, not repeated text/JSON. No Markdown, presentation, card
-or dated HTML copies. Private records must not be overwritten by cleanup.
-Shared assets/cache own rendering. Only the next section
-animates; later sections stay queued. Progress counts resolved sections, not time.
-One checkpoint is overwritten; only a verified completed preview is cleaned up.
+Return a short browser-link handoff; a brief delivery label in the saved tone is
+allowed, not a second summary. No text/card/presentation/dated HTML copies or cleanup
+of private records. Code owns rendering, section animation/progress and the one
+checkpoint; only a verified completed preview is cleaned up.
+After verified `finish`, do not recap sections or append an invitation in chat;
+use its `url` as a relative Markdown link. No hostname is needed. Do not search
+ports, accounts, test runners or other runtimes to construct a URL; a domain in
+documentation is not this request's website origin.
+The saved page contains the greeting, findings and closing. A failed collection
+supports reporting unavailable data, not inventing a retry page, button or future
+recovery. Offer only a recovery action present in the actual receipt or website.
 
-Saving/publishing is not news delivery; never acknowledge based on it. Publisher
-images require separate authorization. With saved `publisher_images: true`, the
-job helper caches previews after publishing news, before moving to the next section.
-It never fetches on ordinary page reads. Failures retain placeholders and can retry
-after one hour; successes are deduplicated. `web --fetch-images` populates
-saved-edition image objects without exporting or rewriting briefings. Use the job
-helper for browser authoring; stream/state are its publication/save components.
+Saving/publishing is not news delivery acknowledgement. Publisher images need
+separate permission. With saved `publisher_images: true`, the job caches news
+previews before advancing, never on ordinary page reads. Failed previews keep
+placeholders and may retry after one hour; successes deduplicate. `web --fetch-images`
+updates saved image objects without exporting/rewriting briefings. Browser authors
+use the job helper, not its lower-level stream/state components directly.

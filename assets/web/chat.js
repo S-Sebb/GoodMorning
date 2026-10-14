@@ -99,7 +99,8 @@ document.addEventListener('scrollrails:layout', resizeComposer);
 let attachments = [];
 const make = secretaryElement;
 const requestedMode = new URLSearchParams(location.search).get('mode');
-let mode = Object.hasOwn(modes, requestedMode) ? requestedMode : chatConfig.defaultMode;
+const availableModes = () => chatConfig.defaultMode === 'initialize' ? ['initialize'] : ['secretary', 'todo', 'eureka'];
+let mode = availableModes().includes(requestedMode) ? requestedMode : chatConfig.defaultMode;
 let chat = new URLSearchParams(location.search).get('id');
 let state = null;
 let sending = false;
@@ -551,9 +552,11 @@ function clearQueued() {
 function showMode() {
   showTopic();
   document.querySelector('#conversation-name').textContent = secretaryName || chatT('Your secretary');
-  document.querySelectorAll('[data-mode]').forEach(button => {
+  const buttons = [...document.querySelectorAll('[data-mode]')];
+  buttons.forEach((button, index) => {
     const selected = button.dataset.mode === mode;
-    button.setAttribute('aria-checked', String(selected)); button.tabIndex = selected ? 0 : -1;
+    button.setAttribute('aria-checked', String(selected));
+    button.tabIndex = selected || !availableModes().includes(mode) && index === 0 ? 0 : -1;
   });
   document.querySelector('#chat-welcome').textContent = chatT(modes[mode][0]);
   document.querySelector('#chat-hint').textContent = chatT(mode === 'initialize'
@@ -568,6 +571,7 @@ function draftKey() {
 }
 
 function newConversation(next = chatConfig.defaultMode, {resume = null} = {}) {
+  if (!availableModes().includes(next)) next = chatConfig.defaultMode;
   drafts.set(draftKey(), {text: textBox.value, attachments});
   clearTimeout(timer); revision++;
   clearTimeout(titleTimer); titleRetries = 0;
@@ -595,18 +599,38 @@ function newConversation(next = chatConfig.defaultMode, {resume = null} = {}) {
   focusComposer(true);
 }
 
-document.querySelectorAll('[data-mode]').forEach(button => {
-  button.addEventListener('click', () => { if (button.dataset.mode !== mode) newConversation(button.dataset.mode); });
-  button.addEventListener('keydown', event => {
-    if (!['ArrowLeft','ArrowRight','Home','End'].includes(event.key)) return;
-    event.preventDefault();
-    const buttons = [...document.querySelectorAll('[data-mode]')];
-    const index = buttons.indexOf(button);
-    const next = event.key === 'Home' ? 0 : event.key === 'End' ? buttons.length - 1
-      : (index + (event.key === 'ArrowRight' ? 1 : -1) + buttons.length) % buttons.length;
-    buttons[next].click(); buttons[next].focus();
-  });
+const modeSwitch = document.querySelector('.mode-switch');
+modeSwitch.addEventListener('click', event => {
+  const button = event.target.closest('[data-mode]');
+  if (button && button.dataset.mode !== mode) newConversation(button.dataset.mode);
 });
+modeSwitch.addEventListener('keydown', event => {
+  const button = event.target.closest('[data-mode]');
+  if (!button || !['ArrowLeft','ArrowRight','Home','End'].includes(event.key)) return;
+  event.preventDefault();
+  const buttons = [...modeSwitch.children];
+  const index = buttons.indexOf(button);
+  const next = event.key === 'Home' ? 0 : event.key === 'End' ? buttons.length - 1
+    : (index + (event.key === 'ArrowRight' ? 1 : -1) + buttons.length) % buttons.length;
+  buttons[next].click(); buttons[next].focus();
+});
+
+function syncModes() {
+  const allowed = availableModes();
+  if ([...modeSwitch.children].map(button => button.dataset.mode).join() !== allowed.join()) {
+    const labels = {initialize: 'Initialize', secretary: 'Secretary', todo: 'To-do', eureka: 'Eureka'};
+    modeSwitch.replaceChildren(...allowed.map(value => {
+      const button = make('button', chatT(labels[value]));
+      button.type = 'button'; button.dataset.mode = value; button.dataset.uiText = labels[value];
+      button.setAttribute('role', 'radio');
+      return button;
+    }));
+  }
+  document.querySelectorAll('[data-mode-guide]').forEach(item => { item.hidden = !allowed.includes(item.dataset.modeGuide); });
+  // Preserve an existing setup conversation and its replies after setup completes.
+  if (!chat && !allowed.includes(mode)) mode = chatConfig.defaultMode;
+  showMode();
+}
 document.querySelector('#new-conversation').addEventListener('click', () => newConversation());
 
 function markCurrentHistoryLink(id) {
@@ -722,6 +746,7 @@ async function fetchHistoryList() {
   const result = await chatAPI('/api/chats');
   chatConfig.defaultMode = result.defaultMode;
   chatConfig.connected = result.connected;
+  syncModes();
   if (typeof result.timezone === 'string' && result.timezone !== chatConfig.timezone) {
     chatConfig.timezone = result.timezone;
     scheduleChatTheme();

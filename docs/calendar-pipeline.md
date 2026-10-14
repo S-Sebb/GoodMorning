@@ -6,11 +6,11 @@ source-linked occurrence per year without materializing future rows; read/refres
 never saves events. Editing a projected occurrence requires clarification of
 series scope before changing its source. Do not guess February 29 handling.
 
-Storage is `secretary/calendar.sqlite`, not Markdown.
+Storage is `calendar.sqlite` inside the selected private runtime, not Markdown.
 Read commands now open an existing database read-only; missing storage requires
 authorized setup and is not treated as an empty schedule. Reads never initialize it.
 Both scripts use Python's standard library; no calendar service or database
-server is needed. Personal data remains under the git-ignored `secretary/`.
+server is needed. Personal data stays outside public source under the authorized runtime.
 
 ## Conversational workflow (all secretary skills)
 
@@ -19,11 +19,14 @@ task deadline is not a calendar event. Unknown-time appointments persist through
 `task --capture-draft`; confirmed days can display TBC without inventing an all-day
 event. Exact confirmed details convert using `task --convert`. Imports keep this
 calendar staging/review contract; new task storage does not change their identity.
+An explicit request to save confirmed attendance on a clear day/place with unknown
+time already authorizes its TBC draft. Reuse that confirmation; ask only missing
+or ambiguous facts, not another approval or a clock time merely for draft capture.
 
 The user talks to the secretary to add, import, review, reschedule, or cancel
 events. These commands are implementation details, not required user work.
 
-1. For a custom event, quote the date, time, timezone, title, and place.
+1. For a custom event, quote the date, time, timezone, title, place and duration.
    Ask for missing details; never infer an uncertain date or time. Get
    confirmation before adding, editing, or cancelling an event.
 2. For an import, ask which source, account/calendar, and date range the user
@@ -31,7 +34,8 @@ events. These commands are implementation details, not required user work.
    or export. Do not create credentials or integrations without permission.
 3. The secretary maps source fields into the event contract below and stages
    a batch. Keep the original imported title, time, location, description,
-   and organizer at this step; do not simplify before staging. Preserve
+   and organizer at this step, except credential redaction; do not simplify
+   substantive content before staging. Preserve
    provider IDs and recurrence instance IDs. Do not use title/time as identity.
    Source names must distinguish accounts/calendars consistently.
 4. Read `--pending` for a short queue, then `--show ID` for each event being

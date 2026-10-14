@@ -12,8 +12,10 @@ needed; `docs/skill-rules.md` is an edge-case reference, not a default read.
 - Website chats use `docs/browser-chat.md`. Use the supplied website language;
   browser titles belong to the native engine. Follow a changed user request in
   the same conversation without requiring a manual mode switch.
+  Interface/transport details are in `docs/browser-chat-runtime.md`, not the default prompt read.
 - Website editions use `docs/browser-generation.md`: `job prepare`, immediate
-  `init`, one next section at a time through returned recipes, then `finish`.
+  `init` for a fresh preview or resumed checkpoint's next step, then one section
+  at a time through returned recipes and `finish`.
   Reuse the pinned date and actual browser feedback; code owns cumulative JSON.
 - Schedule owns events, Tasks owns all work, Reminders owns due decisions.
   Evening Today reports actual outcomes; morning includes weather/sourced news.

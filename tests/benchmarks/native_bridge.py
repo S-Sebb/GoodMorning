@@ -6,12 +6,17 @@ It owns freshly created sessions only and never lists another session's history.
 import json
 import subprocess
 import threading
+from pathlib import Path
+from urllib.parse import quote
 
 
 class NativeBridge:
-    def __init__(self, directory, runtime):
+    def __init__(self, directory, runtime, *, agent=None):
         self.directory, self.runtime = str(directory), str(runtime)
+        self.agent = agent
         self.sessions = {}
+        if Path(self.runtime).is_dir():
+            (Path(self.runtime)/'tmp').mkdir(mode=0o700,exist_ok=True)
 
     def api(self, method, path, body=None):
         command = ['opencode', 'api', method, path]
@@ -55,11 +60,17 @@ class NativeBridge:
     def control(self, action, **parameters):
         if action == 'session.create':
             result = self.api('post', '/api/session', {'location':{'directory':self.directory},
+                **({'agent':self.agent} if self.agent else {}),
                 **({'title':parameters['title']} if parameters.get('title') else {})})
             session = result['data']['id']
             self.sessions[session] = {'idle':True}
+            if self.agent and result['data'].get('agent')!=self.agent:
+                raise ValueError('Experimental agent was not confirmed before model work')
             self.api('put', f'/api/session/{session}/environment', {'variables':{
-                'SECRETARY_DIR':self.runtime, 'OPENCODE_SESSION_ID':session}})
+                'SECRETARY_DIR':self.runtime, 'OPENCODE_SESSION_ID':session,
+                'GM_CACHE_DIR':str(Path(self.runtime)/'cache'),'TMPDIR':str(Path(self.runtime)/'tmp'),
+                'CALENDAR_DB_PATH':str(Path(self.runtime)/'calendar.sqlite'),
+                'BETTERBIRD_PATH':str(Path(self.runtime)/'unconfigured-betterbird')}})
             return {'sessionId':session}
         session = parameters['sessionId']
         if session not in self.sessions:
@@ -72,13 +83,29 @@ class NativeBridge:
         if action == 'session.status':
             return status
         if action == 'session.messages':
-            page = self.request(f'/api/session/{session}/message?limit=200&order=desc')
             messages = []
-            for entry in page['data']:
-                role = entry.get('type')
-                text = entry.get('text','') if role == 'user' else ''.join(
-                    part['text'] for part in entry.get('content',[]) if part.get('type')=='text')
-                if role in ('user','assistant') and text.strip():
-                    messages.append({'id':entry['id'], 'role':role, 'text':text.strip()})
+            cursor, size = None, 10
+            # CLI responses have an output ceiling. Small read-only pages avoid
+            # truncating tool-heavy transcripts; never retry mutations here.
+            for _ in range(100):
+                query=f'limit={size}&'+('cursor='+quote(cursor,safe='') if cursor else 'order=desc')
+                try:
+                    page=self.request(f'/api/session/{session}/message?'+query)
+                except json.JSONDecodeError:
+                    if size==1:
+                        raise ValueError('A single native message exceeds the trial CLI output limit')
+                    size=max(1,size//2)
+                    continue
+                for entry in page['data']:
+                    role = entry.get('type')
+                    text = entry.get('text','') if role == 'user' else ''.join(
+                        part['text'] for part in entry.get('content',[]) if part.get('type')=='text')
+                    if role in ('user','assistant') and text.strip():
+                        messages.append({'id':entry['id'], 'role':role, 'text':text.strip()})
+                if len(messages)>=parameters.get('limit',100):
+                    break
+                cursor=page.get('cursor',{}).get('next')
+                if not cursor:
+                    break
             return {**status, 'messages':list(reversed(messages[:parameters.get('limit',100)]))}
         raise ValueError('Unsupported synthetic bridge action: '+action)

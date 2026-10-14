@@ -34,7 +34,7 @@ def main():
                         page = browser.new_page(viewport={'width': width, 'height': 900}, reduced_motion='reduce')
                         errors = []
                         page.on('pageerror', lambda error: errors.append(str(error)))
-                        page.goto(address + '/chat?mode=initialize')
+                        page.goto(address + ('/chat?mode=todo' if width == 320 else '/chat?mode=initialize'))
                         start = page.get_by_role('button', name=label, exact=True)
                         text = page.locator('#chat-text')
                         expect(start).to_be_visible()
@@ -47,17 +47,13 @@ def main():
                         assert page.evaluate('document.activeElement.id !== "chat-text"')
                         assert start.bounding_box()['width'] == page.locator('.chat-input-row').bounding_box()['width']
                         assert not page.evaluate('document.documentElement.scrollWidth > innerWidth')
-                        page.locator('#conversation').screenshot(path=str(artifacts / f'start-{width}-{language}.png'))
-
-                        # Mode switches still preserve normal unsent drafts.
-                        page.locator('[data-mode="secretary"]').click()
-                        expect(text).to_be_visible()
-                        text.fill('Keep this draft')
-                        page.locator('[data-mode="initialize"]').click()
-                        expect(text).to_be_hidden()
-                        page.locator('[data-mode="secretary"]').click()
-                        expect(text).to_have_value('Keep this draft')
-                        page.locator('[data-mode="initialize"]').click()
+                        expect(page.get_by_role('radio')).to_have_count(1)
+                        expect(page.locator('[data-mode="initialize"]')).to_have_attribute('aria-checked', 'true')
+                        page.locator('#mode-help').click()
+                        expect(page.locator('[data-mode-guide="initialize"]')).to_be_visible()
+                        expect(page.locator('[data-mode-guide="secretary"]')).to_be_hidden()
+                        page.locator('#mode-help').click()
+                        page.screenshot(path=str(artifacts / f'new-user-{width}-{language}.png'), full_page=True)
 
                         # A rejected request leaves the visible button available for a retry.
                         page.route('**/api/chats', lambda route: route.fulfill(status=429, json={'error': 'Synthetic busy'}), times=1)
@@ -102,12 +98,61 @@ def main():
                 expect(page.locator('#chat-send')).to_be_disabled()
                 expect(page.locator('#chat-text')).to_be_hidden()
                 page.close()
+
+                # Completion changes the options without interrupting the setup conversation.
+                (root / 'website-language.json').write_text(json.dumps({'language': 'en'}))
+                page = browser.new_page(viewport={'width': 1440, 'height': 1000}, reduced_motion='reduce')
+                page.goto(address + '/chat')
+                page.get_by_role('button', name='Start initialization', exact=True).click()
+                page.locator('#chat-questions input[type="radio"]').first.check()
+                page.locator('#chat-questions button[type="submit"]').click()
+                page.get_by_role('button', name='Allow once', exact=True).click()
+                expect(page.get_by_role('radio')).to_have_count(3)
+                assert page.locator('[data-mode]').evaluate_all('(buttons) => buttons.map(button => button.dataset.mode)') == ['secretary', 'todo', 'eureka']
+                expect(page.get_by_role('log')).to_contain_text('Synthetic setup saved')
+                expect(page.locator('#chat-text')).to_be_enabled()
+                setup_url = page.url
+                page.locator('#new-conversation').click()
+                expect(page.locator('[data-mode="secretary"]')).to_have_attribute('aria-checked', 'true')
+                page.locator('#chat-text').fill('Keep my draft')
+                page.locator('[data-mode="todo"]').click()
+                page.locator('[data-mode="secretary"]').click()
+                expect(page.locator('#chat-text')).to_have_value('Keep my draft')
+                page.locator('[data-mode="secretary"]').press('ArrowRight')
+                expect(page.locator('[data-mode="todo"]')).to_be_focused()
+                page.locator('[data-mode="todo"]').press('End')
+                expect(page.locator('[data-mode="eureka"]')).to_be_focused()
+                page.goto(setup_url)
+                expect(page.get_by_role('log')).to_contain_text('Synthetic setup saved')
+                expect(page.get_by_role('radio')).to_have_count(3)
+                expect(page.locator('#chat-text')).to_be_enabled()
+                page.close()
+
+                for width in (1440, 390, 320):
+                    for language in ('en', 'zh-CN'):
+                        (root / 'website-language.json').write_text(json.dumps({'language': language}))
+                        page = browser.new_page(viewport={'width': width, 'height': 900}, reduced_motion='reduce')
+                        page.goto(address + '/chat?mode=initialize')
+                        expect(page.get_by_role('radio')).to_have_count(3)
+                        expect(page.locator('[data-mode="secretary"]')).to_have_attribute('aria-checked', 'true')
+                        expect(page.locator('#chat-text')).to_be_visible()
+                        page.locator('#mode-help').click()
+                        expect(page.locator('[data-mode-guide="initialize"]')).to_be_hidden()
+                        expect(page.locator('[data-mode-guide="secretary"]')).to_be_visible()
+                        page.locator('#mode-help').click()
+                        assert not page.evaluate('document.documentElement.scrollWidth > innerWidth')
+                        widths = page.locator('[data-mode]').evaluate_all('(buttons) => buttons.map(button => button.getBoundingClientRect().width)')
+                        assert max(widths) - min(widths) < 1
+                        page.screenshot(path=str(artifacts / f'ready-user-{width}-{language}.png'), full_page=True)
+                        page.close()
                 browser.close()
             assert preserved.read_text() == 'Preserved synthetic records'
         finally:
             process.terminate()
             process.communicate(timeout=5)
-    report = {'modelCalls': 0, 'checks': checks, 'liveLanguageSwitch': True, 'disconnectedButtonDisabled': True}
+    report = {'modelCalls': 0, 'checks': checks, 'liveLanguageSwitch': True, 'disconnectedButtonDisabled': True,
+              'readyUserOptions': ['secretary', 'todo', 'eureka'], 'liveSetupTransition': True,
+              'oldSetupConversationPreserved': True, 'unavailableModeFallback': True, 'draftsAndKeyboard': True}
     (artifacts / 'result.json').write_text(json.dumps(report, indent=2))
     print(json.dumps(report))
 

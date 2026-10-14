@@ -1,10 +1,4 @@
-"""User-selected website model. Sits beside the website language setting.
-
-Two options for now. The choice is stored per account (like the website
-language), pinned per briefing job and per chat turn, and applied to the
-owning OpenChamber session right after creation, before any prompt is sent.
-Unset accounts use DEFAULT, which matches the engine default.
-"""
+"""Language-routed website models, pinned per briefing job and chat turn."""
 from contextvars import ContextVar
 
 MODELS = {
@@ -14,7 +8,12 @@ MODELS = {
                        'label': 'DeepSeek V4.1 Flash · High'},
 }
 DEFAULT = 'muse-spark'
-CURRENT = ContextVar('website_model', default=DEFAULT)
+CURRENT = ContextVar('website_model', default=None)  # Explicit synthetic-trial override only.
+
+
+def for_language(value):
+    from .language import language
+    return {'en':'muse-spark','zh-CN':'deepseek-flash'}[language(value)]
 
 
 def model(value):
@@ -24,7 +23,8 @@ def model(value):
 
 
 def current():
-    return CURRENT.get()
+    from .language import current as current_language
+    return CURRENT.get() or for_language(current_language())
 
 
 def session_payload(value):

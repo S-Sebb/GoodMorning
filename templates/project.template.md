@@ -40,8 +40,9 @@ Likely scheduled events also require confirmation before adding to SQLite. -->
 - Keep unconfirmed ideas and project updates in the configured runtime's
    `inbox.sqlite`, not in the confirmed plan. Canonical actions and completion use
    `task` helpers; this record keeps goals, reports and authorized task references,
-   not a second independently completed checklist. Save raw reports immediately, before
-  clarification; retain unresolved questions for gm/gn/secretary follow-up.
+   not a second independently completed checklist. Save clear raw reports promptly;
+  for ambiguous scheduling/targets, ask before any record or pending note.
+  Retain due unresolved questions for gm/gn/secretary follow-up.
 - Resolve ambiguous changes before applying them here. Update `last_update` after edits.
 - Use the confirmed `registry_alias` with `scripts/projects.mjs`; the private
   registry is authoritative for host, path, and exact write targets. See

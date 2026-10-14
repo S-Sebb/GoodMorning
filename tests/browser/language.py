@@ -234,37 +234,41 @@ def run(artifacts):
                     assert stored=={'avatar':selected}
                 assert 'secretary_language' not in (Path(settings['runtimes']['bob'])/'profile.md').read_text()
                 switch(new,'zh-CN');new.get_by_role('button',name='新建对话').click()
-                for label in ('秘书','待办','灵感','初始化'):
+                expect(new.get_by_role('radio',name='初始化',exact=True)).to_have_count(0)
+                for label in ('秘书','待办','灵感'):
                     new.get_by_role('radio',name=label,exact=True).click();expect(new.locator('#chat-welcome')).not_to_be_empty();expect(new.locator('#mode-description')).to_have_count(0);no_overflow(new)
                 new.goto('https://sec.language.test/gm.html');expect(new.get_by_role('button',name='准备我的早报')).to_be_visible()
                 no_overflow(new);new.screenshot(path=str(artifacts/'chinese-waiting-mobile.png'),full_page=True)
                 new.goto('https://sec.language.test/gn.html');new.get_by_role('button',name='准备我的晚报').click()
-                expect(new.get_by_role('heading',name='准备简报之前')).to_be_visible()
-                new.get_by_role('checkbox',name='尚未完成',exact=True).check()
-                new.get_by_placeholder('或填写你自己的回答').fill('保留这份未提交的进展。')
+                expect(new.get_by_role('heading',name='一起回顾一下今天')).to_be_visible()
+                expect(new.locator('.agent-form input[type=checkbox]')).to_have_count(0)
+                new.get_by_placeholder('写下今天的进展，或其他想补充的事……').fill('保留这份未提交的进展。')
                 switch(new,'en')
-                expect(new.get_by_role('heading',name='准备简报之前')).to_be_visible()
-                expect(new.get_by_placeholder('Or write your own answer')).to_have_value('保留这份未提交的进展。')
+                expect(new.get_by_role('heading',name='一起回顾一下今天')).to_be_visible()
+                expect(new.get_by_placeholder('写下今天的进展，或其他想补充的事……')).to_have_value('保留这份未提交的进展。')
                 expect(new.locator('#request-language-note')).to_contain_text('Simplified Chinese')
                 # Recovery uses a stable action, not a translated button label.
                 switch(new,'zh-CN')
                 with new.expect_response(lambda response:response.url.endswith('/recover')) as recovered:
                     new.get_by_role('button',name='刷新任务列表',exact=True).click()
                 assert recovered.value.status==202
-                expect(new.get_by_role('heading',name='准备简报之前')).to_be_visible()
+                expect(new.get_by_role('heading',name='一起回顾一下今天')).to_be_visible()
                 assert not errors,errors
-                assert page.evaluate('localStorage.length===0 && sessionStorage.length===0')
+                assert page.evaluate('''() => localStorage.length === 0 && Object.entries(sessionStorage).every(([key,raw]) => {
+                    if (!/^goodmorning\\.chat\\.workspace\\.[a-f0-9]{64}$/.test(key)) return false;
+                    const saved=JSON.parse(raw);
+                    return Object.keys(saved).sort().join(',') === 'away,chat,draft,resume'
+                        && [saved.chat,saved.resume].every(value => value === null || /^[a-f0-9]{32}$/.test(value))
+                        && typeof saved.draft === 'boolean'
+                        && (saved.away === null || Number.isFinite(saved.away) && saved.away >= 0);
+                })''')
                 cookies=desktop.cookies()
                 assert all(cookie['domain'].startswith('.') is False and cookie['httpOnly'] for cookie in cookies if cookie['name']=='__Host-GoodMorning')
                 assert any(cookie['domain']=='.language.test' and not cookie['httpOnly'] for cookie in cookies if cookie['name']=='GoodMorningLanguage')
                 plain=context(viewport={'width':320,'height':760},java_script_enabled=False)
                 model_page=plain.new_page();model_page.goto('https://gm.language.test/login')
-                model_page.locator('#prefs-menu > summary').click()
-                model_page.locator('#website-model').select_option('deepseek-flash')
-                with model_page.expect_response('https://gm.language.test/api/model') as switched:
-                    model_page.locator('#model-form').get_by_role('button',name='Apply',exact=True).click()
-                assert switched.value.status==303
-                assert switched.value.headers['location']=='/login'
+                expect(model_page.locator('#website-model')).to_have_count(0)
+                expect(model_page.locator('#model-form')).to_have_count(0)
                 model_page.close()
                 fallback=plain.new_page();fallback.goto('https://gm.language.test/login')
                 fallback.locator('#prefs-menu > summary').click()

@@ -213,6 +213,7 @@ def main():
     artifacts = Path(sys.argv[1])
     artifacts.mkdir(parents=True, exist_ok=True, mode=0o700)
     with tempfile.TemporaryDirectory(dir='/tmp/opencode', prefix='gm-mobile-viewport-') as directory:
+        (Path(directory)/'profile.md').write_text('secretary_language: English\ncity: London\ntimezone: Europe/London\nnews_country: GB\n')
         server = subprocess.Popen([sys.executable, str(REPO / 'tests/test_briefing_chat.py'),
                                    '--serve-fixture', directory],
                                   stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)

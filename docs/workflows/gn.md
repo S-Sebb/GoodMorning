@@ -5,11 +5,17 @@ description: Evening review of reported outcomes, tomorrow's Schedule and Tasks,
 
 # Evening briefing
 
+Trigger: `/gn` or an evening-review request. Inputs: confirmed runtime/session/date,
+language, actual user feedback and current records. Result: a verified native v2
+evening edition and browser link, not inferred completion or a rescheduled plan.
+
 Read `docs/core-rules.md`, `docs/item-taxonomy.md`, `docs/briefing-format.md` and
 `docs/reply-voice.md`. Browser jobs also read `docs/browser-generation.md`.
 Use selected absolute paths, actual session, pinned date and confirmed language.
 
-1. Browser jobs start with `job prepare`, then init. Browser preflight already asks
+1. Browser jobs start with `job prepare`, then follow its receipt: immediately init
+   a fresh preview with the default plan, or resume an existing checkpoint.
+   Do not run local preparation or re-ask saved browser feedback. Preflight already asks
     which of today's planned occurrences or saved morning tasks were fully completed and for partial,
     blocked, changed or additional work. With no choices, it asks about actual
     accomplishments/progress instead of showing an empty checklist. Celebrate
@@ -17,7 +23,9 @@ Use selected absolute paths, actual session, pinned date and confirmed language.
     implying every unchecked morning option was due today. Reuse saved exact answers; never apply
    completions again. Local invocations use `workflow --prepare gn` once and ask
    about actual work, not the entire undated project backlog. Handle setup,
-   migration, duplicates and missing editions first. Do not save a waiting edition.
+   migration, duplicates and local missing-edition choices before collection.
+   Browser jobs use their pinned current day without gap reconstruction.
+   Do not save or mark a waiting edition.
 2. Today's review reports actual completions, partial progress and blockers without
    exaggeration. If no plan exists, ask about actual work without inventing a plan.
    Calendar attendance, elapsed time, silence or this agent's work is not proof of
@@ -29,9 +37,22 @@ Use selected absolute paths, actual session, pinned date and confirmed language.
    today's agreed occurrences; otherwise use `task --update` for action state,
    retaining any existing future workday. Never date a report tomorrow because
    tomorrow is the task's planned workday. Give each write
-   a stable `gn-report:JOB:TASK` key; reread its receipt before rendering. Never
-   reapply selected completions. A regenerated run reports current state without
-   repeating these mutations. Ambiguous attribution remains prose/a focused question.
+    a stable `gn-report:JOB:TASK` key; reread its receipt before rendering. Never
+    reapply selected completions. A regenerated run reports current state without
+   repeating these mutations. If attribution or scheduling is ambiguous, ask before
+    a write and keep unresolved input in the conversation, not an unassigned pending note.
+    Resolve material report attribution before publishing Today or calling `finish`.
+    Do not save an edition and then ask which action was blocked; while awaiting
+    that answer, keep the preview and leave the edition/run unmarked.
+     `feedback_tasks` lists completion choices, not every report candidate. For
+     original-run attribution, follow the Tasks lookup recipe for actual feedback,
+     then `task --show ID` for its current revision/status. This targeted read is
+     reconciliation, not permission to collect later briefing sections in advance.
+     A report may concern a future or undated action. Offer matching report choices,
+     never an unrelated completed/planned errand merely because it is on today's list.
+     Record only the reported status and reason. "Blocked awaiting a dataset" does
+     not establish that no progress occurred. Once that clear reason is recorded,
+     Tasks copies it; do not make another polishing write or add inferred progress.
 3. Update external project records only when authorized under
    `docs/project-access.md`; preserve unrelated work and current hashes. Uncertain
    plan changes remain pending. Task completion is canonical SQLite state, not a
@@ -56,3 +77,9 @@ Use selected absolute paths, actual session, pinned date and confirmed language.
    Browser jobs finish through `job`; local native v2 JSON saves use `state --mark-gn`.
    Save/check success once; no snapshot-to-task writes, execution, silent
    rescheduling or completion inference. Return the browser link, not copies.
+
+Keep the order Today, Schedule, Tasks, Reminders. Browser jobs use `skip` only for
+empty optional positions; local JSON omits those sections. Never hide a material
+retrieval failure. Check each receipt.
+Conflicts require a targeted reread; uncertain writes require inspection and the
+original key/input. Never replay saved completions or mutate immutable sections.

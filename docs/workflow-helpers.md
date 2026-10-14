@@ -33,14 +33,17 @@ paths, bounded daily tasks and active inbox summaries. No provider or remote
 project access, setup writes, snapshot reads, briefing marks or index rebuild/save.
 Duplicate gm/gn returns only the original session/pointer and stop instruction,
 before loading tasks/inbox content. Missed-day metadata shows the oldest; the
-agent still asks which date to work on. Continue task/inbox pages only as needed.
+agent asks once which date to work on for local requests. Browser jobs instead use
+`job prepare` with their pinned current date and never reconstruct archive gaps.
+Continue task/inbox pages only as needed.
 Fetch weather/news only when the agent has resolved duplicate/missed/setup gates.
 For capture with supplied raw input, skip preparation and use the fast path.
 
 English title suggestions are deterministic. For other languages, `title:null`
 means translate the workflow prefix using the confirmed language, not guess a
-preference or translate raw idea/TODO wording. Rename through the session tool;
-do not rename a duplicate briefing. The helper does not touch session services.
+preference or translate summary wording. Local TODO titles use revised copy rather
+than the raw input. Rename local sessions through the session tool; do not rename
+browser chats or duplicate briefings. The helper does not touch session services.
 
 ## Save-first capture in one command
 
@@ -49,11 +52,13 @@ python scripts/goodmorning.py workflow --secretary-dir RUNTIME --capture todo --
   --request-key STABLE_KEY --input-stdin
 ```
 
-JSON stdin: `{"raw":"Buy milk","project":"ConfirmedAlias"}`. `project`, `summary`,
+TODO JSON stdin: `{"raw":"Buy milk","summary":"Buy milk","task":{"title":"Buy milk","detail":""}}`.
+Supply revised title/grounded detail under `docs/workflows/todo.md`. `project`, `summary`,
 `context` and `questions` are optional; omit unknowns. Use `--capture eureka` for
 ideas. `kind` comes from the workflow, not the payload. The command checks local
-setup, uses the actual timestamp and calls the transactional inbox once. Output
-is a save receipt, minimal reply preferences and title suggestion; no historical
+setup, uses the actual timestamp and calls the transactional inbox once. Resolve
+ambiguous scheduling/targets through a question before any capture or pending note.
+Output is a save receipt, minimal reply preferences and title suggestion; no historical
 context, full profile or state check. Retry with the same key/input, not another
 capture. `--input-file PATH` is also supported. No user text means ask first.
 No weather/news, task execution, project reads, calendar changes or auto-setup.
@@ -82,7 +87,7 @@ Amendment JSON example:
 
 ```json
 {"append":{"feedback":["User reports the outline is blocked."]},
- "tasks":{"must-do":[{"text":"Clarify the saved idea","ref":"ib_0123456789abcdef"}]},
+ "tasks":{"must-do":[{"text":"Review the outline","ref":"ib_0123456789abcdef"}]},
  "complete":["TASK_ID_FROM_CURRENT_VIEW"],"confirmed_completion":true}
 ```
 

@@ -611,10 +611,21 @@ def check_autogrow(browser, address, artifacts):
         page.get_by_role('button',name='Start conversation',exact=True).click()
         expect(text).to_have_value('');expect(text).to_have_css('height','24px')
         expect(page.get_by_role('button',name='Send reply',exact=True)).to_be_enabled()
-        page.evaluate('showMessages([{id:"long",role:"assistant",text:"Synthetic reading position.\\n".repeat(200)}])')
+        # Use a stable status response rather than injecting DOM content that an
+        # outstanding real-fixture status request can immediately replace.
+        page.wait_for_function('() => !polling && !sending')
+        page.route('**/api/chats/'+page.evaluate('chat'),lambda route:route.fulfill(json={
+            'mode':'secretary','state':'idle','language':'en','label':'Ready for your reply',
+            'forms':[],'permissions':[], 'messages':[{'id':'long','role':'assistant',
+                'text':'Synthetic reading position.\n'*200}]}))
+        page.evaluate('pollChat()')
+        expect(scroll).to_contain_text('Synthetic reading position.')
         scroll.evaluate('node => node.scrollTop=120')
+        before_reading=scroll.evaluate('node => ({top:node.scrollTop,height:node.scrollHeight,client:node.clientHeight})')
+        assert abs(before_reading['top']-120)<1,before_reading
         text.fill('Keep reading\nEarlier messages\nWhile typing')
-        assert abs(scroll.evaluate('node=>node.scrollTop')-120)<1
+        after_reading=scroll.evaluate('node => ({top:node.scrollTop,height:node.scrollHeight,client:node.clientHeight,text:node.innerText.slice(0,120)})')
+        assert abs(after_reading['top']-120)<1,{'width':width,'before':before_reading,'after':after_reading}
         assert not errors,errors
         checks.append({'width':width,'height':height,'upwardGrowth':True,'fiveLineCap':True,'draftRestored':True,
                        'responsiveReflow':True,'readingPositionPreserved':True,'newConversationBelowHistory':True})
@@ -627,6 +638,8 @@ def main():
     results = []
     with tempfile.TemporaryDirectory(dir='/tmp/opencode', prefix='gm-chat-browser-') as directory:
         root = Path(directory)
+        profile=root/'profile.md'
+        profile.write_text('secretary_language: English\ncity: London\ntimezone: Europe/London\nnews_country: GB\n')
         (root / 'preserved-record.txt').write_text('Preserved synthetic evidence')
         process = subprocess.Popen([sys.executable, str(Path(__file__).resolve().parents[1] / 'test_briefing_chat.py'),
                                     '--serve-fixture', directory], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
@@ -640,6 +653,9 @@ def main():
                 motion_checks = check_motion(browser, address, artifacts)
                 upload_checks = check_uploads(browser, address, artifacts)
                 image_checks = check_images(browser, address, artifacts)
+                # Setup questions and the readiness transition use a new profile;
+                # composer/layout checks above deliberately use a ready profile.
+                profile.unlink()
                 question_checks = check_question_history(browser, address, artifacts)
                 check_waiting_reply_queue(browser, address, artifacts)
                 scroll_checks = check_scroll(browser, address, artifacts)
@@ -658,7 +674,7 @@ def main():
                         assert not list((root/'browser-chats').glob('*.context.json'))
                     page.goto(address + '/chat')
                     modes = page.get_by_role('radiogroup', name='Secretary mode')
-                    expect(modes.get_by_role('radio')).to_have_count(4)
+                    expect(modes.get_by_role('radio')).to_have_count(1 if width == 1440 else 3)
                     initial = 'Initialize' if width == 1440 else 'Secretary'
                     expect(modes.get_by_role('radio', name=initial, exact=True)).to_have_attribute('aria-checked', 'true')
                     assert not page.evaluate('document.documentElement.scrollWidth > innerWidth')
@@ -716,7 +732,8 @@ def main():
                     page.get_by_role('button', name='New conversation', exact=True).click()
                     expect(modes.get_by_role('radio', name='Secretary', exact=True)).to_have_attribute('aria-checked', 'true')
                     page.goto(address + '/chat?mode=initialize')
-                    expect(modes.get_by_role('radio',name='Initialize',exact=True)).to_have_attribute('aria-checked','true')
+                    expect(modes.get_by_role('radio',name='Initialize',exact=True)).to_have_count(0)
+                    expect(modes.get_by_role('radio',name='Secretary',exact=True)).to_have_attribute('aria-checked','true')
                     page.goto(address + '/gm.html')
                     expect(page.locator('#generate')).to_be_visible()
                     expect(page.locator('#initialize')).to_have_count(0)

@@ -379,7 +379,8 @@ def schedule(runtime, today, kind, store=None, offset=0, limit=7):
     from zoneinfo import ZoneInfo
     start_day = dt.date.fromisoformat(today) + dt.timedelta(days=kind == 'gn')
     end_day = start_day + dt.timedelta(days=3)
-    result = {'items': [], 'pending': 0, 'warnings': [], 'reviews': []}
+    result = {'items': [], 'pending': 0, 'warnings': [], 'reviews': [],
+              'window': {'start': start_day.isoformat(), 'end': (end_day - dt.timedelta(days=1)).isoformat()}}
     converted = set()
     calendar = None
     try:
