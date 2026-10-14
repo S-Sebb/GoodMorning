@@ -109,12 +109,12 @@ def main():
             form=page.locator('.agent-form')
             if form.get_by_text('Continue today',exact=True).count():
                 form.get_by_text('Continue today',exact=True).click()
-            form.get_by_text('None yet',exact=True).click()
+            form.get_by_text('None of these today.',exact=True).click()
             if args.blocked_report:
                 details=form.locator('textarea, input[type="text"]').last
                 details.fill('The Atlas report is blocked awaiting the dataset. Groceries were not done. No new dates or rollover are agreed.')
             else:
-                form.get_by_text('No other updates',exact=True).click()
+                form.get_by_text('Nothing else to add.',exact=True).click()
             form.get_by_role('button',name='Send answer',exact=True).click()
             # Regenerate is also offered on unfinished previews. Only the final
             # ready reload removes generation controls and proves a saved edition.
@@ -128,7 +128,7 @@ def main():
                 results['checks'].append('Explicit browser blocker updates the existing action without changing the agreed workday')
             before=(runtime/'inbox.sqlite').read_bytes()
             feedback_before=(runtime/'daily'/f'{app.today()}.md').read_text().split('## feedback',1)[1]
-            results['checks'].append('Real evening preflight accepts None yet before creating an agent session, and finishes a v2 edition')
+            results['checks'].append('Real evening preflight accepts no listed completions before creating an agent session, and finishes a v2 edition')
             page.locator('#regenerate').click()
             page.get_by_role('button',name='Regenerate briefing',exact=True).click()
             expect(page.locator('#generation-status')).to_be_visible()

@@ -22,6 +22,14 @@ function secretaryQuestion(info, send, refreshed, language) {
     let custom;
     if (field.options) {
       const single = field.type !== 'multiselect' || field.maxItems === 1;
+      if (field.custom) {
+        custom = make('input'); custom.type = 'text';
+        custom.placeholder = field.placeholder || questionT('Or write your own answer');
+        if (!field.placeholder) custom.setAttribute('data-ui-placeholder','Or write your own answer');
+        custom.setAttribute('data-ui-aria-label','Your own answer');
+        custom.setAttribute('aria-label', questionT('Your own answer'));
+        if (field.customFirst) group.append(custom);
+      }
       const optionGroups = new Map();
       for (const option of field.options) {
         let target = group;
@@ -42,11 +50,8 @@ function secretaryQuestion(info, send, refreshed, language) {
         if (option.description) label.append(make('small', option.description));
         target.append(label); inputs.push(input);
       }
-      if (field.custom) {
-        custom = make('input'); custom.type = 'text'; custom.placeholder = questionT('Or write your own answer');
-        custom.setAttribute('data-ui-placeholder','Or write your own answer');
-        custom.setAttribute('data-ui-aria-label','Your own answer');
-        custom.setAttribute('aria-label', questionT('Your own answer')); group.append(custom);
+      if (custom) {
+        if (!field.customFirst) group.append(custom);
         custom.addEventListener('input', () => { if (custom.value && single) inputs.forEach(input => { input.checked = false; }); });
         inputs.forEach(input => input.addEventListener('change', () => { if (input.checked && single) custom.value = ''; }));
       }

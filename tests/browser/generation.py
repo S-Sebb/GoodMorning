@@ -56,8 +56,8 @@ def check_recovery(browser, artifacts):
             page.get_by_role('button',name='Refresh task list').click()
             expect(page.get_by_text('New user task',exact=True)).to_be_visible()
             assert not (root/'sends').exists()
-            page.get_by_text('None yet',exact=True).click()
-            page.get_by_text('No other updates',exact=True).click()
+            page.get_by_text('None of these today.',exact=True).click()
+            page.get_by_text('Nothing else to add.',exact=True).click()
             job=json.loads((root/'browser-jobs/jobs.json').read_text())[date+'.gn']['id']
             form=json.loads((root/'browser-jobs'/(job+'.context.json')).read_text())['form']['id']
             reply=f'/api/jobs/{job}/form/{form}/reply'

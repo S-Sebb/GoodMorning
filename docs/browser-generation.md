@@ -71,7 +71,12 @@ Browser generation always continues with today; missing past editions remain
 read-only in the archive and never create a blocking question. For `/gn`, the
 browser collects actual completed tasks and other progress first, grouping choices
 by their current canonical project, with “Other tasks” for unassigned work and
-“None yet” outside all project groups. Code saves
+“Other tasks” after all named projects. “None of these today” stays outside the
+project groups. Use clear, friendly review questions; show the progress text box
+above “Nothing else to add”, or “Nothing extra to add today” when no tasks are
+available. Typing and the no-extra-updates choice are mutually exclusive. Existing
+wire values and saved feedback remain compatible; wording changes never rewrite
+earlier replies. Code saves
 that feedback and completes only selected exact IDs. Partial work stays open.
 No edition/run is marked while waiting. Failed feedback saves block dispatch.
 

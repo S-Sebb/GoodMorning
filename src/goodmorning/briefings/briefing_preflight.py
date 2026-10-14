@@ -54,27 +54,33 @@ def initialize(runtime, job, previous=None):
         context['feedback'] = previous['feedback']
     if job['kind'] == 'gn' and not context.get('feedback'):
         tasks = [t for t in context.get('feedback_tasks', context['daily']['tasks']) if not t['done']]
+        # Keep project order stable, with unassigned work after every named project.
+        tasks.sort(key=lambda t: not bool(t.get('project')))
         if tasks:
             fields.extend([
-                {'key':'completed','title':'What did you fully complete?','type':'multiselect','required':True,
-                 'minItems':1,'description':'Choose completed tasks, or “None yet.” Partial work stays open.',
-                 'options':[{'value':'none','label':'None yet'}]+[
+                {'key':'completed','title':'What did you finish today?','type':'multiselect','required':True,
+                 'minItems':1,'description':'Tick anything you fully finished. If something is still in progress, leave it unticked—you can tell me about it below.',
+                 'options':[{'value':'none','label':'None of these today.'}]+[
                      {'value':t['id'],'label':t['text'],'group':t.get('project') or ui.text('Other tasks',lang=selected)} for t in tasks]},
-                {'key':'details','title':'Partial, blocked, changed or extra work','type':'string','required':True,
-                 'custom':True,'options':[{'value':'No other updates','label':'No other updates'}],
-                 'description':'Give actual details, or choose “No other updates.”'}])
+                {'key':'details','title':'Anything else you’d like to share?','type':'string','required':True,
+                 'custom':True,'customFirst':True,'placeholder':'Share any progress or updates…',
+                 'options':[{'value':'No other updates','label':'Nothing else to add.'}],
+                 'description':'Partial progress, something that got in the way, a change of plan, or extra work you got done.'}])
         else:
-            fields.append({'key':'details','title':'What did you accomplish today?','type':'string','required':True,
-                           'custom':True,'options':[{'value':'No updates today','label':'No updates today'}],
-                           'description':'There are no saved tasks to check off for this review. Tell me about completed work, partial progress, or anything that got in the way.'})
+            fields.append({'key':'details','title':'How did today go?','type':'string','required':True,
+                           'custom':True,'customFirst':True,'placeholder':'Share any progress or updates…',
+                           'options':[{'value':'No updates today','label':'Nothing extra to add today.'}],
+                           'description':'There aren’t any saved tasks to tick off for this review. You can still share what you worked on or any progress you made.'})
     context['awaiting'] = bool(fields)
     for field in fields:
-        for key in ('title','description'):
+        for key in ('title','description','placeholder'):
             if key in field:field[key]=ui.text(field[key],lang=selected)
         for option in field.get('options',[]):
             if option['value'] in ('today','stop','none','No other updates','No updates today'):option['label']=ui.text(option['label'],lang=selected)
     revision = '_'+str(job['preflight_revision']) if job.get('preflight_revision') else ''
-    context['form'] = {'id':'preflight_'+job['id']+revision,'title':ui.text('Before your briefing',lang=selected),'fields':fields} if fields else None
+    context['form'] = {'id':'preflight_'+job['id']+revision,
+                       'title':ui.text('Let’s look back on today' if job['kind']=='gn' else 'Before your briefing',lang=selected),
+                       'fields':fields} if fields else None
     write(context_path(runtime, job['id']), context)
     return context
 
@@ -99,9 +105,9 @@ def answer(runtime, job, value):
         chosen, details = value.get('completed', ['none']), value['details']
         known = {t['id']:t for t in context.get('feedback_tasks', context['daily']['tasks']) if not t['done']}
         if not isinstance(chosen,list) or not chosen or any(not isinstance(x,str) for x in chosen) or len(set(chosen)) != len(chosen):
-            raise ValueError('Select completed tasks or explicitly select None yet')
+            raise ValueError('Select completed tasks or choose “None of these today.”')
         if 'none' in chosen and chosen != ['none'] or set(chosen)-set(known)-{'none'}:
-            raise ValueError('Choose only listed task IDs; None yet cannot be combined with completions')
+            raise ValueError('Choose listed tasks or “None of these today.”, not both')
         if not isinstance(details,str) or len(details)>1800:
             raise ValueError('Progress details exceed their limit')
         if not details.strip():

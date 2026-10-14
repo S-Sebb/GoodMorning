@@ -445,7 +445,7 @@ class TaxonomyTests(unittest.TestCase):
         app.jobs[DAY+'.gn'] = job; app.save_jobs()
         context = preflight(self.root, job)
         completed = next(f for f in context['form']['fields'] if f['key'] == 'completed')
-        self.assertEqual([o['label'] for o in completed['options']], ['None yet', 'Today task'])
+        self.assertEqual([o['label'] for o in completed['options']], ['None of these today.', 'Today task'])
         result = answer(self.root, job, {'completed': [occurrence_id(task, DAY)], 'details': 'No other updates'})
         self.assertTrue(result['feedback']['saved'])
         self.assertEqual(self.tasks.show(task)['status'], 'done')
@@ -493,8 +493,11 @@ class TaxonomyTests(unittest.TestCase):
         context = preflight(self.root,job)
         fields = {f['key']:f for f in context['form']['fields']}
         self.assertNotIn('completed',fields)
-        self.assertEqual(fields['details']['title'],'What did you accomplish today?')
-        self.assertEqual(fields['details']['options'],[{'value':'No updates today','label':'No updates today'}])
+        self.assertEqual(context['form']['title'],'Let’s look back on today')
+        self.assertEqual(fields['details']['title'],'How did today go?')
+        self.assertTrue(fields['details']['customFirst'])
+        self.assertEqual(fields['details']['placeholder'],'Share any progress or updates…')
+        self.assertEqual(fields['details']['options'],[{'value':'No updates today','label':'Nothing extra to add today.'}])
         with self.assertRaisesRegex(ValueError,'Give actual details'):
             answer(self.root,job,{'details':'   '})
         result = answer(self.root,job,{'details':'Read a paper and made progress.'})
@@ -508,8 +511,10 @@ class TaxonomyTests(unittest.TestCase):
         job = {'id':'9'*32,'date':DAY,'kind':'gn','state':'preflight','language':'zh-CN'}
         context = preflight(self.root,job)
         field = next(f for f in context['form']['fields'] if f['key']=='details')
-        self.assertEqual(field['title'],'你今天完成了哪些事情？')
-        self.assertEqual(field['options'][0]['label'],'今天没有更新')
+        self.assertEqual(context['form']['title'],'一起回顾一下今天')
+        self.assertEqual(field['title'],'今天过得怎么样？')
+        self.assertEqual(field['placeholder'],'写下今天的进展，或其他想补充的事……')
+        self.assertEqual(field['options'][0]['label'],'今天没有别的要补充了')
         result = answer(self.root,job,{'details':'No updates today'})
         self.assertTrue(result['feedback']['saved'])
 
@@ -614,6 +619,10 @@ class TaxonomyTests(unittest.TestCase):
         self.assertEqual(set(fields),{'completed','details'})
         options=fields['completed']['options']
         self.assertNotIn('group',options[0])
+        self.assertEqual([o['group'] for o in options[1:]],['Atlas revised','Paper','Other tasks'])
+        self.assertEqual(fields['details']['title'],'Anything else you’d like to share?')
+        self.assertTrue(fields['details']['customFirst'])
+        self.assertEqual(fields['details']['options'][0]['label'],'Nothing else to add.')
         self.assertEqual({o['value']:o['group'] for o in options[1:]},
             {occurrence_id(first,DAY):'Atlas revised',occurrence_id(second,DAY):'Paper',occurrence_id(other,DAY):'Other tasks'})
         self.assertEqual(historical.read_text(),'# 2026-10-12\n- gn: yes (session ses_old)\n')
@@ -628,7 +637,12 @@ class TaxonomyTests(unittest.TestCase):
         self.capture(task={'title':'Project task','project':'Atlas','planned_date':DAY})
         context=preflight(self.root,{'id':'6'*32,'date':DAY,'kind':'gn','state':'preflight','language':'zh-CN'})
         options=next(f for f in context['form']['fields'] if f['key']=='completed')['options']
-        self.assertEqual([o.get('group') for o in options],[None,'其他任务','Atlas'])
+        self.assertEqual([o.get('group') for o in options],[None,'Atlas','其他任务'])
+        self.assertEqual(options[0]['label'],'这些任务今天都还没做完')
+        fields={f['key']:f for f in context['form']['fields']}
+        self.assertEqual(fields['completed']['title'],'今天有哪些事情已经完成了？')
+        self.assertEqual(fields['details']['title'],'还有什么想补充的吗？')
+        self.assertEqual(fields['details']['options'][0]['label'],'没有其他要补充的了')
 
     def test_section_recipe_returns_identical_sources_without_unrelated_payload(self):
         for n in range(9):
