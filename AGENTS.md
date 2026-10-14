@@ -1,5 +1,17 @@
 # GoodMorning source
 
+## Website wording and translation
+
+Website wording must be clear and informative first, then comfortable and cute.
+Keep actions, status, uncertainty and consequences easy to understand; charm must
+not hide important information or override a user's saved tone.
+Use DeepSeek V4.1 Flash with the High variant for translation tasks
+(`opencode-go/deepseek-v4.1-flash`, variant `high`). Adapt wording freely rather
+than translating literally: preserve the intended meaning and important facts,
+while making the result natural and consistent with these website wording goals.
+
+## Secretary and development contracts
+
 For secretary/browser requests, read the required contracts and saved tone silently
 before the first visible message. Brief factual progress messages are allowed;
 every visible reply, update and question uses the website language and saved tone
