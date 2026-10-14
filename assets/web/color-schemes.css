@@ -72,7 +72,8 @@ html:not([data-edition="gn"])[data-day-scheme]:not([data-day-scheme="classic"]) 
 .settings-menu-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; border-bottom: 1px solid var(--line, #b4c7c0); padding-bottom: 12px; }
 #prefs-menu .settings-close { display: grid; place-items: center; width: 28px; min-width: 28px; height: 28px; min-height: 28px; padding: 0; border: 0; border-radius: 8px; background: transparent; color: var(--muted, #56746a); }
 #prefs-menu .settings-close:hover { background: var(--wash, #f2f6f5); }
-.settings-menu-header h2 { font: 600 14px/1.4 ui-sans-serif, system-ui, sans-serif; letter-spacing: 0; margin: 0; }
+.settings-menu-header h2 { display: flex; align-items: center; gap: 7px; font: 600 14px/1.4 ui-sans-serif, system-ui, sans-serif; letter-spacing: 0; margin: 0; }
+.settings-menu-header h2::before { content: "⚙"; font-size: 14px; font-weight: 400; line-height: 1; }
 .settings-menu-header p { font-size: 11px; line-height: 1.5; color: var(--muted, #56746a); margin: 4px 0 0; }
 #prefs-menu .language-toolbar { display: grid; justify-content: stretch; align-items: stretch; gap: 6px; width: auto; margin: 0; }
 #prefs-menu .language-toolbar label { font-size: 12px; line-height: 20px; }
