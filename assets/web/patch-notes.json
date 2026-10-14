@@ -1,6 +1,42 @@
 {
   "notes": [
     {
+      "version": "0.39.0", "date": "2026-10-14", "author": "GoodMorning agent",
+      "title_en": "Secretary setup, voice and language routing", "title_zh": "秘书设置、语气与语言路由",
+      "changes": [
+        {"category": "Changed", "en": [
+          "New profiles show Initialize first. Once setup is ready, Secretary, To-do and Eureka become available without deleting earlier setup conversations or unsent drafts.",
+          "Website language selects the model automatically: English uses Muse Spark Contributor XHigh and Simplified Chinese uses DeepSeek Flash High. The manual selector is removed; running requests keep their original language and model.",
+          "Shorter secretary instructions distinguish saved results, unresolved questions and failed changes. Saved tone is available before chat updates; ordinary factual progress remains visible."
+        ], "zh": [
+          "新资料先显示初始化；设置完成后开放秘书、待办与灵感，不删除此前的初始化对话或未发送草稿。",
+          "网站语言自动选择模型：英语使用 Muse Spark Contributor XHigh，简体中文使用 DeepSeek Flash High。移除手动选择器；进行中的请求保留原有语言与模型。",
+          "精简秘书指引，明确区分已保存结果、待确认问题与未成功的修改。聊天更新前即可获取已保存语气；普通、真实的进度消息继续显示。"
+        ]},
+        {"category": "Fixed", "en": [
+          "Explicit keep-all setup reviews retain existing preferences and records without repeatedly confirming unchanged values. Skipped optional settings stay unset; local readiness is separate from external-service verification.",
+          "Forward-looking recurring tasks without an explicit start use the current local calendar date and saved timezone, not the briefing day's pre-04:00 date. Workdays, deadlines and confirmed appointments with unknown times remain distinct.",
+          "Briefing instructions preserve published checkpoints and reuse evening feedback without repeating completions or assigning new workdays. Verified saves return the dated relative page link instead of requiring hostname discovery.",
+          "Browser task-section reads check the owning job, date and next publication position. Empty schedules use code-generated date labels for the full three-day window, and generic question headings follow the website language."
+        ], "zh": [
+          "明确要求保留全部设置的复核会保留已有偏好与记录，不反复确认未变更的内容。跳过的可选设置保持未填写；本地资料就绪与外部服务验证分开说明。",
+          "未明确开始日期的未来重复待办采用当前本地日历日期与已保存时区，不使用凌晨四点前的简报日标签。工作日、截止日期与时间未知但已确认的约定保持区分。",
+          "简报指引保留已发布检查点，复用晚间反馈，不重复完成记录或分配新的工作日。验证保存后返回带日期的相对页面链接，无需查找主机地址。",
+          "浏览器任务板块读取会核对所属任务、日期与下一发布位置。空日程采用代码生成的日期标签，覆盖完整三天窗口；通用提问标题跟随网站语言。"
+        ]},
+        {"category": "Documentation", "en": [
+          "Add concise prompt-writing and hosted-account provisioning guides, including scoped consent, private temporary credentials and model-based validation."
+        ], "zh": [
+          "新增精简的提示词编写与托管账号开通指南，涵盖限定授权、私密临时凭据与真实模型验证。"
+        ]},
+        {"category": "Tests", "en": [
+          "Expand synthetic-account checks for initialization, routing, task recurrence, tone and briefing recovery. Keep original failures and interrupted requests separate from corrected checks and manual reply review."
+        ], "zh": [
+          "扩展合成账号测试，覆盖初始化、路由、任务重复规则、语气与简报恢复；原始失败和中断请求与修正后的检查、人工回复复核分别保存。"
+        ]}
+      ]
+    },
+    {
       "version": "0.36.0", "date": "2026-10-13", "author": "GoodMorning agent",
       "title_en": "Morning Sky and First Light", "title_zh": "晨空与曙光主题",
       "changes": [

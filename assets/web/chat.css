@@ -18,9 +18,10 @@
 .chat-portrait { display: block; position: relative; overflow: hidden; flex-shrink: 0; width: 46px; height: 46px; border-radius: 50%; border: 1px solid var(--line); background: var(--wash); }
 .chat-portrait img { position: absolute; width: 230%; height: 230%; max-width: none; left: -65%; top: -43%; }
 .chat-portrait[data-chat-avatar="custom"] img { width: 100%; height: 100%; left: 0; top: 0; object-fit: cover; }
-.mode-switch { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); padding: 4px; gap: 4px; border: 1px solid var(--line); border-radius: 16px; background: var(--bg); }
+.mode-switch { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); padding: 4px; gap: 4px; border: 1px solid var(--line); border-radius: 16px; background: var(--bg); }
 .mode-controls { display: flex; align-items: center; gap: 6px; }
 .mode-controls .mode-switch { flex: 1; min-width: 0; }
+.mode-controls .mode-switch:has(> button:only-child) { flex: 0 1 220px; }
 #mode-help { display: grid; place-items: center; flex: 0 0 36px; width: 36px; height: 36px; min-height: 36px; padding: 0; border-radius: 50%; background: transparent; color: var(--muted); font-size: 18px; }
 #mode-help[aria-expanded="true"] { background: var(--wash); color: var(--accent); border-color: var(--accent); }
 .mode-switch button { display: flex; align-items: center; justify-content: center; gap: 6px; border-color: transparent; padding: 10px 4px; background: transparent; font-size: 13px; }

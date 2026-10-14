@@ -55,7 +55,8 @@ refresh without another AI call; this is a view of your records, not a generated
 weekly plan. See the [schedule guide](docs/weekly-schedule.md).
 
 **Secretary · Keep a little space to think.** Discuss plans, capture tasks with
-To-do, save ideas with Eureka, or review preferences with Initialize. Start with
+To-do, or save ideas with Eureka. New users see only Initialize until setup is
+complete; afterward, Secretary, To-do, and Eureka are available. Start with
 any mode and ask for another kind of help in the same conversation—there is no
 need to start over. File attachments, pasted images, Markdown replies, and saved
 conversation history keep the details close. Questions, accepted answers, and
@@ -181,8 +182,9 @@ The [item and timing guide](docs/item-taxonomy.md) explains these boundaries in 
   Refreshing resumes the same briefing or conversation; a follow-up message can
   steer the secretary while it works. Pending questions and permissions remain
   available until you answer them.
-- **Choices without surprises.** Select Muse Spark 1.3 or DeepSeek V4.1 Flash in
-  website settings. New requests use your selection. In-app release notes explain
+- **Language-matched models.** English requests automatically use Muse Spark 1.3
+  Contributor XHigh; Chinese requests use DeepSeek V4.1 Flash High. No model selector
+  is needed, and running requests keep their original model. In-app release notes explain
   updates, and an open page never reloads itself over an unsent draft.
 - **Your own space.** Personal records stay outside the public source. The hosted
   deployment supports authenticated HTTPS, encrypted storage, and separate agent
@@ -203,7 +205,7 @@ recommended. Optional local or paired-remote project access needs **Node.js
 2. **Meet your secretary.** Open Initialize in the browser or ask the installed
    skill for setup. [Guided initialization](docs/initialization.md) saves your
    confirmed preferences and permissions; optional integrations can remain pending.
-   Revisit Initialize later to review settings without resetting your records.
+    Ask Secretary later to review settings without resetting your records.
 3. **Begin when you are ready.** Prepare a briefing from Morning or Evening,
    check Schedule, or start a conversation in Secretary. With the installed skill,
    natural-language requests work too: ask for a morning briefing, an evening

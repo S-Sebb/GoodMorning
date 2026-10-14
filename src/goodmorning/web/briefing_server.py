@@ -464,6 +464,13 @@ class BrowserApp:
             threading.Thread(target=self.dispatch, args=(job,), daemon=True).start()
             return {'job': job['id']}
 
+    def generation_prompt(self, job):
+        selected = job.get('language','en')
+        job_label, runtime_label = ('浏览器任务','运行目录') if selected == 'zh-CN' else ('Browser job','Runtime')
+        edition = f"请准备我的{'早间' if job['kind'] == 'gm' else '晚间'}简报（/{job['kind']}）。" if selected == 'zh-CN' else f"/{job['kind']}"
+        return (f"{edition}\n{job_label}: {job['id']}\n"
+                f"{runtime_label}: {self.runtime}\nWebsite language: {selected}")
+
     def dispatch(self, job):
         try:
             result = self.chamber.control('session.create', title=job_session_title(
@@ -475,7 +482,7 @@ class BrowserApp:
                 job['session'] = session
                 self.save_jobs()
             site_models.apply_to_session(self.chamber, session, job.get('model', site_models.DEFAULT))
-            prompt = f"/{job['kind']}\nBrowser job: {job['id']}\nRuntime: {self.runtime}\nWebsite language: {job.get('language','en')}"
+            prompt = self.generation_prompt(job)
             dispatched = self.chamber.control('session.send', sessionId=session, prompt=prompt)
             if dispatched.get('promptDispatched') is not True:
                 raise ValueError('Prompt dispatch was not confirmed')
@@ -600,7 +607,7 @@ class BrowserApp:
             if forms or permissions or self.chamber.control('session.status', sessionId=job['session'])['sessionStatus']['type'] != 'idle':
                 raise ValueError('Session changed before continuation')
             site_models.apply_to_session(self.chamber, job['session'], job.get('model', site_models.DEFAULT))
-            prompt = f"/{job['kind']}\nBrowser job: {job['id']}\nRuntime: {self.runtime}\nWebsite language: {job.get('language','en')}"
+            prompt = self.generation_prompt(job)
             result = self.chamber.control('session.send', sessionId=job['session'], prompt=prompt)
             if result.get('promptDispatched') is not True:
                 raise ValueError('Continuation was not confirmed')
@@ -818,15 +825,9 @@ def serve_live(app, port, *, gateway_key=None, public_origins=()):
             ui.CURRENT.set(selected)
 
         def select_model(self):
-            if gateway_key:
-                try:selected=site_models.model(self.headers.get('X-GoodMorning-Model',site_models.DEFAULT))
-                except ValueError:selected=site_models.DEFAULT
-            else:
-                path=app.runtime/'website-model.json'
-                if path.is_symlink():raise ValueError('Unsafe website model file')
-                try:selected=site_models.model(json.loads(path.read_text())['model']) if path.is_file() else site_models.DEFAULT
-                except (ValueError,KeyError,TypeError,OSError,UnicodeError):selected=site_models.DEFAULT
-            site_models.CURRENT.set(selected)
+            # Account preferences and client/proxy model headers cannot override language.
+            # Preserve legacy settings on disk; existing jobs/turns retain their pins.
+            site_models.CURRENT.set(None)
 
         def select_color_schemes(self):
             if gateway_key:
@@ -1053,13 +1054,7 @@ def serve_live(app, port, *, gateway_key=None, public_origins=()):
                     if not re.fullmatch(r'/(?:|chat|schedule|(?:gm|gn)\.html|d/\d{4}-\d{2}-\d{2}/(?:gm|gn)\.html)',target):target='/'
                     return self.respond({'language':selected},303 if form else 200,location=target if form else None)
                 if path=='/api/model':
-                    if not form and set(body)!={'model'}:raise ValueError('Invalid model choice')
-                    selected=site_models.model(body['model'])
-                    atomic_text(app.runtime/'website-model.json',json.dumps({'model':selected})+'\n')
-                    site_models.CURRENT.set(selected)
-                    target=body.get('return_to','/')
-                    if not re.fullmatch(r'/(?:|chat|schedule|(?:gm|gn)\.html|d/\d{4}-\d{2}-\d{2}/(?:gm|gn)\.html)',target):target='/'
-                    return self.respond({'model':selected},303 if form else 200,location=target if form else None)
+                    return self.respond({'error':'Model selection is automatic from the website language.'},405)
                 if path=='/api/color-schemes':
                     selected = site_colors.validate({key: body[key] for key in ('day', 'night')} if form else body)
                     site_colors.write(app.runtime, selected)

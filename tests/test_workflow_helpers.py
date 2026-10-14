@@ -110,6 +110,17 @@ class HelpersTests(unittest.TestCase):
         self.assertEqual(result["missing_fields"][0], "secretary_language")
         self.assertFalse(missing.exists())
 
+    def test_task_capture_date_is_calendar_date_not_previous_briefing_day(self):
+        before=set(self.root.iterdir())
+        with patch.object(workflow,'today_str',return_value='2026-10-13'), \
+             patch.object(workflow,'stamp',return_value='2026-10-14T02:00:00+01:00'), \
+             patch.object(workflow,'rebuild_index',side_effect=AssertionError('unrelated scan')):
+            result=workflow.prepare(self.root,'todo',website_language='en')
+        self.assertEqual(result['date'],'2026-10-13')
+        self.assertEqual(result['capture_date'],'2026-10-14')
+        self.assertEqual(result['timezone'],'Europe/London')
+        self.assertEqual(set(self.root.iterdir()),before)
+
     def test_native_duplicate_uses_json_pointer_without_history_or_content_reads(self):
         self.file(f'# {DAY}\n- gm: yes (session ses-original) | answer: daily/{DAY}.gm.json\n')
         payload = {'v': 1, 'greeting': 'Hello.', 'opening': 'Saved once.', 'sections': [['notes', [['p', 'Preserved.']]]]}

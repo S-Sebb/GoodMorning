@@ -198,7 +198,7 @@
       return;
     }
     const dirty = [...document.querySelectorAll('input,textarea,select')].some(field => {
-      if (field.closest('#language-form') || field.closest('#model-form') || field.type === 'hidden') return false;
+      if (field.closest('#language-form') || field.type === 'hidden') return false;
       if (['checkbox','radio'].includes(field.type)) return field.checked !== field.defaultChecked;
       if (field.tagName === 'SELECT') return [...field.options].some(option => option.selected !== option.defaultSelected);
       return field.value !== field.defaultValue;

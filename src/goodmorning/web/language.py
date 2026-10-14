@@ -7,7 +7,6 @@ import json
 import re
 
 from goodmorning.paths import WEB_ASSETS
-from .models import MODELS, current as current_model
 from . import color_schemes
 
 LANGUAGES = {'en':'English', 'zh-CN':'Simplified Chinese'}
@@ -48,11 +47,16 @@ def ui(source, **values):
     return '<bdi lang="'+current()+'" data-ui-text="'+html.escape(original,quote=True)+'">'+html.escape(text(source,**values))+'</bdi>'
 
 
-def day_label(day, *, full=False):
+def day_text(day, *, full=False):
     value=Date.fromisoformat(day)
     label = ((f'{value.year}年' if full else '')+f'{value.month}月{value.day}日 '+['周一','周二','周三','周四','周五','周六','周日'][value.weekday()]
              if current()=='zh-CN' else value.strftime('%a %d %b'))
     if full and current()=='en':label=value.strftime('%A, %d %B %Y')
+    return label
+
+
+def day_label(day, *, full=False):
+    label=day_text(day,full=full)
     attribute='data-ui-full-date' if full else 'data-ui-date'
     locale=f' lang="{current()}"' if full else ''
     return f'<span{locale} {attribute}="{day}">{label}</span>'
@@ -151,13 +155,6 @@ def page(source,csrf,return_to='/'):
            '</select><input type="hidden" name="csrf" value="'+html.escape(csrf or '',quote=True)+'">'
            '<input type="hidden" name="return_to" value="'+html.escape(return_to,quote=True)+'">'
            '<noscript><button type="submit">Apply</button></noscript><span id="language-feedback" role="status"></span></form>'
-           '<form id="model-form" class="language-toolbar" action="/api/model" method="post">'
-           '<label for="website-model">Model</label><select id="website-model" name="model">'
-           +''.join(f'<option value="{code}"'+(' selected' if code==current_model() else '')+' data-content>'+html.escape(entry['label'])+'</option>'
-                    for code,entry in MODELS.items())+
-           '</select><input type="hidden" name="csrf" value="'+html.escape(csrf or '',quote=True)+'">'
-           '<input type="hidden" name="return_to" value="'+html.escape(return_to,quote=True)+'">'
-           '<noscript><button type="submit">Apply</button></noscript><span id="model-feedback" role="status"></span></form>'
            '</div></details>')
     account_menu=('<details class="menu" id="account-menu"><summary><span class="menu-label">Account</span></summary>'
                   '<div class="menu-panel">'+account+'</div></details>') if account else ''
@@ -173,7 +170,7 @@ def page(source,csrf,return_to='/'):
         source=re.sub(r'(<input type="hidden" name="csrf" value=")[^"]*(")',lambda match:match[1]+html.escape(csrf or '',quote=True)+match[2],source)
         source=re.sub(r'(<input type="hidden" name="return_to" value=")[^"]*(")',lambda match:match[1]+html.escape(return_to,quote=True)+match[2],source)
     else:
-        source=source.replace('</head>','<script src="/language.js" defer></script><script src="/model.js" defer></script></head>')
+        source=source.replace('</head>','<script src="/language.js" defer></script></head>')
         source=source.replace('</body>',marker+'</body>')
     source=color_schemes.page(source,csrf,return_to)
     parser=InterfaceHTML();parser.feed(source);parser.close()

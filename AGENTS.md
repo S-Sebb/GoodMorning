@@ -1,5 +1,25 @@
 # GoodMorning source
 
+For secretary/browser requests, read the required contracts and saved tone silently
+before the first visible message. Brief factual progress messages are allowed;
+every visible reply, update and question uses the website language and saved tone
+(default warm/helpful). Do not expose instruction loading, formats or tone checks.
+Use native questions for unresolved facts and wait. A workday is not a completion
+date or evidence of enough time;
+encouragement must not invent capacity, progress or future automatic action.
+
+When writing agent prompts or instructions, follow `AGENT-PROMPT-GUIDE.md`.
+Test every new or modified agent prompt against all website-configured models and
+their configured variants in `src/goodmorning/web/models.py`. Verify behavior and
+tone with isolated synthetic cases before accepting the change. Report unavailable
+models or unmet requirements; do not substitute models or treat code tests as
+proof of model behavior.
+
+For coding-agent requests to create a hosted server user, read
+`SERVER-USER-GUIDE.md` first. Generate a random temporary password privately;
+do not ask the owner to choose one. Complete isolated backend provisioning and
+the readiness gate before reporting success. Never expose credentials.
+
 For website requests, this working directory is the selected release/package
 root. Read workflows and run helpers here, not from another installed GoodMorning
 copy. A globally loaded skill never changes the browser request's release or runtime.

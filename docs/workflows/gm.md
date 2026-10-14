@@ -5,16 +5,24 @@ description: Morning plan with weather, sourced news, Schedule, Tasks and Remind
 
 # Morning briefing
 
+Trigger: `/gm` or a morning-briefing request. Inputs: confirmed runtime, session,
+language and date; browser jobs supply saved preparation. Result: a verified native
+v2 morning edition and browser link, not a new task plan.
+
 Read `docs/core-rules.md`, `docs/item-taxonomy.md`, `docs/briefing-format.md` and
 `docs/reply-voice.md`. Browser jobs also read `docs/browser-generation.md`.
 Run `python scripts/goodmorning.py` from the package root with selected absolute
 runtime/cache paths. Keep the current session/model and use the confirmed language.
-Fixed section order is Weather, News, Schedule, Tasks, Reminders. Do not reorder, add or remove sections.
+Use the default plan in order: Weather, News, Schedule, Tasks, Reminders, with
+opted-in dated latest News only when the plan includes it. Browser jobs keep every
+plan position and use `skip` for empty optional ones; local JSON omits empty optional sections.
 
 1. Browser jobs start with `job --secretary-dir RUNTIME --job JOB prepare`, then
-   immediately init using the supplied default plan unchanged; use saved decisions/date/context. Local invocations use
-   `workflow --prepare gm` once. Handle setup, migration, duplicate/missed-edition
-   decisions before fetching. Duplicate editions identify the original and stop.
+   follow its receipt: immediately init a fresh preview with the unchanged default
+   plan, or resume an existing checkpoint. Reuse saved decisions/date/context;
+   do not run local preparation or re-ask browser preflight questions. Local requests
+   use `workflow --prepare gm` once. Resolve setup, migration, duplicate and local
+   missing-edition decisions before fetching. Duplicates identify the original and stop.
 2. Weather: fetch once with qualified city and explicit profile/cache paths.
    Order temperature, precipitation/advice, applicable extreme warning, AQI/health.
    Values are display-ready: `16°C (14.5–20.4°C)`, `65% – Rain likely`
@@ -39,11 +47,14 @@ Fixed section order is Weather, News, Schedule, Tasks, Reminders. Do not reorder
    title/detail is materially vague (missing object, filler opener, `etc.`/parens fog,
    verb at the end — not mere punctuation or capitalization), fix it with
    revision-checked `task --update`
-   using title/detail only (same meaning, no date/status/project/scheduling change,
-   stable `polish:SESSION:taskID:revision` keys), then reread and pack the exact
-   updated rows. Preserve dates, details, source IDs and revisions; follow pages.
+    using title/detail only (same meaning, no date/status/project/scheduling change,
+    stable `polish:SESSION:taskID:revision` keys), then reread and pack the exact
+    updated rows. Preserve dates, details, source IDs and revisions; follow pages.
+    Leave already-clear titles unchanged. A project name within the specific object
+    ("Send Atlas report") is not a decorative prefix ("Atlas: Send report"); do not
+    strip it or make a cosmetic write merely because project grouping repeats it.
    Code groups cards by workday then project with a shared due target in the
-   heading; review with a short warm note naming the top project groups and the
+   heading; review with a short note in the saved tone naming the top project groups and the
    next useful step instead of repeating every card.
    Titles must read as clear imperative actions with specific objects and no project
    prefix (the project heading already shows it); details add
@@ -56,7 +67,8 @@ Fixed section order is Weather, News, Schedule, Tasks, Reminders. Do not reorder
    and add a brief note with the count and single next action. Ask only missing material facts
    or permissions affecting today's useful/safe plan. Do not interview every task,
    invent clarification work from clear ideas or re-ask saved answers. Skip an
-   empty section; pending optional decisions do not block unrelated work.
+   empty optional browser position using `skip`, or omit it from local JSON. Pending optional
+   decisions do not block unrelated work.
 7. Browser jobs publish one complete next section and finish through `job`. Local
    saves use native v2 JSON and `state --mark-gm` with the actual session/date.
    Neither path schedules or creates tasks from the presentation. Return the
@@ -65,3 +77,8 @@ Fixed section order is Weather, News, Schedule, Tasks, Reminders. Do not reorder
 New tasks, changes or feedback supplied in the conversation follow the capture/task
 workflow before presentation. No execution is implied. Preserve archived snapshots,
 unrelated records, failed/unknown writes and existing completions.
+
+If collection fails, publish its material unavailability; do not present an empty
+successful result. For source conflicts, reread affected rows. For interrupted
+publication, inspect the job and reuse identical input only under its receipt's
+retry contract; never rewrite earlier published sections or replay record mutations.

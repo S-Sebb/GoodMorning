@@ -11,7 +11,13 @@ function secretaryQuestion(info, send, refreshed, language) {
   const make = secretaryElement;
   const form = make('form', '', 'agent-form');
   if (['en','zh-CN'].includes(language)) form.lang=language;
-  form.append(make('h2', info.title || questionT('A question for you')));
+  const generic = !info.title || info.title === 'Questions';
+  const heading = make('h2', generic ? questionT('A question for you') : info.title);
+  if (generic) {
+    heading.dataset.uiText = 'A question for you';
+    if (typeof goodmorningLanguage !== 'undefined') heading.lang = goodmorningLanguage;
+  }
+  form.append(heading);
   const controls = new Map();
   let unsupported = false;
   for (const field of info.fields) {

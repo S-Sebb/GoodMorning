@@ -10,7 +10,8 @@ approved `task --migrate` upgrade; reads never perform one.
 Use `scripts/goodmorning.py inbox` from the package root with absolute `--secretary-dir RUNTIME`.
 All commands return compact JSON. `inbox.sqlite` is the source of truth; never
 read it directly, dump it, or edit it with SQL. No Markdown inbox is supported.
-Read this guide for capture, follow-ups, organization or completion.
+Read this guide for advanced writes, follow-ups, organization or completion.
+Simple new captures use the direct workflow helper without this additional read.
 Briefings need only the read contract below until a mutation is requested.
 
 ## What to remember
@@ -54,7 +55,7 @@ python scripts/goodmorning.py inbox --secretary-dir RUNTIME --show ID
   one SQLite snapshot, so each page's count and records agree.
 - For `/gm`, `/gn` and `/secretary`, retrieve active pages needed for the request.
   Do not silently omit unresolved reminders because more pages exist. Show only
-  relevant IDs for constraints/details; use existing daily tasks to avoid duplicates.
+  relevant IDs for constraints/details; use canonical task/occurrence IDs to avoid duplicates.
 - `--show ID` returns only that entry's current summary/context/questions and
   review state, not its original text or accumulated history. Do not infer a
   deadline, completion or lack of constraints from a summary alone.
@@ -124,7 +125,8 @@ prevents acknowledging a new follow-up that arrived meanwhile. Replace supersede
 context, do not append a diary. If 6,000 characters are insufficient, keep a clear
 current summary plus references to relevant history IDs; never discard key facts.
 No need to rebuild all state after each inbox change: `python scripts/goodmorning.py state --check` reads live
-counts. Rebuild after daily/project edits as those workflows require.
+counts. Daily/project reads and state marks derive current context; no per-edit
+rebuild is required unless an explicit index repair is requested.
 
 Save receipts include `saved`, ID, revision and event ID—not previous messages.
 Successful exit and receipt verify the transaction; do not reread the whole inbox.

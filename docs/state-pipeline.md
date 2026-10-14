@@ -33,8 +33,9 @@ Invalid named timezones are errors, not silent fallbacks.
 - Mark commands accept either an answer file or stdin, never both. They preserve
   daily tasks/feedback. JSON replies expose date, kind, session, answer pointer,
   and size. Inputs cap at 1,048,576 characters. Native JSON input is required.
-- Every save parses/validates the v1 contract before writing,
-  and compacts whitespace without changing string values. It creates one briefing,
+- Every save parses/validates the document version before writing. New editions
+  use v2 with source checks; existing v1 archives/owned previews remain compatible.
+  Saving compacts whitespace without changing string values. It creates one briefing,
   no Markdown/presentation/HTML copies. Invalid input returns `briefing_invalid`
   and a field path without marking. Unrelated text files are ignored and preserved.
 - Duplicate marks and existing snapshots are refused with exit 2. Inspect the
@@ -45,15 +46,17 @@ Invalid named timezones are errors, not silent fallbacks.
   context. Use `docs/inbox-pipeline.md` for current entries.
 - Active inbox entries include a count and oldest date; newly supplied details on
   closed entries stay active until reviewed. Counts are live, not cached behind a
-  required inbox rebuild. Remind at today's `/gn`,
-  otherwise the next `/gm`, until confirmed and organized.
+  required inbox rebuild. Canonical tasks/occurrences remain in SQLite; Reminders
+  shows due real questions/reviews under `docs/item-taxonomy.md`, respecting saved
+  answers and deferrals. Counts alone do not authorize repeated clarification tasks.
 - Exit 0 means success; exit 1 means runtime/storage failure; exit 2 means a
   refused mark or invalid arguments. Operational errors with `--json` contain
   `error` and `next`; argparse validation errors remain on stderr.
 
 ## Storage and recovery
 
-- Daily files and the calendar database are sources of truth; `state.json` is
+- Daily run/history files, canonical inbox/task state and calendar SQLite are
+  sources of truth for their respective roles; `state.json` is
   derived. Only the newest 14 daily entries persist. A separate bounded metadata
   cache supports the 30-day cost window. Older run history is rescanned locally.
   Missed days and 30-day totals are computed before truncation.

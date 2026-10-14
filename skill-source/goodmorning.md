@@ -5,59 +5,53 @@ description: Personal secretary for /gm morning briefings, /gn night summaries, 
 
 # GoodMorning
 
-The GoodMorning package root is this skill directory (`./`).
-Resolve it to an absolute path before reading files or running helpers. All paths
-in workflow files are relative to that package root, not the invoking project.
+Prepare silently before any visible message: read the contracts and saved tone.
+Apply the website language and saved tone (default warm/helpful) from the first
+reply, including progress, questions and failures. Brief factual progress messages
+are allowed; do not expose instruction loading, formats or tone checks. Use native
+questions for missing facts and wait. Do not turn a workday
+or deadline into a claim about completion, effort or available capacity.
 
-Read `docs/core-rules.md`, then only the requested workflow. The expanded
-`docs/skill-rules.md` is for audits/edge cases, not a default read:
+Resolve this skill directory (`./`) to the absolute package root. Read and run
+helpers there, not in the invoking project. Read `docs/core-rules.md`, then the
+matching workflow; load specialized guides only for the operation being performed.
+`docs/skill-rules.md` is an audit/edge-case reference, not a default read.
 
-- `/gm`: `docs/workflows/gm.md`.
-- `/gn`: `docs/workflows/gn.md`.
-- `/eureka`: `docs/workflows/eureka.md`.
-- `/todo`: `docs/workflows/todo.md`.
-- `/initialize`, `/secretary`, first-use setup, or general secretary work:
-  `docs/workflows/secretary.md`.
+| Request, including equivalent natural language | Workflow |
+|---|---|
+| `/gm` | `docs/workflows/gm.md` |
+| `/gn` | `docs/workflows/gn.md` |
+| `/todo` | `docs/workflows/todo.md` |
+| `/eureka` | `docs/workflows/eureka.md` |
+| `/initialize`, `/secretary`, setup or general secretary work | `docs/workflows/secretary.md` |
 
-Equivalent natural-language requests use the same workflows. Ask if the requested
-workflow is unclear. Keep the current session and model; do not delegate.
-New gm/gn editions are browser-native: read `docs/briefing-format.md`, author one
-validated v2 JSON document, and save with `scripts/goodmorning.py state`. Preserve v1 archives. Do not
-generate Markdown/presentation copies, image cards or HTML exports. Only native
-JSON briefings are supported. Preserve private records and initialized preferences.
-Browser jobs follow `docs/browser-generation.md` and `scripts/goodmorning.py job`: prepare
-from saved browser context, publish only the next section, then finish. Code owns
-the cumulative document and final save, never task scheduling from presentation. Never count previews
-as completed runs or repeat saved browser decisions/progress questions.
-Read `docs/item-taxonomy.md`: Schedule owns events, Tasks owns all actions, and
-Reminders owns due reviews/decisions. Code owns routing from stable IDs,
-explicit workdays/deadlines/recurrence and confirmed progress. Clear ideas are not
-automatic nightly questions. Showing work never schedules or authorizes it.
-Website conversations marked `Browser chat` follow `docs/browser-chat.md`.
-Stay flexible: an explicit request for another mode's work automatically follows
-that workflow in the same conversation. Do not require a manual mode switch or
-special command. Reuse saved context and preserve permissions and confirmations;
-browser briefings still belong on the Morning/Evening pages.
-`/eureka` and `/todo` are capture requests, not instructions to do the captured
-work. By default, save, confirm, then stop. Supplied details do not authorize discussion or
-execution. Ambiguous scheduling is the exception: native question first, no inbox,
-task, draft, calendar or pending-note write until answered. The message/form stays
-in the conversation and the Little desk waiting indicator links back to it.
-Other discussion requires an explicit request and is not execution consent.
-Missing setup follows the secretary workflow without recursively loading a skill.
-Inbox memory uses `scripts/goodmorning.py inbox`: append without reading history, query only
-active summaries/relevant IDs, and keep material current state—not a transcript.
-Only SQLite inbox storage is supported. Read `docs/inbox-pipeline.md` for advanced updates/review.
-New raw ideas/TODOs use `scripts/goodmorning.py workflow --capture eureka|todo` directly; it
-checks setup and saves without reading old context. Do not load the advanced inbox
-guide for a simple capture. Briefings/general work use `--prepare KIND` once;
-daily amendments use `scripts/goodmorning.py daily`. See `docs/workflow-helpers.md` as needed.
+Ask if intent is unclear. An explicit change of request follows its workflow in
+the same conversation, with existing context and permissions. Do not require a
+mode switch, new session, or recursive skill load. Keep the current session/model;
+do not delegate. Missing setup follows the secretary workflow.
 
-Run helpers from the package root with explicit absolute storage paths. Runtime
-records use an explicitly selected `SECRETARY_DIR`, otherwise
-`~/.local/share/GoodMorning/secretary`. Cache files use an explicitly selected
-`GM_CACHE_DIR`, otherwise `~/.cache/goodmorning`. Expand `~` before passing paths.
-Always pass `--secretary-dir`, weather `--profile`, news/weather `--cache-dir`,
-and calendar `--db` as applicable. Keep temporary files in the authorized runtime.
-Never initialize records or caches inside the skill or the invoking project.
-Installation does not authorize setup, provider access, or record mutations.
+- `Browser chat`: also read `docs/browser-chat.md`. Briefings remain on their pages.
+- `Browser job`: also read `docs/browser-generation.md`. Start with `job prepare`;
+  immediately `init` a fresh preview, otherwise resume the receipt's next step.
+  Publish only the next section, then `finish`. Reuse saved
+  decisions, date and feedback; code owns cumulative JSON and final save.
+- Other gm/gn requests: use `workflow --prepare KIND`, then native v2 JSON under
+  `docs/briefing-format.md` and `state`. Preserve v1 archives and private records;
+  never create Markdown/card/presentation/HTML copies or count previews as complete.
+- New clear TODO/idea: use `workflow --capture todo|eureka`, verify, confirm, stop.
+  Details and action verbs are captured content, not discussion or execution consent.
+  Ambiguous scheduling/targets require a question before any record or pending note.
+- Follow-ups/general work: use relevant IDs, filtered active pages and receipts.
+  Read `docs/inbox-pipeline.md` for advanced updates; SQLite is the only inbox store.
+  Use `daily` for factual history, not task state. See `docs/workflow-helpers.md` as needed.
+
+Follow `docs/item-taxonomy.md`: Schedule owns events, Tasks owns actions, Reminders
+owns due reviews/decisions. Code owns identity, timing and reported progress.
+Showing work never schedules, completes or authorizes it; clear ideas are not nightly questions.
+
+Use selected absolute `SECRETARY_DIR` and `GM_CACHE_DIR`, defaulting respectively
+to `~/.local/share/GoodMorning/secretary` and `~/.cache/goodmorning`. Expand `~`.
+Pass `--secretary-dir`, weather `--profile`, news/weather `--cache-dir`, and calendar
+`--db` as applicable. Keep temporary inputs in the authorized runtime. Never
+initialize records/caches inside the skill or invoking project. Installation
+does not authorize setup, provider access, or mutations.

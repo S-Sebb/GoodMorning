@@ -259,12 +259,8 @@ def run(artifacts):
                 assert any(cookie['domain']=='.language.test' and not cookie['httpOnly'] for cookie in cookies if cookie['name']=='GoodMorningLanguage')
                 plain=context(viewport={'width':320,'height':760},java_script_enabled=False)
                 model_page=plain.new_page();model_page.goto('https://gm.language.test/login')
-                model_page.locator('#prefs-menu > summary').click()
-                model_page.locator('#website-model').select_option('deepseek-flash')
-                with model_page.expect_response('https://gm.language.test/api/model') as switched:
-                    model_page.locator('#model-form').get_by_role('button',name='Apply',exact=True).click()
-                assert switched.value.status==303
-                assert switched.value.headers['location']=='/login'
+                expect(model_page.locator('#website-model')).to_have_count(0)
+                expect(model_page.locator('#model-form')).to_have_count(0)
                 model_page.close()
                 fallback=plain.new_page();fallback.goto('https://gm.language.test/login')
                 fallback.locator('#prefs-menu > summary').click()

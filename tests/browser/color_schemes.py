@@ -119,12 +119,11 @@ def main():
                 prefs(chat); chat.screenshot(path=str(artifacts/'scheme-settings.png'), full_page=True)
                 layout = chat.evaluate("""() => {
                     const box = id => document.getElementById(id).getBoundingClientRect();
-                    const language = box('website-language'), model = box('website-model');
                     const day = box('day-color-scheme'), night = box('night-color-scheme');
-                    return {aligned: language.left === model.left && language.width === model.width,
+                    return {modelRemoved: !document.getElementById('website-model'),
                         paired: day.top === night.top && day.width === night.width};
                 }""")
-                assert layout == {'aligned': True, 'paired': True}, layout
+                assert layout == {'modelRemoved': True, 'paired': True}, layout
                 chat.get_by_role('button', name='Close settings', exact=True).click()
                 expect(chat.locator('#prefs-menu')).not_to_have_attribute('open')
                 prefs(chat); chat.keyboard.press('Escape')

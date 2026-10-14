@@ -1,4 +1,5 @@
 {
+  "No saved appointments for {start} through {end} ({timezone}).": "{start}至{end}（{timezone}）没有已保存的约定。",
   "Question for you": "想问问你",
   "Your permission": "等你授权",
   "Task": "待办",
@@ -148,6 +149,7 @@
   "Activity needs checking. Open it before trying again.": "活动状态需要确认，先打开看看，别急着重复提交。",
   "Activity status is unavailable. Open it to check.": "暂时看不到活动状态，打开确认一下吧。",
   "Model": "模型",
+  "Model selection is automatic from the website language.": "模型根据网站语言自动选择。",
   "Model saved.": "模型设置已保存。",
   "Model could not be saved. Try again.": "模型设置没能保存，再试一次吧。",
   "Apply": "应用",
