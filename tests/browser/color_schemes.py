@@ -298,8 +298,8 @@ def main():
 
                 other = context(390); bob = page_in(other)
                 login(bob, 'sec', 'bob', 'a1bob-temporary'); permanent(bob, 'bob')
-                expect(bob.locator('html')).to_have_attribute('data-day-scheme', 'classic')
-                assert bob.evaluate("fetch('/api/color-schemes').then(response => response.json())") == {'day': 'classic', 'night': 'starry'}
+                expect(bob.locator('html')).to_have_attribute('data-day-scheme', 'morning-sky')
+                assert bob.evaluate("fetch('/api/color-schemes').then(response => response.json())") == {'day': 'morning-sky', 'night': 'starry'}
                 assert not errors, errors
                 browser.close()
             assert all(hashlib.sha256(path.read_bytes()).hexdigest() == digest for path, digest in preserved.items())

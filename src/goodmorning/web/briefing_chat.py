@@ -558,7 +558,8 @@ def page(csrf, ready, connected, secretary_name=None, avatar='f1', avatar_urls=N
     sources = dict(avatar_urls) if avatar_urls else {}
     for entry, filename in AVATAR_FILES.items():
         sources.setdefault(entry, '/' + filename)
-    config = html.escape(json.dumps({'csrf': csrf, 'defaultMode': 'secretary' if ready else 'initialize',
+    config = html.escape(json.dumps({'csrf': csrf, 'workspaceScope': hashlib.sha256(('chat-workspace:' + csrf).encode()).hexdigest(),
+                                    'defaultMode': 'secretary' if ready else 'initialize',
                                     'maxUploadBytes': MAX_UPLOAD_BYTES,
                                     'timezone': timezone,
                                    'connected': connected, 'secretary_name': secretary_name,
@@ -578,13 +579,19 @@ def page(csrf, ready, connected, secretary_name=None, avatar='f1', avatar_urls=N
             '<nav class="edition-switch" aria-label="Your desk"><a class="edition-link" href="/gm.html">Morning</a>'
             '<a class="edition-link" href="/gn.html">Evening</a><a class="edition-link" href="/schedule">Schedule</a><a class="edition-link selected" href="/chat" aria-current="page">Secretary</a></nav></header>'
             '<main class="chat-layout"><aside class="conversation-sidebar">'
-            + avatar_widget(avatar, sources) +
+            '<div class="secretary-identity">' + avatar_widget(avatar, sources) +
             '<p class="eyebrow">Your desk</p>'
             '<h1 id="secretary-heading">' + heading + '</h1><p>A place for your plans, bright ideas, and the details that make this yours.</p>'
-             '<details id="conversation-history" open><summary>Previous conversations</summary><nav id="chat-history" aria-label="Previous conversations"></nav></details>'
-             '<button id="new-conversation" type="button">New conversation</button></aside>'
+             '</div><section id="conversation-history" aria-labelledby="history-heading">'
+             '<header class="history-header"><p class="eyebrow">Your conversations</p><h2 id="history-heading">History conversations</h2></header>'
+             '<nav id="chat-history" aria-label="History conversations"></nav>'
+             '<p id="history-notice" role="status">Loading conversations…</p><button id="history-retry" type="button" hidden>Try again</button></section></aside>'
              '<section class="conversation-panel" id="conversation" aria-label="Secretary conversation">'
-             '<h2 id="conversation-name" class="chat-visually-hidden" data-content>'+conversation_name+'</h2>'
+              '<h2 id="conversation-name" class="chat-visually-hidden" data-content>'+conversation_name+'</h2>'
+              '<header class="chat-topic-header"><div><p class="eyebrow" id="chat-topic-mode"></p><h2 id="chat-topic">New conversation</h2></div>'
+              '<button id="new-conversation" type="button"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg><span>New conversation</span></button></header>'
+              '<p class="chat-topic-hint">Continue this topic, or start a new conversation for something different.</p>'
+              '<p id="chat-resume-notice" role="status" hidden><span>A fresh space after 15 minutes away.</span> <a id="chat-resume" href="/chat">Resume previous conversation</a></p>'
              '<div class="mode-controls"><div class="mode-switch" role="radiogroup" aria-label="Secretary mode">'+choices+'</div>'
              '<button id="mode-help" type="button" aria-label="Which mode should I use?" title="Which mode should I use?" aria-controls="mode-guide" aria-expanded="false"><span aria-hidden="true">?</span></button></div>'
              '<div id="mode-guide" hidden>'
@@ -593,7 +600,8 @@ def page(csrf, ready, connected, secretary_name=None, avatar='f1', avatar_urls=N
               '<p data-mode-guide="todo"' + ('' if ready else ' hidden') + '><strong>To-do</strong> — Capture a task and add details such as a project, deadline or priority when useful. Saving a task records it; it does not automatically start the work.</p>'
               '<p data-mode-guide="eureka"' + ('' if ready else ' hidden') + '><strong>Eureka</strong> — Save an idea, observation or question before it slips away, then develop it through follow-up discussion. Capturing an idea does not automatically research or execute it.</p>'
              '<p>When in doubt, try it—it can do a lot more than you think!</p>'
-             '<p>Write naturally; no commands are needed. Enter sends your message; Shift+Enter adds a new line. Use the paperclip, paste images, or drag files into the composer to attach them. Click an image preview to enlarge it.</p></div>'
+              '<p>Choosing another mode starts a fresh draft. Returning from another website tab resumes your conversation. After 15 minutes away, settled conversations open as a fresh draft; your history is preserved.</p>'
+              '<p>Write naturally; no commands are needed. Enter sends your message; Shift+Enter adds a new line. Use the paperclip, paste images, or drag files into the composer to attach them. Click an image preview to enlarge it.</p></div>'
              '<div id="chat-scroll" role="region" aria-label="Conversation" tabindex="0">'
              '<div id="chat-empty"><span class="desk-symbol" aria-hidden="true">✦</span>'
             '<h2 id="chat-welcome"></h2><p id="chat-hint"></p></div>'

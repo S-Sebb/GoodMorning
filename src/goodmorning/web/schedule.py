@@ -260,7 +260,8 @@ def page(app, offset):
     config = html.escape(json.dumps({'week': offset, 'revision': result['revision'], 'checked': result['checked'], 'ready': bool(zone)}), quote=True)
     source = ('<!doctype html><html lang="en" data-edition="' + theme + '"><head><meta charset="utf-8">'
               '<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>Schedule — GoodMorning</title>'
-              + favicon_links('secretary') + '<link rel="stylesheet" href="/briefing.css"><link rel="stylesheet" href="/schedule.css"></head><body class="schedule-page">'
+              + favicon_links('secretary') + '<link rel="stylesheet" href="/briefing.css"><link rel="stylesheet" href="/schedule.css">'
+              '<link rel="stylesheet" href="/scroll-rails.css"><script src="/scroll-rails.js" defer></script></head><body class="schedule-page">'
               '<a class="skip-link" href="#schedule-view">Skip to schedule</a><header class="masthead"><a class="wordmark" href="/gm.html">GoodMorning<span>A little space to think, plan, and begin.</span></a>'
               '<nav class="edition-switch" aria-label="Your desk"><a class="edition-link" href="/gm.html">Morning</a><a class="edition-link" href="/gn.html">Evening</a>'
               '<a class="edition-link selected" href="/schedule" aria-current="page">Schedule</a><a class="edition-link" href="/chat">Secretary</a></nav></header>'
