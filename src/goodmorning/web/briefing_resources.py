@@ -89,6 +89,7 @@ class Resources:
                      'color-schemes.js': 'text/javascript', 'color-schemes.css': 'text/css',
                    'update.js': 'text/javascript', 'update.css': 'text/css',
                    'avatar.js': 'text/javascript', 'avatar.css': 'text/css',
+                   'maintenance.css': 'text/css',
                  'fonts/OFL.txt': 'text/plain', 'desk-secretary.png': 'image/png',
                  'desk-secretary-f2.png': 'image/png', 'desk-secretary-m1.png': 'image/png',
                  'desk-secretary-m2.png': 'image/png', **ICON_TYPES}

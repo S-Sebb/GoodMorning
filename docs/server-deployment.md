@@ -18,7 +18,16 @@ deployment needed it.
   with the archive so the server runs the reviewed copy.
 - Server Python: `/opt/goodmorning/python/bin/python` with `-B`.
 - Private data lives under `/srv/goodmorning/live` on encrypted mounts.
-  Deployment never writes there except for the protected deployment report.
+  Deployment writes there only for the protected deployment report and the
+  deployment pause flag (`maintenance` metadata key). No other private writes.
+- Deployment pause: the gateway flag that stops all new website work during a
+  deploy. Set with the SSH-only admin CLI; the gateway serves a cute bilingual
+  503 maintenance page (`assets/web/maintenance.html`) with `Retry-After: 60`
+  for every page (including pre-login) and 503 JSON for APIs. Static assets
+  (`/maintenance.css`, `/desk-secretary.png`, `/icons/gm.svg`, fingerprinted
+  `/assets/...`) and `/api/release` still serve. `POST /api/auth/logout` still
+  works; every other POST returns the maintenance JSON. The queue pump still
+  reconciles finished work but never dispatches new queued work while paused.
 
 ## 1. Preconditions (local checkout)
 
@@ -31,6 +40,42 @@ deployment needed it.
    `tests/browser/*.py` suites with private artifact directories.
 4. Commit and push to `origin/main`. Record the commit hash.
    The deployed archive must be built from the pushed HEAD.
+5. Confirm the live website is not already paused by someone else:
+   `sudo /opt/goodmorning/python/bin/python -B /opt/goodmorning/current/scripts/goodmorning.py admin --account-mount /srv/goodmorning/live/accounts pause-status`
+   must report live. A paused website means another deploy or incident is in
+   progress; stop and ask the owner before proceeding.
+
+## 1b. Pause the website before staging
+
+Pause before building the archive, so no new work can slip in after the idle
+checks. All pause commands are SSH-only and require root:
+
+```sh
+sudo /opt/goodmorning/python/bin/python -B /opt/goodmorning/current/scripts/goodmorning.py admin \
+  --account-mount /srv/goodmorning/live/accounts pause --reason "deploy <RELEASE-NAME>" --by "<your-name>"
+sudo /opt/goodmorning/python/bin/python -B /opt/goodmorning/current/scripts/goodmorning.py admin \
+  --account-mount /srv/goodmorning/live/accounts pause-status
+```
+
+While paused, browsers see the cute maintenance page (English + Simplified
+Chinese, emoticon `(＾▽＾)`, desk-secretary image) with HTTP 503,
+`Retry-After: 60`, `Cache-Control: no-store`. APIs return 503 maintenance JSON
+with the same `Retry-After`. No login, generation, chat message, reply,
+recovery, upload, or password change can take a reservation or join the queue;
+the background pump only reconciles finished work and never dispatches new
+work. Sign-out still works.
+
+Wait for in-flight work to settle, then verify idle exactly as the helper does:
+no `generation` reservation, no `generation_queue` entries, no
+`generation_waiting` entries, no active sessions, no pending questions or
+permissions. Uncertain reservations still need explicit owner authorization
+before clearing; never silently drop them. Keep the pause enabled through the
+entire deploy and post-verify; resume only after Section 4 passes:
+
+```sh
+sudo /opt/goodmorning/python/bin/python -B /opt/goodmorning/current/scripts/goodmorning.py admin \
+  --account-mount /srv/goodmorning/live/accounts resume
+```
 
 ## Patch note procedure
 
@@ -100,7 +145,9 @@ The helper then, in order:
 1. Extracts to the new release dir, verifies every file hash, and runs the
    candidate's full Python suite plus Node suite. Any failure aborts before
    touching live state.
-2. Checks the live account DB schema, confirms no `generation` reservation, queued requests or suspended input,
+2. Verifies the deployment pause flag (`maintenance` metadata) is enabled and
+   refuses to proceed when it is missing. Then checks the live account DB
+   schema, confirms no `generation` reservation, queued requests or suspended input,
    parses every account profile and saved native edition, and confirms all
    engines are idle (no active sessions, no pending questions/permissions).
    An enabled login without a registered backend is left untouched only if its
@@ -117,10 +164,14 @@ The helper then, in order:
    `current` symlink (never overwrites a release), reloads systemd, and starts
    gateway, account engines, and viewers. For attachments, update only the existing
    `client_max_body_size` directive from `20k` to the candidate's `50m`, preserving
-   other production NGINX settings. Validate with `nginx -t`, then reload NGINX.
-   The reviewed helper must include this guarded update and restore the original
+   other production NGINX settings. Apply the candidate's deployment-pause NGINX
+   locations (`= /maintenance.html` internal with `no-store` + `Retry-After 60`,
+   `= /maintenance.css`, `= /desk-secretary.png`, `= /icons/gm.svg` with
+   `public, no-cache`) from `deploy/nginx-goodmorning.conf`, preserving all other
+   production settings. Validate with `nginx -t`, then reload NGINX.
+   The reviewed helper must include these guarded updates and restore the original
    config on rollback; merely shipping `deploy/nginx-goodmorning.conf` does not
-   change the live upload ceiling.
+   change the live upload ceiling or the pause fallback.
    For the single-host migration, the reviewed helper must also remove
    `gn.love765.me` and `sec.love765.me` from the production NGINX server names,
    preserving other settings and restoring the original config on rollback.
@@ -133,7 +184,9 @@ The helper then, in order:
    GoodMorning renewal-hook path; back up and restore the old hook on rollback.
 6. Waits until every viewer answers `/chat` and the `gm.love765.me` HTTPS login serves,
    re-verifies idle state, passwords, languages, hashes, active services, and
-   that each engine's working directory is the new release. Clears the ticket.
+   that each engine's working directory is the new release. Confirms the pause
+   flag is still enabled. Clears the deployment `generation` ticket but never
+   clears the pause flag: the website stays paused after a successful switch.
 7. Writes the protected report to
    `/srv/goodmorning/live/accounts/<RELEASE-NAME>-deployment.json` (mode
    `0600`) and prints a JSON summary. Record `verifiedPublicFiles`,
@@ -141,30 +194,57 @@ The helper then, in order:
    `nginxUploadCeiling`.
 
 On any error the helper stops services, restores the symlink to the previous
-release, restores unit files and any changed NGINX config, restarts, clears the ticket, and re-raises.
+release, restores unit files and any changed NGINX config, restarts, keeps the
+pause flag enabled, clears the ticket, and re-raises.
 A manual rollback is the same sequence; never hand-edit the symlink.
 
 ## 4. Post-deploy verification
 
-1. `tests/browser/login.py --artifacts <PRIVATE_DIR>`: `gm.love765.me`, both
+1. While still paused, confirm the pause is visible: `curl -k -i https://gm.love765.me/`
+   returns `503` with `Retry-After: 60` and `Cache-Control: no-store`, and the
+   body contains the bilingual maintenance page (`maintenance-status`,
+   `Please come back later`, `请稍后再来`, `(＾▽＾)`). Confirm
+   `/maintenance.css`, `/desk-secretary.png`, and `/icons/gm.svg` return `200`.
+   Stop the gateway socket briefly only if the owner explicitly authorizes an
+   NGINX-fallback drill; NGINX must then serve the same static
+   `/maintenance.html` with `no-store` + `Retry-After: 60`.
+2. `tests/browser/login.py --artifacts <PRIVATE_DIR>`: `gm.love765.me`, both
    languages, 390/768/1440 px, secure host-only cookies, 401 on private APIs,
    native no-JavaScript redirects. No logins, no passwords.
    Confirm Morning, Evening and Secretary share the same host and login, and
    that retired hosts no longer serve the app. “Open activity” must navigate the
    current tab to the exact chat or edition without opening another browser tab.
-2. Per account via the engine bridge (read-only): profile readiness, engine
+3. Per account via the engine bridge (read-only): profile readiness, engine
    session titles, no `generation` reservation, all services active.
-3. Confirm the previous release directory is intact under
+4. Confirm the previous release directory is intact under
    `/opt/goodmorning/releases`.
+5. Only after steps 1–4 pass, resume the website with the SSH-only admin CLI
+   and confirm it is live again:
+
+   ```sh
+   sudo /opt/goodmorning/python/bin/python -B /opt/goodmorning/current/scripts/goodmorning.py admin \
+     --account-mount /srv/goodmorning/live/accounts resume
+   sudo /opt/goodmorning/python/bin/python -B /opt/goodmorning/current/scripts/goodmorning.py admin \
+     --account-mount /srv/goodmorning/live/accounts pause-status
+   ```
+
+   `pause-status` must report live. If any verification fails, keep the pause
+   enabled and roll back; never resume into a broken release.
 
 ## Hard rules
 
 - Never overwrite a release directory; never delete a previous release.
 - Never restart vault services for a code deploy.
+- Never deploy without the pause flag enabled. Pause before staging, keep it
+  enabled through the switch and post-verify, and resume only after Section 4
+  passes. The helper must refuse to run without the flag and must never clear
+  it, on success or rollback.
 - Deploy only with zero active sessions, zero pending questions/permissions,
   no `generation` reservation, and no queued requests. A stuck reservation from another account's
   broken chat must be explicitly owner-authorized before clearing, and its
-  cause recorded, never silently dropped.
+  cause recorded, never silently dropped. Never prune, dispatch, or discard
+  queued work to make the pause or the deploy proceed; wait for normal work to
+  finish.
 - Never display passwords, tokens, or `.env` contents; never log private text.
 - Live account maintenance (edition resets, chat cleanup) is separate from
   deployment and needs its own explicit authorization plus an encrypted

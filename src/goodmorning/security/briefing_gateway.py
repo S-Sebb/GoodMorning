@@ -29,6 +29,7 @@ from goodmorning.web.chat_uploads import MAX_UPLOAD_BYTES, UPLOAD_ROUTE, IMAGE_R
 from goodmorning.web.avatar_images import AVATAR_UPLOAD_PATH, MAX_AVATAR_BYTES
 from goodmorning.web.activity import ACTIVITY_PATH, panel as activity_panel
 from goodmorning.web.generation_clock import REQUESTED_AT
+from . import maintenance as deploy_pause
 
 ASSETS = WEB_ASSETS
 POLICY = "default-src 'none'; style-src 'self'; script-src 'self'; img-src 'self'; font-src 'self'; connect-src 'self'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'"
@@ -140,6 +141,17 @@ class Gateway:
         with self.accounts.db() as db:
             row=db.execute('SELECT value FROM metadata WHERE key=?',('generation',)).fetchone()
             return json.loads(row[0]) if row else None
+
+    def paused(self):
+        """True while the deploy pause flag is enabled. Reads only."""
+        return deploy_pause.is_paused(self.accounts)
+
+    def pause_state(self):
+        return deploy_pause.get_state(self.accounts)
+
+    def check_paused(self):
+        if self.paused():
+            raise deploy_pause.MaintenancePaused(deploy_pause.MESSAGE_EN)
 
     def activity(self, identifier):
         # Read only: never reconcile reservations, prune queues or dispatch work.
@@ -289,6 +301,7 @@ class Gateway:
 
     def _reserve_or_queue(self, kind, candidate, path, body, language, enqueued=None):
         """Atomically take the active slot or join the bounded global waiting line."""
+        self.check_paused()
         entry = {'kind': kind, 'candidate': candidate, 'user': candidate['user'], 'host': candidate['host'],
                  'path': path, 'body': body, 'language': language, 'enqueued': time.time() if enqueued is None else enqueued}
         with self.accounts.db() as db:
@@ -355,6 +368,8 @@ class Gateway:
     def pump_queue(self):
         """Advance the global waiting line while the active slot is free."""
         self.reconcile_ticket()
+        if self.paused():
+            return
         for _ in range(MAX_QUEUE + 1):
             with self.accounts.db() as db:
                 db.execute('BEGIN IMMEDIATE')
@@ -416,6 +431,7 @@ class Gateway:
         return 202, {'Content-Type': 'application/json'}, json.dumps(payload).encode()
 
     def chat_message(self, identifier, host, path, raw, headers):
+        self.check_paused()
         from goodmorning.web.briefing_chat import identifier as chat_id, message, MODES
         body = json.loads(raw)
         if path == '/api/chats':
@@ -476,6 +492,7 @@ class Gateway:
         return status, upstream, data
 
     def generate(self,identifier,host,raw,headers, *, regenerate=False):
+        self.check_paused()
         requested_at = time.time()
         body=json.loads(raw)
         expected = {'date', 'kind', 'id', 'previous'} if regenerate else {'date', 'kind'}
@@ -528,6 +545,7 @@ class Gateway:
         return status,upstream,data
 
     def input_reply(self, identifier, host, path, raw, headers):
+        self.check_paused()
         match = re.fullmatch(r'/api/(jobs|chats)/([a-f0-9]{32})/(form|permission)/([A-Za-z0-9_]+)/reply', path)
         collection, target, category, request = match.groups()
         key = 'job' if collection == 'jobs' else 'chat'
@@ -561,6 +579,7 @@ class Gateway:
         return status, upstream, data
 
     def recover(self, identifier, host, path, raw, headers):
+        self.check_paused()
         body = json.loads(raw)
         if set(body) != {'id'} or not isinstance(body['id'], str) or not re.fullmatch('[a-f0-9]{32}', body['id']):
             raise ValueError('Invalid recovery request')
@@ -669,7 +688,7 @@ def handler_for(gateway):
             super().setup()
             self.connection.settimeout(25)
 
-        def respond(self,data,status=200,mime='application/json',*,token=None,cookie_age=SESSION_SECONDS,location=None,cache='no-store',etag=None,language_cookie=None,color_cookie=None,resource=None):
+        def respond(self,data,status=200,mime='application/json',*,token=None,cookie_age=SESSION_SECONDS,location=None,cache='no-store',etag=None,language_cookie=None,color_cookie=None,resource=None,retry_after=None):
             if not isinstance(data,bytes):
                 if isinstance(data,dict) and isinstance(data.get('error'),str):data={**data,'error':ui.text(data['error'])}
                 data=json.dumps(data,separators=(',',':')).encode()
@@ -690,6 +709,8 @@ def handler_for(gateway):
             self.send_header('Referrer-Policy','same-origin' if mime.startswith('text/html') else 'no-referrer')
             self.send_header('Permissions-Policy','camera=(), microphone=(), geolocation=()')
             self.send_header('Strict-Transport-Security','max-age=31536000')
+            if retry_after is not None:
+                self.send_header('Retry-After',str(int(retry_after)))
             if encoded:
                 self.send_header('Content-Encoding','gzip')
             if location:
@@ -774,6 +795,14 @@ def handler_for(gateway):
             data = gateway.icons.rewrite(ui.page(source,session['csrf'],path)).encode()
             return self.respond(data,503,'text/html; charset=utf-8')
 
+        def maintenance_html(self):
+            return self.respond(deploy_pause.html_page(),503,'text/html; charset=utf-8',
+                                cache='no-store',retry_after=deploy_pause.RETRY_AFTER_SECONDS)
+
+        def maintenance_json(self):
+            return self.respond(deploy_pause.json_error(),503,
+                                cache='no-store',retry_after=deploy_pause.RETRY_AFTER_SECONDS)
+
         def do_HEAD(self):
             self.do_GET()
 
@@ -795,6 +824,10 @@ def handler_for(gateway):
                     cached=any(value.strip().removeprefix('W/') in (tag,'*') for value in self.headers.get('If-None-Match','').split(','))
                     return self.respond(b'' if cached else resource.data,304 if cached else 200,resource.mime,
                                         cache='public, max-age=31536000, immutable' if path in gateway.icons.paths else 'public, no-cache',etag=tag,resource=resource)
+                if gateway.paused():
+                    if path.startswith('/api/'):
+                        return self.maintenance_json()
+                    return self.maintenance_html()
                 try:
                     session=self.session(host)
                 except Denied:
@@ -856,6 +889,11 @@ def handler_for(gateway):
                 return self.respond({'error':'Forbidden'},403)
             except BackendPending:
                 return self.unavailable(session,host,pending=True)
+            except deploy_pause.MaintenancePaused:
+                path=urlsplit(self.path).path
+                if path.startswith('/api/'):
+                    return self.maintenance_json()
+                return self.maintenance_html()
             except Exception as error:
                 # Exception text can contain credentials, private paths or response bodies.
                 logging.getLogger(__name__).warning('Secretary read failed (%s)',type(error).__name__)
@@ -867,6 +905,9 @@ def handler_for(gateway):
                 self.select_language()
                 if self.headers.get('Origin')!='https://'+host or self.headers.get('Sec-Fetch-Site','same-origin')!='same-origin':
                     raise Denied('Forbidden')
+                path=urlsplit(self.path).path
+                if gateway.paused() and path != '/api/auth/logout':
+                    return self.maintenance_json()
                 session=self.session(host)
                 self.select_language(session)
                 path=urlsplit(self.path).path
@@ -967,6 +1008,8 @@ def handler_for(gateway):
                 return self.respond({'error':str(error)},403)
             except BackendPending:
                 return self.respond({'error':BACKEND_PENDING},503)
+            except deploy_pause.MaintenancePaused:
+                return self.maintenance_json()
             except (ValueError,KeyError,TypeError):
                 route=urlsplit(self.path).path
                 error='Invalid upload' if UPLOAD_ROUTE.fullmatch(route) else 'Invalid release version' if route=='/api/release/seen' else 'Choose English or Simplified Chinese' if route=='/api/language' else 'Choose one of the offered website models' if route=='/api/model' else 'Choose one of the offered color schemes' if route=='/api/color-schemes' else 'Invalid request. '+PASSWORD_RULE

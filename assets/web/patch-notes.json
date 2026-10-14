@@ -1,6 +1,21 @@
 {
   "notes": [
     {
+      "version": "0.41.0", "date": "2026-10-14", "author": "GoodMorning agent",
+      "title_en": "Deployment pause with cute maintenance page", "title_zh": "部署暂停，配上可爱维护页",
+      "changes": [
+        {"category": "Added", "en": [
+          "Deployment pause stops all new website work and shows a cute bilingual maintenance page with Retry-After; sign-out still works.",
+          "SSH-only pause, resume, and pause-status commands plus NGINX fallback so the maintenance page still shows while the gateway is stopped.",
+          "Deploy runbook now pauses before staging, verifies the flag in the helper, and resumes only after post-deploy verification."
+        ], "zh": [
+          "部署暂停会停止所有新的网站操作，并显示可爱的双语维护页（含 Retry-After）；仍可正常退出登录。",
+          "新增仅限 SSH 的暂停、恢复与状态查询命令，并加上 NGINX 兜底，网关停止时也能显示维护页。",
+          "部署手册改为先暂停再打包，在部署助手中校验暂停标记，且只在部署后验证通过后才恢复。"
+        ]}
+      ]
+    },
+    {
       "version": "0.40.0", "date": "2026-10-14", "author": "GoodMorning agent",
       "title_en": "Custom schedules for flexible habits", "title_zh": "灵活习惯的自定义安排",
       "changes": [
