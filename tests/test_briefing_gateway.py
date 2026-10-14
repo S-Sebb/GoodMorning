@@ -779,6 +779,27 @@ class GatewayTests(unittest.TestCase):
         self.assertEqual(self.request('/chat')[0],302)
         self.assertLessEqual(self.gateway.html_cache.size,8*1024*1024)
 
+    def test_chat_workspace_namespace_is_public_and_changes_between_logins(self):
+        import hashlib
+        self.permanent()
+        backend_scope='a'*64
+        source='<body><div data-config="{&quot;workspaceScope&quot;: &quot;'+backend_scope+'&quot;}"></div></body>'
+        self.gateway.proxy=lambda user,*args:(200,{'Content-Type':'text/html'},source.encode())
+        def namespace():
+            status,headers,content=self.request('/chat')
+            self.assertEqual(status,200)
+            self.assertEqual(headers['Cache-Control'],'no-store')
+            return re.search(rb'workspaceScope&quot;:\s*&quot;([a-f0-9]{64})',content)[1].decode()
+        first=namespace()
+        self.assertEqual(first,hashlib.sha256(('chat-workspace:'+self.csrf).encode()).hexdigest())
+        self.assertNotIn(first,(backend_scope,self.csrf,self.cookie.split('=',1)[1]))
+        self.assertEqual(namespace(),first)
+        self.request('/api/auth/logout',{})
+        anonymous,_=self.store.anonymous('gm.example.test')
+        token,csrf,_=self.store.login('alice','permanent-alice-secret1','gm.example.test','192.0.2.2',self.store.session(anonymous,'gm.example.test'))
+        self.cookie=COOKIE+'='+token;self.csrf=csrf
+        self.assertNotEqual(namespace(),first)
+
     def test_unsupported_chat_mode_does_not_reserve_or_dispatch(self):
         self.permanent()
         count=len(self.received)

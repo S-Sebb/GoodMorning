@@ -1,22 +1,18 @@
 .scroll-rail { display: none; }
 @media (max-width: 700px) {
-  .scroll-rail { --rail-color: var(--ink); display: block; position: fixed; z-index: 32; width: 24px; opacity: 0; pointer-events: none; touch-action: none; user-select: none; -webkit-user-select: none; transition: opacity .2s ease; }
+  html { scrollbar-width: thin; scrollbar-color: var(--muted) var(--bg); }
+  .scroll-rail { --rail-color: var(--muted); display: block; position: fixed; z-index: 32; width: 24px; opacity: .4; pointer-events: none; touch-action: none; user-select: none; -webkit-user-select: none; transition: opacity .2s ease; }
   .scroll-rail[hidden] { display: none; }
   .scroll-rail.is-active, .scroll-rail.is-dragging, .scroll-rail:focus-visible { opacity: 1; pointer-events: auto; }
   .scroll-rail--messages { --rail-color: var(--accent); }
-  .scroll-rail-track { position: absolute; top: 0; bottom: 0; left: 10px; width: 4px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); opacity: .8; }
-  .scroll-rail-thumb { position: absolute; top: 0; left: 8px; width: 8px; border: 1px solid var(--surface); border-radius: 999px; background: var(--rail-color); box-shadow: 0 1px 4px #0002; }
-  .scroll-rail--page .scroll-rail-thumb { left: 9px; width: 6px; }
-  .scroll-rail--messages .scroll-rail-thumb::after { content: ""; position: absolute; top: 50%; left: 1px; right: 1px; height: 5px; transform: translateY(-50%); border-block: 1px solid var(--surface); opacity: .8; }
-  .scroll-rail-label { position: absolute; right: 20px; top: 50%; transform: translateY(-50%); max-width: 180px; padding: 4px 9px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); color: var(--ink); box-shadow: 0 2px 8px #0001; font: 11px/1.5 ui-sans-serif, system-ui, sans-serif; white-space: nowrap; pointer-events: none; }
-  .scroll-rail--messages .scroll-rail-label { border-color: var(--accent); }
-  .scroll-rail.is-dragging .scroll-rail-thumb { box-shadow: 0 0 0 3px var(--wash); }
+  .scroll-rail-track { position: absolute; top: 0; bottom: 0; left: 17px; width: 2px; border-radius: 999px; background: var(--line); }
+  .scroll-rail-thumb { position: absolute; top: 0; left: 15px; width: 5px; border-radius: 999px; background: var(--rail-color); }
   .scroll-rail:focus-visible { outline: 2px solid var(--rail-color); outline-offset: 1px; border-radius: 999px; }
   .scroll-rails-ready { scrollbar-width: none; }
   .scroll-rails-ready::-webkit-scrollbar { width: 0; }
-  .scroll-rails-ready #chat-scroll { scrollbar-width: none; scrollbar-gutter: auto; padding-right: 34px; }
+  .scroll-rails-ready #chat-scroll { scrollbar-width: none; scrollbar-gutter: auto; padding-right: 24px; }
   .scroll-rails-ready #chat-scroll::-webkit-scrollbar { width: 0; }
-  .scroll-rails-ready #chat-empty { margin-right: -24px; }
+  .scroll-rails-ready #chat-empty { margin-right: -14px; }
   html:has(dialog[open]) .scroll-rail, html:has(.toolbar-row details[open]) .scroll-rail { opacity: 0; pointer-events: none; }
 }
 @media (prefers-reduced-motion: reduce) { .scroll-rail { transition: none; } }

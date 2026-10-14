@@ -1,5 +1,16 @@
 # Focused validation
 
+`python tests/browser/chat_history.py /ABS/PRIVATE/PATH` checks tab-scoped secretary
+restoration, the 15-minute idle-only absence reset, Resume, draft navigation warnings,
+login namespace changes, outages, stale references and independent tabs. It also
+checks readable always-open history at desktop/tablet/phone widths and writes
+full-page previews of the selected Inset design outside the checkout.
+`chat_mobile_viewport.py` checks composer access and reading/draft preservation
+with simulated keyboards. These checks make no paid model calls.
+`python tests/browser/scroll_rails.py /ABS/PRIVATE/PATH` checks simple, label-free
+phone scrollbars on all four tabs, independent page/message dragging, keyboard
+control, localization and draft preservation.
+
 Run `python -m unittest discover -s tests -p 'test_*.py' -q` and
 `node --test tests/test_projects.mjs` before a release. These checks use isolated
 synthetic records. Keep distinct behavior, failure recovery, data preservation,

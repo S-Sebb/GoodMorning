@@ -61,20 +61,22 @@ def check_chat(browser, address, artifacts, width, height):
     page.clock.run_for(1500)
     outer = page.get_by_role('scrollbar', name='Scroll page', exact=True)
     inner = page.get_by_role('scrollbar', name='Scroll messages', exact=True)
-    expect(outer).to_have_css('opacity', '0')
-    expect(inner).to_have_css('opacity', '0')
+    expect(outer).to_have_css('opacity', '0.4')
+    expect(inner).to_have_css('opacity', '0.4')
     assert inner.evaluate('node => getComputedStyle(node).pointerEvents') == 'none'
     client = page.context.new_cdp_session(page)
     scroll = page.locator('#chat-scroll')
     scroll.evaluate('node => node.scrollTop = 400')
     expect(inner).to_have_css('opacity', '1')
-    expect(outer).to_have_css('opacity', '1')
-    expect(inner.locator('.scroll-rail-label')).to_contain_text('Messages')
+    expect(outer).to_have_css('opacity', '0.4')
+    expect(page.locator('.scroll-rail-label')).to_have_count(0)
     bounds = [rail.bounding_box() for rail in (inner, outer)]
     assert bounds[0]['x'] + bounds[0]['width'] <= bounds[1]['x'], bounds
     for rail in (inner, outer):
         assert rail.bounding_box()['width'] >= 24
-        assert rail.locator('.scroll-rail-thumb').bounding_box()['height'] >= 44
+        grip = rail.locator('.scroll-rail-thumb').bounding_box()
+        assert grip['height'] >= 43.99, {'rail': rail.bounding_box(), 'thumb': grip, 'scope': rail.get_attribute('data-scroll-scope')}
+        assert rail.locator('.scroll-rail-thumb').bounding_box()['width'] <= 5
         expect(rail).to_have_css('touch-action', 'none')
         expect(rail).to_have_css('transition-duration', '0s')
 
@@ -84,7 +86,7 @@ def check_chat(browser, address, artifacts, width, height):
     assert page.evaluate('nearLatest()')
     assert page.evaluate('scrollY') == page_top
     expect(inner).to_have_attribute('aria-valuenow', '100')
-    expect(inner.locator('.scroll-rail-label')).to_have_text('Messages · Latest')
+    expect(inner).to_have_attribute('aria-valuetext', '100%')
     expect(text).to_be_focused()
     drag_rail(page, client, inner, False)
     assert scroll.evaluate('node => node.scrollTop') == 0
@@ -148,7 +150,7 @@ def check_chat(browser, address, artifacts, width, height):
     outer = page.get_by_role('scrollbar', name='滚动页面', exact=True)
     expect(inner).to_have_attribute('aria-label', '滚动消息')
     expect(outer).to_have_attribute('aria-label', '滚动页面')
-    expect(outer.locator('.scroll-rail-label')).to_have_text('页面 · 底部')
+    expect(outer).to_have_attribute('aria-valuetext', '100%')
 
     # Growing or clearing the history updates scrollability without stale handles.
     status['messages'] = []
@@ -193,6 +195,17 @@ def check_briefing(browser, address, artifacts):
     expect(page).to_have_url(address + '/gm.html#section-1')
     page.goto(address + '/d/' + briefing_day('Europe/London') + '/gn.html')
     expect(page.get_by_role('scrollbar')).to_have_count(1)
+    expect(page.locator('.scroll-rail-label')).to_have_count(0)
+    for path, name in (('/gm.html', 'morning'), ('/gn.html', 'evening'), ('/schedule', 'schedule')):
+        page.goto(address + path)
+        page.evaluate('document.fonts.ready')
+        expect(page.get_by_role('scrollbar')).to_have_count(1)
+        expect(page.locator('.scroll-rail-label')).to_have_count(0)
+        page.evaluate('window.scrollTo(0, 100)')
+        expect(page.get_by_role('scrollbar')).to_have_css('opacity', '1')
+        assert not page.evaluate('document.documentElement.scrollWidth > innerWidth')
+        page.screenshot(path=str(artifacts / f'{name}-phone.png'))
+        page.screenshot(path=str(artifacts / f'{name}-phone-full.png'), full_page=True)
     assert not errors, errors
     page.close()
 
@@ -225,7 +238,7 @@ def main():
         finally:
             server.terminate()
             server.communicate(timeout=5)
-    report = {'modelCalls': 0, 'checks': checks, 'briefingReuse': True, 'savedRecordsUnchanged': True}
+    report = {'modelCalls': 0, 'checks': checks, 'allFourTabs': True, 'visibleLabels': False, 'thumbWidth': 5, 'savedRecordsUnchanged': True}
     (artifacts / 'result.json').write_text(json.dumps(report, indent=2))
     print(json.dumps(report))
 

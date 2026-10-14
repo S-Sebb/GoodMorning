@@ -840,6 +840,9 @@ def handler_for(gateway):
                     # Replace backend-wide CSRF with the authenticated session's CSRF.
                     text=data.decode()
                     text=re.sub(r'(&quot;csrf&quot;:\s*&quot;)[A-Za-z0-9_-]{43}(&quot;)',r'\g<1>'+session['csrf']+r'\g<2>',text)
+                    # A public, non-authorizing namespace changes with every login.
+                    scope=hashlib.sha256(('chat-workspace:'+session['csrf']).encode()).hexdigest()
+                    text=re.sub(r'(&quot;workspaceScope&quot;:\s*&quot;)[a-f0-9]{64}(&quot;)',r'\g<1>'+scope+r'\g<2>',text)
                     controls='<nav class="account-tools" aria-label="Account"><a href="/password">Change password</a><button id="sign-out" data-csrf="'+session['csrf']+'">Sign out</button></nav><script src="/auth.js" defer></script>'
                     data=text.replace('</body>',controls+'</body>').encode()
                     data=gateway.icons.rewrite(ui.page(activity_panel(data.decode(),gateway.hosts),session['csrf'],self.path)).encode()

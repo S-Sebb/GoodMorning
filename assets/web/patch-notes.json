@@ -1,6 +1,33 @@
 {
   "notes": [
     {
+      "version": "0.37.0", "date": "2026-10-14", "author": "GoodMorning agent",
+      "title_en": "Clearer secretary history and calmer phone scrolling", "title_zh": "秘书历史对话更清晰，手机滚动更清爽",
+      "changes": [
+        {"category": "Changed", "en": [
+          "Replace Previous conversations with an always-open History conversations panel using inset cards, readable titles and mode subtitles, and a Current marker. Make New conversation a prominent filled button with a plus icon.",
+          "Resume the active conversation when returning from another website tab. After 15 minutes away, settled chats open a fresh draft with a Resume previous conversation link; working chats, unanswered requests, uncertain connections and unsent input stay active. No reset cancels work or deletes history.",
+          "Keep the phone message bar and Send button visible on arrival without scrolling. Compact navigation and keyboard-aware controls leave more room for conversation; history stays expanded below the chat.",
+          "Use slim, label-free phone scrollbars on Morning, Evening, Schedule and Secretary. Remove reading-blocking text bubbles, brighten only the scroller in use, and retain independent dragging, keyboard controls and accessible names."
+        ], "zh": [
+          "将原有历史对话下拉框改为始终展开的历史对话面板，采用内嵌卡片、清晰的标题与模式说明，并标记当前对话。新建对话改为带加号的醒目实心按钮。",
+          "从网站其他标签页返回时继续当前对话。离开满 15 分钟后，已结束的对话会让位于新草稿，并提供继续上一段对话链接；仍在处理、等待回答、连接状态不明或有未发送内容的对话保持打开。不会取消工作或删除历史。",
+          "进入手机秘书页即可看到消息输入栏和发送按钮，无需先滚动。紧凑导航与适应键盘的控件为对话留出更多空间，历史对话仍在聊天框下方展开。",
+          "早报、晚报、日程和秘书页统一使用纤细、无文字标签的手机滚动条。移除遮挡阅读的提示气泡，只突出正在使用的滚动区域，并保留独立拖动、键盘操作与无障碍名称。"
+        ]},
+        {"category": "Security", "en": [
+          "Scope conversation restoration to the current browser tab and authenticated login. Store only references and minimal state, never private messages, titles, drafts, attachments or question answers; warn before leaving unsent input."
+        ], "zh": [
+          "对话恢复仅限当前浏览器标签页和已登录会话。只保存对话引用与最少状态，不保存私密消息、标题、草稿、附件或问题答案；离开未发送内容前提供提醒。"
+        ]},
+        {"category": "Tests", "en": [
+          "Verify navigation, idle-only resets, login isolation, outages, draft preservation, responsive layouts, contrast and simple phone scrollbars with synthetic records and no model calls. Full unit tests and focused browser suites pass."
+        ], "zh": [
+          "使用合成记录且不调用模型，验证导航、仅限已结束对话的重置、登录隔离、连接故障、草稿保护、响应式布局、对比度及简洁手机滚动条。全部单元测试与专项浏览器测试通过。"
+        ]}
+      ]
+    },
+    {
       "version": "0.36.0", "date": "2026-10-13", "author": "GoodMorning agent",
       "title_en": "Morning Sky and First Light", "title_zh": "晨空与曙光主题",
       "changes": [

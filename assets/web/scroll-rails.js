@@ -22,25 +22,18 @@
     track.className = 'scroll-rail-track';
     const thumb = document.createElement('span');
     thumb.className = 'scroll-rail-thumb';
-    const label = document.createElement('span');
-    label.className = 'scroll-rail-label';
     track.setAttribute('aria-hidden', 'true');
     thumb.setAttribute('aria-hidden', 'true');
-    label.setAttribute('aria-hidden', 'true');
-    thumb.append(label);
     rail.append(track, thumb);
     rail.hidden = true;
     document.body.append(rail);
-    const control = {scope, target, rail, thumb, label, drag: null, timer: null, travel: 0, maximum: 0};
+    const control = {scope, target, rail, thumb, drag: null, timer: null, travel: 0, maximum: 0};
     controls.push(control);
 
     function reveal() {
-      // Keep the other scope within reach, so readers can switch without an edge swipe.
-      for (const current of controls) {
-        current.rail.classList.add('is-active');
-        clearTimeout(current.timer);
-        current.timer = setTimeout(() => { if (!current.drag) current.rail.classList.remove('is-active'); }, 1400);
-      }
+      rail.classList.add('is-active');
+      clearTimeout(control.timer);
+      control.timer = setTimeout(() => { if (!control.drag) rail.classList.remove('is-active'); }, 1400);
     }
     function scroll(top) {
       const scroller = scope === 'page' ? window : target;
@@ -94,7 +87,7 @@
     const left = viewport?.offsetLeft || 0;
     const width = viewport?.width || innerWidth;
     for (const control of controls) {
-      const {scope, target, rail, thumb, label} = control;
+      const {scope, target, rail, thumb} = control;
       const page = scope === 'page';
       const visible = page ? height : target.clientHeight;
       const content = page ? root.scrollHeight : target.scrollHeight;
@@ -118,13 +111,9 @@
       const percent = Math.round(fraction * 100);
       thumb.style.height = `${thumbHeight}px`;
       thumb.style.transform = `translateY(${fraction * control.travel}px)`;
-      const name = translate(page ? 'Page' : 'Messages');
-      const position = percent === 0 ? translate(page ? 'Top' : 'Start')
-        : percent === 100 ? translate(page ? 'Bottom' : 'Latest') : `${percent}%`;
-      label.textContent = `${name} · ${position}`;
       rail.setAttribute('aria-label', translate(page ? 'Scroll page' : 'Scroll messages'));
       rail.setAttribute('aria-valuenow', String(percent));
-      rail.setAttribute('aria-valuetext', `${name} · ${position}`);
+      rail.setAttribute('aria-valuetext', `${percent}%`);
     }
   }
   function schedule() {

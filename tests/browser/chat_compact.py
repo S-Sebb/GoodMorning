@@ -1,4 +1,4 @@
-"""Compact chat layout, centered welcome, private history preference and readable avatar note."""
+"""Compact chat layout, centered welcome, always-open history and readable avatar note."""
 import json
 from pathlib import Path
 import subprocess
@@ -36,10 +36,9 @@ def check_compact(browser, address, artifacts):
         expect(clip.locator('svg')).to_have_count(1)
         assert clip.text_content()==''
         assert clip.evaluate("node => node.parentElement.classList.contains('chat-input-row') && node===node.parentElement.firstElementChild")
-        if width>700:
-            expect(page.locator('#conversation-history')).to_have_attribute('open', '')
-        else:
-            expect(page.locator('#conversation-history')).not_to_have_attribute('open')
+        expect(page.locator('#conversation-history')).to_be_visible()
+        expect(page.locator('#conversation-history summary')).to_have_count(0)
+        expect(page.locator('#history-heading')).to_have_text('History conversations')
         expect(page.locator('.chat-room-header')).to_have_count(0)
         expect(page.locator('#conversation-name')).to_have_css('clip', 'rect(0px, 0px, 0px, 0px)')
         page.evaluate('document.fonts.ready')
@@ -61,7 +60,7 @@ def check_compact(browser, address, artifacts):
             }''')
             assert abs(geometry['headingOffset']) <= 1 and abs(geometry['hintOffset']) <= 1, geometry
             assert abs(geometry['verticalOffset']) <= 2, geometry
-            assert geometry['controlsTop'] <= 28 and geometry['scrollOverflow'] <= 1, geometry
+            assert geometry['controlsTop'] <= 190 and geometry['scrollOverflow'] <= 1, geometry
             expect(page.locator('#mode-guide')).to_be_hidden()
             page.get_by_role('button', name='Which mode should I use?', exact=True).click()
             expect(page.locator('#mode-guide')).to_be_visible()
@@ -106,28 +105,14 @@ def check_compact(browser, address, artifacts):
                 assert 100<aligned['panelTop']<300 and abs(aligned['avatarTop']-aligned['panelTop'])<1, aligned
                 assert aligned['panelBottom']<=1000 and aligned['composerBottom']<=1000, aligned
                 assert 350<=aligned['scrollHeight']<=700, aligned
-                assert aligned['histClient']<=241 and aligned['histScroll']>aligned['histClient'], aligned
+                assert aligned['histClient']>100 and aligned['histScroll']>aligned['histClient'], aligned
                 page.screenshot(path=str(artifacts/f'desktop-bottom-{edition}-{scheme}-{width}.png'))
             checks.append({'width':width,'edition':edition,'scheme':scheme, **geometry, 'avatarNoteContrast':round(contrast(colors['ink'],colors['paper']),2)})
         history = page.locator('#conversation-history')
-        summary = history.locator('summary')
-        if width>700:
-            expect(history).to_have_attribute('open', '')
-            summary.click()
-            expect(history).not_to_have_attribute('open')
-        else:
-            # Small screens start collapsed so the chat is in view.
-            expect(history).not_to_have_attribute('open')
-            summary.click()
-            expect(history).to_have_attribute('open', '')
-            summary.click()
-            expect(history).not_to_have_attribute('open')
-        page.wait_for_function("() => localStorage.getItem('goodmorning.chat.history') === 'closed'")
-        page.reload(); expect(history).not_to_have_attribute('open')
-        summary.click()
-        page.wait_for_function("() => localStorage.getItem('goodmorning.chat.history') === 'open'")
-        page.reload(); expect(history).to_have_attribute('open','')
-        assert page.evaluate("JSON.stringify(Object.keys(localStorage)) === '[\"goodmorning.chat.history\"]' && sessionStorage.length === 0")
+        page.evaluate("localStorage.setItem('goodmorning.chat.history', 'closed')")
+        page.reload(); expect(history).to_be_visible()
+        expect(history.locator('summary')).to_have_count(0)
+        assert page.evaluate("Object.values(sessionStorage).every(raw => !raw.includes('Synthetic saved task') && !raw.includes('Keep this draft'))")
         assert not errors, errors
         page.evaluate("secretaryName='Aurora';applySecretaryName()")
         expect(page.locator('#secretary-heading')).to_have_text('Aurora')
@@ -146,9 +131,9 @@ def check_compact(browser, address, artifacts):
     page = browser.new_page(viewport={'width':390,'height':1000})
     page.add_init_script("Object.defineProperty(window, 'localStorage', {get() { throw new Error('Synthetic disabled storage'); }});")
     page.goto(address+'/chat?mode=secretary')
-    expect(page.locator('#conversation-history')).not_to_have_attribute('open')
-    page.locator('#conversation-history summary').click()
-    expect(page.locator('#conversation-history')).to_have_attribute('open', '')
+    expect(page.locator('#conversation-history')).to_be_visible()
+    expect(page.locator('#conversation-history summary')).to_have_count(0)
+    expect(page.locator('#chat-send')).to_be_in_viewport()
     page.close()
     return checks
 
@@ -166,7 +151,7 @@ def main():
                 browser.close()
         finally:
             server.terminate();server.communicate(timeout=5)
-    report={'modelCalls':0,'checks':checks,'historyDefaultOpen':True,'historyChoiceRestored':True,'storageDisabledWorks':True}
+    report={'modelCalls':0,'checks':checks,'historyAlwaysOpen':True,'oldCollapsePreferenceIgnored':True,'storageDisabledWorks':True}
     (artifacts/'result.json').write_text(json.dumps(report,indent=2))
     print(json.dumps(report))
 

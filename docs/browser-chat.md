@@ -214,10 +214,35 @@ assistant reply portraits. The welcome panel disappears immediately on Send, inc
 before the first agent message. Sending, queued or working status remains visible
 instead. A rejected first send restores the welcome panel and preserves the draft;
 starting a new conversation shows the welcome panel again.
-Previous conversations starts expanded on desktop and collapsed on small
-screens so the chat stays in view. Its open/closed choice is remembered on
-this browser using only a non-private UI preference; no conversation content or
-IDs are stored there. If browser storage is unavailable, the dropdown still works.
+History conversations is an always-open companion panel, beside the chat on
+desktop and below it on phones. Titles wrap naturally with readable mode subtitles
+and an explicit Current marker. The old collapse preference is ignored.
+The history list uses an inset paper surface and separated metadata; New
+conversation is a prominent, filled button with a plus icon.
+On phones, the compact identity and navigation leave room for the chat and composer on arrival;
+no initial page scroll is required to reach Send. History scrolls separately.
+When a phone keyboard reduces the visible screen, mode controls and topic guidance
+temporarily give their space to the messages and composer; they return on dismissal.
+All four website tabs use slim, label-free phone scroll indicators. They stay faintly
+visible at the edge, brighten only for the scroller being used, and never show text
+over the reading area. Message scrolling keeps its own reserved gutter. Dragging,
+keyboard control and screen-reader names remain available; desktop scrolling is unchanged.
+
+The current tab remembers only a conversation reference, an absence timestamp,
+a draft-present flag and an optional resume reference in session storage. A public,
+non-authorizing namespace derived from the authenticated login's CSRF value keeps
+accounts and login sessions separate; standalone viewers use their own runtime
+instance namespace. No private message, title, draft, attachment or question answer
+enters browser storage. Direct conversation and mode links override restoration.
+Storage being blocked leaves ordinary URL-based conversation selection available.
+
+Returning from Morning, Evening or Schedule resumes the selected chat. After 15
+minutes continuously away from Secretary (website navigation or a hidden browser
+tab), a confirmed idle conversation opens as a fresh draft with a Resume previous
+conversation link. Working, queued, waiting, uncertain and unavailable chats do
+not reset. Unsent input prevents automatic reset and prompts before leaving the
+page. Time spent reading Secretary does not count as absence. New conversation
+clears restoration explicitly. No visual reset cancels an agent or deletes history.
 
 The page shows visible user/assistant text and user-facing question forms, never
 reasoning or internal tool output.

@@ -124,11 +124,13 @@ def check_mobile(browser, address, artifacts, width, height):
         # Capture only the simulated visible screen, not the area behind the keyboard.
         page.screenshot(path=str(artifacts / f'mobile-{width}-{visible_height}-{top}.png'),
                         clip={'x': 0, 'y': top, 'width': width, 'height': visible_height})
-        assert abs(geometry['panel']['height'] - visible_height) < 1, geometry
+        panel_top = page.locator('#conversation').evaluate('node => node.getBoundingClientRect().top + scrollY')
+        minimum = 280 if page.locator('#conversation').evaluate("node => node.classList.contains('is-keyboard-open')") else 240
+        assert abs(geometry['panel']['height'] - max(minimum, visible_height - panel_top - 12)) < 1, geometry
         assert geometry['composer']['bottom'] <= top + visible_height, geometry
         assert geometry['composer']['top'] >= top, geometry
         assert geometry['layoutHeight'] == height, 'Simulation resized the layout instead of the visual viewport'
-        assert geometry['pageHeight'] == baseline['pageHeight'], geometry
+        assert abs(geometry['pageHeight'] - baseline['pageHeight']) <= max(0, minimum - (visible_height - panel_top - 12)) + 1, geometry
         if follow:
             assert page.evaluate('nearLatest()'), 'Viewport resize lost the latest reply'
         else:
@@ -161,7 +163,7 @@ def check_mobile(browser, address, artifacts, width, height):
     assert page.evaluate('scrollY') == 0, 'Viewport handler hijacked ordinary page scrolling'
     keyboard_viewport(page, height)
     keyboard_viewport(page, height / 2, scale=2)
-    assert abs(page.locator('#conversation').bounding_box()['height'] - height) < 1, 'Pinch zoom stretched the panel'
+    assert abs(page.locator('#conversation').bounding_box()['height'] - baseline['panel']['height']) < 1, 'Pinch zoom stretched the panel'
     keyboard_viewport(page, height)
 
     # Also cover browsers that resize the layout when the keyboard opens.
@@ -169,7 +171,8 @@ def check_mobile(browser, address, artifacts, width, height):
     page.set_viewport_size({'width': width, 'height': height - 300})
     settle(page)
     geometry = page.evaluate(GEOMETRY)
-    assert abs(geometry['panel']['height'] - (height - 300)) < 1, geometry
+    panel_top = page.locator('#conversation').evaluate('node => node.getBoundingClientRect().top + scrollY')
+    assert abs(geometry['panel']['height'] - max(280, height - 300 - panel_top - 12)) < 1, geometry
     assert geometry['composer']['bottom'] <= height - 300, geometry
     page.set_viewport_size({'width': 1440, 'height': 900})
     settle(page)
@@ -198,10 +201,10 @@ def check_without_visual_viewport(browser, address):
     text = page.get_by_label('Your message', exact=True)
     text.fill('\n'.join(f'Line {index}' for index in range(8)))
     expect(text).to_have_css('height', '120px')
-    assert page.locator('#conversation').bounding_box()['height'] == 844
+    expect(page.locator('#chat-send')).to_be_in_viewport()
     page.set_viewport_size({'width': 390, 'height': 400})
     expect(text).to_have_css('height', '100px')
-    assert page.locator('#conversation').bounding_box()['height'] == 400
+    expect(page.locator('#chat-send')).to_be_in_viewport()
     assert not errors, errors
     page.close()
 
