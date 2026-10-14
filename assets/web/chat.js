@@ -1,4 +1,4 @@
-// Conversation IDs live in the URL. Private text never enters browser storage.
+// Tab-scoped workspace references supplement the URL. Private text never enters browser storage.
 const chatConfig = JSON.parse(document.querySelector('#chat-config').dataset.config);
 const chatT = (key, values) => typeof goodmorningT === 'function' ? goodmorningT(key, values) : key;
 const modes = {
@@ -17,22 +17,32 @@ const chatScroll = document.querySelector('#chat-scroll');
 const latestButton = document.querySelector('#chat-latest');
 const chatLayout = document.querySelector('.chat-layout');
 const conversationPanel = document.querySelector('#conversation');
-const chatViewport = window.visualViewport;
+const chatViewport = window.visualViewport || {get width() { return innerWidth; }, get height() { return innerHeight; }, offsetTop: 0, scale: 1};
 let viewportFrame;
 let viewportSignature;
+let mobileLayoutWidth = innerWidth;
+let mobileLayoutHeight = innerHeight;
 
 function resizeChatViewport() {
   cancelAnimationFrame(viewportFrame);
   viewportFrame = requestAnimationFrame(() => {
     const mobile = matchMedia('(max-width: 700px)').matches;
-    const signature = [mobile, innerHeight, chatViewport.width, chatViewport.height,
+    if (mobileLayoutWidth !== innerWidth) { mobileLayoutWidth = innerWidth; mobileLayoutHeight = innerHeight; }
+    mobileLayoutHeight = Math.max(mobileLayoutHeight, innerHeight);
+    const panelTop = conversationPanel.getBoundingClientRect().top + window.scrollY;
+    const keyboardOpen = mobile && document.activeElement === textBox
+      && (innerHeight - chatViewport.height > 100 || mobileLayoutHeight - innerHeight > 100);
+    const signature = [mobile, keyboardOpen, panelTop, innerHeight, chatViewport.width, chatViewport.height,
       chatViewport.offsetTop, chatViewport.scale].join(':');
     // Page scrolling must not resize the panel or pull readers back to the input.
     if (signature === viewportSignature) return;
     viewportSignature = signature;
-    if (!mobile || chatViewport.scale !== 1) {
+    if (mobile && chatViewport.scale !== 1) return;
+    if (!mobile) {
+      conversationPanel.classList.remove('is-keyboard-open');
       chatLayout.style.removeProperty('--chat-viewport-height');
       chatLayout.style.removeProperty('--chat-keyboard-inset');
+      chatLayout.style.removeProperty('--chat-panel-height');
       resizeComposer(undefined, false);
       updateScrollTools();
       return;
@@ -41,7 +51,9 @@ function resizeChatViewport() {
     const followDraft = textBox.scrollHeight - textBox.scrollTop - textBox.clientHeight < 1;
     const previousTop = chatScroll.scrollTop;
     const previousHeight = conversationPanel.offsetHeight;
+    conversationPanel.classList.toggle('is-keyboard-open', keyboardOpen);
     chatLayout.style.setProperty('--chat-viewport-height', `${chatViewport.height}px`);
+    chatLayout.style.setProperty('--chat-panel-height', `${Math.max(keyboardOpen ? 280 : 240, chatViewport.height - panelTop - 12)}px`);
     // Keep the page's scroll range when only the visual viewport shrinks.
     chatLayout.style.setProperty('--chat-keyboard-inset', `${Math.max(0, innerHeight - chatViewport.height)}px`);
     if (previousHeight !== conversationPanel.offsetHeight) resizeComposer(undefined, follow, followDraft);
@@ -59,10 +71,12 @@ function resizeChatViewport() {
   });
 }
 
-if (chatViewport) {
-  chatViewport.addEventListener('resize', resizeChatViewport);
-  chatViewport.addEventListener('scroll', resizeChatViewport);
+{
+  window.visualViewport?.addEventListener('resize', resizeChatViewport);
+  window.visualViewport?.addEventListener('scroll', resizeChatViewport);
   window.addEventListener('resize', resizeChatViewport);
+  const headerObserver = new ResizeObserver(resizeChatViewport);
+  document.querySelectorAll('.masthead, .toolbar-row, .secretary-identity').forEach(node => headerObserver.observe(node));
 }
 
 function resizeComposer(event, follow = nearLatest(), followDraft = false) {
@@ -78,6 +92,8 @@ function resizeComposer(event, follow = nearLatest(), followDraft = false) {
   if (follow && previousHeight !== textBox.offsetHeight) scrollToLatest();
 }
 textBox.addEventListener('input', resizeComposer);
+textBox.addEventListener('focus', resizeChatViewport);
+textBox.addEventListener('blur', resizeChatViewport);
 window.addEventListener('resize', resizeComposer);
 document.addEventListener('scrollrails:layout', resizeComposer);
 let attachments = [];
@@ -102,6 +118,89 @@ let revision = 0;
 let requestLanguage = null;
 let secretaryName = typeof chatConfig.secretary_name === 'string' && chatConfig.secretary_name ? chatConfig.secretary_name : null;
 const drafts = new Map();
+const conversationTitles = new Map();
+const workspaceKey = /^[a-f0-9]{64}$/.test(chatConfig.workspaceScope || '')
+  ? 'goodmorning.chat.workspace.' + chatConfig.workspaceScope : null;
+const awayLimit = 15 * 60 * 1000;
+let restoringWorkspace = false;
+let workspace = readWorkspace();
+
+function validChat(id) { return typeof id === 'string' && /^[a-f0-9]{32}$/.test(id); }
+
+function readWorkspace() {
+  try {
+    const saved = workspaceKey && JSON.parse(sessionStorage.getItem(workspaceKey));
+    if (!saved || (saved.chat !== null && !validChat(saved.chat))) return {};
+    return {chat: saved.chat, resume: validChat(saved.resume) ? saved.resume : null,
+      away: Number.isFinite(saved.away) && saved.away > 0 && saved.away <= Date.now() ? saved.away : null,
+      draft: saved.draft === true};
+  } catch { return {}; }
+}
+
+function hasUnsentInput() {
+  return Boolean(textBox.value.trim() || attachments.length || sending || pendingChatMutations
+    || [...drafts.values()].some(draft => draft.text.trim() || draft.attachments.length)
+    || [...document.querySelectorAll('#chat-questions input, #chat-questions textarea, #chat-questions select')]
+      .some(input => input.type === 'checkbox' || input.type === 'radio' ? input.checked : input.value.trim()));
+}
+
+function rememberWorkspace(away = null, resume = workspace.resume || null) {
+  workspace = {chat: validChat(chat) ? chat : null, resume, away, draft: hasUnsentInput()};
+  try { if (workspaceKey) sessionStorage.setItem(workspaceKey, JSON.stringify(workspace)); } catch { /* URL navigation still works. */ }
+}
+
+function leaveSecretary() {
+  // visibilitychange and pagehide can both fire; keep the beginning of the absence.
+  rememberWorkspace(workspace.away || Date.now());
+}
+
+function showTopic() {
+  document.querySelector('#chat-topic').textContent = conversationTitles.get(chat) || chatT(chat ? 'Conversation' : 'New conversation');
+  document.querySelector('#chat-topic-mode').textContent = chatT(mode === 'todo' ? 'To-do' : mode[0].toUpperCase() + mode.slice(1));
+  const resume = !chat && validChat(workspace.resume);
+  document.querySelector('#chat-resume-notice').hidden = !resume;
+  if (resume) document.querySelector('#chat-resume').href = '/chat?id=' + workspace.resume;
+}
+
+async function restoreWorkspace(initial = false) {
+  if (restoringWorkspace) return;
+  if (initial && (new URLSearchParams(location.search).has('id') || Object.hasOwn(modes, requestedMode))) {
+    rememberWorkspace(null, null); showTopic(); return;
+  }
+  const saved = workspace;
+  const candidate = chat || saved.chat;
+  if (!validChat(candidate)) { showTopic(); return; }
+  restoringWorkspace = true; conversationPanel.setAttribute('aria-busy', 'true'); composeState();
+  const version = revision;
+  try {
+    if (saved.away && Date.now() - saved.away >= awayLimit && !saved.draft && !hasUnsentInput()) {
+      // Only a fresh, read-only account-scoped status can authorize a visual reset.
+      const status = await chatAPI(`/api/chats/${candidate}/status`);
+      if (version !== revision || document.hidden) return;
+      if (status.state === 'idle' && !(status.forms || []).length && !(status.permissions || []).length) {
+        newConversation(chatConfig.defaultMode, {resume: candidate});
+        return;
+      }
+    }
+    if (version !== revision) return;
+    if (!chat) openConversation(candidate, {push: false});
+    rememberWorkspace(document.hidden ? saved.away : null);
+    showTopic();
+  } catch {
+    // Missing/queued recovery and connection errors belong to the existing poller.
+    if (version === revision && !chat) openConversation(candidate, {push: false});
+    if (version === revision) rememberWorkspace(document.hidden ? saved.away : null);
+  } finally {
+    restoringWorkspace = false; conversationPanel.setAttribute('aria-busy', 'false'); composeState();
+  }
+}
+
+window.addEventListener('pagehide', leaveSecretary);
+window.addEventListener('beforeunload', event => {
+  if (!hasUnsentInput()) return;
+  event.preventDefault(); event.returnValue = '';
+});
+window.addEventListener('pageshow', event => { if (event.persisted) returnToSecretary(); });
 const renderedMessages = new WeakMap();
 const specialLabels = {question: 'Question for you', answer: 'Your answer', permission: 'Your permission'};
 const actionTargets = {task: 'Task', event: 'Event', draft: 'Event draft', idea: 'Idea', record: 'Record'};
@@ -169,21 +268,6 @@ function specialForm(info, category, reply, refreshed, language, replay, existin
   enterMessage(form, !replay && !previous);
   return form;
 }
-const historyPanel = document.querySelector('#conversation-history');
-const historyPreference = 'goodmorning.chat.history';
-let historyStored = null;
-try { historyStored = localStorage.getItem(historyPreference); } catch { /* Storage may be disabled. */ }
-// Small screens start with history collapsed so the chat is in view;
-// an explicit open/closed choice is always respected.
-historyPanel.open = historyStored !== null
-  ? historyStored !== 'closed'
-  : !matchMedia('(max-width: 700px)').matches;
-let historyOpen = historyPanel.open;
-historyPanel.addEventListener('toggle', () => {
-  if (historyPanel.open === historyOpen) return;
-  historyOpen = historyPanel.open;
-  try { localStorage.setItem(historyPreference, historyOpen ? 'open' : 'closed'); } catch { /* Keep the in-page choice. */ }
-});
 const modeHelp = document.querySelector('#mode-help');
 const modeGuide = document.querySelector('#mode-guide');
 modeHelp.addEventListener('click', () => {
@@ -274,7 +358,7 @@ function composeState() {
   const changed = composer.classList.contains('is-initializing') !== initializing;
   composer.classList.toggle('is-initializing', initializing);
   const blocked = chat && ['waiting', 'uncertain', 'unavailable'].includes(state);
-  sendButton.disabled = sending || !chatConfig.connected || blocked;
+  sendButton.disabled = sending || restoringWorkspace || !chatConfig.connected || blocked;
   textBox.disabled = initializing || sending || blocked;
   fileInput.disabled = attachButton.disabled = initializing || sendButton.disabled;
   document.querySelectorAll('#chat-attachments .attachment-remove').forEach(button => { button.disabled = sendButton.disabled; });
@@ -465,6 +549,7 @@ function clearQueued() {
 }
 
 function showMode() {
+  showTopic();
   document.querySelector('#conversation-name').textContent = secretaryName || chatT('Your secretary');
   document.querySelectorAll('[data-mode]').forEach(button => {
     const selected = button.dataset.mode === mode;
@@ -482,13 +567,14 @@ function draftKey() {
   return chat ? 'id:' + chat : mode;
 }
 
-function newConversation(next = chatConfig.defaultMode) {
+function newConversation(next = chatConfig.defaultMode, {resume = null} = {}) {
   drafts.set(draftKey(), {text: textBox.value, attachments});
   clearTimeout(timer); revision++;
   clearTimeout(titleTimer); titleRetries = 0;
   chat = null; state = null; sending = false; mode = next; requestLanguage = null;
+  rememberWorkspace(null, resume);
   history.replaceState(null, '', '/chat');
-  document.querySelectorAll('#chat-history [aria-current]').forEach(link => link.removeAttribute('aria-current'));
+  markCurrentHistoryLink(null);
   formSignature = ''; messageSignature = ''; animateMessages = false;
   followNextUpdate = true;
   document.querySelector('#chat-messages').replaceChildren();
@@ -524,10 +610,13 @@ document.querySelectorAll('[data-mode]').forEach(button => {
 document.querySelector('#new-conversation').addEventListener('click', () => newConversation());
 
 function markCurrentHistoryLink(id) {
-  document.querySelectorAll('#chat-history [aria-current]').forEach(link => link.removeAttribute('aria-current'));
-  if (!id) return;
-  const current = document.querySelector(`#chat-history a[href="/chat?id=${id}"]`);
-  if (current) current.setAttribute('aria-current', 'page');
+  document.querySelectorAll('#chat-history a').forEach(link => {
+    const selected = new URL(link.href).searchParams.get('id') === id;
+    if (selected) link.setAttribute('aria-current', 'page');
+    else link.removeAttribute('aria-current');
+    const badge = link.querySelector('.history-current');
+    if (badge) badge.hidden = !selected;
+  });
 }
 
 function openConversation(id, {push = true} = {}) {
@@ -539,6 +628,8 @@ function openConversation(id, {push = true} = {}) {
   clearTimeout(timer); revision++;
   clearTimeout(titleTimer); titleRetries = 0;
   chat = id; state = 'starting'; sending = false; requestLanguage = null;
+  rememberWorkspace(null, null);
+  showTopic();
   if (push) history.pushState(null, '', '/chat?id=' + id);
   else history.replaceState(null, '', '/chat?id=' + id);
   markCurrentHistoryLink(id);
@@ -563,7 +654,7 @@ function openConversation(id, {push = true} = {}) {
   pollChat();
 }
 
-document.querySelector('#chat-history').addEventListener('click', event => {
+function historyClick(event) {
   if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
   const link = event.target.closest('a[href]');
   if (!link) return;
@@ -575,7 +666,9 @@ document.querySelector('#chat-history').addEventListener('click', event => {
   if (!id) return;
   event.preventDefault();
   openConversation(id);
-});
+}
+document.querySelector('#chat-history').addEventListener('click', historyClick);
+document.querySelector('#chat-resume').addEventListener('click', historyClick);
 
 window.addEventListener('popstate', () => {
   const id = new URLSearchParams(location.search).get('id');
@@ -609,6 +702,22 @@ document.addEventListener('keydown', event => {
 });
 
 async function historyList() {
+  try {
+    await fetchHistoryList();
+    const notice = document.querySelector('#history-notice');
+    notice.hidden = document.querySelector('#chat-history').children.length > 0;
+    notice.textContent = chatT('Your conversations will appear here.');
+    document.querySelector('#history-retry').hidden = true;
+  } catch (error) {
+    const notice = document.querySelector('#history-notice');
+    notice.hidden = false; notice.textContent = chatT('Conversation history is temporarily unavailable. Your current chat is preserved.');
+    document.querySelector('#history-retry').hidden = false;
+    throw error;
+  }
+}
+document.querySelector('#history-retry').addEventListener('click', () => historyList().catch(() => {}));
+
+async function fetchHistoryList() {
   clearTimeout(titleTimer);
   const result = await chatAPI('/api/chats');
   chatConfig.defaultMode = result.defaultMode;
@@ -628,12 +737,18 @@ async function historyList() {
   const detailsTop = historyDetails ? historyDetails.scrollTop : 0;
   const pageTop = window.scrollY;
   historyNav.replaceChildren(...result.chats.map(item => {
-    const link = make('a', item.title); link.href = '/chat?id=' + item.id;
+    conversationTitles.set(item.id, item.title);
+    const link = make('a'); link.href = '/chat?id=' + item.id;
+    link.append(make('span', item.title, 'history-title'));
     const label=item.mode === 'todo' ? 'To-do' : item.mode[0].toUpperCase() + item.mode.slice(1);
-    const badge=make('small',chatT(label));badge.dataset.uiText=label;link.append(badge);
+    const meta = make('span', '', 'history-meta');
+    const badge=make('small',chatT(label));badge.dataset.uiText=label;
+    const current = make('small', chatT('Current'), 'history-current'); current.dataset.uiText = 'Current'; current.hidden = item.id !== chat;
+    meta.append(badge, current); link.append(meta);
     if (item.id === chat) link.setAttribute('aria-current', 'page');
     return link;
   }));
+  showTopic();
   if (historyNav.scrollTop !== historyTop) historyNav.scrollTop = historyTop;
   if (historyDetails && historyDetails.scrollTop !== detailsTop) historyDetails.scrollTop = detailsTop;
   if (window.scrollY !== pageTop) window.scrollTo({left: window.scrollX, top: pageTop, behavior: 'instant'});
@@ -900,6 +1015,7 @@ document.querySelector('#chat-compose').addEventListener('submit', async event =
     resizeComposer();
     followNextUpdate = true;
     attachments = []; showAttachments();
+    rememberWorkspace(null, null);
     history.replaceState(null, '', '/chat?id=' + chat);
     if (result && result.queued) {
       state = 'queued';
@@ -924,14 +1040,20 @@ document.querySelector('#chat-compose').addEventListener('submit', async event =
 });
 
 function pollVisible() {
-  if (!chat) return;
+  if (!chat || restoringWorkspace) return;
   (state === 'queued' ? pollQueue() : pollChat());
 }
 
 document.addEventListener('visibilitychange', () => {
-  if (document.hidden) { clearTimeout(timer); clearTimeout(themeTimer); }
-  else { scheduleChatTheme(); pollVisible(); focusComposer(); }
+  if (document.hidden) { leaveSecretary(); clearTimeout(timer); clearTimeout(themeTimer); }
+  else returnToSecretary();
 });
+async function returnToSecretary() {
+  if (document.hidden || restoringWorkspace) return;
+  scheduleChatTheme();
+  await restoreWorkspace();
+  pollVisible(); focusComposer();
+}
 document.addEventListener('website:language', () => {
   document.querySelectorAll('.chat-special-label[data-target]').forEach(badge => {
     const target = chatT(actionTargets[badge.dataset.target] || 'Record');
@@ -947,17 +1069,21 @@ document.addEventListener('website:language', () => {
   document.querySelectorAll('.attachment-preview').forEach(button => {
     button.setAttribute('aria-label', chatT('Enlarge {name}', {name: button.querySelector('img').alt}));
   });
-  showMode(); showAttachments(); pollVisible();
+  showMode(); showAttachments(); pollVisible(); historyList().catch(() => {});
 });
 document.addEventListener('website:before-refresh', event => { if (sending || pendingChatMutations) event.preventDefault(); });
 document.addEventListener('website:refresh-drafts', event => {
   if (attachments.length || [...drafts.values()].some(draft => draft.text.trim() || draft.attachments.length)) event.preventDefault();
 });
-window.addEventListener('focus', () => { scheduleChatTheme(); pollVisible(); focusComposer(); });
+window.addEventListener('focus', returnToSecretary);
 scheduleChatTheme();
 resizeComposer();
 if (chatViewport) resizeChatViewport();
 showMode();
 focusComposer();
-historyList().catch(error => { errorBox.textContent = error.message; });
-if (chat) pollChat();
+async function startWorkspace() {
+  await restoreWorkspace(true);
+  historyList().catch(() => {});
+  if (chat) pollVisible();
+}
+startWorkspace();

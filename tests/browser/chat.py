@@ -330,7 +330,7 @@ def check_uploads(browser, address, artifacts):
             expect(page.get_by_role('alert')).to_have_text('Files must be 50 MB or smaller.')
             expect(page.locator('#chat-attachments .attachment-chip')).to_have_count(0)
         assert not errors, errors
-        assert page.evaluate('localStorage.length === 0 && sessionStorage.length === 0')
+        assert page.evaluate("localStorage.length === 0 && Object.values(sessionStorage).every(raw => Object.keys(JSON.parse(raw)).sort().join(',') === 'away,chat,draft,resume')")
         checks.append({'width': width, 'fileOnlySend': True, 'followUp': True, 'refresh': True,
                        'draftRemoval': True, 'rejectedUploadDoesNotDispatch': True,
                        'dragDrop': width == 1440, 'overflow': False, 'pageErrors': 0})
@@ -455,7 +455,7 @@ def check_question_history(browser, address, artifacts):
         roles = page.locator('.chat-message').evaluate_all('nodes => nodes.map(node => node.className)')
         assert 'question' in roles[-3] and 'answer' in roles[-2], roles
         page.screenshot(path=str(artifacts / f'question-history-{width}.png'), full_page=True)
-        assert page.evaluate('localStorage.length === 0 && sessionStorage.length === 0')
+        assert page.evaluate("localStorage.length === 0 && Object.values(sessionStorage).every(raw => Object.keys(JSON.parse(raw)).sort().join(',') === 'away,chat,draft,resume')")
         assert not errors, errors
         checks.append({'width': width, 'answer': 'selected' if answer == 'London' else 'typed',
                        'questionSaved': True, 'answerSaved': True, 'refresh': True, 'pageErrors': 0})
@@ -585,7 +585,8 @@ def check_autogrow(browser, address, artifacts):
             assert original['y']+original['height']<=height+1,original
         else:
             assert abs(original['y']-0)<1,original
-            assert abs(original['height']-height)<1,original
+            panel_top = panel.evaluate('node => node.getBoundingClientRect().top + scrollY')
+            assert abs(original['height']-max(240,height-panel_top-12))<1,original
         for lines in range(1,9):
             text.fill('\n'.join('Line '+str(index) for index in range(lines)))
             expect(text).to_have_css('height',str(24*min(lines,5))+'px')
@@ -604,7 +605,7 @@ def check_autogrow(browser, address, artifacts):
         expect(text).to_have_value('Line one\nLine two');expect(text).to_have_css('height','48px')
         text.fill('word '*20)
         page.set_viewport_size({'width':320,'height':568});expect(text).to_have_css('height','120px')
-        page.set_viewport_size({'width':1440,'height':900});expect(text).to_have_css('height','24px')
+        page.set_viewport_size({'width':1440,'height':900});expect(text).to_have_css('height','48px')
         expect(text).to_have_value('word '*20)
         text.fill('Reply line one\nReply line two')
         page.get_by_role('button',name='Start conversation',exact=True).click()
@@ -723,17 +724,14 @@ def main():
                     modes.get_by_role('radio', name='Secretary', exact=True).focus()
                     page.keyboard.press('ArrowRight')
                     expect(modes.get_by_role('radio', name='To-do', exact=True)).to_be_focused()
-                    if width>700:
-                        expect(page.locator('#conversation-history')).to_have_attribute('open', '')
-                        expect(page.locator('#chat-history a').first).to_be_visible()
-                    else:
-                        expect(page.locator('#conversation-history')).not_to_have_attribute('open', '')
-                        assert page.locator('#chat-history a').count() > 0
-                    assert page.evaluate('localStorage.length === 0 && sessionStorage.length === 0')
+                    expect(page.locator('#conversation-history')).to_be_visible()
+                    expect(page.locator('#conversation-history summary')).to_have_count(0)
+                    assert page.locator('#chat-history a').count() > 0
+                    assert page.evaluate("localStorage.length === 0 && Object.values(sessionStorage).every(raw => !raw.includes('Synthetic idea'))")
                     assert not errors, errors
                     assert not page.evaluate('document.documentElement.scrollWidth > innerWidth')
                     results.append({'width': width, 'overflow': False, 'pageErrors': 0, 'refresh': 'same conversation',
-                                    'modeSwitch': 'pass', 'keyboard': 'pass', 'privateBrowserStorage': 'unused'})
+                                    'modeSwitch': 'pass', 'keyboard': 'pass', 'privateBrowserStorage': 'references only'})
                     page.close()
                 browser.close()
             assert (root / 'preserved-record.txt').read_text() == 'Preserved synthetic evidence'
