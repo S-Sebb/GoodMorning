@@ -58,7 +58,7 @@ The message says what state the website is in:
 |---|---|---|
 | Preflight, build or stage | Live, unchanged | Fix the cause. A failed stage leaves an unused release directory; a new commit gets a new name. |
 | Switch: not idle in time | Resumed, unchanged | Retry later. A reservation that never clears needs the owner's explicit authorization and a recorded cause before anyone clears it. |
-| Switch: any other error | Paused; previous release restored | Inspect the helper output, then resume or retry with the owner. |
+| Switch: any other error | Paused; previous release restored | Read `/srv/goodmorning/live/accounts/<NAME>-switch-error.txt`, then resume or retry with the owner. |
 | Paused checks | Paused; new release live | Inspect, then resume or roll back. |
 | Public login check | Paused again; new release live | Inspect, then resume or roll back. |
 

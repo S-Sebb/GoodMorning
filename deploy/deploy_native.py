@@ -17,6 +17,7 @@ import subprocess
 import sys
 import tarfile
 import time
+import traceback
 from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 
@@ -403,7 +404,14 @@ def main(argv):
     if argv[:1] == ['stage'] and len(argv) == 3:
         stage(Path(argv[1]), argv[2])
     elif argv[:1] == ['switch'] and len(argv) == 2:
-        switch(argv[1])
+        try:
+            switch(argv[1])
+        except Exception:
+            # The caller's session may not survive to read stderr; keep the cause privately.
+            error = ACCOUNTS/f'{argv[1]}-switch-error.txt'
+            error.write_text(traceback.format_exc())
+            error.chmod(0o600)
+            raise
     else:
         raise SystemExit(__doc__)
 
