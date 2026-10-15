@@ -1,6 +1,33 @@
 {
   "notes": [
     {
+      "version": "0.42.1", "date": "2026-10-15", "author": "GoodMorning agent",
+      "title_en": "Secretary queue recovery", "title_zh": "秘书队列恢复",
+      "changes": [
+        {"category": "Notes", "en": [
+          "We are sorry that secretary requests could wait indefinitely or repeatedly appear queued. Thank you for reporting the problem."
+        ], "zh": [
+          "很抱歉，秘书请求有时会一直等待，或反复显示为排队中。感谢你反馈这个问题。"
+        ]},
+        {"category": "Fixed", "en": [
+          "Failed briefing preparation now returns its saved job receipt instead of leaving the global queue blocked.",
+          "Lost briefing responses are reconciled through verified job status without replaying generation. Accepted queued requests no longer disappear after 15 minutes.",
+          "Duplicate chat submissions reuse the original request instead of dispatching it again; uncertain delivery still requires inspection.",
+          "Custom-schedule writes now require the runtime’s own service account; read-only schedule access cannot modify the database."
+        ], "zh": [
+          "简报准备失败时，现在会返回已保存的任务凭证，而不是让全局队列一直阻塞。",
+          "丢失的简报响应会通过已核实的任务状态对齐恢复，不会重新执行生成。已受理的排队请求也不会再在 15 分钟后消失。",
+          "重复提交的聊天请求会复用原始请求，而不会再次派发；如果投递结果不确定，仍需人工检查。",
+          "自定义调度的写入操作现在必须使用运行时自身的服务账号；只读的调度访问无法修改数据库。"
+        ]},
+        {"category": "Tests", "en": [
+          "Added regression coverage for failed preparation, lost responses, concurrent dispatch, durable queues, and duplicate submissions."
+        ], "zh": [
+          "新增回归测试，覆盖准备失败、响应丢失、并发派发、持久队列和重复提交等情况。"
+        ]}
+      ]
+    },
+    {
       "version": "0.42.0", "date": "2026-10-15", "author": "GoodMorning agent",
       "title_en": "Secretary calls and clearer completed tasks", "title_zh": "秘书来电与更清晰的已完成任务",
       "changes": [

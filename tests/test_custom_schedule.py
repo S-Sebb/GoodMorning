@@ -2,6 +2,7 @@
 import json
 import tempfile
 import unittest
+from unittest.mock import patch
 from pathlib import Path
 import sys
 
@@ -57,6 +58,31 @@ class CustomTests(unittest.TestCase):
             self.assertEqual(list(store.all()), [])
         finally:
             store.close()
+
+    def test_other_account_cannot_create_or_write_schedule_database(self):
+        other_uid = self.root.stat().st_uid + 1
+        with patch('goodmorning.records.custom_store.os.geteuid', return_value=other_uid):
+            with self.assertRaisesRegex(ValueError, 'runtime owner'):
+                CustomStore(self.root, write=True)
+        self.assertFalse((self.root/'custom.sqlite').exists())
+        self.add()
+        before = (self.root/'custom.sqlite').read_bytes()
+        with patch('goodmorning.records.custom_store.os.geteuid', return_value=other_uid):
+            with self.assertRaisesRegex(ValueError, 'runtime owner'):
+                CustomStore(self.root, write=True)
+        self.assertEqual((self.root/'custom.sqlite').read_bytes(), before)
+
+    def test_read_connection_cannot_mutate_schedule_database(self):
+        import sqlite3
+        self.add()
+        before = (self.root/'custom.sqlite').read_bytes()
+        store = CustomStore(self.root)
+        try:
+            with self.assertRaisesRegex(sqlite3.OperationalError, 'readonly'):
+                store.db.execute('DELETE FROM custom_rules')
+        finally:
+            store.close()
+        self.assertEqual((self.root/'custom.sqlite').read_bytes(), before)
 
     def test_add_show_replay(self):
         receipt = self.add()

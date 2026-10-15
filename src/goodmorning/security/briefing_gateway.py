@@ -38,7 +38,6 @@ POST_ROUTES = re.compile(r'(?:/api/avatar(?:/upload)?|/api/(?:generate|regenerat
 QUEUE_KEY = 'generation_queue'
 WAITING_KEY = 'generation_waiting'
 MAX_QUEUE = 20
-QUEUE_TTL = 900
 QUEUE_FULL = 'The secretary queue is full. Please wait for earlier requests to finish.'
 PUMP_INTERVAL = 5
 PAGE_ROUTES = re.compile(r'(?:/|/(?:index|gm|gn)\.html|/chat|/schedule|/d/\d{4}-\d{2}-\d{2}/(?:gm|gn)\.html)')
@@ -71,6 +70,8 @@ class Gateway:
             raise ValueError('Configure a morning hostname or explicit morning, evening and optional secretary hostnames')
         self.accounts, self.hosts, self.testing = accounts, hosts, testing
         self.opener = build_opener(NoRedirect())
+        self.generation_lock = threading.RLock()
+        self.generation_inflight = set()
         # Public assets share the viewer's exact registry and CSS fingerprints.
         # They must not fall through the private account route allowlist.
         self.icons = Resources(ASSETS)
@@ -241,6 +242,33 @@ class Gateway:
 
     def reconcile_ticket(self):
         current = self.ticket()
+        # A failed preflight or lost HTTP response can leave intent without a
+        # job ID. Recover the receipt through a read, never replay the POST.
+        if (current and not current.get('job') and not current.get('chat')
+                and current.get('kind') in ('gm', 'gn') and current.get('date')):
+            encoded = json.dumps(current, separators=(',', ':'))
+            try:
+                with self.generation_lock:
+                    if encoded in self.generation_inflight:
+                        return
+                status, _, data = self.proxy(current['user'], current['host'],
+                    '/api/edition/' + current['date'] + '/' + current['kind'], 'GET', None, {})
+                receipt = json.loads(data)
+                job = receipt.get('job')
+                if (status != 200 or not isinstance(job, str) or not re.fullmatch('[a-f0-9]{32}', job)
+                        or current.get('request') and receipt.get('regeneration_request') != current['request']):
+                    return
+                with self.generation_lock, self.accounts.db() as db:
+                    if encoded in self.generation_inflight:
+                        return
+                    updated = {**current, 'job': job}
+                    changed = db.execute('UPDATE metadata SET value=? WHERE key=? AND value=?',
+                        (json.dumps(updated, separators=(',', ':')), 'generation', encoded))
+                    if not changed.rowcount:
+                        return
+                    current = updated
+            except Exception:
+                return  # No matching receipt: retain uncertainty, never assume idle.
         if current and not current.get('dispatching') and (current.get('job') or current.get('chat')):
             try:
                 path = '/api/chats/' + current['chat'] + '/status' if current.get('chat') else '/api/jobs/' + current['job']
@@ -296,8 +324,30 @@ class Gateway:
             db.execute('DELETE FROM metadata WHERE key=?', (QUEUE_KEY,))
 
     def _prune_queue(self, queue, now):
-        return [entry for entry in queue
-                if self._valid_queue_entry(entry) and (entry['kind'] == 'reply' or now - entry['enqueued'] < QUEUE_TTL)]
+        # Accepted work must not vanish merely because another request is slow.
+        return [entry for entry in queue if self._valid_queue_entry(entry)]
+
+    def dispatch_generation(self, candidate, path, raw, headers):
+        encoded = json.dumps(candidate, separators=(',', ':'))
+        with self.generation_lock:
+            self.generation_inflight.add(encoded)
+        try:
+            status, upstream, data = self.proxy(candidate['user'], candidate['host'], path, 'POST', raw, headers)
+            try:
+                result = json.loads(data)
+            except (TypeError, ValueError):
+                result = {}
+            job = result.get('job') if isinstance(result, dict) else None
+            if status < 300 and isinstance(job, str) and re.fullmatch('[a-f0-9]{32}', job):
+                with self.accounts.db() as db:
+                    db.execute('UPDATE metadata SET value=? WHERE key=? AND value=?',
+                        (json.dumps({**candidate, 'job': job}, separators=(',', ':')), 'generation', encoded))
+            elif 400 <= status < 500 or status < 300 and result == {'ready': True}:
+                self.clear_ticket(candidate)
+            return status, upstream, data
+        finally:
+            with self.generation_lock:
+                self.generation_inflight.discard(encoded)
 
     def _reserve_or_queue(self, kind, candidate, path, body, language, enqueued=None):
         """Atomically take the active slot or join the bounded global waiting line."""
@@ -342,21 +392,11 @@ class Gateway:
         clock_token = REQUESTED_AT.set(entry['enqueued'])
         try:
             raw = json.dumps(entry['body']).encode()
-            status, upstream, data = self.proxy(entry['user'], entry['host'], entry['path'], 'POST', raw, {})
             candidate = entry['candidate']
             if entry['kind'] in ('generate', 'regenerate'):
-                try:
-                    result = json.loads(data)
-                except (TypeError, ValueError):
-                    result = {}
-                if status < 300 and re.fullmatch('[a-f0-9]{32}', result.get('job', '')):
-                    updated = {**candidate, 'job': result['job']}
-                    with self.accounts.db() as db:
-                        db.execute('UPDATE metadata SET value=? WHERE key=? AND value=?',
-                                   (json.dumps(updated, separators=(',', ':')), 'generation', json.dumps(candidate, separators=(',', ':'))))
-                elif status < 500:
-                    self.clear_ticket(candidate)
-            elif 400 <= status < 500:
+                return self.dispatch_generation(candidate, entry['path'], raw, {})[0]
+            status, upstream, data = self.proxy(entry['user'], entry['host'], entry['path'], 'POST', raw, {})
+            if 400 <= status < 500:
                 self.clear_ticket(candidate)
             elif status < 300:
                 self.confirm_dispatch(candidate)
@@ -462,7 +502,7 @@ class Gateway:
                     current = None
                 if (isinstance(current, dict) and not current.get('dispatching')
                         and current.get('user') == identifier and current.get('host') == host
-                        and current.get('chat') == chat):
+                        and current.get('chat') == chat and current.get('request') != request):
                     previous = current
                     db.execute('UPDATE metadata SET value=? WHERE key=? AND value=?',
                                (json.dumps(candidate, separators=(',', ':')), 'generation', json.dumps(current, separators=(',', ':'))))
@@ -483,6 +523,10 @@ class Gateway:
             return self.queued_response('chat', candidate, position, depth)
         if action == 'full':
             return 429, {'Content-Type': 'application/json'}, json.dumps({'error': QUEUE_FULL}).encode()
+        if action == 'active_duplicate':
+            if (self.ticket() or {}).get('dispatching'):
+                return 409, {'Content-Type': 'application/json'}, b'{"error":"Delivery is uncertain. Ask the administrator to inspect this conversation before sending again."}'
+            return 202, {'Content-Type': 'application/json'}, json.dumps({'chat': chat}).encode()
         created = action == 'active_new'
         status, upstream, data = self.proxy(identifier, host, path, 'POST', raw, headers)
         if created and 400 <= status < 500:
@@ -529,17 +573,9 @@ class Gateway:
             return self.queued_response(work, candidate, position or 1, depth)
         clock_token = REQUESTED_AT.set(requested_at)
         try:
-            status,upstream,data=self.proxy(identifier,host,path,'POST',raw,headers)
+            status,upstream,data=self.dispatch_generation(candidate,path,raw,headers)
         finally:
             REQUESTED_AT.reset(clock_token)
-        result=json.loads(data)
-        if status<300 and re.fullmatch('[a-f0-9]{32}',result.get('job','')):
-            updated={**candidate,'job':result['job']}
-            with self.accounts.db() as db:
-                db.execute('UPDATE metadata SET value=? WHERE key=? AND value=?',
-                           (json.dumps(updated,separators=(',',':')),'generation',json.dumps(candidate,separators=(',',':'))))
-        elif status<500:
-            self.clear_ticket(candidate)
         if status < 300:
             self.reconcile_ticket()
         return status,upstream,data

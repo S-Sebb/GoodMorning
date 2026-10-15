@@ -578,6 +578,19 @@ class JobTests(unittest.TestCase):
             with patch.object(self.chamber,'control',side_effect=create):self.app.dispatch(job)
         return result['job'],body
 
+    def test_failed_regeneration_preflight_preserves_owner_and_returns_definite_rejection(self):
+        self.save_original()
+        original_jobs = (self.app.job_dir/'jobs.json').read_bytes()
+        original_source = (self.root/'daily/2026-10-11.gm.json').read_bytes()
+        before = sum(action=='session.create' for action,_ in self.chamber.calls)
+        with patch('goodmorning.briefings.briefing_preflight.initialize', side_effect=OSError('Synthetic private error')), self.assertLogs('goodmorning.web.briefing_server', level='WARNING') as logs:
+            with self.assertRaisesRegex(ValueError, 'previous briefing is preserved'):
+                self.regenerate()
+        self.assertNotIn('private', logs.output[0])
+        self.assertEqual((self.app.job_dir/'jobs.json').read_bytes(), original_jobs)
+        self.assertEqual((self.root/'daily/2026-10-11.gm.json').read_bytes(), original_source)
+        self.assertEqual(sum(action=='session.create' for action,_ in self.chamber.calls), before)
+
     def test_regeneration_preserves_last_edition_until_save_and_merges_tasks(self):
         self.save_original()
         path=self.root/'daily/2026-10-11.md'

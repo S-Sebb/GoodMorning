@@ -7,6 +7,7 @@ from datetime import date as Date, timedelta
 import html
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
+import logging
 import os
 from pathlib import Path
 import re
@@ -454,10 +455,13 @@ class BrowserApp:
                 from goodmorning.briefings.briefing_preflight import initialize
                 try:
                     context = initialize(self.runtime, job)
-                except Exception:
+                except Exception as error:
                     job['state'] = 'stopped'
                     self.save_jobs()
-                    raise
+                    logging.getLogger(__name__).warning('briefing_preflight_failed (%s)', type(error).__name__)
+                    # Preflight failed before dispatch. Return its durable receipt
+                    # so the gateway can release the slot and the user can recover.
+                    return {'job': job['id']}
                 if context['awaiting']:
                     return {'job':job['id']}
                 job['state'] = 'starting'
@@ -543,7 +547,12 @@ class BrowserApp:
                     'replacement': baseline, 'regeneration_request': body['id']}
             # Replacing presentation must not change a reminder's original trigger.
             job['generation_started_at'] = previous.get('generation_started_at') if previous else None
-            context = initialize(self.runtime, job, previous=context)
+            try:
+                context = initialize(self.runtime, job, previous=context)
+            except Exception as error:
+                logging.getLogger(__name__).warning('briefing_regeneration_preflight_failed (%s)', type(error).__name__)
+                # No replacement owner or model dispatch has been committed.
+                raise ValueError('Regeneration stopped before the new briefing was saved. Your previous briefing is preserved.') from None
             if raw is not None:
                 atomic_text(self.job_dir / (job['id'] + '.previous.json'), raw.decode('utf-8'))
             if previous:
@@ -586,7 +595,13 @@ class BrowserApp:
                         atomic_text(self.job_dir/(identifier+f'.context-r{revision}.json'), json.dumps(context)+'\n')
                     live.update(preflight_revision=revision, state='preflight')
                     self.save_jobs()
-                    context = initialize(self.runtime, live)
+                    try:
+                        context = initialize(self.runtime, live)
+                    except Exception as error:
+                        live.update(state='stopped', recovery_request=body['id'])
+                        self.save_jobs()
+                        logging.getLogger(__name__).warning('briefing_recovery_preflight_failed (%s)', type(error).__name__)
+                        return {'job': identifier}
                 live.update(recovery_request=body['id'], state='preflight' if context['awaiting'] else 'starting')
                 self.save_jobs()
                 if live['state'] == 'starting':

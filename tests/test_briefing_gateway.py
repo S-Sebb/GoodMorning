@@ -164,6 +164,107 @@ class GatewayTests(unittest.TestCase):
         self.assertEqual(observed,[1000])
         self.assertIsNone(REQUESTED_AT.get())
 
+    def test_orphan_generation_receipt_releases_stopped_job_without_replay(self):
+        candidate = {'user':self.id, 'host':'gm.example.test', 'date':'2026-10-15', 'kind':'gm'}
+        self.gateway._reserve_or_queue('generate', candidate, '/api/generate', {}, 'en')
+        def proxy(user, host, path, method, raw, headers):
+            self.assertEqual(method, 'GET')
+            return 200, {}, json.dumps({'job':'a'*32} if '/edition/' in path else {'state':'stopped'}).encode()
+        with patch.object(self.gateway, 'proxy', side_effect=proxy):
+            self.gateway.pump_queue()
+        self.assertIsNone(self.gateway.ticket())
+
+    def test_lost_generation_response_reconciles_matching_receipt_only(self):
+        candidate = {'user':self.id, 'host':'gm.example.test', 'date':'2026-10-15', 'kind':'gm', 'request':'b'*32}
+        self.gateway._reserve_or_queue('regenerate', candidate, '/api/regenerate', {}, 'en')
+        with patch.object(self.gateway, 'proxy', side_effect=TimeoutError):
+            with self.assertRaises(TimeoutError):
+                self.gateway.dispatch_generation(candidate, '/api/regenerate', b'{}', {})
+        for receipt in ({'job':None}, {'job':'a'*32, 'regeneration_request':'c'*32}, {'job':123}):
+            with patch.object(self.gateway, 'proxy', return_value=(200, {}, json.dumps(receipt).encode())):
+                self.gateway.reconcile_ticket()
+            self.assertEqual(self.gateway.ticket(), candidate)
+        with patch.object(self.gateway, 'proxy', side_effect=[
+                (200, {}, json.dumps({'job':'a'*32,'regeneration_request':'b'*32}).encode()),
+                (200, {}, b'{"state":"running"}')]):
+            self.gateway.reconcile_ticket()
+        self.assertEqual(self.gateway.ticket()['job'], 'a'*32)
+
+    def test_generation_reconciliation_cannot_release_inflight_post(self):
+        candidate = {'user':self.id, 'host':'gm.example.test', 'date':'2026-10-15', 'kind':'gm'}
+        self.gateway._reserve_or_queue('generate', candidate, '/api/generate', {}, 'en')
+        def proxy(user, host, path, method, raw, headers):
+            self.assertEqual(method, 'POST')
+            self.gateway.reconcile_ticket()
+            self.assertEqual(self.gateway.ticket(), candidate)
+            return 202, {}, json.dumps({'job':'a'*32}).encode()
+        with patch.object(self.gateway, 'proxy', side_effect=proxy):
+            self.gateway.dispatch_generation(candidate, '/api/generate', b'{}', {})
+        self.assertEqual(self.gateway.ticket()['job'], 'a'*32)
+
+    def test_receipt_lookup_race_cannot_release_a_newly_inflight_post(self):
+        candidate = {'user':self.id, 'host':'gm.example.test', 'date':'2026-10-15', 'kind':'gm'}
+        self.gateway._reserve_or_queue('generate', candidate, '/api/generate', {}, 'en')
+        reading, release = threading.Event(), threading.Event()
+        def proxy(*args):
+            reading.set()
+            self.assertTrue(release.wait(3))
+            return 200, {}, json.dumps({'job':'a'*32}).encode()
+        with patch.object(self.gateway, 'proxy', side_effect=proxy):
+            worker = threading.Thread(target=self.gateway.reconcile_ticket)
+            worker.start()
+            try:
+                self.assertTrue(reading.wait(3))
+                with self.gateway.generation_lock:
+                    self.gateway.generation_inflight.add(json.dumps(candidate, separators=(',', ':')))
+            finally:
+                release.set()
+                worker.join(3)
+        self.assertFalse(worker.is_alive())
+        self.assertEqual(self.gateway.ticket(), candidate)
+
+    def test_ready_without_generation_job_releases_slot_for_next_waiter(self):
+        candidate = {'user':self.id, 'host':'gm.example.test', 'date':'2026-10-15', 'kind':'gm'}
+        self.gateway._reserve_or_queue('generate', candidate, '/api/generate', {}, 'en')
+        with patch.object(self.gateway, 'proxy', return_value=(200, {}, b'{"ready":true}')):
+            self.gateway.dispatch_generation(candidate, '/api/generate', b'{}', {})
+        self.assertIsNone(self.gateway.ticket())
+
+    def test_same_active_chat_request_never_dispatches_an_interrupt(self):
+        body = {'id':'a'*32, 'mode':'secretary', 'text':'Synthetic request'}
+        with patch.object(self.gateway, 'proxy', side_effect=lambda *args:
+                (202, {}, b'{"accepted":true}') if args[3]=='POST' else (200, {}, b'{"state":"running"}')) as calls:
+            for _ in range(3):
+                self.gateway.chat_message(self.id, 'gm.example.test', '/api/chats', json.dumps(body).encode(), {})
+        self.assertEqual(sum(call.args[3]=='POST' for call in calls.call_args_list), 1)
+
+    def test_ambiguous_generation_response_keeps_reservation(self):
+        candidate = {'user':self.id, 'host':'gm.example.test', 'date':'2026-10-15', 'kind':'gm'}
+        for status, raw in ((200,b'not json'), (202,b'[]'), (302,b'{}'), (503,b'{}')):
+            with self.subTest(status=status, raw=raw):
+                self.gateway.clear_ticket(candidate)
+                self.gateway._reserve_or_queue('generate', candidate, '/api/generate', {}, 'en')
+                with patch.object(self.gateway, 'proxy', return_value=(status, {}, raw)):
+                    self.gateway.dispatch_generation(candidate, '/api/generate', b'{}', {})
+                self.assertEqual(self.gateway.ticket(), candidate)
+
+    def test_accepted_requests_do_not_expire_or_reappear_after_reload(self):
+        active = self.preflight_ticket()
+        candidate = {'user':self.other, 'host':'gm.example.test', 'chat':'b'*32, 'request':'b'*32, 'dispatching':True}
+        body = {'id':'b'*32, 'mode':'secretary', 'text':'Synthetic durable request'}
+        self.gateway._reserve_or_queue('chat', candidate, '/api/chats', body, 'en', enqueued=1)
+        reopened = Gateway(self.store, self.gateway.hosts, testing=True)
+        with patch.object(reopened, 'proxy', return_value=(200, {}, b'{"state":"running"}')):
+            self.assertEqual(reopened.queue_status(self.other)['depth'], 1)
+        reopened.clear_ticket(active)
+        def proxy(user, host, path, method, raw, headers):
+            return (202, {}, b'{"accepted":true}') if method == 'POST' else (200, {}, b'{"state":"running"}')
+        with patch.object(reopened, 'proxy', side_effect=proxy) as calls:
+            reopened.pump_queue()
+            reopened.chat_message(self.other, candidate['host'], '/api/chats', json.dumps(body).encode(), {})
+            self.assertEqual(sum(call.args[3]=='POST' for call in calls.call_args_list), 1)
+            self.assertEqual(reopened.queue_status(self.other)['depth'], 0)
+
     def test_unprovisioned_login_gets_localized_setup_page_and_account_controls(self):
         self.permanent()
         (self.root/'backends.json').write_text('{}')
@@ -717,7 +818,7 @@ class GatewayTests(unittest.TestCase):
         self.assertEqual(self.request('/api/chats',body)[0],503)
         ticket=self.gateway.ticket()
         self.gateway.proxy=lambda *args:(400,{},b'{"error":"Invalid duplicate"}')
-        self.assertEqual(self.request('/api/chats',{**body,'text':'Changed'})[0],400)
+        self.assertEqual(self.request('/api/chats',{**body,'text':'Changed'})[0],409)
         self.assertEqual(self.gateway.ticket(),ticket)
 
     def test_idle_chat_releases_reservation_before_next_request(self):

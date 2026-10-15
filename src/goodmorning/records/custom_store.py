@@ -9,6 +9,7 @@ user-confirmed dates only; silence never counts.
 import datetime as dt
 import hashlib
 import json
+import os
 import sqlite3
 import uuid
 from pathlib import Path
@@ -159,6 +160,8 @@ def _next_after_last(policy, last_done):
 class CustomStore:
     def __init__(self, directory, write=False):
         self.directory = Path(directory)
+        if write and self.directory.stat().st_uid != os.geteuid():
+            raise ValueError('unsafe_owner: run custom schedule writes as the runtime owner')
         path = self.directory / NAME
         if path.is_symlink():
             raise ValueError("unsafe_path: custom store must belong to this runtime")
@@ -177,7 +180,7 @@ class CustomStore:
                 path.chmod(0o600)
             except OSError:
                 pass
-        self.db = sqlite3.connect(path)
+        self.db = sqlite3.connect(path if write else path.resolve().as_uri()+'?mode=ro', uri=not write)
         self.db.row_factory = sqlite3.Row
 
     def close(self):

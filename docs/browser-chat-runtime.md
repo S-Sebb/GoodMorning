@@ -108,7 +108,14 @@ The gateway keeps one bounded global waiting line (about 20 requests) shared by
 briefing generation and all secretary conversations. A waiting question
 no longer holds the model slot. The form and original session remain available
 while the user considers the question. Submitted answers reacquire the slot in
-arrival order, stay encrypted while queued and do not expire. Unknown dispatches
+arrival order. All accepted requests stay encrypted while queued and do not expire.
+Briefing intents with a lost job receipt are reconciled through the owning edition
+and verified job status, never by replaying generation. Regeneration requires the
+exact original request ID; an in-flight HTTP dispatch cannot release its own slot.
+Failed preparation or recovery preflight returns its durable stopped job so
+recovery remains explicit. Regeneration preflight fails before replacing the
+owner and returns a definite rejection, preserving the earlier edition.
+Unknown dispatches
 still retain their reservation for explicit reconciliation, never blind replay.
 
 Native message reads discard private tool states and provider metadata while

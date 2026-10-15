@@ -93,6 +93,11 @@ def run(artifacts):
                     expect(visible).to_be_in_viewport()
                 owner = context()
                 source = owner.new_page(); source.on('pageerror', lambda error: errors.append(str(error)))
+                # This scenario starts initialization, so begin with an incomplete
+                # synthetic profile instead of selecting a mode hidden after setup.
+                profile = Path(settings['runtimes']['alice'])/'profile.md'
+                saved_profile = profile.read_text()
+                profile.write_text('secretary_language: English\n')
                 login(source, 'gm', 'alice', 'a1alice-temporary'); permanent(source, 'alice')
                 source.get_by_role('radio', name='Initialize', exact=True).click()
                 started = time.monotonic()
@@ -100,6 +105,7 @@ def run(artifacts):
                     source.get_by_role('button', name='Start initialization', exact=True).click()
                 submit_refresh = round((time.monotonic()-started)*1000)
                 expect(source.get_by_role('heading', name='Confirm your location')).to_be_visible()
+                profile.write_text(saved_profile)
                 original_url = source.url
                 pages = []
                 for kind in ('gm', 'gn'):
@@ -250,7 +256,13 @@ def run(artifacts):
                 for page in pages:
                     page.bring_to_front(); page.evaluate('window.dispatchEvent(new Event("focus"))')
                     expect(page.locator('#account-activity')).to_be_hidden()
-                    assert page.evaluate('localStorage.length === 0 && sessionStorage.length === 0')
+                    assert page.evaluate(r'''() => localStorage.length === 0 && Object.keys(sessionStorage).every(key => {
+                        if (!/^goodmorning\.chat\.workspace\.[a-f0-9]{64}$/.test(key)) return false;
+                        const value = JSON.parse(sessionStorage.getItem(key));
+                        return Object.keys(value).sort().join(',') === 'away,chat,draft,resume'
+                            && [value.chat, value.resume].every(id => id === null || /^[a-f0-9]{32}$/.test(id))
+                            && (value.away === null || Number.isFinite(value.away)) && typeof value.draft === 'boolean';
+                    })''')
                 assert not errors, errors
                 browser.close()
             print(json.dumps({'modelCalls': 0, 'subdomains': 1, 'observerTabs': 3, 'closedOriginalTab': True,

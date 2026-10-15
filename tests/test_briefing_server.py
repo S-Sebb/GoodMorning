@@ -102,6 +102,34 @@ class LiveTests(unittest.TestCase):
         page=self.app.chat_page().decode()
         self.assertLess(page.index('id="conversation-history"'),page.index('id="new-conversation"'))
 
+    def test_failed_preflight_returns_durable_stopped_receipt_without_dispatch(self):
+        from unittest.mock import patch
+        self.app.preflight = True
+        with patch('goodmorning.briefings.briefing_preflight.initialize', side_effect=OSError('Synthetic private preparation failure')), self.assertLogs('goodmorning.web.briefing_server', level='WARNING') as logs:
+            result = self.app.start('2026-10-10', 'gm')
+        self.assertIn('OSError', logs.output[0])
+        self.assertNotIn('private', logs.output[0])
+        self.assertEqual(self.app.status(result['job'])['state'], 'stopped')
+        self.assertIsNone(self.app.job(result['job']).get('session'))
+        self.assertEqual(self.chamber.calls, [])
+        restored = BrowserApp(self.root, self.chamber, now=self.app.now, preflight=True)
+        self.assertEqual(restored.start('2026-10-10', 'gm'), result)
+        self.assertEqual(restored.status(result['job'])['recovery_action'], 'restart')
+
+    def test_failed_recovery_preflight_returns_stopped_receipt_and_never_replays(self):
+        from unittest.mock import patch
+        self.app.preflight = True
+        with patch('goodmorning.briefings.briefing_preflight.initialize', side_effect=OSError('Synthetic failure')), self.assertLogs('goodmorning.web.briefing_server', level='WARNING'):
+            result = self.app.start('2026-10-10', 'gm')
+            recovered = self.app.recover(result['job'], {'id':'b'*32})
+        self.assertEqual(recovered, result)
+        self.assertEqual(self.app.status(result['job'])['state'], 'stopped')
+        self.assertEqual(self.app.job(result['job'])['recovery_request'], 'b'*32)
+        with patch('goodmorning.briefings.briefing_preflight.initialize') as initialize:
+            self.assertEqual(self.app.recover(result['job'], {'id':'b'*32}), result)
+        initialize.assert_not_called()
+        self.assertEqual(self.chamber.calls, [])
+
     def test_acknowledged_inputs_never_reappear_or_yield_before_engine_catches_up(self):
         from unittest.mock import patch
         job=self.start()
