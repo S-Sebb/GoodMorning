@@ -67,7 +67,8 @@
 .schedule-task .task-title { font-weight: 400; }
 .task-state { color: var(--muted); flex-shrink: 0; }
 .schedule-task small { display: block; font-size: 10px; color: var(--muted); margin-top: 3px; }
-.schedule-task.is-done .task-title { color: var(--muted); text-decoration: line-through; text-decoration-color: var(--line); }
+.schedule-task.is-done .task-title { color: var(--muted); text-decoration: line-through; text-decoration-color: var(--muted); text-decoration-thickness: 2px; }
+.schedule-task.is-done .task-state { color: var(--accent); font-weight: 700; }
 .schedule-task .task-progress { color: var(--ink); font-weight: 600; }
 .schedule-task .task-detail { white-space: pre-line; }
 .schedule-event.is-tbc { border-left-style: dashed; }

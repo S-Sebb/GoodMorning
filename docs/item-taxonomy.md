@@ -14,7 +14,10 @@ heading. Use `scripts/goodmorning.py` with the selected absolute runtime.
    required/optional are task attributes, not different section types.
 3. Keep workday, deadline, appointment start/end, recurrence, review date and audit
    timestamps separate. "By Friday" is a deadline; "work on Friday" is a workday.
-   A timestamp alone does not establish a reserved interval. Ask when requested
+   A timestamp alone does not establish a reserved interval. A window without a
+   frequency ("11月初", "early November") is ambiguous between one-off and
+   repeat: ask frequency and start date, never default to one-off or strand the
+   window in prose without a structured repeat, workday, or deadline. Ask when requested
    scheduling is ambiguous; never infer duration, timezone or another person's agreement.
 4. `/todo` uses `workflow --capture todo`: exact raw input plus a revised clear task
    commit together. `raw` stays verbatim for audit; `summary` and `task.title` carry the

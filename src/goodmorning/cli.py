@@ -13,6 +13,7 @@ COMMANDS = {
     'avatar-preview': 'web.avatar_preview',
     'inbox': 'records.inbox',
     'task': 'records.task',
+    'calls': 'records.calls',
     'custom': 'records.custom',
     'workflow': 'records.workflow',
     'daily': 'records.daily',

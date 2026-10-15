@@ -1,6 +1,24 @@
 {
   "notes": [
     {
+      "version": "0.42.0", "date": "2026-10-15", "author": "GoodMorning agent",
+      "title_en": "Secretary calls and clearer completed tasks", "title_zh": "秘书来电与更清晰的已完成任务",
+      "changes": [
+        {"category": "Added", "en": [
+          "Secretary calls: a quiet manual review list for past records that need a question. Nothing is asked until approved; answers happen in secretary chat.",
+          "Time windows without a frequency (early November) now ask both frequency and start date before any write, and never default to one-off."
+        ], "zh": [
+          "秘书来电：手动检查过去需要提问的记录，安静的列表与徽标，经确认后才在秘书对话中提问。",
+          "没有频率的时间段（11月初）须先问清频率与开始日期再记录，不再默认一次性。"
+        ]},
+        {"category": "Fixed", "en": [
+          "Completed schedule tasks now show a thicker strikethrough with an accent state label in day and night themes."
+        ], "zh": [
+          "日间与夜间主题下，已完成的日程任务改用更粗的删除线与强调色状态显示，更易看清。"
+        ]}
+      ]
+    },
+    {
       "version": "0.40.0", "date": "2026-10-14", "author": "GoodMorning agent",
       "title_en": "Custom schedules for flexible habits", "title_zh": "灵活习惯的自定义安排",
       "changes": [

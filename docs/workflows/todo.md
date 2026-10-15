@@ -27,6 +27,10 @@ to its workflow in this conversation; capture wording alone does not grant conse
    without writing: use `capture_date` (calendar date), not the briefing-day `date`.
    Pass `--website-language CODE` in browser chat. For “every few
    days”, ask only the interval, then apply that answer with the default start.
+   A time window without a frequency (“11月初”, “early November”) is ambiguous
+   between one-off and repeat: ask both the frequency (one-off, daily, weekly)
+   and the start date before any write, and never store the window in prose without
+   a structured repeat, workday, or deadline.
 2. For a new clear TODO, use the single capture helper:
    ```sh
    python scripts/goodmorning.py workflow --secretary-dir RUNTIME --capture todo --session SESSION --request-key KEY --input-stdin

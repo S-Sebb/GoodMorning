@@ -75,6 +75,7 @@ class Resources:
                   'briefing.js': 'text/javascript', 'browser.js': 'text/javascript',
                   'scroll-rails.js': 'text/javascript', 'scroll-rails.css': 'text/css',
                    'questions.js': 'text/javascript', 'chat.js': 'text/javascript', 'chat.css': 'text/css', 'language.js':'text/javascript',
+                   'calls.js': 'text/javascript', 'calls.css': 'text/css',
                    'network.js':'text/javascript', 'auth.js':'text/javascript','auth.css':'text/css',
                    'activity.js':'text/javascript','activity.css':'text/css',
                      'schedule.js':'text/javascript', 'schedule.css':'text/css',
