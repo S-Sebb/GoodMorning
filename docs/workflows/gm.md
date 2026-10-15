@@ -42,6 +42,10 @@ plan position and use `skip` for empty optional ones; local JSON omits empty opt
    pending changes and material availability failures, not healthy bookkeeping.
    Preparation is concise requirements only; never copy join instructions,
    Meeting IDs, help/meeting-options links or privacy footers into it.
+   Add a short note in the saved tone summarizing the day in plain words (empty:
+   no appointments saved, without claiming free time; non-empty: count and
+   earliest time plus most useful preparation); do not mention windows, glances,
+   TBC, or timed focus; do not repeat every card.
 5. Publish Tasks from code-owned rows: agreed/recurring work, deadline attention,
    still-open work and selected undated actions. Project and optional labels are
    attributes. First walk through today's displayed rows from
