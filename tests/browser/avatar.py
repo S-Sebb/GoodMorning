@@ -32,8 +32,6 @@ def check_avatar(page, selected, label):
     assert card.evaluate('node => getComputedStyle(node).backgroundColor') != 'rgba(0, 0, 0, 0)'
     assert float(card.evaluate('node => parseFloat(getComputedStyle(node).borderTopLeftRadius)')) > 0
     portrait = image.bounding_box()
-    eyebrow = page.locator('.letter-copy > .eyebrow').bounding_box()
-    assert abs(portrait['y'] - eyebrow['y']) < 1, (portrait, eyebrow)
     assert abs(portrait['width'] - portrait['height']) < 1, portrait
     # A long greeting wraps beside the portrait without resizing it.
     title = page.locator('.letter-copy > h1')

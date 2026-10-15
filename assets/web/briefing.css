@@ -70,19 +70,23 @@ main { max-width: 1440px; width: 100%; padding: 0 64px; padding-left: max(24px, 
 h1 { font: normal clamp(48px, 6.5vw, 92px)/1.05 Georgia, serif; margin: 18px 0; letter-spacing: -4px; }
 .subtitle { font: italic 20px/1.7 "Lora Commentary", Georgia, serif; color: var(--muted); }
 .orbit { width: 240px; margin: 0; justify-self: end; color: var(--muted); }
-.briefing-letter .hero { grid-template-columns: minmax(0, 1fr) 180px; gap: 36px; padding: 40px 0 28px; }
-.briefing-letter .hero-copy { display: grid; grid-template-columns: 148px minmax(0, 1fr); align-items: start; gap: 28px; }
+.briefing-letter .hero { grid-template-columns: minmax(0, 1fr) 210px; align-items: center; gap: 32px; padding: 32px 0 26px; isolation: isolate; }
+.briefing-letter .hero-copy { display: grid; grid-template-columns: 220px minmax(0, 1fr); align-items: center; gap: 40px; }
 .briefing-letter .hero-copy > * { animation: none; }
 .letter-copy { min-width: 0; }
-.letter-copy > .eyebrow { margin-top: 0; }
+.letter-copy > .eyebrow { margin: 0; }
 .letter-copy > .subtitle { margin-bottom: 0; }
-.briefing-letter h1 { font-size: clamp(30px, 3vw, 42px); line-height: 1.15; letter-spacing: -1px; margin: 10px 0 16px; max-width: 26ch; text-wrap: balance; }
-/* The secretary says the opening line in a speech bubble pointing at the portrait. */
-.briefing-letter .letter-copy > .subtitle { position: relative; width: fit-content; max-width: 62ch; padding: 12px 18px; border-radius: 16px; background: var(--surface); box-shadow: 0 3px 14px #0000000f; font-size: 16px; line-height: 1.6; }
-.briefing-letter .letter-copy > .subtitle::before { content: ""; position: absolute; left: -8px; top: 16px; border: 8px solid transparent; border-left: 0; border-right-color: var(--surface); }
+.briefing-letter h1 { font-size: clamp(34px, 3.3vw, 46px); line-height: 1.12; letter-spacing: -1px; margin: 12px 0 14px; max-width: 22ch; text-wrap: balance; }
+.briefing-letter .letter-copy > .subtitle { max-width: 56ch; margin: 0; font-size: 17px; line-height: 1.6; }
+/* A fixed-size portrait standing in a soft lamp glow, with a shadow under the desk. */
 .briefing-avatar { width: 100%; margin: 0; aspect-ratio: 1; }
 .hero-copy .briefing-avatar .avatar-frame { height: 100%; }
 .hero-copy .briefing-avatar .avatar-image { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center; }
+.hero-copy .briefing-avatar::before { content: ""; position: absolute; inset: -8% -14% 0; z-index: -1; border-radius: 50%; background: radial-gradient(closest-side, color-mix(in srgb, var(--warm) 34%, transparent), color-mix(in srgb, var(--warm) 10%, transparent) 60%, transparent); }
+.hero-copy .briefing-avatar::after { content: ""; position: absolute; left: 4%; right: 4%; bottom: 5%; height: 12%; z-index: -1; border-radius: 50%; background: radial-gradient(closest-side, color-mix(in srgb, var(--ink) 20%, transparent), transparent); }
+.briefing-letter .orbit { width: 210px; }
+.briefing-letter .orbit .sky-scene { height: 150px; }
+.briefing-letter .orbit .sun { width: 210px; height: 150px; left: 0; }
 .waiting-room .briefing-avatar { width: 180px; margin: 20px auto; }
 .briefing-section-nav { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 24px; padding-bottom: 16px; border-bottom: 1px solid var(--line); }
 .briefing-section-nav a { display: inline-flex; align-items: center; gap: 7px; min-height: 44px; padding: 8px 14px; font-size: 13px; text-decoration: none; color: var(--muted); border-radius: 30px; transition: color .22s ease, background-color .22s ease, transform .3s var(--ease), box-shadow .3s ease; }
@@ -344,7 +348,7 @@ footer { max-width: 1440px; margin: 48px auto 0; padding: 26px max(80px, calc(en
 @media (hover: hover) and (pointer: fine) { .briefing-section:hover { box-shadow: 0 8px 28px #00000008; } .section-body .task-card:hover, .section-body .agenda-event:hover, .section-body .news-card:hover, .section-body .news-card:focus-within { background: var(--wash); border-color: var(--accent); box-shadow: 0 4px 14px #00000008; } .weather-tile:hover { border-color: var(--tile-accent); box-shadow: 0 4px 14px #00000009; } .section-body tbody tr:hover { background: var(--wash); } }
 @media (hover: hover) and (pointer: fine) { .edition-link:hover { transform: translateY(-2px); box-shadow: 0 5px 16px #0001; } .edition-link:not(.selected):hover { background: var(--wash); } }
 @media (max-width: 1000px) { .briefing-section { padding: 26px; } .hero { grid-template-columns: 1fr 220px; } .orbit { width: 220px; } }
-@media (max-width: 1100px) and (min-width: 701px) { .briefing-letter .hero { grid-template-columns: minmax(0, 1fr) 160px; gap: 16px; } .briefing-letter .hero-copy { grid-template-columns: 120px minmax(0, 1fr); gap: 20px; } .briefing-letter .orbit { width: 160px; } }
+@media (max-width: 1100px) and (min-width: 701px) { .briefing-letter .hero { grid-template-columns: minmax(0, 1fr) 140px; gap: 20px; } .briefing-letter .hero-copy { grid-template-columns: 168px minmax(0, 1fr); gap: 28px; } .briefing-letter .orbit { width: 140px; } .briefing-letter .orbit .sky-scene { height: 100px; } .briefing-letter .orbit .sun { width: 140px; height: 100px; } }
 @media (max-width: 700px) { .masthead { padding: max(22px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) 22px max(16px, env(safe-area-inset-left)); align-items: flex-start; flex-wrap: wrap; gap: 16px; } .wordmark { font-size: 24px; } .edition-switch { justify-content: flex-end; gap: 4px; margin-left: auto; } .edition-link { padding: 10px 12px; min-height: 44px; } .pending { width: 100%; text-align: right; font-size: 10px; } main { padding: 0 max(56px, calc(env(safe-area-inset-right) + 52px)) 0 max(16px, env(safe-area-inset-left)); } .hero { grid-template-columns: 1fr; padding: 34px 0 12px; } h1 { font-size: clamp(38px, 10vw, 60px); letter-spacing: -2px; overflow-wrap: anywhere; } .orbit { display: none; } .subtitle { font-size: 18px; } .intro { padding-bottom: 20px; } .weather .section-body { display: block; } .briefing-section { padding: 20px; border-radius: 12px; } .briefing-section > header { gap: 12px; } h2 { font-size: 25px; overflow-wrap: anywhere; } .section-body { font-size: 14px; } .section-body table { min-width: 620px; } .scroll-map { right: max(4px, env(safe-area-inset-right)); } .nav-preview { padding: 20px; } footer { margin-top: 28px; padding-left: max(16px, env(safe-area-inset-left)); padding-right: max(56px, calc(env(safe-area-inset-right) + 52px)); } }
 @media (max-height: 500px) { .scroll-map { height: calc(100vh - 32px); } .nav-preview { padding: 16px; } .preview-title { font-size: 21px; margin: 8px 0; } .preview-excerpt { -webkit-line-clamp: 3; } .preview-footer { margin-top: 12px; padding-top: 10px; } }
 @supports (height: 1dvh) { .scroll-map { height: clamp(280px, 62dvh, 440px); max-height: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 112px); } @media (max-height: 500px) { .scroll-map { height: calc(100dvh - 112px); } } }
@@ -446,14 +450,17 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
   .briefing-letter .week-picker a { flex: 0 0 72px; padding: 8px 4px; font-size: 10px; }
   .briefing-letter .scroll-map { display: none; }
   .briefing-letter .back-to-top { right: 16px !important; }
-  .briefing-letter .hero { position: relative; display: block; padding: 44px 0 20px; }
-  .briefing-letter .hero-copy { grid-template-columns: 96px minmax(0, 1fr); gap: 16px; }
-  .letter-copy > .eyebrow { font-size: 9px; letter-spacing: 1.1px; }
-  .briefing-letter h1 { font-size: 26px; letter-spacing: -.5px; margin: 8px 0 12px; }
-  .briefing-letter .letter-copy > .subtitle { padding: 10px 14px; font-size: 14px; line-height: 1.5; }
-  .briefing-letter .orbit { display: block; width: 72px; position: absolute; right: 0; top: 8px; }
-  .briefing-letter .orbit .sky-scene { height: 52px; }
-  .briefing-letter .orbit .sun { width: 72px; height: 52px; left: 0; }
+  .briefing-letter .hero { position: relative; display: block; padding: 26px 0 18px; }
+  /* Portrait beside the greeting; the opening line runs full width below. */
+  .briefing-letter .hero-copy { grid-template-columns: 108px minmax(0, 1fr); column-gap: 18px; row-gap: 0; }
+  .briefing-letter .letter-copy { display: contents; }
+  .briefing-letter .briefing-avatar { grid-column: 1; grid-row: 1 / 3; align-self: start; }
+  .letter-copy > .eyebrow { grid-column: 2; grid-row: 1; align-self: end; padding-right: 64px; font-size: 9px; letter-spacing: 1.1px; }
+  .briefing-letter h1 { grid-column: 2; grid-row: 2; align-self: start; padding-right: 30px; font-size: 26px; letter-spacing: -.5px; margin: 6px 0 0; }
+  .briefing-letter .letter-copy > .subtitle { grid-column: 1 / -1; grid-row: 3; margin-top: 18px; font-size: 15px; line-height: 1.55; }
+  .briefing-letter .orbit { display: block; width: 64px; position: absolute; right: 0; top: 14px; }
+  .briefing-letter .orbit .sky-scene { height: 46px; }
+  .briefing-letter .orbit .sun { width: 64px; height: 46px; left: 0; }
   .briefing-section-nav { gap: 6px; margin-bottom: 12px; padding-bottom: 12px; }
   .briefing-section-nav a { font-size: 12px; padding: 8px 12px; gap: 6px; }
   .briefing-section-nav a .data-icon { width: 16px; height: 16px; }
