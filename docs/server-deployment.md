@@ -19,6 +19,11 @@ deployment needed it.
   the reviewed copy. If it is missing, stop and ask the owner; never rewrite it
   from memory.
 - Server Python: `/opt/goodmorning/python/bin/python` with `-B`.
+  `/opt/goodmorning/python` is a symlink to the active virtual environment,
+  `/opt/goodmorning/python-3.14` (Python 3.14 from the deadsnakes PPA, plus
+  Pillow). The previous `/opt/goodmorning/python-3.12` stays for rollback.
+  The server's default pip index is unreachable; install packages with
+  `--index-url https://pypi.org/simple`.
 - Private data lives under `/srv/goodmorning/live` on encrypted mounts.
   Deployment writes there only for the protected deployment report and the
   deployment pause flag (`maintenance` metadata key). No other private writes.
