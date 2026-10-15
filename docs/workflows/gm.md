@@ -47,11 +47,14 @@ plan position and use `skip` for empty optional ones; local JSON omits empty opt
    attributes. First walk through today's displayed rows from
    `task --briefing gm --date DATE --section tasks` (follow `next_offset`); where a
    title/detail is materially vague (missing object, filler opener, `etc.`/parens fog,
-   verb at the end — not mere punctuation or capitalization), fix it with
+   verb at the end, non-imperative title — not mere punctuation or capitalization), fix it with
    revision-checked `task --update`
     using title/detail only (same meaning, no date/status/project/scheduling change,
-    stable `polish:SESSION:taskID:revision` keys), then reread and pack the exact
-    updated rows. Preserve dates, details, source IDs and revisions; follow pages.
+    stable `polish:SESSION:taskID:revision` keys; a moved revision gets a fresh key
+    with the new revision), then reread and pack the exact
+    updated rows. Reminder mechanics and setup narration are trimmed
+    by the same update (possibly to an empty detail); other details may only be
+    lightly clarified for display. Preserve dates, details, source IDs and revisions; follow pages.
     Also read code-owned `custom --briefing gm --date DATE` rows; due custom schedules are shown with Tasks using their computed next-due and weekly count. Word warmly; never invent custom dates.
     Leave already-clear titles unchanged. A project name within the specific object
     ("Send Atlas report") is not a decorative prefix ("Atlas: Send report"); do not

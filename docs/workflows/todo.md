@@ -65,7 +65,10 @@ to its workflow in this conversation; capture wording alone does not grant conse
   prefixes. Aim for fewer than 80 characters when possible.
 - Detail adds 1–2 grounded sentences about why, current state or next step. Leave it
   empty if unsupported. Do not repeat title/project/deadline/priority; keep supplied
-  timing in structured fields. Never invent facts, dates, priorities or progress.
+  timing in structured fields. Reminder mechanics and setup narration
+  ("surface in Friday /gm", "setup choice confirmed", "no calendar time/place")
+  belong in structured repeat/when fields and the inbox entry `context`, never in detail.
+  Never invent facts, dates, priorities or progress.
 - Example: “Currently there's a message-box stretch blocking typing” becomes
   “Fix message-box stretch blocking typing”; no unsupported detail is needed.
   “Work on it tomorrow” updates the identified action's workday, not its deadline.
