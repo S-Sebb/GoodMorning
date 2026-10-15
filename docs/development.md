@@ -38,8 +38,8 @@ One deployment is one release: one version and one patch note covering
 everything merged into `main` since the previous deployment. Feature PRs never
 edit `assets/web/patch-notes.json` or the version.
 
-Every deployment is tagged `deploy/<RELEASE-NAME>` on the deployed commit
-(`docs/server-deployment.md`). The release contents are
+`deploy/release.py` tags every deployment `deploy/<RELEASE-NAME>` on the deployed
+commit. The release contents are
 `git log --oneline <latest deploy/ tag>..origin/main`.
 
 When the owner asks to deploy:
@@ -54,8 +54,9 @@ When the owner asks to deploy:
    PR's description.
 4. Open the PR `Release <version>`. The deploy request authorizes merging this
    PR once CI passes, and only this PR.
-5. Deploy `origin/main` by following `docs/server-deployment.md`, including
-   its final tag step.
+5. In the primary checkout, run `git pull --ff-only`, then
+   `uv run --no-project python deploy/release.py` (see `docs/server-deployment.md`),
+   and report its summary.
 
 The release closes when its PR merges. Anything merged later belongs to the
 next release. Never edit the note of a version that went live. If a deployment
