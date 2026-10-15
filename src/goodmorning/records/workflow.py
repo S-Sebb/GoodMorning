@@ -104,6 +104,9 @@ def prepare(directory, kind, today=None, cache=None, *, task_limit=7, website_la
             custom = CustomStore(directory, write=False)
             try:
                 rows = custom.briefing(date, 'gm' if kind == 'secretary' else kind)
+                if kind == 'secretary':
+                    # Saved habits, so "on my training days" links to an existing plan instead of a new question.
+                    result['habits'] = [{'id': r['id'], 'title': r['title']} for r in custom.all() if r['status'] == 'open'][:50]
             finally:
                 custom.close()
             result['custom'] = {'items': rows, 'total': len(rows)}

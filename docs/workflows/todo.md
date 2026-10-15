@@ -30,7 +30,9 @@ to its workflow in this conversation; capture wording alone does not grant conse
    A time window without a frequency (“11月初”, “early November”) is ambiguous
    between one-off and repeat: ask both the frequency (one-off, daily, weekly)
    and the start date before any write, and never store the window in prose without
-   a structured repeat, workday, or deadline.
+   a structured repeat, workday, or deadline. One action done once inside a stated
+   window (“buy it between 23 and 28 October”) is clear: `defer_until` the first day,
+   `due_date` the last.
 2. Classify before saving with rule 2 of `docs/item-taxonomy.md` (read it when the
    input is anything but a plain action): a heads-up with nothing to finish is
    `task.kind:"nudge"`; information for a trigger the system cannot see ("when X runs

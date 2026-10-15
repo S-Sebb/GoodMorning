@@ -95,6 +95,7 @@ public HTTPS, encrypted deployment, real providers or load.
 | Task and tone | `PY tests/benchmarks/task_tone_live.py --output DIR` | English and Chinese × default, formal and playful tones, run twice: capture, clarification, duplicate request identities, refused writes, fault recovery |
 | Briefing tone | `PY tests/benchmarks/briefing_tone_live.py --output DIR --language en` (then `zh-CN` in a new directory) | Morning and evening prompts: empty and opted-in sections, unavailable providers, resume, evening feedback, regeneration, ambiguous attribution, and two judgment cases: vague task titles and messy evening feedback with a task move |
 | Custom schedule | `PY tests/benchmarks/custom_tone_live.py --output DIR --language en\|zh-CN` | Custom-schedule prompts: ask until clear, save once, tone |
+| Item categories | `PY tests/benchmarks/category_live.py --output DIR --language en\|zh-CN` | Twelve real-usage requests (nudge on habit days, reference note, daily follow-up, birthdays, weekly TBC class, linked preparation, split request, dependent step, routine plus deadline, day and deadline tasks); checks the saved records. `--only NAME...` reruns chosen scenarios in a new directory |
 | Manual | `PY tests/benchmarks/manual_trial.py --help` | Ad-hoc cases you drive by hand |
 
 Task and tone options: `--model deepseek-flash` and `--language en|zh-CN` test a

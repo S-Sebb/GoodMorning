@@ -140,6 +140,16 @@ class CategoryTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'own title'):
             self.inbox.mutate('add', {'kind': 'todo', 'raw': 'x', 'also': [{}]}, 'ses_test', 'bad', NOW)
 
+    def test_secretary_preparation_lists_reference_triggers_and_habits(self):
+        from goodmorning.records.workflow import prepare
+        reference = self.capture(title='Rebuy supplements', kind='reference', trigger='A supplement runs out')
+        self.capture(title='Ordinary action')
+        rule = self.habit()
+        context = prepare(self.root, 'secretary', DAY)
+        self.assertEqual(context['references'], [{'id': reference, 'title': 'Rebuy supplements', 'trigger': 'A supplement runs out'}])
+        self.assertEqual(context['habits'], [{'id': rule, 'title': 'Strength training'}])
+        self.assertNotIn('references', prepare(self.root, 'gm', DAY))
+
     def test_until_done_follows_up_daily_and_one_tick_closes_it(self):
         identifier = self.capture(title='Decide the trip dates', defer_until='2026-10-14', follow_up='until-done')
         self.assertNotIn('Decide the trip dates', self.items())

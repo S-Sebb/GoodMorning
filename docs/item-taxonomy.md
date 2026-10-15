@@ -15,12 +15,15 @@ heading. Use `scripts/goodmorning.py` with the selected absolute runtime.
       TBC series is one draft with `repeat:{"weekdays":[N],"start":DATE,"until":DATE}`
       (`start` equals `date`), never one draft per week.
    2. **Occasion**, a date to remember: an all-day calendar event. Birthdays and
-      anniversaries use `repeat:{"yearly":true,"start":DATE}`.
+      anniversaries use `repeat:{"yearly":true,"start":DATE}`. Describe it to the
+      user by its date ("every 6 January"), never by the exclusive end date.
    3. **Idea**, a possibility not adopted as work (`/eureka`).
    4. **Nudge**, a heads-up with nothing to tick off ("bring gym clothes on
       training days", "check the price"): task `kind:"nudge"`. Its trigger is a
       `repeat`, `planned_date`, `when.planned_task_id` or `when.custom_rule_id`
-      (habit days); with none it appears every morning until cancelled. Never
+      (habit days); with none it appears every morning until cancelled. For "on
+      my X days", first match a saved plan (`workflow --prepare secretary` lists
+      `habits`; `task --briefing` shows routines); ask only if none matches. Never
       asked at night or completed; retire it with `status:"cancelled"`.
    5. **Reference note**, saved information for a trigger the system cannot see
       ("when a supplement runs out, rebuy brand X"): `kind:"reference"`, `trigger`,
@@ -47,7 +50,9 @@ heading. Use `scripts/goodmorning.py` with the selected absolute runtime.
    A timestamp alone does not establish a reserved interval. A window without a
    frequency ("11月初", "early November") is ambiguous between one-off and
    repeat: ask frequency and start date, never default to one-off or strand the
-   window in prose without a structured repeat, workday, or deadline. "Remind me
+   window in prose without a structured repeat, workday, or deadline. One action
+   done once inside a stated window ("buy it sometime between 23 and 28 October")
+   is not ambiguous: a Deadline task with `defer_until` 23 and `due_date` 28. "Remind me
    daily until it's done" is a one-off with `follow_up:"until-done"`, not a repeat. Ask when requested
    scheduling is ambiguous; never infer duration, timezone or another person's agreement.
 4. `/todo` uses `workflow --capture todo`: exact raw input plus a revised clear task
