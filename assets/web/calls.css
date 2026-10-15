@@ -22,7 +22,7 @@
 .call-card:focus-within { border-color: var(--accent); }
 /* Keep calls from squeezing history to zero or escaping the fixed-height desk. */
 @media (min-width: 701px) {
-  .conversation-sidebar:has(> #secretary-calls) { overflow-y: auto; scrollbar-gutter: stable; padding: 4px 6px 4px 4px; }
+  .conversation-sidebar:has(> #secretary-calls) { overflow-y: auto; scrollbar-gutter: stable; padding: 0 6px 4px 4px; }
   .conversation-sidebar:has(> #secretary-calls) #conversation-history { flex: none; }
   .conversation-sidebar:has(> #secretary-calls) #chat-history { max-height: 280px; }
 }

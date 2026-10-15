@@ -190,6 +190,10 @@ html[data-edition="gn"] #chat-error { color: #f1b1a8; }
   .conversation-sidebar, .conversation-panel { height: auto; max-height: 100%; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
   .conversation-sidebar > :not(#conversation-history) { flex-shrink: 0; }
   .secretary-identity .desk-figure { width: min(112px, 100%); margin-bottom: 8px; }
+  /* The sidebar clips overflow, so the picker spans the sidebar rather than overflowing the small portrait. */
+  .secretary-identity { position: relative; }
+  .secretary-identity .avatar-display { position: static; }
+  .secretary-identity .avatar-menu { right: 0; width: auto; }
   .conversation-sidebar h1 { font-size: 32px; letter-spacing: -1px; margin: 8px 0; }
   .secretary-identity { flex-shrink: 0; }
   .secretary-identity > p:not(.eyebrow) { font-size: 13px; margin: 0 0 8px; }
