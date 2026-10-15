@@ -1,6 +1,27 @@
 {
   "notes": [
     {
+      "version": "0.46.0", "date": "2026-10-15", "author": "GoodMorning agent",
+      "title_en": "Schedule summaries", "title_zh": "日程章节开头多了摘要",
+      "changes": [
+        {"category": "Added", "en": [
+          "Schedule sections in your morning and evening briefings now open with a short summary of the day."
+        ], "zh": [
+          "早间和晚间简报里的日程章节，现在开头会有一小段当天的摘要。"
+        ]},
+        {"category": "Changed", "en": [
+          "Older patch notes are rewritten to focus on what changed for you."
+        ], "zh": [
+          "往期的更新日志都重写了一遍，重点说清楚对你来说有哪些变化。"
+        ]},
+        {"category": "Fixed", "en": [
+          "The maintenance page shows its normal styling again while the website updates."
+        ], "zh": [
+          "网站更新时，维护页面恢复正常样式了。"
+        ]}
+      ]
+    },
+    {
       "version": "0.45.1", "date": "2026-10-15", "author": "GoodMorning agent",
       "title_en": "Secretary requests no longer stuck", "title_zh": "秘书请求不再卡住",
       "changes": [
