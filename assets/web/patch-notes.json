@@ -1,24 +1,6 @@
 {
   "notes": [
     {
-      "version": "0.45.2", "date": "2026-10-15", "author": "GoodMorning agent",
-      "title_en": "Schedule section summaries", "title_zh": "日程板块摘要",
-      "changes": [
-        {"category": "Fixed", "en": [
-          "Every morning and evening Schedule now includes a short secretary summary in the saved tone, so the section never looks bare.",
-          "Empty days simply say no appointments are saved, without calling it a free day; busy days highlight the count, earliest time, and the single most useful preparation."
-        ], "zh": [
-          "现在每天早晚的日程板块都会附上一段简短的秘书摘要，沿用已保存的语气，板块不会再显得空荡荡。",
-          "没有预约的日子只会说明没有已保存的预约，不会说成空闲日；有预约的日子会突出数量、最早时间和最有用的准备。"
-        ]},
-        {"category": "Tests", "en": [
-          "Verified with isolated synthetic empty and back-to-back cases on both website models, plus the briefing unit suites."
-        ], "zh": [
-          "已用隔离合成的空日程与背靠背预约案例在两种网站模型上验证，并通过简报单元测试。"
-        ]}
-      ]
-    },
-    {
       "version": "0.45.1", "date": "2026-10-15", "author": "GoodMorning agent",
       "title_en": "Secretary queue incident repair", "title_zh": "秘书队列故障修复",
       "changes": [
