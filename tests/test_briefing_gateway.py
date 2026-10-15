@@ -1,99 +1,20 @@
 """Public request boundaries and private account routing with synthetic data."""
-from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
 from pathlib import Path
 import re
-import secrets
 import sys
-import tempfile
 import threading
 import unittest
 from unittest.mock import patch
-from urllib.error import HTTPError
-from urllib.request import Request, build_opener, HTTPRedirectHandler
 
-from support import TEMP_ROOT
+from support import GatewayFixture, ImmediateThread, MockChamber
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'src'))
-from goodmorning.security.briefing_accounts import Accounts, COOKIE, REMEMBER_SECONDS, SESSION_SECONDS
-from goodmorning.security.briefing_gateway import Gateway, handler_for
+from goodmorning.security.briefing_accounts import COOKIE, REMEMBER_SECONDS
+from goodmorning.security.briefing_gateway import Gateway
 from goodmorning.web.generation_clock import REQUESTED_AT
 
 
-class NoRedirect(HTTPRedirectHandler):
-    def redirect_request(self,*args): return None
-
-
-class GatewayTests(unittest.TestCase):
-    def setUp(self):
-        self.temp=tempfile.TemporaryDirectory(dir=TEMP_ROOT);self.addCleanup(self.temp.cleanup)
-        self.root=Path(self.temp.name)
-        self.store=Accounts(self.root,testing=True,n=1024)
-        self.id=self.store.create('alice','temporary-alice-secret1')
-        self.other=self.store.create('bob','temporary-bob-secret1')
-        self.received=[]
-        received=self.received
-        class Backend(BaseHTTPRequestHandler):
-            def do_GET(self):
-                received.append((self.path,dict(self.headers)))
-                if self.path.startswith('/api/edition/'):
-                    self.send_response(200);self.send_header('Content-Type','application/json');self.end_headers()
-                    self.wfile.write(b'{"job":null}')
-                    return
-                self.send_response(200);self.send_header('Content-Type','text/html');self.end_headers()
-                self.wfile.write(('<body><div data-config="{&quot;csrf&quot;: &quot;'+('a'*43)+'&quot;}"></div>Alice private record</body>').encode())
-            def do_POST(self):
-                received.append((self.path,dict(self.headers)))
-                self.send_response(202);self.end_headers();self.wfile.write(b'{"accepted":true}')
-            def log_message(self,*_): pass
-        self.backend=ThreadingHTTPServer(('127.0.0.1',0),Backend)
-        self.serve(self.backend)
-        self.key=secrets.token_urlsafe(32)
-        (self.root/'backends.json').write_text(json.dumps({self.id:{'port':self.backend.server_port,'key':self.key}}))
-        self.gateway=Gateway(self.store,{'gm.example.test':'gm','gn.example.test':'gn'},testing=True)
-        self.server=ThreadingHTTPServer(('127.0.0.1',0),handler_for(self.gateway))
-        self.serve(self.server)
-        self.opener=build_opener(NoRedirect())
-        self.cookie=None
-        self.csrf=None
-
-    def serve(self,server):
-        threading.Thread(target=server.serve_forever,daemon=True).start()
-        self.addCleanup(server.server_close);self.addCleanup(server.shutdown)
-
-    def request(self,path='/',body=None,*,headers=None,method=None):
-        values={'Host':'gm.example.test','X-Forwarded-Proto':'https','X-Real-IP':'192.0.2.1'}
-        if self.cookie: values['Cookie']=self.cookie
-        if body is not None:
-            values.update({'Origin':'https://gm.example.test','Content-Type':'application/json','X-Briefing-CSRF':self.csrf or ''})
-        values.update(headers or {})
-        raw=json.dumps(body).encode() if body is not None else None
-        try:
-            response=self.opener.open(Request(f'http://127.0.0.1:{self.server.server_port}'+path,data=raw,headers=values,method=method),timeout=3)
-        except HTTPError as error: response=error
-        with response:
-            content=response.read()
-            return response.status,dict(response.headers),content
-
-    def login(self,remember=False):
-        status,headers,content=self.request('/login')
-        self.assertEqual(status,200)
-        self.cookie=headers['Set-Cookie'].split(';')[0]
-        self.csrf=re.search(b'data-csrf="([a-f0-9]+)"',content)[1].decode()
-        status,headers,_=self.request('/api/auth/login',{'username':'alice','password':'temporary-alice-secret1','remember':remember})
-        self.assertEqual(status,200)
-        self.assertIn('Max-Age='+str(REMEMBER_SECONDS if remember else SESSION_SECONDS),headers['Set-Cookie'])
-        self.cookie=headers['Set-Cookie'].split(';')[0]
-        return self.store.session(self.cookie.split('=',1)[1],'gm.example.test')
-
-    def permanent(self):
-        self.login()
-        _,_,content=self.request('/password')
-        self.csrf=re.search(b'data-csrf="([a-f0-9]+)"',content)[1].decode()
-        status,headers,_=self.request('/api/auth/password',{'current':'temporary-alice-secret1','replacement':'permanent-alice-secret1'})
-        self.assertEqual(status,200)
-        self.cookie=headers['Set-Cookie'].split(';')[0]
-        self.csrf=self.store.session(self.cookie.split('=',1)[1],'gm.example.test')['csrf']
-
+class GatewayTests(GatewayFixture):
     def test_single_host_serves_all_tabs_and_rejects_removed_hosts(self):
         single = Gateway(self.store, {'gm.example.test': 'gm'}, testing=True)
         self.gateway.hosts = single.hosts
@@ -120,15 +41,13 @@ class GatewayTests(unittest.TestCase):
                 self.assertEqual(status,200)
                 self.assertEqual(headers['Content-Type'].split(';')[0],viewer.paths[path].mime)
                 self.assertEqual(body,viewer.paths[path].data)
+                self.assertIn('immutable',headers['Cache-Control'])
                 self.assertNotIn('Set-Cookie',headers)
+                if name.endswith('.css'):
+                    for url in re.findall(r'url\([\"\']?([^\"\')]+)',body.decode()):
+                        self.assertIn(url.split('#')[0],self.gateway.icons.paths)
         self.assertEqual(self.received,[])
         self.assertEqual(self.request('/api/chats')[0],401)
-
-    def test_css_dependencies_resolve_to_registered_public_assets(self):
-        for filename in ('briefing.css','color-schemes.css'):
-            css=self.gateway.icons.paths[self.gateway.icons.urls[filename]].data.decode()
-            for url in re.findall(r'url\([\"\']?([^\"\')]+)',css):
-                self.assertIn(url.split('#')[0],tuple(self.gateway.icons.paths))
 
     def test_generation_clock_is_trusted_and_client_headers_are_not_forwarded(self):
         header={'X-GoodMorning-Requested-At':'123'}
@@ -364,19 +283,6 @@ class GatewayTests(unittest.TestCase):
         self.assertEqual(self.request('/api/regenerate',{'date':'2026-10-11','kind':'gm','id':'b'*32,'previous':'a'*32})[0],403)
         self.assertEqual(self.received,[])
 
-    def test_markdown_scripts_are_public_immutable_assets_without_backend_access(self):
-        from goodmorning.web.briefing_resources import Resources
-        from goodmorning.paths import WEB_ASSETS
-        resources = Resources(WEB_ASSETS)
-        for name in ('marked.js', 'markdown.js'):
-            url = resources.urls[name]
-            status, headers, body = self.request(url)
-            self.assertEqual(status, 200)
-            self.assertEqual(headers['Content-Type'], 'text/javascript')
-            self.assertIn('immutable', headers['Cache-Control'])
-            self.assertEqual(body, resources.paths[url].data)
-        self.assertEqual(self.received, [])
-
     def test_regeneration_reserves_global_slot_and_retries_do_not_dispatch_twice(self):
         old='a'*32;new='c'*32;request='b'*32
         body={'date':'2026-10-11','kind':'gm','id':request,'previous':old}
@@ -442,6 +348,28 @@ class GatewayTests(unittest.TestCase):
         cookie=headers['Set-Cookie']
         for value in ('Secure','HttpOnly','SameSite=Strict','Path=/'): self.assertIn(value,cookie)
         self.assertNotIn('Domain=',cookie)
+        self.assertEqual(self.received,[])
+
+    def test_failed_logins_are_indistinguishable_unpromoted_and_rate_limited(self):
+        _,headers,content=self.request('/login')
+        self.cookie=headers['Set-Cookie'].split(';')[0]
+        self.csrf=re.search(b'data-csrf="([a-f0-9]+)"',content)[1].decode()
+        wrong=self.request('/api/auth/login',{'username':'alice','password':'wrong-alice-secret1'})
+        unknown=self.request('/api/auth/login',{'username':'mallory','password':'temporary-alice-secret1'})
+        self.assertEqual((wrong[0],wrong[2]),(unknown[0],unknown[2]))
+        self.assertEqual(wrong[0],403)
+        self.assertNotIn('Set-Cookie',wrong[1])
+        self.assertEqual(self.request('/')[1]['Location'],'/login')
+        self.assertIsNone(self.store.session(self.cookie.split('=',1)[1],'gm.example.test')['user_id'])
+        statuses=[self.request('/api/auth/login',{'username':'alice','password':'wrong-alice-secret1'})[0] for _ in range(5)]
+        self.assertEqual(statuses[-1],429)
+        self.assertEqual(self.request('/api/auth/login',{'username':'alice','password':'temporary-alice-secret1'})[0],429)
+        self.assertEqual(self.received,[])
+
+    def test_requests_not_forwarded_over_https_are_refused(self):
+        for proto in ('http',''):
+            self.assertEqual(self.request('/login',headers={'X-Forwarded-Proto':proto})[0],403)
+            self.assertEqual(self.request('/api/auth/login',{'username':'alice','password':'temporary-alice-secret1'},headers={'X-Forwarded-Proto':proto})[0],403)
         self.assertEqual(self.received,[])
 
     def test_remembered_login_cookie_survives_password_replacement(self):
@@ -766,7 +694,6 @@ class GatewayTests(unittest.TestCase):
 
     def test_native_question_waits_indefinitely_and_reply_resumes_original_session(self):
         from goodmorning.web.briefing_chat import Chats
-        from test_briefing_chat import MockChamber, ImmediateThread
         runtime=self.root/'synthetic-waiting-chat';runtime.mkdir()
         chamber=MockChamber(runtime);chats=Chats(runtime,chamber)
         def proxy(user, host, path, method, raw, headers):
@@ -830,7 +757,6 @@ class GatewayTests(unittest.TestCase):
 
     def test_real_native_message_limit_releases_finished_and_waiting_chat(self):
         from goodmorning.web.briefing_chat import Chats
-        from test_briefing_chat import MockChamber, ImmediateThread
         runtime=self.root/'synthetic-secretary';runtime.mkdir()
         chats=Chats(runtime,MockChamber(runtime))
         def proxy(user,host,path,method,raw,headers):
@@ -912,9 +838,8 @@ class GatewayTests(unittest.TestCase):
         session=self.login()
         self.csrf=session['csrf']
         for value in ('abc12','abcdef','123456','a1'+'x'*31):
-            status,_,data=self.request('/api/auth/password',{'current':'temporary-alice-secret1','replacement':value})
-            self.assertEqual(status,400)
-            self.assertIn('6–32 characters',json.loads(data)['error'])
+            self.assertEqual(self.request('/api/auth/password',{'current':'temporary-alice-secret1','replacement':value})[0],400)
+            self.assertTrue(self.store.check_password('alice','temporary-alice-secret1'))
         status,_,_=self.request('/api/auth/password',{'current':'temporary-alice-secret1','replacement':'abcde1'})
         self.assertEqual(status,200)
         self.assertTrue(self.store.check_password('alice','abcde1'))

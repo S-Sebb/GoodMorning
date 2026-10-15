@@ -9,13 +9,12 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
-from support import TEMP_ROOT
+from support import TEMP_ROOT, FakeChamber, complete_profile
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'src'))
 from goodmorning.briefings import briefing_document as native
 from goodmorning.briefings.briefing_stream import publish, load, require_final
 from goodmorning.web.briefing_server import BrowserApp
 from goodmorning.runtime_files import runtime_lock
-from test_briefing_server import FakeChamber
 
 
 class StreamTests(unittest.TestCase):
@@ -23,7 +22,7 @@ class StreamTests(unittest.TestCase):
         self.temp = tempfile.TemporaryDirectory(dir=TEMP_ROOT)
         self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name)
-        (self.root / 'profile.md').write_text('secretary_language: English\ntimezone: Europe/London\ncity: London, GB\nnews_country: GB\n')
+        complete_profile(self.root)
         (self.root / 'daily').mkdir()
         self.chamber = FakeChamber()
         self.app = BrowserApp(self.root, self.chamber, now=lambda: datetime(2026, 10, 10, 12, tzinfo=timezone.utc))
@@ -120,7 +119,7 @@ class StreamTests(unittest.TestCase):
         self.initialize(); self.append(self.weather)
         self.assertEqual(self.app.status(self.identifier)['state'], 'waiting')
         self.assertIn('14°C', self.app.preview(self.identifier)['changes'][0]['html'])
-        self.chamber.forms = []; self.chamber.permissions = []; self.chamber.busy = False
+        self.chamber.idle()
         self.assertEqual(self.app.status(self.identifier)['state'], 'stopped')
         self.assertTrue(self.target.exists())
         self.assertFalse(native.source_path(self.root, '2026-10-10', 'gm').exists())
@@ -205,7 +204,7 @@ class StreamTests(unittest.TestCase):
         publish(self.root, self.identifier, skip=True); publish(self.root, self.identifier, skip=True)
         changed = deepcopy(self.document); changed['opening'] = 'Changed opening'
         (self.root / 'daily/2026-10-10.gm.json').write_text(native.encode(changed))
-        self.chamber.forms = []; self.chamber.permissions = []; self.chamber.busy = False
+        self.chamber.idle()
         self.assertEqual(self.app.status(self.identifier)['state'], 'stopped')
         self.assertTrue(self.target.exists())
 
@@ -238,7 +237,7 @@ class StreamTests(unittest.TestCase):
             self.assertEqual(json.loads(result.stdout)['error'], 'runtime_busy')
             self.assertFalse((self.root / 'daily/2026-10-10.gm.json').exists())
         result = save(); self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-        self.chamber.forms = []; self.chamber.permissions = []; self.chamber.busy = False
+        self.chamber.idle()
         self.assertEqual(self.app.status(self.identifier)['state'], 'ready')
         self.assertFalse(self.target.exists())
         self.assertEqual(native.parse((self.root / 'daily/2026-10-10.gm.json').read_text()), self.document)

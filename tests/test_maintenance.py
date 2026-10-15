@@ -1,15 +1,19 @@
 """Deploy pause flag: gateway full takeover, queue pump pause, admin CLI."""
 import json
 from pathlib import Path
-import sys
+import re
 import tempfile
 import unittest
+from unittest.mock import patch
 
-from support import TEMP_ROOT
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'src'))
-from goodmorning.security.briefing_accounts import Accounts
+from urllib.error import HTTPError
+from urllib.request import Request, build_opener
+
+from support import TEMP_ROOT, NoRedirect, QuickServer, gateway, serve
+from goodmorning.paths import WEB_ASSETS
+from goodmorning.security.briefing_accounts import Accounts, Denied
 from goodmorning.security import maintenance as deploy_pause
-from goodmorning.security.briefing_gateway import Gateway
+from goodmorning.security.briefing_gateway import POLICY, Gateway, handler_for
 
 
 class MaintenanceTests(unittest.TestCase):
@@ -44,7 +48,6 @@ class MaintenanceTests(unittest.TestCase):
                                   json.dumps({'date': '2026-10-14', 'kind': 'gm'}), {})
 
     def test_pump_reconciles_but_never_dispatches_while_paused(self):
-        from unittest.mock import patch
         with self.store.db() as db:
             db.execute('INSERT INTO metadata VALUES (?,?)', ('generation_queue', json.dumps([
                 {'kind': 'chat', 'candidate': {'user': 'u', 'host': 'gm.example.test', 'chat': 'a' * 32},
@@ -60,42 +63,20 @@ class MaintenanceTests(unittest.TestCase):
             row = db.execute("SELECT value FROM metadata WHERE key='generation'").fetchone()
             self.assertIsNone(row)
 
-    def test_html_and_json_copies_share_wording(self):
-        html = deploy_pause.html_page()
-        self.assertIn(b'maintenance-status', html)
-        self.assertIn(b'Please come back later', html)
-        self.assertIn('请稍后再来'.encode(), html)
-        self.assertIn(b'\xef\xbc\xbe', html)  # fullwidth ＾ in (＾▽＾)
-        static = Path(__file__).resolve().parents[1] / 'assets' / 'web' / 'maintenance.html'
-        self.assertTrue(static.is_file())
-        text = static.read_bytes()
-        self.assertIn(b'maintenance-status', text)
-        self.assertIn(b'desk-secretary.png', text)
-        self.assertIn(b'<style>', text)
-        # The gateway serves this page with style-src 'self' (no unsafe-inline),
-        # so browsers ignore the inline style block: the external link is what
-        # actually styles the paused page. Keep both in sync.
-        self.assertIn(b'<link rel="stylesheet" href="/maintenance.css">', text)
-        self.assertIn(b'<link rel="stylesheet" href="/maintenance.css">', html)
-        # Gateway file copy and module copy must agree on the core wording.
-        self.assertIn(b'Please come back later', text + html)
-        self.assertIn('请稍后再来'.encode(), text + html)
-        css = Path(__file__).resolve().parents[1] / 'assets' / 'web' / 'maintenance.css'
-        self.assertTrue(css.is_file())
-        self.assertIn(b'.maintenance-status', css.read_bytes())
-
-    def test_inline_style_matches_maintenance_css(self):
-        import re
-        static = Path(__file__).resolve().parents[1] / 'assets' / 'web' / 'maintenance.html'
-        css = (Path(__file__).resolve().parents[1] / 'assets' / 'web' / 'maintenance.css').read_bytes()
-        text = static.read_bytes()
-        match = re.search(rb'<style>(.*?)</style>', text, re.S)
-        self.assertIsNotNone(match, 'maintenance.html must carry its styles inline')
-        self.assertEqual(match[1].decode().strip(), css.decode().strip())
+    def test_static_page_is_served_and_styled_under_the_gateway_csp(self):
+        static = (WEB_ASSETS / 'maintenance.html').read_bytes()
+        self.assertEqual(deploy_pause.html_page(), static)
+        text = static.decode()
+        # style-src 'self' ignores inline styles, so the paused page must link its stylesheet.
+        self.assertIn("style-src 'self'", POLICY)
+        self.assertIn('<link rel="stylesheet" href="/maintenance.css">', text)
+        for referenced in re.findall(r'(?:href|src)="/([^"]+)"', text):
+            self.assertTrue((WEB_ASSETS / referenced).is_file(), referenced)
+        self.assertEqual([re.search(r'lang="([^"]+)"', section)[1] for section in re.findall(r'<section [^>]*>', text)], ['en', 'zh-CN'])
+        self.assertEqual(text.count('role="status"'), 2)
 
     def test_translation_catalog_covers_json_error(self):
-        import json as js
-        catalog = js.loads((Path(__file__).resolve().parents[1] / 'assets' / 'web' / 'translations.json').read_text(encoding='utf-8'))
+        catalog = json.loads((WEB_ASSETS / 'translations.json').read_text(encoding='utf-8'))
         self.assertIn(deploy_pause.MESSAGE_EN, catalog)
         self.assertTrue(catalog[deploy_pause.MESSAGE_EN].strip())
 
@@ -104,33 +85,21 @@ class MaintenanceHttpTests(unittest.TestCase):
     """Full-takeover HTTP behavior: pages 503 HTML, APIs 503 JSON, assets exempt."""
 
     def setUp(self):
-        from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-        import threading
         self.temp = tempfile.TemporaryDirectory(dir=TEMP_ROOT)
         self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name)
         self.store = Accounts(self.root, testing=True, n=1024)
-        from goodmorning.security.briefing_gateway import handler_for
         self.gateway = Gateway(self.store, {'gm.example.test': 'gm'}, testing=True)
-        self.server = ThreadingHTTPServer(('127.0.0.1', 0), handler_for(self.gateway))
-        threading.Thread(target=self.server.serve_forever, daemon=True).start()
+        self.server = serve(QuickServer(('127.0.0.1', 0), handler_for(self.gateway)))
         self.addCleanup(self.server.server_close)
         self.addCleanup(self.server.shutdown)
-        from urllib.request import Request, build_opener, HTTPRedirectHandler
-
-        class NoRedirect(HTTPRedirectHandler):
-            def redirect_request(self, *args):
-                return None
         self.opener = build_opener(NoRedirect())
 
     def request(self, path='/', body=None):
-        import json as js
-        from urllib.request import Request
-        from urllib.error import HTTPError
         headers = {'Host': 'gm.example.test', 'X-Forwarded-Proto': 'https', 'X-Real-IP': '192.0.2.1'}
         if body is not None:
             headers.update({'Origin': 'https://gm.example.test', 'Content-Type': 'application/json'})
-        raw = js.dumps(body).encode() if body is not None else None
+        raw = json.dumps(body).encode() if body is not None else None
         try:
             response = self.opener.open(
                 Request(f'http://127.0.0.1:{self.server.server_port}' + path, data=raw, headers=headers), timeout=3)
@@ -149,14 +118,12 @@ class MaintenanceHttpTests(unittest.TestCase):
             self.assertEqual(status, 503)
             self.assertEqual(headers.get('Retry-After'), '60')
             self.assertIn('no-store', headers.get('Cache-Control', ''))
-            self.assertIn(b'maintenance-status', body)
-            self.assertIn('请稍后再来'.encode(), body)
+            self.assertEqual(body, deploy_pause.html_page())
             status, _, body = self.request('/login')
             self.assertEqual(status, 503)
             self.assertIn(b'maintenance-status', body)
             status, _, body = self.request('/api/queue')
-            self.assertEqual(status, 503)
-            self.assertIn(b'maintained', body)
+            self.assertEqual((status, json.loads(body)), (503, deploy_pause.json_error()))
             status, _, _ = self.request('/api/chats', {'id': 'a' * 32, 'mode': 'secretary', 'text': 'hi'})
             self.assertEqual(status, 503)
             # Exemptions still serve while paused.
@@ -171,6 +138,46 @@ class MaintenanceHttpTests(unittest.TestCase):
             deploy_pause.set_state(self.store, False)
         status, _, _ = self.request('/')
         self.assertEqual(status, 302)
+
+    def test_built_in_page_is_served_when_the_static_file_is_missing(self):
+        deploy_pause.set_state(self.store, True)
+        with tempfile.TemporaryDirectory(dir=TEMP_ROOT) as empty, patch('goodmorning.paths.WEB_ASSETS', Path(empty)):
+            status, headers, body = self.request('/')
+        self.assertEqual((status, headers.get('Retry-After')), (503, '60'))
+        text = body.decode()
+        self.assertIn(deploy_pause.MESSAGE_EN, text)
+        self.assertIn(deploy_pause.MESSAGE_ZH, text)
+        self.assertIn('lang="zh-CN"', text)
+        self.assertEqual(text.count('role="status"'), 2)
+
+
+class MaintenanceSessionTests(unittest.TestCase):
+    def test_paused_posts_keep_session_and_queue_but_logout_still_revokes(self):
+        fixture = gateway(self)
+        session = fixture.login()
+        fixture.csrf = session['csrf']
+        queue = json.dumps([{'kind': 'chat', 'candidate': {'user': fixture.id, 'host': 'gm.example.test', 'chat': 'a' * 32},
+                             'user': fixture.id, 'host': 'gm.example.test', 'path': '/api/chats',
+                             'body': {'id': 'a' * 32}, 'language': 'en', 'enqueued': 0}])
+        with fixture.store.db() as db:
+            db.execute('INSERT INTO metadata VALUES (?,?)', ('generation_queue', queue))
+        language = fixture.store.website_language(fixture.id)
+        deploy_pause.set_state(fixture.store, True)
+        for path, body in (('/api/chats', {'id': 'b' * 32, 'mode': 'secretary', 'text': 'hi'}),
+                           ('/api/generate', {'date': '2026-10-14', 'kind': 'gm'}),
+                           ('/api/language', {'language': 'zh-CN'}),
+                           ('/api/auth/password', {'current': 'temporary-alice-secret1', 'replacement': 'permanent-alice-secret1'})):
+            status, _, raw = fixture.request(path, body)
+            self.assertEqual((status, json.loads(raw)), (503, deploy_pause.json_error()), path)
+        token = fixture.cookie.split('=', 1)[1]
+        self.assertEqual(fixture.store.session(token, 'gm.example.test')['user_id'], fixture.id)
+        self.assertEqual(fixture.store.website_language(fixture.id), language)
+        with fixture.store.db() as db:
+            self.assertEqual(db.execute("SELECT value FROM metadata WHERE key='generation_queue'").fetchone()[0], queue)
+        self.assertEqual(fixture.received, [])
+        self.assertEqual(fixture.request('/api/auth/logout', {})[0], 200)
+        with self.assertRaises(Denied):
+            fixture.store.session(token, 'gm.example.test')
 
 
 if __name__ == '__main__':

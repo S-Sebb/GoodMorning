@@ -2,19 +2,19 @@
 import io
 import json
 from pathlib import Path
-import sys
+import secrets
 import tempfile
+import threading
 import unittest
+from unittest.mock import patch
 from urllib.error import HTTPError
 from urllib.request import Request
 
 from PIL import Image
-from support import TEMP_ROOT
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'src'))
+from support import TEMP_ROOT, FakeChamber, QuickServer, session_cookie
 from goodmorning.web.avatar_images import MAX_AVATAR_BYTES, read_image
-from goodmorning.web.briefing_server import BrowserApp
+from goodmorning.web.briefing_server import BrowserApp, serve_live
 from goodmorning.briefings.briefing_document import encode
-from test_briefing_server import FakeChamber
 import test_chat_uploads
 
 
@@ -34,12 +34,12 @@ class CustomAvatarTests(unittest.TestCase):
 
     def test_supported_formats_are_normalized_and_keep_all_defaults(self):
         for format in ('PNG', 'JPEG', 'WEBP'):
-            settings = self.app.upload_avatar(portrait(format=format, size=(1800, 1200)))
+            settings = self.app.upload_avatar(portrait(format=format, size=(1030, 700)))
             self.assertEqual(settings['avatar'], 'custom')
             self.assertEqual([item['id'] for item in settings['avatars']], ['f1', 'f2', 'm1', 'm2', 'custom'])
             with Image.open(io.BytesIO(read_image(self.root)[1])) as image:
                 self.assertEqual(image.format, 'PNG')
-                self.assertLessEqual(max(image.size), 1024)
+                self.assertEqual(image.size, (1024, 696))
                 self.assertEqual(image.info, {})
         for filename in ('website-avatar.json', 'website-avatar-image.json'):
             self.assertEqual((self.root / filename).stat().st_mode & 0o777, 0o600)
@@ -155,14 +155,29 @@ class CustomAvatarHTTPTests(unittest.TestCase):
         self.assertEqual(self.upload(b'<svg/>')[0], 400)
         self.assertNotIn('custom', self.backend_fixture.app.avatar_sources())
 
-    def test_image_urls_cannot_select_another_account(self):
+    def test_image_urls_are_served_only_from_the_owners_backend(self):
         self.fixture.permanent()
         url = self.upload()[1]['avatars'][-1]['src']
+        runtime = self.fixture.root / 'bob'; runtime.mkdir()
+        (runtime / 'profile.md').write_text('timezone: Europe/London\nsecretary_language: English\n')
+        servers, ready, key = [], threading.Event(), secrets.token_urlsafe(32)
+        def server(*args):
+            servers.append(QuickServer(*args)); ready.set()
+            return servers[-1]
+        with patch('goodmorning.web.briefing_server.ThreadingHTTPServer', server), patch('builtins.print'):
+            threading.Thread(target=serve_live, args=(BrowserApp(runtime, FakeChamber()), 0), kwargs={
+                'gateway_key': key, 'public_origins': ('https://gm.example.test',)}, daemon=True).start()
+            self.assertTrue(ready.wait(2))
+        self.addCleanup(servers[0].server_close); self.addCleanup(servers[0].shutdown)
         registry = self.fixture.root / 'backends.json'
-        registry.write_text(json.dumps({self.fixture.other: {
-            'port': self.backend_fixture.backend.server_port, 'key': self.fixture.key}}))
-        self.assertNotEqual(self.fixture.request(url)[0], 200)
-
+        registry.write_text(json.dumps({**json.loads(registry.read_text()),
+                                        self.fixture.other: {'port': servers[0].server_port, 'key': key}}))
+        with self.fixture.store.db() as db:
+            db.execute('UPDATE users SET temporary=0 WHERE id=?', (self.fixture.other,))
+        bob = session_cookie(self.fixture, self.fixture.other)
+        self.assertEqual(json.loads(self.fixture.request('/api/avatar', headers={'Cookie': bob})[2])['avatar'], 'f1')
+        self.assertEqual(self.fixture.request(url, headers={'Cookie': bob})[0], 404)
+        self.assertEqual(self.fixture.request(url)[0], 200)
 
 if __name__ == '__main__':
     unittest.main()

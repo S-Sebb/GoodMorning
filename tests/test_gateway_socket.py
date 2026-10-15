@@ -21,14 +21,28 @@ class GatewaySocketTests(unittest.TestCase):
         self.path = str(Path(self.temp.name) / 'gateway.sock')
 
     def test_listener_accepts_a_browser_asset_burst_before_servicing_connections(self):
-        server = Server(self.path, BaseHTTPRequestHandler)
+        class Handler(BaseHTTPRequestHandler):
+            def do_GET(handler):
+                handler.send_response(200)
+                handler.send_header('Content-Length', '0')
+                handler.end_headers()
+            def log_message(self, *_):
+                pass
+        server = Server(self.path, Handler)
         self.addCleanup(server.server_close)
+        clients = []
         for _ in range(30):  # Fits the existing public NGINX burst limit.
             client = socket.socket(socket.AF_UNIX)
             self.addCleanup(client.close)
             client.setblocking(False)
             client.connect(self.path)
-        self.assertLessEqual(server.request_queue_size, 64)
+            clients.append(client)
+        threading.Thread(target=server.serve_forever, daemon=True).start()
+        self.addCleanup(server.shutdown)
+        for client in clients:
+            client.settimeout(2)
+            client.sendall(b'GET /auth.js HTTP/1.0\r\n\r\n')
+            self.assertIn(b' 200 ', client.recv(1024).split(b'\r\n', 1)[0])
 
     def test_busy_workers_queue_an_asset_without_increasing_worker_count(self):
         release = threading.Event()

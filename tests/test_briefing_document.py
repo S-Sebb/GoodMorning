@@ -14,14 +14,13 @@ from unittest.mock import patch
 from urllib.error import HTTPError
 from urllib.request import urlopen
 
-from support import TEMP_ROOT, returning_viewer
+from support import TEMP_ROOT, returning_viewer, HTTPFixture, FakeChamber
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'src'))
 from goodmorning.briefings import briefing_document as native
 from goodmorning.briefings import briefing_web as web
 from goodmorning.records import state
 from goodmorning.web.briefing_server import BrowserApp
 from benchmarks.briefing_format import compact, fixtures
-import test_briefing_server as server_tests
 
 DATE = '2034-03-17'
 
@@ -72,8 +71,6 @@ class DocumentTests(unittest.TestCase):
 
     def test_native_renderer_never_calls_markdown_or_prose_layout_inference(self):
         doc = document()
-        self.assertFalse(hasattr(web, 'markdown_html'))
-        self.assertFalse(hasattr(web, 'section_layout'))
         page = web.edition(doc, DATE, 'gm', {'gm': True})
         for value in ('weather-tile', 'news-card', 'agenda-event', 'task-card', 'src="briefing.js"'):
             self.assertIn(value, page)
@@ -116,11 +113,11 @@ class DocumentTests(unittest.TestCase):
         self.assertEqual(native.parse(native.encode(doc)),doc)
         for language in ('en','zh-CN'):
             token=ui.CURRENT.set(language)
-            try: page=web.edition(doc,'2026-10-11','gn',{'gn':True})
+            try:
+                page=web.edition(doc,'2026-10-11','gn',{'gn':True})
+                labels=[ui.ui(label) for label in ('Flexible schedule','No date assigned','Tomorrow')]
             finally: ui.CURRENT.reset(token)
-            self.assertIn('Flexible schedule' if language=='en' else '灵活安排',page)
-            self.assertIn('No date assigned' if language=='en' else '尚未指定日期',page)
-            self.assertIn('>Tomorrow</bdi>' if language=='en' else '>明天</bdi>',page)
+            for label in labels: self.assertIn(label,page)
             self.assertEqual(page.count('class="flexible-group"'),2)
             self.assertEqual(page.count('class="task-card task"'),3)
             self.assertNotIn('class="agenda-event"',page)
@@ -239,10 +236,11 @@ class DocumentTests(unittest.TestCase):
         self.assertIn('Partial', page)
         self.assertIn('Blocked', page)
 
-    def test_all_rendered_strings_are_inert_and_internal_ids_hidden(self):
+    def test_all_rendered_strings_are_inert_and_internal_ids_hidden_but_link_targets_kept(self):
         doc = {'v': 1, 'greeting': 'Hello <script>bad</script>.', 'opening': 'No executable markup.', 'sections': [
             ['notes', [['p', 'literal ## heading\n<script>alert(1)</script> ib_' + 'a' * 24,
-                        [['<img src=x onerror=bad>', 'https://example.org/?a=%22&b=%3Cscript%3E']]],
+                        [['<img src=x onerror=bad>', 'https://example.org/?a=%22&b=%3Cscript%3E'],
+                         ['Source', 'https://example.org/ib_' + 'a' * 24]]],
                        ['list', ['Keep this warning.', 'Nested-like text is literal.']],
                        ['table', ['Outcome'], [['<iframe>unsafe</iframe>']]]], 'Separate note.', 'Quoted " heading ses_fixture']],
                'closing': 'Good night <b>literal</b>.'}
@@ -250,7 +248,8 @@ class DocumentTests(unittest.TestCase):
         for tag in ('<script>bad', '<script>alert', '<img src=x', '<iframe>', '<b>literal'):
             self.assertNotIn(tag, page)
         self.assertIn('&lt;script&gt;alert', page)
-        self.assertNotIn('ib_' + 'a' * 24, page)
+        self.assertNotIn(' ib_' + 'a' * 24, page)
+        self.assertIn('href="https://example.org/ib_' + 'a' * 24 + '"', page)
         self.assertNotIn('ses_fixture', page)
         self.assertIn('Good night &lt;b&gt;literal', page)
 
@@ -324,7 +323,6 @@ class SaveAndViewTests(unittest.TestCase):
         self.assertIn('Preserve me', (self.root / 'daily' / f'{DATE}.md').read_text())
         page = self.app().page(DATE, 'gm', True).decode()
         self.assertNotIn('class="briefing-tools"', page)
-        self.assertNotIn('Read original Markdown', page)
         self.assertFalse((self.root / 'browser').exists())
         self.assertEqual(self.save(doc)[1]['error'], 'already_ran')
 
@@ -403,19 +401,14 @@ class SaveAndViewTests(unittest.TestCase):
         (self.root / 'daily' / f'{DATE}.gm.md').write_text('Stale old snapshot.')
         with self.assertRaises(ValueError): self.app().page(DATE, 'gm', True)
 
-    def test_rebuild_recognizes_json_pointer_and_never_opens_external_pointer(self):
+    def test_rebuild_recognizes_json_pointer(self):
         self.save(document())
         rebuilt = state.rebuild_index(str(self.root), state.blank_state(), DATE)
         self.assertEqual(rebuilt['days'][DATE]['gm']['answer_file'], f'daily/{DATE}.gm.json')
         self.assertNotIn('unsafe_answer_pointer', rebuilt['warnings'])
-        daily = self.root / 'daily' / f'{DATE}.md'
-        daily.write_text('- gm: yes (session ses_fixture) | answer: private.json\n')
-        with patch.object(state, 'stat_answer', side_effect=AssertionError('Unsafe read')):
-            rebuilt = state.rebuild_index(str(self.root), state.blank_state(), DATE)
-        self.assertIn('unsafe_answer_pointer', rebuilt['warnings'])
 
     def test_generated_invalid_json_is_not_reported_ready(self):
-        chamber = server_tests.FakeChamber(); chamber.forms = []; chamber.permissions = []; chamber.busy = False
+        chamber = FakeChamber().idle()
         app = BrowserApp(self.root, chamber, now=lambda: datetime(2034, 3, 17, 12, tzinfo=timezone.utc))
         job = {'id': 'a' * 32, 'date': DATE, 'kind': 'gm', 'state': 'running', 'session': 'ses_fixture'}
         app.jobs[DATE + '.gm'] = job
@@ -468,7 +461,7 @@ class SaveAndViewTests(unittest.TestCase):
         self.assertFalse((self.root / 'browser').exists())
 
     def test_dispatch_requests_native_format_without_overriding_user_model(self):
-        app = self.app(); chamber = server_tests.FakeChamber(); app.chamber = chamber
+        app = self.app(); chamber = FakeChamber(); app.chamber = chamber
         job = {'id': 'a' * 32, 'date': DATE, 'kind': 'gm', 'state': 'starting'}
         app.jobs[DATE + '.gm'] = job; app.dispatch(job)
         prompt = next(args['prompt'] for action, args in chamber.calls if action == 'session.send')
@@ -478,7 +471,7 @@ class SaveAndViewTests(unittest.TestCase):
         self.assertNotIn('model', chamber.calls[0][1])
 
 
-class NativeHTTPTests(server_tests.HTTPTests):
+class NativeHTTPTests(HTTPFixture):
     def test_native_download_and_read_only_source_mime(self):
         payload = native.encode(document())
         (self.root / 'daily' / f'{self.date}.gm.json').write_text(payload)

@@ -54,7 +54,8 @@ def check_chat(browser, address, artifacts, width, height):
     expect(page.locator('.chat-message')).to_have_count(24)
     page.evaluate('document.fonts.ready')
     page.clock.install()
-    page.evaluate('window.scrollTo(0, document.documentElement.scrollHeight)')
+    # Phone history and secretary calls sit below the chat; bring the chat itself into view.
+    page.locator('#conversation').evaluate("node => node.scrollIntoView({block: 'end'})")
     text = page.get_by_label('Your message', exact=True)
     text.tap()
     text.fill('Keep this draft')
@@ -103,7 +104,7 @@ def check_chat(browser, address, artifacts, width, height):
 
     # The outer page has its own grip, even when the input remains focused.
     scroll.evaluate('node => node.scrollTop = 400')
-    page.evaluate('window.scrollBy(0, -1)')
+    page.evaluate('window.scrollBy(0, 1)')  # The page continues below the chat.
     expect(outer).to_have_css('opacity', '1')
     drag_rail(page, client, outer, False)
     assert page.evaluate('scrollY') == 0
@@ -120,6 +121,7 @@ def check_chat(browser, address, artifacts, width, height):
     page.screenshot(path=str(artifacts / f'chat-rails-{width}.png'))
 
     # Keyboard resizing and panning keep both grips in the visible screen.
+    page.locator('#conversation').evaluate("node => node.scrollIntoView({block: 'end'})")
     keyboard_viewport(page, height - 280, top=40)
     for rail in (inner, outer):
         box = rail.bounding_box()

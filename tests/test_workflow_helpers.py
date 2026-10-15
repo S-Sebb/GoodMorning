@@ -5,7 +5,6 @@ import io
 import json
 import os
 from pathlib import Path
-import sqlite3
 import sys
 import tempfile
 import unittest
@@ -21,7 +20,6 @@ from goodmorning.news.news_views import report_view
 from goodmorning.news.news_reports import ReportStore, context_key
 from goodmorning.records.inbox_store import initialize, InboxStore
 from goodmorning.runtime_files import secretary_path, cache_path, calendar_path
-from goodmorning.calendar.calendar_store import CalendarStore
 
 DAY = "2026-10-10"
 
@@ -86,16 +84,6 @@ class HelpersTests(unittest.TestCase):
         for name in ("state.json", "daily", "calendar.sqlite"):
             self.assertFalse((self.root / name).exists())
 
-    def test_preparation_checks_duplicates_before_loading_daily_tasks_or_inbox(self):
-        self.file(f"# {DAY}\n- gm: yes (session ses-original)\n")
-        before = set(self.root.iterdir())
-        with patch.object(workflow, "daily_show", side_effect=AssertionError("unnecessary read")):
-            result = workflow.prepare(self.root, "gm", DAY)
-        self.assertTrue(result["duplicate"])
-        self.assertEqual(result["original_session"], "ses-original")
-        self.assertNotIn("title", result)
-        self.assertEqual(set(self.root.iterdir()), before)
-
     def test_prepare_dates_configuration_and_missing_setup_are_local(self):
         result = workflow.prepare(self.root, "gm", DAY)
         self.assertEqual(result["yesterday"], "2026-10-09")
@@ -121,16 +109,19 @@ class HelpersTests(unittest.TestCase):
         self.assertEqual(result['timezone'],'Europe/London')
         self.assertEqual(set(self.root.iterdir()),before)
 
-    def test_native_duplicate_uses_json_pointer_without_history_or_content_reads(self):
+    def test_duplicate_preparation_uses_json_pointer_without_task_history_or_content_reads(self):
         self.file(f'# {DAY}\n- gm: yes (session ses-original) | answer: daily/{DAY}.gm.json\n')
         payload = {'v': 1, 'greeting': 'Hello.', 'opening': 'Saved once.', 'sections': [['notes', [['p', 'Preserved.']]]]}
         (self.root / 'daily' / f'{DAY}.gm.json').write_text(json.dumps(payload))
+        before = set(self.root.iterdir())
         with patch.object(workflow, 'daily_show', side_effect=AssertionError('task read')), \
              patch.object(workflow, 'rebuild_index', side_effect=AssertionError('history read')):
             result = workflow.prepare(self.root, 'gm', DAY)
         self.assertTrue(result['duplicate'])
         self.assertEqual(result['answer_file'], f'daily/{DAY}.gm.json')
         self.assertEqual(result['original_session'], 'ses-original')
+        self.assertNotIn('title', result)
+        self.assertEqual(set(self.root.iterdir()), before)
 
     def test_non_english_title_is_not_guessed(self):
         profile = self.root / "profile.md"
@@ -183,6 +174,9 @@ class HelpersTests(unittest.TestCase):
         view = daily.show(self.root, DAY)
         receipt = daily.amend(self.root, DAY, view["sha256"], {"tasks": {"must-do": [{"text": "Changed reminder", "ref": ref}]}})
         self.assertFalse(receipt["changed"])
+        text = (self.root / "daily" / (DAY + ".md")).read_text()
+        self.assertIn(f"- [x] Original reminder <!-- inbox:{ref} -->", text)
+        self.assertNotIn("Changed reminder", text)
 
     def test_flexible_checklist_uses_exact_completion_and_cross_group_deduplication(self):
         path=self.file(f"# {DAY}\n## must-do\n- [x] Important task\n")
@@ -235,19 +229,6 @@ class HelpersTests(unittest.TestCase):
         (self.root / "calendar.config.json").write_text(json.dumps({"calendar_db": str(path)}))
         self.assertEqual(calendar_path(self.root), path)
         self.assertEqual(workflow.prepare(self.root, "secretary", DAY)["paths"]["calendar_db"], str(path))
-
-    def test_calendar_readonly_never_creates_or_rewrites_storage(self):
-        path = self.root / "missing" / "calendar.sqlite"
-        with self.assertRaises(sqlite3.OperationalError):
-            CalendarStore(str(path), readonly=True)
-        self.assertFalse(path.parent.exists())
-        actual = self.root / "calendar.sqlite"
-        CalendarStore(str(actual)).close()
-        store = CalendarStore(str(actual), readonly=True)
-        self.addCleanup(store.close)
-        self.assertEqual(store.stats()["total"], 0)
-        with self.assertRaises(sqlite3.OperationalError):
-            store.con.execute("DELETE FROM events")
 
 
 class NewsViewTests(unittest.TestCase):

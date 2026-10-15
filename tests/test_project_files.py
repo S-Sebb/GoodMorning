@@ -4,6 +4,7 @@ import json
 import os
 from pathlib import Path
 import subprocess
+import sys
 import tempfile
 from support import TEMP_ROOT
 import unittest
@@ -25,7 +26,7 @@ class ProjectFilesTests(unittest.TestCase):
     def command(self, **payload):
         value = {"root": str(self.root), "write_targets": ["PLAN.md"], **payload}
         encoded = base64.b64encode(json.dumps(value).encode()).decode()
-        return ["python3", str(HELPER), encoded]
+        return [sys.executable, str(HELPER), encoded]
 
     def run_op(self, **payload):
         result = subprocess.run(self.command(**payload), capture_output=True, text=True, timeout=5)

@@ -7,7 +7,8 @@ import tempfile
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from support import TEMP_ROOT, returning_viewer
-from test_weekly_schedule import make_runtime, start_server
+from support import start_server
+from test_weekly_schedule import make_runtime
 
 
 def check(app, url, shots):
@@ -37,13 +38,14 @@ def check(app, url, shots):
                         for link, label in zip(links.all(), labels):
                             expect(link).to_have_accessible_name(label)
                             icon = link.evaluate('el => { const s = getComputedStyle(el, "::before"); return {image: s.backgroundImage, width: parseFloat(s.width), height: parseFloat(s.height)}; }')
-                            assert '/assets/' in icon['image'] and icon['width'] >= 20 and icon['height'] >= 20, icon
+                            size = 18 if route == '/chat' and width <= 700 else 20  # Compact phone chat header.
+                            assert '/assets/' in icon['image'] and icon['width'] >= size and icon['height'] >= size, icon
                         boxes = links.evaluate_all('nodes => nodes.map(node => {const r=node.getBoundingClientRect();return {left:r.left,right:r.right,top:r.top,bottom:r.bottom};})')
                         assert all(0 <= box['left'] < box['right'] <= width for box in boxes), boxes
                         assert all(a['right'] <= b['left'] + 1 for a, b in zip(boxes, boxes[1:])), boxes
                         assert not page.evaluate('document.documentElement.scrollWidth > innerWidth'), (route, width, language)
                         if route == '/chat':
-                            expect(page.locator('.mode-switch button')).to_have_count(4)
+                            expect(page.locator('.mode-switch button')).to_have_count(3)
                             page.locator('[data-mode="eureka"]').click()
                             expect(page.locator('[data-mode="eureka"]')).to_have_attribute('aria-checked', 'true')
                         if shots and route in ('/schedule', '/chat') and width in (1440, 390):

@@ -1,6 +1,5 @@
 """Opt-in v2 renderer checks in a real browser; synthetic records, no live accounts."""
 import argparse
-from datetime import datetime, timezone
 import json
 from pathlib import Path
 import sys

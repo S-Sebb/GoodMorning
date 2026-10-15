@@ -1,4 +1,5 @@
 """Rich layouts and publisher-image boundaries, with synthetic data only."""
+import hashlib
 import importlib.util
 import io
 import json
@@ -44,12 +45,12 @@ class RichLayoutTests(unittest.TestCase):
         fallback = native.render_block(content, {})
         for value in ('Headline', 'Complete summary, including the warning.', 'Publisher'):
             self.assertIn(value, fallback)
-        self.assertIn('Illustration · image unavailable', fallback)
+        self.assertIn('class="news-visual illustration"', fallback)
         rendered = native.render_block(content, {'https://example.org/a': {'src': 'media/' + 'a' * 64 + '.webp', 'alt': 'A & B'}})
         self.assertIn('loading="lazy"', rendered)
         self.assertIn('alt="A &amp; B"', rendered)
-        self.assertIn('Publisher preview · Publisher', rendered)
-        self.assertNotIn('image unavailable', rendered)
+        self.assertRegex(rendered, r'<figure class="news-visual"><img [^>]*><figcaption>.*Publisher.*</figcaption>')
+        self.assertNotIn('illustration', rendered)
 
     def test_task_split_preserves_status_wording_and_nested_markup(self):
         rendered = native.render_block(['tasks', [['open', 'Ranking — with a dash', 'Due tomorrow.'], ['done', 'Confirmed task.', 'User confirmed.']]], {})
@@ -95,7 +96,7 @@ class PublisherBoundaryTests(unittest.TestCase):
             self.assertEqual(constructor.call_count, 1)
 
     @unittest.skipUnless(importlib.util.find_spec('PIL'), 'Optional Pillow dependency not installed')
-    def test_raster_cache_validates_hash_and_is_offline_on_reuse(self):
+    def test_raster_cache_validates_hash_and_manifest_paths(self):
         from PIL import Image
         payload = io.BytesIO()
         Image.new('RGB', (800, 400), 'blue').save(payload, format='PNG')
@@ -108,9 +109,7 @@ class PublisherBoundaryTests(unittest.TestCase):
                 receipt = images.cache_previews([url], root)
                 self.assertEqual(fetch.call_count, 2)
             self.assertEqual(receipt[url]['status'], 'cached')
-            with patch.object(images, 'fetch_public', side_effect=AssertionError('Unexpected network')):
-                images.cache_previews([url], root)
-                selected, files = images.cached_previews(root, [url])
+            selected, files = images.cached_previews(root, [url])
             self.assertEqual(len(selected), 1)
             self.assertEqual(len(files), 1)
             asset = root / receipt[url]['file']
@@ -119,6 +118,35 @@ class PublisherBoundaryTests(unittest.TestCase):
             receipt[url]['file'] = '../profile.md'
             (root / 'manifest.json').write_text(json.dumps(receipt))
             self.assertEqual(images.cached_previews(root, [url]), ({}, {}))
+
+    @unittest.skipUnless(importlib.util.find_spec('PIL'), 'Optional Pillow dependency not installed')
+    def test_invalid_manifest_or_symlinked_cache_is_preserved_without_fetching(self):
+        with tempfile.TemporaryDirectory(dir=TEMP_ROOT) as directory:
+            root = Path(directory) / 'cache'; root.mkdir()
+            manifest = root / 'manifest.json'
+            for data in (b'[]', b'not json', b'{"x":"' + b'a' * 100_001 + b'"}'):
+                manifest.write_bytes(data)
+                with self.subTest(size=len(data)), patch.object(images, 'fetch_public') as fetch, self.assertRaises(ValueError):
+                    images.cache_previews(['https://example.org/story'], root)
+                fetch.assert_not_called()
+                self.assertEqual(manifest.read_bytes(), data)
+            outside = Path(directory) / 'outside.json'; outside.write_text('{}')
+            manifest.unlink(); manifest.symlink_to(outside)
+            linked = Path(directory) / 'linked'; linked.symlink_to(root, target_is_directory=True)
+            for cache in (root, linked):
+                with self.subTest(cache=cache.name), patch.object(images, 'fetch_public') as fetch, self.assertRaises(ValueError):
+                    images.cache_previews(['https://example.org/story'], cache)
+                fetch.assert_not_called()
+            self.assertEqual(outside.read_text(), '{}')
+
+    def test_corrupt_existing_image_object_is_not_overwritten(self):
+        with tempfile.TemporaryDirectory(dir=TEMP_ROOT) as directory:
+            data = b'RIFF\0\0\0\0WEBP replacement'
+            target = Path(directory) / (hashlib.sha256(data).hexdigest() + '.webp')
+            target.write_bytes(b'corrupt')
+            with self.assertRaises(ValueError):
+                images.store_image(Path(directory), target.name, data)
+            self.assertEqual(target.read_bytes(), b'corrupt')
 
 
 if __name__ == '__main__':

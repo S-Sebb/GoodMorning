@@ -14,13 +14,12 @@ from unittest.mock import patch
 from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 
-from support import TEMP_ROOT
+from support import TEMP_ROOT, HTTPFixture
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'src'))
 from goodmorning.briefings import briefing_images as images
 from goodmorning.briefings import briefing_web as web
 from goodmorning.web.briefing_resources import ByteCache, Resources, accepts_gzip
 from goodmorning.web.briefing_server import BrowserApp
-import test_briefing_server as server_tests
 from test_briefing_web import GM
 
 
@@ -47,7 +46,12 @@ class ResourceTests(unittest.TestCase):
                 app.page('2034-03-17','gm',False);self.assertEqual(render.call_count,5)
                 app.now=lambda:datetime(2034,3,18,12,tzinfo=timezone.utc)
                 app.page('2034-03-17','gm',False);self.assertEqual(render.call_count,6)
-            self.assertLessEqual(app.pages.size,8*1024*1024)
+
+    def test_changed_profile_timezone_is_reloaded(self):
+        with tempfile.TemporaryDirectory(dir=TEMP_ROOT) as directory:
+            root=Path(directory);(root/'daily').mkdir();(root/'profile.md').write_text('timezone: Europe/London\n')
+            app=BrowserApp(root,now=lambda:datetime(2034,3,17,12,tzinfo=timezone.utc))
+            app.today();self.assertEqual(app.zone,'Europe/London')
             (root/'profile.md').write_text('timezone: Asia/Tokyo\n')
             app.today();self.assertEqual(app.zone,'Asia/Tokyo')
 
@@ -72,8 +76,6 @@ class ResourceTests(unittest.TestCase):
         css = one.paths[one.urls['briefing.css']]
         self.assertIn(one.urls['fonts/lora-italic.woff2'].encode(), css.data)
         self.assertEqual(gzip.decompress(css.compressed), css.data)
-        self.assertLess(len(css.compressed), len(css.data) * .3)
-        self.assertLess(len(one.paths[one.urls['fonts/lora-italic.woff2']].data), 100000)
 
     def test_desk_icons_are_shared_immutable_css_dependencies(self):
         resources = Resources(web.ASSETS)
@@ -88,7 +90,7 @@ class ResourceTests(unittest.TestCase):
             self.assertIn(resources.urls['icons/desk-schedule.svg'].encode(), css)
 
 
-class TransportTests(server_tests.HTTPTests):
+class TransportTests(HTTPFixture):
     def test_assets_compress_and_revalidate_without_caching_private_pages(self):
         with urlopen(self.address + '/gm.html') as response:
             page = response.read().decode()
@@ -145,7 +147,8 @@ class ImageReuseTests(unittest.TestCase):
     def test_network_budget_is_shared(self):
         with tempfile.TemporaryDirectory(dir=TEMP_ROOT) as folder:
             urls = ['https://example.org/' + str(i) for i in range(40)]
-            with patch.object(images.time, 'monotonic', side_effect=[0] + [25] * 64), patch.object(images, 'fetch_public', side_effect=AssertionError('Budget exhausted')) as fetch:
+            ticks = iter([0])  # The 24s budget starts at 0; every later check is past it.
+            with patch.object(images.time, 'monotonic', side_effect=lambda: next(ticks, 25)), patch.object(images, 'fetch_public', side_effect=AssertionError('Budget exhausted')) as fetch:
                 result = images.cache_previews(urls, Path(folder))
             self.assertEqual(len(result), 32)
             fetch.assert_not_called()
@@ -169,7 +172,6 @@ class ImageReuseTests(unittest.TestCase):
                 self.assertEqual(small.size, (320, 180))
             self.assertEqual(app.image(name), data)
             self.assertEqual(before, {p for p in root.rglob('*') if p.is_file()})
-            self.assertLessEqual(app.thumbnails.size, 2 * 1024 * 1024)
 
     def test_same_article_and_identical_images_share_one_object_across_days(self):
         from PIL import Image

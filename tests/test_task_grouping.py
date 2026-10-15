@@ -12,17 +12,16 @@ from goodmorning.records import routing
 
 class GroupingTests(unittest.TestCase):
     def test_detail_cleanup_keeps_genuine_notes_only(self):
-        self.assertEqual(routing.clean_task_detail('Write paper', 'Write paper'), '')
-        self.assertEqual(routing.clean_task_detail('Write paper', 'Write paper | deadline 2026-12-31 (soft)'), '')
-        self.assertEqual(routing.clean_task_detail('Buy milk', 'Attach signed figures.'), 'Attach signed figures.')
-        cleaned = routing.clean_task_detail('T', 'T · Project: Atlas · Due: 2026-10-16 · To be scheduled')
-        self.assertNotIn('Project', cleaned)
-        self.assertNotIn('To be scheduled', cleaned)
-        # Legacy saved rows used the previous heading; they still read cleanly.
-        legacy = routing.clean_task_detail('T', 'T · Project: Atlas · Due: 2026-10-16 · No workday assigned')
-        self.assertNotIn('No workday', legacy)
-        legacy_zh = routing.clean_task_detail('T', 'T · Project: Atlas · Due: 2026-10-16 · 还没定在哪天做')
-        self.assertNotIn('还没定在哪天做', legacy_zh)
+        # Legacy saved rows repeat the title and structured fields; display drops them.
+        for title, detail, expected in [
+                ('Write paper', 'Write paper', ''),
+                ('Write paper', 'Write paper | deadline 2026-12-31 (soft)', ''),
+                ('Buy milk', 'Attach signed figures.', 'Attach signed figures.'),
+                ('T', 'T · Project: Atlas · Due: 2026-10-16 · To be scheduled', ''),
+                ('T', 'T · Project: Atlas · Due: 2026-10-16 · No workday assigned', ''),
+                ('T', 'T · Project: Atlas · Due: 2026-10-16 · 还没定在哪天做', ''),
+                ('T', 'Bring ID · 项目：Atlas · 待安排', 'Bring ID')]:
+            self.assertEqual(routing.clean_task_detail(title, detail), expected, detail)
 
     def test_action_cells_have_no_title_echo_or_workday_suffix(self):
         row = {'id': 'task_1', 'revision': 1, 'occurrence_id': '', 'date': '', 'status': 'open',
@@ -73,8 +72,8 @@ class GroupingTests(unittest.TestCase):
         html = native.render_block(['actions', rows], {}, '2026-10-11')
         order = [m.group(1) for m in re.finditer(r'project-name" data-content>([^<]+)', html)]
         self.assertEqual(order[0], 'YuQuant')
-        first = html.split('YuQuant')[0]
-        self.assertIn('open', first[-600:])
+        self.assertRegex(html, r'<details class="task-project" open><summary[^>]*>'
+                               r'<span class="project-name" data-content>YuQuant<')
 
     def test_decisions_are_cards_with_human_times(self):
         rows = [['abcdefabcdefabcd', 1,
@@ -95,15 +94,14 @@ class GroupingTests(unittest.TestCase):
                 {'subject': 'Canceled: Imperial-QMUL Catchup', 'source': 'outlook',
                  'start': '2026-10-23T11:00:00+00:00', 'end': '2026-10-23T12:00:00+00:00',
                  'status': 'cancelled', 'raw_revision': 2}, 'Europe/London', ui)
-            self.assertTrue(title.startswith('Canceled:'))
-            self.assertNotIn('Review calendar change', title)
+            self.assertEqual(title, ui.text('Canceled: {title}', title='Imperial-QMUL Catchup'))
             self.assertNotIn('2026-10-23T11', facts)
             self.assertIn('23 Oct', facts)
             title2, _ = routing.calendar_review_copy(
                 {'subject': 'Planning sync', 'source': 'outlook',
                  'start': '2026-10-23T10:00:00+00:00', 'end': '2026-10-23T11:00:00+00:00',
                  'status': 'confirmed', 'raw_revision': 3}, 'Europe/London', ui)
-            self.assertTrue(title2.startswith('Updated:'))
+            self.assertEqual(title2, ui.text('Updated: {title}', title='Planning sync'))
         finally:
             ui.CURRENT.reset(token)
 

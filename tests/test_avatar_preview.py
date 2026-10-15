@@ -4,14 +4,12 @@ import hashlib
 import io
 import json
 from pathlib import Path
-import sys
 import tempfile
 import unittest
 from unittest.mock import patch
 
 from PIL import Image
 from support import TEMP_ROOT
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'src'))
 from goodmorning.web.avatar_preview import create, main, PREVIEW_DIRECTORY
 from goodmorning.cli import main as cli
 
@@ -60,16 +58,13 @@ class AvatarPreviewTests(unittest.TestCase):
         self.assertEqual(Path(first['preview']).read_bytes(), before)
 
     def test_stock_avatar_cache_plus_native_payload_is_smaller_than_original_native_payload(self):
-        assets = Path(__file__).resolve().parents[1] / 'assets/web'
-        original_native = optimized_storage = 0
-        for name in ('desk-secretary.png', 'desk-secretary-f2.png', 'desk-secretary-m1.png'):
-            source = assets / name
-            before = hashlib.sha256(source.read_bytes()).hexdigest()
-            result = create(self.runtime, source)
-            original_native += len(base64.b64encode(source.read_bytes()))
-            preview = Path(result['preview']).read_bytes()
-            optimized_storage += len(preview) + len(base64.b64encode(preview))
-            self.assertEqual(hashlib.sha256(source.read_bytes()).hexdigest(), before)
+        source = Path(__file__).resolve().parents[1] / 'assets/web/desk-secretary.png'
+        before = hashlib.sha256(source.read_bytes()).hexdigest()
+        result = create(self.runtime, source)
+        original_native = len(base64.b64encode(source.read_bytes()))
+        preview = Path(result['preview']).read_bytes()
+        optimized_storage = len(preview) + len(base64.b64encode(preview))
+        self.assertEqual(hashlib.sha256(source.read_bytes()).hexdigest(), before)
         # Count both the retained preview file and its new native inline image.
         self.assertLess(optimized_storage, original_native * 0.4)
 

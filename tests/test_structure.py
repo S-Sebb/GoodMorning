@@ -6,6 +6,7 @@ from pathlib import Path
 import subprocess
 import sys
 import unittest
+from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'src'))
@@ -20,6 +21,7 @@ from support import TEMP_ROOT
 
 class StructureTests(unittest.TestCase):
     def test_only_two_public_command_entry_points_remain(self):
+        # Exact: removed installer/packaging helpers (install_skill.py, package_release.py) stay gone.
         self.assertEqual({p.name for p in (ROOT / 'scripts').iterdir() if p.is_file()},
                          {'goodmorning.py', 'projects.mjs'})
         self.assertEqual(PUBLIC_ROOT, ROOT)
@@ -59,9 +61,10 @@ class StructureTests(unittest.TestCase):
 
     def test_invalid_command_stops_before_any_helper(self):
         original = sys.argv
-        with redirect_stderr(io.StringIO()), self.assertRaises(SystemExit) as raised:
+        with patch('goodmorning.cli.import_module') as helper, redirect_stderr(io.StringIO()), self.assertRaises(SystemExit) as raised:
             main(['missing'])
         self.assertEqual(raised.exception.code, 2)
+        helper.assert_not_called()
         self.assertIs(sys.argv, original)
 
     def test_help_is_lazy_and_needs_no_optional_rendering_dependencies(self):

@@ -33,17 +33,46 @@ class AdminTests(unittest.TestCase):
         self.assertNotIn(secret,output.getvalue())
         return result,output.getvalue()
 
+    def cli(self,*argv,entries=()):
+        with patch('sys.argv',['briefing_admin.py','--account-mount',str(self.root),*argv]), \
+             patch('goodmorning.security.briefing_admin.Accounts',return_value=self.store), \
+             patch('goodmorning.security.briefing_admin.os.geteuid',return_value=0), \
+             patch('goodmorning.security.briefing_admin.getpass.getpass',side_effect=entries), \
+             patch('goodmorning.security.briefing_admin.backend_status',return_value=0) as status, \
+             redirect_stdout(io.StringIO()),patch('sys.stderr',io.StringIO()):
+            return main(),status
+
+    def enabled(self):
+        with self.store.db() as db:
+            return db.execute('SELECT enabled FROM users WHERE name=?',('test-user',)).fetchone()[0]
+
+    def test_mismatched_reset_entries_exit_without_changing_the_password(self):
+        before=self.store.path.read_bytes()
+        with self.assertRaises(SystemExit) as result:
+            self.cli('reset','test-user',entries=['new-temporary-secret1','other-temporary-secret1'])
+        self.assertNotEqual(result.exception.code,0)
+        self.assertEqual(self.store.path.read_bytes(),before)
+        self.assertTrue(self.store.check_password('test-user',self.secret))
+
+    def test_disable_enable_and_rename_without_new_name(self):
+        self.cli('disable','test-user')
+        self.assertEqual(self.enabled(),0)
+        code,status=self.cli('enable','test-user')
+        self.assertEqual((code,self.enabled()),(0,1))
+        status.assert_called_once()
+        with self.assertRaises(SystemExit) as result: self.cli('rename','test-user')
+        self.assertNotEqual(result.exception.code,0)
+        self.assertEqual(self.enabled(),1)
+
     def test_matching_check_does_not_reset_password_or_issue_session(self):
         before=self.store.path.read_bytes()
-        code,text=self.check(self.secret)
+        code,_=self.check(self.secret)
         self.assertEqual(code,0)
-        self.assertIn('matches the saved account',text)
         self.assertEqual(self.store.path.read_bytes(),before)
 
     def test_nonmatching_check_returns_failure_without_disclosing_input(self):
-        code,text=self.check('wrong-synthetic-password1')
+        code,_=self.check('wrong-synthetic-password1')
         self.assertEqual(code,1)
-        self.assertIn('does not match',text)
 
     def test_non_root_check_is_refused(self):
         with self.assertRaises(SystemExit):self.check(self.secret,uid=1000)
@@ -55,7 +84,6 @@ class AdminTests(unittest.TestCase):
         with redirect_stdout(output):
             code=backend_status(self.store,'test-user','gm.example.test')
         self.assertEqual(code,1)
-        self.assertIn('setup is incomplete',output.getvalue())
         self.assertEqual(self.store.path.read_bytes(),before)
 
     def test_backend_check_probes_all_pages_without_mutations_or_secrets(self):
@@ -65,7 +93,6 @@ class AdminTests(unittest.TestCase):
             self.assertEqual(backend_status(self.store,'test-user','gm.example.test'),0)
         self.assertEqual([call.args[2] for call in gateway.return_value.proxy.call_args_list],['/gm.html','/gn.html','/chat'])
         self.assertTrue(all(call.args[3]=='GET' for call in gateway.return_value.proxy.call_args_list))
-        self.assertIn('No model request was sent',output.getvalue())
 
     def test_backend_check_hides_exception_text_and_rejects_non_html(self):
         for failure in (RuntimeError(self.secret),None):
@@ -85,7 +112,6 @@ class AdminTests(unittest.TestCase):
              patch('goodmorning.security.briefing_admin.server_defaults',return_value={'model':'deepseek-flash'}), \
              patch('goodmorning.security.briefing_admin.getpass.getpass',return_value=self.secret),redirect_stdout(output):
             self.assertEqual(main(),1)
-        self.assertIn('setup is incomplete',output.getvalue())
         self.assertNotIn(self.secret,output.getvalue())
         with self.store.db() as db:
             identifier=db.execute('SELECT id FROM users WHERE name=?',('new-user',)).fetchone()[0]

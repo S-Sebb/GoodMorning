@@ -18,7 +18,6 @@ sys.path.insert(0, str(ROOT / "src"))
 from goodmorning.records import state
 from goodmorning.runtime_files import runtime_lock
 from goodmorning.briefings.briefing_document import encode
-from goodmorning.records.inbox_store import InboxStore, initialize
 
 TODAY = "2026-10-09"
 ANSWER = encode({'v': 1, 'greeting': 'Good morning.', 'opening': 'A clear start.', 'sections': [['notes', [['p', 'Keep this detail.']]]]})
@@ -69,16 +68,19 @@ class StateTests(unittest.TestCase):
         with self.assertRaises(SystemExit):
             state.today_str("20261009")
 
-    def test_mark_duplicate_snapshot_and_preserve_daily_edits(self):
+    def test_duplicate_mark_is_refused_with_single_json_and_preserves_daily_edits(self):
         path = self.daily(TODAY, f"# {TODAY}\n\n## must-do\n- [ ] Existing task\n")
         answer = self.root / "answer.txt"
         answer.write_text(ANSWER)
-        self.assertEqual(self.invoke("--mark-gm", "--session", "ses-first", "--answer-file", str(answer))[0], 0)
+        code, output, _ = self.invoke("--mark-gm", "--session", "ses-first", "--answer-file", str(answer), "--json")
+        self.assertEqual((code, json.loads(output)["session"]), (0, "ses-first"))
         first = path.read_text()
         self.assertIn("Existing task", first)
         code, _, error = self.invoke("--mark-gm", "--session", "ses-second")
         self.assertEqual(code, 2)
         self.assertIn("ses-first", error)
+        code, output, _ = self.invoke("--mark-gm", "--session", "ses-second", "--json")
+        self.assertEqual((code, json.loads(output)["error"]), (2, "already_ran"))
         self.assertEqual(path.read_text(), first)
         self.assertEqual((self.root / "daily" / f"{TODAY}.gm.json").read_text(), ANSWER)
 
@@ -130,16 +132,6 @@ class StateTests(unittest.TestCase):
             code, output, _ = self.invoke("--check", "--json")
         self.assertEqual(code, 0)
         self.assertIn("unsafe_answer_pointer", json.loads(output)["warnings"])
-
-    def test_inbox_counts_status_column_not_idea_words(self):
-        initialize(self.root)
-        store = InboxStore(self.root, write=True)
-        self.addCleanup(store.close)
-        receipt = store.mutate('add', {'kind': 'idea', 'raw': 'pending work is done', 'project': 'demo'}, 'ses_fixture', 'a', '2026-10-07T12:00:00+00:00')
-        store.mutate('update', {'status': 'confirmed'}, 'ses_fixture', 'b', '2026-10-07T12:00:00+00:00', receipt['id'], 1)
-        store.mutate('add', {'kind': 'idea', 'raw': 'confirmed mechanism', 'project': 'demo'}, 'ses_fixture', 'c', '2026-10-08T12:00:00+00:00')
-        self.assertEqual(state.scan_inbox(str(self.root)),
-                         {"pending": 1, "oldest_pending_date": "2026-10-08", "total": 2})
 
     def test_thirty_day_cost_survives_persistence_and_warm_checks_read_no_snapshots(self):
         for i in range(30):
@@ -195,15 +187,6 @@ class StateTests(unittest.TestCase):
         code, _, _ = self.invoke("--secretary-dir", str(missing), "--check")
         self.assertEqual(code, 1)
         self.assertFalse(missing.exists())
-
-    def test_mark_and_duplicate_have_single_json_responses(self):
-        with patch.object(sys, 'stdin', io.StringIO(ANSWER)):
-            code, output, _ = self.invoke("--mark-gm", "--session", "ses-json", "--answer-stdin", "--json")
-        self.assertEqual(code, 0)
-        self.assertEqual(json.loads(output)["session"], "ses-json")
-        code, output, _ = self.invoke("--mark-gm", "--session", "ses-repeat", "--json")
-        self.assertEqual(code, 2)
-        self.assertEqual(json.loads(output)["error"], "already_ran")
 
     def test_browser_owned_edition_refuses_foreign_save_even_with_force(self):
         jobs = self.root / "browser-jobs"

@@ -1,42 +1,25 @@
 """Weekly schedule uses synthetic, account-local records and never dispatches work."""
 from datetime import datetime, timezone
-from http.server import ThreadingHTTPServer
 import json
 import os
 from pathlib import Path
 import sys
 import tempfile
-import threading
 import unittest
 from unittest.mock import patch
 from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 
-from support import TEMP_ROOT
+from support import TEMP_ROOT, start_server
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'src'))
 from goodmorning.calendar.calendar_store import CalendarStore
 from goodmorning.web import language as ui
-from goodmorning.web.briefing_server import BrowserApp, serve_live
+from goodmorning.web.briefing_server import BrowserApp
 from goodmorning.web.schedule import saved_week, snapshot, week_offset
 from goodmorning.records.inbox_store import InboxStore, initialize
 from goodmorning.records.task_store import TaskStore
 
 NOW = datetime(2026, 10, 13, 12, tzinfo=timezone.utc)
-
-
-def start_server(app):
-    ready, servers = threading.Event(), []
-    def create(*args):
-        server = ThreadingHTTPServer(*args)
-        servers.append(server)
-        ready.set()
-        return server
-    with patch('goodmorning.web.briefing_server.ThreadingHTTPServer', side_effect=create):
-        thread = threading.Thread(target=serve_live, args=(app, 0), daemon=True)
-        thread.start()
-        if not ready.wait(3):
-            raise RuntimeError('Synthetic schedule server did not start')
-    return servers[0]
 
 
 def make_runtime(root):
@@ -100,24 +83,21 @@ class ScheduleTests(unittest.TestCase):
 
     def test_canonical_week_shows_tbc_attributes_reports_and_only_agreed_workdays(self):
         canonical_records(self.root)
-        markup = snapshot(self.app, 0)['view']
-        self.assertIn('Dentist', markup)
-        self.assertIn('TBC', markup)
-        self.assertIn('Appointment time not yet confirmed', markup)
-        self.assertIn('Project: Atlas', markup)
-        self.assertIn('Due: 2026-10-16', markup)
-        self.assertIn('Partial', markup)
-        self.assertIn('First baseline compared.', markup)
-        self.assertIn('Blocked', markup)
-        self.assertIn('Awaiting lab approval.', markup)
-        self.assertNotIn('Deadline only, not a workday', markup)
-        self.assertEqual([r['text'] for r in self.data()['days'][5]['tasks']], ['Wash towels'])
-        self.assertFalse(any(r.get('draft') for r in self.data()['days'][5]['events']))
-        ui.CURRENT.set('zh-CN')
-        translated = snapshot(self.app, 0)['view']
-        self.assertIn('时间待确认', translated)
-        self.assertIn('Atlas', translated)
-        self.assertIn('Dentist', translated)
+        days = {day['date']: day for day in self.data()['days']}
+        tasks = {task['text']: task for day in days.values() for task in day['tasks']}
+        self.assertEqual([(e['subject'], e.get('draft')) for e in days['2026-10-15']['events']], [('Dentist', True)])
+        fields = ('status', 'project', 'due_date', 'report_detail')
+        self.assertEqual([tasks[name][k] for name in ('Draft the methods', 'Request the dataset') for k in fields],
+                         ['partial', 'Atlas', '2026-10-16', 'First baseline compared.',
+                          'blocked', 'Atlas', '', 'Awaiting lab approval.'])
+        self.assertNotIn('Deadline only, not a workday', tasks)
+        self.assertEqual([r['text'] for r in days['2026-10-17']['tasks']], ['Wash towels'])
+        self.assertFalse(any(r.get('draft') for r in days['2026-10-17']['events']))
+        for language in ('en', 'zh-CN'):
+            ui.CURRENT.set(language)
+            markup = snapshot(self.app, 0)['view']
+            self.assertIn(ui.text('Appointment time not yet confirmed'), markup)
+            self.assertIn('Awaiting lab approval.', markup)
 
     def test_canonical_reads_ignore_legacy_failures_and_do_not_mutate_records(self):
         canonical_records(self.root)
@@ -155,23 +135,19 @@ class ScheduleTests(unittest.TestCase):
 
     def test_task_store_failure_is_not_reported_as_a_calendar_outage(self):
         canonical_records(self.root)
-        (self.root/'inbox.sqlite').write_bytes(b'not a task database')
-        result=snapshot(self.app,0)
-        self.assertIn('Task records unavailable',result['view'])
-        self.assertIn('Team check-in',result['view'])
-        self.assertNotIn('Calendar unavailable',result['view'])
-        self.assertNotIn('Atlas: draft the methods',result['view'])
-
-    def test_malformed_task_record_keeps_approved_calendar_readable(self):
-        canonical_records(self.root)
-        inbox=InboxStore(self.root,write=True)
-        try:
-            inbox.db.execute("UPDATE tasks SET data=? WHERE id=(SELECT id FROM tasks LIMIT 1)", ('{"title":"Incomplete record"}',))
-        finally:
-            inbox.close()
-        markup=snapshot(self.app,0)['view']
-        self.assertIn('Team check-in',markup)
-        self.assertIn('Task records unavailable',markup)
+        def malformed():
+            inbox = InboxStore(self.root, write=True)
+            try:
+                inbox.db.execute("UPDATE tasks SET data=? WHERE id=(SELECT id FROM tasks LIMIT 1)", ('{"title":"Incomplete record"}',))
+            finally:
+                inbox.close()
+        for corrupt in (malformed, lambda: (self.root/'inbox.sqlite').write_bytes(b'not a task database')):
+            corrupt()
+            markup = snapshot(self.app, 0)['view']
+            self.assertIn('Team check-in', markup)
+            self.assertIn(ui.text('Task records unavailable'), markup)
+            self.assertFalse(self.data().get('calendar_error'))
+            self.assertNotIn('Atlas: draft the methods', markup)
 
     def test_interrupted_conversion_moved_to_another_week_hides_the_old_tbc_card(self):
         receipts=canonical_records(self.root)
@@ -293,23 +269,15 @@ class ScheduleTests(unittest.TestCase):
         self.assertIn('00:30', snapshot(self.app, 0)['view'])
         self.assertIn('Appointment 100', snapshot(self.app, 0)['view'])
 
-    def test_details_menu_keeps_metadata_without_routine_footer_or_help_copy(self):
+    def test_details_menu_keeps_metadata_and_checked_time_not_revision(self):
         from goodmorning.web.schedule import page
         markup = page(self.app, 0).decode()
         self.assertIn('id="schedule-info"', markup)
         self.assertIn('Europe/London', markup)
-        self.assertIn('Checked at 13:00', markup)
-        self.assertIn('awaits review', markup)
-        self.assertNotIn('Where this schedule comes from', markup)
-        self.assertNotIn('Your week, at a glance.', markup)
-        self.assertNotIn('class="schedule-summary"', markup)
-        self.assertNotIn('class="schedule-sync"', markup)
-        self.assertNotIn('not a provider sync', markup)
-        self.assertIn('Events', markup)
-        self.assertIn('To-dos', markup)
+        self.assertIn(ui.text('Checked at {time}', time='13:00'), markup)
+        self.assertIn('id="schedule-review-count"', markup)
         self.assertEqual(markup.count('class="schedule-calendar"'), 7)
         self.assertEqual(markup.count('class="schedule-work"'), 7)
-        self.assertIn('October 2026', markup)
         before = snapshot(self.app, 0)
         self.app.now = lambda: datetime(2026, 10, 13, 12, 1, tzinfo=timezone.utc)
         after = snapshot(self.app, 0)

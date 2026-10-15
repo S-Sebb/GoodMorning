@@ -43,6 +43,8 @@ def main():
     artifacts = Path(sys.argv[1]); artifacts.mkdir(parents=True, exist_ok=True, mode=0o700)
     cases = []
     current = release_info()
+    first = next(note for note in current['notes'] if note['version'] == '0.0.0')
+    zh = json.loads((REPO/'assets/web/translations.json').read_text(encoding='utf-8'))
     NOTE['version'] = '0.' + str(int(current['release'].split('.')[1]) + 1) + '.0'
     with tempfile.TemporaryDirectory(dir='/tmp/opencode', prefix='gm-update-browser-') as directory:
         root = Path(directory); (root/'daily').mkdir()
@@ -108,17 +110,17 @@ def main():
                             page.locator('.patch-content').evaluate('node => { node.scrollTop = 0; }')
                         page.screenshot(path=str(artifacts/(path.strip('/').replace('.html', '')+'-current-'+str(width)+'.png')))
                         page.locator('[data-version="0.0.0"]').click()
-                        expect(page.locator('#patch-note-title')).to_have_text('Repository foundation')
-                        expect(page.locator('#patch-note-source')).to_contain_text('9bf676f')
-                        expect(page.locator('#patch-note-text h4')).to_have_text(['Added', 'Notes'])
-                        expect(page.locator('#patch-note-text li')).to_have_count(2)
+                        expect(page.locator('#patch-note-title')).to_have_text(first['title_en'])
+                        expect(page.locator('#patch-note-source')).to_contain_text(first['commits'][0])
+                        expect(page.locator('#patch-note-text h4')).to_have_text([group['category'] for group in first['changes']])
+                        expect(page.locator('#patch-note-text li')).to_have_count(sum(len(group['en']) for group in first['changes']))
                         page.clock.run_for(61000)
                         expect(page.locator('[data-version="0.0.0"]')).to_be_focused()
-                        expect(page.locator('#patch-note-title')).to_have_text('Repository foundation')
+                        expect(page.locator('#patch-note-title')).to_have_text(first['title_en'])
                         page.evaluate("applyWebsiteLanguage('zh-CN')")
-                        expect(page.locator('#patch-note-title')).to_have_text('仓库基础')
-                        expect(page.locator('#patch-note-text h4')).to_have_text(['新增', '备注'])
-                        expect(page.locator('#patch-note-text li').first).to_have_text('创建公开仓库，加入初始 README 和忽略规则。')
+                        expect(page.locator('#patch-note-title')).to_have_text(first['title_zh'])
+                        expect(page.locator('#patch-note-text h4')).to_have_text([zh[group['category']] for group in first['changes']])
+                        expect(page.locator('#patch-note-text li').first).to_have_text(first['changes'][0]['zh'][0])
                         check_actions(page)
                         page.get_by_role('button', name='关闭', exact=True).click()
                         expect(modal).to_be_hidden()
@@ -180,7 +182,10 @@ def main():
                         page.keyboard.press('Escape')
                         expect(page.locator('#site-patch-note')).to_be_hidden()
                         expect(page.locator('#site-update-toggle')).to_be_focused()
-                        assert page.evaluate('localStorage.length === 0 && sessionStorage.length === 0')
+                        # Only the chat's tab-scoped workspace reference is stored, never update state or drafts.
+                        stored = page.evaluate('[localStorage.length, Object.entries(sessionStorage)]')
+                        assert stored[0] == 0 and all(key.startswith('goodmorning.chat.workspace.') and 'Preserve' not in value
+                                                      for key, value in stored[1]), stored
                         assert not errors, errors
                         cases.append({'path': path, 'width': width, 'languages': ['en', 'zh-CN'], 'historyEntries': len(current['notes']),
                                       'firstVisit': True, 'arrowAfterDismiss': True, 'checkmarkAfterUpdate': True, 'draftSafety': True})
@@ -230,7 +235,7 @@ def main():
                 page.close(); browser.close()
             result = {'modelCalls': 0, 'baselineFirstVisitPopup': False, 'fixedFirstVisitPopup': True, 'cases': cases,
                       'manualRefreshAfterMissedRelease': True, 'crossDeviceDismissal': True, 'rollbackPreservesDismissal': True, 'pendingMutationBlocksRefresh': True,
-                      'privateBrowserStorage': 'unused'}
+                      'privateBrowserStorage': 'chat workspace reference only'}
             (artifacts/'result.json').write_text(json.dumps(result, indent=2)); print(json.dumps(result))
         finally:
             process.terminate(); process.communicate(timeout=5)

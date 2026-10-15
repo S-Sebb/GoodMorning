@@ -1,14 +1,12 @@
 """Bounded, account-owned transcript reads for optional model trials; no model calls."""
 import json
 from pathlib import Path
-import sys
 import tempfile
 from support import TEMP_ROOT
 import unittest
 from unittest.mock import patch
 from urllib.parse import parse_qs, urlsplit
 
-sys.path.insert(0,str(Path(__file__).resolve().parent))
 from benchmarks.native_bridge import NativeBridge
 
 

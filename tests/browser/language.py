@@ -23,7 +23,7 @@ def fixture(root, hosts=None):
     from goodmorning.web.briefing_server import BrowserApp, serve_live
     from goodmorning.briefings.briefing_day import briefing_day
     from goodmorning.briefings.briefing_document import encode
-    from test_briefing_chat import MockChamber
+    from support import MockChamber
     if hosts is None:
         hosts={kind+'.language.test':kind for kind in ('gm','gn','sec')}
     origins=['https://'+host for host in hosts]

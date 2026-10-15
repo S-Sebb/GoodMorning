@@ -1,5 +1,4 @@
 """Section publication browser experiment with an isolated agent, never a paid model."""
-from copy import deepcopy
 from datetime import date as Date, timedelta
 import json
 from pathlib import Path
@@ -11,7 +10,7 @@ REPO = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO / 'src'))
 sys.path.insert(0, str(REPO / 'tests'))
 from goodmorning.web.briefing_server import BrowserApp, serve_live
-from test_briefing_server import FakeChamber
+from support import FakeChamber
 
 
 def fixture(root):

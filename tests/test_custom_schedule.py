@@ -1,29 +1,29 @@
 """Custom schedules: ask until unambiguous, save once, decide from code-owned rows."""
-import json
+from datetime import datetime, timezone
+import sqlite3
 import tempfile
 import unittest
 from unittest.mock import patch
 from pathlib import Path
 import sys
 
+from support import TEMP_ROOT, FakeChamber
+
 REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO / "src"))
 
 from goodmorning.records.custom_store import CustomStore
-from goodmorning.runtime_files import secretary_path
+
+PROFILE = "city: London, GB\ntimezone: Europe/London\nnews_country: GB\nsecretary_language: English\n"
+DONE = {"status": "done", "confirmed_completion": True}
 
 
-def mkruntime():
-    tmp = Path(tempfile.mkdtemp(prefix="sp-"))
-    (tmp / "profile.md").write_text(
-        'secretary_language: "English"\ncity: "London, GB"\nregion: "global"\n'
-        'timezone: "Europe/London"\nwork_days: "Mon-Fri"\nwork_hours: "9:00-18:00"\n'
-        'sleep_time: "23:30"\nsecretary_tone: "warm"\noccupations: "tester"\n'
-        'expertise_fields: "testing"\nindustry: "testing"\nproject_scope: ""\n'
-        'knowledge_area: ""\nnews_preference: "yesterday digest only"\nnews_country: "GB"\n'
-        'news_additional_countries: ""\nnews_latest: "false"\nnews_sources_path: ""\n'
-        'calendar_source: ""\n', encoding="utf-8")
-    return tmp
+def mkruntime(test):
+    temp = tempfile.TemporaryDirectory(dir=TEMP_ROOT)
+    test.addCleanup(temp.cleanup)
+    root = Path(temp.name)
+    (root / "profile.md").write_text(PROFILE)
+    return root
 
 
 def gym_policy(**over):
@@ -36,7 +36,7 @@ def gym_policy(**over):
 
 class CustomTests(unittest.TestCase):
     def setUp(self):
-        self.root = mkruntime()
+        self.root = mkruntime(self)
 
     def add(self, policy=None, key="k1", title="Go gym"):
         store = CustomStore(self.root, write=True)
@@ -73,7 +73,6 @@ class CustomTests(unittest.TestCase):
         self.assertEqual((self.root/'custom.sqlite').read_bytes(), before)
 
     def test_read_connection_cannot_mutate_schedule_database(self):
-        import sqlite3
         self.add()
         before = (self.root/'custom.sqlite').read_bytes()
         store = CustomStore(self.root)
@@ -161,20 +160,74 @@ class CustomTests(unittest.TestCase):
             store.close()
         store = CustomStore(self.root, write=False)
         try:
-            gm = store.briefing("2026-10-13", "gm")
-            self.assertTrue(any(r["due"] for r in gm))
-            gn = store.briefing("2026-10-14", "gn")
-            # nightly always includes off-day for evening check
-            self.assertTrue(len(gn) >= 1)
+            row = lambda r: (r["id"], r["due"], r["reason"], r["date"])
+            self.assertEqual([row(r) for r in store.briefing("2026-10-13", "gm")],
+                             [(receipt["id"], True, "due", "2026-10-13")])
+            self.assertEqual([row(r) for r in store.briefing("2026-10-14", "gn")],
+                             [(receipt["id"], True, "chasing_missed", "2026-10-14")])
+            # nightly "always" keeps an off-day in the evening check, never in the morning.
+            self.assertEqual(store.briefing("2026-10-12", "gm"), [])
+            self.assertEqual([row(r) for r in store.briefing("2026-10-12", "gn")],
+                             [(receipt["id"], False, "before_start", "")])
         finally:
             store.close()
 
+    def test_conflicts_and_unconfirmed_or_closed_reports_write_nothing(self):
+        rule_id = self.add(key="w1")["id"]
+        store = CustomStore(self.root, write=True)
+        self.addCleanup(store.close)
+        now = "2026-10-13T20:00:00+01:00"
+        store.update(rule_id, 1, {"detail": "evenings"}, "ses_test", "u1", now)
+        for call, error in [
+                (lambda: store.report(rule_id, 1, DONE, "ses_test", "stale", now, "2026-10-13"), "write_conflict"),
+                (lambda: store.update(rule_id, 2, {"detail": "nights"}, "ses_test", "u1", now), "request_conflict"),
+                (lambda: store.report(rule_id, 2, {"status": "done"}, "ses_test", "r1", now, "2026-10-13"),
+                 "confirmation_required")]:
+            with self.assertRaisesRegex(ValueError, error):
+                call()
+        for status in ("cancelled", "done"):
+            current = store.show(rule_id)
+            store.update(rule_id, current["revision"], {"status": status}, "ses_test", "close-" + status, now)
+            with self.assertRaisesRegex(ValueError, "closed custom rule"):
+                store.report(rule_id, current["revision"] + 1, DONE, "ses_test", "r-" + status, now, "2026-10-13")
+        current = store.show(rule_id)
+        self.assertEqual((current["revision"], current["detail"], current["completions"]), (4, "evenings", []))
+
+    def test_due_decisions_cover_each_reason(self):
+        weekdays = {"base": "weekdays", "weekdays": [0, 2], "start": "2026-10-12",
+                    "anchor": "fixed", "miss_policy": "fixed"}
+        for n, (over, done, day, expected) in enumerate([
+                (weekdays, [], "2026-10-14", (True, "due", "2026-10-14")),
+                (weekdays, [], "2026-10-13", (False, "off_cadence", "2026-10-12")),
+                ({"anchor": "fixed"}, [], "2026-10-14", (True, "chasing_missed", "2026-10-13")),
+                ({"anchor": "fixed"}, ["2026-10-13"], "2026-10-13", (False, "already_done", "2026-10-13")),
+                ({"miss_policy": "fixed"}, ["2026-10-13"], "2026-10-16", (False, "off_cadence", "2026-10-15")),
+                ({"miss_policy": "fixed"}, ["2026-10-13"], "2026-10-17", (True, "due", "2026-10-17")),
+                ({}, [], "2026-10-12", (False, "before_start", "2026-10-13")),
+                (None, [], "2026-10-13", (False, "closed", ""))]):
+            with self.subTest(over=over, day=day):
+                policy = gym_policy(**over or {})
+                if "weekdays" in policy:
+                    del policy["interval_days"]
+                rule_id = self.add(policy=policy, key=f"due-{n}")["id"]
+                store = CustomStore(self.root, write=True)
+                self.addCleanup(store.close)
+                revision = 1
+                for date in done:
+                    revision = store.report(rule_id, revision, DONE, "ses_test", f"done-{n}-{date}",
+                                            date + "T20:00:00+01:00", date)["revision"]
+                if over is None:
+                    store.update(rule_id, revision, {"status": "cancelled"}, "ses_test", f"close-{n}",
+                                 "2026-10-13T20:00:00+01:00")
+                decision = store.due(store.show(rule_id), day)
+                self.assertEqual((decision["due"], decision["reason"], decision["next_due"]), expected)
+
     def test_workflow_prepare_includes_custom(self):
-        self.add(key="wf1")
+        receipt = self.add(key="wf1")
         from goodmorning.records.workflow import prepare
-        result = prepare(str(self.root), "secretary")
-        self.assertIn("custom", result)
-        self.assertGreaterEqual(result["custom"]["total"], 1)
+        result = prepare(str(self.root), "secretary", "2026-10-14")
+        self.assertEqual(result["custom"]["total"], 1)
+        self.assertEqual([r["id"] for r in result["custom"]["items"]], [receipt["id"]])
 
     def test_custom_receipts_highlight_as_custom_schedule(self):
         from goodmorning.web.chat_actions import read_changes
@@ -202,28 +255,9 @@ class CustomPreflightTests(unittest.TestCase):
     """Focused evening check: custom due rows are checkable and complete once."""
 
     def setUp(self):
-        import tempfile
-        from datetime import datetime, timezone
-        from threading import Thread
-        from unittest.mock import patch
-        from support import TEMP_ROOT
-        sys.path.insert(0, str(REPO / "src"))
         from goodmorning.web.briefing_server import BrowserApp
-        from test_briefing_server import FakeChamber
         from goodmorning.records.inbox_store import initialize as inbox_init
-        self.temp = tempfile.TemporaryDirectory(dir=TEMP_ROOT)
-        self.addCleanup(self.temp.cleanup)
-        workers = []
-        def worker(*args, **kwargs):
-            thread = Thread(*args, **kwargs)
-            workers.append(thread)
-            return thread
-        patcher = patch("goodmorning.web.briefing_server.threading.Thread", side_effect=worker)
-        patcher.start()
-        self.addCleanup(patcher.stop)
-        self.root = Path(self.temp.name)
-        (self.root / "profile.md").write_text(
-            "city: London, GB\ntimezone: Europe/London\nnews_country: GB\nsecretary_language: English\n")
+        self.root = mkruntime(self)
         (self.root / "daily").mkdir()
         inbox_init(str(self.root))
         store = CustomStore(self.root, write=True)
@@ -265,6 +299,14 @@ class CustomPreflightTests(unittest.TestCase):
         again = answer(self.root, self.job,
                        {"completed": [choices[0]["id"]], "details": "No other updates"})
         self.assertTrue(again["feedback"]["saved"])
+        store = CustomStore(self.root, write=False)
+        try:
+            replayed = store.show(self.rule_id)
+            self.assertEqual((replayed["revision"], len(replayed["completions"])),
+                             (rule["revision"], 1))
+            self.assertEqual(store.due(replayed, "2026-10-14")["weekly_count"], 1)
+        finally:
+            store.close()
 
 
 if __name__ == "__main__":

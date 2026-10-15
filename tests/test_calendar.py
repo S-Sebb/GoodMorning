@@ -269,13 +269,24 @@ class StoreTests(unittest.TestCase):
         self.assertEqual(con.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall(),
                          [("unrelated",)])
         con.close()
+
+    def test_readonly_never_creates_or_rewrites_storage(self):
+        path = Path(self.tmp.name) / "missing" / "calendar.sqlite"
+        with self.assertRaises(sqlite3.OperationalError):
+            CalendarStore(str(path), readonly=True)
+        self.assertFalse(path.parent.exists())
+        store = CalendarStore(self.path, readonly=True)
+        self.addCleanup(store.close)
+        self.assertEqual(store.stats()["total"], 0)
+        with self.assertRaises(sqlite3.OperationalError):
+            store.con.execute("DELETE FROM events")
+
     def test_state_summary_reads_database_not_markdown(self):
         self.store.add(event())
         self.imported()
         summary = rebuild_index(self.tmp.name, blank_state())
         self.assertEqual(summary["calendar"]["custom"], 1)
         self.assertEqual(summary["calendar"]["pending"], 1)
-        self.assertEqual(summary["calendar"]["custom"], 1)
         self.assertEqual(read_stats(str(Path(self.tmp.name) / "absent.sqlite"))["total"], 0)
         self.assertFalse((Path(self.tmp.name) / "absent.sqlite").exists())
 
@@ -349,7 +360,7 @@ class CommandTests(unittest.TestCase):
         self.assertEqual(json.loads(self.run_command(*args)[1])["changed"], 1)
         self.assertEqual(len(json.loads(self.run_command("--from", "2026-10-10", "--json")[1])), 1)
 
-    def test_betterbird_all_day_and_calendar_property_identity(self):
+    def test_betterbird_legacy_tables_without_recurrence_id_keep_all_day_and_calendar_identity(self):
         path = Path(self.tmp.name) / "all-day.sqlite"
         con = sqlite3.connect(path)
         con.execute("CREATE TABLE cal_events(id TEXT, cal_id TEXT, title TEXT, event_start INTEGER, "

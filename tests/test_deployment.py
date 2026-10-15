@@ -34,21 +34,28 @@ class DeploymentTests(unittest.TestCase):
             self.assertNotIn('../', text)
             for reference in re.findall(r'`((?:docs|templates)/[^`]+\.md)`', text):
                 self.assertTrue((skill / reference).is_file(), reference)
+            # One interpreter loads the copied entry point, then asks every helper for --help.
+            code = ('import contextlib, io, runpy, sys\n'
+                    'entry = runpy.run_path(sys.argv[1])\n'
+                    'from goodmorning.cli import COMMANDS\n'
+                    'import goodmorning; assert goodmorning.__file__.startswith(sys.argv[2]), goodmorning.__file__\n'
+                    'for helper in COMMANDS:\n'
+                    '    try:\n'
+                    '        with contextlib.redirect_stdout(io.StringIO()): code = entry["main"]([helper, "--help"])\n'
+                    '    except SystemExit as error: code = error.code\n'
+                    '    assert code in (0, None), (helper, code)\n'
+                    '    print(helper)\n')
+            result = subprocess.run([sys.executable, '-B', '-c', code, str(skill / 'scripts/goodmorning.py'), str(skill)],
+                                    cwd=home, capture_output=True, text=True, timeout=60)
+            self.assertEqual(result.returncode, 0, result.stderr)
             sys.path.insert(0, str(ROOT / 'src'))
             from goodmorning.cli import COMMANDS
-            for helper in COMMANDS:
-                result = subprocess.run([sys.executable, '-B', str(skill / 'scripts/goodmorning.py'), helper, '--help'],
-                                        cwd=home, capture_output=True, text=True, timeout=20)
-                self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(result.stdout.split(), list(COMMANDS))
             self.assertEqual(list(skill.rglob('SKILL.md')), [skill / 'SKILL.md'])
             for name in ('.config', '.local', '.cache', 'secretary'):
                 self.assertFalse((home / name).exists())
             for name in ('.opencode', 'secretary', '.cache', '.env', 'tests', 'skill-source'):
                 self.assertFalse((skill / name).exists())
-
-    def test_no_installation_or_packaging_helpers_remain(self):
-        for name in ('install_skill.py', 'package_release.py'):
-            self.assertFalse((ROOT / 'scripts' / name).exists())
 
     def test_runtime_python_sources_parse_with_supported_grammar(self):
         paths = [*(ROOT / 'src').rglob('*.py'), *(ROOT / 'scripts').glob('*.py'), *(ROOT / 'integrations').rglob('*.py')]

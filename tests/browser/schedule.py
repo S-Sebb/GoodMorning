@@ -12,7 +12,8 @@ import tempfile
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from support import TEMP_ROOT, returning_viewer
-from test_weekly_schedule import make_runtime, start_server, canonical_records
+from support import start_server
+from test_weekly_schedule import make_runtime, canonical_records
 from goodmorning.records.inbox_store import InboxStore
 from goodmorning.records.task_store import TaskStore
 from goodmorning.calendar.calendar_store import CalendarStore

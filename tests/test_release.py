@@ -3,16 +3,12 @@ import json
 from pathlib import Path
 import re
 import subprocess
-import sys
 import tempfile
 import unittest
 
-from support import TEMP_ROOT
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'src'))
+from support import TEMP_ROOT, HOSTS, FakeChamber, gateway, session_cookie
 from goodmorning.web import release
 from goodmorning.web.briefing_server import BrowserApp
-from test_briefing_server import FakeChamber
-import test_briefing_gateway as gateway_tests
 
 
 def note(version='0.2.0', **values):
@@ -39,8 +35,9 @@ class PatchNoteTests(unittest.TestCase):
 
     def test_repo_history_is_current_and_bilingual(self):
         notes = release.patch_notes()
-        self.assertTrue(notes)
-        self.assertGreaterEqual(release.version_number(notes[0]['version']), (0, 19, 0))
+        versions = [release.version_number(entry['version']) for entry in notes]
+        self.assertEqual(versions, sorted(set(versions), reverse=True))
+        self.assertEqual(release.patch_note(), notes[0])
         self.assertEqual(release.release_info()['release'], notes[0]['version'])
         self.assertEqual(release.release_info()['note'], notes[0])
         self.assertEqual(release.release_info()['notes'], notes)
@@ -103,8 +100,11 @@ class PatchNoteTests(unittest.TestCase):
             {'category': 'Fixed', 'en': ['Three'], 'zh': ['三']}
         ])]})
         latest = release.patch_note()
-        self.assertEqual(latest['en'], 'Added:\n- One\n- Two\n\nFixed:\n- Three')
-        self.assertEqual(latest['zh'], '新增:\n- 一\n- 二\n\n修复:\n- 三')
+        for key, bullets in (('en', [['One', 'Two'], ['Three']]), ('zh', [['一', '二'], ['三']])):
+            blocks = [block.split('\n') for block in latest[key].split('\n\n')]
+            self.assertTrue(all(block[0].endswith(':') for block in blocks), latest[key])
+            self.assertEqual([[line.removeprefix('- ') for line in block[1:]] for block in blocks], bullets)
+            self.assertTrue(all(line.startswith('- ') for block in blocks for line in block[1:]))
 
     def test_acknowledgments_reject_unknown_versions_and_never_go_backward(self):
         self.write({'notes': [note('0.10.0'), note('0.9.0')]})
@@ -117,13 +117,11 @@ class PatchNoteTests(unittest.TestCase):
     def test_local_seen_state_survives_restart_and_keeps_records(self):
         root = Path(self.temp.name)
         (root / 'profile.md').write_text('timezone: Europe/London\n')
-        preserved = root / 'preserved.txt'
-        preserved.write_text('Synthetic personal record')
         app = BrowserApp(root, FakeChamber())
         self.assertIsNone(app.release_seen())
         self.assertEqual(app.release_seen('0.19.0'), '0.19.0')
+        self.assertEqual((root / 'release-seen.json').stat().st_mode & 0o777, 0o600)
         self.assertEqual(BrowserApp(root, FakeChamber()).release_seen(), '0.19.0')
-        self.assertEqual(preserved.read_text(), 'Synthetic personal record')
         other = root / 'other'; other.mkdir()
         self.assertIsNone(BrowserApp(other, FakeChamber()).release_seen())
 
@@ -139,14 +137,8 @@ class PatchNoteTests(unittest.TestCase):
 
 
 class ReleaseAccountTests(unittest.TestCase):
-    def gateway(self):
-        fixture = gateway_tests.GatewayTests()
-        fixture.setUp()
-        self.addCleanup(fixture.doCleanups)
-        return fixture
-
     def test_guests_can_read_history_but_cannot_dismiss_for_accounts(self):
-        fixture = self.gateway()
+        fixture = gateway(self)
         self.assertEqual(json.loads(fixture.request('/api/release/seen')[2]), {'version': None, 'enabled': False})
         _, headers, data = fixture.request('/login')
         fixture.cookie = headers['Set-Cookie'].split(';')[0]
@@ -155,18 +147,15 @@ class ReleaseAccountTests(unittest.TestCase):
         self.assertIsNone(fixture.store.release_seen(fixture.id))
 
     def test_dismissal_shared_across_devices_and_hosts_but_not_users(self):
-        fixture = self.gateway()
+        fixture = gateway(self)
         fixture.permanent()
         status, headers, data = fixture.request('/api/release/seen')
         self.assertEqual(status, 200)
         self.assertEqual(headers['Cache-Control'], 'no-store')
         self.assertEqual(json.loads(data), {'version': None, 'enabled': True})
         self.assertEqual(fixture.request('/api/release/seen', {'version': '0.19.0'})[0], 200)
-        for host in ('gm.example.test', 'gn.example.test'):
-            with fixture.store.db() as db:
-                user = db.execute('SELECT * FROM users WHERE id=?', (fixture.id,)).fetchone()
-                token, _ = fixture.store.issue(db, host, user)
-            status, _, data = fixture.request('/api/release/seen', headers={'Host': host, 'Cookie': '__Host-GoodMorning=' + token})
+        for host in HOSTS:
+            status, _, data = fixture.request('/api/release/seen', headers={'Host': host, 'Cookie': session_cookie(fixture, fixture.id, host)})
             self.assertEqual((status, json.loads(data)['version']), (200, '0.19.0'))
         self.assertIsNone(fixture.store.release_seen(fixture.other))
         self.assertEqual(fixture.request('/api/release/seen', {'version': '0.18.0'})[0], 200)
@@ -174,7 +163,7 @@ class ReleaseAccountTests(unittest.TestCase):
         self.assertIsNone(fixture.gateway.ticket())
 
     def test_dismissal_requires_csrf_same_origin_and_known_version(self):
-        fixture = self.gateway()
+        fixture = gateway(self)
         fixture.permanent()
         for headers in ({'X-Briefing-CSRF': ''}, {'Origin': 'https://other.example.test'}):
             self.assertEqual(fixture.request('/api/release/seen', {'version': '0.19.0'}, headers=headers)[0], 403)

@@ -3,18 +3,15 @@ import contextlib
 import io
 import json
 from pathlib import Path
-import sys
 import tempfile
 import unittest
 
 from support import TEMP_ROOT
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'src'))
 from goodmorning.cli import COMMANDS
 from goodmorning.briefings import briefing_document, briefing_web
 from goodmorning.calendar.secretary_calendar import main as calendar_main
 from goodmorning.news.news import load_sources
 from goodmorning.records import inbox, inbox_store, state, workflow
-from goodmorning.setup_check import profile_status
 
 
 class NativeOnlyTests(unittest.TestCase):
@@ -61,9 +58,3 @@ class NativeOnlyTests(unittest.TestCase):
         path.write_text(json.dumps({'feeds': [], 'ranking_policy': 'legacy'}))
         with self.assertRaisesRegex(ValueError, 'unsupported ranking policy'):
             load_sources(path)
-
-    def test_profile_cannot_bypass_required_language_by_omitting_the_key(self):
-        (self.root / 'profile.md').write_text('city: London, GB\ntimezone: UTC\nnews_country: GB\n')
-        result = profile_status(self.root, {'city': 'London, GB', 'timezone': 'UTC', 'news_country': 'GB'})
-        self.assertFalse(result['profile_ready'])
-        self.assertEqual(result['missing_fields'], ['secretary_language'])

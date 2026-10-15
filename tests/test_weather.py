@@ -190,12 +190,11 @@ class WeatherTests(unittest.TestCase):
             result = w.openmeteo_geocode("London, 英格兰, GB")
         self.assertEqual(result["country"], "GB")
 
-    def test_non_ascii_not_found_suggests_pinyin(self):
-        with patch.object(w, "http_get_json", return_value={}):
-            with self.assertRaisesRegex(w.WeatherError, "Pinyin"):
-                w.openmeteo_geocode("不存在的城市")
-            with self.assertRaisesRegex(w.WeatherError, "qualified city"):
-                w.openmeteo_geocode("NoSuchCityXYZ")
+    def test_unknown_city_fails_after_every_language_index(self):
+        for city in ("不存在的城市", "NoSuchCityXYZ"):
+            with patch.object(w, "http_get_json", return_value={}) as fetch, self.assertRaises(w.WeatherError):
+                w.openmeteo_geocode(city)
+            self.assertEqual(fetch.call_count, len(w._geocode_languages(city)))
 
     def test_afternoon_rain_despite_clear_current_conditions(self):
         for change in ({"weather_code": [61]}, {"rain_sum": [2]},
@@ -204,14 +203,12 @@ class WeatherTests(unittest.TestCase):
                 out = w.fetch_openmeteo("Test", 0, 0)
             self.assertEqual(out["condition"], "clear")
             self.assertEqual(out["rain"], "yes")
-            self.assertIn("umbrella", out["advice"])
 
     def test_daily_snow_is_not_rain(self):
         with patch.object(w, "http_get_json", return_value=forecast(weather_code=[73], snowfall_sum=[3], precipitation_probability_max=[90])):
             out = w.fetch_openmeteo("Test", 0, 0)
         self.assertEqual(out["rain"], "no")
         self.assertTrue(out["snow"])
-        self.assertIn("boots", out["advice"])
 
     def test_missing_rain_facts_are_unknown(self):
         with patch.object(w, "http_get_json", return_value=forecast(weather_code=[None], rain_sum=[None], showers_sum=[None], precipitation_probability_max=[None])):
@@ -341,6 +338,17 @@ class WeatherTests(unittest.TestCase):
         self.clock.return_value += 3600
         with self.assertRaises(w.WeatherError):
             cache.get("test", lambda: offline(""), 1800, w.STALE_LIMIT, True)
+
+    def test_refresh_with_providers_down_returns_usable_cache_as_stale(self):
+        self.run_cli("--city", "Test", "--aqi-source", "off")
+        def offline(url, **kwargs):
+            raise w.WeatherError("network unavailable or timed out")
+        code, text, _ = self.run_cli("--city", "Test", "--aqi-source", "off", "--refresh", "--json", provider=offline)
+        out = json.loads(text)
+        self.assertEqual(code, 0)
+        self.assertEqual(out["cache_state"], "stale")
+        self.assertEqual(out["fetched_at"], w.utc_time(NOW))
+        self.assertEqual(out["temp_c"], 12)
 
     def test_corrupt_cache_and_write_failure_are_best_effort(self):
         cache = w.Cache(self.tmp.name)

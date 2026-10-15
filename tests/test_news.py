@@ -64,7 +64,7 @@ class ParsingTests(unittest.TestCase):
             <link rel="alternate" href="https://example.com/story"/>
             <updated>2026-10-08T12:00:00Z</updated></entry></feed>''')
         self.assertEqual(items[0]["url"], "https://example.com/story")
-        self.assertIsNotNone(items[0]["published"])
+        self.assertEqual(items[0]["published"], dt.datetime(2026, 10, 8, 12, tzinfo=UTC))
         self.assertEqual(items[0]["date_basis"], "updated")
 
     def test_invalid_feed(self):
@@ -151,7 +151,7 @@ class StoryTests(unittest.TestCase):
         compact = news.compact_story(story, 1)
         self.assertNotIn("sources", compact)
         self.assertEqual(len(compact["links"]), 1)
-        self.assertIn("single outlet", news.story_line_md(story))
+        self.assertEqual(compact["outlets"], 1)
         self.assertIn(r"\[click\]", news.story_line_md(story))
 
     def test_nonpublication_dates_are_labeled(self):
@@ -159,12 +159,12 @@ class StoryTests(unittest.TestCase):
         item["date_basis"] = "first_seen"
         story = news.group_stories([item])[0]
         self.assertEqual(news.compact_story(story, 1)["date_basis"], "first_seen")
-        self.assertIn("date first seen, not publication", news.story_line_md(story))
+        self.assertNotIn("date_basis", news.compact_story(news.group_stories([article()])[0], 1))
 
 
 class CacheTests(unittest.TestCase):
     def setUp(self):
-        self.directory = tempfile.TemporaryDirectory()
+        self.directory = tempfile.TemporaryDirectory(dir=TEMP_ROOT)
         self.cache = NewsCache(self.directory.name)
         self.now = 1000000
         self.calls = []
@@ -289,7 +289,7 @@ class CLITests(unittest.TestCase):
         stdout, stderr = io.StringIO(), io.StringIO()
         cfg = {"feeds": feeds or [], "countries": {"US": [
             {"name": "US Feed", "url": "https://us.com/feed", "section": "national"}]}}
-        with tempfile.TemporaryDirectory() as directory, contextlib.redirect_stdout(stdout), \
+        with tempfile.TemporaryDirectory(dir=TEMP_ROOT) as directory, contextlib.redirect_stdout(stdout), \
                 contextlib.redirect_stderr(stderr), patch.object(news, "load_sources", return_value=cfg):
             code = news.main(["--since", DAY.isoformat(), "--cache-dir", directory, *args])
         return code, stdout.getvalue(), stderr.getvalue()
@@ -344,7 +344,7 @@ class CLITests(unittest.TestCase):
 
     def test_offline_reads_archive_without_source_calls(self):
         yesterday = dt.datetime.now(UTC).date() - dt.timedelta(days=1)
-        with tempfile.TemporaryDirectory() as directory:
+        with tempfile.TemporaryDirectory(dir=TEMP_ROOT) as directory:
             cache = NewsCache(directory)
             item = article()
             item["published"] = f"{yesterday}T12:00:00+00:00"
@@ -358,11 +358,12 @@ class CLITests(unittest.TestCase):
             self.assertEqual(json.loads(stdout.getvalue())["fetch"]["requests"], 0)
 
     def test_corrupt_cache_is_not_deleted(self):
-        with tempfile.TemporaryDirectory() as directory:
+        with tempfile.TemporaryDirectory(dir=TEMP_ROOT) as directory:
             path = Path(directory) / "news.sqlite"
             path.write_bytes(b"existing unrelated contents")
-            with self.assertRaisesRegex(SystemExit, "cache is unavailable"):
+            with self.assertRaises(SystemExit) as stopped:
                 news.main(["--cache-dir", directory])
+            self.assertNotIn(stopped.exception.code, (0, None))
             self.assertEqual(path.read_bytes(), b"existing unrelated contents")
 
 

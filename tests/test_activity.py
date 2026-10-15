@@ -7,11 +7,9 @@ from types import SimpleNamespace
 import unittest
 from unittest.mock import patch
 
-from support import TEMP_ROOT
+from support import TEMP_ROOT, GatewayFixture, FakeChamber
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'src'))
 from goodmorning.web.activity import snapshot, panel
-from test_briefing_server import FakeChamber
-import test_briefing_gateway as gateway_tests
 
 
 class SnapshotTests(unittest.TestCase):
@@ -31,6 +29,20 @@ class SnapshotTests(unittest.TestCase):
         item['state'] = 'uncertain'
         self.assertEqual(snapshot(app, 'chat', item['id'])['state'], 'uncertain')
 
+    def test_answered_inputs_and_finished_states_are_not_waiting(self):
+        chamber = FakeChamber()
+        item = {'id': 'a'*32, 'mode': 'todo', 'state': 'running', 'session': 'ses_fixture',
+                'replied_inputs': ['form:frm_test', 'permission:per_fixture']}
+        app = SimpleNamespace(chats=SimpleNamespace(get=lambda _: dict(item)), chamber=chamber)
+        self.assertEqual(snapshot(app, 'chat', item['id'])['state'], 'working')
+        chamber.busy = False
+        self.assertEqual(snapshot(app, 'chat', item['id'])['state'], 'idle')
+        chamber.busy = True
+        item['replied_inputs'] = []
+        for state in ('complete', 'superseded'):
+            item['state'] = state
+            self.assertEqual(snapshot(app, 'chat', item['id']), {'mode': 'todo', 'state': 'idle'})
+
     def test_briefing_feedback_and_recovery_keep_exact_edition_metadata(self):
         with tempfile.TemporaryDirectory(dir=TEMP_ROOT) as directory:
             root = Path(directory); (root/'browser-jobs').mkdir()
@@ -45,7 +57,7 @@ class SnapshotTests(unittest.TestCase):
             target.write_text(json.dumps({'awaiting': False, 'cancelled': True}))
             self.assertEqual(snapshot(app, 'job', item['id'])['state'], 'idle')
 
-    def test_panel_has_no_private_content_and_is_idempotent(self):
+    def test_panel_injects_activity_controls_once(self):
         source = '<html><head></head><body><header>Desk</header></body></html>'
         rendered = panel(source, ['gm.example.test', 'gn.example.test', 'sec.example.test'])
         self.assertEqual(panel(rendered, ['gm.example.test']), rendered)
@@ -60,7 +72,7 @@ class SnapshotTests(unittest.TestCase):
 
 class GatewayActivityTests(unittest.TestCase):
     def setUp(self):
-        self.fixture = gateway_tests.GatewayTests(); self.fixture.setUp()
+        self.fixture = GatewayFixture(); self.fixture.setUp()
         self.addCleanup(self.fixture.doCleanups)
         self.gateway = self.fixture.gateway
         self.ticket = {'user': self.fixture.id, 'host': 'gm.example.test', 'chat': 'a'*32, 'request': 'b'*32}

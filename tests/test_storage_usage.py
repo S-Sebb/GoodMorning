@@ -71,6 +71,17 @@ class StorageUsageTests(unittest.TestCase):
         with patch('goodmorning.storage_usage.os.walk', side_effect=unreadable):
             self.assertFalse(measure(self.runtime)['complete'])
 
+    def test_symlinked_runtime_and_vanished_files_are_incomplete(self):
+        linked = self.root / 'linked-runtime'
+        linked.symlink_to(self.runtime, target_is_directory=True)
+        result = measure(linked)
+        self.assertEqual((result['complete'], result['skipped_symlinks'], result['logical_bytes']), (False, 1, 0))
+        self.add('secretary/kept', 5)
+        walk = [(str(self.runtime), [], ['kept', 'vanished'])]
+        with patch('goodmorning.storage_usage.os.walk', return_value=iter(walk)):
+            result = measure(self.runtime)
+        self.assertEqual((result['complete'], result['files'], result['logical_bytes']), (False, 1, 5))
+
     def test_links_are_not_followed_and_large_inventories_are_explicitly_incomplete(self):
         outside = self.root / 'outside'; outside.mkdir()
         (outside / 'private-file').write_bytes(b'x' * 1000)
@@ -91,8 +102,14 @@ class StorageUsageTests(unittest.TestCase):
         result = json.loads(output.getvalue())
         self.assertEqual(result['logical_bytes'], 10)
         self.assertEqual(path.read_bytes(), before)
-        with patch('sys.stdout', io.StringIO()):
-            self.assertEqual(main(['--secretary-dir', str(self.runtime), '--storage', '--archive-chats', '--apply']), 1)
+        path.write_text(json.dumps({'old': {'state': 'idle', 'created': 0}}))  # Archivable on its own.
+        snapshot = lambda: {p: p.read_bytes() for p in self.volume.rglob('*') if p.is_file()}
+        records = snapshot()
+        output = io.StringIO()
+        with patch('sys.stdout', output):
+            self.assertEqual(main(['--secretary-dir', str(self.runtime), '--storage', '--archive-chats', '--keep', '0', '--apply']), 1)
+        self.assertEqual(json.loads(output.getvalue())['error'], 'sessions_unavailable')
+        self.assertEqual(snapshot(), records)
 
 
 if __name__ == '__main__':

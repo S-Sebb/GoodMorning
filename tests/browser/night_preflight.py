@@ -14,7 +14,7 @@ def fixture(root, scenario):
     sys.path.insert(0, str(REPO/'src'))
     sys.path.insert(0, str(REPO/'tests'))
     from support import returning_viewer
-    from test_briefing_server import FakeChamber
+    from support import FakeChamber
     from goodmorning.web.briefing_server import BrowserApp, serve_live
     from goodmorning.records.inbox_store import initialize, InboxStore, stamp
     from goodmorning.records.routing import prepare

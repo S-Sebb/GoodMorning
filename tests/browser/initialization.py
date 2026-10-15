@@ -92,7 +92,9 @@ def main():
                 page.locator('#prefs-menu > summary').click()
                 page.locator('#website-language').select_option('en')
                 expect(page.locator('#chat-send')).to_have_text('Start initialization')
-                page.locator('#website-language').select_option('zh-CN')
+                # A language switch refreshes history, which restores the server's connection state.
+                with page.expect_response('**/api/chats'):
+                    page.locator('#website-language').select_option('zh-CN')
                 expect(page.locator('#chat-send')).to_have_text('开始初始化')
                 page.evaluate('chatConfig.connected = false; composeState()')
                 expect(page.locator('#chat-send')).to_be_disabled()

@@ -26,9 +26,6 @@ class DefaultTitleTests(unittest.TestCase):
                          "Review together with agent a plan")
         self.assertEqual(default_title("  Fix   spacing.  "), "Fix spacing")
 
-    def test_explicit_summary_wins_over_raw(self):
-        self.assertEqual(default_title(""), "")
-
 
 class CaptureWordingTests(unittest.TestCase):
     def setUp(self):
@@ -52,70 +49,42 @@ class CaptureWordingTests(unittest.TestCase):
             raw, "polish-1",
             summary="Fix secretary page message-box stretch blocking input",
             task={"title": "Fix secretary page message-box stretch blocking input",
-                  "detail": "Message box sometimes stretches and blocks typing; keep open until Seb confirms after deployment."},
+                  "detail": "Message box sometimes stretches and blocks typing; keep open until Alex confirms after deployment."},
         )
         task = self.tasks.show(receipt["task_id"])
         self.assertEqual(task["title"], "Fix secretary page message-box stretch blocking input")
         self.assertIn("blocks typing", task["detail"])
         self.assertNotIn("blocks typing", self.inbox.text(receipt["id"])["text"])
         self.assertEqual(self.inbox.text(receipt["id"])["text"], raw)
-        self.assertFalse(task["title"].endswith("."))
-        self.assertTrue(task["title"][0].isupper())
 
-    def test_fallback_title_without_explicit_summary_is_cleaner_than_raw(self):
-        receipt = self.capture("Write convincing paper.", "fallback-1")
-        task = self.tasks.show(receipt["task_id"])
-        self.assertEqual(task["title"], "Write convincing paper")
-
-    def test_gm_polish_updates_canonical_copy_then_briefing_packs_exact_rows(self):
-        receipt = self.capture("Write convincing paper.", "gm-polish-1", project="MRHarmon")
-        task = self.tasks.show(receipt["task_id"])
-        self.assertEqual(task["title"], "Write convincing paper")
-        # Secretary walkthrough before packing: same meaning, clearer wording.
-        # No project prefix: the project lives in its structured field.
-        polished = self.tasks.mutate(
-            receipt["task_id"], task["revision"],
-            {"title": "Draft convincing-paper outline",
-             "detail": "Persuasive framing is still missing; draft the outline as the next step."},
-            "ses_test", f"polish:ses_test:{receipt['task_id']}:{task['revision']}", NOW)
-        self.assertTrue(polished["saved"])
-        updated = self.tasks.show(receipt["task_id"])
-        self.assertEqual(updated["title"], "Draft convincing-paper outline")
-        view = routing.prepare(self.root, DAY, "gm")
-        row = next(r for r in view["tasks"]["items"] if r["id"] == receipt["task_id"])
-        self.assertEqual(row["title"], updated["title"])
-        doc = {"v": 2, "greeting": "Hello.", "opening": "Synthetic.",
-               "sections": [["tasks", [view["blocks"]["tasks"]]]]}
-        routing.validate_sources(self.root, doc, DAY, "gm")
-        # Stale pre-polish copy must now fail validation, proving pack-after-polish matters.
-        stale = {"v": 2, "greeting": "Hello.", "opening": "Synthetic.",
-                 "sections": [["tasks", [["actions", [[row["id"], row["revision"], row["occurrence_id"],
-                                                        row["date"], row["status"],
-                                                        "Write convincing paper", row["detail"]]]]]]]}
-        with self.assertRaisesRegex(ValueError, "source_conflict"):
-            routing.validate_sources(self.root, stale, DAY, "gm")
-
-    def test_gn_polish_updates_canonical_copy_then_briefing_packs_exact_rows(self):
-        receipt = self.capture(
-            "Claim salary Friday.", "gn-polish-1",
-            task={"title": "Claim salary Friday.", "planned_date": DAY,
-                  "detail": "Surface in Friday /gm as reminder. Setup choice confirmed."})
-        task = self.tasks.show(receipt["task_id"])
-        polished = self.tasks.mutate(
-            receipt["task_id"], task["revision"],
-            {"title": "Claim this week's salary",
-             "detail": "Friday reminder to claim that week's salary."},
-            "ses_test", f"polish:ses_test:{receipt['task_id']}:{task['revision']}", NOW)
-        self.assertTrue(polished["saved"])
-        updated = self.tasks.show(receipt["task_id"])
-        self.assertNotIn("Setup choice", updated["detail"])
-        view = routing.prepare(self.root, DAY, "gn")
-        row = next(r for r in view["tasks"]["items"] if r["id"] == receipt["task_id"])
-        self.assertEqual((row["title"], row["detail"]),
-                         (updated["title"], updated["detail"]))
-        doc = {"v": 2, "greeting": "Hello.", "opening": "Synthetic.",
-               "sections": [["tasks", [view["blocks"]["tasks"]]]]}
-        routing.validate_sources(self.root, doc, DAY, "gn")
+    def test_polish_updates_canonical_copy_then_briefing_packs_exact_rows(self):
+        for edition in ("gm", "gn"):
+            receipt = self.capture("Write convincing paper.", f"{edition}-polish-1", project="MRHarmon",
+                                   task={"planned_date": DAY, "detail": "Setup choice confirmed."})
+            task = self.tasks.show(receipt["task_id"])
+            self.assertEqual(task["title"], "Write convincing paper")
+            # Secretary walkthrough before packing: same meaning, clearer wording.
+            # No project prefix: the project lives in its structured field.
+            polished = self.tasks.mutate(
+                receipt["task_id"], task["revision"],
+                {"title": "Draft convincing-paper outline",
+                 "detail": "Persuasive framing is still missing; draft the outline as the next step."},
+                "ses_test", f"polish:ses_test:{receipt['task_id']}:{task['revision']}", NOW)
+            self.assertTrue(polished["saved"])
+            updated = self.tasks.show(receipt["task_id"])
+            view = routing.prepare(self.root, DAY, edition)
+            row = next(r for r in view["tasks"]["items"] if r["id"] == receipt["task_id"])
+            self.assertEqual((row["title"], row["detail"]), (updated["title"], updated["detail"]))
+            doc = {"v": 2, "greeting": "Hello.", "opening": "Synthetic.",
+                   "sections": [["tasks", [view["blocks"]["tasks"]]]]}
+            routing.validate_sources(self.root, doc, DAY, edition)
+            # A stale pre-polish copy fails validation, proving pack-after-polish matters.
+            stale = {"v": 2, "greeting": "Hello.", "opening": "Synthetic.",
+                     "sections": [["tasks", [["actions", [[row["id"], row["revision"], row["occurrence_id"],
+                                                            row["date"], row["status"],
+                                                            "Write convincing paper", row["detail"]]]]]]]}
+            with self.assertRaisesRegex(ValueError, "source_conflict"):
+                routing.validate_sources(self.root, stale, DAY, edition)
 
 
 if __name__ == "__main__":

@@ -10,7 +10,7 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
-from support import TEMP_ROOT
+from support import TEMP_ROOT, MockChamber, ImmediateThread
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'src'))
 from goodmorning.records.inbox_store import InboxStore, initialize
 from goodmorning.records.task_store import TaskStore
@@ -18,7 +18,6 @@ from goodmorning.records import workflow
 from goodmorning.calendar.calendar_store import CalendarStore
 from goodmorning.web.chat_actions import read_changes, action_history, LIMIT
 from goodmorning.web.briefing_chat import Chats, MODES
-from test_briefing_chat import MockChamber, ImmediateThread
 
 NOW = '2026-10-13T12:00:00+01:00'
 SESSION = 'ses_chat_0'
@@ -36,6 +35,8 @@ class ActionTests(unittest.TestCase):
         self.addCleanup(self.inbox.close)
         self.calendar = CalendarStore(str(self.root / 'calendar.sqlite'))
         self.addCleanup(self.calendar.close)
+        patcher = patch('goodmorning.web.briefing_chat.threading.Thread', ImmediateThread)
+        patcher.start(); self.addCleanup(patcher.stop)
 
     def capture(self, key='capture', session=SESSION, **extra):
         return self.inbox.mutate('add', {'kind': 'todo', 'raw': 'Prepare the slides', **extra}, session, key, NOW)
@@ -94,16 +95,6 @@ class ActionTests(unittest.TestCase):
         self.assertEqual([(entry['action']['operation'], entry['text']) for entry in changes],
                          [('approved', 'Team lunch'), ('declined', 'Moved team lunch')])
 
-    def test_bounded_titles_and_no_read_side_effects(self):
-        for index in range(LIMIT + 5):
-            self.capture(str(index), raw='x' * 500)
-        before = {path.name: path.read_bytes() for path in self.root.glob('*.sqlite')}
-        changes, unavailable = read_changes(self.root, SESSION)
-        self.assertFalse(unavailable)
-        self.assertEqual(len(changes), LIMIT)
-        self.assertTrue(all(len(entry['text']) == 160 for entry in changes))
-        self.assertEqual(before, {path.name: path.read_bytes() for path in self.root.glob('*.sqlite')})
-
     def test_missing_corrupt_and_symlink_stores_preserve_chat(self):
         with tempfile.TemporaryDirectory(dir=TEMP_ROOT) as directory:
             root = Path(directory)
@@ -133,7 +124,7 @@ class ActionTests(unittest.TestCase):
         chamber = MockChamber(self.root)
         chats = Chats(self.root, chamber)
         chat = 'a' * 32
-        with patch('goodmorning.web.briefing_chat.threading.Thread', ImmediateThread), patch('time.time', return_value=0):
+        with patch('time.time', return_value=0):
             chats.start({'id': chat, 'mode': 'secretary', 'text': 'Save a task'})
         self.capture()
         status = chats.status(chat)
@@ -150,7 +141,7 @@ class ActionTests(unittest.TestCase):
         for index, mode in enumerate(MODES):
             with self.subTest(mode=mode):
                 chat = str(index + 1) * 32
-                with patch('goodmorning.web.briefing_chat.threading.Thread', ImmediateThread), patch('time.time', return_value=0):
+                with patch('time.time', return_value=0):
                     chats.start({'id': chat, 'mode': mode, 'text': 'Save a task'})
                 session = chats.get(chat)['session']
                 args = ['--secretary-dir', str(self.root), '--capture', 'todo', '--session', chat,
@@ -175,7 +166,7 @@ class ActionTests(unittest.TestCase):
         chamber = MockChamber(self.root)
         chats = Chats(self.root, chamber)
         chat, reply, other = 'a' * 32, 'b' * 32, 'c' * 32
-        with patch('goodmorning.web.briefing_chat.threading.Thread', ImmediateThread), patch('time.time', return_value=0):
+        with patch('time.time', return_value=0):
             chats.start({'id': chat, 'mode': 'secretary', 'text': 'Save a task'})
             chats.send(chat, {'id': reply, 'text': 'Update it'})
             chats.start({'id': other, 'mode': 'secretary', 'text': 'Other conversation'})
@@ -211,21 +202,24 @@ class ActionTests(unittest.TestCase):
             finally:
                 other_store.close()
 
-    def test_aliases_keep_limits_and_use_bound_sql_parameters(self):
+    def test_aliases_keep_bounded_titles_and_limits_without_read_side_effects(self):
         aliases = ['a' * 32, 'b' * 32, "not-a-session' OR 1=1 --"]
         for index in range(LIMIT + 5):
-            self.capture(str(index), session=aliases[index % 2])
+            self.capture(str(index), session=[SESSION, *aliases[:2]][index % 3], raw='x' * 500)
         self.capture('unowned', session='ses_other', raw='PRIVATE')
+        before = {path.name: path.read_bytes() for path in self.root.glob('*.sqlite')}
         cards, unavailable = read_changes(self.root, SESSION, aliases=aliases)
         self.assertFalse(unavailable)
         self.assertEqual(len(cards), LIMIT)
+        self.assertTrue(all(len(entry['text']) == 160 for entry in cards))
         self.assertNotIn('PRIVATE', json.dumps(cards))
+        self.assertEqual(before, {path.name: path.read_bytes() for path in self.root.glob('*.sqlite')})
 
     def test_colliding_request_id_never_claims_another_conversations_receipts(self):
         chamber = MockChamber(self.root)
         chats = Chats(self.root, chamber)
         first, second = 'a' * 32, 'b' * 32
-        with patch('goodmorning.web.briefing_chat.threading.Thread', ImmediateThread), patch('time.time', return_value=0):
+        with patch('time.time', return_value=0):
             chats.start({'id': first, 'mode': 'secretary', 'text': 'First conversation'})
             chats.start({'id': second, 'mode': 'secretary', 'text': 'Second conversation'})
             # Valid request IDs are not globally unique across conversations.
@@ -243,15 +237,14 @@ class ActionTests(unittest.TestCase):
         chats = Chats(self.root, chamber)
         chat = 'a' * 32
         start = datetime.fromisoformat(NOW).timestamp()
-        with patch('goodmorning.web.briefing_chat.threading.Thread', ImmediateThread):
-            with patch('time.time', return_value=start - 1):
-                chats.start({'id': chat, 'mode': 'secretary', 'text': 'Hello'})
-            with patch('time.time', return_value=start + 60):
-                chats.send(chat, {'id': 'b' * 32, 'text': 'Yes'})
-            self.inbox.mutate('add', {'kind': 'idea', 'raw': 'First yes'}, SESSION, 'yes-one', '2026-10-13T12:01:01+01:00')
-            with patch('time.time', return_value=start + 120):
-                chats.send(chat, {'id': 'c' * 32, 'text': 'Yes'})
-            self.inbox.mutate('add', {'kind': 'idea', 'raw': 'Second yes'}, SESSION, 'yes-two', '2026-10-13T12:02:01+01:00')
+        with patch('time.time', return_value=start - 1):
+            chats.start({'id': chat, 'mode': 'secretary', 'text': 'Hello'})
+        with patch('time.time', return_value=start + 60):
+            chats.send(chat, {'id': 'b' * 32, 'text': 'Yes'})
+        self.inbox.mutate('add', {'kind': 'idea', 'raw': 'First yes'}, SESSION, 'yes-one', '2026-10-13T12:01:01+01:00')
+        with patch('time.time', return_value=start + 120):
+            chats.send(chat, {'id': 'c' * 32, 'text': 'Yes'})
+        self.inbox.mutate('add', {'kind': 'idea', 'raw': 'Second yes'}, SESSION, 'yes-two', '2026-10-13T12:02:01+01:00')
         messages = chats.status(chat)['messages']
         self.assertEqual([entry['text'] for entry in messages if entry.get('kind') == 'action'], ['First yes', 'Second yes'])
         first = next(index for index, entry in enumerate(messages) if entry['text'] == 'First yes')

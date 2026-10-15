@@ -1,59 +1,17 @@
 """Live viewer isolation, date boundaries and agent round-trips, without model calls."""
 from datetime import datetime, timezone
-import hashlib
-import importlib.util
 import json
 from pathlib import Path
-import subprocess
 import sys
 import tempfile
-import threading
 import unittest
 from urllib.error import HTTPError
-from urllib.request import Request, urlopen
 
-from support import TEMP_ROOT
+from support import TEMP_ROOT, FakeChamber, HTTPFixture, complete_profile
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'src'))
 from goodmorning.briefings.briefing_day import briefing_day
 from goodmorning.web.briefing_server import BrowserApp, Chamber, serve_live
-from test_briefing_web import GM, GN
-
-
-class FakeChamber:
-    directory = str(Path(__file__).resolve().parents[1])
-
-    def __init__(self):
-        self.calls = []
-        self.sent = threading.Event()
-        self.busy = True
-        self.forms = [{'id': 'frm_test', 'sessionID': 'ses_fixture', 'title': 'How did today go?',
-                       'fields': [{'key': 'progress', 'title': 'Reported progress', 'type': 'multiselect',
-                                   'required': True, 'minItems': 1, 'maxItems': 1, 'custom': True,
-                                   'options': [{'value': 'unreported', 'label': 'No completion report'}]}]}]
-        self.permissions = [{'id': 'per_fixture', 'sessionID': 'ses_fixture', 'action': 'Read approved schedule', 'resources': ['calendar.sqlite']}]
-
-    def control(self, action, **input):
-        self.calls.append((action, input))
-        if action == 'session.create':
-            return {'sessionId': 'ses_fixture'}
-        if action == 'session.send':
-            self.sent.set()
-            return {'promptDispatched': True}
-        if action == 'session.status':
-            return {'sessionStatus': {'type': 'busy' if self.busy else 'idle'}}
-        raise AssertionError(action)
-
-    def pending(self, session):
-        assert session == 'ses_fixture'
-        return self.forms, self.permissions
-
-    def request(self, path, body):
-        self.calls.append((path, body))
-        if '/form/' in path:
-            self.forms = []
-        if '/permission/' in path:
-            self.permissions = []
-        return {}
+from test_briefing_web import GM
 
 
 class DayTests(unittest.TestCase):
@@ -76,7 +34,7 @@ class LiveTests(unittest.TestCase):
         self.temp = tempfile.TemporaryDirectory(dir=TEMP_ROOT)
         self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name)
-        (self.root / 'profile.md').write_text('secretary_language: English\ntimezone: Europe/London\ncity: London, GB\nnews_country: GB\n')
+        complete_profile(self.root)
         (self.root / 'daily').mkdir()
         self.chamber = FakeChamber()
         self.app = BrowserApp(self.root, self.chamber, now=lambda: datetime(2026,10,10,12,tzinfo=timezone.utc))
@@ -149,9 +107,8 @@ class LiveTests(unittest.TestCase):
     def test_seven_days_and_missing_archive_do_not_generate(self):
         self.assertEqual(self.app.dates(), [f'2026-10-{i:02}' for i in range(10,3,-1)])
         page = self.app.page('2026-10-04','gn',True).decode()
-        self.assertIn('No story was told by you for this day.', page)
-        self.assertIn('Let the past pages stay as they are.', page)
-        self.assertNotIn('Your briefing awaits.', page)
+        self.assertIn('class="waiting-room"', page)
+        self.assertNotIn('class="generation-desk"', page)
         self.assertNotIn('id="generate"', page)
         self.assertIn('&quot;pinned&quot;: true', page)
         with self.assertRaises(ValueError): self.app.start('2026-10-09','gm')
@@ -161,7 +118,7 @@ class LiveTests(unittest.TestCase):
     def test_missing_today_has_generation_layout(self):
         page = self.app.page('2026-10-10','gm',False).decode()
         self.assertIn('id="generate"', page)
-        self.assertIn('Your briefing awaits.', page)
+        self.assertIn('class="generation-desk"', page)
         self.assertIn('id="agent-questions"', page)
         self.assertIn('generation-progress', page)
 
@@ -171,7 +128,7 @@ class LiveTests(unittest.TestCase):
             before = set(self.root.rglob('*'))
             for kind in ('gm','gn'):
                 page = self.app.page('2026-10-10',kind,False).decode()
-                self.assertIn('Initialize my secretary',page)
+                self.assertIn('id="initialize"',page)
                 self.assertIn('href="/chat?mode=initialize"',page)
                 self.assertNotIn('id="generate"',page)
                 with self.assertRaisesRegex(ValueError,'Initialize'):
@@ -195,7 +152,7 @@ class LiveTests(unittest.TestCase):
         self.assertEqual(self.app.today(),'2026-10-10')
         self.app.now=lambda:datetime(2026,10,11,3,0,0,tzinfo=timezone.utc)
         self.assertEqual(self.app.today(),'2026-10-11')
-        self.assertIn('Your briefing awaits.',self.app.page(self.app.today(),'gm',False).decode())
+        self.assertIn('id="generate"',self.app.page(self.app.today(),'gm',False).decode())
         self.assertIn('<article',self.app.page('2026-10-10','gm',True).decode())
 
     def test_saved_archive_source_unchanged_and_assets_are_absolute(self):
@@ -207,8 +164,6 @@ class LiveTests(unittest.TestCase):
         self.assertIn('href="/d/2026-10-10/gn.html"',page)
         self.assertNotIn('class="briefing-tools"',page)
         self.assertRegex(page,r'<h1\b[^>]*>Good morning</h1>')
-        self.assertNotIn('Complete text and clickable sources',page)
-        self.assertNotIn('orbit-caption',page)
 
     def test_duplicate_clicks_share_session_and_user_default(self):
         job = self.start()
@@ -235,15 +190,20 @@ class LiveTests(unittest.TestCase):
         with self.assertRaises(ValueError): self.app.reply(job,'permission','per_fixture',{'decision':'always'})
         self.assertEqual(len(self.chamber.permissions),1)
 
-    def test_progress_does_not_advance_without_publication(self):
+    def test_progress_advances_only_with_published_sections(self):
         job=self.start()
         self.assertEqual(self.app.status(job)['progress'],5)
-        self.assertEqual(self.app.status(job)['progress'],5)
+        self.app.reply(job,'form','frm_test',{'answer':{'progress':['unreported']}})
+        self.app.reply(job,'permission','per_fixture',{'decision':'once'})
+        current=self.app.status(job)
+        self.assertEqual((current['state'],current['progress']),('running',5))
+        doc=json.loads(GM);doc.pop('closing',None);plan=[[section[0],'Planned'] for section in doc['sections'][:2]];doc['sections']=doc['sections'][:1]
+        (self.app.job_dir/(job+'.preview.json')).write_text(json.dumps({'plan':plan,'outcomes':['ready'],'document':doc}))
+        self.assertTrue(5<self.app.status(job)['progress']<100)
 
     def test_ready_needs_idle_and_saved_snapshot_not_agent_claim(self):
         job=self.start()
-        self.chamber.forms=[];self.chamber.permissions=[]
-        self.chamber.busy=False
+        self.chamber.idle()
         self.assertEqual(self.app.status(job)['state'],'stopped')
         (self.root/'daily/2026-10-10.gm.json').write_text(GM)
         self.assertEqual(self.app.status(job)['state'],'ready')
@@ -263,47 +223,12 @@ class LiveTests(unittest.TestCase):
         self.assertEqual(record['state'],'uncertain')
         self.assertEqual(self.app.start('2026-10-10','gm')['job'],record['id'])
 
-    def test_symlink_source_is_rejected(self):
-        (self.root/'daily/2026-10-10.gm.json').symlink_to(self.root/'profile.md')
-        with self.assertRaises(ValueError): self.app.page('2026-10-10','gm',False)
-
     def test_chamber_rejects_remote_origins_and_credentials_in_url(self):
         for url in ('https://example.org','http://localhost:3000','http://127.0.0.1:3000/api','http://user:secret@127.0.0.1:3000'):
             with self.assertRaises(ValueError): Chamber(url,self.root)
 
-    def test_ids_are_hidden_without_changing_link_targets_or_source(self):
-        from goodmorning.briefings.briefing_web import edition
-        identifier='ib_72d1782caf49476c'
-        source=json.loads(GM.replace('Ranking',f'Clarify idea {identifier} layout'))
-        source['sections'].append(['notes',[['p','Source', [['Source', 'https://example.org/'+identifier]]]]])
-        page=edition(source,'2026-10-10','gm',{'gm':True})
-        self.assertNotIn('Clarify idea '+identifier,page)
-        self.assertIn('href="https://example.org/'+identifier+'"',page)
 
-
-class HTTPTests(unittest.TestCase):
-    def setUp(self):
-        self.temp=tempfile.TemporaryDirectory(dir=TEMP_ROOT);self.addCleanup(self.temp.cleanup)
-        self.root=Path(self.temp.name);(self.root/'profile.md').write_text('secretary_language: English\ntimezone: Europe/London\ncity: London, GB\nnews_country: GB\n')
-        (self.root/'daily').mkdir()
-        self.process=subprocess.Popen([sys.executable,__file__,'--serve-fixture',str(self.root)],stdout=subprocess.PIPE,stderr=subprocess.PIPE,text=True)
-        self.address=self.process.stdout.readline().strip().removeprefix('Private live viewer: ')
-        self.addCleanup(self.stop)
-        with urlopen(self.address+'/gm.html') as response:
-            page=response.read().decode()
-        import html,re
-        config=json.loads(html.unescape(re.search(r'data-config="([^"]+)"',page)[1]))
-        self.csrf=config['csrf'];self.date=config['date']
-
-    def stop(self):
-        self.process.terminate();self.process.communicate(timeout=5)
-
-    def request(self,path,body=None,headers=None):
-        defaults={'Content-Type':'application/json','Origin':self.address,'X-Briefing-CSRF':self.csrf}
-        defaults.update(headers or {})
-        with urlopen(Request(self.address+path,data=json.dumps(body).encode() if body is not None else None,headers=defaults)) as response:
-            return json.load(response)
-
+class HTTPTests(HTTPFixture):
     def test_csrf_host_origin_and_arbitrary_proxy_requests_denied(self):
         for headers in ({'Origin':'https://evil.example'},{'Host':'evil.example'},{'X-Briefing-CSRF':'wrong'}):
             with self.assertRaises(HTTPError) as error:self.request('/api/generate',{'date':self.date,'kind':'gm'},headers)

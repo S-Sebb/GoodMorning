@@ -12,13 +12,17 @@ from goodmorning.briefings import briefing_web as web
 
 
 class WeatherDisplayTests(unittest.TestCase):
-    def test_temperature_uses_celsius_symbol_and_range_dash(self):
-        self.assertEqual(native.weather_display('temperature', '16C (14.5-20.4C)'), '16°C (14.5–20.4°C)')
-        self.assertEqual(native.weather_display('temperature', '14°C'), '14°C')
+    def test_weather_parts_normalize_raw_values_into_main_and_sub(self):
+        for card, raw, parts in (('temperature', '16C (14.5-20.4C)', ('16°C', '(14.5–20.4°C)')),
+                                 ('temperature', '14°C', ('14°C', None)),
+                                 ('precipitation', '65% - rain yes', ('65%', 'Rain likely')),
+                                 ('precipitation', '0% - rain no', ('0%', 'No rain')),
+                                 ('air', 'US AQI 30 - good', ('30', 'Good')),
+                                 ('air', '31', ('31', None))):
+            with self.subTest(card=card, raw=raw):
+                self.assertEqual(native.weather_parts(card, raw), parts)
 
-    def test_precipitation_never_shows_raw_rain_tokens(self):
-        self.assertEqual(native.weather_display('precipitation', '65% - rain yes'), '65% – Rain likely')
-        self.assertEqual(native.weather_display('precipitation', '0% - rain no'), '0% – No rain')
+    def test_rendered_weather_never_shows_raw_or_joined_values(self):
         rendered = native.render_block(['weather', [
             ['temperature', '16C (14.5-20.4C)', 'Cool.'],
             ['precipitation', '65% - rain yes', 'Drizzle.'],
@@ -32,16 +36,6 @@ class WeatherDisplayTests(unittest.TestCase):
             self.assertIn(good, rendered)
         for bad_joined in ('16°C (14.5–20.4°C)', '65% – Rain likely', '30 – Good'):
             self.assertNotIn(bad_joined, rendered)
-
-    def test_aqi_strips_scale_prefix(self):
-        self.assertEqual(native.weather_display('air', 'US AQI 30 - good'), '30 – Good')
-        self.assertEqual(native.weather_display('air', '31'), '31')
-
-    def test_weather_parts_split_main_and_sub(self):
-        self.assertEqual(native.weather_parts('temperature', '15°C (14.5–20.4°C)'), ('15°C', '(14.5–20.4°C)'))
-        self.assertEqual(native.weather_parts('precipitation', '65% - rain yes'), ('65%', 'Rain likely'))
-        self.assertEqual(native.weather_parts('air', 'US AQI 27 - good'), ('27', 'Good'))
-        self.assertEqual(native.weather_parts('temperature', '14°C'), ('14°C', None))
 
 
 class DatedTitleTests(unittest.TestCase):

@@ -9,18 +9,17 @@ with revision checks, and day/night English/Chinese panel screenshots.
 Creates no real sessions and makes no model calls.
 """
 import argparse
-import io
 import json
 import sys
 import tempfile
 import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
-from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from support import TEMP_ROOT, returning_viewer
-from test_weekly_schedule import make_runtime, start_server
+from support import start_server
+from test_weekly_schedule import make_runtime
 
 NOW = datetime(2026, 10, 14, 12, tzinfo=timezone.utc)
 

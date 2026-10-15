@@ -12,15 +12,16 @@ from urllib.parse import urlsplit
 ROOT=Path(__file__).resolve().parents[2]
 sys.path.insert(0,str(ROOT/'tests'))
 from support import TEMP_ROOT, returning_viewer
-from test_briefing_gateway import GatewayTests
-from test_weekly_schedule import make_runtime, start_server, canonical_records
-from test_briefing_server import FakeChamber
+from support import GatewayFixture
+from support import start_server
+from test_weekly_schedule import make_runtime, canonical_records
+from support import FakeChamber
 from goodmorning.web.release import patch_note
 from playwright.sync_api import sync_playwright, expect
 
 
 def main():
-    fixture=GatewayTests();fixture.setUp()
+    fixture=GatewayFixture();fixture.setUp()
     viewer=None
     try:
         fixture.permanent()

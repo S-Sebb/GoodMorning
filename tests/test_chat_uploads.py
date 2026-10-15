@@ -13,14 +13,12 @@ from urllib.error import HTTPError
 from urllib.parse import quote
 from urllib.request import Request
 
-from support import TEMP_ROOT
+from support import TEMP_ROOT, GatewayFixture, MockChamber, ImmediateThread
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'src'))
 from goodmorning.web.chat_uploads import Uploads, MAX_UPLOAD_BYTES, UploadReader, upload_name
 from goodmorning.web.briefing_chat import Chats, MODES
 from goodmorning.web.briefing_server import BrowserApp, serve_live
 from goodmorning.web.bridge_json import read_json
-from test_briefing_chat import MockChamber, ImmediateThread
-import test_briefing_gateway as gateway_tests
 
 
 class RepeatedBytes:
@@ -70,6 +68,8 @@ class UploadTests(unittest.TestCase):
         self.root = Path(temporary.name)
         self.uploads = Uploads(self.root)
         self.file_id = 'f' * 32
+        patcher = patch('goodmorning.web.briefing_chat.threading.Thread', ImmediateThread)
+        patcher.start(); self.addCleanup(patcher.stop)
 
     def upload(self, name='notes.txt', data=b'Synthetic notes', identifier=None):
         return self.uploads.receive(identifier or self.file_id, name, io.BytesIO(data), len(data))
@@ -88,9 +88,8 @@ class UploadTests(unittest.TestCase):
         self.assertFalse((self.uploads.directory / ('a' * 32)).exists())
         self.upload(identifier='a' * 32, data=b'x')
         chats, _ = self.chats()
-        with patch('goodmorning.web.briefing_chat.threading.Thread', ImmediateThread):
-            chats.start({'id': 'b' * 32, 'mode': 'secretary', 'text': '',
-                         'attachments': [self.file_id, 'a' * 32]})
+        chats.start({'id': 'b' * 32, 'mode': 'secretary', 'text': '',
+                     'attachments': [self.file_id, 'a' * 32]})
         self.assertEqual(chats.status('b' * 32)['state'], 'idle')
         self.assertEqual(sum(entry['size'] for entry in chats.get('b' * 32)['turns'][0]['attachments']), MAX_UPLOAD_BYTES + 1)
 
@@ -150,48 +149,46 @@ class UploadTests(unittest.TestCase):
     def test_all_modes_send_native_files_without_leaking_paths_to_browser(self):
         self.upload(name='资料 <img>.txt')
         chats, chamber = self.chats()
-        with patch('goodmorning.web.briefing_chat.threading.Thread', ImmediateThread):
-            for index, mode in enumerate(MODES):
-                chat = format(index, '032x')
-                body = {'id': chat, 'mode': mode, 'text': '', 'attachments': [self.file_id]}
-                chats.start(body); chats.start(body)
-                path, payload = chamber.replies[-1]
-                self.assertTrue(path.endswith('/prompt'))
-                self.assertEqual(payload['files'], self.uploads.files([self.file_id]))
-                self.assertIn(f"Native session ID: {chats.get(chat)['session']}\n", payload['text'])
-                self.assertNotIn(f'Native session ID: {chat}', payload['text'])
-                status = chats.status(chat)
-                self.assertEqual(status['state'], 'idle')
-                self.assertEqual(status['messages'][0]['attachments'][0]['name'], '资料 <img>.txt')
-                self.assertNotIn(str(self.root), json.dumps(status))
-                self.assertEqual(len(chamber.replies), index + 1)
-                with self.assertRaises(ValueError):
-                    chats.start({**body, 'attachments': []})
-            chat = '0' * 32
-            body = {'id': 'a' * 32, 'text': 'Please review', 'attachments': [self.file_id]}
-            chats.send(chat, body); chats.send(chat, body)
-            self.assertEqual(len(chamber.replies), 5)
-            self.assertIn('Please review', chats.status(chat)['messages'][-2]['text'])
-            self.upload(name='second.txt', data=b'Second file', identifier='e' * 32)
-            chats.send(chat, {'id': 'b' * 32, 'text': '', 'attachments': ['e' * 32]})
-            chats.send(chat, {'id': 'c' * 32, 'text': '', 'attachments': [self.file_id]})
-            for path, payload in chamber.replies:
-                session = path.split('/')[3]
-                self.assertIn(f'Native session ID: {session}\n', payload['text'])
-            messages = chats.status(chat)['messages']
-            self.assertEqual(messages[-4]['attachments'][0]['name'], 'second.txt')
-            self.assertEqual(messages[-2]['attachments'][0]['name'], '资料 <img>.txt')
-            self.assertEqual(Chats(self.root, chamber).status(chat)['state'], 'idle')
+        for index, mode in enumerate(MODES):
+            chat = format(index, '032x')
+            body = {'id': chat, 'mode': mode, 'text': '', 'attachments': [self.file_id]}
+            chats.start(body); chats.start(body)
+            path, payload = chamber.replies[-1]
+            self.assertTrue(path.endswith('/prompt'))
+            self.assertEqual(payload['files'], self.uploads.files([self.file_id]))
+            self.assertIn(f"Native session ID: {chats.get(chat)['session']}\n", payload['text'])
+            self.assertNotIn(f'Native session ID: {chat}', payload['text'])
+            status = chats.status(chat)
+            self.assertEqual(status['state'], 'idle')
+            self.assertEqual(status['messages'][0]['attachments'][0]['name'], '资料 <img>.txt')
+            self.assertNotIn(str(self.root), json.dumps(status))
+            self.assertEqual(len(chamber.replies), index + 1)
+            with self.assertRaises(ValueError):
+                chats.start({**body, 'attachments': []})
+        chat = '0' * 32
+        body = {'id': 'a' * 32, 'text': 'Please review', 'attachments': [self.file_id]}
+        chats.send(chat, body); chats.send(chat, body)
+        self.assertEqual(len(chamber.replies), 5)
+        self.assertIn('Please review', chats.status(chat)['messages'][-2]['text'])
+        self.upload(name='second.txt', data=b'Second file', identifier='e' * 32)
+        chats.send(chat, {'id': 'b' * 32, 'text': '', 'attachments': ['e' * 32]})
+        chats.send(chat, {'id': 'c' * 32, 'text': '', 'attachments': [self.file_id]})
+        for path, payload in chamber.replies:
+            session = path.split('/')[3]
+            self.assertIn(f'Native session ID: {session}\n', payload['text'])
+        messages = chats.status(chat)['messages']
+        self.assertEqual(messages[-4]['attachments'][0]['name'], 'second.txt')
+        self.assertEqual(messages[-2]['attachments'][0]['name'], '资料 <img>.txt')
+        self.assertEqual(Chats(self.root, chamber).status(chat)['state'], 'idle')
 
     def test_attachment_followup_refreshes_an_old_release_without_losing_files(self):
         self.upload()
         chats, chamber = self.chats()
         chat = 'a'*32
-        with patch('goodmorning.web.briefing_chat.threading.Thread', ImmediateThread):
-            chats.start({'id': chat, 'mode': 'todo', 'text': 'Synthetic task'})
-            session = chats.get(chat)['session']
-            chamber.sessions[session]['directory'] = '/opt/goodmorning/releases/old'
-            chats.send(chat, {'id': 'b'*32, 'text': 'Finish its setup', 'attachments': [self.file_id]})
+        chats.start({'id': chat, 'mode': 'todo', 'text': 'Synthetic task'})
+        session = chats.get(chat)['session']
+        chamber.sessions[session]['directory'] = '/opt/goodmorning/releases/old'
+        chats.send(chat, {'id': 'b'*32, 'text': 'Finish its setup', 'attachments': [self.file_id]})
         path, payload = chamber.replies[-1]
         self.assertEqual(path, f'/api/session/{session}/prompt')
         self.assertIn('Workflow refresh: true', payload['text'])
@@ -203,18 +200,18 @@ class UploadTests(unittest.TestCase):
         self.upload()
         chats, chamber = self.chats(); chamber.fail = True
         body = {'id': 'a' * 32, 'mode': 'secretary', 'text': 'Review', 'attachments': [self.file_id]}
-        with patch('goodmorning.web.briefing_chat.threading.Thread', ImmediateThread):
+        with patch.object(chamber, 'request', wraps=chamber.request) as request:
             chats.start(body)
             self.assertEqual(chats.status(body['id'])['state'], 'uncertain')
             chats.start(body)
-            self.assertEqual(sum(action == 'session.create' for action, _ in chamber.calls), 1)
+        self.assertEqual(sum(call.args[0].endswith('/prompt') for call in request.call_args_list), 1)
+        self.assertEqual(sum(action == 'session.create' for action, _ in chamber.calls), 1)
 
     def test_existing_image_history_gets_preview_metadata_without_rewriting_records(self):
         self.upload(name='existing.png', data=b'\x89PNG\r\n\x1a\n')
         chats, _ = self.chats()
         chat = 'a' * 32
-        with patch('goodmorning.web.briefing_chat.threading.Thread', ImmediateThread):
-            chats.start({'id': chat, 'mode': 'secretary', 'text': '', 'attachments': [self.file_id]})
+        chats.start({'id': chat, 'mode': 'secretary', 'text': '', 'attachments': [self.file_id]})
         item = chats.get(chat)
         del item['turns'][0]['attachments'][0]['mime']
         chats.save()
@@ -225,7 +222,7 @@ class UploadTests(unittest.TestCase):
 
 class UploadHTTPTests(unittest.TestCase):
     def setUp(self):
-        self.fixture = gateway_tests.GatewayTests(); self.fixture.setUp()
+        self.fixture = GatewayFixture(); self.fixture.setUp()
         self.addCleanup(self.fixture.doCleanups)
         self.runtime = self.fixture.root / 'secretary'; self.runtime.mkdir()
         self.chamber = MockChamber(self.runtime)
