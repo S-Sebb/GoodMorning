@@ -94,8 +94,9 @@ def require_paused(db):
     assert (metadata(db, 'maintenance') or {}).get('enabled') is True, 'Deployment requires an enabled website pause'
 
 
-def require_no_work(db):
-    if metadata(db, 'generation'):
+def require_no_work(db, own=None):
+    """Any reservation but this deployment's own ticket means work is running."""
+    if metadata(db, 'generation') not in (None, own):
         raise Busy('A reservation is held')
     if metadata(db, 'generation_queue') not in (None, []):
         raise Busy('Queued requests are waiting')
@@ -211,10 +212,12 @@ def switch(name):
     bridges = {identifier: LocalBridge('http://127.0.0.1:'+str(config['chamberPort']), str(old), config['uiPassword'])
                for identifier, config in configs.items()}
 
+    ticket = {'deployment': name}
+
     def idle():
         with store.db() as db:
             require_paused(db)
-            require_no_work(db)
+            require_no_work(db, ticket)
         for identifier, bridge in bridges.items():
             active = bridge.request('/api/session/active')
             if active.get('data', active):
@@ -317,7 +320,6 @@ print(json.dumps({'profileReady':status['profile_ready'],'nativeEditions':count}
     accounts = [f'goodmorning-account@{identifier}.service' for identifier in identifiers]
     viewers = [f'goodmorning-viewer@{identifier}.service' for identifier in identifiers]
     services = accounts+viewers+['goodmorning-gateway.service']
-    ticket = {'deployment': name}
     try:
         with store.db() as db:
             db.execute('BEGIN IMMEDIATE')

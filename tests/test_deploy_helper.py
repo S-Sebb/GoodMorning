@@ -39,6 +39,27 @@ class DeployHelperTests(unittest.TestCase):
             with self.subTest(name=bad), self.assertRaises(ValueError):
                 helper.release_path(bad)
 
+    def test_only_the_deployments_own_ticket_counts_as_idle(self):
+        import json
+        import sqlite3
+        db = sqlite3.connect(':memory:')
+        db.execute('CREATE TABLE metadata (key TEXT PRIMARY KEY, value TEXT)')
+        own = {'deployment': '20261015-ship-3a5b299'}
+        helper.require_no_work(db, own)
+        db.execute("INSERT INTO metadata VALUES ('generation', ?)", (json.dumps(own),))
+        helper.require_no_work(db, own)
+        with self.assertRaises(helper.Busy):
+            helper.require_no_work(db)
+        db.execute("UPDATE metadata SET value=? WHERE key='generation'", (json.dumps({'account': 'x', 'job': 'y'}),))
+        with self.assertRaises(helper.Busy):
+            helper.require_no_work(db, own)
+        db.execute("DELETE FROM metadata")
+        for key in ('generation_queue', 'generation_waiting'):
+            db.execute('INSERT OR REPLACE INTO metadata VALUES (?, ?)', (key, json.dumps([{'request': 1}])))
+            with self.subTest(key=key), self.assertRaises(helper.Busy):
+                helper.require_no_work(db, own)
+            db.execute("DELETE FROM metadata")
+
     def test_public_archive_contains_the_release_and_nothing_private(self):
         if not (ROOT/'.git').exists():
             self.skipTest('Deployment archives do not include Git metadata')
