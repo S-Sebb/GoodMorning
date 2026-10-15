@@ -1,6 +1,39 @@
 {
   "notes": [
     {
+      "version": "0.47.0", "date": "2026-10-15", "author": "GoodMorning agent",
+      "title_en": "A Day view for your schedule", "title_zh": "日程里多了「日」视图",
+      "changes": [
+        {"category": "Added", "en": [
+          "The Schedule tab now has a Day view: one day with every event detail, your to-dos, and what's on now or next. It remembers your choice."
+        ], "zh": [
+          "日程标签页现在多了「日」视图：只看一天，日程的每条详情、你的待办，还有正在进行和接下来的安排都在这里。它会记住你的选择。"
+        ]},
+        {"category": "Changed", "en": [
+          "The briefing header now shows your secretary at a fixed size in a soft lamp glow, with a smaller greeting and the opening line in a speech bubble.",
+          "Morning Sky's birds now stay still, and only the flock beside the sun remains.",
+          "First Light now fades into warm paper below its opening scene instead of repeating the valley, and the secretary page is no longer green.",
+          "Morning and evening briefings are prepared faster and more reliably handle requests like moving a task to another day."
+        ], "zh": [
+          "简报顶栏里的秘书现在大小固定，罩着一层柔和的灯光；问候语变小了，开场的话放进了对话气泡里。",
+          "Morning Sky 的飞鸟现在停住不动了，只留下太阳旁边的那一群。",
+          "First Light 在开场画面往下，现在过渡成温暖的纸色，不再重复那片山谷；秘书页面也不再是绿色的了。",
+          "早间和晚间简报准备得更快，处理「把待办挪到另一天」这类请求也更稳。"
+        ]},
+        {"category": "Fixed", "en": [
+          "Pages using Morning Sky scroll smoothly again instead of lagging.",
+          "The avatar picker is fully visible and clickable on the secretary page and on briefings at tablet and desktop sizes.",
+          "The secretary's portrait lines up with the top of the conversation again.",
+          "Project labels in the Schedule no longer appear as empty boxes."
+        ], "zh": [
+          "用 Morning Sky 的页面滚动又变流畅了，不再卡顿。",
+          "在平板和电脑尺寸下，秘书页面和简报里的形象选择都能完整看到，也点得到了。",
+          "秘书的形象又和对话的顶部对齐了。",
+          "日程里的项目标签不会再显示成空框了。"
+        ]}
+      ]
+    },
+    {
       "version": "0.46.0", "date": "2026-10-15", "author": "GoodMorning agent",
       "title_en": "Schedule summaries", "title_zh": "日程章节开头多了摘要",
       "changes": [
