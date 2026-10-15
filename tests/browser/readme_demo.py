@@ -185,8 +185,9 @@ def capture(app, output):
             def shot(name, locator=None, full_page=False):
                 page.mouse.move(0, 0)
                 if page.viewport_size['width'] <= 700:
+                    # Idle phone rails stay faintly visible; only an active one brightens.
                     for rail in page.locator('.scroll-rail:not([hidden])').all():
-                        expect(rail).to_have_css('opacity', '0')
+                        expect(rail).to_have_css('opacity', '0.4')
                 options = {'path': str(output / f'{name}.png')}
                 if locator is None:
                     options['full_page'] = full_page

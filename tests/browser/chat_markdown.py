@@ -167,7 +167,13 @@ def check_markdown(browser, address, artifacts):
         }''')
         expect(page.locator('[data-message="fallback"] .message-text')).to_have_text('**Keep the reply readable**')
         assert not errors, errors
-        assert page.evaluate('localStorage.length === 0 && sessionStorage.length === 0')
+        # Only the tab-scoped conversation reference may persist, never message text.
+        assert page.evaluate(r'''() => localStorage.length === 0 && Object.keys(sessionStorage).every(key => {
+            if (!/^goodmorning\.chat\.workspace\.[a-f0-9]{64}$/.test(key)) return false;
+            const value = JSON.parse(sessionStorage.getItem(key));
+            return Object.keys(value).sort().join(',') === 'away,chat,draft,resume'
+                && [value.chat, value.resume].every(id => id === null || /^[a-f0-9]{32}$/.test(id));
+        })''')
         page.close()
     return checks
 

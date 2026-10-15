@@ -62,7 +62,8 @@ def check_picker(page, address, artifacts):
                 text = link.locator('bdi').bounding_box()
                 assert bounds['height'] >= 44
                 icon_height=link.evaluate("node => parseFloat(getComputedStyle(node, '::before').height)")
-                assert icon_height >= 20
+                # The secretary's compact phone navigation uses 18px icons (0.37.0).
+                assert icon_height >= (18 if path == '/chat' else 20)
                 if link.evaluate('node => getComputedStyle(node).flexDirection')=='column':
                     assert abs((bounds['x']+bounds['width']/2)-(text['x']+text['width']/2)) < 2
                     assert text['y'] >= bounds['y']+icon_height
@@ -151,7 +152,13 @@ def check_picker(page, address, artifacts):
     page.unroute('**/api/avatar', reject)
     page.goto(address + '/gm.html')
     expect(page.locator('.avatar-display')).to_have_attribute('data-avatar', 'm2')
-    assert page.evaluate('localStorage.length === 0 && sessionStorage.length === 0')
+    # Only the secretary's tab-scoped conversation reference may persist (0.37.0).
+    assert page.evaluate(r'''() => localStorage.length === 0 && Object.keys(sessionStorage).every(key => {
+        if (!/^goodmorning\.chat\.workspace\.[a-f0-9]{64}$/.test(key)) return false;
+        const value = JSON.parse(sessionStorage.getItem(key));
+        return Object.keys(value).sort().join(',') === 'away,chat,draft,resume'
+            && [value.chat, value.resume].every(id => id === null || /^[a-f0-9]{32}$/.test(id));
+    })''')
 
 
 def check_motion(browser, address):
@@ -190,7 +197,8 @@ def check_layout_alignment(browser, address, artifacts):
             page.goto(address + path)
             box = page.locator(selector).first.bounding_box()
             if path == '/chat':
-                sidebar = page.locator('.conversation-sidebar').bounding_box()
+                # Phones flatten the sidebar (display: contents); the identity row leads instead.
+                sidebar = page.locator('.conversation-sidebar' if width > 700 else '.secretary-identity').bounding_box()
                 bounds[path] = (sidebar['x'], box['x'] + box['width'])
                 if width > 700:
                     assert box['x'] > sidebar['x'] + sidebar['width'], (width, sidebar, box)
@@ -207,14 +215,22 @@ def check_layout_alignment(browser, address, artifacts):
             assert not page.evaluate('document.documentElement.scrollWidth > innerWidth')
             if path == '/chat' and width in (390, 1440):
                 page.screenshot(path=str(artifacts / f'aligned-secretary-{width}.png'), full_page=True)
-        for path in ('/gn.html', '/chat'):
-            assert all(abs(left - right) < 1 for left, right in zip(bounds['/gm.html'], bounds[path])), (width, bounds)
-        if width <= 700:
-            for path in ('/gn.html', '/chat'):
-                for key in ('x', 'y', 'width', 'height'):
-                    assert abs(navigation['/gm.html'][key] - navigation[path][key]) < 1, (width, navigation)
+        assert all(abs(left - right) < 1 for left, right in zip(bounds['/gm.html'], bounds['/gn.html'])), (width, bounds)
+        # Since 0.37.0 the secretary page has its own compact gutters: 64px on
+        # tablets and 12px on phones, where navigation spans the chat frame.
+        if width > 1000:
+            assert all(abs(left - right) < 1 for left, right in zip(bounds['/gm.html'], bounds['/chat'])), (width, bounds)
+        elif width > 700:
+            assert abs(bounds['/gm.html'][0] - bounds['/chat'][0]) < 1 and abs(bounds['/chat'][1] - (width - 64)) < 1, (width, bounds)
+        else:
+            assert abs(bounds['/chat'][0] - 12) < 1 and abs(bounds['/chat'][1] - (width - 12)) < 1, (width, bounds)
+            chat_navigation = navigation['/chat']
+            assert abs(chat_navigation['x'] - bounds['/chat'][0]) < 1, (width, navigation)
+            assert abs(chat_navigation['x'] + chat_navigation['width'] - bounds['/chat'][1]) < 1, (width, navigation)
+            for key in ('x', 'y', 'width', 'height'):
+                assert abs(navigation['/gm.html'][key] - navigation['/gn.html'][key]) < 1, (width, navigation)
         results.append({'width': width, 'left': round(bounds['/chat'][0]), 'right': round(bounds['/chat'][1]),
-                        'briefingAndChatFrameEdgesMatch': True, 'desktopSidebarPreserved': width > 700})
+                        'briefingAndChatFrameEdgesMatch': width > 1000, 'desktopSidebarPreserved': width > 700})
         page.close()
     return results
 
@@ -227,6 +243,8 @@ def main():
         root = Path(directory)
         (root / 'profile.md').write_text('secretary_language: English\ntimezone: Europe/London\ncity: London, GB\nnews_country: GB\n')
         (root / 'daily').mkdir()
+        # The asserted toggle colors are the Classic day palette; Morning Sky became the default in 0.38.0.
+        (root / 'website-color-schemes.json').write_text('{"day": "classic", "night": "starry"}\n')
         day = briefing_day('Europe/London')
         document = encode({'v': 1, 'lang': 'en', 'greeting': 'A little room to breathe.',
                            'opening': 'Your priorities, prepared by your secretary.',
