@@ -31,11 +31,15 @@ def check_avatar(page, selected, label):
     card = page.locator('.briefing-section').first
     assert card.evaluate('node => getComputedStyle(node).backgroundColor') != 'rgba(0, 0, 0, 0)'
     assert float(card.evaluate('node => parseFloat(getComputedStyle(node).borderTopLeftRadius)')) > 0
-    letter = page.locator('.letter-copy').bounding_box()
     portrait = image.bounding_box()
-    eyebrow = page.locator('.letter-copy > .eyebrow').bounding_box()
-    assert abs(portrait['y'] - eyebrow['y']) < 1, (portrait, eyebrow)
-    assert abs(portrait['height'] - letter['height']) < 1, (portrait, letter)
+    assert abs(portrait['width'] - portrait['height']) < 1, portrait
+    # A long greeting wraps beside the portrait without resizing it.
+    title = page.locator('.letter-copy > h1')
+    saved = title.evaluate('node => node.textContent')
+    title.evaluate("node => { node.textContent = 'Good morning gorgeous — let us get today glowing and keep it bright all day long!' }")
+    resized = image.bounding_box()
+    assert (resized['width'], resized['height']) == (portrait['width'], portrait['height']), (resized, portrait)
+    title.evaluate('(node, text) => { node.textContent = text }', saved)
     expect(page.locator('.orbit')).to_be_visible()
     if page.viewport_size['width'] <= 700:
         assert page.locator('.briefing-section').first.bounding_box()['width'] >= page.viewport_size['width'] - 33
