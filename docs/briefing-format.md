@@ -54,6 +54,12 @@ restate project/due text code already shows.
   Preparation is concise attendee requirements only, never meeting-invitation
   boilerplate (join instructions, Meeting IDs, help/meeting-options links,
   system references or privacy footers). Join via the original invitation.
+  Add a short section note in the saved tone (default warm and helpful): for an
+  empty day say only that no appointments are saved for that day, without
+  claiming free time or availability; for a non-empty day name the count and
+  earliest time plus the single most useful preparation; use plain words only,
+  no mention of windows, glances, TBC, timed focus, or code blocks; do not
+  repeat every card.
 - `["decisions",[[entry_draft_or_calendar_id,revision,title,detail],...]]`: only in Reminders.
   These are actual pending questions, unreviewed material or due reviews.
   Code already humanizes calendar times (`Fri 23 Oct 11:00–12:00`) and uses
