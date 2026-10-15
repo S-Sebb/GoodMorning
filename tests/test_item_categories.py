@@ -89,6 +89,34 @@ class CategoryTests(unittest.TestCase):
             self.assertEqual(category(self.tasks.show(identifier)), expected)
         self.assertNotIn('category', self.inbox.db.execute('SELECT data FROM tasks LIMIT 1').fetchone()[0])
 
+    def test_morning_is_about_today_and_evening_previews_only_tomorrow(self):
+        self.capture(title='Remove hair', timezone=ZONE, repeat={'weekdays': [5], 'start': DAY})  # Saturdays
+        self.capture(title='Council form', due_date='2026-10-17')
+        calendar = CalendarStore(str(self.root/'calendar.sqlite'))
+        try:
+            calendar.add({'subject': "Mum's birthday", 'start': '2026-10-17', 'end': '2026-10-18', 'all_day': True, 'timezone': ZONE})
+        finally:
+            calendar.close()
+        self.draft(title='Archery class', date='2026-10-17', timezone=ZONE, confirmed_day=True)
+        shown = lambda kind, day: (set(self.items(kind, day)),
+                                   {i['subject'] for i in routing.prepare(self.root, day, kind)['schedule']['items']})
+        for day in ('2026-10-14', '2026-10-15'):  # Wednesday and Thursday: nothing of Saturday's.
+            for kind in ('gm', 'gn'):
+                self.assertNotIn('Remove hair', shown(kind, day)[0], (kind, day))
+                self.assertEqual(shown(kind, day)[1], set(), (kind, day))
+        self.assertIn('Council form', shown('gm', '2026-10-14')[0])  # A hard deadline is the exception.
+        self.assertNotIn('Council form', shown('gn', '2026-10-14')[0])  # Evenings: only due tomorrow.
+        self.assertEqual(shown('gn', '2026-10-16'), ({'Remove hair', 'Council form'}, {"Mum's birthday", 'Archery class'}))
+        self.assertEqual(shown('gm', '2026-10-17'), ({'Remove hair', 'Council form'}, {"Mum's birthday", 'Archery class'}))
+
+    def test_habits_appear_in_briefings_on_their_days(self):
+        self.habit()  # Every two days from Tuesday 13th.
+        row = self.items()['Strength training']
+        self.assertEqual((row['category'], row['date'], row['group']), ('habit', DAY, 'planned'))
+        self.assertEqual(routing.action_cells(row)[:5], [row['id'], row['revision'], row['occurrence_id'], DAY, 'open'])
+        self.assertNotIn('Strength training', self.items('gn'))  # Wednesday is an off day.
+        self.assertIn('Strength training', self.items('gn', '2026-10-14'))  # Preview of Thursday.
+
     def test_nudge_is_morning_only_and_never_ticked_off(self):
         anytime = self.capture(title='Check the chair price', kind='nudge')
         weekly = self.capture(title='Bring gym clothes', kind='nudge', timezone=ZONE, repeat={'weekdays': [2], 'start': DAY})
@@ -157,7 +185,7 @@ class CategoryTests(unittest.TestCase):
             row = self.items(day=day)['Decide the trip dates']
             self.assertEqual((row['group'], row['date']), ('follow-up', day))
             self.assertEqual([r['id'] for r in routing.feedback_day(self.tasks, day)], [identifier])
-        self.assertEqual(self.items('gn', '2026-10-15')['Decide the trip dates']['date'], '2026-10-15')
+        self.assertNotIn('Decide the trip dates', self.items('gn', '2026-10-15'))  # The evening form asks instead.
         self.assertFalse(any(day['tasks'] for day in self.week().values()))  # A chase reserves no workday.
         task = self.tasks.show(identifier)
         self.tasks.complete_day([{'id': occurrence_id(identifier, '2026-10-15'), 'task_id': identifier, 'revision': task['revision']}],

@@ -154,9 +154,13 @@ heading. Use `scripts/goodmorning.py` with the selected absolute runtime.
    IDs/revisions/titles/dates/status. One actionable card per occurrence.
    Browser recipes use `--section schedule|tasks|attention|today`: return only that
    section's rows, `block`, counts and warnings, avoiding repeated whole-plan reads.
-9. Morning shows today's nudges, agreed work, daily follow-ups, deadlines within
-    seven days, at most three steps per project and other open actions; evening
-    reviews actual outcomes and previews agreed work. Nudges and reference notes are
+9. Each edition has one focus day: the morning shows today, the evening previews
+    tomorrow. Appointments, occasions, TBC days, day tasks, routines, habits and
+    nudges appear only on their own day; no multi-day lookahead. The exceptions are
+    hard deadlines (morning: due within seven days or overdue; evening: due
+    tomorrow or overdue), work still open from an earlier day, and morning daily
+    follow-ups. Morning also offers at most three steps per project (required
+    before optional) and other open actions; evening reviews actual outcomes. Nudges and reference notes are
     never evening questions; a step waiting on `after` stays hidden until that task
     closes. The Schedule tab shows deadlines on their due day, marked "no workday
     assigned", and habit days marked flexible. Evening completion choices cover
