@@ -63,7 +63,8 @@ The message says what state the website is in:
 | Public login check | Paused again; new release live | Inspect, then resume or roll back. |
 
 **Roll back** by running `switch` for the previous release, with the website
-paused: `sudo -n /opt/goodmorning/python/bin/python -B /tmp/opencode/<NAME>/deploy_native.py switch <PREVIOUS-NAME>`.
+paused, using the live release's own copy of the helper:
+`sudo -n /opt/goodmorning/python/bin/python -B /opt/goodmorning/current/deploy/deploy_native.py switch <PREVIOUS-NAME>`.
 It re-verifies the release's files against its stage marker or earlier deployment
 report in `/srv/goodmorning/live/accounts`. Never hand-edit the `current` symlink.
 
