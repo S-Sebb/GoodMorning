@@ -17,6 +17,7 @@ reference adds operation-specific details; it does not override core gates or
 | Calendar source/window, staging, review and mutations | `docs/calendar-pipeline.md` |
 | Exact project access/write scope, hashes, locks and jobs | `docs/project-access.md` |
 | Detailed replies, tone and grounded personalization | `docs/reply-voice.md` |
+| Chinese interface copy, `translations.json` keys and placeholders | `docs/chinese-copy.md` |
 
 ## Preparation and local titles
 

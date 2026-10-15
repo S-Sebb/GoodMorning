@@ -524,5 +524,6 @@
   "Confirm resolved": "确认已解决",
   "Confirm dismiss": "确认忽略",
   "Calls could not be loaded. Your records are unchanged.": "来电列表加载失败，你的记录没有变化。",
-  "Calls could not be saved. Your records are unchanged.": "来电保存失败，你的记录没有变化。"
+  "Calls could not be saved. Your records are unchanged.": "来电保存失败，你的记录没有变化。",
+  "The website is being maintained for a quick update. Please come back later. Your saved work is safe.": "网站正在进行一次快速更新维护，请稍后再回来看看。你保存的内容都不会丢。"
 }

@@ -1,0 +1,146 @@
+:root {
+  color-scheme: light;
+  font-family: system-ui, sans-serif;
+  color: #253d45;
+  background: #f2f6f5;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  min-height: 100svh;
+  display: grid;
+  place-items: center;
+  padding: clamp(1rem, 3vw, 2rem);
+  background:
+    radial-gradient(ellipse at top left, #e0ede5, transparent 60%),
+    radial-gradient(ellipse at bottom right, #fff0d7, transparent 65%);
+}
+
+.account-card {
+  width: min(100%, 58rem);
+  padding: clamp(1.4rem, 4vw, 2.5rem);
+  border: 1px solid #d5e0db;
+  border-radius: 1.5rem;
+  background: #fffefa;
+  box-shadow: 0 1rem 4rem #253d4512;
+}
+
+.maintenance-image {
+  display: block;
+  width: clamp(8rem, 20vw, 11rem);
+  max-width: 100%;
+  height: auto;
+  margin: 0 auto 1.75rem;
+  border: 1px solid #d5e0db;
+  border-radius: 1.25rem;
+}
+
+.maintenance-languages {
+  display: grid;
+  gap: 1.75rem;
+}
+
+.maintenance-languages > section {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.maintenance-languages > section + section {
+  padding-top: 1.75rem;
+  border-top: 1px solid #d5e0db;
+}
+
+.eyebrow {
+  margin: 0 0 .75rem;
+  font-size: .75rem;
+  letter-spacing: .13em;
+  text-transform: uppercase;
+  color: #56746a;
+}
+
+h1,
+h2 {
+  margin: 0 0 1rem;
+  font-family: Georgia, "Songti SC", SimSun, serif;
+  font-weight: 500;
+  font-size: clamp(1.65rem, 3vw, 2rem);
+  line-height: 1.25;
+}
+
+p {
+  margin: 0 0 1rem;
+  line-height: 1.65;
+}
+
+.maintenance-status {
+  font-weight: 600;
+}
+
+.retry-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 8rem;
+  min-height: 48px;
+  margin: .25rem 0 1rem;
+  padding: .75rem 1.25rem;
+  border-radius: .7rem;
+  background: #315e50;
+  color: #fff;
+  font-weight: 600;
+  text-decoration: none;
+  transition: background-color .15s;
+}
+
+.retry-link:hover {
+  background: #23483c;
+  text-decoration: underline;
+  text-underline-offset: .2em;
+}
+
+.retry-link:focus-visible {
+  outline: 3px solid #719bb8;
+  outline-offset: 3px;
+}
+
+.maintenance-note {
+  margin-bottom: 0;
+  color: #56746a;
+}
+
+.maintenance-note small {
+  font-size: .875rem;
+}
+
+.emoticon {
+  display: inline-block;
+  white-space: nowrap;
+}
+
+@media (min-width: 48rem) {
+  .maintenance-languages {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 2rem;
+  }
+
+  .maintenance-languages > section + section {
+    padding-top: 0;
+    padding-left: 2rem;
+    border-top: 0;
+    border-left: 1px solid #d5e0db;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}

@@ -95,6 +95,7 @@ Include `.gitignore` in releases used to run the source-layout tests.
 - The package-layout migration requires a clean public release, not an overlay
   of an old release that would leave obsolete scripts behind. Copy all listed
   public directories together. See [project structure](project-structure.md).
+  Hosted HTTPS deployments follow the separate [server runbook](server-deployment.md).
   Validate the copied release before switching the release pointer.
 - Update the account, viewer, gateway, and vault service command templates to
   `scripts/goodmorning.py`. Stop new requests and check account sessions, pending

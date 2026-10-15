@@ -61,14 +61,32 @@ def backend_status(store,name,host):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--account-mount',type=Path,required=True)
-    parser.add_argument('action',choices=('create','rename','reset','disable','enable','list','check','check-backend'))
+    parser.add_argument('action',choices=('create','rename','reset','disable','enable','list','check','check-backend','pause','resume','pause-status'))
     parser.add_argument('username',nargs='?')
     parser.add_argument('--new-name')
+    parser.add_argument('--reason')
+    parser.add_argument('--by')
     parser.add_argument('--gm-host',default='gm.love765.me')
     args = parser.parse_args()
     if os.geteuid() != 0:
         parser.error('SSH administration requires root')
     store = Accounts(args.account_mount)
+    if args.action in ('pause', 'resume', 'pause-status'):
+        from . import maintenance as deploy_pause
+        if args.action == 'pause':
+            state = deploy_pause.set_state(store, True, reason=args.reason, by=args.by)
+            print(f"Website paused for deployment; new work receives 503 with Retry-After {deploy_pause.RETRY_AFTER_SECONDS}.")
+            return 0
+        if args.action == 'resume':
+            deploy_pause.set_state(store, False)
+            print('Website resumed; new work is accepted again.')
+            return 0
+        state = deploy_pause.get_state(store)
+        if state is None:
+            print('Website is live; no deployment pause is enabled.')
+        else:
+            print(f"Website is paused for deployment (Retry-After {deploy_pause.RETRY_AFTER_SECONDS}).")
+        return 0
     if args.action == 'list':
         with store.db() as db:
             for row in db.execute('SELECT id,name,temporary,enabled FROM users ORDER BY name'):
