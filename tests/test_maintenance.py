@@ -72,6 +72,11 @@ class MaintenanceTests(unittest.TestCase):
         self.assertIn(b'maintenance-status', text)
         self.assertIn(b'desk-secretary.png', text)
         self.assertIn(b'<style>', text)
+        # The gateway serves this page with style-src 'self' (no unsafe-inline),
+        # so browsers ignore the inline style block: the external link is what
+        # actually styles the paused page. Keep both in sync.
+        self.assertIn(b'<link rel="stylesheet" href="/maintenance.css">', text)
+        self.assertIn(b'<link rel="stylesheet" href="/maintenance.css">', html)
         # Gateway file copy and module copy must agree on the core wording.
         self.assertIn(b'Please come back later', text + html)
         self.assertIn('请稍后再来'.encode(), text + html)
