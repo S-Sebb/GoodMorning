@@ -189,7 +189,8 @@ html[data-edition="gn"] #chat-error { color: #f1b1a8; }
   .chat-layout { flex: 1; min-height: 0; width: 100%; margin: 0 auto; align-self: center; align-items: stretch; padding-top: 16px; padding-bottom: 16px; }
   .conversation-sidebar, .conversation-panel { height: auto; max-height: 100%; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
   .conversation-sidebar > :not(#conversation-history) { flex-shrink: 0; }
-  .secretary-identity .desk-figure { width: min(112px, 100%); margin-bottom: 8px; }
+  /* Grow with the viewport height so short windows keep room for history. */
+  .secretary-identity .desk-figure { width: clamp(112px, 22vh, 200px); margin: 0 auto 8px; }
   /* The sidebar clips overflow, so the picker spans the sidebar rather than overflowing the small portrait. */
   .secretary-identity { position: relative; }
   .secretary-identity .avatar-display { position: static; }
