@@ -118,7 +118,9 @@ heading. Use `scripts/goodmorning.py` with the selected absolute runtime.
 9. Morning shows agreed work, deadlines and other open actions; evening reviews
     actual outcomes and previews agreed work. Evening completion choices cover
     today's planned occurrences plus still-open tasks in today's saved morning briefing.
-    Group browser completion choices by current canonical project; unassigned
+    Present them split: due-today checks first, then an optional Future tasks
+    section for undated background and upcoming dated work ticked only if fully
+    done early (overdue morning work stays with due-today). Group browser completion choices by current canonical project; unassigned
     work belongs under “Other tasks”, after every named project. “None of these
     today” stays outside the groups. Use clear, friendly wording and place the
     progress text box above the mutually exclusive “Nothing else to add” choice.

@@ -16,8 +16,9 @@ Use selected absolute paths, actual session, pinned date and confirmed language.
 1. Browser jobs start with `job prepare`, then follow its receipt: immediately init
    a fresh preview with the default plan, or resume an existing checkpoint.
    Do not run local preparation or re-ask saved browser feedback. Preflight already asks
-    which of today's planned occurrences or saved morning tasks were fully completed and for partial,
-    blocked, changed or additional work. With no choices, it asks about actual
+    which of today's planned occurrences were fully completed in a due-today check,
+    plus an optional Future tasks check for saved morning tasks finished early,
+    and for partial, blocked, changed or additional work. With no choices, it asks about actual
     accomplishments/progress instead of showing an empty checklist. Celebrate
     confirmed accomplishments and make unfinished reviewed work visible without
     implying every unchecked morning option was due today. Reuse saved exact answers; never apply

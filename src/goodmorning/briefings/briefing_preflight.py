@@ -69,19 +69,102 @@ def initialize(runtime, job, previous=None):
     if previous and previous.get('feedback', {}).get('saved') is True:
         context['feedback'] = previous['feedback']
     if job['kind'] == 'gn' and not context.get('feedback'):
-        tasks = [t for t in context.get('feedback_tasks', context['daily']['tasks']) if not t['done']]
+        open_tasks = [t for t in context.get('feedback_tasks', context['daily']['tasks']) if not t['done']]
+        # Split night checks: due-today vs longer-term early wins. Today comes
+        # from planned occurrences (no synthetic flag); longer-term comes from
+        # still-open morning tasks reported early (synthetic today flag).
+        # Split night checks: due-today vs future early wins. Today holds planned
+        # occurrences for the date plus overdue morning work; future holds
+        # undated background and upcoming dated work. Labels are display-only
+        # and never persisted in task records (size guard).
+        morning_date_lists = {}
+        try:
+            from goodmorning.briefings.briefing_stream import bounded_json as _bounded
+            from goodmorning.briefings.briefing_document import validate as _validate
+            from pathlib import Path as _Path
+            _morning = _Path(runtime) / 'daily' / (job['date'] + '.gm.json')
+            if _morning.exists():
+                _doc = _validate(_bounded(_morning, 150_000))
+                for _section in _doc['sections']:
+                    if _section[0] != 'tasks':
+                        continue
+                    for _block in _section[1]:
+                        if _block[0] != 'actions':
+                            continue
+                        for _row in _block[1]:
+                            # [id, revision, occurrence_id, date, status, title, detail]
+                            if len(_row) >= 4:
+                                morning_date_lists.setdefault(_row[0], set()).add(_row[3] or '')
+        except Exception:
+            morning_date_lists = {}
+        for _tid, _dates in list(morning_date_lists.items()):
+            _dates.discard('')
+            morning_date_lists[_tid] = sorted(_dates)
+        def _orig_dates(_task_id):
+            return morning_date_lists.get(_task_id, [])
+        today_tasks = []
+        longterm_tasks = []
+        for _t in open_tasks:
+            if not _t.get('actual'):
+                _t['_section'] = 'today'
+                today_tasks.append(_t)
+                continue
+            _dates = _orig_dates(_t['task_id'])
+            _dated = [d for d in _dates if d]
+            if _dated and min(_dated) < job['date']:
+                # Overdue still-open work belongs with today, not future.
+                _t['_section'] = 'today'
+                today_tasks.append(_t)
+            else:
+                _t['_section'] = 'future'
+                longterm_tasks.append(_t)
+        _token = ui.CURRENT.set(selected)
+        try:
+            from goodmorning.web.language import day_text as _day_text
+            _labels = {}
+            for _t in today_tasks:
+                if _t.get('actual'):
+                    # Overdue: show original workday, not today.
+                    _dates = [d for d in _orig_dates(_t['task_id']) if d]
+                    if _dates:
+                        _labels[_t['id']] = f"{_t['text']} · {_day_text(min(_dates))}"
+                    else:
+                        _labels[_t['id']] = _t['text']
+                else:
+                    _labels[_t['id']] = _t['text']
+            for _t in longterm_tasks:
+                _dates = [d for d in _orig_dates(_t['task_id']) if d]
+                if _dates:
+                    _suffix = ', '.join(_day_text(d) for d in _dates)
+                    _labels[_t['id']] = f"{_t['text']} · {_suffix}"
+                else:
+                    _labels[_t['id']] = f"{_t['text']} · {ui.text('Background', lang=selected)}"
+        finally:
+            ui.CURRENT.reset(_token)
         # Keep project order stable, with unassigned work after every named project.
-        tasks.sort(key=lambda t: not bool(t.get('project')))
-        if tasks:
-            fields.extend([
-                {'key':'completed','title':'What did you finish today?','type':'multiselect','required':True,
-                 'minItems':1,'description':'Tick anything you fully finished. If something is still in progress, leave it unticked—you can tell me about it below.',
-                 'options':[{'value':'none','label':'None of these today.'}]+[
-                     {'value':t['id'],'label':t['text'],'group':t.get('project') or ui.text('Other tasks',lang=selected)} for t in tasks]},
+        today_tasks.sort(key=lambda t: not bool(t.get('project')))
+        longterm_tasks.sort(key=lambda t: not bool(t.get('project')))
+        # Drop display-only helpers before persisting task records (size guard).
+        for _t in today_tasks + longterm_tasks:
+            _t.pop('_label', None)
+        if today_tasks or longterm_tasks:
+            if today_tasks:
+                fields.append(
+                    {'key':'completed','title':'What did you finish today?','type':'multiselect','required':True,
+                     'minItems':1,'description':'Tick anything you fully finished. If something is still in progress, leave it unticked—you can tell me about it below.',
+                     'options':[{'value':'none','label':'None of these today.'}]+[
+                         {'value':t['id'],'label':_labels[t['id']],'group':t.get('project') or ui.text('Other tasks',lang=selected)} for t in today_tasks]})
+            if longterm_tasks:
+                fields.append(
+                    {'key':'completed_longterm','title':'Future tasks (optional)','type':'multiselect','required':False,
+                     'description':'Only tick if fully done early.',
+                     'options':[
+                         {'value':t['id'],'label':_labels[t['id']],'group':t.get('project') or ui.text('Other tasks',lang=selected)} for t in longterm_tasks]})
+            fields.append(
                 {'key':'details','title':'Anything else you’d like to share?','type':'string','required':True,
                  'custom':True,'customFirst':True,'placeholder':'Share any progress or updates…',
                  'options':[{'value':'No other updates','label':'Nothing else to add.'}],
-                 'description':'Partial progress, something that got in the way, a change of plan, or extra work you got done.'}])
+                 'description':'Partial progress, something that got in the way, a change of plan, or extra work you got done.'})
         else:
             fields.append({'key':'details','title':'How did today go?','type':'string','required':True,
                            'custom':True,'customFirst':True,'placeholder':'Share any progress or updates…',
@@ -104,11 +187,22 @@ def initialize(runtime, job, previous=None):
 def answer(runtime, job, value):
     target = context_path(runtime, job['id'])
     context = bounded_json(target, 300_000)
+    form_keys = {f['key'] for f in (context.get('form') or {}).get('fields', [])}
+    # Optional future-tasks check may be omitted by older callers; treat as empty.
+    # Legacy single-list answers on future-only forms used `completed`; fold it.
+    if isinstance(value, dict):
+        if 'completed_longterm' in form_keys and 'completed_longterm' not in value:
+            if 'completed' in value and 'completed' not in form_keys:
+                _legacy = value['completed']
+                _legacy = [] if _legacy == ['none'] else _legacy
+                value = {'completed_longterm': _legacy, **{k: v for k, v in value.items() if k != 'completed'}}
+            else:
+                value = {**value, 'completed_longterm': []}
     if not context.get('awaiting'):
         if context.get('browser_answer') == value:
             return context
         raise ValueError('This browser decision is no longer pending')
-    keys = {f['key'] for f in context['form']['fields']}
+    keys = form_keys
     if not isinstance(value, dict) or set(value) != keys:
         raise ValueError('Answer exactly the pending browser fields')
     if 'continue' in keys and value['continue'] not in ('today','stop'):
@@ -118,19 +212,59 @@ def answer(runtime, job, value):
         write(target, context)
         return context
     if job['kind'] == 'gn' and 'details' in keys:
-        chosen, details = value.get('completed', ['none']), value['details']
+        details = value['details']
         known = {t['id']:t for t in context.get('feedback_tasks', context['daily']['tasks']) if not t['done']}
-        if not isinstance(chosen,list) or not chosen or any(not isinstance(x,str) for x in chosen) or len(set(chosen)) != len(chosen):
-            raise ValueError('Select completed tasks or choose “None of these today.”')
-        if 'none' in chosen and chosen != ['none'] or set(chosen)-set(known)-{'none'}:
-            raise ValueError('Choose listed tasks or “None of these today.”, not both')
+        def _is_future(_t):
+            if '_section' in _t:
+                return _t['_section'] == 'future' and not _t.get('custom')
+            return bool(_t.get('actual')) and not _t.get('custom')
+        def _is_today(_t):
+            if '_section' in _t:
+                return _t['_section'] == 'today' and not _t.get('custom')
+            return not _t.get('actual') and not _t.get('custom')
+        known_today = {tid for tid, t in known.items() if _is_today(t)}
+        known_longterm = {tid for tid, t in known.items() if _is_future(t)}
+        known_custom = {tid for tid, t in known.items() if t.get('custom')}
+        # Today check is required when present; future tasks are optional.
+        # Older single-list answers may mix both sets in `completed`; split them.
+        if 'completed' in keys:
+            chosen = value.get('completed', ['none'])
+            if not isinstance(chosen,list) or not chosen or any(not isinstance(x,str) for x in chosen) or len(set(chosen)) != len(chosen):
+                raise ValueError('Select completed tasks or choose “None of these today.”')
+            if 'none' in chosen and chosen != ['none']:
+                raise ValueError('Choose listed tasks or “None of these today.”, not both')
+            _mixed_long = [x for x in chosen if x in known_longterm]
+            _chosen_today = [x for x in chosen if x != 'none' and x not in known_longterm]
+            if set(_chosen_today)-known_today-{'none'}-known_custom:
+                raise ValueError('Choose listed tasks or “None of these today.”, not both')
+            chosen = _chosen_today if 'none' not in chosen else chosen
+            if _mixed_long:
+                # Fold legacy mixed selections into the optional future list.
+                chosen_long_legacy = _mixed_long
+            else:
+                chosen_long_legacy = []
+        else:
+            chosen = []
+            chosen_long_legacy = []
+        if 'completed_longterm' in keys:
+            chosen_long = value.get('completed_longterm', [])
+            if not isinstance(chosen_long,list) or any(not isinstance(x,str) for x in chosen_long) or len(set(chosen_long)) != len(chosen_long):
+                raise ValueError('Select future tasks or leave them unticked.')
+            chosen_long = chosen_long + chosen_long_legacy
+            if len(set(chosen_long)) != len(chosen_long):
+                raise ValueError('Choose listed future tasks only, once each.')
+            if set(chosen_long)-known_longterm or set(chosen_long) & set(chosen if chosen != ['none'] else []):
+                raise ValueError('Choose listed future tasks only, once each.')
+        else:
+            chosen_long = chosen_long_legacy
         if not isinstance(details,str) or len(details)>1800:
             raise ValueError('Progress details exceed their limit')
         if not details.strip():
             raise ValueError('Give actual details or choose the no-updates option')
         details = one_line(details)
-        complete = [] if chosen == ['none'] else chosen
-        feedback = ['Completed: '+known[x]['text'] for x in complete] or (['No listed tasks were fully completed.'] if 'completed' in keys else [])
+        today_complete = [] if chosen == ['none'] else chosen
+        complete = today_complete + chosen_long
+        feedback = ['Completed: '+known[x]['text'] for x in complete] or (['No listed tasks were fully completed.'] if 'completed' in keys or 'completed_longterm' in keys else [])
         feedback.append('Other updates: '+details)
         # Store the exact explicit input before applying it, making uncertain retries recoverable.
         previous = context.get('browser_answer')

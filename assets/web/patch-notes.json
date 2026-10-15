@@ -1,1399 +1,2649 @@
 {
   "notes": [
     {
-      "version": "0.44.0", "date": "2026-10-15", "author": "GoodMorning agent",
-      "title_en": "Evening tasks get the same wording review", "title_zh": "晚间待办同样参与措辞检查",
+      "version": "0.44.1",
+      "date": "2026-10-15",
+      "author": "GoodMorning agent",
+      "title_en": "Night check split for due-today and future tasks",
+      "title_zh": "晚间勾选拆分当天与未来任务",
       "changes": [
-        {"category": "Changed", "en": [
-          "Evening briefings now walk through displayed Tasks rows and polish materially vague titles/details with tracked updates before packing, mirroring the morning flow; just-recorded Today outcome reasons stay verbatim under the existing rule.",
-          "Task details must not carry reminder mechanics or setup narration; rhythm lives in structured repeat/when fields and background in the inbox entry context."
-        ], "zh": [
-          "晚报在呈现前同样检查待办标题与详情，含糊措辞经确认后修正再打包，与早报一致；已确认的今日结果原因仍保持原样。",
-          "待办详情不再写提醒机制与确认过程；节奏放在结构化字段，背景放在记录上下文。"
-        ]},
-        {"category": "Tests", "en": [
-          "Cover evening polish-then-pack with synthetic records and trial the changed prompts on both website models in English and Chinese; the full unit suite passes."
-        ], "zh": [
-          "用合成记录覆盖晚间先修正后打包，并用两个线上模型中英文验证变更提示；全部单元测试通过。"
-        ]}
+        {
+          "category": "Changed",
+          "en": [
+            "Night preflight now shows due-today checks first and an optional Future tasks section for undated background and upcoming dated work ticked only if fully done early; overdue morning work stays with due-today with its original date.",
+            "Future labels keep the original workday such as Fri 16 Oct and undated items read Background, so Friday pay no longer looks due on Wednesday."
+          ],
+          "zh": [
+            "晚间预检改为先显示当天勾选，再显示可选的未来任务区；无固定日期与未来日期的工作只有提前全部完成才勾选，逾期的晨间工作仍归当天并保留原日期。",
+            "未来任务标签保留原定日期如10月16日周五，无日期事项显示无固定日期，周五薪酬不再像周三到期。"
+          ]
+        },
+        {
+          "category": "Fixed",
+          "en": [
+            "Night display labels are no longer saved in task records, keeping large checklists under the preview size limit.",
+            "Older single-list night answers still save, including future-only Nothing completed cases."
+          ],
+          "zh": [
+            "晚间显示标签不再存入任务记录，大清单也不会超出预览大小限制。",
+            "旧的单列晚间回答仍可保存，包括仅未来任务且选择未完成的情况。"
+          ]
+        },
+        {
+          "category": "Tests",
+          "en": [
+            "Updated the night preflight browser expectations for Background labels and future-only forms; task and briefing-job suites pass."
+          ],
+          "zh": [
+            "更新晚间预检浏览器用例以覆盖无固定日期标签与仅未来任务表单；任务与简报任务套件通过。"
+          ]
+        }
       ]
     },
     {
-      "version": "0.43.1", "date": "2026-10-15", "author": "GoodMorning agent",
-      "title_en": "Secretary queue recovery", "title_zh": "秘书队列恢复",
+      "version": "0.44.0",
+      "date": "2026-10-15",
+      "author": "GoodMorning agent",
+      "title_en": "Evening tasks get the same wording review",
+      "title_zh": "晚间待办同样参与措辞检查",
       "changes": [
-        {"category": "Notes", "en": [
-          "We are sorry that secretary requests could wait indefinitely or repeatedly appear queued. Thank you for reporting the problem."
-        ], "zh": [
-          "很抱歉，秘书请求有时会一直等待，或反复显示为排队中。感谢你反馈这个问题。"
-        ]},
-        {"category": "Fixed", "en": [
-          "Failed briefing preparation now returns its saved job receipt instead of leaving the global queue blocked.",
-          "Lost briefing responses are reconciled through verified job status without replaying generation. Accepted queued requests no longer disappear after 15 minutes.",
-          "Duplicate chat submissions reuse the original request instead of dispatching it again; uncertain delivery still requires inspection.",
-          "Custom-schedule writes now require the runtime’s own service account; read-only schedule access cannot modify the database."
-        ], "zh": [
-          "简报准备失败时，现在会返回已保存的任务凭证，而不是让全局队列一直阻塞。",
-          "丢失的简报响应会通过已核实的任务状态对齐恢复，不会重新执行生成。已受理的排队请求也不会再在 15 分钟后消失。",
-          "重复提交的聊天请求会复用原始请求，而不会再次派发；如果投递结果不确定，仍需人工检查。",
-          "自定义调度的写入操作现在必须使用运行时自身的服务账号；只读的调度访问无法修改数据库。"
-        ]},
-        {"category": "Tests", "en": [
-          "Added regression coverage for failed preparation, lost responses, concurrent dispatch, durable queues, and duplicate submissions."
-        ], "zh": [
-          "新增回归测试，覆盖准备失败、响应丢失、并发派发、持久队列和重复提交等情况。"
-        ]}
+        {
+          "category": "Changed",
+          "en": [
+            "Evening briefings now walk through displayed Tasks rows and polish materially vague titles/details with tracked updates before packing, mirroring the morning flow; just-recorded Today outcome reasons stay verbatim under the existing rule.",
+            "Task details must not carry reminder mechanics or setup narration; rhythm lives in structured repeat/when fields and background in the inbox entry context."
+          ],
+          "zh": [
+            "晚报在呈现前同样检查待办标题与详情，含糊措辞经确认后修正再打包，与早报一致；已确认的今日结果原因仍保持原样。",
+            "待办详情不再写提醒机制与确认过程；节奏放在结构化字段，背景放在记录上下文。"
+          ]
+        },
+        {
+          "category": "Tests",
+          "en": [
+            "Cover evening polish-then-pack with synthetic records and trial the changed prompts on both website models in English and Chinese; the full unit suite passes."
+          ],
+          "zh": [
+            "用合成记录覆盖晚间先修正后打包，并用两个线上模型中英文验证变更提示；全部单元测试通过。"
+          ]
+        }
       ]
     },
     {
-      "version": "0.43.0", "date": "2026-10-15", "author": "GoodMorning agent",
-      "title_en": "One-day timed schedules in briefings", "title_zh": "简报定时日程只看一天",
+      "version": "0.43.1",
+      "date": "2026-10-15",
+      "author": "GoodMorning agent",
+      "title_en": "Secretary queue recovery",
+      "title_zh": "秘书队列恢复",
       "changes": [
-        {"category": "Changed", "en": [
-          "Morning briefings show today's timed appointments only, and evening briefings show tomorrow's timed appointments only; all-day events and confirmed TBC drafts keep the three-day glance.",
-          "Empty schedules use a single-day message instead of a three-day range, so hidden upcoming timed appointments are never described as missing."
-        ], "zh": [
-          "早报只显示今天的定时约定，晚报只显示明天的定时约定；全天事件和已确认的时间待定安排仍保留三天概览。",
-          "空日程改用单日提示，不再显示三天范围，避免把特意隐藏的未来定时约定说成缺失。"
-        ]},
-        {"category": "Tests", "en": [
-          "Verify morning today-only and evening tomorrow-only timed filtering with all-day and TBC retention plus single-day empty messages using synthetic records; the focused unit suites pass."
-        ], "zh": [
-          "用合成记录验证早报仅看今天、晚报仅看明天的定时过滤，以及全天与时间待定的保留和单日空提示；相关单元测试通过。"
-        ]}
+        {
+          "category": "Notes",
+          "en": [
+            "We are sorry that secretary requests could wait indefinitely or repeatedly appear queued. Thank you for reporting the problem."
+          ],
+          "zh": [
+            "很抱歉，秘书请求有时会一直等待，或反复显示为排队中。感谢你反馈这个问题。"
+          ]
+        },
+        {
+          "category": "Fixed",
+          "en": [
+            "Failed briefing preparation now returns its saved job receipt instead of leaving the global queue blocked.",
+            "Lost briefing responses are reconciled through verified job status without replaying generation. Accepted queued requests no longer disappear after 15 minutes.",
+            "Duplicate chat submissions reuse the original request instead of dispatching it again; uncertain delivery still requires inspection.",
+            "Custom-schedule writes now require the runtime’s own service account; read-only schedule access cannot modify the database."
+          ],
+          "zh": [
+            "简报准备失败时，现在会返回已保存的任务凭证，而不是让全局队列一直阻塞。",
+            "丢失的简报响应会通过已核实的任务状态对齐恢复，不会重新执行生成。已受理的排队请求也不会再在 15 分钟后消失。",
+            "重复提交的聊天请求会复用原始请求，而不会再次派发；如果投递结果不确定，仍需人工检查。",
+            "自定义调度的写入操作现在必须使用运行时自身的服务账号；只读的调度访问无法修改数据库。"
+          ]
+        },
+        {
+          "category": "Tests",
+          "en": [
+            "Added regression coverage for failed preparation, lost responses, concurrent dispatch, durable queues, and duplicate submissions."
+          ],
+          "zh": [
+            "新增回归测试，覆盖准备失败、响应丢失、并发派发、持久队列和重复提交等情况。"
+          ]
+        }
       ]
     },
     {
-      "version": "0.42.0", "date": "2026-10-15", "author": "GoodMorning agent",
-      "title_en": "Secretary calls and clearer completed tasks", "title_zh": "秘书来电与更清晰的已完成任务",
+      "version": "0.43.0",
+      "date": "2026-10-15",
+      "author": "GoodMorning agent",
+      "title_en": "One-day timed schedules in briefings",
+      "title_zh": "简报定时日程只看一天",
       "changes": [
-        {"category": "Added", "en": [
-          "Secretary calls: a quiet manual review list for past records that need a question. Nothing is asked until approved; answers happen in secretary chat.",
-          "Time windows without a frequency (early November) now ask both frequency and start date before any write, and never default to one-off."
-        ], "zh": [
-          "秘书来电：手动检查过去需要提问的记录，安静的列表与徽标，经确认后才在秘书对话中提问。",
-          "没有频率的时间段（11月初）须先问清频率与开始日期再记录，不再默认一次性。"
-        ]},
-        {"category": "Fixed", "en": [
-          "Completed schedule tasks now show a thicker strikethrough with an accent state label in day and night themes."
-        ], "zh": [
-          "日间与夜间主题下，已完成的日程任务改用更粗的删除线与强调色状态显示，更易看清。"
-        ]}
+        {
+          "category": "Changed",
+          "en": [
+            "Morning briefings show today's timed appointments only, and evening briefings show tomorrow's timed appointments only; all-day events and confirmed TBC drafts keep the three-day glance.",
+            "Empty schedules use a single-day message instead of a three-day range, so hidden upcoming timed appointments are never described as missing."
+          ],
+          "zh": [
+            "早报只显示今天的定时约定，晚报只显示明天的定时约定；全天事件和已确认的时间待定安排仍保留三天概览。",
+            "空日程改用单日提示，不再显示三天范围，避免把特意隐藏的未来定时约定说成缺失。"
+          ]
+        },
+        {
+          "category": "Tests",
+          "en": [
+            "Verify morning today-only and evening tomorrow-only timed filtering with all-day and TBC retention plus single-day empty messages using synthetic records; the focused unit suites pass."
+          ],
+          "zh": [
+            "用合成记录验证早报仅看今天、晚报仅看明天的定时过滤，以及全天与时间待定的保留和单日空提示；相关单元测试通过。"
+          ]
+        }
       ]
     },
     {
-      "version": "0.41.0", "date": "2026-10-14", "author": "GoodMorning agent",
-      "title_en": "Deployment pause with cute maintenance page", "title_zh": "部署暂停，配上可爱维护页",
+      "version": "0.42.0",
+      "date": "2026-10-15",
+      "author": "GoodMorning agent",
+      "title_en": "Secretary calls and clearer completed tasks",
+      "title_zh": "秘书来电与更清晰的已完成任务",
       "changes": [
-        {"category": "Added", "en": [
-          "Deployment pause stops all new website work and shows a cute bilingual maintenance page with Retry-After; sign-out still works.",
-          "SSH-only pause, resume, and pause-status commands plus NGINX fallback so the maintenance page still shows while the gateway is stopped.",
-          "Deploy runbook now pauses before staging, verifies the flag in the helper, and resumes only after post-deploy verification."
-        ], "zh": [
-          "部署暂停会停止所有新的网站操作，并显示可爱的双语维护页（含 Retry-After）；仍可正常退出登录。",
-          "新增仅限 SSH 的暂停、恢复与状态查询命令，并加上 NGINX 兜底，网关停止时也能显示维护页。",
-          "部署手册改为先暂停再打包，在部署助手中校验暂停标记，且只在部署后验证通过后才恢复。"
-        ]}
+        {
+          "category": "Added",
+          "en": [
+            "Secretary calls: a quiet manual review list for past records that need a question. Nothing is asked until approved; answers happen in secretary chat.",
+            "Time windows without a frequency (early November) now ask both frequency and start date before any write, and never default to one-off."
+          ],
+          "zh": [
+            "秘书来电：手动检查过去需要提问的记录，安静的列表与徽标，经确认后才在秘书对话中提问。",
+            "没有频率的时间段（11月初）须先问清频率与开始日期再记录，不再默认一次性。"
+          ]
+        },
+        {
+          "category": "Fixed",
+          "en": [
+            "Completed schedule tasks now show a thicker strikethrough with an accent state label in day and night themes."
+          ],
+          "zh": [
+            "日间与夜间主题下，已完成的日程任务改用更粗的删除线与强调色状态显示，更易看清。"
+          ]
+        }
       ]
     },
     {
-      "version": "0.40.0", "date": "2026-10-14", "author": "GoodMorning agent",
-      "title_en": "Custom schedules for flexible habits", "title_zh": "灵活习惯的自定义安排",
+      "version": "0.41.0",
+      "date": "2026-10-14",
+      "author": "GoodMorning agent",
+      "title_en": "Deployment pause with cute maintenance page",
+      "title_zh": "部署暂停，配上可爱维护页",
       "changes": [
-        {"category": "Added", "en": [
-          "Custom schedules for habits that fixed repeats cannot express: the secretary asks until rhythm, start, restart, miss handling, weekly limit and nightly checks are clear, then saves the rule once.",
-          "Morning briefings show due custom schedules from code-owned rows, and evening checks list them as tick boxes with exact completion. Chat highlights saved custom schedules as Custom schedule cards.",
-          "Live prompt trials test only new or changed prompts plus affected neighbors on every website model; unchanged prompts no longer rerun full matrices."
-        ], "zh": [
-          "为固定重复无法表达的习惯提供自定义安排：秘书问清节奏、起始、重计时、漏做处理、每周上限与晚间检查后，一次性保存规则。",
-          "早间简报按代码给出的行展示到期的自定义安排，晚间检查将其作为勾选项并精确完成。聊天以自定义安排卡片高亮已保存的内容。",
-          "真机提示词试验仅覆盖新增或修改的提示词及直接相关项，并在所有网站模型上验证；未变更的提示词不再重跑完整矩阵。"
-        ]}
+        {
+          "category": "Added",
+          "en": [
+            "Deployment pause stops all new website work and shows a cute bilingual maintenance page with Retry-After; sign-out still works.",
+            "SSH-only pause, resume, and pause-status commands plus NGINX fallback so the maintenance page still shows while the gateway is stopped.",
+            "Deploy runbook now pauses before staging, verifies the flag in the helper, and resumes only after post-deploy verification."
+          ],
+          "zh": [
+            "部署暂停会停止所有新的网站操作，并显示可爱的双语维护页（含 Retry-After）；仍可正常退出登录。",
+            "新增仅限 SSH 的暂停、恢复与状态查询命令，并加上 NGINX 兜底，网关停止时也能显示维护页。",
+            "部署手册改为先暂停再打包，在部署助手中校验暂停标记，且只在部署后验证通过后才恢复。"
+          ]
+        }
       ]
     },
     {
-      "version": "0.39.0", "date": "2026-10-14", "author": "GoodMorning agent",
-      "title_en": "Secretary setup, voice and language routing", "title_zh": "秘书设置、语气与语言路由",
+      "version": "0.40.0",
+      "date": "2026-10-14",
+      "author": "GoodMorning agent",
+      "title_en": "Custom schedules for flexible habits",
+      "title_zh": "灵活习惯的自定义安排",
       "changes": [
-        {"category": "Changed", "en": [
-          "New profiles show Initialize first. Once setup is ready, Secretary, To-do and Eureka become available without deleting earlier setup conversations or unsent drafts.",
-          "Website language selects the model automatically: English uses Muse Spark Contributor XHigh and Simplified Chinese uses DeepSeek Flash High. The manual selector is removed; running requests keep their original language and model.",
-          "Shorter secretary instructions distinguish saved results, unresolved questions and failed changes. Saved tone is available before chat updates; ordinary factual progress remains visible."
-        ], "zh": [
-          "新资料先显示初始化；设置完成后开放秘书、待办与灵感，不删除此前的初始化对话或未发送草稿。",
-          "网站语言自动选择模型：英语使用 Muse Spark Contributor XHigh，简体中文使用 DeepSeek Flash High。移除手动选择器；进行中的请求保留原有语言与模型。",
-          "精简秘书指引，明确区分已保存结果、待确认问题与未成功的修改。聊天更新前即可获取已保存语气；普通、真实的进度消息继续显示。"
-        ]},
-        {"category": "Fixed", "en": [
-          "Explicit keep-all setup reviews retain existing preferences and records without repeatedly confirming unchanged values. Skipped optional settings stay unset; local readiness is separate from external-service verification.",
-          "Forward-looking recurring tasks without an explicit start use the current local calendar date and saved timezone, not the briefing day's pre-04:00 date. Workdays, deadlines and confirmed appointments with unknown times remain distinct.",
-          "Briefing instructions preserve published checkpoints and reuse evening feedback without repeating completions or assigning new workdays. Verified saves return the dated relative page link instead of requiring hostname discovery.",
-          "Browser task-section reads check the owning job, date and next publication position. Empty schedules use code-generated date labels for the full three-day window, and generic question headings follow the website language."
-        ], "zh": [
-          "明确要求保留全部设置的复核会保留已有偏好与记录，不反复确认未变更的内容。跳过的可选设置保持未填写；本地资料就绪与外部服务验证分开说明。",
-          "未明确开始日期的未来重复待办采用当前本地日历日期与已保存时区，不使用凌晨四点前的简报日标签。工作日、截止日期与时间未知但已确认的约定保持区分。",
-          "简报指引保留已发布检查点，复用晚间反馈，不重复完成记录或分配新的工作日。验证保存后返回带日期的相对页面链接，无需查找主机地址。",
-          "浏览器任务板块读取会核对所属任务、日期与下一发布位置。空日程采用代码生成的日期标签，覆盖完整三天窗口；通用提问标题跟随网站语言。"
-        ]},
-        {"category": "Documentation", "en": [
-          "Add concise prompt-writing and hosted-account provisioning guides, including scoped consent, private temporary credentials and model-based validation."
-        ], "zh": [
-          "新增精简的提示词编写与托管账号开通指南，涵盖限定授权、私密临时凭据与真实模型验证。"
-        ]},
-        {"category": "Tests", "en": [
-          "Expand synthetic-account checks for initialization, routing, task recurrence, tone and briefing recovery. Keep original failures and interrupted requests separate from corrected checks and manual reply review."
-        ], "zh": [
-          "扩展合成账号测试，覆盖初始化、路由、任务重复规则、语气与简报恢复；原始失败和中断请求与修正后的检查、人工回复复核分别保存。"
-        ]}
+        {
+          "category": "Added",
+          "en": [
+            "Custom schedules for habits that fixed repeats cannot express: the secretary asks until rhythm, start, restart, miss handling, weekly limit and nightly checks are clear, then saves the rule once.",
+            "Morning briefings show due custom schedules from code-owned rows, and evening checks list them as tick boxes with exact completion. Chat highlights saved custom schedules as Custom schedule cards.",
+            "Live prompt trials test only new or changed prompts plus affected neighbors on every website model; unchanged prompts no longer rerun full matrices."
+          ],
+          "zh": [
+            "为固定重复无法表达的习惯提供自定义安排：秘书问清节奏、起始、重计时、漏做处理、每周上限与晚间检查后，一次性保存规则。",
+            "早间简报按代码给出的行展示到期的自定义安排，晚间检查将其作为勾选项并精确完成。聊天以自定义安排卡片高亮已保存的内容。",
+            "真机提示词试验仅覆盖新增或修改的提示词及直接相关项，并在所有网站模型上验证；未变更的提示词不再重跑完整矩阵。"
+          ]
+        }
       ]
     },
     {
-      "version": "0.38.0", "date": "2026-10-14", "author": "GoodMorning agent",
-      "title_en": "Morning Sky day default and icons for settings titles", "title_zh": "默认日间配色改为晨空，设置项标题配上图标",
+      "version": "0.39.0",
+      "date": "2026-10-14",
+      "author": "GoodMorning agent",
+      "title_en": "Secretary setup, voice and language routing",
+      "title_zh": "秘书设置、语气与语言路由",
       "changes": [
-        {"category": "Changed", "en": [
-          "Make Morning Sky the default day color scheme for accounts without a saved choice; Starry stays the night default. Saved choices are unchanged.",
-          "Add a desk icon to the left of each settings title, matching the tab switcher style: a globe for Website language, a bulb for Model, a T-shirt for Appearance, and the Morning sun and Evening moon for the day and night schemes."
-        ], "zh": [
-          "未保存配色的账号，默认日间配色改为晨空，夜间默认仍为星空；已保存的选择不受影响。",
-          "每个设置项标题左侧加上桌面图标，与标签页切换风格一致：网站语言用地球、模型用灯泡、外观用T恤、日间配色用晨阳、夜间配色用晚月。"
-        ]}
+        {
+          "category": "Changed",
+          "en": [
+            "New profiles show Initialize first. Once setup is ready, Secretary, To-do and Eureka become available without deleting earlier setup conversations or unsent drafts.",
+            "Website language selects the model automatically: English uses Muse Spark Contributor XHigh and Simplified Chinese uses DeepSeek Flash High. The manual selector is removed; running requests keep their original language and model.",
+            "Shorter secretary instructions distinguish saved results, unresolved questions and failed changes. Saved tone is available before chat updates; ordinary factual progress remains visible."
+          ],
+          "zh": [
+            "新资料先显示初始化；设置完成后开放秘书、待办与灵感，不删除此前的初始化对话或未发送草稿。",
+            "网站语言自动选择模型：英语使用 Muse Spark Contributor XHigh，简体中文使用 DeepSeek Flash High。移除手动选择器；进行中的请求保留原有语言与模型。",
+            "精简秘书指引，明确区分已保存结果、待确认问题与未成功的修改。聊天更新前即可获取已保存语气；普通、真实的进度消息继续显示。"
+          ]
+        },
+        {
+          "category": "Fixed",
+          "en": [
+            "Explicit keep-all setup reviews retain existing preferences and records without repeatedly confirming unchanged values. Skipped optional settings stay unset; local readiness is separate from external-service verification.",
+            "Forward-looking recurring tasks without an explicit start use the current local calendar date and saved timezone, not the briefing day's pre-04:00 date. Workdays, deadlines and confirmed appointments with unknown times remain distinct.",
+            "Briefing instructions preserve published checkpoints and reuse evening feedback without repeating completions or assigning new workdays. Verified saves return the dated relative page link instead of requiring hostname discovery.",
+            "Browser task-section reads check the owning job, date and next publication position. Empty schedules use code-generated date labels for the full three-day window, and generic question headings follow the website language."
+          ],
+          "zh": [
+            "明确要求保留全部设置的复核会保留已有偏好与记录，不反复确认未变更的内容。跳过的可选设置保持未填写；本地资料就绪与外部服务验证分开说明。",
+            "未明确开始日期的未来重复待办采用当前本地日历日期与已保存时区，不使用凌晨四点前的简报日标签。工作日、截止日期与时间未知但已确认的约定保持区分。",
+            "简报指引保留已发布检查点，复用晚间反馈，不重复完成记录或分配新的工作日。验证保存后返回带日期的相对页面链接，无需查找主机地址。",
+            "浏览器任务板块读取会核对所属任务、日期与下一发布位置。空日程采用代码生成的日期标签，覆盖完整三天窗口；通用提问标题跟随网站语言。"
+          ]
+        },
+        {
+          "category": "Documentation",
+          "en": [
+            "Add concise prompt-writing and hosted-account provisioning guides, including scoped consent, private temporary credentials and model-based validation."
+          ],
+          "zh": [
+            "新增精简的提示词编写与托管账号开通指南，涵盖限定授权、私密临时凭据与真实模型验证。"
+          ]
+        },
+        {
+          "category": "Tests",
+          "en": [
+            "Expand synthetic-account checks for initialization, routing, task recurrence, tone and briefing recovery. Keep original failures and interrupted requests separate from corrected checks and manual reply review."
+          ],
+          "zh": [
+            "扩展合成账号测试，覆盖初始化、路由、任务重复规则、语气与简报恢复；原始失败和中断请求与修正后的检查、人工回复复核分别保存。"
+          ]
+        }
       ]
     },
     {
-      "version": "0.37.0", "date": "2026-10-14", "author": "GoodMorning agent",
-      "title_en": "Clearer secretary history and calmer phone scrolling", "title_zh": "秘书历史对话更清晰，手机滚动更清爽",
+      "version": "0.38.0",
+      "date": "2026-10-14",
+      "author": "GoodMorning agent",
+      "title_en": "Morning Sky day default and icons for settings titles",
+      "title_zh": "默认日间配色改为晨空，设置项标题配上图标",
       "changes": [
-        {"category": "Changed", "en": [
-          "Replace Previous conversations with an always-open History conversations panel using inset cards, readable titles and mode subtitles, and a Current marker. Make New conversation a prominent filled button with a plus icon.",
-          "Resume the active conversation when returning from another website tab. After 15 minutes away, settled chats open a fresh draft with a Resume previous conversation link; working chats, unanswered requests, uncertain connections and unsent input stay active. No reset cancels work or deletes history.",
-          "Keep the phone message bar and Send button visible on arrival without scrolling. Compact navigation and keyboard-aware controls leave more room for conversation; history stays expanded below the chat.",
-          "Use slim, label-free phone scrollbars on Morning, Evening, Schedule and Secretary. Remove reading-blocking text bubbles, brighten only the scroller in use, and retain independent dragging, keyboard controls and accessible names."
-        ], "zh": [
-          "将原有历史对话下拉框改为始终展开的历史对话面板，采用内嵌卡片、清晰的标题与模式说明，并标记当前对话。新建对话改为带加号的醒目实心按钮。",
-          "从网站其他标签页返回时继续当前对话。离开满 15 分钟后，已结束的对话会让位于新草稿，并提供继续上一段对话链接；仍在处理、等待回答、连接状态不明或有未发送内容的对话保持打开。不会取消工作或删除历史。",
-          "进入手机秘书页即可看到消息输入栏和发送按钮，无需先滚动。紧凑导航与适应键盘的控件为对话留出更多空间，历史对话仍在聊天框下方展开。",
-          "早报、晚报、日程和秘书页统一使用纤细、无文字标签的手机滚动条。移除遮挡阅读的提示气泡，只突出正在使用的滚动区域，并保留独立拖动、键盘操作与无障碍名称。"
-        ]},
-        {"category": "Security", "en": [
-          "Scope conversation restoration to the current browser tab and authenticated login. Store only references and minimal state, never private messages, titles, drafts, attachments or question answers; warn before leaving unsent input."
-        ], "zh": [
-          "对话恢复仅限当前浏览器标签页和已登录会话。只保存对话引用与最少状态，不保存私密消息、标题、草稿、附件或问题答案；离开未发送内容前提供提醒。"
-        ]},
-        {"category": "Tests", "en": [
-          "Verify navigation, idle-only resets, login isolation, outages, draft preservation, responsive layouts, contrast and simple phone scrollbars with synthetic records and no model calls. Full unit tests and focused browser suites pass."
-        ], "zh": [
-          "使用合成记录且不调用模型，验证导航、仅限已结束对话的重置、登录隔离、连接故障、草稿保护、响应式布局、对比度及简洁手机滚动条。全部单元测试与专项浏览器测试通过。"
-        ]}
+        {
+          "category": "Changed",
+          "en": [
+            "Make Morning Sky the default day color scheme for accounts without a saved choice; Starry stays the night default. Saved choices are unchanged.",
+            "Add a desk icon to the left of each settings title, matching the tab switcher style: a globe for Website language, a bulb for Model, a T-shirt for Appearance, and the Morning sun and Evening moon for the day and night schemes."
+          ],
+          "zh": [
+            "未保存配色的账号，默认日间配色改为晨空，夜间默认仍为星空；已保存的选择不受影响。",
+            "每个设置项标题左侧加上桌面图标，与标签页切换风格一致：网站语言用地球、模型用灯泡、外观用T恤、日间配色用晨阳、夜间配色用晚月。"
+          ]
+        }
       ]
     },
     {
-      "version": "0.36.0", "date": "2026-10-13", "author": "GoodMorning agent",
-      "title_en": "Morning Sky and First Light", "title_zh": "晨空与曙光主题",
+      "version": "0.37.0",
+      "date": "2026-10-14",
+      "author": "GoodMorning agent",
+      "title_en": "Clearer secretary history and calmer phone scrolling",
+      "title_zh": "秘书历史对话更清晰，手机滚动更清爽",
       "changes": [
-        {"category": "Added", "en": [
-          "Choose Morning Sky or First Light in Settings > Appearance alongside Classic and Warm. Day and night choices remain independent, saved per account, and applied without losing unsent drafts.",
-          "Morning Sky pairs a locally bundled photographic cloud texture with visible birds. First Light keeps the existing sun illustration and adds sharp mountain ridges, snowcaps, fir trees and a winding valley stream that continues down the page."
-        ], "zh": [
-          "在设置的外观中新增晨空与曙光主题，保留经典和暖色。日间与夜间配色仍独立选择、按账号保存，切换时不会丢失未发送的草稿。",
-          "晨空采用本地提供的真实云层照片纹理与清晰可见的飞鸟；曙光保留原有太阳插画，新增清晰的山脊、雪顶、冷杉与延伸到页面下方的山谷溪流。"
-        ]},
-        {"category": "Documentation", "en": [
-          "Record the cloud photograph's CC0 source and image modifications. Theme images are served locally without third-party requests."
-        ], "zh": [
-          "记录云层照片的 CC0 来源与图片修改方式。主题图片由本地提供，不请求第三方服务。"
-        ]},
-        {"category": "Tests", "en": [
-          "Verify desktop and mobile layouts, account persistence, bilingual controls, draft and record preservation, text contrast including the lower valley, reduced motion and unchanged Starry Night behavior with synthetic accounts and no model calls."
-        ], "zh": [
-          "使用合成账号且不调用模型，验证桌面与移动端布局、账号偏好保存、双语控件、草稿与记录保护、包含下方山谷的文字对比度、减少动态效果，以及星空主题行为保持不变。"
-        ]}
+        {
+          "category": "Changed",
+          "en": [
+            "Replace Previous conversations with an always-open History conversations panel using inset cards, readable titles and mode subtitles, and a Current marker. Make New conversation a prominent filled button with a plus icon.",
+            "Resume the active conversation when returning from another website tab. After 15 minutes away, settled chats open a fresh draft with a Resume previous conversation link; working chats, unanswered requests, uncertain connections and unsent input stay active. No reset cancels work or deletes history.",
+            "Keep the phone message bar and Send button visible on arrival without scrolling. Compact navigation and keyboard-aware controls leave more room for conversation; history stays expanded below the chat.",
+            "Use slim, label-free phone scrollbars on Morning, Evening, Schedule and Secretary. Remove reading-blocking text bubbles, brighten only the scroller in use, and retain independent dragging, keyboard controls and accessible names."
+          ],
+          "zh": [
+            "将原有历史对话下拉框改为始终展开的历史对话面板，采用内嵌卡片、清晰的标题与模式说明，并标记当前对话。新建对话改为带加号的醒目实心按钮。",
+            "从网站其他标签页返回时继续当前对话。离开满 15 分钟后，已结束的对话会让位于新草稿，并提供继续上一段对话链接；仍在处理、等待回答、连接状态不明或有未发送内容的对话保持打开。不会取消工作或删除历史。",
+            "进入手机秘书页即可看到消息输入栏和发送按钮，无需先滚动。紧凑导航与适应键盘的控件为对话留出更多空间，历史对话仍在聊天框下方展开。",
+            "早报、晚报、日程和秘书页统一使用纤细、无文字标签的手机滚动条。移除遮挡阅读的提示气泡，只突出正在使用的滚动区域，并保留独立拖动、键盘操作与无障碍名称。"
+          ]
+        },
+        {
+          "category": "Security",
+          "en": [
+            "Scope conversation restoration to the current browser tab and authenticated login. Store only references and minimal state, never private messages, titles, drafts, attachments or question answers; warn before leaving unsent input."
+          ],
+          "zh": [
+            "对话恢复仅限当前浏览器标签页和已登录会话。只保存对话引用与最少状态，不保存私密消息、标题、草稿、附件或问题答案；离开未发送内容前提供提醒。"
+          ]
+        },
+        {
+          "category": "Tests",
+          "en": [
+            "Verify navigation, idle-only resets, login isolation, outages, draft preservation, responsive layouts, contrast and simple phone scrollbars with synthetic records and no model calls. Full unit tests and focused browser suites pass."
+          ],
+          "zh": [
+            "使用合成记录且不调用模型，验证导航、仅限已结束对话的重置、登录隔离、连接故障、草稿保护、响应式布局、对比度及简洁手机滚动条。全部单元测试与专项浏览器测试通过。"
+          ]
+        }
       ]
     },
     {
-      "version": "0.35.0", "date": "2026-10-13", "author": "GoodMorning agent",
-      "title_en": "Clearer task titles and details", "title_zh": "待办标题与详情更清晰",
+      "version": "0.36.0",
+      "date": "2026-10-13",
+      "author": "GoodMorning agent",
+      "title_en": "Morning Sky and First Light",
+      "title_zh": "晨空与曙光主题",
       "changes": [
-        {"category": "Changed", "en": [
-          "Secretary todo capture now saves a revised clear title plus useful grounded detail while keeping the exact raw input for audit; titles use an imperative verb with a specific object and no project prefix, and details never invent deadlines or repeat title, project or due text.",
-          "Morning briefings review today's displayed tasks and polish materially vague copy with tracked title and detail updates before packing, so Tasks cards read clearly under their project groupings."
-        ], "zh": [
-          "秘书保存待办时改写出清晰具体的行动标题，并保存有依据的补充详情；用户原文保留备查。标题使用行动动词加具体对象，不再重复项目名，详情不虚构期限，也不重复标题、项目或截止信息。",
-          "早报先检查今日待办并修正含糊文案，再按项目分组呈现，待办卡片更清晰。"
-        ]},
-        {"category": "Fixed", "en": [
-          "Fallback titles strip trailing periods and capitalize the first letter instead of copying raw text exactly."
-        ], "zh": [
-          "无修订标题时自动去掉末尾句号并首字母大写，不再原样照抄用户原文。"
-        ]},
-        {"category": "Tests", "en": [
-          "Cover revised capture with verbatim raw preservation, fallback cleanup, and polish-then-pack validation with synthetic records, plus wording simulations on two production models; the full unit suite passes."
-        ], "zh": [
-          "用合成记录覆盖修订保存与原文保留、默认标题清理，以及先修正后打包的校验，并用两个线上模型做文案模拟；全部单元测试通过。"
-        ]}
+        {
+          "category": "Added",
+          "en": [
+            "Choose Morning Sky or First Light in Settings > Appearance alongside Classic and Warm. Day and night choices remain independent, saved per account, and applied without losing unsent drafts.",
+            "Morning Sky pairs a locally bundled photographic cloud texture with visible birds. First Light keeps the existing sun illustration and adds sharp mountain ridges, snowcaps, fir trees and a winding valley stream that continues down the page."
+          ],
+          "zh": [
+            "在设置的外观中新增晨空与曙光主题，保留经典和暖色。日间与夜间配色仍独立选择、按账号保存，切换时不会丢失未发送的草稿。",
+            "晨空采用本地提供的真实云层照片纹理与清晰可见的飞鸟；曙光保留原有太阳插画，新增清晰的山脊、雪顶、冷杉与延伸到页面下方的山谷溪流。"
+          ]
+        },
+        {
+          "category": "Documentation",
+          "en": [
+            "Record the cloud photograph's CC0 source and image modifications. Theme images are served locally without third-party requests."
+          ],
+          "zh": [
+            "记录云层照片的 CC0 来源与图片修改方式。主题图片由本地提供，不请求第三方服务。"
+          ]
+        },
+        {
+          "category": "Tests",
+          "en": [
+            "Verify desktop and mobile layouts, account persistence, bilingual controls, draft and record preservation, text contrast including the lower valley, reduced motion and unchanged Starry Night behavior with synthetic accounts and no model calls."
+          ],
+          "zh": [
+            "使用合成账号且不调用模型，验证桌面与移动端布局、账号偏好保存、双语控件、草稿与记录保护、包含下方山谷的文字对比度、减少动态效果，以及星空主题行为保持不变。"
+          ]
+        }
       ]
     },
     {
-      "version": "0.34.1", "date": "2026-10-13", "author": "GoodMorning agent",
-      "title_en": "Reminders name schedule clashes", "title_zh": "提醒直接点名日程冲突",
+      "version": "0.35.0",
+      "date": "2026-10-13",
+      "author": "GoodMorning agent",
+      "title_en": "Clearer task titles and details",
+      "title_zh": "待办标题与详情更清晰",
       "changes": [
-        {"category": "Fixed", "en": [
-          "Annotate each pending calendar review with its direct clock overlaps, e.g. Schedule clash needs review: overlaps Reinforcement Learning Lab (Fri 23 Oct 11:00-13:00); cancelled, all-day and back-to-back events never count as clashes, and the approved clash partner stays in Schedule."
-        ], "zh": [
-          "每条待确认日历在详情里写清直接冲突，例如日程冲突待确认：与 Reinforcement Learning Lab (Fri 23 Oct 11:00-13:00) 时间重叠；已取消、全天与首尾相接不算冲突，已批准的冲突方仍在日程中。"
-        ]},
-        {"category": "Tests", "en": [
-          "Cover overlapping, touching-boundary, cancelled and all-day cases plus Chinese copy with synthetic records; the full unit suite passes."
-        ], "zh": [
-          "用合成记录覆盖重叠、首尾相接、已取消、全天与中文文案，并跑通全部单元测试。"
-        ]}
+        {
+          "category": "Changed",
+          "en": [
+            "Secretary todo capture now saves a revised clear title plus useful grounded detail while keeping the exact raw input for audit; titles use an imperative verb with a specific object and no project prefix, and details never invent deadlines or repeat title, project or due text.",
+            "Morning briefings review today's displayed tasks and polish materially vague copy with tracked title and detail updates before packing, so Tasks cards read clearly under their project groupings."
+          ],
+          "zh": [
+            "秘书保存待办时改写出清晰具体的行动标题，并保存有依据的补充详情；用户原文保留备查。标题使用行动动词加具体对象，不再重复项目名，详情不虚构期限，也不重复标题、项目或截止信息。",
+            "早报先检查今日待办并修正含糊文案，再按项目分组呈现，待办卡片更清晰。"
+          ]
+        },
+        {
+          "category": "Fixed",
+          "en": [
+            "Fallback titles strip trailing periods and capitalize the first letter instead of copying raw text exactly."
+          ],
+          "zh": [
+            "无修订标题时自动去掉末尾句号并首字母大写，不再原样照抄用户原文。"
+          ]
+        },
+        {
+          "category": "Tests",
+          "en": [
+            "Cover revised capture with verbatim raw preservation, fallback cleanup, and polish-then-pack validation with synthetic records, plus wording simulations on two production models; the full unit suite passes."
+          ],
+          "zh": [
+            "用合成记录覆盖修订保存与原文保留、默认标题清理，以及先修正后打包的校验，并用两个线上模型做文案模拟；全部单元测试通过。"
+          ]
+        }
       ]
     },
     {
-      "version": "0.34.0", "date": "2026-10-14", "author": "GoodMorning agent",
-      "title_en": "Calmer weather cards and section jumps", "title_zh": "天气卡片更清爽，章节跳转更顺手",
+      "version": "0.34.1",
+      "date": "2026-10-13",
+      "author": "GoodMorning agent",
+      "title_en": "Reminders name schedule clashes",
+      "title_zh": "提醒直接点名日程冲突",
       "changes": [
-        {"category": "Fixed", "en": [
-          "Show temperature with °C and en-dash ranges such as 16°C (14.5–20.4°C), precipitation as percent plus words such as 65% – Rain likely, and AQI as number plus level such as 30 – good; raw rain yes/no and US AQI prefixes no longer appear, including in already-saved briefings.",
-          "Show dated news titles as a short badge such as News · 12 Oct in navigation, headers and previews instead of the raw News — 2026-10-12; the full date stays in accessible labels."
-        ], "zh": [
-          "温度显示 °C 与连接号区间（如 16°C (14.5–20.4°C)），降水显示百分比加自然文字（如 65% – 可能降雨），空气质量只显示数字加等级（如 30 – 良好）；原始的 rain yes/no 与 US AQI 前缀不再出现，已保存的简报同样修正显示。",
-          "新闻等带日期的标题在导航、章节标题和预览中改用简短徽标（如新闻 · 10 月 12 日），不再显示原始的 News — 2026-10-12；完整日期保留在无障碍标签中。"
-        ]},
-        {"category": "Changed", "en": [
-          "Give the section switcher the same pill treatment as the Morning/Evening tabs, with each section's icon on the left and a highlighted active section that follows the reading position on desktop and in the mobile Sections sheet."
-        ], "zh": [
-          "章节切换器采用与早晚标签相同的胶囊样式，左侧显示各章节图标，当前章节随阅读位置高亮，桌面与移动端章节面板保持一致。"
-        ]},
-        {"category": "Tests", "en": [
-          "Verify weather normalization, dated-title badges, icon navigation and active states with synthetic briefings; existing briefing suites pass without model calls."
-        ], "zh": [
-          "用合成简报验证天气规范化、日期徽标、图标导航与当前状态；现有简报测试套件在不调用模型的情况下通过。"
-        ]}
+        {
+          "category": "Fixed",
+          "en": [
+            "Annotate each pending calendar review with its direct clock overlaps, e.g. Schedule clash needs review: overlaps Reinforcement Learning Lab (Fri 23 Oct 11:00-13:00); cancelled, all-day and back-to-back events never count as clashes, and the approved clash partner stays in Schedule."
+          ],
+          "zh": [
+            "每条待确认日历在详情里写清直接冲突，例如日程冲突待确认：与 Reinforcement Learning Lab (Fri 23 Oct 11:00-13:00) 时间重叠；已取消、全天与首尾相接不算冲突，已批准的冲突方仍在日程中。"
+          ]
+        },
+        {
+          "category": "Tests",
+          "en": [
+            "Cover overlapping, touching-boundary, cancelled and all-day cases plus Chinese copy with synthetic records; the full unit suite passes."
+          ],
+          "zh": [
+            "用合成记录覆盖重叠、首尾相接、已取消、全天与中文文案，并跑通全部单元测试。"
+          ]
+        }
       ]
     },
     {
-      "version": "0.33.1", "date": "2026-10-13", "author": "GoodMorning agent",
-      "title_en": "Secretary header fix and clearer task grouping", "title_zh": "秘书页眉修复与更清晰的待办分组",
+      "version": "0.34.0",
+      "date": "2026-10-14",
+      "author": "GoodMorning agent",
+      "title_en": "Calmer weather cards and section jumps",
+      "title_zh": "天气卡片更清爽，章节跳转更顺手",
       "changes": [
-        {"category": "Fixed", "en": [
-          "Fix the desktop secretary page header: the settings/account bar, GoodMorning wordmark and Morning/Evening/Schedule/Secretary tabs now span the full width like other pages instead of bunching in the center.",
-          "Rename the Tasks group for undated work from 'No workday assigned' to 'To be scheduled' (待安排) so it no longer reads as a missing profile schedule; profile workdays record availability while each task still needs its own agreed day."
-        ], "zh": [
-          "修复桌面端秘书页页眉：设置/账户栏、GoodMorning 标识与早报/晚报/日程/秘书切换与其它页面一样撑满宽度，不再挤在中间。",
-          "待办中无约定日期的分组由 No workday assigned 改名为 To be scheduled（待安排），不再被误读为未设置工作时间；个人资料的工作日只是可联络时间，每个任务仍需要各自约定的日期。"
-        ]},
-        {"category": "Tests", "en": [
-          "Cover the renamed heading in English and Chinese with legacy-phrase cleanup, and run the full unit suite with synthetic records."
-        ], "zh": [
-          "用合成记录覆盖新标题的中英呈现与旧文案清理，并跑通全部单元测试。"
-        ]}
+        {
+          "category": "Fixed",
+          "en": [
+            "Show temperature with °C and en-dash ranges such as 16°C (14.5–20.4°C), precipitation as percent plus words such as 65% – Rain likely, and AQI as number plus level such as 30 – good; raw rain yes/no and US AQI prefixes no longer appear, including in already-saved briefings.",
+            "Show dated news titles as a short badge such as News · 12 Oct in navigation, headers and previews instead of the raw News — 2026-10-12; the full date stays in accessible labels."
+          ],
+          "zh": [
+            "温度显示 °C 与连接号区间（如 16°C (14.5–20.4°C)），降水显示百分比加自然文字（如 65% – 可能降雨），空气质量只显示数字加等级（如 30 – 良好）；原始的 rain yes/no 与 US AQI 前缀不再出现，已保存的简报同样修正显示。",
+            "新闻等带日期的标题在导航、章节标题和预览中改用简短徽标（如新闻 · 10 月 12 日），不再显示原始的 News — 2026-10-12；完整日期保留在无障碍标签中。"
+          ]
+        },
+        {
+          "category": "Changed",
+          "en": [
+            "Give the section switcher the same pill treatment as the Morning/Evening tabs, with each section's icon on the left and a highlighted active section that follows the reading position on desktop and in the mobile Sections sheet."
+          ],
+          "zh": [
+            "章节切换器采用与早晚标签相同的胶囊样式，左侧显示各章节图标，当前章节随阅读位置高亮，桌面与移动端章节面板保持一致。"
+          ]
+        },
+        {
+          "category": "Tests",
+          "en": [
+            "Verify weather normalization, dated-title badges, icon navigation and active states with synthetic briefings; existing briefing suites pass without model calls."
+          ],
+          "zh": [
+            "用合成简报验证天气规范化、日期徽标、图标导航与当前状态；现有简报测试套件在不调用模型的情况下通过。"
+          ]
+        }
       ]
     },
     {
-      "version": "0.33.0", "date": "2026-10-14", "author": "GoodMorning agent",
-      "title_en": "Grouped tasks and calmer reminders", "title_zh": "待办按项目分组，提醒更清爽",
+      "version": "0.33.1",
+      "date": "2026-10-13",
+      "author": "GoodMorning agent",
+      "title_en": "Secretary header fix and clearer task grouping",
+      "title_zh": "秘书页眉修复与更清晰的待办分组",
       "changes": [
-        {"category": "Fixed", "en": [
-          "Group Tasks by workday then project with counts, ordering urgent hard dues first and lifting a shared due target into the project heading; strip repeated titles, project labels and workday suffixes from card details so long backlogs read as a few tidy groups.",
-          "Humanize Reminders calendar cards with action prefixes (Canceled/Updated), friendly times like Fri 23 Oct 11:00-12:00, and no raw timestamps or duplicated review prefixes."
-        ], "zh": [
-          "待办先按日期、再按项目分组并显示数量，同一项目的共同截止目标只在组标题出现一次；去掉卡片里重复的标题、项目标签和日期后缀，长积压看起来是几个清爽的分组。",
-          "提醒日历卡片改用已取消/有更新前缀与易读时间（如 10 月 23 日周五 11:00-12:00），不再显示原始时间戳与重复的审核前缀。"
-        ]},
-        {"category": "Changed", "en": [
-          "Secretary review now governs presentation: details carry extra notes only and never repeat title, project or due text; Tasks notes name the top project groups and next step, Reminders notes give the count and single next action."
-        ], "zh": [
-          "秘书审核统管呈现方式：详情只写补充说明，不重复标题、项目或截止信息；待办小结写清主要项目分组与下一步，提醒小结写清数量与唯一的下一步。"
-        ]},
-        {"category": "Tests", "en": [
-          "Cover detail hygiene, project grouping with shared-due lifting, and humanized reminder cards with synthetic records."
-        ], "zh": [
-          "用合成记录覆盖详情去重、项目分组与共同截止上移，以及提醒卡片的人性化时间。"
-        ]}
+        {
+          "category": "Fixed",
+          "en": [
+            "Fix the desktop secretary page header: the settings/account bar, GoodMorning wordmark and Morning/Evening/Schedule/Secretary tabs now span the full width like other pages instead of bunching in the center.",
+            "Rename the Tasks group for undated work from 'No workday assigned' to 'To be scheduled' (待安排) so it no longer reads as a missing profile schedule; profile workdays record availability while each task still needs its own agreed day."
+          ],
+          "zh": [
+            "修复桌面端秘书页页眉：设置/账户栏、GoodMorning 标识与早报/晚报/日程/秘书切换与其它页面一样撑满宽度，不再挤在中间。",
+            "待办中无约定日期的分组由 No workday assigned 改名为 To be scheduled（待安排），不再被误读为未设置工作时间；个人资料的工作日只是可联络时间，每个任务仍需要各自约定的日期。"
+          ]
+        },
+        {
+          "category": "Tests",
+          "en": [
+            "Cover the renamed heading in English and Chinese with legacy-phrase cleanup, and run the full unit suite with synthetic records."
+          ],
+          "zh": [
+            "用合成记录覆盖新标题的中英呈现与旧文案清理，并跑通全部单元测试。"
+          ]
+        }
       ]
     },
     {
-      "version": "0.32.9", "date": "2026-10-13", "author": "GoodMorning agent",
-      "title_en": "Clearer secretary questions and saved changes", "title_zh": "秘书提问与保存结果更清晰",
+      "version": "0.33.0",
+      "date": "2026-10-14",
+      "author": "GoodMorning agent",
+      "title_en": "Grouped tasks and calmer reminders",
+      "title_zh": "待办按项目分组，提醒更清爽",
       "changes": [
-        {"category": "Added", "en": [
-          "Give questions, accepted answers and permission requests unified rounded icons, visible labels and gentle highlighted backgrounds across all four color schemes.",
-          "Show confirmed task, idea, record, event-draft and calendar changes as compact cards with distinct added, updated, cancelled, completed, approved and declined treatments; read existing session-owned audit receipts without exposing commands or private tool output.",
-          "Add short, one-time entrance and icon animations for newly created blocks; saved history and unchanged polling do not replay them, and reduced-motion preferences disable them."
-        ], "zh": [
-          "提问、已提交的回答与授权请求统一使用圆润图标、明确标签和柔和底色，适配全部四种配色。",
-          "将已确认的待办、灵感、记录、日程草稿与日历变更显示为紧凑卡片，清楚区分添加、更新、取消、完成、确认与拒绝；只读取当前对话所属会话的已有保存记录，不展示命令或工具内部输出。",
-          "新出现的内容带有短暂、仅播放一次的入场与图标动画；打开历史对话或重复刷新不会重播，减少动态效果设置会禁用动画。"
-        ]},
-        {"category": "Fixed", "en": [
-          "Keep typed answers when an unrelated permission request arrives, keep repeated identical replies in their own turns, and update interface labels locally when the website language changes."
-        ], "zh": [
-          "收到无关授权请求时保留已填写的回答；相同文字的重复回复仍归属于各自轮次；切换网站语言时，界面标签即时在本地更新。"
-        ]},
-        {"category": "Tests", "en": [
-          "Check committed receipts, retries, session isolation and bounded history with synthetic records; verify English and Chinese, desktop and phone layouts, readable contrast, literal unsafe text and one-shot animations without model calls."
-        ], "zh": [
-          "用合成记录验证保存结果、重试、会话隔离与有界历史；不调用模型，检查中英界面、桌面与手机布局、文字对比度、不安全文本的字面显示及一次性动画。"
-        ]}
+        {
+          "category": "Fixed",
+          "en": [
+            "Group Tasks by workday then project with counts, ordering urgent hard dues first and lifting a shared due target into the project heading; strip repeated titles, project labels and workday suffixes from card details so long backlogs read as a few tidy groups.",
+            "Humanize Reminders calendar cards with action prefixes (Canceled/Updated), friendly times like Fri 23 Oct 11:00-12:00, and no raw timestamps or duplicated review prefixes."
+          ],
+          "zh": [
+            "待办先按日期、再按项目分组并显示数量，同一项目的共同截止目标只在组标题出现一次；去掉卡片里重复的标题、项目标签和日期后缀，长积压看起来是几个清爽的分组。",
+            "提醒日历卡片改用已取消/有更新前缀与易读时间（如 10 月 23 日周五 11:00-12:00），不再显示原始时间戳与重复的审核前缀。"
+          ]
+        },
+        {
+          "category": "Changed",
+          "en": [
+            "Secretary review now governs presentation: details carry extra notes only and never repeat title, project or due text; Tasks notes name the top project groups and next step, Reminders notes give the count and single next action."
+          ],
+          "zh": [
+            "秘书审核统管呈现方式：详情只写补充说明，不重复标题、项目或截止信息；待办小结写清主要项目分组与下一步，提醒小结写清数量与唯一的下一步。"
+          ]
+        },
+        {
+          "category": "Tests",
+          "en": [
+            "Cover detail hygiene, project grouping with shared-due lifting, and humanized reminder cards with synthetic records."
+          ],
+          "zh": [
+            "用合成记录覆盖详情去重、项目分组与共同截止上移，以及提醒卡片的人性化时间。"
+          ]
+        }
       ]
     },
     {
-      "version": "0.32.7", "date": "2026-10-13", "author": "GoodMorning agent",
-      "title_en": "Fixed morning briefing order and Reminders name", "title_zh": "修正早报顺序并改用提醒",
+      "version": "0.32.9",
+      "date": "2026-10-13",
+      "author": "GoodMorning agent",
+      "title_en": "Clearer secretary questions and saved changes",
+      "title_zh": "秘书提问与保存结果更清晰",
       "changes": [
-        {"category": "Fixed", "en": [
-          "Fix the live morning briefing order to Weather, News, Schedule, Tasks, then Reminders; the briefing plan is now fixed and the secretary cannot reorder, add or remove sections."
-        ], "zh": [
-          "修正线上早报顺序为天气、新闻、日程、待办、提醒；简报计划固定，秘书不能调整顺序、增减章节。"
-        ]},
-        {"category": "Changed", "en": [
-          "Rename Needs attention to Reminders, keeping the same section key and behavior."
-        ], "zh": [
-          "将需要关注改名为提醒，内部标识与行为不变。"
-        ]}
+        {
+          "category": "Added",
+          "en": [
+            "Give questions, accepted answers and permission requests unified rounded icons, visible labels and gentle highlighted backgrounds across all four color schemes.",
+            "Show confirmed task, idea, record, event-draft and calendar changes as compact cards with distinct added, updated, cancelled, completed, approved and declined treatments; read existing session-owned audit receipts without exposing commands or private tool output.",
+            "Add short, one-time entrance and icon animations for newly created blocks; saved history and unchanged polling do not replay them, and reduced-motion preferences disable them."
+          ],
+          "zh": [
+            "提问、已提交的回答与授权请求统一使用圆润图标、明确标签和柔和底色，适配全部四种配色。",
+            "将已确认的待办、灵感、记录、日程草稿与日历变更显示为紧凑卡片，清楚区分添加、更新、取消、完成、确认与拒绝；只读取当前对话所属会话的已有保存记录，不展示命令或工具内部输出。",
+            "新出现的内容带有短暂、仅播放一次的入场与图标动画；打开历史对话或重复刷新不会重播，减少动态效果设置会禁用动画。"
+          ]
+        },
+        {
+          "category": "Fixed",
+          "en": [
+            "Keep typed answers when an unrelated permission request arrives, keep repeated identical replies in their own turns, and update interface labels locally when the website language changes."
+          ],
+          "zh": [
+            "收到无关授权请求时保留已填写的回答；相同文字的重复回复仍归属于各自轮次；切换网站语言时，界面标签即时在本地更新。"
+          ]
+        },
+        {
+          "category": "Tests",
+          "en": [
+            "Check committed receipts, retries, session isolation and bounded history with synthetic records; verify English and Chinese, desktop and phone layouts, readable contrast, literal unsafe text and one-shot animations without model calls."
+          ],
+          "zh": [
+            "用合成记录验证保存结果、重试、会话隔离与有界历史；不调用模型，检查中英界面、桌面与手机布局、文字对比度、不安全文本的字面显示及一次性动画。"
+          ]
+        }
       ]
     },
     {
-      "version": "0.32.6", "date": "2026-10-13", "author": "GoodMorning agent",
-      "title_en": "Schedule preparation without meeting boilerplate", "title_zh": "日程准备事项不再混入会议样板信息",
+      "version": "0.32.7",
+      "date": "2026-10-13",
+      "author": "GoodMorning agent",
+      "title_en": "Fixed morning briefing order and Reminders name",
+      "title_zh": "修正早报顺序并改用提醒",
       "changes": [
-        {"category": "Fixed", "en": [
-          "Strip Teams join instructions, Meeting IDs, help and meeting-options links, system references and privacy footers from schedule preparation so briefings show only concise attendee requirements; joining stays via the original invitation.",
-          "Keep legitimate preparation text and unrelated public links while leaving redacted originals available for review through --show and --pending."
-        ], "zh": [
-          "过滤日程准备事项中的 Teams 参会说明、会议 ID、帮助与会议选项链接、系统引用及隐私页脚，简报只保留简明的参会准备；参会方式仍以原始邀请为准。",
-          "保留真正的准备内容与无关公开链接；已脱敏的原始记录仍可通过 --show 与 --pending 查看复核。"
-        ]},
-        {"category": "Tests", "en": [
-          "Cover Teams-invitation boilerplate filtering, mixed preparation preservation, and schedule-query behavior with synthetic records."
-        ], "zh": [
-          "使用合成记录覆盖 Teams 邀请样板过滤、混合准备内容的保留与日程查询行为。"
-        ]}
+        {
+          "category": "Fixed",
+          "en": [
+            "Fix the live morning briefing order to Weather, News, Schedule, Tasks, then Reminders; the briefing plan is now fixed and the secretary cannot reorder, add or remove sections."
+          ],
+          "zh": [
+            "修正线上早报顺序为天气、新闻、日程、待办、提醒；简报计划固定，秘书不能调整顺序、增减章节。"
+          ]
+        },
+        {
+          "category": "Changed",
+          "en": [
+            "Rename Needs attention to Reminders, keeping the same section key and behavior."
+          ],
+          "zh": [
+            "将需要关注改名为提醒，内部标识与行为不变。"
+          ]
+        }
       ]
     },
     {
-      "version": "0.32.5", "date": "2026-10-13", "author": "GoodMorning agent",
-      "title_en": "Warmer Simplified Chinese website copy", "title_zh": "更温暖自然的简体中文界面文案",
+      "version": "0.32.6",
+      "date": "2026-10-13",
+      "author": "GoodMorning agent",
+      "title_en": "Schedule preparation without meeting boilerplate",
+      "title_zh": "日程准备事项不再混入会议样板信息",
       "changes": [
-        {"category": "Changed", "en": [
-          "Rewrite the Simplified Chinese interface copy to read warm and natural instead of a literal translation, covering empty states, mode taglines, hints and status messages.",
-          "Keep important wording exact: limits, permissions, security notices and save or delivery results retain their meaning and next step."
-        ], "zh": [
-          "重写简体中文界面文案，让空状态、模式说明、提示和状态文字读起来温暖自然，不再逐字直译。",
-          "保留重要文案的准确性：容量限制、权限、安全提示以及保存或发送结果的含义与下一步不变。"
-        ]},
-        {"category": "Documentation", "en": [
-          "Add a Simplified Chinese copy style guide that separates atmosphere text, neutral labels and important information, with shared terminology and examples."
-        ], "zh": [
-          "新增简体中文文案风格指南，区分氛围文案、中性标签与重要信息，并统一术语、附上示例。"
-        ]}
+        {
+          "category": "Fixed",
+          "en": [
+            "Strip Teams join instructions, Meeting IDs, help and meeting-options links, system references and privacy footers from schedule preparation so briefings show only concise attendee requirements; joining stays via the original invitation.",
+            "Keep legitimate preparation text and unrelated public links while leaving redacted originals available for review through --show and --pending."
+          ],
+          "zh": [
+            "过滤日程准备事项中的 Teams 参会说明、会议 ID、帮助与会议选项链接、系统引用及隐私页脚，简报只保留简明的参会准备；参会方式仍以原始邀请为准。",
+            "保留真正的准备内容与无关公开链接；已脱敏的原始记录仍可通过 --show 与 --pending 查看复核。"
+          ]
+        },
+        {
+          "category": "Tests",
+          "en": [
+            "Cover Teams-invitation boilerplate filtering, mixed preparation preservation, and schedule-query behavior with synthetic records."
+          ],
+          "zh": [
+            "使用合成记录覆盖 Teams 邀请样板过滤、混合准备内容的保留与日程查询行为。"
+          ]
+        }
       ]
     },
     {
-      "version": "0.32.4", "date": "2026-10-13", "author": "GoodMorning agent",
-      "title_en": "Secretary page fits the screen", "title_zh": "秘书页面适配屏幕高度",
+      "version": "0.32.5",
+      "date": "2026-10-13",
+      "author": "GoodMorning agent",
+      "title_en": "Warmer Simplified Chinese website copy",
+      "title_zh": "更温暖自然的简体中文界面文案",
       "changes": [
-        {"category": "Changed", "en": [
-          "Fit the desktop secretary page to the viewport height so the conversation and send bar are visible without page scrolling; long messages and history scroll inside their own areas with a more compact sidebar.",
-          "Start Previous conversations collapsed on small screens while keeping the desktop default; an explicit open/closed choice is still remembered on each browser.",
-          "Keep narrow-desktop mode-switch labels inside their buttons."
-        ], "zh": [
-          "桌面端秘书页面锁定为视口高度，对话与发送栏无需滚动页面即可见；较长的消息与历史列表在各自区域内滚动，侧栏更紧凑。",
-          "小屏幕上历史对话默认收起，桌面默认展开不变；手动选择的展开或收起状态仍会被记住。",
-          "窄桌面宽度下模式切换按钮文字不再溢出按钮。"
-        ]},
-        {"category": "Tests", "en": [
-          "Check no-page-scroll desktop layout, collapsed mobile history, composer growth and bounded scrolling with synthetic records and no model calls."
-        ], "zh": [
-          "使用合成记录且不调用模型，验证桌面无页面滚动、移动端历史默认收起、输入框增长与有界滚动。"
-        ]}
+        {
+          "category": "Changed",
+          "en": [
+            "Rewrite the Simplified Chinese interface copy to read warm and natural instead of a literal translation, covering empty states, mode taglines, hints and status messages.",
+            "Keep important wording exact: limits, permissions, security notices and save or delivery results retain their meaning and next step."
+          ],
+          "zh": [
+            "重写简体中文界面文案，让空状态、模式说明、提示和状态文字读起来温暖自然，不再逐字直译。",
+            "保留重要文案的准确性：容量限制、权限、安全提示以及保存或发送结果的含义与下一步不变。"
+          ]
+        },
+        {
+          "category": "Documentation",
+          "en": [
+            "Add a Simplified Chinese copy style guide that separates atmosphere text, neutral labels and important information, with shared terminology and examples."
+          ],
+          "zh": [
+            "新增简体中文文案风格指南，区分氛围文案、中性标签与重要信息，并统一术语、附上示例。"
+          ]
+        }
       ]
     },
     {
-      "version": "0.32.3", "date": "2026-10-13", "author": "GoodMorning agent",
-      "title_en": "Isolated browser regression coverage", "title_zh": "隔离浏览器回归测试覆盖",
-      "changes": [{"category": "Tests", "en": [
-        "Add browser checks through the real public gateway and a synthetic viewer, covering navigation icons, images, fonts and readable HTML error responses without production requests or model calls.",
-        "Update authentication fixtures to load the shared response reader and complete public asset registry.",
-        "Correct responsive-image, stacked-navigation, document-alignment and short-screen gesture assertions; verify actual overflow when checking scroll controls."
-      ], "zh": [
-        "新增经过真实公开网关与模拟查看器的浏览器检查，覆盖导航图标、图片、字体及清晰的 HTML 错误响应，不请求生产网站或调用模型。",
-        "更新身份验证测试环境，加载共用响应读取器和完整公开资源列表。",
-        "修正响应式图片、纵向导航、文档对齐与小屏触摸手势断言，并依据实际溢出情况检查滚动控件。"
-      ]}]
-    },
-    {
-      "version": "0.32.2", "date": "2026-10-13", "author": "GoodMorning agent",
-      "title_en": "Kinder past briefing empty state", "title_zh": "更温柔的过去简报空状态",
-      "changes": [{"category": "Fixed", "en": [
-        "Show \"No story was told by you for this day.\" with \"Let the past pages stay as they are.\" for past dates without a saved briefing, instead of the misleading waiting message."
-      ], "zh": [
-        "过去日期没有已保存简报时，显示“这一天你没有讲述故事。”与“就让过去的页面保持原样吧。”，不再使用容易误解的等待提示。"
-      ]}]
-    },
-    {
-      "version": "0.32.1", "date": "2026-10-13", "author": "GoodMorning agent",
-      "title_en": "Restore website assets and clear connection errors", "title_zh": "恢复网站资源并改善连接错误提示",
-      "changes": [{"category": "Fixed", "en": [
-        "Apply the NGINX authentication rate limit only to credential submissions, not ordinary pages, images, stylesheets or API reads.",
-        "Serve the same public asset registry at the gateway and viewer, restoring navigation icons, fonts and scroll scripts without exposing private records.",
-        "Show readable connection errors when a server returns HTML instead of JSON; do not automatically retry actions that might already have been received."
-      ], "zh": [
-        "NGINX 登录限流仅作用于凭据提交，不再限制普通页面、图片、样式表或 API 读取。",
-        "网关和查看器使用同一公开资源列表，恢复导航图标、字体和滚动脚本，不公开私人记录。",
-        "服务器返回 HTML 而非 JSON 时显示清晰的连接错误，不自动重试可能已经收到的操作。"
-      ]}]
-    },
-    {
-      "version": "0.32.0", "date": "2026-10-13", "author": "GoodMorning agent",
-      "title_en": "Schedule, durable tasks and faithful reminder rules", "title_zh": "日程、持久待办与准确的提醒规则",
+      "version": "0.32.4",
+      "date": "2026-10-13",
+      "author": "GoodMorning agent",
+      "title_en": "Secretary page fits the screen",
+      "title_zh": "秘书页面适配屏幕高度",
       "changes": [
-        {"category": "Added", "en": [
-          "Keep events, personal and project tasks, and decisions separate with stable identities, completion reports and revision-checked changes.",
-          "Show saved appointments, untimed tasks and unknown-time attendance in the weekly Schedule, with navigation three weeks backward and forward.",
-          "Support every-N-day and explicit-date reminders, confirmed recurrence exceptions, linked workout-day reminders and annual all-day observances without copying future events."
-        ], "zh": [
-          "将事件、个人与项目待办、待确认事项分开管理，提供稳定身份、完成记录与带版本检查的修改。",
-          "在每周日程中显示已保存的预约、无固定时刻的待办与时间待定的安排，可查看前后三周。",
-          "支持每隔若干天、指定日期、已确认的周期例外、关联锻炼日期的提醒，以及每年全天纪念事项，不复制未来事件。"
-        ]},
-        {"category": "Changed", "en": [
-          "Clarify ambiguous scheduling before saving any task, event or pending note; native questions remain reachable through the waiting-question indicator.",
-          "New briefing publication and regeneration present saved records without scheduling or completing tasks. Preserve existing briefing archives."
-        ], "zh": [
-          "对含糊的日程请求先提问，再保存待办、事件或待确认笔记；原生问题可通过待回答提示返回处理。",
-          "新简报的发布和重新生成只呈现已保存的记录，不安排或完成待办，并保留已有简报档案。"
-        ]},
-        {"category": "Fixed", "en": [
-          "Evaluate confirmed early-morning reminders using the original request time and account timezone, preserving the trigger across queue delays and regeneration.",
-          "Keep soft targets distinct from hard deadlines, and actual workout completion dates distinct from missed dates and the original cadence."
-        ], "zh": [
-          "使用原始请求时间与账户时区判断已确认的早间提醒条件，排队延迟和重新生成不会改变触发依据。",
-          "区分弹性目标与硬性截止日期，并区分实际锻炼完成日期、错过的日期及原有周期。"
-        ]},
-        {"category": "Notes", "en": [
-          "Legacy record migration remains an explicitly reviewed, backed-up maintenance operation, never an automatic deployment or page-read side effect."
-        ], "zh": [
-          "旧记录迁移仍须明确审核并备份后进行维护操作，不会因部署或读取页面而自动发生。"
-        ]}
+        {
+          "category": "Changed",
+          "en": [
+            "Fit the desktop secretary page to the viewport height so the conversation and send bar are visible without page scrolling; long messages and history scroll inside their own areas with a more compact sidebar.",
+            "Start Previous conversations collapsed on small screens while keeping the desktop default; an explicit open/closed choice is still remembered on each browser.",
+            "Keep narrow-desktop mode-switch labels inside their buttons."
+          ],
+          "zh": [
+            "桌面端秘书页面锁定为视口高度，对话与发送栏无需滚动页面即可见；较长的消息与历史列表在各自区域内滚动，侧栏更紧凑。",
+            "小屏幕上历史对话默认收起，桌面默认展开不变；手动选择的展开或收起状态仍会被记住。",
+            "窄桌面宽度下模式切换按钮文字不再溢出按钮。"
+          ]
+        },
+        {
+          "category": "Tests",
+          "en": [
+            "Check no-page-scroll desktop layout, collapsed mobile history, composer growth and bounded scrolling with synthetic records and no model calls."
+          ],
+          "zh": [
+            "使用合成记录且不调用模型，验证桌面无页面滚动、移动端历史默认收起、输入框增长与有界滚动。"
+          ]
+        }
       ]
     },
     {
-      "version": "0.31.0", "date": "2026-10-13", "author": "GoodMorning agent",
-      "title_en": "Smaller avatar inspection records and storage visibility", "title_zh": "精简头像检查记录并提供存储统计",
+      "version": "0.32.3",
+      "date": "2026-10-13",
+      "author": "GoodMorning agent",
+      "title_en": "Isolated browser regression coverage",
+      "title_zh": "隔离浏览器回归测试覆盖",
       "changes": [
-        {"category": "Fixed", "en": [
-          "Keep the mobile Morning and Evening avatar picker wide enough to show its selected portrait instead of squeezing it into the narrow main portrait column."
-        ], "zh": [
-          "确保移动端晨报和晚报的头像选择器足够宽，能够显示选中的头像，不再挤在狭窄的主头像栏中。"
-        ]},
-        {"category": "Added", "en": [
-          "Create private, reusable 512-pixel lossless WebP inspection previews for avatar work, preserving original files and full-quality published images.",
-          "Add a bounded, read-only storage inventory separating records, uploads, previews, engine data, caches and fixed native-library files without reading file contents or calling models."
-        ], "zh": [
-          "为头像制作生成私有、可复用的 512 像素无损 WebP 检查预览，保留原始文件和完整质量的发布图片。",
-          "新增有界、只读的存储统计，区分记录、上传文件、预览、引擎数据、缓存和固定原生库文件，不读取文件内容或调用模型。"
-        ]},
-        {"category": "Documentation", "en": [
-          "Use compact previews only for requested avatar inspection, not OCR or scientific images. Existing histories, originals, preferences, models and retention policies remain unchanged."
-        ], "zh": [
-          "仅在用户请求头像检查时使用精简预览，不用于文字识别或科学图像。现有历史、原图、偏好、模型和保留策略均不变。"
-        ]},
-        {"category": "Tests", "en": [
-          "Verify image and record preservation, private permissions, preview reuse, storage reduction including the preview cache, disjoint accounting and content-free diagnostics."
-        ], "zh": [
-          "验证图像与记录保留、私有权限、预览复用、计入预览缓存后的存储减少、无重复统计，以及不读取内容的诊断。"
-        ]}
+        {
+          "category": "Tests",
+          "en": [
+            "Add browser checks through the real public gateway and a synthetic viewer, covering navigation icons, images, fonts and readable HTML error responses without production requests or model calls.",
+            "Update authentication fixtures to load the shared response reader and complete public asset registry.",
+            "Correct responsive-image, stacked-navigation, document-alignment and short-screen gesture assertions; verify actual overflow when checking scroll controls."
+          ],
+          "zh": [
+            "新增经过真实公开网关与模拟查看器的浏览器检查，覆盖导航图标、图片、字体及清晰的 HTML 错误响应，不请求生产网站或调用模型。",
+            "更新身份验证测试环境，加载共用响应读取器和完整公开资源列表。",
+            "修正响应式图片、纵向导航、文档对齐与小屏触摸手势断言，并依据实际溢出情况检查滚动控件。"
+          ]
+        }
       ]
     },
     {
-      "version": "0.30.5", "date": "2026-10-13", "author": "GoodMorning agent",
-      "title_en": "Keep login assets available during connection bursts", "title_zh": "修复连接突发时登录资源加载失败",
+      "version": "0.32.2",
+      "date": "2026-10-13",
+      "author": "GoodMorning agent",
+      "title_en": "Kinder past briefing empty state",
+      "title_zh": "更温柔的过去简报空状态",
       "changes": [
-        {"category": "Fixed", "en": [
-          "Increase the gateway's bounded connection backlog so ordinary browser asset bursts do not fail with HTTP 502.",
-          "Wait for an available worker instead of resetting connections, keeping the 16-worker cap and existing authentication and login rate limits. Sustained overload returns HTTP 503 without dispatching the request."
-        ], "zh": [
-          "增大网关的有界连接等待队列，避免浏览器正常的资源请求突发导致 HTTP 502。",
-          "等待空闲工作线程而非重置连接，保留 16 个工作线程的上限、身份验证和现有登录限流。持续过载时返回 HTTP 503，不执行该请求。"
-        ]},
-        {"category": "Tests", "en": [
-          "Verify connection bursts, queued assets at full worker capacity and explicit overload responses using synthetic Unix sockets without accounts or model calls."
-        ], "zh": [
-          "使用合成 Unix 套接字且不访问账户或调用模型，验证连接突发、工作线程满载时的资源等待，以及明确的过载响应。"
-        ]}
+        {
+          "category": "Fixed",
+          "en": [
+            "Show \"No story was told by you for this day.\" with \"Let the past pages stay as they are.\" for past dates without a saved briefing, instead of the misleading waiting message."
+          ],
+          "zh": [
+            "过去日期没有已保存简报时，显示“这一天你没有讲述故事。”与“就让过去的页面保持原样吧。”，不再使用容易误解的等待提示。"
+          ]
+        }
       ]
     },
     {
-      "version": "0.30.4", "date": "2026-10-13", "author": "GoodMorning agent",
-      "title_en": "Keep large secretary transcripts connected", "title_zh": "修复大型秘书对话的连接与排队",
+      "version": "0.32.1",
+      "date": "2026-10-13",
+      "author": "GoodMorning agent",
+      "title_en": "Restore website assets and clear connection errors",
+      "title_zh": "恢复网站资源并改善连接错误提示",
       "changes": [
-        {"category": "Fixed", "en": [
-          "Stream past private native tool results before checking the chat response limit, so large tool outputs do not disconnect preserved conversations.",
-          "Reconcile the secretary queue using native status and confirmation of the latest user message, independently of transcript rendering, without replaying uncertain requests."
-        ], "zh": [
-          "检查对话响应大小前，流式跳过不展示的原生工具结果，避免大型工具输出使已保留的对话显示断开连接。",
-          "使用原生状态和最新用户消息的接收确认协调秘书队列，不再依赖对话内容的渲染，也不会重发未确认的请求。"
-        ]},
-        {"category": "Tests", "en": [
-          "Verify large tool-result streaming, chunk boundaries, visible-text limits, both account bridges and transcript-independent FIFO progress with synthetic data and no model calls."
-        ], "zh": [
-          "使用合成数据且不调用模型，验证大型工具结果的流式处理、数据块边界、可见文本限制、两种账户桥接，以及不依赖对话内容的先进先出队列推进。"
-        ]}
+        {
+          "category": "Fixed",
+          "en": [
+            "Apply the NGINX authentication rate limit only to credential submissions, not ordinary pages, images, stylesheets or API reads.",
+            "Serve the same public asset registry at the gateway and viewer, restoring navigation icons, fonts and scroll scripts without exposing private records.",
+            "Show readable connection errors when a server returns HTML instead of JSON; do not automatically retry actions that might already have been received."
+          ],
+          "zh": [
+            "NGINX 登录限流仅作用于凭据提交，不再限制普通页面、图片、样式表或 API 读取。",
+            "网关和查看器使用同一公开资源列表，恢复导航图标、字体和滚动脚本，不公开私人记录。",
+            "服务器返回 HTML 而非 JSON 时显示清晰的连接错误，不自动重试可能已经收到的操作。"
+          ]
+        }
       ]
     },
     {
-      "version": "0.30.3", "date": "2026-10-12", "author": "GoodMorning agent",
-      "title_en": "Responsive secretary activity badge", "title_zh": "更及时平滑的秘书活动提示",
+      "version": "0.32.0",
+      "date": "2026-10-13",
+      "author": "GoodMorning agent",
+      "title_en": "Schedule, durable tasks and faithful reminder rules",
+      "title_zh": "日程、持久待办与准确的提醒规则",
       "changes": [
-        {"category": "Fixed", "en": [
-          "Refresh secretary activity immediately after requests and check visible pages every one to two seconds instead of every ten seconds.",
-          "Smooth the activity badge's appearance, state changes, dismissal, minimization and expansion while respecting reduced-motion preferences and preserving focused links."
-        ], "zh": [
-          "请求结束后立即刷新秘书活动状态，并将可见页面的检查间隔从十秒缩短为一至两秒。",
-          "为活动提示的出现、状态变化、消失、最小化和展开添加平滑过渡，同时尊重减少动画的偏好并保留链接焦点。"
-        ]},
-        {"category": "Tests", "en": [
-          "Verify automatic refresh timing, entrance and exit motion, interrupted dismissal, account isolation and mobile layouts using synthetic activity without model calls."
-        ], "zh": [
-          "使用合成活动且不调用模型，验证自动刷新时延、进出动画、消失过程中的中断恢复、账户隔离和移动端布局。"
-        ]}
+        {
+          "category": "Added",
+          "en": [
+            "Keep events, personal and project tasks, and decisions separate with stable identities, completion reports and revision-checked changes.",
+            "Show saved appointments, untimed tasks and unknown-time attendance in the weekly Schedule, with navigation three weeks backward and forward.",
+            "Support every-N-day and explicit-date reminders, confirmed recurrence exceptions, linked workout-day reminders and annual all-day observances without copying future events."
+          ],
+          "zh": [
+            "将事件、个人与项目待办、待确认事项分开管理，提供稳定身份、完成记录与带版本检查的修改。",
+            "在每周日程中显示已保存的预约、无固定时刻的待办与时间待定的安排，可查看前后三周。",
+            "支持每隔若干天、指定日期、已确认的周期例外、关联锻炼日期的提醒，以及每年全天纪念事项，不复制未来事件。"
+          ]
+        },
+        {
+          "category": "Changed",
+          "en": [
+            "Clarify ambiguous scheduling before saving any task, event or pending note; native questions remain reachable through the waiting-question indicator.",
+            "New briefing publication and regeneration present saved records without scheduling or completing tasks. Preserve existing briefing archives."
+          ],
+          "zh": [
+            "对含糊的日程请求先提问，再保存待办、事件或待确认笔记；原生问题可通过待回答提示返回处理。",
+            "新简报的发布和重新生成只呈现已保存的记录，不安排或完成待办，并保留已有简报档案。"
+          ]
+        },
+        {
+          "category": "Fixed",
+          "en": [
+            "Evaluate confirmed early-morning reminders using the original request time and account timezone, preserving the trigger across queue delays and regeneration.",
+            "Keep soft targets distinct from hard deadlines, and actual workout completion dates distinct from missed dates and the original cadence."
+          ],
+          "zh": [
+            "使用原始请求时间与账户时区判断已确认的早间提醒条件，排队延迟和重新生成不会改变触发依据。",
+            "区分弹性目标与硬性截止日期，并区分实际锻炼完成日期、错过的日期及原有周期。"
+          ]
+        },
+        {
+          "category": "Notes",
+          "en": [
+            "Legacy record migration remains an explicitly reviewed, backed-up maintenance operation, never an automatic deployment or page-read side effect."
+          ],
+          "zh": [
+            "旧记录迁移仍须明确审核并备份后进行维护操作，不会因部署或读取页面而自动发生。"
+          ]
+        }
       ]
     },
     {
-      "version": "0.30.2", "date": "2026-10-12", "author": "GoodMorning agent",
-      "title_en": "Refresh workflow rules in existing conversations", "title_zh": "刷新现有对话的工作流程规则",
+      "version": "0.31.0",
+      "date": "2026-10-13",
+      "author": "GoodMorning agent",
+      "title_en": "Smaller avatar inspection records and storage visibility",
+      "title_zh": "精简头像检查记录并提供存储统计",
       "changes": [
-        {"category": "Fixed", "en": [
-          "Move a resumed secretary conversation from its old release to the running release before sending, preserving its session and history.",
-          "Tell resumed conversations to reread current workflow rules so explicit cross-mode requests no longer rely on outdated capture-only restrictions."
-        ], "zh": [
-          "发送后续消息前，将继续使用的秘书对话从旧版本移至当前运行版本，保留原会话与历史。",
-          "提示继续使用的对话重新读取当前流程规则，使明确的跨模式请求不再依赖过时的仅记录限制。"
-        ]},
-        {"category": "Tests", "en": [
-          "Verify release refresh, history and attachment preservation, unrelated-session isolation and refusal to dispatch after failed or unconfirmed moves without model calls."
-        ], "zh": [
-          "在不调用模型的情况下，验证版本刷新、历史与附件保留、无关会话隔离，以及移动失败或未确认时不发送消息。"
-        ]}
+        {
+          "category": "Fixed",
+          "en": [
+            "Keep the mobile Morning and Evening avatar picker wide enough to show its selected portrait instead of squeezing it into the narrow main portrait column."
+          ],
+          "zh": [
+            "确保移动端晨报和晚报的头像选择器足够宽，能够显示选中的头像，不再挤在狭窄的主头像栏中。"
+          ]
+        },
+        {
+          "category": "Added",
+          "en": [
+            "Create private, reusable 512-pixel lossless WebP inspection previews for avatar work, preserving original files and full-quality published images.",
+            "Add a bounded, read-only storage inventory separating records, uploads, previews, engine data, caches and fixed native-library files without reading file contents or calling models."
+          ],
+          "zh": [
+            "为头像制作生成私有、可复用的 512 像素无损 WebP 检查预览，保留原始文件和完整质量的发布图片。",
+            "新增有界、只读的存储统计，区分记录、上传文件、预览、引擎数据、缓存和固定原生库文件，不读取文件内容或调用模型。"
+          ]
+        },
+        {
+          "category": "Documentation",
+          "en": [
+            "Use compact previews only for requested avatar inspection, not OCR or scientific images. Existing histories, originals, preferences, models and retention policies remain unchanged."
+          ],
+          "zh": [
+            "仅在用户请求头像检查时使用精简预览，不用于文字识别或科学图像。现有历史、原图、偏好、模型和保留策略均不变。"
+          ]
+        },
+        {
+          "category": "Tests",
+          "en": [
+            "Verify image and record preservation, private permissions, preview reuse, storage reduction including the preview cache, disjoint accounting and content-free diagnostics."
+          ],
+          "zh": [
+            "验证图像与记录保留、私有权限、预览复用、计入预览缓存后的存储减少、无重复统计，以及不读取内容的诊断。"
+          ]
+        }
       ]
     },
     {
-      "version": "0.30.1", "date": "2026-10-12", "author": "GoodMorning agent",
-      "title_en": "Remove header divider line", "title_zh": "移除顶部标题分隔线",
+      "version": "0.30.5",
+      "date": "2026-10-13",
+      "author": "GoodMorning agent",
+      "title_en": "Keep login assets available during connection bursts",
+      "title_zh": "修复连接突发时登录资源加载失败",
       "changes": [
-        {"category": "Fixed", "en": [
-          "Remove the horizontal divider line under the header across Morning, Evening and Secretary tabs while keeping the existing spacing unchanged."
-        ], "zh": [
-          "移除早间、晚间和秘书三个标签页顶部标题栏下方的水平分隔线，同时保持现有间距不变。"
-        ]}
+        {
+          "category": "Fixed",
+          "en": [
+            "Increase the gateway's bounded connection backlog so ordinary browser asset bursts do not fail with HTTP 502.",
+            "Wait for an available worker instead of resetting connections, keeping the 16-worker cap and existing authentication and login rate limits. Sustained overload returns HTTP 503 without dispatching the request."
+          ],
+          "zh": [
+            "增大网关的有界连接等待队列，避免浏览器正常的资源请求突发导致 HTTP 502。",
+            "等待空闲工作线程而非重置连接，保留 16 个工作线程的上限、身份验证和现有登录限流。持续过载时返回 HTTP 503，不执行该请求。"
+          ]
+        },
+        {
+          "category": "Tests",
+          "en": [
+            "Verify connection bursts, queued assets at full worker capacity and explicit overload responses using synthetic Unix sockets without accounts or model calls."
+          ],
+          "zh": [
+            "使用合成 Unix 套接字且不访问账户或调用模型，验证连接突发、工作线程满载时的资源等待，以及明确的过载响应。"
+          ]
+        }
       ]
     },
     {
-      "version": "0.30.0", "date": "2026-10-12", "author": "GoodMorning agent",
-      "title_en": "Starry nights and flexible secretary workflows", "title_zh": "繁星夜色与灵活秘书流程",
+      "version": "0.30.4",
+      "date": "2026-10-13",
+      "author": "GoodMorning agent",
+      "title_en": "Keep large secretary transcripts connected",
+      "title_zh": "修复大型秘书对话的连接与排队",
       "changes": [
-        {"category": "Added", "en": [
-          "Add a Starry night palette with a static, irregular star field across the website; use it when no color preference has been saved."
-        ], "zh": [
-          "新增繁星夜间配色，在整个网站显示静态、不规则星空；未保存配色偏好时默认使用。"
-        ]},
-        {"category": "Changed", "en": [
-          "Automatically follow another mode's workflow when explicitly requested in the current conversation, without requiring a manual mode switch; keep capture defaults and approval rules."
-        ], "zh": [
-          "在当前对话中明确请求其他模式的工作时，自动采用对应流程，无需手动切换模式；保留默认记录边界与审批规则。"
-        ]},
-        {"category": "Tests", "en": [
-          "Check star-field assets, saved palette preservation, account isolation and whole-site switching with synthetic records and no model calls."
-        ], "zh": [
-          "使用合成记录且不调用模型，验证星空资源、已保存配色的保留、账户隔离与全站配色切换。"
-        ]}
+        {
+          "category": "Fixed",
+          "en": [
+            "Stream past private native tool results before checking the chat response limit, so large tool outputs do not disconnect preserved conversations.",
+            "Reconcile the secretary queue using native status and confirmation of the latest user message, independently of transcript rendering, without replaying uncertain requests."
+          ],
+          "zh": [
+            "检查对话响应大小前，流式跳过不展示的原生工具结果，避免大型工具输出使已保留的对话显示断开连接。",
+            "使用原生状态和最新用户消息的接收确认协调秘书队列，不再依赖对话内容的渲染，也不会重发未确认的请求。"
+          ]
+        },
+        {
+          "category": "Tests",
+          "en": [
+            "Verify large tool-result streaming, chunk boundaries, visible-text limits, both account bridges and transcript-independent FIFO progress with synthetic data and no model calls."
+          ],
+          "zh": [
+            "使用合成数据且不调用模型，验证大型工具结果的流式处理、数据块边界、可见文本限制、两种账户桥接，以及不依赖对话内容的先进先出队列推进。"
+          ]
+        }
       ]
     },
     {
-      "version": "0.29.2", "date": "2026-10-12", "author": "GoodMorning agent",
-      "title_en": "Chat history navigation and image corners", "title_zh": "聊天历史导航与图片圆角",
+      "version": "0.30.3",
+      "date": "2026-10-12",
+      "author": "GoodMorning agent",
+      "title_en": "Responsive secretary activity badge",
+      "title_zh": "更及时平滑的秘书活动提示",
       "changes": [
-        {"category": "Fixed", "en": [
-          "Remove rounding from the top-left and bottom-left corners of inline chat image previews; right corners keep their rounding and composer drafts are unchanged.",
-          "Open previous conversations without reloading the page, with back and forward button support and a correct current-conversation highlight.",
-          "Keep separate message drafts per conversation as well as per mode, and clear them when the message is sent.",
-          "Preserve history and page scroll position when conversation titles refresh."
-        ], "zh": [
-          "取消聊天内联图片预览左上与左下圆角；右侧保持圆角，编辑器草稿预览不变。",
-          "点击历史对话无需重新加载页面即可打开，支持浏览器前进后退，并正确高亮当前对话。",
-          "每个对话以及每种模式分别保留消息草稿，发送后清除对应草稿。",
-          "对话标题刷新时保持历史列表与页面滚动位置不变。"
-        ]}
+        {
+          "category": "Fixed",
+          "en": [
+            "Refresh secretary activity immediately after requests and check visible pages every one to two seconds instead of every ten seconds.",
+            "Smooth the activity badge's appearance, state changes, dismissal, minimization and expansion while respecting reduced-motion preferences and preserving focused links."
+          ],
+          "zh": [
+            "请求结束后立即刷新秘书活动状态，并将可见页面的检查间隔从十秒缩短为一至两秒。",
+            "为活动提示的出现、状态变化、消失、最小化和展开添加平滑过渡，同时尊重减少动画的偏好并保留链接焦点。"
+          ]
+        },
+        {
+          "category": "Tests",
+          "en": [
+            "Verify automatic refresh timing, entrance and exit motion, interrupted dismissal, account isolation and mobile layouts using synthetic activity without model calls."
+          ],
+          "zh": [
+            "使用合成活动且不调用模型，验证自动刷新时延、进出动画、消失过程中的中断恢复、账户隔离和移动端布局。"
+          ]
+        }
       ]
     },
     {
-      "version": "0.29.1", "date": "2026-10-12", "author": "GoodMorning agent",
-      "title_en": "Guard briefing ownership and name outside edits", "title_zh": "保护简报归属并提示外部更改",
+      "version": "0.30.2",
+      "date": "2026-10-12",
+      "author": "GoodMorning agent",
+      "title_en": "Refresh workflow rules in existing conversations",
+      "title_zh": "刷新现有对话的工作流程规则",
       "changes": [
-        {"category": "Fixed", "en": [
-          "Refuse to overwrite a browser-owned briefing edition from another session; briefing fixes go through Regenerate so a saved edition always matches its owning job.",
-          "Show a specific message when an edition was changed outside its briefing job instead of the generic unreadable-edition notice; saved records stay unchanged."
-        ], "zh": [
-          "拒绝从其他会话覆盖浏览器简报任务拥有的版本；简报修正须通过重新生成，使已保存版本始终与其任务一致。",
-          "当简报版本在任务之外被更改时显示专门提示，不再使用通用的版本不可读提示；已保存的记录保持不变。"
-        ]},
-        {"category": "Tests", "en": [
-          "Verify foreign saves are refused even with force, the owning job still saves, and the viewer names outside edits separately from corrupt editions using synthetic records and no model calls."
-        ], "zh": [
-          "使用合成记录且不调用模型，验证即使强制保存也会拒绝外部写入、任务本身仍可保存，以及阅读器能区分外部更改与损坏版本。"
-        ]}
+        {
+          "category": "Fixed",
+          "en": [
+            "Move a resumed secretary conversation from its old release to the running release before sending, preserving its session and history.",
+            "Tell resumed conversations to reread current workflow rules so explicit cross-mode requests no longer rely on outdated capture-only restrictions."
+          ],
+          "zh": [
+            "发送后续消息前，将继续使用的秘书对话从旧版本移至当前运行版本，保留原会话与历史。",
+            "提示继续使用的对话重新读取当前流程规则，使明确的跨模式请求不再依赖过时的仅记录限制。"
+          ]
+        },
+        {
+          "category": "Tests",
+          "en": [
+            "Verify release refresh, history and attachment preservation, unrelated-session isolation and refusal to dispatch after failed or unconfirmed moves without model calls."
+          ],
+          "zh": [
+            "在不调用模型的情况下，验证版本刷新、历史与附件保留、无关会话隔离，以及移动失败或未确认时不发送消息。"
+          ]
+        }
       ]
     },
     {
-      "version": "0.29.0", "date": "2026-10-12", "author": "GoodMorning agent",
-      "title_en": "Clear commitments and steady project progress", "title_zh": "明确日程承诺与持续项目推进",
+      "version": "0.30.1",
+      "date": "2026-10-12",
+      "author": "GoodMorning agent",
+      "title_en": "Remove header divider line",
+      "title_zh": "移除顶部标题分隔线",
       "changes": [
-        {"category": "Changed", "en": [
-          "Use Schedule for appointments and important day commitments, including urgent project work. Rename Must-do and Nice-to-do to Project steps and Optional project steps for ongoing progress without repeating scheduled actions.",
-          "Keep Reminders and Notes for background nudges and unresolved questions; omit empty project sections instead of inventing tasks."
-        ], "zh": [
-          "日程用于预约事项和当天的重要承诺，包括紧急项目工作；必须完成和可选任务改为项目推进和可选项目推进，用于持续进展，不重复已安排的行动。",
-          "提醒和备注用于背景提示与尚未解决的问题；没有实际任务时省略项目章节，不凭空添加任务。"
-        ]},
-        {"category": "Fixed", "en": [
-          "Require the briefing agent to reconcile confirmed corrections before publication and show only current task wording, without deleting checklist history or changing completions.",
-          "Reject repeated task cards with identical or whitespace-equivalent titles before new publications and saves. Keep distinct dated recurring occurrences and historical briefings readable; do not guess semantic equivalence."
-        ], "zh": [
-          "简报代理须在发布前核对已确认的更正，只显示任务的当前表述，不删除清单历史或改变完成状态。",
-          "新发布和保存前拒绝标题相同或仅空白不同的重复任务卡片；保留不同日期的重复性工作和历史简报的可读性，不猜测语义等价。"
-        ]},
-        {"category": "Tests", "en": [
-          "Verify duplicate rejection before writes, section ownership, bilingual headings, recurring dates and regeneration with preserved task history using synthetic records and no model calls."
-        ], "zh": [
-          "使用合成记录且不调用模型，验证写入前拒绝重复、章节归属、双语标题、重复性工作的日期，以及保留任务历史的重新生成。"
-        ]}
+        {
+          "category": "Fixed",
+          "en": [
+            "Remove the horizontal divider line under the header across Morning, Evening and Secretary tabs while keeping the existing spacing unchanged."
+          ],
+          "zh": [
+            "移除早间、晚间和秘书三个标签页顶部标题栏下方的水平分隔线，同时保持现有间距不变。"
+          ]
+        }
       ]
     },
     {
-      "version": "0.28.0", "date": "2026-10-12", "author": "GoodMorning agent",
-      "title_en": "Interrupt the secretary while it works", "title_zh": "忙碌时也可打断秘书",
+      "version": "0.30.0",
+      "date": "2026-10-12",
+      "author": "GoodMorning agent",
+      "title_en": "Starry nights and flexible secretary workflows",
+      "title_zh": "繁星夜色与灵活秘书流程",
       "changes": [
-        {"category": "Added", "en": [
-          "Keep the message box and attachments enabled while the secretary is working, so a follow-up message interrupts the current run.",
-          "Reuse the working conversation's reservation for its own interrupt; other conversations still wait in the bounded queue."
-        ], "zh": [
-          "秘书忙碌时消息框和附件保持可用，后续消息可直接打断当前任务。",
-          "同一对话的中断沿用当前预留名额，其他对话仍在有限队列中等待。"
-        ]},
-        {"category": "Tests", "en": [
-          "Verify follow-up sends while running, per-message receipts, same-conversation fast path versus queued other conversations, and blocked free text while a question is pending without model calls."
-        ], "zh": [
-          "不调用模型，验证忙碌时可追加发送、每条消息独立回执、同对话快速打断与其他对话排队的区别，以及待答问题时普通文本仍被阻止。"
-        ]}
+        {
+          "category": "Added",
+          "en": [
+            "Add a Starry night palette with a static, irregular star field across the website; use it when no color preference has been saved."
+          ],
+          "zh": [
+            "新增繁星夜间配色，在整个网站显示静态、不规则星空；未保存配色偏好时默认使用。"
+          ]
+        },
+        {
+          "category": "Changed",
+          "en": [
+            "Automatically follow another mode's workflow when explicitly requested in the current conversation, without requiring a manual mode switch; keep capture defaults and approval rules."
+          ],
+          "zh": [
+            "在当前对话中明确请求其他模式的工作时，自动采用对应流程，无需手动切换模式；保留默认记录边界与审批规则。"
+          ]
+        },
+        {
+          "category": "Tests",
+          "en": [
+            "Check star-field assets, saved palette preservation, account isolation and whole-site switching with synthetic records and no model calls."
+          ],
+          "zh": [
+            "使用合成记录且不调用模型，验证星空资源、已保存配色的保留、账户隔离与全站配色切换。"
+          ]
+        }
       ]
     },
     {
-      "version": "0.27.0", "date": "2026-10-12", "author": "GoodMorning agent",
-      "title_en": "Paste images into your conversations", "title_zh": "在对话中粘贴图片",
+      "version": "0.29.2",
+      "date": "2026-10-12",
+      "author": "GoodMorning agent",
+      "title_en": "Chat history navigation and image corners",
+      "title_zh": "聊天历史导航与图片圆角",
       "changes": [
-        {"category": "Added", "en": [
-          "Paste clipboard images into the composer, preview them before sending, and click draft or saved previews to enlarge them. Close with Escape, the close button or the surrounding backdrop.",
-          "Show saved PNG, JPEG, GIF and WebP attachments as small inline images, including older uploads, without rewriting saved records."
-        ], "zh": [
-          "在输入框中粘贴剪贴板图片，发送前预览，并点击草稿或已保存的图片预览将其放大；可通过 Esc、关闭按钮或外围背景关闭。",
-          "PNG、JPEG、GIF 和 WebP 附件以小幅行内图片显示，包括此前上传的图片，不改写已保存的记录。"
-        ]},
-        {"category": "Changed", "en": [
-          "Keep sent images natural and uncluttered, without a preview border or filename/size line. Other file attachments retain their labels."
-        ], "zh": [
-          "已发送的图片自然地显示在消息中，不再附加预览边框或文件名与大小一行；其他文件附件保留标签。"
-        ]},
-        {"category": "Security", "en": [
-          "Serve image bytes only through authenticated, account-scoped endpoints with private no-store responses and content-based image types; active SVG and HTML files are not served as images."
-        ], "zh": [
-          "仅通过已登录且按账号隔离的接口提供图片，禁止持久缓存，并按文件内容识别图片类型；SVG 和 HTML 文件不作为图片提供。"
-        ]},
-        {"category": "Tests", "en": [
-          "Verify real clipboard paste, inline layout, enlargement, keyboard focus, draft restoration, refresh, preview cleanup and protected image reads using synthetic files without model calls."
-        ], "zh": [
-          "使用合成文件且不调用模型，验证真实剪贴板粘贴、行内布局、图片放大、键盘焦点、草稿恢复、刷新、预览清理及受保护的图片读取。"
-        ]}
+        {
+          "category": "Fixed",
+          "en": [
+            "Remove rounding from the top-left and bottom-left corners of inline chat image previews; right corners keep their rounding and composer drafts are unchanged.",
+            "Open previous conversations without reloading the page, with back and forward button support and a correct current-conversation highlight.",
+            "Keep separate message drafts per conversation as well as per mode, and clear them when the message is sent.",
+            "Preserve history and page scroll position when conversation titles refresh."
+          ],
+          "zh": [
+            "取消聊天内联图片预览左上与左下圆角；右侧保持圆角，编辑器草稿预览不变。",
+            "点击历史对话无需重新加载页面即可打开，支持浏览器前进后退，并正确高亮当前对话。",
+            "每个对话以及每种模式分别保留消息草稿，发送后清除对应草稿。",
+            "对话标题刷新时保持历史列表与页面滚动位置不变。"
+          ]
+        }
       ]
     },
     {
-      "version": "0.26.0", "date": "2026-10-12", "author": "GoodMorning agent",
-      "title_en": "Roomier mobile chat and quick section jumps", "title_zh": "更宽敞的移动聊天与便捷章节跳转",
+      "version": "0.29.1",
+      "date": "2026-10-12",
+      "author": "GoodMorning agent",
+      "title_en": "Guard briefing ownership and name outside edits",
+      "title_zh": "保护简报归属并提示外部更改",
       "changes": [
-        {"category": "Added", "en": [
-          "Grow the message composer upward while typing, wrapping or pasting, up to five visible lines; longer drafts scroll internally. Shrink on deletion or a successful send and resize restored drafts without losing text.",
-          "Add a mobile Sections button with a touch-friendly bottom-sheet picker, current-section indication, native anchor navigation and close/Escape/outside-tap dismissal. Keep desktop navigation and the no-JavaScript anchor list."
-        ], "zh": [
-          "输入、自动换行或粘贴时，消息输入框向上扩展，最多同时显示五行，较长草稿在框内滚动；删除或成功发送后缩小，恢复草稿时重新调整高度且保留原文。",
-          "移动端新增章节按钮和适合触控的底部章节选择面板，显示当前章节，使用原生锚点跳转，可通过关闭按钮、Esc 或点按外部关闭；保留桌面导航及无 JavaScript 的锚点列表。"
-        ]},
-        {"category": "Changed", "en": [
-          "Let mobile chat fill the dynamic browser viewport and align its top with the browser at the page bottom, instead of leaving a half-height message area.",
-          "Move New conversation below Previous conversations on desktop and mobile."
-        ], "zh": [
-          "移动端聊天区域填满浏览器动态可视高度，页面滚到底部时顶部与浏览器对齐，不再仅提供半屏消息区域。",
-          "桌面和移动端的新对话按钮移至历史对话下方。"
-        ]},
-        {"category": "Fixed", "en": [
-          "Handle unreadable API responses with a translated draft-safe connection notice instead of exposing JSON.parse errors. Retry only the read-only history listing once, clear its notice after recovery, and never automatically replay sends or queue reads."
-        ], "zh": [
-          "API 返回无法读取的内容时显示已保留草稿的本地化连接提示，不再暴露 JSON.parse 错误；仅对只读历史列表重试一次，恢复后清除提示，绝不自动重发消息或重复读取队列。"
-        ]},
-        {"category": "Tests", "en": [
-          "Check five-line growth, viewport alignment, draft restoration, touch section jumps, dynamic sections, themes/languages, and synthetic malformed responses without model calls."
-        ], "zh": [
-          "不调用模型，验证五行扩展、视口对齐、草稿恢复、触控章节跳转、动态章节、多主题双语，以及模拟的异常响应。"
-        ]}
+        {
+          "category": "Fixed",
+          "en": [
+            "Refuse to overwrite a browser-owned briefing edition from another session; briefing fixes go through Regenerate so a saved edition always matches its owning job.",
+            "Show a specific message when an edition was changed outside its briefing job instead of the generic unreadable-edition notice; saved records stay unchanged."
+          ],
+          "zh": [
+            "拒绝从其他会话覆盖浏览器简报任务拥有的版本；简报修正须通过重新生成，使已保存版本始终与其任务一致。",
+            "当简报版本在任务之外被更改时显示专门提示，不再使用通用的版本不可读提示；已保存的记录保持不变。"
+          ]
+        },
+        {
+          "category": "Tests",
+          "en": [
+            "Verify foreign saves are refused even with force, the owning job still saves, and the viewer names outside edits separately from corrupt editions using synthetic records and no model calls."
+          ],
+          "zh": [
+            "使用合成记录且不调用模型，验证即使强制保存也会拒绝外部写入、任务本身仍可保存，以及阅读器能区分外部更改与损坏版本。"
+          ]
+        }
       ]
     },
     {
-      "version": "0.25.0", "date": "2026-10-12", "author": "GoodMorning agent",
-      "title_en": "Native AI titles and a roomier chat", "title_zh": "原生 AI 标题与更宽敞的聊天界面",
+      "version": "0.29.0",
+      "date": "2026-10-12",
+      "author": "GoodMorning agent",
+      "title_en": "Clear commitments and steady project progress",
+      "title_zh": "明确日程承诺与持续项目推进",
       "changes": [
-        {"category": "Fixed", "en": [
-          "Restore native automatic AI titles by creating chat sessions without a custom mode title, which previously disabled the engine's generator. Browser workflows no longer overwrite these summaries with raw-message titles.",
-          "Hide native timestamp placeholders and briefly refresh history while a new AI title is pending. History reads never generate titles or change messages."
-        ], "zh": [
-          "创建聊天会话时不再指定模式标题，恢复此前被覆盖标题禁用的引擎原生 AI 自动命名；浏览器工作流不再用原始消息标题覆盖摘要。",
-          "隐藏原生时间戳占位标题，并在新 AI 标题生成期间短暂刷新历史列表；读取历史不会生成标题或修改消息。"
-        ]},
-        {"category": "Changed", "en": [
-          "Expand the folded mode guide with detailed capabilities, approval boundaries and an invitation to try more. Remove the separate mode caption and composer disclaimer.",
-          "Put an accessible paperclip button at the far left inside the message composer, preserving file uploads and drag-and-drop while saving vertical space.",
-          "Remove added punctuation after default and custom secretary names. Make desktop chat fill the available screen, with avatar and chat aligned 16 px from the screen top at the page bottom; long conversation history scrolls independently."
-        ], "zh": [
-          "折叠的模式说明增加详细能力介绍、授权边界和鼓励尝试的提示；移除独立模式说明及输入框下方的说明文字。",
-          "将可无障碍操作的回形针按钮放到消息输入框最左侧，保留附件上传与拖放功能，节省纵向空间。",
-          "默认与自定义秘书姓名不再附加句号；桌面聊天区域利用屏幕高度，页面滚至底部时头像与聊天顶部距屏幕顶端 16 像素，较长的历史列表独立滚动。"
-        ]},
-        {"category": "Tests", "en": [
-          "Reproduce the native-title failure and fix using the actual deployed engine version and a loopback synthetic provider, with zero external model calls. Check delayed title arrival, desktop/short-screen alignment, uploads and all themes in both website languages."
-        ], "zh": [
-          "使用实际部署的引擎版本和本地模拟模型服务复现原生标题故障并验证修复，不调用外部模型；验证标题延迟更新、桌面与矮屏对齐、附件上传及双语各主题。"
-        ]}
+        {
+          "category": "Changed",
+          "en": [
+            "Use Schedule for appointments and important day commitments, including urgent project work. Rename Must-do and Nice-to-do to Project steps and Optional project steps for ongoing progress without repeating scheduled actions.",
+            "Keep Reminders and Notes for background nudges and unresolved questions; omit empty project sections instead of inventing tasks."
+          ],
+          "zh": [
+            "日程用于预约事项和当天的重要承诺，包括紧急项目工作；必须完成和可选任务改为项目推进和可选项目推进，用于持续进展，不重复已安排的行动。",
+            "提醒和备注用于背景提示与尚未解决的问题；没有实际任务时省略项目章节，不凭空添加任务。"
+          ]
+        },
+        {
+          "category": "Fixed",
+          "en": [
+            "Require the briefing agent to reconcile confirmed corrections before publication and show only current task wording, without deleting checklist history or changing completions.",
+            "Reject repeated task cards with identical or whitespace-equivalent titles before new publications and saves. Keep distinct dated recurring occurrences and historical briefings readable; do not guess semantic equivalence."
+          ],
+          "zh": [
+            "简报代理须在发布前核对已确认的更正，只显示任务的当前表述，不删除清单历史或改变完成状态。",
+            "新发布和保存前拒绝标题相同或仅空白不同的重复任务卡片；保留不同日期的重复性工作和历史简报的可读性，不猜测语义等价。"
+          ]
+        },
+        {
+          "category": "Tests",
+          "en": [
+            "Verify duplicate rejection before writes, section ownership, bilingual headings, recurring dates and regeneration with preserved task history using synthetic records and no model calls."
+          ],
+          "zh": [
+            "使用合成记录且不调用模型，验证写入前拒绝重复、章节归属、双语标题、重复性工作的日期，以及保留任务历史的重新生成。"
+          ]
+        }
       ]
     },
     {
-      "version": "0.24.0", "date": "2026-10-12", "author": "GoodMorning agent",
-      "title_en": "A clearer, compact secretary", "title_zh": "更清晰紧凑的秘书界面",
+      "version": "0.28.0",
+      "date": "2026-10-12",
+      "author": "GoodMorning agent",
+      "title_en": "Interrupt the secretary while it works",
+      "title_zh": "忙碌时也可打断秘书",
       "changes": [
-        {"category": "Added", "en": [
-          "Read AI-authored OpenChamber summary titles for previous conversations instead of clipped first messages, with bounded metadata reads and no extra model calls.",
-          "Move the mode guide into a circled question-mark button beside the four mode choices. Click again or press Escape to close it."
-        ], "zh": [
-          "历史对话使用 OpenChamber 中由 AI 撰写的摘要标题，不再截取首条消息；仅进行有界的元数据读取，不额外调用模型。",
-          "模式说明收纳到四个模式选项旁的圆形问号按钮中，再次点击或按 Esc 即可关闭。"
-        ]},
-        {"category": "Fixed", "en": [
-          "Hide the welcome panel immediately on Send so sending, queued and working status is visible before the first secretary message. Restore the welcome panel after a rejected first send without losing the draft.",
-          "Center the welcome heading and description independently of the reply-avatar gutter, and remove the duplicate avatar/name banner above the mode buttons to reclaim vertical space.",
-          "Expand Previous conversations by default and remember its open/closed choice on this browser, without storing conversation text or IDs.",
-          "Give the avatar-upload format and size note an opaque themed background so it remains readable over page content."
-        ], "zh": [
-          "点击发送后立即隐藏欢迎面板，在秘书首条消息出现前显示发送中、排队或工作状态。首次发送被拒绝时恢复欢迎面板，同时保留草稿。",
-          "欢迎标题与说明不再受回复头像留白影响，保持居中；移除模式按钮上方重复的头像与姓名栏，释放纵向空间。",
-          "历史对话默认展开，并在当前浏览器记住展开或收起状态，不保存对话文本或标识。",
-          "头像上传的格式和大小说明使用不透明的主题背景，在页面内容上方也保持清晰可读。"
-        ]},
-        {"category": "Tests", "en": [
-          "Check immediate feedback, centering, compact controls, persistent history preference, isolated title reads and avatar-note contrast across desktop/mobile sizes and all themes, without model calls."
-        ], "zh": [
-          "不调用模型，验证桌面与移动端各主题的即时反馈、居中布局、紧凑控件、历史展开偏好保存、隔离的标题读取及头像说明对比度。"
-        ]}
+        {
+          "category": "Added",
+          "en": [
+            "Keep the message box and attachments enabled while the secretary is working, so a follow-up message interrupts the current run.",
+            "Reuse the working conversation's reservation for its own interrupt; other conversations still wait in the bounded queue."
+          ],
+          "zh": [
+            "秘书忙碌时消息框和附件保持可用，后续消息可直接打断当前任务。",
+            "同一对话的中断沿用当前预留名额，其他对话仍在有限队列中等待。"
+          ]
+        },
+        {
+          "category": "Tests",
+          "en": [
+            "Verify follow-up sends while running, per-message receipts, same-conversation fast path versus queued other conversations, and blocked free text while a question is pending without model calls."
+          ],
+          "zh": [
+            "不调用模型，验证忙碌时可追加发送、每条消息独立回执、同对话快速打断与其他对话排队的区别，以及待答问题时普通文本仍被阻止。"
+          ]
+        }
       ]
     },
     {
-      "version": "0.23.0", "date": "2026-10-12", "author": "GoodMorning agent",
-      "title_en": "Readable conversations and fresh briefings", "title_zh": "清晰的对话与重新生成简报",
+      "version": "0.27.0",
+      "date": "2026-10-12",
+      "author": "GoodMorning agent",
+      "title_en": "Paste images into your conversations",
+      "title_zh": "在对话中粘贴图片",
       "changes": [
-        {"category": "Added", "en": [
-          "Render assistant Markdown with readable headings, lists, links, code, quotes and tables in Classic Day, Warm Day and Classic Night. User wording and saved question exchanges remain literal.",
-          "Regenerate today's briefing after confirmation, preserving the previous edition until the replacement is saved, existing tasks, completions and saved feedback. Active sessions and pending inputs must finish first."
-        ], "zh": [
-          "助手回复支持 Markdown 标题、列表、链接、代码、引用和表格，适配经典日间、暖色日间及经典夜间主题。用户原文与已保存的提问记录保持原样。",
-          "确认后可重新生成今日简报。新简报保存前保留旧版，并保留现有任务、完成状态和已保存的反馈；须先结束活动会话并处理待回复的问题。"
-        ]},
-        {"category": "Changed", "en": [
-          "Encourage Markdown only where it improves clarity. Morning and Evening project priorities distinguish necessary work from optional improvements only when actual work remains, without inventing deadlines or rescheduling unfinished tasks.",
-          "Smoothly highlight the message box while the secretary is working, then return to its quiet border. Respect reduced motion and preserve the layout."
-        ], "zh": [
-          "仅在有助于理解时鼓励使用 Markdown。早晚简报根据实际待办工作区分项目必做事项与可选改进，不虚构期限或自动调整未完成任务的日期。",
-          "秘书工作时平滑高亮消息区域，结束后恢复低调边框；遵循减少动态效果偏好，保持布局不变。"
-        ]},
-        {"category": "Fixed", "en": [
-          "Remove the send button's contrasting border for a clean rounded edge while retaining keyboard focus visibility."
-        ], "zh": [
-          "移除发送按钮的对比色边框，使圆角边缘更平滑，并保留清晰的键盘焦点提示。"
-        ]},
-        {"category": "Security", "en": [
-          "Build assistant Markdown from an allowlisted DOM, reject unsafe links, and show image alternative text without fetching private or remote URLs."
-        ], "zh": [
-          "使用允许列表中的 DOM 元素渲染助手 Markdown，拒绝不安全链接，仅显示图片替代文本，不请求私人或远程地址。"
-        ]},
-        {"category": "Tests", "en": [
-          "Verify theme contrast, desktop/mobile layouts, activity transitions, literal unsafe markup, regeneration recovery and record preservation using synthetic data without model calls."
-        ], "zh": [
-          "使用合成数据且不调用模型，验证主题对比度、桌面与移动端布局、活动状态过渡、不安全标记的原样显示、重新生成恢复及记录保护。"
-        ]}
+        {
+          "category": "Added",
+          "en": [
+            "Paste clipboard images into the composer, preview them before sending, and click draft or saved previews to enlarge them. Close with Escape, the close button or the surrounding backdrop.",
+            "Show saved PNG, JPEG, GIF and WebP attachments as small inline images, including older uploads, without rewriting saved records."
+          ],
+          "zh": [
+            "在输入框中粘贴剪贴板图片，发送前预览，并点击草稿或已保存的图片预览将其放大；可通过 Esc、关闭按钮或外围背景关闭。",
+            "PNG、JPEG、GIF 和 WebP 附件以小幅行内图片显示，包括此前上传的图片，不改写已保存的记录。"
+          ]
+        },
+        {
+          "category": "Changed",
+          "en": [
+            "Keep sent images natural and uncluttered, without a preview border or filename/size line. Other file attachments retain their labels."
+          ],
+          "zh": [
+            "已发送的图片自然地显示在消息中，不再附加预览边框或文件名与大小一行；其他文件附件保留标签。"
+          ]
+        },
+        {
+          "category": "Security",
+          "en": [
+            "Serve image bytes only through authenticated, account-scoped endpoints with private no-store responses and content-based image types; active SVG and HTML files are not served as images."
+          ],
+          "zh": [
+            "仅通过已登录且按账号隔离的接口提供图片，禁止持久缓存，并按文件内容识别图片类型；SVG 和 HTML 文件不作为图片提供。"
+          ]
+        },
+        {
+          "category": "Tests",
+          "en": [
+            "Verify real clipboard paste, inline layout, enlargement, keyboard focus, draft restoration, refresh, preview cleanup and protected image reads using synthetic files without model calls."
+          ],
+          "zh": [
+            "使用合成文件且不调用模型，验证真实剪贴板粘贴、行内布局、图片放大、键盘焦点、草稿恢复、刷新、预览清理及受保护的图片读取。"
+          ]
+        }
       ]
     },
     {
-      "version": "0.22.3", "date": "2026-10-12", "author": "GoodMorning agent",
-      "title_en": "Server defaults for new accounts", "title_zh": "新账号使用服务器默认配置",
+      "version": "0.26.0",
+      "date": "2026-10-12",
+      "author": "GoodMorning agent",
+      "title_en": "Roomier mobile chat and quick section jumps",
+      "title_zh": "更宽敞的移动聊天与便捷章节跳转",
       "changes": [
-        {"category": "Changed", "en": ["New hosted accounts inherit the server-default model and use the encrypted server-managed AI provider configuration."], "zh": ["新托管账号继承服务器默认模型，并使用加密保存的服务器统一 AI 服务配置。"]},
-        {"category": "Security", "en": ["Refuse account creation when server defaults are missing, unsafe or invalid, without exposing provider credentials."], "zh": ["服务器默认配置缺失、不安全或无效时拒绝创建账号，不暴露 AI 服务凭据。"]},
-        {"category": "Tests", "en": ["Verify default inheritance, missing-policy refusal, private file permissions and provider consistency with synthetic data."], "zh": ["使用合成数据验证默认配置继承、配置缺失时的拒绝行为、私人文件权限和服务提供方一致性。"]}
+        {
+          "category": "Added",
+          "en": [
+            "Grow the message composer upward while typing, wrapping or pasting, up to five visible lines; longer drafts scroll internally. Shrink on deletion or a successful send and resize restored drafts without losing text.",
+            "Add a mobile Sections button with a touch-friendly bottom-sheet picker, current-section indication, native anchor navigation and close/Escape/outside-tap dismissal. Keep desktop navigation and the no-JavaScript anchor list."
+          ],
+          "zh": [
+            "输入、自动换行或粘贴时，消息输入框向上扩展，最多同时显示五行，较长草稿在框内滚动；删除或成功发送后缩小，恢复草稿时重新调整高度且保留原文。",
+            "移动端新增章节按钮和适合触控的底部章节选择面板，显示当前章节，使用原生锚点跳转，可通过关闭按钮、Esc 或点按外部关闭；保留桌面导航及无 JavaScript 的锚点列表。"
+          ]
+        },
+        {
+          "category": "Changed",
+          "en": [
+            "Let mobile chat fill the dynamic browser viewport and align its top with the browser at the page bottom, instead of leaving a half-height message area.",
+            "Move New conversation below Previous conversations on desktop and mobile."
+          ],
+          "zh": [
+            "移动端聊天区域填满浏览器动态可视高度，页面滚到底部时顶部与浏览器对齐，不再仅提供半屏消息区域。",
+            "桌面和移动端的新对话按钮移至历史对话下方。"
+          ]
+        },
+        {
+          "category": "Fixed",
+          "en": [
+            "Handle unreadable API responses with a translated draft-safe connection notice instead of exposing JSON.parse errors. Retry only the read-only history listing once, clear its notice after recovery, and never automatically replay sends or queue reads."
+          ],
+          "zh": [
+            "API 返回无法读取的内容时显示已保留草稿的本地化连接提示，不再暴露 JSON.parse 错误；仅对只读历史列表重试一次，恢复后清除提示，绝不自动重发消息或重复读取队列。"
+          ]
+        },
+        {
+          "category": "Tests",
+          "en": [
+            "Check five-line growth, viewport alignment, draft restoration, touch section jumps, dynamic sections, themes/languages, and synthetic malformed responses without model calls."
+          ],
+          "zh": [
+            "不调用模型，验证五行扩展、视口对齐、草稿恢复、触控章节跳转、动态章节、多主题双语，以及模拟的异常响应。"
+          ]
+        }
       ]
     },
     {
-      "version": "0.22.2", "date": "2026-10-12", "author": "GoodMorning agent",
-      "title_en": "Safer account provisioning", "title_zh": "更可靠的账号配置",
+      "version": "0.25.0",
+      "date": "2026-10-12",
+      "author": "GoodMorning agent",
+      "title_en": "Native AI titles and a roomier chat",
+      "title_zh": "原生 AI 标题与更宽敞的聊天界面",
       "changes": [
-        {"category": "Fixed", "en": [
-          "Show a readable setup-pending page for accounts without a secretary backend, with language, retry and account controls.",
-          "Keep incomplete accounts out of the global request queue and show readable pages during backend outages."
-        ], "zh": [
-          "未连接秘书服务的账号显示清晰的配置待完成页面，保留语言、重试和账号控件。",
-          "未完成配置的账号不会占用全局请求队列，服务暂时不可用时显示清晰的提示页面。"
-        ]},
-        {"category": "Changed", "en": [
-          "Add an SSH-only backend readiness check and report incomplete provisioning after account creation or enabling."
-        ], "zh": [
-          "新增仅限 SSH 的服务就绪检查，创建或启用账号后明确报告未完成的配置。"
-        ]},
-        {"category": "Tests", "en": [
-          "Cover missing and malformed backends, localized error pages, account controls, queue safety and secret-free diagnostics with synthetic accounts."
-        ], "zh": [
-          "使用合成账号验证服务缺失及配置错误、多语言提示页面、账号控件、队列安全和不泄露凭据的诊断。"
-        ]}
+        {
+          "category": "Fixed",
+          "en": [
+            "Restore native automatic AI titles by creating chat sessions without a custom mode title, which previously disabled the engine's generator. Browser workflows no longer overwrite these summaries with raw-message titles.",
+            "Hide native timestamp placeholders and briefly refresh history while a new AI title is pending. History reads never generate titles or change messages."
+          ],
+          "zh": [
+            "创建聊天会话时不再指定模式标题，恢复此前被覆盖标题禁用的引擎原生 AI 自动命名；浏览器工作流不再用原始消息标题覆盖摘要。",
+            "隐藏原生时间戳占位标题，并在新 AI 标题生成期间短暂刷新历史列表；读取历史不会生成标题或修改消息。"
+          ]
+        },
+        {
+          "category": "Changed",
+          "en": [
+            "Expand the folded mode guide with detailed capabilities, approval boundaries and an invitation to try more. Remove the separate mode caption and composer disclaimer.",
+            "Put an accessible paperclip button at the far left inside the message composer, preserving file uploads and drag-and-drop while saving vertical space.",
+            "Remove added punctuation after default and custom secretary names. Make desktop chat fill the available screen, with avatar and chat aligned 16 px from the screen top at the page bottom; long conversation history scrolls independently."
+          ],
+          "zh": [
+            "折叠的模式说明增加详细能力介绍、授权边界和鼓励尝试的提示；移除独立模式说明及输入框下方的说明文字。",
+            "将可无障碍操作的回形针按钮放到消息输入框最左侧，保留附件上传与拖放功能，节省纵向空间。",
+            "默认与自定义秘书姓名不再附加句号；桌面聊天区域利用屏幕高度，页面滚至底部时头像与聊天顶部距屏幕顶端 16 像素，较长的历史列表独立滚动。"
+          ]
+        },
+        {
+          "category": "Tests",
+          "en": [
+            "Reproduce the native-title failure and fix using the actual deployed engine version and a loopback synthetic provider, with zero external model calls. Check delayed title arrival, desktop/short-screen alignment, uploads and all themes in both website languages."
+          ],
+          "zh": [
+            "使用实际部署的引擎版本和本地模拟模型服务复现原生标题故障并验证修复，不调用外部模型；验证标题延迟更新、桌面与矮屏对齐、附件上传及双语各主题。"
+          ]
+        }
       ]
     },
     {
-      "version": "0.22.1", "date": "2026-10-12", "author": "GoodMorning agent",
-      "title_en": "Polished controls and public documentation", "title_zh": "优化控件与公开文档",
+      "version": "0.24.0",
+      "date": "2026-10-12",
+      "author": "GoodMorning agent",
+      "title_en": "A clearer, compact secretary",
+      "title_zh": "更清晰紧凑的秘书界面",
       "changes": [
-        {"category": "Fixed", "en": [
-          "Keep patch-note actions at the bottom right, with Update last and feedback above the buttons.",
-          "Highlight the message composer's existing rounded border with a smooth, slightly thicker focus state, without moving content. Reduced-motion preferences remain respected.",
-          "Place the activity window and its minimized button at the bottom left on the Secretary page, while keeping them at the bottom right elsewhere."
-        ], "zh": [
-          "更新日志的操作按钮固定在右下角，更新按钮位于最右侧，反馈信息显示在按钮上方。",
-          "消息输入栏聚焦时平滑加粗并高亮原有圆角边框，不移动内容，并遵循减少动态效果偏好。",
-          "秘书页面的活动窗口及其收起后的按钮改为左下角，其他页面仍保留在右下角。"
-        ]},
-        {"category": "Documentation", "en": [
-          "Refresh the README with fictional demo screenshots and clearer getting-started links; record the pre-publication disclosure review.",
-          "Add the MIT license and retain it in copied skills and public deployment archives, alongside existing third-party notices."
-        ], "zh": [
-          "更新 README，加入虚构演示数据截图和更清晰的入门链接，并记录公开发布前的信息披露检查。",
-          "新增 MIT 许可证，并在技能副本与公开部署归档中保留该许可证及现有第三方许可证声明。"
-        ]},
-        {"category": "Security", "en": [
-          "Ignore environment-file variants and common private-key bundles to reduce accidental additions to Git."
-        ], "zh": [
-          "忽略环境文件变体及常见私钥文件，降低意外加入 Git 的风险。"
-        ]},
-        {"category": "Tests", "en": [
-          "Check rounded focus, animation, keyboard access, popup alignment and page-specific activity placement on desktop and mobile using synthetic records."
-        ], "zh": [
-          "使用合成数据验证桌面和移动端的圆角聚焦、动画、键盘操作、弹窗对齐及各页面的活动窗口位置。"
-        ]}
+        {
+          "category": "Added",
+          "en": [
+            "Read AI-authored OpenChamber summary titles for previous conversations instead of clipped first messages, with bounded metadata reads and no extra model calls.",
+            "Move the mode guide into a circled question-mark button beside the four mode choices. Click again or press Escape to close it."
+          ],
+          "zh": [
+            "历史对话使用 OpenChamber 中由 AI 撰写的摘要标题，不再截取首条消息；仅进行有界的元数据读取，不额外调用模型。",
+            "模式说明收纳到四个模式选项旁的圆形问号按钮中，再次点击或按 Esc 即可关闭。"
+          ]
+        },
+        {
+          "category": "Fixed",
+          "en": [
+            "Hide the welcome panel immediately on Send so sending, queued and working status is visible before the first secretary message. Restore the welcome panel after a rejected first send without losing the draft.",
+            "Center the welcome heading and description independently of the reply-avatar gutter, and remove the duplicate avatar/name banner above the mode buttons to reclaim vertical space.",
+            "Expand Previous conversations by default and remember its open/closed choice on this browser, without storing conversation text or IDs.",
+            "Give the avatar-upload format and size note an opaque themed background so it remains readable over page content."
+          ],
+          "zh": [
+            "点击发送后立即隐藏欢迎面板，在秘书首条消息出现前显示发送中、排队或工作状态。首次发送被拒绝时恢复欢迎面板，同时保留草稿。",
+            "欢迎标题与说明不再受回复头像留白影响，保持居中；移除模式按钮上方重复的头像与姓名栏，释放纵向空间。",
+            "历史对话默认展开，并在当前浏览器记住展开或收起状态，不保存对话文本或标识。",
+            "头像上传的格式和大小说明使用不透明的主题背景，在页面内容上方也保持清晰可读。"
+          ]
+        },
+        {
+          "category": "Tests",
+          "en": [
+            "Check immediate feedback, centering, compact controls, persistent history preference, isolated title reads and avatar-note contrast across desktop/mobile sizes and all themes, without model calls."
+          ],
+          "zh": [
+            "不调用模型，验证桌面与移动端各主题的即时反馈、居中布局、紧凑控件、历史展开偏好保存、隔离的标题读取及头像说明对比度。"
+          ]
+        }
       ]
     },
     {
-      "version": "0.22.0", "date": "2026-10-12", "author": "GoodMorning agent",
-      "title_en": "Personal desks and non-blocking questions", "title_zh": "个性化书桌与不阻塞的提问",
+      "version": "0.23.0",
+      "date": "2026-10-12",
+      "author": "GoodMorning agent",
+      "title_en": "Readable conversations and fresh briefings",
+      "title_zh": "清晰的对话与重新生成简报",
       "changes": [
-        {"category": "Added", "en": [
-          "Choose Classic or Warm for Day, with a separate Classic Night selector. Whole-site palettes are saved per account across devices.",
-          "Upload a private PNG, JPEG or WebP avatar up to 5 MB. Photo metadata is removed; the portrait appears in chat and briefings."
-        ], "zh": [
-          "日间可选择经典或暖色配色，夜间提供独立的经典配色选择器。全站配色按账号保存，并在各设备间同步。",
-          "可上传最大 5 MB 的私人 PNG、JPEG 或 WebP 头像。上传时移除照片元数据，聊天和简报共用此头像。"
-        ]},
-        {"category": "Changed", "en": [
-          "Give chat an avatar-and-name header, softer bubbles, larger portraits and a compact composer.",
-          "Use a bordered, fixed-height conversation box. New replies preserve your reading position; Jump to latest returns to recent messages.",
-          "Replace the activity bar with a minimizable Little desk window. Writing animations stop while waiting and respect reduced motion; mobile starts compact.",
-          "Align Settings controls and separate Day/Night appearance. Close with its button, Escape or an outside click.",
-          "Bring Morning, Evening and Secretary onto gm.love765.me with one login; retire the separate gn and sec hosts."
-        ], "zh": [
-          "聊天新增头像与姓名标题、更柔和的气泡、更大的回复头像及紧凑输入栏。",
-          "对话使用边框清晰、固定高度的滚动窗口。新回复保留阅读位置，可通过“跳至最新消息”返回最新内容。",
-          "活动提示条改为可收起的小书桌悬浮窗口。等待回答时停止书写动画，遵循减少动态效果偏好，移动端默认收起。",
-          "设置控件对齐，日间和夜间配色归入独立外观区域。可通过关闭按钮、Esc 或点击面板外部关闭。",
-          "早报、晚报和秘书统一到 gm.love765.me，共用一次登录；停用独立的 gn 和 sec 域名。"
-        ]},
-        {"category": "Fixed", "en": [
-          "Save accepted question exchanges in conversation history, preserving their order after refresh and restart. Failed answers are not shown as accepted.",
-          "Waiting questions and permissions no longer block other users. Forms survive refresh; encrypted queued answers resume the original session without expiring or replaying prompts.",
-          "Restore existing briefing forms instead of queuing behind their own job, and report expired generation requests instead of showing an endless queue."
-        ], "zh": [
-          "将已接受的提问与回答保存到对话历史，刷新和重启后保留原有顺序。失败的回答不会显示为已接受。",
-          "等待问题或权限回答时不再阻塞其他用户。刷新后保留表单；加密排队的回答不会过期，并返回原会话继续，不重复发送提示。",
-          "恢复已有简报的表单，不再排在自己的任务后面；生成请求过期时明确提示，不再无限显示排队。"
-        ]},
-        {"category": "Tests", "en": [
-          "Cover isolation, record preservation, long deliberation, queued-answer recovery, avatars, palettes, history and desktop/mobile layouts with synthetic tests and no model calls."
-        ], "zh": [
-          "使用合成数据、不调用模型，验证隔离、记录保护、长时间考虑、排队回答恢复、头像、配色、历史及桌面和移动端布局。"
-        ]},
-        {"category": "Notes", "en": [
-          "Previously discarded question exchanges are not reconstructed."
-        ], "zh": [
-          "此前未保存的提问与回答不会被重新恢复。"
-        ]}
+        {
+          "category": "Added",
+          "en": [
+            "Render assistant Markdown with readable headings, lists, links, code, quotes and tables in Classic Day, Warm Day and Classic Night. User wording and saved question exchanges remain literal.",
+            "Regenerate today's briefing after confirmation, preserving the previous edition until the replacement is saved, existing tasks, completions and saved feedback. Active sessions and pending inputs must finish first."
+          ],
+          "zh": [
+            "助手回复支持 Markdown 标题、列表、链接、代码、引用和表格，适配经典日间、暖色日间及经典夜间主题。用户原文与已保存的提问记录保持原样。",
+            "确认后可重新生成今日简报。新简报保存前保留旧版，并保留现有任务、完成状态和已保存的反馈；须先结束活动会话并处理待回复的问题。"
+          ]
+        },
+        {
+          "category": "Changed",
+          "en": [
+            "Encourage Markdown only where it improves clarity. Morning and Evening project priorities distinguish necessary work from optional improvements only when actual work remains, without inventing deadlines or rescheduling unfinished tasks.",
+            "Smoothly highlight the message box while the secretary is working, then return to its quiet border. Respect reduced motion and preserve the layout."
+          ],
+          "zh": [
+            "仅在有助于理解时鼓励使用 Markdown。早晚简报根据实际待办工作区分项目必做事项与可选改进，不虚构期限或自动调整未完成任务的日期。",
+            "秘书工作时平滑高亮消息区域，结束后恢复低调边框；遵循减少动态效果偏好，保持布局不变。"
+          ]
+        },
+        {
+          "category": "Fixed",
+          "en": [
+            "Remove the send button's contrasting border for a clean rounded edge while retaining keyboard focus visibility."
+          ],
+          "zh": [
+            "移除发送按钮的对比色边框，使圆角边缘更平滑，并保留清晰的键盘焦点提示。"
+          ]
+        },
+        {
+          "category": "Security",
+          "en": [
+            "Build assistant Markdown from an allowlisted DOM, reject unsafe links, and show image alternative text without fetching private or remote URLs."
+          ],
+          "zh": [
+            "使用允许列表中的 DOM 元素渲染助手 Markdown，拒绝不安全链接，仅显示图片替代文本，不请求私人或远程地址。"
+          ]
+        },
+        {
+          "category": "Tests",
+          "en": [
+            "Verify theme contrast, desktop/mobile layouts, activity transitions, literal unsafe markup, regeneration recovery and record preservation using synthetic data without model calls."
+          ],
+          "zh": [
+            "使用合成数据且不调用模型，验证主题对比度、桌面与移动端布局、活动状态过渡、不安全标记的原样显示、重新生成恢复及记录保护。"
+          ]
+        }
       ]
     },
     {
-      "version": "0.21.0", "date": "2026-10-12", "author": "GoodMorning agent",
-      "title_en": "Compact utility menus", "title_zh": "紧凑型工具菜单",
+      "version": "0.22.3",
+      "date": "2026-10-12",
+      "author": "GoodMorning agent",
+      "title_en": "Server defaults for new accounts",
+      "title_zh": "新账号使用服务器默认配置",
       "changes": [
-        {"category": "Changed", "en": [
-          "Replace the stacked language and model selectors with two compact dropdown menus in the top-right corner: a preferences menu for website language and model, and an account menu for password changes and sign-out.",
-          "Show the website update status as an Update pill in a fixed slot at the end of the row, becoming a quiet Up to date pill when the page is current, instead of a floating button.",
-          "Open only one menu at a time; on narrow screens the panels become full-width dropdown sheets."
-        ], "zh": [
-          "将上下堆叠的语言和模型选择器替换为右上角的两个紧凑下拉菜单：偏好设置菜单用于切换网站语言和模型，账号菜单用于修改密码和退出登录。",
-          "网站更新状态改为固定在该行末尾的 pill 按钮：有更新时显示蓝色“更新”，已是最新时显示低调的“已是最新”，不再使用悬浮按钮。",
-          "同一时间只展开一个菜单；在窄屏幕上，菜单面板变为全宽下拉面板。"
-        ]},
-        {"category": "Tests", "en": [
-          "Cover the menu layout, language and model switching, translations and no-JavaScript forms at desktop and mobile widths with the full unit suite and scripted browser checks."
-        ], "zh": [
-          "通过完整单元测试和脚本化浏览器检查，覆盖桌面和移动端宽度的菜单布局、语言与模型切换、翻译及无 JavaScript 表单。"
-        ]}
+        {
+          "category": "Changed",
+          "en": [
+            "New hosted accounts inherit the server-default model and use the encrypted server-managed AI provider configuration."
+          ],
+          "zh": [
+            "新托管账号继承服务器默认模型，并使用加密保存的服务器统一 AI 服务配置。"
+          ]
+        },
+        {
+          "category": "Security",
+          "en": [
+            "Refuse account creation when server defaults are missing, unsafe or invalid, without exposing provider credentials."
+          ],
+          "zh": [
+            "服务器默认配置缺失、不安全或无效时拒绝创建账号，不暴露 AI 服务凭据。"
+          ]
+        },
+        {
+          "category": "Tests",
+          "en": [
+            "Verify default inheritance, missing-policy refusal, private file permissions and provider consistency with synthetic data."
+          ],
+          "zh": [
+            "使用合成数据验证默认配置继承、配置缺失时的拒绝行为、私人文件权限和服务提供方一致性。"
+          ]
+        }
       ]
     },
     {
-      "version": "0.20.0", "date": "2026-10-12", "author": "GoodMorning agent",
-      "title_en": "Chat attachments and shared activity reminders", "title_zh": "聊天附件与跨页面任务提醒",
+      "version": "0.22.2",
+      "date": "2026-10-12",
+      "author": "GoodMorning agent",
+      "title_en": "Safer account provisioning",
+      "title_zh": "更可靠的账号配置",
       "changes": [
-        {"category": "Added", "en": [
-          "Choose files with the Attach files button on desktop and phone browsers, or drag files into the message box on desktop.",
-          "Attach files in all four secretary modes and follow-up replies using OpenChamber's native file-attachment format, with a 50 MB limit per file.",
-          "Show filenames and sizes, remove attachments before sending, and keep unsent files when switching modes. File-only messages are supported.",
-          "Show your ongoing secretary or briefing activity across Morning, Night and Secretary tabs, with working, waiting-for-answer and queued states and a link to the original page. Reminders disappear when work finishes."
-        ], "zh": [
-          "桌面和手机浏览器均可通过“添加附件”按钮选择文件；桌面浏览器还可将文件拖入消息框。",
-          "四种秘书模式和后续回复均支持附件，使用 OpenChamber 的原生文件附件格式，每个文件最大 50 MB。",
-          "显示文件名和大小，发送前可移除附件，切换模式时保留未发送的文件，也可仅发送附件而不输入文字。",
-          "在早报、晚报和秘书的各个标签页显示自己正在进行的任务，区分处理中、等待回答和排队状态，并提供原页面链接；任务结束后提醒自动消失。"
-        ]},
-        {"category": "Security", "en": [
-          "Stream uploads into the owning account's private runtime with authentication, origin and CSRF checks; browsers cannot select server filesystem paths."
-        ], "zh": [
-          "通过流式上传将文件保存到所属账号的私有运行目录，并检查登录、请求来源和 CSRF；浏览器不能指定服务器文件路径。"
-        ]},
-        {"category": "Tests", "en": [
-          "Verify exact-limit uploads, oversized-file rejection, account isolation, attachment history and desktop/mobile interactions with synthetic files and no model calls.",
-          "Wait for briefing test workers before deleting their temporary runtimes, preventing a cleanup race."
-        ], "zh": [
-          "使用合成文件验证最大容量上传、超限拒绝、账号隔离、附件历史及桌面和移动端交互，不调用模型。",
-          "简报测试会等待后台线程结束后再删除临时运行目录，避免清理过程中的竞争错误。"
-        ]},
-        {"category": "Notes", "en": [
-          "Deployers must apply the updated NGINX upload ceiling. Ordinary JSON requests retain their existing size limit; model file-format support still applies."
-        ], "zh": [
-          "部署时需应用更新后的 NGINX 上传容量限制。普通 JSON 请求保持原有大小限制，文件格式仍需模型支持。"
-        ]}
+        {
+          "category": "Fixed",
+          "en": [
+            "Show a readable setup-pending page for accounts without a secretary backend, with language, retry and account controls.",
+            "Keep incomplete accounts out of the global request queue and show readable pages during backend outages."
+          ],
+          "zh": [
+            "未连接秘书服务的账号显示清晰的配置待完成页面，保留语言、重试和账号控件。",
+            "未完成配置的账号不会占用全局请求队列，服务暂时不可用时显示清晰的提示页面。"
+          ]
+        },
+        {
+          "category": "Changed",
+          "en": [
+            "Add an SSH-only backend readiness check and report incomplete provisioning after account creation or enabling."
+          ],
+          "zh": [
+            "新增仅限 SSH 的服务就绪检查，创建或启用账号后明确报告未完成的配置。"
+          ]
+        },
+        {
+          "category": "Tests",
+          "en": [
+            "Cover missing and malformed backends, localized error pages, account controls, queue safety and secret-free diagnostics with synthetic accounts."
+          ],
+          "zh": [
+            "使用合成账号验证服务缺失及配置错误、多语言提示页面、账号控件、队列安全和不泄露凭据的诊断。"
+          ]
+        }
       ]
     },
     {
-      "version": "0.19.1", "date": "2026-10-12", "author": "GoodMorning agent",
-      "title_en": "Clearer tasks and flexible schedules", "title_zh": "清晰的任务标记与灵活安排",
-      "changes": [{"category": "Fixed", "en": [
-        "Replace the blurry text tick in task cards with a centered vector checkmark on a filled accent background.",
-        "Show untimed work at the end of Morning's Schedule and Night's Tomorrow, instead of burying dated plans in reminders or calling a day with planned work free.",
-        "Keep today's flexible tasks in the completion checklist without duplicates or invented priorities; do not assign times, roll unfinished work forward, or rewrite saved briefings."
-      ], "zh": [
-        "将任务卡片中模糊的文本对勾替换为居中显示的矢量勾选标记，并使用强调色填充背景。",
-        "在早报“日程”和晚报“明天”的末尾显示没有固定时间的灵活安排，不再把已定日期的计划挤进备注，或把有任务的一天说成空闲。",
-        "今天的灵活任务纳入完成清单，不重复记录或擅定优先级；不虚构时间、不自动顺延未完成任务，也不改写已保存的简报。"
-      ]}]
-    },
-    {
-      "version": "0.19.0", "date": "2026-10-12", "author": "GoodMorning agent",
-      "title_en": "A complete patch-note history", "title_zh": "完整的更新日志",
+      "version": "0.22.1",
+      "date": "2026-10-12",
+      "author": "GoodMorning agent",
+      "title_en": "Polished controls and public documentation",
+      "title_zh": "优化控件与公开文档",
       "changes": [
-        {"category": "Added", "en": [
-          "Browse past versions in the patch-note sidebar, with categorized bullet points in English and Simplified Chinese.",
-          "Reopen update details with a blue upward arrow, or view history with a checkmark when your page is current.",
-          "Share patch-note dismissals across the account's devices.",
-          "Use readable beta versions (0.minor.patch), with notes reconstructed for every past public Git commit."
-        ], "zh": [
-          "通过更新日志侧栏浏览历史版本，使用中英文分类标题和要点列表。",
-          "网站有新版本时，通过蓝色向上箭头打开更新详情；页面已是最新版本时，通过勾选图标查看历史。",
-          "更新日志的关闭状态在同一账号的各设备间共享。",
-          "采用易读的测试版版本号（0.功能版本.修订版本），并根据每一次历史公开 Git 提交补全日志。"
-        ]},
-        {"category": "Fixed", "en": [
-          "Show unseen patch notes for new accounts and manual refreshes, without requiring a click on Update."
-        ], "zh": [
-          "新账号和手动刷新页面的用户现在会看到尚未关闭的更新日志，无需先点击“更新”。"
-        ]},
-        {"category": "Notes", "en": [
-          "Updates remain optional and continue to protect unsent messages.",
-          "Historical dates refer to Git commits, not independently verified deployments."
-        ], "zh": [
-          "更新仍由你决定，并继续保护尚未发送的消息。",
-          "历史日期对应 Git 提交，不代表经独立核实的上线日期。"
-        ]}
+        {
+          "category": "Fixed",
+          "en": [
+            "Keep patch-note actions at the bottom right, with Update last and feedback above the buttons.",
+            "Highlight the message composer's existing rounded border with a smooth, slightly thicker focus state, without moving content. Reduced-motion preferences remain respected.",
+            "Place the activity window and its minimized button at the bottom left on the Secretary page, while keeping them at the bottom right elsewhere."
+          ],
+          "zh": [
+            "更新日志的操作按钮固定在右下角，更新按钮位于最右侧，反馈信息显示在按钮上方。",
+            "消息输入栏聚焦时平滑加粗并高亮原有圆角边框，不移动内容，并遵循减少动态效果偏好。",
+            "秘书页面的活动窗口及其收起后的按钮改为左下角，其他页面仍保留在右下角。"
+          ]
+        },
+        {
+          "category": "Documentation",
+          "en": [
+            "Refresh the README with fictional demo screenshots and clearer getting-started links; record the pre-publication disclosure review.",
+            "Add the MIT license and retain it in copied skills and public deployment archives, alongside existing third-party notices."
+          ],
+          "zh": [
+            "更新 README，加入虚构演示数据截图和更清晰的入门链接，并记录公开发布前的信息披露检查。",
+            "新增 MIT 许可证，并在技能副本与公开部署归档中保留该许可证及现有第三方许可证声明。"
+          ]
+        },
+        {
+          "category": "Security",
+          "en": [
+            "Ignore environment-file variants and common private-key bundles to reduce accidental additions to Git."
+          ],
+          "zh": [
+            "忽略环境文件变体及常见私钥文件，降低意外加入 Git 的风险。"
+          ]
+        },
+        {
+          "category": "Tests",
+          "en": [
+            "Check rounded focus, animation, keyboard access, popup alignment and page-specific activity placement on desktop and mobile using synthetic records."
+          ],
+          "zh": [
+            "使用合成数据验证桌面和移动端的圆角聚焦、动画、键盘操作、弹窗对齐及各页面的活动窗口位置。"
+          ]
+        }
       ]
     },
     {
-      "version": "0.18.3", "date": "2026-10-12", "author": "GoodMorning agent", "commits": ["f1f79d1"],
-      "title_en": "Stable mobile sign-in forms", "title_zh": "稳定的移动端登录表单",
-      "changes": [{"category": "Fixed", "en": [
-        "Keep mobile sign-in and password-change forms in place during repeated scrolling.",
-        "Keep form buttons reachable on short screens."
-      ], "zh": [
-        "避免移动端登录和修改密码表单在反复滑动时位置下移。",
-        "确保小屏幕上的表单按钮可以滚动到并点击。"
-      ]}]
-    },
-    {
-      "version": "0.18.2", "date": "2026-10-12", "author": "Git history", "commits": ["db9fe43"],
-      "title_en": "Documented patch-note publishing", "title_zh": "完善更新日志发布说明",
-      "changes": [{"category": "Documentation", "en": [
-        "Document how deployers write, validate and publish bilingual patch notes with each website release. This was a documentation-only change."
-      ], "zh": [
-        "完善每次网站发布时编写、验证和发布中英文更新日志的部署说明。本次仅修改文档。"
-      ]}]
-    },
-    {
-      "version": "0.18.1", "date": "2026-10-12", "author": "Git history", "commits": ["1eb6d8f"],
-      "title_en": "No-JavaScript settings test correction", "title_zh": "修正无 JavaScript 设置测试",
-      "changes": [{"category": "Tests", "en": [
-        "Select the language form's Apply button rather than the model form's button in the live browser test. No website behavior changed."
-      ], "zh": [
-        "修正线上浏览器测试，明确点击语言表单的“应用”按钮，避免误选模型表单的按钮。网站功能未改变。"
-      ]}]
-    },
-    {
-      "version": "0.18.0", "date": "2026-10-12", "author": "GoodMorning agent", "commits": ["25dd208"],
-      "title_en": "Choose your secretary's model", "title_zh": "选择秘书使用的模型",
+      "version": "0.22.0",
+      "date": "2026-10-12",
+      "author": "GoodMorning agent",
+      "title_en": "Personal desks and non-blocking questions",
+      "title_zh": "个性化书桌与不阻塞的提问",
       "changes": [
-        {"category": "Added", "en": [
-          "Choose Muse Spark 1.3 or DeepSeek V4.1 Flash with an account-wide model selector beside the website language.",
-          "Apply the selected model to new chats and briefing requests; active work keeps its original selection.",
-          "Show bilingual deployment patch notes before and after updating with the website button."
-        ], "zh": [
-          "在网站语言旁新增账号级模型选择，可选择 Muse Spark 1.3 或 DeepSeek V4.1 Flash。",
-          "新的聊天和简报请求使用所选模型，正在进行的任务保持原有选择。",
-          "在通过网站按钮更新前后显示中英文发布说明。"
-        ]},
-        {"category": "Changed", "en": ["Rename the refresh prompt to Update."], "zh": ["刷新提示改为“更新”。"]}
+        {
+          "category": "Added",
+          "en": [
+            "Choose Classic or Warm for Day, with a separate Classic Night selector. Whole-site palettes are saved per account across devices.",
+            "Upload a private PNG, JPEG or WebP avatar up to 5 MB. Photo metadata is removed; the portrait appears in chat and briefings."
+          ],
+          "zh": [
+            "日间可选择经典或暖色配色，夜间提供独立的经典配色选择器。全站配色按账号保存，并在各设备间同步。",
+            "可上传最大 5 MB 的私人 PNG、JPEG 或 WebP 头像。上传时移除照片元数据，聊天和简报共用此头像。"
+          ]
+        },
+        {
+          "category": "Changed",
+          "en": [
+            "Give chat an avatar-and-name header, softer bubbles, larger portraits and a compact composer.",
+            "Use a bordered, fixed-height conversation box. New replies preserve your reading position; Jump to latest returns to recent messages.",
+            "Replace the activity bar with a minimizable Little desk window. Writing animations stop while waiting and respect reduced motion; mobile starts compact.",
+            "Align Settings controls and separate Day/Night appearance. Close with its button, Escape or an outside click.",
+            "Bring Morning, Evening and Secretary onto gm.love765.me with one login; retire the separate gn and sec hosts."
+          ],
+          "zh": [
+            "聊天新增头像与姓名标题、更柔和的气泡、更大的回复头像及紧凑输入栏。",
+            "对话使用边框清晰、固定高度的滚动窗口。新回复保留阅读位置，可通过“跳至最新消息”返回最新内容。",
+            "活动提示条改为可收起的小书桌悬浮窗口。等待回答时停止书写动画，遵循减少动态效果偏好，移动端默认收起。",
+            "设置控件对齐，日间和夜间配色归入独立外观区域。可通过关闭按钮、Esc 或点击面板外部关闭。",
+            "早报、晚报和秘书统一到 gm.love765.me，共用一次登录；停用独立的 gn 和 sec 域名。"
+          ]
+        },
+        {
+          "category": "Fixed",
+          "en": [
+            "Save accepted question exchanges in conversation history, preserving their order after refresh and restart. Failed answers are not shown as accepted.",
+            "Waiting questions and permissions no longer block other users. Forms survive refresh; encrypted queued answers resume the original session without expiring or replaying prompts.",
+            "Restore existing briefing forms instead of queuing behind their own job, and report expired generation requests instead of showing an endless queue."
+          ],
+          "zh": [
+            "将已接受的提问与回答保存到对话历史，刷新和重启后保留原有顺序。失败的回答不会显示为已接受。",
+            "等待问题或权限回答时不再阻塞其他用户。刷新后保留表单；加密排队的回答不会过期，并返回原会话继续，不重复发送提示。",
+            "恢复已有简报的表单，不再排在自己的任务后面；生成请求过期时明确提示，不再无限显示排队。"
+          ]
+        },
+        {
+          "category": "Tests",
+          "en": [
+            "Cover isolation, record preservation, long deliberation, queued-answer recovery, avatars, palettes, history and desktop/mobile layouts with synthetic tests and no model calls."
+          ],
+          "zh": [
+            "使用合成数据、不调用模型，验证隔离、记录保护、长时间考虑、排队回答恢复、头像、配色、历史及桌面和移动端布局。"
+          ]
+        },
+        {
+          "category": "Notes",
+          "en": [
+            "Previously discarded question exchanges are not reconstructed."
+          ],
+          "zh": [
+            "此前未保存的提问与回答不会被重新恢复。"
+          ]
+        }
       ]
     },
     {
-      "version": "0.17.3", "date": "2026-10-12", "author": "Git history", "commits": ["bb1748f"],
-      "title_en": "Explain unavailable article previews", "title_zh": "明确说明文章预览不可用",
-      "changes": [{"category": "Fixed", "en": [
-        "Explain when publisher previews are disabled instead of leaving unexplained placeholder images in briefings."
-      ], "zh": [
-        "简报中发布方预览被禁用时会明确说明原因，不再留下没有解释的占位图片。"
-      ]}]
-    },
-    {
-      "version": "0.17.2", "date": "2026-10-12", "author": "Git history", "commits": ["7c1da64"],
-      "title_en": "Chinese typography and sharper previews", "title_zh": "中文字体与预览图片修复",
+      "version": "0.21.0",
+      "date": "2026-10-12",
+      "author": "GoodMorning agent",
+      "title_en": "Compact utility menus",
+      "title_zh": "紧凑型工具菜单",
       "changes": [
-        {"category": "Changed", "en": ["Use appropriate CJK sans-serif fonts for Chinese briefings."], "zh": ["中文简报改用合适的中日韩无衬线字体。"]},
-        {"category": "Fixed", "en": ["Repair preview image srcset markup so browsers can choose the correct resolution."], "zh": ["修复预览图片的 srcset 标记，使浏览器能够选择正确的分辨率。"]}
+        {
+          "category": "Changed",
+          "en": [
+            "Replace the stacked language and model selectors with two compact dropdown menus in the top-right corner: a preferences menu for website language and model, and an account menu for password changes and sign-out.",
+            "Show the website update status as an Update pill in a fixed slot at the end of the row, becoming a quiet Up to date pill when the page is current, instead of a floating button.",
+            "Open only one menu at a time; on narrow screens the panels become full-width dropdown sheets."
+          ],
+          "zh": [
+            "将上下堆叠的语言和模型选择器替换为右上角的两个紧凑下拉菜单：偏好设置菜单用于切换网站语言和模型，账号菜单用于修改密码和退出登录。",
+            "网站更新状态改为固定在该行末尾的 pill 按钮：有更新时显示蓝色“更新”，已是最新时显示低调的“已是最新”，不再使用悬浮按钮。",
+            "同一时间只展开一个菜单；在窄屏幕上，菜单面板变为全宽下拉面板。"
+          ]
+        },
+        {
+          "category": "Tests",
+          "en": [
+            "Cover the menu layout, language and model switching, translations and no-JavaScript forms at desktop and mobile widths with the full unit suite and scripted browser checks."
+          ],
+          "zh": [
+            "通过完整单元测试和脚本化浏览器检查，覆盖桌面和移动端宽度的菜单布局、语言与模型切换、翻译及无 JavaScript 表单。"
+          ]
+        }
       ]
     },
     {
-      "version": "0.17.1", "date": "2026-10-12", "author": "Git history", "commits": ["4339508"],
-      "title_en": "Release completed secretary work promptly", "title_zh": "及时释放已完成的秘书任务",
-      "changes": [{"category": "Fixed", "en": [
-        "Release the shared work slot as soon as secretary tasks finish, without waiting for another website request, so queued work can continue sooner."
-      ], "zh": [
-        "秘书任务完成后主动释放共享执行位置，不再等待下一次网站请求，让排队任务更及时地继续。"
-      ]}]
-    },
-    {
-      "version": "0.17.0", "date": "2026-10-12", "author": "Git history", "commits": ["0261b81"],
-      "title_en": "Send chat with Enter", "title_zh": "按 Enter 发送聊天消息",
-      "changes": [{"category": "Added", "en": [
-        "Send secretary messages with Enter and insert a new line with Shift+Enter.",
-        "Focus the message composer automatically.",
-        "Respect text composition so Enter does not send unfinished input."
-      ], "zh": [
-        "按 Enter 发送秘书消息，按 Shift+Enter 换行。",
-        "消息输入框自动获得焦点。",
-        "输入法正在组字时，不会因按 Enter 而误发尚未完成的内容。"
-      ]}]
-    },
-    {
-      "version": "0.16.0", "date": "2026-10-11", "author": "Git history", "commits": ["8785be1"],
-      "title_en": "Refined briefings and a shared avatar picker", "title_zh": "优化简报与共享形象选择器",
+      "version": "0.20.0",
+      "date": "2026-10-12",
+      "author": "GoodMorning agent",
+      "title_en": "Chat attachments and shared activity reminders",
+      "title_zh": "聊天附件与跨页面任务提醒",
       "changes": [
-        {"category": "Added", "en": ["Use a shared floating avatar picker with outline-shirt controls and account-wide selection."], "zh": ["新增共享的悬浮形象选择器，使用衣服轮廓按钮，所选形象在账号内共享。"]},
-        {"category": "Changed", "en": [
-          "Refine desktop alignment and restore filled briefing cards while retaining the secretary sidebar.",
-          "Follow the account's local time for day and night colors."
-        ], "zh": [
-          "优化桌面布局对齐，恢复简报卡片背景，同时保留秘书侧栏。",
-          "昼夜配色跟随账号所在地时间。"
-        ]}
+        {
+          "category": "Added",
+          "en": [
+            "Choose files with the Attach files button on desktop and phone browsers, or drag files into the message box on desktop.",
+            "Attach files in all four secretary modes and follow-up replies using OpenChamber's native file-attachment format, with a 50 MB limit per file.",
+            "Show filenames and sizes, remove attachments before sending, and keep unsent files when switching modes. File-only messages are supported.",
+            "Show your ongoing secretary or briefing activity across Morning, Night and Secretary tabs, with working, waiting-for-answer and queued states and a link to the original page. Reminders disappear when work finishes."
+          ],
+          "zh": [
+            "桌面和手机浏览器均可通过“添加附件”按钮选择文件；桌面浏览器还可将文件拖入消息框。",
+            "四种秘书模式和后续回复均支持附件，使用 OpenChamber 的原生文件附件格式，每个文件最大 50 MB。",
+            "显示文件名和大小，发送前可移除附件，切换模式时保留未发送的文件，也可仅发送附件而不输入文字。",
+            "在早报、晚报和秘书的各个标签页显示自己正在进行的任务，区分处理中、等待回答和排队状态，并提供原页面链接；任务结束后提醒自动消失。"
+          ]
+        },
+        {
+          "category": "Security",
+          "en": [
+            "Stream uploads into the owning account's private runtime with authentication, origin and CSRF checks; browsers cannot select server filesystem paths."
+          ],
+          "zh": [
+            "通过流式上传将文件保存到所属账号的私有运行目录，并检查登录、请求来源和 CSRF；浏览器不能指定服务器文件路径。"
+          ]
+        },
+        {
+          "category": "Tests",
+          "en": [
+            "Verify exact-limit uploads, oversized-file rejection, account isolation, attachment history and desktop/mobile interactions with synthetic files and no model calls.",
+            "Wait for briefing test workers before deleting their temporary runtimes, preventing a cleanup race."
+          ],
+          "zh": [
+            "使用合成文件验证最大容量上传、超限拒绝、账号隔离、附件历史及桌面和移动端交互，不调用模型。",
+            "简报测试会等待后台线程结束后再删除临时运行目录，避免清理过程中的竞争错误。"
+          ]
+        },
+        {
+          "category": "Notes",
+          "en": [
+            "Deployers must apply the updated NGINX upload ceiling. Ordinary JSON requests retain their existing size limit; model file-format support still applies."
+          ],
+          "zh": [
+            "部署时需应用更新后的 NGINX 上传容量限制。普通 JSON 请求保持原有大小限制，文件格式仍需模型支持。"
+          ]
+        }
       ]
     },
     {
-      "version": "0.15.1", "date": "2026-10-11", "author": "Git history", "commits": ["14c2ca8"],
-      "title_en": "Keep the briefing sun and moon", "title_zh": "保留简报的太阳与月亮",
-      "changes": [{"category": "Fixed", "en": [
-        "Restore the morning sun and evening moon alongside secretary avatars, preserving each edition's visual identity."
-      ], "zh": [
-        "在秘书形象旁恢复早报的太阳和晚报的月亮，保留不同简报的视觉标识。"
-      ]}]
-    },
-    {
-      "version": "0.15.0", "date": "2026-10-11", "author": "Git history", "commits": ["c2c92a5"],
-      "title_en": "Shared avatars and clearer chat feedback", "title_zh": "共享秘书形象与更清晰的聊天反馈",
+      "version": "0.19.1",
+      "date": "2026-10-12",
+      "author": "GoodMorning agent",
+      "title_en": "Clearer tasks and flexible schedules",
+      "title_zh": "清晰的任务标记与灵活安排",
       "changes": [
-        {"category": "Added", "en": ["Choose secretary avatars shared across chat and briefings."], "zh": ["新增可选秘书形象，在聊天和简报中共享。"]},
-        {"category": "Changed", "en": ["Improve responsive chat feedback and release-refresh handling."], "zh": ["改善响应式聊天反馈和版本刷新处理。"]},
-        {"category": "Documentation", "en": ["Add a guarded deployment runbook to preserve account records and avoid interrupting active work."], "zh": ["新增带有安全检查的部署流程，保护账号记录并避免中断正在进行的任务。"]}
+        {
+          "category": "Fixed",
+          "en": [
+            "Replace the blurry text tick in task cards with a centered vector checkmark on a filled accent background.",
+            "Show untimed work at the end of Morning's Schedule and Night's Tomorrow, instead of burying dated plans in reminders or calling a day with planned work free.",
+            "Keep today's flexible tasks in the completion checklist without duplicates or invented priorities; do not assign times, roll unfinished work forward, or rewrite saved briefings."
+          ],
+          "zh": [
+            "将任务卡片中模糊的文本对勾替换为居中显示的矢量勾选标记，并使用强调色填充背景。",
+            "在早报“日程”和晚报“明天”的末尾显示没有固定时间的灵活安排，不再把已定日期的计划挤进备注，或把有任务的一天说成空闲。",
+            "今天的灵活任务纳入完成清单，不重复记录或擅定优先级；不虚构时间、不自动顺延未完成任务，也不改写已保存的简报。"
+          ]
+        }
       ]
     },
     {
-      "version": "0.14.1", "date": "2026-10-11", "author": "Git history", "commits": ["3929630"],
-      "title_en": "Find cities written in their native script", "title_zh": "支持以本地文字查找城市",
-      "changes": [{"category": "Fixed", "en": [
-        "Find Chinese, Japanese, Korean and Cyrillic city names using suitable native-script indexes with an English fallback.",
-        "Resolve valid names such as 上海 that failed in an English-only weather lookup."
-      ], "zh": [
-        "天气城市查询为中文、日文、韩文和西里尔文字尝试合适的本地语言索引，并保留英文回退。",
-        "修复“上海”等有效名称在仅使用英文索引查询天气时查不到的问题。"
-      ]}]
-    },
-    {
-      "version": "0.14.0", "date": "2026-10-11", "author": "Git history", "commits": ["f8d7939"],
-      "title_en": "A waiting line instead of busy errors", "title_zh": "用排队取代忙碌错误",
-      "changes": [{"category": "Added", "en": [
-        "Queue secretary chats, briefing generation and recovery in a bounded shared waiting line instead of immediately returning busy errors.",
-        "Process waiting requests in arrival order when active work finishes.",
-        "Show queue position and total waiters on chat and briefing pages."
-      ], "zh": [
-        "秘书聊天、简报生成和恢复操作共享有限的等待队列，不再直接返回忙碌错误。",
-        "当前任务结束后，按请求到达顺序处理等待中的请求。",
-        "聊天和简报页面显示排队位置与等待人数。"
-      ]}]
-    },
-    {
-      "version": "0.13.0", "date": "2026-10-11", "author": "Git history", "commits": ["1cc1a08"],
-      "title_en": "Give your secretary a name", "title_zh": "为秘书取名",
-      "changes": [{"category": "Added", "en": [
-        "Set an optional secretary display name during initialization.",
-        "Use the saved spelling in greetings, headings, conversation titles and message authors.",
-        "Show a secretary desk illustration with a fallback when the image is unavailable."
-      ], "zh": [
-        "初始化时可选择为秘书设置显示名称。",
-        "问候、标题、对话名称和消息署名使用保存的原始写法。",
-        "新增秘书桌面插画，图片不可用时也能正常显示页面。"
-      ]}]
-    },
-    {
-      "version": "0.12.0", "date": "2026-10-11", "author": "Git history", "commits": ["4320ad4"],
-      "title_en": "Safer updates and reliable chat history", "title_zh": "更安全的更新与可靠的聊天历史",
+      "version": "0.19.0",
+      "date": "2026-10-12",
+      "author": "GoodMorning agent",
+      "title_en": "A complete patch-note history",
+      "title_zh": "完整的更新日志",
       "changes": [
-        {"category": "Added", "en": [
-          "Cache saved pages in memory.",
-          "Show website-update notices without automatic reloads, pause updates during outgoing messages and check for unsent drafts."
-        ], "zh": [
-          "为已保存页面增加内存缓存。",
-          "新增网站更新提示，不自动刷新，在消息发送期间暂停更新，并检查未发送草稿。"
-        ]},
-        {"category": "Changed", "en": ["Organize engine sessions by website conversation and briefing."], "zh": ["按网站对话和简报组织引擎会话。"]},
-        {"category": "Fixed", "en": ["Bound chat-history reads to prevent stuck busy flags."], "zh": ["限制聊天历史读取范围，避免忙碌状态卡住。"]}
+        {
+          "category": "Added",
+          "en": [
+            "Browse past versions in the patch-note sidebar, with categorized bullet points in English and Simplified Chinese.",
+            "Reopen update details with a blue upward arrow, or view history with a checkmark when your page is current.",
+            "Share patch-note dismissals across the account's devices.",
+            "Use readable beta versions (0.minor.patch), with notes reconstructed for every past public Git commit."
+          ],
+          "zh": [
+            "通过更新日志侧栏浏览历史版本，使用中英文分类标题和要点列表。",
+            "网站有新版本时，通过蓝色向上箭头打开更新详情；页面已是最新版本时，通过勾选图标查看历史。",
+            "更新日志的关闭状态在同一账号的各设备间共享。",
+            "采用易读的测试版版本号（0.功能版本.修订版本），并根据每一次历史公开 Git 提交补全日志。"
+          ]
+        },
+        {
+          "category": "Fixed",
+          "en": [
+            "Show unseen patch notes for new accounts and manual refreshes, without requiring a click on Update."
+          ],
+          "zh": [
+            "新账号和手动刷新页面的用户现在会看到尚未关闭的更新日志，无需先点击“更新”。"
+          ]
+        },
+        {
+          "category": "Notes",
+          "en": [
+            "Updates remain optional and continue to protect unsent messages.",
+            "Historical dates refer to Git commits, not independently verified deployments."
+          ],
+          "zh": [
+            "更新仍由你决定，并继续保护尚未发送的消息。",
+            "历史日期对应 Git 提交，不代表经独立核实的上线日期。"
+          ]
+        }
       ]
     },
     {
-      "version": "0.11.1", "date": "2026-10-11", "author": "Git history", "commits": ["1ea7b73"],
-      "title_en": "Clearer schedule dates and instant language changes", "title_zh": "清晰的日程日期与即时语言切换",
-      "changes": [{"category": "Changed", "en": [
-        "Show clear calendar dates and appropriate relative labels in schedule entries.",
-        "Apply website language changes immediately, including date labels, without a separate Apply click when JavaScript is enabled."
-      ], "zh": [
-        "日程条目显示明确日期，并在适当时附上相对日期标签。",
-        "启用 JavaScript 时，选择网站语言立即应用，包括日期标签，无需另点“应用”。"
-      ]}]
-    },
-    {
-      "version": "0.11.0", "date": "2026-10-11", "author": "Git history", "commits": ["1fda35a"],
-      "title_en": "English and Simplified Chinese websites", "title_zh": "英文与简体中文网站",
+      "version": "0.18.3",
+      "date": "2026-10-12",
+      "author": "GoodMorning agent",
+      "commits": [
+        "f1f79d1"
+      ],
+      "title_en": "Stable mobile sign-in forms",
+      "title_zh": "稳定的移动端登录表单",
       "changes": [
-        {"category": "Added", "en": ["Share an account-wide English/Simplified Chinese website setting across Morning, Night, Secretary and other devices."], "zh": ["新增账号级英文/简体中文网站设置，在早报、晚报、秘书页面及不同设备间共享。"]},
-        {"category": "Changed", "en": ["Use the website language for new agent requests while keeping active requests in their starting language."], "zh": ["新的代理请求使用网站语言，正在进行的请求保持开始时的语言。"]},
-        {"category": "Notes", "en": ["Existing saved content and local reply-language preferences remain unchanged."], "zh": ["已有内容和本地回复语言偏好保持不变。"]}
+        {
+          "category": "Fixed",
+          "en": [
+            "Keep mobile sign-in and password-change forms in place during repeated scrolling.",
+            "Keep form buttons reachable on short screens."
+          ],
+          "zh": [
+            "避免移动端登录和修改密码表单在反复滑动时位置下移。",
+            "确保小屏幕上的表单按钮可以滚动到并点击。"
+          ]
+        }
       ]
     },
     {
-      "version": "0.10.0", "date": "2026-10-11", "author": "Git history", "commits": ["1490548"],
-      "title_en": "Native browser briefings and private accounts", "title_zh": "原生浏览器简报与私有账号",
+      "version": "0.18.2",
+      "date": "2026-10-12",
+      "author": "Git history",
+      "commits": [
+        "db9fe43"
+      ],
+      "title_en": "Documented patch-note publishing",
+      "title_zh": "完善更新日志发布说明",
       "changes": [
-        {"category": "Added", "en": [
-          "Deliver new briefings as validated native JSON on dedicated browser pages.",
-          "Add website chat, section-by-section publication, briefing archives and edition-specific icons."
-        ], "zh": [
-          "新简报采用经验证的原生 JSON，在独立浏览器页面交付。",
-          "新增网站聊天、逐节发布、简报归档和不同简报的图标。"
-        ]},
-        {"category": "Changed", "en": [
-          "Improve recovery for stopped preparation and interrupted final saves without overwriting personal records.",
-          "Reorganize the public source into focused modules."
-        ], "zh": [
-          "改进准备中断与最终保存中断的恢复，不覆盖个人记录。",
-          "将公开源码整理为职责清晰的模块。"
-        ]},
-        {"category": "Removed", "en": ["Replace the earlier image-card plugin with native browser briefings."], "zh": ["以原生浏览器简报取代此前的图片卡片插件。"]},
-        {"category": "Security", "en": ["Add authenticated multi-user deployment with encrypted records and isolated agent homes."], "zh": ["新增需要身份验证的多用户部署，使用加密记录和隔离的代理目录。"]}
+        {
+          "category": "Documentation",
+          "en": [
+            "Document how deployers write, validate and publish bilingual patch notes with each website release. This was a documentation-only change."
+          ],
+          "zh": [
+            "完善每次网站发布时编写、验证和发布中英文更新日志的部署说明。本次仅修改文档。"
+          ]
+        }
       ]
     },
     {
-      "version": "0.9.1", "date": "2026-10-10", "author": "Git history", "commits": ["b3e24f1"],
-      "title_en": "Image briefings in ordinary OpenChamber chats", "title_zh": "普通 OpenChamber 聊天中的图片简报",
+      "version": "0.18.1",
+      "date": "2026-10-12",
+      "author": "Git history",
+      "commits": [
+        "1eb6d8f"
+      ],
+      "title_en": "No-JavaScript settings test correction",
+      "title_zh": "修正无 JavaScript 设置测试",
       "changes": [
-        {"category": "Changed", "en": ["Adjust the historical plugin's installation and delivery handling."], "zh": ["调整历史插件的安装与交付处理。"]},
-        {"category": "Fixed", "en": ["Allow image briefings to appear in ordinary OpenChamber chats through the historical briefing-card integration."], "zh": ["修复当时的简报卡片集成，使图片简报能够显示在普通 OpenChamber 聊天中。"]},
-        {"category": "Notes", "en": ["This delivery approach was later replaced by native browser pages in 0.10.0."], "zh": ["此交付方式后来在 0.10.0 被原生浏览器页面取代。"]}
+        {
+          "category": "Tests",
+          "en": [
+            "Select the language form's Apply button rather than the model form's button in the live browser test. No website behavior changed."
+          ],
+          "zh": [
+            "修正线上浏览器测试，明确点击语言表单的“应用”按钮，避免误选模型表单的按钮。网站功能未改变。"
+          ]
+        }
       ]
     },
     {
-      "version": "0.9.0", "date": "2026-10-10", "author": "Git history", "commits": ["d6854f8"],
-      "title_en": "Historical image-card briefings", "title_zh": "历史图片卡片简报",
+      "version": "0.18.0",
+      "date": "2026-10-12",
+      "author": "GoodMorning agent",
+      "commits": [
+        "25dd208"
+      ],
+      "title_en": "Choose your secretary's model",
+      "title_zh": "选择秘书使用的模型",
       "changes": [
-        {"category": "Added", "en": ["Introduce a briefing-card rendering plugin and deployment package for compact image briefings."], "zh": ["引入简报卡片渲染插件与部署包，用于交付紧凑的图片简报。"]},
-        {"category": "Notes", "en": ["This early delivery experiment was later removed in favor of native browser briefings in 0.10.0."], "zh": ["这是早期交付实验，后来在 0.10.0 被原生浏览器简报取代。"]}
+        {
+          "category": "Added",
+          "en": [
+            "Choose Muse Spark 1.3 or DeepSeek V4.1 Flash with an account-wide model selector beside the website language.",
+            "Apply the selected model to new chats and briefing requests; active work keeps its original selection.",
+            "Show bilingual deployment patch notes before and after updating with the website button."
+          ],
+          "zh": [
+            "在网站语言旁新增账号级模型选择，可选择 Muse Spark 1.3 或 DeepSeek V4.1 Flash。",
+            "新的聊天和简报请求使用所选模型，正在进行的任务保持原有选择。",
+            "在通过网站按钮更新前后显示中英文发布说明。"
+          ]
+        },
+        {
+          "category": "Changed",
+          "en": [
+            "Rename the refresh prompt to Update."
+          ],
+          "zh": [
+            "刷新提示改为“更新”。"
+          ]
+        }
       ]
     },
     {
-      "version": "0.8.1", "date": "2026-10-10", "author": "Git history", "commits": ["3fcd7f2"],
-      "title_en": "Keep idea capture separate from execution", "title_zh": "将灵感记录与执行分开",
-      "changes": [{"category": "Fixed", "en": [
-        "Keep Eureka idea capture separate from planning, research and task execution unless separately requested.",
-        "Keep follow-up details capture-only; clarification and organization require explicit direction."
-      ], "zh": [
-        "明确 Eureka 只记录灵感，除非另行要求，否则不规划、不研究、不执行任务。",
-        "补充信息仍仅记录，澄清与整理需要明确指示。"
-      ]}]
-    },
-    {
-      "version": "0.8.0", "date": "2026-10-10", "author": "Git history", "commits": ["38925bd"],
-      "title_en": "Structured inbox memory and simpler workflows", "title_zh": "结构化收件记忆与简化流程",
+      "version": "0.17.3",
+      "date": "2026-10-12",
+      "author": "Git history",
+      "commits": [
+        "bb1748f"
+      ],
+      "title_en": "Explain unavailable article previews",
+      "title_zh": "明确说明文章预览不可用",
       "changes": [
-        {"category": "Added", "en": [
-          "Store inbox memory in SQLite with stable IDs, original input history, duplicate-safe capture and revision-checked updates.",
-          "Add focused workflow preparation/capture helpers and safe daily amendments."
-        ], "zh": [
-          "新增基于 SQLite 的收件记忆，提供稳定编号、原始输入历史、防重复记录和修订校验更新。",
-          "新增聚焦的流程准备与记录工具，以及安全的每日记录修改。"
-        ]},
-        {"category": "Changed", "en": [
-          "Streamline shared workflow instructions.",
-          "Separate news editorial judgment from collection and delivery bookkeeping."
-        ], "zh": [
-          "简化共享流程规则。",
-          "将新闻编辑判断与收集、交付记账分开。"
-        ]}
+        {
+          "category": "Fixed",
+          "en": [
+            "Explain when publisher previews are disabled instead of leaving unexplained placeholder images in briefings."
+          ],
+          "zh": [
+            "简报中发布方预览被禁用时会明确说明原因，不再留下没有解释的占位图片。"
+          ]
+        }
       ]
     },
     {
-      "version": "0.7.0", "date": "2026-10-10", "author": "Git history", "commits": ["9c67ed2"],
-      "title_en": "Record-only to-do capture", "title_zh": "仅记录的待办流程",
-      "changes": [{"category": "Added", "en": [
-        "Capture to-dos in a dedicated workflow that saves the user's wording without questions, planning or execution.",
-        "Keep deadlines and priorities user-supplied, with completion requiring user confirmation."
-      ], "zh": [
-        "新增独立待办流程，保存用户原话，不提问、不规划、不执行任务。",
-        "不擅自添加截止日期或优先级，完成状态需要用户确认。"
-      ]}]
-    },
-    {
-      "version": "0.6.0", "date": "2026-10-10", "author": "Git history", "commits": ["7b617ea"],
-      "title_en": "Localized conversation titles", "title_zh": "本地化对话标题",
+      "version": "0.17.2",
+      "date": "2026-10-12",
+      "author": "Git history",
+      "commits": [
+        "7c1da64"
+      ],
+      "title_en": "Chinese typography and sharper previews",
+      "title_zh": "中文字体与预览图片修复",
       "changes": [
-        {"category": "Added", "en": ["Localize conversation-title prefixes using the confirmed secretary reply language across Morning, Night, Secretary and Eureka."], "zh": ["早报、晚报、秘书和灵感流程的对话标题前缀跟随已确认的秘书回复语言。"]},
-        {"category": "Notes", "en": ["ISO dates and the user's raw Eureka summary wording remain unchanged."], "zh": ["ISO 日期与用户原始灵感摘要保持不变。"]}
+        {
+          "category": "Changed",
+          "en": [
+            "Use appropriate CJK sans-serif fonts for Chinese briefings."
+          ],
+          "zh": [
+            "中文简报改用合适的中日韩无衬线字体。"
+          ]
+        },
+        {
+          "category": "Fixed",
+          "en": [
+            "Repair preview image srcset markup so browsers can choose the correct resolution."
+          ],
+          "zh": [
+            "修复预览图片的 srcset 标记，使浏览器能够选择正确的分辨率。"
+          ]
+        }
       ]
     },
     {
-      "version": "0.5.0", "date": "2026-10-10", "author": "Git history", "commits": ["c4fb65f"],
-      "title_en": "Review calendar imports each evening", "title_zh": "每晚审核日历导入",
-      "changes": [{"category": "Changed", "en": [
-        "Stage authorized Betterbird calendar imports for review during Night workflows before displaying or applying them.",
-        "Do not silently treat imported entries as approved schedule changes."
-      ], "zh": [
-        "晚报流程先暂存已授权的 Betterbird 日历导入供审核，再显示或应用。",
-        "导入条目不会被默认为已批准的日程变更。"
-      ]}]
-    },
-    {
-      "version": "0.4.0", "date": "2026-10-10", "author": "Git history", "commits": ["2ae8554"],
-      "title_en": "One self-contained global skill", "title_zh": "单一自包含全局技能",
+      "version": "0.17.1",
+      "date": "2026-10-12",
+      "author": "Git history",
+      "commits": [
+        "4339508"
+      ],
+      "title_en": "Release completed secretary work promptly",
+      "title_zh": "及时释放已完成的秘书任务",
       "changes": [
-        {"category": "Changed", "en": ["Use one manually copied, self-contained global GoodMorning skill."], "zh": ["改用一个手动复制、自包含的 GoodMorning 全局技能。"]},
-        {"category": "Removed", "en": ["Replace checkout-registered commands and separate workflow skills."], "zh": ["替换仓库注册的命令和独立流程技能。"]},
-        {"category": "Notes", "en": ["Installation remains separate from personal setup, and records stay outside the public package."], "zh": ["安装与个人初始化保持分离，记录保存在公开包之外。"]}
+        {
+          "category": "Fixed",
+          "en": [
+            "Release the shared work slot as soon as secretary tasks finish, without waiting for another website request, so queued work can continue sooner."
+          ],
+          "zh": [
+            "秘书任务完成后主动释放共享执行位置，不再等待下一次网站请求，让排队任务更及时地继续。"
+          ]
+        }
       ]
     },
     {
-      "version": "0.3.0", "date": "2026-10-10", "author": "Git history", "commits": ["2d7339c"],
-      "title_en": "Save ideas before asking for clarification", "title_zh": "先保存灵感，再澄清",
-      "changes": [{"category": "Changed", "en": [
-        "Preserve ideas and project updates before asking for clarification.",
-        "Keep unresolved questions visible for later follow-up.",
-        "Separate unconfirmed proposals from approved plans and calendars."
-      ], "zh": [
-        "灵感和项目进展在澄清前先保存。",
-        "未解决的问题保留以便后续跟进。",
-        "未确认的建议与已批准的计划和日历分开。"
-      ]}]
-    },
-    {
-      "version": "0.2.0", "date": "2026-10-09", "author": "Git history", "commits": ["fb066df"],
-      "title_en": "Consistent morning and night titles", "title_zh": "统一早报与晚报标题",
-      "changes": [{"category": "Changed", "en": [
-        "Use fixed-format Morning and Night conversation titles with the briefing date, making editions easier to find in OpenChamber."
-      ], "zh": [
-        "早报和晚报流程采用包含简报日期的固定格式对话标题，方便在 OpenChamber 中查找。"
-      ]}]
-    },
-    {
-      "version": "0.1.1", "date": "2026-10-09", "author": "Git history", "commits": ["cba3e45"],
-      "title_en": "Recurring Betterbird calendar events", "title_zh": "Betterbird 重复日历事件",
+      "version": "0.17.0",
+      "date": "2026-10-12",
+      "author": "Git history",
+      "commits": [
+        "0261b81"
+      ],
+      "title_en": "Send chat with Enter",
+      "title_zh": "按 Enter 发送聊天消息",
       "changes": [
-        {"category": "Changed", "en": ["Bound calendar import handling."], "zh": ["增加有范围限制的日历导入处理。"]},
-        {"category": "Fixed", "en": ["Expand recurring calendar imports to cover recurrence rules, exceptions and overridden occurrences."], "zh": ["扩展重复日历事件导入，支持重复规则、例外日期和单次覆盖。"]},
-        {"category": "Tests", "en": ["Add regression coverage for repeated events."], "zh": ["增加重复事件回归测试。"]}
+        {
+          "category": "Added",
+          "en": [
+            "Send secretary messages with Enter and insert a new line with Shift+Enter.",
+            "Focus the message composer automatically.",
+            "Respect text composition so Enter does not send unfinished input."
+          ],
+          "zh": [
+            "按 Enter 发送秘书消息，按 Shift+Enter 换行。",
+            "消息输入框自动获得焦点。",
+            "输入法正在组字时，不会因按 Enter 而误发尚未完成的内容。"
+          ]
+        }
       ]
     },
     {
-      "version": "0.1.0", "date": "2026-10-09", "author": "Git history", "commits": ["affa5f5"],
-      "title_en": "The first secretary workflows", "title_zh": "首批秘书流程",
+      "version": "0.16.0",
+      "date": "2026-10-11",
+      "author": "Git history",
+      "commits": [
+        "8785be1"
+      ],
+      "title_en": "Refined briefings and a shared avatar picker",
+      "title_zh": "优化简报与共享形象选择器",
       "changes": [
-        {"category": "Added", "en": [
-          "Introduce Morning, Night, Secretary and Eureka workflows with reply templates.",
-          "Add weather and air quality, news review, calendar handling and daily state.",
-          "Add permission-controlled project access."
-        ], "zh": [
-          "新增早报、晚报、秘书和灵感流程，以及回复模板。",
-          "新增天气与空气质量、新闻审核、日历处理和每日状态。",
-          "新增受权限控制的项目访问。"
-        ]},
-        {"category": "Documentation", "en": ["Add setup and deployment instructions."], "zh": ["加入初始化与部署说明。"]},
-        {"category": "Tests", "en": ["Add automated tests."], "zh": ["加入自动测试。"]}
+        {
+          "category": "Added",
+          "en": [
+            "Use a shared floating avatar picker with outline-shirt controls and account-wide selection."
+          ],
+          "zh": [
+            "新增共享的悬浮形象选择器，使用衣服轮廓按钮，所选形象在账号内共享。"
+          ]
+        },
+        {
+          "category": "Changed",
+          "en": [
+            "Refine desktop alignment and restore filled briefing cards while retaining the secretary sidebar.",
+            "Follow the account's local time for day and night colors."
+          ],
+          "zh": [
+            "优化桌面布局对齐，恢复简报卡片背景，同时保留秘书侧栏。",
+            "昼夜配色跟随账号所在地时间。"
+          ]
+        }
       ]
     },
     {
-      "version": "0.0.0", "date": "2026-10-09", "author": "Git history", "commits": ["9bf676f"],
-      "title_en": "Repository foundation", "title_zh": "仓库基础",
+      "version": "0.15.1",
+      "date": "2026-10-11",
+      "author": "Git history",
+      "commits": [
+        "14c2ca8"
+      ],
+      "title_en": "Keep the briefing sun and moon",
+      "title_zh": "保留简报的太阳与月亮",
       "changes": [
-        {"category": "Added", "en": ["Create the public repository with its initial README and ignore rules."], "zh": ["创建公开仓库，加入初始 README 和忽略规则。"]},
-        {"category": "Notes", "en": ["No secretary application or website was present yet."], "zh": ["当时尚无秘书应用或网站。"]}
+        {
+          "category": "Fixed",
+          "en": [
+            "Restore the morning sun and evening moon alongside secretary avatars, preserving each edition's visual identity."
+          ],
+          "zh": [
+            "在秘书形象旁恢复早报的太阳和晚报的月亮，保留不同简报的视觉标识。"
+          ]
+        }
+      ]
+    },
+    {
+      "version": "0.15.0",
+      "date": "2026-10-11",
+      "author": "Git history",
+      "commits": [
+        "c2c92a5"
+      ],
+      "title_en": "Shared avatars and clearer chat feedback",
+      "title_zh": "共享秘书形象与更清晰的聊天反馈",
+      "changes": [
+        {
+          "category": "Added",
+          "en": [
+            "Choose secretary avatars shared across chat and briefings."
+          ],
+          "zh": [
+            "新增可选秘书形象，在聊天和简报中共享。"
+          ]
+        },
+        {
+          "category": "Changed",
+          "en": [
+            "Improve responsive chat feedback and release-refresh handling."
+          ],
+          "zh": [
+            "改善响应式聊天反馈和版本刷新处理。"
+          ]
+        },
+        {
+          "category": "Documentation",
+          "en": [
+            "Add a guarded deployment runbook to preserve account records and avoid interrupting active work."
+          ],
+          "zh": [
+            "新增带有安全检查的部署流程，保护账号记录并避免中断正在进行的任务。"
+          ]
+        }
+      ]
+    },
+    {
+      "version": "0.14.1",
+      "date": "2026-10-11",
+      "author": "Git history",
+      "commits": [
+        "3929630"
+      ],
+      "title_en": "Find cities written in their native script",
+      "title_zh": "支持以本地文字查找城市",
+      "changes": [
+        {
+          "category": "Fixed",
+          "en": [
+            "Find Chinese, Japanese, Korean and Cyrillic city names using suitable native-script indexes with an English fallback.",
+            "Resolve valid names such as 上海 that failed in an English-only weather lookup."
+          ],
+          "zh": [
+            "天气城市查询为中文、日文、韩文和西里尔文字尝试合适的本地语言索引，并保留英文回退。",
+            "修复“上海”等有效名称在仅使用英文索引查询天气时查不到的问题。"
+          ]
+        }
+      ]
+    },
+    {
+      "version": "0.14.0",
+      "date": "2026-10-11",
+      "author": "Git history",
+      "commits": [
+        "f8d7939"
+      ],
+      "title_en": "A waiting line instead of busy errors",
+      "title_zh": "用排队取代忙碌错误",
+      "changes": [
+        {
+          "category": "Added",
+          "en": [
+            "Queue secretary chats, briefing generation and recovery in a bounded shared waiting line instead of immediately returning busy errors.",
+            "Process waiting requests in arrival order when active work finishes.",
+            "Show queue position and total waiters on chat and briefing pages."
+          ],
+          "zh": [
+            "秘书聊天、简报生成和恢复操作共享有限的等待队列，不再直接返回忙碌错误。",
+            "当前任务结束后，按请求到达顺序处理等待中的请求。",
+            "聊天和简报页面显示排队位置与等待人数。"
+          ]
+        }
+      ]
+    },
+    {
+      "version": "0.13.0",
+      "date": "2026-10-11",
+      "author": "Git history",
+      "commits": [
+        "1cc1a08"
+      ],
+      "title_en": "Give your secretary a name",
+      "title_zh": "为秘书取名",
+      "changes": [
+        {
+          "category": "Added",
+          "en": [
+            "Set an optional secretary display name during initialization.",
+            "Use the saved spelling in greetings, headings, conversation titles and message authors.",
+            "Show a secretary desk illustration with a fallback when the image is unavailable."
+          ],
+          "zh": [
+            "初始化时可选择为秘书设置显示名称。",
+            "问候、标题、对话名称和消息署名使用保存的原始写法。",
+            "新增秘书桌面插画，图片不可用时也能正常显示页面。"
+          ]
+        }
+      ]
+    },
+    {
+      "version": "0.12.0",
+      "date": "2026-10-11",
+      "author": "Git history",
+      "commits": [
+        "4320ad4"
+      ],
+      "title_en": "Safer updates and reliable chat history",
+      "title_zh": "更安全的更新与可靠的聊天历史",
+      "changes": [
+        {
+          "category": "Added",
+          "en": [
+            "Cache saved pages in memory.",
+            "Show website-update notices without automatic reloads, pause updates during outgoing messages and check for unsent drafts."
+          ],
+          "zh": [
+            "为已保存页面增加内存缓存。",
+            "新增网站更新提示，不自动刷新，在消息发送期间暂停更新，并检查未发送草稿。"
+          ]
+        },
+        {
+          "category": "Changed",
+          "en": [
+            "Organize engine sessions by website conversation and briefing."
+          ],
+          "zh": [
+            "按网站对话和简报组织引擎会话。"
+          ]
+        },
+        {
+          "category": "Fixed",
+          "en": [
+            "Bound chat-history reads to prevent stuck busy flags."
+          ],
+          "zh": [
+            "限制聊天历史读取范围，避免忙碌状态卡住。"
+          ]
+        }
+      ]
+    },
+    {
+      "version": "0.11.1",
+      "date": "2026-10-11",
+      "author": "Git history",
+      "commits": [
+        "1ea7b73"
+      ],
+      "title_en": "Clearer schedule dates and instant language changes",
+      "title_zh": "清晰的日程日期与即时语言切换",
+      "changes": [
+        {
+          "category": "Changed",
+          "en": [
+            "Show clear calendar dates and appropriate relative labels in schedule entries.",
+            "Apply website language changes immediately, including date labels, without a separate Apply click when JavaScript is enabled."
+          ],
+          "zh": [
+            "日程条目显示明确日期，并在适当时附上相对日期标签。",
+            "启用 JavaScript 时，选择网站语言立即应用，包括日期标签，无需另点“应用”。"
+          ]
+        }
+      ]
+    },
+    {
+      "version": "0.11.0",
+      "date": "2026-10-11",
+      "author": "Git history",
+      "commits": [
+        "1fda35a"
+      ],
+      "title_en": "English and Simplified Chinese websites",
+      "title_zh": "英文与简体中文网站",
+      "changes": [
+        {
+          "category": "Added",
+          "en": [
+            "Share an account-wide English/Simplified Chinese website setting across Morning, Night, Secretary and other devices."
+          ],
+          "zh": [
+            "新增账号级英文/简体中文网站设置，在早报、晚报、秘书页面及不同设备间共享。"
+          ]
+        },
+        {
+          "category": "Changed",
+          "en": [
+            "Use the website language for new agent requests while keeping active requests in their starting language."
+          ],
+          "zh": [
+            "新的代理请求使用网站语言，正在进行的请求保持开始时的语言。"
+          ]
+        },
+        {
+          "category": "Notes",
+          "en": [
+            "Existing saved content and local reply-language preferences remain unchanged."
+          ],
+          "zh": [
+            "已有内容和本地回复语言偏好保持不变。"
+          ]
+        }
+      ]
+    },
+    {
+      "version": "0.10.0",
+      "date": "2026-10-11",
+      "author": "Git history",
+      "commits": [
+        "1490548"
+      ],
+      "title_en": "Native browser briefings and private accounts",
+      "title_zh": "原生浏览器简报与私有账号",
+      "changes": [
+        {
+          "category": "Added",
+          "en": [
+            "Deliver new briefings as validated native JSON on dedicated browser pages.",
+            "Add website chat, section-by-section publication, briefing archives and edition-specific icons."
+          ],
+          "zh": [
+            "新简报采用经验证的原生 JSON，在独立浏览器页面交付。",
+            "新增网站聊天、逐节发布、简报归档和不同简报的图标。"
+          ]
+        },
+        {
+          "category": "Changed",
+          "en": [
+            "Improve recovery for stopped preparation and interrupted final saves without overwriting personal records.",
+            "Reorganize the public source into focused modules."
+          ],
+          "zh": [
+            "改进准备中断与最终保存中断的恢复，不覆盖个人记录。",
+            "将公开源码整理为职责清晰的模块。"
+          ]
+        },
+        {
+          "category": "Removed",
+          "en": [
+            "Replace the earlier image-card plugin with native browser briefings."
+          ],
+          "zh": [
+            "以原生浏览器简报取代此前的图片卡片插件。"
+          ]
+        },
+        {
+          "category": "Security",
+          "en": [
+            "Add authenticated multi-user deployment with encrypted records and isolated agent homes."
+          ],
+          "zh": [
+            "新增需要身份验证的多用户部署，使用加密记录和隔离的代理目录。"
+          ]
+        }
+      ]
+    },
+    {
+      "version": "0.9.1",
+      "date": "2026-10-10",
+      "author": "Git history",
+      "commits": [
+        "b3e24f1"
+      ],
+      "title_en": "Image briefings in ordinary OpenChamber chats",
+      "title_zh": "普通 OpenChamber 聊天中的图片简报",
+      "changes": [
+        {
+          "category": "Changed",
+          "en": [
+            "Adjust the historical plugin's installation and delivery handling."
+          ],
+          "zh": [
+            "调整历史插件的安装与交付处理。"
+          ]
+        },
+        {
+          "category": "Fixed",
+          "en": [
+            "Allow image briefings to appear in ordinary OpenChamber chats through the historical briefing-card integration."
+          ],
+          "zh": [
+            "修复当时的简报卡片集成，使图片简报能够显示在普通 OpenChamber 聊天中。"
+          ]
+        },
+        {
+          "category": "Notes",
+          "en": [
+            "This delivery approach was later replaced by native browser pages in 0.10.0."
+          ],
+          "zh": [
+            "此交付方式后来在 0.10.0 被原生浏览器页面取代。"
+          ]
+        }
+      ]
+    },
+    {
+      "version": "0.9.0",
+      "date": "2026-10-10",
+      "author": "Git history",
+      "commits": [
+        "d6854f8"
+      ],
+      "title_en": "Historical image-card briefings",
+      "title_zh": "历史图片卡片简报",
+      "changes": [
+        {
+          "category": "Added",
+          "en": [
+            "Introduce a briefing-card rendering plugin and deployment package for compact image briefings."
+          ],
+          "zh": [
+            "引入简报卡片渲染插件与部署包，用于交付紧凑的图片简报。"
+          ]
+        },
+        {
+          "category": "Notes",
+          "en": [
+            "This early delivery experiment was later removed in favor of native browser briefings in 0.10.0."
+          ],
+          "zh": [
+            "这是早期交付实验，后来在 0.10.0 被原生浏览器简报取代。"
+          ]
+        }
+      ]
+    },
+    {
+      "version": "0.8.1",
+      "date": "2026-10-10",
+      "author": "Git history",
+      "commits": [
+        "3fcd7f2"
+      ],
+      "title_en": "Keep idea capture separate from execution",
+      "title_zh": "将灵感记录与执行分开",
+      "changes": [
+        {
+          "category": "Fixed",
+          "en": [
+            "Keep Eureka idea capture separate from planning, research and task execution unless separately requested.",
+            "Keep follow-up details capture-only; clarification and organization require explicit direction."
+          ],
+          "zh": [
+            "明确 Eureka 只记录灵感，除非另行要求，否则不规划、不研究、不执行任务。",
+            "补充信息仍仅记录，澄清与整理需要明确指示。"
+          ]
+        }
+      ]
+    },
+    {
+      "version": "0.8.0",
+      "date": "2026-10-10",
+      "author": "Git history",
+      "commits": [
+        "38925bd"
+      ],
+      "title_en": "Structured inbox memory and simpler workflows",
+      "title_zh": "结构化收件记忆与简化流程",
+      "changes": [
+        {
+          "category": "Added",
+          "en": [
+            "Store inbox memory in SQLite with stable IDs, original input history, duplicate-safe capture and revision-checked updates.",
+            "Add focused workflow preparation/capture helpers and safe daily amendments."
+          ],
+          "zh": [
+            "新增基于 SQLite 的收件记忆，提供稳定编号、原始输入历史、防重复记录和修订校验更新。",
+            "新增聚焦的流程准备与记录工具，以及安全的每日记录修改。"
+          ]
+        },
+        {
+          "category": "Changed",
+          "en": [
+            "Streamline shared workflow instructions.",
+            "Separate news editorial judgment from collection and delivery bookkeeping."
+          ],
+          "zh": [
+            "简化共享流程规则。",
+            "将新闻编辑判断与收集、交付记账分开。"
+          ]
+        }
+      ]
+    },
+    {
+      "version": "0.7.0",
+      "date": "2026-10-10",
+      "author": "Git history",
+      "commits": [
+        "9c67ed2"
+      ],
+      "title_en": "Record-only to-do capture",
+      "title_zh": "仅记录的待办流程",
+      "changes": [
+        {
+          "category": "Added",
+          "en": [
+            "Capture to-dos in a dedicated workflow that saves the user's wording without questions, planning or execution.",
+            "Keep deadlines and priorities user-supplied, with completion requiring user confirmation."
+          ],
+          "zh": [
+            "新增独立待办流程，保存用户原话，不提问、不规划、不执行任务。",
+            "不擅自添加截止日期或优先级，完成状态需要用户确认。"
+          ]
+        }
+      ]
+    },
+    {
+      "version": "0.6.0",
+      "date": "2026-10-10",
+      "author": "Git history",
+      "commits": [
+        "7b617ea"
+      ],
+      "title_en": "Localized conversation titles",
+      "title_zh": "本地化对话标题",
+      "changes": [
+        {
+          "category": "Added",
+          "en": [
+            "Localize conversation-title prefixes using the confirmed secretary reply language across Morning, Night, Secretary and Eureka."
+          ],
+          "zh": [
+            "早报、晚报、秘书和灵感流程的对话标题前缀跟随已确认的秘书回复语言。"
+          ]
+        },
+        {
+          "category": "Notes",
+          "en": [
+            "ISO dates and the user's raw Eureka summary wording remain unchanged."
+          ],
+          "zh": [
+            "ISO 日期与用户原始灵感摘要保持不变。"
+          ]
+        }
+      ]
+    },
+    {
+      "version": "0.5.0",
+      "date": "2026-10-10",
+      "author": "Git history",
+      "commits": [
+        "c4fb65f"
+      ],
+      "title_en": "Review calendar imports each evening",
+      "title_zh": "每晚审核日历导入",
+      "changes": [
+        {
+          "category": "Changed",
+          "en": [
+            "Stage authorized Betterbird calendar imports for review during Night workflows before displaying or applying them.",
+            "Do not silently treat imported entries as approved schedule changes."
+          ],
+          "zh": [
+            "晚报流程先暂存已授权的 Betterbird 日历导入供审核，再显示或应用。",
+            "导入条目不会被默认为已批准的日程变更。"
+          ]
+        }
+      ]
+    },
+    {
+      "version": "0.4.0",
+      "date": "2026-10-10",
+      "author": "Git history",
+      "commits": [
+        "2ae8554"
+      ],
+      "title_en": "One self-contained global skill",
+      "title_zh": "单一自包含全局技能",
+      "changes": [
+        {
+          "category": "Changed",
+          "en": [
+            "Use one manually copied, self-contained global GoodMorning skill."
+          ],
+          "zh": [
+            "改用一个手动复制、自包含的 GoodMorning 全局技能。"
+          ]
+        },
+        {
+          "category": "Removed",
+          "en": [
+            "Replace checkout-registered commands and separate workflow skills."
+          ],
+          "zh": [
+            "替换仓库注册的命令和独立流程技能。"
+          ]
+        },
+        {
+          "category": "Notes",
+          "en": [
+            "Installation remains separate from personal setup, and records stay outside the public package."
+          ],
+          "zh": [
+            "安装与个人初始化保持分离，记录保存在公开包之外。"
+          ]
+        }
+      ]
+    },
+    {
+      "version": "0.3.0",
+      "date": "2026-10-10",
+      "author": "Git history",
+      "commits": [
+        "2d7339c"
+      ],
+      "title_en": "Save ideas before asking for clarification",
+      "title_zh": "先保存灵感，再澄清",
+      "changes": [
+        {
+          "category": "Changed",
+          "en": [
+            "Preserve ideas and project updates before asking for clarification.",
+            "Keep unresolved questions visible for later follow-up.",
+            "Separate unconfirmed proposals from approved plans and calendars."
+          ],
+          "zh": [
+            "灵感和项目进展在澄清前先保存。",
+            "未解决的问题保留以便后续跟进。",
+            "未确认的建议与已批准的计划和日历分开。"
+          ]
+        }
+      ]
+    },
+    {
+      "version": "0.2.0",
+      "date": "2026-10-09",
+      "author": "Git history",
+      "commits": [
+        "fb066df"
+      ],
+      "title_en": "Consistent morning and night titles",
+      "title_zh": "统一早报与晚报标题",
+      "changes": [
+        {
+          "category": "Changed",
+          "en": [
+            "Use fixed-format Morning and Night conversation titles with the briefing date, making editions easier to find in OpenChamber."
+          ],
+          "zh": [
+            "早报和晚报流程采用包含简报日期的固定格式对话标题，方便在 OpenChamber 中查找。"
+          ]
+        }
+      ]
+    },
+    {
+      "version": "0.1.1",
+      "date": "2026-10-09",
+      "author": "Git history",
+      "commits": [
+        "cba3e45"
+      ],
+      "title_en": "Recurring Betterbird calendar events",
+      "title_zh": "Betterbird 重复日历事件",
+      "changes": [
+        {
+          "category": "Changed",
+          "en": [
+            "Bound calendar import handling."
+          ],
+          "zh": [
+            "增加有范围限制的日历导入处理。"
+          ]
+        },
+        {
+          "category": "Fixed",
+          "en": [
+            "Expand recurring calendar imports to cover recurrence rules, exceptions and overridden occurrences."
+          ],
+          "zh": [
+            "扩展重复日历事件导入，支持重复规则、例外日期和单次覆盖。"
+          ]
+        },
+        {
+          "category": "Tests",
+          "en": [
+            "Add regression coverage for repeated events."
+          ],
+          "zh": [
+            "增加重复事件回归测试。"
+          ]
+        }
+      ]
+    },
+    {
+      "version": "0.1.0",
+      "date": "2026-10-09",
+      "author": "Git history",
+      "commits": [
+        "affa5f5"
+      ],
+      "title_en": "The first secretary workflows",
+      "title_zh": "首批秘书流程",
+      "changes": [
+        {
+          "category": "Added",
+          "en": [
+            "Introduce Morning, Night, Secretary and Eureka workflows with reply templates.",
+            "Add weather and air quality, news review, calendar handling and daily state.",
+            "Add permission-controlled project access."
+          ],
+          "zh": [
+            "新增早报、晚报、秘书和灵感流程，以及回复模板。",
+            "新增天气与空气质量、新闻审核、日历处理和每日状态。",
+            "新增受权限控制的项目访问。"
+          ]
+        },
+        {
+          "category": "Documentation",
+          "en": [
+            "Add setup and deployment instructions."
+          ],
+          "zh": [
+            "加入初始化与部署说明。"
+          ]
+        },
+        {
+          "category": "Tests",
+          "en": [
+            "Add automated tests."
+          ],
+          "zh": [
+            "加入自动测试。"
+          ]
+        }
+      ]
+    },
+    {
+      "version": "0.0.0",
+      "date": "2026-10-09",
+      "author": "Git history",
+      "commits": [
+        "9bf676f"
+      ],
+      "title_en": "Repository foundation",
+      "title_zh": "仓库基础",
+      "changes": [
+        {
+          "category": "Added",
+          "en": [
+            "Create the public repository with its initial README and ignore rules."
+          ],
+          "zh": [
+            "创建公开仓库，加入初始 README 和忽略规则。"
+          ]
+        },
+        {
+          "category": "Notes",
+          "en": [
+            "No secretary application or website was present yet."
+          ],
+          "zh": [
+            "当时尚无秘书应用或网站。"
+          ]
+        }
       ]
     }
   ]

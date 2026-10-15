@@ -62,10 +62,12 @@ def main():
             copy = ({'title':'Let’s look back on today','empty':'How did today go?',
                      'none':'None of these today.','extra':'Nothing else to add.',
                      'empty_extra':'Nothing extra to add today.','other':'Other tasks',
+                     'future':'Future tasks (optional)','background':'Background',
                      'placeholder':'Share any progress or updates…','send':'Send answer'} if language=='en' else
                     {'title':'一起回顾一下今天','empty':'今天过得怎么样？',
                      'none':'这些任务今天都还没做完','extra':'没有其他要补充的了',
                      'empty_extra':'今天没有别的要补充了','other':'其他任务',
+                     'future':'以后要做的任务（可选）','background':'无固定日期',
                      'placeholder':'写下今天的进展，或其他想补充的事……','send':'提交回答'})
             with tempfile.TemporaryDirectory(dir='/tmp/opencode',prefix='gm-night-preflight-') as directory:
                 root = Path(directory)
@@ -90,23 +92,24 @@ def main():
                             expect(page.locator('input[type=checkbox]')).to_have_count(0)
                             expect(page.get_by_text(copy['empty_extra'],exact=True)).to_be_visible()
                         else:
-                            expect(page.get_by_text('Morning option',exact=True)).to_be_visible()
+                            expect(page.get_by_text(f"Morning option · {copy['background']}",exact=True)).to_be_visible()
                             expect(page.get_by_text('Unshown backlog',exact=True)).to_have_count(0)
-                            expect(page.get_by_text(copy['none'],exact=True)).to_be_visible()
+                            expect(page.get_by_text(copy['future'],exact=True)).to_be_visible()
+                            expect(page.get_by_text(copy['none'],exact=True)).to_have_count(0)
                             expect(page.locator('.answer-project-group')).to_have_count(3)
                             expect(page.locator('.answer-project-group > legend')).to_have_text(['Atlas','Paper <review>',copy['other']])
                             atlas=page.get_by_role('group',name='Atlas',exact=True)
                             paper=page.get_by_role('group',name='Paper <review>',exact=True)
                             other=page.get_by_role('group',name=copy['other'],exact=True)
                             expect(atlas.get_by_role('checkbox')).to_have_count(2)
-                            expect(other.get_by_text('Morning option',exact=True)).to_be_visible()
+                            expect(other.get_by_text(f"Morning option · {copy['background']}",exact=True)).to_be_visible()
                             expect(page.locator('.answer-project-group img')).to_have_count(0)
                             expect(page.locator('.answer-project-group').get_by_text(copy['none'],exact=True)).to_have_count(0)
-                            atlas.get_by_role('checkbox',name='Review results',exact=True).check()
-                            paper.get_by_role('checkbox',name='Review results',exact=True).check()
+                            atlas.get_by_role('checkbox',name=f"Review results · {copy['background']}",exact=True).check()
+                            paper.get_by_role('checkbox',name=f"Review results · {copy['background']}",exact=True).check()
                             page.evaluate('poll()')
-                            expect(atlas.get_by_role('checkbox',name='Review results',exact=True)).to_be_checked()
-                            expect(paper.get_by_role('checkbox',name='Review results',exact=True)).to_be_checked()
+                            expect(atlas.get_by_role('checkbox',name=f"Review results · {copy['background']}",exact=True)).to_be_checked()
+                            expect(paper.get_by_role('checkbox',name=f"Review results · {copy['background']}",exact=True)).to_be_checked()
                         updates=page.get_by_placeholder(copy['placeholder'],exact=True)
                         no_extra=page.get_by_role('radio',name=copy['empty_extra'] if scenario=='empty' else copy['extra'],exact=True)
                         assert updates.evaluate('node => Boolean(node.compareDocumentPosition(node.parentElement.querySelector(".answer-option")) & Node.DOCUMENT_POSITION_FOLLOWING)')
