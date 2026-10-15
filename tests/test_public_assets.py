@@ -1,6 +1,8 @@
 """Asset loading order and scoped authentication protection, without private records."""
 from pathlib import Path
 import re
+import shutil
+import subprocess
 import sys
 import unittest
 
@@ -28,3 +30,7 @@ class PublicAssetTests(unittest.TestCase):
         self.assertRegex(proxied,r'limit_req zone=goodmorning_auth_submit\b')
         self.assertIn('proxy_pass',proxied)
 
+    @unittest.skipUnless(shutil.which('node'),'Node is not available')
+    def test_shared_response_reader(self):
+        result=subprocess.run(['node','--test',str(ROOT/'tests/test_network.mjs')],capture_output=True,text=True,timeout=20)
+        self.assertEqual(result.returncode,0,result.stdout+result.stderr)

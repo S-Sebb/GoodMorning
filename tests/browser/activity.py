@@ -13,9 +13,9 @@ sys.path.insert(0, str(REPO/'tests/browser'))
 
 
 def fixture(root):
-    import test_briefing_chat
+    import support
     from language import fixture as language_fixture
-    original = test_briefing_chat.MockChamber
+    original = support.MockChamber
     class ActivityChamber(original):
         def stage(self):
             return (root/'activity-state').read_text() if (root/'activity-state').exists() else 'waiting'
@@ -32,7 +32,7 @@ def fixture(root):
             if path == '/api/openchamber/control':
                 return {'sessionStatus': {'type': 'idle' if self.stage() == 'idle' else 'busy'}}
             return super().request(path, body)
-    test_briefing_chat.MockChamber = ActivityChamber
+    support.MockChamber = ActivityChamber
     language_fixture(root, hosts={'gm.language.test': 'gm'})
 
 
