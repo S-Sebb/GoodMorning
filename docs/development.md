@@ -4,6 +4,14 @@ Project-specific rules for coding agents. The general worktree, branch and pull
 request (PR) workflow comes from the user's global agent instructions. Here:
 default branch `main`, CI workflow `Validate`, squash merges only.
 
+## Python
+
+uv manages Python everywhere. `.python-version` pins 3.14; install it with
+`uv python install 3.14`. Run Python through
+`uv run --no-project --with-requirements requirements/browser.txt python ...`,
+never a system interpreter. The live server's setup is in
+`docs/server-deployment.md`.
+
 ## Tests
 
 Run from the task worktree after the final rebase. Local runs use `/tmp/opencode`
@@ -11,7 +19,7 @@ as the fixture root when it exists; set `GM_TEST_TMPDIR` to use another.
 
 1. Every PR:
    - focused tests for the changed behavior, added or updated in the same PR;
-   - `python -m unittest discover -s tests -p 'test_*.py' -q`;
+   - `uv run --no-project --with-requirements requirements/browser.txt python -m unittest discover -s tests -p 'test_*.py' -q`;
    - `node --test tests/test_projects.mjs`.
 2. Browser-visible changes: also run the `tests/browser/*.py` suites for the
    changed pages, listed in `tests/README.md`, with private artifact
@@ -96,8 +104,8 @@ unchanged:
 Validate before opening the release PR:
 
 ```sh
-python3 -c "import sys;sys.path.insert(0,'src');from goodmorning.web.release import patch_notes;notes=patch_notes();assert notes;print(notes[0]['version'])"
-python3 -m unittest discover -s tests -p test_release.py -q
+uv run --no-project --with-requirements requirements/browser.txt python -c "import sys;sys.path.insert(0,'src');from goodmorning.web.release import patch_notes;notes=patch_notes();assert notes;print(notes[0]['version'])"
+uv run --no-project --with-requirements requirements/browser.txt python -m unittest discover -s tests -p test_release.py -q
 ```
 
 An invalid file shows users no notes at all, so both checks must pass.

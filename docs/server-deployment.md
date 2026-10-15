@@ -20,10 +20,14 @@ deployment needed it.
   from memory.
 - Server Python: `/opt/goodmorning/python/bin/python` with `-B`.
   `/opt/goodmorning/python` is a symlink to the active virtual environment,
-  `/opt/goodmorning/python-3.14` (Python 3.14 from the deadsnakes PPA, plus
-  Pillow). The previous `/opt/goodmorning/python-3.12` stays for rollback.
-  The server's default pip index is unreachable; install packages with
-  `--index-url https://pypi.org/simple`.
+  `/opt/goodmorning/python-3.14`. uv (`/usr/local/bin/uv`) manages it: CPython
+  lives in `/opt/goodmorning/uv/python`, and the environment holds only Pillow.
+  The previous `/opt/goodmorning/python-3.12` stays for rollback. To take a
+  Python 3.14 patch update, run as root:
+  `UV_PYTHON_INSTALL_DIR=/opt/goodmorning/uv/python uv python upgrade 3.14`,
+  then restart services during a deployment. Install packages with
+  `uv pip install --python /opt/goodmorning/python-3.14/bin/python --index-url https://pypi.org/simple`,
+  because the server's default pip index is unreachable.
 - Private data lives under `/srv/goodmorning/live` on encrypted mounts.
   Deployment writes there only for the protected deployment report and the
   deployment pause flag (`maintenance` metadata key). No other private writes.
@@ -46,7 +50,7 @@ deployment needed it.
    release `YYYYMMDD-ship-<short hash>`, or `YYYYMMDD-<topic>-silent-<short hash>`
    for a silent update. The deployed archive must be built from this HEAD.
 3. Full suites pass on this HEAD with no model calls:
-   `python -m unittest discover -s tests -p 'test_*.py' -q`,
+   `uv run --no-project --with-requirements requirements/browser.txt python -m unittest discover -s tests -p 'test_*.py' -q`,
    `node --test tests/test_projects.mjs`, plus the affected
    `tests/browser/*.py` suites with private artifact directories.
 4. Confirm the live website is not already paused by someone else:
