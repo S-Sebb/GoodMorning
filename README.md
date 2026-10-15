@@ -192,9 +192,8 @@ The [item and timing guide](docs/item-taxonomy.md) explains these boundaries in 
 
 ## Make it yours
 
-GoodMorning is currently **beta**. It runs on **Linux with Python 3.9+** and an
-**OpenCode/OpenChamber agent**; a maintained Python release such as 3.12+ is
-recommended. Optional local or paired-remote project access needs **Node.js
+GoodMorning is currently **beta**. It runs on **Linux with Python 3.14+** and an
+**OpenCode/OpenChamber agent**. Optional local or paired-remote project access needs **Node.js
 22.18+**. It is not a standalone chatbot or an unattended daily service.
 
 1. **Choose your home.** Follow the [manual deployment guide](docs/deployment.md)

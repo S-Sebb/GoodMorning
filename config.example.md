@@ -178,4 +178,4 @@ write-lock artifact consent and must not silently broaden to write access.
 The project CLI accepts `--registry` / `GM_PROJECT_REGISTRY` and `--settings` /
 `GM_OPENCHAMBER_SETTINGS`. Pairing settings default to
 `~/.config/openchamber/settings.json` and are read privately, never displayed.
-Node.js 22.18+ and Python 3.9+ on Linux are required. See `docs/project-access.md`.
+Node.js 22.18+ and Python 3.14+ on Linux are required. See `docs/project-access.md`.
