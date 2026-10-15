@@ -10,7 +10,9 @@ language and date; browser jobs supply saved preparation. Result: a verified nat
 v2 morning edition and browser link, not a new task plan.
 
 Read `docs/core-rules.md`, `docs/item-taxonomy.md`, `docs/briefing-format.md` and
-`docs/reply-voice.md`. Browser jobs also read `docs/browser-generation.md`.
+`docs/reply-voice.md` for local runs. Browser jobs follow their receipts' step
+guides instead (`docs/browser-generation.md`) and open these docs only for
+feedback no guide covers.
 Run `python scripts/goodmorning.py` from the package root with selected absolute
 runtime/cache paths. Keep the current session/model and use the confirmed language.
 Use the default plan in order: Weather, News, Schedule, Tasks, Reminders, with

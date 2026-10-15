@@ -9,7 +9,7 @@ import unittest
 from unittest.mock import patch
 
 from support import TEMP_ROOT
-from benchmarks.briefing_tone_live import CheckpointBridge, seed_tasks, link_handoff, collection_order_issues, trial_config, external_allowed, job_action
+from benchmarks.briefing_tone_live import CheckpointBridge, seed_tasks, seed_flexible, link_handoff, collection_order_issues, trial_config, external_allowed, job_action
 from goodmorning.briefings.briefing_job import act, writing_rule
 from goodmorning.briefings.briefing_preflight import initialize as prepare, answer
 from goodmorning.calendar.calendar_store import CalendarStore
@@ -35,6 +35,15 @@ class BriefingTrialTests(unittest.TestCase):
         self.assertEqual([row['planned_date'] for row in rows], ['2026-10-15','2026-10-15','2026-10-14'])
         context = prepare(self.runtime, {'id':'a'*32,'date':'2026-10-14','kind':'gn','language':'zh-CN'})
         self.assertEqual({field['key'] for field in context['form']['fields']}, {'completed','details'})
+        self.assertTrue(context['awaiting'])
+
+    def test_flexible_fixtures_need_judgment_not_new_dates(self):
+        vague = seed_flexible(self.runtime,'en','morning-vague','2026-10-14')
+        self.assertEqual([row['title'] for row in vague],['atlas report stuff etc','Groceries','Prepare Q3 slides for the Boreal review'])
+        self.assertEqual({row['planned_date'] for row in vague},{'2026-10-14'})
+        messy = seed_flexible(self.runtime,'zh-CN','evening-complex','2026-10-14')
+        self.assertEqual([row['planned_date'] for row in messy[3:]],['2026-10-14','2026-10-15','2026-10-14'])
+        context = prepare(self.runtime, {'id':'b'*32,'date':'2026-10-14','kind':'gn','language':'zh-CN'})
         self.assertTrue(context['awaiting'])
 
     def test_checkpoint_seed_retains_owner_and_next_unresolved_position(self):

@@ -1,9 +1,15 @@
 # Browser generation contract
 
-Inputs: `/gm|/gn`, browser job ID, selected runtime and website language. Read
-`docs/core-rules.md`, the matching workflow and `docs/briefing-format.md`. Stable
-rules belong in those documents, not dispatch prompts. Result: a verified saved
-edition and browser link; code owns cumulative JSON, validation and final save.
+Inputs: `/gm|/gn`, browser job ID, selected runtime and website language. Result:
+a verified saved edition and browser link; code owns cumulative JSON, validation
+and final save.
+
+Browser agents do not read this file up front. `job prepare` returns a localized
+`contract`, and every receipt's `next.guide` carries the rules for that one step
+(`src/goodmorning/briefings/briefing_guides.py`, English and Chinese). The
+contract sends the agent to `docs/core-rules.md` and `docs/item-taxonomy.md`
+only for feedback no guide covers. This file is the full reference behind those
+guides: when a rule here changes, update the matching guide in both languages.
 
 ## Prepare and resolve gates
 

@@ -31,7 +31,8 @@ mode switch, new session, or recursive skill load. Keep the current session/mode
 do not delegate. Missing setup follows the secretary workflow.
 
 - `Browser chat`: also read `docs/browser-chat.md`. Briefings remain on their pages.
-- `Browser job`: also read `docs/browser-generation.md`. Start with `job prepare`;
+- `Browser job`: read no docs first. Start with `job prepare` and follow its
+  `contract` and each receipt's `guide`; open docs only for what no guide covers;
   immediately `init` a fresh preview, otherwise resume the receipt's next step.
   Publish only the next section, then `finish`. Reuse saved
   decisions, date and feedback; code owns cumulative JSON and final save.

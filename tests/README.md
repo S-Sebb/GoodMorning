@@ -93,7 +93,7 @@ public HTTPS, encrypted deployment, real providers or load.
 |---|---|---|
 | Website | `PY tests/benchmarks/website_live.py --output DIR` | Capture, follow-ups, Schedule, evening feedback, regeneration through real browser routes. `--blocked-report`: reported blockers. `--ambiguity`: a recurrence question comes before any write |
 | Task and tone | `PY tests/benchmarks/task_tone_live.py --output DIR` | English and Chinese × default, formal and playful tones, run twice: capture, clarification, duplicate request identities, refused writes, fault recovery |
-| Briefing tone | `PY tests/benchmarks/briefing_tone_live.py --output DIR --language en` (then `zh-CN` in a new directory) | Morning and evening prompts: empty and opted-in sections, unavailable providers, resume, evening feedback, regeneration, ambiguous attribution |
+| Briefing tone | `PY tests/benchmarks/briefing_tone_live.py --output DIR --language en` (then `zh-CN` in a new directory) | Morning and evening prompts: empty and opted-in sections, unavailable providers, resume, evening feedback, regeneration, ambiguous attribution, and two judgment cases: vague task titles and messy evening feedback with a task move |
 | Custom schedule | `PY tests/benchmarks/custom_tone_live.py --output DIR --language en\|zh-CN` | Custom-schedule prompts: ask until clear, save once, tone |
 | Manual | `PY tests/benchmarks/manual_trial.py --help` | Ad-hoc cases you drive by hand |
 
