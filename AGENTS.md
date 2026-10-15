@@ -33,6 +33,12 @@ For coding-agent requests to create a hosted server user, read
 do not ask the owner to choose one. Complete isolated backend provisioning and
 the readiness gate before reporting success. Never expose credentials.
 
+For coding-agent requests to inspect, migrate, repair, restore or manually modify
+hosted account data, read `SERVER-DATA-GUIDE.md` first. Inspection is read-only;
+live writes require explicit account/file/operation scope, an encrypted rollback
+backup, the correct service identity, and before/after validation. A deployment
+or version bump never authorizes personal-data migration.
+
 For website requests, this working directory is the selected release/package
 root. Read workflows and run helpers here, not from another installed GoodMorning
 copy. A globally loaded skill never changes the browser request's release or runtime.

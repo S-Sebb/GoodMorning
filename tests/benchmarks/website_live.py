@@ -57,7 +57,7 @@ def main():
         source.mkdir(); runtime.mkdir(mode=0o700)
         for name in ('src','scripts','docs','templates','assets','skill-source'):
             shutil.copytree(ROOT.parent/name, source/name, ignore=shutil.ignore_patterns('__pycache__'))
-        for name in ('AGENTS.md', 'AGENT-PROMPT-GUIDE.md', 'SERVER-USER-GUIDE.md'):
+        for name in ('AGENTS.md', 'AGENT-PROMPT-GUIDE.md', 'SERVER-USER-GUIDE.md', 'SERVER-DATA-GUIDE.md'):
             shutil.copyfile(ROOT.parent/name, source/name)
         # Native project skills override a developer's installed global copy.
         # Flat named Markdown keeps the package base at this copied release root.

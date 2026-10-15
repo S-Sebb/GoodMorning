@@ -108,7 +108,9 @@ python3 -m unittest discover -s tests -p test_release.py -q
 ## 2. Build the filtered public archive
 
 The helper refuses any archive containing non-public files, so filter first.
-Ensure its public-file allowlist includes the root `LICENSE`; retain that file in every release:
+Ensure its public-file allowlist includes the root `LICENSE` and the agent,
+provisioning and data-modification guides referenced by `AGENTS.md`; retain them
+in every release:
 
 ```sh
 git archive --format=tar.gz --output=/tmp/opencode/<NAME>.tar.gz HEAD
@@ -116,7 +118,7 @@ python3 - <<'PY'
 import hashlib,tarfile
 from pathlib import Path
 source=Path('/tmp/opencode/<NAME>.tar.gz');target=Path('/tmp/opencode/<NAME>-public.tar.gz')
-allowed={'.gitignore','LICENSE','README.md','AGENTS.md','config.example.md','skill-source','scripts','src','assets','integrations','vendor','requirements','docs','templates','deploy','tests'}
+allowed={'.gitignore','LICENSE','README.md','AGENTS.md','AGENT-PROMPT-GUIDE.md','SERVER-USER-GUIDE.md','SERVER-DATA-GUIDE.md','config.example.md','skill-source','scripts','src','assets','integrations','vendor','requirements','docs','templates','deploy','tests'}
 count=0
 with tarfile.open(source) as archive,tarfile.open(target,'w:gz') as public:
  for member in archive.getmembers():
@@ -248,7 +250,8 @@ A manual rollback is the same sequence; never hand-edit the symlink.
 - Never display passwords, tokens, or `.env` contents; never log private text.
 - Live account maintenance (edition resets, chat cleanup) is separate from
   deployment and needs its own explicit authorization plus an encrypted
-  rollback backup. See the per-task evidence notes, not this file.
+  rollback backup. Follow [the hosted data modification guide](../SERVER-DATA-GUIDE.md)
+  and retain per-task evidence. A version bump does not authorize a data migration.
 
 ## Queue-aware deployment guard
 

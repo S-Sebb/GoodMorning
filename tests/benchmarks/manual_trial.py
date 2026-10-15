@@ -90,7 +90,7 @@ def main():
         for name in ("src", "scripts", "docs", "templates", "assets", "skill-source"):
             shutil.copytree(ROOT / name, source / name,
                             ignore=shutil.ignore_patterns("__pycache__"))
-        for name in ("AGENTS.md", "AGENT-PROMPT-GUIDE.md", "SERVER-USER-GUIDE.md"):
+        for name in ("AGENTS.md", "AGENT-PROMPT-GUIDE.md", "SERVER-USER-GUIDE.md", "SERVER-DATA-GUIDE.md"):
             shutil.copyfile(ROOT / name, source / name)
         shutil.copyfile(ROOT / "skill-source/goodmorning.md", source / "goodmorning.md")
         (source / "opencode.json").write_text(json.dumps({"skills": ["."]}))

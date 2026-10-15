@@ -1,7 +1,7 @@
 {
   "notes": [
     {
-      "version": "0.44.1", "date": "2026-10-15", "author": "GoodMorning agent",
+      "version": "0.44.2", "date": "2026-10-15", "author": "GoodMorning agent",
       "title_en": "Night check split for due-today and future tasks", "title_zh": "晚间勾选拆分当天与未来任务",
       "changes": [
         {"category": "Changed", "en": [
@@ -22,6 +22,24 @@
           "Updated the night preflight browser expectations for Background labels and future-only forms; task and briefing-job suites pass."
         ], "zh": [
           "更新晚间预检浏览器用例以覆盖无固定日期标签与仅未来任务表单；任务与简报任务套件通过。"
+        ]}
+      ]
+    },
+    {
+      "version": "0.44.1", "date": "2026-10-15", "author": "GoodMorning agent",
+      "title_en": "Safer account data maintenance", "title_zh": "更安全的账户数据维护",
+      "changes": [
+        {"category": "Documentation", "en": [
+          "Require a dedicated data-change procedure for account migrations and repairs: explicit scope, encrypted rollback backups, correct service ownership, and validation as the service user.",
+          "Preserve required agent and server guides in deployment archives and isolated instruction trials."
+        ], "zh": [
+          "为账户迁移和修复制定专门的数据变更流程：明确操作范围、准备加密回滚备份、使用正确的服务归属，并以服务用户身份进行验证。",
+          "在部署归档和隔离的指令试验中保留所需的代理指南与服务端指南。"
+        ]},
+        {"category": "Tests", "en": [
+          "Check the new procedure with four synthetic cases on both configured models; these decision checks do not prove live migration safety."
+        ], "zh": [
+          "在两个已配置的模型上用四个合成案例检验新流程；这些决策检查并不能证明线上迁移是安全的。"
         ]}
       ]
     },

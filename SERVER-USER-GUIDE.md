@@ -2,6 +2,8 @@
 
 For coding agents with authorized root SSH access. Use the deployed release,
 not a development worktree. Account creation is separate from personal initialization.
+Existing-account data migration or repair follows [SERVER-DATA-GUIDE.md](SERVER-DATA-GUIDE.md),
+not the account-creation procedure. Do not rerun provisioning to repair record ownership.
 
 ## Paths
 
