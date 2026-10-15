@@ -6,7 +6,6 @@ switch NAME         With the website paused, wait for idle, then make a staged
 
 Exit status 3 means switch changed nothing because the website never became idle.
 """
-from concurrent.futures import ThreadPoolExecutor
 import hashlib
 import json
 import os
@@ -212,15 +211,10 @@ def switch(name):
     bridges = {identifier: LocalBridge('http://127.0.0.1:'+str(config['chamberPort']), str(old), config['uiPassword'])
                for identifier, config in configs.items()}
 
-    def check_session(bridge, session):
-        assert bridge.control('session.status', sessionId=session)['sessionStatus']['type'] == 'idle', 'A session is busy'
-        assert bridge.pending(session) == ([], []), 'Pending owner input prevents deployment'
-
     def idle():
         with store.db() as db:
             require_paused(db)
             require_no_work(db)
-        checks = []
         for identifier, bridge in bridges.items():
             active = bridge.request('/api/session/active')
             if active.get('data', active):
@@ -230,13 +224,11 @@ def switch(name):
                 path = BASE/identifier/'secretary'/registry_file
                 if path.is_file():
                     sessions.update(item['session'] for item in json.loads(path.read_text()).values() if item.get('session'))
-            checks += [(bridge, session) for session in sessions]
-        with ThreadPoolExecutor(8) as pool:
-            for future in [pool.submit(check_session, *check) for check in checks]:
-                try:
-                    future.result()
-                except AssertionError as error:
-                    raise Busy(str(error)) from error
+            for session in sessions:
+                if bridge.control('session.status', sessionId=session)['sessionStatus']['type'] != 'idle':
+                    raise Busy('A session is busy')
+                if bridge.pending(session) != ([], []):
+                    raise Busy('Pending owner input prevents deployment')
 
     deadline = time.monotonic()+IDLE_TIMEOUT
     while True:
