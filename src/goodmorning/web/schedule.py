@@ -11,6 +11,7 @@ from goodmorning.calendar.calendar_safety import safe_value
 from goodmorning.records.daily import inspect, read_record, record_path
 from goodmorning.records.routing import converted_draft_ids
 from . import language as ui
+from . import quick_chat
 from .briefing_resources import favicon_links
 from .chat_theme import clock_theme
 
@@ -388,4 +389,4 @@ def page(app, offset, mode='week'):
               '<main><div id="schedule-view">' + content + '</div><p id="schedule-error" role="alert"></p>'
               '<noscript>Navigation and saved plans work without JavaScript. Reload to see updates.</noscript></main>'
               '<div id="schedule-config" hidden data-config="' + config + '"></div><script src="/schedule.js" defer></script></body></html>')
-    return app.resources.rewrite(ui.page(source, app.csrf, '/schedule')).encode()
+    return app.resources.rewrite(ui.page(quick_chat.widget(source, app.csrf), app.csrf, '/schedule')).encode()

@@ -49,6 +49,7 @@ restoration.
 | `chat_markdown` | Rendered Markdown, privacy, history, palettes |
 | `chat_mobile_viewport` | Composer access and reading or draft preservation with simulated phone keyboards |
 | `chat_response` | Unreadable responses recover; uncertain sends never replay |
+| `quick_chat` | Floating quick chat on desk pages: shared tab conversation with the Secretary page, Open in Secretary, 15-minute reset, questions, setup gating, layouts in both languages |
 | `chat_theme`, `color_schemes` | Edition colours in account time; whole-site palette switching through the gateway |
 | `day_scenes`, `starry_twinkle` | Scene contrast, background motion, reduced motion |
 | `desk_icons` (`--screenshots DIR`) | Decorative icons, translations, narrow layouts |

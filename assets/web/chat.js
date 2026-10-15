@@ -201,7 +201,17 @@ window.addEventListener('beforeunload', event => {
   if (!hasUnsentInput()) return;
   event.preventDefault(); event.returnValue = '';
 });
-window.addEventListener('pageshow', event => { if (event.persisted) returnToSecretary(); });
+window.addEventListener('pageshow', event => {
+  if (!event.persisted) return;
+  // Quick chat on another page may have moved this tab to another conversation.
+  const saved = readWorkspace();
+  if (Object.hasOwn(saved, 'chat') && saved.chat !== chat) {
+    workspace = saved;
+    if (saved.chat) openConversation(saved.chat, {push: false});
+    else newConversation(chatConfig.defaultMode, {resume: saved.resume});
+  }
+  returnToSecretary();
+});
 const renderedMessages = new WeakMap();
 const specialLabels = {question: 'Question for you', answer: 'Your answer', permission: 'Your permission'};
 const actionTargets = {task: 'Task', event: 'Event', draft: 'Event draft', idea: 'Idea', record: 'Record', custom: 'Custom schedule'};

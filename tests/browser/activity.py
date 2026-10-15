@@ -135,10 +135,17 @@ def run(artifacts):
                     button.textContent = 'Top';
                     document.body.append(button);
                 }""")
-                expect(page.locator('#account-activity')).to_have_css('bottom', '88px')
-                assert page.locator('#account-activity').evaluate("node => node.getBoundingClientRect().bottom < document.querySelector('#fixture-corner-control').getBoundingClientRect().top")
+                # Activity stacks above the back-to-top control and the quick chat launcher.
+                above = """selector => {
+                    const panel = document.querySelector('#account-activity').getBoundingClientRect();
+                    return [...document.querySelectorAll(selector)].filter(node => node.getClientRects().length)
+                        .every(node => panel.bottom < node.getBoundingClientRect().top);
+                }"""
+                expect(page.locator('#quick-chat-launcher')).to_be_visible()
+                page.wait_for_function(above, arg='#fixture-corner-control, #quick-chat-launcher')
                 page.locator('#fixture-corner-control').evaluate('node => node.remove()')
-                expect(page.locator('#account-activity')).to_have_css('bottom', '24px')
+                expect(page.locator('#account-activity')).to_have_css('bottom', '92px')
+                assert page.evaluate(above, '#quick-chat-launcher')
                 page = pages[-1]
                 page.get_by_role('button', name='Minimize activity', exact=True).click()
                 expect(page.locator('#activity-window')).to_be_hidden()

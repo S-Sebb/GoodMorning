@@ -77,6 +77,7 @@ class Resources:
                    'questions.js': 'text/javascript', 'chat.js': 'text/javascript', 'chat.css': 'text/css', 'language.js':'text/javascript',
                    'network.js':'text/javascript', 'auth.js':'text/javascript','auth.css':'text/css',
                    'activity.js':'text/javascript','activity.css':'text/css',
+                   'quick-chat.js':'text/javascript','quick-chat.css':'text/css',
                      'schedule.js':'text/javascript', 'schedule-mode.js':'text/javascript', 'schedule.css':'text/css',
                     'marked.js': 'text/javascript', 'markdown.js': 'text/javascript',
                       'starry-sky.svg': 'image/svg+xml',
