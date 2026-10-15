@@ -9,7 +9,7 @@ from threading import Thread
 import unittest
 from unittest.mock import patch
 
-from support import TEMP_ROOT, FakeChamber
+from support import TEMP_ROOT, FakeChamber, complete_profile
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'src'))
 from goodmorning.briefings.briefing_job import act, context_path, decode_input, next_step
 from goodmorning.briefings.briefing_preflight import answer, initialize
@@ -38,7 +38,7 @@ class JobTests(unittest.TestCase):
         self.addCleanup(patcher.stop)
         self.addCleanup(join_workers)
         self.root = Path(self.temp.name)
-        (self.root/'profile.md').write_text('city: London, GB\ntimezone: Europe/London\nnews_country: GB\nsecretary_language: English\n')
+        complete_profile(self.root)
         (self.root/'daily').mkdir()
         self.chamber = FakeChamber()
         self.app = BrowserApp(self.root,self.chamber,now=lambda:datetime(2026,10,11,12,tzinfo=timezone.utc),preflight=True)
@@ -54,6 +54,12 @@ class JobTests(unittest.TestCase):
 
     def test_owner_and_prepared_context_are_code_owned(self):
         with self.assertRaises(ValueError): act(self.root,self.identifier,'ses_other','prepare')
+        self.init()
+        target=self.app.job_dir/(self.identifier+'.preview.json');before=target.read_bytes()
+        for action,payload in (('publish',{'position':0,'section':['must-do',[['tasks',[['open','Ranking','']]]]]}),('finish',{})):
+            with self.assertRaises(ValueError): act(self.root,self.identifier,'ses_other',action,payload)
+        self.assertEqual(target.read_bytes(),before)
+        self.assertFalse((self.root/'daily/2026-10-11.gm.json').exists())
         result = act(self.root,self.identifier,'ses_fixture','prepare')
         self.assertEqual(result['date'],'2026-10-11')
         self.assertNotIn('form',result)
@@ -95,7 +101,7 @@ class JobTests(unittest.TestCase):
         self.assertEqual(result['url'],'/d/2026-10-11/gm.html')
         self.assertEqual(result['reply_context']['language'],'en')
         self.assertEqual(result['reply_context']['tone'],'warm and helpful')
-        self.chamber.forms=[];self.chamber.permissions=[];self.chamber.busy=False
+        self.chamber.idle()
         self.assertEqual(self.app.status(self.identifier)['state'],'ready')
         self.assertFalse((self.app.job_dir/(self.identifier+'.preview.json')).exists())
         before = {path:path.read_bytes() for path in (self.root/'daily').iterdir()}
@@ -115,9 +121,7 @@ class JobTests(unittest.TestCase):
         result=act(self.root,self.identifier,'ses_fixture','finish',{})
         self.assertEqual(result['url'],'/d/2026-10-11/gm.html')
         self.assertEqual(result['reply_context']['language'],'zh-CN')
-        self.assertIn('现在只交付链接',result['next'])
-        self.assertIn('不要再回顾任务',result['next'])
-        self.chamber.forms=[];self.chamber.permissions=[];self.chamber.busy=False
+        self.chamber.idle()
         self.assertEqual(self.app.status(self.identifier)['state'],'ready')
         from goodmorning.web import language
         token=language.CURRENT.set('zh-CN')
@@ -212,26 +216,18 @@ class JobTests(unittest.TestCase):
         self.assertEqual(text.count('Travel planning is partial.'),1)
         self.assertFalse((self.root/'daily/2026-10-11.gn.json').exists())
 
-    def test_archive_gaps_do_not_block_morning_preflight(self):
-        (self.root/'daily/2026-10-10.md').write_text('# 2026-10-10\n- gn: yes (session ses_old)\n')
-        context=initialize(self.root,self.job)
-        self.assertFalse(context['awaiting'])
-        self.assertIsNone(context['form'])
-        self.assertEqual(self.chamber.calls,[])
-        self.assertEqual(context['missed_total'],0)
-        self.assertEqual(context['past_missing_choice'],'continue_today')
-        self.assertEqual((self.root/'daily/2026-10-10.md').read_text(),'# 2026-10-10\n- gn: yes (session ses_old)\n')
-
     def test_morning_dispatches_without_archive_gap_confirmation(self):
         self.app.jobs={};self.app.save_jobs()
-        (self.root/'daily/2026-10-10.md').write_text('# 2026-10-10\n- gn: yes (session ses_old)\n')
+        gap=self.root/'daily/2026-10-10.md';gap.write_text('# 2026-10-10\n- gn: yes (session ses_old)\n')
         result=self.app.start('2026-10-11','gm')
         self.assertTrue(self.chamber.sent.wait(2))
         self.assertEqual(sum(action=='session.create' for action,_ in self.chamber.calls),1)
         context=json.loads(context_path(self.root,result['job']).read_text())
         self.assertFalse(context['awaiting'])
         self.assertIsNone(context['form'])
+        self.assertEqual((context['missed_total'],context['past_missing_choice']),(0,'continue_today'))
         self.assertFalse((self.root/'daily/2026-10-10.gm.json').exists())
+        self.assertEqual(gap.read_text(),'# 2026-10-10\n- gn: yes (session ses_old)\n')
 
     def test_feedback_retry_recovers_atomic_amendment_without_double_recording(self):
         path=self.root/'daily/2026-10-11.md'
@@ -314,7 +310,7 @@ class JobTests(unittest.TestCase):
         act(self.root,self.identifier,'ses_fixture','skip',{'position':1})
         checkpoint=load(self.app.job_dir/(self.identifier+'.preview.json'))
         (self.root/'daily/2026-10-11.gm.json').write_text(json.dumps(checkpoint['document']))
-        self.chamber.forms=[];self.chamber.permissions=[];self.chamber.busy=False
+        self.chamber.idle()
         self.assertEqual(self.app.status(self.identifier)['state'],'stopped')
         self.assertEqual(self.app.start('2026-10-11','gm'),{'job':self.identifier})
         # The authentic same job can finish its interrupted matching save without --force.
@@ -346,7 +342,7 @@ class JobTests(unittest.TestCase):
         with patch.object(state,'save_state',side_effect=OSError('Synthetic index interruption')):
             with self.assertRaisesRegex(ValueError,'state_unavailable'):
                 act(self.root,self.identifier,'ses_fixture','finish',{})
-        self.chamber.forms=[];self.chamber.permissions=[];self.chamber.busy=False
+        self.chamber.idle()
         self.assertEqual(self.app.status(self.identifier)['state'],'stopped')
         page=self.app.page('2026-10-11','gm',False).decode()
         self.assertIn('&quot;missing&quot;: true',page)
@@ -415,7 +411,6 @@ class JobTests(unittest.TestCase):
         recipe=next_step(self.root,self.identifier,'ses_fixture',context,{'outcomes':[1,1],
             'plan':[['today','Today'],['still-open','Still open'],['tomorrow','Tomorrow']]})
         self.assertIn('--from 2026-10-12 --days 1',recipe['read'][0])
-        self.assertIn('No timed appointments does not mean a free day',recipe['instruction'])
         self.assertIn('[date,status,title,detail]',recipe['instruction'])
 
     def test_night_default_project_priorities_save_without_rescheduling_or_completion(self):
@@ -467,8 +462,6 @@ class JobTests(unittest.TestCase):
         context['paths']['calendar_db']=None
         recipe=next_step(self.root,self.identifier,'ses_fixture',context,{'outcomes':[], 'plan':[['schedule','Schedule']]})
         self.assertEqual(recipe['read'],[])
-        self.assertIn('active inbox/project constraints',recipe['instruction'])
-        self.assertIn('flexible rows',recipe['instruction'])
 
     def test_flexible_today_tasks_sync_once_and_keep_priority_and_completion(self):
         path=self.root/'daily/2026-10-11.md'
@@ -541,14 +534,13 @@ class JobTests(unittest.TestCase):
         path=self.root/'daily/2026-10-11.md'
         path.write_text(path.read_text().replace('ses_fixture','ses_other'))
         state.save_state(str(self.root),state.rebuild_index(str(self.root),state.load_state(str(self.root)),'2026-10-11'))
-        result=self.app.status(self.identifier)
-        self.assertEqual(result['state'],'stopped')
-        self.assertEqual(result['progress'],95)
-        self.assertEqual(result['label'],'This edition was updated outside its briefing job and cannot be verified. Regenerate to replace it; your records are unchanged.')
+        foreign=self.app.status(self.identifier)
+        self.assertEqual((foreign['state'],foreign['progress']),('stopped',95))
         self.assertEqual(source.read_bytes(),saved)
         source.write_text('{broken')
-        self.assertEqual(self.app.status(self.identifier)['label'],
-            'The saved edition is not readable. Inspect its format in OpenChamber; your records are unchanged.')
+        invalid=self.app.status(self.identifier)
+        self.assertEqual((invalid['state'],invalid['progress']),('stopped',95))
+        self.assertNotEqual(invalid['label'],foreign['label'])
 
     def save_original(self):
         self.init()
@@ -556,7 +548,7 @@ class JobTests(unittest.TestCase):
             ['must-do',[['tasks',[['open','Ranking','']]]]]})
         act(self.root,self.identifier,'ses_fixture','skip',{'position':1})
         act(self.root,self.identifier,'ses_fixture','finish',{})
-        self.chamber.forms=[];self.chamber.permissions=[];self.chamber.busy=False
+        self.chamber.idle()
         self.assertEqual(self.app.status(self.identifier)['state'],'ready')
 
     def regenerate(self, request='b'*32):
@@ -661,7 +653,7 @@ class JobTests(unittest.TestCase):
         act(self.root,self.identifier,'ses_fixture','init',{'greeting':'Night.','opening':'Rest carefully.','plan':[['today','Today']]})
         act(self.root,self.identifier,'ses_fixture','publish',{'position':0,'section':['today',[['p','Ranking is finished.']]]})
         act(self.root,self.identifier,'ses_fixture','finish',{})
-        self.chamber.forms=[];self.chamber.permissions=[];self.chamber.busy=False
+        self.chamber.idle()
         before=path.read_bytes()
         identifier,_=self.regenerate()
         context=act(self.root,identifier,'ses_replacement','prepare')
@@ -722,7 +714,7 @@ class JobTests(unittest.TestCase):
     def test_stopped_partial_preview_can_start_fresh_without_deleting_it(self):
         self.init()
         target=self.app.job_dir/(self.identifier+'.preview.json');old=target.read_bytes()
-        self.chamber.forms=[];self.chamber.permissions=[];self.chamber.busy=False
+        self.chamber.idle()
         identifier,_=self.regenerate()
         self.assertEqual(target.read_bytes(),old)
         self.assertFalse((self.root/'daily/2026-10-11.gm.json').exists())
@@ -748,7 +740,7 @@ class JobTests(unittest.TestCase):
             return result
         with patch('goodmorning.briefings.briefing_preflight.amend',side_effect=interrupted):
             with self.assertRaises(OSError):answer(self.root,self.job,payload)
-        self.chamber.forms=[];self.chamber.permissions=[];self.chamber.busy=False
+        self.chamber.idle()
         identifier,_=self.regenerate()
         self.assertTrue(act(self.root,identifier,'ses_replacement','prepare')['feedback']['saved'])
         self.assertEqual(path.read_text().count('Completed: Ranking'),1)

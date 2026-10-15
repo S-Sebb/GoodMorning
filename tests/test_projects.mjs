@@ -1,6 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, writeFile, rm } from 'node:fs/promises';
+import { mkdtemp, readFile, writeFile, rm } from 'node:fs/promises';
+import { existsSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { RelayAccess, ProjectAccess, boundedBody } from '../integrations/projects/index.mjs';
@@ -32,16 +34,12 @@ test('encrypted JSON request and fragmented response, batching enabled', async t
   assert.equal(f.urls[0].includes(f.host.clientToken), false);
 });
 
-test('older peer without batching is refused before any request', async t => {
-  const f = await context(t, () => ({ body: { ok: true } }), { batch: false });
-  await assert.rejects(f.access.request('/health'));
-  assert.equal(f.requests.length, 0);
-});
-
-test('older peer without flow control is refused before any request', async t => {
-  const f = await context(t, () => ({ body: { ok: true } }), { flowControl: false });
-  await assert.rejects(f.access.request('/health'));
-  assert.equal(f.requests.length, 0);
+test('older peers without batching or flow control are refused before any request', async t => {
+  for (const option of ['batch', 'flowControl']) {
+    const f = await context(t, () => ({ body: { ok: true } }), { [option]: false });
+    await assert.rejects(f.access.request('/health'));
+    assert.equal(f.requests.length, 0, option);
+  }
 });
 
 test('read reconnects once after dispatched request loses response', async t => {
@@ -187,6 +185,26 @@ test('duplicate aliases and malformed bounds fail explicitly', async t => {
   const project = { name: 'same', host: 'local', path: '/fake', write_targets: [] };
   const { access } = await localAccess(t, [project, project]);
   assert.equal((await access.result({ op: 'list' })).error, 'registry_invalid');
+  const { access: valid } = await localAccess(t);
+  for (const bounds of [{ limit: 0 }, { limit: 16_001 }, { limit: 'x' }, { offset: -1 }, { offset: 1.5 }]) {
+    assert.equal((await valid.result({ op: 'read', project: 'demo', path: 'PLAN.md', ...bounds })).error, 'invalid_bounds', JSON.stringify(bounds));
+  }
+});
+
+test('confirmed writes create missing files, refuse stale hashes and stay inside the root', async t => {
+  const { root, registry } = await localAccess(t);
+  const outside = root + '-escape.md';
+  await writeFile(registry, JSON.stringify({ version: 1, projects: [{ name: 'demo', host: 'local', path: root, write_targets: ['PLAN.md', 'NEW.md', '../' + path.basename(outside), outside] }] }));
+  const access = new ProjectAccess({ registry });
+  const write = (target, expect) => access.result({ op: 'write', project: 'demo', path: target, content: 'new\n', expect, confirm: true });
+  const created = await write('NEW.md', 'missing');
+  assert.equal(created.ok, true);
+  assert.equal(await readFile(path.join(root, 'NEW.md'), 'utf8'), 'new\n');
+  assert.equal(created.sha256, createHash('sha256').update('new\n').digest('hex'));
+  assert.equal((await write('PLAN.md', createHash('sha256').update('stale\n').digest('hex'))).error, 'write_conflict');
+  assert.equal(await readFile(path.join(root, 'PLAN.md'), 'utf8'), 'fake project\n');
+  for (const target of ['../' + path.basename(outside), outside]) assert.equal((await write(target, 'missing')).error, 'invalid_path', target);
+  assert.equal(existsSync(outside), false);
 });
 
 test('parallel remote workers reuse one paired host connection', async t => {

@@ -29,12 +29,7 @@ class MarkdownTests(unittest.TestCase):
             self.assertEqual(resources.paths[url].mime, 'text/javascript')
         self.assertNotIn('https://', html)
 
-    def test_markdown_guidance_does_not_change_native_briefing_contract(self):
-        core = (ROOT / 'docs/core-rules.md').read_text()
-        voice = (ROOT / 'docs/reply-voice.md').read_text()
-        self.assertIn('use Markdown only', core)
-        self.assertIn('Keep simple confirmations simple', voice)
-        self.assertIn('not Markdown', voice)
+    def test_native_briefing_keeps_markdown_literal(self):
         from goodmorning.briefings import briefing_document as native
         doc = {'v': 2, 'greeting': 'Hello.', 'opening': 'Plain text.', 'sections': [
             ['tasks', [['actions', [['task_'+'a'*16, 1, '', '', 'open', '**Literal title**', '']]]]]]}

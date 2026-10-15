@@ -8,7 +8,7 @@ import hashlib
 from pathlib import Path
 import sys
 import tempfile
-from support import TEMP_ROOT
+from support import TEMP_ROOT, frozen_datetime
 import unittest
 from unittest.mock import patch
 
@@ -128,16 +128,15 @@ class QualityTests(unittest.TestCase):
             self.assertNotIn("private provider text",str(failure.exception))
 
 
+Clock = frozen_datetime(dt.datetime(2026, 10, 9, 12, tzinfo=UTC))
+
+
 class LatestTests(unittest.TestCase):
     def setUp(self):
         self.tmp=tempfile.TemporaryDirectory(dir=TEMP_ROOT)
         self.addCleanup(self.tmp.cleanup)
 
     def test_latest_is_current_day_only_excludes_future_and_writes_no_report_store(self):
-        class Clock(dt.datetime):
-            @classmethod
-            def now(cls,tz=None):
-                return cls(2026,10,9,12,tzinfo=UTC).astimezone(tz or UTC)
         cfg={"feeds":[{"name":"Synthetic","url":"https://example.invalid/feed","section":"ai","ai_topic":True}],"ranking_policy":POLICY}
         raw=[{"title":"AI company releases new reasoning model","url":"https://example.invalid/"+str(day)+str(hour),
               "published":Clock(2026,10,day,hour,tzinfo=UTC)} for day,hour in ((8,11),(9,11),(9,20))]
@@ -156,10 +155,6 @@ class LatestTests(unittest.TestCase):
             news.main(["--latest","--since","2026-10-08","--no-cache"])
 
     def test_discovery_resurfacing_known_old_article_is_not_latest_news(self):
-        class Clock(dt.datetime):
-            @classmethod
-            def now(cls,tz=None):
-                return cls(2026,10,9,12,tzinfo=UTC).astimezone(tz or UTC)
         cfg={"feeds":[{"name":"Synthetic","url":"https://example.invalid/feed","section":"ai","ai_topic":True}],"ranking_policy":POLICY}
         args=news.parse_args(["--latest","--cache-dir",self.tmp.name])
         old={"title":"OpenAI releases new reasoning model","url":"https://example.invalid/old","published":Clock(2026,10,8,10,tzinfo=UTC)}

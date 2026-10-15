@@ -41,15 +41,13 @@ class GatewayTests(GatewayFixture):
                 self.assertEqual(status,200)
                 self.assertEqual(headers['Content-Type'].split(';')[0],viewer.paths[path].mime)
                 self.assertEqual(body,viewer.paths[path].data)
+                self.assertIn('immutable',headers['Cache-Control'])
                 self.assertNotIn('Set-Cookie',headers)
+                if name.endswith('.css'):
+                    for url in re.findall(r'url\([\"\']?([^\"\')]+)',body.decode()):
+                        self.assertIn(url.split('#')[0],self.gateway.icons.paths)
         self.assertEqual(self.received,[])
         self.assertEqual(self.request('/api/chats')[0],401)
-
-    def test_css_dependencies_resolve_to_registered_public_assets(self):
-        for filename in ('briefing.css','color-schemes.css'):
-            css=self.gateway.icons.paths[self.gateway.icons.urls[filename]].data.decode()
-            for url in re.findall(r'url\([\"\']?([^\"\')]+)',css):
-                self.assertIn(url.split('#')[0],tuple(self.gateway.icons.paths))
 
     def test_generation_clock_is_trusted_and_client_headers_are_not_forwarded(self):
         header={'X-GoodMorning-Requested-At':'123'}
@@ -285,19 +283,6 @@ class GatewayTests(GatewayFixture):
         self.assertEqual(self.request('/api/regenerate',{'date':'2026-10-11','kind':'gm','id':'b'*32,'previous':'a'*32})[0],403)
         self.assertEqual(self.received,[])
 
-    def test_markdown_scripts_are_public_immutable_assets_without_backend_access(self):
-        from goodmorning.web.briefing_resources import Resources
-        from goodmorning.paths import WEB_ASSETS
-        resources = Resources(WEB_ASSETS)
-        for name in ('marked.js', 'markdown.js'):
-            url = resources.urls[name]
-            status, headers, body = self.request(url)
-            self.assertEqual(status, 200)
-            self.assertEqual(headers['Content-Type'], 'text/javascript')
-            self.assertIn('immutable', headers['Cache-Control'])
-            self.assertEqual(body, resources.paths[url].data)
-        self.assertEqual(self.received, [])
-
     def test_regeneration_reserves_global_slot_and_retries_do_not_dispatch_twice(self):
         old='a'*32;new='c'*32;request='b'*32
         body={'date':'2026-10-11','kind':'gm','id':request,'previous':old}
@@ -363,6 +348,28 @@ class GatewayTests(GatewayFixture):
         cookie=headers['Set-Cookie']
         for value in ('Secure','HttpOnly','SameSite=Strict','Path=/'): self.assertIn(value,cookie)
         self.assertNotIn('Domain=',cookie)
+        self.assertEqual(self.received,[])
+
+    def test_failed_logins_are_indistinguishable_unpromoted_and_rate_limited(self):
+        _,headers,content=self.request('/login')
+        self.cookie=headers['Set-Cookie'].split(';')[0]
+        self.csrf=re.search(b'data-csrf="([a-f0-9]+)"',content)[1].decode()
+        wrong=self.request('/api/auth/login',{'username':'alice','password':'wrong-alice-secret1'})
+        unknown=self.request('/api/auth/login',{'username':'mallory','password':'temporary-alice-secret1'})
+        self.assertEqual((wrong[0],wrong[2]),(unknown[0],unknown[2]))
+        self.assertEqual(wrong[0],403)
+        self.assertNotIn('Set-Cookie',wrong[1])
+        self.assertEqual(self.request('/')[1]['Location'],'/login')
+        self.assertIsNone(self.store.session(self.cookie.split('=',1)[1],'gm.example.test')['user_id'])
+        statuses=[self.request('/api/auth/login',{'username':'alice','password':'wrong-alice-secret1'})[0] for _ in range(5)]
+        self.assertEqual(statuses[-1],429)
+        self.assertEqual(self.request('/api/auth/login',{'username':'alice','password':'temporary-alice-secret1'})[0],429)
+        self.assertEqual(self.received,[])
+
+    def test_requests_not_forwarded_over_https_are_refused(self):
+        for proto in ('http',''):
+            self.assertEqual(self.request('/login',headers={'X-Forwarded-Proto':proto})[0],403)
+            self.assertEqual(self.request('/api/auth/login',{'username':'alice','password':'temporary-alice-secret1'},headers={'X-Forwarded-Proto':proto})[0],403)
         self.assertEqual(self.received,[])
 
     def test_remembered_login_cookie_survives_password_replacement(self):
@@ -831,9 +838,8 @@ class GatewayTests(GatewayFixture):
         session=self.login()
         self.csrf=session['csrf']
         for value in ('abc12','abcdef','123456','a1'+'x'*31):
-            status,_,data=self.request('/api/auth/password',{'current':'temporary-alice-secret1','replacement':value})
-            self.assertEqual(status,400)
-            self.assertIn('6–32 characters',json.loads(data)['error'])
+            self.assertEqual(self.request('/api/auth/password',{'current':'temporary-alice-secret1','replacement':value})[0],400)
+            self.assertTrue(self.store.check_password('alice','temporary-alice-secret1'))
         status,_,_=self.request('/api/auth/password',{'current':'temporary-alice-secret1','replacement':'abcde1'})
         self.assertEqual(status,200)
         self.assertTrue(self.store.check_password('alice','abcde1'))

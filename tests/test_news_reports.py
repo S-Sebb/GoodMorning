@@ -106,6 +106,16 @@ class ReportTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "invalid saved"):
             self.store.plan(self.context, [DAY])
 
+    def test_save_over_corrupt_row_raises_and_preserves_it(self):
+        self.store.save(self.context, payload(), now=0)
+        with self.store.db:
+            self.store.db.execute("UPDATE reports SET payload='{}'")
+        query = "SELECT * FROM reports WHERE context=? AND day=?"
+        before = tuple(self.store.db.execute(query, (self.context, DAY)).fetchone())
+        with self.assertRaises(ValueError):
+            self.store.save(self.context, payload(notes=["retry"]), now=1, refresh=True)
+        self.assertEqual(tuple(self.store.db.execute(query, (self.context, DAY)).fetchone()), before)
+
     def test_bad_counts_are_rejected_before_transaction(self):
         item = payload()
         item["counts"]["ai"] = 10
@@ -193,19 +203,38 @@ class ManagedCLITests(unittest.TestCase):
         code, result, _ = self.invoke("--status")
         self.assertTrue(all(d["status"] == "missing" for d in result["days"]))
 
-    def test_partial_collection_keeps_notes_and_cannot_be_acknowledged(self):
+    def test_failed_feed_partial_keeps_private_free_notes_and_cannot_be_acknowledged(self):
         original = self.rss
-        self.rss = lambda url, *args: [] if "world." in url else original(url, *args)
+
+        def failing(url, *args):
+            if "world." in url:
+                raise OSError("PRIVATE provider detail")
+            return original(url, *args)
+
+        self.rss = failing
         code, result, _ = self.invoke("--backfill")
         self.assertEqual(code, 1)
         self.assertTrue(all(d["status"] == "partial" for d in result["days"]))
         _, report, _ = self.invoke("--show", DAY)
+        self.assertEqual(report["status"], "partial")
+        self.assertTrue(report["notes"])
+        self.assertNotIn("PRIVATE", json.dumps(report))
         code, error, _ = self.invoke("--ack", DAY, "--expect", report["report_id"], "--session", "ses-gm")
         self.assertEqual(code, 2)
         self.assertEqual(error["error"], "report_unresolved")
         self.calls.clear()
         self.invoke("--backfill")
         self.assertEqual(self.calls, [])
+
+    def test_invalid_ack_session_is_refused_and_report_stays_collected(self):
+        self.invoke("--backfill")
+        _, report, _ = self.invoke("--show", DAY)
+        code, error, _ = self.invoke("--ack", DAY, "--expect", report["report_id"], "--session", "bad session!")
+        self.assertEqual(code, 2)
+        self.assertIn("error", error)
+        _, after, _ = self.invoke("--show", DAY)
+        self.assertEqual(after["status"], "collected")
+        self.assertEqual(after["report_id"], report["report_id"])
 
     def test_show_and_ack_do_not_fetch(self):
         self.invoke("--backfill")
@@ -216,9 +245,11 @@ class ManagedCLITests(unittest.TestCase):
 
     def test_country_is_never_inferred_from_city(self):
         (self.root / "profile.md").write_text('timezone: "UTC"\ncity: "London, GB"\n')
-        with self.assertRaisesRegex(SystemExit, "confirmed timezone and news_country"):
+        with self.assertRaises(SystemExit) as stopped:
             self.invoke("--backfill")
+        self.assertNotIn(stopped.exception.code, (0, None))
         self.assertEqual(self.calls, [])
+        self.assertFalse((self.root / "news_reports.sqlite").exists())
 
     def test_explicit_refresh_reopens_changed_delivered_report(self):
         self.invoke("--backfill")
@@ -236,21 +267,6 @@ class ManagedCLITests(unittest.TestCase):
         self.assertEqual(code, 1)
         self.assertEqual(error["error"], "runtime_busy")
         self.assertEqual(self.calls, [])
-
-    def test_provider_failure_notes_survive_saved_show(self):
-        original = self.rss
-
-        def failing(url, *args):
-            if "world." in url:
-                raise OSError("PRIVATE provider detail")
-            return original(url, *args)
-
-        self.rss = failing
-        self.invoke("--backfill")
-        _, report, _ = self.invoke("--show", DAY)
-        self.assertTrue(report["notes"])
-        self.assertNotIn("PRIVATE", json.dumps(report))
-        self.assertEqual(report["status"], "partial")
 
     def test_profile_news_sources_path_is_used(self):
         (self.root / "profile.md").write_text('timezone: UTC\nnews_country: US\nnews_sources_path: secretary/custom-feeds.json\n')

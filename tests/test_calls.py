@@ -37,7 +37,6 @@ class ScanTests(unittest.TestCase):
     def test_scan_is_read_only_and_finds_kinds(self):
         inbox = InboxStore(self.root, write=True)
         try:
-            tasks = TaskStore(inbox)
             inbox.mutate("add", {"kind": "todo", "raw": "ping",
                                  "task": {"title": "Prepare Atlas summary",
                                           "detail": "Due 2026-10-20, see 2026-10-20 plan.",
@@ -63,21 +62,21 @@ class ScanTests(unittest.TestCase):
     def test_scan_ignores_punctuation_only_and_cancelled(self):
         inbox = InboxStore(self.root, write=True)
         try:
-            receipt = inbox.mutate("add", {"kind": "todo", "raw": "Fix blur.",
-                                           "task": {"title": "Fix weak blur."}}, SES, "k-punct", NOW)
+            punct = inbox.mutate("add", {"kind": "todo", "raw": "Fix blur.",
+                                         "task": {"title": "Fix weak blur."}}, SES, "k-punct", NOW)["task_id"]
+            cancelled = inbox.mutate("add", {"kind": "todo", "raw": "please do things",
+                                             "task": {"title": "Please do vague things etc."}}, SES, "k-cancelled", NOW)["task_id"]
             tasks = TaskStore(inbox)
-            task = tasks.show(receipt["task_id"])
-            tasks.mutate(receipt["task_id"], task["revision"],
+            tasks.mutate(cancelled, tasks.show(cancelled)["revision"],
                          {"status": "cancelled"}, SES, "k-cancel", NOW)
-            receipt2 = inbox.mutate("add", {"kind": "todo", "raw": "currently do things",
-                                            "task": {"title": "Currently do vague things etc."}}, SES, "k-filler", NOW)
-            filler_id = receipt2["task_id"]
+            filler = inbox.mutate("add", {"kind": "todo", "raw": "currently do things",
+                                          "task": {"title": "Currently do vague things etc."}}, SES, "k-filler", NOW)["task_id"]
         finally:
             inbox.close()
-        found = scan(self.root)
-        ids = {c["target_id"] for c in found}
-        self.assertNotIn(receipt["task_id"], ids)
-        self.assertIn(filler_id, ids)
+        ids = {c["target_id"] for c in scan(self.root)}
+        self.assertNotIn(punct, ids)
+        self.assertNotIn(cancelled, ids)
+        self.assertIn(filler, ids)
 
 
 class WriteTests(unittest.TestCase):
@@ -118,6 +117,11 @@ class WriteTests(unittest.TestCase):
         resolved = self.store.resolve(receipt["id"], 1, {"note": "fixed title"}, SES, "call-resolve", NOW)
         self.assertEqual(resolved["status"], "resolved")
         self.assertEqual(self.store.all("open"), [])
+        replay = self.store.resolve(receipt["id"], 1, {"note": "fixed title"}, SES, "call-resolve", NOW)
+        self.assertEqual(replay, {**resolved, "replayed": True})
+        self.assertEqual(self.store.show(receipt["id"])["revision"], 2)
+        with self.assertRaisesRegex(ValueError, "write_conflict"):
+            self.store.dismiss(receipt["id"], 2, {}, SES, "call-again", NOW)
 
     def test_duplicate_open_call_refused_and_closed_reusable(self):
         first = self.store.add(self.payload(), SES, "call-a", NOW)
@@ -140,6 +144,17 @@ class WriteTests(unittest.TestCase):
             link.symlink_to(self.root)
             with self.assertRaisesRegex(ValueError, "unsafe_path"):
                 CallsStore(link)
+
+    def test_symlink_store_refused_and_read_only_open_never_creates(self):
+        with tempfile.TemporaryDirectory(dir=TEMP_ROOT) as other:
+            (Path(other) / "calls.sqlite").symlink_to(self.root / "calls.sqlite")
+            with self.assertRaisesRegex(ValueError, "unsafe_path"):
+                CallsStore(other, write=True)
+            fresh = Path(other) / "fresh"
+            fresh.mkdir()
+            with self.assertRaisesRegex(ValueError, "setup_required"):
+                CallsStore(fresh)
+            self.assertEqual(list(fresh.iterdir()), [])
 
 
 if __name__ == "__main__":

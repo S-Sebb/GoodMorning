@@ -61,7 +61,7 @@ class InboxTests(InboxFixture):
         self.assertEqual(self.cli("--init")[0], 0)
         self.assertEqual((self.root / "inbox.sqlite").stat().st_mode & 0o777, 0o600)
         self.assertEqual(legacy.read_text(), '# Existing inbox\n')
-        with sqlite3.connect(self.root / 'inbox.sqlite') as db:
+        with contextlib.closing(sqlite3.connect(self.root / 'inbox.sqlite')) as db, db:
             self.assertNotIn('migration', {row[0] for row in db.execute("SELECT name FROM sqlite_master WHERE type='table'")})
 
     def test_capture_preserves_unicode_multiline_and_pipes(self):
@@ -149,8 +149,9 @@ class InboxTests(InboxFixture):
 
     def test_list_budget_preserves_whole_questions_and_excludes_context_raw(self):
         store = self.store()
-        for n in range(7):
-            store.mutate('add', {'kind':'idea', 'raw':'x' * 60000, 'context':'C' * 6000,
+        # Two items cross the budget; raw and context alone would each exceed it.
+        for n in range(2):
+            store.mutate('add', {'kind':'idea', 'raw':'x' * 5000, 'context':'C' * 5000,
                                 'questions':['Q' * 1000, 'R' * 1000]}, 'ses-test', str(n), NOW)
         page = store.list(budget=4096)
         self.assertLess(len(encode(page)), 4096)
@@ -249,13 +250,16 @@ class InboxTests(InboxFixture):
                                   "--input-json", '{"raw":')[1]["error"], "invalid_input")
         self.assertEqual(self.cli("--list", "--input-json", '{}')[1]["error"], "invalid_input")
 
-    def test_state_counts_database_without_opening_legacy_or_history(self):
+    def test_state_counts_status_column_without_opening_legacy_or_history(self):
         store = self.store()
         self.add(store)
+        idea = store.mutate("add", {"kind": "idea", "raw": "pending work is done"}, "ses-test", "idea",
+                            "2026-10-09T12:00:00+01:00")
+        store.mutate("update", {"status": "confirmed"}, "ses-test", "confirm", NOW, idea["id"], 1)
         (self.root / "inbox.md").write_text("Do not read this archive pointer")
         with patch("builtins.open", side_effect=AssertionError("legacy read")):
             self.assertEqual(state.scan_inbox(str(self.root)),
-                             {"pending": 1, "oldest_pending_date": "2026-10-10", "total": 1})
+                             {"pending": 1, "oldest_pending_date": "2026-10-10", "total": 2})
 
 
 if __name__ == "__main__":

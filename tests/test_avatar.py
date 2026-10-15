@@ -1,12 +1,9 @@
 """Secretary avatar choice: validation, server persistence, page toggle and routes."""
-import json
 from pathlib import Path
-import sys
 import tempfile
 import unittest
 
-from support import TEMP_ROOT, FakeChamber
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'src'))
+from support import TEMP_ROOT, FakeChamber, selected
 from goodmorning.paths import WEB_ASSETS
 from goodmorning.web import language as ui
 from goodmorning.web.briefing_chat import AVATARS, AVATAR_IDS, avatar_id, page, read_avatar, write_avatar
@@ -27,9 +24,6 @@ class AvatarTests(unittest.TestCase):
 
     def test_ids_cover_two_female_and_two_male_scenes(self):
         self.assertEqual(AVATAR_IDS, ('f1', 'f2', 'm1', 'm2'))
-        self.assertEqual([entry[1] for entry in AVATARS],
-                         ['desk-secretary.png', 'desk-secretary-f2.png',
-                          'desk-secretary-m1.png', 'desk-secretary-m2.png'])
         for bad in ('', 'F1', 'male-1', '../desk-secretary.png', None, 1):
             with self.assertRaises(ValueError):
                 avatar_id(bad)
@@ -53,25 +47,23 @@ class AvatarTests(unittest.TestCase):
 
     def test_page_places_shared_tshirt_picker_above_your_desk(self):
         html = page('csrf', True, True, None)
-        self.assertIn('data-avatar-prev', html)
-        self.assertIn('data-avatar-next', html)
-        self.assertIn('aria-label="Previous avatar"', html)
-        self.assertIn('aria-label="Next avatar"', html)
-        self.assertIn('data-avatar-toggle', html)
+        for control in ('data-avatar-prev', 'data-avatar-next', 'data-avatar-toggle'):
+            self.assertRegex(html, control + r' [^>]*aria-label="[^"]+"')
         self.assertIn('class="avatar-menu"', html)
         self.assertNotIn('avatar-menu-heading', html)
         self.assertNotIn('data-avatar-close', html)
-        self.assertIn('aria-label="Change avatar"', html)
         self.assertIn('href="/avatar.css"', html)
         self.assertIn('src="/avatar.js"', html)
         self.assertNotIn('avatar-caption', html)
-        self.assertIn('Avatar 1 of 4', html)
         self.assertIn('data-avatar="f1"', html)
-        self.assertLess(html.index('desk-figure'), html.index('<p class="eyebrow">Your desk'))
+        self.assertIn('data-avatar-choice="f1" aria-selected="true"', html)
+        self.assertIn(ui.text('Avatar {current} of {total}', current=1, total=4), html)
+        self.assertLess(html.index('desk-figure'), html.index('<p class="eyebrow">' + ui.text('Your desk')))
         html = page('csrf', True, True, None, 'm2', {'m2': '/hashed/m2.png'})
         self.assertIn('src="/hashed/m2.png"', html)
-        self.assertIn('Avatar 4 of 4', html)
         self.assertIn('data-avatar="m2"', html)
+        self.assertIn('data-avatar-choice="m2" aria-selected="true"', html)
+        self.assertIn(ui.text('Avatar {current} of {total}', current=4, total=4), html)
         self.assertIn('data-avatar="f1"', page('csrf', True, True, None, 'evil'))
 
     def test_settings_and_page_follow_saved_avatar(self):
@@ -80,12 +72,12 @@ class AvatarTests(unittest.TestCase):
         self.assertEqual(settings['avatar'], 'f1')
         self.assertEqual([item['id'] for item in settings['avatars']], list(AVATAR_IDS))
         self.assertTrue(all(item['src'].startswith('/assets/') for item in settings['avatars']))
-        self.assertIn('Avatar 1 of 4', app.chat_page().decode())
+        self.assertIn('data-avatar-choice="f1" aria-selected="true"', app.chat_page().decode())
         self.assertEqual(app.set_avatar('f2'), 'f2')
         self.assertEqual(app.chat_settings()['avatar'], 'f2')
         rendered = app.chat_page().decode()
         self.assertIn('data-avatar="f2"', rendered)
-        self.assertIn('Avatar 2 of 4', rendered)
+        self.assertIn('data-avatar-choice="f2" aria-selected="true"', rendered)
         with self.assertRaises(ValueError):
             app.set_avatar('unknown')
 
@@ -95,9 +87,8 @@ class AvatarTests(unittest.TestCase):
             self.assertIn(filename, resources.urls)
         self.assertTrue(GET_ROUTES.fullmatch('/api/avatar'))
         self.assertTrue(POST_ROUTES.fullmatch('/api/avatar'))
-        for short in ('/desk-secretary.png', '/desk-secretary-f2.png',
-                      '/desk-secretary-m1.png', '/desk-secretary-m2.png'):
-            self.assertTrue(GET_ROUTES.fullmatch(short), short)
+        for _, filename, _ in AVATARS:
+            self.assertTrue(GET_ROUTES.fullmatch('/' + filename), filename)
         hashed = '/assets/' + 'a' * 64 + '/desk-secretary-m1.png'
         self.assertTrue(GET_ROUTES.fullmatch(hashed))
         self.assertFalse(GET_ROUTES.fullmatch('/desk-secretary-evil.png'))
@@ -163,7 +154,7 @@ class AvatarTests(unittest.TestCase):
             setup = app.initialization_page(kind).decode()
             for rendered in (preview, archive, setup):
                 self.assertIn('class="briefing-avatar avatar-display" data-avatar="m2"', rendered)
-                self.assertIn('alt="Secretary avatar"', rendered)
+                self.assertIn('alt="' + ui.text('Secretary avatar') + '"', rendered)
                 self.assertTrue(celestial(kind).casefold() in rendered.casefold(), 'Original edition SVG must be retained')
             self.assertIn('class="orbit"', preview)
             self.assertIn('class="waiting-art"', archive)
@@ -181,18 +172,15 @@ class AvatarTests(unittest.TestCase):
         self.assertEqual(rendered.count('class="briefing-avatar avatar-display"'), 1)
 
     def test_avatar_strings_translate(self):
-        catalog = json.loads((WEB_ASSETS / 'translations.json').read_text())
         for key in ('Secretary avatar', 'Previous avatar', 'Next avatar',
                     'Avatar {current} of {total}', 'Avatar could not be saved. Try again.',
                     'Change avatar', 'Choose an avatar', 'Avatar {number}'):
-            self.assertIn(key, catalog)
-        token = ui.CURRENT.set('zh-CN')
-        try:
-            self.assertEqual(ui.text('Next avatar'), '下一个形象')
-            self.assertEqual(ui.text('Avatar {current} of {total}', current=3, total=4), '形象 3 / 4')
-        finally:
-            ui.CURRENT.reset(token)
-
+            self.assertTrue(ui.CATALOG.get(key, '').strip(), key)
+        with selected(ui.CURRENT, 'zh-CN'):
+            self.assertNotEqual(ui.text('Next avatar'), 'Next avatar')
+            counter = ui.text('Avatar {current} of {total}', current=3, total=4)
+        self.assertNotEqual(counter, 'Avatar 3 of 4')
+        self.assertLess(counter.index('3'), counter.index('4'))
 
 if __name__ == '__main__':
     unittest.main()

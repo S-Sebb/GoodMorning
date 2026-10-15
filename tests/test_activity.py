@@ -29,6 +29,20 @@ class SnapshotTests(unittest.TestCase):
         item['state'] = 'uncertain'
         self.assertEqual(snapshot(app, 'chat', item['id'])['state'], 'uncertain')
 
+    def test_answered_inputs_and_finished_states_are_not_waiting(self):
+        chamber = FakeChamber()
+        item = {'id': 'a'*32, 'mode': 'todo', 'state': 'running', 'session': 'ses_fixture',
+                'replied_inputs': ['form:frm_test', 'permission:per_fixture']}
+        app = SimpleNamespace(chats=SimpleNamespace(get=lambda _: dict(item)), chamber=chamber)
+        self.assertEqual(snapshot(app, 'chat', item['id'])['state'], 'working')
+        chamber.busy = False
+        self.assertEqual(snapshot(app, 'chat', item['id'])['state'], 'idle')
+        chamber.busy = True
+        item['replied_inputs'] = []
+        for state in ('complete', 'superseded'):
+            item['state'] = state
+            self.assertEqual(snapshot(app, 'chat', item['id']), {'mode': 'todo', 'state': 'idle'})
+
     def test_briefing_feedback_and_recovery_keep_exact_edition_metadata(self):
         with tempfile.TemporaryDirectory(dir=TEMP_ROOT) as directory:
             root = Path(directory); (root/'browser-jobs').mkdir()
@@ -43,7 +57,7 @@ class SnapshotTests(unittest.TestCase):
             target.write_text(json.dumps({'awaiting': False, 'cancelled': True}))
             self.assertEqual(snapshot(app, 'job', item['id'])['state'], 'idle')
 
-    def test_panel_has_no_private_content_and_is_idempotent(self):
+    def test_panel_injects_activity_controls_once(self):
         source = '<html><head></head><body><header>Desk</header></body></html>'
         rendered = panel(source, ['gm.example.test', 'gn.example.test', 'sec.example.test'])
         self.assertEqual(panel(rendered, ['gm.example.test']), rendered)

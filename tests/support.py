@@ -83,6 +83,11 @@ class FakeChamber:
             return {'sessionStatus': {'type': 'busy' if self.busy else 'idle'}}
         raise AssertionError(action)
 
+    def idle(self):
+        """The session finished: no pending inputs and no busy engine."""
+        self.forms, self.permissions, self.busy = [], [], False
+        return self
+
     def pending(self, session):
         assert session == 'ses_fixture'
         return self.forms, self.permissions
@@ -301,3 +306,58 @@ class HTTPFixture(unittest.TestCase):
         defaults.update(headers or {})
         with urlopen(Request(self.address+path,data=json.dumps(body).encode() if body is not None else None,headers=defaults)) as response:
             return json.load(response)
+
+
+def complete_profile(root):
+    """A synthetic profile with every field briefing setup requires."""
+    (Path(root)/'profile.md').write_text('secretary_language: English\ntimezone: Europe/London\ncity: London, GB\nnews_country: GB\n')
+
+
+HOSTS = ('gm.example.test', 'gn.example.test', 'sec.example.test')
+
+
+def selected(variable, value):
+    """Set a website context variable (language, model, palette) for one block."""
+    from contextlib import contextmanager
+    @contextmanager
+    def scope():
+        token = variable.set(value)
+        try: yield
+        finally: variable.reset(token)
+    return scope()
+
+
+def gateway(test):
+    """A GatewayFixture serving every edition host, cleaned up with the test."""
+    fixture = GatewayFixture(); fixture.setUp(); test.addCleanup(fixture.doCleanups)
+    fixture.gateway.hosts['sec.example.test'] = 'sec'
+    return fixture
+
+
+def session_cookie(fixture, user, host='gm.example.test'):
+    """A fresh signed-in cookie for one synthetic account on one host."""
+    with fixture.store.db() as db:
+        row = db.execute('SELECT * FROM users WHERE id=?', (user,)).fetchone()
+        token, _ = fixture.store.issue(db, host, row)
+    return '__Host-GoodMorning=' + token
+
+
+def form_post(fixture, path, fields):
+    """A no-JavaScript form submission with the fixture's session; returns (status, headers)."""
+    from urllib.parse import urlencode
+    headers = {'Host': 'gm.example.test', 'X-Forwarded-Proto': 'https', 'X-Real-IP': '192.0.2.1', 'Cookie': fixture.cookie,
+               'Origin': 'https://gm.example.test', 'Content-Type': 'application/x-www-form-urlencoded'}
+    try: response = fixture.opener.open(Request(f'http://127.0.0.1:{fixture.server.server_port}' + path,
+                                                data=urlencode(fields).encode(), headers=headers), timeout=3)
+    except HTTPError as error: response = error
+    with response: return response.status, dict(response.headers)
+
+
+def frozen_datetime(instant):
+    """A datetime class whose now() is the aware ``instant``; patch it over a module's datetime."""
+    from datetime import datetime
+    class Frozen(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return cls.fromtimestamp(instant.timestamp(), tz or instant.tzinfo)
+    return Frozen

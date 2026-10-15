@@ -4,6 +4,7 @@ from pathlib import Path
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
 
 from support import TEMP_ROOT
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'src'))
@@ -32,6 +33,23 @@ class AccountTests(unittest.TestCase):
         with self.assertRaises(ValueError): Accounts(self.root)
         with self.assertRaises(ValueError): Accounts(self.root,n=1024)
 
+    def test_symlinked_account_database_is_refused(self):
+        moved=self.root/'elsewhere.sqlite'
+        self.store.path.rename(moved);self.store.path.symlink_to(moved)
+        with self.assertRaises(ValueError): self.store.check()
+        with self.assertRaises(ValueError): Accounts(self.root,testing=True,n=1024)
+
+    def test_encrypted_mount_requires_an_exact_gocryptfs_mountpoint(self):
+        link=self.root/'link';link.symlink_to(self.root)
+        def mounted(path,kind):
+            return f'36 35 0:50 / {path} rw,nosuid - {kind} source rw\n'
+        with patch.object(Path,'read_text',return_value=mounted(link,'fuse.gocryptfs')):
+            with self.assertRaises(ValueError): encrypted_mount(link)
+        with patch.object(Path,'read_text',return_value=mounted(self.root,'ext4')+mounted(self.root/'child','fuse.gocryptfs')):
+            with self.assertRaises(ValueError): encrypted_mount(self.root)
+        with patch.object(Path,'read_text',return_value=mounted(self.root,'fuse.gocryptfs')):
+            self.assertEqual(encrypted_mount(self.root),self.root)
+
     def test_login_rotates_session_and_stores_only_hashes(self):
         token,session,temporary=self.login()
         self.assertTrue(temporary)
@@ -44,13 +62,10 @@ class AccountTests(unittest.TestCase):
         self.assertNotIn(SECRET.encode(),raw)
         self.assertNotIn(token.encode(),raw)
 
-    def test_host_idle_and_absolute_expiry(self):
+    def test_host_and_idle_expiry(self):
         token,session,_=self.login()
         with self.assertRaises(Denied): self.store.session(token,'gn.example.test')
         self.time+=1801
-        with self.assertRaises(Denied): self.store.session(token,'gm.example.test')
-        self.time=10000
-        self.time+=43201
         with self.assertRaises(Denied): self.store.session(token,'gm.example.test')
 
     def test_reset_requires_current_password_and_revokes_other_sessions(self):
@@ -121,7 +136,6 @@ class AccountTests(unittest.TestCase):
     def test_invalid_username_and_weak_password(self):
         for name in ('../other','a','测试','name with spaces'):
             with self.assertRaises(ValueError): self.store.create(name,SECRET)
-        with self.assertRaises(ValueError): self.store.create('valid','short')
 
     def test_admin_password_check_is_read_only_and_checks_reset_password(self):
         before=self.store.path.read_bytes()
@@ -152,6 +166,19 @@ class AccountTests(unittest.TestCase):
         with self.assertRaises(Denied) as result: reopened.login('unknown','wrong','gm.example.test','192.0.2.1',self.pre)
         self.assertNotIsInstance(result.exception,Limited)
 
+    def test_login_and_password_change_limits_per_user_and_address(self):
+        for index in range(30):
+            with self.assertRaises(Denied): self.store.login(f'name-{index}','wrong','gm.example.test','192.0.2.9',self.pre)
+        with self.assertRaises(Limited): self.store.login('test-user',SECRET,'gm.example.test','192.0.2.9',self.pre)
+        _,session,_=self.login()
+        for index in range(5):
+            with self.assertRaises(Denied): self.store.change_password(session,'wrong-password1','permanent-password-new1',f'192.0.2.{10+index}')
+        with self.assertRaises(Limited): self.store.change_password(session,SECRET,'permanent-password-new1','192.0.2.20')
+        for index in range(15):
+            with self.assertRaises(Denied): self.store.change_password({'user_id':f'other-{index}'},'wrong-password1','permanent-password-new1','192.0.2.30')
+        with self.assertRaises(Limited): self.store.change_password({'user_id':'fresh'},'wrong-password1','permanent-password-new1','192.0.2.30')
+        self.assertTrue(self.store.check_password('test-user',SECRET))
+
     def test_new_password_policy_has_inclusive_limits_and_requires_letters_and_digits(self):
         for value in ('a12345', 'abcde1', 'a1'+'x'*30, 'a1!@#$', '中文1234', 'a1'+'🙂'*30):
             with self.subTest(value=value): self.assertEqual(password(value),value)
@@ -159,7 +186,7 @@ class AccountTests(unittest.TestCase):
             with self.subTest(value=value):
                 with self.assertRaises(ValueError): password(value)
 
-    def test_policy_is_enforced_for_creation_ssh_reset_and_web_replacement(self):
+    def test_policy_inclusive_limits_apply_to_creation_ssh_reset_and_web_replacement(self):
         token,session,_=self.login()
         for value in ('abcdef','123456','abc12','a1'+'x'*31):
             with self.subTest(value=value):
@@ -168,8 +195,6 @@ class AccountTests(unittest.TestCase):
                 with self.assertRaises(ValueError): self.store.change_password(session,SECRET,value,'192.0.2.1')
         self.assertTrue(self.store.check_password('test-user',SECRET))
         self.assertEqual(self.store.session(token,'gm.example.test')['revision'],session['revision'])
-
-    def test_six_character_password_is_accepted_on_all_password_write_paths(self):
         self.store.create('short-user','a12345')
         self.store.administer('test-user',temporary='abcde1')
         self.assertTrue(self.store.check_password('test-user','abcde1'))

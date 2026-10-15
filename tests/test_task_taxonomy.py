@@ -24,6 +24,7 @@ from goodmorning.briefings.briefing_preflight import initialize as preflight, an
 from goodmorning.briefings.briefing_job import act
 from goodmorning.web.briefing_server import BrowserApp
 from goodmorning.web.schedule import saved_week
+from goodmorning.web import language as ui
 
 DAY = '2026-10-13'
 NOW = DAY + 'T12:00:00+01:00'
@@ -53,6 +54,16 @@ class TaxonomyTests(unittest.TestCase):
 
     def document(self, block, section='tasks'):
         return {'v': 2, 'greeting': 'Hello.', 'opening': 'Synthetic.', 'sections': [[section, [block]]]}
+
+    def browser_job(self, letter, kind='gn', state='preflight', **fields):
+        app = BrowserApp(self.root, now=lambda: datetime(2026, 10, 13, 12, tzinfo=timezone.utc), preflight=True)
+        job = {'id': letter*32, 'date': DAY, 'kind': kind, 'state': state, **fields}
+        app.jobs[DAY+'.'+kind] = job; app.save_jobs()
+        return job
+
+    def assertLocalized(self, chinese, english):
+        self.assertEqual(chinese, ui.text(english, lang='zh-CN'))
+        self.assertNotEqual(chinese, english)
 
     def test_capture_is_atomic_and_retry_safe_and_idea_creates_no_work(self):
         first = self.capture('Send report by Friday', task={'title': 'Send report', 'due_date': '2026-10-16'})
@@ -94,14 +105,6 @@ class TaxonomyTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,'unknown_occurrence'):
             self.tasks.occurrence(self.tasks.show(second),'2026-12-12')
 
-    def test_excluded_weekly_date_is_not_recreated(self):
-        receipt = self.capture(task={'title':'Prepare meeting','timezone':'Europe/London',
-            'repeat':{'weekdays':[3],'start':'2026-10-12','exclude':['2026-10-15']}})
-        task = self.tasks.show(receipt['task_id'])
-        with self.assertRaisesRegex(ValueError,'unknown_occurrence'):
-            self.tasks.occurrence(task,'2026-10-15')
-        self.tasks.occurrence(task,'2026-10-22')
-
     def test_moved_meeting_preparation_is_one_series_with_explicit_exception(self):
         receipt=self.capture(task={'title':'Prepare presentation','timezone':'Europe/London',
             'repeat':{'weekdays':[3],'start':'2026-10-12','include':['2026-10-12'],'exclude':['2026-10-15']}})
@@ -142,14 +145,15 @@ class TaxonomyTests(unittest.TestCase):
         self.tasks.mutate(identifier,1,{'status':'done','confirmed_completion':True},'ses_test','first-session',NOW,day='2026-10-12')
         pending=self.view(day='2026-10-15')['tasks']['items']
         self.assertEqual([r['date'] for r in pending if r['group']=='still-open'],['2026-10-14'])
-        self.assertIn('firmer follow-up',next(r['detail'] for r in pending if r['date']=='2026-10-14'))
+        overdue=next(r['detail'] for r in pending if r['date']=='2026-10-14')
         overlapping=self.view(day='2026-10-16')['tasks']['items']
-        self.assertIn('firmer follow-up',next(r['detail'] for r in overlapping if r['date']=='2026-10-16'))
+        self.assertEqual(next(r['detail'] for r in overlapping if r['date']=='2026-10-16'),overdue)
         self.assertNotIn('2026-10-14',[r['date'] for r in overlapping])
         self.tasks.mutate(identifier,2,{'status':'done','confirmed_completion':True},'ses_test','actual-session',
                           '2026-10-15T12:00:00+08:00',day='2026-10-15',actual=True)
         self.assertEqual([r['date'] for r in self.view(day='2026-10-15')['tasks']['items']],['2026-10-16'])
-        self.assertNotIn('firmer follow-up',self.view(day='2026-10-16')['tasks']['items'][0]['detail'])
+        current=self.view(day='2026-10-16')['tasks']['items'][0]['detail']
+        self.assertTrue(overdue.startswith(current+'\n'))  # The firmer follow-up applies only while overdue.
         self.assertEqual(self.view('gn',day='2026-10-15')['today'][0]['date'],'2026-10-15')
         self.assertIsNone(self.inbox.db.execute('SELECT * FROM task_occurrences WHERE task_id=? AND date=?',(identifier,'2026-10-14')).fetchone())
         later=self.view(day='2026-10-19')['tasks']['items']
@@ -211,9 +215,13 @@ class TaxonomyTests(unittest.TestCase):
 
     def test_soft_target_remains_explicitly_soft_in_source_linked_presentation(self):
         self.capture(task={'title':'Write paper','due_date':DAY,'due_soft':True})
+        self.capture(task={'title':'Write paper','due_date':DAY})
         view=self.view()
-        self.assertTrue(view['tasks']['items'][0]['due_soft'])
-        self.assertIn('Soft target:',view['blocks']['tasks'][1][0][-1])
+        cells={row[0]:row[-1] for row in view['blocks']['tasks'][1]}
+        soft,hard=(cells[r['id']] for r in sorted(view['tasks']['items'],key=lambda r:not r.get('due_soft')))
+        self.assertEqual(sum(bool(r.get('due_soft')) for r in view['tasks']['items']),1)
+        self.assertIn(DAY,soft)
+        self.assertNotEqual(soft,hard)
 
     def test_annual_observance_projects_from_approved_source_without_materializing(self):
         (self.root/'profile.md').write_text((self.root/'profile.md').read_text().replace('Europe/London','Asia/Shanghai'))
@@ -421,9 +429,7 @@ class TaxonomyTests(unittest.TestCase):
 
     def test_browser_v2_save_does_not_create_daily_tasks_and_keeps_archives_readable(self):
         self.capture(task={'title': 'Undated action'})
-        app = BrowserApp(self.root, now=lambda: datetime(2026, 10, 13, 12, tzinfo=timezone.utc), preflight=True)
-        job = {'id': 'a'*32, 'date': DAY, 'kind': 'gm', 'session': 'ses_test', 'state': 'running'}
-        app.jobs[DAY+'.gm'] = job; app.save_jobs(); preflight(self.root, job)
+        job = self.browser_job('a', 'gm', 'running', session='ses_test'); preflight(self.root, job)
         act(self.root, job['id'], 'ses_test', 'init', {'greeting': 'Morning.', 'opening': 'Plan.'})
         act(self.root, job['id'], 'ses_test', 'publish', {'position': 0, 'section': ['weather', [['p', 'Weather unavailable; check before travelling.']]]})
         act(self.root, job['id'], 'ses_test', 'publish', {'position': 1, 'section': ['news', [['p', 'News unavailable.']]]})
@@ -440,12 +446,10 @@ class TaxonomyTests(unittest.TestCase):
     def test_evening_questions_only_cover_agreed_day_not_undated_backlog(self):
         self.capture('Undated backlog')
         task = self.capture(task={'title': 'Today task', 'planned_date': DAY})['task_id']
-        app = BrowserApp(self.root, now=lambda: datetime(2026, 10, 13, 12, tzinfo=timezone.utc), preflight=True)
-        job = {'id': 'b'*32, 'date': DAY, 'kind': 'gn', 'session': 'ses_test', 'state': 'preflight'}
-        app.jobs[DAY+'.gn'] = job; app.save_jobs()
+        job = self.browser_job('b', session='ses_test')
         context = preflight(self.root, job)
         completed = next(f for f in context['form']['fields'] if f['key'] == 'completed')
-        self.assertEqual([o['label'] for o in completed['options']], ['None of these today.', 'Today task'])
+        self.assertEqual([o['value'] for o in completed['options']], ['none', occurrence_id(task, DAY)])
         result = answer(self.root, job, {'completed': [occurrence_id(task, DAY)], 'details': 'No other updates'})
         self.assertTrue(result['feedback']['saved'])
         self.assertEqual(self.tasks.show(task)['status'], 'done')
@@ -492,12 +496,9 @@ class TaxonomyTests(unittest.TestCase):
         job = {'id':'f'*32,'date':DAY,'kind':'gn','state':'preflight'}
         context = preflight(self.root,job)
         fields = {f['key']:f for f in context['form']['fields']}
-        self.assertNotIn('completed',fields)
-        self.assertEqual(context['form']['title'],'Let’s look back on today')
-        self.assertEqual(fields['details']['title'],'How did today go?')
+        self.assertEqual(set(fields),{'details'})
         self.assertTrue(fields['details']['customFirst'])
-        self.assertEqual(fields['details']['placeholder'],'Share any progress or updates…')
-        self.assertEqual(fields['details']['options'],[{'value':'No updates today','label':'Nothing extra to add today.'}])
+        self.assertEqual([o['value'] for o in fields['details']['options']],['No updates today'])
         with self.assertRaisesRegex(ValueError,'Give actual details'):
             answer(self.root,job,{'details':'   '})
         result = answer(self.root,job,{'details':'Read a paper and made progress.'})
@@ -508,13 +509,15 @@ class TaxonomyTests(unittest.TestCase):
         self.assertEqual(len(routing.reported_day(self.tasks,DAY)),0)
 
     def test_empty_evening_question_is_localized(self):
+        english = preflight(self.root,{'id':'8'*32,'date':DAY,'kind':'gn','state':'preflight'})['form']
         job = {'id':'9'*32,'date':DAY,'kind':'gn','state':'preflight','language':'zh-CN'}
         context = preflight(self.root,job)
-        field = next(f for f in context['form']['fields'] if f['key']=='details')
-        self.assertEqual(context['form']['title'],'一起回顾一下今天')
-        self.assertEqual(field['title'],'今天过得怎么样？')
-        self.assertEqual(field['placeholder'],'写下今天的进展，或其他想补充的事……')
-        self.assertEqual(field['options'][0]['label'],'今天没有别的要补充了')
+        self.assertLocalized(context['form']['title'],english['title'])
+        field,source = context['form']['fields'][0],english['fields'][0]
+        for key in ('title','placeholder','description'):
+            self.assertLocalized(field[key],source[key])
+        self.assertLocalized(field['options'][0]['label'],source['options'][0]['label'])
+        self.assertEqual(field['options'][0]['value'],source['options'][0]['value'])
         result = answer(self.root,job,{'details':'No updates today'})
         self.assertTrue(result['feedback']['saved'])
 
@@ -574,9 +577,7 @@ class TaxonomyTests(unittest.TestCase):
 
     def test_preflight_completion_before_agent_session_exists(self):
         task = self.capture(task={'title':'Today task', 'planned_date':DAY})['task_id']
-        app = BrowserApp(self.root, now=lambda: datetime(2026,10,13,12,tzinfo=timezone.utc), preflight=True)
-        job = {'id':'c'*32, 'date':DAY, 'kind':'gn', 'state':'preflight'}
-        app.jobs[DAY+'.gn'] = job; app.save_jobs(); preflight(self.root, job)
+        job = self.browser_job('c'); preflight(self.root, job)
         result = answer(self.root, job, {'completed':[occurrence_id(task,DAY)], 'details':'No other updates'})
         self.assertTrue(result['feedback']['saved'])
         self.assertEqual(self.tasks.show(task)['status'],'done')
@@ -584,9 +585,7 @@ class TaxonomyTests(unittest.TestCase):
 
     def test_stale_daily_feedback_cannot_complete_canonical_tasks(self):
         task = self.capture(task={'title':'Today task', 'planned_date':DAY})['task_id']
-        app = BrowserApp(self.root, now=lambda: datetime(2026,10,13,12,tzinfo=timezone.utc), preflight=True)
-        job = {'id':'d'*32, 'date':DAY, 'kind':'gn', 'state':'preflight'}
-        app.jobs[DAY+'.gn'] = job; app.save_jobs(); preflight(self.root, job)
+        job = self.browser_job('d'); preflight(self.root, job)
         (self.root/'daily').mkdir(exist_ok=True)
         (self.root/'daily'/f'{DAY}.md').write_text('## feedback\n- An unrelated new report\n')
         with self.assertRaisesRegex(ValueError,'daily plan changed'):
@@ -596,9 +595,7 @@ class TaxonomyTests(unittest.TestCase):
     def test_regeneration_with_reused_feedback_does_not_ask_about_archive_gaps(self):
         (self.root/'daily').mkdir(exist_ok=True)
         (self.root/'daily'/'2026-10-12.md').write_text('# 2026-10-12\n- gn: yes (session ses_old)\n')
-        app = BrowserApp(self.root, now=lambda: datetime(2026,10,13,12,tzinfo=timezone.utc), preflight=True)
-        job = {'id':'e'*32,'date':DAY,'kind':'gn','state':'preflight'}
-        app.jobs[DAY+'.gn']=job; app.save_jobs()
+        job = self.browser_job('e')
         previous = {'feedback':{'completed':[], 'details':'No other updates', 'saved':True}}
         context = preflight(self.root,job,previous=previous)
         self.assertIsNone(context['form'])
@@ -620,9 +617,8 @@ class TaxonomyTests(unittest.TestCase):
         options=fields['completed']['options']
         self.assertNotIn('group',options[0])
         self.assertEqual([o['group'] for o in options[1:]],['Atlas revised','Paper','Other tasks'])
-        self.assertEqual(fields['details']['title'],'Anything else you’d like to share?')
         self.assertTrue(fields['details']['customFirst'])
-        self.assertEqual(fields['details']['options'][0]['label'],'Nothing else to add.')
+        self.assertEqual([o['value'] for o in fields['details']['options']],['No other updates'])
         self.assertEqual({o['value']:o['group'] for o in options[1:]},
             {occurrence_id(first,DAY):'Atlas revised',occurrence_id(second,DAY):'Paper',occurrence_id(other,DAY):'Other tasks'})
         self.assertEqual(historical.read_text(),'# 2026-10-12\n- gn: yes (session ses_old)\n')
@@ -635,14 +631,14 @@ class TaxonomyTests(unittest.TestCase):
     def test_unassigned_group_uses_website_language_without_translating_project_names(self):
         self.capture(task={'title':'Task','planned_date':DAY})
         self.capture(task={'title':'Project task','project':'Atlas','planned_date':DAY})
+        english=preflight(self.root,{'id':'5'*32,'date':DAY,'kind':'gn','state':'preflight'})['form']['fields']
         context=preflight(self.root,{'id':'6'*32,'date':DAY,'kind':'gn','state':'preflight','language':'zh-CN'})
         options=next(f for f in context['form']['fields'] if f['key']=='completed')['options']
-        self.assertEqual([o.get('group') for o in options],[None,'Atlas','其他任务'])
-        self.assertEqual(options[0]['label'],'这些任务今天都还没做完')
-        fields={f['key']:f for f in context['form']['fields']}
-        self.assertEqual(fields['completed']['title'],'今天有哪些事情已经完成了？')
-        self.assertEqual(fields['details']['title'],'还有什么想补充的吗？')
-        self.assertEqual(fields['details']['options'][0]['label'],'没有其他要补充的了')
+        self.assertEqual([o.get('group') for o in options[:2]],[None,'Atlas'])
+        self.assertLocalized(options[2]['group'],'Other tasks')
+        for field,source in zip(context['form']['fields'],english,strict=True):
+            self.assertLocalized(field['title'],source['title'])
+            self.assertLocalized(field['options'][0]['label'],source['options'][0]['label'])
 
     def test_section_recipe_returns_identical_sources_without_unrelated_payload(self):
         for n in range(9):
@@ -667,9 +663,7 @@ class TaxonomyTests(unittest.TestCase):
     def test_legacy_checklists_neither_block_v2_preflight_nor_enter_the_agent_plan(self):
         (self.root/'daily').mkdir(exist_ok=True)
         (self.root/'daily'/f'{DAY}.md').write_text('## flexible\n'+''.join(f'- [ ] Legacy {n}\n' for n in range(201)))
-        app = BrowserApp(self.root, now=lambda:datetime(2026,10,13,12,tzinfo=timezone.utc), preflight=True)
-        job = {'id':'f'*32,'date':DAY,'kind':'gm','state':'running','session':'ses_test'}
-        app.jobs[DAY+'.gm']=job; app.save_jobs(); preflight(self.root,job)
+        job = self.browser_job('f', 'gm', 'running', session='ses_test'); preflight(self.root,job)
         result = act(self.root,job['id'],'ses_test','prepare')
         self.assertNotIn('tasks',result['daily'])
         self.assertNotIn('items',result)
@@ -697,7 +691,7 @@ class TaxonomyTests(unittest.TestCase):
     def legacy_runtime(self):
         old = self.root/'legacy'; old.mkdir()
         path = old/'inbox.sqlite'
-        with sqlite3.connect(path) as db:
+        with contextlib.closing(sqlite3.connect(path)) as db, db:
             db.executescript("""
                 CREATE TABLE entries (
                     seq INTEGER PRIMARY KEY AUTOINCREMENT,id TEXT UNIQUE NOT NULL,revision INTEGER NOT NULL,
@@ -742,7 +736,7 @@ class TaxonomyTests(unittest.TestCase):
     def test_reviewed_migration_preserves_capture_and_audit_bytes_without_fake_completion(self):
         old=self.legacy_runtime()
         source='ib_'+'a'*16
-        with sqlite3.connect(old/'inbox.sqlite') as db:
+        with contextlib.closing(sqlite3.connect(old/'inbox.sqlite')) as db, db:
             db.execute("UPDATE entries SET status='done',context='Cancelled, not completed'")
             db.execute("INSERT INTO entries(id,revision,kind,status,project,created_at,updated_at,raw,summary,context,questions) VALUES (?,?,?,?,?,?,?,?,?,?,?)",
                 ('ib_'+'b'*16,1,'todo','pending','',NOW,NOW,'Reference when asked','Reference','No current action','[]'))
@@ -775,7 +769,7 @@ class TaxonomyTests(unittest.TestCase):
 
     def test_reviewed_migration_can_import_an_authorized_action_from_an_idea(self):
         old=self.legacy_runtime()
-        with sqlite3.connect(old/'inbox.sqlite') as db:
+        with contextlib.closing(sqlite3.connect(old/'inbox.sqlite')) as db, db:
             db.execute("UPDATE entries SET kind='idea'")
         plan={'ib_'+'a'*16:[{'title':'Monitor price manually','detail':'No automatic purchase or scheduler'}]}
         result=migrate(old,True,reviewed_tasks=plan,session='ses_test',now=NOW)

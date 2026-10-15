@@ -37,13 +37,10 @@ class BrowserBriefingTests(unittest.TestCase):
         before = hashlib.sha256(self.source.read_bytes()).hexdigest()
         files = web.build(self.runtime, '2026-10-10')
         page = files['gm.html'].decode()
-        for value in ('Weather', '14°C', 'A complete story.', '09:00–11:00', 'Teaching', 'Room A', 'Bring notes', 'Ranking', 'A warm closing.'):
-            self.assertIn(value, page)
         self.assertLess(page.index('<h2>Weather'), page.index('14°C'))
         self.assertLess(page.index('14°C'), page.index('<h2>News'))
         self.assertIn('href="https://example.org/story?a=1&amp;b=2"', page)
-        for value in ('aria-label="Not completed"', 'aria-label="Completed"', 'class="agenda-event"', 'Evening briefing not available yet'):
-            self.assertIn(value, page)
+        self.assertEqual(page.count('class="edition-unavailable"'), 1)
         self.assertNotIn('href="gn.html"', page)
         self.assertEqual(files['gm.json'], self.source.read_bytes())
         self.assertEqual(before, hashlib.sha256(self.source.read_bytes()).hexdigest())
@@ -58,12 +55,13 @@ class BrowserBriefingTests(unittest.TestCase):
         files = web.build(self.runtime, '2026-10-10')
         self.assertNotIn('gm.html', files)
         self.assertEqual(files['index.html'], files['gn.html'])
-        self.assertIn('Morning briefing not available yet', files['gn.html'].decode())
+        self.assertIn('class="edition-unavailable"', files['gn.html'].decode())
+        self.assertNotIn('href="gm.html"', files['gn.html'].decode())
 
     def test_toolbar_artwork_tagline_and_font_are_self_contained(self):
         files = web.build(self.runtime, '2026-10-10')
         page = files['gm.html'].decode()
-        for value in ('A personal secretary just for you', 'class="celestial-art"', 'class="sky-scene"', 'class="back-to-top"'):
+        for value in ('class="wordmark"', 'class="celestial-art"', 'class="sky-scene"', 'class="back-to-top"'):
             self.assertIn(value, page)
         self.assertLess(page.index('class="briefing-tools"'), page.index('<article'))
         self.assertLess(page.index('href="gm.json"'), page.index('<article'))
@@ -84,14 +82,19 @@ class BrowserBriefingTests(unittest.TestCase):
         page = web.edition(json.loads(GM), '2026-10-10', 'gm', {'gm': True})
         self.assertEqual(page.count('class="scroll-chunk"'), 4)
         self.assertEqual(page.count('role="tooltip"'), 4)
-        for value in ('aria-label="01: Weather"', 'aria-describedby="preview-1"', 'viewport-fit=cover', 'Tap again to jump'):
+        self.assertEqual(page.count('class="touch-hint"'), 4)
+        for value in ('aria-label="01: Weather"', 'aria-describedby="preview-1"', 'viewport-fit=cover'):
             self.assertIn(value, page)
         self.assertLess(len(web.PreviewText().excerpt('<p>' + 'word ' * 200 + '</p>')), 185)
 
-    def test_cli_only_caches_authorized_images_without_export(self):
+    def test_cli_fetches_previews_only_with_explicit_flag_and_never_exports(self):
+        argv = ['web', '--secretary-dir', str(self.runtime), '--date', '2026-10-10']
+        with patch.object(sys, 'argv', argv), patch.object(web, 'cache_previews') as fetch, \
+                contextlib.redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):
+            web.main()
+        fetch.assert_not_called()
         output = io.StringIO()
-        argv = ['web', '--secretary-dir', str(self.runtime), '--date', '2026-10-10', '--fetch-images']
-        with patch.object(sys, 'argv', argv), patch.object(web, 'cache_previews') as fetch, contextlib.redirect_stdout(output):
+        with patch.object(sys, 'argv', argv + ['--fetch-images']), patch.object(web, 'cache_previews') as fetch, contextlib.redirect_stdout(output):
             web.main()
         fetch.assert_called_once()
         self.assertFalse(json.loads(output.getvalue())['exported'])

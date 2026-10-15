@@ -1,4 +1,6 @@
 """Organized session titles and bounded local registries. No network or engine."""
+import contextlib
+import io
 import json
 import sys
 import tempfile
@@ -14,14 +16,10 @@ from goodmorning.web.briefing_server import BrowserApp
 
 
 class SessionInventoryTests(unittest.TestCase):
-    def test_titles_carry_fixed_prefix_without_touching_saved_text(self):
-        self.assertTrue(inventory.chat_session_title('Secretary', 'Plan tonight').startswith('GoodMorning · '))
-        self.assertIn('Plan tonight', inventory.chat_session_title('Secretary', 'Plan tonight'))
-        self.assertTrue(inventory.job_session_title('Morning briefing', '2026-10-11').startswith('GoodMorning · '))
-        self.assertIn('2026-10-11', inventory.job_session_title('Morning briefing', '2026-10-11'))
+    def test_chat_titles_are_bounded(self):
         self.assertLessEqual(len(inventory.chat_session_title('Secretary', 'x' * 500)), 120)
 
-    def test_chat_leaves_native_auto_title_enabled_and_briefing_keeps_its_prefix(self):
+    def test_briefing_keeps_its_prefix_and_both_sessions_are_owned(self):
         with tempfile.TemporaryDirectory(dir=TEMP_ROOT) as directory:
             root = Path(directory)
             (root / 'profile.md').write_text('city: London\ntimezone: Europe/London\nnews_country: GB\nsecretary_language: English\n')
@@ -29,8 +27,6 @@ class SessionInventoryTests(unittest.TestCase):
             chats = Chats(root, chamber)
             with patch('goodmorning.web.briefing_chat.threading.Thread', ImmediateThread):
                 chats.start({'id': 'a' * 32, 'mode': 'secretary', 'text': 'Plan tonight'})
-            created = next(call for call in chamber.calls if call[0] == 'session.create')
-            self.assertNotIn('title', created[1])
             app = BrowserApp(root, chamber)
             with patch('goodmorning.web.briefing_server.threading.Thread', ImmediateThread):
                 app.start(app.today(), 'gm')
@@ -74,18 +70,37 @@ class SessionInventoryTests(unittest.TestCase):
             self.assertNotIn('old-idle', kept)
             self.assertIn('old-idle', archived)
             self.assertIn('old-busy', kept)
+            chats = {'later': {'id': 'later', 'mode': 'secretary', 'state': 'idle', 'turns': [], 'created': 1000.0}, **kept}
+            (root / 'browser-chats/chats.json').write_text(json.dumps(chats))
+            inventory.archive_chats(root, keep=1, older_than_days=90, now=2000000000.0, apply=True)
+            self.assertEqual(set(json.loads((root / 'browser-chats/archive.json').read_text())), {'old-idle', 'later'})
+
+    def test_symlinked_registry_is_refused(self):
+        with tempfile.TemporaryDirectory(dir=TEMP_ROOT) as directory:
+            root = Path(directory)
+            (root / 'browser-chats').mkdir()
+            (root / 'elsewhere.json').write_text('{}')
+            (root / 'browser-chats/chats.json').symlink_to(root / 'elsewhere.json')
+            with self.assertRaises(ValueError):
+                inventory.archive_chats(root, keep=0, apply=True)
 
     def test_cli_lists_and_dry_runs_without_changing_records(self):
         with tempfile.TemporaryDirectory(dir=TEMP_ROOT) as directory:
             root = Path(directory)
             (root / 'browser-chats').mkdir()
             (root / 'browser-jobs').mkdir()
-            (root / 'browser-chats/chats.json').write_text('{}')
-            (root / 'browser-jobs/jobs.json').write_text('{}')
+            (root / 'browser-chats/chats.json').write_text(json.dumps(
+                {'old': {'id': 'old', 'mode': 'secretary', 'state': 'idle', 'turns': [], 'created': 1000.0}}))
+            (root / 'browser-jobs/jobs.json').write_text(json.dumps(
+                {'2020-01-01.gm': {'id': 'a' * 32, 'date': '2020-01-01', 'kind': 'gm', 'state': 'complete'}}))
+            (root / 'browser-jobs' / ('a' * 32 + '.preview.json')).write_text('{}')
             before = {p: p.read_bytes() for p in root.rglob('*') if p.is_file()}
-            self.assertEqual(inventory.main(['--secretary-dir', str(root), '--list']), 0)
-            self.assertEqual(inventory.main(['--secretary-dir', str(root), '--prune-jobs']), 0)
-            self.assertEqual(inventory.main(['--secretary-dir', str(root), '--archive-chats']), 0)
+            for action in ('--list', '--prune-jobs', '--archive-chats'):
+                output = io.StringIO()
+                with contextlib.redirect_stdout(output):
+                    self.assertEqual(inventory.main(['--secretary-dir', str(root), action, '--keep', '0']), 0)
+                if action != '--list':
+                    self.assertTrue(json.loads(output.getvalue())['candidates'])
             self.assertEqual({p: p.read_bytes() for p in root.rglob('*') if p.is_file()}, before)
 
 

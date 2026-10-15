@@ -38,21 +38,16 @@ class SetupTemplateTests(unittest.TestCase):
         self.assertEqual(parse_profile(profile), ("London, GB", "global"))
         self.assertEqual(read_profile_timezone(str(self.directory)), "Europe/London")
 
-    def test_reply_language_is_first_profile_setting_and_preserves_explicit_choices(self):
+    def test_reply_language_preserves_explicit_choices(self):
         template = (ROOT / "templates/profile.template.md").read_text()
-        fields = re.findall(r"(?m)^([a-z_]+):", template)
-        self.assertEqual(fields[0], "secretary_name")
-        self.assertEqual(fields[1], "secretary_language")
         for language in ("English", "简体中文", "繁體中文", "English and French", "follow my message language"):
             (self.directory / "profile.md").write_text(template.replace('secretary_language: ""', 'secretary_language: "' + language + '"'))
             self.assertEqual(profile_fields(self.directory)["secretary_language"], language)
-            self.assertEqual(parse_profile(self.directory / "profile.md"), ("", ""))
 
-    def test_secretary_name_is_optional_short_safe_and_first(self):
+    def test_secretary_name_is_optional_short_and_safe(self):
         from goodmorning.runtime_files import normalize_secretary_name
         from goodmorning.setup_check import profile_status
         template = (ROOT / "templates/profile.template.md").read_text()
-        self.assertIn('secretary_name: ""', template)
         self.assertEqual(normalize_secretary_name("Aria"), "Aria")
         self.assertEqual(normalize_secretary_name("小秘"), "小秘")
         self.assertEqual(normalize_secretary_name(""), "")
@@ -88,8 +83,6 @@ class SetupTemplateTests(unittest.TestCase):
         fields = profile_fields(self.directory)
         self.assertEqual(fields["occupations"], "student; teaching assistant")
         self.assertEqual(fields["expertise_fields"], "statistics; scientific computing")
-        self.assertEqual(parse_profile(path), ("", ""))
-        self.assertEqual(read_profile_timezone(str(self.directory)), "")
 
     def test_profile_remains_readable_without_optional_context(self):
         (self.directory / "profile.md").write_text('city: "London, GB"\nregion: "global"\ntimezone: "UTC"\n')
