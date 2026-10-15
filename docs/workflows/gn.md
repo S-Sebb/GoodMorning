@@ -10,7 +10,9 @@ language, actual user feedback and current records. Result: a verified native v2
 evening edition and browser link, not inferred completion or a rescheduled plan.
 
 Read `docs/core-rules.md`, `docs/item-taxonomy.md`, `docs/briefing-format.md` and
-`docs/reply-voice.md`. Browser jobs also read `docs/browser-generation.md`.
+`docs/reply-voice.md` for local runs. Browser jobs follow their receipts' step
+guides instead (`docs/browser-generation.md`) and open these docs only for
+feedback no guide covers.
 Use selected absolute paths, actual session, pinned date and confirmed language.
 Every visible sentence, from the first progress update through questions and the
 final link, uses `Website language` and the saved tone. For `zh-CN`, describe

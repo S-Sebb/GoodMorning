@@ -12,6 +12,7 @@ import sqlite3
 import sys
 
 from . import briefing_document as native
+from . import briefing_guides
 from .briefing_stream import DEFAULT_PLANS, LEGACY_PLANS, bounded_json, load, paths, publish, require_final
 from goodmorning.runtime_files import atomic_text, runtime_lock, secretary_path
 from goodmorning.web import language as ui
@@ -92,6 +93,8 @@ def next_step(runtime, identifier, session, context, checkpoint):
     """One compact recipe; no speculative flags or whole-briefing fetching."""
     command = ['python', 'scripts/goodmorning.py', 'job', '--secretary-dir', str(runtime), '--job', identifier, '--session', session]
     if not checkpoint:
+        if context.get('document_version') == 2:
+            return {'action':'init', 'command':shlex.join(command + ['init']), 'input':{'greeting':'…','opening':'…'}}
         instruction = 'Initialize now, before any provider or additional record reads. Use the supplied default plan unchanged; do not reorder, add or remove sections. Translate plan titles only if needed for the pinned language, preserving order.'
         if context.get('regenerating'):
             instruction += (' This is an explicitly authorized replacement, not a duplicate run. Reuse saved feedback and current records; '
@@ -143,16 +146,13 @@ def next_step(runtime, identifier, session, context, checkpoint):
         instruction += (' Legacy preview: review active inbox/project constraints; preserve flexible rows '
                         '[date,status,title,detail], TBC appointments and existing history; no automatic rollover. '
                         'No timed appointments does not mean a free day.')
-    if context.get('document_version') == 2 and tag in ('schedule', 'tasks', 'attention', 'today'):
-        instruction += (' Follow docs/item-taxonomy.md and docs/briefing-format.md. Copy this section\'s code-owned '
-                        'source-linked blocks; follow next_offset and preserve material warnings. '
-                         'For Tasks, first polish materially vague title/detail with revision-checked task --update '
-                         '(same meaning, title/detail only, no scheduling changes), then reread and pack the exact rows. '
-                         'Leave already-clear titles and factual details unchanged; trim reminder mechanics and setup narration from display details without changing their meaning; a project name inside a specific object is not a decorative prefix. '
-                        'Presentation does not create, schedule, execute or complete work.')
-    return {'action':'publish','command':shlex.join(command + ['publish']), 'position':position,
-            'section':[tag,title], 'read':reads,
-            'instruction':instruction}
+    action = {'action':'publish','command':shlex.join(command + ['publish']), 'position':position,
+              'section':[tag,title], 'read':reads}
+    if context.get('document_version') == 2:
+        action['input'] = {'position':position, 'section':[tag,'BLOCKS','NOTE',title]}
+    else:
+        action['instruction'] = instruction
+    return action
 
 
 def image_previews(runtime, job, context, checkpoint):
@@ -220,7 +220,11 @@ def act(runtime, identifier, session, action, payload=None):
         reply_context['instruction'] = ('所有可见文字，包括进度和提问，均用简体中文并遵循保存的语气；不要描述读取契约或检查格式。' if reply_context['language'] == 'zh-CN' else
                                         'All visible text, including progress and questions, uses English and the saved tone; do not narrate reading contracts or format checks.')
         def receipt(value):
-            next_action = next_step(runtime, identifier, session, context, load(target))
+            checkpoint = load(target)
+            next_action = next_step(runtime, identifier, session, context, checkpoint)
+            if context.get('document_version') == 2:
+                next_action['guide'] = briefing_guides.guide(context, next_action, checkpoint['plan'] if checkpoint else default_plan(context),
+                                                             runtime=runtime, job=identifier, session=session)
             rule = writing_rule(context, next_action)
             if rule:
                 next_action['writing'] = rule
@@ -238,6 +242,8 @@ def act(runtime, identifier, session, action, payload=None):
                 prepared['inbox'] = {'total': context.get('inbox', {}).get('total', 0)}
                 if job['kind'] == 'gm':
                     prepared.pop('feedback_tasks', None)
+            if context.get('document_version') == 2:
+                prepared['contract'] = briefing_guides.contract(context)
             return receipt({**prepared, 'job': identifier, 'session': session,
                     'next_position': len(checkpoint['outcomes']) if checkpoint else 0})
         if action == 'init':

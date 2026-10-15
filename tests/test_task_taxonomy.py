@@ -19,7 +19,7 @@ from goodmorning.records.task_store import TaskStore, migrate, occurrence_id
 from goodmorning.records import routing, daily
 from goodmorning.records import task as task_cli, workflow
 from goodmorning.calendar.calendar_store import CalendarStore
-from goodmorning.briefings import briefing_document as native
+from goodmorning.briefings import briefing_document as native, briefing_guides
 from goodmorning.briefings.briefing_preflight import initialize as preflight, answer
 from goodmorning.briefings.briefing_job import act
 from goodmorning.web.briefing_server import BrowserApp
@@ -669,6 +669,34 @@ class TaxonomyTests(unittest.TestCase):
         self.assertNotIn('items',result)
         self.assertNotIn('feedback_tasks',result)
         self.assertEqual(result['next']['action'],'init')
+
+    def test_v2_receipts_carry_one_localized_step_guide_at_a_time(self):
+        app = BrowserApp(self.root, now=lambda:datetime(2026,10,13,12,tzinfo=timezone.utc), preflight=True)
+        for language, contract, title in (('en','ESCAPE HATCH','Weather'), ('zh-CN','例外通道','天气')):
+            identifier = ('e' if language == 'en' else 'c')*32
+            job = {'id':identifier,'date':DAY,'kind':'gm','state':'running','session':'ses_test','language':language}
+            app.jobs[DAY+'.gm']=job; app.save_jobs(); preflight(self.root,job)
+            result = act(self.root,identifier,'ses_test','prepare')
+            self.assertIn(contract,result['contract'])
+            self.assertIn('docs/core-rules.md',result['contract'])
+            self.assertEqual(result['next']['input'],{'greeting':'…','opening':'…'})
+            self.assertIn(title,result['next']['guide'])
+            self.assertNotIn('instruction',result['next'])
+            result = act(self.root,identifier,'ses_test','init',{'greeting':'Hi.','opening':'Weather first.'})
+            guide = result['next']['guide']
+            self.assertEqual(result['next']['input'],{'position':0,'section':['weather','BLOCKS','NOTE',title]})
+            self.assertIn('`input`',guide)
+            self.assertIn('temperature',guide)
+            self.assertNotIn('polish:',guide)
+            self.assertNotIn('instruction',result['next'])
+            result = act(self.root,identifier,'ses_test','publish',{'position':0,'section':['weather',[['p','Unavailable.']],'',title]})
+            self.assertEqual(result['next']['input']['position'],1)
+            self.assertEqual(result['next']['input']['section'][0],'news')
+        guide = briefing_guides.guide({'date':DAY}, {'action':'publish','section':['tasks','Tasks']}, [],
+                                      runtime=self.root, job='j'*32, session='ses_test')
+        self.assertIn('--secretary-dir '+str(self.root),guide)
+        self.assertIn('polish:ses_test:TASK_ID:REV',guide)
+        self.assertNotIn('RUNTIME',guide)
 
     def test_account_schedule_ignores_process_calendar_override(self):
         other = self.root/'other-calendar.sqlite'

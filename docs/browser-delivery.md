@@ -48,7 +48,7 @@ arbitrary session browser or API proxy. Permissions require explicit one-time
 approval or rejection. Host, Origin, body limits and a server-generated request
 token protect mutations.
 
-Browser authoring follows `docs/browser-generation.md`: prepare once, initialize
+Browser authoring follows the job receipts (`docs/browser-generation.md`): prepare once, initialize
 the plan, then collect and publish one new section at a time. Code owns the
 cumulative document, visible checklist synchronization and final save. Published
 sections remain readable and unchanged while later sections are prepared.

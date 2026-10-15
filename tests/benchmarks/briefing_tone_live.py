@@ -392,6 +392,151 @@ def run_case(output, template, language, scenario, instant):
     return result
 
 
+FLEXIBLE = {
+    'en': {
+        'morning-vague': [('atlas report stuff etc', 'need to send it to Dana by friday', 'Atlas', 0),
+                          ('Groceries', 'milk and eggs', '', 0),
+                          ('Prepare Q3 slides for the Boreal review', '', 'Boreal', 0)],
+        'evening-complex': [('Draft Boreal report', '', 'Boreal', 0), ('Send Atlas report', '', 'Atlas', 1),
+                            ('Buy groceries', '', '', 0)],
+        'details': ("Got about half of the Boreal draft done (intro and charts); the rest needs Priya's numbers. "
+                    "The Atlas report is blocked until the dataset arrives. Also finally called the bank about the mortgage, sorted. "
+                    "Oh, and can you push the Atlas report to Monday?"),
+        'answer': 'Yes, please move the Atlas report to next Monday.',
+        'monday': ('monday', 'mon '),
+        'bank': ('bank', 'mortgage'),
+    },
+    'zh-CN': {
+        'morning-vague': [('atlas 报告的事 等等', '周五前要发给 Dana', 'Atlas', 0), ('杂货', '牛奶和鸡蛋', '', 0),
+                          ('准备 Boreal 评审用的第三季度幻灯片', '', 'Boreal', 0)],
+        'evening-complex': [('起草 Boreal 报告', '', 'Boreal', 0), ('发送 Atlas 报告', '', 'Atlas', 1), ('购买食品', '', '', 0)],
+        'details': ('Boreal 草稿完成了一半左右（引言和图表），剩下的要等 Priya 的数据。Atlas 报告在数据集到之前都卡着。'
+                    '另外终于给银行打了电话问房贷的事，已经办妥。对了，能把 Atlas 报告挪到周一吗？'),
+        'answer': '是的，请把 Atlas 报告挪到下周一。',
+        'monday': ('周一', '星期一', 'monday'),
+        'bank': ('银行', '房贷'),
+    },
+}
+
+
+def seed_flexible(runtime, language, scenario, day):
+    """Vague task copy or messy multi-part feedback: judgment cases, not fixed recipes."""
+    inbox = InboxStore(runtime, write=True)
+    try:
+        for index, (title, detail, project, offset) in enumerate(FLEXIBLE[language][scenario]):
+            planned = (datetime.fromisoformat(day) + timedelta(days=offset)).date().isoformat()
+            task = {'title':title, 'planned_date':planned, 'timezone':'Europe/London', 'project':project}
+            if detail:
+                task['detail'] = detail
+            inbox.mutate('add', {'kind':'todo', 'raw':title, 'task':task}, 'ses_fixture', scenario+'-'+str(index), day+'T07:00:00+01:00')
+    finally:
+        inbox.close()
+    return records(runtime)
+
+
+def answer_question(app, job, forms, language):
+    """Answer only the Monday move this fixture requested; anything else needs manual review."""
+    words = FLEXIBLE[language]
+    for form in forms:
+        values = {}
+        for field in form['fields']:
+            options = field.get('options') or []
+            chosen = next((option['value'] for option in options
+                           if any(key in (option.get('label','')+' '+str(option.get('value',''))).lower() for key in words['monday'])), None)
+            if chosen is not None and not field.get('multiple'):
+                values[field['key']] = chosen
+            elif field['type'] == 'string' and (field.get('custom') or not options):
+                values[field['key']] = words['answer']
+            else:
+                raise AssertionError('Unsupported synthetic question; inspect it instead of guessing approval')
+        app.reply(job, 'form', form['id'], {'answer':values})
+
+
+def run_flexible_case(output, template, language, scenario, instant):
+    folder = output/scenario
+    folder.mkdir(mode=0o700)
+    runtime = folder/'account'
+    runtime.mkdir(mode=0o700)
+    source = folder/'source'
+    shutil.copytree(template, source)
+    (source/'opencode.json').write_text(json.dumps(trial_config(runtime)))
+    selected = for_language(language)
+    (runtime/'profile.md').write_text('city: London, GB\ntimezone: Europe/London\nnews_country: GB\n'
+                                      'secretary_name: Nora\ncalendar_source: custom\nsecretary_tone: '+TONES['playful']+'\n')
+    (runtime/'browser-policy.json').write_text(json.dumps({key:False for key in (
+        'live_project_access','calendar_sync','publisher_images','news_acknowledgement')}))
+    initialize(runtime)
+    CalendarStore(str(runtime/'calendar.sqlite')).close()
+    bridge = CheckpointBridge(source, runtime, False, language)
+    app = BrowserApp(runtime, bridge, now=lambda:instant, preflight=True)
+    day = app.today()
+    kind = 'gm' if scenario == 'morning-vague' else 'gn'
+    baseline = seed_flexible(runtime, language, scenario, day)
+    result = {'scenario':scenario, 'language':language, 'tone':'playful', 'model':session_payload(selected),
+              'date':day, 'checks':[], 'review':'pending manual judgment/language/tone review'}
+    save(folder/'baseline.json', {'tasks':baseline})
+    try:
+        bridge.verify_scope()
+        save(folder/'start-intent.json', {'date':day, 'kind':kind})
+        with context(language, selected):
+            job = app.start(day, kind)['job']
+        save(folder/'job.json', {'id':job})
+        if kind == 'gn':
+            with context(language, selected):
+                form = app.status(job)['forms'][0]
+            done = [option['value'] for field in form['fields'] if field['key'] == 'completed'
+                    for option in field['options'] if option['label'] == baseline[2]['title']]
+            with context(language, selected):
+                app.reply(job, 'form', form['id'], {'answer':{'completed':done, 'details':FLEXIBLE[language]['details']}})
+        status = observe(app, bridge, job, folder, 'original', language, selected)
+        stage = 'original'
+        if status['state'] == 'waiting' and status.get('forms'):
+            result['asked'] = [field.get('description') or field.get('title') for form in status['forms'] for field in form['fields']]
+            save(folder/'question.json', status['forms'])
+            with context(language, selected):
+                answer_question(app, job, status['forms'], language)
+            status, stage = observe(app, bridge, job, folder, 'followup', language, selected), 'followup'
+        assert status['state'] == 'ready', 'Edition did not finish; inspect preserved status/transcript'
+        document = json.loads(app.source(day, kind).read_text())
+        save(folder/'original.document.json', document)
+        current = {task['id']:task for task in records(runtime)}
+        assert len(current) == len(baseline), 'Feedback or polish created or removed tasks'
+        if kind == 'gm':
+            vague, groceries, clear = baseline
+            result['titles_after'] = [current[task['id']]['title'] for task in baseline]
+            result['polished_vague'] = sum(current[task['id']]['title'] != task['title'] for task in (vague, groceries))
+            assert current[clear['id']]['title'] == clear['title'], 'A clear title was rewritten'
+            assert all(current[task['id']][key] == task[key] for task in baseline for key in ('planned_date','status')), 'Polish changed a date or status'
+            assert result['polished_vague'] == 2, 'A materially vague title was left unpolished'
+            result['checks'].append('Both vague titles polished; clear title, dates and statuses unchanged')
+        else:
+            boreal, atlas, groceries = baseline
+            today = next(section for section in document['sections'] if section[0] == 'today')
+            statuses = {row[0]:row[4] for block in today[1] if block[0] == 'actions' for row in block[1]}
+            assert statuses.get(boreal['id']) == 'partial', 'Half-finished Boreal draft was not reported as partial'
+            assert current[atlas['id']]['status'] == 'blocked', 'Atlas blocker was not recorded'
+            assert current[groceries['id']]['status'] == 'done'
+            text = json.dumps(document, ensure_ascii=False).lower()
+            assert any(key in text for key in FLEXIBLE[language]['bank']), 'Extra accomplishment was dropped'
+            moved = current[atlas['id']]['planned_date'] != atlas['planned_date']
+            if moved:
+                monday = datetime.fromisoformat(day).date() + timedelta(days=(7 - datetime.fromisoformat(day).weekday()) or 7)
+                assert current[atlas['id']]['planned_date'] == monday.isoformat(), 'Atlas moved to a day other than Monday'
+            assert moved or 'asked' in result, 'Requested Monday move was neither applied nor asked about'
+            result['checks'].append('Partial, blocker and extra accomplishment reported; Monday request '
+                                    + ('applied' if moved else 'asked about'))
+        assert link_handoff(folder, stage, f'/d/{day}/{kind}.html'), 'Completed reply was not a verified briefing-link handoff'
+        result['functional_complete'] = True
+        print(language+' '+scenario+': '+str(len(result['checks']))+' checks passed', flush=True)
+    except Exception as error:
+        result['failure'] = str(error)[:1500]
+        result['functional_complete'] = False
+        print(language+' '+scenario+': INCOMPLETE — '+result['failure'], flush=True)
+    finally:
+        save(folder/'result.json', result)
+    return result
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--output', type=Path, required=True)
@@ -416,6 +561,8 @@ def main():
         instant = datetime.now(timezone.utc)
         results = [run_case(output, source, args.language, scenario, instant) for scenario in (
             'morning-empty','morning-resume','evening-feedback','evening-ambiguous')]
+        results += [run_flexible_case(output, source, args.language, scenario, instant)
+                    for scenario in ('morning-vague','evening-complex')]
         save(output/'matrix.json', {'cases':results, 'limitations':[
             'Real native models and browser job/controller helpers; no public HTTPS/encrypted account test.',
             'Provider faults and prepublished checkpoint are synthetic; no real weather/news provider validation.',
