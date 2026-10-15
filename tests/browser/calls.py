@@ -4,8 +4,8 @@ python tests/browser/calls.py --screenshots /tmp/opencode/calls-shots
 python tests/browser/calls.py --preview --port 18793
 
 Exercises: manual CLI scan (read-only), website scan candidates, approved
-create, ask-in-chat without a connected secretary (clean refusal), resolve
-with revision checks, and day/night English/Chinese panel screenshots.
+create from the page, resolve with revision checks, ask-in-chat through the
+normal chat route, and day/night English/Chinese panel screenshots.
 Creates no real sessions and makes no model calls.
 """
 import argparse
@@ -95,23 +95,14 @@ def main():
             status, listed = http(server, "GET", "/api/calls")
             assert listed["open"] == 1, listed
             call_id = created["id"]
-            status, asked = http(server, "POST", f"/api/calls/{call_id}/ask", {}, app.csrf)
-            assert status == 400, (status, asked)  # no connected secretary in simulation
             status, resolved = http(server, "POST", f"/api/calls/{call_id}/resolve",
                                     {"note": "fixed in chat"}, app.csrf)
             assert status == 200 and resolved["status"] == "resolved", (status, resolved)
             status, listed = http(server, "GET", "/api/calls")
             assert listed["open"] == 0, listed
-            print("HTTP flow passed: scan, create, duplicate-refused, ask-refused-cleanly, resolve.")
+            print("HTTP flow passed: scan, create, duplicate-refused, resolve.")
             if args.screenshots:
                 from playwright.sync_api import sync_playwright
-                # Open a *different* candidate than the resolved one: reusing the
-                # same target would replay the old receipt instead of opening anew.
-                status, report = http(server, "GET", "/api/calls/scan")
-                second = next(c for c in report["candidates"]
-                              if c["target_id"] != report["candidates"][0]["target_id"])
-                created2 = http(server, "POST", "/api/calls", {"item": second}, app.csrf)
-                assert created2[1].get("saved") and not created2[1].get("replayed"), created2
                 url = f"http://127.0.0.1:{server.server_port}"
                 with sync_playwright() as playwright:
                     browser = playwright.chromium.launch()
@@ -124,6 +115,12 @@ def main():
                     page.locator("#secretary-calls").scroll_into_view_if_needed()
                     page.wait_for_timeout(1200)
                     assert page.locator("#calls-review").count() == 1
+                    # Approve a fresh candidate through the page: the resolved one
+                    # would replay its old receipt instead of opening anew.
+                    page.locator("#calls-review").click()
+                    page.locator(".call-card", has_not_text=first["title"]).first.get_by_role("button").click()
+                    page.locator(".call-card[data-status=open]").first.wait_for()
+                    assert page.locator(".call-card[data-status=open]").count() == 1
                     assert page.locator(".call-card").count() >= 1
                     assert page.locator(".call-actions button").count() >= 3
                     assert page.get_attribute("html", "data-edition") == "gm"
@@ -141,6 +138,13 @@ def main():
                     page.wait_for_timeout(1200)
                     assert page.get_attribute("html", "data-edition") == "gn"
                     page.screenshot(path=str(args.screenshots / "calls-night-zh.png"))
+                    # Asking starts a normal secretary chat; capture it instead of running a model.
+                    asked = []
+                    page.route("**/api/chats", lambda route: (asked.append(route.request.post_data_json),
+                               route.fulfill(status=202, json={"chat": "a" * 32})))
+                    page.locator(".call-card[data-status=open] .call-actions button").first.click()
+                    page.wait_for_url("**/chat?id=" + "a" * 32)
+                    assert asked and asked[0]["mode"] == "secretary" and asked[0]["text"], asked
                     assert not errors, errors
                     browser.close()
                 print("screenshots:", sorted(p.name for p in args.screenshots.glob("*.png")))

@@ -1097,12 +1097,9 @@ def serve_live(app, port, *, gateway_key=None, public_origins=()):
                     return self.respond(app.chats.start(body), 202)
                 if path == '/api/calls':
                     return self.respond(secretary_calls.create(app, body), 201)
-                call_close = re.fullmatch(r'/api/calls/(call_[0-9a-f]{16})/(resolve|dismiss|ask)', path)
+                call_close = re.fullmatch(r'/api/calls/(call_[0-9a-f]{16})/(resolve|dismiss)', path)
                 if call_close:
-                    call_id, action = call_close.groups()
-                    if action == 'ask':
-                        return self.respond(secretary_calls.ask(app, call_id, body), 202)
-                    return self.respond(secretary_calls.close(app, call_id, action, body))
+                    return self.respond(secretary_calls.close(app, *call_close.groups(), body))
                 if path == '/api/avatar':
                     if set(body) != {'avatar'}:
                         raise ValueError('Choose a secretary avatar')

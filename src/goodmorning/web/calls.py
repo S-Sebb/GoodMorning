@@ -1,6 +1,5 @@
 """Secretary calls viewed from the website. Read-only scan; explicit approved writes."""
 import re
-import secrets
 
 from goodmorning.records.calls_store import CallsStore, scan
 
@@ -72,19 +71,3 @@ def close(app, call_id, action, body):
     finally:
         store.close()
 
-
-def ask(app, call_id, body):
-    """Start a secretary chat carrying the call's question. Explicit click only."""
-    if not CALL_ID.fullmatch(call_id):
-        raise ValueError("Unknown secretary call")
-    if body is not None and body != {}:
-        raise ValueError("Invalid call request")
-    store = CallsStore(app.runtime, write=False)
-    try:
-        call = store.show(call_id)
-    finally:
-        store.close()
-    if call["status"] != "open":
-        raise ValueError("Only open calls can be asked")
-    chat = secrets.token_hex(16)
-    return app.chats.start({"id": chat, "mode": "secretary", "text": call["question"]})

@@ -11,7 +11,8 @@
 
   async function api(path, body) {
     const response = await fetch(path, {method: body ? 'POST' : 'GET', credentials: 'same-origin', cache: 'no-store',
-      headers: body ? {'Content-Type': 'application/json', 'X-Briefing-CSRF': config.csrf} : {}});
+      headers: body ? {'Content-Type': 'application/json', 'X-Briefing-CSRF': config.csrf} : {},
+      body: body ? JSON.stringify(body) : undefined});
     const result = await goodmorningJSON(response);
     if (!response.ok) throw new Error(result.error || goodmorningT('Calls could not be loaded. Your records are unchanged.'));
     return result;
@@ -53,7 +54,7 @@
       add.addEventListener('click', async () => {
         add.disabled = true;
         try {
-          await api('/api/calls', {item: candidate});
+          await api('/api/calls', {item});
           setStatus('');
           await load();
         } catch { setStatus('Calls could not be saved. Your records are unchanged.'); }
@@ -68,7 +69,9 @@
         ask.addEventListener('click', async () => {
           ask.disabled = true;
           try {
-            const receipt = await api(`/api/calls/${item.id}/ask`, {});
+            // Start through the normal chat route so hosted accounts share the waiting line.
+            const id = Array.from(crypto.getRandomValues(new Uint8Array(16)), byte => byte.toString(16).padStart(2, '0')).join('');
+            const receipt = await api('/api/chats', {id, mode: 'secretary', text: item.question});
             location.href = `/chat?id=${receipt.chat}`;
           } catch { setStatus('Calls could not be saved. Your records are unchanged.'); }
           finally { ask.disabled = false; }

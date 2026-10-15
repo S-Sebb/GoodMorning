@@ -498,6 +498,17 @@ class GatewayTests(GatewayFixture):
         self.assertEqual(self.received[-1][0],'/chat')
         self.assertEqual(self.request('/api/chats/'+('b'*32))[0],200)
 
+    def test_secretary_calls_reach_the_private_backend(self):
+        self.assertEqual(self.request('/api/calls')[0],401)
+        self.permanent()
+        call='call_'+'0'*16
+        for path,body in (('/api/calls',None),('/api/calls/scan',None),('/api/calls',{'item':{}}),
+                          ('/api/calls/'+call+'/resolve',{}),('/api/calls/'+call+'/dismiss',{})):
+            self.assertEqual(self.request(path,body)[0],202 if body is not None else 200,path)
+            self.assertEqual(self.received[-1][0],path)
+        # Asking starts a chat through /api/chats and its shared waiting line.
+        self.assertEqual(self.request('/api/calls/'+call+'/ask',{})[0],403)
+
     def test_chat_and_briefing_share_global_reservation(self):
         self.permanent()
         calls=[]
