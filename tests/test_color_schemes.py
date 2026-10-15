@@ -62,11 +62,12 @@ class ColorSchemeTests(unittest.TestCase):
                 self.assertEqual(root.findall(SVG + 'ellipse'), [])
             self.assertIn(resources.urls[scheme + '.svg'].encode(), css)
             self.assertIn(colors.OPTIONS['day'][scheme], ui.CATALOG)
-        self.assertTrue(motion_only(css.decode(), resources.urls['morning-sky.svg'] + '#drift'))
+        self.assertNotIn(b'#drift', css)
         self.assertEqual(resources.paths[resources.urls['morning-clouds.webp']].mime, 'image/webp')
         self.assertIn(resources.urls['morning-clouds.webp'].encode(), css)
-        for name in ('first-light-continuation.svg', 'morning-sky-continuation.svg', 'morning-clouds-continuation.webp'):
-            self.assertIn(resources.urls[name].encode(), css)
+        self.assertIn(resources.urls['morning-clouds-continuation.webp'].encode(), css)
+        # First Light no longer repeats its scene down long pages.
+        self.assertIn(b'--day-scene: url("' + resources.urls['first-light.svg'].encode() + b'"); --day-repeat: no-repeat;', css)
 
     def test_retired_day_preference_preserves_night_and_does_not_rewrite_records(self):
         retired = {'day': 'sunlit-garden', 'night': 'classic'}
