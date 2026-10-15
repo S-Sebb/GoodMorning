@@ -1,7 +1,7 @@
 {
   "notes": [
     {
-      "version": "0.43.2", "date": "2026-10-15", "author": "GoodMorning agent",
+      "version": "0.44.1", "date": "2026-10-15", "author": "GoodMorning agent",
       "title_en": "Safer account data maintenance", "title_zh": "更安全的账户数据维护",
       "changes": [
         {"category": "Documentation", "en": [
@@ -15,6 +15,24 @@
           "Check the new procedure with four synthetic cases on both configured models; these decision checks do not prove live migration safety."
         ], "zh": [
           "在两个已配置的模型上用四个合成案例检验新流程；这些决策检查并不能证明线上迁移是安全的。"
+        ]}
+      ]
+    },
+    {
+      "version": "0.44.0", "date": "2026-10-15", "author": "GoodMorning agent",
+      "title_en": "Evening tasks get the same wording review", "title_zh": "晚间待办同样参与措辞检查",
+      "changes": [
+        {"category": "Changed", "en": [
+          "Evening briefings now walk through displayed Tasks rows and polish materially vague titles/details with tracked updates before packing, mirroring the morning flow; just-recorded Today outcome reasons stay verbatim under the existing rule.",
+          "Task details must not carry reminder mechanics or setup narration; rhythm lives in structured repeat/when fields and background in the inbox entry context."
+        ], "zh": [
+          "晚报在呈现前同样检查待办标题与详情，含糊措辞经确认后修正再打包，与早报一致；已确认的今日结果原因仍保持原样。",
+          "待办详情不再写提醒机制与确认过程；节奏放在结构化字段，背景放在记录上下文。"
+        ]},
+        {"category": "Tests", "en": [
+          "Cover evening polish-then-pack with synthetic records and trial the changed prompts on both website models in English and Chinese; the full unit suite passes."
+        ], "zh": [
+          "用合成记录覆盖晚间先修正后打包，并用两个线上模型中英文验证变更提示；全部单元测试通过。"
         ]}
       ]
     },

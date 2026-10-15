@@ -148,7 +148,7 @@ def next_step(runtime, identifier, session, context, checkpoint):
                         'source-linked blocks; follow next_offset and preserve material warnings. '
                          'For Tasks, first polish materially vague title/detail with revision-checked task --update '
                          '(same meaning, title/detail only, no scheduling changes), then reread and pack the exact rows. '
-                         'Leave already-clear titles and factual details unchanged; a project name inside a specific object is not a decorative prefix. '
+                         'Leave already-clear titles and factual details unchanged; trim reminder mechanics and setup narration from display details without changing their meaning; a project name inside a specific object is not a decorative prefix. '
                         'Presentation does not create, schedule, execute or complete work.')
     return {'action':'publish','command':shlex.join(command + ['publish']), 'position':position,
             'section':[tag,title], 'read':reads,
@@ -188,8 +188,8 @@ def writing_rule(context, next_action):
         return ('结尾可省略；没有待办、完成记录或实际反馈可回顾时，不写结尾。否则只回应已核实的结果。空日程只能说明没有已保存的约定，不能说“日程清空”、日子清闲、可以随意安排或时间充裕。不要承诺来源恢复后自动更新，不推断空闲、就绪或未来完成。' if chinese else
                 'Closing is optional; omit it when there are no tasks, completions or actual feedback to reflect. Otherwise use verified results only. An empty calendar means no saved appointments, not a clear schedule, quiet/free day or time to spare. Do not promise automatic updates after recovery, readiness or future completion.')
     if tag == 'tasks':
-        return ('动作行的日期是约定工作日，不是截止日期；只有明确的 due_date/due_at 才是期限。不要建议把明天的工作提前到今天。open 仅表示尚未完成，不能据此说已就绪或没有阻碍；也不能保证一个阻碍消失后即可完成。不要猜测哪项更轻松或需要多久。已经明确的受阻原因保持原文，不做润色写入；受阻不能改写成“暂未推进”或“没有进展”。' if chinese else
-                'Action-row dates are agreed workdays, not deadlines; only explicit due_date/due_at establish a deadline. Do not suggest moving tomorrow\'s work into today. Open means unfinished; it does not establish readiness or absence of blockers. Resolving one blocker does not guarantee readiness/completion. Do not invent comparative ease or duration. Preserve already-clear blocker details without polishing writes; blocked does not mean no progress.')
+        return ('动作行的日期是约定工作日，不是截止日期；只有明确的 due_date/due_at 才是期限。不要建议把明天的工作提前到今天。open 仅表示尚未完成，不能据此说已就绪或没有阻碍；也不能保证一个阻碍消失后即可完成。不要猜测哪项更轻松或需要多久。已确认的受阻原因保持原意，不得改写成“暂未推进”或“没有进展”；措辞整理不得改变其原意。' if chinese else
+                'Action-row dates are agreed workdays, not deadlines; only explicit due_date/due_at establish a deadline. Do not suggest moving tomorrow\'s work into today. Open means unfinished; it does not establish readiness or absence of blockers. Resolving one blocker does not guarantee readiness/completion. Do not invent comparative ease or duration. A confirmed blocker reason keeps its exact meaning: never reword it as no progress, and any wording polish must preserve that meaning; blocked does not mean no progress.')
     if tag == 'today':
         return ('只回顾该报告日明确反馈的结果。报告受阻不等于完全没做过工作；不要增加明天的建议，也不要断言数据到位后即可推进或完成。' if chinese else
                 'Report only outcomes explicitly supplied for the reporting day. A blocker does not prove no work was done. Do not add tomorrow\'s advice or assert readiness/completion after a dependency arrives.')
