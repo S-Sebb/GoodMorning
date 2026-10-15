@@ -31,7 +31,7 @@ html[data-edition="gn"] .avatar-feedback.is-error { color: #f1b1a8; }
 @media (prefers-reduced-motion: reduce) { .avatar-menu { animation: none; } .avatar-display *, .avatar-display *::before { transition: none !important; scroll-behavior: auto !important; } .avatar-display .avatar-preview:hover { transform: none; } }
 @media (max-width: 700px) {
   .avatar-menu { position: static; width: 100%; margin-top: 10px; animation: none; }
-  /* Briefing portraits are only 108–120px wide; keep their picker page-width. */
+  /* Briefing portraits are only 84–108px wide; keep their picker page-width. */
   .briefing-letter .hero-copy .avatar-menu { position: absolute; width: min(380px, calc(100vw - 32px)); margin-top: 0; }
   .avatar-display .avatar-preview { flex-basis: 68px; }
 }
