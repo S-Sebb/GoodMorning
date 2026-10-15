@@ -37,7 +37,6 @@ from .chat_uploads import MAX_UPLOAD_BYTES, UPLOAD_ROUTE, IMAGE_ROUTE, upload_na
 from .avatar_images import MAX_AVATAR_BYTES, AVATAR_UPLOAD_PATH, image_url, read_image, save_image
 from .bridge_json import read_json
 from .activity import ACTIVITY_PATH, snapshot as activity_snapshot
-from . import calls as secretary_calls
 from . import schedule
 
 DESK_ART = '<svg viewBox="0 0 64 64" width="64" height="64" fill="none" aria-hidden="true"><rect x="15" y="8" width="36" height="48" rx="7" fill="var(--surface)" stroke="currentColor" stroke-width="1.5"/><path d="M24 19h18M24 25h12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" opacity=".4"/><circle cx="27" cy="36" r="1.5" fill="currentColor"/><circle cx="39" cy="36" r="1.5" fill="currentColor"/><path d="M28 43q5 5 10 0" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>'
@@ -943,10 +942,6 @@ def serve_live(app, port, *, gateway_key=None, public_origins=()):
                     return self.respond(app.chat_page(), content_type='text/html; charset=utf-8', compress=True)
                 if path == '/api/chats':
                     return self.respond({**app.chat_settings(), 'chats': app.chats.listing()}, compress=True)
-                if path == '/api/calls':
-                    return self.respond(secretary_calls.listing(app), compress=True)
-                if path == '/api/calls/scan':
-                    return self.respond(secretary_calls.candidates(app), compress=True)
                 attachment_image = IMAGE_ROUTE.fullmatch(path)
                 if attachment_image:
                     data, mime = app.chats.uploads.image(attachment_image[1])
@@ -1095,14 +1090,6 @@ def serve_live(app, port, *, gateway_key=None, public_origins=()):
                     return self.respond(app.recover(recovery[1], body), 202)
                 if path == '/api/chats':
                     return self.respond(app.chats.start(body), 202)
-                if path == '/api/calls':
-                    return self.respond(secretary_calls.create(app, body), 201)
-                call_close = re.fullmatch(r'/api/calls/(call_[0-9a-f]{16})/(resolve|dismiss|ask)', path)
-                if call_close:
-                    call_id, action = call_close.groups()
-                    if action == 'ask':
-                        return self.respond(secretary_calls.ask(app, call_id, body), 202)
-                    return self.respond(secretary_calls.close(app, call_id, action, body))
                 if path == '/api/avatar':
                     if set(body) != {'avatar'}:
                         raise ValueError('Choose a secretary avatar')

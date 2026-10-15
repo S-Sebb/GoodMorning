@@ -85,7 +85,7 @@ def check_mobile(browser, address, artifacts, width, height):
     page.goto(address + '/chat?id=' + 'f' * 32)
     expect(page.locator('.chat-message')).to_have_count(24)
     page.evaluate('document.fonts.ready')
-    # Phone history and secretary calls sit below the chat; bring the chat itself into view.
+    # Phone history sits below the chat; bring the chat itself into view.
     page.locator('#conversation').evaluate("node => node.scrollIntoView({block: 'end'})")
     text = page.get_by_label('Your message', exact=True)
     text.tap()

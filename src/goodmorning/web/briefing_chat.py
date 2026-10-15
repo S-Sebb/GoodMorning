@@ -572,7 +572,7 @@ def page(csrf, ready, connected, secretary_name=None, avatar='f1', avatar_urls=N
     return ('<!doctype html><html lang="en" data-edition="' + ('gn' if theme == 'gn' else 'gm') + '"><head><meta charset="utf-8">'
             '<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">'
             '<title>' + title + '</title>' + favicon_links('secretary') + '<link rel="stylesheet" href="/briefing.css">'
-            '<link rel="stylesheet" href="/chat.css"><link rel="stylesheet" href="/avatar.css"><link rel="stylesheet" href="/calls.css">'
+            '<link rel="stylesheet" href="/chat.css"><link rel="stylesheet" href="/avatar.css">'
             '<link rel="stylesheet" href="/scroll-rails.css"><script src="/scroll-rails.js" defer></script></head><body class="chat-page">'
             '<a class="skip-link" href="#conversation">Skip to conversation</a>'
             '<header class="masthead"><a class="wordmark" href="/chat">GoodMorning<span>A little space to think, plan, and begin.</span></a>'
@@ -585,12 +585,7 @@ def page(csrf, ready, connected, secretary_name=None, avatar='f1', avatar_urls=N
              '</div><section id="conversation-history" aria-labelledby="history-heading">'
              '<header class="history-header"><p class="eyebrow">Your conversations</p><h2 id="history-heading">History conversations</h2></header>'
              '<nav id="chat-history" aria-label="History conversations"></nav>'
-             '<p id="history-notice" role="status">Loading conversations…</p><button id="history-retry" type="button" hidden>Try again</button></section>'
-             '<section id="secretary-calls" aria-labelledby="calls-heading">'
-             '<header class="history-header"><p class="eyebrow">Secretary calls</p><h2 id="calls-heading">Clarifications</h2></header>'
-             '<p id="calls-hint">When past records need a question, your secretary lists them here. Nothing is asked until you approve it.</p>'
-             '<button id="calls-review" type="button">Review my records</button>'
-             '<p id="calls-status" role="status"></p><ul id="calls-list"></ul></section></aside>'
+             '<p id="history-notice" role="status">Loading conversations…</p><button id="history-retry" type="button" hidden>Try again</button></section></aside>'
              '<section class="conversation-panel" id="conversation" aria-label="Secretary conversation">'
               '<h2 id="conversation-name" class="chat-visually-hidden" data-content>'+conversation_name+'</h2>'
               '<header class="chat-topic-header"><div><p class="eyebrow" id="chat-topic-mode"></p><h2 id="chat-topic">New conversation</h2></div>'
@@ -626,4 +621,4 @@ def page(csrf, ready, connected, secretary_name=None, avatar='f1', avatar_urls=N
             '<noscript>Enable JavaScript to talk with your secretary. Saved briefings remain readable.</noscript></section></main>'
             '<div id="chat-config" hidden data-config="'+config+'"></div>'
             '<script src="/questions.js" defer></script><script src="/avatar.js" defer></script>'
-            '<script src="/marked.js" defer></script><script src="/markdown.js" defer></script><script src="/chat.js" defer></script><script src="/calls.js" defer></script></body></html>')
+            '<script src="/marked.js" defer></script><script src="/markdown.js" defer></script><script src="/chat.js" defer></script></body></html>')
