@@ -201,14 +201,14 @@ class BriefingTrialTests(unittest.TestCase):
         self.assertEqual(result['error'],'browser_section_not_ready')
         query.assert_not_called()
 
-    def test_empty_schedule_window_uses_real_calendar_weekdays_and_all_three_days(self):
+    def test_empty_schedule_window_uses_real_calendar_weekdays_for_focus_day_only(self):
         from benchmarks.briefing_tone_live import empty_schedule_block
         block=empty_schedule_block(self.runtime,'2026-10-14','gn','zh-CN')
         self.assertEqual(block[0],'p')
         self.assertIn('10月15日',block[1])
         self.assertIn('周四',block[1])
-        self.assertIn('10月17日',block[1])
-        self.assertIn('周六',block[1])
+        self.assertNotIn('10月17日',block[1])
+        self.assertNotIn('周六',block[1])
         self.assertNotIn('<',block[1])
         self.assertNotIn('>',block[1])
 

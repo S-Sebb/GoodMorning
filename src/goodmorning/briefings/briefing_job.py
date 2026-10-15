@@ -194,8 +194,11 @@ def writing_rule(context, next_action):
         return ('只回顾该报告日明确反馈的结果。报告受阻不等于完全没做过工作；不要增加明天的建议，也不要断言数据到位后即可推进或完成。' if chinese else
                 'Report only outcomes explicitly supplied for the reporting day. A blocker does not prove no work was done. Do not add tomorrow\'s advice or assert readiness/completion after a dependency arrives.')
     if tag == 'schedule':
-        return ('复制返回的代码生成块，覆盖完整窗口；空日程也使用返回的段落，不自行改写日期、星期或缩短窗口。没有已保存的约定不能证明空闲、没有准备工作或没有冲突。' if chinese else
-                'Copy returned code-owned blocks for the whole window. Use the returned empty-schedule paragraph without recalculating dates/weekdays or shortening the range. No saved appointments does not establish free time, absence of preparation or absence of conflicts.')
+        if context.get('workflow') == 'gm':
+            return ('复制返回的代码生成块；晨间 timed 日程只覆盖今天，不要把未来几天的 timed 约定提前写入；空日程使用返回的今日段落，不自行改写日期、星期或扩大范围。没有已保存的约定不能证明空闲、没有准备工作或没有冲突。' if chinese else
+                    'Copy returned code-owned blocks. Morning timed appointments cover today only; do not pull upcoming timed appointments into the morning edition. Use the returned empty-schedule paragraph without recalculating dates/weekdays or widening the range. No saved appointments does not establish free time, absence of preparation or absence of conflicts.')
+        return ('复制返回的代码生成块；晚间 timed 日程只覆盖明天，不要把更远日期的 timed 约定提前写入；空日程使用返回的明日段落，不自行改写日期、星期或扩大范围。没有已保存的约定不能证明空闲、没有准备工作或没有冲突。' if chinese else
+                'Copy returned code-owned blocks. Evening timed appointments cover tomorrow only; do not pull later timed appointments into the evening edition. Use the returned empty-schedule paragraph without recalculating dates/weekdays or widening the range. No saved appointments does not establish free time, absence of preparation or absence of conflicts.')
     if tag in ('weather','news'):
         return ('来源不可用时，只说明本次无法获取相应日期的数据，不补写预测或报道，也不推断没有新闻、预警或风险。没有安排自动重试或后续更新；不能说“恢复后我再整理”“稍后补上”。只说明当前失败，不编造失败原因或恢复入口。' if chinese else
                 'If the source is unavailable, report only that this edition could not obtain the requested dated data. Do not invent forecasts/stories or infer no news, warnings or risks. No automatic retry or later update is scheduled; do not promise to fill it in after recovery. Do not invent a failure cause or recovery route.')

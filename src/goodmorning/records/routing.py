@@ -394,6 +394,27 @@ def schedule(runtime, today, kind, store=None, offset=0, limit=7):
         calendar = CalendarStore(str(path), readonly=True)
         calendar.con.execute('BEGIN')
         result['items'] = calendar.query(start, end, details=True, limit=-1)
+        if kind in ('gm', 'gn'):
+            # Briefings show the timed schedule for their focus day only
+            # (today for morning, tomorrow for evening); all-day and TBC
+            # commitments keep the three-day glance. Timed appointments on
+            # other days stay out of the edition.
+            from goodmorning.calendar.calendar_store import endpoints as _endpoints
+            focus_start = start
+            focus_end = focus_start + dt.timedelta(days=1)
+            kept = []
+            for item in result['items']:
+                if item.get('draft') or item.get('all_day'):
+                    kept.append(item)
+                    continue
+                try:
+                    begin, finish = _endpoints(item)
+                except (ValueError, KeyError, TypeError):
+                    kept.append(item)
+                    continue
+                if begin < focus_end and finish > focus_start:
+                    kept.append(item)
+            result['items'] = kept
         converted = converted_draft_ids(calendar)
         result['pending'] = calendar.stats()['pending']
         from goodmorning.web import language as ui

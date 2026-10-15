@@ -88,8 +88,8 @@ def main(argv=None):
                 if args.section == 'schedule' and not result.get('total') and not result['warnings']:
                     from goodmorning.web import language as ui
                     window = result['window']
-                    result['block'] = ['p', ui.text('No saved appointments for {start} through {end} ({timezone}).',
-                        start=ui.day_text(window['start']), end=ui.day_text(window['end']), timezone=result['timezone'])]
+                    result['block'] = ['p', ui.text('No saved appointments for {date} ({timezone}).',
+                        date=ui.day_text(window['start']), timezone=result['timezone'])]
         else:
             writing = bool(args.add or args.capture_draft or args.update or args.report or args.adopt or args.convert)
             if writing and not (args.session and args.request_key):
