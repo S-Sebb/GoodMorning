@@ -11,7 +11,7 @@ with simulated keyboards. These checks make no paid model calls.
 phone scrollbars on all four tabs, independent page/message dragging, keyboard
 control, localization and draft preservation.
 
-Run `python -m unittest discover -s tests -p 'test_*.py' -q` and
+Run `uv run --no-project --with-requirements requirements/browser.txt python -m unittest discover -s tests -p 'test_*.py' -q` and
 `node --test tests/test_projects.mjs` before a release. These checks use isolated
 synthetic records. Keep distinct behavior, failure recovery, data preservation,
 authentication, encryption, consent and account-isolation coverage.
