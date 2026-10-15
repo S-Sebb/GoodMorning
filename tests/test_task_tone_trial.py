@@ -4,13 +4,15 @@ import argparse
 import json
 import sys
 import tempfile
-from support import TEMP_ROOT
 import unittest
 from unittest.mock import patch
 
 sys.path.insert(0,str(Path(__file__).resolve().parent))
 from benchmarks import task_tone_live as trial
 from benchmarks.task_tone_live import matrix_lock
+
+# The trial CLI only accepts private output below this root.
+Path('/tmp/opencode').mkdir(exist_ok=True)
 
 
 class MatrixLockTests(unittest.TestCase):
@@ -36,7 +38,7 @@ class MatrixLockTests(unittest.TestCase):
 
 class MatrixLanguageTests(unittest.TestCase):
     def test_language_filter_reaches_runner_without_model_dispatch(self):
-        with tempfile.TemporaryDirectory(dir=TEMP_ROOT) as directory:
+        with tempfile.TemporaryDirectory(dir='/tmp/opencode') as directory:
             output=Path(directory)/'matrix'
             arguments=['task_tone_live.py','--output',str(output),'--model','deepseek-flash','--language','zh-CN']
             with patch.object(sys,'argv',arguments),patch.object(trial,'run_matrix',return_value=0) as run:
@@ -45,7 +47,7 @@ class MatrixLanguageTests(unittest.TestCase):
             self.assertEqual((args.model,args.language),('deepseek-flash','zh-CN'))
 
     def test_resume_cannot_change_language(self):
-        with tempfile.TemporaryDirectory(dir=TEMP_ROOT) as directory:
+        with tempfile.TemporaryDirectory(dir='/tmp/opencode') as directory:
             output=Path(directory)
             (output/'matrix.json').write_text(json.dumps({
                 'model':'opencode-go/muse-spark-1.3-contributor','variant':'xhigh',
@@ -76,7 +78,7 @@ class ChatStructureTests(unittest.TestCase):
 class BasePromptPreflightTests(unittest.TestCase):
     def test_waits_for_exact_location_prompt_without_mutations(self):
         from types import SimpleNamespace
-        with tempfile.TemporaryDirectory(dir=TEMP_ROOT) as directory:
+        with tempfile.TemporaryDirectory(dir='/tmp/opencode') as directory:
             source=Path(directory)/'source'
             replies=[SimpleNamespace(returncode=0,stdout=json.dumps({'data':{'id':'build'}})),
                      SimpleNamespace(returncode=0,stdout=json.dumps({'data':{'id':'build','system':'Trial prompt'}}))]
@@ -91,7 +93,7 @@ class BasePromptPreflightTests(unittest.TestCase):
 
     def test_unavailable_prompt_blocks_all_model_work(self):
         from types import SimpleNamespace
-        with tempfile.TemporaryDirectory(dir=TEMP_ROOT) as directory:
+        with tempfile.TemporaryDirectory(dir='/tmp/opencode') as directory:
             response=SimpleNamespace(returncode=0,stdout=json.dumps({'data':{'id':'build'}}))
             with patch.object(trial.subprocess,'run',return_value=response) as run,patch.object(trial.time,'sleep'):
                 with self.assertRaisesRegex(AssertionError,'no model requests dispatched'):
