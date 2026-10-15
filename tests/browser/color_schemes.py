@@ -177,10 +177,7 @@ def main():
                     morning.screenshot(path=str(artifacts/(scheme+'-scrolled.png')), animations='disabled')
                     morning.evaluate('window.scrollTo(0, 0)')
                     morning.emulate_media(reduced_motion='no-preference')
-                    if scheme == 'morning-sky':
-                        assert '#drift' in stars(morning)
-                    else:
-                        assert '#' not in stars(morning)
+                    assert '#' not in stars(morning)
                     morning.emulate_media(reduced_motion='reduce')
                     assert '#' not in stars(morning)
                     morning.emulate_media(media='print')

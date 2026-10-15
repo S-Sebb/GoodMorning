@@ -4,6 +4,7 @@
     <linearGradient id="far-rock" gradientUnits="userSpaceOnUse" x1="0" y1="468" x2="0" y2="1000"><stop stop-color="#d1ddd9"/><stop offset="1" stop-color="#e7e8db"/></linearGradient>
     <linearGradient id="near-rock" gradientUnits="userSpaceOnUse" x1="0" y1="608" x2="0" y2="1000"><stop stop-color="#cbd7cf"/><stop offset="1" stop-color="#e5e5d6"/></linearGradient>
     <linearGradient id="meadow" gradientUnits="userSpaceOnUse" x1="0" y1="1050" x2="0" y2="1800"><stop stop-color="#d5dfca"/><stop offset="1" stop-color="#dce4d1"/></linearGradient>
+    <linearGradient id="paper" gradientUnits="userSpaceOnUse" x1="0" y1="1180" x2="0" y2="1720"><stop stop-color="#f3ede2" stop-opacity="0"/><stop offset="1" stop-color="#f3ede2"/></linearGradient>
     <path id="fir" d="M0-105L-16-74H-7L-25-49H-13L-33-22H-18L-41 2H-3V14H3V2H41L18-22H33L13-49H25L7-74H16Z"/>
   </defs>
   <path fill="url(#dawn)" d="M0 0h1600v1000H0z"/>
@@ -33,4 +34,6 @@
     <path d="M33 1373l4-8 5 8M72 1402l3-7 5 7M170 1434l4-8 5 8M252 1370l4-8 5 8M1385 1359l4-8 5 8M1510 1393l4-8 5 8M1453 1450l4-8 5 8"/>
     <path d="M65 1550l4-8 5 8M390 1588l4-8 5 8M1237 1557l4-8 5 8M1455 1609l4-8 5 8"/>
   </g>
+  <!-- The valley settles into the page paper, so long pages never repeat the scene. -->
+  <path fill="url(#paper)" d="M0 1180h1600v620H0z"/>
 </svg>

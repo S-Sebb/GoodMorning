@@ -84,8 +84,6 @@ class Resources:
                       'morning-sky.svg': 'image/svg+xml',
                       'morning-clouds.webp': 'image/webp',
                       'first-light.svg': 'image/svg+xml',
-                      'first-light-continuation.svg': 'image/svg+xml',
-                      'morning-sky-continuation.svg': 'image/svg+xml',
                       'morning-clouds-continuation.webp': 'image/webp',
                      'color-schemes.js': 'text/javascript', 'color-schemes.css': 'text/css',
                    'update.js': 'text/javascript', 'update.css': 'text/css',
@@ -114,7 +112,7 @@ class Resources:
                         data = data.replace(icon.encode(), self.urls[icon].encode())
             if name == 'color-schemes.css':
                 for sky in ('starry-sky.svg', 'morning-sky.svg', 'morning-clouds.webp', 'first-light.svg',
-                            'first-light-continuation.svg', 'morning-sky-continuation.svg', 'morning-clouds-continuation.webp'):
+                            'morning-clouds-continuation.webp'):
                     if sky in self.urls:
                         data = data.replace(('/' + sky).encode(), self.urls[sky].encode())
             digest = hashlib.sha256(data).hexdigest()

@@ -1,4 +1,4 @@
-"""Rendered scene contrast, actual background motion, and static reduced motion."""
+"""Rendered scene contrast and static backgrounds with and without reduced motion."""
 from functools import lru_cache
 from io import BytesIO
 import json
@@ -69,14 +69,14 @@ def main():
                 page.emulate_media(reduced_motion='reduce')
                 page.goto('https://day.test/' + scheme)
                 expect(page.locator('body')).to_have_css('background-repeat',
-                    'no-repeat, no-repeat, repeat-y, repeat-y' if scheme == 'morning-sky' else 'no-repeat, repeat-y')
+                    'no-repeat, no-repeat, repeat-y' if scheme == 'morning-sky' else 'no-repeat')
                 expect(page.locator('body')).to_have_css('background-attachment',
-                    'scroll, scroll, scroll, scroll' if scheme == 'morning-sky' else 'scroll, scroll')
+                    'scroll, scroll, scroll' if scheme == 'morning-sky' else 'scroll')
                 static = Image.open(BytesIO(page.screenshot(path=str(artifacts / f'{scheme}-{width}.png')))).convert('RGB')
                 colors = static.getcolors(static.width * static.height)
                 tokens = page.evaluate('''() => {
                     const style = getComputedStyle(document.documentElement);
-                    return Object.fromEntries(['ink', 'muted', 'accent', 'surface', 'wash', 'your-bubble'].map(
+                    return Object.fromEntries(['bg', 'ink', 'muted', 'accent', 'surface', 'wash', 'your-bubble'].map(
                         key => [key, style.getPropertyValue('--' + key).trim()]));
                 }''')
                 rgb = {key: tuple(int(value[index:index+2], 16) for index in (1, 3, 5))
@@ -92,23 +92,28 @@ def main():
                 page.emulate_media(reduced_motion='no-preference')
                 frames = [sample_frame(page) for _ in range(3)]
                 moving = any(ImageChops.difference(frames[0], frame).getbbox() for frame in frames[1:])
-                assert moving == (scheme != 'first-light'), (scheme, width, moving)
+                # Animated background images repaint the whole page body on every frame.
+                assert not moving, (scheme, width)
                 assert page.locator('body').bounding_box() == layout
                 page.emulate_media(reduced_motion='reduce')
                 assert ImageChops.difference(static, sample_frame(page)).getbbox() is None
                 page.evaluate('document.body.style.minHeight = "12000px"')
+                scale = max(width, 1600) / 1600
                 for depth in (2000, 4200, 8000, 11000):
                     page.evaluate('y => window.scrollTo(0, y)', depth)
                     lower = Image.open(BytesIO(page.screenshot(
                         path=str(artifacts / f'{scheme}-{width}-depth-{depth}.png')))).convert('RGB')
                     lower_colors = lower.getcolors(lower.width * lower.height)
-                    assert len(lower_colors) > 20, (scheme, width, depth, 'Solid fallback background')
+                    # Morning Sky's clouds continue; First Light settles into plain paper instead of repeating.
+                    if scheme == 'morning-sky':
+                        assert len(lower_colors) > 20, (scheme, width, depth, 'Solid fallback background')
+                    elif depth >= 1800 * scale:
+                        assert [pixel for _, pixel in lower_colors] == [rgb['bg']], (scheme, width, depth)
                     for key in ('ink', 'muted', 'accent'):
                         ratio = min(contrast(rgb[key], pixel) for _, pixel in lower_colors)
                         assert ratio >= 4.5, (scheme, width, depth, key, ratio)
                     assert ImageChops.difference(lower, sample_frame(page)).getbbox() is None
-                scale = max(width, 1600) / 1600
-                units = (1000, 2000, 3000, 5000, 9000) if scheme == 'morning-sky' else (1800, 3600, 5400, 9000)
+                units = (1000, 2000, 3000, 5000, 9000) if scheme == 'morning-sky' else (1800,)
                 seams = [round(seam * scale) for seam in units]
                 for seam in seams:
                     page.evaluate('y => window.scrollTo(0, y - 50)', seam)

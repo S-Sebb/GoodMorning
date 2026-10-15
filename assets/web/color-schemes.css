@@ -24,8 +24,8 @@ html[data-edition="gn"][data-night-scheme="starry"] body {
 }
 html:not([data-edition="gn"])[data-day-scheme="warm"] { color-scheme: light; --bg: #f6eee3; --surface: #fffbf5; --ink: #554032; --muted: #7d6858; --accent: #987052; --line: #e0cbb8; --wash: #f1e4d4; --warm: #d8b471; --chat-paper: #fbf4e9; --chat-border: #ceb29a; --bubble: #fffdf9; --your-bubble: #f3d7c1; --bubble-line: #ead8c5; --your-line: #e1bc9f; color: var(--ink); background: var(--bg); }
 html:not([data-edition="gn"])[data-day-scheme="warm"] body { color: var(--ink); background: var(--bg); }
-html:not([data-edition="gn"])[data-day-scheme="morning-sky"] { --bg: #f3f8f9; --surface: #fffdf7; --ink: #293e50; --muted: #304758; --accent: #27465e; --line: #cfdae0; --wash: #e5eef3; --warm: #d3af64; --chat-border: #9eb8c8; --your-bubble: #e2edf4; --day-scene: url("/morning-sky.svg"), url("/morning-clouds.webp"), url("/morning-sky-continuation.svg"), url("/morning-clouds-continuation.webp"); --day-repeat: no-repeat, no-repeat, repeat-y, repeat-y; }
-html:not([data-edition="gn"])[data-day-scheme="first-light"] { --bg: #dce4d1; --surface: #fffaf5; --ink: #48443c; --muted: #594f43; --accent: #784a30; --line: #e3d8c7; --wash: #f4ebdc; --warm: #c69c55; --chat-border: #c6b798; --your-bubble: #f5e5ce; --day-scene: url("/first-light.svg"), url("/first-light-continuation.svg"); --day-repeat: no-repeat, repeat-y; }
+html:not([data-edition="gn"])[data-day-scheme="morning-sky"] { --bg: #f3f8f9; --surface: #fffdf7; --ink: #293e50; --muted: #304758; --accent: #27465e; --line: #cfdae0; --wash: #e5eef3; --warm: #d3af64; --chat-border: #9eb8c8; --your-bubble: #e2edf4; --day-scene: url("/morning-sky.svg"), url("/morning-clouds.webp"), url("/morning-clouds-continuation.webp"); --day-repeat: no-repeat, no-repeat, repeat-y; }
+html:not([data-edition="gn"])[data-day-scheme="first-light"] { --bg: #f3ede2; --surface: #fffaf5; --ink: #48443c; --muted: #594f43; --accent: #784a30; --line: #e3d8c7; --wash: #f4ebdc; --warm: #c69c55; --chat-border: #c6b798; --your-bubble: #f5e5ce; --day-scene: url("/first-light.svg"); --day-repeat: no-repeat; }
 html:not([data-edition="gn"]):is([data-day-scheme="morning-sky"], [data-day-scheme="first-light"]) { color-scheme: light; color: var(--ink); background: var(--bg); }
 @media screen {
   html:not([data-edition="gn"]):is([data-day-scheme="morning-sky"], [data-day-scheme="first-light"]) body {
@@ -34,22 +34,19 @@ html:not([data-edition="gn"]):is([data-day-scheme="morning-sky"], [data-day-sche
     background-color: var(--bg);
     background-image: var(--day-scene);
     background-position: center top;
-    /* Fixed artwork scale, independent of document length; only the lower layers repeat. */
+    /* Fixed artwork scale, independent of document length; only the Morning Sky clouds repeat. */
     background-attachment: scroll;
     background-size: max(100%, 160svh) auto;
     background-repeat: var(--day-repeat);
   }
   html:not([data-edition="gn"])[data-day-scheme="morning-sky"] body {
-    background-position: center top, center top, center top, center max(62.5vw, 100svh);
+    background-position: center top, center top, center max(62.5vw, 100svh);
   }
-}
-@media (prefers-reduced-motion: no-preference) {
-  html:not([data-edition="gn"])[data-day-scheme="morning-sky"] { --day-scene: url("/morning-sky.svg#drift"), url("/morning-clouds.webp"), url("/morning-sky-continuation.svg#drift"), url("/morning-clouds-continuation.webp"); }
 }
 /* Keep atmospheric details in view when a portrait screen crops the wide scene. */
 @media screen and (max-width: 700px) {
   html:not([data-edition="gn"]):is([data-day-scheme="morning-sky"], [data-day-scheme="first-light"]) body { background-position: right top; }
-  html:not([data-edition="gn"])[data-day-scheme="morning-sky"] body { background-position: right top, right top, right top, right max(62.5vw, 100svh); }
+  html:not([data-edition="gn"])[data-day-scheme="morning-sky"] body { background-position: right top, right top, right max(62.5vw, 100svh); }
 }
 /* Account pages retain Classic; every other day palette uses shared site tokens. */
 html:not([data-edition="gn"])[data-day-scheme]:not([data-day-scheme="classic"]) .avatar-display .avatar-toggle { color: var(--ink); }

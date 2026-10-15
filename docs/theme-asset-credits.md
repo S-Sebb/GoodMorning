@@ -15,5 +15,5 @@ are original SVG artwork in this repository.
 
 `assets/web/morning-clouds-continuation.webp` uses the same processed photograph,
 mirrored vertically and joined into a 1600 × 2000 seamless continuation. Its top
-and bottom match the opening image's lower edge. Cloud and bird continuations
-use different repeat lengths so the combined sky does not repeat as one short tile.
+and bottom match the opening image's lower edge. Theme artwork stays still:
+animated background images repaint the whole page on every frame.
