@@ -5,9 +5,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>GoodMorning — Website maintenance / 网站维护</title>
   <link rel="icon" href="/icons/gm.svg" type="image/svg+xml">
-  <!-- Styles are inlined from maintenance.css so this page renders standalone:
-       file preview, NGINX error fallback, and gateway responses at any URL.
-       Edit maintenance.css first, then copy it here; tests enforce they match. -->
+  <!-- External CSS first: the gateway serves this page with a strict
+       Content-Security-Policy (style-src 'self') that blocks the inline
+       style block below, so browsers style the page through this link.
+       The inline copy stays as a fallback for file preview and the NGINX
+       error fallback (which send no CSP). Edit maintenance.css first,
+       then copy it into the inline style block; tests enforce they match. -->
+  <link rel="stylesheet" href="/maintenance.css">
   <style>:root {
   color-scheme: light;
   font-family: system-ui, sans-serif;
