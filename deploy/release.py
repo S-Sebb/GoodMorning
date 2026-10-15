@@ -9,6 +9,7 @@ The website is paused only for the switch and the paused checks.
 """
 import argparse
 from datetime import date
+import gzip
 import hashlib
 import importlib.util
 import io
@@ -53,9 +54,14 @@ def server(script, timeout=120):
 
 
 def build_archive(commit, target):
-    """The public archive: only allowlisted regular files from the commit."""
+    """The public archive: only allowlisted regular files from the commit.
+
+    Byte-for-byte reproducible, so an interrupted deployment can rerun under the same name.
+    """
     raw = subprocess.run(['git', 'archive', '--format=tar', commit], cwd=ROOT, check=True, capture_output=True).stdout
-    with tarfile.open(fileobj=io.BytesIO(raw)) as archive, tarfile.open(target, 'w:gz') as public:
+    with (tarfile.open(fileobj=io.BytesIO(raw)) as archive, open(target, 'wb') as file,
+          gzip.GzipFile(filename='', mode='wb', fileobj=file, mtime=0) as compressed,
+          tarfile.open(fileobj=compressed, mode='w') as public):
         members = [item for item in archive.getmembers() if item.isfile() and Path(item.name).parts[0] in helper.ALLOWED]
         helper.check_members(members)
         for item in members:

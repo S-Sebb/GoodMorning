@@ -67,6 +67,9 @@ class DeployHelperTests(unittest.TestCase):
         with tempfile.TemporaryDirectory(dir=TEMP_ROOT) as directory:
             target = Path(directory)/'public.tar.gz'
             count = release.build_archive('HEAD', target)
+            first = target.read_bytes()
+            release.build_archive('HEAD', target)
+            self.assertEqual(target.read_bytes(), first, 'A rerun must rebuild the identical archive')
             with tarfile.open(target) as archive:
                 names = {item.name for item in archive.getmembers()}
         self.assertEqual(len(names), count)
