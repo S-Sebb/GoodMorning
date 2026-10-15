@@ -7,6 +7,7 @@ not the account-creation procedure. Do not rerun provisioning to repair record o
 
 ## Paths
 
+- Server: SSH alias `TCSFrontEnd` (batch SSH, passwordless sudo)
 - Python: `/opt/goodmorning/python/bin/python`
 - CLI: `/opt/goodmorning/current/scripts/goodmorning.py`
 - Source: `/opt/goodmorning/current/src`

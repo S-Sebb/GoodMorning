@@ -12,10 +12,12 @@ deployment needed it.
 - Release directory: `/opt/goodmorning/releases/<RELEASE-NAME>`, e.g.
   `20261011-ship-4320ad4`. The live pointer `/opt/goodmorning/current` is a
   symlink to exactly one release. Old releases are never deleted or reused.
-- Deploy helper: `/tmp/opencode/tcsfrontend-openchamber-install/deploy_native.py`
-  on the agent machine (outside this repo). It performs the guarded switch
-  described below. Always copy it to the server staging directory together
-  with the archive so the server runs the reviewed copy.
+- Deploy helper: `deploy_native_queue.py`, the reviewed helper last used for
+  0.45.1, kept outside this repo in `~/.local/share/goodmorning-ops/deploy-helper/`
+  on the agent machine. It performs the guarded switch described below. Copy it
+  to the server staging directory together with the archive so the server runs
+  the reviewed copy. If it is missing, stop and ask the owner; never rewrite it
+  from memory.
 - Server Python: `/opt/goodmorning/python/bin/python` with `-B`.
 - Private data lives under `/srv/goodmorning/live` on encrypted mounts.
   Deployment writes there only for the protected deployment report and the
@@ -31,16 +33,18 @@ deployment needed it.
 
 ## 1. Preconditions (local checkout)
 
-1. `git status --short` shows only intended files; `git diff --check` is clean.
-2. Author the patch note for this deployment (procedure below); it must be
-   committed as part of the deployed HEAD.
-3. Full suites pass with no model calls:
+1. The release steps in `docs/development.md` are complete: every change,
+   including the release PR unless this is a silent update, is merged into
+   `origin/main`.
+2. In the primary checkout, run `git pull --ff-only` on `main`; `git status --short`
+   is empty and `HEAD` equals `origin/main`. Record the commit hash and name the
+   release `YYYYMMDD-ship-<short hash>`, or `YYYYMMDD-<topic>-silent-<short hash>`
+   for a silent update. The deployed archive must be built from this HEAD.
+3. Full suites pass on this HEAD with no model calls:
    `python -m unittest discover -s tests -p 'test_*.py' -q`,
    `node --test tests/test_projects.mjs`, plus the affected
    `tests/browser/*.py` suites with private artifact directories.
-4. Commit and push to `origin/main`. Record the commit hash.
-   The deployed archive must be built from the pushed HEAD.
-5. Confirm the live website is not already paused by someone else:
+4. Confirm the live website is not already paused by someone else:
    `sudo /opt/goodmorning/python/bin/python -B /opt/goodmorning/current/scripts/goodmorning.py admin --account-mount /srv/goodmorning/live/accounts pause-status`
    must report live. A paused website means another deploy or incident is in
    progress; stop and ask the owner before proceeding.
@@ -76,34 +80,6 @@ pass, then perform its public login checks immediately:
 ```sh
 sudo /opt/goodmorning/python/bin/python -B /opt/goodmorning/current/scripts/goodmorning.py admin \
   --account-mount /srv/goodmorning/live/accounts resume
-```
-
-## Patch note procedure
-
-Prepend one release to `assets/web/patch-notes.json`, then commit it with the code.
-Keep older entries unchanged. Use `0.minor.patch`: increase minor for features or
-redesigns (reset patch to zero); increase patch for fixes, docs or tests. Never reuse a version.
-
-```json
-{"version": "0.19.1", "date": "2026-10-12", "author": "Deployer name",
- "title_en": "Mobile layout fix", "title_zh": "移动端布局修复",
- "changes": [{"category": "Fixed",
-   "en": ["Keep sign-in buttons reachable on short screens."],
-   "zh": ["确保小屏幕上的登录按钮可以点击。"]}]}
-```
-
-- Use short, factual bullets under `Added`, `Changed`, `Fixed`, `Removed`,
-  `Security`, `Documentation`, `Tests` or `Notes`. Omit empty categories.
-- Match English/Chinese bullets one-to-one. Use plain text, not HTML or Markdown.
-  Titles and each language's complete note must fit within 2000 characters; author: 1–40.
-- Optional `commits` lists existing Git hashes. Historical dates are commit dates,
-  not verified deployment dates; label obsolete features as historical.
-
-Validate the history before deploying; invalid history produces no notes:
-
-```sh
-python3 -c "import sys;sys.path.insert(0,'src');from goodmorning.web.release import patch_notes;notes=patch_notes();assert notes;print(notes[0]['version'])"
-python3 -m unittest discover -s tests -p test_release.py -q
 ```
 
 ## 2. Build the filtered public archive
@@ -240,6 +216,9 @@ A manual rollback is the same sequence; never hand-edit the symlink.
    Roll back only after rechecking the same idle/reservation/queue guards; do not
    interrupt work that arrived after resume. A failed gate is not a successful
    deployment, and a broken release must not remain open to new work.
+7. After every gate passes, tag the deployed commit and push the tag:
+   `git tag deploy/<RELEASE-NAME> <hash> && git push origin deploy/<RELEASE-NAME>`.
+   A rolled-back deployment gets no tag.
 
 ## Hard rules
 
