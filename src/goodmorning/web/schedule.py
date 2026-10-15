@@ -24,6 +24,31 @@ def week_offset(query):
     return int(value)
 
 
+DAY_RANGE = 21  # Day steps stay inside the seven-week window.
+
+
+def schedule_query(query):
+    """Return ('week', week offset) or ('day', days from today)."""
+    if 'view' not in query:
+        return 'week', week_offset(query)
+    if set(query) - {'view', 'day'} or query['view'] != ['day'] or len(query.get('day', ['0'])) != 1:
+        raise ValueError('Invalid schedule view')
+    value = query.get('day', ['0'])[0]
+    if value not in {str(step) for step in range(-DAY_RANGE, DAY_RANGE + 1)}:
+        raise ValueError('Schedule outside the seven-week window')
+    return 'day', int(value)
+
+
+def saved_day(runtime, zone, now, offset):
+    if type(offset) is not int or not -DAY_RANGE <= offset <= DAY_RANGE:
+        raise ValueError('Schedule outside the seven-week window')
+    today = now.astimezone(ZoneInfo(zone)).date()
+    target = today + timedelta(days=offset)
+    week = (target - timedelta(days=target.weekday()) - (today - timedelta(days=today.weekday()))).days // 7
+    data = saved_week(runtime, zone, now, week)
+    return {**data, 'offset': offset, 'week': week, 'days': [data['days'][target.weekday()]]}
+
+
 def saved_week(runtime, zone, now, offset):
     if type(offset) is not int or not -3 <= offset <= 3:
         raise ValueError('Schedule outside the seven-week window')
@@ -156,23 +181,55 @@ def task_card(task):
 
 def date_part(day, part):
     value = date.fromisoformat(day)
+    weekdays = ['周一', '周二', '周三', '周四', '周五', '周六', '周日']
     if part == 'day':
         label = str(value.day)
     elif part == 'weekday':
-        label = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'][value.weekday()] if ui.current() == 'zh-CN' else value.strftime('%a')
+        label = weekdays[value.weekday()] if ui.current() == 'zh-CN' else value.strftime('%a')
     elif part == 'month':
         label = f'{value.year}年{value.month}月' if ui.current() == 'zh-CN' else value.strftime('%B %Y')
+    elif part == 'full':
+        label = (f'{value.month}月{value.day}日星期' + '一二三四五六日'[value.weekday()] if ui.current() == 'zh-CN'
+                 else value.strftime('%A, %B ') + str(value.day))
     else:
         label = f'{value.month}月{value.day}日' if ui.current() == 'zh-CN' else value.strftime('%d %b').lstrip('0')
     return '<span data-content data-schedule-date="' + day + '" data-schedule-part="' + part + '">' + html.escape(label) + '</span>'
 
 
+def step_link(link_id, href, label, symbol, enabled):
+    if not enabled:
+        return '<span class="week-arrow is-disabled" aria-disabled="true" aria-label="' + label + '">' + symbol + '</span>'
+    return '<a id="' + link_id + '" class="week-arrow" data-schedule-nav href="' + href + '" aria-label="' + label + '">' + symbol + '</a>'
+
+
+def mode_switch(mode, week):
+    links = (('week', 'Week', '/schedule?week=' + str(week)), ('day', 'Day', '/schedule?view=day'))
+    return ('<div class="schedule-mode" role="group" aria-label="Schedule view">' + ''.join(
+        '<a class="schedule-mode-link" data-schedule-nav data-schedule-mode="' + name + '" href="' + href + '"'
+        + (' aria-current="true"' if name == mode else '') + '>' + ui.ui(label) + '</a>' for name, label, href in links) + '</div>')
+
+
+def tools(data, checked, heading, events, tasks, done):
+    refresh = ('<button id="schedule-refresh" class="schedule-icon" type="button" aria-label="Refresh saved plans" title="Refresh saved plans">'
+               '<svg viewBox="0 0 20 20" width="18" height="18" fill="none" aria-hidden="true"><path d="M16 8a6 6 0 1 0 .2 3M16 3v5h-5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>')
+    review_marker = '<span class="schedule-review-dot" aria-hidden="true"></span>' if data['pending'] else ''
+    review_description = ' aria-describedby="schedule-review-count"' if data['pending'] else ''
+    review_count = '<span id="schedule-review-count" hidden>' + ui.ui('Calendar review: {count} pending', count=data['pending']) + '</span>' if data['pending'] else ''
+    info = ('<details class="schedule-info" id="schedule-info"><summary class="schedule-icon" aria-label="Schedule details" title="Schedule details"' + review_description + '>'
+            '<svg viewBox="0 0 20 20" width="18" height="18" fill="currentColor" aria-hidden="true"><circle cx="4" cy="10" r="1.4"/><circle cx="10" cy="10" r="1.4"/><circle cx="16" cy="10" r="1.4"/></svg>'
+            + review_marker + '</summary>' + review_count + '<div class="schedule-info-panel"><h2>' + ui.ui(heading) + '</h2><dl>'
+            '<dt>' + ui.ui('Events') + '</dt><dd>' + str(events) + '</dd>'
+            '<dt>' + ui.ui('To-dos') + '</dt><dd>' + str(tasks) + ' · ' + ui.ui('{done} completed', done=done) + '</dd>'
+            '<dt>' + ui.ui('Time zone') + '</dt><dd data-content>' + html.escape(data['timezone']) + '</dd>'
+            '<dt>' + ui.ui('Saved records') + '</dt><dd id="schedule-status">' + ui.ui('Checked at {time}', time=checked) + '</dd></dl>')
+    if data['pending']:
+        info += ('<div class="schedule-review-note"><p>' + ui.ui('1 calendar change awaits review. New imports stay hidden until approved.' if data['pending'] == 1 else '{count} calendar changes await review. New imports stay hidden until approved.', count=data['pending'])
+                 + '</p><a href="/chat">' + ui.ui('Review with your secretary') + ' ↗</a></div>')
+    return '<span class="schedule-tools">' + refresh + info + '</div></details></span>'
+
+
 def view(data, checked):
     days, offset = data['days'], data['offset']
-    def navigation(step, label, symbol):
-        if not -3 <= offset + step <= 3:
-            return '<span class="week-arrow is-disabled" aria-disabled="true" aria-label="' + label + '">' + symbol + '</span>'
-        return '<a id="week-' + ('previous' if step < 0 else 'next') + '" class="week-arrow" data-week="' + str(offset + step) + '" href="/schedule?week=' + str(offset + step) + '" aria-label="' + label + '">' + symbol + '</a>'
     label = {0: 'This week', -1: 'Last week', 1: 'Next week'}.get(offset, '{count} weeks earlier' if offset < 0 else '{count} weeks ahead')
     total_events = len({event['id'] for day in days for event in day['events']})
     total_tasks = sum(len(day['tasks']) for day in days)
@@ -182,27 +239,13 @@ def view(data, checked):
     last = date_part(days[-1]['date'], 'day' if same_month else 'short')
     if days[0]['date'][:4] != days[-1]['date'][:4]:
         last += ' <span data-content>' + days[-1]['date'][:4] + '</span>'
-    refresh = ('<button id="schedule-refresh" class="schedule-icon" type="button" aria-label="Refresh saved plans" title="Refresh saved plans">'
-               '<svg viewBox="0 0 20 20" width="18" height="18" fill="none" aria-hidden="true"><path d="M16 8a6 6 0 1 0 .2 3M16 3v5h-5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>')
-    review_marker = '<span class="schedule-review-dot" aria-hidden="true"></span>' if data['pending'] else ''
-    review_description = ' aria-describedby="schedule-review-count"' if data['pending'] else ''
-    review_count = '<span id="schedule-review-count" hidden>' + ui.ui('Calendar review: {count} pending', count=data['pending']) + '</span>' if data['pending'] else ''
-    info = ('<details class="schedule-info" id="schedule-info"><summary class="schedule-icon" aria-label="Schedule details" title="Schedule details"' + review_description + '>'
-            '<svg viewBox="0 0 20 20" width="18" height="18" fill="currentColor" aria-hidden="true"><circle cx="4" cy="10" r="1.4"/><circle cx="10" cy="10" r="1.4"/><circle cx="16" cy="10" r="1.4"/></svg>'
-            + review_marker + '</summary>' + review_count + '<div class="schedule-info-panel"><h2>' + ui.ui('Week details') + '</h2><dl>'
-            '<dt>' + ui.ui('Events') + '</dt><dd>' + str(total_events) + '</dd>'
-            '<dt>' + ui.ui('To-dos') + '</dt><dd>' + str(total_tasks) + ' · ' + ui.ui('{done} completed', done=done) + '</dd>'
-            '<dt>' + ui.ui('Time zone') + '</dt><dd data-content>' + html.escape(data['timezone']) + '</dd>'
-            '<dt>' + ui.ui('Saved records') + '</dt><dd id="schedule-status">' + ui.ui('Checked at {time}', time=checked) + '</dd></dl>')
-    if data['pending']:
-        info += ('<div class="schedule-review-note"><p>' + ui.ui('1 calendar change awaits review. New imports stay hidden until approved.' if data['pending'] == 1 else '{count} calendar changes await review. New imports stay hidden until approved.', count=data['pending'])
-                 + '</p><a href="/chat">' + ui.ui('Review with your secretary') + ' ↗</a></div>')
-    info += '</div></details>'
     controls = ('<div class="schedule-toolbar"><div class="schedule-date"><h1 id="week-heading">' + date_part(days[0]['date'], 'month') + '</h1>'
                 '<p class="schedule-range">' + first + '<span class="range-dash">–</span>' + last + '<span class="range-dot"> · </span>' + ui.ui(label, count=abs(offset)) + '</p></div>'
-                '<nav class="schedule-navigation" aria-label="Week navigation">' + navigation(-1, 'Previous week', '‹')
-                + '<a id="week-current" class="current-week" data-week="0" href="/schedule">' + ui.ui('This week') + '</a>'
-                + navigation(1, 'Next week', '›') + '<span class="schedule-tools">' + refresh + info + '</span></nav></div>')
+                '<nav class="schedule-navigation" aria-label="Week navigation">' + mode_switch('week', offset)
+                + step_link('week-previous', '/schedule?week=' + str(offset - 1), 'Previous week', '‹', offset > -3)
+                + '<a id="week-current" class="current-week" data-schedule-nav href="/schedule">' + ui.ui('This week') + '</a>'
+                + step_link('week-next', '/schedule?week=' + str(offset + 1), 'Next week', '›', offset < 3)
+                + tools(data, checked, 'Week details', total_events, total_tasks, done) + '</nav></div>')
     overview = '<nav class="schedule-day-strip" aria-label="Jump to a day">'
     columns = '<div class="schedule-grid">'
     for day in days:
@@ -231,35 +274,112 @@ def view(data, checked):
     return controls + notice + overview + '</nav>' + columns + '</div>'
 
 
-def snapshot(app, offset):
+def day_event(event, day, zone, now):
+    """One event with its times spelled out; on the current day it also says whether it ended."""
+    if event.get('draft'):
+        place, notes = event['location'], event['detail']
+        start, until, state, sort = ui.ui('TBC'), ui.ui('Appointment time not yet confirmed'), 'tbc', ''
+        source = ui.ui('Time zone') + ' · <span data-content>' + html.escape(event['timezone']) + '</span>'
+        title, review = event['title'], ''
+    else:
+        begins, ends = (point.astimezone(ZoneInfo(zone)) for point in endpoints(event))
+        local = now.astimezone(ZoneInfo(zone))
+        if event['all_day']:
+            start, until, state, sort = ui.ui('All day'), '', 'all-day', ''
+        else:
+            # Untimed and continuing entries come first; the rest follow by start time.
+            sort = begins.isoformat() if begins.date().isoformat() == day else ''
+            start = html.escape(begins.strftime('%H:%M')) if sort else ui.ui('Continues')
+            end_label = ends.strftime('%H:%M')
+            if begins.date() != ends.date():
+                end_label = ui.text('{date} at {time}', date=ends.date().isoformat(), time=end_label)
+            until = ui.ui('Until {time}', time=end_label)
+            state = '' if day != local.date().isoformat() else 'past' if ends <= local else 'now' if begins <= local else 'next'
+        place, notes = event.get('location') or event.get('online'), event.get('notes')
+        source = ui.ui('Custom calendar') if event['source'] == 'custom' else '<span data-content>' + html.escape(event['source']) + '</span>'
+        source = ui.ui('Calendar') + ' · ' + source
+        title = event['subject']
+        review = '<p class="event-review">' + ui.ui('Change awaiting review · last approved version') + '</p>' if event.get('pending_change') else ''
+    badge = {'now': '<span class="day-badge is-now">' + ui.ui('Now') + '</span>',
+             'past': '<span class="day-badge">' + ui.ui('Ended') + '</span>'}.get(state, '')
+    body = ('<span class="event-title" data-content>' + html.escape(title) + '</span>'
+            + ('<span class="event-location" data-content>' + html.escape(place) + '</span>' if place else '')
+            + ('<p class="event-notes" data-content>' + html.escape(notes) + '</p>' if notes else '')
+            + review + '<p class="event-source">' + source + '</p>')
+    return {'start': start, 'until': until, 'state': state, 'badge': badge, 'body': body, 'title': title, 'sort': sort}
+
+
+def day_tasks(day):
+    if day['plan_error']:
+        return '<p class="schedule-empty">' + ui.ui('Task records unavailable' if day['plan_error'] == 'tasks' else 'Daily plan unavailable') + '</p>'
+    if not day['tasks']:
+        return '<p class="schedule-empty">' + ui.ui('No to-dos saved') + '</p>'
+    return '<ul class="schedule-tasks">' + ''.join(task_card(task) for task in day['tasks']) + '</ul>'
+
+
+def day_view(data, checked, now):
+    day, offset = data['days'][0], data['offset']
+    events = sorted((day_event(event, day['date'], data['timezone'], now) for event in day['events']), key=lambda item: item['sort'])
+    done = sum(task['done'] for task in day['tasks'])
+    relative = ({-1: ui.ui('Yesterday'), 0: ui.ui('Today'), 1: ui.ui('Tomorrow')}.get(offset)
+                or ui.ui('In {count} days' if offset > 0 else '{count} days ago', count=abs(offset)))
+    counts = [ui.ui('1 event' if len(events) == 1 else '{count} events', count=len(events)),
+              ui.ui('1 to-do' if len(day['tasks']) == 1 else '{count} to-dos', count=len(day['tasks']))]
+    if day['tasks']:
+        counts.append(ui.ui('{done} completed', done=done))
+    upcoming = next((item for item in events if item['state'] == 'next'), None)
+    if upcoming:
+        counts.append('<span class="day-next">' + ui.ui('Next') + ' · ' + upcoming['start'] + ' <span data-content>' + html.escape(upcoming['title']) + '</span></span>')
+    controls = ('<div class="schedule-toolbar"><div class="schedule-date"><h1 id="week-heading">' + date_part(day['date'], 'full') + '</h1>'
+                '<p class="schedule-range">' + relative + '<span class="range-dot"> · </span>' + '<span class="range-dot"> · </span>'.join(counts) + '</p></div>'
+                '<nav class="schedule-navigation" aria-label="Day navigation">' + mode_switch('day', data['week'])
+                + step_link('day-previous', '/schedule?view=day&day=' + str(offset - 1), 'Previous day', '‹', offset > -DAY_RANGE)
+                + '<a id="day-current" class="current-week" data-schedule-nav href="/schedule?view=day">' + ui.ui('Today') + '</a>'
+                + step_link('day-next', '/schedule?view=day&day=' + str(offset + 1), 'Next day', '›', offset < DAY_RANGE)
+                + tools(data, checked, 'Day details', len(events), len(day['tasks']), done) + '</nav></div>')
+    notice = ''.join('<p class="schedule-warning" role="status">' + ui.ui(warning) + '</p>' for warning in data['warnings'])
+    empty_events = '<p class="schedule-empty">' + ui.ui('Calendar unavailable' if data.get('calendar_error') else 'No calendar events saved') + '</p>'
+    today = ' is-today' if day['date'] == data['today'] else ''
+    cards = ''.join('<li class="focus-event' + (' is-' + item['state'] if item['state'] else '') + '"><div class="focus-time"><strong>' + item['start'] + '</strong>'
+                    + ('<span>' + item['until'] + '</span>' if item['until'] else '') + '</div><div class="focus-body">' + item['badge'] + item['body'] + '</div></li>'
+                    for item in events)
+    body = ('<div id="day-' + day['date'] + '" class="schedule-focus' + today + '">'
+            '<section class="focus-panel schedule-calendar"><h2>' + ui.ui('Events') + '</h2>' + ('<ol class="focus-events">' + cards + '</ol>' if events else empty_events) + '</section>'
+            '<section class="focus-panel schedule-work"><h2>' + ui.ui('To-dos') + '</h2>' + day_tasks(day) + '</section></div>')
+    return controls + notice + body, [item['state'] for item in events]
+
+
+def snapshot(app, offset, mode='week'):
     zone = app.profile().get('timezone')
     if not zone:
         raise ValueError('Initialize your profile timezone first')
     now = app.now() if app.now else datetime.now(timezone.utc)
-    data = saved_week(app.runtime, zone, now, offset)
+    data = (saved_day if mode == 'day' else saved_week)(app.runtime, zone, now, offset)
     parser = ui.InterfaceHTML()
     checked = now.astimezone(ZoneInfo(zone)).strftime('%H:%M')
-    parser.feed(view(data, checked))
+    markup, states = day_view(data, checked, now) if mode == 'day' else (view(data, checked), [])
+    parser.feed(markup)
     parser.close()
     markup = ''.join(parser.parts)
-    revision = hashlib.sha256(json.dumps([data, ui.current()], sort_keys=True).encode()).hexdigest()
-    return {'view': markup, 'revision': revision,
-            'week': offset, 'today': data['today'], 'theme': clock_theme(zone, now)['theme'],
+    revision = hashlib.sha256(json.dumps([data, ui.current(), mode, states], sort_keys=True).encode()).hexdigest()
+    return {'view': markup, 'revision': revision, 'mode': mode,
+            'week': data.get('week', offset), 'today': data['today'], 'theme': clock_theme(zone, now)['theme'],
             'checked': checked}
 
 
-def page(app, offset):
+def page(app, offset, mode='week'):
     zone = app.profile().get('timezone')
     theme = clock_theme(zone, app.now() if app.now else None)['theme']
     if zone:
-        result = snapshot(app, offset)
+        result = snapshot(app, offset, mode)
         content = result['view']
     else:
-        result = {'week': offset, 'revision': None, 'checked': None}
+        result = {'revision': None, 'checked': None}
         content = '<div class="schedule-setup"><h2>Let’s make this yours.</h2><p>Set your timezone to see your weekly schedule. Your saved records stay unchanged.</p><a href="/chat?mode=initialize">Initialize my secretary</a></div>'
-    config = html.escape(json.dumps({'week': offset, 'revision': result['revision'], 'checked': result['checked'], 'ready': bool(zone)}), quote=True)
+    config = html.escape(json.dumps({'mode': mode, 'revision': result['revision'], 'checked': result['checked'], 'ready': bool(zone)}), quote=True)
     source = ('<!doctype html><html lang="en" data-edition="' + theme + '"><head><meta charset="utf-8">'
               '<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>Schedule — GoodMorning</title>'
+              '<script src="/schedule-mode.js"></script>'
               + favicon_links('secretary') + '<link rel="stylesheet" href="/briefing.css"><link rel="stylesheet" href="/schedule.css">'
               '<link rel="stylesheet" href="/scroll-rails.css"><script src="/scroll-rails.js" defer></script></head><body class="schedule-page">'
               '<a class="skip-link" href="#schedule-view">Skip to schedule</a><header class="masthead"><a class="wordmark" href="/gm.html">GoodMorning<span>A little space to think, plan, and begin.</span></a>'

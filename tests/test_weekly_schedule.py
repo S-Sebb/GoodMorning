@@ -15,7 +15,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'src'))
 from goodmorning.calendar.calendar_store import CalendarStore
 from goodmorning.web import language as ui
 from goodmorning.web.briefing_server import BrowserApp
-from goodmorning.web.schedule import saved_week, snapshot, week_offset
+from goodmorning.web.schedule import saved_week, schedule_query, snapshot, week_offset
 from goodmorning.records.inbox_store import InboxStore, initialize
 from goodmorning.records.task_store import TaskStore
 
@@ -183,6 +183,62 @@ class ScheduleTests(unittest.TestCase):
         self.assertNotIn('id="week-previous"', snapshot(self.app, -3)['view'])
         self.assertNotIn('id="week-next"', snapshot(self.app, 3)['view'])
 
+    def test_view_query_validation(self):
+        self.assertEqual(schedule_query({}), ('week', 0))
+        self.assertEqual(schedule_query({'week': ['2']}), ('week', 2))
+        self.assertEqual(schedule_query({'view': ['day']}), ('day', 0))
+        self.assertEqual(schedule_query({'view': ['day'], 'day': ['-21']}), ('day', -21))
+        for query in ({'view': ['week']}, {'view': ['day'], 'day': ['22']}, {'view': ['day'], 'day': ['+1']},
+                      {'view': ['day'], 'day': ['01']}, {'view': ['day'], 'week': ['1']}, {'view': ['day', 'day']},
+                      {'day': ['1']}):
+            with self.subTest(query=query), self.assertRaises(ValueError):
+                schedule_query(query)
+
+    def test_day_view_shows_one_day_with_live_event_states(self):
+        canonical_records(self.root)
+        store = CalendarStore(str(self.root / 'calendar.sqlite'))
+        store.add({'subject': 'Lunch with Mia', 'start': '2026-10-13T12:30:00+01:00', 'end': '2026-10-13T13:30:00+01:00'})
+        store.add({'subject': 'Design sync', 'start': '2026-10-13T15:00:00+01:00', 'end': '2026-10-13T16:00:00+01:00'})
+        store.close()
+        today = snapshot(self.app, 0, 'day')
+        markup = today['view']
+        self.assertEqual(today['mode'], 'day')
+        self.assertIn('Tuesday, October 13', markup)
+        self.assertIn('Draft the methods', markup)
+        self.assertNotIn('Quiet working block', markup)
+        self.assertNotIn('Dentist', markup)
+        self.assertEqual(markup.count('<li class="focus-event'), 3)
+        self.assertLess(markup.index('Team check-in'), markup.index('Lunch with Mia'))
+        self.assertIn('focus-event is-past', markup)
+        self.assertIn('focus-event is-now', markup)
+        self.assertRegex(markup, r'Next</bdi> · 15:00 <span data-content>Design sync')
+        self.assertIn('href="/schedule?week=0"', markup)
+        # The view changes only when an event's state does, not every minute.
+        self.app.now = lambda: datetime(2026, 10, 13, 12, 1, tzinfo=timezone.utc)
+        self.assertEqual(snapshot(self.app, 0, 'day')['revision'], today['revision'])
+        self.app.now = lambda: datetime(2026, 10, 13, 12, 31, tzinfo=timezone.utc)
+        self.assertNotEqual(snapshot(self.app, 0, 'day')['revision'], today['revision'])
+        self.app.now = lambda: NOW
+        later = snapshot(self.app, 2, 'day')['view']
+        self.assertIn('Dentist', later)
+        self.assertIn('In 2 days', later)
+        self.assertNotIn('is-past', later)
+        self.assertIn('id="day-next"', snapshot(self.app, 20, 'day')['view'])
+        self.assertNotIn('id="day-next"', snapshot(self.app, 21, 'day')['view'])
+        self.assertIn('href="/schedule?week=3"', snapshot(self.app, 21, 'day')['view'])
+        self.assertNotIn('id="day-previous"', snapshot(self.app, -21, 'day')['view'])
+        ui.CURRENT.set('zh-CN')
+        translated = snapshot(self.app, 0, 'day')['view']
+        self.assertIn('10月13日星期二', translated)
+        self.assertIn('进行中', translated)
+
+    def test_day_view_keeps_source_failures_visible(self):
+        (self.root / 'calendar.sqlite').write_text('not SQLite')
+        markup = snapshot(self.app, 0, 'day')['view']
+        self.assertIn('Calendar records could not be read', markup)
+        self.assertIn('Calendar unavailable', markup)
+        self.assertIn('Atlas: draft the methods', markup)
+
     def test_review_gate_cancellation_and_approved_version(self):
         store = CalendarStore(str(self.root / 'calendar.sqlite'))
         self.addCleanup(store.close)
@@ -322,9 +378,13 @@ class ScheduleTests(unittest.TestCase):
         self.assertEqual(json.loads(body)['today'], '2026-10-13')
         self.assertEqual(get('/api/schedule?week=4')[0], 404)
         self.assertEqual(get('/api/schedule?runtime=other')[0], 404)
+        status, _, body = get('/api/schedule?view=day&day=-1')
+        self.assertEqual((status, json.loads(body)['mode']), (200, 'day'))
+        self.assertEqual(get('/api/schedule?view=day&day=22')[0], 404)
+        self.assertIn(b'/schedule-mode.js', get('/schedule?view=day')[2])
         self.assertEqual(get('/api/schedule', {'Origin': 'https://other.test'})[0], 403)
         self.assertEqual(get('/api/schedule', {'Origin': origin, 'X-Briefing-CSRF': self.app.csrf, 'Content-Type': 'application/json'}, b'{}')[0], 404)
-        for name in ('schedule.js', 'schedule.css'):
+        for name in ('schedule.js', 'schedule-mode.js', 'schedule.css'):
             self.assertEqual(get(self.app.resources.urls[name])[0], 200)
         (self.root / 'profile.md').write_text('')
         self.assertIn(b'Initialize my secretary', get('/schedule')[2])

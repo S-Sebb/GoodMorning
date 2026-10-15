@@ -71,6 +71,7 @@
 .schedule-task.is-done .task-state { color: var(--accent); font-weight: 700; }
 .schedule-task .task-progress { color: var(--ink); font-weight: 600; }
 .schedule-task .task-detail { white-space: pre-line; }
+.schedule-task .task-project { padding: 0; border: 0; border-radius: 0; background: none; }
 .schedule-event.is-tbc { border-left-style: dashed; }
 .schedule-empty { display: block; font-size: 12px; color: var(--muted); margin: 0; line-height: 1.6; }
 .schedule-day-strip { display: none; }
@@ -78,6 +79,36 @@
 #schedule-error:empty { display: none; }
 .schedule-page [hidden] { display: none !important; }
 .schedule-setup { padding: 32px 0; }
+.schedule-mode { display: inline-flex; gap: 2px; margin-right: 12px; padding: 3px; border: 1px solid var(--line); border-radius: 999px; }
+.schedule-navigation .schedule-mode-link { min-height: 38px; padding: 0 16px; color: var(--muted); font-size: 12px; }
+.schedule-navigation .schedule-mode-link[aria-current] { background: var(--ink); color: var(--bg); }
+.schedule-range bdi, .day-next { white-space: nowrap; }
+.day-next { color: var(--ink); }
+.day-badge { display: inline-block; margin: 0 0 6px; padding: 1px 8px; border: 1px solid var(--line); border-radius: 999px; color: var(--muted); font-size: 10px; line-height: 1.6; }
+.day-badge.is-now { border-color: var(--accent); background: var(--accent); color: var(--bg); }
+/* Day focus: events and to-dos side by side, every detail visible. */
+.schedule-focus { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 20px; }
+.focus-panel { padding: 28px 32px; border: 1px solid var(--line); border-radius: 22px; background: var(--surface); box-shadow: 0 8px 32px #00000004; }
+.schedule-focus.is-today .focus-panel { background: linear-gradient(180deg, var(--wash), var(--surface) 180px); }
+.focus-panel h2 { display: flex; align-items: center; gap: 10px; margin: 0 0 18px; font: normal 22px/1.3 Georgia, serif; }
+.focus-panel h2::before { content: ""; flex: 0 0 22px; height: 22px; background: url("icons/desk-schedule.svg") center / contain no-repeat; }
+.focus-panel.schedule-work h2::before { background-image: url("icons/desk-secretary.svg"); }
+.focus-events { list-style: none; margin: 0; padding: 0; }
+.focus-event { display: grid; grid-template-columns: 96px minmax(0, 1fr); gap: 20px; padding: 18px 0; border-top: 1px solid color-mix(in srgb, var(--line) 65%, transparent); }
+.focus-event:first-child { border-top: 0; padding-top: 4px; }
+.focus-time strong { display: block; color: var(--accent); font: normal 20px/1.3 Georgia, serif; font-variant-numeric: tabular-nums; }
+.focus-time span { display: block; margin-top: 4px; color: var(--muted); font-size: 11px; }
+.focus-body { min-width: 0; overflow-wrap: anywhere; }
+.focus-body .event-title { margin: 0; font-size: 16px; line-height: 1.5; }
+.focus-body .event-location { font-size: 12px; }
+.focus-body p { margin: 8px 0 0; color: var(--muted); font-size: 12px; line-height: 1.6; }
+.focus-body .event-source { border: 0; padding: 0; font-size: 11px; opacity: .8; }
+.focus-event.is-past { opacity: .55; }
+.focus-event.is-now .focus-body { margin: -10px 0; padding: 10px 14px; border-radius: 14px; background: var(--wash); }
+.focus-event.is-tbc .focus-time strong { font-size: 15px; }
+.focus-panel .schedule-task { font-size: 15px; padding-bottom: 14px; }
+.focus-panel .schedule-task small { font-size: 11px; }
+@media (max-width: 900px) { .schedule-focus { grid-template-columns: minmax(0, 1fr); } }
 @media (max-width: 1050px) {
   .schedule-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: none; grid-auto-rows: auto minmax(150px, max-content) minmax(100px, max-content); }
   .schedule-day { border-bottom: 1px solid var(--line); }
@@ -100,6 +131,11 @@
   .schedule-page .edition-link { padding: 8px 10px; }
   .schedule-toolbar { align-items: start; flex-direction: column; gap: 18px; padding: 24px 0 20px; }
   .schedule-navigation { width: 100%; gap: 4px; }
+  .schedule-navigation { flex-wrap: wrap; }
+  .schedule-mode { order: -1; width: 100%; margin: 0 0 8px; }
+  .schedule-navigation .schedule-mode-link { flex: 1; }
+  .focus-panel { padding: 22px 18px; }
+  .focus-event { grid-template-columns: 72px minmax(0, 1fr); gap: 14px; }
   .schedule-tools { margin-left: auto; }
   .schedule-grid { grid-template-columns: minmax(0, 1fr); grid-auto-rows: auto auto auto; }
   .schedule-day { border-right: 0; }

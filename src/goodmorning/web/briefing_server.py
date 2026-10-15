@@ -932,10 +932,10 @@ def serve_live(app, port, *, gateway_key=None, public_origins=()):
                 if path == '/api/day':
                     return self.respond({'date': app.today(), 'timezone': app.zone})
                 if path in ('/schedule', '/api/schedule'):
-                    offset = schedule.week_offset(parse_qs(parsed.query, keep_blank_values=True))
+                    mode, offset = schedule.schedule_query(parse_qs(parsed.query, keep_blank_values=True))
                     if path == '/api/schedule':
-                        return self.respond(schedule.snapshot(app, offset), compress=True)
-                    return self.respond(schedule.page(app, offset), content_type='text/html; charset=utf-8')
+                        return self.respond(schedule.snapshot(app, offset, mode), compress=True)
+                    return self.respond(schedule.page(app, offset, mode), content_type='text/html; charset=utf-8')
                 if path == '/api/queue':
                     # Standalone viewers have no shared gateway waiting line.
                     return self.respond({'queue':[], 'depth':0})
