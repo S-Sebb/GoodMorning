@@ -31,15 +31,18 @@ deployment needed it.
 
 ## 1. Preconditions (local checkout)
 
-1. `git status --short` shows only intended files; `git diff --check` is clean.
-2. Author the patch note for this deployment (procedure below); it must be
-   committed as part of the deployed HEAD.
-3. Full suites pass with no model calls:
+1. Every change to deploy is merged into `origin/main` through a PR
+   (`docs/version-control.md`).
+2. Unless the owner asked for a silent update, author the patch note for this
+   deployment (procedure below) in its own release PR, and merge it with the
+   owner's approval. It must be part of the deployed HEAD.
+3. In the primary checkout, run `git pull --ff-only` on `main`; `git status --short`
+   is empty and `HEAD` equals `origin/main`. Record the commit hash.
+   The deployed archive must be built from this HEAD.
+4. Full suites pass on this HEAD with no model calls:
    `python -m unittest discover -s tests -p 'test_*.py' -q`,
    `node --test tests/test_projects.mjs`, plus the affected
    `tests/browser/*.py` suites with private artifact directories.
-4. Commit and push to `origin/main`. Record the commit hash.
-   The deployed archive must be built from the pushed HEAD.
 5. Confirm the live website is not already paused by someone else:
    `sudo /opt/goodmorning/python/bin/python -B /opt/goodmorning/current/scripts/goodmorning.py admin --account-mount /srv/goodmorning/live/accounts pause-status`
    must report live. A paused website means another deploy or incident is in
@@ -80,7 +83,7 @@ sudo /opt/goodmorning/python/bin/python -B /opt/goodmorning/current/scripts/good
 
 ## Patch note procedure
 
-Prepend one release to `assets/web/patch-notes.json`, then commit it with the code.
+Prepend one release to `assets/web/patch-notes.json` in the release PR.
 Keep older entries unchanged. Use `0.minor.patch`: increase minor for features or
 redesigns (reset patch to zero); increase patch for fixes, docs or tests. Never reuse a version.
 

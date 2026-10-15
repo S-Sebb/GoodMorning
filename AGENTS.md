@@ -72,6 +72,9 @@ Use `--website-language CODE` with setup/workflow helpers in browser chats.
 An active request keeps its starting language; a later chat turn can choose
 another website language. Preserve existing records and earlier replies.
 
+For source changes, follow `docs/version-control.md`: one task gets its own
+worktree, branch and pull request; `main` changes only by merging a reviewed PR.
+
 For development, keep personal records, credentials and generated artifacts out
 of this source tree. Public source is shared; each account's private runtime and
 agent home must remain separate. Tests use isolated synthetic records. Do not
