@@ -197,6 +197,49 @@ def check(app, url, shots, canonical=False):
         browser.close()
 
 
+def check_day(url):
+    from playwright.sync_api import expect, sync_playwright
+    with sync_playwright() as playwright:
+        browser = playwright.chromium.launch()
+        page = browser.new_page(viewport={'width': 1440, 'height': 1050})
+        errors = []
+        page.on('pageerror', lambda error: errors.append(str(error)))
+        page.goto(url + '/schedule')
+        expect(page.locator('.schedule-day')).to_have_count(7)
+        page.get_by_role('link', name='Day', exact=True).click()
+        expect(page).to_have_url(url + '/schedule?view=day')
+        expect(page.locator('h1')).to_have_text('Tuesday, October 13')
+        expect(page.locator('.schedule-day')).to_have_count(0)
+        expect(page.locator('.focus-panel')).to_have_count(2)
+        expect(page.get_by_role('link', name='Day', exact=True)).to_have_attribute('aria-current', 'true')
+        expect(page.locator('.focus-event.is-past')).to_contain_text('Ended')
+        # Side-by-side panels share one top and bottom edge, even when one is shorter.
+        edges = page.locator('.focus-panel').evaluate_all('nodes => nodes.map(node => [node.getBoundingClientRect().top, node.getBoundingClientRect().bottom])')
+        assert abs(edges[0][0] - edges[1][0]) < 1 and abs(edges[0][1] - edges[1][1]) < 1, edges
+        page.get_by_role('link', name='Next day', exact=True).click()
+        expect(page).to_have_url(url + '/schedule?view=day&day=1')
+        expect(page.locator('.schedule-range')).to_contain_text('Tomorrow')
+        expect(page.locator('.focus-event')).to_contain_text('Quiet working block')
+        page.go_back()
+        expect(page.locator('.schedule-range')).to_contain_text('Today')
+        # The last view used in this browser reopens from the plain Schedule link.
+        page.goto(url + '/schedule')
+        expect(page).to_have_url(url + '/schedule?view=day')
+        page.get_by_role('link', name='Week', exact=True).click()
+        expect(page).to_have_url(url + '/schedule?week=0')
+        expect(page.locator('.schedule-day')).to_have_count(7)
+        page.goto(url + '/schedule')
+        expect(page).to_have_url(url + '/schedule')
+        expect(page.locator('.schedule-day')).to_have_count(7)
+        page.goto(url + '/schedule?view=day')
+        page.set_viewport_size({'width': 390, 'height': 844})
+        expect(page.locator('.schedule-focus')).to_have_css('grid-template-columns', re.compile(r'^[\d.]+px$'))
+        assert page.locator('.schedule-mode').bounding_box()['width'] > 300
+        assert not page.evaluate('document.documentElement.scrollWidth > innerWidth')
+        assert not errors, errors
+        browser.close()
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--screenshots', type=Path)
@@ -216,8 +259,9 @@ def main():
         else:
             server = start_server(app)
             try:
+                check_day(f'http://127.0.0.1:{server.server_port}')
                 check(app, f'http://127.0.0.1:{server.server_port}', args.screenshots, args.canonical)
-                print('Weekly schedule browser checks passed (desktop, mobile, Chinese, refresh, bounds, no JavaScript).')
+                print('Schedule browser checks passed (day view, desktop, mobile, Chinese, refresh, bounds, no JavaScript).')
             finally:
                 server.shutdown()
 
