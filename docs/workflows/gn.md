@@ -52,7 +52,8 @@ Use selected absolute paths, actual session, pinned date and confirmed language.
      never an unrelated completed/planned errand merely because it is on today's list.
      Record only the reported status and reason. "Blocked awaiting a dataset" does
      not establish that no progress occurred. Once that clear reason is recorded,
-     Tasks copies it; do not make another polishing write or add inferred progress.
+     Tasks copies it; do not rewrite that reason or add inferred progress.
+     This bar covers Today outcome prose; Tasks cards still get the step-5 wording review.
 3. Update external project records only when authorized under
    `docs/project-access.md`; preserve unrelated work and current hashes. Uncertain
    plan changes remain pending. Task completion is canonical SQLite state, not a
@@ -68,7 +69,18 @@ Use selected absolute paths, actual session, pinned date and confirmed language.
    work/blockers. Partial work stays open. No automatic rollover, new deadline,
    time block or tomorrow assignment. Project membership/optionality are labels.
    Historical outcome prose may mention a future action; do not duplicate its
-   actionable card. Follow code-owned sources and remaining pages.
+   actionable card. First walk through the displayed Tasks rows from
+   `task --briefing gn --date DATE --section tasks` (follow `next_offset`); where a
+   title/detail is materially vague (missing object, filler opener, `etc.` fog,
+   non-imperative title — not mere punctuation or capitalization), fix it with
+   revision-checked `task --update` using title/detail only (same meaning, no
+   date/status/project/scheduling change, stable `polish:SESSION:taskID:revision`
+   keys; a moved revision gets a fresh key with the new revision), then reread and
+   pack the exact updated rows. Reminder mechanics and setup narration are trimmed
+   by the same update (possibly to an empty detail); other details may only be
+   lightly clarified for display. Leave already-clear titles and factual details
+   unchanged. This review covers Tasks cards only; just-recorded Today
+   outcome reasons stay under step 2. Follow code-owned sources and remaining pages.
    In prose keep unfinished work on its original date; "carries over" is not a
    synonym for still open. Appointment-free dates are not known free time.
 6. Reminders shows due reviews and material unknowns affecting tomorrow.

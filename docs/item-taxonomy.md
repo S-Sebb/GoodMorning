@@ -25,7 +25,8 @@ heading. Use `scripts/goodmorning.py` with the selected absolute runtime.
    matters plus current state or next step from supplied facts only). Optional `task`
    fields preserve supplied explicit timing and project facts. `detail` is useful extra
    notes only: never repeat the title, project, deadline or priority — those live in structured fields and the page already
-   shows them once per project group. `/eureka` captures only an idea, even with action verbs/dates.
+   shows them once per project group. Rhythm and presentation mechanics plus setup
+   narration stay in structured repeat/when fields and the inbox entry `context`, never in `detail`. `/eureka` captures only an idea, even with action verbs/dates.
    For clear input, capture, confirm, stop. The clarification-before-recording rule
    above applies to ambiguous scheduling; no unsolicited calendar offer or execution.
    Keep `/todo` in its capture helper even when dates are supplied: use its optional

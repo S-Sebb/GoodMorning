@@ -95,6 +95,28 @@ class CaptureWordingTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "source_conflict"):
             routing.validate_sources(self.root, stale, DAY, "gm")
 
+    def test_gn_polish_updates_canonical_copy_then_briefing_packs_exact_rows(self):
+        receipt = self.capture(
+            "Claim salary Friday.", "gn-polish-1",
+            task={"title": "Claim salary Friday.", "planned_date": DAY,
+                  "detail": "Surface in Friday /gm as reminder. Setup choice confirmed."})
+        task = self.tasks.show(receipt["task_id"])
+        polished = self.tasks.mutate(
+            receipt["task_id"], task["revision"],
+            {"title": "Claim this week's salary",
+             "detail": "Friday reminder to claim that week's salary."},
+            "ses_test", f"polish:ses_test:{receipt['task_id']}:{task['revision']}", NOW)
+        self.assertTrue(polished["saved"])
+        updated = self.tasks.show(receipt["task_id"])
+        self.assertNotIn("Setup choice", updated["detail"])
+        view = routing.prepare(self.root, DAY, "gn")
+        row = next(r for r in view["tasks"]["items"] if r["id"] == receipt["task_id"])
+        self.assertEqual((row["title"], row["detail"]),
+                         (updated["title"], updated["detail"]))
+        doc = {"v": 2, "greeting": "Hello.", "opening": "Synthetic.",
+               "sections": [["tasks", [view["blocks"]["tasks"]]]]}
+        routing.validate_sources(self.root, doc, DAY, "gn")
+
 
 if __name__ == "__main__":
     unittest.main()

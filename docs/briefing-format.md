@@ -45,7 +45,7 @@ restate project/due text code already shows.
   Titles must be imperative, specific, free of filler openers or trailing periods,
   and free of project prefixes (the project heading already shows the project).
   Leave detail empty when no grounded why/state exists. Material vagueness means a
-  missing object, filler opener or `etc.` fog — not mere punctuation.
+  missing object, filler opener, non-imperative title or `etc.` fog — not mere punctuation.
   Add a short section note in the saved tone (default warm and helpful), naming the top 1–3 project groups and the next
   useful step (for example which group to pick today); do not repeat every card.
 - `["events",[[event_or_draft_id,revision,date,time,title,place,preparation],...]]`:
