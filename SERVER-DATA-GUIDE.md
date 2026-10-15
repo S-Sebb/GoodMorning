@@ -131,7 +131,3 @@ Complete means the authorized change and invariants are verified under the actua
 service identity, rollback is usable, and no account is left unintentionally paused
 or unable to access its data. A failed or incomplete gate means blocked, not done.
 Keep unrelated accounts and existing requests unchanged.
-
-These safeguards address reproducible ownership, storage and dispatch failures.
-They are not a promise of zero failures or protection from an administrator who
-deliberately bypasses the procedure.

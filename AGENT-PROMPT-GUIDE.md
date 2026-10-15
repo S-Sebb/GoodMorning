@@ -19,7 +19,10 @@ Write the shortest instructions that fully define the intended behavior.
 - Remove repetition, filler, and unnecessary explanation—not essential constraints.
   For complex tasks, add one or two short examples that illustrate the rules
   without introducing exceptions.
-- Test only new or modified prompts, plus directly affected neighbors, on every model and variant
+- Coding-agent instructions (the **Coding agents** section of `AGENTS.md` and the
+  guides it lists) get no model trials. Instead, verify that every command, path
+  and tool behavior they describe works as written.
+- For prompts that website agents read, test only new or modified prompts, plus directly affected neighbors, on every model and variant
   configured in `src/goodmorning/web/models.py`. Determine the changed set from the diff against its merge-base;
   do not rerun the full matrix for unchanged established prompts. Use synthetic normal, ambiguous and
   failure cases for the changed behavior; verify actual actions, outputs and the user's tone. Retest fixes
