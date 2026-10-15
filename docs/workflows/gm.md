@@ -34,9 +34,11 @@ plan position and use `skip` for empty optional ones; local JSON omits empty opt
    citation and material coverage gap. Latest collection requires saved opt-in or
    explicit permission and a separate dated heading. A snapshot is not delivery;
    acknowledge only after actual visible delivery is verified.
-4. Publish Schedule from the normalized approved event/draft rows. Morning covers
-   today and the next two days. Unknown-time confirmed appointments stay TBC;
-   tentative proposals and unseen imports are not attendance commitments. Surface
+4. Publish Schedule from the normalized approved event/draft rows. Morning shows
+   today's timed appointments only; all-day events and unknown-time confirmed
+   appointments stay TBC across today and the next two days. Upcoming timed
+   appointments stay out of the morning edition. Tentative proposals and unseen
+   imports are not attendance commitments. Surface
    pending changes and material availability failures, not healthy bookkeeping.
    Preparation is concise requirements only; never copy join instructions,
    Meeting IDs, help/meeting-options links or privacy footers into it.

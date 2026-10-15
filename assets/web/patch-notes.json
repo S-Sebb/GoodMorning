@@ -1,7 +1,7 @@
 {
   "notes": [
     {
-      "version": "0.42.1", "date": "2026-10-15", "author": "GoodMorning agent",
+      "version": "0.43.1", "date": "2026-10-15", "author": "GoodMorning agent",
       "title_en": "Secretary queue recovery", "title_zh": "秘书队列恢复",
       "changes": [
         {"category": "Notes", "en": [
@@ -24,6 +24,24 @@
           "Added regression coverage for failed preparation, lost responses, concurrent dispatch, durable queues, and duplicate submissions."
         ], "zh": [
           "新增回归测试，覆盖准备失败、响应丢失、并发派发、持久队列和重复提交等情况。"
+        ]}
+      ]
+    },
+    {
+      "version": "0.43.0", "date": "2026-10-15", "author": "GoodMorning agent",
+      "title_en": "One-day timed schedules in briefings", "title_zh": "简报定时日程只看一天",
+      "changes": [
+        {"category": "Changed", "en": [
+          "Morning briefings show today's timed appointments only, and evening briefings show tomorrow's timed appointments only; all-day events and confirmed TBC drafts keep the three-day glance.",
+          "Empty schedules use a single-day message instead of a three-day range, so hidden upcoming timed appointments are never described as missing."
+        ], "zh": [
+          "早报只显示今天的定时约定，晚报只显示明天的定时约定；全天事件和已确认的时间待定安排仍保留三天概览。",
+          "空日程改用单日提示，不再显示三天范围，避免把特意隐藏的未来定时约定说成缺失。"
+        ]},
+        {"category": "Tests", "en": [
+          "Verify morning today-only and evening tomorrow-only timed filtering with all-day and TBC retention plus single-day empty messages using synthetic records; the focused unit suites pass."
+        ], "zh": [
+          "用合成记录验证早报仅看今天、晚报仅看明天的定时过滤，以及全天与时间待定的保留和单日空提示；相关单元测试通过。"
         ]}
       ]
     },
