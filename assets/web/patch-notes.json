@@ -1,6 +1,24 @@
 {
   "notes": [
     {
+      "version": "0.44.0", "date": "2026-10-15", "author": "GoodMorning agent",
+      "title_en": "Chinese requests switch to DeepSeek Free High 🎉", "title_zh": "中文请求切换到 DeepSeek 免费 High 🎉",
+      "changes": [
+        {"category": "Changed", "en": [
+          "🎉 Chinese requests now use DeepSeek V4.1 Flash Free High (opencode/deepseek-v4.1-flash-free, variant high) instead of the paid Flash High; English routing is unchanged. 🎊",
+          "Running requests keep their original model; new Chinese briefings and chat turns pin the free model before any prompt is sent."
+        ], "zh": [
+          "🎉 中文请求改用 DeepSeek V4.1 Flash Free High（opencode/deepseek-v4.1-flash-free，high 变体），不再使用付费版 Flash High；英文路由不变。🎊",
+          "进行中的请求保留原模型；新的中文简报与对话轮次会在发送前固定使用免费模型。"
+        ]},
+        {"category": "Tests", "en": [
+          "Verified with the website model suite plus an isolated synthetic Chinese secretary trial on the free model: clarification, task save, and confirmation all behave with a warm tone."
+        ], "zh": [
+          "已用网站模型测试套件与免费模型上的独立合成中文秘书试验验证：澄清提问、任务保存与确认回复均正常，语气保持亲切。"
+        ]}
+      ]
+    },
+    {
       "version": "0.43.0", "date": "2026-10-15", "author": "GoodMorning agent",
       "title_en": "One-day timed schedules in briefings", "title_zh": "简报定时日程只看一天",
       "changes": [

@@ -78,7 +78,7 @@ runtimes/sessions; this is not an encrypted-account or load-capacity test.
 `--resume` skips completed cases and observes preserved in-flight requests without
 resending them. Tone remains pending until actual replies/questions/errors receive
 manual semantic review; keywords, emojis and passing data assertions do not prove it.
-Use `--model deepseek-flash` to run the same matrix with DeepSeek V4.1 Flash High.
+Use `--model deepseek-flash` to run the same matrix with DeepSeek V4.1 Flash Free High.
 Use `--language en` or `--language zh-CN` to test a proposed language/model pairing
 without changing production routing or the model selector. The default still
 tests both languages. Resuming must retain the original language/model/scope.

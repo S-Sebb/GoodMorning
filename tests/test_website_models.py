@@ -46,7 +46,7 @@ class ModelCatalogTests(unittest.TestCase):
         self.assertEqual(site_models.session_payload('muse-spark'),
                          {'providerID': 'opencode-go', 'id': 'muse-spark-1.3-contributor', 'variant': 'xhigh'})
         self.assertEqual(site_models.session_payload('deepseek-flash'),
-                         {'providerID': 'opencode-go', 'id': 'deepseek-v4.1-flash', 'variant': 'high'})
+                         {'providerID': 'opencode', 'id': 'deepseek-v4.1-flash-free', 'variant': 'high'})
 
     def test_invalid_choices_rejected(self):
         for bad in ('gpt-4', '', None, {}, True, 'MUSE-SPARK', 'muse-spark-1.3-contributor', 'opencode-go/muse-spark-1.3-contributor'):
