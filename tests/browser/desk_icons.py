@@ -7,7 +7,8 @@ import tempfile
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from support import TEMP_ROOT, returning_viewer
-from test_weekly_schedule import make_runtime, start_server
+from support import start_server
+from test_weekly_schedule import make_runtime
 
 
 def check(app, url, shots):

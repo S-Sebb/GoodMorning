@@ -14,13 +14,12 @@ from unittest.mock import patch
 from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 
-from support import TEMP_ROOT
+from support import TEMP_ROOT, HTTPFixture
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'src'))
 from goodmorning.briefings import briefing_images as images
 from goodmorning.briefings import briefing_web as web
 from goodmorning.web.briefing_resources import ByteCache, Resources, accepts_gzip
 from goodmorning.web.briefing_server import BrowserApp
-import test_briefing_server as server_tests
 from test_briefing_web import GM
 
 
@@ -88,7 +87,7 @@ class ResourceTests(unittest.TestCase):
             self.assertIn(resources.urls['icons/desk-schedule.svg'].encode(), css)
 
 
-class TransportTests(server_tests.HTTPTests):
+class TransportTests(HTTPFixture):
     def test_assets_compress_and_revalidate_without_caching_private_pages(self):
         with urlopen(self.address + '/gm.html') as response:
             page = response.read().decode()

@@ -9,7 +9,7 @@ import sys
 ROOT=Path(__file__).resolve().parents[2]
 sys.path[:0]=[str(ROOT/'src'),str(ROOT/'tests')]
 from goodmorning.web.briefing_server import BrowserApp
-from test_weekly_schedule import start_server
+from support import start_server
 from support import returning_viewer
 
 

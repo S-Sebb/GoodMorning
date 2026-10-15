@@ -14,14 +14,13 @@ from unittest.mock import patch
 from urllib.error import HTTPError
 from urllib.request import urlopen
 
-from support import TEMP_ROOT, returning_viewer
+from support import TEMP_ROOT, returning_viewer, HTTPFixture, FakeChamber
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'src'))
 from goodmorning.briefings import briefing_document as native
 from goodmorning.briefings import briefing_web as web
 from goodmorning.records import state
 from goodmorning.web.briefing_server import BrowserApp
 from benchmarks.briefing_format import compact, fixtures
-import test_briefing_server as server_tests
 
 DATE = '2034-03-17'
 
@@ -415,7 +414,7 @@ class SaveAndViewTests(unittest.TestCase):
         self.assertIn('unsafe_answer_pointer', rebuilt['warnings'])
 
     def test_generated_invalid_json_is_not_reported_ready(self):
-        chamber = server_tests.FakeChamber(); chamber.forms = []; chamber.permissions = []; chamber.busy = False
+        chamber = FakeChamber(); chamber.forms = []; chamber.permissions = []; chamber.busy = False
         app = BrowserApp(self.root, chamber, now=lambda: datetime(2034, 3, 17, 12, tzinfo=timezone.utc))
         job = {'id': 'a' * 32, 'date': DATE, 'kind': 'gm', 'state': 'running', 'session': 'ses_fixture'}
         app.jobs[DATE + '.gm'] = job
@@ -468,7 +467,7 @@ class SaveAndViewTests(unittest.TestCase):
         self.assertFalse((self.root / 'browser').exists())
 
     def test_dispatch_requests_native_format_without_overriding_user_model(self):
-        app = self.app(); chamber = server_tests.FakeChamber(); app.chamber = chamber
+        app = self.app(); chamber = FakeChamber(); app.chamber = chamber
         job = {'id': 'a' * 32, 'date': DATE, 'kind': 'gm', 'state': 'starting'}
         app.jobs[DATE + '.gm'] = job; app.dispatch(job)
         prompt = next(args['prompt'] for action, args in chamber.calls if action == 'session.send')
@@ -478,7 +477,7 @@ class SaveAndViewTests(unittest.TestCase):
         self.assertNotIn('model', chamber.calls[0][1])
 
 
-class NativeHTTPTests(server_tests.HTTPTests):
+class NativeHTTPTests(HTTPFixture):
     def test_native_download_and_read_only_source_mime(self):
         payload = native.encode(document())
         (self.root / 'daily' / f'{self.date}.gm.json').write_text(payload)

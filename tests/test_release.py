@@ -7,12 +7,10 @@ import sys
 import tempfile
 import unittest
 
-from support import TEMP_ROOT
+from support import TEMP_ROOT, GatewayFixture, FakeChamber
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'src'))
 from goodmorning.web import release
 from goodmorning.web.briefing_server import BrowserApp
-from test_briefing_server import FakeChamber
-import test_briefing_gateway as gateway_tests
 
 
 def note(version='0.2.0', **values):
@@ -140,7 +138,7 @@ class PatchNoteTests(unittest.TestCase):
 
 class ReleaseAccountTests(unittest.TestCase):
     def gateway(self):
-        fixture = gateway_tests.GatewayTests()
+        fixture = GatewayFixture()
         fixture.setUp()
         self.addCleanup(fixture.doCleanups)
         return fixture

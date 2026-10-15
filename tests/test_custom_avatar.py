@@ -9,12 +9,11 @@ from urllib.error import HTTPError
 from urllib.request import Request
 
 from PIL import Image
-from support import TEMP_ROOT
+from support import TEMP_ROOT, FakeChamber
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'src'))
 from goodmorning.web.avatar_images import MAX_AVATAR_BYTES, read_image
 from goodmorning.web.briefing_server import BrowserApp
 from goodmorning.briefings.briefing_document import encode
-from test_briefing_server import FakeChamber
 import test_chat_uploads
 
 

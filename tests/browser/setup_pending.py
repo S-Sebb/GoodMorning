@@ -8,7 +8,7 @@ from urllib.parse import urlsplit
 from playwright.sync_api import sync_playwright, expect
 
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
-from test_briefing_gateway import GatewayTests
+from support import GatewayFixture
 from goodmorning.web.release import patch_notes
 
 
@@ -20,7 +20,7 @@ def main():
         try:
             for pending in (True,False):
                 for width in (390,768,1440):
-                    fixture=GatewayTests();fixture.setUp()
+                    fixture=GatewayFixture();fixture.setUp()
                     try:
                         fixture.permanent()
                         fixture.store.release_seen(fixture.id,patch_notes()[0]['version'])

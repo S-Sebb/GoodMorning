@@ -5,7 +5,7 @@ import sys
 import tempfile
 import unittest
 
-from support import TEMP_ROOT
+from support import TEMP_ROOT, FakeChamber
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'src'))
 from goodmorning.paths import WEB_ASSETS
 from goodmorning.web import language as ui
@@ -13,7 +13,6 @@ from goodmorning.web.briefing_chat import AVATARS, AVATAR_IDS, avatar_id, page, 
 from goodmorning.web.briefing_resources import Resources
 from goodmorning.web.briefing_server import BrowserApp
 from goodmorning.security.briefing_gateway import GET_ROUTES, POST_ROUTES
-from test_briefing_server import FakeChamber
 from goodmorning.briefings.briefing_document import encode
 from goodmorning.briefings.briefing_layout import celestial
 

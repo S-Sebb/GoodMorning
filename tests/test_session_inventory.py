@@ -6,12 +6,11 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from support import TEMP_ROOT
+from support import TEMP_ROOT, MockChamber, ImmediateThread
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'src'))
 from goodmorning.web import session_inventory as inventory
 from goodmorning.web.briefing_chat import Chats
 from goodmorning.web.briefing_server import BrowserApp
-from test_briefing_chat import MockChamber, ImmediateThread
 
 
 class SessionInventoryTests(unittest.TestCase):

@@ -1,42 +1,25 @@
 """Weekly schedule uses synthetic, account-local records and never dispatches work."""
 from datetime import datetime, timezone
-from http.server import ThreadingHTTPServer
 import json
 import os
 from pathlib import Path
 import sys
 import tempfile
-import threading
 import unittest
 from unittest.mock import patch
 from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 
-from support import TEMP_ROOT
+from support import TEMP_ROOT, start_server
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'src'))
 from goodmorning.calendar.calendar_store import CalendarStore
 from goodmorning.web import language as ui
-from goodmorning.web.briefing_server import BrowserApp, serve_live
+from goodmorning.web.briefing_server import BrowserApp
 from goodmorning.web.schedule import saved_week, snapshot, week_offset
 from goodmorning.records.inbox_store import InboxStore, initialize
 from goodmorning.records.task_store import TaskStore
 
 NOW = datetime(2026, 10, 13, 12, tzinfo=timezone.utc)
-
-
-def start_server(app):
-    ready, servers = threading.Event(), []
-    def create(*args):
-        server = ThreadingHTTPServer(*args)
-        servers.append(server)
-        ready.set()
-        return server
-    with patch('goodmorning.web.briefing_server.ThreadingHTTPServer', side_effect=create):
-        thread = threading.Thread(target=serve_live, args=(app, 0), daemon=True)
-        thread.start()
-        if not ready.wait(3):
-            raise RuntimeError('Synthetic schedule server did not start')
-    return servers[0]
 
 
 def make_runtime(root):

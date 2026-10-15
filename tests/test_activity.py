@@ -7,11 +7,9 @@ from types import SimpleNamespace
 import unittest
 from unittest.mock import patch
 
-from support import TEMP_ROOT
+from support import TEMP_ROOT, GatewayFixture, FakeChamber
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'src'))
 from goodmorning.web.activity import snapshot, panel
-from test_briefing_server import FakeChamber
-import test_briefing_gateway as gateway_tests
 
 
 class SnapshotTests(unittest.TestCase):
@@ -60,7 +58,7 @@ class SnapshotTests(unittest.TestCase):
 
 class GatewayActivityTests(unittest.TestCase):
     def setUp(self):
-        self.fixture = gateway_tests.GatewayTests(); self.fixture.setUp()
+        self.fixture = GatewayFixture(); self.fixture.setUp()
         self.addCleanup(self.fixture.doCleanups)
         self.gateway = self.fixture.gateway
         self.ticket = {'user': self.fixture.id, 'host': 'gm.example.test', 'chat': 'a'*32, 'request': 'b'*32}

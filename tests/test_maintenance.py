@@ -104,7 +104,7 @@ class MaintenanceHttpTests(unittest.TestCase):
     """Full-takeover HTTP behavior: pages 503 HTML, APIs 503 JSON, assets exempt."""
 
     def setUp(self):
-        from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+        from http.server import ThreadingHTTPServer
         import threading
         self.temp = tempfile.TemporaryDirectory(dir=TEMP_ROOT)
         self.addCleanup(self.temp.cleanup)
@@ -116,7 +116,7 @@ class MaintenanceHttpTests(unittest.TestCase):
         threading.Thread(target=self.server.serve_forever, daemon=True).start()
         self.addCleanup(self.server.server_close)
         self.addCleanup(self.server.shutdown)
-        from urllib.request import Request, build_opener, HTTPRedirectHandler
+        from urllib.request import build_opener, HTTPRedirectHandler
 
         class NoRedirect(HTTPRedirectHandler):
             def redirect_request(self, *args):

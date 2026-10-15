@@ -9,7 +9,7 @@ from threading import Thread
 import unittest
 from unittest.mock import patch
 
-from support import TEMP_ROOT
+from support import TEMP_ROOT, FakeChamber
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'src'))
 from goodmorning.briefings.briefing_job import act, context_path, decode_input, next_step
 from goodmorning.briefings.briefing_preflight import answer, initialize
@@ -18,7 +18,6 @@ from goodmorning.briefings.briefing_stream import load
 from goodmorning.records.daily import inspect
 from goodmorning.records.daily import amend as daily_amend
 from goodmorning.records import state
-from test_briefing_server import FakeChamber
 
 
 class JobTests(unittest.TestCase):

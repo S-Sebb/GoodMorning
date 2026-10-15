@@ -12,13 +12,12 @@ from urllib.error import HTTPError
 from urllib.parse import urlencode
 from urllib.request import Request
 
-from support import TEMP_ROOT
+from support import TEMP_ROOT, GatewayFixture
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'src'))
 from goodmorning.web import color_schemes as colors, language as ui
 from goodmorning.web.briefing_server import BrowserApp
 from goodmorning.web.briefing_resources import Resources
 from goodmorning.briefings.briefing_document import encode
-import test_briefing_gateway as gateway_tests
 
 
 @contextmanager
@@ -32,7 +31,7 @@ def selected(value):
 
 class ColorSchemeTests(unittest.TestCase):
     def gateway(self):
-        fixture = gateway_tests.GatewayTests(); fixture.setUp()
+        fixture = GatewayFixture(); fixture.setUp()
         self.addCleanup(fixture.doCleanups)
         fixture.gateway.hosts['sec.example.test'] = 'sec'
         return fixture

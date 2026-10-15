@@ -17,7 +17,7 @@ def fixture(root, port=0):
     from goodmorning.briefings.briefing_preflight import initialize, answer
     from goodmorning.web.briefing_server import BrowserApp, serve_live
     from support import returning_viewer
-    from test_briefing_server import FakeChamber
+    from support import FakeChamber
 
     class IdleChamber(FakeChamber):
         def __init__(self):

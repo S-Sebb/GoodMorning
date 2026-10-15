@@ -11,7 +11,7 @@ from urllib.error import HTTPError
 from urllib.parse import urlencode
 from urllib.request import Request
 
-from support import TEMP_ROOT
+from support import TEMP_ROOT, GatewayFixture, FakeChamber, MockChamber, ImmediateThread
 from goodmorning.web import language as ui
 from goodmorning.web.briefing_chat import Chats
 from goodmorning.web.briefing_server import BrowserApp
@@ -20,9 +20,6 @@ from goodmorning.records.workflow import prepare
 from goodmorning.runtime_files import profile_fields
 from goodmorning.briefings import briefing_document as native
 from goodmorning.briefings.briefing_job import act
-import test_briefing_gateway as gateway_tests
-from test_briefing_chat import MockChamber, ImmediateThread
-from test_briefing_server import FakeChamber
 
 
 @contextmanager
@@ -34,7 +31,7 @@ def selected(value):
 
 class LanguageTests(unittest.TestCase):
     def gateway(self):
-        fixture=gateway_tests.GatewayTests();fixture.setUp();self.addCleanup(fixture.doCleanups)
+        fixture=GatewayFixture();fixture.setUp();self.addCleanup(fixture.doCleanups)
         fixture.gateway.hosts['sec.example.test']='sec'
         return fixture
 

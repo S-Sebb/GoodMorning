@@ -1,6 +1,5 @@
 """Synthetic accounts only: session, password and admin boundaries."""
 import hashlib
-import sqlite3
 from pathlib import Path
 import sys
 import tempfile

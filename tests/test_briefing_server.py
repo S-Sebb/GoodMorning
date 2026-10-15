@@ -1,59 +1,17 @@
 """Live viewer isolation, date boundaries and agent round-trips, without model calls."""
 from datetime import datetime, timezone
-import hashlib
-import importlib.util
 import json
 from pathlib import Path
-import subprocess
 import sys
 import tempfile
-import threading
 import unittest
 from urllib.error import HTTPError
-from urllib.request import Request, urlopen
 
-from support import TEMP_ROOT
+from support import TEMP_ROOT, FakeChamber, HTTPFixture
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'src'))
 from goodmorning.briefings.briefing_day import briefing_day
 from goodmorning.web.briefing_server import BrowserApp, Chamber, serve_live
-from test_briefing_web import GM, GN
-
-
-class FakeChamber:
-    directory = str(Path(__file__).resolve().parents[1])
-
-    def __init__(self):
-        self.calls = []
-        self.sent = threading.Event()
-        self.busy = True
-        self.forms = [{'id': 'frm_test', 'sessionID': 'ses_fixture', 'title': 'How did today go?',
-                       'fields': [{'key': 'progress', 'title': 'Reported progress', 'type': 'multiselect',
-                                   'required': True, 'minItems': 1, 'maxItems': 1, 'custom': True,
-                                   'options': [{'value': 'unreported', 'label': 'No completion report'}]}]}]
-        self.permissions = [{'id': 'per_fixture', 'sessionID': 'ses_fixture', 'action': 'Read approved schedule', 'resources': ['calendar.sqlite']}]
-
-    def control(self, action, **input):
-        self.calls.append((action, input))
-        if action == 'session.create':
-            return {'sessionId': 'ses_fixture'}
-        if action == 'session.send':
-            self.sent.set()
-            return {'promptDispatched': True}
-        if action == 'session.status':
-            return {'sessionStatus': {'type': 'busy' if self.busy else 'idle'}}
-        raise AssertionError(action)
-
-    def pending(self, session):
-        assert session == 'ses_fixture'
-        return self.forms, self.permissions
-
-    def request(self, path, body):
-        self.calls.append((path, body))
-        if '/form/' in path:
-            self.forms = []
-        if '/permission/' in path:
-            self.permissions = []
-        return {}
+from test_briefing_web import GM
 
 
 class DayTests(unittest.TestCase):
@@ -281,29 +239,7 @@ class LiveTests(unittest.TestCase):
         self.assertIn('href="https://example.org/'+identifier+'"',page)
 
 
-class HTTPTests(unittest.TestCase):
-    def setUp(self):
-        self.temp=tempfile.TemporaryDirectory(dir=TEMP_ROOT);self.addCleanup(self.temp.cleanup)
-        self.root=Path(self.temp.name);(self.root/'profile.md').write_text('secretary_language: English\ntimezone: Europe/London\ncity: London, GB\nnews_country: GB\n')
-        (self.root/'daily').mkdir()
-        self.process=subprocess.Popen([sys.executable,__file__,'--serve-fixture',str(self.root)],stdout=subprocess.PIPE,stderr=subprocess.PIPE,text=True)
-        self.address=self.process.stdout.readline().strip().removeprefix('Private live viewer: ')
-        self.addCleanup(self.stop)
-        with urlopen(self.address+'/gm.html') as response:
-            page=response.read().decode()
-        import html,re
-        config=json.loads(html.unescape(re.search(r'data-config="([^"]+)"',page)[1]))
-        self.csrf=config['csrf'];self.date=config['date']
-
-    def stop(self):
-        self.process.terminate();self.process.communicate(timeout=5)
-
-    def request(self,path,body=None,headers=None):
-        defaults={'Content-Type':'application/json','Origin':self.address,'X-Briefing-CSRF':self.csrf}
-        defaults.update(headers or {})
-        with urlopen(Request(self.address+path,data=json.dumps(body).encode() if body is not None else None,headers=defaults)) as response:
-            return json.load(response)
-
+class HTTPTests(HTTPFixture):
     def test_csrf_host_origin_and_arbitrary_proxy_requests_denied(self):
         for headers in ({'Origin':'https://evil.example'},{'Host':'evil.example'},{'X-Briefing-CSRF':'wrong'}):
             with self.assertRaises(HTTPError) as error:self.request('/api/generate',{'date':self.date,'kind':'gm'},headers)

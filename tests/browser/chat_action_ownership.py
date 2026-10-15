@@ -17,7 +17,7 @@ def fixture(directory):
     from goodmorning.records.inbox_store import InboxStore, initialize, stamp
     from goodmorning.web.briefing_chat import MODES
     from goodmorning.web.briefing_server import BrowserApp, serve_live
-    from test_briefing_chat import MockChamber, ImmediateThread
+    from support import MockChamber, ImmediateThread
     from support import returning_viewer
 
     root = Path(directory)

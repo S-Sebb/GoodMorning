@@ -10,15 +10,12 @@ from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 from urllib.error import HTTPError
 
-from support import TEMP_ROOT
+from support import TEMP_ROOT, GatewayFixture, FakeChamber, MockChamber, ImmediateThread
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'src'))
 from goodmorning.web import models as site_models
 from goodmorning.web import language as ui
 from goodmorning.web.briefing_chat import Chats
 from goodmorning.web.briefing_server import BrowserApp
-from test_briefing_chat import MockChamber, ImmediateThread
-from test_briefing_server import FakeChamber
-import test_briefing_gateway as gateway_tests
 
 
 @contextmanager
@@ -65,7 +62,7 @@ class ModelCatalogTests(unittest.TestCase):
 
 class ModelSettingTests(unittest.TestCase):
     def gateway(self):
-        fixture = gateway_tests.GatewayTests()
+        fixture = GatewayFixture()
         fixture.setUp()
         self.addCleanup(fixture.doCleanups)
         fixture.gateway.hosts['sec.example.test'] = 'sec'
@@ -215,7 +212,7 @@ class DispatchModelTests(unittest.TestCase):
         self.assertEqual(chamber.calls[1][1],{'model':site_models.session_payload(site_models.DEFAULT)})
 
     def test_local_http_routing_ignores_model_file_and_header(self):
-        from test_weekly_schedule import start_server
+        from support import start_server
         root=self.root()
         legacy=root/'website-model.json'
         legacy.write_text('{"model":"muse-spark"}\n')

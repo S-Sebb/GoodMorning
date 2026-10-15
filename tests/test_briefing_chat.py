@@ -1,124 +1,15 @@
 """Synthetic, account-local website conversations. No real model or integrations."""
-import hashlib
 import json
 from pathlib import Path
 import sys
 import tempfile
-import threading
 import unittest
 from unittest.mock import patch
 
-from support import TEMP_ROOT
+from support import TEMP_ROOT, ImmediateThread, MockChamber
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'src'))
 from goodmorning.web.briefing_chat import Chats, MODES
 from goodmorning.web.briefing_server import BrowserApp, Chamber, serve_live
-from urllib.parse import urlsplit, parse_qs
-
-
-class MockChamber(Chamber):
-    def __init__(self, runtime):
-        self.runtime = runtime
-        self.directory = str(runtime)
-        self.sessions = {}
-        self.calls = []
-        self.replies = []
-        self.fail = False
-
-    def control(self, action, **body):
-        self.calls.append((action, body))
-        if action == 'session.create':
-            session = 'ses_chat_' + str(len(self.sessions))
-            self.sessions[session] = {'messages': [], 'forms': [], 'permissions': [], 'title': body.get('title', ''),
-                                      'directory': self.directory}
-            return {'sessionId': session}
-        session = self.sessions[body['sessionId']]
-        if action == 'session.send':
-            if self.fail:
-                raise OSError('Synthetic dispatch interruption')
-            self.add(session, 'user', body['prompt'])
-            if body['prompt'].startswith('/initialize'):
-                self.add(session, 'assistant', 'Confirm your location; replies follow the website language.')
-                session['forms'] = [{'id': 'form_city', 'title': 'Confirm your location', 'fields': [
-                    {'key': 'city', 'title': 'City', 'type': 'string', 'required': True,
-                     'options': [{'value': 'London', 'label': 'London'}], 'custom': True}]}]
-            else:
-                self.add(session, 'assistant', 'Synthetic reply. Your text stays text: <img src=x onerror=alert(1)>')
-            return {'promptDispatched': True}
-        if action in ('session.messages', 'session.status'):
-            return super().control(action, **body)
-        raise ValueError('Unexpected control action')
-
-    def add(self, session, role, text):
-        session['messages'].append({'id': 'message_' + str(len(session['messages'])), 'role': role, 'text': text})
-
-    def pending(self, session):
-        entry = self.sessions[session]
-        return entry['forms'], entry['permissions']
-
-    def request(self, path, body=None):
-        if path.endswith('/move'):
-            self.replies.append((path, body))
-            self.sessions[path.split('/')[3]]['directory'] = body['directory']
-            return {}
-        if body is None and path.startswith('/api/session/') and len(path.split('/')) == 4:
-            session = self.sessions[path.split('/')[3]]
-            return {'data': {'location': {'directory': session['directory']}}}
-        if path.endswith('/prompt'):
-            if self.fail:
-                raise OSError('Synthetic dispatch interruption')
-            self.replies.append((path, body))
-            session = self.sessions[path.split('/')[3]]
-            self.add(session, 'user', body['text'])
-            self.add(session, 'assistant', 'Synthetic attachment reply')
-            return {'data': {'id': 'inbox_synthetic'}}
-        if path == '/api/openchamber/control':
-            session = self.sessions[body['input']['sessionId']]
-            return {'sessionStatus': {'type': 'busy' if session['forms'] or session['permissions'] else 'idle'}}
-        if path.endswith('/model'):
-            session = self.sessions[path.split('/')[3]]
-            session['model'] = body['model']
-            return {}
-        if body is None:
-            parsed = urlsplit(path);query = parse_qs(parsed.query)
-            limit = int(query['limit'][0])
-            if limit > 200:raise ValueError('Expected a value less than or equal to 200')
-            if parsed.path == '/api/session':
-                offset = int(query.get('cursor', ['0'])[0])
-                sessions = list(reversed(list(self.sessions.items())))
-                return {'data': [{'id': session, 'title': value.get('title', '')}
-                                 for session, value in sessions[offset:offset+limit]],
-                        'cursor': {'next': str(offset+limit) if len(sessions)>offset+limit else None}}
-            session = self.sessions[parsed.path.split('/')[3]]
-            offset = int(query.get('cursor', ['0'])[0])
-            rows = list(reversed(session['messages']))
-            if query.get('type'):
-                rows = [row for row in rows if row['role'] == query['type'][0]]
-            rows = rows[offset:offset+limit]
-            return {'data': [{'id': row['id'], 'type': row['role'], **({'text': row['text']} if row['role']=='user'
-                    else {'content':[{'type':'text','text':row['text']}]})} for row in rows],
-                    'cursor': {'next': str(offset+limit) if len(session['messages'])>offset+limit else None}}
-        self.replies.append((path, body))
-        session_id = path.split('/')[3]
-        session = self.sessions[session_id]
-        if '/form/' in path:
-            session['forms'] = []
-            session['permissions'] = [{'id': 'permission_setup', 'action': 'Save confirmed synthetic profile', 'resources': ['Synthetic profile only']}]
-        else:
-            session['permissions'] = []
-            if body['decision'] == 'once':
-                (self.runtime / 'profile.md').write_text('city: London\ntimezone: Europe/London\nnews_country: GB\n')
-                self.add(session, 'assistant', 'Synthetic setup saved. Provider verification was not performed.')
-            else:
-                self.add(session, 'assistant', 'Nothing saved.')
-        return {}
-
-
-class ImmediateThread:
-    def __init__(self, target, args, **_):
-        self.target, self.args = target, args
-
-    def start(self):
-        self.target(*self.args)
 
 
 class ChatTests(unittest.TestCase):

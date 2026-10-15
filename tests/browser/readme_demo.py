@@ -17,8 +17,8 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / 'tests'))
 sys.path.insert(0, str(ROOT / 'src'))
 from support import TEMP_ROOT, returning_viewer
-from test_briefing_chat import MockChamber
-from test_weekly_schedule import start_server
+from support import MockChamber
+from support import start_server
 from goodmorning.briefings.briefing_document import encode, source_path
 from goodmorning.calendar.calendar_store import CalendarStore
 from goodmorning.records.inbox_store import InboxStore, initialize

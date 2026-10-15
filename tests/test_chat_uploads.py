@@ -13,14 +13,12 @@ from urllib.error import HTTPError
 from urllib.parse import quote
 from urllib.request import Request
 
-from support import TEMP_ROOT
+from support import TEMP_ROOT, GatewayFixture, MockChamber, ImmediateThread
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'src'))
 from goodmorning.web.chat_uploads import Uploads, MAX_UPLOAD_BYTES, UploadReader, upload_name
 from goodmorning.web.briefing_chat import Chats, MODES
 from goodmorning.web.briefing_server import BrowserApp, serve_live
 from goodmorning.web.bridge_json import read_json
-from test_briefing_chat import MockChamber, ImmediateThread
-import test_briefing_gateway as gateway_tests
 
 
 class RepeatedBytes:
@@ -225,7 +223,7 @@ class UploadTests(unittest.TestCase):
 
 class UploadHTTPTests(unittest.TestCase):
     def setUp(self):
-        self.fixture = gateway_tests.GatewayTests(); self.fixture.setUp()
+        self.fixture = GatewayFixture(); self.fixture.setUp()
         self.addCleanup(self.fixture.doCleanups)
         self.runtime = self.fixture.root / 'secretary'; self.runtime.mkdir()
         self.chamber = MockChamber(self.runtime)

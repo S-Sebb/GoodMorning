@@ -9,13 +9,12 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
-from support import TEMP_ROOT
+from support import TEMP_ROOT, FakeChamber
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'src'))
 from goodmorning.briefings import briefing_document as native
 from goodmorning.briefings.briefing_stream import publish, load, require_final
 from goodmorning.web.briefing_server import BrowserApp
 from goodmorning.runtime_files import runtime_lock
-from test_briefing_server import FakeChamber
 
 
 class StreamTests(unittest.TestCase):

@@ -10,7 +10,7 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
-from support import TEMP_ROOT
+from support import TEMP_ROOT, MockChamber, ImmediateThread
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'src'))
 from goodmorning.records.inbox_store import InboxStore, initialize
 from goodmorning.records.task_store import TaskStore
@@ -18,7 +18,6 @@ from goodmorning.records import workflow
 from goodmorning.calendar.calendar_store import CalendarStore
 from goodmorning.web.chat_actions import read_changes, action_history, LIMIT
 from goodmorning.web.briefing_chat import Chats, MODES
-from test_briefing_chat import MockChamber, ImmediateThread
 
 NOW = '2026-10-13T12:00:00+01:00'
 SESSION = 'ses_chat_0'
