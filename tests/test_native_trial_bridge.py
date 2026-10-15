@@ -3,6 +3,7 @@ import json
 from pathlib import Path
 import sys
 import tempfile
+from support import TEMP_ROOT
 import unittest
 from unittest.mock import patch
 from urllib.parse import parse_qs, urlsplit
@@ -67,7 +68,7 @@ class TrialBridgeTests(unittest.TestCase):
         self.assertEqual(api.call_count,1)
 
     def test_trial_cache_and_temporary_files_stay_in_the_synthetic_account(self):
-        with tempfile.TemporaryDirectory(dir='/tmp/opencode') as directory:
+        with tempfile.TemporaryDirectory(dir=TEMP_ROOT) as directory:
             bridge=NativeBridge('/synthetic/source',directory)
             with patch.object(bridge,'api',side_effect=[{'data':{'id':'ses_trial'}},{}]) as api:
                 bridge.control('session.create')

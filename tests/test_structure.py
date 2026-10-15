@@ -15,6 +15,7 @@ from goodmorning.web.briefing_server import BrowserApp
 from goodmorning.briefings import briefing_document as native
 from goodmorning.web.briefing_resources import ICON_TYPES
 import tempfile
+from support import TEMP_ROOT
 
 
 class StructureTests(unittest.TestCase):
@@ -25,7 +26,7 @@ class StructureTests(unittest.TestCase):
         self.assertTrue((WEB_ASSETS / 'edition.html').is_file())
 
     def test_page_icons_work_for_setup_waiting_saved_archive_and_chat(self):
-        with tempfile.TemporaryDirectory(dir='/tmp/opencode') as directory:
+        with tempfile.TemporaryDirectory(dir=TEMP_ROOT) as directory:
             root=Path(directory)
             (root/'profile.md').write_text('timezone: UTC\n')
             app=BrowserApp(root)

@@ -11,6 +11,9 @@ sys.path.insert(0,str(Path(__file__).resolve().parent))
 from benchmarks import task_tone_live as trial
 from benchmarks.task_tone_live import matrix_lock
 
+# The trial CLI only accepts private output below this root.
+Path('/tmp/opencode').mkdir(exist_ok=True)
+
 
 class MatrixLockTests(unittest.TestCase):
     def test_overlapping_runner_is_refused_and_lock_releases(self):

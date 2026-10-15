@@ -6,8 +6,7 @@ into `~/.agents/skills/goodmorning/`. No installer or package builder is needed.
 
 ## Requirements
 
-- Linux; Python 3.9+ with IANA timezone data. Prefer a currently maintained Python
-  release such as 3.12 or newer. CI checks the supported interpreter matrix.
+- Linux; Python 3.14+ with IANA timezone data. CI tests Python 3.14.
 - Node.js 22.18+ for local/paired-remote project access. No npm install is needed.
 - An OpenCode/OpenChamber client that discovers `~/.agents/skills` and supports
   the question tool; ordinary conversation is the documented fallback.

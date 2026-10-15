@@ -164,8 +164,8 @@ GoodMorning 围绕 **OpenCode 和 OpenChamber** 构建，将个人 AI 工作流�
 
 ## 开始使用
 
-GoodMorning 目前处于 **Beta 测试阶段**，面向 **Linux**，需要 **Python 3.9+** 和
-**OpenCode/OpenChamber 智能体**；建议使用仍在维护的 Python 版本，例如 3.12 或更新版本。
+GoodMorning 目前处于 **Beta 测试阶段**，面向 **Linux**，需要 **Python 3.14+** 和
+**OpenCode/OpenChamber 智能体**。
 可选的本地或已配对远程项目访问需要 **Node.js 22.18+**。
 它不是独立的聊天机器人，也不是无人值守的每日自动服务。
 

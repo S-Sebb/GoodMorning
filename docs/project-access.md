@@ -2,7 +2,7 @@
 
 Run `node scripts/projects.mjs` from the repository root. Commands return one
 compact JSON object; exit code 1 means failure or a partially failed batch.
-Requires Linux, Node.js 22.18+, and Python 3.9+. Remote hosts need Python but
+Requires Linux, Node.js 22.18+, and Python 3.14+. Remote hosts need Python but
 no GoodMorning installation. No npm install or separate daemon is required.
 
 ## One-time setup
