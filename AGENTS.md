@@ -5,8 +5,8 @@
 Website wording must be clear and informative first, then comfortable and cute.
 Keep actions, status, uncertainty and consequences easy to understand; charm must
 not hide important information or override a user's saved tone.
-Use DeepSeek V4.1 Flash with the High variant for translation tasks
-(`opencode-go/deepseek-v4.1-flash`, variant `high`). Adapt wording freely rather
+Use DeepSeek V4.1 Flash Free with the High variant for translation tasks
+(`opencode/deepseek-v4.1-flash-free`, variant `high`). Adapt wording freely rather
 than translating literally: preserve the intended meaning and important facts,
 while making the result natural and consistent with these website wording goals.
 

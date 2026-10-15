@@ -70,7 +70,8 @@ no `generation` reservation, no `generation_queue` entries, no
 `generation_waiting` entries, no active sessions, no pending questions or
 permissions. Uncertain reservations still need explicit owner authorization
 before clearing; never silently drop them. Keep the pause enabled through the
-entire deploy and post-verify; resume only after Section 4 passes:
+entire deploy and paused verification; resume only after Section 4's paused gates
+pass, then perform its public login checks immediately:
 
 ```sh
 sudo /opt/goodmorning/python/bin/python -B /opt/goodmorning/current/scripts/goodmorning.py admin \
@@ -210,17 +211,14 @@ A manual rollback is the same sequence; never hand-edit the symlink.
    Stop the gateway socket briefly only if the owner explicitly authorizes an
    NGINX-fallback drill; NGINX must then serve the same static
    `/maintenance.html` with `no-store` + `Retry-After: 60`.
-2. `tests/browser/login.py --artifacts <PRIVATE_DIR>`: `gm.love765.me`, both
-   languages, 390/768/1440 px, secure host-only cookies, 401 on private APIs,
-   native no-JavaScript redirects. No logins, no passwords.
-   Confirm Morning, Evening and Secretary share the same host and login, and
-   that retired hosts no longer serve the app. “Open activity” must navigate the
-   current tab to the exact chat or edition without opening another browser tab.
-3. Per account via the engine bridge (read-only): profile readiness, engine
+2. Per account via the engine bridge (read-only): profile readiness, engine
    session titles, no `generation` reservation, all services active.
-4. Confirm the previous release directory is intact under
+3. Confirm the previous release directory is intact under
    `/opt/goodmorning/releases`.
-5. Only after steps 1–4 pass, resume the website with the SSH-only admin CLI
+4. Confirm `/api/release` reports the committed candidate version and the required
+   root guides are present in that release. Login pages intentionally return 503
+   while paused; do not bypass maintenance or weaken authentication to test them.
+5. Only after paused steps 1–4 pass, resume the website with the SSH-only admin CLI
    and confirm it is live again:
 
    ```sh
@@ -230,16 +228,27 @@ A manual rollback is the same sequence; never hand-edit the symlink.
      --account-mount /srv/goodmorning/live/accounts pause-status
    ```
 
-   `pause-status` must report live. If any verification fails, keep the pause
-   enabled and roll back; never resume into a broken release.
+   `pause-status` must report live.
+6. Immediately run `tests/browser/login.py --artifacts <PRIVATE_DIR>`:
+   `gm.love765.me`, both
+   languages, 390/768/1440 px, secure host-only cookies, 401 on private APIs,
+   native no-JavaScript redirects. No logins, no passwords.
+   Confirm Morning, Evening and Secretary share the same host and login, and
+   that retired hosts no longer serve the app. “Open activity” must navigate the
+   current tab to the exact chat or edition without opening another browser tab.
+   If public verification fails, immediately pause again and inspect the failure.
+   Roll back only after rechecking the same idle/reservation/queue guards; do not
+   interrupt work that arrived after resume. A failed gate is not a successful
+   deployment, and a broken release must not remain open to new work.
 
 ## Hard rules
 
 - Never overwrite a release directory; never delete a previous release.
 - Never restart vault services for a code deploy.
 - Never deploy without the pause flag enabled. Pause before staging, keep it
-  enabled through the switch and post-verify, and resume only after Section 4
-  passes. The helper must refuse to run without the flag and must never clear
+   enabled through the switch and paused verification, and resume only after
+   Section 4's paused gates pass. Complete its public login checks immediately
+   after resume. The helper must refuse to run without the flag and must never clear
   it, on success or rollback.
 - Deploy only with zero active sessions, zero pending questions/permissions,
   no `generation` reservation, and no queued requests. A stuck reservation from another account's

@@ -12,6 +12,9 @@ evening edition and browser link, not inferred completion or a rescheduled plan.
 Read `docs/core-rules.md`, `docs/item-taxonomy.md`, `docs/briefing-format.md` and
 `docs/reply-voice.md`. Browser jobs also read `docs/browser-generation.md`.
 Use selected absolute paths, actual session, pinned date and confirmed language.
+Every visible sentence, from the first progress update through questions and the
+final link, uses `Website language` and the saved tone. For `zh-CN`, describe
+feedback and blockers in Chinese too; English planning notes are not user replies.
 
 1. Browser jobs start with `job prepare`, then follow its receipt: immediately init
    a fresh preview with the default plan, or resume an existing checkpoint.

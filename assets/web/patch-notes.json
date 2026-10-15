@@ -1,6 +1,39 @@
 {
   "notes": [
     {
+      "version": "0.45.1", "date": "2026-10-15", "author": "GoodMorning agent",
+      "title_en": "Secretary queue incident repair", "title_zh": "秘书队列故障修复",
+      "changes": [
+        {"category": "Notes", "en": [
+          "We are sorry that secretary requests could remain queued without making progress. This release includes the queue recovery fixes and safer account-data maintenance safeguards.",
+          "Retain the latest one-day timed schedules, evening task wording review, optional future-task checks, secretary calls, and existing release history alongside the queue fixes.",
+          "Verify custom-schedule database and lock ownership as the owning service user before resuming preparation, preserving saved schedules and history."
+        ], "zh": [
+          "很抱歉，秘书请求曾可能一直排队、无法推进。本次发布包含队列恢复修复，以及更安全的账户数据维护保护措施。",
+          "在修复队列的同时，保留最新的一日定时安排、晚间任务措辞审阅、可选的未来任务检查、秘书来电，以及现有发布历史。",
+          "恢复准备之前，请以所属服务用户身份核对自定义安排数据库和锁的归属，并保留已保存的安排与历史记录。"
+        ]}
+      ]
+    },
+    {
+      "version": "0.45.0", "date": "2026-10-15", "author": "GoodMorning agent",
+      "title_en": "Chinese requests switch to DeepSeek Free High 🎉", "title_zh": "中文请求切换到 DeepSeek 免费 High 🎉",
+      "changes": [
+        {"category": "Changed", "en": [
+          "🎉 Chinese requests now use DeepSeek V4.1 Flash Free High (opencode/deepseek-v4.1-flash-free, variant high) instead of the paid Flash High; English routing is unchanged. 🎊",
+          "Running requests keep their original model; new Chinese briefings and chat turns pin the free model before any prompt is sent."
+        ], "zh": [
+          "🎉 中文请求改用 DeepSeek V4.1 Flash Free High（opencode/deepseek-v4.1-flash-free，high 变体），不再使用付费版 Flash High；英文路由不变。🎊",
+          "进行中的请求保留原模型；新的中文简报与对话轮次会在发送前固定使用免费模型。"
+        ]},
+        {"category": "Tests", "en": [
+          "Verified with the website model suite plus an isolated synthetic Chinese secretary trial on the free model: clarification, task save, and confirmation all behave with a warm tone."
+        ], "zh": [
+          "已用网站模型测试套件与免费模型上的独立合成中文秘书试验验证：澄清提问、任务保存与确认回复均正常，语气保持亲切。"
+        ]}
+      ]
+    },
+    {
       "version": "0.44.2", "date": "2026-10-15", "author": "GoodMorning agent",
       "title_en": "Night check split for due-today and future tasks", "title_zh": "晚间勾选拆分当天与未来任务",
       "changes": [

@@ -39,7 +39,7 @@ in visible text, without changing saved data or citation destinations.
 
 Today's missing edition offers a preparation button. It creates a dedicated
 OpenChamber session using automatic website-language routing: English uses
-Muse Spark 1.3 Contributor XHigh; Chinese uses DeepSeek V4.1 Flash High.
+Muse Spark 1.3 Contributor XHigh; Chinese uses DeepSeek V4.1 Flash Free High.
 There is no manual model selector. The model is pinned per briefing job and per
 chat turn before any prompt is sent. Duplicate clicks reuse
 the durable date/edition job. Uncertain dispatches are never replayed blindly.

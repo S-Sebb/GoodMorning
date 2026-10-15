@@ -183,7 +183,7 @@ The [item and timing guide](docs/item-taxonomy.md) explains these boundaries in 
   steer the secretary while it works. Pending questions and permissions remain
   available until you answer them.
 - **Language-matched models.** English requests automatically use Muse Spark 1.3
-  Contributor XHigh; Chinese requests use DeepSeek V4.1 Flash High. No model selector
+  Contributor XHigh; Chinese requests use DeepSeek V4.1 Flash Free High. No model selector
   is needed, and running requests keep their original model. In-app release notes explain
   updates, and an open page never reloads itself over an unsent draft.
 - **Your own space.** Personal records stay outside the public source. The hosted
