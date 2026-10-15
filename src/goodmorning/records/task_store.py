@@ -27,9 +27,46 @@ CREATE TABLE event_drafts (
 """
 STATES = ('open', 'partial', 'blocked', 'done', 'cancelled')
 FIELDS = {'title', 'detail', 'project', 'optional', 'priority', 'status', 'due_date',
-          'due_at', 'planned_date', 'timezone', 'repeat', 'defer_until', 'calendar_event_id', 'when', 'follow_up', 'work_kind', 'due_soft'}
+          'due_at', 'planned_date', 'timezone', 'repeat', 'defer_until', 'calendar_event_id', 'when', 'follow_up', 'work_kind', 'due_soft',
+          'kind', 'trigger', 'after'}
 DRAFT_FIELDS = {'title', 'date', 'timezone', 'location', 'detail', 'confirmed_day',
-                'state', 'calendar_event_id', 'event'}
+                'state', 'calendar_event_id', 'event', 'repeat'}
+# Nudges and reference notes are never completed: they surface or are retired.
+UNCHECKED = ('nudge', 'reference')
+TIMING = ('planned_date', 'due_date', 'due_at', 'repeat', 'defer_until', 'when', 'follow_up', 'calendar_event_id', 'after')
+SERIES_LIMIT = 200
+
+
+def category(task):
+    """Code-owned category from explicit kind and timing fields; storage never trusts a label."""
+    if task.get('kind') in UNCHECKED:
+        return task['kind']
+    if task.get('repeat'):
+        return 'routine'
+    if task.get('planned_date'):
+        return 'day'
+    if task.get('due_date') and not task.get('due_soft'):
+        return 'deadline'
+    return 'project' if task.get('project') else 'anytime'
+
+
+def chasing(task, day):
+    """A one-off follow-up is due every day from its start until it is closed."""
+    if task.get('follow_up') != 'until-done' or task['status'] in ('done', 'cancelled'):
+        return False
+    return day >= (task.get('planned_date') or task.get('defer_until') or task['created_at'][:10])
+
+
+def series_days(rule, first, last):
+    """Weekday series of a recurring TBC appointment, bounded and exclusion-aware."""
+    start = max(dt.date.fromisoformat(rule['start']), dt.date.fromisoformat(first))
+    stop = dt.date.fromisoformat(min(last, rule['until'])) if rule.get('until') else dt.date.fromisoformat(last)
+    days = []
+    while start <= stop and len(days) < SERIES_LIMIT:
+        if start.weekday() in rule['weekdays'] and start.isoformat() not in rule.get('exclude', []):
+            days.append(start.isoformat())
+        start += dt.timedelta(days=1)
+    return days
 
 
 def encode(value):
@@ -77,7 +114,34 @@ def validate(data, *, draft=False):
             out['event'] = normalize(out['event'])
         if out.get('state') == 'ready-for-confirmation' and not out.get('event'):
             raise ValueError('invalid_input: ready draft needs explicit event endpoints')
+        if out.get('repeat'):
+            rule = out['repeat']
+            if (not isinstance(rule, dict) or set(rule) - {'weekdays', 'start', 'until', 'exclude'} or 'weekdays' not in rule
+                    or not out.get('confirmed_day') or rule.get('start') != out.get('date')):
+                raise ValueError('invalid_input: an appointment series needs a confirmed first date, start equal to date, and weekdays')
+            validate({'repeat': rule, 'timezone': out['timezone']})
+        elif 'repeat' in out and out['repeat'] is not None:
+            raise ValueError('invalid_input: unset recurrence uses null')
         return out
+    kind = out.get('kind', '')
+    if kind not in ('', 'nudge', 'reference'):
+        raise ValueError('invalid_input: kind must be empty (action), nudge or reference')
+    if kind and out.get('status', 'open') not in ('open', 'cancelled'):
+        raise ValueError('invalid_input: nudges and reference notes are open or cancelled, never completed')
+    if kind == 'reference':
+        if not out.get('trigger') or any(out.get(key) for key in TIMING):
+            raise ValueError('invalid_input: a reference note needs a trigger and no dates, repeats or conditions')
+    if 'trigger' in out:
+        checked(out['trigger'], 300, kind != 'reference')
+        if out['trigger'] and kind != 'reference':
+            raise ValueError('invalid_input: only reference notes have a trigger')
+    if kind == 'nudge' and any(out.get(key) for key in ('due_date', 'due_at', 'due_soft', 'follow_up', 'after')):
+        raise ValueError('invalid_input: a nudge has no deadline, follow-up or dependency')
+    if out.get('after'):
+        import re
+        if (not isinstance(out['after'], str) or not re.fullmatch(r'task_[0-9a-f]{16}', out['after'])
+                or out.get('planned_date') or out.get('repeat')):
+            raise ValueError('invalid_input: after links an undated step to the task ID it waits for')
     if out.get('status', 'open') not in STATES or out.get('priority', '') not in ('', 'high', 'normal', 'low'):
         raise ValueError('invalid_input: unknown action status or explicit priority')
     if out.get('due_at'):
@@ -93,9 +157,15 @@ def validate(data, *, draft=False):
         raise ValueError('invalid_input: unset deadline timestamp uses an empty string')
     if out.get('repeat'):
         rule = out['repeat']
-        modes = {'weekdays', 'interval_days', 'dates'}
-        if not isinstance(rule, dict) or set(rule) - (modes | {'start', 'until', 'exclude', 'include'}) or 'start' not in rule or len(set(rule) & modes) != 1:
-            raise ValueError('invalid_input: recurrence needs start and exactly one of weekdays, interval_days or dates')
+        modes = {'weekdays', 'interval_days', 'dates', 'event_subject'}
+        if not isinstance(rule, dict) or set(rule) - (modes | {'start', 'until', 'exclude', 'include', 'offset_days'}) or 'start' not in rule or len(set(rule) & modes) != 1:
+            raise ValueError('invalid_input: recurrence needs start and exactly one of weekdays, interval_days, dates or event_subject')
+        if 'event_subject' in rule:
+            checked(rule['event_subject'], 200, False)
+            if type(rule.get('offset_days', 0)) is not int or not -14 <= rule.get('offset_days', 0) <= 0:
+                raise ValueError('invalid_input: offset_days is an integer from -14 to 0 (days before the appointment)')
+        elif 'offset_days' in rule:
+            raise ValueError('invalid_input: offset_days applies only to event_subject preparation')
         if 'weekdays' in rule:
             weekdays = rule['weekdays']
             if not isinstance(weekdays, list) or not 1 <= len(weekdays) <= 7 or any(type(d) is not int or not 0 <= d <= 6 for d in weekdays) or len(set(weekdays)) != len(weekdays):
@@ -119,8 +189,12 @@ def validate(data, *, draft=False):
     if out.get('when'):
         rule = out['when']
         import re
-        if not isinstance(rule, dict) or set(rule) - {'morning_before', 'unless_experiment_plan', 'unless_timed_plan', 'planned_task_id'} or not out.get('timezone'):
+        if not isinstance(rule, dict) or set(rule) - {'morning_before', 'unless_experiment_plan', 'unless_timed_plan', 'planned_task_id', 'custom_rule_id'} or not out.get('timezone'):
             raise ValueError('invalid_input: unsupported reminder condition or missing timezone')
+        if 'custom_rule_id' in rule:
+            if (not isinstance(rule['custom_rule_id'], str) or not re.fullmatch(r'cu_[0-9a-f]{16}', rule['custom_rule_id'])
+                    or 'planned_task_id' in rule or out.get('repeat') or out.get('planned_date')):
+                raise ValueError('invalid_input: a habit-linked reminder needs one custom rule ID and no separate schedule')
         if 'morning_before' in rule and (not isinstance(rule['morning_before'], str) or not re.fullmatch(r'(?:[01]\d|2[0-3]):[0-5]\d', rule['morning_before'])):
             raise ValueError('invalid_input: morning_before must be HH:MM')
         for field in ('unless_experiment_plan', 'unless_timed_plan'):
@@ -133,8 +207,12 @@ def validate(data, *, draft=False):
         raise ValueError('invalid_input: unset condition uses null')
     if out.get('work_kind', '') not in ('', 'experiment'):
         raise ValueError('invalid_input: work_kind must be empty or experiment')
-    if out.get('follow_up', '') not in ('', 'one-outstanding') or (out.get('follow_up') and not (out.get('repeat') or {}).get('interval_days')):
+    if out.get('follow_up', '') not in ('', 'one-outstanding', 'until-done'):
+        raise ValueError('invalid_input: follow_up must be empty, one-outstanding or until-done')
+    if out.get('follow_up') == 'one-outstanding' and not (out.get('repeat') or {}).get('interval_days'):
         raise ValueError('invalid_input: one-outstanding follow-up requires an interval_days rule')
+    if out.get('follow_up') == 'until-done' and out.get('repeat'):
+        raise ValueError('invalid_input: until-done follows up a one-off action; a repeat has its own occurrences')
     if out.get('calendar_event_id'):
         import re
         if not re.fullmatch('[0-9a-f]{16}', out['calendar_event_id']):
@@ -175,8 +253,11 @@ def occurrence_id(identifier, day):
     return 'oc_' + hashlib.sha256((identifier + '\0' + day).encode()).hexdigest()[:16]
 
 
-def planned_on(task, day):
-    """A planned date, never an actual off-cadence report, qualifies a linked reminder."""
+def planned_on(task, day, event_days=()):
+    """A planned date, never an actual off-cadence report, qualifies a linked reminder.
+
+    event_days holds the local dates of approved appointments for an event_subject
+    rule; the caller reads them from the calendar."""
     if task['planned_date'] == day:
         return True
     rule = task['repeat']
@@ -189,7 +270,16 @@ def planned_on(task, day):
         return target.weekday() in rule['weekdays']
     if 'interval_days' in rule:
         return (target - dt.date.fromisoformat(rule['start'])).days % rule['interval_days'] == 0
+    if 'event_subject' in rule:
+        return (target - dt.timedelta(days=rule.get('offset_days', 0))).isoformat() in event_days
     return day in rule['dates']
+
+
+def linked(db, data, identifier):
+    """A dependency names another saved action; a step never waits for itself."""
+    if data.get('after'):
+        if data['after'] == identifier or not db.execute('SELECT 1 FROM tasks WHERE id=?', (data['after'],)).fetchone():
+            raise ValueError('invalid_input: after must name another saved task')
 
 
 def capture(db, entry, payload, now):
@@ -201,8 +291,13 @@ def capture(db, entry, payload, now):
         summary = payload.get('summary') or default_title(payload['raw'])
         data = validate({**defaults(summary, payload.get('project', '')), **fields})
         identifier = 'task_' + uuid.uuid4().hex[:16]
+        linked(db, data, identifier)
         db.execute('INSERT INTO tasks VALUES (?,?,?,?,?,?)', (identifier, entry, 1, now, now, encode(data)))
-        return {'task_id': identifier}
+        if not payload.get('also'):
+            return {'task_id': identifier}
+        siblings = [capture(db, entry, {'kind': 'todo', 'raw': payload['raw'], 'project': payload.get('project', ''),
+                                        'task': fields}, now)['task_id'] for fields in payload['also']]
+        return {'task_id': identifier, 'task_ids': [identifier, *siblings]}
     if payload['kind'] == 'event_proposal':
         if payload.get('draft', {}).get('state') in ('converted', 'withdrawn'):
             raise ValueError('invalid_input: new event proposal cannot be closed')
@@ -219,8 +314,51 @@ def capture(db, entry, payload, now):
 class TaskStore:
     def __init__(self, inbox):
         self.inbox, self.db = inbox, inbox.db
+        self._event_days, self._habits = {}, {}
         if inbox.version != 2:
             raise ValueError('migration_required: use task --migrate --confirm after reviewing its dry run')
+
+    def event_days(self, task):
+        """Local dates of approved appointments named by a preparation rule, read once per rule."""
+        rule = task.get('repeat') or {}
+        if 'event_subject' not in rule:
+            return ()
+        key = (rule['event_subject'].casefold(), rule['start'], rule.get('until', ''), task['timezone'])
+        if key not in self._event_days:
+            days = set()
+            path = Path(self.inbox.directory) / 'calendar.sqlite'
+            if path.is_symlink():
+                raise ValueError('unsafe_path: preparation links must use this runtime calendar')
+            if path.exists():
+                from goodmorning.calendar.calendar_store import CalendarStore, endpoints
+                zone = ZoneInfo(task['timezone'])
+                first = dt.datetime.combine(dt.date.fromisoformat(rule['start']), dt.time(), zone)
+                last = (dt.datetime.combine(dt.date.fromisoformat(rule['until']), dt.time(), zone) + dt.timedelta(days=15)
+                        if rule.get('until') else first + dt.timedelta(days=740))
+                calendar = CalendarStore(str(path), readonly=True)
+                try:
+                    for event in calendar.query(first, last, limit=-1):
+                        if event.get('status') != 'cancelled' and event['subject'].strip().casefold() == key[0].strip():
+                            days.add(endpoints(event)[0].astimezone(zone).date().isoformat())
+                finally:
+                    calendar.close()
+            self._event_days[key] = days
+        return self._event_days[key]
+
+    def habit_due(self, identifier, day):
+        """A habit-linked nudge follows the habit's code-owned due decision for that day."""
+        if (identifier, day) not in self._habits:
+            from .custom_store import CustomStore
+            try:
+                store = CustomStore(self.inbox.directory, write=False)
+            except ValueError:
+                return False  # No habits saved yet.
+            try:
+                rule = next((r for r in store.all() if r['id'] == identifier), None)
+                self._habits[identifier, day] = bool(rule) and store.due(rule, day)['due']
+            finally:
+                store.close()
+        return self._habits[identifier, day]
 
     def show(self, identifier, draft=False):
         row = self.db.execute('SELECT * FROM ' + ('event_drafts' if draft else 'tasks') + ' WHERE id=?', (identifier,)).fetchone()
@@ -228,6 +366,8 @@ class TaskStore:
             raise ValueError('not_found: task/event draft does not exist')
         item = dict(row)
         item.update(json.loads(item.pop('data')))
+        if not draft:
+            item['category'] = category(item)
         return item
 
     def all(self, draft=False):
@@ -235,6 +375,8 @@ class TaskStore:
         for row in self.db.execute('SELECT * FROM ' + table + ' ORDER BY rowid'):
             item = dict(row)
             item.update(json.loads(item.pop('data')))
+            if not draft:
+                item['category'] = category(item)
             yield item
 
     def occurrence(self, task, day):
@@ -243,11 +385,16 @@ class TaskStore:
         row = self.db.execute('SELECT * FROM task_occurrences WHERE id=?', (identifier,)).fetchone()
         if row:
             return dict(row)  # A confirmed report survives later rescheduling/recurrence edits.
-        matches = planned_on(task, day)
+        matches = planned_on(task, day, self.event_days(task))
         parent = (task.get('when') or {}).get('planned_task_id')
         if parent:
             source = self.show(parent)
-            matches = source['status'] != 'cancelled' and planned_on(source, day)
+            matches = source['status'] != 'cancelled' and planned_on(source, day, self.event_days(source))
+        habit = (task.get('when') or {}).get('custom_rule_id')
+        if habit:
+            matches = self.habit_due(habit, day)
+        if not matches and task.get('kind') != 'nudge' and chasing(task, day):
+            matches = True
         if not matches:
             raise ValueError('unknown_occurrence: day is not agreed or recurring work')
         return {'id': identifier, 'task_id': task['id'], 'date': day,
@@ -329,9 +476,13 @@ class TaskStore:
                     raise ValueError('outcome_unknown: resume the original conversion key/input, not another operation')
                 self.db.execute('INSERT INTO task_events(item_id,action,at,session,snapshot,request_key,fingerprint,receipt) VALUES (?,?,?,?,?,?,?,?)',
                                 (identifier, 'convert-pending', now, session, encode(payload), key, digest, encode({'saved': False})))
+        series = self.show(identifier, True).get('repeat')
         calendar = CalendarStore(str(path))
         try:
-            event_id = calendar.add(event, actor=session, external_id=identifier)
+            if series:
+                event_id = calendar.add_many(self.series_events(identifier, series, event), session)[0]
+            else:
+                event_id = calendar.add(event, actor=session, external_id=identifier)
         finally:
             calendar.close()
         with self.inbox.transaction():
@@ -345,6 +496,22 @@ class TaskStore:
             self.db.execute("UPDATE task_events SET action='convert',receipt=? WHERE request_key=?", (encode(result), key))
             return result
 
+    def series_events(self, identifier, series, event):
+        """The confirmed first class sets the wall-clock time for every remaining date."""
+        if event['all_day'] or not series.get('until'):
+            raise ValueError('clarification_required: a weekly appointment series needs a confirmed time and end date before calendar conversion')
+        draft = self.show(identifier, True)
+        zone = ZoneInfo(event.get('timezone') or draft['timezone'])
+        start = dt.datetime.fromisoformat(event['start']).astimezone(zone)
+        length = dt.datetime.fromisoformat(event['end']) - dt.datetime.fromisoformat(event['start'])
+        if start.date().isoformat() != draft['date']:
+            raise ValueError('invalid_input: the confirmed time must be for the first class date')
+        items = []
+        for day in series_days(series, draft['date'], series['until']):
+            begin = dt.datetime.combine(dt.date.fromisoformat(day), start.time(), zone)
+            items.append(({**event, 'start': begin.isoformat(), 'end': (begin + length).isoformat()}, identifier + '@' + day))
+        return items
+
     def complete_day(self, selections, day, session, key, now, details):
         """One browser receipt: exact planned or explicitly selected actual-day completions."""
         checked(session, 200, False); checked(key, 240, False); checked(details)
@@ -357,6 +524,8 @@ class TaskStore:
                 return {**json.loads(previous['receipt']), 'replayed': True}
             for selection in selections:
                 task = self.show(selection['task_id'])
+                if task.get('kind') in UNCHECKED:
+                    raise ValueError('invalid_input: nudges and reference notes are never ticked off')
                 if task['revision'] != selection['revision']:
                     raise ValueError('write_conflict: planned task changed; refresh feedback')
                 if selection.get('actual'):
@@ -416,6 +585,8 @@ class TaskStore:
             if data.get('status') == 'done' and not confirmed:
                 raise ValueError('confirmation_required: completion requires actual user confirmation')
             if day:
+                if current.get('kind') in UNCHECKED:
+                    raise ValueError('invalid_input: nudges and reference notes have no occurrence reports; cancel them instead')
                 if draft or set(data) - {'status', 'detail'} or data.get('status') not in STATES:
                     raise ValueError('invalid_input: occurrence report needs status and optional detail')
                 if actual:
@@ -448,6 +619,8 @@ class TaskStore:
                 merged = {k: v for k, v in current.items() if k in (DRAFT_FIELDS if draft else FIELDS)}
                 merged.update(data)
                 merged = validate(merged, draft=draft)
+                if not draft:
+                    linked(self.db, merged, identifier)
                 if draft:
                     if data.get('state') == 'converted' or 'calendar_event_id' in data:
                         raise ValueError('confirmation_required: use --convert after exact event confirmation')

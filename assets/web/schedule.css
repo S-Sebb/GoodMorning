@@ -70,6 +70,7 @@
 .schedule-task.is-done .task-title { color: var(--muted); text-decoration: line-through; text-decoration-color: var(--muted); text-decoration-thickness: 2px; }
 .schedule-task.is-done .task-state { color: var(--accent); font-weight: 700; }
 .schedule-task .task-progress { color: var(--ink); font-weight: 600; }
+.schedule-task .task-marker { color: var(--ink); font-weight: 600; }
 .schedule-task .task-detail { white-space: pre-line; }
 .schedule-task .task-project { padding: 0; border: 0; border-radius: 0; background: none; }
 .schedule-event.is-tbc { border-left-style: dashed; }

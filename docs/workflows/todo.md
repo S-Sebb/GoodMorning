@@ -31,7 +31,14 @@ to its workflow in this conversation; capture wording alone does not grant conse
    between one-off and repeat: ask both the frequency (one-off, daily, weekly)
    and the start date before any write, and never store the window in prose without
    a structured repeat, workday, or deadline.
-2. For a new clear TODO, use the single capture helper:
+2. Classify before saving with rule 2 of `docs/item-taxonomy.md` (read it when the
+   input is anything but a plain action): a heads-up with nothing to finish is
+   `task.kind:"nudge"`; information for a trigger the system cannot see ("when X runs
+   out") is `kind:"reference"` with `trigger`; "remind me daily until done" is
+   `follow_up:"until-done"`; birthdays and appointments belong to the calendar, not
+   tasks, and a habit with a flexible rhythm uses `custom --add`. If one request is
+   two items, confirm the split with a native question, then send `also:[{...}]`.
+   For a new clear TODO, use the single capture helper:
    ```sh
    python scripts/goodmorning.py workflow --secretary-dir RUNTIME --capture todo --session SESSION --request-key KEY --input-stdin
    ```

@@ -90,7 +90,8 @@ class ScheduleTests(unittest.TestCase):
         self.assertEqual([tasks[name][k] for name in ('Draft the methods', 'Request the dataset') for k in fields],
                          ['partial', 'Atlas', '2026-10-16', 'First baseline compared.',
                           'blocked', 'Atlas', '', 'Awaiting lab approval.'])
-        self.assertNotIn('Deadline only, not a workday', tasks)
+        deadline = tasks['Deadline only, not a workday']
+        self.assertEqual((deadline['date'], deadline['marker'], deadline['occurrence_id']), ('2026-10-16', 'due', ''))
         self.assertEqual([r['text'] for r in days['2026-10-17']['tasks']], ['Wash towels'])
         self.assertFalse(any(r.get('draft') for r in days['2026-10-17']['events']))
         for language in ('en', 'zh-CN'):

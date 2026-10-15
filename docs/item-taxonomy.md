@@ -8,16 +8,47 @@ heading. Use `scripts/goodmorning.py` with the selected absolute runtime.
    entry, pending note, task, draft or calendar event until answered. Conversation
    messages/forms stay durable and visible through the Little desk waiting badge.
    Save the resolved input once; reuse the key/input on uncertain retries.
-2. **Event** means attendance, an explicit all-day observance or reserved time.
-   **Task** means an action with a completion condition. **Idea** means a possibility
-   not adopted as work. Custom/imported is provenance; project/personal and
-   required/optional are task attributes, not different section types.
+2. **Categories.** Use the first that fits. Code derives each saved item's
+   `category` from its fields (`task --show` returns it); never store a label instead.
+   1. **Appointment**, reserved time the user attends: a calendar event with exact
+      times, or an event draft for a known day with time TBC (rule 6). A weekly
+      TBC series is one draft with `repeat:{"weekdays":[N],"start":DATE,"until":DATE}`
+      (`start` equals `date`), never one draft per week.
+   2. **Occasion**, a date to remember: an all-day calendar event. Birthdays and
+      anniversaries use `repeat:{"yearly":true,"start":DATE}`.
+   3. **Idea**, a possibility not adopted as work (`/eureka`).
+   4. **Nudge**, a heads-up with nothing to tick off ("bring gym clothes on
+      training days", "check the price"): task `kind:"nudge"`. Its trigger is a
+      `repeat`, `planned_date`, `when.planned_task_id` or `when.custom_rule_id`
+      (habit days); with none it appears every morning until cancelled. Never
+      asked at night or completed; retire it with `status:"cancelled"`.
+   5. **Reference note**, saved information for a trigger the system cannot see
+      ("when a supplement runs out, rebuy brand X"): `kind:"reference"`, `trigger`,
+      `detail`, no dates or conditions. Never in briefings; `workflow --prepare
+      secretary` lists `references`, so match the user's words to a trigger there.
+   6. **Routine**, a fixed rhythm: task `repeat` (weekdays, interval, explicit
+      dates), or `{"event_subject":"Lab meeting","offset_days":-1,"start":DATE}`
+      for preparation that follows every approved appointment with that exact subject.
+   7. **Habit**, a rhythm that follows actual completion, chases misses or has a
+      weekly cap: `custom --add` (rule 5).
+   8. **Project step**, work toward a project goal: `project`, optional `optional`,
+      soft target `due_soft:true`, and `after:"task_ID"` when it waits for another step.
+   9. One-off action: an agreed day is a **Day task** (`planned_date`); "must be
+      done by" is a **Deadline task** (`due_date`; window start `defer_until`);
+      neither is an **Anytime task**.
+   Shared attributes: `when` conditions; `follow_up:"until-done"` brings a one-off
+   up every day from its start until confirmed done (not a repeat; one tick closes
+   it); `project`, `optional`, `priority`. A hard deadline needs a real outside
+   consequence the user stated; never invent one. When one request is two items
+   (watch + act, weekly check-in + final deadline), confirm the split, then save
+   one capture with `task` plus `also:[{...}]` siblings. Custom/imported is provenance.
 3. Keep workday, deadline, appointment start/end, recurrence, review date and audit
    timestamps separate. "By Friday" is a deadline; "work on Friday" is a workday.
    A timestamp alone does not establish a reserved interval. A window without a
    frequency ("11月初", "early November") is ambiguous between one-off and
    repeat: ask frequency and start date, never default to one-off or strand the
-   window in prose without a structured repeat, workday, or deadline. Ask when requested
+   window in prose without a structured repeat, workday, or deadline. "Remind me
+   daily until it's done" is a one-off with `follow_up:"until-done"`, not a repeat. Ask when requested
    scheduling is ambiguous; never infer duration, timezone or another person's agreement.
 4. `/todo` uses `workflow --capture todo`: exact raw input plus a revised clear task
    commit together. `raw` stays verbatim for audit; `summary` and `task.title` carry the
@@ -71,9 +102,10 @@ heading. Use `scripts/goodmorning.py` with the selected absolute runtime.
    exact custom IDs like tasks. Silence never counts.
    `when:{"unless_timed_plan":true}` also suppresses on days with approved timed
    calendar appointments, even outside the activity window; an all-day birthday
-   is not a reserved-time plan. A clothing reminder uses
-   `when:{"planned_task_id":"task_ID"}` without its own repeat/planned date, so it
-   follows the canonical workout plan, not off-cadence actual completions.
+   is not a reserved-time plan. A clothing nudge uses
+   `when:{"planned_task_id":"task_ID"}` for a task plan or
+   `when:{"custom_rule_id":"cu_ID"}` for a habit, without its own repeat/planned
+   date, so it follows that plan's due days.
    Soft project targets use `due_soft:true` and are labelled as soft, not hard deadlines.
    "Plan shopping Thursday, no fixed time" already supplies a workday: save that
    task without asking for a clock time or place. An undated unblocked backlog
@@ -87,7 +119,9 @@ heading. Use `scripts/goodmorning.py` with the selected absolute runtime.
     weekday from the confirmed current date/timezone. Do not ask for a clock time,
     duration or repeated approval merely to save that draft; ask only genuinely
     missing or ambiguous facts. Timed conversion still requires exact approved details.
-   Never substitute all-day. Complete drafts convert through `task --convert ID
+   Never substitute all-day. A series draft converts with the first date's confirmed
+   time and needs `until`; code adds every remaining date at that local time.
+   Complete drafts convert through `task --convert ID
    --expect-revision REV --confirm` with `{"event":CALENDAR_PAYLOAD}` after exact
    confirmation. Resume the same conversion key/input after uncertain outcomes.
     For a complete appointment awaiting conversion, obtain any missing facts and
@@ -115,9 +149,15 @@ heading. Use `scripts/goodmorning.py` with the selected absolute runtime.
    IDs/revisions/titles/dates/status. One actionable card per occurrence.
    Browser recipes use `--section schedule|tasks|attention|today`: return only that
    section's rows, `block`, counts and warnings, avoiding repeated whole-plan reads.
-9. Morning shows agreed work, deadlines and other open actions; evening reviews
-    actual outcomes and previews agreed work. Evening completion choices cover
-    today's planned occurrences plus still-open tasks in today's saved morning briefing.
+9. Morning shows today's nudges, agreed work, daily follow-ups, deadlines within
+    seven days, at most three steps per project and other open actions; evening
+    reviews actual outcomes and previews agreed work. Nudges and reference notes are
+    never evening questions; a step waiting on `after` stays hidden until that task
+    closes. The Schedule tab shows deadlines on their due day, marked "no workday
+    assigned", and habit days marked flexible. Evening completion choices cover
+    today's planned occurrences, daily follow-ups, hard deadlines due today or overdue,
+    plus still-open tasks in today's saved morning briefing; project steps from it
+    also get one optional progress box per project (up to three).
     Present them split: due-today checks first, then an optional Future tasks
     section for undated background and upcoming dated work ticked only if fully
     done early (overdue morning work stays with due-today). Group browser completion choices by current canonical project; unassigned

@@ -102,7 +102,7 @@ def saved_week(runtime, zone, now, offset):
     if (runtime/'inbox.sqlite').exists():
         from goodmorning.records.inbox_store import InboxStore
         from goodmorning.records.task_store import TaskStore
-        from goodmorning.records.routing import planned_day, confirmed_drafts
+        from goodmorning.records.routing import planned_day, confirmed_drafts, calendar_day_extras
         inbox = None
         try:
             inbox = InboxStore(runtime)
@@ -113,9 +113,10 @@ def saved_week(runtime, zone, now, offset):
                     (monday + timedelta(days=7)).isoformat(), converted))
                 for day in days:
                     day['plan_error'] = False  # Legacy history is not a canonical source failure.
-                    day['tasks'] = [dict(r, id=r['occurrence_id'], text=r['title'], done=r['status'] == 'done',
+                    rows = planned_day(store, day['date']) + calendar_day_extras(store, day['date'], today.isoformat())
+                    day['tasks'] = [dict(r, id=r['occurrence_id'] or r['id'] + ':due', text=r['title'], done=r['status'] == 'done',
                         section='nice-to-do' if r['optional'] else 'flexible')
-                        for r in safe_value(planned_day(store, day['date']))]
+                        for r in safe_value(rows)]
                     day['events'].extend(draft for draft in drafts if draft['date'] == day['date'])
         except (ValueError, OSError, sqlite3.Error, KeyError, TypeError):
             warnings.append('Task records could not be read; no availability is inferred.')
@@ -159,13 +160,17 @@ def event_card(event, day, zone):
 def task_card(task):
     state = task.get('status', 'done' if task['done'] else 'open')
     metadata = []
+    if task.get('marker') == 'due':
+        metadata.append('<small class="task-marker">' + ui.ui('Deadline · no workday assigned') + '</small>')
+    elif task.get('marker') == 'flexible':
+        metadata.append('<small class="task-marker">' + ui.ui('Flexible habit · moves with what you actually do') + '</small>')
     if task.get('project'):
         metadata.append('<small class="task-project">' + ui.ui('Project: {name}', name=task['project']) + '</small>')
     if task['section'] == 'nice-to-do':
         metadata.append('<small class="task-kind">' + ui.ui('Optional') + '</small>')
     if state in ('partial', 'blocked'):
         metadata.append('<small class="task-progress">' + ui.ui(state.capitalize()) + '</small>')
-    if task.get('due_date'):
+    if task.get('due_date') and (task.get('marker') != 'due' or task.get('due_at')):
         deadline = task.get('due_at') or task['due_date']
         metadata.append('<small class="task-deadline">' + ui.ui('Soft target: {date}' if task.get('due_soft') else 'Due: {date}', date=deadline) + '</small>')
     if (task.get('when') or {}).get('morning_before'):

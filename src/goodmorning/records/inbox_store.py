@@ -42,7 +42,7 @@ def check_text(value, maximum, field, empty=True):
 def validate(payload, action):
     if not isinstance(payload, dict):
         raise ValueError("invalid_input: expected a JSON object")
-    allowed = {"kind", "raw", "summary", "context", "questions", "project", "task", "draft", "review_after"} if action == "add" else (
+    allowed = {"kind", "raw", "summary", "context", "questions", "project", "task", "also", "draft", "review_after"} if action == "add" else (
         {"detail"} if action == "append" else
         {"kind", "summary", "context", "questions", "project", "status", "reviewed", "review_after", "confirmed_completion"})
     if not payload or set(payload) - allowed:
@@ -70,6 +70,14 @@ def validate(payload, action):
         if payload.get('kind') != 'todo':
             raise ValueError('invalid_input: only TODO capture accepts task fields')
         validate_task(payload['task'])
+    if 'also' in payload:
+        # One request that is really several items: siblings from the same capture.
+        if payload.get('kind') != 'todo' or not isinstance(payload['also'], list) or not 1 <= len(payload['also']) <= 4:
+            raise ValueError('invalid_input: also lists 1..4 extra items for a TODO capture')
+        for fields in payload['also']:
+            if not isinstance(fields, dict) or not fields.get('title'):
+                raise ValueError('invalid_input: every extra item needs its own title')
+            validate_task(fields)
     if 'draft' in payload:
         if payload.get('kind') != 'event_proposal':
             raise ValueError('invalid_input: only event proposals accept draft fields')
@@ -162,7 +170,8 @@ class InboxStore:
                 raise ValueError('migration_required: review task --migrate, then explicitly upgrade with --confirm')
             self.status_sql = """(CASE WHEN kind='todo' AND EXISTS(SELECT 1 FROM tasks WHERE source_entry_id=entries.id)
                 THEN CASE WHEN EXISTS(SELECT 1 FROM tasks WHERE source_entry_id=entries.id
-                    AND json_extract(data,'$.status') IN ('open','partial','blocked')) THEN 'pending'
+                    AND json_extract(data,'$.status') IN ('open','partial','blocked')
+                    AND COALESCE(json_extract(data,'$.kind'),'')='') THEN 'pending'
                 WHEN EXISTS(SELECT 1 FROM tasks WHERE source_entry_id=entries.id
                     AND json_extract(data,'$.status')='done') THEN 'done' ELSE 'confirmed' END
                 ELSE status END)""" if version == 2 else 'status'

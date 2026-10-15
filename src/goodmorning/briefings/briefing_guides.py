@@ -47,10 +47,12 @@ TEXT = {
             '--request-key polish:SESSION:TASK_ID:REV --input-json \'{"title":"…","detail":"…"}\' — same meaning, using facts already '
             'in the title/detail (e.g. "Dentist" + "checkup before May" → "Book a dentist checkup"); never invent facts or change '
             'dates/status. Leave clear titles alone; a project name inside a specific object is fine. Then rerun '
-            'the read and copy the exact returned blocks. Note: the top 1–3 project groups and one useful next step. Zero rows: skip {"position":N}.'),
+            'the read and copy the exact returned blocks. Rows whose detail says heads-up are reminders only: mention them, never ask whether '
+            'they were done. Note: the top 1–3 project groups and one useful next step. Zero rows: skip {"position":N}.'),
   'attention': ('Run the read and copy its decisions block exactly (titles unchanged). Note: the count and the single next action. '
                 'Zero rows: skip {"position":N} instead of publishing.'),
   'today': ('Saved browser feedback (in prepare) is final: selected completions are already applied; never reapply or re-ask them. '
+            'feedback.progress lines are project progress, not completion: mention them and never mark a step done from them. '
             'Work in this order. 1) Reconcile: for each partial/blocked report in feedback.details, run the Tasks read in `read`, then '
             'python scripts/goodmorning.py task --secretary-dir RUNTIME --show TASK_ID for its revision. When exactly one action clearly '
             'matches, record it once: an occurrence agreed for DATE uses task --report TASK_ID --date DATE; otherwise task --update TASK_ID '
@@ -98,9 +100,10 @@ TEXT = {
             '--update TASK_ID --expect-revision REV --session SESSION --request-key polish:SESSION:TASK_ID:REV --input-json '
             '\'{"title":"…","detail":"…"}\' 修正一次——含义不变，只用标题/说明中已有的事实（例如 "牙医" + "五月前做检查" → "预约牙医检查"）；'
             '不要编造事实，不改日期或状态。清楚的标题保持不变；具体对象中的项目名不算前缀。然后重新读取并原样复制返回的块。'
-            '注记：最重要的 1–3 个项目组和一个有用的下一步。读取为 0 行时用 skip {"position":N}。'),
+            '说明里写着"只是提醒"的行只是提醒：可以提到，但不要问是否完成。注记：最重要的 1–3 个项目组和一个有用的下一步。读取为 0 行时用 skip {"position":N}。'),
   'attention': '运行读取命令，原样复制 decisions 块（标题不变）。注记：数量和唯一的下一步。读取为 0 行时用 skip {"position":N}。',
-  'today': ('prepare 中保存的网页反馈是最终答案：已选的完成项已经应用，不要重复应用或再次询问。按以下顺序处理。1）核对：对 feedback.details 中每条'
+  'today': ('prepare 中保存的网页反馈是最终答案：已选的完成项已经应用，不要重复应用或再次询问。feedback.progress 是项目进展而不是完成：'
+            '要提到，但不要据此把任何步骤标为完成。按以下顺序处理。1）核对：对 feedback.details 中每条'
             '部分完成/受阻的报告，先运行 `read` 中的 Tasks 读取，再运行 python scripts/goodmorning.py task --secretary-dir RUNTIME --show TASK_ID 获取版本号。'
             '恰好只有一项明确匹配时记录一次：DATE 当天约定的事项用 task --report TASK_ID --date DATE；否则用 task --update TASK_ID（保留原计划日期）；'
             '两者都带 --expect-revision REV --session SESSION --request-key gn-report:JOB:TASK_ID --input-json '

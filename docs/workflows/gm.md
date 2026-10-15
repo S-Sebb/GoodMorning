@@ -48,7 +48,7 @@ plan position and use `skip` for empty optional ones; local JSON omits empty opt
    no appointments saved, without claiming free time; non-empty: count and
    earliest time plus most useful preparation); do not mention windows, glances,
    TBC, or timed focus; do not repeat every card.
-5. Publish Tasks from code-owned rows: agreed/recurring work, deadline attention,
+5. Publish Tasks from code-owned rows: heads-ups (nudges: mention, never ask if done), agreed/recurring work, daily follow-ups, deadline attention,
    still-open work and selected undated actions. Project and optional labels are
    attributes. First walk through today's displayed rows from
    `task --briefing gm --date DATE --section tasks` (follow `next_offset`); where a

@@ -537,5 +537,13 @@
   "Minimize quick chat": "收起快捷对话",
   "Ask something quick without leaving this page.": "想问就随口问一句，不用离开这一页。",
   "A new reply is ready": "新回复好了，来看看吧。",
-  "Conversation": "对话"
+  "Conversation": "对话",
+  "Heads-up only; nothing to tick off": "只是提醒，不用勾选",
+  "Daily follow-up until done": "每天跟进，直到完成",
+  "Preparation for {subject}": "为{subject}做准备",
+  "Preparation for {subject}, {count} day(s) before": "为{subject}做准备，提前 {count} 天",
+  "Deadline · no workday assigned": "截止日 · 没安排哪天来做",
+  "Flexible habit · moves with what you actually do": "灵活习惯 · 跟着你的实际节奏走",
+  "Progress on {project} (optional)": "{project} 的进展（可选）",
+  "What moved forward, or what got in the way?": "有哪些进展，或者遇到了什么阻碍？"
 }

@@ -65,6 +65,11 @@ def prepare(directory, kind, today=None, cache=None, *, task_limit=7, website_la
         try:
             result["inbox"] = store.list()
             result['document_version'] = store.version
+            if kind == 'secretary' and store.version == 2:
+                # Reference notes surface only when the user mentions their trigger.
+                result['references'] = [{'id': r[0], 'title': r[1], 'trigger': r[2]} for r in store.db.execute(
+                    "SELECT id,json_extract(data,'$.title'),json_extract(data,'$.trigger') FROM tasks "
+                    "WHERE json_extract(data,'$.kind')='reference' AND json_extract(data,'$.status')='open' ORDER BY rowid LIMIT 50")]
         finally:
             store.close()
     cache = cache_path(cache)

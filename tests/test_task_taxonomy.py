@@ -257,7 +257,9 @@ class TaxonomyTests(unittest.TestCase):
         routing.validate_sources(self.root, doc, DAY, 'gm')
         self.assertEqual(self.tasks.show(receipt['task_id'])['planned_date'], '')
         week = saved_week(self.root, 'Europe/London', datetime(2026, 10, 13, tzinfo=timezone.utc), 0)
-        self.assertFalse(any(day['tasks'] for day in week['days']))
+        # Only a deadline marker on the due date; no workday occurrence anywhere.
+        marked = [(day['date'], task['marker'], task['occurrence_id']) for day in week['days'] for task in day['tasks']]
+        self.assertEqual(marked, [('2026-10-16', 'due', '')])
 
     def test_planned_tasks_keep_identity_after_rewording_and_have_one_owner(self):
         capture = self.capture(task={'title': 'Atlas: prepare review', 'planned_date': DAY})
