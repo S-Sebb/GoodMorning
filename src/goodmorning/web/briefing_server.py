@@ -38,6 +38,7 @@ from .avatar_images import MAX_AVATAR_BYTES, AVATAR_UPLOAD_PATH, image_url, read
 from .bridge_json import read_json
 from .activity import ACTIVITY_PATH, snapshot as activity_snapshot
 from . import schedule
+from . import quick_chat
 
 DESK_ART = '<svg viewBox="0 0 64 64" width="64" height="64" fill="none" aria-hidden="true"><rect x="15" y="8" width="36" height="48" rx="7" fill="var(--surface)" stroke="currentColor" stroke-width="1.5"/><path d="M24 19h18M24 25h12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" opacity=".4"/><circle cx="27" cy="36" r="1.5" fill="currentColor"/><circle cx="39" cy="36" r="1.5" fill="currentColor"/><path d="M28 43q5 5 10 0" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>'
 
@@ -421,7 +422,7 @@ class BrowserApp:
         if '<link rel="icon"' not in text:
             text = text.replace('</head>', favicon_links(kind) + '</head>')
         return_to=f'/d/{date}/{kind}.html' if pinned else f'/{kind}.html'
-        output = self.resources.rewrite(ui.page(text.replace('</body>', marker + '</body>'),self.csrf,return_to)).encode()
+        output = self.resources.rewrite(ui.page(quick_chat.widget(text.replace('</body>', marker + '</body>'), self.csrf),self.csrf,return_to)).encode()
         if confirmed:
             with self.lock:self.pages.put(page_key, (page_signature, output), len(output))
         return output
