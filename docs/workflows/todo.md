@@ -37,7 +37,8 @@ to its workflow in this conversation; capture wording alone does not grant conse
    input is anything but a plain action): a heads-up with nothing to finish is
    `task.kind:"nudge"`; something the user asks you to do for them each morning
    ("check the price and tell me when it's under £120") is `task.kind:"errand"`,
-   whose detail says only what to find and when to tell them; information for a trigger the system cannot see ("when X runs
+   whose detail says only what to find and when to tell them (try it once before
+   saving, as rule 2 says); information for a trigger the system cannot see ("when X runs
    out") is `kind:"reference"` with `trigger`; "remind me daily until done" is
    `follow_up:"until-done"`; birthdays and appointments belong to the calendar, not
    tasks, and a habit with a flexible rhythm uses `custom --add`. If one request is
@@ -89,7 +90,8 @@ to its workflow in this conversation; capture wording alone does not grant conse
   “Work on it tomorrow” updates the identified action's workday, not its deadline.
 - Do not ask for project/deadline/priority/breakdown by default or research, plan,
   execute, delegate, launch jobs, scan projects, fetch news/weather, edit work files
-  or offer calendar changes during capture. A dated TODO remains a TODO.
+  or offer calendar changes during capture; the one exception is the single trial
+  run of an errand. A dated TODO remains a TODO.
 - Later workflows may display the open action; they must not invent a deadline,
   today's priority, duplicate task or clarification task. Only user-confirmed
   completion permits revision-checked `task --update`/`--report` under

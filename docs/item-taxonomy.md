@@ -34,6 +34,14 @@ heading. Use `scripts/goodmorning.py` with the selected absolute runtime.
       above and shows a card only when the result is worth telling; nothing is
       shown otherwise. Never asked at night or completed; retire it with
       `status:"cancelled"`. Never save as a nudge something the user asked you to do.
+      Before saving: if the condition, source or rhythm is unclear ("when it's
+      cheap", no shop named), ask first. Then do the errand once now with your own
+      tools; only a figure read on the source page itself counts, not a search
+      snippet. If it works, save it and tell the user today's result ("It's
+      £139.99 now, so I'll stay quiet until it's under £120."). If you cannot get a
+      reliable result, save nothing yet: say plainly that you could not check it and
+      offer alternatives with a native question (a source you did read, a daily
+      nudge for them to check it themselves, or leaving it), then save only the choice.
    6. **Reference note**, saved information for a trigger the system cannot see
       ("when a supplement runs out, rebuy brand X"): `kind:"reference"`, `trigger`,
       `detail`, no dates or conditions. Never in briefings; `workflow --prepare
