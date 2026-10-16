@@ -82,11 +82,11 @@
 
   function showAvatar(settings) {
     const entry = (settings.avatars || []).find(item => item.id === settings.avatar) || (settings.avatars || [])[0];
-    if (!entry || typeof entry.src !== 'string' || !entry.src.startsWith('/')) return;
+    const source = entry && (entry.profile || entry[document.documentElement.dataset.edition === 'gn' ? 'night' : 'day']);
+    if (typeof source !== 'string' || !source.startsWith('/')) return;
     root.querySelectorAll('.quick-chat-portrait').forEach(portrait => {
-      portrait.dataset.avatar = entry.id === 'custom' ? 'custom' : 'pixel';
       const image = portrait.querySelector('img');
-      if (image.getAttribute('src') !== entry.src) image.src = entry.src;
+      if (image.getAttribute('src') !== source) image.src = source;
     });
   }
 

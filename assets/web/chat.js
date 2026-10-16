@@ -892,16 +892,16 @@ function showMessages(messages) {
   return true;
 }
 
+// Round portraits use the profile picture, or a crop of the scene when a custom avatar has none.
 function syncChatAvatar() {
   const figure = document.querySelector('.avatar-display');
-  const source = figure.querySelector('.avatar-image').getAttribute('src');
-  const custom = source.startsWith('/api/avatar/image/');
+  const source = figure.dataset.profile || figure.querySelector('.avatar-image').getAttribute('src');
   document.querySelectorAll('.chat-portrait').forEach(portrait => {
-    portrait.dataset.chatAvatar = custom ? 'custom' : figure.dataset.avatar;
     if (portrait.querySelector('img').getAttribute('src') !== source) portrait.querySelector('img').src = source;
   });
 }
 new MutationObserver(syncChatAvatar).observe(document.querySelector('.avatar-display .avatar-image'), {attributes: true, attributeFilter: ['src']});
+new MutationObserver(syncChatAvatar).observe(document.querySelector('.avatar-display'), {attributes: true, attributeFilter: ['data-profile']});
 syncChatAvatar();
 
 async function pollQueue() {

@@ -25,7 +25,7 @@ from goodmorning.briefings.briefing_document import source_path
 from goodmorning.briefings import briefing_document as native
 from goodmorning.briefings.briefing_stream import DEFAULT_PLANS, load as load_preview, require_final
 from goodmorning.runtime_files import atomic_text, profile_fields, runtime_lock
-from .briefing_chat import AVATARS, Chats, avatar_id, avatar_widget, page as chat_page, read_avatar, write_avatar
+from .briefing_chat import AVATAR_FILES, Chats, avatar_id, avatar_widget, page as chat_page, read_avatar, write_avatar
 from goodmorning.paths import ROOT
 from . import language as ui
 from . import models as site_models
@@ -34,7 +34,7 @@ from .release import VERSION, release_info, acknowledge_version
 from .session_inventory import job_session_title
 from .chat_theme import clock_theme
 from .chat_uploads import MAX_UPLOAD_BYTES, UPLOAD_ROUTE, IMAGE_ROUTE, upload_name
-from .avatar_images import MAX_AVATAR_BYTES, AVATAR_UPLOAD_PATH, image_url, read_image, save_image
+from .avatar_images import MAX_AVATAR_BYTES, AVATAR_UPLOAD_ROUTE, find_image, image_urls, save_image
 from .bridge_json import read_json
 from .activity import ACTIVITY_PATH, snapshot as activity_snapshot
 from . import schedule
@@ -167,31 +167,31 @@ class BrowserApp:
             return write_avatar(self.runtime, avatar_id(value))
 
     def avatar_sources(self):
-        sources = {entry: self.resources.urls.get(filename, '/' + filename)
-                   for entry, filename, _ in AVATARS}
-        custom = image_url(self.runtime)
+        sources = {entry: {variant: self.resources.urls.get(name, '/' + name) for variant, name in files.items()}
+                   for entry, files in AVATAR_FILES.items()}
+        custom = image_urls(self.runtime)
         if custom:
             sources['custom'] = custom
         return sources
 
     def avatar_settings(self):
         with self.lock:
-            return {'avatar': self.avatar(), 'avatars': [{'id': entry, 'src': source}
+            return {'avatar': self.avatar(), 'avatars': [{'id': entry, **source}
                     for entry, source in self.avatar_sources().items()]}
 
-    def upload_avatar(self, data):
+    def upload_avatar(self, data, variant='night'):
         with self.lock:
             self.file_signature(self.runtime / 'website-avatar.json')
-            save_image(self.runtime, data)
+            save_image(self.runtime, data, variant)
             self.set_avatar('custom')
             return self.avatar_settings()
 
-    def briefing_avatar(self, avatar=None):
-        return avatar_widget(avatar or self.avatar(), self.avatar_sources(), 'briefing-avatar')
+    def briefing_avatar(self, avatar=None, kind='gm'):
+        return avatar_widget(avatar or self.avatar(), self.avatar_sources(), 'briefing-avatar', kind)
 
-    def briefing_layout(self, text, avatar=None):
+    def briefing_layout(self, text, avatar=None, kind='gm'):
         text = text.replace('</head>', '<link rel="stylesheet" href="/scroll-rails.css"><script src="/scroll-rails.js" defer></script></head>')
-        portrait = self.briefing_avatar(avatar)
+        portrait = self.briefing_avatar(avatar, kind)
         text = re.sub(r'<body([^>]*)>', lambda match: '<body' + match[1] + ' class="briefing-letter">', text, count=1)
         text, count = re.subn(r'<div class="hero-copy">(.*?)</div>',
                              lambda match: '<div class="hero-copy">' + portrait + '<div class="letter-copy">' + match[1] + '</div></div>',
@@ -257,12 +257,12 @@ class BrowserApp:
 
     def chat_page(self):
         settings = self.chat_settings()
-        return self.resources.rewrite(ui.page(chat_page(self.csrf, settings['defaultMode'] == 'secretary', settings['connected'], settings.get('secretary_name'), settings['avatar'], {item['id']: item['src'] for item in settings['avatars']}, settings['timezone'], settings['theme']),self.csrf,'/chat')).encode()
+        return self.resources.rewrite(ui.page(chat_page(self.csrf, settings['defaultMode'] == 'secretary', settings['connected'], settings.get('secretary_name'), settings['avatar'], {item['id']: {key: value for key, value in item.items() if key != 'id'} for item in settings['avatars']}, settings['timezone'], settings['theme']),self.csrf,'/chat')).encode()
 
     def initialization_page(self, kind):
         switches = ''.join(f'<a class="edition-link{" selected" if other == kind else ""}" href="/{other}.html">{label}</a>' for other, label in KINDS.items()) + '<a class="edition-link" href="/schedule">Schedule</a>'
         text = f'<!doctype html><html lang="en" data-edition="{kind}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><title>Initialize your secretary — GoodMorning</title><link rel="stylesheet" href="/briefing.css"></head><body><header class="masthead"><a class="wordmark" href="/{kind}.html">GoodMorning<span>A personal secretary just for you</span></a><nav class="edition-switch" aria-label="Edition">{switches}<a class="edition-link" href="/chat">Secretary</a></nav></header><main><section class="waiting-room"><div class="waiting-art">{celestial(kind)}</div><p class="eyebrow">{KINDS[kind]} edition</p><h1>Let’s make this yours.</h1><p class="subtitle">Complete your secretary’s setup before preparing a briefing. Your saved records stay unchanged.</p><a id="initialize" class="initialize-button" href="/chat?mode=initialize">Initialize my secretary</a></section></main></body></html>'
-        text = self.briefing_layout(text)
+        text = self.briefing_layout(text, kind=kind)
         return self.resources.rewrite(ui.page(text.replace('</head>', favicon_links(kind) + '</head>'),self.csrf,'/'+kind+'.html')).encode()
 
     def dates(self):
@@ -365,7 +365,7 @@ class BrowserApp:
         if confirmed:
             manifest = self.runtime / 'browser-images' / date / 'manifest.json'
             if manifest.parent.is_symlink():raise ValueError('Unsafe image manifest')
-            page_signature = self.file_signature(path), self.file_signature(manifest), week, VERSION, avatar, tuple(self.avatar_sources().items()), current_job and (current_job['id'], current_job['state'])
+            page_signature = self.file_signature(path), self.file_signature(manifest), week, VERSION, avatar, json.dumps(self.avatar_sources(), sort_keys=True), current_job and (current_job['id'], current_job['state'])
             with self.lock:
                 cached = self.pages.get(page_key)
                 if cached and cached[0] == page_signature:return cached[1]
@@ -400,7 +400,7 @@ class BrowserApp:
                 text = re.sub(r'<div class="briefing-tools">.*?</div>', '<section class="generation-desk">' + button + controls + '<p class="preview-notice">Unfinished preview · sections appear here as they are prepared. Nothing is saved yet.</p></section>', text)
                 text = text.replace('href="briefing.css"', 'href="/briefing.css"').replace('src="briefing.js"', 'src="/briefing.js"').replace('href="fonts/', 'href="/fonts/').replace('href="index.html"', f'href="/{kind}.html"')
                 text = text.replace(f'{date} / {KINDS[kind]} edition', f'{KINDS[kind]} edition')
-        text = self.briefing_layout(text, avatar)
+        text = self.briefing_layout(text, avatar, kind)
         can_restart = date == self.today() and bool(self.chamber) and self.preflight
         if can_restart:
             hidden = '' if confirmed or current_job else ' hidden'
@@ -924,9 +924,9 @@ def serve_live(app, port, *, gateway_key=None, public_origins=()):
                 if path=='/api/avatar':return self.respond(app.avatar_settings())
                 avatar_image = re.fullmatch(r'/api/avatar/image/([a-f0-9]{64})\.png', path)
                 if avatar_image:
-                    image = read_image(app.runtime)
-                    if image and image[0] == avatar_image[1]:
-                        return self.respond(image[1], content_type='image/png')
+                    image = find_image(app.runtime, avatar_image[1])
+                    if image:
+                        return self.respond(image, content_type='image/png')
                     return self.respond({'error': 'Not found'}, 404)
                 if path=='/api/release':return self.respond(release_info())
                 if path=='/api/release/seen':return self.respond({'version':app.release_seen(),'enabled':True})
@@ -1024,7 +1024,8 @@ def serve_live(app, port, *, gateway_key=None, public_origins=()):
                 self.select_language()
                 self.select_model()
                 self.select_color_schemes()
-                if path == AVATAR_UPLOAD_PATH:
+                avatar_upload = AVATAR_UPLOAD_ROUTE.fullmatch(path)
+                if avatar_upload:
                     if self.headers.get('Transfer-Encoding') or len(self.headers.get_all('Content-Length', [])) != 1:
                         raise ValueError('Invalid upload')
                     length = int(self.headers['Content-Length'])
@@ -1035,7 +1036,7 @@ def serve_live(app, port, *, gateway_key=None, public_origins=()):
                     data = self.rfile.read(length)
                     if len(data) != length:
                         raise ValueError('Incomplete upload')
-                    return self.respond(app.upload_avatar(data), 201)
+                    return self.respond(app.upload_avatar(data, avatar_upload[1]), 201)
                 upload = UPLOAD_ROUTE.fullmatch(path)
                 if upload:
                     if self.headers.get('Transfer-Encoding') or len(self.headers.get_all('Content-Length', [])) != 1:

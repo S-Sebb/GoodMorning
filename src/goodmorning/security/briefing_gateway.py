@@ -26,15 +26,15 @@ from goodmorning.web import language as ui
 from goodmorning.web import models as site_models
 from goodmorning.web import color_schemes as site_colors
 from goodmorning.web.chat_uploads import MAX_UPLOAD_BYTES, UPLOAD_ROUTE, IMAGE_ROUTE, UploadReader, upload_name, attachment_ids
-from goodmorning.web.avatar_images import AVATAR_UPLOAD_PATH, MAX_AVATAR_BYTES
+from goodmorning.web.avatar_images import AVATAR_UPLOAD_ROUTE, MAX_AVATAR_BYTES
 from goodmorning.web.activity import ACTIVITY_PATH, panel as activity_panel
 from goodmorning.web.generation_clock import REQUESTED_AT
 from . import maintenance as deploy_pause
 
 ASSETS = WEB_ASSETS
 POLICY = "default-src 'none'; style-src 'self'; script-src 'self'; img-src 'self'; font-src 'self'; connect-src 'self'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'"
-GET_ROUTES = re.compile(r'(?:/|/(?:index|gm|gn)\.html|/chat|/schedule|/api/schedule|/api/avatar(?:/image/[a-f0-9]{64}\.png)?|/api/chats(?:/[a-f0-9]{32}(?:/status)?)?|/api/day|/api/edition/\d{4}-\d{2}-\d{2}/(?:gm|gn)|/api/jobs/[a-f0-9]{32}(?:/preview)?|/d/\d{4}-\d{2}-\d{2}/(?:gm|gn)\.(?:html|json)|/media/(?:thumb-v1/)?[a-f0-9]{64}\.webp|/d/\d{4}-\d{2}-\d{2}/media/[a-f0-9]+\.webp|/(?:assets/[a-f0-9]{64}/)?desk-secretary(?:-f2|-m1|-m2)?\.png|/(?:assets/[a-f0-9]{64}/)?(?:briefing\.css|briefing\.js|browser\.js|schedule\.js|schedule\.css|questions\.js|chat\.js|chat\.css|avatar\.js|avatar\.css|fonts/(?:lora-italic\.woff2|OFL\.txt)))')
-POST_ROUTES = re.compile(r'(?:/api/avatar(?:/upload)?|/api/(?:generate|regenerate)|/api/chat-uploads/[a-f0-9]{32}|/api/chats|/api/chats/[a-f0-9]{32}/(?:messages|(?:form|permission)/[A-Za-z0-9_]+/reply)|/api/jobs/[a-f0-9]{32}/(?:recover|(?:form|permission)/[A-Za-z0-9_]+/reply))')
+GET_ROUTES = re.compile(r'(?:/|/(?:index|gm|gn)\.html|/chat|/schedule|/api/schedule|/api/avatar(?:/image/[a-f0-9]{64}\.png)?|/api/chats(?:/[a-f0-9]{32}(?:/status)?)?|/api/day|/api/edition/\d{4}-\d{2}-\d{2}/(?:gm|gn)|/api/jobs/[a-f0-9]{32}(?:/preview)?|/d/\d{4}-\d{2}-\d{2}/(?:gm|gn)\.(?:html|json)|/media/(?:thumb-v1/)?[a-f0-9]{64}\.webp|/d/\d{4}-\d{2}-\d{2}/media/[a-f0-9]+\.webp|/(?:assets/[a-f0-9]{64}/)?desk-secretary(?:-f2|-m1|-m2)?(?:-day|-profile)?\.png|/(?:assets/[a-f0-9]{64}/)?(?:briefing\.css|briefing\.js|browser\.js|schedule\.js|schedule\.css|questions\.js|chat\.js|chat\.css|avatar\.js|avatar\.css|fonts/(?:lora-italic\.woff2|OFL\.txt)))')
+POST_ROUTES = re.compile(r'(?:/api/avatar(?:/upload/(?:day|night|profile))?|/api/(?:generate|regenerate)|/api/chat-uploads/[a-f0-9]{32}|/api/chats|/api/chats/[a-f0-9]{32}/(?:messages|(?:form|permission)/[A-Za-z0-9_]+/reply)|/api/jobs/[a-f0-9]{32}/(?:recover|(?:form|permission)/[A-Za-z0-9_]+/reply))')
 QUEUE_KEY = 'generation_queue'
 WAITING_KEY = 'generation_waiting'
 MAX_QUEUE = 20
@@ -118,7 +118,7 @@ class Gateway:
         if method == 'POST' and parsed.path in ('/api/generate', '/api/regenerate') and REQUESTED_AT.get() is not None:
             forwarded['X-GoodMorning-Requested-At'] = str(REQUESTED_AT.get())
         if body is not None:
-            if UPLOAD_ROUTE.fullmatch(parsed.path) or parsed.path == AVATAR_UPLOAD_PATH:
+            if UPLOAD_ROUTE.fullmatch(parsed.path) or AVATAR_UPLOAD_ROUTE.fullmatch(parsed.path):
                 forwarded['Content-Type'] = 'application/octet-stream'
                 forwarded['Content-Length'] = headers['Content-Length']
             else:
@@ -950,12 +950,12 @@ def handler_for(gateway):
                 if self.headers.get('Transfer-Encoding') or len(self.headers.get_all('Content-Length',[]))!=1:
                     raise ValueError('Invalid request body')
                 size=int(self.headers['Content-Length'])
-                if UPLOAD_ROUTE.fullmatch(path) or path == AVATAR_UPLOAD_PATH:
+                if UPLOAD_ROUTE.fullmatch(path) or AVATAR_UPLOAD_ROUTE.fullmatch(path):
                     if not session['user_id'] or session['temporary']:
                         raise Denied('Sign in with a permanent password before uploading')
                     if not secrets.compare_digest(self.headers.get('X-Briefing-CSRF', ''), session['csrf']):
                         raise Denied('Forbidden')
-                    avatar_upload = path == AVATAR_UPLOAD_PATH
+                    avatar_upload = bool(AVATAR_UPLOAD_ROUTE.fullmatch(path))
                     if size > (MAX_AVATAR_BYTES if avatar_upload else MAX_UPLOAD_BYTES):
                         return self.respond({'error': 'Avatar images must be 5 MB or smaller.' if avatar_upload else 'Files must be 50 MB or smaller.'}, 413)
                     if size < 0 or self.headers.get('Content-Type') != 'application/octet-stream':

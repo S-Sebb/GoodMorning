@@ -12,7 +12,7 @@ from urllib.request import Request
 
 from PIL import Image
 from support import TEMP_ROOT, FakeChamber, QuickServer, session_cookie
-from goodmorning.web.avatar_images import MAX_AVATAR_BYTES, read_image
+from goodmorning.web.avatar_images import MAX_AVATAR_BYTES, find_image, read_image
 from goodmorning.web.briefing_server import BrowserApp, serve_live
 from goodmorning.briefings.briefing_document import encode
 import test_chat_uploads
@@ -77,10 +77,10 @@ class CustomAvatarTests(unittest.TestCase):
                            'sections': [['notes', [['p', 'Keep this.']]]]})
         for kind in ('gm', 'gn'):
             (daily / f'{day}.{kind}.json').write_text(document)
-        first = self.app.upload_avatar(portrait())['avatars'][-1]['src']
+        first = self.app.upload_avatar(portrait())['avatars'][-1]['night']
         for kind in ('gm', 'gn'):
             self.assertIn(first, self.app.page(day, kind, True).decode())
-        second = self.app.upload_avatar(portrait('blue'))['avatars'][-1]['src']
+        second = self.app.upload_avatar(portrait('blue'))['avatars'][-1]['night']
         self.assertNotEqual(first, second)
         for kind in ('gm', 'gn'):
             self.assertIn(second, self.app.page(day, kind, True).decode())
@@ -97,13 +97,40 @@ class CustomAvatarTests(unittest.TestCase):
             self.assertEqual(read_image(self.root), previous)
             self.assertEqual(self.app.avatar(), 'custom')
 
+    def test_day_night_and_profile_uploads_fall_back_and_replace_only_their_own_image(self):
+        day = self.app.upload_avatar(portrait('yellow'), 'day')['avatars'][-1]
+        self.assertEqual((day['night'], day['profile']), (day['day'], None))
+        self.assertIn('data-profile=""', self.app.chat_page().decode())
+        night = self.app.upload_avatar(portrait('navy'), 'night')['avatars'][-1]
+        self.assertEqual(night['day'], day['day'])
+        self.assertNotEqual(night['night'], day['day'])
+        settings = self.app.upload_avatar(portrait('green', size=(300, 200)), 'profile')
+        custom = settings['avatars'][-1]
+        self.assertEqual((custom['day'], custom['night'], settings['avatar']), (day['day'], night['night'], 'custom'))
+        with Image.open(io.BytesIO(read_image(self.root, 'profile')[1])) as image:
+            self.assertEqual(image.size, (512, 512))
+        for kind, variant in (('gm', 'day'), ('gn', 'night')):
+            rendered = self.app.page(self.app.today(), kind, False).decode()
+            self.assertIn(f'class="avatar-image" src="{custom[variant]}"', rendered)
+            self.assertIn(f'data-profile="{custom["profile"]}"', rendered)
+        for url in (custom['day'], custom['night'], custom['profile']):
+            self.assertTrue(find_image(self.root, url.rsplit('/', 1)[1][:-4]))
+        with self.assertRaises(KeyError):
+            self.app.upload_avatar(portrait(), 'evening')
+
+    def test_profile_alone_stands_in_for_both_scenes(self):
+        custom = self.app.upload_avatar(portrait(), 'profile')['avatars'][-1]
+        self.assertEqual(custom['day'], custom['profile'])
+        self.assertEqual(custom['night'], custom['profile'])
+
     def test_symlink_storage_is_never_followed(self):
         target = self.root / 'untouched'; target.write_text('unchanged')
-        for name in ('website-avatar-image.json', 'website-avatar.json'):
+        for name in ('website-avatar-image.json', 'website-avatar-image-day.json', 'website-avatar-image-profile.json', 'website-avatar.json'):
             path = self.root / name
             path.symlink_to(target)
-            with self.assertRaises(ValueError):
-                self.app.upload_avatar(portrait())
+            for variant in ('day', 'night', 'profile'):
+                with self.assertRaises(ValueError):
+                    self.app.upload_avatar(portrait(), variant)
             self.assertEqual(target.read_text(), 'unchanged')
             path.unlink()
 
@@ -115,12 +142,12 @@ class CustomAvatarHTTPTests(unittest.TestCase):
         self.addCleanup(self.backend_fixture.doCleanups)
         self.fixture = self.backend_fixture.fixture
 
-    def upload(self, data=None, headers=None):
+    def upload(self, data=None, headers=None, path='/api/avatar/upload/night'):
         values = {'Host': 'gm.example.test', 'X-Forwarded-Proto': 'https', 'X-Real-IP': '192.0.2.1',
                   'Cookie': self.fixture.cookie or '', 'Origin': 'https://gm.example.test',
                   'X-Briefing-CSRF': self.fixture.csrf or '', 'Content-Type': 'application/octet-stream'}
         values.update(headers or {})
-        request = Request(f'http://127.0.0.1:{self.fixture.server.server_port}/api/avatar/upload',
+        request = Request(f'http://127.0.0.1:{self.fixture.server.server_port}' + path,
                           data=portrait() if data is None else data, headers=values)
         try:
             response = self.fixture.opener.open(request, timeout=5)
@@ -133,7 +160,7 @@ class CustomAvatarHTTPTests(unittest.TestCase):
         self.fixture.permanent()
         status, settings = self.upload()
         self.assertEqual(status, 201)
-        url = settings['avatars'][-1]['src']
+        url = settings['avatars'][-1]['night']
         status, headers, raw = self.fixture.request(url)
         self.assertEqual(status, 200)
         self.assertEqual(headers['Content-Type'], 'image/png')
@@ -145,6 +172,10 @@ class CustomAvatarHTTPTests(unittest.TestCase):
         self.assertEqual(self.backend_fixture.chamber.calls, [])
         self.assertIsNone(self.fixture.gateway.ticket())
         self.assertEqual(self.fixture.request('/api/avatar/image/' + '0' * 64 + '.png')[0], 404)
+        status, settings = self.upload(path='/api/avatar/upload/profile')
+        self.assertEqual(status, 201)
+        self.assertEqual(self.fixture.request(settings['avatars'][-1]['profile'])[0], 200)
+        self.assertEqual(self.upload(path='/api/avatar/upload/evening')[0], 400)
 
     def test_authentication_csrf_origin_and_size_limits(self):
         self.assertEqual(self.upload()[0], 403)
@@ -157,7 +188,7 @@ class CustomAvatarHTTPTests(unittest.TestCase):
 
     def test_image_urls_are_served_only_from_the_owners_backend(self):
         self.fixture.permanent()
-        url = self.upload()[1]['avatars'][-1]['src']
+        url = self.upload()[1]['avatars'][-1]['night']
         runtime = self.fixture.root / 'bob'; runtime.mkdir()
         (runtime / 'profile.md').write_text('timezone: Europe/London\nsecretary_language: English\n')
         servers, ready, key = [], threading.Event(), secrets.token_urlsafe(32)
