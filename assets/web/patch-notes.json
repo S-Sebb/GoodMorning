@@ -1,6 +1,48 @@
 {
   "notes": [
     {
+      "version": "0.50.0",
+      "date": "2026-10-16",
+      "author": "GoodMorning agent",
+      "title_en": "Daytime scenes and a name for you",
+      "title_zh": "白天场景，还有你的称呼",
+      "changes": [
+        {
+          "category": "Added",
+          "en": [
+            "Secretary avatars now have a daytime scene, shown on morning briefings and on daytime pages, and the night scene stays for evenings.",
+            "Chat replies and the quick chat button now show a head-and-shoulders picture of your secretary instead of a zoomed-in crop of the scene.",
+            "Custom avatars now take separate uploads for the day scene, night scene and profile picture; earlier uploads keep working as the night scene.",
+            "You can tell your secretary what to call you during setup or later in chat, and briefing greetings use that name."
+          ],
+          "zh": [
+            "秘书形象多了白天场景，早间简报和白天的页面会用上它，晚上还是夜晚场景。",
+            "聊天回复和快速聊天按钮现在显示秘书的头肩照，不再是场景里放大的局部。",
+            "自定义形象可以分别上传白天场景、夜晚场景和头像；以前传过的图片会继续当作夜晚场景使用。",
+            "你可以在初始化时告诉秘书怎么称呼你，之后在聊天里也能改，简报开头的问候会用上这个称呼。"
+          ]
+        },
+        {
+          "category": "Changed",
+          "en": [
+            "Schedule now remembers Day or Week view separately on phones and larger screens; both start on Week once after this update."
+          ],
+          "zh": [
+            "日程现在会在手机和大屏上分别记住日视图还是周视图；这次更新后，两边都会先回到周视图一次哦。"
+          ]
+        },
+        {
+          "category": "Fixed",
+          "en": [
+            "Morning news no longer shows only AI stories when world or country news was available; each category with saved stories now gets its own block."
+          ],
+          "zh": [
+            "有世界或国家新闻时，早间新闻不再只显示 AI 那几条；现在每个存有新闻的分类都会单独列出一块。"
+          ]
+        }
+      ]
+    },
+    {
       "version": "0.49.0",
       "date": "2026-10-16",
       "author": "GoodMorning agent",
