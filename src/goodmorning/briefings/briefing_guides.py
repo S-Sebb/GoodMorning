@@ -60,7 +60,7 @@ TEXT = {
             'own tools, such as a web search or the named page; never pass it back to the user. A figure counts only if you read it on the '
             'source page itself; search snippets can be out of date. Compare only with values in last or extra; never invent an earlier '
             'one. Put first, before the actions block (alone if there are zero rows), one ["errands",[[id,revision,title,finding,'
-            '[[source_label,url],...],note],...]] block with a row for every errand (id/revision unchanged; title reworded only as above). note, always: what you '
+            '[[source_label,url],...],note],...]] block with a row for every errand (id/revision unchanged; title as given, reworded like a fallback row only when the errand\'s worded is false). note, always: what you '
             'found or why it failed, dated, for the next morning (e.g. "2026-10-16: £139.99 on the Amazon UK product page"). finding, what '
             'the user sees: one or two plain sentences with the result when the instruction says they should hear it or sets no '
             'condition (e.g. "£114.99 on Amazon UK today, under your £120 limit."); "" when its condition is not met, which hides the '
@@ -128,7 +128,7 @@ TEXT = {
             '什么情况下告诉用户，extra 是和用户一起记下的笔记，last 是你最近一次早上的结果，没有则为 null）。现在就用你自己的工具逐项完成，例如网页搜索'
             '或打开指定页面；不要交回给用户去做。只有在来源页面上亲眼读到的数字才算数，搜索结果摘要可能已过时。只和 last 或 extra 里的数值比较，绝不编造'
             '以前的数值。在 actions 块之前（读取为 0 行时单独）放一个 ["errands",[[id,revision,title,finding,[[来源名,url],...],note],...]] 块，'
-            '每个代办事项一行（id/revision 不变；标题只按上面的规则改写）。note 必填：查到了什么或为什么失败，带日期，留给下一个早上（例如"2026-10-16：亚马逊英国商品页 '
+            '每个代办事项一行（id/revision 不变；标题照抄，只有该代办事项的 worded 为 false 时才按上面 fallback 行的规则改写）。note 必填：查到了什么或为什么失败，带日期，留给下一个早上（例如"2026-10-16：亚马逊英国商品页 '
             '£139.99"）。finding 是用户看到的内容：instruction 说要告诉用户（或没有设定条件）时，用一两句平实的话写结果（例如"今天亚马逊英国售价 £114.99，'
             '低于你定的 £120。"）；条件不满足时为 ""，该行不显示；无法得到可靠结果时，用平实的话说明你试了什么、为什么没成功，并说明可以在聊天里和你商量'
             '换个来源。引用你查看或尝试的页面，没有就用 []。注记：最重要的 1–3 个项目组和一个有用的下一步。读取为 0 行且没有代办事项时用 skip {"position":N}。'),

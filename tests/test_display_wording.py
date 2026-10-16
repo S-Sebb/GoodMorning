@@ -127,6 +127,17 @@ class DisplayWordingTests(unittest.TestCase):
                 ui.CURRENT.reset(token)
             self.assertEqual([t['text'] for t in tasks], [label])
 
+    def test_errand_card_heading_uses_saved_wording(self):
+        errand = self.capture(title='Check chair price', kind='errand', detail='Tell me only when it is under £120.',
+                              display={'en': {'morning': {'title': 'SIHOO M18 chair price', 'detail': ''}, 'schedule': 'Chair price'},
+                                       'zh': {'morning': {'title': 'SIHOO M18 椅子价格', 'detail': ''}, 'schedule': '椅子价格'}})
+        heading = lambda lang: self.cells('gm', DAY, lang)[2]['tasks']['errands'][0]
+        self.assertEqual((heading('en')['title'], heading('en')['worded']), ('SIHOO M18 chair price', True))
+        self.assertEqual(heading('zh-CN')['title'], 'SIHOO M18 椅子价格')
+        self.assertEqual(heading('en')['instruction'], 'Tell me only when it is under £120.')
+        self.tasks.mutate(errand, 1, {'title': 'Check the chair price on Amazon UK'}, 'ses_test', 'rename', NOW)
+        self.assertEqual((heading('en')['title'], heading('en')['worded']), ('Check the chair price on Amazon UK', False))
+
     def test_check_rejects_overlong_labels(self):
         with self.assertRaisesRegex(ValueError, 'at most 40'):
             check({**HELPDESK, 'en': {**HELPDESK['en'], 'schedule': 'x' * 41}}, 'task', {'title': 'x'})
