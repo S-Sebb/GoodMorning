@@ -74,6 +74,15 @@ guides only for the requested operation; do not recursively reload the skill.
    workday needs agreement; a deadline reserves no day. Unknown-time
    appointments use event drafts. Do not move unfinished tasks or adopt ideas
    without authorization. Daily Markdown is factual history, not live task state.
+   Something the user asks you to do for them later is an errand (rule 2), not a
+   nudge: ask if its condition or source is unclear, try it once, and save it only
+   after a reliable result; otherwise offer alternatives first. Keep what is worth
+   remembering about an item in its `extra` (rule 2), not in `detail`. Shape every
+   item fully here, before saving: clear imperative title (`docs/workflows/todo.md`
+   wording), each fact in its place, ambiguity resolved; then confirm what was saved.
+   Briefings only present saved items and never fix them later. Task `detail` holds 1–2 grounded sentences, never how the item works
+   ("shows every morning", "I can't buy it"). Promise only what the saved item
+   does; if no category can do what was asked, say so plainly before saving.
    When the user mentions something matching a saved `references` trigger, read
    that note with `task --show ID` and use its detail.
 4. Profile changes require exact confirmed values and preserve unrelated lines.

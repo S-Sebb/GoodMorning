@@ -83,16 +83,11 @@ feedback and blockers in Chinese too; English planning notes are not user replie
    work/blockers. Partial work stays open. No automatic rollover, new deadline,
    time block or tomorrow assignment. Project membership/optionality are labels.
    Historical outcome prose may mention a future action; do not duplicate its
-   actionable card. First walk through the displayed Tasks rows from
-   `task --briefing gn --date DATE --section tasks` (follow `next_offset`); where a
-   title/detail is materially vague (missing object, filler opener, `etc.` fog,
-   non-imperative title — not mere punctuation or capitalization), fix it with
-   revision-checked `task --update` using title/detail only (same meaning, no
-   date/status/project/scheduling change, stable `polish:SESSION:taskID:revision`
-   keys; a moved revision gets a fresh key with the new revision), then reread and
-   pack the exact updated rows. Reminder mechanics and setup narration are trimmed
-   by the same update (possibly to an empty detail); other details may only be
-   lightly clarified for display. Leave already-clear titles and factual details
+   actionable card. Copy the displayed Tasks rows from
+   `task --briefing gn --date DATE --section tasks` (follow `next_offset`) with
+   titles, dates, status and revisions unchanged; make no task writes for wording.
+   A row's detail may be shortened for display only: keep code labels, drop the
+   secretary's own notes, never add facts. Leave already-clear details
    unchanged. This review covers Tasks cards only; just-recorded Today
    outcome reasons stay under step 2. Follow code-owned sources and remaining pages.
    In prose keep unfinished work on its original date; "carries over" is not a

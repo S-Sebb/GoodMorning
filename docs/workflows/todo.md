@@ -35,7 +35,10 @@ to its workflow in this conversation; capture wording alone does not grant conse
    `due_date` the last.
 2. Classify before saving with rule 2 of `docs/item-taxonomy.md` (read it when the
    input is anything but a plain action): a heads-up with nothing to finish is
-   `task.kind:"nudge"`; information for a trigger the system cannot see ("when X runs
+   `task.kind:"nudge"`; something the user asks you to do for them each morning
+   ("check the price and tell me when it's under £120") is `task.kind:"errand"`,
+   whose detail says only what to find and when to tell them (try it once before
+   saving, as rule 2 says); information for a trigger the system cannot see ("when X runs
    out") is `kind:"reference"` with `trigger`; "remind me daily until done" is
    `follow_up:"until-done"`; birthdays and appointments belong to the calendar, not
    tasks, and a habit with a flexible rhythm uses `custom --add`. If one request is
@@ -80,14 +83,16 @@ to its workflow in this conversation; capture wording alone does not grant conse
   empty if unsupported. Do not repeat title/project/deadline/priority; keep supplied
   timing in structured fields. Reminder mechanics and setup narration
   ("surface in Friday /gm", "setup choice confirmed", "no calendar time/place")
-  belong in structured repeat/when fields and the inbox entry `context`, never in detail.
+  belong in structured repeat/when fields, the inbox entry `context` or the task's
+  `extra`, never in detail; never copy the same text into two of them.
   Never invent facts, dates, priorities or progress.
 - Example: “Currently there's a message-box stretch blocking typing” becomes
   “Fix message-box stretch blocking typing”; no unsupported detail is needed.
   “Work on it tomorrow” updates the identified action's workday, not its deadline.
 - Do not ask for project/deadline/priority/breakdown by default or research, plan,
   execute, delegate, launch jobs, scan projects, fetch news/weather, edit work files
-  or offer calendar changes during capture. A dated TODO remains a TODO.
+  or offer calendar changes during capture; the one exception is the single trial
+  run of an errand. A dated TODO remains a TODO.
 - Later workflows may display the open action; they must not invent a deadline,
   today's priority, duplicate task or clarification task. Only user-confirmed
   completion permits revision-checked `task --update`/`--report` under

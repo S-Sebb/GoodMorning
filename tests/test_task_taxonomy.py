@@ -697,8 +697,10 @@ class TaxonomyTests(unittest.TestCase):
             self.assertEqual(result['next']['input']['section'][0],'news')
         guide = briefing_guides.guide({'date':DAY}, {'action':'publish','section':['tasks','Tasks']}, [],
                                       runtime=self.root, job='j'*32, session='ses_test')
+        self.assertNotIn('--update', guide)  # Briefings present saved items; they never rewrite them.
+        guide = briefing_guides.guide({'date':DAY}, {'action':'publish','section':['today','Today']}, [],
+                                      runtime=self.root, job='j'*32, session='ses_test')
         self.assertIn('--secretary-dir '+str(self.root),guide)
-        self.assertIn('polish:ses_test:TASK_ID:REV',guide)
         self.assertNotIn('RUNTIME',guide)
 
     def test_account_schedule_ignores_process_calendar_override(self):

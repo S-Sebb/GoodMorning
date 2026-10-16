@@ -7,6 +7,7 @@ work), the evening form asks the right questions, and the pages render on
 desktop and mobile. Prose, tone and layout still need manual screenshot review.
 """
 import argparse
+import re
 from datetime import date, datetime, time, timedelta, timezone
 import json
 from pathlib import Path
@@ -38,7 +39,32 @@ def rows(document, section):
     return titles
 
 
-def run(output, template, language, kind):
+def legacy_checks(runtime, document, seeded, problems):
+    """Older items with notes inside detail: the record stays as saved; the page shows only what the user needs."""
+    from benchmarks.category_live import tasks as saved_tasks
+    rows = {r['id']: r for r in saved_tasks(runtime)[0]}
+    shown = {row[0]: row[6] for entry in document['sections'] if entry[0] == 'tasks'
+             for block in entry[1] if block[0] == 'actions' for row in block[1]}
+    notes = r'every morning|briefing|I check|cannot buy|Keep open|Reminder date|tomorrow|ib_|projects/|每天早上|早报|我会|没法|提醒日期|明天|部署后|ib_|projects/'
+    for key, facts in (('legacy-desk', ('250',)), ('legacy-calibration', ()), ('legacy-helpdesk', ('4471',)),
+                       ('legacy-confirm', ()), ('legacy-clean', None)):
+        row, display = rows[seeded[key]], shown.get(seeded[key])
+        if row['revision'] != 1:
+            problems.append(f'{key}: the briefing rewrote the saved record')
+        if display is None:
+            problems.append(f'{key}: not shown')
+        elif facts is None:
+            if row['detail'] not in display:
+                problems.append(f'{key}: clean detail changed on the page: {display}')
+        else:
+            if re.search(notes, display, re.I):
+                problems.append(f'{key}: page still shows the secretary\'s notes: {display}')
+            for fact in facts:
+                if fact not in display:
+                    problems.append(f'{key}: page dropped {fact}: {display}')
+
+
+def run(output, template, language, kind, selected=None):
     zh = language == 'zh-CN'
     t = lambda en, cn: cn if zh else en
     name = 'wednesday-morning' if kind == 'gm' else 'friday-evening'
@@ -47,13 +73,16 @@ def run(output, template, language, kind):
     runtime = folder / 'account'
     source = folder / 'source'
     shutil.copytree(template, source)
-    (source / 'opencode.json').write_text(json.dumps(trial_config(runtime)))
+    config = trial_config(runtime)
+    rules = config['agents']['build']['permissions']
+    rules[:] = [r for r in rules if r['action'] not in ('webfetch', 'websearch')]  # Errands need the web, as in production.
+    (source / 'opencode.json').write_text(json.dumps(config))
     for path in [p for p in source.rglob('*') if p.parent != source or p.is_dir()]:  # Like a deployed release: the agent cannot patch the code.
         path.chmod(path.stat().st_mode & ~0o222)
-    seed(runtime, MONDAY, language)
+    seeded = seed(runtime, MONDAY, language)
     day = MONDAY + timedelta(days=2 if kind == 'gm' else 4)
     instant = datetime.combine(day, time(7, 30) if kind == 'gm' else time(20, 30), ZoneInfo(ZONE)).astimezone(timezone.utc)
-    selected = for_language(language)
+    selected = selected or for_language(language)
     bridge = CheckpointBridge(source, runtime, False, language)
     app = BrowserApp(runtime, bridge, now=lambda: instant, preflight=True)
     result = {'case': name, 'language': language, 'date': day.isoformat(), 'checks': [], 'problems': []}
@@ -89,6 +118,31 @@ def run(output, template, language, kind):
         save(folder / 'document.json', document)
         tasks, schedule = rows(document, 'tasks'), rows(document, 'schedule')
         result['tasks'], result['schedule'] = tasks, schedule
+        errands = {row[2]: row for entry in document['sections'] if entry[0] == 'tasks'
+                   for block in entry[1] if block[0] == 'errands' for row in block[1]}
+        result['errands'] = list(errands.values())
+        wage, pi = t('Look up the UK National Living Wage on GOV.UK', '在 GOV.UK 查一下英国国家生活工资'), t('Check the Raspberry Pi 5 8GB price on raspberrypi.com', '在 raspberrypi.com 查树莓派5 8GB的价格')
+        if kind == 'gm':
+            chair_title = t('Check the black SIHOO M18 chair price on Amazon UK', '查亚马逊英国黑色 SIHOO M18 椅子的价格')
+            for title in (wage, pi, chair_title):
+                if title not in errands or day.isoformat() not in errands[title][5]:
+                    result['problems'].append('errand without a dated note for the next morning: ' + title)
+            if wage in errands and not ('12.21' in errands[wage][3] and '12.71' in errands[wage][3]
+                                        and any('gov.uk' in u for _, u in errands[wage][4])):
+                result['problems'].append('rate change against last result not shown with old/new rate and GOV.UK: '
+                                          + json.dumps(errands[wage], ensure_ascii=False))
+            chair = errands.get(chair_title)
+            if chair and not chair[3] and not re.search(r'£\s?\d', chair[5]):
+                result['problems'].append('chair check hidden without a price read: ' + json.dumps(chair, ensure_ascii=False))
+        elif errands:
+            result['problems'].append('errands shown in the evening')
+        if kind == 'gm':
+            legacy_checks(runtime, document, seeded, result['problems'])
+            plants = next((row for entry in document['sections'] if entry[0] == 'tasks' for block in entry[1]
+                           if block[0] == 'actions' for row in block[1] if t('plants', '植物') in row[5]), None)
+            result['plants'] = plants
+            if not plants or len(plants[6]) > 120 or any(w in plants[6] for w in (t('every morning', '每天早上'), t('briefing', '早报'))):
+                result['problems'].append('narrating heads-up detail not trimmed: ' + json.dumps(plants, ensure_ascii=False))
         if kind == 'gm':
             expected_tasks = [t('Strength training', '力量训练'), t('Prepare the project-update presentation', '准备项目进展汇报'),
                               t('Calculate the new ranking before the rebalance', '调仓前计算新排名'), t('Bring gym clothes', '带运动衣服'),
@@ -155,6 +209,8 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--output', type=Path, required=True)
     parser.add_argument('--language', choices=('en', 'zh-CN'), required=True)
+    from goodmorning.web.models import MODELS
+    parser.add_argument('--model', choices=tuple(MODELS), help='Defaults to the production model for the language')
     args = parser.parse_args()
     output = args.output.resolve()
     if not output.is_relative_to('/tmp/opencode'):
@@ -169,7 +225,7 @@ def main():
             shutil.copyfile(ROOT / name, template / name)
         shutil.copyfile(ROOT / 'skill-source/goodmorning.md', template / 'goodmorning.md')
         (template / 'scripts/goodmorning.py').write_text(TRIAL_CLI)
-        cases = [run(output, template, args.language, kind) for kind in ('gm', 'gn')]
+        cases = [run(output, template, args.language, kind, args.model) for kind in ('gm', 'gn')]
         screenshots(output, cases)
         for result, *_ in cases:
             save(output / result['case'] / 'result.json', result)

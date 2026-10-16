@@ -50,17 +50,21 @@ plan position and use `skip` for empty optional ones; local JSON omits empty opt
    TBC, or timed focus; do not repeat every card.
 5. Publish Tasks from code-owned rows: heads-ups (nudges: mention, never ask if done), agreed/recurring work, daily follow-ups, deadline attention,
    still-open work and selected undated actions. Project and optional labels are
-   attributes. First walk through today's displayed rows from
-   `task --briefing gm --date DATE --section tasks` (follow `next_offset`); where a
-   title/detail is materially vague (missing object, filler opener, `etc.`/parens fog,
-   verb at the end, non-imperative title — not mere punctuation or capitalization), fix it with
-   revision-checked `task --update`
-    using title/detail only (same meaning, no date/status/project/scheduling change,
-    stable `polish:SESSION:taskID:revision` keys; a moved revision gets a fresh key
-    with the new revision), then reread and pack the exact
-    updated rows. Reminder mechanics and setup narration are trimmed
-    by the same update (possibly to an empty detail); other details may only be
-    lightly clarified for display. Preserve dates, details, source IDs and revisions; follow pages.
+   attributes. Make no task writes; records were shaped in the conversation that
+   received the request. The read's `errands` are jobs the user asked you to do
+   yourself: do each now (web search or the named page; only a figure read on the
+   source page itself counts, not a search snippet; compare only with its `last`
+   result or `extra`), then put first in Tasks one source-linked
+   `["errands",[[id,revision,title,finding,[[label,url],...],note],...]]` row per
+   errand. `note` is always the dated result or failure for the next morning;
+   `finding` is shown: the result when its instruction says the user should hear
+   it (or sets no condition), `""` for an unmet condition, and for a failed check
+   what you tried and why it failed, so the user can change it with you in chat.
+   Copy today's displayed rows from `task --briefing gm --date DATE --section tasks`
+   (follow `next_offset`) with titles, dates, status and revisions unchanged. A
+   row's detail may be shortened for display only: keep code labels, drop the
+   secretary's own notes (reminder mechanics, setup narration, progress logs, IDs,
+   remembered values), never add facts.
     Also read code-owned `custom --briefing gm --date DATE` rows; due custom schedules are shown with Tasks using their computed next-due and weekly count. Word warmly; never invent custom dates.
     Leave already-clear titles unchanged. A project name within the specific object
     ("Send Atlas report") is not a decorative prefix ("Atlas: Send report"); do not
