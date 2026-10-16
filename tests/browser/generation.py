@@ -1,5 +1,6 @@
 """Browser generation round-trip against the isolated mock OpenChamber fixture."""
 import json
+import re
 from pathlib import Path
 import subprocess
 import sys
@@ -152,8 +153,8 @@ def main():
                     # Past editions never offer historical generation.
                     page.locator('.week-picker a').first.click()
                     expect(page.locator('#generate')).to_have_count(0)
-                    expect(page.get_by_text('No story was told by you for this day.')).to_be_visible()
-                    expect(page.get_by_text('Let the past pages stay as they are.')).to_be_visible()
+                    expect(page.get_by_text('No briefing was prepared for this day.')).to_be_visible()
+                    expect(page.get_by_role('link', name='Open this day in Schedule')).to_have_attribute('href', re.compile(r'^/schedule\?view=day&day=-\d$'))
                     if artifacts:page.screenshot(path=str(artifacts/f'archive-missing-{viewport["width"]}.png'))
                     pinned=page.url
                     page.route('**/api/day',lambda route:route.fulfill(json={'date':'2099-01-01'}),times=1)

@@ -24,7 +24,7 @@ def check_composer(browser, address, artifacts):
         layout = 'node => [node.offsetLeft, node.offsetTop, node.offsetWidth, node.offsetHeight]'
         for edition, scheme in (('gm', 'classic'), ('gm', 'warm'), ('gn', 'classic')):
             text.fill('Keep this draft')
-            page.locator('#new-conversation').focus()
+            page.locator('#mode-help').focus()
             page.evaluate("([edition, scheme]) => { document.documentElement.dataset.edition = edition; document.documentElement.dataset.dayScheme = scheme; }", [edition, scheme])
             page.evaluate("async () => { await Promise.all(document.querySelector('.chat-input-row').getAnimations().map(a => a.finished)); }")
             before = row.evaluate(layout)
@@ -53,7 +53,7 @@ def check_composer(browser, address, artifacts):
             page.keyboard.press('Tab')
             expect(page.locator('#chat-send')).to_be_focused()
             expect(page.locator('#chat-send')).to_have_css('outline-style', 'solid')
-            page.locator('#new-conversation').focus()
+            page.locator('#mode-help').focus()
             page.evaluate("async () => { await Promise.all(document.querySelector('.chat-input-row').getAnimations().map(a => a.finished)); }")
             expect(row).to_have_css('border-color', plain)
             expect(text).to_have_value('Keep this draft')

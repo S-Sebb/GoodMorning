@@ -44,16 +44,17 @@ def check(app, url, shots, canonical=False):
             # A deadline is a marker on its due day, never a workday.
             expect(page.get_by_text('Deadline only, not a workday', exact=True)).to_have_count(1)
             expect(page.locator('#day-2026-10-16 .task-marker')).to_have_text('Deadline · no workday assigned')
-        expect(page.get_by_label('Schedule details', exact=True)).to_have_accessible_description('Calendar review: 1 pending')
-        # Routine metadata has one home, without competing with the calendar.
+        # A pending calendar change is announced in view; routine metadata stays in the details menu.
+        expect(page.locator('.schedule-review')).to_contain_text('awaits review')
+        expect(page.locator('.schedule-review a')).to_have_attribute('data-quick-ask', re.compile('.'))
         visible_text = page.locator('main').inner_text()
-        assert 'awaits review' not in visible_text and 'Europe/London' not in visible_text
+        assert 'Europe/London' not in visible_text
         assert 'completed' not in visible_text and 'Checked at' not in visible_text
         expect(page.locator('.schedule-guide, .schedule-summary, .schedule-intro')).to_have_count(0)
         page.get_by_label('Schedule details', exact=True).click()
         expect(page.locator('.schedule-info-panel')).to_be_visible()
         expect(page.locator('.schedule-info-panel')).to_contain_text('Europe/London')
-        expect(page.locator('.schedule-info-panel')).to_contain_text('awaits review')
+        expect(page.locator('.schedule-info-panel')).not_to_contain_text('awaits review')
         expect(page.locator('.schedule-info-panel')).not_to_contain_text('provider sync')
         page.keyboard.press('Escape')
         expect(page.locator('.schedule-info-panel')).to_be_hidden()

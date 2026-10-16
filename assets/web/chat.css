@@ -22,6 +22,7 @@
 .chat-topic-hint { margin: 8px 0 16px; font-size: 12px; color: var(--muted); line-height: 1.5; }
 #new-conversation { display: inline-flex; align-items: center; justify-content: center; gap: 8px; flex-shrink: 0; font-size: 13px; font-weight: 650; background: var(--ink); color: var(--surface); border-color: var(--ink); box-shadow: 0 3px 12px #233c3615; }
 #new-conversation svg { flex-shrink: 0; }
+#new-conversation[hidden], .chat-topic-hint[hidden] { display: none; }
 #new-conversation:hover { background: var(--accent); color: var(--surface); border-color: var(--accent); }
 #chat-resume-notice { margin: 0 0 12px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--wash); font-size: 12px; }
 #chat-resume { display: inline-block; font-weight: 600; }
@@ -172,7 +173,7 @@ html[data-edition="gn"] #chat-error { color: #f1b1a8; }
 .history-header { flex-shrink: 0; margin-bottom: 14px; }
 .history-header .eyebrow { margin: 0 0 5px; font-size: 10px; }
 #history-heading { margin: 0; font: 600 20px/1.35 ui-sans-serif, system-ui, sans-serif; letter-spacing: -.4px; }
-#chat-history { display: grid; grid-auto-rows: max-content; align-content: start; gap: 10px; min-height: 0; overflow: auto; padding: 8px; margin: 0; border: 1px solid var(--line); border-radius: 18px; background: var(--bg); scrollbar-gutter: stable; }
+#chat-history { display: grid; grid-auto-rows: max-content; align-content: start; gap: 10px; min-height: 0; overflow: auto; padding: 3px; margin: 0; scrollbar-gutter: stable; }
 #chat-history:empty { display: none; }
 #chat-history a { display: block; min-height: 64px; border: 1px solid transparent; border-radius: 12px; padding: 12px; text-decoration: none; overflow-wrap: anywhere; font-size: 15px; font-weight: 500; line-height: 1.5; background: var(--surface); box-shadow: 0 2px 8px #233c3608; }
 #chat-history a:hover { border-color: var(--accent); background: var(--wash); }
@@ -180,6 +181,7 @@ html[data-edition="gn"] #chat-error { color: #f1b1a8; }
 #chat-history a:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 .history-meta { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--line); }
 #chat-history small { font-size: 12px; font-weight: 400; color: var(--ink); color: color-mix(in srgb, var(--muted) 80%, var(--ink)); }
+#chat-history .history-time { font-variant-numeric: tabular-nums; }
 #chat-history .history-current { padding: 1px 7px; border: 1px solid var(--line); border-radius: 999px; font-size: 11px; font-weight: 600; color: var(--ink); }
 .history-current[hidden] { display: none; }
 #history-notice { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.6; }

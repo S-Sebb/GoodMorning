@@ -85,6 +85,9 @@ class GroupingTests(unittest.TestCase):
         self.assertNotIn('Review calendar change', html)
         self.assertNotIn('2026-10-23T11', html)
         self.assertIn('Fri 23 Oct 11:00', html)
+        # Each card offers a way to talk it through, starting from its own title.
+        self.assertIn('data-quick-ask-title="Canceled: Imperial-QMUL Catchup"', html)
+        self.assertIn('href="/chat"', html)
 
     def test_calendar_review_copy_uses_action_prefix_and_human_range(self):
         from goodmorning.web import language as ui

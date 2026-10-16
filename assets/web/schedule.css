@@ -28,9 +28,10 @@
 .schedule-info-panel dl { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 10px 16px; margin: 0; }
 .schedule-info-panel dt { color: var(--muted); }
 .schedule-info-panel dd { margin: 0; text-align: right; overflow-wrap: anywhere; }
-.schedule-review-dot { position: absolute; top: 9px; right: 8px; width: 5px; height: 5px; border-radius: 50%; background: var(--warm); }
-.schedule-review-note { margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--line); }
-.schedule-review-note p { margin: 0 0 8px; color: var(--muted); line-height: 1.6; }
+.schedule-review { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px; margin: 0 0 16px; padding: 12px 16px; border: 1px solid var(--line); border-left: 3px solid var(--warm); border-radius: 14px; background: var(--surface); font-size: 13px; line-height: 1.5; }
+.schedule-review a { flex-shrink: 0; padding: 6px 14px; border-radius: 999px; background: var(--ink); color: var(--bg); font-size: 12px; text-decoration: none; }
+.schedule-review a:hover { background: var(--accent); }
+.schedule-review a:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
 .schedule-info-panel a { font-size: 11px; }
 .schedule-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); grid-template-rows: auto minmax(170px, max-content) minmax(120px, max-content); overflow: hidden; border: 1px solid var(--line); border-radius: 22px; background: var(--surface); box-shadow: 0 8px 32px #00000004; }
 .schedule-day { display: grid; grid-row: span 3; grid-template-columns: minmax(0, 1fr); grid-template-rows: subgrid; min-width: 0; border-right: 1px solid color-mix(in srgb, var(--line) 65%, transparent); scroll-margin-top: 24px; }

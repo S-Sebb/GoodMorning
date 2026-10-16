@@ -286,7 +286,8 @@ class BrowserApp:
             selected = ' aria-current="date"' if day == date else ''
             link = f'/{kind}.html' if day == today else f'/d/{day}/{kind}.html'
             marker = '<span class="today-marker">Today</span>' if day == today else ''
-            days.append(f'<a href="{link}"{selected}>{marker}{label}<small>{"Saved" if ready else "Not generated"}</small></a>')
+            missing = '' if ready else ' class="is-missing"'
+            days.append(f'<a href="{link}"{missing}{selected}>{marker}{label}<small>{"Saved" if ready else "Not generated"}</small></a>')
         return '<nav class="week-picker" aria-label="Past seven briefing days">' + ''.join(days) + '</nav>'
 
     def files(self, date, kind):
@@ -381,8 +382,11 @@ class BrowserApp:
         else:
             current = date == self.today()
             button = '<button id="generate" type="button">Prepare my ' + KINDS[kind].lower() + ' briefing</button>' if current and self.chamber else ''
-            heading = 'Your briefing awaits.' if current else 'No story was told by you for this day.'
-            detail = 'Would you like your secretary to put it together?' if current else 'Let the past pages stay as they are.'
+            heading = 'Your briefing awaits.' if current else 'No briefing was prepared for this day.'
+            detail = 'Would you like your secretary to put it together?' if current else 'Past briefings can’t be created afterwards. Your saved plans for this day are still in Schedule.'
+            if not current:
+                offset = (Date.fromisoformat(date) - Date.fromisoformat(self.today())).days
+                button = f'<a class="initialize-button" href="/schedule?view=day&amp;day={offset}">Open this day in Schedule</a>'
             if current and not self.chamber:
                 detail = 'Generation is not connected. Start this viewer with an OpenChamber connection.'
             switches = ''.join(f'<a class="edition-link{" selected" if other == kind else ""}" href="{f"/d/{date}/{other}.html" if pinned else f"/{other}.html"}">{label}</a>' for other, label in KINDS.items())

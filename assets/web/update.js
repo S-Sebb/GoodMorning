@@ -11,7 +11,7 @@
   toggle.setAttribute('aria-controls', 'site-patch-note');
   toggle.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">'
     + '<path class="update-arrow" d="M12 19V5m-6 6 6-6 6 6"/>'
-    + '<path class="update-check" d="m5 12 4 4L19 6"/></svg><span></span>';
+    + '<path class="update-check" d="M12 4c.6 4.2 2.8 6.4 7 7-4.2.6-6.4 2.8-7 7-.6-4.2-2.8-6.4-7-7 4.2-.6 6.4-2.8 7-7Z"/></svg><span></span>';
   const patch = document.createElement('dialog');
   patch.id = 'site-patch-note';
   patch.setAttribute('aria-labelledby', 'patch-note-heading');
@@ -48,10 +48,10 @@
   function render() {
     toggle.hidden = notes.length === 0;
     toggle.dataset.state = stale() ? 'available' : 'current';
-    const label = t(stale() ? 'Update available. View patch notes' : 'Up to date. View patch notes');
+    const label = t(stale() ? 'Update available. View patch notes' : 'What’s new: view patch notes');
     toggle.setAttribute('aria-label', label);
     toggle.title = label;
-    toggle.querySelector('span').textContent = t(stale() ? 'Update' : 'Up to date');
+    toggle.querySelector('span').textContent = t(stale() ? 'Update' : 'What’s new');
     patch.querySelector('#patch-note-heading').textContent = t('Patch notes');
     patch.querySelector('#patch-beta').textContent = t('Beta');
     versions.setAttribute('aria-label', t('Patch note versions'));

@@ -239,7 +239,8 @@ class Chats:
         with self.lock:
             return [{'id': item['id'], 'mode': item['mode'],
                      'title': self.title_cache.get(item.get('session')) or ui.text(MODES[item['mode']]),
-                     'title_pending': bool(item.get('native_title') and item.get('session') not in self.title_cache)}
+                     'title_pending': bool(item.get('native_title') and item.get('session') not in self.title_cache),
+                     **({'created': item['created']} if isinstance(item.get('created'), (int, float)) else {})}
                     for item in items]
 
     def remember_questions(self, chat, forms, messages):

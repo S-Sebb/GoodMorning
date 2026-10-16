@@ -165,6 +165,15 @@ class LiveTests(unittest.TestCase):
         self.assertNotIn('class="briefing-tools"',page)
         self.assertRegex(page,r'<h1\b[^>]*>Good morning</h1>')
 
+    def test_missing_past_day_points_to_its_schedule_day(self):
+        (self.root / 'daily/2026-10-10.gm.json').write_text(GM)
+        self.app.now = lambda: datetime(2026, 10, 11, 12, tzinfo=timezone.utc)
+        page = self.app.page('2026-10-09', 'gm', True).decode()
+        self.assertIn('href="/schedule?view=day&amp;day=-2"', page)
+        self.assertNotIn('id="generate"', page)
+        self.assertRegex(page, r'<a href="/d/2026-10-09/gm.html" class="is-missing" aria-current="date">')
+        self.assertRegex(page, r'<a href="/d/2026-10-10/gm.html">')
+
     def test_duplicate_clicks_share_session_and_user_default(self):
         job = self.start()
         self.assertEqual(self.app.start('2026-10-10','gm')['job'],job)
