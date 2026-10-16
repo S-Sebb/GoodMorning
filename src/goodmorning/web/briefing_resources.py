@@ -89,9 +89,9 @@ class Resources:
                    'update.js': 'text/javascript', 'update.css': 'text/css',
                    'avatar.js': 'text/javascript', 'avatar.css': 'text/css',
                    'maintenance.css': 'text/css',
-                 'fonts/OFL.txt': 'text/plain', 'desk-secretary.png': 'image/png',
-                 'desk-secretary-f2.png': 'image/png', 'desk-secretary-m1.png': 'image/png',
-                 'desk-secretary-m2.png': 'image/png', **ICON_TYPES}
+                 'fonts/OFL.txt': 'text/plain',
+                 **{f'desk-secretary{person}{variant}.png': 'image/png' for person in ('', '-f2', '-m1', '-m2')
+                    for variant in ('', '-day', '-profile')}, **ICON_TYPES}
         # Register the font first: CSS embeds its immutable, shared URL.
         for name, mime in types.items():
             try:

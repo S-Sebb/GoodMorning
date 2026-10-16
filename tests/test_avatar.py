@@ -6,7 +6,7 @@ import unittest
 from support import TEMP_ROOT, FakeChamber, selected
 from goodmorning.paths import WEB_ASSETS
 from goodmorning.web import language as ui
-from goodmorning.web.briefing_chat import AVATARS, AVATAR_IDS, avatar_id, page, read_avatar, write_avatar
+from goodmorning.web.briefing_chat import AVATAR_FILES, AVATAR_IDS, avatar_id, page, read_avatar, write_avatar
 from goodmorning.web.briefing_resources import Resources
 from goodmorning.web.briefing_server import BrowserApp
 from goodmorning.security.briefing_gateway import GET_ROUTES, POST_ROUTES
@@ -59,8 +59,10 @@ class AvatarTests(unittest.TestCase):
         self.assertIn('data-avatar-choice="f1" aria-selected="true"', html)
         self.assertIn(ui.text('Avatar {current} of {total}', current=1, total=4), html)
         self.assertLess(html.index('desk-figure'), html.index('<p class="eyebrow">' + ui.text('Your desk')))
-        html = page('csrf', True, True, None, 'm2', {'m2': '/hashed/m2.png'})
-        self.assertIn('src="/hashed/m2.png"', html)
+        html = page('csrf', True, True, None, 'm2', {'m2': {'day': '/hashed/m2-day.png', 'night': '/hashed/m2.png', 'profile': '/hashed/m2-profile.png'}})
+        self.assertIn('class="avatar-image" src="/hashed/m2-day.png"', html)
+        self.assertIn('data-profile="/hashed/m2-profile.png"', html)
+        self.assertIn('class="avatar-image" src="/desk-secretary-m1.png"', page('csrf', True, True, None, 'm1', theme='gn'))
         self.assertIn('data-avatar="m2"', html)
         self.assertIn('data-avatar-choice="m2" aria-selected="true"', html)
         self.assertIn(ui.text('Avatar {current} of {total}', current=4, total=4), html)
@@ -71,7 +73,7 @@ class AvatarTests(unittest.TestCase):
         settings = app.chat_settings()
         self.assertEqual(settings['avatar'], 'f1')
         self.assertEqual([item['id'] for item in settings['avatars']], list(AVATAR_IDS))
-        self.assertTrue(all(item['src'].startswith('/assets/') for item in settings['avatars']))
+        self.assertTrue(all(item[variant].startswith('/assets/') for item in settings['avatars'] for variant in ('day', 'night', 'profile')))
         self.assertIn('data-avatar-choice="f1" aria-selected="true"', app.chat_page().decode())
         self.assertEqual(app.set_avatar('f2'), 'f2')
         self.assertEqual(app.chat_settings()['avatar'], 'f2')
@@ -81,14 +83,18 @@ class AvatarTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             app.set_avatar('unknown')
 
-    def test_resources_and_gateway_serve_all_four_scenes(self):
+    def test_resources_and_gateway_serve_every_scene_and_profile(self):
         resources = Resources(WEB_ASSETS)
-        for _, filename, _ in AVATARS:
+        filenames = [name for files in AVATAR_FILES.values() for name in files.values()]
+        self.assertEqual(len(set(filenames)), 12)
+        for filename in filenames:
             self.assertIn(filename, resources.urls)
+            self.assertTrue(GET_ROUTES.fullmatch('/' + filename), filename)
         self.assertTrue(GET_ROUTES.fullmatch('/api/avatar'))
         self.assertTrue(POST_ROUTES.fullmatch('/api/avatar'))
-        for _, filename, _ in AVATARS:
-            self.assertTrue(GET_ROUTES.fullmatch('/' + filename), filename)
+        for variant in ('day', 'night', 'profile'):
+            self.assertTrue(POST_ROUTES.fullmatch('/api/avatar/upload/' + variant))
+        self.assertFalse(POST_ROUTES.fullmatch('/api/avatar/upload'))
         hashed = '/assets/' + 'a' * 64 + '/desk-secretary-m1.png'
         self.assertTrue(GET_ROUTES.fullmatch(hashed))
         self.assertFalse(GET_ROUTES.fullmatch('/desk-secretary-evil.png'))
@@ -133,7 +139,7 @@ class AvatarTests(unittest.TestCase):
                 for pinned in (False, True):
                     rendered = app.page(day, kind, pinned).decode()
                     self.assertIn(f'class="briefing-avatar avatar-display" data-avatar="{selected}"', rendered)
-                    self.assertIn(f'src="{app.avatar_sources()[selected]}"', rendered)
+                    self.assertIn(f'src="{app.avatar_sources()[selected]["night" if kind == "gn" else "day"]}"', rendered)
                     self.assertIn('class="orbit"', rendered)
                     self.assertTrue(celestial(kind).casefold() in rendered.casefold(), 'Original edition SVG must be retained')
                     self.assertIn('class="letter-copy"', rendered)

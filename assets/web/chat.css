@@ -27,8 +27,7 @@
 #chat-resume-notice { margin: 0 0 12px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--wash); font-size: 12px; }
 #chat-resume { display: inline-block; font-weight: 600; }
 .chat-portrait { display: block; position: relative; overflow: hidden; flex-shrink: 0; width: 46px; height: 46px; border-radius: 50%; border: 1px solid var(--line); background: var(--wash); }
-.chat-portrait img { position: absolute; width: 230%; height: 230%; max-width: none; left: -65%; top: -43%; }
-.chat-portrait[data-chat-avatar="custom"] img { width: 100%; height: 100%; left: 0; top: 0; object-fit: cover; }
+.chat-portrait img { display: block; width: 100%; height: 100%; object-fit: cover; }
 .mode-switch { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); padding: 4px; gap: 4px; border: 1px solid var(--line); border-radius: 16px; background: var(--bg); }
 .mode-controls { display: flex; align-items: center; gap: 6px; }
 .mode-controls .mode-switch { flex: 1; min-width: 0; }
@@ -225,7 +224,8 @@ html[data-edition="gn"] #chat-error { color: #f1b1a8; }
   .secretary-identity > p { display: none; }
   .secretary-identity .desk-figure { width: 44px; height: 44px; margin: 0; flex-shrink: 0; }
   .secretary-identity .avatar-frame { height: 44px; border-radius: 50%; }
-  .secretary-identity .avatar-image { height: 44px; width: 44px; object-fit: cover; }
+  .secretary-identity .avatar-image { display: none; }
+  .secretary-identity .avatar-profile { display: block; height: 44px; width: 44px; border-radius: 50%; object-fit: cover; }
   .secretary-identity .avatar-toggle { inset: 0; width: 44px; height: 44px; border-radius: 50%; opacity: 0; }
   .secretary-identity .avatar-toggle:focus-visible { opacity: 1; }
   .secretary-identity .avatar-menu { width: min(340px, calc(100vw - 24px)); }

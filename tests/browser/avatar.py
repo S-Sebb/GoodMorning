@@ -26,6 +26,8 @@ def check_avatar(page, selected, label):
     assert image.get_attribute('src').startswith('/assets/')
     assert page.locator('.celestial-art').count() == 1
     kind = page.locator('html').get_attribute('data-edition')
+    # Morning shows the daylight scene; evening keeps the lamp-lit one.
+    assert image.get_attribute('src').endswith('-day.png') == (kind == 'gm'), image.get_attribute('src')
     assert page.locator('#sun-light' if kind == 'gm' else '#moon-light').count() == 1
     assert page.locator('.secretary-panel, .briefing-tools').count() == 0
     card = page.locator('.briefing-section').first
@@ -85,7 +87,8 @@ def check_picker(page, address, artifacts):
         assert page.locator('.avatar-menu').evaluate("node => getComputedStyle(node).backgroundColor") != 'rgba(0, 0, 0, 0)'
         assert page.locator('.avatar-menu').evaluate("node => getComputedStyle(node).paddingTop") != '0px'
         expect(page.locator('.avatar-feedback')).to_have_css('clip', 'rect(0px, 0px, 0px, 0px)')
-        expect(page.get_by_role('button', name='Upload your own avatar')).to_be_visible()
+        for name in ('Upload day scene', 'Upload night scene', 'Upload profile picture'):
+            expect(page.get_by_role('button', name=name)).to_be_visible()
         expect(page.locator('[data-avatar-choice]')).to_have_count(4)
         expect(page.locator('[data-avatar-toggle]')).to_have_attribute('aria-expanded', 'true')
         assert page.locator('.avatar-previews').evaluate('node => node.clientWidth') >= 68
@@ -316,10 +319,10 @@ def main():
                     open_picker(uploader)
                     image = io.BytesIO()
                     Image.new('RGB', (120, 160), color).save(image, format='PNG')
-                    with uploader.expect_response('**/api/avatar/upload') as uploaded:
+                    with uploader.expect_response('**/api/avatar/upload/night') as uploaded:
                         uploader.locator('[data-avatar-file]').set_input_files({
                             'name': 'avatar.png', 'mimeType': 'image/png', 'buffer': image.getvalue()})
-                    custom_source = uploaded.value.json()['avatars'][-1]['src']
+                    custom_source = uploaded.value.json()['avatars'][-1]['night']
                     expect(uploader.locator('.avatar-display')).to_have_attribute('aria-busy', 'false')
                     observer.bring_to_front()
                     # Headless Chromium does not reliably emit window focus on tab activation.
@@ -337,28 +340,39 @@ def main():
                     open_picker(page)
                     image = io.BytesIO()
                     Image.new('RGB', (120, 160), 'teal').save(image, format='PNG')
-                    with page.expect_response('**/api/avatar/upload') as response:
+                    with page.expect_response('**/api/avatar/upload/night') as response:
                         page.locator('[data-avatar-file]').set_input_files({
                             'name': 'my-secretary.png', 'mimeType': 'image/png', 'buffer': image.getvalue()})
                     assert response.value.status == 201
-                    custom_source = response.value.json()['avatars'][-1]['src']
+                    custom_source = response.value.json()['avatars'][-1]['night']
                     expect(page.locator('.avatar-display')).to_have_attribute('data-avatar', 'custom')
                     expect(page.locator('[data-avatar-choice]')).to_have_count(5)
                     expect(page.locator('.avatar-display')).to_have_attribute('aria-busy', 'false')
                     open_picker(page)
                     page.screenshot(path=str(artifacts / f'custom-avatar-{width}.png'))
                     assert not page.evaluate('document.documentElement.scrollWidth > innerWidth')
+                    with page.expect_file_chooser() as chooser:
+                        page.locator('[data-avatar-upload="day"]').click()
+                    day_image = io.BytesIO()
+                    Image.new('RGB', (120, 160), 'gold').save(day_image, format='PNG')
+                    with page.expect_response('**/api/avatar/upload/day') as response:
+                        chooser.value.set_files({'name': 'day.png', 'mimeType': 'image/png', 'buffer': day_image.getvalue()})
+                    assert response.value.status == 201
+                    day_source = response.value.json()['avatars'][-1]['day']
+                    assert day_source != custom_source
+                    expect(page.locator('.avatar-display')).to_have_attribute('aria-busy', 'false')
                     for path in ('/gm.html', '/gn.html', f'/d/{day}/gm.html', f'/d/{day}/gn.html'):
+                        expected = day_source if path.endswith('gm.html') else custom_source
                         page.goto(address + path)
                         expect(page.locator('.avatar-display')).to_have_attribute('data-avatar', 'custom')
-                        expect(page.locator('.avatar-image')).to_have_attribute('src', custom_source)
+                        expect(page.locator('.avatar-image')).to_have_attribute('src', expected)
                         assert page.locator('.avatar-image').evaluate('node => node.complete && node.naturalWidth > 0')
                     open_picker(page)
                     page.locator('[data-avatar-choice="f1"]').click()
                     expect(page.locator('.avatar-display')).to_have_attribute('aria-busy', 'false')
                     page.locator('[data-avatar-choice="custom"]').click()
                     expect(page.locator('.avatar-display')).to_have_attribute('aria-busy', 'false')
-                    with page.expect_response('**/api/avatar/upload') as rejected:
+                    with page.expect_response('**/api/avatar/upload/night') as rejected:
                         page.locator('[data-avatar-file]').set_input_files({
                             'name': 'invalid.png', 'mimeType': 'image/png', 'buffer': b'not an image'})
                     assert rejected.value.status == 400

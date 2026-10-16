@@ -8,9 +8,8 @@ body:has(#quick-chat:not([hidden])):has(.back-to-top.is-visible) #account-activi
 body.quick-chat-open #account-activity { display: none; }
 
 .quick-chat-portrait { position: relative; display: block; flex-shrink: 0; overflow: hidden; width: 38px; height: 38px; border: 1px solid var(--line); border-radius: 50%; background: var(--wash); }
-.quick-chat-portrait img { position: absolute; width: 230%; height: 230%; max-width: none; left: -65%; top: -43%; image-rendering: pixelated; }
+.quick-chat-portrait img { display: block; width: 100%; height: 100%; object-fit: cover; }
 .quick-chat-portrait img:not([src]) { visibility: hidden; }
-.quick-chat-portrait[data-avatar="custom"] img { width: 100%; height: 100%; left: 0; top: 0; object-fit: cover; image-rendering: auto; }
 
 #quick-chat-launcher { position: relative; display: flex; align-items: center; gap: 10px; max-width: min(260px, calc(100vw - 48px)); min-height: 56px; margin-left: auto; padding: 8px 18px 8px 8px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); color: var(--ink); box-shadow: 0 10px 34px #233c3624, 0 2px 8px #233c360d; cursor: pointer; transition: transform .2s var(--ease, ease), border-color .2s ease; }
 html[data-edition="gn"] #quick-chat-launcher { box-shadow: 0 10px 34px #0006; }

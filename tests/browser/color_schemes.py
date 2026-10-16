@@ -3,6 +3,7 @@ from datetime import datetime
 import hashlib
 import json
 from pathlib import Path
+import re
 import subprocess
 import sys
 import tempfile
@@ -280,10 +281,10 @@ def main():
                 chat.locator('[data-avatar-file]').set_input_files({'name': 'synthetic-avatar.png', 'mimeType': 'image/png',
                     'buffer': portrait(color='#d1b28f', size=(300, 300))})
                 expect(chat.locator('.avatar-display')).to_have_attribute('data-avatar', 'custom')
-                expect(chat.locator('.reply-portrait')).to_have_attribute('data-chat-avatar', 'custom')
+                expect(chat.locator('.reply-portrait img')).to_have_attribute('src', re.compile(r'^/api/avatar/image/[a-f0-9]{64}\.png$'))
                 expect(chat.locator('.reply-portrait img')).to_have_css('object-fit', 'cover')
                 choose(chat, 'classic'); choose(chat, 'warm')
-                expect(chat.locator('.reply-portrait')).to_have_attribute('data-chat-avatar', 'custom')
+                expect(chat.locator('.reply-portrait img')).to_have_attribute('src', re.compile(r'^/api/avatar/image/[a-f0-9]{64}\.png$'))
                 for width in (1440, 768, 390, 320):
                     chat.set_viewport_size({'width': width, 'height': 1000})
                     prefs(chat)

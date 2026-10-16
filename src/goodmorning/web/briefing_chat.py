@@ -13,7 +13,7 @@ from . import language as ui
 from . import models as site_models
 from .session_inventory import chat_session_title
 from .chat_uploads import Uploads, attachment_ids, MAX_UPLOAD_BYTES
-from .avatar_images import image_url
+from .avatar_images import image_urls
 
 MODES = {'initialize': 'Initialize', 'secretary': 'Secretary', 'todo': 'To-do', 'eureka': 'Eureka'}
 
@@ -22,24 +22,38 @@ AVATARS = (('f1', 'desk-secretary.png', 'Classic'),
            ('m1', 'desk-secretary-m1.png', 'Male 1'),
            ('m2', 'desk-secretary-m2.png', 'Male 2'))
 AVATAR_IDS = tuple(entry[0] for entry in AVATARS)
-AVATAR_FILES = {entry[0]: entry[1] for entry in AVATARS}
+# Each built-in avatar has a lamp-lit night scene, a daylight scene and a round profile picture.
+AVATAR_FILES = {entry: {'night': filename, 'day': filename.replace('.png', '-day.png'),
+                        'profile': filename.replace('.png', '-profile.png')} for entry, filename, _ in AVATARS}
 
 
-def avatar_widget(selected='f1', sources=None, class_name='desk-figure'):
+def avatar_variant(theme):
+    return 'night' if theme == 'gn' else 'day'
+
+
+def avatar_widget(selected='f1', sources=None, class_name='desk-figure', theme='gm'):
     custom = (sources or {}).get('custom')
-    sources = {entry: (sources or {}).get(entry, '/' + filename) for entry, filename, _ in AVATARS}
+    sources = {entry: (sources or {}).get(entry) or {variant: '/' + name for variant, name in files.items()}
+               for entry, files in AVATAR_FILES.items()}
     if custom:
         sources['custom'] = custom
     ids = tuple(sources)
     selected = selected if selected in ids else 'f1'
-    options = html.escape(json.dumps([{'id': entry, 'src': sources[entry]} for entry in ids]), quote=True)
+    variant = avatar_variant(theme)
+    options = html.escape(json.dumps([{'id': entry, **sources[entry]} for entry in ids]), quote=True)
     previews = ''.join(
         f'<button type="button" class="avatar-preview" role="option" data-avatar-choice="{entry}" aria-selected="{str(entry == selected).lower()}" aria-label="Avatar {index}">'
-        f'<img src="{html.escape(sources[entry], quote=True)}" alt="" width="72" height="72" loading="lazy"><span>{index}</span></button>'
+        f'<img src="{html.escape(sources[entry][variant], quote=True)}" alt="" width="72" height="72" loading="lazy"><span>{index}</span></button>'
         for index, entry in enumerate(ids, 1))
-    return (f'<figure class="{class_name} avatar-display" data-avatar="{selected}" data-avatar-options="{options}">'
+    uploads = ''.join(f'<button type="button" class="avatar-upload" data-avatar-upload="{kind}" aria-label="{label}">{text}</button>'
+                      for kind, text, label in (('day', 'Scene · day', 'Upload day scene'),
+                                                ('night', 'Scene · night', 'Upload night scene'),
+                                                ('profile', 'Profile', 'Upload profile picture')))
+    profile = sources[selected]['profile'] or ''
+    return (f'<figure class="{class_name} avatar-display" data-avatar="{selected}" data-profile="{html.escape(profile, quote=True)}" data-avatar-options="{options}">'
             '<div class="avatar-frame">'
-            f'<img class="avatar-image" src="{html.escape(sources[selected], quote=True)}" alt="Secretary avatar" width="220" height="220">'
+            f'<img class="avatar-image" src="{html.escape(sources[selected][variant], quote=True)}" alt="Secretary avatar" width="220" height="220">'
+            f'<img class="avatar-profile" src="{html.escape(profile or sources[selected][variant], quote=True)}" alt="" width="44" height="44">'
             '<button class="avatar-toggle" type="button" data-avatar-toggle aria-label="Change avatar" title="Change avatar" aria-expanded="false" disabled>'
             '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'
             '<path d="m16 3 5 5-3 3v10H6V11L3 8l5-5a4 4 0 0 0 8 0Z"/></svg></button></div>'
@@ -47,9 +61,10 @@ def avatar_widget(selected='f1', sources=None, class_name='desk-figure'):
             '<div class="avatar-carousel"><button class="avatar-step" type="button" data-avatar-prev aria-label="Previous avatar">‹</button>'
             '<div class="avatar-previews" role="listbox" aria-label="Secretary avatars">' + previews + '</div>'
             '<button class="avatar-step" type="button" data-avatar-next aria-label="Next avatar">›</button></div>'
-            '<button type="button" class="avatar-upload" data-avatar-upload>Upload your own avatar</button>'
+            '<p class="avatar-upload-heading">Upload your own avatar</p>'
+            '<div class="avatar-uploads">' + uploads + '</div>'
             '<input type="file" data-avatar-file accept="image/png,image/jpeg,image/webp" aria-label="Upload your own avatar" hidden>'
-            '<p class="avatar-upload-note">PNG, JPEG or WebP. Up to 5 MB.</p>'
+            '<p class="avatar-upload-note">PNG, JPEG or WebP, up to 5 MB. Missing images are filled in from the ones you upload.</p>'
             '<p class="avatar-feedback" role="status">Avatar ' + str(ids.index(selected) + 1) + ' of ' + str(len(ids)) + '</p></div></figure>')
 
 
@@ -72,7 +87,7 @@ def read_avatar(runtime):
         return 'f1'
     try:
         selected = avatar_id(json.loads(raw).get('avatar'))
-        return 'f1' if selected == 'custom' and not image_url(runtime) else selected
+        return 'f1' if selected == 'custom' and not image_urls(runtime) else selected
     except (ValueError, AttributeError, TypeError):
         return 'f1'
 
@@ -80,7 +95,7 @@ def read_avatar(runtime):
 def write_avatar(runtime, value):
     from pathlib import Path
     avatar_id(value)
-    if value == 'custom' and not image_url(runtime):
+    if value == 'custom' and not image_urls(runtime):
         raise ValueError('Upload a secretary avatar first')
     path = Path(runtime) / 'website-avatar.json'
     if path.is_symlink():
@@ -557,14 +572,14 @@ def page(csrf, ready, connected, secretary_name=None, avatar='f1', avatar_urls=N
     if avatar not in AVATAR_IDS and not (avatar == 'custom' and (avatar_urls or {}).get('custom')):
         avatar = 'f1'
     sources = dict(avatar_urls) if avatar_urls else {}
-    for entry, filename in AVATAR_FILES.items():
-        sources.setdefault(entry, '/' + filename)
+    for entry, files in AVATAR_FILES.items():
+        sources.setdefault(entry, {variant: '/' + name for variant, name in files.items()})
     config = html.escape(json.dumps({'csrf': csrf, 'workspaceScope': hashlib.sha256(('chat-workspace:' + csrf).encode()).hexdigest(),
                                     'defaultMode': 'secretary' if ready else 'initialize',
                                     'maxUploadBytes': MAX_UPLOAD_BYTES,
                                     'timezone': timezone,
                                    'connected': connected, 'secretary_name': secretary_name,
-                                   'avatar': avatar, 'avatars': [{'id': entry, 'src': source} for entry, source in sources.items()]}), quote=True)
+                                   'avatar': avatar, 'avatars': [{'id': entry, **source} for entry, source in sources.items()]}), quote=True)
     choices = ''.join(f'<button type="button" role="radio" aria-checked="false" data-mode="{mode}">{label}</button>'
                       for mode, label in MODES.items() if (mode != 'initialize') == ready)
     heading = html.escape(secretary_name) if secretary_name else 'Your secretary'
@@ -580,7 +595,7 @@ def page(csrf, ready, connected, secretary_name=None, avatar='f1', avatar_urls=N
             '<nav class="edition-switch" aria-label="Your desk"><a class="edition-link" href="/gm.html">Morning</a>'
             '<a class="edition-link" href="/gn.html">Evening</a><a class="edition-link" href="/schedule">Schedule</a><a class="edition-link selected" href="/chat" aria-current="page">Secretary</a></nav></header>'
             '<main class="chat-layout"><aside class="conversation-sidebar">'
-            '<div class="secretary-identity">' + avatar_widget(avatar, sources) +
+            '<div class="secretary-identity">' + avatar_widget(avatar, sources, theme=theme) +
             '<p class="eyebrow">Your desk</p>'
             '<h1 id="secretary-heading">' + heading + '</h1><p>A place for your plans, bright ideas, and the details that make this yours.</p>'
              '</div><section id="conversation-history" aria-labelledby="history-heading">'

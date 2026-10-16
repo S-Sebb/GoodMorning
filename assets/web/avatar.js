@@ -8,14 +8,15 @@
   document.querySelectorAll('[data-avatar-options]').forEach((root, index) => {
     const options = JSON.parse(root.dataset.avatarOptions);
     const ids = options.map(item => item.id);
-    const sources = Object.fromEntries(options.map(item => [item.id, item.src]));
+    const sources = Object.fromEntries(options.map(item => [item.id, item]));
     const toggle = root.querySelector('[data-avatar-toggle]');
     const menu = root.querySelector('.avatar-menu');
     const image = root.querySelector('.avatar-image');
+    const profile = root.querySelector('.avatar-profile');
     const strip = root.querySelector('.avatar-previews');
     const choices = [...root.querySelectorAll('[data-avatar-choice]')];
     const feedback = root.querySelector('.avatar-feedback');
-    const upload = root.querySelector('[data-avatar-upload]');
+    const uploads = [...root.querySelectorAll('[data-avatar-upload]')];
     const fileInput = root.querySelector('[data-avatar-file]');
     let saved = root.dataset.avatar;
     let wanted = saved;
@@ -24,15 +25,19 @@
     let imageRevision = 0;
     let syncRevision = 0;
     let notice = '';
+    let uploadVariant = 'night';
+    // Evening pages and night-time desks show the lamp-lit scene; everything else shows daylight.
+    const scene = id => sources[id][document.documentElement.dataset.edition === 'gn' ? 'night' : 'day'];
     menu.id = 'avatar-picker-' + index;
     toggle.setAttribute('aria-controls', menu.id);
     toggle.disabled = false;
 
     function updateOptions(items) {
       if (!Array.isArray(items)) return;
-      const custom = items.find(item => item.id === 'custom' && /^\/api\/avatar\/image\/[a-f0-9]{64}\.png$/.test(item.src));
+      const valid = value => /^\/api\/avatar\/image\/[a-f0-9]{64}\.png$/.test(value);
+      const custom = items.find(item => item.id === 'custom' && valid(item.day) && valid(item.night) && (item.profile === null || valid(item.profile)));
       if (!custom) return;
-      sources.custom = custom.src;
+      sources.custom = custom;
       let button = choices.find(item => item.dataset.avatarChoice === 'custom');
       if (!button) {
         button = document.createElement('button');
@@ -50,7 +55,6 @@
         ids.push('custom');
       }
       button.setAttribute('aria-label', t('Avatar {number}', {number: 5}));
-      button.querySelector('img').src = custom.src;
     }
 
     function center(behavior = 'smooth') {
@@ -61,13 +65,15 @@
 
     async function showImage(id) {
       const revision = ++imageRevision;
-      if (image.getAttribute('src') === sources[id]) { image.classList.remove('is-changing'); return; }
+      root.dataset.profile = sources[id].profile || '';
+      profile.src = sources[id].profile || scene(id);
+      if (image.getAttribute('src') === scene(id)) { image.classList.remove('is-changing'); return; }
       const next = new Image();
-      next.src = sources[id];
+      next.src = scene(id);
       image.classList.add('is-changing');
       try { await next.decode(); } catch { /* The normal image fallback remains visible. */ }
       if (revision !== imageRevision) return;
-      image.src = sources[id];
+      image.src = scene(id);
       image.classList.remove('is-changing');
       if (!reduced()) {
         image.getAnimations().forEach(animation => animation.cancel());
@@ -82,8 +88,10 @@
         button.setAttribute('aria-selected', String(selected));
         button.tabIndex = selected ? 0 : -1;
         button.disabled = uploading;
+        const preview = button.querySelector('img');
+        if (preview.getAttribute('src') !== scene(button.dataset.avatarChoice)) preview.src = scene(button.dataset.avatarChoice);
       });
-      upload.disabled = saving || uploading;
+      uploads.forEach(button => { button.disabled = saving || uploading; });
       feedback.textContent = t(notice || (uploading ? 'Uploading avatar…' : saving ? 'Saving avatar…' : 'Avatar {current} of {total}'),
         {current: ids.indexOf(wanted) + 1, total: ids.length});
       feedback.classList.toggle('is-error', Boolean(notice));
@@ -161,7 +169,7 @@
     }
 
     toggle.addEventListener('click', () => menu.hidden ? open() : close());
-    upload.addEventListener('click', () => fileInput.click());
+    uploads.forEach(button => button.addEventListener('click', () => { uploadVariant = button.dataset.avatarUpload; fileInput.click(); }));
     fileInput.addEventListener('change', async () => {
       const file = fileInput.files[0];
       fileInput.value = '';
@@ -176,7 +184,7 @@
       notice = '';
       render();
       try {
-        const response = await fetch('/api/avatar/upload', {method: 'POST',
+        const response = await fetch('/api/avatar/upload/' + uploadVariant, {method: 'POST',
           headers: {'Content-Type': 'application/octet-stream', 'X-Briefing-CSRF': csrf},
           body: file, credentials: 'same-origin', cache: 'no-store'});
         if (response.status === 401) { location.replace('/login'); throw new Error('Sign-in required'); }
@@ -207,6 +215,7 @@
     document.addEventListener('pointerdown', event => { if (!root.contains(event.target)) close(); });
     root.addEventListener('focusout', event => { if (event.relatedTarget && !root.contains(event.relatedTarget)) close(); });
     document.addEventListener('website:language', render);
+    new MutationObserver(render).observe(document.documentElement, {attributes: true, attributeFilter: ['data-edition']});
     document.addEventListener('website:before-refresh', event => { if (saving || uploading) event.preventDefault(); });
     document.addEventListener('secretary:avatar', () => { if (!saving) sync(); });
     document.addEventListener('visibilitychange', () => { if (!document.hidden) sync(); });
