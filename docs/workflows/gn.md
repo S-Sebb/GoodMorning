@@ -85,9 +85,10 @@ feedback and blockers in Chinese too; English planning notes are not user replie
    Historical outcome prose may mention a future action; do not duplicate its
    actionable card. Copy the displayed Tasks rows from
    `task --briefing gn --date DATE --section tasks` (follow `next_offset`) with
-   titles, dates, status and revisions unchanged; make no task writes for wording.
-   A row's detail may be shortened for display only: keep code labels, drop the
-   secretary's own notes, never add facts. Leave already-clear details
+   IDs, dates, status and revisions unchanged; make no task writes for wording.
+   Titles and details are the items' saved evening wording: copy them. Only rows in
+   the read's `fallback` list may be reworded for display, keeping code labels and
+   never adding facts. Leave already-clear details
    unchanged. This review covers Tasks cards only; just-recorded Today
    outcome reasons stay under step 2. Follow code-owned sources and remaining pages.
    In prose keep unfinished work on its original date; "carries over" is not a

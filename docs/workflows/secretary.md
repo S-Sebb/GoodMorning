@@ -79,7 +79,9 @@ guides only for the requested operation; do not recursively reload the skill.
    after a reliable result; otherwise offer alternatives first. Keep what is worth
    remembering about an item in its `extra` (rule 2), not in `detail`. Shape every
    item fully here, before saving: clear imperative title (`docs/workflows/todo.md`
-   wording), each fact in its place, ambiguity resolved; then confirm what was saved.
+   wording), each fact in its place, ambiguity resolved, and `display` wording in
+   English and Chinese for the morning, evening and Schedule pages (rule 2); then
+   confirm what was saved.
    Briefings only present saved items and never fix them later. Task `detail` holds 1–2 grounded sentences, never how the item works
    ("shows every morning", "I can't buy it"). Promise only what the saved item
    does; if no category can do what was asked, say so plainly before saving.

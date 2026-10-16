@@ -11,8 +11,8 @@ from pathlib import Path
 from .calendar_safety import clean_preparation, safe_value
 
 FIELDS = {"subject", "start", "end", "timezone", "all_day", "location", "online",
-          "organizer", "notes", "status", "repeat", "notice"}
-IMPORT_FIELDS = FIELDS | {"external_id", "occurrence_id"}
+          "organizer", "notes", "status", "repeat", "notice", "display"}
+IMPORT_FIELDS = (FIELDS - {"display"}) | {"external_id", "occurrence_id"}  # Wording is the secretary's, never the provider's.
 
 
 def encode(value) -> str:
@@ -27,7 +27,7 @@ def normalize(data: dict) -> dict:
     status = out.setdefault("status", "confirmed")
     if status not in ("confirmed", "cancelled"):
         raise ValueError("status must be confirmed or cancelled")
-    for key in FIELDS - {"all_day", "repeat", "notice"}:
+    for key in FIELDS - {"all_day", "repeat", "notice", "display"}:
         if key in out and not isinstance(out[key], str):
             raise ValueError(f"{key} must be a string")
     for key in ("location", "online", "organizer", "notes"):
@@ -43,7 +43,7 @@ def normalize(data: dict) -> dict:
         from zoneinfo import ZoneInfo
         ZoneInfo(out["timezone"])
     if status == "cancelled" and "start" not in out and "end" not in out:
-        return out
+        return _worded(out)
     if not out.get("subject", "").strip():
         raise ValueError("subject is required")
     out["subject"] = out["subject"].strip()
@@ -72,6 +72,16 @@ def normalize(data: dict) -> dict:
         if rule['start'] > start.isoformat():
             raise ValueError('annual series start must not follow its original approved occurrence')
     out["start"], out["end"] = start.isoformat(), end.isoformat()
+    return _worded(out)
+
+
+def _worded(out):
+    """The secretary's page wording, fingerprinted against the fields it describes."""
+    if out.get("display") is not None:
+        from goodmorning.records.display import check
+        out["display"] = check(out["display"], "event", out)
+    else:
+        out.pop("display", None)
     return out
 
 
@@ -268,6 +278,8 @@ class CalendarStore:
             raise ValueError("unknown event action")
         if patch is not None and (not isinstance(patch, dict) or set(patch) - FIELDS):
             raise ValueError("unsupported event patch")
+        if patch and isinstance(patch.get("display"), dict):
+            patch = {**patch, "display": {k: v for k, v in patch["display"].items() if k != "source"}}
         with self.con:
             self.con.execute("BEGIN IMMEDIATE")
             old = self.get(event_id)

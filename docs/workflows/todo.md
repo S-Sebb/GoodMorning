@@ -52,7 +52,8 @@ to its workflow in this conversation; capture wording alone does not grant conse
    python scripts/goodmorning.py workflow --secretary-dir RUNTIME --capture todo --session SESSION --request-key KEY --input-stdin
    ```
    Supply exact `raw`, revised `summary`, and `task` with the same revised `title`
-   plus grounded `detail`. Include only confirmed project/timing/context. The wrapper
+   plus grounded `detail` and `display` wording in both languages (rule 2 of
+   `docs/item-taxonomy.md`). Include only confirmed project/timing/context. The wrapper
    supplies `kind: "todo"` and checks setup; do not add `kind`, run separate
    preparation/profile/state reads except the date/timezone check in step 1, read
    old inbox history, or call `task --add` again.

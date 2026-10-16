@@ -72,7 +72,7 @@ def saved_week(runtime, zone, now, offset):
                 store.con.execute('BEGIN')
                 start = datetime.combine(monday, time(), local.tzinfo)
                 end = datetime.combine(monday + timedelta(days=7), time(), local.tzinfo)
-                events = safe_value(store.query(start, end, limit=-1, details=True))
+                events = [worded(event, 'event') for event in safe_value(store.query(start, end, limit=-1, details=True))]
                 converted = converted_draft_ids(store)
                 pending = store.stats()['pending']
                 for event in events:
@@ -109,13 +109,13 @@ def saved_week(runtime, zone, now, offset):
             if inbox.version == 2:
                 store = TaskStore(inbox)
                 inbox.db.execute('BEGIN')
-                drafts = safe_value(confirmed_drafts(store, monday.isoformat(),
-                    (monday + timedelta(days=7)).isoformat(), converted))
+                drafts = [worded(draft, 'draft') for draft in safe_value(confirmed_drafts(store, monday.isoformat(),
+                    (monday + timedelta(days=7)).isoformat(), converted))]
                 for day in days:
                     day['plan_error'] = False  # Legacy history is not a canonical source failure.
                     rows = planned_day(store, day['date']) + calendar_day_extras(store, day['date'], today.isoformat())
-                    day['tasks'] = [dict(r, id=r['occurrence_id'] or r['id'] + ':due', text=r['title'], done=r['status'] == 'done',
-                        section='nice-to-do' if r['optional'] else 'flexible')
+                    day['tasks'] = [worded(dict(r, id=r['occurrence_id'] or r['id'] + ':due', text=r['title'], done=r['status'] == 'done',
+                        section='nice-to-do' if r['optional'] else 'flexible'), 'task')
                         for r in safe_value(rows)]
                     day['events'].extend(draft for draft in drafts if draft['date'] == day['date'])
         except (ValueError, OSError, sqlite3.Error, KeyError, TypeError):
@@ -128,6 +128,22 @@ def saved_week(runtime, zone, now, offset):
                 inbox.close()
     return {'today': today.isoformat(), 'start': monday.isoformat(), 'offset': offset,
             'timezone': zone, 'days': days, 'pending': pending, 'warnings': warnings, 'calendar_error': calendar_error}
+
+
+def worded(item, kind):
+    """The Schedule label and morning line the secretary saved for this item; saved fields when missing or stale."""
+    from goodmorning.records.display import wording
+    if kind == 'task' and item.get('category') == 'habit':
+        return item
+    label = wording(item, kind, 'schedule', ui.current())
+    if not label:
+        return item
+    line = wording(item, kind, 'morning', ui.current())['detail']
+    if kind == 'task':
+        return {**item, 'text': label, 'detail': line}
+    if kind == 'draft':
+        return {**item, 'title': label, 'subject': label, 'detail': line}
+    return {**item, 'subject': label, 'notes': line}
 
 
 def event_card(event, day, zone):

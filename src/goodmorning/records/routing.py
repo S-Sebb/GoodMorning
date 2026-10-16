@@ -217,7 +217,7 @@ def task_row(task, day='', occurrence=None, group='other'):
              'source_entry_id': task['source_entry_id'], 'owner': 'tasks',
               'report_detail': occurrence['detail'] if occurrence else '', 'created_at': task['created_at'],
               'category': task['category'], 'kind': task.get('kind', ''),
-              **{key:task[key] for key in ('when','due_soft','follow_up','notice','extra') if task.get(key)},
+              **{key:task[key] for key in ('when','due_soft','follow_up','notice','extra','display') if task.get(key)},
               **({'prep_for': task['repeat']['event_subject'], 'offset_days': task['repeat'].get('offset_days', 0)}
                  if 'event_subject' in (task['repeat'] or {}) else {})}
 
@@ -697,10 +697,15 @@ def prepare(runtime, today, kind, offset=0, limit=7):
             result['today_total'] = len(outcomes)
             result['today_next_offset'] = offset + limit if offset + limit < len(outcomes) else None
             result['blocks'] = {
-                'tasks': ['actions', [action_cells(r) for r in result['tasks']['items']]],
-                'schedule': ['events', [[r['id'], r['revision'], *event_cells(r, events_timezone(runtime))] for r in result['schedule']['items']]],
+                'tasks': ['actions', [action_cells(r, place_for(kind)) for r in result['tasks']['items']]],
+                'schedule': ['events', [[r['id'], r['revision'], *event_cells(r, events_timezone(runtime), place_for(kind))] for r in result['schedule']['items']]],
                 'attention': ['decisions', [[r['id'], r['revision'], r['title'], '\n'.join(r['questions']) or 'Review the supplied details.'] for r in result['attention']['items']]],
                 'today': ['actions', [action_cells(r) for r in result['today'] if r['status'] != 'open']]}
+            # Rows without fresh stored wording: the briefing may reword these for the page, never the item.
+            from goodmorning.web import language as ui
+            from .display import wording
+            result['tasks']['fallback'] = [r['id'] for r in result['tasks']['items']
+                                           if r.get('category') == 'habit' or not wording(r, 'task', place_for(kind), ui.current())]
             return result
     finally:
         inbox.close()
@@ -734,17 +739,18 @@ def validate_sources(runtime, document, today, kind):
                     for row in block[1]:
                         identifier, revision, occ, day, status, title, detail = row
                         source = available.get((identifier, occ))
-                        if not source or [revision, day, status, title] != [source['revision'], source['date'], source['status'], source['title']]:
-                            raise ValueError('source_conflict: action identity, date, title, status or revision is unsupported')
+                        # Title and detail are display wording; the saved item is matched by identity, revision, date and status.
+                        if not source or [revision, day, status] != [source['revision'], source['date'], source['status']]:
+                            raise ValueError('source_conflict: action identity, date, status or revision is unsupported')
                 elif tag == 'errands':
-                    for identifier, revision, title, *_ in block[1]:
+                    for identifier, revision, *_ in block[1]:
                         source = errands.get(identifier)
-                        if not source or [revision, title] != [source['revision'], source['title']]:
-                            raise ValueError('source_conflict: errand is not due this morning, changed or retitled')
+                        if not source or revision != source['revision']:
+                            raise ValueError('source_conflict: errand is not due this morning or changed')
                 elif tag == 'events':
                     for identifier, revision, *cells in block[1]:
                         source = events.get(identifier)
-                        if not source or revision != source['revision'] or cells != event_cells(source, events_timezone(runtime)):
+                        if not source or revision != source['revision'] or cells != event_cells(source, events_timezone(runtime), place_for(kind)):
                             raise ValueError('source_conflict: event is unapproved, changed or outside the edition window')
                 elif tag == 'decisions':
                     for identifier, revision, title, detail in block[1]:
@@ -761,9 +767,17 @@ def events_timezone(runtime):
     return profile_fields(runtime)['timezone']
 
 
-def action_cells(row):
+def place_for(kind):
+    """Which stored wording an edition shows: the morning gets it done, the evening gets ready for tomorrow."""
+    return 'evening' if kind == 'gn' else 'morning'
+
+
+def action_cells(row, place='morning'):
     from goodmorning.web import language as ui
-    cleaned = clean_task_detail(row.get('title', ''), row.get('detail', ''))
+    from .display import wording
+    stored = wording(row, 'task', place, ui.current()) if row.get('category') != 'habit' else None
+    title = stored['title'] if stored else row['title']
+    cleaned = stored['detail'] if stored else clean_task_detail(row.get('title', ''), row.get('detail', ''))
     detail = [cleaned] if cleaned else []
     if row['project']:
         detail.append(ui.text('Project: {name}', name=row['project']))
@@ -792,16 +806,19 @@ def action_cells(row):
     # No "To be scheduled" suffix: the date group heading already says it.
     if row['report_detail']:
         detail.append(row['report_detail'])
-    return [row['id'], row['revision'], row['occurrence_id'], row['date'], row['status'], row['title'], ' · '.join(detail)]
+    return [row['id'], row['revision'], row['occurrence_id'], row['date'], row['status'], title, ' · '.join(detail)]
 
 
-def event_cells(event, timezone):
+def event_cells(event, timezone, place='morning'):
     from goodmorning.calendar.calendar_store import endpoints
     from goodmorning.calendar.calendar_safety import clean_preparation
     from zoneinfo import ZoneInfo
     from goodmorning.web import language as ui
+    from .display import wording
+    stored = wording(event, 'draft' if event.get('draft') else 'event', place, ui.current())
     if event.get('draft'):
-        return [event['date'], ui.text('TBC'), event['title'], event['location'], event['detail']]
+        return [event['date'], ui.text('TBC'), stored['title'] if stored else event['title'], event['location'],
+                stored['detail'] if stored else event['detail']]
     start, end = [p.astimezone(ZoneInfo(timezone)) for p in endpoints(event)]
     if event['all_day']:
         clock = ui.text('All day')
@@ -810,8 +827,9 @@ def event_cells(event, timezone):
     else:
         finish = (end.date().isoformat() + ' ' if end.date() != start.date() else '') + end.strftime('%H:%M')
         clock = start.strftime('%H:%M') + '–' + finish
-    notes = clean_preparation(event.get('notes', '')) if event.get('notes') else ''
+    notes = stored['detail'] if stored else clean_preparation(event.get('notes', '')) if event.get('notes') else ''
     prep = [notes] if notes else []
     for action in event.get('linked_actions', []):
-        prep.append(action['title'] + ('\n' + action['detail'] if action['detail'] else ''))
-    return [start.date().isoformat(), clock, event['subject'], event.get('location', ''), '\n'.join(prep)]
+        linked = wording(action, 'task', place, ui.current())
+        prep.append((linked['title'] if linked else action['title']) + ('\n' + action['detail'] if action['detail'] and not linked else ''))
+    return [start.date().isoformat(), clock, stored['title'] if stored else event['subject'], event.get('location', ''), '\n'.join(prep)]

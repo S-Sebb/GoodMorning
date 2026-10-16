@@ -26,17 +26,19 @@ not repeated cards or news facts. Use `""` for note when only overriding title.
 Copy nonempty blocks; follow each returned `next_offset` with the same date/edition.
 Add grounded explanations without changing source identity, revision, date/status.
 Briefings make no task writes: records are shaped in the conversation that
-received the request. Use clear, informative prose in the confirmed tone. A row's
-detail may be shortened for display (it is not part of source validation): keep code
-labels, drop the secretary's own notes, never add facts, never repeat the title or
-restate project/due text code already shows.
+received the request. Use clear, informative prose in the confirmed tone. Code
+fills row titles and details from each item's saved `display` wording; copy them.
+Only rows the read lists in `fallback` (no fresh saved wording) may be reworded for
+the page: a vague title as a clear imperative with the same meaning, a detail
+shortened, keeping code labels and dropping the secretary's own notes. Never add
+facts. Title and detail are not part of source validation.
 
 - `["actions",[[task_id,revision,occurrence_id,date,status,title,detail],...]]`:
   only in Tasks or Today. Empty occurrence/date means no agreed workday. Date is
   ISO `YYYY-MM-DD`; status is open, partial, blocked or user-confirmed done.
   Code groups cards by workday, then by project, lifting a shared due target to
   the project heading. Keep source order inside each project so relevance stays
-  deterministic. Titles/dates/status/revisions must match the code rows exactly;
+  deterministic. IDs/dates/status/revisions must match the code rows exactly;
   details may be clarified for display (they are not part of source validation)
   but must never repeat the title or restate project/due text code already shows.
   Titles must be imperative, specific, free of filler openers or trailing periods,
