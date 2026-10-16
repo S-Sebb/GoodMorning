@@ -85,7 +85,7 @@ def main():
                 def choose(page, value, theme='day'):
                     prefs(page)
                     expect(page.locator('#day-color-scheme option')).to_have_count(4)
-                    expect(page.locator('#night-color-scheme option')).to_have_count(2)
+                    expect(page.locator('#night-color-scheme option')).to_have_count(4)
                     with page.expect_response('**/api/color-schemes') as response:
                         page.locator('#'+theme+'-color-scheme').select_option(value)
                     assert response.value.status == 200
@@ -228,6 +228,18 @@ def main():
                     evening.screenshot(path=str(artifacts/f'starry-night-{width}.png'), full_page=True)
                     evening.screenshot(path=str(artifacts/f'starry-night-{width}-viewport.png'))
                 evening.set_viewport_size({'width': 1440, 'height': 1000})
+                for scheme, color, surface, scene in (('city-lights', 'rgb(11, 16, 32)', 'rgb(21, 27, 49)', 'city-lights.svg'),
+                                                      ('midnight-violet', 'rgb(31, 32, 41)', 'rgb(42, 43, 55)', None)):
+                    choose(evening, scheme, 'night')
+                    evening.locator('#prefs-menu > summary').click()
+                    assert background(evening) == color
+                    assert scene in stars(evening) if scene else stars(evening) == 'none'
+                    expect(evening.locator('.briefing-section').first).to_have_css('background-color', surface)
+                    for width in (1440, 390):
+                        evening.set_viewport_size({'width': width, 'height': 1000})
+                        assert not evening.evaluate('document.documentElement.scrollWidth > innerWidth')
+                        evening.screenshot(path=str(artifacts/f'{scheme}-night-{width}-viewport.png'))
+                    evening.set_viewport_size({'width': 1440, 'height': 1000})
                 choose(evening, 'classic', 'night')
                 assert background(evening) == 'rgb(17, 28, 42)' and stars(evening) == 'none'
                 choose(evening, 'starry', 'night')
@@ -269,6 +281,8 @@ def main():
                 prefs(chat); chat.locator('#website-language').select_option('zh-CN')
                 expect(chat.locator('#day-color-scheme option[value=warm]')).to_have_text('暖色')
                 expect(chat.locator('#night-color-scheme option[value=starry]')).to_have_text('星空')
+                expect(chat.locator('#night-color-scheme option[value=city-lights]')).to_have_text('城市灯光')
+                expect(chat.locator('#night-color-scheme option[value=midnight-violet]')).to_have_text('午夜紫')
                 expect(chat.locator('label[for=night-color-scheme]')).to_have_text('夜间配色')
                 chat.locator('#website-language').select_option('en')
                 chat.goto('https://sec.language.test/chat')
@@ -301,7 +315,7 @@ def main():
                 assert not errors, errors
                 browser.close()
             assert all(hashlib.sha256(path.read_bytes()).hexdigest() == digest for path, digest in preserved.items())
-            report = {'modelCalls': 0, 'wholeSitePalette': True, 'classicNightUnchanged': True, 'starryNight': True,
+            report = {'modelCalls': 0, 'wholeSitePalette': True, 'classicNightUnchanged': True, 'starryNight': True, 'cityLightsAndMidnightViolet': True,
                        'atmosphericDayThemes': day_results, 'dayReducedMotion': True, 'dayPrintClean': True,
                       'clockThemeIndependent': True, 'refreshAndCrossHost': True, 'draftPreserved': True,
                       'savedRecordsUnchanged': True, 'accountIsolation': True, 'bilingual': True,

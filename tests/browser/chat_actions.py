@@ -56,7 +56,8 @@ def main():
                     expect(page.locator('[data-message="unsafe"] .message-text img')).to_have_count(0)
                     assert page.evaluate('window.executed !== true')
                     assert page.locator('.message-enter').count() == 0
-                    for edition, scheme in (('gm', 'classic'), ('gm', 'warm'), ('gn', 'classic'), ('gn', 'starry')):
+                    for edition, scheme in (('gm', 'classic'), ('gm', 'warm'), ('gn', 'classic'), ('gn', 'starry'),
+                                            ('gn', 'city-lights'), ('gn', 'midnight-violet')):
                         for language in ('en', 'zh-CN'):
                             page.evaluate('''([edition, scheme, language]) => {
                                 document.documentElement.dataset.edition = edition;

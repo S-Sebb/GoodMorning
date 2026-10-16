@@ -56,7 +56,8 @@ question/answer history remain literal. Briefing JSON strings stay plain text.
 Settings also offers independent Day and Night color schemes. Day defaults to
 Morning Sky, with Classic, Warm and First Light also available. Night defaults
 to Starry, with a darker sky and static stars, and also
-offers Classic. Existing saved choices are preserved. The account-wide choice paints the
+offers Classic, City Lights (a harbor skyline fixed below the headline) and
+Midnight Violet (a flat Dracula-inspired palette). Existing saved choices are preserved. The account-wide choice paints the
 whole website through shared color tokens, including briefings, chat, controls
 and the floating desk. Color changes apply without reloads, preserving drafts,
 pending answers and uploaded avatars. The Secretary page still switches between

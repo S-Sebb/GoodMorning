@@ -40,7 +40,7 @@ class ColorSchemeTests(unittest.TestCase):
     def test_catalog_and_invalid_requests(self):
         self.assertEqual(colors.DEFAULT, {'day': 'morning-sky', 'night': 'starry'})
         self.assertEqual(set(colors.OPTIONS['day']), {'classic', 'warm', 'morning-sky', 'first-light'})
-        self.assertEqual(set(colors.OPTIONS['night']), {'classic', 'starry'})
+        self.assertEqual(set(colors.OPTIONS['night']), {'classic', 'starry', 'city-lights', 'midnight-violet'})
         self.assertEqual(colors.validate({'day': 'warm', 'night': 'starry'}), {'day': 'warm', 'night': 'starry'})
         for scheme in ('morning-sky', 'first-light'):
             self.assertEqual(colors.validate({'day': scheme, 'night': 'starry'})['day'], scheme)
@@ -68,6 +68,20 @@ class ColorSchemeTests(unittest.TestCase):
         self.assertIn(resources.urls['morning-clouds-continuation.webp'].encode(), css)
         # First Light no longer repeats its scene down long pages.
         self.assertIn(b'--day-scene: url("' + resources.urls['first-light.svg'].encode() + b'"); --day-repeat: no-repeat;', css)
+
+    def test_new_night_schemes_are_translated_and_city_lights_scene_is_served(self):
+        resources = Resources(Path(__file__).resolve().parents[1] / 'assets/web')
+        css = resources.paths[resources.urls['color-schemes.css']].data.decode()
+        for scheme in ('city-lights', 'midnight-violet'):
+            self.assertEqual(colors.validate({'day': 'warm', 'night': scheme})['night'], scheme)
+            self.assertIn(colors.OPTIONS['night'][scheme], ui.CATALOG)
+            self.assertIn(f'[data-night-scheme="{scheme}"]', css)
+        scene = resources.paths[resources.urls['city-lights.svg']]
+        self.assertEqual(scene.mime, 'image/svg+xml')
+        root = ET.fromstring(scene.data)
+        self.assertEqual(root.findall('.//' + SVG + 'filter'), [])
+        self.assertIsNone(root.find(SVG + 'style'))
+        self.assertIn(resources.urls['city-lights.svg'] + '"', css)
 
     def test_retired_day_preference_preserves_night_and_does_not_rewrite_records(self):
         retired = {'day': 'sunlit-garden', 'night': 'classic'}
