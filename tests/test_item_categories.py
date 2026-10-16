@@ -109,11 +109,26 @@ class CategoryTests(unittest.TestCase):
         self.assertEqual(shown('gn', '2026-10-16'), ({'Remove hair', 'Council form'}, {"Mum's birthday", 'Archery class'}))
         self.assertEqual(shown('gm', '2026-10-17'), ({'Remove hair', 'Council form'}, {"Mum's birthday", 'Archery class'}))
 
+    def test_todays_rows_stay_visible_and_earlier_open_work_is_labelled(self):
+        row = lambda title, day, project='': ['task_' + '0' * 16, 1, '', day, 'open', title, f'Project: {project}' if project else '']
+        today = [row(f'Step {n}', DAY, project) for n, project in enumerate(('A', 'B', 'C', '', '', ''))]
+        html = native.render_block(['actions', today + [row('Old', '2026-10-12'), *[row(f'Later {n}', '', p) for n, p in enumerate('DEFGH')]]],
+                                   {}, DAY)
+        before_backlog = html.split('To be scheduled')[0]
+        self.assertNotIn('<details', before_backlog)  # Nothing due today is folded away.
+        self.assertIn('data-ui-text="Still open"', before_backlog)
+        self.assertIn('<details', html.split('To be scheduled')[-1])  # The undated backlog may fold.
+        note = native.render_block(['tasks', [['open', 'Chair price', ui.text('Heads-up only; nothing to tick off', lang='zh-CN')]]], {})
+        self.assertIn('check is-note', note)  # No empty checkbox on a heads-up.
+
     def test_habits_appear_in_briefings_on_their_days(self):
         self.habit()  # Every two days from Tuesday 13th.
         row = self.items()['Strength training']
         self.assertEqual((row['category'], row['date'], row['group']), ('habit', DAY, 'planned'))
         self.assertEqual(routing.action_cells(row)[:5], [row['id'], row['revision'], row['occurrence_id'], DAY, 'open'])
+        doc = native.parse(native.encode({'v': 2, 'greeting': 'Hello.', 'opening': 'Synthetic.',
+                                          'sections': [['tasks', [['actions', [routing.action_cells(row)]]]]]}))
+        routing.validate_sources(self.root, doc, DAY, 'gm')  # A published edition may carry the habit row.
         self.assertNotIn('Strength training', self.items('gn'))  # Wednesday is an off day.
         self.assertIn('Strength training', self.items('gn', '2026-10-14'))  # Preview of Thursday.
 
@@ -259,7 +274,11 @@ class CategoryTests(unittest.TestCase):
                                 location='Sports park', repeat={'weekdays': [5], 'start': '2026-10-17', 'until': '2026-10-31'})
         cards = [(e['id'], e['date']) for day in self.week(1).values() for e in day['events']]
         self.assertEqual(cards, [(identifier + '@2026-10-24', '2026-10-24')])
-        self.assertEqual([e['date'] for e in routing.prepare(self.root, '2026-10-17', 'gm')['schedule']['items']], ['2026-10-17'])
+        view = routing.prepare(self.root, '2026-10-17', 'gm')
+        self.assertEqual([e['date'] for e in view['schedule']['items']], ['2026-10-17'])
+        doc = native.parse(native.encode({'v': 2, 'greeting': 'Hello.', 'opening': 'Synthetic.',
+                                          'sections': [['schedule', [view['blocks']['schedule']]]]}))
+        routing.validate_sources(self.root, doc, '2026-10-17', 'gm')  # The series card can be published.
         with self.assertRaisesRegex(ValueError, 'start equal to date'):
             self.draft(title='Bad', date='2026-10-17', timezone=ZONE, confirmed_day=True, repeat={'weekdays': [5], 'start': '2026-10-18'})
         event = {'subject': 'Archery class', 'start': '2026-10-17T19:00:00+01:00', 'end': '2026-10-17T20:30:00+01:00',

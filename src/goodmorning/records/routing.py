@@ -306,7 +306,7 @@ def task_view(store, today, kind='gm', offset=0, limit=7, owned=()):
             else:
                 rows.append(row)
     rows = [row for row in rows if (row['id'], row['occurrence_id']) not in owned]
-    rank = {'nudge': 0, 'planned': 1, 'follow-up': 2, 'deadline': 2, 'still-open': 3, 'other': 4}
+    rank = {'nudge': 0, 'planned': 1, 'follow-up': 2, 'still-open': 3, 'deadline': 4, 'other': 5}  # Dated days before the undated backlog.
     priority = {'high': 0, 'normal': 1, '': 2, 'low': 3}
     rows.sort(key=lambda r: (rank[r['group']], r['date'], r['optional'], priority[r['priority']], r['due_date'] or '9999', r['created_at'], r['id']))
     # Project work offers the next few steps per project, not the whole backlog.

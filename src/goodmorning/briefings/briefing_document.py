@@ -171,13 +171,13 @@ def block(value, path):
         width = {'actions': 7, 'events': 7, 'decisions': 4}[tag]
         for row in value[1]:
             sequence(row, path + '.row', width, width)
-            pattern = {'actions': r'task_[0-9a-f]{16}', 'events': r'(?:[0-9a-f]{16}|draft_[0-9a-f]{16})', 'decisions': r'(?:[0-9a-f]{16}|(?:ib|draft)_[0-9a-f]{16})'}[tag]
+            pattern = {'actions': r'(?:task|cu)_[0-9a-f]{16}', 'events': r'(?:[0-9a-f]{16}|draft_[0-9a-f]{16}(?:@\d{4}-\d{2}-\d{2})?)', 'decisions': r'(?:[0-9a-f]{16}|(?:ib|draft)_[0-9a-f]{16})'}[tag]
             if not isinstance(row[0], str) or not re.fullmatch(pattern, row[0]) or type(row[1]) is not int or row[1] < 1:
                 fail(path, 'source-linked rows need a durable ID and positive revision')
             for cell in row[2:]:
                 text(cell, path + '.cell', empty=True)
             if tag == 'actions':
-                if row[2] and not re.fullmatch(r'oc_[0-9a-f]{16}', row[2]):
+                if row[2] and not re.fullmatch(r'oc_[0-9a-f]{16}|cuoc_[0-9a-f]{16}_[0-9]{8}', row[2]):
                     fail(path, 'invalid occurrence ID')
                 if row[3]:
                     try:
@@ -476,7 +476,7 @@ def _decision_display(title, detail):
     return clean_title, ' · '.join(parts)
 
 
-def _render_project_subgroups(rows, images, briefing_date):
+def _render_project_subgroups(rows, images, briefing_date, collapse=True):
     import re as _re
     # rows: [[status, title, detail]] in code-owned relevance order; keep it inside groups.
     subgroups = {}
@@ -498,7 +498,7 @@ def _render_project_subgroups(rows, images, briefing_date):
     ordered = sorted(subgroups.items(),
                      key=lambda kv: (*_urgency(kv[1])[:2], kv[0] == '', -len(kv[1]), kv[0].lower()))
     urgencies = {id(items): _urgency(items) for _, items in ordered}
-    collapsible = sum(len(items) for _, items in ordered) > 4
+    collapsible = collapse and sum(len(items) for _, items in ordered) > 4
     body = []
     for index, (project, items) in enumerate(ordered):
         # Lift a shared due date to the heading so it is not repeated per card.
@@ -538,15 +538,23 @@ def _render_project_subgroups(rows, images, briefing_date):
     return ''.join(body)
 
 
+def action_day(day, briefing_date):
+    if not day:
+        return ui.ui('To be scheduled')
+    if briefing_date and day < briefing_date:
+        return ui.ui('Still open') + ' — ' + ui.agenda_day(day)
+    return ui.agenda_day(day, briefing_date)
+
+
 def render_block(value, images, briefing_date=None):
     tag = value[0]
     if tag == 'actions':
         groups = {}
         for row in value[1]:
             groups.setdefault(row[3], []).append([row[4], row[5], row[6]])
-        return ''.join('<div class="action-group"><h3 class="agenda-day">' +
-                       (ui.agenda_day(day, briefing_date) if day else ui.ui('To be scheduled')) + '</h3>' +
-                       _render_project_subgroups(rows, images, briefing_date) + '</div>' for day, rows in groups.items())
+        # Only the undated backlog folds away; everything on a dated day stays visible.
+        return ''.join('<div class="action-group"><h3 class="agenda-day">' + action_day(day, briefing_date) + '</h3>' +
+                       _render_project_subgroups(rows, images, briefing_date, collapse=not day) + '</div>' for day, rows in groups.items())
     if tag == 'events':
         return render_block(['agenda', [r[2:] for r in value[1]]], images, briefing_date)
     if tag == 'decisions':
@@ -566,6 +574,8 @@ def render_block(value, images, briefing_date=None):
             status_label='Completed' if status=='done' else 'Not completed'
             tick = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="m5 12.5 4.5 4.5L19 7"/></svg>' if status=='done' else ''
             mark = '<span class="check'+(' is-done' if status=='done' else '')+'" data-ui-aria-label="'+status_label+'" aria-label="'+ui.text(status_label)+'">'+tick+'</span>'
+            if status == 'open' and any(detail.startswith(ui.text('Heads-up only; nothing to tick off', lang=lang)) for lang in ('en', 'zh-CN')):
+                mark = '<span class="check is-note" aria-hidden="true"></span>'  # A heads-up has nothing to tick.
             label = '<span class="task-status">' + ui.ui(status.capitalize()) + '</span> ' if status in ('partial', 'blocked') else ''
             detail_html = f'<div class="task-detail">{label}{escaped(detail)}</div>' if (detail or label) else ''
             items.append(f'<li class="task-card task"><div class="task-title">{mark}{escaped(title)}</div>{detail_html}</li>')
