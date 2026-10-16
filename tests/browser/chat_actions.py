@@ -96,6 +96,27 @@ def main():
                     expect(page.locator('[data-special="permission"]')).to_be_visible()
                     expect(answer).to_have_value('Thursday afternoon')
                     expect(page.locator('.message-enter')).to_have_count(0)
+                    # Choices stay compact: descriptions align under their label, short choices share a row when there is room.
+                    status['permissions'] = []
+                    status['forms'] = [{'id': 'choose', 'title': 'Pick', 'fields': [
+                        {'key': 'tone', 'title': 'Tone', 'type': 'string', 'options': [
+                            {'value': 'warm', 'label': 'Warm', 'description': 'Friendly and clear.'},
+                            {'value': 'formal', 'label': 'Formal', 'description': 'Polite and brief.'}]},
+                        {'key': 'parts', 'title': 'Parts', 'type': 'multiselect', 'options': [
+                            {'value': 'a', 'label': 'News'}, {'value': 'b', 'label': 'Weather'}]}]}]
+                    page.evaluate('pollChat()')
+                    expect(page.get_by_role('checkbox', name='Weather')).to_be_visible()
+                    layout = page.evaluate('''() => {
+                        const box = selector => document.querySelector(selector).getBoundingClientRect();
+                        const label = '#chat-questions .answer-option:has(small)';
+                        const short = [...document.querySelectorAll('#chat-questions .answer-option:not(:has(small))')];
+                        const note = document.querySelector(label + ' small');
+                        return {indent: box(label + ' small').left + parseFloat(getComputedStyle(note).paddingLeft) - box(label + ' span').left,
+                                sameRow: short[0].getBoundingClientRect().top === short[1].getBoundingClientRect().top,
+                                optionHeight: box(label).height};
+                    }''')
+                    assert abs(layout['indent']) <= 1 and layout['optionHeight'] < 56, (width, layout)
+                    assert layout['sameRow'] or width < 390, (width, layout)
                     assert not errors, errors
                     page.close()
 

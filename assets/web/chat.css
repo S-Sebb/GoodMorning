@@ -79,9 +79,20 @@ html[data-edition="gn"] .chat-page { --special-question: #dfbd85; --special-answ
 .chat-special-icon svg { width: 21px; height: 21px; }
 .chat-page [data-special="action"] .message-text { font-size: 13px; line-height: 1.6; }
 .chat-page [data-special="action"] .message-text:empty { display: none; }
-#chat-questions [data-special] { border-radius: 18px; padding: 18px; }
-#chat-questions [data-special] h2 { margin: 8px 0 16px; font-family: inherit; font-size: 18px; font-weight: 600; line-height: 1.45; letter-spacing: normal; }
-#chat-questions [data-special] fieldset { min-width: 0; }
+#chat-questions [data-special] { border-radius: 18px; padding: 14px 16px; font-size: 14px; }
+#chat-questions [data-special] h2 { margin: 4px 0 6px; font-family: inherit; font-size: 16px; font-weight: 600; line-height: 1.45; letter-spacing: normal; }
+/* Compact questions so a whole form fits the chat window. */
+#chat-questions [data-special] fieldset { min-width: 0; margin: 6px 0; padding: 8px 0 2px; }
+#chat-questions [data-special] fieldset p { margin: 0 0 4px; color: var(--muted); font-size: 13px; }
+#chat-questions .answer-option { gap: 0 10px; padding: 4px 0; line-height: 1.45; }
+#chat-questions .answer-option:not(:has(small)) { display: inline-flex; margin-right: 18px; }
+#chat-questions .answer-option small { padding-left: 31px; font-size: 12px; }
+#chat-questions .agent-form .answer-project-group { margin: 8px 0 2px; padding: 4px 0 0; }
+#chat-questions .agent-form :is(textarea, input:not([type="radio"]):not([type="checkbox"])) { min-height: 38px; margin-top: 4px; padding: 8px 10px; }
+#chat-questions .agent-form textarea { height: 64px; resize: vertical; }
+#chat-questions .agent-form button { min-height: 38px; margin-top: 6px; padding: 8px 18px; }
+#chat-questions .agent-form p[role="alert"] { margin: 6px 0 0; }
+#chat-questions .agent-form p[role="alert"]:empty { display: none; }
 #chat-questions [data-special] pre { white-space: pre-wrap; overflow-wrap: anywhere; }
 #chat-questions .message-enter { animation: chat-message-enter .36s cubic-bezier(.22, 1, .36, 1) both; }
 .reply-portrait { position: absolute; left: -49px; top: 5px; width: 40px; height: 40px; }
