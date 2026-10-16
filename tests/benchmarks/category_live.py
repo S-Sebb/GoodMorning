@@ -123,8 +123,16 @@ def scenarios(today):
     def split(runtime, setup):
         rows, _ = tasks(runtime)
         kinds = sorted(r['category'] for r in rows)
-        assert 'nudge' in kinds and len(rows) == 2, kinds
-        assert len({r['source_entry_id'] for r in rows}) == 1, 'one capture, two siblings'
+        assert 'errand' in kinds and len(rows) <= 2, kinds  # "Keep an eye on it" asks the secretary to watch.
+        assert len({r['source_entry_id'] for r in rows}) == 1, 'one capture'
+
+    def errand(runtime, setup):
+        import re
+        row = only([r for r in tasks(runtime)[0] if r['status'] != 'cancelled'])
+        assert row['category'] == 'errand', row
+        detail = row['detail']
+        assert '120' in detail and len(re.findall(r'[.!?](?:\s|$)|[。！？]', detail)) <= 2 and len(detail) <= 200, detail
+        assert not re.search(r'every morning|each morning|briefing|auto|purchase|每天早上|早报|自动', detail, re.I), detail
 
     def project_after(runtime, setup):
         rows = [r for r in tasks(runtime)[0] if r['id'] != setup['first']]
@@ -226,6 +234,9 @@ def scenarios(today):
         ('split', 'secretary', None,
          'Keep an eye on the SIHOO M18 chair price in my morning briefings, and I will buy it once it drops below £130.',
          '在早报里帮我留意 SIHOO M18 椅子的价格，低于130英镑我就买。', split),
+        ('errand', 'secretary', None,
+         'Check the black SIHOO M18 chair price on Amazon UK for me each morning, and only tell me when it is below £120.',
+         '每天早上帮我查一下亚马逊英国上黑色 SIHOO M18 椅子的价格，低于120英镑时再告诉我。', errand),
         ('project_after', 'secretary', with_first_step,
          'Add an HL60 rescue step: once the plasmid transformation and plating is done, take the plates out and send them for sequencing.',
          '给 HL60 rescue 加一步：质粒转化和铺板完成后，取出菌板送测序。', project_after),

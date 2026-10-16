@@ -97,6 +97,16 @@ def seed(runtime, monday, language='en'):
         inbox.mutate('add', {'kind': 'todo', 'raw': 'Check the chair price', 'task': {
                      'title': t('Check the SIHOO M18 chair price', '看看 SIHOO M18 椅子的价格'), 'kind': 'nudge'}},
                      'ses_fixture', 'seed-chair', stamp)
+        # Errands: the secretary looks these up itself. One always reports; one's condition is never met.
+        for key, title, detail in (
+                ('wage', t('Look up the UK National Living Wage on GOV.UK', '在 GOV.UK 查一下英国国家生活工资'),
+                 t('Tell me the current hourly rate for workers aged 21 and over.', '告诉我目前21岁及以上的时薪标准。')),
+                ('pi', t('Check the Raspberry Pi 5 8GB price on raspberrypi.com', '在 raspberrypi.com 查树莓派5 8GB的价格'),
+                 t('Tell me only if it is under £5.', '只有低于5英镑时才告诉我。')),
+                ('chair', t('Check the black SIHOO M18 chair price on Amazon UK', '查亚马逊英国黑色 SIHOO M18 椅子的价格'),
+                 t('Tell me only when it is below £120.', '只在低于120英镑时告诉我。'))):
+            ids[key] = inbox.mutate('add', {'kind': 'todo', 'raw': title, 'task': {'title': title, 'kind': 'errand', 'detail': detail}},
+                                    'ses_fixture', 'seed-' + key, stamp)['task_id']
         inbox.mutate('add', {'kind': 'todo', 'raw': 'Bring gym clothes', 'task': {'title': t('Bring gym clothes', '带运动衣服'),
                      'kind': 'nudge', 'timezone': ZONE, 'when': {'custom_rule_id': habit}}}, 'ses_fixture', 'seed-clothes', stamp)
         inbox.mutate('add', {'kind': 'todo', 'raw': 'Rebuy protein', 'task': {'title': t('Rebuy protein powder', '回购蛋白粉'),
@@ -129,6 +139,8 @@ def audit(runtime, monday):
                 f"{i.get('date') or i.get('start', '')[:10]} {i.get('subject')}{' TBC' if i.get('draft') else ''}" for i in view['schedule']['items']))
             for row in view['tasks']['items']:
                 lines.append(f"  [{kind}] task {row['group']:<10} {row['category']:<8} {row['date'] or '-':<10} {row['title']}")
+            for row in view['tasks'].get('errands', []):
+                lines.append(f"  [{kind}] errand    {row['title']}")
             for row in view['attention']['items']:
                 lines.append(f"  [{kind}] reminder  {row['title']}")
         inbox = InboxStore(runtime)

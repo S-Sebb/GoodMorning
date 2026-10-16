@@ -119,7 +119,7 @@ class CategoryTests(unittest.TestCase):
         self.assertIn('data-ui-text="Still open"', before_backlog)
         self.assertIn('<details', html.split('To be scheduled')[-1])  # The undated backlog may fold.
         note = native.render_block(['tasks', [['open', 'Chair price', ui.text('Heads-up only; nothing to tick off', lang='zh-CN')]]], {})
-        self.assertIn('check is-note', note)  # No empty checkbox on a heads-up.
+        self.assertIn('check is-note', note)  # A heads-up announces no completion status.
 
     def test_notice_is_only_for_dated_actions_and_well_formed(self):
         for task, message in (({'title': 'Read', 'notice': {'morning': 2}}, 'dated action'),
@@ -212,6 +212,44 @@ class CategoryTests(unittest.TestCase):
             self.capture(title='Bad', kind='nudge', due_date='2026-10-20')
         self.tasks.mutate(anytime, 1, {'status': 'cancelled'}, 'ses_test', 'retire', NOW)
         self.assertNotIn('Check the chair price', self.items())
+
+    def test_errand_is_done_by_the_secretary_each_morning_and_shown_only_as_a_finding(self):
+        daily = self.capture(title='Check the black SIHOO M18 price on Amazon UK', kind='errand',
+                             detail='Tell me only when it is under £120.')
+        self.capture(title='Look up the library opening hours', kind='errand', timezone=ZONE,
+                     repeat={'weekdays': [2], 'start': DAY})
+        self.assertEqual(self.tasks.show(daily)['category'], 'errand')
+        view = routing.prepare(self.root, DAY, 'gm')
+        self.assertEqual(view['tasks']['items'], [])  # Never a card to tick off.
+        self.assertEqual(view['tasks']['errands'], [{'id': daily, 'revision': 1, 'title': 'Check the black SIHOO M18 price on Amazon UK',
+                                                     'instruction': 'Tell me only when it is under £120.'}])
+        self.assertEqual([e['title'] for e in routing.prepare(self.root, '2026-10-14', 'gm')['tasks']['errands']],
+                         ['Check the black SIHOO M18 price on Amazon UK', 'Look up the library opening hours'])
+        self.assertEqual(routing.prepare(self.root, DAY, 'gn')['tasks']['errands'], [])
+        self.assertEqual(routing.planned_day(self.tasks, '2026-10-14'), [])
+        self.assertFalse(any(day['tasks'] for day in self.week().values()))
+        with self.assertRaisesRegex(ValueError, 'never completed'):
+            self.tasks.mutate(daily, 1, {'status': 'done', 'confirmed_completion': True}, 'ses_test', 'done', NOW)
+        with self.assertRaisesRegex(ValueError, 'no deadline'):
+            self.capture(title='Bad', kind='errand', due_date='2026-10-20')
+        finding = ['errands', [[daily, 1, 'Check the black SIHOO M18 price on Amazon UK', '£114.99 today, under your £120 limit.',
+                                [['Amazon UK', 'https://www.amazon.co.uk/dp/B0EXAMPLE']]]]]
+        document = lambda block, section='tasks': native.parse(native.encode(
+            {'v': 2, 'greeting': 'Hello.', 'opening': 'Synthetic.', 'sections': [[section, [block]]]}))
+        routing.validate_sources(self.root, document(finding), DAY, 'gm')
+        routing.validate_sources(self.root, document(['errands', [[*finding[1][0][:4], []]]]), DAY, 'gm')  # Could not check.
+        with self.assertRaisesRegex(ValueError, 'source_conflict'):
+            routing.validate_sources(self.root, document(['errands', [[daily, 1, 'Renamed', 'x', []]]]), DAY, 'gm')
+        with self.assertRaisesRegex(ValueError, 'wrong section owner'):
+            document(finding, 'attention')
+        html = native.render_block(finding, {})
+        self.assertIn('data-ui-text="Checked for you this morning"', html)
+        self.assertIn('check is-note', html)
+        self.assertIn('href="https://www.amazon.co.uk/dp/B0EXAMPLE"', html)
+        self.tasks.mutate(daily, 1, {'status': 'cancelled'}, 'ses_test', 'retire', NOW)
+        self.assertEqual(routing.prepare(self.root, DAY, 'gm')['tasks']['errands'], [])
+        with self.assertRaisesRegex(ValueError, 'source_conflict'):
+            routing.validate_sources(self.root, document(finding), DAY, 'gm')
 
     def test_reference_note_never_appears_and_has_no_timing(self):
         identifier = self.capture(title='Rebuy supplements', kind='reference', trigger='A supplement runs out',

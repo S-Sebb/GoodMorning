@@ -50,7 +50,14 @@ plan position and use `skip` for empty optional ones; local JSON omits empty opt
    TBC, or timed focus; do not repeat every card.
 5. Publish Tasks from code-owned rows: heads-ups (nudges: mention, never ask if done), agreed/recurring work, daily follow-ups, deadline attention,
    still-open work and selected undated actions. Project and optional labels are
-   attributes. First walk through today's displayed rows from
+   attributes. The read's `errands` are jobs the user asked you to do yourself:
+   do each now (web search or the named page; only a figure read on the source
+   page itself counts, not a search snippet), then put first in Tasks one source-linked
+   `["errands",[[id,revision,title,finding,[[label,url],...]]]]` row only when
+   its instruction says the user should hear the result (or sets no condition);
+   when you could not get a reliable result, a row saying only that, with `[]`
+   sources. Nothing for an unmet condition; never edit an errand.
+   First walk through today's displayed rows from
    `task --briefing gm --date DATE --section tasks` (follow `next_offset`); where a
    title/detail is materially vague (missing object, filler opener, `etc.`/parens fog,
    verb at the end, non-imperative title — not mere punctuation or capitalization), fix it with

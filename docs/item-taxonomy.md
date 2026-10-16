@@ -25,18 +25,27 @@ heading. Use `scripts/goodmorning.py` with the selected absolute runtime.
       my X days", first match a saved plan (`workflow --prepare secretary` lists
       `habits`; `task --briefing` shows routines); ask only if none matches. Never
       asked at night or completed; retire it with `status:"cancelled"`.
-   5. **Reference note**, saved information for a trigger the system cannot see
+   5. **Errand**, work the user asks the secretary itself to do ("check the chair
+      price for me and tell me when it's under £120", "look up whether the library
+      has the book"): task `kind:"errand"`. `title` is the job ("Check the black SIHOO
+      M18 price on Amazon UK"); `detail` is the instruction in the user's terms: what
+      to find and when to tell them ("Tell me only when it is under £120."). The
+      secretary does it while writing each morning briefing on the nudge triggers
+      above and shows a card only when the result is worth telling; nothing is
+      shown otherwise. Never asked at night or completed; retire it with
+      `status:"cancelled"`. Never save as a nudge something the user asked you to do.
+   6. **Reference note**, saved information for a trigger the system cannot see
       ("when a supplement runs out, rebuy brand X"): `kind:"reference"`, `trigger`,
       `detail`, no dates or conditions. Never in briefings; `workflow --prepare
       secretary` lists `references`, so match the user's words to a trigger there.
-   6. **Routine**, a fixed rhythm: task `repeat` (weekdays, interval, explicit
+   7. **Routine**, a fixed rhythm: task `repeat` (weekdays, interval, explicit
       dates), or `{"event_subject":"Lab meeting","offset_days":-1,"start":DATE}`
       for preparation that follows every approved appointment with that exact subject.
-   7. **Habit**, a rhythm that follows actual completion, chases misses or has a
+   8. **Habit**, a rhythm that follows actual completion, chases misses or has a
       weekly cap: `custom --add` (rule 5).
-   8. **Project step**, work toward a project goal: `project`, optional `optional`,
+   9. **Project step**, work toward a project goal: `project`, optional `optional`,
       soft target `due_soft:true`, and `after:"task_ID"` when it waits for another step.
-   9. One-off action: an agreed day is a **Day task** (`planned_date`); "must be
+   10. One-off action: an agreed day is a **Day task** (`planned_date`); "must be
       done by" is a **Deadline task** (`due_date`; window start `defer_until`);
       neither is an **Anytime task**.
    Shared attributes: `when` conditions; `follow_up:"until-done"` brings a one-off
@@ -72,7 +81,7 @@ heading. Use `scripts/goodmorning.py` with the selected absolute runtime.
    matters plus current state or next step from supplied facts only). Optional `task`
    fields preserve supplied explicit timing and project facts. `detail` is useful extra
    notes only: never repeat the title, project, deadline or priority — those live in structured fields and the page already
-   shows them once per project group. Rhythm and presentation mechanics plus setup
+   shows them once per project group. This holds for every task write, not only `/todo`. Rhythm and presentation mechanics plus setup
    narration stay in structured repeat/when fields and the inbox entry `context`, never in `detail`. `/eureka` captures only an idea, even with action verbs/dates.
    For clear input, capture, confirm, stop. The clarification-before-recording rule
    above applies to ambiguous scheduling; no unsolicited calendar offer or execution.
@@ -167,11 +176,11 @@ heading. Use `scripts/goodmorning.py` with the selected absolute runtime.
    section's rows, `block`, counts and warnings, avoiding repeated whole-plan reads.
 9. Each edition has one focus day: the morning shows today, the evening previews
     tomorrow. Appointments, occasions, TBC days, day tasks, routines, habits and
-    nudges appear only on their own day unless they carry a `notice`. The other
+    nudges and errands appear only on their own day unless they carry a `notice`. The other
     exceptions are hard deadlines (default morning: due within seven days or
     overdue; evening: due tomorrow or overdue), work still open from an earlier
     day, and morning daily follow-ups. Earlier cards appear under "Coming up". Morning also offers at most three steps per project (required
-    before optional) and other open actions; evening reviews actual outcomes. Nudges and reference notes are
+    before optional) and other open actions; evening reviews actual outcomes. Nudges, errands and reference notes are
     never evening questions; a step waiting on `after` stays hidden until that task
     closes. The Schedule tab shows deadlines on their due day, marked "no workday
     assigned", and habit days marked flexible. Evening completion choices cover

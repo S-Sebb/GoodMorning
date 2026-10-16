@@ -31,8 +31,9 @@ FIELDS = {'title', 'detail', 'project', 'optional', 'priority', 'status', 'due_d
           'kind', 'trigger', 'after', 'notice'}
 DRAFT_FIELDS = {'title', 'date', 'timezone', 'location', 'detail', 'confirmed_day',
                 'state', 'calendar_event_id', 'event', 'repeat', 'notice'}
-# Nudges and reference notes are never completed: they surface or are retired.
-UNCHECKED = ('nudge', 'reference')
+# Nudges, errands and reference notes are never completed: they surface or are retired.
+# An errand is work the secretary itself does while writing the morning briefing.
+UNCHECKED = ('nudge', 'errand', 'reference')
 TIMING = ('planned_date', 'due_date', 'due_at', 'repeat', 'defer_until', 'when', 'follow_up', 'calendar_event_id', 'after', 'notice')
 SERIES_LIMIT = 200
 
@@ -140,10 +141,10 @@ def validate(data, *, draft=False):
         check_notice(out.get('notice'), event=True)
         return out
     kind = out.get('kind', '')
-    if kind not in ('', 'nudge', 'reference'):
-        raise ValueError('invalid_input: kind must be empty (action), nudge or reference')
+    if kind not in ('', *UNCHECKED):
+        raise ValueError('invalid_input: kind must be empty (action), nudge, errand or reference')
     if kind and out.get('status', 'open') not in ('open', 'cancelled'):
-        raise ValueError('invalid_input: nudges and reference notes are open or cancelled, never completed')
+        raise ValueError('invalid_input: nudges, errands and reference notes are open or cancelled, never completed')
     if kind == 'reference':
         if not out.get('trigger') or any(out.get(key) for key in TIMING):
             raise ValueError('invalid_input: a reference note needs a trigger and no dates, repeats or conditions')
@@ -151,8 +152,8 @@ def validate(data, *, draft=False):
         checked(out['trigger'], 300, kind != 'reference')
         if out['trigger'] and kind != 'reference':
             raise ValueError('invalid_input: only reference notes have a trigger')
-    if kind == 'nudge' and any(out.get(key) for key in ('due_date', 'due_at', 'due_soft', 'follow_up', 'after')):
-        raise ValueError('invalid_input: a nudge has no deadline, follow-up or dependency')
+    if kind in ('nudge', 'errand') and any(out.get(key) for key in ('due_date', 'due_at', 'due_soft', 'follow_up', 'after')):
+        raise ValueError('invalid_input: a nudge or errand has no deadline, follow-up or dependency')
     if out.get('after'):
         import re
         if (not isinstance(out['after'], str) or not re.fullmatch(r'task_[0-9a-f]{16}', out['after'])
@@ -544,7 +545,7 @@ class TaskStore:
             for selection in selections:
                 task = self.show(selection['task_id'])
                 if task.get('kind') in UNCHECKED:
-                    raise ValueError('invalid_input: nudges and reference notes are never ticked off')
+                    raise ValueError('invalid_input: nudges, errands and reference notes are never ticked off')
                 if task['revision'] != selection['revision']:
                     raise ValueError('write_conflict: planned task changed; refresh feedback')
                 if selection.get('actual'):
@@ -605,7 +606,7 @@ class TaskStore:
                 raise ValueError('confirmation_required: completion requires actual user confirmation')
             if day:
                 if current.get('kind') in UNCHECKED:
-                    raise ValueError('invalid_input: nudges and reference notes have no occurrence reports; cancel them instead')
+                    raise ValueError('invalid_input: nudges, errands and reference notes have no occurrence reports; cancel them instead')
                 if draft or set(data) - {'status', 'detail'} or data.get('status') not in STATES:
                     raise ValueError('invalid_input: occurrence report needs status and optional detail')
                 if actual:

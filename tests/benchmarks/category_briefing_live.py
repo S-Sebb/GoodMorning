@@ -47,7 +47,10 @@ def run(output, template, language, kind):
     runtime = folder / 'account'
     source = folder / 'source'
     shutil.copytree(template, source)
-    (source / 'opencode.json').write_text(json.dumps(trial_config(runtime)))
+    config = trial_config(runtime)
+    rules = config['agents']['build']['permissions']
+    rules[:] = [r for r in rules if r['action'] not in ('webfetch', 'websearch')]  # Errands need the web, as in production.
+    (source / 'opencode.json').write_text(json.dumps(config))
     for path in [p for p in source.rglob('*') if p.parent != source or p.is_dir()]:  # Like a deployed release: the agent cannot patch the code.
         path.chmod(path.stat().st_mode & ~0o222)
     seed(runtime, MONDAY, language)
@@ -89,6 +92,22 @@ def run(output, template, language, kind):
         save(folder / 'document.json', document)
         tasks, schedule = rows(document, 'tasks'), rows(document, 'schedule')
         result['tasks'], result['schedule'] = tasks, schedule
+        errands = {row[2]: row for entry in document['sections'] if entry[0] == 'tasks'
+                   for block in entry[1] if block[0] == 'errands' for row in block[1]}
+        result['errands'] = list(errands.values())
+        wage, pi = t('Look up the UK National Living Wage on GOV.UK', '在 GOV.UK 查一下英国国家生活工资'), t('Check the Raspberry Pi 5 8GB price on raspberrypi.com', '在 raspberrypi.com 查树莓派5 8GB的价格')
+        if kind == 'gm':
+            if wage not in errands:
+                result['problems'].append('unconditional errand not reported')
+            elif not any('gov.uk' in url for _, url in errands[wage][4]) or not any(c.isdigit() for c in errands[wage][3]):
+                result['problems'].append('wage finding lacks a rate or a GOV.UK source: ' + json.dumps(errands[wage], ensure_ascii=False))
+            if pi in errands and errands[pi][4]:
+                result['problems'].append('unmet errand condition reported: ' + json.dumps(errands[pi], ensure_ascii=False))
+            chair = errands.get(t('Check the black SIHOO M18 chair price on Amazon UK', '查亚马逊英国黑色 SIHOO M18 椅子的价格'))
+            if chair and chair[4] and not any('amazon.co.uk' in url for _, url in chair[4]):  # Real price: reviewed by hand.
+                result['problems'].append('chair finding without an Amazon UK source: ' + json.dumps(chair, ensure_ascii=False))
+        elif errands:
+            result['problems'].append('errands shown in the evening')
         if kind == 'gm':
             expected_tasks = [t('Strength training', '力量训练'), t('Prepare the project-update presentation', '准备项目进展汇报'),
                               t('Calculate the new ranking before the rebalance', '调仓前计算新排名'), t('Bring gym clothes', '带运动衣服'),

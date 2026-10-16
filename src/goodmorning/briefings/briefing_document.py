@@ -191,6 +191,18 @@ def block(value, path):
                 text(row[5], path + '.title', 600)
             else:
                 text(row[4] if tag == 'events' else row[2], path + '.title', 600)
+    elif tag == 'errands':
+        # [id, revision, title, finding, sources]: what the secretary found doing a saved errand.
+        sequence(value, path, 2, 2)
+        sequence(value[1], path + '.items', 1, 50)
+        for row in value[1]:
+            sequence(row, path + '.row', 5, 5)
+            if not isinstance(row[0], str) or not re.fullmatch(r'task_[0-9a-f]{16}', row[0]) or type(row[1]) is not int or row[1] < 1:
+                fail(path, 'source-linked rows need a durable ID and positive revision')
+            text(row[2], path + '.title', 600)
+            text(row[3], path + '.finding', 1000)
+            if row[4] != []:
+                sources(row[4], path + '.sources')
     elif tag in ('p', 'list'):
         sequence(value, path, 2, 3 if tag == 'p' else 2)
         if tag == 'p':
@@ -291,12 +303,12 @@ def validate(data, partial=False):
         flexible_seen = False
         for number, value in enumerate(section[1]):
             block(value, f'{path}.blocks[{number}]')
-            if data['v'] == 1 and value[0] in ('actions', 'events', 'decisions'):
+            if data['v'] == 1 and value[0] in ('actions', 'events', 'decisions', 'errands'):
                 fail(path, 'source-linked blocks require native v2')
             if data['v'] == 2:
                 if section[0] in ('must-do', 'nice-to-do', 'reminders', 'still-open', 'tomorrow', 'notes'):
                     fail(path, 'v2 uses Schedule, Tasks, Reminders and Today review')
-                owner = {'actions': ('tasks', 'today'), 'events': ('schedule',), 'decisions': ('attention',)}
+                owner = {'actions': ('tasks', 'today'), 'events': ('schedule',), 'decisions': ('attention',), 'errands': ('tasks',)}
                 if value[0] in ('tasks', 'flexible', 'agenda'):
                     fail(path, 'v2 actions/events require source-linked blocks')
                 if value[0] in owner and section[0] not in owner[value[0]]:
@@ -364,7 +376,7 @@ def validate_task_ownership(data):
         identities = set()
         for section in data['sections']:
             for value in section[1]:
-                if value[0] not in ('actions', 'events', 'decisions'):
+                if value[0] not in ('actions', 'events', 'decisions', 'errands'):
                     continue
                 for row in value[1]:
                     identity = (value[0], 'outcome' if section[0] == 'today' else 'action', row[0], row[2] if value[0] == 'actions' else '')
@@ -563,6 +575,14 @@ def render_block(value, images, briefing_date=None):
         # Only the undated backlog folds away; everything on a dated day stays visible.
         return ''.join('<div class="action-group"><h3 class="agenda-day">' + action_day(day, briefing_date) + '</h3>' +
                        _render_project_subgroups(rows, images, briefing_date, collapse=not day) + '</div>' for day, rows in groups.items())
+    if tag == 'errands':
+        items = []
+        for _, _, title, finding, links in value[1]:
+            cited = ' ' + citations(links) if links else ''
+            items.append(f'<li class="task-card task"><div class="task-title"><span class="check is-note" aria-hidden="true"></span>{escaped(title)}</div>'
+                         f'<div class="task-detail">{escaped(finding)}{cited}</div></li>')
+        return ('<div class="action-group"><h3 class="agenda-day">' + ui.ui('Checked for you this morning') + '</h3>'
+                '<ul class="task-list">' + ''.join(items) + '</ul></div>')
     if tag == 'events':
         return render_block(['agenda', [r[2:] for r in value[1]]], images, briefing_date)
     if tag == 'decisions':
@@ -589,7 +609,7 @@ def render_block(value, images, briefing_date=None):
             # A read-only status dot; nothing here looks like a checkbox to tick.
             mark = '<span class="check'+(' is-'+status if status in ('done', 'partial', 'blocked') else '')+'" role="img" data-ui-aria-label="'+status_label+'" aria-label="'+ui.text(status_label)+'">'+tick+'</span>'
             if status == 'open' and any(detail.startswith(ui.text(note, lang=lang)) for note in HEADS_UP for lang in ('en', 'zh-CN')):
-                mark = '<span class="check is-note" aria-hidden="true"></span>'  # A heads-up has nothing to tick.
+                mark = '<span class="check is-note" aria-hidden="true"></span>'  # Same circle, but no "Not completed" status to announce.
             label = '<span class="task-status">' + ui.ui(status.capitalize()) + '</span> ' if status in ('partial', 'blocked') else ''
             detail_html = f'<div class="task-detail">{label}{escaped(_human_due(detail, briefing_date))}</div>' if (detail or label) else ''
             items.append(f'<li class="task-card task"><div class="task-title">{mark}{escaped(title)}</div>{detail_html}</li>')

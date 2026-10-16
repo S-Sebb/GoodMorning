@@ -35,7 +35,9 @@ to its workflow in this conversation; capture wording alone does not grant conse
    `due_date` the last.
 2. Classify before saving with rule 2 of `docs/item-taxonomy.md` (read it when the
    input is anything but a plain action): a heads-up with nothing to finish is
-   `task.kind:"nudge"`; information for a trigger the system cannot see ("when X runs
+   `task.kind:"nudge"`; something the user asks you to do for them each morning
+   ("check the price and tell me when it's under £120") is `task.kind:"errand"`,
+   whose detail says only what to find and when to tell them; information for a trigger the system cannot see ("when X runs
    out") is `kind:"reference"` with `trigger`; "remind me daily until done" is
    `follow_up:"until-done"`; birthdays and appointments belong to the calendar, not
    tasks, and a habit with a flexible rhythm uses `custom --add`. If one request is

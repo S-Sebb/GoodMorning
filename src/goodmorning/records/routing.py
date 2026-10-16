@@ -5,7 +5,7 @@ from pathlib import Path
 import sqlite3
 
 from .inbox_store import InboxStore
-from .task_store import TaskStore, chasing, occurrence_id, planned_on, series_days
+from .task_store import UNCHECKED, TaskStore, chasing, occurrence_id, planned_on, series_days
 
 
 def clean_task_detail(title, detail):
@@ -266,9 +266,9 @@ def task_view(store, today, kind='gm', offset=0, limit=7, owned=()):
     for task in store.all():
         if task['status'] in ('done', 'cancelled') or task['category'] == 'reference' or waiting(store, task):
             continue
-        nudge = task['category'] == 'nudge'
+        nudge = task['category'] in ('nudge', 'errand')
         if nudge and kind == 'gn':
-            continue  # A heads-up is for the morning; the evening never asks about it.
+            continue  # Heads-ups and errands are for the morning; the evening never asks about them.
         scheduled = []
         target = start.isoformat()
         quiet = kind == 'gn' and notice_days(task, kind, 1) == 0  # Asked never to be told the night before.
@@ -338,6 +338,10 @@ def task_view(store, today, kind='gm', offset=0, limit=7, owned=()):
             else:
                 rows.append(row)
     rows = [row for row in rows if (row['id'], row['occurrence_id']) not in owned]
+    # The secretary does errands itself; they are never cards unless it reports a finding.
+    errands = [{'id': r['id'], 'revision': r['revision'], 'title': r['title'], 'instruction': r['detail']}
+               for r in rows if r['category'] == 'errand']
+    rows = [row for row in rows if row['category'] != 'errand']
     rank = {'nudge': 0, 'planned': 1, 'follow-up': 2, 'still-open': 3, 'coming': 4, 'deadline': 5, 'other': 6}  # Dated days before the undated backlog.
     priority = {'high': 0, 'normal': 1, '': 2, 'low': 3}
     rows.sort(key=lambda r: (rank[r['group']], r['date'], r['optional'], priority[r['priority']], r['due_date'] or '9999', r['created_at'], r['id']))
@@ -352,14 +356,14 @@ def task_view(store, today, kind='gm', offset=0, limit=7, owned=()):
         kept.append(row)
     rows = kept
     return {'items': rows[offset:offset + limit], 'total': len(rows),
-            'next_offset': offset + limit if offset + limit < len(rows) else None}
+            'next_offset': offset + limit if offset + limit < len(rows) else None, 'errands': errands}
 
 
 def planned_day(store, day, completed=True, chase=False):
-    """Agreed work for one day. Heads-ups and reference notes are never work to tick off."""
+    """Agreed work for one day. Heads-ups, errands and reference notes are never work to tick off."""
     rows = []
     for task in store.all():
-        if task['status'] == 'cancelled' or task['category'] in ('nudge', 'reference'):
+        if task['status'] == 'cancelled' or task['category'] in UNCHECKED:
             continue
         if not reminder_eligible(store, task, day):
             continue
@@ -456,7 +460,7 @@ def feedback_day(store, day):
                    for block in section[1] if block[0] == 'actions' for row in block[1]}
     for task in store.all():
         if (task['id'] not in identifiers or task['id'] in rows or task['status'] in ('done', 'cancelled')
-                or task['category'] in ('nudge', 'reference')):
+                or task['category'] in UNCHECKED):
             continue
         if (task.get('notice') or {}).get('early') is False and (task['repeat'] or day < (task['planned_date'] or task['due_date'] or day)):
             continue  # Only possible on its own day: never offered as done early.
@@ -683,7 +687,7 @@ def validate_sources(runtime, document, today, kind):
     """Validate source-linked rows before publish/save, never on historical reads."""
     if document['v'] != 2:
         return
-    if not any(block[0] in ('actions', 'events', 'decisions') for section in document['sections'] for block in section[1]):
+    if not any(block[0] in ('actions', 'events', 'decisions', 'errands') for section in document['sections'] for block in section[1]):
         return
     # One consistent task snapshot; approved calendar is another read-only store.
     inbox = InboxStore(runtime)
@@ -693,8 +697,9 @@ def validate_sources(runtime, document, today, kind):
         store = TaskStore(inbox)
         inbox.db.execute('BEGIN')
         agenda = schedule(runtime, today, kind, store, limit=None)
-        eligible = task_view(store, today, kind, limit=1000000, owned=agenda['owned_tasks'])['items']
-        tasks = {(r['id'], r['occurrence_id']): r for r in eligible}
+        view = task_view(store, today, kind, limit=1000000, owned=agenda['owned_tasks'])
+        tasks = {(r['id'], r['occurrence_id']): r for r in view['items']}
+        errands = {r['id']: r for r in view['errands']}
         outcomes = {(r['id'], r['occurrence_id']): r for r in reported_day(store, today)}
         events = {r['id']: r for r in agenda['items']}
         decisions = {r['id']: r for r in attention(store, today, limit=1000000, calendar_reviews=agenda['reviews'])['items']}
@@ -708,6 +713,11 @@ def validate_sources(runtime, document, today, kind):
                         source = available.get((identifier, occ))
                         if not source or [revision, day, status, title] != [source['revision'], source['date'], source['status'], source['title']]:
                             raise ValueError('source_conflict: action identity, date, title, status or revision is unsupported')
+                elif tag == 'errands':
+                    for identifier, revision, title, *_ in block[1]:
+                        source = errands.get(identifier)
+                        if not source or [revision, title] != [source['revision'], source['title']]:
+                            raise ValueError('source_conflict: errand is not due this morning, changed or retitled')
                 elif tag == 'events':
                     for identifier, revision, *cells in block[1]:
                         source = events.get(identifier)
