@@ -36,12 +36,12 @@ def split_dated_title(title):
 
 
 def humanize_iso_date(iso_date):
-    """Short human date for display badges, e.g. '2026-10-12' -> '12 Oct'."""
+    """Short human date for display badges, e.g. '2026-10-12' -> 'Oct 12'."""
     try:
         value = Date.fromisoformat(iso_date)
     except (ValueError, TypeError):
         return iso_date
-    return f'{value.day} {value.strftime("%b")}'
+    return f'{value.strftime("%b")} {value.day}'
 
 
 def heading_html(title):
@@ -434,25 +434,20 @@ def _detail_for_project_group(detail, project, title=''):
     return ' · '.join(parts).strip(' \t·|')
 
 
-def _humanize_iso_in_text(text):
-    import re as _re
-    import datetime as _dt
-
-    def _fmt(raw):
-        try:
-            value = _dt.datetime.fromisoformat(raw)
-            return value.strftime('%a %d %b %H:%M')
-        except Exception:
-            return raw
-
-    return _re.sub(r'\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2})?(?:[+-]\d{2}:?\d{2}|Z|\+00:00)?',
-                   lambda m: _fmt(m.group(0)), text or '')
+def _humanize_iso_in_text(text, reference=None):
+    return ui.human_dates(text, reference)
 
 
-def _decision_display(title, detail):
+def _human_due(text, reference=None):
+    # Labelled deadlines read like the page's other dates; free prose keeps its own wording.
+    return re.sub(r'((?:Due|Soft target|截止|弹性目标日期)\s*[:：]\s*)(\d{4}-\d{2}-\d{2})\b',
+                  lambda match: match[1] + ui.day_text(match[2], reference=reference), text or '')
+
+
+def _decision_display(title, detail, reference=None):
     import re as _re
     clean_title = _re.sub(r'^(?:Review calendar change|Calendar (?:change|update)|有日历变更等你确认)\s*[:：]\s*', '', (title or '').strip(), flags=_re.IGNORECASE).strip() or title
-    text = _humanize_iso_in_text(detail)
+    text = _humanize_iso_in_text(detail, reference)
     parts = [p.strip() for p in _re.split(r'[·\n]+', text.replace('|', '·')) if p.strip()]
     # Bare default status adds noise; the card title already carries cancellations.
     parts = [p for p in parts if p.lower() not in ('confirmed', 'cancelled', '已确认', '已取消')]
@@ -465,8 +460,8 @@ def _decision_display(title, detail):
                 skip_next = False
                 continue
             nxt = parts[index + 1] if index + 1 < len(parts) else ''
-            first = _re.match(r'^(\w{3} \d{2} \w{3}) (\d{2}:\d{2})$', part)
-            second = _re.match(r'^(\w{3} \d{2} \w{3}) (\d{2}:\d{2})$', nxt)
+            first = _re.match(r'^(.+) (\d{2}:\d{2})$', part)
+            second = _re.match(r'^(.+) (\d{2}:\d{2})$', nxt)
             if first and second and first.group(1) == second.group(1):
                 combined.append(f"{first.group(1)} {first.group(2)}–{second.group(2)}")
                 skip_next = True
@@ -524,7 +519,7 @@ def _render_project_subgroups(rows, images, briefing_date, collapse=True):
             display_items.append([status, title, detail])
         label = project if project else ui.ui('General')
         count = f'<span class="project-count">{len(display_items)}</span>'
-        due_badge = f' <span class="project-due">{escaped(shared_due)}</span>' if shared_due else ''
+        due_badge = f' <span class="project-due">{escaped(_human_due(shared_due, briefing_date))}</span>' if shared_due else ''
         heading = f'<span class="project-name" data-content>{escaped(project) if project else label}</span>{due_badge} {count}'
         task_list = render_block(['tasks', display_items], images, briefing_date)
         if len(ordered) == 1 and not project:
@@ -573,7 +568,7 @@ def render_block(value, images, briefing_date=None):
     if tag == 'decisions':
         items = []
         for row in value[1]:
-            disp_title, disp_detail = _decision_display(row[2], row[3])
+            disp_title, disp_detail = _decision_display(row[2], row[3], briefing_date)
             # Short facts (source, time, place) share a line; each longer explanation gets its own.
             parts = disp_detail.split(' · ') if disp_detail else []
             short, long = [p for p in parts if len(p) <= 32], [p for p in parts if len(p) > 32]
@@ -596,7 +591,7 @@ def render_block(value, images, briefing_date=None):
             if status == 'open' and any(detail.startswith(ui.text(note, lang=lang)) for note in HEADS_UP for lang in ('en', 'zh-CN')):
                 mark = '<span class="check is-note" aria-hidden="true"></span>'  # A heads-up has nothing to tick.
             label = '<span class="task-status">' + ui.ui(status.capitalize()) + '</span> ' if status in ('partial', 'blocked') else ''
-            detail_html = f'<div class="task-detail">{label}{escaped(detail)}</div>' if (detail or label) else ''
+            detail_html = f'<div class="task-detail">{label}{escaped(_human_due(detail, briefing_date))}</div>' if (detail or label) else ''
             items.append(f'<li class="task-card task"><div class="task-title">{mark}{escaped(title)}</div>{detail_html}</li>')
         return '<ul class="task-list">' + ''.join(items) + '</ul>'
     if tag == 'flexible':
@@ -622,7 +617,8 @@ def render_block(value, images, briefing_date=None):
                 heading='<h3 class="agenda-day">'+icon('calendar')+(ui.ui('Coming up')+' — ' if later(date,briefing_date) else '')+ui.agenda_day(date,briefing_date)+'</h3>' if date else ''
                 groups.append('<div class="agenda-group">'+heading+'<ol class="agenda-events">')
                 previous=date
-            fields = [(labels[0], date, 'calendar'), (labels[3], place, 'pin'), (labels[4], prep, 'list')]
+            # The day heading already names the date, so cards don't repeat it.
+            fields = [(labels[3], place, 'pin'), (labels[4], prep, 'list')] if date else [(labels[0], date, 'calendar'), (labels[3], place, 'pin'), (labels[4], prep, 'list')]
             detail = ''.join(f'<div class="event-detail">{icon(symbol)}<div><span class="detail-label">{escaped(label) if len(value)==3 else ui.ui(label)}</span><div>{escaped(content)}</div></div></div>' for label, content, symbol in fields if content)
             groups.append(f'<li class="agenda-event"><div class="event-time">{icon("clock")}<span>{escaped(time)}</span></div><div class="event-copy"><h4>{escaped(event)}</h4>{detail}</div></li>')
         return '<div class="agenda">' + ''.join(groups) + '</ol></div></div>'

@@ -84,8 +84,8 @@ class DocumentTests(unittest.TestCase):
         for kind in ('gm','gn'):
             page=web.edition(doc,'2026-10-11',kind,{kind:True})
             self.assertEqual(page.count('class="agenda-day"'),2)
-            self.assertIn('>Tomorrow</bdi> — <span lang="en" data-ui-full-date="2026-10-12">Monday, 12 October 2026</span>',page)
-            self.assertIn('Tuesday, 13 October 2026',page)
+            self.assertIn('>Tomorrow</bdi> — <span lang="en" data-ui-full-date="2026-10-12">Monday, October 12</span>',page)
+            self.assertIn('Tuesday, October 13',page)
             self.assertEqual(page.count('class="agenda-event"'),3)
             self.assertLess(page.index('<h4>First'),page.index('<h4>Second'))
             self.assertLess(page.index('<h4>Second'),page.index('<h4>Third'))
@@ -96,7 +96,7 @@ class DocumentTests(unittest.TestCase):
         page=native.render_block(value,{},'2026-12-31')
         self.assertIn('>Today</bdi>',page)
         self.assertIn('>Tomorrow</bdi>',page)
-        self.assertIn('Friday, 01 January 2027',page)
+        self.assertIn('data-ui-year>Friday, January 1, 2027',page)  # Another year is named.
         self.assertIn('Date TBC',page)
         self.assertNotIn('<script>unsafe',page)
         self.assertEqual(page.count('data-ui-full-date='),2)
@@ -337,7 +337,7 @@ class SaveAndViewTests(unittest.TestCase):
         try:page=app.preview(identifier)['changes'][0]['html']
         finally:ui.CURRENT.reset(token)
         self.assertIn('>明天</bdi>',page)
-        self.assertIn('2034年3月18日 周六',page)
+        self.assertIn('3月18日 周六',page)
         self.assertIn('Preserved event',page)
 
     def test_validation_failure_does_not_save_or_mark(self):

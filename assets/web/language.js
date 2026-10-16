@@ -35,11 +35,13 @@ function applyWebsiteLanguage(language) {
     document.querySelectorAll(`[data-ui-${attribute}]`).forEach(node => node.setAttribute(attribute, goodmorningT(node.getAttribute(`data-ui-${attribute}`))));
   }
   document.querySelectorAll('[data-ui-date]').forEach(node => {
-    node.textContent = new Intl.DateTimeFormat(language, {weekday:'short',month:'short',day:'2-digit',timeZone:'UTC'}).format(new Date(node.dataset.uiDate + 'T12:00:00Z'));
+    node.textContent = new Intl.DateTimeFormat(language, {weekday:'short',month:'short',day:'numeric',timeZone:'UTC'}).format(new Date(node.dataset.uiDate + 'T12:00:00Z'));
   });
   document.querySelectorAll('[data-ui-full-date]').forEach(node => {
     node.lang = language;
-    node.textContent = new Intl.DateTimeFormat(language, {weekday:'long',month:'long',day:'2-digit',year:'numeric',timeZone:'UTC'}).format(new Date(node.dataset.uiFullDate + 'T12:00:00Z'));
+    const day = new Date(node.dataset.uiFullDate + 'T12:00:00Z');
+    const year = node.hasAttribute('data-ui-year') ? {year:'numeric'} : {};
+    node.textContent = new Intl.DateTimeFormat(language, {weekday:'long',month:'long',day:'numeric',...year,timeZone:'UTC'}).format(day);
   });
   document.querySelector('#website-language').value = language;
   document.dispatchEvent(new Event('website:language'));

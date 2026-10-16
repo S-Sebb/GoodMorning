@@ -199,7 +199,7 @@ def capture(app, output):
 
             open_page('/gm.html')
             expect(page.locator('.briefing-section h2')).to_have_text(
-                ['Weather', 'News · 12 Oct (2026-10-12)', 'Schedule', 'Tasks', 'Reminders'])
+                ['Weather', 'News · Oct 12 (2026-10-12)', 'Schedule', 'Tasks', 'Reminders'])
             shot('morning')
             page.set_viewport_size({'width': 1440, 'height': 1800})
             for name, selector in [('weather', '.weather'), ('news', '.news'), ('schedule', '.schedule'),

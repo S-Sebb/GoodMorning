@@ -47,19 +47,38 @@ def ui(source, **values):
     return '<bdi lang="'+current()+'" data-ui-text="'+html.escape(original,quote=True)+'">'+html.escape(text(source,**values))+'</bdi>'
 
 
-def day_text(day, *, full=False):
+def day_text(day, *, full=False, reference=None):
+    """Month-first dates; the year appears only when it differs from the reference day's."""
     value=Date.fromisoformat(day)
-    label = ((f'{value.year}年' if full else '')+f'{value.month}月{value.day}日 '+['周一','周二','周三','周四','周五','周六','周日'][value.weekday()]
-             if current()=='zh-CN' else value.strftime('%a %d %b'))
-    if full and current()=='en':label=value.strftime('%A, %d %B %Y')
-    return label
+    year=bool(reference) and value.year!=Date.fromisoformat(reference[:10]).year
+    if current()=='zh-CN':
+        return (f'{value.year}年' if year else '')+f'{value.month}月{value.day}日 '+['周一','周二','周三','周四','周五','周六','周日'][value.weekday()]
+    label=f'{value:%A}, {value:%B} {value.day}' if full else short_day(value)
+    return label+(f', {value.year}' if year else '')
 
 
-def day_label(day, *, full=False):
-    label=day_text(day,full=full)
+def short_day(value):
+    """English dates read month first everywhere: Tue, Oct 13."""
+    return f'{value:%a}, {value:%b} {value.day}'
+
+
+def human_dates(text, reference=None):
+    """Show stored ISO dates (and date-times) the way the rest of the page writes dates."""
+    def replace(match):
+        try:
+            label=day_text(match[1],reference=reference)
+        except ValueError:
+            return match[0]
+        return label+(' '+match[2] if match[2] else '')
+    return re.sub(r'(?<![\d-])(\d{4}-\d{2}-\d{2})(?:T(\d{2}:\d{2})(?::\d{2})?(?:[+-]\d{2}:?\d{2}|Z)?)?(?![\d:-])',replace,text or '')
+
+
+def day_label(day, *, full=False, reference=None):
+    label=day_text(day,full=full,reference=reference)
     attribute='data-ui-full-date' if full else 'data-ui-date'
     locale=f' lang="{current()}"' if full else ''
-    return f'<span{locale} {attribute}="{day}">{label}</span>'
+    year=' data-ui-year' if reference and day[:4]!=reference[:4] else ''
+    return f'<span{locale} {attribute}="{day}"{year}>{label}</span>'
 
 
 def agenda_day(day, reference=None):
@@ -69,7 +88,7 @@ def agenda_day(day, reference=None):
     except ValueError:
         return html.escape(day)
     relative=({0:'Today',1:'Tomorrow'}.get((value-Date.fromisoformat(reference)).days) if reference else None)
-    return (ui(relative)+' — ' if relative else '')+day_label(day,full=True)
+    return (ui(relative)+' — ' if relative else '')+day_label(day,full=True,reference=reference)
 
 
 class InterfaceHTML(HTMLParser):

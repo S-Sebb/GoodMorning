@@ -259,7 +259,7 @@ function refreshBriefing() {
       const parts = iso.split('-').map(Number);
       const dateSpan = document.createElement('span');
       dateSpan.className = 'nav-date';
-      dateSpan.textContent = '· ' + parts[2] + ' ' + months[parts[1] - 1];
+      dateSpan.textContent = '· ' + months[parts[1] - 1] + ' ' + parts[2];
       dateSpan.dataset.date = iso;
       dateSpan.dataset.content = '';
       link.appendChild(document.createTextNode(' '));
@@ -276,7 +276,7 @@ function refreshBriefing() {
         const parts = dated[2].split('-').map(Number);
         const dateSpan = document.createElement('span');
         dateSpan.className = 'nav-date';
-        dateSpan.textContent = '· ' + parts[2] + ' ' + months[parts[1] - 1];
+        dateSpan.textContent = '· ' + months[parts[1] - 1] + ' ' + parts[2];
         dateSpan.dataset.date = dated[2];
         dateSpan.dataset.content = '';
         link.appendChild(document.createTextNode(' '));

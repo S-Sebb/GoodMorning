@@ -46,14 +46,15 @@ def clean_task_detail(title, detail):
 
 def _human_when(start_raw, end_raw, all_day, zone):
     """Human range for calendar review cards; raw ISO is never shown."""
+    from goodmorning.web.language import short_day
     try:
         if all_day:
             start_day = dt.date.fromisoformat(str(start_raw)[:10])
             end_day = dt.date.fromisoformat(str(end_raw)[:10]) if end_raw else start_day + dt.timedelta(days=1)
             last = end_day - dt.timedelta(days=1)
             if last <= start_day:
-                return start_day.strftime('%a %d %b')
-            return f"{start_day.strftime('%a %d %b')} → {last.strftime('%a %d %b')}"
+                return short_day(start_day)
+            return f"{short_day(start_day)} → {short_day(last)}"
         start = dt.datetime.fromisoformat(str(start_raw))
         end = dt.datetime.fromisoformat(str(end_raw)) if end_raw else None
         if zone:
@@ -65,10 +66,10 @@ def _human_when(start_raw, end_raw, all_day, zone):
             except Exception:
                 pass
         if end and end.date() == start.date():
-            return f"{start.strftime('%a %d %b')} {start.strftime('%H:%M')}–{end.strftime('%H:%M')}"
+            return f"{short_day(start)} {start:%H:%M}–{end:%H:%M}"
         if end:
-            return f"{start.strftime('%a %d %b %H:%M')} → {end.strftime('%a %d %b %H:%M')}"
-        return start.strftime('%a %d %b %H:%M')
+            return f"{short_day(start)} {start:%H:%M} → {short_day(end)} {end:%H:%M}"
+        return f"{short_day(start)} {start:%H:%M}"
     except Exception:
         return ''
 

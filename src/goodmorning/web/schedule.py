@@ -157,7 +157,7 @@ def event_card(event, day, zone):
             '<div class="event-detail">' + duration + notes + pending + source + '</div></details>')
 
 
-def task_card(task):
+def task_card(task, day=None):
     state = task.get('status', 'done' if task['done'] else 'open')
     metadata = []
     if task.get('marker') == 'due':
@@ -172,7 +172,7 @@ def task_card(task):
         metadata.append('<small class="task-progress">' + ui.ui(state.capitalize()) + '</small>')
     if task.get('due_date') and (task.get('marker') != 'due' or task.get('due_at')):
         deadline = task.get('due_at') or task['due_date']
-        metadata.append('<small class="task-deadline">' + ui.ui('Soft target: {date}' if task.get('due_soft') else 'Due: {date}', date=deadline) + '</small>')
+        metadata.append('<small class="task-deadline">' + ui.ui('Soft target: {date}' if task.get('due_soft') else 'Due: {date}', date=ui.human_dates(deadline, day)) + '</small>')
     if (task.get('when') or {}).get('morning_before'):
         metadata.append('<small class="task-trigger">' + ui.ui('Reminder trigger: morning starts before {time} ({zone})',
             time=task['when']['morning_before'], zone=task['timezone']) + '</small>')
@@ -198,7 +198,7 @@ def date_part(day, part):
         label = (f'{value.month}月{value.day}日星期' + '一二三四五六日'[value.weekday()] if ui.current() == 'zh-CN'
                  else value.strftime('%A, %B ') + str(value.day))
     else:
-        label = f'{value.month}月{value.day}日' if ui.current() == 'zh-CN' else value.strftime('%d %b').lstrip('0')
+        label = f'{value.month}月{value.day}日' if ui.current() == 'zh-CN' else f'{value:%b} {value.day}'
     return '<span data-content data-schedule-date="' + day + '" data-schedule-part="' + part + '">' + html.escape(label) + '</span>'
 
 
@@ -247,7 +247,7 @@ def view(data, checked):
     if days[0]['date'][:4] != days[-1]['date'][:4]:
         last += ' <span data-content>' + days[-1]['date'][:4] + '</span>'
     controls = ('<div class="schedule-toolbar"><div class="schedule-date"><h1 id="week-heading">' + date_part(days[0]['date'], 'month') + '</h1>'
-                '<p class="schedule-range">' + first + '<span class="range-dash">–</span>' + last + '<span class="range-dot"> · </span>' + ui.ui(label, count=abs(offset)) + '</p></div>'
+                '<p class="schedule-range">' + first + '<span class="range-dash">–</span>' + last + (('<span class="range-dot"> · </span>' + ui.ui(label, count=abs(offset))) if offset else '') + '</p></div>'
                 '<nav class="schedule-navigation" aria-label="Week navigation">' + mode_switch('week', offset)
                 + step_link('week-previous', '/schedule?week=' + str(offset - 1), 'Previous week', '‹', offset > -3)
                 + '<a id="week-current" class="current-week" data-schedule-nav href="/schedule">' + ui.ui('This week') + '</a>'
@@ -271,7 +271,7 @@ def view(data, checked):
             columns += '<span class="schedule-empty" role="img" aria-label="' + empty_label + '" title="' + empty_label + '">—</span>'
         columns += '</div><div class="schedule-work"><h4>' + ui.ui('To-dos') + '</h4>'
         if day['tasks']:
-            columns += '<ul class="schedule-tasks">' + ''.join(task_card(task) for task in day['tasks']) + '</ul>'
+            columns += '<ul class="schedule-tasks">' + ''.join(task_card(task, day['date']) for task in sorted(day['tasks'], key=lambda task: bool(task['done']))) + '</ul>'
         if day['plan_error']:
             columns += '<p class="schedule-empty">' + ui.ui('Task records unavailable' if day['plan_error'] == 'tasks' else 'Daily plan unavailable') + '</p>'
         elif not day['tasks']:
@@ -320,7 +320,7 @@ def day_tasks(day):
         return '<p class="schedule-empty">' + ui.ui('Task records unavailable' if day['plan_error'] == 'tasks' else 'Daily plan unavailable') + '</p>'
     if not day['tasks']:
         return '<p class="schedule-empty">' + ui.ui('No to-dos saved') + '</p>'
-    return '<ul class="schedule-tasks">' + ''.join(task_card(task) for task in day['tasks']) + '</ul>'
+    return '<ul class="schedule-tasks">' + ''.join(task_card(task, day['date']) for task in sorted(day['tasks'], key=lambda task: bool(task['done']))) + '</ul>'
 
 
 def day_view(data, checked, now):
@@ -388,7 +388,7 @@ def page(app, offset, mode='week'):
               '<script src="/schedule-mode.js"></script>'
               + favicon_links('secretary') + '<link rel="stylesheet" href="/briefing.css"><link rel="stylesheet" href="/schedule.css">'
               '<link rel="stylesheet" href="/scroll-rails.css"><script src="/scroll-rails.js" defer></script></head><body class="schedule-page">'
-              '<a class="skip-link" href="#schedule-view">Skip to schedule</a><header class="masthead"><a class="wordmark" href="/gm.html">GoodMorning<span>A little space to think, plan, and begin.</span></a>'
+              '<a class="skip-link" href="#schedule-view">Skip to schedule</a><header class="masthead"><a class="wordmark" href="/gm.html">GoodMorning<span>A personal secretary just for you</span></a>'
               '<nav class="edition-switch" aria-label="Your desk"><a class="edition-link" href="/gm.html">Morning</a><a class="edition-link" href="/gn.html">Evening</a>'
               '<a class="edition-link selected" href="/schedule" aria-current="page">Schedule</a><a class="edition-link" href="/chat">Secretary</a></nav></header>'
               '<main><div id="schedule-view">' + content + '</div><p id="schedule-error" role="alert"></p>'
