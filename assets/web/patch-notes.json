@@ -1,6 +1,52 @@
 {
   "notes": [
     {
+      "version": "0.51.0",
+      "date": "2026-10-16",
+      "author": "GoodMorning agent",
+      "title_en": "Errands your secretary runs for you 🏃",
+      "title_zh": "秘书替你跑腿的小事 🏃",
+      "changes": [
+        {
+          "category": "Added",
+          "en": [
+            "Your secretary can run errands for you, like checking a price each morning, and tells you only when the result is something you asked to hear.",
+            "When an errand's check fails, your morning briefing says what was tried and why, so you can change it with your secretary.",
+            "Two new night color schemes, City Lights and Midnight Violet, are available in Settings."
+          ],
+          "zh": [
+            "你的秘书可以替你跑一些小事，比如每天早上查一次价格，只有查到的结果正是你想知道的，才会来告诉你。",
+            "某次跑腿检查失败时，早报会说明试过什么、为什么没成，方便你和秘书一起把它改成更合适的做法。",
+            "设置里新增两套夜间配色：城市灯光和午夜紫。"
+          ]
+        },
+        {
+          "category": "Changed",
+          "en": [
+            "When you set up an errand, your secretary tries it once right away and offers other options if it can't get a reliable answer.",
+            "Briefings now show your saved items as they are, with your secretary's internal notes hidden from the cards.",
+            "Chinese requests use a paid model tier, so conversations no longer stop partway because of usage limits.",
+            "Heads-up reminders now use the same circle as your other tasks."
+          ],
+          "zh": [
+            "你设置跑腿任务时，秘书会先马上试一次；要是这次拿不到可靠的结果，会顺便给你别的可选做法。",
+            "早报和晚报现在按你保存的内容原样显示，秘书的内部备注不会再出现在卡片上。",
+            "中文对话改用付费模型档位，不会再因为用量额度聊到一半就停下来。",
+            "提醒现在也用和其他任务一样的圆圈。"
+          ]
+        },
+        {
+          "category": "Fixed",
+          "en": [
+            "Daytime scenes and profile pictures no longer show a pale box behind your secretary."
+          ],
+          "zh": [
+            "白天场景和头像后面不再出现一块浅浅的方框。"
+          ]
+        }
+      ]
+    },
+    {
       "version": "0.50.0",
       "date": "2026-10-16",
       "author": "GoodMorning agent",
