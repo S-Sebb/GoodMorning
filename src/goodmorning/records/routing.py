@@ -217,7 +217,7 @@ def task_row(task, day='', occurrence=None, group='other'):
              'source_entry_id': task['source_entry_id'], 'owner': 'tasks',
               'report_detail': occurrence['detail'] if occurrence else '', 'created_at': task['created_at'],
               'category': task['category'], 'kind': task.get('kind', ''),
-              **{key:task[key] for key in ('when','due_soft','follow_up','notice') if task.get(key)},
+              **{key:task[key] for key in ('when','due_soft','follow_up','notice','extra') if task.get(key)},
               **({'prep_for': task['repeat']['event_subject'], 'offset_days': task['repeat'].get('offset_days', 0)}
                  if 'event_subject' in (task['repeat'] or {}) else {})}
 
@@ -339,7 +339,7 @@ def task_view(store, today, kind='gm', offset=0, limit=7, owned=()):
                 rows.append(row)
     rows = [row for row in rows if (row['id'], row['occurrence_id']) not in owned]
     # The secretary does errands itself; they are never cards unless it reports a finding.
-    errands = [{'id': r['id'], 'revision': r['revision'], 'title': r['title'], 'instruction': r['detail']}
+    errands = [{'id': r['id'], 'revision': r['revision'], 'title': r['title'], 'instruction': r['detail'], 'extra': r.get('extra', '')}
                for r in rows if r['category'] == 'errand']
     rows = [row for row in rows if row['category'] != 'errand']
     rank = {'nudge': 0, 'planned': 1, 'follow-up': 2, 'still-open': 3, 'coming': 4, 'deadline': 5, 'other': 6}  # Dated days before the undated backlog.

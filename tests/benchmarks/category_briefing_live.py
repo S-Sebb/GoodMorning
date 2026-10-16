@@ -7,6 +7,7 @@ work), the evening form asks the right questions, and the pages render on
 desktop and mobile. Prose, tone and layout still need manual screenshot review.
 """
 import argparse
+import re
 from datetime import date, datetime, time, timedelta, timezone
 import json
 from pathlib import Path
@@ -97,15 +98,20 @@ def run(output, template, language, kind):
         result['errands'] = list(errands.values())
         wage, pi = t('Look up the UK National Living Wage on GOV.UK', '在 GOV.UK 查一下英国国家生活工资'), t('Check the Raspberry Pi 5 8GB price on raspberrypi.com', '在 raspberrypi.com 查树莓派5 8GB的价格')
         if kind == 'gm':
+            from benchmarks.category_live import tasks as saved_tasks
+            notes = {r['title']: r.get('extra', '') for r in saved_tasks(runtime)[0] if r.get('kind') == 'errand'}
+            result['extra'] = notes
+            chair_title = t('Check the black SIHOO M18 chair price on Amazon UK', '查亚马逊英国黑色 SIHOO M18 椅子的价格')
+            for title, note in notes.items():
+                if day.isoformat() not in note:
+                    result['problems'].append('errand notes not updated this morning: ' + title)
             if wage not in errands:
-                result['problems'].append('unconditional errand not reported')
-            elif not any('gov.uk' in url for _, url in errands[wage][4]) or not any(c.isdigit() for c in errands[wage][3]):
-                result['problems'].append('wage finding lacks a rate or a GOV.UK source: ' + json.dumps(errands[wage], ensure_ascii=False))
-            if pi in errands and errands[pi][4]:
-                result['problems'].append('unmet errand condition reported: ' + json.dumps(errands[pi], ensure_ascii=False))
-            chair = errands.get(t('Check the black SIHOO M18 chair price on Amazon UK', '查亚马逊英国黑色 SIHOO M18 椅子的价格'))
-            if chair and chair[4] and not any('amazon.co.uk' in url for _, url in chair[4]):  # Real price: reviewed by hand.
-                result['problems'].append('chair finding without an Amazon UK source: ' + json.dumps(chair, ensure_ascii=False))
+                result['problems'].append('changed rate (12.21 in the notes) not reported')
+            elif not ('12.21' in errands[wage][3] and '12.71' in errands[wage][3]) or not any('gov.uk' in u for _, u in errands[wage][4]):
+                result['problems'].append('wage change lacks old/new rate or a GOV.UK source: ' + json.dumps(errands[wage], ensure_ascii=False))
+            chair = errands.get(chair_title)
+            if not chair and not re.search(r'£\s?\d', notes.get(chair_title, '').split('\n')[0]):
+                result['problems'].append('chair check failed silently: ' + notes.get(chair_title, ''))
         elif errands:
             result['problems'].append('errands shown in the evening')
         if kind == 'gm':

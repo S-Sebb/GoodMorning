@@ -142,6 +142,7 @@ def scenarios(today):
         row = only([r for r in tasks(runtime)[0] if r['status'] != 'cancelled'])
         assert row['category'] == 'errand', row
         assert re.search(r'12\.71', said(setup)), 'today\'s result not reported at capture'
+        assert '12.71' in row.get('extra', ''), 'today\'s result not kept in extra: ' + row.get('extra', '')
         assert len(re.findall(r'[.!?](?:\s|$)|[。！？]', row['detail'])) <= 2, row['detail']
 
     def errand_vague(runtime, setup):

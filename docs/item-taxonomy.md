@@ -37,8 +37,8 @@ heading. Use `scripts/goodmorning.py` with the selected absolute runtime.
       Before saving: if the condition, source or rhythm is unclear ("when it's
       cheap", no shop named), ask first. Then do the errand once now with your own
       tools; only a figure read on the source page itself counts, not a search
-      snippet. If it works, save it and tell the user today's result ("It's
-      £139.99 now, so I'll stay quiet until it's under £120."). If you cannot get a
+      snippet. If it works, save it with that result in `extra` and tell the user
+      ("It's £139.99 now, so I'll stay quiet until it's under £120."). If you cannot get a
       reliable result, save nothing yet: say plainly that you could not check it and
       offer alternatives with a native question (a source you did read, a daily
       nudge for them to check it themselves, or leaving it), then save only the choice.
@@ -62,6 +62,10 @@ heading. Use `scripts/goodmorning.py` with the selected absolute runtime.
    consequence the user stated; never invent one. When one request is two items
    (watch + act, weekly check-in + final deadline), confirm the split, then save
    one capture with `task` plus `also:[{...}]` siblings. Custom/imported is provenance.
+   **Extra** (`extra`, any task or draft, at most 2000 characters) is the secretary's
+   own notes for next time: what it found, what failed and why, a preference the
+   user mentioned. Never shown as the item's text and never a substitute for
+   structured fields; keep it short, newest first, and never store credentials.
    **Advance notice** (`notice`) fits any dated item: tasks with `planned_date`,
    `repeat` or `due_date`, TBC drafts, and calendar events. `{"morning":N}` shows it in
    morning briefings from N days before its day (0 = on the day); `{"evening":N}` in

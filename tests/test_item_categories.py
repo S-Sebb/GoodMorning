@@ -222,7 +222,7 @@ class CategoryTests(unittest.TestCase):
         view = routing.prepare(self.root, DAY, 'gm')
         self.assertEqual(view['tasks']['items'], [])  # Never a card to tick off.
         self.assertEqual(view['tasks']['errands'], [{'id': daily, 'revision': 1, 'title': 'Check the black SIHOO M18 price on Amazon UK',
-                                                     'instruction': 'Tell me only when it is under £120.'}])
+                                                     'instruction': 'Tell me only when it is under £120.', 'extra': ''}])
         self.assertEqual([e['title'] for e in routing.prepare(self.root, '2026-10-14', 'gm')['tasks']['errands']],
                          ['Check the black SIHOO M18 price on Amazon UK', 'Look up the library opening hours'])
         self.assertEqual(routing.prepare(self.root, DAY, 'gn')['tasks']['errands'], [])
@@ -250,6 +250,21 @@ class CategoryTests(unittest.TestCase):
         self.assertEqual(routing.prepare(self.root, DAY, 'gm')['tasks']['errands'], [])
         with self.assertRaisesRegex(ValueError, 'source_conflict'):
             routing.validate_sources(self.root, document(finding), DAY, 'gm')
+
+    def test_extra_keeps_the_secretarys_notes_without_showing_them(self):
+        errand = self.capture(title='Check the chair price', kind='errand', detail='Tell me only when it is under £120.',
+                              extra='2026-10-12: £139.99 on the Amazon UK product page')
+        self.tasks.mutate(errand, 1, {'extra': '2026-10-13: Amazon UK refused automatic reads (503)\n2026-10-12: £139.99'},
+                          'ses_test', 'errand:job:1', NOW)
+        self.assertEqual(routing.prepare(self.root, DAY, 'gm')['tasks']['errands'][0]['extra'][:10], '2026-10-13')
+        action = self.capture(title='Send the report', extra='The user prefers PDF.')
+        row = self.items()['Send the report']
+        self.assertEqual(row['extra'], 'The user prefers PDF.')  # The secretary reads it ...
+        self.assertNotIn('PDF', routing.action_cells(row)[6])  # ... the page never shows it.
+        draft = self.draft(title='Archery class', date=DAY, timezone=ZONE, confirmed_day=True, extra='Bring the arm guard.')
+        self.assertEqual(self.tasks.show(draft, draft=True)['extra'], 'Bring the arm guard.')
+        with self.assertRaisesRegex(ValueError, 'task field'):
+            self.tasks.mutate(action, 1, {'extra': 'x' * 2001}, 'ses_test', 'long', NOW)
 
     def test_reference_note_never_appears_and_has_no_timing(self):
         identifier = self.capture(title='Rebuy supplements', kind='reference', trigger='A supplement runs out',

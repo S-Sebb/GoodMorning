@@ -28,9 +28,9 @@ CREATE TABLE event_drafts (
 STATES = ('open', 'partial', 'blocked', 'done', 'cancelled')
 FIELDS = {'title', 'detail', 'project', 'optional', 'priority', 'status', 'due_date',
           'due_at', 'planned_date', 'timezone', 'repeat', 'defer_until', 'calendar_event_id', 'when', 'follow_up', 'work_kind', 'due_soft',
-          'kind', 'trigger', 'after', 'notice'}
+          'kind', 'trigger', 'after', 'notice', 'extra'}
 DRAFT_FIELDS = {'title', 'date', 'timezone', 'location', 'detail', 'confirmed_day',
-                'state', 'calendar_event_id', 'event', 'repeat', 'notice'}
+                'state', 'calendar_event_id', 'event', 'repeat', 'notice', 'extra'}
 # Nudges, errands and reference notes are never completed: they surface or are retired.
 # An errand is work the secretary itself does while writing the morning briefing.
 UNCHECKED = ('nudge', 'errand', 'reference')
@@ -107,6 +107,8 @@ def validate(data, *, draft=False):
     for key in ('title', 'detail', 'project', 'location', 'calendar_event_id'):
         if key in out:
             checked(out[key], 600 if key == 'title' else 5000, key != 'title')
+    if 'extra' in out:
+        checked(out['extra'], 2000)  # The secretary's own notes for next time; never shown as the item's text.
     for key in ('date', 'planned_date', 'due_date', 'defer_until'):
         if out.get(key):
             date(out[key])

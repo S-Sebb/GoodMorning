@@ -52,11 +52,14 @@ plan position and use `skip` for empty optional ones; local JSON omits empty opt
    still-open work and selected undated actions. Project and optional labels are
    attributes. The read's `errands` are jobs the user asked you to do yourself:
    do each now (web search or the named page; only a figure read on the source
-   page itself counts, not a search snippet), then put first in Tasks one source-linked
-   `["errands",[[id,revision,title,finding,[[label,url],...]]]]` row only when
-   its instruction says the user should hear the result (or sets no condition);
-   when you could not get a reliable result, a row saying only that, with `[]`
-   sources. Nothing for an unmet condition; never edit an errand.
+   page itself counts, not a search snippet; compare only with values in its
+   `extra`), save what you need next time as its `extra` (revision-checked
+   `task --update`, key `errand:SESSION:taskID`; nothing else changes), reread,
+   then put first in Tasks one source-linked
+   `["errands",[[id,revision,title,finding,[[label,url],...]]]]` row when its
+   instruction says the user should hear the result (or sets no condition).
+   Nothing for an unmet condition. A failed check always gets a row saying what
+   you tried and why it failed, so the user can change it with you in chat.
    First walk through today's displayed rows from
    `task --briefing gm --date DATE --section tasks` (follow `next_offset`); where a
    title/detail is materially vague (missing object, filler opener, `etc.`/parens fog,

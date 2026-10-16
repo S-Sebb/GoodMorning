@@ -105,15 +105,17 @@ def seed(runtime, monday, language='en'):
                          '我会在生成早报时亲自提醒你这件事。罗勒最需要多浇水。每天早上都会显示，直到你让我关掉。我没法替你浇水。')}},
                      'ses_fixture', 'seed-plants', stamp)
         # Errands: the secretary looks these up itself. One always reports; one's condition is never met.
-        for key, title, detail in (
+        for key, title, detail, extra in (
                 ('wage', t('Look up the UK National Living Wage on GOV.UK', '在 GOV.UK 查一下英国国家生活工资'),
-                 t('Tell me the current hourly rate for workers aged 21 and over.', '告诉我目前21岁及以上的时薪标准。')),
+                 t('Tell me the hourly rate for workers aged 21 and over only if it changed since your last check, with the old and new rate.',
+                   '只有21岁及以上的时薪和你上次查的不一样时才告诉我，写出旧的和新的标准。'),
+                 t('2026-10-04: £12.21 per hour on the GOV.UK rates page', '2026-10-04：GOV.UK 费率页显示每小时 £12.21')),
                 ('pi', t('Check the Raspberry Pi 5 8GB price on raspberrypi.com', '在 raspberrypi.com 查树莓派5 8GB的价格'),
-                 t('Tell me only if it is under £5.', '只有低于5英镑时才告诉我。')),
+                 t('Tell me only if it is under £5.', '只有低于5英镑时才告诉我。'), ''),
                 ('chair-errand', t('Check the black SIHOO M18 chair price on Amazon UK', '查亚马逊英国黑色 SIHOO M18 椅子的价格'),
-                 t('Tell me only when it is below £120.', '只在低于120英镑时告诉我。'))):
-            ids[key] = inbox.mutate('add', {'kind': 'todo', 'raw': title, 'task': {'title': title, 'kind': 'errand', 'detail': detail}},
-                                    'ses_fixture', 'seed-' + key, stamp)['task_id']
+                 t('Tell me only when it is below £120.', '只在低于120英镑时告诉我。'), '')):
+            task = {'title': title, 'kind': 'errand', 'detail': detail, **({'extra': extra} if extra else {})}
+            ids[key] = inbox.mutate('add', {'kind': 'todo', 'raw': title, 'task': task}, 'ses_fixture', 'seed-' + key, stamp)['task_id']
         inbox.mutate('add', {'kind': 'todo', 'raw': 'Bring gym clothes', 'task': {'title': t('Bring gym clothes', '带运动衣服'),
                      'kind': 'nudge', 'timezone': ZONE, 'when': {'custom_rule_id': habit}}}, 'ses_fixture', 'seed-clothes', stamp)
         inbox.mutate('add', {'kind': 'todo', 'raw': 'Rebuy protein', 'task': {'title': t('Rebuy protein powder', '回购蛋白粉'),

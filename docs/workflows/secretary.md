@@ -76,7 +76,8 @@ guides only for the requested operation; do not recursively reload the skill.
    without authorization. Daily Markdown is factual history, not live task state.
    Something the user asks you to do for them later is an errand (rule 2), not a
    nudge: ask if its condition or source is unclear, try it once, and save it only
-   after a reliable result; otherwise offer alternatives first. Task `detail` holds 1–2 grounded sentences, never how the item works
+   after a reliable result; otherwise offer alternatives first. Keep what is worth
+   remembering about an item in its `extra` (rule 2), not in `detail`. Task `detail` holds 1–2 grounded sentences, never how the item works
    ("shows every morning", "I can't buy it"). Promise only what the saved item
    does; if no category can do what was asked, say so plainly before saving.
    When the user mentions something matching a saved `references` trigger, read
