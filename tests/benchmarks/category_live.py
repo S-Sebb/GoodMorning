@@ -66,6 +66,26 @@ def calendar_events(runtime):
         store.close()
 
 
+def worded(runtime):
+    """Every item the conversation saved carries page wording in both languages (errands and reference notes excepted)."""
+    from goodmorning.records.display import fingerprint
+    rows, drafts = tasks(runtime)
+    items = [('task', r) for r in rows if r['status'] != 'cancelled' and r.get('kind') not in ('errand', 'reference')]
+    items += [('draft', d) for d in drafts if d.get('state') not in ('withdrawn', 'converted')]
+    items += [('event', e) for e in calendar_events(runtime) if e.get('status') != 'cancelled']
+    store = CalendarStore(str(runtime / 'calendar.sqlite'), readonly=True)
+    try:
+        items += [('event', json.loads(r[0])) for r in store.con.execute(
+            "SELECT approved_json FROM events WHERE source!='custom' AND review='approved'")]
+    finally:
+        store.close()
+    for kind, item in items:
+        display = item.get('display') or {}
+        name = item.get('title') or item.get('subject')
+        assert {'en', 'zh'} <= set(display), f'{kind} {name!r} saved without wording in both languages'
+        assert display.get('source') == fingerprint(kind, item), f'{kind} {name!r} wording is stale'
+
+
 def next_weekday(today, weekday):
     return today + timedelta(days=(weekday - today.weekday()) % 7 or 7)
 
@@ -215,6 +235,46 @@ def scenarios(today):
             calendar.close()
         return {}
 
+    def with_import(runtime):
+        calendar = CalendarStore(str(runtime / 'calendar.sqlite'))
+        try:
+            day = next_weekday(today, 2)
+            start = datetime.combine(day, datetime.min.time().replace(hour=15), ZoneInfo(ZONE))
+            calendar.stage('outlook', [{'external_id': 'review-1', 'subject': 'FW: Quarterly budget review - updated invitation',
+                'start': start.isoformat(), 'end': (start + timedelta(hours=1)).isoformat(), 'timezone': ZONE,
+                'location': 'Room 4.12', 'notes': 'Please bring the Q3 spending sheet.\nJoin Microsoft Teams Meeting\nMeeting ID: 123 456 789'}])
+        finally:
+            calendar.close()
+        return {}
+
+    def reviewed(runtime, setup):
+        store = CalendarStore(str(runtime / 'calendar.sqlite'), readonly=True)
+        try:
+            row = store.con.execute("SELECT review FROM events WHERE source='outlook'").fetchone()
+        finally:
+            store.close()
+        assert row and row[0] == 'approved', 'import not approved'
+
+    def with_worded(runtime):
+        inbox = InboxStore(runtime, write=True)
+        both = lambda en, zh: {'en': en, 'zh': zh}
+        try:
+            receipt = inbox.mutate('add', {'kind': 'todo', 'raw': 'Return the library books', 'task': {
+                'title': 'Return the library books', 'planned_date': next_weekday(today, 2).isoformat(), 'display': both(
+                    {'morning': {'title': 'Return the three library books', 'detail': ''}, 'schedule': 'Library books'},
+                    {'morning': {'title': '把三本书还到图书馆', 'detail': ''}, 'schedule': '还书'})}},
+                'trial-setup', 'setup-worded', datetime.now(timezone.utc).isoformat())
+        finally:
+            inbox.close()
+        return {'task': receipt['task_id']}
+
+    def reworded(runtime, setup):
+        row = next(r for r in tasks(runtime)[0] if r['id'] == setup['task'])
+        display = row['display']
+        assert 'Library run' in display['en']['morning']['title'] or '图书馆跑一趟' in display['zh']['morning']['title'], display
+        assert display['en']['morning']['title'] != 'Return the three library books' and display['zh']['morning']['title'] != '把三本书还到图书馆', display
+        assert (display['en']['schedule'], display['zh']['schedule']) == ('Library books', '还书'), 'schedule label changed'
+
     def with_first_step(runtime):
         inbox = InboxStore(runtime, write=True)
         try:
@@ -250,6 +310,12 @@ def scenarios(today):
         ('split', 'secretary', None,
          'Keep an eye on the SIHOO M18 chair price in my morning briefings, and I will buy it once it drops below £130.',
          '在早报里帮我留意 SIHOO M18 椅子的价格，低于130英镑我就买。', split),
+        ('reword', 'secretary', with_worded,
+         'In my morning briefing, show the library books task as "Library run: 3 books" instead.',
+         '早报里那条还书的待办，改成显示"图书馆跑一趟：3 本书"。', reworded),
+        ('calendar_review', 'secretary', with_import,
+         'Please review the calendar invite that just synced from Outlook and add it if it looks fine.',
+         '帮我看一下刚从 Outlook 同步过来的日历邀请，没问题就加上。', reviewed),
         ('errand_blocked', 'secretary', None,
          'Check the black SIHOO M18 chair price on Amazon UK for me each morning, and only tell me when it is below £120.',
          '每天早上帮我查一下亚马逊英国上黑色 SIHOO M18 椅子的价格，低于120英镑时再告诉我。', errand_blocked),
@@ -351,6 +417,7 @@ def run_scenario(output, lang, selected, today, scenario, rounds, source=ROOT):
             with context(lang, selected):
                 app.chats.reply(chat, 'form', form['id'], {'answer': values})
         check(runtime, {**facts, 'turns': result['turns']})
+        worded(runtime)
         result['passed'] = True
     except AssertionError as error:
         result['passed'] = False

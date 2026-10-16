@@ -12,8 +12,10 @@ import re
 
 LANGUAGES = ('en', 'zh')
 LIMITS = {'title': 120, 'detail': 240, 'schedule': 40}
-# Relative time goes stale overnight; code adds it on the page.
+# Relative time goes stale: morning wording also shows on later days while an item stays open, and evening
+# wording can show several nights ahead. Only "tonight" always holds, and only in evening wording.
 RELATIVE = re.compile(r'\b(?:today|tonight|tomorrow|yesterday|overdue)\b|今天|今晚|今早|明天|明早|明晚|后天|昨天|逾期', re.IGNORECASE)
+EVENING = re.compile(r'\b(?:today|tomorrow|yesterday|overdue)\b|今天|今早|明天|明早|明晚|后天|昨天|逾期', re.IGNORECASE)
 DESCRIBED = {'task': ('title', 'detail', 'kind', 'project'), 'draft': ('title', 'detail', 'location'),
              'event': ('subject', 'location', 'notes', 'online')}
 
@@ -30,7 +32,7 @@ def fingerprint(kind, item):
 def _text(value, path, limit, empty=False):
     if not isinstance(value, str) or len(value) > limit or (not empty and not value.strip()) or '\n' in value:
         raise ValueError(f'invalid_input: display {path} is {"possibly empty " if empty else ""}one-line text of at most {limit} characters')
-    if RELATIVE.search(value):
+    if (EVENING if '.evening.' in path else RELATIVE).search(value):
         raise ValueError(f'invalid_input: display {path} must not use relative time words such as today/tomorrow; pages add the date')
 
 

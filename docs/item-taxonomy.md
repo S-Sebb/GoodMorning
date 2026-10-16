@@ -80,12 +80,18 @@ heading. Use `scripts/goodmorning.py` with the selected absolute runtime.
    same as morning. **schedule** is a short label for the week grid (at most 40
    characters). Titles are clear imperatives or the appointment's name; details are
    one plain sentence or empty. Never write dates, times, "today"/"tomorrow", status
-   or project/deadline labels: pages add those. Example for "Call the IT helpdesk,
+   or project/deadline labels: pages add those ("tonight" is fine in evening wording). Example for "Call the IT helpdesk,
    ext. 4471, about the receipt upload error": morning `{"title":"Call extension 4471
    about the receipt upload error","detail":""}`, evening `{"title":"IT helpdesk
    call","detail":"Have a screenshot of the upload error ready."}`, schedule "IT
    helpdesk call". Code fingerprints the described fields: when they change without
    new wording, pages fall back to the saved fields until you write it again.
+   When the user asks how an item should read on a page ("show X in my morning
+   briefing as Y"), read it with `task --show` (or `calendar --show`), change only that
+   place, use their words as given and adapt the other language to match, keep the
+   other places, and save the whole `display` with a revision-checked update. If their
+   words include a relative time such as "tomorrow", explain that pages add the day
+   and ask how to word it without it.
    **Advance notice** (`notice`) fits any dated item: tasks with `planned_date`,
    `repeat` or `due_date`, TBC drafts, and calendar events. `{"morning":N}` shows it in
    morning briefings from N days before its day (0 = on the day); `{"evening":N}` in

@@ -81,7 +81,8 @@ guides only for the requested operation; do not recursively reload the skill.
    item fully here, before saving: clear imperative title (`docs/workflows/todo.md`
    wording), each fact in its place, ambiguity resolved, and `display` wording in
    English and Chinese for the morning, evening and Schedule pages (rule 2); then
-   confirm what was saved.
+   confirm what was saved. A request to change how an item reads on one page edits
+   only that place's wording (rule 2).
    Briefings only present saved items and never fix them later. Task `detail` holds 1–2 grounded sentences, never how the item works
    ("shows every morning", "I can't buy it"). Promise only what the saved item
    does; if no category can do what was asked, say so plainly before saving.

@@ -136,6 +136,13 @@ def run(output, template, language, kind, selected=None):
                 result['problems'].append('chair check hidden without a price read: ' + json.dumps(chair, ensure_ascii=False))
         elif errands:
             result['problems'].append('errands shown in the evening')
+        shown = {row[0]: row for entry in document['sections'] if entry[0] == 'tasks'
+                 for block in entry[1] if block[0] == 'actions' for row in block[1]}
+        key, place = ('worded-wed', 'morning') if kind == 'gm' else ('worded-sat', 'evening')
+        from benchmarks.category_live import tasks as saved_tasks
+        saved = next(r for r in saved_tasks(runtime)[0] if r['id'] == seeded[key])['display']['zh' if zh else 'en'][place]
+        if key in seeded and [saved['title'], saved['detail']] != [shown.get(seeded[key], [''] * 7)[5], shown.get(seeded[key], [''] * 7)[6]]:
+            result['problems'].append(f'{key}: saved {place} wording not shown as saved: {shown.get(seeded[key])}')
         if kind == 'gm':
             legacy_checks(runtime, document, seeded, result['problems'])
             plants = next((row for entry in document['sections'] if entry[0] == 'tasks' for block in entry[1]
