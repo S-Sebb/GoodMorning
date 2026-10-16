@@ -21,7 +21,7 @@ from zoneinfo import ZoneInfo
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / 'src'))
 sys.path.insert(0, str(ROOT / 'tests'))
-from benchmarks.native_bridge import NativeBridge
+from benchmarks.native_bridge import NativeBridge, register_trial_models
 from goodmorning.records.inbox_store import InboxStore, initialize
 from goodmorning.records.task_store import TaskStore
 from goodmorning.records.custom_store import CustomStore
@@ -370,6 +370,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--output', required=True)
     parser.add_argument('--language', required=True, choices=('en', 'zh-CN'))
+    register_trial_models()
     parser.add_argument('--model', choices=tuple(models.MODELS), help='Defaults to the production model for the language')
     parser.add_argument('--only', nargs='*', help='Scenario names to run')
     parser.add_argument('--parallel', type=int, default=4)

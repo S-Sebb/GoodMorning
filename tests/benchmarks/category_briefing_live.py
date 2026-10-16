@@ -22,6 +22,7 @@ from benchmarks.category_week import seed, ZONE
 from benchmarks.task_tone_live import context, matrix_lock, save
 from goodmorning.web.briefing_server import BrowserApp
 from goodmorning.web.models import for_language
+from benchmarks.native_bridge import register_trial_models
 
 MONDAY = date(2026, 10, 5)  # A past week: completions are stamped with the real clock.
 
@@ -39,7 +40,7 @@ def rows(document, section):
     return titles
 
 
-def run(output, template, language, kind):
+def run(output, template, language, kind, selected=None):
     zh = language == 'zh-CN'
     t = lambda en, cn: cn if zh else en
     name = 'wednesday-morning' if kind == 'gm' else 'friday-evening'
@@ -57,7 +58,7 @@ def run(output, template, language, kind):
     seed(runtime, MONDAY, language)
     day = MONDAY + timedelta(days=2 if kind == 'gm' else 4)
     instant = datetime.combine(day, time(7, 30) if kind == 'gm' else time(20, 30), ZoneInfo(ZONE)).astimezone(timezone.utc)
-    selected = for_language(language)
+    selected = selected or for_language(language)
     bridge = CheckpointBridge(source, runtime, False, language)
     app = BrowserApp(runtime, bridge, now=lambda: instant, preflight=True)
     result = {'case': name, 'language': language, 'date': day.isoformat(), 'checks': [], 'problems': []}
@@ -186,6 +187,9 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--output', type=Path, required=True)
     parser.add_argument('--language', choices=('en', 'zh-CN'), required=True)
+    register_trial_models()
+    from goodmorning.web.models import MODELS
+    parser.add_argument('--model', choices=tuple(MODELS), help='Defaults to the production model for the language')
     args = parser.parse_args()
     output = args.output.resolve()
     if not output.is_relative_to('/tmp/opencode'):
@@ -200,7 +204,7 @@ def main():
             shutil.copyfile(ROOT / name, template / name)
         shutil.copyfile(ROOT / 'skill-source/goodmorning.md', template / 'goodmorning.md')
         (template / 'scripts/goodmorning.py').write_text(TRIAL_CLI)
-        cases = [run(output, template, args.language, kind) for kind in ('gm', 'gn')]
+        cases = [run(output, template, args.language, kind, args.model) for kind in ('gm', 'gn')]
         screenshots(output, cases)
         for result, *_ in cases:
             save(output / result['case'] / 'result.json', result)
