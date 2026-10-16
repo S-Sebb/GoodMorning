@@ -17,7 +17,11 @@ they do not require repeating preferences or fixing integrations during setup.
 The first initialization question confirms the secretary's display name, saved
 as `secretary_name` after storage consent (optional, 1-30 characters, allow skipping; existing profiles without it stay valid). Use it for assistant self-reference and website labels, not the user's name.
 
-For local use, the second initialization question confirms the secretary's reply language, saved
+The second question asks what the secretary should call the user, saved as
+`user_name` under the same optional rules. Replies and briefing greetings use it;
+when empty, the secretary greets the user unnamed.
+
+For local use, the third initialization question confirms the secretary's reply language, saved
 as `secretary_language` after storage consent. It applies to all five workflows,
 setup/questions and follow-ups, independently of news-source language/country or
 tone. Allow explicit language/script, bilingual or “follow my message language”

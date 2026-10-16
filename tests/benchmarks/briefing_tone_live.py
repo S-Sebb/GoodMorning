@@ -255,6 +255,8 @@ def run_case(output, template, language, scenario, instant):
         profile += 'secretary_tone: '+TONES[tone]+'\n'
     if scenario == 'morning-empty':
         profile += 'news_latest: true\n'
+    if scenario in ('morning-empty', 'evening-feedback'):
+        profile += 'user_name: Sam\n'
     (runtime/'profile.md').write_text(profile)
     (runtime/'browser-policy.json').write_text(json.dumps({key:False for key in (
         'live_project_access','calendar_sync','publisher_images','news_acknowledgement')}))

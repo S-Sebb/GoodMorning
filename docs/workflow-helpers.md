@@ -28,7 +28,7 @@ python scripts/goodmorning.py workflow --secretary-dir RUNTIME --prepare gn --to
 python scripts/goodmorning.py workflow --secretary-dir RUNTIME --prepare secretary
 ```
 
-This returns relevant confirmed preferences (including optional `secretary_name` for self-reference and website labels), local date/adjacent dates, resolved
+This returns relevant confirmed preferences (including optional `secretary_name` for self-reference and website labels, and `user_name` for addressing the user), local date/adjacent dates, resolved
 paths, bounded daily tasks and active inbox summaries. No provider or remote
 project access, setup writes, snapshot reads, briefing marks or index rebuild/save.
 Duplicate gm/gn returns only the original session/pointer and stop instruction,

@@ -6,6 +6,7 @@ region, and timezone as plain key: value lines for the existing scripts.
 Quoted empty strings prevent an empty field from absorbing the next line. -->
 
 secretary_name: ""
+user_name: ""
 secretary_language: ""
 city: ""
 region: ""
@@ -44,7 +45,10 @@ Never put passwords or keys here. -->
   for assistant self-reference and website labels, not the user's name.
   A later `/secretary` rename updates only this
   line and keeps all other preferences unchanged.
-- For local use, ask for `secretary_language` second, before location/schedule/
+- Ask second, alone, what the secretary should call the user. Same optional
+  rules; any name or form of address. Save the exact spelling in `user_name`
+  after storage consent; when empty, greet the user unnamed.
+- For local use, ask for `secretary_language` third, before location/schedule/
   tone/news. Save the explicit language/script or bilingual preference;
   “follow my message language” is a valid confirmed setting. For browser chats,
   skip this question: replies, questions and titles follow the website language

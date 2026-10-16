@@ -23,9 +23,10 @@ guides only for the requested operation; do not recursively reload the skill.
    or writes. Missing mandatory values still require an answer.
 2. Ask `secretary_name` first, alone: optional, 1–30 characters with a letter/number
    and no control characters. Allow skipping; save exact confirmed spelling only
-   after storage consent. It names the assistant, never the user.
+   after storage consent. It names the assistant, never the user. Then ask, alone,
+   what to call the user (`user_name`, optional, same rules, skippable).
    Browser chats use website language and leave local `secretary_language` unchanged;
-   pass `--website-language CODE`. For local setup, ask reply language second, alone,
+   pass `--website-language CODE`. For local setup, ask reply language third, alone,
    wait for its explicit choice, then use it throughout. Never infer language from location/news.
 3. Collect remaining settings in small related groups: qualified city/timezone;
    work/sleep hours and tone; news countries/outlets/language; calendar/project scope.
@@ -76,9 +77,11 @@ guides only for the requested operation; do not recursively reload the skill.
    When the user mentions something matching a saved `references` trigger, read
    that note with `task --show ID` and use its detail.
 4. Profile changes require exact confirmed values and preserve unrelated lines.
-   For a rename, confirm spelling once, validate `secretary_name`, update only that
-   profile field, and use it immediately. No rebuild/mark/provider check is needed;
-   the website reads it on its next settings/status request. For “I moved”, confirm
+   For a rename of the secretary or of how to call the user, ask only if the exact
+   spelling is unclear; validate `secretary_name`/`user_name`, update only that
+   profile field (an empty `user_name` means greet unnamed), and use it immediately.
+   Confirm in everyday words, without field names. Do not rebuild, mark or check
+   providers; the website reads it on its next settings/status request. For “I moved”, confirm
    qualified city/region, ask whether timezone changed, and verify the new weather
    location within authorized access. News country remains independent; no silent
    environment/code changes. Confirm role/field changes before writing them.

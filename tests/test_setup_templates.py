@@ -62,6 +62,23 @@ class SetupTemplateTests(unittest.TestCase):
         self.assertTrue(status["profile_ready"])
         self.assertIsNone(status["secretary_name"])
 
+    def test_user_name_is_optional_short_and_safe(self):
+        from goodmorning.runtime_files import normalize_user_name
+        from goodmorning.setup_check import profile_status
+        from goodmorning.records.workflow import prepare
+        self.assertEqual(normalize_user_name("Dr. Lee"), "Dr. Lee")
+        self.assertEqual(normalize_user_name("小王"), "小王")
+        with self.assertRaisesRegex(ValueError, "invalid user_name"):
+            normalize_user_name("a\nb")
+        ready = 'secretary_language: English\ncity: London, GB\ntimezone: Europe/London\nnews_country: GB\n'
+        (self.directory / "profile.md").write_text(ready)
+        self.assertIsNone(profile_status(self.directory, profile_fields(self.directory))["user_name"])
+        self.assertNotIn("user_name", prepare(self.directory, "todo")["profile"])
+        (self.directory / "profile.md").write_text(ready + 'user_name: "Sam"\n')
+        self.assertEqual(profile_status(self.directory, profile_fields(self.directory))["user_name"], "Sam")
+        self.assertEqual(prepare(self.directory, "todo")["profile"]["user_name"], "Sam")
+        self.assertIn('user_name: ""', (ROOT / "templates/profile.template.md").read_text())
+
     def test_project_last_update_is_readable(self):
         projects = self.directory / "projects"
         projects.mkdir()
