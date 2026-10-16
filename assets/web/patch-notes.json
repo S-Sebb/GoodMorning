@@ -1,6 +1,41 @@
 {
   "notes": [
     {
+      "version": "0.52.0",
+      "date": "2026-10-16",
+      "author": "GoodMorning agent",
+      "title_en": "Your items, worded once ✨",
+      "title_zh": "一件事，说法只定一次 ✨",
+      "changes": [
+        {
+          "category": "Added",
+          "en": [
+            "When you save something, your secretary now decides how it reads in your morning briefing, evening briefing and Schedule tab, so it reads the same every day.",
+            "You can ask your secretary to change how an item reads in one place, like your morning briefing, without changing the others."
+          ],
+          "zh": [
+            "你保存一件事以后，秘书会替你决定它在早报、晚报和日程页里分别怎么表述，这样每天读到的说法都一样。",
+            "你可以只让秘书改某一个地方的说法，比如换个说法只用在早报里，其他地方照旧不变。"
+          ]
+        },
+        {
+          "category": "Changed",
+          "en": [
+            "Evening briefings now word tomorrow's items around what to get ready tonight.",
+            "The Schedule tab shows short, tidy labels for your items.",
+            "Question cards in chat are more compact and fit the chat window.",
+            "Messages you send now appear in the chat right away."
+          ],
+          "zh": [
+            "晚报里关于明天的事项，现在会围绕「今晚要先准备什么」来表述。",
+            "日程页里的事项，现在用简短清爽的标签来显示。",
+            "聊天里的问答卡片更紧凑了，能完整放进聊天窗口。",
+            "你发出的消息，现在会立刻显示在聊天里。"
+          ]
+        }
+      ]
+    },
+    {
       "version": "0.51.0",
       "date": "2026-10-16",
       "author": "GoodMorning agent",
