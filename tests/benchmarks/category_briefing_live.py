@@ -109,6 +109,12 @@ def run(output, template, language, kind):
         elif errands:
             result['problems'].append('errands shown in the evening')
         if kind == 'gm':
+            plants = next((row for entry in document['sections'] if entry[0] == 'tasks' for block in entry[1]
+                           if block[0] == 'actions' for row in block[1] if t('plants', '植物') in row[5]), None)
+            result['plants'] = plants
+            if not plants or len(plants[6]) > 120 or any(w in plants[6] for w in (t('every morning', '每天早上'), t('briefing', '早报'))):
+                result['problems'].append('narrating heads-up detail not trimmed: ' + json.dumps(plants, ensure_ascii=False))
+        if kind == 'gm':
             expected_tasks = [t('Strength training', '力量训练'), t('Prepare the project-update presentation', '准备项目进展汇报'),
                               t('Calculate the new ranking before the rebalance', '调仓前计算新排名'), t('Bring gym clothes', '带运动衣服'),
                               t('Buy the ointment', '买软膏'), t('Log the council tax student exemption', '登记市政税学生豁免')]

@@ -97,6 +97,13 @@ def seed(runtime, monday, language='en'):
         inbox.mutate('add', {'kind': 'todo', 'raw': 'Check the chair price', 'task': {
                      'title': t('Check the SIHOO M18 chair price', '看看 SIHOO M18 椅子的价格'), 'kind': 'nudge'}},
                      'ses_fixture', 'seed-chair', stamp)
+        # A detail that narrates how the reminder works, as a live capture once saved it: morning polish trims it.
+        inbox.mutate('add', {'kind': 'todo', 'raw': 'Remind me to water the plants', 'task': {
+                     'title': t('Water the balcony plants', '给阳台的植物浇水'), 'kind': 'nudge', 'detail': t(
+                         'I remind you about this myself when generating the morning briefing. The basil needs the most water. '
+                         'Shows every morning until you tell me to turn it off. I cannot water them for you.',
+                         '我会在生成早报时亲自提醒你这件事。罗勒最需要多浇水。每天早上都会显示，直到你让我关掉。我没法替你浇水。')}},
+                     'ses_fixture', 'seed-plants', stamp)
         # Errands: the secretary looks these up itself. One always reports; one's condition is never met.
         for key, title, detail in (
                 ('wage', t('Look up the UK National Living Wage on GOV.UK', '在 GOV.UK 查一下英国国家生活工资'),
