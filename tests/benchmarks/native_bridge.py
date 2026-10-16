@@ -10,13 +10,6 @@ from pathlib import Path
 from urllib.parse import quote
 
 
-def register_trial_models():
-    """Trial-only: production's Chinese DeepSeek weights on the paid tier, free of the free tier's rate limit."""
-    from goodmorning.web import models
-    models.MODELS.setdefault('deepseek-flash-paid', {'providerID': 'opencode-go', 'id': 'deepseek-v4.1-flash', 'variant': 'high',
-                                                     'label': 'DeepSeek V4.1 Flash · High (paid, trials only)'})
-
-
 class NativeBridge:
     def __init__(self, directory, runtime, *, agent=None):
         self.directory, self.runtime = str(directory), str(runtime)

@@ -22,7 +22,6 @@ from benchmarks.category_week import seed, ZONE
 from benchmarks.task_tone_live import context, matrix_lock, save
 from goodmorning.web.briefing_server import BrowserApp
 from goodmorning.web.models import for_language
-from benchmarks.native_bridge import register_trial_models
 
 MONDAY = date(2026, 10, 5)  # A past week: completions are stamped with the real clock.
 
@@ -210,7 +209,6 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--output', type=Path, required=True)
     parser.add_argument('--language', choices=('en', 'zh-CN'), required=True)
-    register_trial_models()
     from goodmorning.web.models import MODELS
     parser.add_argument('--model', choices=tuple(MODELS), help='Defaults to the production model for the language')
     args = parser.parse_args()
