@@ -34,7 +34,9 @@ TEXT = {
               '"30 – Good" (no "US AQI" prefix, no raw yes/no). Detail holds advice, timestamps and material gaps; unknown AQI is not '
               'good air and an unknown warning is not "no warning". If the read fails, publish one ["p","…"] block saying only that this '
               'edition could not obtain the weather (no cause, no retry promise); never skip this section.'),
-  'news': ('Run the reads. Choose meaningful stories (AI, world and national separately; an AI feed label alone is not an AI '
+  'news': ('Run the reads; each country\'s report lists every section\'s selected stories and more candidates. Publish one block '
+           'for AI, one for world and one per national country (its block ends with the country code) whenever the reports have '
+           'stories there. Choose meaningful stories (AI, world and national separately; an AI feed label alone is not an AI '
            'connection; fewer meaningful items over filler; label opinion or first-party claims). Block: '
            '["news",CATEGORY,[[headline,summary,[[source_label,absolute_url],...]],...],COUNTRY?]; keep every citation; only stories '
            'dated in this section\'s window. If a read asks for an editorial commit, follow its own next command. Never run news --ack. '
@@ -95,7 +97,8 @@ TEXT = {
   'weather': ('运行读取命令。成功时用一个块 ["weather",[[type,value,detail],...]]，type 依次为 temperature、precipitation、warning（仅适用时）、air。'
               'value 是展示文本："16°C (14.5–20.4°C)"、"65% – 可能下雨"、"30 – 良好"（不加 "US AQI" 前缀，不用 yes/no 原始值）。detail 写建议、时间和重要缺口；'
               'AQI 未知不等于空气好，预警未知不等于没有预警。读取失败时发布一个 ["p","……"] 块，只说明本期无法获取天气（不写原因，不承诺补充）；不得跳过本章节。'),
-  'news': ('运行读取命令。挑选有意义的报道（AI、国际、国内分开；仅有 AI 标签不算与 AI 相关；宁少勿滥；注明观点或当事方说法）。块格式：'
+  'news': ('运行读取命令；每个国家的报告都会按板块列出已选报道和更多候选。只要报告在该板块有报道，就分别发布 AI、国际和每个国家的国内新闻块'
+           '（国内新闻块以国家代码结尾）。挑选有意义的报道（AI、国际、国内分开；仅有 AI 标签不算与 AI 相关；宁少勿滥；注明观点或当事方说法）。块格式：'
            '["news",CATEGORY,[[标题,摘要,[[来源名,绝对URL],...]],...],COUNTRY?]，保留全部引用，只收录本章节日期窗口内的报道。若读取结果要求编辑提交，'
            '按其 next 命令执行。不要运行 news --ack。读取失败时发布一个 ["p","……"] 块，只说明无法获取该日期的新闻；不得跳过本章节。'),
   'schedule': '运行读取命令，原样复制返回的块（包括空日程段落）；不要重新计算日期或扩大范围。准备事项只写参会要求（不要加入会议链接、会议号或隐私声明）。',

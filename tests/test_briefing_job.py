@@ -155,6 +155,43 @@ class JobTests(unittest.TestCase):
             act(self.root,self.identifier,'ses_fixture','publish',{'position':0,'section':section})
             fetch.assert_called_once()
 
+    def save_report(self, counts):
+        from goodmorning.news.news import load_sources
+        from goodmorning.news.news_reports import ReportStore, context_key
+        stories = [{'date':'2026-10-10','section':section,'title':f'{section} story {n}','outlets':1,
+                    'links':[{'source':'Publisher','url':f'https://example.org/{section}/{n}'}]}
+                   for section, count in counts.items() for n in range(count)]
+        store = ReportStore(self.root, create=True)
+        try:
+            store.save(context_key('Europe/London', 'GB', load_sources()), {'date':'2026-10-10','counts':counts,'stories':stories,'notes':[]})
+        finally:
+            store.close()
+
+    def test_news_must_cover_every_category_its_saved_reports_filled(self):
+        self.save_report({'ai':1,'major':2,'national':1})
+        act(self.root,self.identifier,'ses_fixture','init',{'greeting':'Morning.','opening':'Let’s look.', 'plan':[['news','News — 2026-10-10']]})
+        story = lambda name: [name+' headline','Sourced summary.',[['Publisher','https://example.org/'+name]]]
+        ai_only = {'position':0,'section':['news',[['news','AI',[story('ai')]]]]}
+        with self.assertRaisesRegex(ValueError, 'World, National GB'):
+            act(self.root,self.identifier,'ses_fixture','publish',ai_only)
+        self.assertEqual(load(self.app.job_dir/(self.identifier+'.preview.json'))['outcomes'],[])
+        complete = {'position':0,'section':['news',[['news','AI',[story('ai')]],['news','World',[story('world')]],
+                                                    ['news','UK',[story('uk')],'GB']]]}
+        self.assertEqual(act(self.root,self.identifier,'ses_fixture','publish',complete)['next']['action'],'finish')
+
+    def test_news_without_saved_material_is_not_held_to_coverage(self):
+        self.save_report({'ai':1,'major':0,'national':0})
+        act(self.root,self.identifier,'ses_fixture','init',{'greeting':'Morning.','opening':'Let’s look.', 'plan':[['news','News — 2026-10-10']]})
+        section = ['news',[['news','AI',[['Headline','Sourced summary.',[['Publisher','https://example.org/a']]]]]]]
+        self.assertEqual(act(self.root,self.identifier,'ses_fixture','publish',{'position':0,'section':section})['next']['action'],'finish')
+
+    def test_news_read_lists_every_section_at_once(self):
+        result = act(self.root,self.identifier,'ses_fixture','init',{'greeting':'Morning.','opening':'Let’s look.'})
+        result = act(self.root,self.identifier,'ses_fixture','publish',{'position':0,'section':['weather',[['p','Weather unavailable.']]]})
+        reads = result['next']['read']
+        self.assertTrue(any('--view sections' in read for read in reads), reads)
+        self.assertFalse(any('--view candidates' in read for read in reads), reads)
+
     def test_disabled_image_policy_makes_no_fetch(self):
         act(self.root,self.identifier,'ses_fixture','init',{'greeting':'Morning.','opening':'Let’s look.', 'plan':[['news','News — 2026-10-10']]})
         with patch('goodmorning.briefings.briefing_images.cache_previews',side_effect=AssertionError('No consent')):

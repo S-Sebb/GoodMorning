@@ -317,3 +317,24 @@ class ManagedCLITests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class SectionViewTests(unittest.TestCase):
+    def test_sections_view_shows_every_section_before_paging(self):
+        from goodmorning.news.news_views import report_view
+        def story(section, n):
+            return {"date": DAY, "section": section, "title": f"{section} {n}", "outlets": 1,
+                    "links": [{"source": "S", "url": f"https://example.org/{section}/{n}", "role": "journalism"}],
+                    "ranking": {"score": 9 - n, "eligible": n < 2, "genre": "news"}}
+        candidates = [story(section, n) for section in ("ai", "major", "national") for n in range(12)]
+        row = {"report_id": "r", "status": "collected", "collected_at": 0,
+               "payload": {"date": DAY, "counts": {"ai": 1, "major": 2, "national": 0},
+                           "stories": [story("ai", 0), story("major", 0), story("major", 1)], "notes": [],
+                           "candidates": candidates}}
+        first_page = report_view(row, "candidates", 0, 10)["candidates"]
+        self.assertEqual({item["section"] for item in first_page}, {"ai"})
+        sections = report_view(row, "sections")["sections"]
+        self.assertEqual([len(sections[name]["selected"]) for name in ("ai", "major", "national")], [1, 2, 0])
+        self.assertEqual([len(sections[name]["more"]) for name in ("ai", "major", "national")], [6, 6, 6])
+        self.assertEqual(sections["major"]["more"][0]["title"], "major 2")
+        self.assertEqual(sections["national"]["candidates_total"], 12)
