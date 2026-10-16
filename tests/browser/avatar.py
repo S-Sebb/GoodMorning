@@ -81,9 +81,9 @@ def check_picker(page, address, artifacts):
         expect(toggle).to_have_css('border-top-width', '0px')
         expect(toggle).to_have_css('color', 'rgb(53, 118, 91)')
         assert page.locator('.avatar-menu-heading, [data-avatar-close]').count() == 0
-        assert page.locator('.avatar-menu').evaluate("node => getComputedStyle(node).backgroundColor") == 'rgba(0, 0, 0, 0)'
-        assert page.locator('.avatar-menu').evaluate("node => getComputedStyle(node).padding") == '0px'
-        assert page.locator('.avatar-menu').evaluate("node => getComputedStyle(node).boxShadow") == 'none'
+        # The picker is its own small card, so its choices never float loose over the page.
+        assert page.locator('.avatar-menu').evaluate("node => getComputedStyle(node).backgroundColor") != 'rgba(0, 0, 0, 0)'
+        assert page.locator('.avatar-menu').evaluate("node => getComputedStyle(node).paddingTop") != '0px'
         expect(page.locator('.avatar-feedback')).to_have_css('clip', 'rect(0px, 0px, 0px, 0px)')
         expect(page.get_by_role('button', name='Upload your own avatar')).to_be_visible()
         expect(page.locator('[data-avatar-choice]')).to_have_count(4)

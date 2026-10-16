@@ -50,7 +50,7 @@ class GroupingTests(unittest.TestCase):
         self.assertIn('YuQuant', html)
         self.assertIn('project-count', html)
         # Shared soft target appears once in the heading, not per card.
-        self.assertEqual(html.count('Soft target: 2026-12-31'), 1)
+        self.assertEqual(html.count('Soft target: Thu, Dec 31'), 1)
         self.assertNotIn('Project: MRHarmon', html)
         self.assertNotIn('To be scheduled</div>', html)
         self.assertIn('To be scheduled</bdi>', html)  # date group heading stays
@@ -84,7 +84,7 @@ class GroupingTests(unittest.TestCase):
         self.assertIn('Canceled: Imperial-QMUL Catchup', html)
         self.assertNotIn('Review calendar change', html)
         self.assertNotIn('2026-10-23T11', html)
-        self.assertIn('Fri 23 Oct 11:00', html)
+        self.assertIn('Fri, Oct 23 11:00–12:00', html)
         # Each card offers a way to talk it through, starting from its own title.
         self.assertIn('data-quick-ask-title="Canceled: Imperial-QMUL Catchup"', html)
         self.assertIn('href="/chat"', html)
@@ -99,7 +99,7 @@ class GroupingTests(unittest.TestCase):
                  'status': 'cancelled', 'raw_revision': 2}, 'Europe/London', ui)
             self.assertEqual(title, ui.text('Canceled: {title}', title='Imperial-QMUL Catchup'))
             self.assertNotIn('2026-10-23T11', facts)
-            self.assertIn('23 Oct', facts)
+            self.assertIn('Oct 23', facts)
             title2, _ = routing.calendar_review_copy(
                 {'subject': 'Planning sync', 'source': 'outlook',
                  'start': '2026-10-23T10:00:00+00:00', 'end': '2026-10-23T11:00:00+00:00',

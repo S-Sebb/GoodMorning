@@ -174,7 +174,7 @@ def run(artifacts):
                     expect(other.locator('.agenda-day').first).to_contain_text('Tomorrow')
                     tomorrow=Date.fromisoformat(settings['date'])+timedelta(days=1)
                     expect(other.locator('.agenda-day').first).to_contain_text(tomorrow.strftime('%A'))
-                    expect(other.locator('.agenda-day').first).to_contain_text(str(tomorrow.year))
+                    expect(other.locator('.agenda-day').first).to_contain_text(tomorrow.strftime('%B ') + str(tomorrow.day))
                     for width in (320,390,1440):
                         other.set_viewport_size({'width':width,'height':900})
                         no_overflow(other)

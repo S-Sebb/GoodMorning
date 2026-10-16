@@ -33,11 +33,11 @@
 .schedule-review a:hover { background: var(--accent); }
 .schedule-review a:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
 .schedule-info-panel a { font-size: 11px; }
-.schedule-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); grid-template-rows: auto minmax(170px, max-content) minmax(120px, max-content); overflow: hidden; border: 1px solid var(--line); border-radius: 22px; background: var(--surface); box-shadow: 0 8px 32px #00000004; }
+.schedule-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); grid-template-rows: auto minmax(110px, max-content) minmax(90px, max-content); overflow: hidden; border: 1px solid var(--line); border-radius: 22px; background: var(--surface); box-shadow: 0 8px 32px #00000004; }
 .schedule-day { display: grid; grid-row: span 3; grid-template-columns: minmax(0, 1fr); grid-template-rows: subgrid; min-width: 0; border-right: 1px solid color-mix(in srgb, var(--line) 65%, transparent); scroll-margin-top: 24px; }
 .schedule-day:last-child { border-right: 0; }
 .schedule-day.is-today { background: linear-gradient(180deg, var(--wash), color-mix(in srgb, var(--wash) 25%, var(--surface))); }
-.schedule-day-heading { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 124px; border-bottom: 1px solid color-mix(in srgb, var(--line) 65%, transparent); padding: 18px 12px 12px; }
+.schedule-day-heading { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 104px; border-bottom: 1px solid color-mix(in srgb, var(--line) 65%, transparent); padding: 18px 12px 12px; }
 .schedule-day h3 { display: flex; flex-direction: column; align-items: center; gap: 5px; margin: 0; color: var(--ink); font-weight: 400; letter-spacing: 0; text-transform: none; }
 .schedule-weekday { color: var(--muted); font-size: 11px; letter-spacing: 1px; }
 .schedule-day-number { display: flex; align-items: center; justify-content: center; width: 44px; height: 44px; font: normal 30px/1 Georgia, serif; }
@@ -73,6 +73,8 @@
 .schedule-task .task-progress { color: var(--ink); font-weight: 600; }
 .schedule-task .task-marker { color: var(--ink); font-weight: 600; }
 .schedule-task .task-detail { white-space: pre-line; }
+/* The week keeps notes to two lines; the day view shows them in full. */
+.schedule-grid .schedule-task .task-detail { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; }
 .schedule-task .task-project { padding: 0; border: 0; border-radius: 0; background: none; }
 .schedule-event.is-tbc { border-left-style: dashed; }
 .schedule-empty { display: block; font-size: 12px; color: var(--muted); margin: 0; line-height: 1.6; }
@@ -112,7 +114,7 @@
 .focus-panel .schedule-task small { font-size: 11px; }
 @media (max-width: 900px) { .schedule-focus { grid-template-columns: minmax(0, 1fr); } }
 @media (max-width: 1050px) {
-  .schedule-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: none; grid-auto-rows: auto minmax(150px, max-content) minmax(100px, max-content); }
+  .schedule-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: none; grid-auto-rows: auto max-content max-content; }
   .schedule-day { border-bottom: 1px solid var(--line); }
   .schedule-day:nth-child(even) { border-right: 0; }
   .schedule-day:last-child { border-bottom: 0; grid-column: 1 / -1; }
@@ -126,6 +128,9 @@
   .schedule-day-strip a { display: flex; flex-direction: column; align-items: center; padding: 7px 2px; border-radius: 12px; color: var(--muted); font-size: 10px; text-decoration: none; }
   .schedule-day-strip strong { font: normal 21px/1.4 Georgia, serif; color: var(--ink); }
   .schedule-day-strip a[aria-current] { background: var(--wash); color: var(--ink); }
+  /* Without the shared week rows, an empty list folds to one line. */
+  :is(.schedule-calendar, .schedule-work):has(> span.schedule-empty) { display: flex; align-items: center; gap: 10px; padding-block: 8px; }
+  :is(.schedule-calendar, .schedule-work):has(> span.schedule-empty) h4 { margin: 0; }
 }
 @media (max-width: 600px) {
   .schedule-page .masthead { align-items: start; flex-direction: column; gap: 14px; padding-top: 14px; padding-bottom: 10px; }

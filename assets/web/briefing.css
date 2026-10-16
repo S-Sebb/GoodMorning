@@ -256,7 +256,7 @@ html[data-edition="gn"] .weather-tile.air { --tile-accent: #aed4b7; --tile-bg: #
 .weather-detail > p { margin: 12px 0 0; }
 .weather .section-body > p, .weather-detailed .section-body > p { color: var(--muted); font-family: Georgia, serif; font-size: 18px; margin-top: 24px; }
 .agenda { margin: 28px 0; }
-.agenda-group + .agenda-group { margin-top: 30px; }
+.agenda-group + .agenda-group, .action-group + .action-group { margin-top: 30px; }
 .flexible-schedule { margin-top: 28px; }
 .flexible-title { margin: 0 0 16px; }
 .flexible-group + .flexible-group { margin-top: 24px; }
@@ -291,6 +291,8 @@ html[data-edition="gn"] .weather-tile.air { --tile-accent: #aed4b7; --tile-bg: #
 .news-visual img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .news-visual figcaption { position: absolute; bottom: 0; left: 0; right: 0; padding: 22px 7px 7px; background: linear-gradient(transparent, #000b); color: white; font-size: 8px; line-height: 1.4; }
 .news-card.text-only .news-copy { grid-column: 1 / -1; }
+/* A lone story uses the full row. */
+.section-body .news-grid > .news-card:only-child { grid-column: 1 / -1; }
 .news .section-body > p { background: var(--wash); border-radius: 12px; padding: 18px 22px; margin-top: 28px; color: var(--muted); font-family: Georgia, serif; font-size: 17px; }
 .section-body .task-list { margin: 0; padding: 0; list-style: none; display: grid; gap: 12px; }
 .section-body .task-card { position: relative; border: 1px solid var(--line); border-radius: 12px; padding: 20px; background: var(--surface); font-size: 14px; transition: background-color .25s ease, border-color .25s ease, box-shadow .25s ease; }
@@ -338,7 +340,9 @@ details.task-project .task-project-heading { margin: 0; }
   .event-copy { padding: 0; border: 0; }
   .event-copy h4 { font-size: 17px; }
   .event-detail { font-size: 12px; }
-  .agenda-day { font-size: 13px; }
+  /* Inline flow so "Tomorrow — Wednesday, October 14" wraps as text, not as separate pieces. */
+  .agenda-day { display: block; font-size: 13px; }
+  .agenda-day .data-icon { margin-right: 8px; vertical-align: -4px; }
   .section-body .news-card { grid-template-columns: minmax(0, 1fr); padding: 16px; gap: 16px; }
   .news-visual { width: 100%; height: 136px; }
   .news-visual figcaption { font-size: 9px; }
@@ -474,7 +478,9 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
   .briefing-letter .orbit { display: block; width: 64px; position: absolute; right: 0; top: 14px; }
   .briefing-letter .orbit .sky-scene { height: 46px; }
   .briefing-letter .orbit .sun { width: 64px; height: 46px; left: 0; }
-  .briefing-section-nav { gap: 6px; margin-bottom: 12px; padding-bottom: 12px; }
+  .briefing-section-nav { flex-wrap: nowrap; gap: 6px; margin-bottom: 12px; padding-bottom: 12px; overflow-x: auto; scrollbar-width: none; }
+  .briefing-section-nav::-webkit-scrollbar { display: none; }
+  .briefing-section-nav a { flex-shrink: 0; }
   .briefing-section-nav a { font-size: 12px; padding: 8px 12px; gap: 6px; }
   .briefing-section-nav a .data-icon { width: 16px; height: 16px; }
 }

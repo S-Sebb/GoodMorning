@@ -702,8 +702,8 @@ def account_page(session, title, kind='gm'):
     note = 'Accounts are created by the server administrator. Forgotten passwords require administrator help.' if login else (
         'Replace your temporary password before opening private briefings.' if temporary else 'Changing your password signs out other devices. Your encrypted records stay unchanged.')
     return ('<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">' + favicon_links(kind) +
-            '<title>'+html.escape(title)+'</title><link rel="stylesheet" href="/auth.css"></head><body><main class="account-card">'
-            '<p class="eyebrow">Your personal secretary</p><h1>'+html.escape(title)+'</h1><p>'+note+'</p>'+
+            '<title>'+html.escape(title)+'</title><link rel="stylesheet" href="/auth.css"></head><body'+(' class="sign-in"' if login else '')+'><main class="account-card">'
+            '<p class="wordmark">GoodMorning</p><p class="eyebrow">Your personal secretary</p><h1>'+html.escape(title)+'</h1><p>'+note+'</p>'+
             ('' if login else '<p id="password-rules">'+PASSWORD_RULE+'</p>')+
             '<form id="account-form" method="post" action="/api/auth/'+('login' if login else 'password')+'" data-action="'+('login' if login else 'password')+'" data-csrf="'+session['csrf']+'" '
             'data-password-min="'+str(PASSWORD_MIN)+'" data-password-max="'+str(PASSWORD_MAX)+'">'+fields+

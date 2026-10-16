@@ -38,7 +38,7 @@ def check(app, url, shots, canonical=False):
             expect(page.locator('.schedule-event.is-tbc')).to_have_count(1)
             expect(page.locator('.schedule-event.is-tbc')).to_contain_text('TBC')
             expect(page.locator('.task-project').first).to_contain_text('Atlas')
-            expect(page.locator('.task-deadline')).to_contain_text('Due: 2026-10-16')
+            expect(page.locator('.task-deadline')).to_contain_text('Due: Fri, Oct 16')
             expect(page.locator('.schedule-task.is-partial')).to_contain_text('First baseline compared.')
             expect(page.locator('.schedule-task.is-blocked')).to_contain_text('Awaiting lab approval.')
             # A deadline is a marker on its due day, never a workday.

@@ -43,10 +43,10 @@ class DatedTitleTests(unittest.TestCase):
         base, iso = native.split_dated_title('News — 2026-10-12')
         self.assertEqual((base, iso), ('News', '2026-10-12'))
         self.assertEqual(native.split_dated_title('Weather'), ('Weather', None))
-        self.assertEqual(native.humanize_iso_date('2026-10-12'), '12 Oct')
+        self.assertEqual(native.humanize_iso_date('2026-10-12'), 'Oct 12')
         heading = native.heading_html('News — 2026-10-12')
         self.assertIn('section-date', heading)
-        self.assertIn('12 Oct', heading)
+        self.assertIn('Oct 12', heading)
         self.assertNotIn('News — 2026-10-12', heading)
 
     def test_edition_keeps_full_date_accessible_but_displays_badge(self):
@@ -56,7 +56,7 @@ class DatedTitleTests(unittest.TestCase):
         page = web.edition(doc, '2026-10-13', 'gm', {'gm': True})
         self.assertIn('aria-label="01: News — 2026-10-12"', page)
         self.assertIn('preview-date', page)
-        self.assertIn('12 Oct', page)
+        self.assertIn('Oct 12', page)
         self.assertIn('section-date', page)
 
 

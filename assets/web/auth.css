@@ -2,6 +2,7 @@
 * { box-sizing: border-box; }
 body { margin: 0; min-height: 100vh; min-height: 100svh; display: grid; place-items: center; padding: 1rem; background: radial-gradient(ellipse at top left, #e0ede5, transparent 60%); }
 .account-card { width: min(100%, 28rem); padding: clamp(1.4rem, 5vw, 2.5rem); border: 1px solid #d5e0db; border-radius: 1.5rem; background: #fffefa; box-shadow: 0 1rem 4rem #253d4512; }
+.wordmark { margin: 0 0 1.25rem; font: 400 1.6rem/1.2 Georgia, serif; letter-spacing: -.5px; }
 .eyebrow { font-size: .75rem; letter-spacing: .13em; text-transform: uppercase; color: #56746a; }
 h1 { font-family: Georgia, serif; font-weight: 500; font-size: 2rem; }
 p { line-height: 1.6; }
@@ -53,3 +54,13 @@ body:has(.toolbar-row) .account-card { align-self: center; }
 @media (max-width: 600px) { body, body:has(.language-toolbar), body:has(.toolbar-row) { align-content: start; } .account-card, body:has(.language-toolbar) .account-card, body:has(.toolbar-row) .account-card { align-self: start; } }
 /* Narrow bars become full-width dropdown sheets anchored to the row. */
 @media (max-width: 700px) { .toolbar-row .menu { position: static; } .toolbar-row .menu-panel { left: 1rem; right: 1rem; top: auto; width: auto; margin-top: 8px; } }
+/* Before sign-in no saved palette is known, so use the default Morning Sky look. */
+.sign-in { color: #293e50; background: linear-gradient(180deg, #cfe3f0, #e6f0f6 45%, #f3f8f9); }
+.sign-in .account-card { border-color: #cfdae0; background: #fffdf7; box-shadow: 0 1rem 4rem #27465e1a; }
+.sign-in .eyebrow { color: #304758; }
+.sign-in input { border-color: #b9cad4; }
+.sign-in button { background: #27465e; }
+.sign-in button:hover { background: #1d3549; }
+.sign-in .password-field .password-toggle { background: #e5eef3; color: #27465e; }
+.sign-in .password-field .password-toggle:hover { background: #d5e3ec; }
+.sign-in a { color: #27465e; }
