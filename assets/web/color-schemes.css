@@ -22,6 +22,21 @@ html[data-edition="gn"][data-night-scheme="starry"] body {
       radial-gradient(ellipse at 65% 12%, #24385b66, transparent 65%);
   }
 }
+/* City Lights: the harbor skyline stays fixed at the bottom of the viewport, below the headline. */
+html[data-edition="gn"][data-night-scheme="city-lights"] { color-scheme: dark; --bg: #0b1020; --surface: #151b31; --ink: #f2efe8; --muted: #bdb9cb; --accent: #f2c27b; --line: #2e3452; --wash: #1d2442; --warm: #f2c27b; --chat-border: #5a5f82; color: var(--ink); background: var(--bg); }
+html[data-edition="gn"][data-night-scheme="city-lights"] body {
+  min-height: 100svh;
+  color: var(--ink);
+  background: var(--bg) url("/city-lights.svg") center bottom / cover no-repeat fixed;
+}
+/* Midnight Violet: a flat Dracula-inspired palette with a pink accent. */
+html[data-edition="gn"][data-night-scheme="midnight-violet"] { color-scheme: dark; --bg: #1f2029; --surface: #2a2b37; --ink: #f8f8f2; --muted: #b6bbd6; --accent: #ff79c6; --line: #3d4052; --wash: #33354a; --warm: #ffb86c; --chat-border: #6d6a9c; --your-bubble: #45304a; color: var(--ink); background: var(--bg); }
+html[data-edition="gn"][data-night-scheme="midnight-violet"] body { color: var(--ink); background: var(--bg); }
+html[data-edition="gn"][data-night-scheme="midnight-violet"] .weather-tile.cool { --tile-accent: #8be9fd; --tile-bg: #2b3a4a; }
+html[data-edition="gn"][data-night-scheme="midnight-violet"] .weather-tile.warm { --tile-accent: #ffb86c; --tile-bg: #3d3330; }
+html[data-edition="gn"][data-night-scheme="midnight-violet"] .weather-tile.precipitation { --tile-accent: #bd93f9; --tile-bg: #35304d; }
+html[data-edition="gn"][data-night-scheme="midnight-violet"] .weather-tile.air { --tile-accent: #50fa7b; --tile-bg: #273d33; }
+html[data-edition="gn"][data-night-scheme="midnight-violet"] .chat-page { --special-question: #f1fa8c; --special-answer: #8be9fd; --special-added: #50fa7b; --special-updated: #bd93f9; --special-cancelled: #ff5555; }
 html:not([data-edition="gn"])[data-day-scheme="warm"] { color-scheme: light; --bg: #f6eee3; --surface: #fffbf5; --ink: #554032; --muted: #7d6858; --accent: #987052; --line: #e0cbb8; --wash: #f1e4d4; --warm: #d8b471; --chat-paper: #fbf4e9; --chat-border: #ceb29a; --bubble: #fffdf9; --your-bubble: #f3d7c1; --bubble-line: #ead8c5; --your-line: #e1bc9f; color: var(--ink); background: var(--bg); }
 html:not([data-edition="gn"])[data-day-scheme="warm"] body { color: var(--ink); background: var(--bg); }
 html:not([data-edition="gn"])[data-day-scheme="morning-sky"] { --bg: #f3f8f9; --surface: #fffdf7; --ink: #293e50; --muted: #304758; --accent: #27465e; --line: #cfdae0; --wash: #e5eef3; --warm: #d3af64; --chat-border: #9eb8c8; --your-bubble: #e2edf4; --day-scene: url("/morning-sky.svg"), url("/morning-clouds.webp"), url("/morning-clouds-continuation.webp"); --day-repeat: no-repeat, no-repeat, repeat-y; }

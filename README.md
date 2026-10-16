@@ -168,9 +168,10 @@ The [item and timing guide](docs/item-taxonomy.md) explains these boundaries in 
   English and Simplified Chinese are available throughout the website. Changing
   the interface language does not rewrite your saved records or earlier replies.
 - **A view that feels like yours.** Choose Classic, Warm, Morning Sky, or First
-  Light for daytime, and Classic or Starry for nighttime. Day and night choices
-  are independent and saved per account. Clouds and birds, a mountain valley,
-  or a twinkling night sky bring a little atmosphere without third-party image requests.
+  Light for daytime, and Classic, Starry, City Lights, or Midnight Violet for
+  nighttime. Day and night choices are independent and saved per account. Clouds
+  and birds, a mountain valley, a twinkling night sky, or a harbor glowing with
+  city lights bring a little atmosphere without third-party image requests.
 - **Comfortable on a phone, too.** Responsive layouts, a growing message box,
   click-to-enlarge images, section navigation, reading progress, and reduced-motion
   support keep reading and conversation at the center.

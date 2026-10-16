@@ -82,6 +82,7 @@ class Resources:
                     'marked.js': 'text/javascript', 'markdown.js': 'text/javascript',
                       'starry-sky.svg': 'image/svg+xml',
                       'morning-sky.svg': 'image/svg+xml',
+                      'city-lights.svg': 'image/svg+xml',
                       'morning-clouds.webp': 'image/webp',
                       'first-light.svg': 'image/svg+xml',
                       'morning-clouds-continuation.webp': 'image/webp',
@@ -111,7 +112,7 @@ class Resources:
                     if icon in self.urls:
                         data = data.replace(icon.encode(), self.urls[icon].encode())
             if name == 'color-schemes.css':
-                for sky in ('starry-sky.svg', 'morning-sky.svg', 'morning-clouds.webp', 'first-light.svg',
+                for sky in ('starry-sky.svg', 'city-lights.svg', 'morning-sky.svg', 'morning-clouds.webp', 'first-light.svg',
                             'morning-clouds-continuation.webp'):
                     if sky in self.urls:
                         data = data.replace(('/' + sky).encode(), self.urls[sky].encode())
