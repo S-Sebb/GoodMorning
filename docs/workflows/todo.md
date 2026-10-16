@@ -53,8 +53,20 @@ to its workflow in this conversation; capture wording alone does not grant conse
    ```
    Supply exact `raw`, revised `summary`, and `task` with the same revised `title`
    plus grounded `detail` and `display` wording in both languages (rule 2 of
-   `docs/item-taxonomy.md`). Include only confirmed project/timing/context. The wrapper
-   supplies `kind: "todo"` and checks setup; do not add `kind`, run separate
+   `docs/item-taxonomy.md`). Include only confirmed project/timing/context. For a
+   plain action this is the whole input:
+   ```json workflow --capture todo
+   {"raw":"Add new todo, record muscle training at home videos for my mom.",
+    "summary":"Record at-home muscle-training videos for Mom",
+    "task":{"title":"Record at-home muscle-training videos for Mom","detail":"",
+     "display":{
+      "en":{"morning":{"title":"Record at-home muscle-training videos for Mom","detail":""},
+            "schedule":"Training videos for Mom"},
+      "zh":{"morning":{"title":"给妈妈录居家力量训练视频","detail":""},
+            "schedule":"给妈妈录训练视频"}}}}
+   ```
+   Timing, kind, notice and sibling fields are listed in `docs/helper-inputs.md`.
+   The wrapper supplies `kind: "todo"` and checks setup; do not add `kind`, run separate
    preparation/profile/state reads except the date/timezone check in step 1, read
    old inbox history, or call `task --add` again.
 3. For a clear follow-up, reuse the entry. Read `docs/inbox-pipeline.md`; append

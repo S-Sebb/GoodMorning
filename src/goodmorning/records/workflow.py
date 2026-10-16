@@ -116,7 +116,7 @@ def prepare(directory, kind, today=None, cache=None, *, task_limit=7, website_la
 
 
 def main(argv=None):
-    parser = argparse.ArgumentParser(description=__doc__)
+    parser = argparse.ArgumentParser(description=__doc__, epilog="JSON input fields and tested examples: docs/helper-inputs.md")
     parser.add_argument("--secretary-dir")
     parser.add_argument("--cache-dir")
     parser.add_argument("--website-language",choices=('en','zh-CN'),help='Explicit browser request language; does not rewrite local preferences')

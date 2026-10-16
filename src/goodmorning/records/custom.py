@@ -18,7 +18,7 @@ def decode_input(args):
 
 
 def main(argv=None):
-    parser = argparse.ArgumentParser(description=__doc__)
+    parser = argparse.ArgumentParser(description=__doc__, epilog="JSON input fields and tested examples: docs/helper-inputs.md")
     parser.add_argument("--secretary-dir")
     actions = parser.add_mutually_exclusive_group(required=True)
     actions.add_argument("--add", action="store_true")

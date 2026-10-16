@@ -70,7 +70,7 @@ guides only for the requested operation; do not recursively reload the skill.
    entries and prior answers. Keep proposals pending until meaning/scope are
    confirmed and all authorized organization succeeds. Remind only due open questions.
 3. Use `task` for canonical actions/occurrences and `docs/item-taxonomy.md` for
-   categories (rule 2) and timing. Classify every new item before writing it. A
+   categories (rule 2) and timing; `docs/helper-inputs.md` gives every write's JSON. Classify every new item before writing it. A
    workday needs agreement; a deadline reserves no day. Unknown-time
    appointments use event drafts. Do not move unfinished tasks or adopt ideas
    without authorization. Daily Markdown is factual history, not live task state.
@@ -91,7 +91,8 @@ guides only for the requested operation; do not recursively reload the skill.
 4. Profile changes require exact confirmed values and preserve unrelated lines.
    For a rename of the secretary or of how to call the user, ask only if the exact
    spelling is unclear; validate `secretary_name`/`user_name`, update only that
-   profile field (an empty `user_name` means greet unnamed), and use it immediately.
+   profile field's line (`docs/helper-inputs.md`; an empty `user_name` means greet
+   unnamed), and use it immediately.
    Confirm in everyday words, without field names. Do not rebuild, mark or check
    providers; the website reads it on its next settings/status request. For “I moved”, confirm
    qualified city/region, ask whether timezone changed, and verify the new weather

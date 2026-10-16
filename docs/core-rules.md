@@ -20,6 +20,10 @@ that a deadline is easy, sufficient or achievable without evidence about the wor
   `~/.cache/goodmorning`. Pass runtime/profile/cache/calendar paths explicitly.
   Keep temporary inputs in the authorized runtime. Never initialize records in
   source/skill/project directories or read `.env`, credentials, pairing stores or environment dumps.
+- Workflows give each helper's full command. JSON inputs for capture, task, draft,
+  inbox, custom-schedule and profile writes are in `docs/helper-inputs.md`, with
+  tested examples; read it before the first such write your workflow does not
+  exemplify. Never read `src/`, `scripts/` or `tests/` to learn a command or input.
 - General work/local briefings use `python scripts/goodmorning.py workflow --prepare KIND`
   once for confirmed preferences, dates, paths and bounded context. It does not
   fetch, initialize, execute or mark runs. Clear capture uses its direct helper below.
