@@ -119,6 +119,9 @@ def check(app, url, shots, canonical=False):
         expect(page.locator('.schedule-grid')).to_have_css('grid-template-columns', re.compile(r'^[\d.]+px$'))
         expect(page.locator('.schedule-day-strip')).to_be_visible()
         assert not page.evaluate('document.documentElement.scrollWidth > innerWidth')
+        # Phone week controls sit over the sky decoration, so they need their own backing.
+        for control in page.locator('.week-arrow, .current-week').all():
+            assert control.evaluate('node => getComputedStyle(node).backgroundColor') != 'rgba(0, 0, 0, 0)'
         page.get_by_label('日程详情', exact=True).click()
         expect(page.locator('.schedule-info-panel')).to_be_visible()
         assert page.locator('.schedule-info-panel').bounding_box()['x'] >= 0

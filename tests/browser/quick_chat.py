@@ -173,6 +173,17 @@ def check_layouts(browser, address, artifacts):
             if language == 'zh-CN':
                 expect(page.locator('#quick-chat')).to_have_attribute('aria-label', '快捷对话')
                 expect(launcher).to_have_attribute('aria-label', '问问Mira')
+            if width < 700:
+                # Reading down tucks the floating buttons away; a pause brings them back.
+                page.mouse.wheel(0, 300)
+                expect(page.locator('html.floaters-tucked')).to_have_count(1)
+                expect(launcher).to_have_css('opacity', '0')
+                expect(page.locator('html.floaters-tucked')).to_have_count(0)
+                expect(launcher).to_have_css('opacity', '1')
+                page.mouse.wheel(0, 300)
+                expect(page.locator('html.floaters-tucked')).to_have_count(1)
+                page.mouse.wheel(0, -200)  # Scrolling back up returns them before the pause.
+                expect(page.locator('html.floaters-tucked')).to_have_count(0, timeout=600)
             page.mouse.wheel(0, 4000); page.wait_for_timeout(400)
             box = launcher.bounding_box()
             assert box['x'] >= 0 and box['x'] + box['width'] <= width and box['y'] + box['height'] <= height, box
