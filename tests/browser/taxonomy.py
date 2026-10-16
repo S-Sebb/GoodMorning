@@ -34,7 +34,7 @@ def main():
         for key, payload in enumerate([
             {'kind': 'todo', 'raw': 'Send Atlas report by Friday', 'task': {'title': 'Send Atlas report', 'due_date': '2026-10-16', 'project': 'Atlas'}},
             {'kind': 'todo', 'raw': 'Buy milk', 'task': {'planned_date': DAY}},
-            {'kind': 'event_proposal', 'raw': 'Dentist Thursday', 'draft': {'title': 'Dentist', 'date': '2026-10-15', 'timezone': 'Europe/London', 'confirmed_day': True}},
+            {'kind': 'event_proposal', 'raw': 'Dentist Thursday', 'draft': {'title': 'Dentist', 'date': '2026-10-15', 'timezone': 'Europe/London', 'confirmed_day': True, 'notice': {'morning': 2, 'evening': 2}}},
             {'kind': 'project_update', 'raw': 'Confirm report scope', 'questions': ['Which comparison should the report include?']},
             {'kind': 'idea', 'raw': 'Maybe build a dashboard'},
         ]):
@@ -69,7 +69,8 @@ def main():
                             expect(page.get_by_role('heading', name=ui.text('Tasks'), exact=True)).to_be_visible()
                             expect(page.get_by_role('heading', name='Dentist', exact=True)).to_be_visible()
                             expect(page.get_by_text('Maybe build a dashboard', exact=True)).to_have_count(0)
-                            expect(page.locator('.task-card')).to_have_count(2)
+                            # The evening shows only deadlines due tomorrow, so Friday's report waits.
+                            expect(page.locator('.task-card')).to_have_count(2 if kind == 'gm' else 1)
                             page.evaluate('document.fonts.ready')
                             assert not page.evaluate('document.documentElement.scrollWidth > innerWidth'), (kind, lang, width)
                             assert 'task_' not in page.get_by_role('article').inner_text()
