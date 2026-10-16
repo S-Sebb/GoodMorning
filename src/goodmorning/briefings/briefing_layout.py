@@ -76,19 +76,17 @@ def category_icon(category):
     return country_flag(country[1]) if country else icon('chip' if category.casefold() == 'ai' else 'globe')
 
 
-def news_visual(url, source_label, category, images):
+def news_visual(url, source_label, images):
+    """A publisher preview, or nothing: imageless stories render as text-only cards."""
     from goodmorning.web import language as ui
     cached = images.get(url)
-    if cached:
-        responsive = ''
-        if cached.get('small_src'):
-            desktop_width = max(108, round(120 * cached['width'] / cached['height']))
-            mobile_floor = round(136 * cached['width'] / cached['height'])
-            responsive = f' srcset="{html.escape(cached["small_src"], quote=True)} {cached["small_width"]}w, /{html.escape(cached["src"].lstrip("/"), quote=True)} {cached["width"]}w" sizes="(max-width: 700px) max(calc(100vw - 196px), {mobile_floor}px), {desktop_width}px"'
-        alt=cached.get('alt') or ui.text('Publisher article preview')
-        caption=ui.ui('Publisher preview · {publisher}',publisher=html.unescape(source_label))
-        picture = f'<figure class="news-visual"><img src="{html.escape(cached["src"], quote=True)}"{responsive} alt="{html.escape(alt, quote=True)}" width="{cached.get("width", 640)}" height="{cached.get("height", 480)}" loading="lazy" decoding="async"><figcaption>{caption}</figcaption></figure>'
-    else:
-        symbol = 'chip' if category.casefold() == 'ai' else 'globe' if category.casefold() == 'world' else 'news'
-        picture = f'<figure class="news-visual illustration">{icon(symbol)}<figcaption>{ui.ui("Illustration · image unavailable")}</figcaption></figure>'
-    return picture
+    if not cached:
+        return ''
+    responsive = ''
+    if cached.get('small_src'):
+        desktop_width = max(108, round(120 * cached['width'] / cached['height']))
+        mobile_floor = round(136 * cached['width'] / cached['height'])
+        responsive = f' srcset="{html.escape(cached["small_src"], quote=True)} {cached["small_width"]}w, /{html.escape(cached["src"].lstrip("/"), quote=True)} {cached["width"]}w" sizes="(max-width: 700px) max(calc(100vw - 196px), {mobile_floor}px), {desktop_width}px"'
+    alt=cached.get('alt') or ui.text('Publisher article preview')
+    caption=ui.ui('Publisher preview · {publisher}',publisher=html.unescape(source_label))
+    return f'<figure class="news-visual"><img src="{html.escape(cached["src"], quote=True)}"{responsive} alt="{html.escape(alt, quote=True)}" width="{cached.get("width", 640)}" height="{cached.get("height", 480)}" loading="lazy" decoding="async"><figcaption>{caption}</figcaption></figure>'

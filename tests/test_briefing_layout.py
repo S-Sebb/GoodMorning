@@ -46,12 +46,13 @@ class RichLayoutTests(unittest.TestCase):
         fallback = native.render_block(content, {})
         for value in ('Headline', 'Complete summary, including the warning.', 'Publisher'):
             self.assertIn(value, fallback)
-        self.assertIn('class="news-visual illustration"', fallback)
+        self.assertIn('<li class="news-card text-only"><div class="news-copy">', fallback)
+        self.assertNotIn('<figure', fallback)
         rendered = native.render_block(content, {'https://example.org/a': {'src': 'media/' + 'a' * 64 + '.webp', 'alt': 'A & B'}})
         self.assertIn('loading="lazy"', rendered)
         self.assertIn('alt="A &amp; B"', rendered)
-        self.assertRegex(rendered, r'<figure class="news-visual"><img [^>]*><figcaption>.*Publisher.*</figcaption>')
-        self.assertNotIn('illustration', rendered)
+        self.assertRegex(rendered, r'<li class="news-card"><figure class="news-visual"><img [^>]*><figcaption>.*Publisher.*</figcaption>')
+        self.assertNotIn('text-only', rendered)
 
     def test_task_split_preserves_status_wording_and_nested_markup(self):
         rendered = native.render_block(['tasks', [['open', 'Ranking — with a dash', 'Due tomorrow.'], ['done', 'Confirmed task.', 'User confirmed.']]], {})

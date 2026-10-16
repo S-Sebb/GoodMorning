@@ -641,8 +641,8 @@ def render_block(value, images, briefing_date=None):
         symbol = country_flag(value[3]) if len(value) == 4 else category_icon(category)
         cards = []
         for headline, summary, refs in value[2]:
-            picture = news_visual(refs[0][1], escaped(refs[0][0]), category, images)
-            cards.append(f'<li class="news-card">{picture}<div class="news-copy"><h4>{escaped(headline)}</h4><div class="news-summary"><p>{escaped(summary)}</p></div><div class="news-source">{citations(refs)}</div></div></li>')
+            picture = news_visual(refs[0][1], escaped(refs[0][0]), images)
+            cards.append(f'<li class="news-card{"" if picture else " text-only"}">{picture}<div class="news-copy"><h4>{escaped(headline)}</h4><div class="news-summary"><p>{escaped(summary)}</p></div><div class="news-source">{citations(refs)}</div></div></li>')
         return f'<h3 class="news-category">{symbol}{escaped(category)}</h3><ul class="news-grid">' + ''.join(cards) + '</ul>'
     raise ValueError('Validate blocks before rendering')
 
