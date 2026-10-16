@@ -97,6 +97,28 @@ def seed(runtime, monday, language='en'):
         inbox.mutate('add', {'kind': 'todo', 'raw': 'Check the chair price', 'task': {
                      'title': t('Check the SIHOO M18 chair price', '看看 SIHOO M18 椅子的价格'), 'kind': 'nudge'}},
                      'ses_fixture', 'seed-chair', stamp)
+        # Items saved the way older captures did: the secretary's notes inside detail. Morning polish moves them to extra.
+        legacy = (
+            ('legacy-desk', t('Check the Lumo standing desk price', '看看 Lumo 升降桌的价格'), {'kind': 'nudge'}, t(
+                'I check this myself when generating the morning briefing and report the current price and change. Latest user-observed '
+                'price £289 on 2026-10-03. You buy it yourself if it is below £250. Shows every morning until you tell me to stop. I cannot buy it for you.',
+                '我会在生成早报时自己去查并报告现价和变化。用户最近看到的价格是 2026-10-03 的 £289。低于 £250 时你自己下单。每天早上都会显示，直到你让我停。我没法替你购买。')),
+            ('legacy-calibration', t('Re-run the spectrometer calibration', '重新做光谱仪校准'), {'project': 'Optics'}, t(
+                '2026-10-03: first run done, sample B too dilute. 2026-10-04: re-prepared sample B. Next: re-run the calibration with sample B. '
+                'History in projects/Optics.md and entry ib_0123456789abcdef.',
+                '2026-10-03：第一次跑完，B 样品太稀。2026-10-04：重新配了 B 样品。下一步：用 B 样品重新校准。历史见 projects/Optics.md 和记录 ib_0123456789abcdef。')),
+            ('legacy-helpdesk', t('Call the IT helpdesk about the receipt upload error', '打电话给 IT 服务台处理报销上传报错'), {'planned_date': day(2)}, t(
+                'Reminder date: 2026-10-07 (tomorrow). Call extension 4471 to fix the "username already exists" error when uploading receipts.',
+                '提醒日期：2026-10-07（明天）。拨打分机 4471，处理上传报销附件时提示"用户名已存在"的问题。')),
+            ('legacy-confirm', t('Fix the photo export crash', '修复照片导出崩溃'), {}, t(
+                'Keep open until the user confirms the fix after deployment. Follow-up saved: test exporting a 50-photo album.',
+                '部署后等用户确认修好再关闭。已保存的后续：测试导出 50 张照片的相册。')),
+            ('legacy-clean', t('Review the venue contract', '审阅场地合同'), {}, t(
+                'Waiting for the client to send the floor plans.', '在等客户发平面图。')),
+        )
+        for key, title, fields, detail in legacy:
+            ids[key] = inbox.mutate('add', {'kind': 'todo', 'raw': title, 'task': {'title': title, 'detail': detail, **fields}},
+                                    'ses_fixture', 'seed-' + key, stamp)['task_id']
         # A detail that narrates how the reminder works, as a live capture once saved it: morning polish trims it.
         inbox.mutate('add', {'kind': 'todo', 'raw': 'Remind me to water the plants', 'task': {
                      'title': t('Water the balcony plants', '给阳台的植物浇水'), 'kind': 'nudge', 'detail': t(

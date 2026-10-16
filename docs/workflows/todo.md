@@ -83,7 +83,8 @@ to its workflow in this conversation; capture wording alone does not grant conse
   empty if unsupported. Do not repeat title/project/deadline/priority; keep supplied
   timing in structured fields. Reminder mechanics and setup narration
   ("surface in Friday /gm", "setup choice confirmed", "no calendar time/place")
-  belong in structured repeat/when fields and the inbox entry `context`, never in detail.
+  belong in structured repeat/when fields, the inbox entry `context` or the task's
+  `extra`, never in detail; never copy the same text into two of them.
   Never invent facts, dates, priorities or progress.
 - Example: “Currently there's a message-box stretch blocking typing” becomes
   “Fix message-box stretch blocking typing”; no unsupported detail is needed.

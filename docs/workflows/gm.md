@@ -68,9 +68,10 @@ plan position and use `skip` for empty optional ones; local JSON omits empty opt
     using title/detail only (same meaning, no date/status/project/scheduling change,
     stable `polish:SESSION:taskID:revision` keys; a moved revision gets a fresh key
     with the new revision), then reread and pack the exact
-    updated rows. Reminder mechanics and setup narration are trimmed
-    by the same update (possibly to an empty detail); other details may only be
-    lightly clarified for display. Preserve dates, details, source IDs and revisions; follow pages.
+    updated rows. Reminder mechanics, setup narration, progress logs, IDs and
+    remembered values move from `detail` to the front of `extra` in the same
+    update (detail may become empty); nothing is deleted. Other details may only
+    be lightly clarified for display. Preserve dates, details, source IDs and revisions; follow pages.
     Also read code-owned `custom --briefing gm --date DATE` rows; due custom schedules are shown with Tasks using their computed next-due and weekly count. Word warmly; never invent custom dates.
     Leave already-clear titles unchanged. A project name within the specific object
     ("Send Atlas report") is not a decorative prefix ("Atlas: Send report"); do not

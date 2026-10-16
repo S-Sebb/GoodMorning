@@ -40,6 +40,36 @@ def rows(document, section):
     return titles
 
 
+def legacy_checks(runtime, seeded, zh, problems):
+    """Older items with notes inside detail: detail keeps what the user needs, notes move to extra, nothing is lost."""
+    from benchmarks.category_live import tasks as saved_tasks
+    rows = {r['id']: r for r in saved_tasks(runtime)[0]}
+    sentences = lambda text: len(re.findall(r'[.!?](?:\s|$)|[。！？]', text))
+    narration = r'every morning|briefing|I check|cannot buy|Keep open|Reminder date|每天早上|早报|我会|没法|提醒日期|部署后'
+    def check(key, kept_in_detail=(), kept_anywhere=(), untouched=False):
+        row = rows[seeded[key]]
+        both = row['detail'] + '\n' + row.get('extra', '')
+        if untouched:
+            if row['revision'] != 1:
+                problems.append(f'{key}: clean detail was rewritten: {row["detail"]}')
+            return
+        if sentences(row['detail']) > 2 or re.search(narration, row['detail'], re.I):
+            problems.append(f'{key}: detail still holds notes: {row["detail"]}')
+        for fact in kept_in_detail:
+            if fact not in row['detail']:
+                problems.append(f'{key}: user-facing fact {fact} left the detail: {row["detail"]}')
+        for fact in kept_anywhere:
+            if fact not in both:
+                problems.append(f'{key}: fact {fact} was lost: detail={row["detail"]!r} extra={row.get("extra", "")!r}')
+        if row['status'] != 'open' or row.get('planned_date', '') != {'legacy-helpdesk': '2026-10-07'}.get(key, row.get('planned_date', '')):
+            problems.append(f'{key}: status or date changed')
+    check('legacy-desk', kept_anywhere=('289', '2026-10-03', '250'))
+    check('legacy-calibration', kept_anywhere=('2026-10-04', 'ib_0123456789abcdef', 'projects/Optics.md'))
+    check('legacy-helpdesk', kept_in_detail=('4471',))
+    check('legacy-confirm', kept_anywhere=('50',))
+    check('legacy-clean', untouched=True)
+
+
 def run(output, template, language, kind, selected=None):
     zh = language == 'zh-CN'
     t = lambda en, cn: cn if zh else en
@@ -55,7 +85,7 @@ def run(output, template, language, kind, selected=None):
     (source / 'opencode.json').write_text(json.dumps(config))
     for path in [p for p in source.rglob('*') if p.parent != source or p.is_dir()]:  # Like a deployed release: the agent cannot patch the code.
         path.chmod(path.stat().st_mode & ~0o222)
-    seed(runtime, MONDAY, language)
+    seeded = seed(runtime, MONDAY, language)
     day = MONDAY + timedelta(days=2 if kind == 'gm' else 4)
     instant = datetime.combine(day, time(7, 30) if kind == 'gm' else time(20, 30), ZoneInfo(ZONE)).astimezone(timezone.utc)
     selected = selected or for_language(language)
@@ -116,6 +146,7 @@ def run(output, template, language, kind, selected=None):
         elif errands:
             result['problems'].append('errands shown in the evening')
         if kind == 'gm':
+            legacy_checks(runtime, seeded, zh, result['problems'])
             plants = next((row for entry in document['sections'] if entry[0] == 'tasks' for block in entry[1]
                            if block[0] == 'actions' for row in block[1] if t('plants', '植物') in row[5]), None)
             result['plants'] = plants

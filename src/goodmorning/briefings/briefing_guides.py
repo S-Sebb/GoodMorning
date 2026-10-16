@@ -45,10 +45,12 @@ TEXT = {
                'widen the range. Preparation is attendee requirements only (no join links, meeting IDs or privacy footers).'),
   'tasks': ('Run the read (follow next_offset). Use judgment on each displayed row: if its title/detail is materially vague '
             '(not a clear imperative action: a bare noun or fragment such as "Dentist", a missing object, filler such as "stuff"/"things"/"etc.", '
-            'verb at the end, or a "Project: …" prefix), or its detail is longer than two sentences, repeats the title or explains how the '
-            'reminder works ("shows every morning", "I will check…"), fix it once with '
+            'verb at the end, or a "Project: …" prefix), or its detail is longer than two sentences, repeats the title or holds your own '
+            'notes (how the reminder works, "I will check…", progress logs, IDs, remembered values), fix it once with '
             'python scripts/goodmorning.py task --secretary-dir RUNTIME --update TASK_ID --expect-revision REV --session SESSION '
-            '--request-key polish:SESSION:TASK_ID:REV --input-json \'{"title":"…","detail":"…"}\' — same meaning, using facts already '
+            '--request-key polish:SESSION:TASK_ID:REV --input-json \'{"title":"…","detail":"…","extra":"…"}\' — detail keeps at most two '
+            'sentences the user needs; the notes you take out go, dated if known, in front of the row\'s current extra (send extra only when '
+            'you move something; never drop a fact) — same meaning, using facts already '
             'in the title/detail (e.g. "Dentist" + "checkup before May" → "Book a dentist checkup"); never invent facts or change '
             'dates/status. Leave clear titles alone; a project name inside a specific object is fine. Then rerun '
             'the read and copy the exact returned blocks. Rows whose detail says heads-up are reminders only: mention them, never ask whether '
@@ -118,9 +120,10 @@ TEXT = {
            '按其 next 命令执行。不要运行 news --ack。读取失败时发布一个 ["p","……"] 块，只说明无法获取该日期的新闻；不得跳过本章节。'),
   'schedule': '运行读取命令，原样复制返回的块（包括空日程段落）；不要重新计算日期或扩大范围。准备事项只写参会要求（不要加入会议链接、会议号或隐私声明）。',
   'tasks': ('运行读取命令（如有 next_offset 继续翻页）。逐行判断：标题/说明明显含糊时（缺少对象、空洞开头、"等等"之类含糊、动词在末尾、非祈使句、'
-            '"项目：……"式前缀；只有名词或片段、不是明确的动作，例如"牙医"，也算含糊），或说明超过两句、重复标题、在解释提醒机制（"每天早上显示""我会去查……"）时，用 python scripts/goodmorning.py task --secretary-dir RUNTIME '
+            '"项目：……"式前缀；只有名词或片段、不是明确的动作，例如"牙医"，也算含糊），或说明超过两句、重复标题、夹着你自己的笔记（提醒机制、"我会去查……"、进度记录、ID、记下的数值）时，用 python scripts/goodmorning.py task --secretary-dir RUNTIME '
             '--update TASK_ID --expect-revision REV --session SESSION --request-key polish:SESSION:TASK_ID:REV --input-json '
-            '\'{"title":"…","detail":"…"}\' 修正一次——含义不变，只用标题/说明中已有的事实（例如 "牙医" + "五月前做检查" → "预约牙医检查"）；'
+            '\'{"title":"…","detail":"…","extra":"…"}\' 修正一次——说明最多保留两句用户需要的话；拿出来的笔记（有日期就带上）放到该行现有 extra 的最前面'
+            '（只在挪了内容时才传 extra；任何事实都不能丢）；含义不变，只用标题/说明中已有的事实（例如 "牙医" + "五月前做检查" → "预约牙医检查"）；'
             '不要编造事实，不改日期或状态。清楚的标题保持不变；具体对象中的项目名不算前缀。然后重新读取并原样复制返回的块。'
             '说明里写着"只是提醒"的行只是提醒：可以提到，但不要问是否完成。'
             '代办事项：读取结果中的 `errands` 是用户请你每天早上亲自去做的事（title 是要做的事，instruction 是要查什么、什么情况下告诉用户，'

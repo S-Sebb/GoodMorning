@@ -62,10 +62,14 @@ heading. Use `scripts/goodmorning.py` with the selected absolute runtime.
    consequence the user stated; never invent one. When one request is two items
    (watch + act, weekly check-in + final deadline), confirm the split, then save
    one capture with `task` plus `also:[{...}]` siblings. Custom/imported is provenance.
-   **Extra** (`extra`, any task or draft, at most 2000 characters) is the secretary's
-   own notes for next time: what it found, what failed and why, a preference the
-   user mentioned. Never shown as the item's text and never a substitute for
-   structured fields; keep it short, newest first, and never store credentials.
+   **Where text goes.** `detail` is what the user sees: 1–2 sentences of why, current
+   state or next step. `extra` (any task or draft, at most 2000 characters) is the
+   secretary's own dated notes for next time: what it found or observed, progress
+   history, what failed and why, linked IDs, a preference the user mentioned; newest
+   first, short, never credentials, never a substitute for structured fields. The
+   inbox entry `context` records the request as agreed at capture; do not copy it
+   into `detail` or `extra`. When `detail` holds notes, move them to `extra` in the
+   same update rather than deleting them.
    **Advance notice** (`notice`) fits any dated item: tasks with `planned_date`,
    `repeat` or `due_date`, TBC drafts, and calendar events. `{"morning":N}` shows it in
    morning briefings from N days before its day (0 = on the day); `{"evening":N}` in
@@ -94,7 +98,8 @@ heading. Use `scripts/goodmorning.py` with the selected absolute runtime.
    fields preserve supplied explicit timing and project facts. `detail` is useful extra
    notes only: never repeat the title, project, deadline or priority — those live in structured fields and the page already
    shows them once per project group. This holds for every task write, not only `/todo`. Rhythm and presentation mechanics plus setup
-   narration stay in structured repeat/when fields and the inbox entry `context`, never in `detail`. `/eureka` captures only an idea, even with action verbs/dates.
+   narration stay in structured repeat/when fields, the inbox entry `context` (the request as agreed)
+   or the task's `extra` (notes for next time), never in `detail`. `/eureka` captures only an idea, even with action verbs/dates.
    For clear input, capture, confirm, stop. The clarification-before-recording rule
    above applies to ambiguous scheduling; no unsolicited calendar offer or execution.
    Keep `/todo` in its capture helper even when dates are supplied: use its optional
