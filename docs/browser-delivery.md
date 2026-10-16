@@ -80,6 +80,16 @@ are checked and deduplicated; failures retain honest placeholders and retry afte
 one hour. Private-network destinations, credentials, oversized payloads and unsafe
 redirects are refused. Responsive thumbnails stay in bounded memory, not on disk.
 
+The article page's first `og:image` (else `twitter:image`) is preferred. When the
+page has none or refuses the request, the image the news feed itself named for
+that article (`media:content`, image enclosure, `media:thumbnail`, or an inline
+`<img>` other than a tracking pixel) is used instead, read from the news archive.
+A host that stalls or answers 403/429 is not asked again in the same run.
+Requests send a browser User-Agent because NPR and CBC stall all others; they
+still carry no cookies. Non-ASCII article URLs are percent-encoded and GBK pages
+are decoded by their declared charset. Pages without any preview metadata, such
+as chinanews.com.cn and solidot.org, and plain-HTTP articles keep placeholders.
+
 CSS, JavaScript, fonts and icons are shared, fingerprinted assets with immutable
 caching, conditional requests and HEAD support. Private HTML, JSON, questions and
 API responses remain `no-store`. Pages containing generation request tokens are

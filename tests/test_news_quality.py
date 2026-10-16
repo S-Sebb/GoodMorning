@@ -29,6 +29,19 @@ def item(title, section="ai", hour=12, **extra):
 
 
 class QualityTests(unittest.TestCase):
+    def test_chinese_headlines_carry_the_same_importance_signals(self):
+        disaster = importance(news.group_stories([item("台风登陆广东 造成重大伤亡", section="national")])[0])
+        self.assertTrue(disaster["eligible"])
+        self.assertIn("conflict_disaster_or_public_health", disaster["reasons"])
+        trade = importance(news.group_stories([item("中美贸易战升级", section="major")])[0])
+        self.assertNotIn("conflict_disaster_or_public_health", trade["reasons"])
+        self.assertIn("public_affairs_or_economic_consequence", trade["reasons"])
+        release = importance(news.group_stories([item("深度求索发布开源推理大模型")])[0])
+        self.assertTrue(release["ai_relevant"])
+        self.assertIn("model_or_tool_release", release["reasons"])
+        gossip = importance(news.group_stories([item("明星演唱会门票秒空", section="major")])[0])
+        self.assertFalse(gossip["eligible"])
+
     def test_unrelated_copyright_lawsuit_is_not_ai_even_from_ai_feed(self):
         story=news.group_stories([item('DistroKid has been quietly taking down songs in response to UMG lawsuit',
             summary='Music distribution and copyright takedowns.',priority=3)])[0]

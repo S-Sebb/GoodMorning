@@ -40,7 +40,7 @@ from .news_cache import Fetcher, NewsCache, SourceUnavailable
 from .news_reports import ReportStore, context_key, recent_days
 from goodmorning.runtime_files import profile_fields, runtime_lock, secretary_path, cache_path
 from .news_views import report_view
-from .news_rank import POLICY, rank_stories, source_genre
+from .news_rank import AI_PATTERN, POLICY, rank_stories, source_genre
 from .news_editorial import candidates as editorial_candidates, seal, curate, EditorialError
 
 MAX_WINDOW_DAYS = 7
@@ -55,11 +55,12 @@ STOPWORDS = frozenset(
     "the a an in on of to for and or as at by with from after amid over under "
     "says say said new says us uk live updates update report reports amid".split()
 )
-AI_PATTERN = re.compile(
-    r"\b(?:AI|artificial intelligence|machine learning|deep learning|LLMs?|"
-    r"large language models?|OpenAI|ChatGPT|Anthropic|Claude|DeepSeek|"
-    r"GPT[-\s]?\d|generative|neural networks?|Gemini|Llama|Qwen|Mistral|"
-    r"AlphaFold|reasoning models?|speech recognition)\b", re.IGNORECASE)
+# Only real tags: a literal "x < y and z > w" in a headline is text, not markup.
+TAG = re.compile(r"</?[A-Za-z][^<>]*>")
+CJK = re.compile(r"[\u3400-\u9fff\uf900-\ufaff]+")
+MEDIA_NS = ("{http://search.yahoo.com/mrss/}", "{http://www.rssboard.org/media-rss}")
+CONTENT_ENCODED = "{http://purl.org/rss/1.0/modules/content/}encoded"
+IMG_SRC = re.compile(r"""<img\b[^>]*?\bsrc\s*=\s*["']([^"']+)["'][^>]*>""", re.I)
 
 
 def parse_args(argv=None):
@@ -170,18 +171,52 @@ def iso_pubdate(text):
         return None
 
 
+def plain_text(text, limit):
+    # Strip markup before unescaping so escaped "<" stays text; a second pass
+    # removes markup that a feed escaped twice.
+    text = html.unescape(TAG.sub(" ", text or ""))
+    return re.sub(r"\s+", " ", TAG.sub(" ", text)).strip()[:limit]
+
+
 def clean_title(text):
-    return re.sub(r"\s+", " ", re.sub(r"<[^>]*>", "", html.unescape(text))).strip()[:240]
+    return plain_text(text, 240)
 
 
 def canonical_url(url):
     parts = urllib.parse.urlsplit(url.strip())
     if parts.scheme not in ("http", "https") or not parts.hostname or parts.username or parts.password:
         return ""
-    query = [(k, v) for k, v in urllib.parse.parse_qsl(parts.query, keep_blank_values=True)
-             if not k.lower().startswith("utm_") and k.lower() not in ("fbclid", "gclid")]
-    return urllib.parse.urlunsplit((parts.scheme.lower(), parts.netloc.lower(), parts.path,
-                                   urllib.parse.urlencode(query), ""))
+    # Drop tracking parameters but keep every other parameter byte for byte.
+    query = "&".join(part for part in parts.query.split("&") if part and not (
+        (key := part.split("=", 1)[0].lower()).startswith("utm_") or key in ("fbclid", "gclid")))
+    return urllib.parse.urlunsplit((parts.scheme.lower(), parts.netloc.lower(), parts.path, query, ""))
+
+
+def feed_image(item, *markup):
+    """Publisher image named in the feed itself: a fallback when the article page
+    hides its preview metadata or refuses automated requests."""
+    found = []
+    for ns in MEDIA_NS:
+        found += [e.get("url") for e in item.iter(ns + "content")
+                  if e.get("medium") == "image" or (e.get("type") or "").startswith("image/")]
+    found += [e.get("url") for e in item.iter("enclosure") if (e.get("type") or "").startswith("image/")]
+    found += [e.get("href") for e in item.iter("{http://www.w3.org/2005/Atom}link")
+              if e.get("rel") == "enclosure" and (e.get("type") or "").startswith("image/")]
+    for ns in MEDIA_NS:
+        found += [e.get("url") for e in item.iter(ns + "thumbnail")]
+    for text in markup:
+        for match in IMG_SRC.finditer(html.unescape(text or "")):
+            # Skip tracking pixels and spacers, which some feeds embed in every item.
+            if (re.search(r"""\b(?:width|height)\s*=\s*["']?[0-2]\b""", match.group(0))
+                    or re.search(r"pixel|tracking|spacer|beacon", match.group(1), re.I)):
+                continue
+            found.append(match.group(1))
+    for image in found:
+        image = (image or "").strip()
+        image = "https:" + image if image.startswith("//") else image
+        if image.startswith("https://") and len(image) <= 2000:
+            return image
+    return None
 
 
 def fetch_rss(url, timeout, fetch=http_get):
@@ -198,8 +233,10 @@ def fetch_rss(url, timeout, fetch=http_get):
         pub = pub or iso_pubdate(item.findtext("{http://purl.org/dc/elements/1.1/}date"))
         if title and link:
             description = item.findtext(ns + "description") or ""
-            summary = re.sub(r"\s+", " ", re.sub(r"<[^>]*>", "", html.unescape(description))).strip()[:600]
-            items.append({"title": title, "url": link, "published": pub, "summary": summary})
+            items.append({"title": title, "url": link, "published": pub, "summary": plain_text(description, 600)})
+            image = feed_image(item, description, item.findtext(CONTENT_ENCODED))
+            if image:
+                items[-1]["image"] = image
     for entry in root.iter("{http://www.w3.org/2005/Atom}entry"):
         title_el = entry.find("{http://www.w3.org/2005/Atom}title")
         link_el = next((e for e in entry.findall("{http://www.w3.org/2005/Atom}link")
@@ -219,8 +256,11 @@ def fetch_rss(url, timeout, fetch=http_get):
                 pub = None
         if title and link:
             description = entry.findtext("{http://www.w3.org/2005/Atom}summary") or ""
-            summary = re.sub(r"\s+", " ", re.sub(r"<[^>]*>", "", html.unescape(description))).strip()[:600]
-            items.append({"title": title, "url": link, "published": pub, "date_basis": date_basis, "summary": summary})
+            items.append({"title": title, "url": link, "published": pub, "date_basis": date_basis,
+                          "summary": plain_text(description, 600)})
+            image = feed_image(entry, description, entry.findtext("{http://www.w3.org/2005/Atom}content"))
+            if image:
+                items[-1]["image"] = image
     if root.tag not in ("rss", "{http://www.w3.org/1999/02/22-rdf-syntax-ns#}RDF",
                          "{http://www.w3.org/2005/Atom}feed"):
         raise ValueError("unrecognized feed format")
@@ -334,15 +374,16 @@ def bucket(items, source, section, lean, since, until, timezone=dt.timezone.utc)
                       "url": url, "lean": lean,
                       "date_basis": it.get("date_basis", "published"),
                        "published": pub.astimezone(dt.timezone.utc).isoformat(), "section": section})
-        for key in ("summary", "role", "priority", "points"):
+        for key in ("summary", "role", "priority", "points", "image"):
             if key in it:
                 dated[-1][key] = it[key]
     return dated
 
 
 def title_words(title):
-    words = re.findall(r"[a-z0-9]+", title.lower())
-    return {w for w in words if len(w) > 2 and w not in STOPWORDS}
+    words = {w for w in re.findall(r"[a-z0-9]+", title.lower()) if len(w) > 2 and w not in STOPWORDS}
+    # Chinese has no spaces between words; character pairs approximate them.
+    return words | {run[i:i + 2] for run in CJK.findall(title) for i in range(len(run) - 1)}
 
 
 def is_ai(title):

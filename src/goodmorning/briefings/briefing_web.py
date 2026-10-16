@@ -6,12 +6,15 @@ from html.parser import HTMLParser
 import json
 from pathlib import Path
 import re
+import sqlite3
 from datetime import date as Date
 
 from .briefing_layout import celestial, icon
 from .briefing_images import cache_previews, cached_previews
 from . import briefing_document as native
+from goodmorning.news.news_cache import feed_images
 from goodmorning.paths import WEB_ASSETS
+from goodmorning.runtime_files import cache_path
 from goodmorning.web.briefing_resources import ICON_TYPES, favicon_links
 from goodmorning.web import language as ui
 
@@ -141,7 +144,11 @@ def build(runtime, date, fetch_images=False, include_assets=True, kind=None):
     urls = list(dict.fromkeys(url for document in documents.values() for url in native.news_urls(document)))[:32]
     cache = runtime / 'browser-images' / date
     if fetch_images and urls:
-        cache_previews(urls, cache, runtime / 'browser-images' / 'objects')
+        try:
+            hints = feed_images(str(cache_path()), urls)
+        except (ValueError, sqlite3.Error):
+            hints = {}  # The archive only adds a fallback; previews still work without it.
+        cache_previews(urls, cache, runtime / 'browser-images' / 'objects', hints)
     images, image_files = cached_previews(cache, urls, responsive=not include_assets)
     files = dict(image_files)
     for kind, document in documents.items():
