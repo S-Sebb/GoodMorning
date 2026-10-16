@@ -40,34 +40,29 @@ def rows(document, section):
     return titles
 
 
-def legacy_checks(runtime, seeded, zh, problems):
-    """Older items with notes inside detail: detail keeps what the user needs, notes move to extra, nothing is lost."""
+def legacy_checks(runtime, document, seeded, problems):
+    """Older items with notes inside detail: the record stays as saved; the page shows only what the user needs."""
     from benchmarks.category_live import tasks as saved_tasks
     rows = {r['id']: r for r in saved_tasks(runtime)[0]}
-    sentences = lambda text: len(re.findall(r'[.!?](?:\s|$)|[。！？]', text))
-    narration = r'every morning|briefing|I check|cannot buy|Keep open|Reminder date|每天早上|早报|我会|没法|提醒日期|部署后'
-    def check(key, kept_in_detail=(), kept_anywhere=(), untouched=False):
-        row = rows[seeded[key]]
-        both = row['detail'] + '\n' + row.get('extra', '')
-        if untouched:
-            if row['revision'] != 1:
-                problems.append(f'{key}: clean detail was rewritten: {row["detail"]}')
-            return
-        if sentences(row['detail']) > 2 or re.search(narration, row['detail'], re.I):
-            problems.append(f'{key}: detail still holds notes: {row["detail"]}')
-        for fact in kept_in_detail:
-            if fact not in row['detail']:
-                problems.append(f'{key}: user-facing fact {fact} left the detail: {row["detail"]}')
-        for fact in kept_anywhere:
-            if fact not in both:
-                problems.append(f'{key}: fact {fact} was lost: detail={row["detail"]!r} extra={row.get("extra", "")!r}')
-        if row['status'] != 'open' or row.get('planned_date', '') != {'legacy-helpdesk': '2026-10-07'}.get(key, row.get('planned_date', '')):
-            problems.append(f'{key}: status or date changed')
-    check('legacy-desk', kept_anywhere=('289', '2026-10-03', '250'))
-    check('legacy-calibration', kept_anywhere=('2026-10-04', 'ib_0123456789abcdef', 'projects/Optics.md'))
-    check('legacy-helpdesk', kept_in_detail=('4471',))
-    check('legacy-confirm', kept_anywhere=('50',))
-    check('legacy-clean', untouched=True)
+    shown = {row[0]: row[6] for entry in document['sections'] if entry[0] == 'tasks'
+             for block in entry[1] if block[0] == 'actions' for row in block[1]}
+    notes = r'every morning|briefing|I check|cannot buy|Keep open|Reminder date|tomorrow|ib_|projects/|每天早上|早报|我会|没法|提醒日期|明天|部署后|ib_|projects/'
+    for key, facts in (('legacy-desk', ('250',)), ('legacy-calibration', ()), ('legacy-helpdesk', ('4471',)),
+                       ('legacy-confirm', ()), ('legacy-clean', None)):
+        row, display = rows[seeded[key]], shown.get(seeded[key])
+        if row['revision'] != 1:
+            problems.append(f'{key}: the briefing rewrote the saved record')
+        if display is None:
+            problems.append(f'{key}: not shown')
+        elif facts is None:
+            if row['detail'] not in display:
+                problems.append(f'{key}: clean detail changed on the page: {display}')
+        else:
+            if re.search(notes, display, re.I):
+                problems.append(f'{key}: page still shows the secretary\'s notes: {display}')
+            for fact in facts:
+                if fact not in display:
+                    problems.append(f'{key}: page dropped {fact}: {display}')
 
 
 def run(output, template, language, kind, selected=None):
@@ -129,24 +124,21 @@ def run(output, template, language, kind, selected=None):
         result['errands'] = list(errands.values())
         wage, pi = t('Look up the UK National Living Wage on GOV.UK', '在 GOV.UK 查一下英国国家生活工资'), t('Check the Raspberry Pi 5 8GB price on raspberrypi.com', '在 raspberrypi.com 查树莓派5 8GB的价格')
         if kind == 'gm':
-            from benchmarks.category_live import tasks as saved_tasks
-            notes = {r['title']: r.get('extra', '') for r in saved_tasks(runtime)[0] if r.get('kind') == 'errand'}
-            result['extra'] = notes
             chair_title = t('Check the black SIHOO M18 chair price on Amazon UK', '查亚马逊英国黑色 SIHOO M18 椅子的价格')
-            for title, note in notes.items():
-                if day.isoformat() not in note:
-                    result['problems'].append('errand notes not updated this morning: ' + title)
-            if wage not in errands:
-                result['problems'].append('changed rate (12.21 in the notes) not reported')
-            elif not ('12.21' in errands[wage][3] and '12.71' in errands[wage][3]) or not any('gov.uk' in u for _, u in errands[wage][4]):
-                result['problems'].append('wage change lacks old/new rate or a GOV.UK source: ' + json.dumps(errands[wage], ensure_ascii=False))
+            for title in (wage, pi, chair_title):
+                if title not in errands or day.isoformat() not in errands[title][5]:
+                    result['problems'].append('errand without a dated note for the next morning: ' + title)
+            if wage in errands and not ('12.21' in errands[wage][3] and '12.71' in errands[wage][3]
+                                        and any('gov.uk' in u for _, u in errands[wage][4])):
+                result['problems'].append('rate change against last result not shown with old/new rate and GOV.UK: '
+                                          + json.dumps(errands[wage], ensure_ascii=False))
             chair = errands.get(chair_title)
-            if not chair and not re.search(r'£\s?\d', notes.get(chair_title, '').split('\n')[0]):
-                result['problems'].append('chair check failed silently: ' + notes.get(chair_title, ''))
+            if chair and not chair[3] and not re.search(r'£\s?\d', chair[5]):
+                result['problems'].append('chair check hidden without a price read: ' + json.dumps(chair, ensure_ascii=False))
         elif errands:
             result['problems'].append('errands shown in the evening')
         if kind == 'gm':
-            legacy_checks(runtime, seeded, zh, result['problems'])
+            legacy_checks(runtime, document, seeded, result['problems'])
             plants = next((row for entry in document['sections'] if entry[0] == 'tasks' for block in entry[1]
                            if block[0] == 'actions' for row in block[1] if t('plants', '植物') in row[5]), None)
             result['plants'] = plants

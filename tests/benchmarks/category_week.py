@@ -131,7 +131,7 @@ def seed(runtime, monday, language='en'):
                 ('wage', t('Look up the UK National Living Wage on GOV.UK', '在 GOV.UK 查一下英国国家生活工资'),
                  t('Tell me the hourly rate for workers aged 21 and over only if it changed since your last check, with the old and new rate.',
                    '只有21岁及以上的时薪和你上次查的不一样时才告诉我，写出旧的和新的标准。'),
-                 t('2026-10-04: £12.21 per hour on the GOV.UK rates page', '2026-10-04：GOV.UK 费率页显示每小时 £12.21')),
+                 ''),
                 ('pi', t('Check the Raspberry Pi 5 8GB price on raspberrypi.com', '在 raspberrypi.com 查树莓派5 8GB的价格'),
                  t('Tell me only if it is under £5.', '只有低于5英镑时才告诉我。'), ''),
                 ('chair-errand', t('Check the black SIHOO M18 chair price on Amazon UK', '查亚马逊英国黑色 SIHOO M18 椅子的价格'),
@@ -149,6 +149,12 @@ def seed(runtime, monday, language='en'):
             'title': t('Archery class', '弓道课'), 'date': day(5), 'timezone': ZONE, 'confirmed_day': True,
             'location': t('Hongqiao Sports Park', '虹桥体育公园'),
             'repeat': {'weekdays': [5], 'start': day(5), 'until': day(19)}}}, 'ses_fixture', 'seed-archery', stamp)
+        # Monday's morning edition remembers the wage errand's result; Wednesday compares with it.
+        (runtime / 'daily').mkdir(exist_ok=True)
+        from goodmorning.briefings import briefing_document as native
+        (runtime / 'daily' / (day(0) + '.gm.json')).write_text(native.encode({'v': 2, 'greeting': 'Hello.', 'opening': 'Synthetic.',
+            'sections': [['tasks', [['errands', [[ids['wage'], 1, t('Look up the UK National Living Wage on GOV.UK', '在 GOV.UK 查一下英国国家生活工资'),
+                                                  '', [], t(day(0) + ': £12.21 per hour on the GOV.UK rates page', day(0) + '：GOV.UK 费率页显示每小时 £12.21')]]]]]]}))
     finally:
         inbox.close()
     return {'habit': habit, **ids}

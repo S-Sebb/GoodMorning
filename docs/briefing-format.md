@@ -25,12 +25,10 @@ not repeated cards or news facts. Use `""` for note when only overriding title.
 `task --briefing gm|gn --date DATE` returns normalized rows and ready-made `blocks`.
 Copy nonempty blocks; follow each returned `next_offset` with the same date/edition.
 Add grounded explanations without changing source identity, revision, date/status.
-Secretary review is required before packing: polish vague task copy, then use
-clear, informative prose in the confirmed tone. For Tasks, first read the section rows; where a
-title/detail is materially vague, update the canonical row with revision-checked
-`task --update` (title/detail only, same meaning, no scheduling change), then reread
-and pack the exact updated rows. Details may additionally be lightly clarified for
-display (they are not part of source validation) but must never repeat the title or
+Briefings make no task writes: records are shaped in the conversation that
+received the request. Use clear, informative prose in the confirmed tone. A row's
+detail may be shortened for display (it is not part of source validation): keep code
+labels, drop the secretary's own notes, never add facts, never repeat the title or
 restate project/due text code already shows.
 
 - `["actions",[[task_id,revision,occurrence_id,date,status,title,detail],...]]`:
@@ -38,8 +36,7 @@ restate project/due text code already shows.
   ISO `YYYY-MM-DD`; status is open, partial, blocked or user-confirmed done.
   Code groups cards by workday, then by project, lifting a shared due target to
   the project heading. Keep source order inside each project so relevance stays
-  deterministic. After any wording-polish updates, titles/dates/status/revisions must
-  match the reread code rows exactly;
+  deterministic. Titles/dates/status/revisions must match the code rows exactly;
   details may be clarified for display (they are not part of source validation)
   but must never repeat the title or restate project/due text code already shows.
   Titles must be imperative, specific, free of filler openers or trailing periods,

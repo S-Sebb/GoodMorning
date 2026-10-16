@@ -222,7 +222,7 @@ class CategoryTests(unittest.TestCase):
         view = routing.prepare(self.root, DAY, 'gm')
         self.assertEqual(view['tasks']['items'], [])  # Never a card to tick off.
         self.assertEqual(view['tasks']['errands'], [{'id': daily, 'revision': 1, 'title': 'Check the black SIHOO M18 price on Amazon UK',
-                                                     'instruction': 'Tell me only when it is under £120.', 'extra': ''}])
+                                                     'instruction': 'Tell me only when it is under £120.', 'extra': '', 'last': None}])
         self.assertEqual([e['title'] for e in routing.prepare(self.root, '2026-10-14', 'gm')['tasks']['errands']],
                          ['Check the black SIHOO M18 price on Amazon UK', 'Look up the library opening hours'])
         self.assertEqual(routing.prepare(self.root, DAY, 'gn')['tasks']['errands'], [])
@@ -233,13 +233,20 @@ class CategoryTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'no deadline'):
             self.capture(title='Bad', kind='errand', due_date='2026-10-20')
         finding = ['errands', [[daily, 1, 'Check the black SIHOO M18 price on Amazon UK', '£114.99 today, under your £120 limit.',
-                                [['Amazon UK', 'https://www.amazon.co.uk/dp/B0EXAMPLE']]]]]
+                                [['Amazon UK', 'https://www.amazon.co.uk/dp/B0EXAMPLE']], '2026-10-13: £114.99 on the product page']]]
         document = lambda block, section='tasks': native.parse(native.encode(
             {'v': 2, 'greeting': 'Hello.', 'opening': 'Synthetic.', 'sections': [[section, [block]]]}))
         routing.validate_sources(self.root, document(finding), DAY, 'gm')
-        routing.validate_sources(self.root, document(['errands', [[*finding[1][0][:4], []]]]), DAY, 'gm')  # Could not check.
+        routing.validate_sources(self.root, document(['errands', [[*finding[1][0][:4], [], 'Blocked (503).']]]), DAY, 'gm')  # Could not check.
+        quiet = ['errands', [[daily, 1, 'Check the black SIHOO M18 price on Amazon UK', '', [], '2026-10-13: £139.99, above £120']]]
+        self.assertEqual(native.render_block(quiet, {}), '')  # Checked, nothing to tell: hidden, yet remembered.
+        (self.root/'daily').mkdir(exist_ok=True)
+        (self.root/'daily'/(DAY + '.gm.json')).write_text(native.encode(document(quiet)))
+        self.assertEqual(routing.prepare(self.root, '2026-10-14', 'gm')['tasks']['errands'][0]['last'],
+                         {'date': DAY, 'note': '2026-10-13: £139.99, above £120'})
+        self.assertIsNone(routing.prepare(self.root, DAY, 'gm')['tasks']['errands'][0]['last'])  # Only earlier mornings.
         with self.assertRaisesRegex(ValueError, 'source_conflict'):
-            routing.validate_sources(self.root, document(['errands', [[daily, 1, 'Renamed', 'x', []]]]), DAY, 'gm')
+            routing.validate_sources(self.root, document(['errands', [[daily, 1, 'Renamed', 'x', [], 'n']]]), DAY, 'gm')
         with self.assertRaisesRegex(ValueError, 'wrong section owner'):
             document(finding, 'attention')
         html = native.render_block(finding, {})

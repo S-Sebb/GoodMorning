@@ -341,6 +341,10 @@ def task_view(store, today, kind='gm', offset=0, limit=7, owned=()):
     # The secretary does errands itself; they are never cards unless it reports a finding.
     errands = [{'id': r['id'], 'revision': r['revision'], 'title': r['title'], 'instruction': r['detail'], 'extra': r.get('extra', '')}
                for r in rows if r['category'] == 'errand']
+    if errands:
+        last = errand_memory(store.inbox.directory, today)
+        for errand in errands:
+            errand['last'] = last.get(errand['id'])
     rows = [row for row in rows if row['category'] != 'errand']
     rank = {'nudge': 0, 'planned': 1, 'follow-up': 2, 'still-open': 3, 'coming': 4, 'deadline': 5, 'other': 6}  # Dated days before the undated backlog.
     priority = {'high': 0, 'normal': 1, '': 2, 'low': 3}
@@ -357,6 +361,25 @@ def task_view(store, today, kind='gm', offset=0, limit=7, owned=()):
     rows = kept
     return {'items': rows[offset:offset + limit], 'total': len(rows),
             'next_offset': offset + limit if offset + limit < len(rows) else None, 'errands': errands}
+
+
+def errand_memory(directory, today, days=60):
+    """The latest earlier morning's result for each errand, read from saved briefings; the morning never edits records."""
+    from goodmorning.briefings.briefing_document import validate
+    from goodmorning.briefings.briefing_stream import bounded_json
+    found = {}
+    sources = sorted((Path(directory) / 'daily').glob('????-??-??.gm.json'), reverse=True)
+    for source in [s for s in sources if s.name[:10] < today][:days]:
+        try:
+            document = validate(bounded_json(source, 150_000))
+        except (ValueError, OSError):
+            continue  # An unreadable edition only loses that day's memory.
+        for section in document['sections']:
+            for block in section[1]:
+                if section[0] == 'tasks' and block[0] == 'errands':
+                    for row in block[1]:
+                        found.setdefault(row[0], {'date': source.name[:10], 'note': row[5]})
+    return found
 
 
 def planned_day(store, day, completed=True, chase=False):

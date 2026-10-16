@@ -68,8 +68,8 @@ heading. Use `scripts/goodmorning.py` with the selected absolute runtime.
    history, what failed and why, linked IDs, a preference the user mentioned; newest
    first, short, never credentials, never a substitute for structured fields. The
    inbox entry `context` records the request as agreed at capture; do not copy it
-   into `detail` or `extra`. When `detail` holds notes, move them to `extra` in the
-   same update rather than deleting them.
+   into `detail` or `extra`. Sort every new or changed item this way in the
+   conversation, before saving, and confirm what was saved; briefings only read it.
    **Advance notice** (`notice`) fits any dated item: tasks with `planned_date`,
    `repeat` or `due_date`, TBC drafts, and calendar events. `{"morning":N}` shows it in
    morning briefings from N days before its day (0 = on the day); `{"evening":N}` in
@@ -231,11 +231,11 @@ heading. Use `scripts/goodmorning.py` with the selected absolute runtime.
     It records the actual day, not a replacement workday. One-off actions close;
     recurring series retain their original rule.
 11. Publishing/regenerating a v2 briefing never creates/schedules/completes tasks.
-    The one allowed pre-presentation maintenance is wording polish: after reading the
-    Tasks section rows, the secretary may fix materially vague titles/details with
-    revision-checked `task --update` (title/detail only, same meaning, no date/status/
-    project/scheduling changes, stable `polish:SESSION:taskID:revision` keys), then reread
-    and pack the exact updated rows. Project Markdown supplies goals/reports, daily Markdown supplies historical
+    Records are shaped in the conversation that receives the request; a briefing
+    makes no task writes of its own (saved evening feedback is still recorded). It
+    presents rows as saved and may only shorten a row's displayed detail, never the
+    record. Errand results live in the saved morning edition (`errands` rows with a
+    private `note`); the next morning reads the latest one as `last`. Project Markdown supplies goals/reports, daily Markdown supplies historical
     feedback, and SQLite owns live task state. No task table represents a section.
 12. Clear ideas are not nightly questions. Surface actual saved questions,
     unreviewed material or a due `review_after`; respect future review dates and

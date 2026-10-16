@@ -192,17 +192,19 @@ def block(value, path):
             else:
                 text(row[4] if tag == 'events' else row[2], path + '.title', 600)
     elif tag == 'errands':
-        # [id, revision, title, finding, sources]: what the secretary found doing a saved errand.
+        # [id, revision, title, finding, sources, note]: one saved errand done this morning.
+        # finding is what the user sees ("" keeps the row hidden); note is the dated result the next morning reads.
         sequence(value, path, 2, 2)
         sequence(value[1], path + '.items', 1, 50)
         for row in value[1]:
-            sequence(row, path + '.row', 5, 5)
+            sequence(row, path + '.row', 6, 6)
             if not isinstance(row[0], str) or not re.fullmatch(r'task_[0-9a-f]{16}', row[0]) or type(row[1]) is not int or row[1] < 1:
                 fail(path, 'source-linked rows need a durable ID and positive revision')
             text(row[2], path + '.title', 600)
-            text(row[3], path + '.finding', 1000)
+            text(row[3], path + '.finding', 1000, empty=True)
             if row[4] != []:
                 sources(row[4], path + '.sources')
+            text(row[5], path + '.note', 1000)
     elif tag in ('p', 'list'):
         sequence(value, path, 2, 3 if tag == 'p' else 2)
         if tag == 'p':
@@ -577,12 +579,14 @@ def render_block(value, images, briefing_date=None):
                        _render_project_subgroups(rows, images, briefing_date, collapse=not day) + '</div>' for day, rows in groups.items())
     if tag == 'errands':
         items = []
-        for _, _, title, finding, links in value[1]:
+        for _, _, title, finding, links, _ in value[1]:
+            if not finding:
+                continue  # Checked, but nothing the user asked to hear.
             cited = ' ' + citations(links) if links else ''
             items.append(f'<li class="task-card task"><div class="task-title"><span class="check is-note" aria-hidden="true"></span>{escaped(title)}</div>'
                          f'<div class="task-detail">{escaped(finding)}{cited}</div></li>')
         return ('<div class="action-group"><h3 class="agenda-day">' + ui.ui('Checked for you this morning') + '</h3>'
-                '<ul class="task-list">' + ''.join(items) + '</ul></div>')
+                '<ul class="task-list">' + ''.join(items) + '</ul></div>') if items else ''
     if tag == 'events':
         return render_block(['agenda', [r[2:] for r in value[1]]], images, briefing_date)
     if tag == 'decisions':
