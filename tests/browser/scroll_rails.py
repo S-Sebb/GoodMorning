@@ -54,7 +54,7 @@ def check_chat(browser, address, artifacts, width, height):
     expect(page.locator('.chat-message')).to_have_count(24)
     page.evaluate('document.fonts.ready')
     page.clock.install()
-    # Phone history and secretary calls sit below the chat; bring the chat itself into view.
+    # Phone history sits below the chat; bring the chat itself into view.
     page.locator('#conversation').evaluate("node => node.scrollIntoView({block: 'end'})")
     text = page.get_by_label('Your message', exact=True)
     text.tap()
