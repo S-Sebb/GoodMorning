@@ -124,7 +124,7 @@ def next_step(runtime, identifier, session, context, checkpoint):
                 base += ['--sources',context['news']['sources']]
             reads.append(shlex.join(base + (['--latest','--format','json'] if latest else ['--backfill','--today',context['date']])))
             if not latest:
-                reads.append(shlex.join(base + ['--show',context['yesterday'],'--view','candidates','--limit','10']))
+                reads.append(shlex.join(base + ['--show',context['yesterday'],'--view','sections']))
     elif context.get('document_version', 1) == 1 and tag in ('schedule', 'tomorrow') and selected.get('calendar_db'):
         reads.append(shlex.join(['python','scripts/goodmorning.py','calendar','--secretary-dir',str(runtime),
             '--db',selected['calendar_db'],'--from',context['tomorrow'] if tag == 'tomorrow' else context['date'],
@@ -153,6 +153,44 @@ def next_step(runtime, identifier, session, context, checkpoint):
     else:
         action['instruction'] = instruction
     return action
+
+
+def news_gaps(runtime, context, section):
+    """Categories the saved dated reports filled but this news section leaves out."""
+    from goodmorning.news.news import load_sources, SOURCES_FILE
+    from goodmorning.news.news_reports import ReportStore, context_key
+    countries = context.get('news', {}).get('countries', [])
+    if not countries or not (Path(runtime)/'news_reports.sqlite').exists():
+        return []
+    try:
+        sources = load_sources(context['news'].get('sources') or SOURCES_FILE)
+        store = ReportStore(runtime)
+    except (OSError, ValueError, sqlite3.Error):
+        return []  # Unreadable reports are a read failure, reported by the reads themselves.
+    filled = set()
+    try:
+        for country in countries:
+            row = store.get(context_key(context['timezone'], country, sources), context['yesterday'])
+            if row:
+                counts = row['payload']['counts']
+                filled |= {name for name in ('ai', 'major') if counts.get(name)}
+                if counts.get('national'):
+                    filled.add(country)
+    except (ValueError, sqlite3.Error):
+        return []
+    finally:
+        store.close()
+    present = set()
+    for block in section[1] if isinstance(section, list) and len(section) > 1 and isinstance(section[1], list) else []:
+        if not (isinstance(block, list) and len(block) >= 3 and block[0] == 'news' and isinstance(block[1], str)):
+            continue
+        if len(block) > 3 and isinstance(block[3], str) and block[3]:
+            present.add(block[3].upper())
+        elif re.search(r'(?<![a-z])ai(?![a-z])|人工智能', block[1].casefold()):
+            present.add('ai')
+        else:
+            present.add('major')
+    return [name for name in ('ai', 'major', *countries) if name in filled and name not in present]
 
 
 def image_previews(runtime, job, context, checkpoint):
@@ -294,6 +332,14 @@ def act(runtime, identifier, session, action, payload=None):
                 if checkpoint['plan'][position][0] in ('weather','news','schedule','today','tomorrow'):
                     raise ValueError('Publish material unavailability; do not skip a required section')
                 return receipt(publish(runtime, identifier, skip=True, position=position))
+            if (checkpoint['plan'][position][0] == 'news' and isinstance(payload['section'], list) and payload['section'][:1] == ['news']
+                    and not any(entry[0] == 'news' for entry in checkpoint['plan'][:position])):
+                missing = news_gaps(runtime, context, payload['section'])
+                if missing:
+                    labels = ', '.join({'ai':'AI', 'major':'World'}.get(name, 'National ' + name) for name in missing)
+                    raise ValueError('News leaves out ' + labels + ', which the saved reports filled. Add one news block for each '
+                                     '(a national block ends with its country code), using the read\'s selected or more stories; '
+                                     'then publish again.')
             document['sections'].append(payload['section'])
             result = publish(runtime, identifier, document, position=position)
             if payload['section'][0] == 'news':

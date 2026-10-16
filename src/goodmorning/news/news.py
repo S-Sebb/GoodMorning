@@ -84,8 +84,9 @@ def parse_args(argv=None):
     p.add_argument("--sources", default=SOURCES_FILE, help="Feed config; country feeds can be user-local.")
     p.add_argument("--max-links", type=int, default=1, choices=[1, 2], help="Links per story (default: 1).")
     p.add_argument("--details", action="store_true", help="Include full source metadata in JSON.")
-    p.add_argument("--view", choices=("full", "stories", "candidates"), default="full",
-                   help="Saved --show/--curate projection; stories omits candidate/diagnostic history")
+    p.add_argument("--view", choices=("full", "stories", "candidates", "sections"), default="full",
+                   help="Saved --show/--curate projection; stories omits candidate/diagnostic history; "
+                        "sections lists picks and top candidates for every section at once")
     p.add_argument("--offset", type=int, default=0, help="Candidate page offset for --show --view candidates")
     p.add_argument("--limit", type=int, default=10, help="Candidate page size, 1..30")
     p.add_argument("--audit", action="store_true", help="Include up to 30 ranked candidates and source diagnostics; no article fetches.")
@@ -945,7 +946,7 @@ def managed_reports(args, timezone, cfg, country, today):
         print(json.dumps({"timezone": args.timezone, "country": country, "days": plan,
                            "fetch": fetch_stats, "source_status": source_status,
                           "older_undelivered": store.older_backlog(context, min(days)),
-                          "next": "show collected dates, present them, then ack each exact report_id; empty sections stay unresolved"},
+                          "next": "read needed collected dates with --show; empty sections stay unresolved"},
                          ensure_ascii=False, separators=(",", ":")))
         return 0 if all(e["status"] in ("collected", "delivered") for e in plan) or args.status else 1
     finally:
