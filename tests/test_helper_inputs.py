@@ -88,6 +88,13 @@ class HelperInputTests(unittest.TestCase):
             self.assertEqual([command for command, _ in found], [f"workflow --capture {name}"])
             self.save(*found[0])
 
+    def test_malformed_json_is_named_as_an_input_error(self):
+        for main, args in ((workflow.main, ["--capture", "todo"]), (task.main, ["--add"]),
+                           (custom.main, ["--add"]), (inbox.main, ["--add"])):
+            with patch("sys.stdin", io.StringIO('{"raw":"Buy milk"}}')), contextlib.redirect_stdout(io.StringIO()) as out:
+                self.assertEqual(main([*args, "--session", "ses-test", "--request-key", "bad-json", "--input-stdin"]), 1)
+            self.assertEqual(json.loads(out.getvalue())["error"], "invalid_input", args)
+
     def test_json_helpers_point_to_the_input_contract(self):
         for main in (workflow.main, task.main, inbox.main, custom.main):
             with contextlib.redirect_stdout(io.StringIO()) as out, self.assertRaises(SystemExit):

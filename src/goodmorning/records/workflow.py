@@ -163,7 +163,8 @@ def main(argv=None):
         print(encode(result))
         return 0 if result.get("ready") or result.get("saved") else 1
     except (ValueError, KeyError, OSError, sqlite3.Error) as error:
-        message = str(error) if isinstance(error, ValueError) and not isinstance(error, json.JSONDecodeError) else "workflow_unavailable: preserve runtime and inspect profile/input/storage"
+        message = (f'invalid_input: malformed JSON ({error.msg}, line {error.lineno} column {error.colno}); nothing was saved'
+                   if isinstance(error, json.JSONDecodeError) else str(error) if isinstance(error, ValueError) else "workflow_unavailable: preserve runtime and inspect profile/input/storage")
         print(encode({"error": message.split(":", 1)[0], "next": message}))
         return 1
 

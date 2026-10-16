@@ -118,7 +118,8 @@ def main(argv=None):
         print(encode(result))
         return 0
     except (ValueError, OSError, sqlite3.Error, KeyError, TypeError) as error:
-        message = str(error) if isinstance(error, ValueError) and not isinstance(error, json.JSONDecodeError) else 'task_unavailable: preserve storage and inspect input/schema'
+        message = (f'invalid_input: malformed JSON ({error.msg}, line {error.lineno} column {error.colno}); nothing was saved'
+                   if isinstance(error, json.JSONDecodeError) else str(error) if isinstance(error, ValueError) else 'task_unavailable: preserve storage and inspect input/schema')
         print(encode({'error': message.split(':', 1)[0], 'next': message}))
         return 1
     finally:

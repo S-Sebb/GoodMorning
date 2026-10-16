@@ -9,7 +9,8 @@ reference adds operation-specific details; it does not override core gates or
 | Setup/preferences, saved versus verified status | `docs/initialization.md` |
 | Identity, timing, recurrence, drafts, migration and completion | `docs/item-taxonomy.md` |
 | Capture/follow-up/review and revision-checked inbox writes | `docs/inbox-pipeline.md` |
-| Task/daily/news/calendar helper shapes and pagination | `docs/workflow-helpers.md` |
+| JSON input for capture, task, draft, inbox, custom and profile writes | `docs/helper-inputs.md` |
+| Daily/news/calendar helper shapes and pagination | `docs/workflow-helpers.md` |
 | Native JSON source validation and local saves | `docs/briefing-format.md` |
 | Browser job ownership, incremental publication and regeneration | `docs/browser-generation.md` |
 | Browser language, session IDs, questions and workflow refresh | `docs/browser-chat.md` |
