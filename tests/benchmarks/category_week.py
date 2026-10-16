@@ -110,7 +110,7 @@ def seed(runtime, monday, language='en'):
                  t('Tell me the current hourly rate for workers aged 21 and over.', '告诉我目前21岁及以上的时薪标准。')),
                 ('pi', t('Check the Raspberry Pi 5 8GB price on raspberrypi.com', '在 raspberrypi.com 查树莓派5 8GB的价格'),
                  t('Tell me only if it is under £5.', '只有低于5英镑时才告诉我。')),
-                ('chair', t('Check the black SIHOO M18 chair price on Amazon UK', '查亚马逊英国黑色 SIHOO M18 椅子的价格'),
+                ('chair-errand', t('Check the black SIHOO M18 chair price on Amazon UK', '查亚马逊英国黑色 SIHOO M18 椅子的价格'),
                  t('Tell me only when it is below £120.', '只在低于120英镑时告诉我。'))):
             ids[key] = inbox.mutate('add', {'kind': 'todo', 'raw': title, 'task': {'title': title, 'kind': 'errand', 'detail': detail}},
                                     'ses_fixture', 'seed-' + key, stamp)['task_id']
