@@ -141,6 +141,8 @@ def action_history(messages, changes, turns, created):
         if turn and turn != current:
             result.extend(groups.pop(current, []))
             current = turn
-        result.append({key: value for key, value in entry.items() if key != '_turn'})
+        # Browsers replace their optimistic bubble once its turn appears.
+        result.append({key: value for key, value in entry.items() if key != '_turn'}
+                      | ({'turn': turn} if turn else {}))
     result.extend(groups.get(current, []))
     return result
