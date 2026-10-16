@@ -97,6 +97,19 @@ def seed(runtime, monday, language='en'):
         inbox.mutate('add', {'kind': 'todo', 'raw': 'Check the chair price', 'task': {
                      'title': t('Check the SIHOO M18 chair price', '看看 SIHOO M18 椅子的价格'), 'kind': 'nudge'}},
                      'ses_fixture', 'seed-chair', stamp)
+        # Items saved with page wording, as the chat now records them.
+        both = lambda en, zh: {'en': en, 'zh': zh}
+        ids['worded-wed'] = inbox.mutate('add', {'kind': 'todo', 'raw': 'Return the library books', 'task': {
+            'title': t('Return the library books', '去图书馆还书'), 'detail': t('Three books, due at the main library.', '三本书，还到总馆。'),
+            'planned_date': day(2), 'display': both(
+                {'morning': {'title': 'Return the three library books', 'detail': 'They go back to the main library.'}, 'schedule': 'Library books'},
+                {'morning': {'title': '把三本书还到图书馆', 'detail': '还到总馆。'}, 'schedule': '还书'})}}, 'ses_fixture', 'seed-worded-wed', stamp)['task_id']
+        ids['worded-sat'] = inbox.mutate('add', {'kind': 'todo', 'raw': 'Bake the birthday cake', 'task': {
+            'title': t('Bake the birthday cake', '烤生日蛋糕'), 'planned_date': day(5), 'display': both(
+                {'morning': {'title': 'Bake the birthday cake', 'detail': ''},
+                 'evening': {'title': 'Birthday cake baking', 'detail': 'Take the butter out of the fridge tonight.'}, 'schedule': 'Birthday cake'},
+                {'morning': {'title': '烤生日蛋糕', 'detail': ''},
+                 'evening': {'title': '烤生日蛋糕', 'detail': '今晚先把黄油从冰箱拿出来。'}, 'schedule': '生日蛋糕'})}}, 'ses_fixture', 'seed-worded-sat', stamp)['task_id']
         # Items saved the way older captures did: the secretary's notes inside detail. Morning polish moves them to extra.
         legacy = (
             ('legacy-desk', t('Check the Lumo standing desk price', '看看 Lumo 升降桌的价格'), {'kind': 'nudge'}, t(

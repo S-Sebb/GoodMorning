@@ -78,9 +78,9 @@ class CaptureWordingTests(unittest.TestCase):
             doc = {"v": 2, "greeting": "Hello.", "opening": "Synthetic.",
                    "sections": [["tasks", [view["blocks"]["tasks"]]]]}
             routing.validate_sources(self.root, doc, DAY, edition)
-            # A stale pre-polish copy fails validation, proving pack-after-polish matters.
+            # A copy packed before the update carries the old revision and fails validation.
             stale = {"v": 2, "greeting": "Hello.", "opening": "Synthetic.",
-                     "sections": [["tasks", [["actions", [[row["id"], row["revision"], row["occurrence_id"],
+                     "sections": [["tasks", [["actions", [[row["id"], task["revision"], row["occurrence_id"],
                                                             row["date"], row["status"],
                                                             "Write convincing paper", row["detail"]]]]]]]}
             with self.assertRaisesRegex(ValueError, "source_conflict"):

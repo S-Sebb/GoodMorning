@@ -245,8 +245,9 @@ class CategoryTests(unittest.TestCase):
         self.assertEqual(routing.prepare(self.root, '2026-10-14', 'gm')['tasks']['errands'][0]['last'],
                          {'date': DAY, 'note': '2026-10-13: £139.99, above £120'})
         self.assertIsNone(routing.prepare(self.root, DAY, 'gm')['tasks']['errands'][0]['last'])  # Only earlier mornings.
+        routing.validate_sources(self.root, document(['errands', [[daily, 1, 'Chair price check', 'x', [], 'n']]]), DAY, 'gm')  # Display title.
         with self.assertRaisesRegex(ValueError, 'source_conflict'):
-            routing.validate_sources(self.root, document(['errands', [[daily, 1, 'Renamed', 'x', [], 'n']]]), DAY, 'gm')
+            routing.validate_sources(self.root, document(['errands', [[daily, 2, 'Chair price check', 'x', [], 'n']]]), DAY, 'gm')
         with self.assertRaisesRegex(ValueError, 'wrong section owner'):
             document(finding, 'attention')
         html = native.render_block(finding, {})
@@ -257,6 +258,16 @@ class CategoryTests(unittest.TestCase):
         self.assertEqual(routing.prepare(self.root, DAY, 'gm')['tasks']['errands'], [])
         with self.assertRaisesRegex(ValueError, 'source_conflict'):
             routing.validate_sources(self.root, document(finding), DAY, 'gm')
+
+    def test_briefing_may_reword_titles_and_details_without_touching_the_item(self):
+        identifier = self.capture(title='Dentist', detail='checkup before May. Reminder date: tomorrow.')
+        cells = routing.action_cells(self.items()['Dentist'])
+        shown = lambda **change: native.parse(native.encode({'v': 2, 'greeting': 'Hello.', 'opening': 'Synthetic.',
+            'sections': [['tasks', [['actions', [[*cells[:4], change.get('status', cells[4]), 'Book a dentist checkup', 'Before May.']]]]]]}))
+        routing.validate_sources(self.root, shown(), DAY, 'gm')
+        self.assertEqual((self.tasks.show(identifier)['title'], self.tasks.show(identifier)['revision']), ('Dentist', 1))
+        with self.assertRaisesRegex(ValueError, 'source_conflict'):
+            routing.validate_sources(self.root, shown(status='done'), DAY, 'gm')  # Status still comes from the item.
 
     def test_extra_keeps_the_secretarys_notes_without_showing_them(self):
         errand = self.capture(title='Check the chair price', kind='errand', detail='Tell me only when it is under £120.',

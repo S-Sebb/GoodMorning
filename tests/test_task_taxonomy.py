@@ -413,7 +413,7 @@ class TaxonomyTests(unittest.TestCase):
     def test_source_validation_rejects_invented_dates_status_revisions_and_wrong_owner(self):
         self.capture(task={'title': 'Report'})
         doc = self.document(self.view()['blocks']['tasks'])
-        for column, value in ((1, 99), (3, DAY), (4, 'done'), (5, 'Another action')):
+        for column, value in ((1, 99), (3, DAY), (4, 'done')):  # Title and detail are display wording.
             changed = copy.deepcopy(doc)
             changed['sections'][0][1][0][1][0][column] = value
             with self.assertRaisesRegex(ValueError, 'source_conflict'):

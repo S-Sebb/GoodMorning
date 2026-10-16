@@ -28,9 +28,9 @@ CREATE TABLE event_drafts (
 STATES = ('open', 'partial', 'blocked', 'done', 'cancelled')
 FIELDS = {'title', 'detail', 'project', 'optional', 'priority', 'status', 'due_date',
           'due_at', 'planned_date', 'timezone', 'repeat', 'defer_until', 'calendar_event_id', 'when', 'follow_up', 'work_kind', 'due_soft',
-          'kind', 'trigger', 'after', 'notice', 'extra'}
+          'kind', 'trigger', 'after', 'notice', 'extra', 'display'}
 DRAFT_FIELDS = {'title', 'date', 'timezone', 'location', 'detail', 'confirmed_day',
-                'state', 'calendar_event_id', 'event', 'repeat', 'notice', 'extra'}
+                'state', 'calendar_event_id', 'event', 'repeat', 'notice', 'extra', 'display'}
 # Nudges, errands and reference notes are never completed: they surface or are retired.
 # An errand is work the secretary itself does while writing the morning briefing.
 UNCHECKED = ('nudge', 'errand', 'reference')
@@ -109,6 +109,11 @@ def validate(data, *, draft=False):
             checked(out[key], 600 if key == 'title' else 5000, key != 'title')
     if 'extra' in out:
         checked(out['extra'], 2000)  # The secretary's own notes for next time; never shown as the item's text.
+    if out.get('display') is not None:
+        from .display import check
+        out['display'] = check(out['display'], 'draft' if draft else 'task', out)
+    elif 'display' in out:
+        out.pop('display')
     for key in ('date', 'planned_date', 'due_date', 'defer_until'):
         if out.get(key):
             date(out[key])
@@ -582,6 +587,8 @@ class TaskStore:
             raise ValueError('invalid_input: nonempty update required')
         checked(session, 200, False); checked(key, 240, False)
         data = dict(payload)
+        if isinstance(data.get('display'), dict):
+            data['display'] = {k: v for k, v in data['display'].items() if k != 'source'}  # New wording is fingerprinted afresh.
         confirmed = data.pop('confirmed_completion', False)
         if type(confirmed) is not bool:
             raise ValueError('confirmation_required: confirmed_completion must be boolean')

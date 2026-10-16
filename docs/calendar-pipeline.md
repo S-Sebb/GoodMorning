@@ -49,7 +49,9 @@ events. These commands are implementation details, not required user work.
    system references and privacy footers. Joining stays via the original
    invitation; it is never briefing preparation. Ask the user about ambiguous
    mappings or substantive scheduling changes. Approval records the current
-   revision. Do not batch-approve unseen events.
+   revision. Do not batch-approve unseen events. Every approval, update that
+   changes the subject, location or notes, and `--add` includes `display` wording
+   in English and Chinese (rule 2 of `docs/item-taxonomy.md`).
 6. Briefings query the stored, approved schedule. They do not read the whole
    database or re-fetch providers. `python scripts/goodmorning.py state --check` reports pending review
    counts. Save only a concise schedule summary in the daily Markdown file.
@@ -85,7 +87,7 @@ python scripts/goodmorning.py calendar --days 3
 python scripts/goodmorning.py calendar --from 2026-10-15 --days 3 --json
 python scripts/goodmorning.py calendar --pending
 python scripts/goodmorning.py calendar --show EVENT_ID
-python scripts/goodmorning.py calendar --approve EVENT_ID --expect-revision 1 --event-json '{"subject":"Team sync","notes":"Bring slides"}'
+python scripts/goodmorning.py calendar --approve EVENT_ID --expect-revision 1 --event-json '{"subject":"Team sync","notes":"Bring slides","display":{"en":{"morning":{"title":"Team sync","detail":"Bring your slides."},"schedule":"Team sync"},"zh":{"morning":{"title":"团队例会","detail":"记得带上幻灯片。"},"schedule":"团队例会"}}}'
 python scripts/goodmorning.py calendar --update EVENT_ID --expect-revision 2 --event-json '{"location":"Room 302"}'
 python scripts/goodmorning.py calendar --cancel EVENT_ID --expect-revision 3
 python scripts/goodmorning.py calendar --history EVENT_ID --limit 5

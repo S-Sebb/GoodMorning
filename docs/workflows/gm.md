@@ -61,10 +61,10 @@ plan position and use `skip` for empty optional ones; local JSON omits empty opt
    it (or sets no condition), `""` for an unmet condition, and for a failed check
    what you tried and why it failed, so the user can change it with you in chat.
    Copy today's displayed rows from `task --briefing gm --date DATE --section tasks`
-   (follow `next_offset`) with titles, dates, status and revisions unchanged. A
-   row's detail may be shortened for display only: keep code labels, drop the
-   secretary's own notes (reminder mechanics, setup narration, progress logs, IDs,
-   remembered values), never add facts.
+   (follow `next_offset`) exactly: titles and details are the items' saved wording.
+   Only rows in the read's `fallback` list may be reworded for display: a vague
+   title as a clear imperative with the same meaning, a detail shortened, keeping
+   code labels and dropping the secretary's own notes. Never add facts.
     Also read code-owned `custom --briefing gm --date DATE` rows; due custom schedules are shown with Tasks using their computed next-due and weekly count. Word warmly; never invent custom dates.
     Leave already-clear titles unchanged. A project name within the specific object
     ("Send Atlas report") is not a decorative prefix ("Atlas: Send report"); do not

@@ -39,6 +39,20 @@ def rows(document, section):
     return titles
 
 
+def saved_titles(runtime, document):
+    """Saved titles of the Tasks rows a page shows, so reworded page titles still identify their items."""
+    from benchmarks.category_live import tasks as saved_tasks
+    from goodmorning.records.custom_store import CustomStore
+    titles = {r['id']: r['title'] for r in saved_tasks(runtime)[0]}
+    habits = CustomStore(runtime, write=False)
+    try:
+        titles.update({rule['id']: rule['title'] for rule in habits.all()})
+    finally:
+        habits.close()
+    return [titles.get(row[0], row[5]) for entry in document['sections'] if entry[0] == 'tasks'
+            for block in entry[1] if block[0] == 'actions' for row in block[1]]
+
+
 def legacy_checks(runtime, document, seeded, problems):
     """Older items with notes inside detail: the record stays as saved; the page shows only what the user needs."""
     from benchmarks.category_live import tasks as saved_tasks
@@ -116,7 +130,7 @@ def run(output, template, language, kind, selected=None):
         assert status['state'] == 'ready', 'Edition did not finish; inspect the preserved transcript'
         document = json.loads(app.source(day.isoformat(), kind).read_text())
         save(folder / 'document.json', document)
-        tasks, schedule = rows(document, 'tasks'), rows(document, 'schedule')
+        tasks, schedule = saved_titles(runtime, document), rows(document, 'schedule')  # Page titles may be reworded; match items by ID.
         result['tasks'], result['schedule'] = tasks, schedule
         errands = {row[2]: row for entry in document['sections'] if entry[0] == 'tasks'
                    for block in entry[1] if block[0] == 'errands' for row in block[1]}
@@ -136,6 +150,13 @@ def run(output, template, language, kind, selected=None):
                 result['problems'].append('chair check hidden without a price read: ' + json.dumps(chair, ensure_ascii=False))
         elif errands:
             result['problems'].append('errands shown in the evening')
+        shown = {row[0]: row for entry in document['sections'] if entry[0] == 'tasks'
+                 for block in entry[1] if block[0] == 'actions' for row in block[1]}
+        key, place = ('worded-wed', 'morning') if kind == 'gm' else ('worded-sat', 'evening')
+        from benchmarks.category_live import tasks as saved_tasks
+        saved = next(r for r in saved_tasks(runtime)[0] if r['id'] == seeded[key])['display']['zh' if zh else 'en'][place]
+        if key in seeded and [saved['title'], saved['detail']] != [shown.get(seeded[key], [''] * 7)[5], shown.get(seeded[key], [''] * 7)[6]]:
+            result['problems'].append(f'{key}: saved {place} wording not shown as saved: {shown.get(seeded[key])}')
         if kind == 'gm':
             legacy_checks(runtime, document, seeded, result['problems'])
             plants = next((row for entry in document['sections'] if entry[0] == 'tasks' for block in entry[1]
@@ -163,10 +184,10 @@ def run(output, template, language, kind, selected=None):
             if ointment['status'] in ('blocked', 'partial'):
                 result['problems'].append('"will go tomorrow" saved as ' + ointment['status'])
         for title in expected_tasks:
-            if not any(title in shown for shown in tasks):  # Title polish may add a verb.
+            if not any(title.casefold() in shown.casefold() for shown in tasks):  # Fallback wording may add a verb.
                 result['problems'].append('missing task: ' + title)
         for title in absent:
-            if any(title in shown for shown in tasks):
+            if any(title.casefold() in shown.casefold() for shown in tasks):
                 result['problems'].append('shown out of its day: ' + title)
         if schedule != expected_schedule:
             result['problems'].append(f'schedule {schedule} != {expected_schedule}')
