@@ -1,4 +1,5 @@
 """Rich layouts and publisher-image boundaries, with synthetic data only."""
+import concurrent.futures
 import hashlib
 import importlib.util
 import io
@@ -74,6 +75,47 @@ class PublisherBoundaryTests(unittest.TestCase):
         parser.feed('<meta name="twitter:image" content="/twitter.jpg"><meta property="og:image" content="/photo.jpg"><meta property="og:image:alt" content="The scene">')
         self.assertEqual(parser.image, '/photo.jpg')
         self.assertEqual(parser.alt, 'The scene')
+
+    def test_metadata_keeps_the_first_image_and_tolerates_valueless_attributes(self):
+        parser = images.PreviewMetadata()
+        parser.feed('<meta property><meta name="og:image" content><meta property="og:image" content="/main.jpg">'
+                    '<meta property="og:image" content="/alternate.jpg">')
+        self.assertEqual(parser.image, '/main.jpg')
+        self.assertEqual(parser.alt, 'Publisher article preview')
+
+    def test_chinese_urls_and_gbk_pages_are_readable(self):
+        self.assertEqual(images.ascii_url('https://www.dw.com/zh/台湾民主/a-1?maca=chi&q=中'),
+                         'https://www.dw.com/zh/%E5%8F%B0%E6%B9%BE%E6%B0%91%E4%B8%BB/a-1?maca=chi&q=%E4%B8%AD')
+        self.assertEqual(images.ascii_url('https://example.org/a%20b?x=1#top'), 'https://example.org/a%20b?x=1')
+        self.assertEqual(images.ascii_url('https://例子.中国/a'), 'https://xn--fsqu00a.xn--fiqs8s/a')
+        page = '<meta charset="gbk"><meta property="og:image:alt" content="台风过后">'.encode('gbk')
+        parser = images.PreviewMetadata()
+        parser.feed(images.page_text(page, 'text/html'))
+        self.assertEqual(parser.alt, '台风过后')
+        self.assertEqual(images.page_text('中'.encode('gb2312'), 'text/html; charset=GB2312'), '中')
+
+    @unittest.skipUnless(importlib.util.find_spec('PIL'), 'Optional Pillow dependency not installed')
+    def test_feed_image_replaces_a_refusing_page_and_the_host_is_not_retried(self):
+        from PIL import Image
+        payload = io.BytesIO()
+        Image.new('RGB', (64, 48), 'green').save(payload, format='PNG')
+        first, second, plain = 'https://slow.example/a', 'https://slow.example/b', 'https://other.example/c'
+        hints = {first: 'https://img.example/a.png', second: 'https://img.example/b.png'}
+        def fetch(url, limit, deadline):
+            if url.startswith('https://slow.example/'):
+                raise TimeoutError('The read operation timed out')
+            if url == plain:
+                return b'<p>No metadata</p>', 'text/html; charset=utf-8', url
+            return payload.getvalue(), 'image/png', url
+        with tempfile.TemporaryDirectory(dir=TEMP_ROOT) as directory, \
+                patch.object(images, 'fetch_public', side_effect=fetch) as fetched, \
+                patch.object(images, 'ThreadPoolExecutor', lambda max_workers: concurrent.futures.ThreadPoolExecutor(1)):
+            receipt = images.cache_previews([first, second, plain], Path(directory), hints=hints)
+        self.assertEqual([receipt[url]['status'] for url in (first, second)], ['cached', 'cached'])
+        self.assertEqual(receipt[first]['image_source'], 'feed')
+        self.assertEqual(receipt[plain]['status'], 'unavailable')
+        self.assertEqual([call.args[0] for call in fetched.call_args_list],
+                         [first, hints[first], hints[second], plain])
 
     def test_private_protocols_addresses_and_credentials_are_refused(self):
         for url in ('http://example.org/a', 'file:///etc/passwd', 'https://user:secret@example.org/a', 'https://example.org:8443/a'):

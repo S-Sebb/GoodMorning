@@ -8,12 +8,18 @@ import io
 import ipaddress
 import json
 from pathlib import Path
+import re
 import socket
 import ssl
 import sqlite3
+import threading
 import time
-from urllib.parse import urljoin, urlsplit
+from urllib.parse import quote, urljoin, urlsplit, urlunsplit
 from goodmorning.runtime_files import atomic_text, runtime_lock
+
+# Some publishers (NPR, CBC) stall every non-browser request for pages and images
+# alike; the owner chose a browser User-Agent. Still no cookies and public HTTPS only.
+PREVIEW_USER_AGENT = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36"
 
 
 def object_name(entry):
@@ -86,18 +92,42 @@ def shared_catalog(directory):
 class PreviewMetadata(HTMLParser):
     def __init__(self):
         super().__init__()
-        self.image = None
-        self.alt = "Publisher article preview"
+        self.found = {}
+
+    @property
+    def image(self):
+        return self.found.get("og:image") or self.found.get("twitter:image")
+
+    @property
+    def alt(self):
+        return self.found.get("og:image:alt", "Publisher article preview")[:300]
 
     def handle_starttag(self, tag, attrs):
-        values = dict(attrs)
         if tag != "meta":
             return
-        key = values.get("property", values.get("name", "")).lower()
-        if key == "og:image" or (key == "twitter:image" and not self.image):
-            self.image = values.get("content")
-        if key == "og:image:alt":
-            self.alt = values.get("content", self.alt)[:300]
+        values = {name: value or "" for name, value in attrs}
+        key = (values.get("property") or values.get("name") or "").lower()
+        content = values.get("content", "").strip()
+        # The first image is the publisher's main choice; later ones are alternates.
+        if content and key in ("og:image", "twitter:image", "og:image:alt"):
+            self.found.setdefault(key, content)
+
+
+def page_text(page, content_type):
+    """Many Chinese publishers still serve GBK; decoding as UTF-8 garbles the alt text."""
+    match = re.search(rb"""charset=["']?([A-Za-z0-9_-]+)""", content_type.encode("latin-1", "replace") + b" " + page[:4096], re.I)
+    try:
+        return page.decode(match[1].decode() if match else "utf-8", errors="replace")
+    except LookupError:
+        return page.decode("utf-8", errors="replace")
+
+
+def ascii_url(url):
+    """Publishers link raw non-ASCII paths (common for Chinese sites); HTTP needs them percent-encoded."""
+    parts = urlsplit(url)
+    netloc = parts.netloc if parts.netloc.isascii() else (parts.hostname or "").encode("idna").decode("ascii")
+    return urlunsplit((parts.scheme, netloc, quote(parts.path, safe="/%:@!$&'()*+,;=~"),
+                       quote(parts.query, safe="/%:@!$&'()*+,;=~?"), ""))
 
 
 def public_target(url):
@@ -124,20 +154,37 @@ class PinnedHTTPS(http.client.HTTPSConnection):
             raise
 
 
+class BudgetExhausted(TimeoutError):
+    """The shared preview budget ran out; unlike a socket timeout, not the publisher's fault."""
+
+
+class PublisherStatus(ValueError):
+    def __init__(self, status):
+        super().__init__(f"Publisher returned HTTP {status}")
+        self.status = status
+
+
+def refused(error):
+    """A publisher that stalls or rate-limits one request will treat the next one the same."""
+    return ((isinstance(error, TimeoutError) and not isinstance(error, BudgetExhausted))
+            or (isinstance(error, PublisherStatus) and error.status in (403, 429)))
+
+
 def fetch_public(url, limit, deadline):
     for _ in range(4):
         if deadline <= time.monotonic():
-            raise TimeoutError('Article preview budget exhausted')
+            raise BudgetExhausted('Article preview budget exhausted')
+        url = ascii_url(url)
         parts, address = public_target(url)
         remaining = deadline - time.monotonic()
         if remaining <= 0:
-            raise TimeoutError("Article preview budget exhausted")
+            raise BudgetExhausted('Article preview budget exhausted')
         connection = PinnedHTTPS(parts.hostname, address, min(remaining, 8))
         try:
             path = parts.path or "/"
             if parts.query:
                 path += "?" + parts.query
-            connection.request("GET", path, headers={"User-Agent": "GoodMorningPrivatePreview/1.0", "Accept-Encoding": "identity"})
+            connection.request("GET", path, headers={"User-Agent": PREVIEW_USER_AGENT, "Accept-Encoding": "identity"})
             response = connection.getresponse()
             if response.status in (301, 302, 303, 307, 308):
                 location = response.getheader("Location")
@@ -146,7 +193,7 @@ def fetch_public(url, limit, deadline):
                 url = urljoin(url, location)
                 continue
             if response.status != 200:
-                raise ValueError(f"Publisher returned HTTP {response.status}")
+                raise PublisherStatus(response.status)
             length = response.getheader("Content-Length")
             if length and int(length) > limit:
                 raise ValueError("Publisher asset too large")
@@ -154,7 +201,7 @@ def fetch_public(url, limit, deadline):
             while True:
                 remaining = deadline - time.monotonic()
                 if remaining <= 0:
-                    raise TimeoutError("Article preview budget exhausted")
+                    raise BudgetExhausted('Article preview budget exhausted')
                 connection.sock.settimeout(min(remaining, 8)) if connection.sock else None
                 chunk = response.read(min(65536, limit + 1 - size))
                 if not chunk:
@@ -169,18 +216,19 @@ def fetch_public(url, limit, deadline):
     raise ValueError("Too many publisher redirects")
 
 
-def cache_previews(urls, directory, shared_directory=None):
-    """Serialize date manifests; successes persist, failures retry after one hour."""
+def cache_previews(urls, directory, shared_directory=None, hints=None):
+    """Serialize date manifests; successes persist, failures retry after one hour.
+    hints maps article URLs to image URLs their news feed supplied."""
     if directory.is_symlink() or directory.resolve() != directory:
         raise ValueError('Refusing symlinked preview cache')
     directory.mkdir(parents=True, exist_ok=True, mode=0o700)
     if (directory / '.images.lock').is_symlink():
         raise ValueError('Refusing symlinked preview lock')
     with runtime_lock(directory, '.images.lock'):
-        return collect_previews(urls, directory, shared_directory)
+        return collect_previews(urls, directory, shared_directory, hints)
 
 
-def collect_previews(urls, directory, shared_directory):
+def collect_previews(urls, directory, shared_directory, hints=None):
     """At most 32 articles, four workers, 18s/item within a shared 24s network budget."""
     from PIL import Image, ImageOps
     directory.mkdir(parents=True, exist_ok=True, mode=0o700)
@@ -220,36 +268,56 @@ def collect_previews(urls, directory, shared_directory):
                 if shared_directory:
                     store_image(shared_directory, name, data)
                 return url, entry
+        deadline = min(time.monotonic() + 18, budget)
+        host = urlsplit(url).hostname
         try:
-            deadline = min(time.monotonic() + 18, budget)
             if deadline <= time.monotonic():
-                raise TimeoutError('Article preview budget exhausted')
-            page, content_type, final_url = fetch_public(url, 3_000_000, deadline)
+                raise BudgetExhausted('Article preview budget exhausted')
+            with lock:
+                if host in refusing:
+                    raise ValueError('Publisher refused an earlier preview request in this run')
+            try:
+                page, content_type, final_url = fetch_public(url, 3_000_000, deadline)
+            except Exception as error:
+                if refused(error):
+                    with lock:
+                        refusing.add(host)
+                raise
             if "text/html" not in content_type:
                 raise ValueError("Article response is not HTML")
             metadata = PreviewMetadata()
-            metadata.feed(page.decode("utf-8", errors="replace"))
+            metadata.feed(page_text(page, content_type))
             if not metadata.image:
                 raise ValueError("No publisher preview image")
-            image_url = urljoin(final_url, metadata.image)
-            payload, image_type, image_url = fetch_public(image_url, 6_000_000, deadline)
-            if not image_type.startswith("image/"):
-                raise ValueError("Preview response is not an image")
-            with Image.open(io.BytesIO(payload)) as image:
-                if image.width * image.height > 20_000_000:
-                    raise ValueError("Preview dimensions too large")
-                image.seek(0)
-                image = ImageOps.exif_transpose(image).convert("RGB")
-                image.thumbnail((640, 480))
-                output = io.BytesIO()
-                image.save(output, format="WEBP", quality=84)
-            data = output.getvalue()
-            name = hashlib.sha256(data).hexdigest() + ".webp"
-            store_image(shared_directory or directory, name, data)
-            return url, {"status": "cached", "file": name, "sha256": hashlib.sha256(data).hexdigest(),
-                         "image_url": image_url, "article_url": url, "alt": metadata.alt}
+            return url, preview(url, urljoin(final_url, metadata.image), metadata.alt, deadline)
         except Exception as error:
+            # The feed's own image covers pages that hide metadata or refuse automated requests.
+            if (hints or {}).get(url) and not isinstance(error, BudgetExhausted):
+                try:
+                    return url, {**preview(url, hints[url], 'Publisher article preview', deadline), 'image_source': 'feed'}
+                except Exception as fallback:
+                    error = fallback
             return url, {"status": "unavailable", "reason": str(error)[:180], 'retry_after':time.time() + 3600}
+
+    def preview(url, image_url, alt, deadline):
+        payload, image_type, image_url = fetch_public(image_url, 6_000_000, deadline)
+        if not image_type.startswith("image/"):
+            raise ValueError("Preview response is not an image")
+        with Image.open(io.BytesIO(payload)) as image:
+            if image.width * image.height > 20_000_000:
+                raise ValueError("Preview dimensions too large")
+            image.seek(0)
+            image = ImageOps.exif_transpose(image).convert("RGB")
+            image.thumbnail((640, 480))
+            output = io.BytesIO()
+            image.save(output, format="WEBP", quality=84)
+        data = output.getvalue()
+        name = hashlib.sha256(data).hexdigest() + ".webp"
+        store_image(shared_directory or directory, name, data)
+        return {"status": "cached", "file": name, "sha256": hashlib.sha256(data).hexdigest(),
+                "image_url": image_url, "article_url": url, "alt": alt}
+
+    lock, refusing = threading.Lock(), set()
 
     with ThreadPoolExecutor(max_workers=4) as pool:
         entries = dict(pool.map(collect, urls))

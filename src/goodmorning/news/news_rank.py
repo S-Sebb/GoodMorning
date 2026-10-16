@@ -9,11 +9,22 @@ from datetime import datetime
 from urllib.parse import urlsplit
 
 POLICY = "importance-first-v1"
-AI_PATTERN = re.compile(
-    r"\b(?:AI|artificial intelligence|machine learning|deep learning|LLMs?|"
+
+
+def terms(english, chinese=""):
+    """English words need ASCII boundaries: CJK characters count as word characters
+    for \\b, so "发布AI模型" would otherwise never match. Chinese terms have no boundaries."""
+    pattern = r"(?<![A-Za-z0-9])(?:" + english + r")(?![A-Za-z0-9])"
+    return pattern + ("|" + chinese if chinese else "")
+
+
+AI_PATTERN = re.compile(terms(
+    r"AI|artificial intelligence|machine learning|deep learning|LLMs?|"
     r"large language models?|OpenAI|ChatGPT|Anthropic|Claude|DeepSeek|"
-    r"GPT[-\s]?\d|generative|neural networks?|Gemini|Llama|Qwen|Mistral|"
-    r"AlphaFold|reasoning models?|speech recognition|open (?:weights? |source )?models?)\b", re.IGNORECASE)
+    r"GPT[-\s]?\d|generative|neural networks?|Gemini|Llama|Qwen|Mistral|Kimi|"
+    r"AlphaFold|reasoning models?|speech recognition|open (?:weights? |source )?models?",
+    r"人工智能|机器学习|深度学习|大模型|大语言模型|语言模型|生成式|神经网络|智能体|"
+    r"推理模型|语音识别|开源模型|通义千问|文心一言|豆包|智谱|月之暗面"), re.IGNORECASE)
 
 
 def ai_relevance(story):
@@ -48,24 +59,33 @@ def importance(story):
             return True
         return False
     if story["section"] == "ai":
-        released = re.search(r"\b(?:launch\w*|releas\w*|introduc\w*|unveil\w*|announc\w*|open[- ]sourc\w*)\b", title)
-        technical = re.search(r"\b(?:models?|agents?|APIs?|weights|reasoning|security|scans?|chips?|GPUs?|inference|ASR|speech|robot\w*)\b", context, re.I)
+        released = re.search(terms(r"launch\w*|releas\w*|introduc\w*|unveil\w*|announc\w*|open[- ]sourc\w*",
+                                   r"发布|推出|上线|开源|亮相"), title)
+        technical = re.search(terms(r"models?|agents?|APIs?|weights|reasoning|security|scans?|chips?|GPUs?|inference|ASR|speech|robot\w*",
+                                    r"模型|智能体|芯片|算力|推理|语音|机器人"), context, re.I)
         if released and technical:
             score += 6
             reasons.append("model_or_tool_release")
-        signal(r"\b(?:research|benchmark\w*|reasoning|scientific|open weights|multimodal|clinical|drug discovery|protein|foundation model)\b", 5, "research_or_capability")
-        signal(r"\b(?:safety|security|vulnerabilit\w*|cyberattack\w*|data breach|alignment|misconduct|copyright|lawsuit|antitrust|regulat\w*|export controls?)\b", 7, "safety_security_or_governance")
-        signal(r"\b(?:acquisition|merger|funding|investment|valuation|data centres?|data centers?|chip ban|compute infrastructure)\b", 4, "industry_or_infrastructure")
-        signal(r"\b(?:newsletter|round[- ]?up|the download|weekly digest)\b", -8, "roundup_not_a_specific_development", title)
-        signal(r"\b(?:disrupt \d{4}|buy tickets|pass savings|prices rise|discount|sponsored|campaigns with|creative ideas into campaigns)\b", -12, "promotion", title)
-        signal(r"\b(?:turns? (?:days|creative ideas)|customer stor\w*|case stud\w*)\b", -10, "customer_marketing", title)
+        signal(terms(r"research|benchmark\w*|reasoning|scientific|open weights|multimodal|clinical|drug discovery|protein|foundation model",
+                     r"研究|基准|多模态|科研|蛋白质|药物研发|基础模型"), 5, "research_or_capability")
+        signal(terms(r"safety|security|vulnerabilit\w*|cyberattack\w*|data breach|alignment|misconduct|copyright|lawsuit|antitrust|regulat\w*|export controls?",
+                     r"安全|漏洞|网络攻击|数据泄露|对齐|版权|诉讼|反垄断|监管|出口管制"), 7, "safety_security_or_governance")
+        signal(terms(r"acquisition|merger|funding|investment|valuation|data centres?|data centers?|chip ban|compute infrastructure",
+                     r"收购|并购|融资|投资|估值|数据中心|芯片禁令"), 4, "industry_or_infrastructure")
+        signal(terms(r"newsletter|round[- ]?up|the download|weekly digest", r"周报|速览|一周回顾"), -8, "roundup_not_a_specific_development", title)
+        signal(terms(r"disrupt \d{4}|buy tickets|pass savings|prices rise|discount|sponsored|campaigns with|creative ideas into campaigns",
+                     r"优惠|折扣|限时|购票|赞助"), -12, "promotion", title)
+        signal(terms(r"turns? (?:days|creative ideas)|customer stor\w*|case stud\w*", r"客户案例"), -10, "customer_marketing", title)
         signal(r"^show hn\b", -3, "self_promoted_project", title)
     else:
-        signal(r"\b(?:(?<!trade )(?<!trade-)war|invasion|ceasefire|peace deal|missile\w*|airstrikes?|nuclear|hurricane|earthquake|wildfires?|Ebola|pandemic|epidemic|outbreak|famine|mass casualties)\b", 8, "conflict_disaster_or_public_health")
-        signal(r"\b(?:elections?|by[- ]elections?|government|parliament|prime minister|president|supreme court|international law|sanctions|tariffs?|trade war|budget|tax break|interest rates?|central bank|NHS|healthcare|mental health review|legislation|national security)\b", 7, "public_affairs_or_economic_consequence")
-        signal(r"\b(?:actor|singer|celebrity|prince harry|duke of sussex|memoir|last dancer|punk turns|football|premier league)\b", -10, "entertainment_or_personal_story", title)
-        signal(r"\b(?:trespass|shoplift\w*|parking dispute|mother of.*worker|know the truth)\b", -6, "isolated_incident_or_human_interest", title)
-    signal(r"^(?:opinion|comment|why\b)|\b(?:opinion:|editorial:)\b", -2, "background_or_opinion", title)
+        signal(terms(r"(?<!trade )(?<!trade-)war|invasion|ceasefire|peace deal|missile\w*|airstrikes?|nuclear|hurricane|earthquake|wildfires?|Ebola|pandemic|epidemic|outbreak|famine|mass casualties",
+                     r"(?<!贸易)战争|入侵|停火|和平协议|导弹|空袭|核武|核电|飓风|台风|地震|山火|埃博拉|疫情|饥荒|伤亡"), 8, "conflict_disaster_or_public_health")
+        signal(terms(r"elections?|by[- ]elections?|government|parliament|prime minister|president|supreme court|international law|sanctions|tariffs?|trade war|budget|tax break|interest rates?|central bank|NHS|healthcare|mental health review|legislation|national security",
+                     r"选举|大选|政府|国务院|议会|国会|人大|总理|总统|国家主席|最高法院|国际法|制裁|关税|贸易战|预算|减税|利率|央行|医保|医疗|立法|国家安全"), 7, "public_affairs_or_economic_consequence")
+        signal(terms(r"actor|singer|celebrity|prince harry|duke of sussex|memoir|last dancer|punk turns|football|premier league",
+                     r"明星|演员|歌手|网红|综艺|足球|英超"), -10, "entertainment_or_personal_story", title)
+        signal(terms(r"trespass|shoplift\w*|parking dispute|mother of.*worker|know the truth"), -6, "isolated_incident_or_human_interest", title)
+    signal(r"^(?:opinion|comment|why\b)|\b(?:opinion:|editorial:)\b|^(?:评论|社评|社论|观点)[:：]", -2, "background_or_opinion", title)
     genres = {source_genre(source) for source in story["sources"]}
     genre = "news" if "news" in genres else sorted(genres)[0]
     if genre != "news":

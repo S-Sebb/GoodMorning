@@ -1,5 +1,6 @@
 import contextlib
 import datetime as dt
+import http.client
 import io
 import json
 from pathlib import Path
@@ -14,7 +15,7 @@ from zoneinfo import ZoneInfo
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 from goodmorning.news import news
-from goodmorning.news.news_cache import Fetcher, MAX_BYTES, NewsCache
+from goodmorning.news.news_cache import Fetcher, MAX_BYTES, NewsCache, feed_images
 
 DAY = dt.date(2026, 10, 8)
 UTC = dt.timezone.utc
@@ -93,6 +94,46 @@ class ParsingTests(unittest.TestCase):
         self.assertFalse(news.is_ai("What strangers learn from your political donation"))
         self.assertFalse(news.is_ai("Airline launches flight"))
 
+    def test_ai_filter_reads_chinese_headlines(self):
+        self.assertTrue(news.is_ai("数据中心债券遭抛售 AI发债人面对“达尔文时刻”"))
+        self.assertTrue(news.is_ai("某公司发布全新开源大模型"))
+        self.assertFalse(news.is_ai("航空公司开通新航线"))
+        self.assertFalse(news.is_ai("MAIL service resumes"))
+
+    def test_literal_angle_brackets_survive_and_double_escaped_markup_is_removed(self):
+        items = self.parse("""<rss><channel><item><title>Rates: x &lt; y and z &gt; w</title>
+            <link>https://example.com/a</link><pubDate>Thu, 08 Oct 2026 12:00:00 GMT</pubDate>
+            <description>&amp;lt;p&amp;gt;First.&amp;lt;/p&amp;gt;&lt;p&gt;Second&lt;/p&gt;</description>
+            </item></channel></rss>""")
+        self.assertEqual(items[0]["title"], "Rates: x < y and z > w")
+        self.assertEqual(items[0]["summary"], "First. Second")
+
+    def test_canonical_url_keeps_non_tracking_query_bytes(self):
+        self.assertEqual(news.canonical_url("https://example.com/s?sid=1&flag&q=a%2Cb&UTM_medium=x&fbclid=y"),
+                         "https://example.com/s?sid=1&flag&q=a%2Cb")
+
+    def test_feed_images_skip_tracking_pixels(self):
+        items = self.parse("""<rss xmlns:media="http://search.yahoo.com/mrss/"
+            xmlns:content="http://purl.org/rss/1.0/modules/content/"><channel>
+            <item><title>Thumbnail</title><link>https://example.com/a</link>
+              <media:thumbnail url="https://img.example.com/small.jpg"/>
+              <media:content url="https://img.example.com/large.jpg" medium="image"/></item>
+            <item><title>Enclosure</title><link>https://example.com/b</link>
+              <enclosure url="https://img.example.com/b.jpg" type="image/jpeg" length="1"/></item>
+            <item><title>Inline</title><link>https://example.com/c</link>
+              <description>&lt;img src='https://example.com/pixel.png?x=1' /&gt;&lt;img src="//img.example.com/c.jpg" width="640"&gt;</description></item>
+            <item><title>Pixel only</title><link>https://example.com/d</link>
+              <content:encoded><![CDATA[<img src="https://example.com/t.gif" width="1" height="1">]]></content:encoded></item>
+            <item><title>Insecure</title><link>https://example.com/e</link>
+              <enclosure url="http://img.example.com/e.jpg" type="image/jpeg"/></item>
+            </channel></rss>""")
+        self.assertEqual([item.get("image") for item in items],
+                         ["https://img.example.com/large.jpg", "https://img.example.com/b.jpg",
+                          "https://img.example.com/c.jpg", None, None])
+        dated = news.bucket([{**items[0], "published": dt.datetime(2026, 10, 8, 12, tzinfo=UTC)}],
+                            "Test", "major", "unrated", DAY, DAY)
+        self.assertEqual(dated[0]["image"], "https://img.example.com/large.jpg")
+
     def test_hn_date_is_submission_not_publication(self):
         payload = {"hits": [{"title": "AI headline", "url": "https://example.com/a",
                               "created_at_i": 1791460800}]}
@@ -126,6 +167,13 @@ class StoryTests(unittest.TestCase):
         b = article("AI company releases language model version 4", "https://b.com/a")
         c = article("AI company never releases language model version 3", "https://c.com/a")
         self.assertEqual(len(news.group_stories([a, b, c])), 3)
+
+    def test_chinese_headlines_group_by_character_pairs(self):
+        same = [article("国务院发布新一轮稳增长政策措施", "https://a.example/1", "major"),
+                article("国务院发布新一轮稳增长政策措施 涉及消费", "https://b.example/2", "major")]
+        self.assertEqual(len(news.group_stories(same)), 1)
+        different = [same[0], article("台风登陆广东沿海地区", "https://c.example/3", "major")]
+        self.assertEqual(len(news.group_stories(different)), 2)
 
     def test_no_transitive_merge(self):
         a = article("alpha beta gamma delta epsilon zeta", "https://a.com/a")
@@ -242,6 +290,23 @@ class CacheTests(unittest.TestCase):
         self.now += 86400
         with self.assertRaises(OSError):
             f.get(url)
+
+    def test_truncated_response_uses_disclosed_stale_copy(self):
+        url = "https://example.com/feed"
+        self.fetcher().get(url)
+        self.now += 4000
+        f = self.fetcher(http.client.IncompleteRead(b"partial"))
+        self.assertEqual(f.get(url), b"data")
+        self.assertEqual(f.stats["stale"], 1)
+
+    def test_feed_images_are_read_from_the_archive_without_creating_one(self):
+        self.cache.archive([{**article(url="https://example.com/a"), "image": "https://img.example.com/a.jpg"},
+                            article(url="https://example.com/b")], "rss:world")
+        self.assertEqual(feed_images(self.directory.name, ["https://example.com/a", "https://example.com/b"]),
+                         {"https://example.com/a": "https://img.example.com/a.jpg"})
+        with tempfile.TemporaryDirectory(dir=TEMP_ROOT) as empty:
+            self.assertEqual(feed_images(empty, ["https://example.com/a"]), {})
+            self.assertEqual(list(Path(empty).iterdir()), [])
 
     def test_offline_never_calls_opener(self):
         f = self.fetcher(offline=True)

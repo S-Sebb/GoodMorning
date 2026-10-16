@@ -1,6 +1,7 @@
 """Local response cache and headline archive. No article bodies or credentials."""
 import datetime as dt
 import email.utils
+import http.client
 import json
 import os
 import sqlite3
@@ -86,6 +87,21 @@ class NewsCache:
         return known
 
 
+def feed_images(directory, urls):
+    """Feed-supplied image URLs for archived articles; read-only, never creates a cache."""
+    path = os.path.join(directory, "news.sqlite")
+    urls = list(dict.fromkeys(urls))
+    if not urls or not os.path.isfile(path):
+        return {}
+    db = sqlite3.connect("file:" + urllib.parse.quote(os.path.abspath(path)) + "?mode=ro", uri=True, timeout=5)
+    try:
+        rows = db.execute("SELECT url, payload FROM articles WHERE url IN (" + ",".join("?" for _ in urls)
+                          + ")", urls).fetchall()
+    finally:
+        db.close()
+    return {url: image for url, payload in rows if isinstance(image := json.loads(payload).get("image"), str)}
+
+
 class Fetcher:
     def __init__(self, cache, timeout=8, ttl=3600, offline=False, refresh=False,
                  opener=urllib.request.urlopen, clock=time.time):
@@ -152,7 +168,7 @@ class Fetcher:
                                           (host, now + max(60, min(delay, 86400))))
             # Do not expose URLs, credentials, or provider response text in failures.
             return self._stale(row, host, now, f"HTTP {error.code}")
-        except (OSError, ValueError):
+        except (OSError, ValueError, http.client.HTTPException):
             return self._stale(row, host, now, "network/response failure")
 
     def _stale(self, row, host, now, reason):

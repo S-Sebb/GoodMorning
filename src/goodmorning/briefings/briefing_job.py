@@ -165,11 +165,16 @@ def image_previews(runtime, job, context, checkpoint):
         return {'cached': 0, 'unavailable': len(urls), 'disabled': True,
                 'next': 'Publisher previews are disabled by policy; keep honest placeholders and offer the choice separately.'}
     from .briefing_images import cache_previews
+    from goodmorning.news.news_cache import feed_images
     urls = native.news_urls(checkpoint['document'])
     if not urls:
         return None
     try:
-        entries = cache_previews(urls, Path(runtime)/'browser-images'/job['date'], Path(runtime)/'browser-images/objects')
+        hints = feed_images(context['paths']['cache'], urls) if context.get('paths', {}).get('cache') else {}
+    except (ValueError, sqlite3.Error):
+        hints = {}  # The archive only adds a fallback; previews still work without it.
+    try:
+        entries = cache_previews(urls, Path(runtime)/'browser-images'/job['date'], Path(runtime)/'browser-images/objects', hints)
         return {'cached':sum(entry['status'] == 'cached' for entry in entries.values()),
                 'unavailable':sum(entry['status'] == 'unavailable' for entry in entries.values())}
     except (ValueError, OSError, ImportError, sqlite3.Error):
