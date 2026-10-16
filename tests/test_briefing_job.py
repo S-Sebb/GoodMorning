@@ -52,6 +52,12 @@ class JobTests(unittest.TestCase):
         return act(self.root,self.identifier,'ses_fixture','init',{'greeting':'Morning.','opening':'Let’s plan carefully.',
             'plan':[['must-do','Project steps'],['nice-to-do','Optional project steps']]})
 
+    def test_saved_user_name_reaches_the_greeting_step(self):
+        (self.root/'profile.md').write_text((self.root/'profile.md').read_text()+'user_name: Sam\n')
+        initialize(self.root,self.job)
+        result=act(self.root,self.identifier,'ses_fixture','prepare')
+        self.assertEqual(result['reply_context']['user_name'],'Sam')
+
     def test_owner_and_prepared_context_are_code_owned(self):
         with self.assertRaises(ValueError): act(self.root,self.identifier,'ses_other','prepare')
         self.init()
@@ -101,6 +107,7 @@ class JobTests(unittest.TestCase):
         self.assertEqual(result['url'],'/d/2026-10-11/gm.html')
         self.assertEqual(result['reply_context']['language'],'en')
         self.assertEqual(result['reply_context']['tone'],'warm and helpful')
+        self.assertNotIn('user_name',result['reply_context'])
         self.chamber.idle()
         self.assertEqual(self.app.status(self.identifier)['state'],'ready')
         self.assertFalse((self.app.job_dir/(self.identifier+'.preview.json')).exists())

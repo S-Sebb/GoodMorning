@@ -20,29 +20,33 @@ integration access or verification consent.
    older profiles without a name remain valid. Reuse an answer already supplied.
     After storage consent, save exact `secretary_name` spelling for the assistant,
     never the user's name. Refer to it as the secretary's name, not “you are NAME”.
-3. Browser requests use supplied `Website language`; never ask for reply language
+3. Next, alone, ask what the secretary should call the user: optional, same length
+   and character rules, any name or form of address (“Sam”, “Dr. Lee”, “小王”).
+   Allow skipping; never infer it from account names, records or email. After
+   storage consent, save the exact spelling in `user_name`.
+4. Browser requests use supplied `Website language`; never ask for reply language
    or rewrite local `secretary_language`. Pass `--website-language CODE` to setup/workflow.
-   Local setup asks reply language second, alone; offer genuine choices/custom
+   Local setup asks reply language next, alone; offer genuine choices/custom
    answers, including bilingual/follow-message language. The current conversation
    language is not consent to save it. Wait for the explicit choice, use it throughout,
    and save it only after storage consent. Source language/country/persona remain separate.
-4. For explicit Initialize, review all remaining preferences in small related
+5. For explicit Initialize, review all remaining preferences in small related
    groups, showing saved values and allowing retention. For missing-setup recovery,
    ask only missing settings. Reuse confirmed answers; change only explicitly
    confirmed values. Group location/timezone, work/sleep/tone, news/calendar/project
    scope. Optional roles/fields, special needs and interests may be skipped; reuse
    industry/expertise answers and never invent optional defaults.
-5. Prefer `question` with meaningful options and built-in custom input; no dummy
+6. Prefer `question` with meaningful options and built-in custom input; no dummy
    “Provide a city” buttons. For unsupported text-only forms, ask plainly and wait.
    State date/timezone where needed. Clear answers within an agreed scope need no
    repeat confirmation; ask only genuine ambiguity/substantive changes. Combine
    related event discrepancies, mention conflicts without cancelling, and offer
    unsupported-tone alternatives once.
-6. Confirm news countries independently of location: one primary `news_country`
+7. Confirm news countries independently of location: one primary `news_country`
    and comma-separated `news_additional_countries`. Ask if primary intent is unclear.
    Keep separate country namespaces. Confirm a full local feed configuration that
    preserves bundled feeds/adds selected outlets; never substitute feeds after failure.
-7. Present one exact file-format/storage/access summary, including runtime,
+8. Present one exact file-format/storage/access summary, including runtime,
    authorized remote reads/writes and selected checks. Reuse existing consent only
    for its exact scope. Check-only registry access uses empty write targets and
    disabled execution; do not request write-lock consent for read-only checks.

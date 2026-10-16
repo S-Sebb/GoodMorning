@@ -222,6 +222,8 @@ def act(runtime, identifier, session, action, payload=None):
             raise ValueError('A saved edition already exists; stop and inspect its owning run, without fetching or rewriting')
         reply_context = {'language':context.get('website_language','en'),
                          'tone':context.get('profile',{}).get('secretary_tone') or 'warm and helpful'}
+        if context.get('profile',{}).get('user_name'):
+            reply_context['user_name'] = context['profile']['user_name']
         reply_context['instruction'] = ('所有可见文字，包括进度和提问，均用简体中文并遵循保存的语气；不要描述读取契约或检查格式。' if reply_context['language'] == 'zh-CN' else
                                         'All visible text, including progress and questions, uses English and the saved tone; do not narrate reading contracts or format checks.')
         def receipt(value):

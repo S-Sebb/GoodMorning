@@ -390,10 +390,14 @@ class Chats:
             prompt += (f"Native session ID: {session}\n"
                        "Use this ID for --session and calendar --actor; browser chat/message IDs are not session IDs.\n")
             from goodmorning.runtime_files import profile_fields
-            tone=profile_fields(runtime).get('secretary_tone')
+            fields=profile_fields(runtime)
+            tone=fields.get('secretary_tone')
             tone_context={'value':tone or 'warm and helpful','source':'saved' if tone else 'default'}
             prompt += (f"Website language: {selected}\n"
-                       f"Secretary tone at request start: {json.dumps(tone_context,ensure_ascii=False)}\n\n{text}")
+                       f"Secretary tone at request start: {json.dumps(tone_context,ensure_ascii=False)}\n")
+            if fields.get('user_name'):
+                prompt += f"Call the user: {json.dumps(fields['user_name'],ensure_ascii=False)}\n"
+            prompt += f"\n{text}"
             if attachments:
                 # Distinguish file-only turns with identical text when matching
                 # acknowledged messages and restoring their attachment labels.

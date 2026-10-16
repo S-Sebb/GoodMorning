@@ -85,6 +85,15 @@ class ChatTests(unittest.TestCase):
         line=next(line for line in prompt.splitlines() if line.startswith('Secretary tone at request start: '))
         self.assertEqual(json.loads(line.split(': ',1)[1]),{'value':'warm and helpful','source':'default'})
         self.assertFalse((self.root/'profile.md').exists())
+        self.assertNotIn('Call the user:', prompt)
+
+    def test_saved_user_name_is_supplied_each_turn(self):
+        (self.root/'profile.md').write_text('user_name: 小王\n')
+        self.start('secretary','Hello')
+        prompt=[body['prompt'] for action,body in self.chamber.calls if action=='session.send'][-1]
+        line=next(line for line in prompt.splitlines() if line.startswith('Call the user: '))
+        self.assertEqual(json.loads(line.split(': ',1)[1]),'小王')
+        self.assertTrue(prompt.endswith('\n\nHello'))
 
     def test_saved_profile_changes_default_without_restart_or_provider_verification(self):
         app = BrowserApp(self.root, self.chamber)

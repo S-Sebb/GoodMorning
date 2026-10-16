@@ -14,6 +14,7 @@ interface/transport mechanics and is needed only for that implementation work.
    `Secretary tone at request start` gives the style before any visible update;
    `source: default` is not a saved preference or consent to store it. Apply a
    newly confirmed tone change immediately; other request context stays intact.
+   `Call the user`, present only when saved, is how to address the user.
 - `Workflow refresh: true`: reread current core, this contract and the matching
   workflow. They replace earlier workflow copies, not records, context or permissions.
   Code owns session relocation; do not create a replacement conversation.

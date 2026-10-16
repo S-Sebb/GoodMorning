@@ -23,8 +23,8 @@ that a deadline is easy, sufficient or achievable without evidence about the wor
 - General work/local briefings use `python scripts/goodmorning.py workflow --prepare KIND`
   once for confirmed preferences, dates, paths and bounded context. It does not
   fetch, initialize, execute or mark runs. Clear capture uses its direct helper below.
-- Missing setup follows `docs/workflows/secretary.md`: secretary name first;
-  reply language second for local use only; remaining missing answers in small groups.
+- Missing setup follows `docs/workflows/secretary.md`: secretary name first; how
+  to call the user second; reply language third for local use only; remaining missing answers in small groups.
   Reuse confirmed answers, allow optional skips and never infer preferences/permissions.
   Optional provider failures leave setup saved; installation grants no setup/access/write consent.
 - Use the actual session ID/label for `--session` and calendar `--actor`; ask if
@@ -40,9 +40,10 @@ that a deadline is easy, sufficient or achievable without evidence about the wor
 - Local replies/questions/titles follow confirmed `secretary_language`, including
   explicit bilingual/follow-message choices. Ask for a missing required language;
   do not infer it from location/news or reset other answers.
-- `secretary_name` names the assistant only. Address the user by a separately
-  confirmed name/form of address, otherwise greet unnamed. Do not solicit a user
-  name just for a briefing or infer expertise from occupation.
+- `secretary_name` names the assistant only. Address the user by exactly the saved
+  optional `user_name` (browser chats: `Call the user`), naturally and not in every
+  sentence; otherwise greet unnamed. Ask for it only during setup or when the user
+  asks to change it, never just for a briefing. Do not infer expertise from occupation.
 - Local titles: `GoodMorning YYYY-MM-DD`, `GoodNight YYYY-MM-DD`, `Secretary SUMMARY`,
   `Eureka SUMMARY`, `Todo SUMMARY`. Helpers supply dates/idea raw summaries; TODO
   uses its revised title; Secretary uses a short undated request summary. Translate
