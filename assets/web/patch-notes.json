@@ -1,6 +1,69 @@
 {
   "notes": [
     {
+      "version": "0.48.0",
+      "date": "2026-10-16",
+      "author": "GoodMorning agent",
+      "title_en": "Quick chat and day-focused briefings",
+      "title_zh": "随手开聊，简报聚焦当天",
+      "changes": [
+        {
+          "category": "Added",
+          "en": [
+            "Morning, Evening and Schedule pages now have a floating Ask button, so you can chat with your secretary without leaving the page.",
+            "You can tell your secretary how many days ahead to mention a deadline, birthday or appointment, separately for morning and evening briefings.",
+            "Your secretary can save heads-ups that never ask to be ticked off, and notes for moments it can't see, like when something runs out.",
+            "Reminders like \"every day until I've bought it\" now come back daily and stop with one tick.",
+            "Weekly classes without a confirmed time now show on every date and become calendar events in one step once the time is known.",
+            "The Schedule tab now marks deadlines on their due day and shows your habit days.",
+            "Evening reviews now ask about deadlines that have arrived and offer an optional progress box for each project."
+          ],
+          "zh": [
+            "早报、晚报和日程页现在都有一个浮动的「问问秘书」按钮，不用离开当前页面就能和秘书聊上几句。",
+            "你可以告诉秘书，在早报和晚报里分别提前几天提醒你某个截止日、生日或约定。",
+            "秘书现在能保存不用勾掉的提醒，也能帮你记下要在它看不到的时刻用上的备忘，比如某样东西用完的时候。",
+            "像「每天提醒，直到我买好为止」这样的提醒，现在会每天回来找你，勾一次就停。",
+            "还没确定时间的每周课程，现在每个日期上都会显示，时间一定就能一步变成日程事件。",
+            "日程页现在会在截止当天标出截止日，也会显示你的习惯日。",
+            "晚间回顾现在会问问已经到期的截止日，还会给每个项目一个可选的进度框。"
+          ]
+        },
+        {
+          "category": "Changed",
+          "en": [
+            "Briefings now focus on one day: mornings show today and evenings show tomorrow, so nothing turns up days early unless you asked for advance notice.",
+            "Habits now appear in briefing Tasks on the days they are due.",
+            "Morning Tasks show at most three steps per project, keep today's items open, and list yesterday's unfinished work right after today.",
+            "On desktop, the secretary picture on the Secretary page is now centred and larger."
+          ],
+          "zh": [
+            "简报现在专注一天：早报看今天，晚报看明天，除非你特意要求提前提醒，否则不会有内容提前好几天冒出来。",
+            "习惯现在会在到期的那些天，出现在简报的待办任务里。",
+            "早报的待办任务每个项目最多显示三步，今天的条目保持展开，昨天没做完的事紧跟在今天后面。",
+            "在电脑上，秘书页里的秘书形象现在居中了，也更大一些。"
+          ]
+        },
+        {
+          "category": "Fixed",
+          "en": [
+            "Saying you'll do something tomorrow in the evening review no longer marks it as blocked."
+          ],
+          "zh": [
+            "在晚间回顾里说某件事明天再做，不会再被标成受阻了。"
+          ]
+        },
+        {
+          "category": "Removed",
+          "en": [
+            "The Secretary calls panel, which could not load on hosted accounts, is gone; just ask your secretary in chat instead."
+          ],
+          "zh": [
+            "「秘书来电」面板已经去掉了，它在托管账号上加载不出来；以后直接在对话里问你的秘书就好。"
+          ]
+        }
+      ]
+    },
+    {
       "version": "0.47.0", "date": "2026-10-15", "author": "GoodMorning agent",
       "title_en": "A Day view for your schedule", "title_zh": "日程里多了「日」视图",
       "changes": [
