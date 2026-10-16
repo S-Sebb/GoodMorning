@@ -114,6 +114,7 @@ class ActionTests(unittest.TestCase):
         result = action_history(messages, changes, turns, start - 10)
         self.assertEqual([entry['id'] for entry in result], ['u1', 'a1', 'saved-one', 'u2', 'a2', 'saved-two'])
         self.assertTrue(all('_turn' not in entry for entry in result))
+        self.assertEqual([entry.get('turn') for entry in result], ['one', None, None, 'two', None, None])
         self.assertEqual([entry['id'] for entry in action_history(messages[2:], changes, turns, start - 10)], ['u2', 'a2', 'saved-two'])
         legacy = [{'id': 'one'}, {'id': 'two'}]
         self.assertEqual([entry['id'] for entry in action_history(messages, changes, legacy, start - 10)], ['u1', 'a1', 'u2', 'a2'])
@@ -129,6 +130,8 @@ class ActionTests(unittest.TestCase):
         self.capture()
         status = chats.status(chat)
         self.assertEqual(status['messages'][-1]['kind'], 'action')
+        # Browsers swap their sent-message placeholder for the delivered turn.
+        self.assertEqual([entry['turn'] for entry in status['messages'] if entry.get('role') == 'user'], [chat])
         self.assertFalse(status['action_history_unavailable'])
         self.assertEqual(status['state'], 'idle')
         with patch('goodmorning.web.chat_actions.read_changes', side_effect=AssertionError('Queue must not scan audits')):

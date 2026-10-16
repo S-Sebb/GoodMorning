@@ -32,6 +32,8 @@
   let chat = null, mode = 'secretary', state = null, statusLabel = '';
   let open = false, sending = false, polling = false, revision = 0, timer, titleTimer, titleRetries = 0;
   let messageSignature = '', formSignature = '', follow = true, unread = false;
+  // Sent messages show at once and stay until the transcript includes their turn.
+  let pendingMessages = [], shownMessages = [];
   let workspace = readWorkspace();
 
   function validChat(id) { return typeof id === 'string' && /^[a-f0-9]{32}$/.test(id); }
@@ -150,11 +152,16 @@
   }
 
   function showMessages(messages) {
-    const signature = JSON.stringify([messages, typeof goodmorningLanguage === 'undefined' ? '' : goodmorningLanguage]);
+    shownMessages = messages;
+    const delivered = new Set(messages.map(item => item.turn).filter(Boolean));
+    pendingMessages = pendingMessages.filter(item => !delivered.has(item.turn));
+    const visible = [...messages, ...pendingMessages.map(item => ({...item, role: 'user', pending: true}))];
+    const signature = JSON.stringify([visible, typeof goodmorningLanguage === 'undefined' ? '' : goodmorningLanguage]);
     if (signature === messageSignature) return false;
     messageSignature = signature;
-    log.replaceChildren(...messages.map(item => {
-      const bubble = make('div', '', 'quick-chat-message ' + (item.role === 'user' ? 'user' : 'assistant') + (item.kind ? ' special' : ''));
+    log.replaceChildren(...visible.map(item => {
+      const bubble = make('div', '', 'quick-chat-message ' + (item.role === 'user' ? 'user' : 'assistant')
+        + (item.kind ? ' special' : '') + (item.pending ? ' pending' : ''));
       if (item.language) bubble.lang = item.language;
       const label = messageLabel(item);
       if (label) bubble.append(make('p', label, 'quick-chat-label'));
@@ -269,6 +276,7 @@
   function reset() {
     clearTimeout(timer); clearTimeout(titleTimer); revision++; titleRetries = 0;
     state = null; statusLabel = ''; messageSignature = ''; formSignature = ''; follow = true; unread = false;
+    pendingMessages = []; shownMessages = [];
     log.replaceChildren(); questions.replaceChildren(); errorBox.textContent = '';
   }
 
@@ -352,6 +360,9 @@
     const first = !chat, request = crypto.randomUUID().replaceAll('-', ''), current = chat || request, version = revision;
     const text = textBox.value;
     sending = true; errorBox.textContent = ''; showStatus(); showHeader();
+    const pending = {turn: request, text};
+    pendingMessages.push(pending);
+    showMessages(shownMessages); scrollToLatest();
     let result;
     try {
       result = await api(first ? '/api/chats' : `/api/chats/${current}/messages`,
@@ -363,6 +374,9 @@
       follow = true; remember(null, null);
     } catch (error) {
       if (version !== revision) return;
+      // The draft stays in the composer; the transcript shows it if it did arrive.
+      pendingMessages = pendingMessages.filter(item => item !== pending);
+      showMessages(shownMessages);
       errorBox.textContent = error.status === 429 ? t(error.message) : error.message;
       if (error.uncertain) { chat = current; state = 'uncertain'; remember(null, null); }
     } finally {

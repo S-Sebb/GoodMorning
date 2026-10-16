@@ -112,6 +112,9 @@ let titleRetries = 0;
 let formSignature = '';
 let messageSignature = '';
 let animateMessages = false;
+// Sent messages show at once and stay until the transcript includes their turn.
+let pendingMessages = [];
+let shownMessages = [];
 let followNextUpdate = true;
 let statusLabel = '';
 let readError = null;
@@ -593,6 +596,7 @@ function newConversation(next = chatConfig.defaultMode, {resume = null} = {}) {
   history.replaceState(null, '', '/chat');
   markCurrentHistoryLink(null);
   formSignature = ''; messageSignature = ''; animateMessages = false;
+  pendingMessages = []; shownMessages = [];
   followNextUpdate = true;
   document.querySelector('#chat-messages').replaceChildren();
   document.querySelector('#chat-questions').replaceChildren();
@@ -671,6 +675,7 @@ function openConversation(id, {push = true} = {}) {
   else history.replaceState(null, '', '/chat?id=' + id);
   markCurrentHistoryLink(id);
   formSignature = ''; messageSignature = ''; animateMessages = false;
+  pendingMessages = []; shownMessages = [];
   followNextUpdate = true;
   document.querySelector('#chat-messages').replaceChildren();
   document.querySelector('#chat-questions').replaceChildren();
@@ -823,12 +828,17 @@ latestButton.addEventListener('click', () => scrollToLatest(true));
 window.addEventListener('resize', updateScrollTools);
 
 function showMessages(messages) {
-  const signature = JSON.stringify([messages, secretaryName]);
+  shownMessages = messages;
+  const delivered = new Set(messages.map(item => item.turn).filter(Boolean));
+  pendingMessages = pendingMessages.filter(item => !delivered.has(item.turn));
+  const visible = [...messages, ...pendingMessages.map(item => ({...item, id: 'pending:' + item.turn, role: 'user', pending: true}))];
+  const signature = JSON.stringify([visible, secretaryName]);
   if (signature === messageSignature) return false;
   const log = document.querySelector('#chat-messages');
   const existing = new Map([...log.children].map(node => [node.dataset.message, node]));
-  const nodes = messages.map(item => {
-    let bubble = existing.get(item.id);
+  const nodes = visible.map(item => {
+    // A delivered message takes over its pending bubble instead of entering again.
+    let bubble = existing.get(item.id) || (item.turn && existing.get('pending:' + item.turn));
     if (!bubble) {
       bubble = make('section', '', 'chat-message ' + item.role + (item.kind ? ' ' + item.kind : ''));
       bubble.dataset.message = item.id;
@@ -857,6 +867,8 @@ function showMessages(messages) {
       const expected = secretaryName || chatT('Your secretary');
       if (author && author.textContent !== expected) author.textContent = expected;
     }
+    bubble.dataset.message = item.id;
+    bubble.classList.toggle('pending', Boolean(item.pending));
     const content = bubble.querySelector('.message-text');
     if (renderedMessages.get(content) !== item.text) {
       const markdown = item.role === 'assistant' && !item.kind;
@@ -872,7 +884,11 @@ function showMessages(messages) {
     if (attachmentBox.dataset.signature !== attachmentSignature) {
       attachmentBox.replaceChildren(...(item.attachments || []).map(entry => {
         const file = make('div', '', 'message-attachment');
-        if (imageTypes.has(entry.mime) && /^[a-f0-9]{32}$/.test(entry.id)) {
+        if (entry.preview) {
+          // The local preview is released after sending, so it is not enlargeable.
+          const image = make('img'); image.alt = entry.name; image.src = entry.preview;
+          file.append(image);
+        } else if (imageTypes.has(entry.mime) && /^[a-f0-9]{32}$/.test(entry.id)) {
           file.append(imagePreview(`/api/chat-uploads/${entry.id}/image`, entry.name));
         } else {
           file.append(make('p', `${entry.name} · ${fileSize(entry.size)}`, 'attachment-name'));
@@ -885,7 +901,7 @@ function showMessages(messages) {
   });
   [...log.children].filter(node => !nodes.includes(node)).forEach(node => node.remove());
   nodes.forEach((node, index) => { if (log.children[index] !== node) log.insertBefore(node, log.children[index] || null); });
-  document.querySelector('#chat-empty').hidden = messages.length > 0;
+  document.querySelector('#chat-empty').hidden = visible.length > 0;
   messageSignature = signature;
   animateMessages = true;
   syncChatAvatar();
@@ -1043,6 +1059,10 @@ document.querySelector('#chat-compose').addEventListener('submit', async event =
   const selectedFiles = attachments;
   let dispatching = false;
   sending = true; animateMessages = true; errorBox.textContent = ''; composeState();
+  const pending = {turn: request, text, attachments: selectedFiles.map(entry => ({id: entry.id,
+    name: entry.file.name, size: entry.file.size, preview: entry.preview}))};
+  pendingMessages.push(pending);
+  showMessages(shownMessages); scrollToLatest(true);
   try {
     for (const entry of selectedFiles) {
       if (!entry.uploaded) {
@@ -1073,6 +1093,9 @@ document.querySelector('#chat-compose').addEventListener('submit', async event =
     await historyList();
   } catch (error) {
     if (version !== revision) return;
+    // The draft stays in the composer; the transcript shows it if it did arrive.
+    pendingMessages = pendingMessages.filter(item => item !== pending);
+    showMessages(shownMessages);
     errorBox.textContent = error.status === 429 ? chatT(error.message) : error.message;
     if (dispatching && error.uncertain) {
       chat = current; state = 'uncertain';

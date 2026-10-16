@@ -67,6 +67,8 @@
 #chat-empty p { max-width: 380px; margin: 16px auto 0; font-size: 14px; color: var(--muted); }
 .chat-message { position: relative; width: fit-content; max-width: 85%; margin: 0; padding: 12px 16px; border-radius: 20px 20px 20px 6px; border: 1px solid var(--bubble-line, var(--line)); background: var(--bubble, var(--surface)); overflow-wrap: anywhere; }
 .chat-message.user { margin-left: auto; border-radius: 20px 20px 6px 20px; border-color: var(--your-line, var(--line)); background: var(--your-bubble, var(--wash)); }
+.chat-message > * { transition: opacity .3s ease; }
+.chat-message.pending > * { opacity: .6; }
 .chat-page { --special-question: #876333; --special-answer: #355a62; --special-added: #44705a; --special-updated: #6d6091; --special-cancelled: #9a5556; }
 html[data-edition="gn"] .chat-page { --special-question: #dfbd85; --special-answer: #95c6d0; --special-added: #9acbb0; --special-updated: #c0afe4; --special-cancelled: #e0a5a5; }
 .chat-page [data-special] { --special-color: var(--special-question); --special-paper: var(--bubble, var(--surface)); border: 1px solid var(--line); border-color: color-mix(in srgb, var(--special-color) 35%, var(--line)); background: var(--wash); background: color-mix(in srgb, var(--special-color) 8%, var(--special-paper)); box-shadow: inset 3px 0 0 color-mix(in srgb, var(--special-color) 65%, var(--special-paper)); }

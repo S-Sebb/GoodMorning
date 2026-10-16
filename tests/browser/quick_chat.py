@@ -57,7 +57,19 @@ def check_flow(browser, address):
     expect(page.locator('#quick-chat-window')).to_be_visible()
     expect(page.locator('#quick-chat-text')).to_be_focused()
     expect(page.locator('#quick-chat-empty')).to_be_visible()
-    send(page, 'PRIVATE quick question about Thursday')
+    # The message shows while its send is still in flight; the delivered turn replaces it.
+    held = []
+    page.route('**/api/chats', lambda route: held.append(route) if route.request.method == 'POST' and not held
+               else route.fallback())
+    page.locator('#quick-chat-text').fill('PRIVATE quick question about Thursday')
+    page.locator('#quick-chat-text').press('Enter')
+    expect(page.locator('.quick-chat-message.user.pending')).to_have_text('PRIVATE quick question about Thursday')
+    while not held:
+        page.wait_for_timeout(50)
+    held[0].fallback()
+    expect(page.locator('#quick-chat-messages')).to_contain_text(REPLY)
+    expect(page.locator('.quick-chat-message.user')).to_have_count(1)
+    expect(page.locator('.quick-chat-message.pending')).to_have_count(0)
     assert page.locator('#quick-chat-messages img').count() == 0
     first = chat_id(page)
     assert first and 'PRIVATE' not in page.evaluate('JSON.stringify(sessionStorage)')
