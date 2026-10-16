@@ -5,7 +5,7 @@ from pathlib import Path
 import sqlite3
 
 from .inbox_store import InboxStore
-from .task_store import TaskStore, occurrence_id
+from .task_store import TaskStore, chasing, occurrence_id, planned_on, series_days
 
 
 def clean_task_detail(title, detail):
@@ -215,37 +215,101 @@ def task_row(task, day='', occurrence=None, group='other'):
             'due_at': task['due_at'], 'timezone': task['timezone'], 'group': group,
              'source_entry_id': task['source_entry_id'], 'owner': 'tasks',
               'report_detail': occurrence['detail'] if occurrence else '', 'created_at': task['created_at'],
-              **{key:task[key] for key in ('when','due_soft') if task.get(key)}}
+              'category': task['category'], 'kind': task.get('kind', ''),
+              **{key:task[key] for key in ('when','due_soft','follow_up','notice') if task.get(key)},
+              **({'prep_for': task['repeat']['event_subject'], 'offset_days': task['repeat'].get('offset_days', 0)}
+                 if 'event_subject' in (task['repeat'] or {}) else {})}
+
+
+PROJECT_STEPS = 3
+
+
+def triggered(task):
+    """Whether something other than every morning decides when this item appears."""
+    when = task.get('when') or {}
+    return bool(task['planned_date'] or task['repeat'] or when.get('planned_task_id') or when.get('custom_rule_id'))
+
+
+def waiting(store, task):
+    """A step that waits for another task stays hidden until that task is closed."""
+    if not task.get('after'):
+        return False
+    try:
+        return store.show(task['after'])['status'] not in ('done', 'cancelled')
+    except ValueError:
+        return False
+
+
+def notice_days(item, kind, default):
+    """Days before an item's own day that this edition starts showing it."""
+    return (item.get('notice') or {}).get('morning' if kind == 'gm' else 'evening', default)
+
+
+def notice_end(today, item, kind, default):
+    return (dt.date.fromisoformat(today) + dt.timedelta(days=notice_days(item, kind, default))).isoformat()
+
+
+def coming(row, task):
+    """A row shown ahead of its day; without early completion it is only a heads-up."""
+    return {**row, 'group': 'coming', 'preview': (task.get('notice') or {}).get('early') is False}
 
 
 def task_view(store, today, kind='gm', offset=0, limit=7, owned=()):
+    """One focus day: the morning shows today, the evening previews tomorrow.
+
+    Before their day appear only hard deadlines (default: morning seven days,
+    evening due tomorrow), items with their own notice, and unfinished earlier work."""
     day = dt.date.fromisoformat(today)
     start = day + dt.timedelta(days=kind == 'gn')
-    end = start + dt.timedelta(days=2)
-    deadline_end = day + dt.timedelta(days=7)
-    rows = []
+    rows = habit_rows(store, start.isoformat(), chase=kind == 'gm')
     for task in store.all():
-        if task['status'] in ('done', 'cancelled'):
+        if task['status'] in ('done', 'cancelled') or task['category'] == 'reference' or waiting(store, task):
             continue
+        nudge = task['category'] == 'nudge'
+        if nudge and kind == 'gn':
+            continue  # A heads-up is for the morning; the evening never asks about it.
         scheduled = []
-        for n in range(3):
-            target = (start + dt.timedelta(days=n)).isoformat()
-            if not reminder_eligible(store, task, target):
-                continue
+        target = start.isoformat()
+        quiet = kind == 'gn' and notice_days(task, kind, 1) == 0  # Asked never to be told the night before.
+        if not quiet and reminder_eligible(store, task, target) and (task.get('follow_up') != 'until-done' or planned_on(task, target)):
             try:
                 occ = store.occurrence(task, target)
             except ValueError:
-                continue
-            if occ['status'] not in ('done', 'cancelled'):
-                scheduled.append(task_row(task, target, occ, 'planned'))
+                occ = None
+            if occ and occ['status'] not in ('done', 'cancelled'):
+                scheduled.append(task_row(task, target, occ, 'nudge' if nudge else 'planned'))
+        if nudge:
+            if scheduled:
+                rows.extend(scheduled)
+            elif not triggered(task) and reminder_eligible(store, task, today):
+                rows.append(task_row(task, today, None, 'nudge'))
+            continue
         if task.get('when') and not scheduled and not (kind == 'gn' and reminder_eligible(store, task, today)):
             continue  # A future morning's trigger has not been established.
         if task.get('defer_until') and today < task['defer_until']:
             continue
+        if task.get('notice') and not scheduled and not task['due_date'] and (task['planned_date'] or task['repeat']):
+            # The nearest later day within the notice, as a heads-up or an early option.
+            for n in range(1, notice_days(task, kind, 0) + 1 - int(kind == 'gn')):
+                target = (start + dt.timedelta(days=n)).isoformat()
+                if not reminder_eligible(store, task, target):
+                    continue
+                try:
+                    occ = store.occurrence(task, target)
+                except ValueError:
+                    continue  # Not one of its days.
+                if occ['status'] not in ('done', 'cancelled'):
+                    scheduled.append(coming(task_row(task, target, occ), task))
+                break
         if scheduled:
             rows.extend(scheduled)
-        elif task['due_date'] and task['due_date'] <= deadline_end.isoformat():
-            rows.append(task_row(task, group='deadline'))
+        elif kind == 'gm' and chasing(task, today):
+            rows.append(task_row(task, today, store.occurrence(task, today), 'follow-up'))
+        elif task['due_date'] and task['due_date'] <= notice_end(today, task, kind, 7 if kind == 'gm' else 1):
+            if task['due_date'] > today and (task.get('notice') or {}).get('early') is False:
+                rows.append(coming(task_row(task, task['due_date']), task))  # Only on the day: a heads-up until then.
+            else:
+                rows.append(task_row(task, group='deadline'))
         elif kind == 'gn' and (task['planned_date'] == today or task['repeat']):
             try:
                 occ = store.occurrence(task, today)
@@ -259,7 +323,8 @@ def task_view(store, today, kind='gm', offset=0, limit=7, owned=()):
             occ = store.occurrence(task, task['planned_date'])
             if occ['status'] not in ('done', 'cancelled'):
                 rows.append(task_row(task, task['planned_date'], occ, 'still-open'))
-        elif kind == 'gm' and not task['planned_date'] and not task['repeat'] and (not task['defer_until'] or task['defer_until'] <= today):
+        elif (kind == 'gm' and not task['planned_date'] and not task['repeat'] and (not task['defer_until'] or task['defer_until'] <= today)
+              and not (task.get('notice') and task['due_date'])):  # A chosen notice waits until it starts.
             rows.append(task_row(task))
     for task in store.all():
         if task['status'] in ('done','cancelled') or task.get('follow_up') != 'one-outstanding':
@@ -272,19 +337,32 @@ def task_view(store, today, kind='gm', offset=0, limit=7, owned=()):
             else:
                 rows.append(row)
     rows = [row for row in rows if (row['id'], row['occurrence_id']) not in owned]
-    rank = {'planned': 0, 'deadline': 1, 'still-open': 2, 'other': 3}
+    rank = {'nudge': 0, 'planned': 1, 'follow-up': 2, 'still-open': 3, 'coming': 4, 'deadline': 5, 'other': 6}  # Dated days before the undated backlog.
     priority = {'high': 0, 'normal': 1, '': 2, 'low': 3}
-    rows.sort(key=lambda r: (rank[r['group']], r['date'], priority[r['priority']], r['due_date'] or '9999', r['created_at'], r['id']))
+    rows.sort(key=lambda r: (rank[r['group']], r['date'], r['optional'], priority[r['priority']], r['due_date'] or '9999', r['created_at'], r['id']))
+    # Project work offers the next few steps per project, not the whole backlog.
+    shown = {}
+    kept = []
+    for row in rows:
+        if row['group'] == 'other' and row['category'] == 'project':
+            shown[row['project']] = shown.get(row['project'], 0) + 1
+            if shown[row['project']] > PROJECT_STEPS:
+                continue
+        kept.append(row)
+    rows = kept
     return {'items': rows[offset:offset + limit], 'total': len(rows),
             'next_offset': offset + limit if offset + limit < len(rows) else None}
 
 
-def planned_day(store, day, completed=True):
+def planned_day(store, day, completed=True, chase=False):
+    """Agreed work for one day. Heads-ups and reference notes are never work to tick off."""
     rows = []
     for task in store.all():
-        if task['status'] == 'cancelled':
+        if task['status'] == 'cancelled' or task['category'] in ('nudge', 'reference'):
             continue
         if not reminder_eligible(store, task, day):
+            continue
+        if task.get('follow_up') == 'until-done' and not planned_on(task, day) and not (chase and chasing(task, day)):
             continue
         try:
             occ = store.occurrence(task, day)
@@ -297,6 +375,61 @@ def planned_day(store, day, completed=True):
     return rows
 
 
+def calendar_day_extras(store, day, today):
+    """Schedule-tab markers that reserve no workday: hard deadlines and habit days.
+
+    A habit's future days are projections from its saved rule and confirmed
+    completions; they move when the user actually does it earlier or later."""
+    rows = []
+    for task in store.all():
+        if task['category'] == 'deadline' and task['due_date'] == day and task['status'] != 'cancelled' and not task['repeat']:
+            rows.append({**task_row(task, day, None, 'due'), 'marker': 'due'})
+    if day >= today:
+        rows.extend({**row, 'marker': 'flexible'} for row in habit_rows(store, day, chase=day == today))
+    from .custom_store import CustomStore
+    try:
+        custom = CustomStore(store.inbox.directory, write=False)
+    except ValueError:
+        return rows  # No habits saved yet.
+    try:
+        for rule in custom.all():
+            if day < today and custom.db.execute("SELECT 1 FROM custom_completions WHERE rule_id=? AND date=? AND status='done'",
+                                                 (rule['id'], day)).fetchone():
+                rows.append({**habit_row(rule, day, 'done'), 'marker': 'flexible'})
+    finally:
+        custom.close()
+    return rows
+
+
+def habit_row(rule, day, status):
+    return {'id': rule['id'], 'revision': rule['revision'], 'occurrence_id': f"cuoc_{rule['id'][3:]}_" + day.replace('-', ''),
+            'date': day, 'status': status, 'title': rule['title'], 'detail': rule['detail'], 'project': '',
+            'optional': False, 'priority': '', 'due_date': '', 'due_at': '', 'timezone': rule['timezone'],
+            'report_detail': '', 'category': 'habit', 'kind': '', 'group': 'planned', 'created_at': '', 'source_entry_id': '',
+            'owner': 'tasks'}
+
+
+def habit_rows(store, day, chase):
+    """Habits due on one day. Only the current day carries a missed-day follow-up;
+    later days are projections that move when the user actually trains."""
+    from .custom_store import CustomStore
+    try:
+        custom = CustomStore(store.inbox.directory, write=False)
+    except ValueError:
+        return []  # No habits saved yet.
+    try:
+        rows = []
+        for rule in custom.all():
+            if rule['status'] != 'open':
+                continue
+            decision = custom.due(rule, day)
+            if decision['due'] and (chase or decision['reason'] == 'due'):
+                rows.append(habit_row(rule, day, 'open'))
+        return rows
+    finally:
+        custom.close()
+
+
 def reported_day(store, day):
     """Actual dated reports only; a global status/audit timestamp is not daily evidence."""
     return [task_row(store.show(row['task_id']), day, dict(row), 'reported')
@@ -305,7 +438,13 @@ def reported_day(store, day):
 
 def feedback_day(store, day):
     """Today's plan plus saved morning choices, without assigning new workdays."""
-    rows = {row['id']: row for row in planned_day(store, day)}
+    rows = {row['id']: row for row in planned_day(store, day, chase=True)}
+    for task in store.all():
+        # A hard deadline that has arrived is checked tonight even without a morning edition.
+        if (task['id'] not in rows and task['category'] == 'deadline' and task['due_date'] <= day
+                and task['status'] not in ('done', 'cancelled') and not waiting(store, task)):
+            rows[task['id']] = {**task_row(task, day, {'id': occurrence_id(task['id'], day), 'status': task['status'], 'detail': ''}, 'reported'),
+                                'actual': True, 'due_now': True}
     morning = store.inbox.directory / 'daily' / (day + '.gm.json')
     if not morning.exists():
         return list(rows.values())
@@ -315,8 +454,11 @@ def feedback_day(store, day):
     identifiers = {row[0] for section in document['sections'] if section[0] == 'tasks'
                    for block in section[1] if block[0] == 'actions' for row in block[1]}
     for task in store.all():
-        if task['id'] not in identifiers or task['id'] in rows or task['status'] in ('done', 'cancelled'):
+        if (task['id'] not in identifiers or task['id'] in rows or task['status'] in ('done', 'cancelled')
+                or task['category'] in ('nudge', 'reference')):
             continue
+        if (task.get('notice') or {}).get('early') is False and (task['repeat'] or day < (task['planned_date'] or task['due_date'] or day)):
+            continue  # Only possible on its own day: never offered as done early.
         # Selection reports actual work today; the archived date/revision is not a live plan.
         occurrence = store.db.execute('SELECT * FROM task_occurrences WHERE task_id=? AND date=?',
                                       (task['id'], day)).fetchone()
@@ -359,18 +501,37 @@ def attention(store, today, offset=0, limit=7, calendar_reviews=()):
 
 
 def confirmed_drafts(store, start, end, converted=()):
-    """Unknown-time attendance has a date, not invented interval endpoints."""
-    return [{**draft, 'draft': True, 'subject': draft['title'], 'time': 'TBC'}
-            for draft in store.all(draft=True)
-            if draft['state'] == 'needs-details' and draft['confirmed_day']
-            and draft['id'] not in converted and start <= draft['date'] < end]
+    """Unknown-time attendance has a date, not invented interval endpoints.
+
+    A weekly series appears once on each of its dates, each with its own card ID."""
+    rows = []
+    for draft in store.all(draft=True):
+        if draft['state'] != 'needs-details' or not draft['confirmed_day'] or draft['id'] in converted:
+            continue
+        last = (dt.date.fromisoformat(end) - dt.timedelta(days=1)).isoformat()
+        days = series_days(draft['repeat'], start, last) if draft.get('repeat') else [draft['date']]
+        for day in days:
+            if start <= day < end:
+                rows.append({**draft, 'id': draft['id'] + ('@' + day if draft.get('repeat') else ''), 'date': day,
+                             'draft': True, 'subject': draft['title'], 'time': 'TBC', 'category': 'appointment'})
+    return rows
 
 
 def converted_draft_ids(calendar):
     # A conversion can move attendance outside the displayed window before its
     # inbox finalization. Identity, not the current date query, suppresses the draft.
-    return {row[0] for row in calendar.con.execute(
+    # A converted series saves one event per date as DRAFT@DATE.
+    return {row[0].split('@')[0] for row in calendar.con.execute(
         "SELECT external_id FROM events WHERE source='custom' AND approved_json IS NOT NULL")}
+
+
+NOTICE_LIMIT = 60
+
+
+def event_day(event, zone):
+    from goodmorning.calendar.calendar_store import endpoints
+    from zoneinfo import ZoneInfo
+    return endpoints(event)[0].astimezone(ZoneInfo(zone)).date().isoformat()
 
 
 def schedule(runtime, today, kind, store=None, offset=0, limit=7):
@@ -378,7 +539,7 @@ def schedule(runtime, today, kind, store=None, offset=0, limit=7):
     from goodmorning.calendar.calendar_store import CalendarStore
     from zoneinfo import ZoneInfo
     start_day = dt.date.fromisoformat(today) + dt.timedelta(days=kind == 'gn')
-    end_day = start_day + dt.timedelta(days=3)
+    end_day = start_day + dt.timedelta(days=1)  # One focus day: today for gm, tomorrow for gn.
     result = {'items': [], 'pending': 0, 'warnings': [], 'reviews': [],
               'window': {'start': start_day.isoformat(), 'end': (end_day - dt.timedelta(days=1)).isoformat()}}
     converted = set()
@@ -393,28 +554,14 @@ def schedule(runtime, today, kind, store=None, offset=0, limit=7):
             raise ValueError('Unsafe calendar path')
         calendar = CalendarStore(str(path), readonly=True)
         calendar.con.execute('BEGIN')
-        result['items'] = calendar.query(start, end, details=True, limit=-1)
-        if kind in ('gm', 'gn'):
-            # Briefings show the timed schedule for their focus day only
-            # (today for morning, tomorrow for evening); all-day and TBC
-            # commitments keep the three-day glance. Timed appointments on
-            # other days stay out of the edition.
-            from goodmorning.calendar.calendar_store import endpoints as _endpoints
-            focus_start = start
-            focus_end = focus_start + dt.timedelta(days=1)
-            kept = []
-            for item in result['items']:
-                if item.get('draft') or item.get('all_day'):
-                    kept.append(item)
-                    continue
-                try:
-                    begin, finish = _endpoints(item)
-                except (ValueError, KeyError, TypeError):
-                    kept.append(item)
-                    continue
-                if begin < focus_end and finish > focus_start:
-                    kept.append(item)
-            result['items'] = kept
+        result['items'] = [{**item, 'category': 'occasion' if item.get('all_day') else 'appointment'}
+                           for item in calendar.query(start, end, details=True, limit=-1)
+                           if not (kind == 'gn' and notice_days(item, kind, 1) == 0)]
+        # Advance notice: a later appointment or occasion the user asked to hear about earlier.
+        horizon = dt.datetime.combine(dt.date.fromisoformat(today) + dt.timedelta(days=NOTICE_LIMIT + 1), dt.time(), ZoneInfo(zone))
+        for item in calendar.query(end, horizon, details=True, limit=-1):
+            if item.get('notice') and end_day.isoformat() <= event_day(item, zone) <= notice_end(today, item, kind, 0):
+                result['items'].append({**item, 'category': 'occasion' if item.get('all_day') else 'appointment'})
         converted = converted_draft_ids(calendar)
         result['pending'] = calendar.stats()['pending']
         from goodmorning.web import language as ui
@@ -471,7 +618,15 @@ def schedule(runtime, today, kind, store=None, offset=0, limit=7):
         if calendar:
             calendar.close()
     if store:
-        result['items'].extend(confirmed_drafts(store, start_day.isoformat(), end_day.isoformat(), converted))
+        result['items'].extend(row for row in confirmed_drafts(store, start_day.isoformat(), end_day.isoformat(), converted)
+                               if not (kind == 'gn' and notice_days(row, kind, 1) == 0))
+        nearest = {}
+        horizon_day = (dt.date.fromisoformat(today) + dt.timedelta(days=NOTICE_LIMIT + 1)).isoformat()
+        for row in confirmed_drafts(store, end_day.isoformat(), horizon_day, converted):
+            base = row['id'].split('@')[0]
+            if row.get('notice') and base not in nearest and row['date'] <= notice_end(today, row, kind, 0):
+                nearest[base] = row  # Only the next class of a series.
+        result['items'].extend(nearest.values())
         indexed = {row['id']: row for row in result['items']}
         for task in store.all():
             event = indexed.get(task['calendar_event_id'])
@@ -584,6 +739,15 @@ def action_cells(row):
         detail.append(ui.text('Priority: {priority}', priority=row['priority']))
     if row['due_date']:
         detail.append(ui.text('Soft target: {date}' if row.get('due_soft') else 'Due: {date}', date=row['due_at'] or row['due_date']))
+    if row.get('kind') == 'nudge':
+        detail.insert(0, ui.text('Heads-up only; nothing to tick off'))
+    if row.get('preview'):
+        detail.insert(0, ui.text('Heads-up: this can only be done on its day'))
+    if row.get('follow_up') == 'until-done':
+        detail.append(ui.text('Daily follow-up until done'))
+    if row.get('prep_for'):
+        detail.append(ui.text('Preparation for {subject}', subject=row['prep_for']) if not row.get('offset_days') else
+                      ui.text('Preparation for {subject}, {count} day(s) before', subject=row['prep_for'], count=-row['offset_days']))
     if (row.get('when') or {}).get('morning_before'):
         detail.append(ui.text('Reminder trigger: morning starts before {time} ({zone})',
                               time=row['when']['morning_before'], zone=row['timezone']))

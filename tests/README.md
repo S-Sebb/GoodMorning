@@ -95,6 +95,9 @@ public HTTPS, encrypted deployment, real providers or load.
 | Task and tone | `PY tests/benchmarks/task_tone_live.py --output DIR` | English and Chinese × default, formal and playful tones, run twice: capture, clarification, duplicate request identities, refused writes, fault recovery |
 | Briefing tone | `PY tests/benchmarks/briefing_tone_live.py --output DIR --language en` (then `zh-CN` in a new directory) | Morning and evening prompts: empty and opted-in sections, unavailable providers, resume, evening feedback, regeneration, ambiguous attribution, and two judgment cases: vague task titles and messy evening feedback with a task move |
 | Custom schedule | `PY tests/benchmarks/custom_tone_live.py --output DIR --language en\|zh-CN` | Custom-schedule prompts: ask until clear, save once, tone |
+| Item categories | `PY tests/benchmarks/category_live.py --output DIR --language en\|zh-CN` | Twelve real-usage requests (nudge on habit days, reference note, daily follow-up, birthdays, weekly TBC class, linked preparation, split request, dependent step, routine plus deadline, day and deadline tasks); checks the saved records. `--only NAME...` reruns chosen scenarios in a new directory |
+| Category briefings | `PY tests/benchmarks/category_briefing_live.py --output DIR --language en\|zh-CN` | A synthetic week with every category: real models write a Wednesday morning and a Friday evening (form answered); checks each edition shows its focus day only and saves desktop/mobile screenshots for manual review. Needs Playwright |
+| Category week (free) | `PY tests/benchmarks/category_week.py --output DIR` | No model calls: prints what each morning, evening and Schedule-tab day shows for the same synthetic week |
 | Manual | `PY tests/benchmarks/manual_trial.py --help` | Ad-hoc cases you drive by hand |
 
 Task and tone options: `--model deepseek-flash` and `--language en|zh-CN` test a

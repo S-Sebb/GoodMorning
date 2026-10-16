@@ -41,7 +41,9 @@ def check(app, url, shots, canonical=False):
             expect(page.locator('.task-deadline')).to_contain_text('Due: 2026-10-16')
             expect(page.locator('.schedule-task.is-partial')).to_contain_text('First baseline compared.')
             expect(page.locator('.schedule-task.is-blocked')).to_contain_text('Awaiting lab approval.')
-            expect(page.get_by_text('Deadline only, not a workday', exact=True)).to_have_count(0)
+            # A deadline is a marker on its due day, never a workday.
+            expect(page.get_by_text('Deadline only, not a workday', exact=True)).to_have_count(1)
+            expect(page.locator('#day-2026-10-16 .task-marker')).to_have_text('Deadline · no workday assigned')
         expect(page.get_by_label('Schedule details', exact=True)).to_have_accessible_description('Calendar review: 1 pending')
         # Routine metadata has one home, without competing with the calendar.
         visible_text = page.locator('main').inner_text()

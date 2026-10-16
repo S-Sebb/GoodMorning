@@ -51,8 +51,12 @@ There is no second schedule store and no extraction from chat text.
    approving a cancellation removes it. Recurrence uses the existing import
    expansion, not a new browser recurrence engine.
 2. **Dated work:** use canonical `task` writes with an explicit `planned_date` or
-   confirmed recurrence under `docs/item-taxonomy.md`. Deadline-only and undated
-   tasks do not reserve a workday. Project/optional are attributes.
+   confirmed recurrence under `docs/item-taxonomy.md`. Undated tasks, nudges and
+   reference notes do not appear. A hard deadline appears only on its due day,
+   marked "no workday assigned"; it reserves no workday. Habits (`custom.sqlite`)
+   appear on their projected due days and on confirmed completion days, marked
+   flexible because the next date follows actual completion. A weekly TBC series
+   appears on each of its dates. Project/optional are attributes.
    The tab shows project, optionality, supplied deadline, partial/blocked status
    and reported detail with the task, without creating another calendar event.
    Confirmed appointments with unknown time appear under Events as TBC, never
@@ -63,7 +67,7 @@ There is no second schedule store and no extraction from chat text.
 4. **Completion:** user-confirmed IDs use revision-checked `task --update` or
    per-occurrence `task --report`, with `confirmed_completion: true`. Neither
    opening the page nor an elapsed date marks work done or moves it forward.
-5. **Excluded:** raw/undated TODOs, ideas, speculative project steps, unapproved
+5. **Excluded:** raw/undated TODOs, nudges, reference notes, ideas, speculative project steps, unapproved
    new imports, cancelled events, and inferred deadlines. No browser action
    changes calendar or daily records. The secretary link starts ordinary chat;
    it does not send a prompt or create a task automatically.

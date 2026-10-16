@@ -91,6 +91,9 @@ python scripts/goodmorning.py calendar --cancel EVENT_ID --expect-revision 3
 python scripts/goodmorning.py calendar --history EVENT_ID --limit 5
 ```
 
+An event may carry an advance notice, `"notice":{"morning":3,"evening":1}`: briefings
+show it from that many days before its day (see rule 2 of `docs/item-taxonomy.md`).
+
 The revision examples are illustrative. Always use the current revision from
 `--show`; a stale write is refused. Use `--actor SESSION_NAME` to identify the
 conversation responsible for a change. `--reject ID` also requires a revision.

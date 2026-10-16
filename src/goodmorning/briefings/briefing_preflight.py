@@ -42,7 +42,9 @@ def initialize(runtime, job, previous=None):
                     raise ValueError('Review tasks exceed the feedback limit; review before generation')
                 context['feedback_tasks'] = [{'id': r['occurrence_id'], 'task_id': r['id'], 'revision': r['revision'],
                                              'text': r['title'], 'project': r['project'], 'done': r['status'] == 'done',
-                                             **({'actual': True} if r.get('actual') else {})} for r in rows]
+                                             'category': r['category'],
+                                             **({'actual': True} if r.get('actual') else {}),
+                                             **({'due_now': r['due_date']} if r.get('due_now') else {})} for r in rows]
                 try:
                     from goodmorning.records.custom_store import CustomStore
                     custom_store = CustomStore(runtime, write=False)
@@ -105,7 +107,8 @@ def initialize(runtime, job, previous=None):
         today_tasks = []
         longterm_tasks = []
         for _t in open_tasks:
-            if not _t.get('actual'):
+            if not _t.get('actual') or _t.get('due_now'):
+                # Planned work and hard deadlines that have arrived are tonight's checks.
                 _t['_section'] = 'today'
                 today_tasks.append(_t)
                 continue
@@ -123,7 +126,9 @@ def initialize(runtime, job, previous=None):
             from goodmorning.web.language import day_text as _day_text
             _labels = {}
             for _t in today_tasks:
-                if _t.get('actual'):
+                if _t.get('due_now'):
+                    _labels[_t['id']] = f"{_t['text']} · {ui.text('Due: {date}', date=_day_text(_t['due_now']), lang=selected)}"
+                elif _t.get('actual'):
                     # Overdue: show original workday, not today.
                     _dates = [d for d in _orig_dates(_t['task_id']) if d]
                     if _dates:
@@ -160,6 +165,15 @@ def initialize(runtime, job, previous=None):
                      'description':'Only tick if fully done early.',
                      'options':[
                          {'value':t['id'],'label':_labels[t['id']],'group':t.get('project') or ui.text('Other tasks',lang=selected)} for t in longterm_tasks]})
+            # Project steps get a progress note, not a verdict: they are rarely finished in one day.
+            projects = []
+            for _t in longterm_tasks:
+                if _t.get('category') == 'project' and _t.get('project') and _t['project'] not in projects:
+                    projects.append(_t['project'])
+            for index, name in enumerate(projects[:3], 1):
+                fields.append({'key':'progress_'+str(index),'project':name,'type':'string','required':False,
+                               'title':ui.text('Progress on {project} (optional)',project=name,lang=selected),
+                               'placeholder':'What moved forward, or what got in the way?'})
             fields.append(
                 {'key':'details','title':'Anything else you’d like to share?','type':'string','required':True,
                  'custom':True,'customFirst':True,'placeholder':'Share any progress or updates…',
@@ -173,7 +187,8 @@ def initialize(runtime, job, previous=None):
     context['awaiting'] = bool(fields)
     for field in fields:
         for key in ('title','description','placeholder'):
-            if key in field:field[key]=ui.text(field[key],lang=selected)
+            if key in field and not (key == 'title' and 'project' in field):  # Project titles are filled in already.
+                field[key]=ui.text(field[key],lang=selected)
         for option in field.get('options',[]):
             if option['value'] in ('today','stop','none','No other updates','No updates today'):option['label']=ui.text(option['label'],lang=selected)
     revision = '_'+str(job['preflight_revision']) if job.get('preflight_revision') else ''
@@ -262,9 +277,18 @@ def answer(runtime, job, value):
         if not details.strip():
             raise ValueError('Give actual details or choose the no-updates option')
         details = one_line(details)
+        progress = []
+        for field in context['form']['fields']:
+            if field['key'].startswith('progress_'):
+                note = value[field['key']]
+                if not isinstance(note, str) or len(note) > 600:
+                    raise ValueError('Progress details exceed their limit')
+                if note.strip():
+                    progress.append('Progress on '+field['project']+': '+one_line(note))
         today_complete = [] if chosen == ['none'] else chosen
         complete = today_complete + chosen_long
         feedback = ['Completed: '+known[x]['text'] for x in complete] or (['No listed tasks were fully completed.'] if 'completed' in keys or 'completed_longterm' in keys else [])
+        feedback.extend(progress)
         feedback.append('Other updates: '+details)
         # Store the exact explicit input before applying it, making uncertain retries recoverable.
         previous = context.get('browser_answer')
@@ -306,7 +330,8 @@ def answer(runtime, job, value):
                 receipt = {'sha256':current}  # Previous atomic amendment committed before its receipt.
             else:
                 raise ValueError('The daily plan changed; reconcile feedback before continuing')
-        context['feedback'] = {'completed':[known[x]['text'] for x in complete],'details':details,'saved':True}
+        context['feedback'] = {'completed':[known[x]['text'] for x in complete],'details':details,'saved':True,
+                               **({'progress':progress} if progress else {})}
         context['daily']['sha256'] = receipt['sha256']
         for task in context.get('feedback_tasks', context['daily']['tasks']):
             if task['id'] in complete:

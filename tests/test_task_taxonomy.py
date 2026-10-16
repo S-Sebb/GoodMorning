@@ -151,7 +151,7 @@ class TaxonomyTests(unittest.TestCase):
         self.assertNotIn('2026-10-14',[r['date'] for r in overlapping])
         self.tasks.mutate(identifier,2,{'status':'done','confirmed_completion':True},'ses_test','actual-session',
                           '2026-10-15T12:00:00+08:00',day='2026-10-15',actual=True)
-        self.assertEqual([r['date'] for r in self.view(day='2026-10-15')['tasks']['items']],['2026-10-16'])
+        self.assertEqual([r['date'] for r in self.view(day='2026-10-15')['tasks']['items']],[])  # No lookahead to the 16th.
         current=self.view(day='2026-10-16')['tasks']['items'][0]['detail']
         self.assertTrue(overdue.startswith(current+'\n'))  # The firmer follow-up applies only while overdue.
         self.assertEqual(self.view('gn',day='2026-10-15')['today'][0]['date'],'2026-10-15')
@@ -257,7 +257,9 @@ class TaxonomyTests(unittest.TestCase):
         routing.validate_sources(self.root, doc, DAY, 'gm')
         self.assertEqual(self.tasks.show(receipt['task_id'])['planned_date'], '')
         week = saved_week(self.root, 'Europe/London', datetime(2026, 10, 13, tzinfo=timezone.utc), 0)
-        self.assertFalse(any(day['tasks'] for day in week['days']))
+        # Only a deadline marker on the due date; no workday occurrence anywhere.
+        marked = [(day['date'], task['marker'], task['occurrence_id']) for day in week['days'] for task in day['tasks']]
+        self.assertEqual(marked, [('2026-10-16', 'due', '')])
 
     def test_planned_tasks_keep_identity_after_rewording_and_have_one_owner(self):
         capture = self.capture(task={'title': 'Atlas: prepare review', 'planned_date': DAY})
@@ -304,11 +306,11 @@ class TaxonomyTests(unittest.TestCase):
     def test_reported_outcome_survives_an_explicit_reschedule(self):
         identifier = self.capture(task={'title': 'Draft report', 'planned_date': DAY})['task_id']
         self.tasks.mutate(identifier, 1, {'status': 'partial', 'detail': 'Outline drafted.'}, 'ses_test', 'progress', NOW, day=DAY)
-        self.tasks.mutate(identifier, 2, {'planned_date': '2026-10-15'}, 'ses_test', 'agreed-move', NOW)
+        self.tasks.mutate(identifier, 2, {'planned_date': '2026-10-14'}, 'ses_test', 'agreed-move', NOW)
         view = self.view('gn')
         self.assertEqual(view['today'][0]['status'], 'partial')
         self.assertEqual(view['today'][0]['date'], DAY)
-        self.assertEqual(view['tasks']['items'][0]['date'], '2026-10-15')
+        self.assertEqual(view['tasks']['items'][0]['date'], '2026-10-14')
 
     def test_global_completion_does_not_rewrite_a_previous_days_partial_outcome(self):
         identifier = self.capture(task={'title': 'Draft report', 'planned_date': DAY})['task_id']
@@ -333,7 +335,8 @@ class TaxonomyTests(unittest.TestCase):
     def test_tbc_event_is_persistent_not_an_all_day_or_flexible_task(self):
         receipt = self.capture('Dentist Thursday; time unknown', 'event_proposal', draft={
             'title': 'Dentist', 'date': '2026-10-15', 'timezone': 'Europe/London', 'confirmed_day': True})
-        view = self.view()
+        self.assertEqual(self.view()['schedule']['items'], [])  # A morning shows its own day only.
+        view = self.view(day='2026-10-15')
         self.assertEqual(view['tasks']['total'], 0)
         self.assertEqual(view['schedule']['items'][0]['time'], 'TBC')
         self.assertFalse(view['schedule']['items'][0].get('all_day', False))
@@ -461,7 +464,7 @@ class TaxonomyTests(unittest.TestCase):
         old = self.capture(task={'title':'Older work','planned_date':'2026-10-11'})['task_id']
         planned = self.capture(task={'title':'Today work','planned_date':DAY})['task_id']
         recurring = self.capture(task={'title':'Recurring work','timezone':'Europe/London',
-            'repeat':{'weekdays':[2], 'start':DAY}})['task_id']
+            'repeat':{'weekdays':[1], 'start':DAY}})['task_id']
         closed = self.capture(task={'title':'Later cancelled'})['task_id']
         block = routing.prepare(self.root, DAY, 'gm', limit=200)['blocks']['tasks']
         (self.root/'daily').mkdir(exist_ok=True)
@@ -487,7 +490,7 @@ class TaxonomyTests(unittest.TestCase):
         self.assertEqual(self.tasks.show(old)['planned_date'],'2026-10-11')
         self.assertEqual(self.tasks.show(old)['status'],'done')
         self.assertEqual(self.tasks.show(recurring)['status'],'open')
-        self.assertEqual(self.tasks.occurrence(self.tasks.show(recurring),'2026-10-21')['status'],'open')
+        self.assertEqual(self.tasks.occurrence(self.tasks.show(recurring),'2026-10-20')['status'],'open')
         self.assertEqual(self.tasks.show(planned)['status'],'open')
         self.assertEqual({r['id'] for r in routing.reported_day(self.tasks,DAY)}, {undated,old,recurring})
 
@@ -523,7 +526,7 @@ class TaxonomyTests(unittest.TestCase):
 
     def test_morning_recurring_completion_does_not_reappear_as_actual_choice(self):
         id = self.capture(task={'title':'Weekly','timezone':'Europe/London',
-            'repeat':{'weekdays':[2],'start':DAY}})['task_id']
+            'repeat':{'weekdays':[1],'start':DAY}})['task_id']
         block = self.view()['blocks']['tasks']
         (self.root/'daily').mkdir(exist_ok=True)
         (self.root/'daily'/f'{DAY}.gm.json').write_text(native.encode(self.document(block)))

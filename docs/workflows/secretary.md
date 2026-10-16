@@ -69,9 +69,12 @@ guides only for the requested operation; do not recursively reload the skill.
    entries and prior answers. Keep proposals pending until meaning/scope are
    confirmed and all authorized organization succeeds. Remind only due open questions.
 3. Use `task` for canonical actions/occurrences and `docs/item-taxonomy.md` for
-   timing. A workday needs agreement; a deadline reserves no day. Unknown-time
+   categories (rule 2) and timing. Classify every new item before writing it. A
+   workday needs agreement; a deadline reserves no day. Unknown-time
    appointments use event drafts. Do not move unfinished tasks or adopt ideas
    without authorization. Daily Markdown is factual history, not live task state.
+   When the user mentions something matching a saved `references` trigger, read
+   that note with `task --show ID` and use its detail.
 4. Profile changes require exact confirmed values and preserve unrelated lines.
    For a rename, confirm spelling once, validate `secretary_name`, update only that
    profile field, and use it immediately. No rebuild/mark/provider check is needed;
