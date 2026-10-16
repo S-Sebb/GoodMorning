@@ -53,6 +53,9 @@ TEXT = {
                 'Zero rows: skip {"position":N} instead of publishing.'),
   'today': ('Saved browser feedback (in prepare) is final: selected completions are already applied; never reapply or re-ask them. '
             'feedback.progress lines are project progress, not completion: mention them and never mark a step done from them. '
+            'Blocked means something outside the user\'s control stops it (waiting on someone, missing material, closed). "Not done yet", '
+            '"didn\'t get to it" or "will do it tomorrow" is neither blocked nor partial: write no status. A daily follow-up or deadline '
+            'already comes back by itself; for other work a clearly named day is a move request (below). '
             'Work in this order. 1) Reconcile: for each partial/blocked report in feedback.details, run the Tasks read in `read`, then '
             'python scripts/goodmorning.py task --secretary-dir RUNTIME --show TASK_ID for its revision. When exactly one action clearly '
             'matches, record it once: an occurrence agreed for DATE uses task --report TASK_ID --date DATE; otherwise task --update TASK_ID '
@@ -103,7 +106,9 @@ TEXT = {
             '说明里写着"只是提醒"的行只是提醒：可以提到，但不要问是否完成。注记：最重要的 1–3 个项目组和一个有用的下一步。读取为 0 行时用 skip {"position":N}。'),
   'attention': '运行读取命令，原样复制 decisions 块（标题不变）。注记：数量和唯一的下一步。读取为 0 行时用 skip {"position":N}。',
   'today': ('prepare 中保存的网页反馈是最终答案：已选的完成项已经应用，不要重复应用或再次询问。feedback.progress 是项目进展而不是完成：'
-            '要提到，但不要据此把任何步骤标为完成。按以下顺序处理。1）核对：对 feedback.details 中每条'
+            '要提到，但不要据此把任何步骤标为完成。受阻指用户无法控制的原因阻止了它（在等别人、缺材料、店没开）。'
+            '“还没做”“没顾上”“明天再去/明天再做”既不是受阻也不是部分完成：不要写入状态。每天跟进的事项和有截止日期的事项会自动再次出现；'
+            '其他事项如明确说了哪一天，按下面的改期处理。按以下顺序处理。1）核对：对 feedback.details 中每条'
             '部分完成/受阻的报告，先运行 `read` 中的 Tasks 读取，再运行 python scripts/goodmorning.py task --secretary-dir RUNTIME --show TASK_ID 获取版本号。'
             '恰好只有一项明确匹配时记录一次：DATE 当天约定的事项用 task --report TASK_ID --date DATE；否则用 task --update TASK_ID（保留原计划日期）；'
             '两者都带 --expect-revision REV --session SESSION --request-key gn-report:JOB:TASK_ID --input-json '

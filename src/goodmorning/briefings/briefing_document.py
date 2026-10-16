@@ -538,11 +538,24 @@ def _render_project_subgroups(rows, images, briefing_date, collapse=True):
     return ''.join(body)
 
 
+HEADS_UP = ('Heads-up only; nothing to tick off', 'Heads-up: this can only be done on its day')
+
+
+def later(day, briefing_date):
+    """A day after tomorrow: shown early because the user asked for advance notice."""
+    try:
+        return bool(briefing_date and day and (Date.fromisoformat(day) - Date.fromisoformat(briefing_date)).days > 1)
+    except ValueError:
+        return False
+
+
 def action_day(day, briefing_date):
     if not day:
         return ui.ui('To be scheduled')
     if briefing_date and day < briefing_date:
         return ui.ui('Still open') + ' — ' + ui.agenda_day(day)
+    if later(day, briefing_date):
+        return ui.ui('Coming up') + ' — ' + ui.agenda_day(day)
     return ui.agenda_day(day, briefing_date)
 
 
@@ -574,7 +587,7 @@ def render_block(value, images, briefing_date=None):
             status_label='Completed' if status=='done' else 'Not completed'
             tick = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="m5 12.5 4.5 4.5L19 7"/></svg>' if status=='done' else ''
             mark = '<span class="check'+(' is-done' if status=='done' else '')+'" data-ui-aria-label="'+status_label+'" aria-label="'+ui.text(status_label)+'">'+tick+'</span>'
-            if status == 'open' and any(detail.startswith(ui.text('Heads-up only; nothing to tick off', lang=lang)) for lang in ('en', 'zh-CN')):
+            if status == 'open' and any(detail.startswith(ui.text(note, lang=lang)) for note in HEADS_UP for lang in ('en', 'zh-CN')):
                 mark = '<span class="check is-note" aria-hidden="true"></span>'  # A heads-up has nothing to tick.
             label = '<span class="task-status">' + ui.ui(status.capitalize()) + '</span> ' if status in ('partial', 'blocked') else ''
             detail_html = f'<div class="task-detail">{label}{escaped(detail)}</div>' if (detail or label) else ''
@@ -600,7 +613,7 @@ def render_block(value, images, briefing_date=None):
         for date, time, event, place, prep in value[1]:
             if date != previous:
                 if groups:groups.append('</ol></div>')
-                heading='<h3 class="agenda-day">'+icon('calendar')+ui.agenda_day(date,briefing_date)+'</h3>' if date else ''
+                heading='<h3 class="agenda-day">'+icon('calendar')+(ui.ui('Coming up')+' — ' if later(date,briefing_date) else '')+ui.agenda_day(date,briefing_date)+'</h3>' if date else ''
                 groups.append('<div class="agenda-group">'+heading+'<ol class="agenda-events">')
                 previous=date
             fields = [(labels[0], date, 'calendar'), (labels[3], place, 'pin'), (labels[4], prep, 'list')]

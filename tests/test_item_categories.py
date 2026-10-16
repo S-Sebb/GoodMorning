@@ -121,6 +121,66 @@ class CategoryTests(unittest.TestCase):
         note = native.render_block(['tasks', [['open', 'Chair price', ui.text('Heads-up only; nothing to tick off', lang='zh-CN')]]], {})
         self.assertIn('check is-note', note)  # No empty checkbox on a heads-up.
 
+    def test_notice_is_only_for_dated_actions_and_well_formed(self):
+        for task, message in (({'title': 'Read', 'notice': {'morning': 2}}, 'dated action'),
+                              ({'title': 'Chair', 'kind': 'nudge', 'notice': {'morning': 2}}, 'dated action'),
+                              ({'title': 'Form', 'due_date': '2026-10-20', 'notice': {'morning': 61}}, '0..60'),
+                              ({'title': 'Form', 'due_date': '2026-10-20', 'notice': {'soon': 1}}, 'notice is')):
+            with self.assertRaisesRegex(ValueError, message):
+                self.capture(**task)
+        with self.assertRaisesRegex(ValueError, 'notice is'):
+            self.draft(title='Class', date='2026-10-17', timezone=ZONE, confirmed_day=True, notice={'early': True})
+
+    def test_notice_shows_an_only_on_the_day_deadline_as_a_heads_up(self):
+        self.capture(title='Claim the pay', due_date='2026-10-16', notice={'morning': 2, 'evening': 1, 'early': False})
+        self.assertNotIn('Claim the pay', self.items('gm', '2026-10-13'))  # Three days before: not yet.
+        row = self.items('gm', '2026-10-14')['Claim the pay']
+        self.assertEqual((row['group'], row['date'], row['preview']), ('coming', '2026-10-16', True))
+        self.assertEqual(routing.action_cells(row)[6].split(' · ')[0], 'Heads-up: this can only be done on its day')
+        self.assertNotIn('Claim the pay', self.items('gn', '2026-10-14'))  # Evening: only the night before.
+        self.assertTrue(self.items('gn', '2026-10-15')['Claim the pay']['preview'])
+        self.assertEqual(self.items('gm', '2026-10-16')['Claim the pay']['group'], 'deadline')  # Its day: a real action.
+        # Seen in a morning ahead of its day, it is never offered as done early that evening.
+        cells = routing.action_cells(row)
+        (self.root/'daily').mkdir(exist_ok=True)
+        (self.root/'daily'/'2026-10-14.gm.json').write_text(native.encode(
+            {'v': 2, 'greeting': 'Hello.', 'opening': 'Synthetic.', 'sections': [['tasks', [['actions', [cells]]]]]}))
+        self.assertNotIn('Claim the pay', [r['title'] for r in routing.feedback_day(self.tasks, '2026-10-14')])
+
+    def test_notice_lets_early_work_and_routines_appear_ahead(self):
+        self.capture(title='Pack for the trip', planned_date='2026-10-17', notice={'morning': 3, 'early': True})
+        self.capture(title='Remove hair', timezone=ZONE, repeat={'weekdays': [5], 'start': DAY}, notice={'evening': 0})
+        self.capture(title='Council form', due_date='2026-10-22', notice={'morning': 2})
+        row = self.items('gm', '2026-10-14')['Pack for the trip']
+        self.assertEqual((row['group'], row['date'], row['preview']), ('coming', '2026-10-17', False))
+        self.assertNotIn('Pack for the trip', self.items('gm', '2026-10-13'))
+        self.assertNotIn('Remove hair', self.items('gn', '2026-10-16'))  # Asked never to hear the night before.
+        self.assertIn('Remove hair', self.items('gm', '2026-10-17'))
+        self.assertNotIn('Council form', self.items('gm', '2026-10-19'))  # Notice replaces the seven-day default.
+        self.assertIn('Council form', self.items('gm', '2026-10-20'))
+
+    def test_notice_brings_occasions_and_tbc_classes_ahead(self):
+        calendar = CalendarStore(str(self.root/'calendar.sqlite'))
+        try:
+            calendar.add({'subject': "Mum's birthday", 'start': '2026-10-17', 'end': '2026-10-18', 'all_day': True,
+                          'timezone': ZONE, 'repeat': {'yearly': True, 'start': '2026-10-17'}, 'notice': {'morning': 3}})
+            calendar.add({'subject': 'Dentist', 'start': '2026-10-16T10:00:00+01:00', 'end': '2026-10-16T11:00:00+01:00', 'timezone': ZONE})
+        finally:
+            calendar.close()
+        self.draft(title='Archery class', date='2026-10-17', timezone=ZONE, confirmed_day=True,
+                   repeat={'weekdays': [5], 'start': '2026-10-17', 'until': '2026-10-31'}, notice={'morning': 2, 'evening': 2})
+        subjects = lambda kind, day: [i['subject'] for i in routing.prepare(self.root, day, kind)['schedule']['items']]
+        self.assertEqual(subjects('gm', '2026-10-13'), [])
+        self.assertEqual(subjects('gm', '2026-10-14'), ["Mum's birthday"])
+        self.assertEqual(subjects('gm', '2026-10-15'), ["Mum's birthday", 'Archery class'])
+        self.assertEqual(subjects('gn', '2026-10-15'), ['Dentist', 'Archery class'])  # The birthday's notice is morning-only.
+        self.assertEqual(subjects('gn', '2026-10-16'), ["Mum's birthday", 'Archery class'])  # Default: the night before.
+        view = routing.prepare(self.root, '2026-10-15', 'gm')
+        doc = native.parse(native.encode({'v': 2, 'greeting': 'Hello.', 'opening': 'Synthetic.',
+                                          'sections': [['schedule', [view['blocks']['schedule']]]]}))
+        routing.validate_sources(self.root, doc, '2026-10-15', 'gm')
+        self.assertIn('data-ui-text="Coming up"', native.render_block(['agenda', [r[2:] for r in view['blocks']['schedule'][1]]], {}, '2026-10-15'))
+
     def test_habits_appear_in_briefings_on_their_days(self):
         self.habit()  # Every two days from Tuesday 13th.
         row = self.items()['Strength training']

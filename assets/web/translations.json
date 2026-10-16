@@ -539,6 +539,8 @@
   "A new reply is ready": "新回复好了，来看看吧。",
   "Conversation": "对话",
   "Heads-up only; nothing to tick off": "只是提醒，不用勾选",
+  "Heads-up: this can only be done on its day": "提醒：这项只能在当天完成",
+  "Coming up": "即将到来",
   "Daily follow-up until done": "每天跟进，直到完成",
   "Preparation for {subject}": "为{subject}做准备",
   "Preparation for {subject}, {count} day(s) before": "为{subject}做准备，提前 {count} 天",

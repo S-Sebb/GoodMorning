@@ -45,6 +45,17 @@ heading. Use `scripts/goodmorning.py` with the selected absolute runtime.
    consequence the user stated; never invent one. When one request is two items
    (watch + act, weekly check-in + final deadline), confirm the split, then save
    one capture with `task` plus `also:[{...}]` siblings. Custom/imported is provenance.
+   **Advance notice** (`notice`) fits any dated item: tasks with `planned_date`,
+   `repeat` or `due_date`, TBC drafts, and calendar events. `{"morning":N}` shows it in
+   morning briefings from N days before its day (0 = on the day); `{"evening":N}` in
+   evening briefings from N days before (1 = the night before, 0 = never); tasks add
+   `"early":false` when it can only be done on its day (shown as a heads-up, never
+   offered as done early) or `true` when doing it beforehand counts. Save what the user
+   states. Otherwise judge from the item: a gift or booking for an occasion needs days,
+   a form due Friday that can be sent any time is `early:true`, claiming this week's pay
+   on Friday is `early:false`; say the chosen notice in the confirmation in plain words
+   and ask only when you cannot tell. Leave it out when the default fits (on the day;
+   hard deadlines seven mornings and the night before).
 3. Keep workday, deadline, appointment start/end, recurrence, review date and audit
    timestamps separate. "By Friday" is a deadline; "work on Friday" is a workday.
    A timestamp alone does not establish a reserved interval. A window without a
@@ -156,10 +167,10 @@ heading. Use `scripts/goodmorning.py` with the selected absolute runtime.
    section's rows, `block`, counts and warnings, avoiding repeated whole-plan reads.
 9. Each edition has one focus day: the morning shows today, the evening previews
     tomorrow. Appointments, occasions, TBC days, day tasks, routines, habits and
-    nudges appear only on their own day; no multi-day lookahead. The exceptions are
-    hard deadlines (morning: due within seven days or overdue; evening: due
-    tomorrow or overdue), work still open from an earlier day, and morning daily
-    follow-ups. Morning also offers at most three steps per project (required
+    nudges appear only on their own day unless they carry a `notice`. The other
+    exceptions are hard deadlines (default morning: due within seven days or
+    overdue; evening: due tomorrow or overdue), work still open from an earlier
+    day, and morning daily follow-ups. Earlier cards appear under "Coming up". Morning also offers at most three steps per project (required
     before optional) and other open actions; evening reviews actual outcomes. Nudges and reference notes are
     never evening questions; a step waiting on `after` stays hidden until that task
     closes. The Schedule tab shows deadlines on their due day, marked "no workday

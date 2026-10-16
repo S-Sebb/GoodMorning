@@ -104,6 +104,10 @@ def run(output, template, language, kind):
             expected_schedule = [t('Archery class', '弓道课')]
             assert any(label.startswith(t('Log the council tax', '登记市政税')) for label in result['form_today']), 'Due deadline not checked tonight'
             assert not any(t('Bring gym clothes', '带运动衣服') in label for label in result['form_today'] + result['form_future']), 'Nudge asked at night'
+            from benchmarks.category_live import tasks as saved_tasks
+            ointment = next(r for r in saved_tasks(runtime)[0] if r['title'] == t('Buy the ointment', '买软膏'))
+            if ointment['status'] in ('blocked', 'partial'):
+                result['problems'].append('"will go tomorrow" saved as ' + ointment['status'])
         for title in expected_tasks:
             if title not in tasks:
                 result['problems'].append('missing task: ' + title)

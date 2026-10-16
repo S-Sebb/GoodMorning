@@ -28,12 +28,12 @@ CREATE TABLE event_drafts (
 STATES = ('open', 'partial', 'blocked', 'done', 'cancelled')
 FIELDS = {'title', 'detail', 'project', 'optional', 'priority', 'status', 'due_date',
           'due_at', 'planned_date', 'timezone', 'repeat', 'defer_until', 'calendar_event_id', 'when', 'follow_up', 'work_kind', 'due_soft',
-          'kind', 'trigger', 'after'}
+          'kind', 'trigger', 'after', 'notice'}
 DRAFT_FIELDS = {'title', 'date', 'timezone', 'location', 'detail', 'confirmed_day',
-                'state', 'calendar_event_id', 'event', 'repeat'}
+                'state', 'calendar_event_id', 'event', 'repeat', 'notice'}
 # Nudges and reference notes are never completed: they surface or are retired.
 UNCHECKED = ('nudge', 'reference')
-TIMING = ('planned_date', 'due_date', 'due_at', 'repeat', 'defer_until', 'when', 'follow_up', 'calendar_event_id', 'after')
+TIMING = ('planned_date', 'due_date', 'due_at', 'repeat', 'defer_until', 'when', 'follow_up', 'calendar_event_id', 'after', 'notice')
 SERIES_LIMIT = 200
 
 
@@ -67,6 +67,21 @@ def series_days(rule, first, last):
             days.append(start.isoformat())
         start += dt.timedelta(days=1)
     return days
+
+
+def check_notice(value, event=False):
+    """Advance notice for a dated item: from how many days before its day the
+    morning and the evening briefing show it, and whether it can be done early."""
+    if value is None:
+        return
+    keys = {'morning', 'evening'} | (set() if event else {'early'})
+    if not isinstance(value, dict) or not value or set(value) - keys:
+        raise ValueError('invalid_input: notice is {morning?: days, evening?: days' + ('' if event else ', early?: boolean') + '}')
+    for key in ('morning', 'evening'):
+        if key in value and (type(value[key]) is not int or not 0 <= value[key] <= 60):
+            raise ValueError('invalid_input: notice days are integers 0..60 (morning 0 = on the day; evening 1 = the night before, 0 = never)')
+    if 'early' in value and type(value['early']) is not bool:
+        raise ValueError('invalid_input: notice.early must be boolean')
 
 
 def encode(value):
@@ -122,6 +137,7 @@ def validate(data, *, draft=False):
             validate({'repeat': rule, 'timezone': out['timezone']})
         elif 'repeat' in out and out['repeat'] is not None:
             raise ValueError('invalid_input: unset recurrence uses null')
+        check_notice(out.get('notice'), event=True)
         return out
     kind = out.get('kind', '')
     if kind not in ('', 'nudge', 'reference'):
@@ -217,6 +233,9 @@ def validate(data, *, draft=False):
         import re
         if not re.fullmatch('[0-9a-f]{16}', out['calendar_event_id']):
             raise ValueError('invalid_input: calendar link needs a saved event ID')
+    check_notice(out.get('notice'))
+    if out.get('notice') and (kind or not (out.get('planned_date') or out.get('repeat') or out.get('due_date'))):
+        raise ValueError('invalid_input: notice applies to a dated action (planned_date, repeat or due_date)')
     return out
 
 

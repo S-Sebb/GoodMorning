@@ -11,7 +11,7 @@ from pathlib import Path
 from .calendar_safety import clean_preparation, safe_value
 
 FIELDS = {"subject", "start", "end", "timezone", "all_day", "location", "online",
-          "organizer", "notes", "status", "repeat"}
+          "organizer", "notes", "status", "repeat", "notice"}
 IMPORT_FIELDS = FIELDS | {"external_id", "occurrence_id"}
 
 
@@ -27,12 +27,15 @@ def normalize(data: dict) -> dict:
     status = out.setdefault("status", "confirmed")
     if status not in ("confirmed", "cancelled"):
         raise ValueError("status must be confirmed or cancelled")
-    for key in FIELDS - {"all_day", "repeat"}:
+    for key in FIELDS - {"all_day", "repeat", "notice"}:
         if key in out and not isinstance(out[key], str):
             raise ValueError(f"{key} must be a string")
     for key in ("location", "online", "organizer", "notes"):
         if out.get(key) == "":
             out.pop(key)
+    if "notice" in out:
+        from goodmorning.records.task_store import check_notice
+        check_notice(out["notice"], event=True)
     all_day = out.setdefault("all_day", False)
     if not isinstance(all_day, bool):
         raise ValueError("all_day must be a boolean")

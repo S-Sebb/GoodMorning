@@ -40,6 +40,10 @@ to its workflow in this conversation; capture wording alone does not grant conse
    `follow_up:"until-done"`; birthdays and appointments belong to the calendar, not
    tasks, and a habit with a flexible rhythm uses `custom --add`. If one request is
    two items, confirm the split with a native question, then send `also:[{...}]`.
+   For any dated item decide its advance `notice` (rule 2): the user's stated "tell me
+   N days before" wins; otherwise judge how early they need to hear and whether it
+   can be done before its day (`early`), state it in the confirmation, and ask only
+   when you genuinely cannot tell.
    For a new clear TODO, use the single capture helper:
    ```sh
    python scripts/goodmorning.py workflow --secretary-dir RUNTIME --capture todo --session SESSION --request-key KEY --input-stdin

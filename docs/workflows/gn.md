@@ -38,7 +38,11 @@ feedback and blockers in Chinese too; English planning notes are not user replie
    user completion. Additional reports use revision-checked task/occurrence writes;
    factual daily feedback uses hash-checked `daily` amendments.
    On the original browser run, after init and before publishing Today, reconcile
-   only unambiguous partial/blocked reports from saved `feedback.details`. Use the
+   only unambiguous partial/blocked reports from saved `feedback.details`. Blocked
+   means something outside the user's control stops it; "not done yet" or "will do
+   it tomorrow" is neither blocked nor partial and gets no status write (a daily
+   follow-up or deadline comes back by itself; elsewhere a clearly named day is a
+   move request). Use the
    exact known task ID/current revision, `task --report --date PINNED_DATE` for
    today's agreed occurrences; otherwise use `task --update` for action state,
    retaining any existing future workday. Never date a report tomorrow because

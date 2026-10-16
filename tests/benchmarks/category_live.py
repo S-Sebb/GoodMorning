@@ -146,6 +146,29 @@ def scenarios(today):
         assert row['due_date'] == '2026-10-28' and row['defer_until'] == '2026-10-23', row
         assert not row['planned_date'], row
 
+    def shown(runtime, kind, day):
+        from goodmorning.records import routing
+        view = routing.prepare(runtime, day, kind, limit=200)
+        return view['tasks']['items'], view['schedule']['items']
+
+    def notice_stated(runtime, setup):
+        # Heard about from 5 mornings before 17 December, not 6.
+        assert any(shown(runtime, 'gm', '2026-12-12')), 'nothing 5 mornings before the birthday'
+        assert not any(shown(runtime, 'gm', '2026-12-11')), 'shown 6 mornings before'
+
+    def notice_on_day(runtime, setup):
+        rows = [r for r in tasks(runtime)[0] if r['status'] != 'cancelled']
+        row = only(rows)
+        assert (row['repeat'] or {}).get('weekdays') == [4], row
+        thursday, friday = (next_weekday(today, 3) + timedelta(weeks=1)).isoformat(), (next_weekday(today, 4) + timedelta(weeks=1)).isoformat()
+        assert all(r.get('preview') for r in shown(runtime, 'gm', thursday)[0]), 'tickable before Friday'
+        assert shown(runtime, 'gn', thursday)[0], 'no notice the evening before'
+        assert [r for r in shown(runtime, 'gm', friday)[0] if not r.get('preview')], 'not actionable on Friday'
+
+    def notice_inferred(runtime, setup):
+        tasks_, events = shown(runtime, 'gm', '2026-12-09')
+        assert tasks_ or events, 'a booking for 12 December is not visible three mornings before'
+
     def with_habit(runtime):
         store = CustomStore(runtime, write=True)
         try:
@@ -212,6 +235,14 @@ def scenarios(today):
         ('day_task', 'todo', None, f'Pass the HL60 cells on Saturday.', '周六传代HL60细胞。', day_task),
         ('deadline_window', 'todo', None, 'Buy the hand warmer at Bailian ZX sometime between 23 and 28 October.',
          '10月23日到28日之间去百联ZX买暖娃。', deadline_window),
+        ('notice_stated', 'secretary', None,
+         "Mum's birthday is on 17 December every year. Tell me 5 days before in my morning briefings so I can get a gift.",
+         '妈妈每年12月17日生日。提前5天在早报里提醒我，好准备礼物。', notice_stated),
+        ('notice_on_day', 'secretary', None,
+         'Every Friday I claim my GTA salary. It can only be submitted on the Friday itself, so tell me the evening before as well.',
+         '每周五我要申领助教工资，只能在周五当天提交，前一天晚上也提醒我一下。', notice_on_day),
+        ('notice_inferred', 'todo', None, 'Book a restaurant for our anniversary dinner on 12 December.',
+         '给12月12日的纪念日晚餐订餐厅。', notice_inferred),
     ]
 
 
