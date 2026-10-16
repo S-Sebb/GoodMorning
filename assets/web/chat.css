@@ -173,6 +173,7 @@ html[data-edition="gn"] #chat-error { color: #f1b1a8; }
 .history-header .eyebrow { margin: 0 0 5px; font-size: 10px; }
 #history-heading { margin: 0; font: 600 20px/1.35 ui-sans-serif, system-ui, sans-serif; letter-spacing: -.4px; }
 #chat-history { display: grid; grid-auto-rows: max-content; align-content: start; gap: 10px; min-height: 0; overflow: auto; padding: 8px; margin: 0; border: 1px solid var(--line); border-radius: 18px; background: var(--bg); scrollbar-gutter: stable; }
+#chat-history:empty { display: none; }
 #chat-history a { display: block; min-height: 64px; border: 1px solid transparent; border-radius: 12px; padding: 12px; text-decoration: none; overflow-wrap: anywhere; font-size: 15px; font-weight: 500; line-height: 1.5; background: var(--surface); box-shadow: 0 2px 8px #233c3608; }
 #chat-history a:hover { border-color: var(--accent); background: var(--wash); }
 #chat-history a[aria-current] { border-color: var(--accent); background: var(--wash); box-shadow: inset 3px 0 0 var(--accent); }

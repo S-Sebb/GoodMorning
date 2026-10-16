@@ -384,6 +384,23 @@
   viewport?.addEventListener('resize', fitViewport);
   viewport?.addEventListener('scroll', fitViewport);
 
+  // On phones, floating buttons slide away while reading down and return on scroll up,
+  // near the top or end, after a pause, or when keyboard focus reaches them.
+  const phone = matchMedia('(max-width: 700px)');
+  let lastY = scrollY, pause;
+  const tuck = value => document.documentElement.classList.toggle('floaters-tucked', value);
+  window.addEventListener('scroll', () => {
+    const y = scrollY, down = y > lastY + 4, up = y < lastY - 4;
+    if (down || up) lastY = y;
+    clearTimeout(pause);
+    if (!phone.matches || open || up || y < 80 || y + innerHeight >= document.documentElement.scrollHeight - 80) return tuck(false);
+    if (down) tuck(true);
+    pause = setTimeout(() => tuck(false), 1200);
+  }, {passive: true});
+  document.addEventListener('focusin', event => {
+    if (event.target.closest?.('#quick-chat, #mobile-sections, .back-to-top')) tuck(false);
+  });
+
   window.addEventListener('pagehide', () => { if (open) remember(Date.now()); });
   window.addEventListener('pageshow', event => {
     if (!event.persisted || !ready) return;

@@ -140,7 +140,9 @@
   .schedule-tools { margin-left: auto; }
   .schedule-grid { grid-template-columns: minmax(0, 1fr); grid-auto-rows: auto auto auto; }
   .schedule-day { border-right: 0; }
-  .schedule-icon, .week-arrow { width: 40px; }
+  .schedule-icon { width: 40px; }
+  /* The sky's birds sit behind this row on phones; keep the controls readable. */
+  .schedule-mode, .week-arrow, .current-week { background: color-mix(in srgb, var(--surface) 80%, transparent); }
   .schedule-info-panel { width: min(300px, calc(100vw - 48px)); }
 }
 @media print { .schedule-navigation, .schedule-day-strip { display: none; } .schedule-grid { grid-template-columns: repeat(7, minmax(0, 1fr)); } }

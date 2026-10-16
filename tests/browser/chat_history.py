@@ -148,6 +148,7 @@ def check_continuity(browser, address):
     page.evaluate('historyList().catch(() => {})')
     expect(page.locator('#history-notice')).to_have_text('Your conversations will appear here.')
     expect(page.locator('#chat-history a')).to_have_count(0)
+    expect(page.locator('#chat-history')).to_be_hidden()
     control['empty'] = False
     page.evaluate("sessionStorage.setItem(workspaceKey, JSON.stringify({chat: '<invalid>', away: 1}))")
     page.goto(address + '/chat')
