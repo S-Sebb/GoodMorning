@@ -34,7 +34,8 @@ names only for something no guide covers. Do not create text/card/presentation/H
 copies, or delete or overwrite private records and saved preferences.
 
 For website prompts marked `Browser chat`, read `docs/core-rules.md`,
-`docs/browser-chat.md`, then the matching workflow. `/initialize` reviews all
+`docs/browser-chat.md`, then the workflow named by the mode line (`/todo` reads
+`docs/workflows/todo.md`, even when the message sounds like a job). `/initialize` reviews all
 existing preferences without resetting records. Chat supports only initialize,
 secretary, todo and eureka; briefings remain on their own pages.
 `Workflow refresh: true` means this existing conversation moved to the current

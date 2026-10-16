@@ -216,8 +216,12 @@ def scenarios(today):
         assert [r for r in shown(runtime, 'gm', friday)[0] if not r.get('preview')], 'not actionable on Friday'
 
     def notice_inferred(runtime, setup):
-        tasks_, events = shown(runtime, 'gm', '2026-12-09')
-        assert tasks_ or events, 'a booking for 12 December is not visible three mornings before'
+        tasks_, _ = shown(runtime, 'gm', '2026-12-09')
+        assert tasks_, 'the booking task for 12 December is not visible three mornings before'
+
+    def plain_action(runtime, setup):
+        row = only([r for r in tasks(runtime)[0] if r['status'] != 'cancelled'])
+        assert row['category'] not in ('errand', 'nudge', 'reference'), row
 
     def with_habit(runtime):
         store = CustomStore(runtime, write=True)
@@ -348,6 +352,13 @@ def scenarios(today):
          '每周五我要申领助教工资，只能在周五当天提交，前一天晚上也提醒我一下。', notice_on_day),
         ('notice_inferred', 'todo', None, 'Book a restaurant for our anniversary dinner on 12 December.',
          '给12月12日的纪念日晚餐订餐厅。', notice_inferred),
+        # To-do messages worded as jobs for the secretary are still only saved.
+        ('todo_find', 'todo', None, 'Find a plumber to fix the leaking kitchen tap.',
+         '找个水管工来修厨房漏水的水龙头。', plain_action),
+        ('todo_email', 'todo', None, 'Email Sam the signed lease and ask when he can collect the keys.',
+         '给 Sam 发邮件，附上签好的租约，问他什么时候能来拿钥匙。', plain_action),
+        ('todo_tickets', 'todo', None, 'Get two tickets for the Hockney exhibition at the Tate.',
+         '买两张泰特美术馆霍克尼展览的门票。', plain_action),
     ]
 
 
@@ -423,6 +434,9 @@ def run_scenario(output, lang, selected, today, scenario, rounds, source=ROOT):
             save(target, result)
             with context(lang, selected):
                 app.chats.reply(chat, 'form', form['id'], {'answer': values})
+        if mode == 'todo':
+            rows, drafts = tasks(runtime)
+            assert rows and not drafts and not calendar_events(runtime), 'To-do mode saves a task, never calendar entries or drafts'
         check(runtime, {**facts, 'turns': result['turns']})
         worded(runtime, before)
         result['passed'] = True

@@ -34,6 +34,10 @@ interface/transport mechanics and is needed only for that implementation work.
    switch or another chat. Briefing generation remains on Morning/Evening pages;
    never generate gm/gn in chat. For example, “organize this saved idea into project
    tasks” routes to authorized secretary work; a captured “build X” does not.
+   In To-do or Eureka mode the message is the item to save, even when worded as an
+   instruction (“Book a restaurant…”, “Email Sam…”, “Find a plumber…”): follow
+   that mode's workflow, not `secretary.md`. Do the work itself only when the user
+   explicitly asks you to, beyond saving it.
 2. Resolve missing input, setup, ambiguity and consent before affected writes.
    Scheduling/target ambiguity always uses a native `question` form, with no
    inbox/task/draft/calendar or pending-note write until answered. The durable

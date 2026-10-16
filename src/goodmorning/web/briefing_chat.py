@@ -347,7 +347,8 @@ class Chats:
                 runtime = self.runtime
             if first:
                 # A custom title disables the engine's built-in AI title generation.
-                result = self.chamber.control('session.create')
+                # The secretary agent (.opencode/agents) is denied reading source code and tests.
+                result = self.chamber.control('session.create', agent='secretary')
                 session = result['sessionId']
                 if not re.fullmatch('ses[A-Za-z0-9_]+', session):
                     raise ValueError('Invalid session')
