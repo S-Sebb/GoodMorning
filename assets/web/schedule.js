@@ -22,7 +22,7 @@ function scheduleStatus() {
 }
 
 function rememberScheduleView(mode) {
-  try { localStorage.setItem('goodmorning-schedule-view', mode); } catch {}
+  try { localStorage.setItem(scheduleViewKey, mode); } catch {}
 }
 
 async function refreshSchedule(query = scheduleQuery, navigate = false) {
