@@ -130,12 +130,14 @@ def scenarios(today):
         return ' '.join(a for turn in setup['turns'] for a in turn['assistant'])
 
     def errand_blocked(runtime, setup):
-        # Amazon refuses automated reads: the trial run fails, so alternatives come before any save.
         import re
-        assert any(turn['forms'] for turn in setup['turns']), 'no alternatives offered'
-        assert re.search(r"couldn.t|could not|can.t|cannot|unable|没能|无法|查不到|没查到", said(setup), re.I), 'did not say it could not check'
+        # Amazon sometimes lets a read through: then the errand is saved with the price it read.
         rows = [r for r in tasks(runtime)[0] if r['status'] != 'cancelled']
         assert len(rows) <= 1, rows
+        if any(turn['forms'] for turn in setup['turns']):
+            assert re.search(r"couldn.t|could not|can.t|cannot|unable|没能|无法|查不到|没查到", said(setup), re.I), 'did not say it could not check'
+        else:
+            assert rows and rows[0]['category'] == 'errand' and re.search(r'£\s?\d', rows[0].get('extra', '')), 'saved without a price read or alternatives offered'
 
     def errand_readable(runtime, setup):
         import re
