@@ -61,8 +61,8 @@ Read the matching guide before acting:
 | Creating a hosted server user | `SERVER-USER-GUIDE.md` |
 | Inspecting, migrating, repairing, restoring or modifying hosted account data | `SERVER-DATA-GUIDE.md` |
 
-- Translate website text with a subagent on DeepSeek V4.1 Flash Free High
-  (`opencode/deepseek-v4.1-flash-free`, variant `high`). Adapt rather than
+- Translate website text with a subagent on DeepSeek V4.1 Flash High, paid tier
+  (`opencode-go/deepseek-v4.1-flash`, variant `high`). Adapt rather than
   translate literally: keep the meaning and important facts, and follow
   **Website wording**.
 - Server users: generate a random temporary password privately; never ask the
