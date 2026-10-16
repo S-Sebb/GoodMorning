@@ -66,20 +66,26 @@ def calendar_events(runtime):
         store.close()
 
 
-def worded(runtime):
-    """Every item the conversation saved carries page wording in both languages (errands and reference notes excepted)."""
-    from goodmorning.records.display import fingerprint
+def saved_items(runtime):
+    """(kind, id, revision, item) for every task, draft and approved calendar event."""
     rows, drafts = tasks(runtime)
-    items = [('task', r) for r in rows if r['status'] != 'cancelled' and r.get('kind') not in ('errand', 'reference')]
-    items += [('draft', d) for d in drafts if d.get('state') not in ('withdrawn', 'converted')]
-    items += [('event', e) for e in calendar_events(runtime) if e.get('status') != 'cancelled']
+    items = [('task', r['id'], r['revision'], r) for r in rows if r['status'] != 'cancelled' and r.get('kind') not in ('errand', 'reference')]
+    items += [('draft', d['id'], d['revision'], d) for d in drafts if d.get('state') not in ('withdrawn', 'converted')]
     store = CalendarStore(str(runtime / 'calendar.sqlite'), readonly=True)
     try:
-        items += [('event', json.loads(r[0])) for r in store.con.execute(
-            "SELECT approved_json FROM events WHERE source!='custom' AND review='approved'")]
+        items += [('event', r[0], r[1], json.loads(r[2])) for r in store.con.execute(
+            "SELECT id,revision,approved_json FROM events WHERE review='approved' AND approved_json IS NOT NULL")]
     finally:
         store.close()
-    for kind, item in items:
+    return [entry for entry in items if entry[3].get('status') != 'cancelled']
+
+
+def worded(runtime, before=frozenset()):
+    """Every item the conversation saved or changed carries page wording in both languages (errands and reference notes excepted)."""
+    from goodmorning.records.display import fingerprint
+    for kind, identifier, revision, item in saved_items(runtime):
+        if (kind, identifier, revision) in before:
+            continue  # Trial setup, untouched by the conversation.
         display = item.get('display') or {}
         name = item.get('title') or item.get('subject')
         assert {'en', 'zh'} <= set(display), f'{kind} {name!r} saved without wording in both languages'
@@ -364,6 +370,7 @@ def run_scenario(output, lang, selected, today, scenario, rounds, source=ROOT):
     initialize(runtime)
     CalendarStore(str(runtime / 'calendar.sqlite')).close()
     facts = setup(runtime) if setup else {}
+    before = frozenset(entry[:3] for entry in saved_items(runtime))
     message = chinese if lang == 'zh-CN' else english
     result = {'scenario': name, 'language': lang, 'model': selected, 'mode': mode, 'message': message,
               'turns': [], 'complete': False, 'passed': None, 'dispatched': True}
@@ -417,7 +424,7 @@ def run_scenario(output, lang, selected, today, scenario, rounds, source=ROOT):
             with context(lang, selected):
                 app.chats.reply(chat, 'form', form['id'], {'answer': values})
         check(runtime, {**facts, 'turns': result['turns']})
-        worded(runtime)
+        worded(runtime, before)
         result['passed'] = True
     except AssertionError as error:
         result['passed'] = False

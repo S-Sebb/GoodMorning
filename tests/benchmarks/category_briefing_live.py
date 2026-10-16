@@ -170,10 +170,10 @@ def run(output, template, language, kind, selected=None):
             if ointment['status'] in ('blocked', 'partial'):
                 result['problems'].append('"will go tomorrow" saved as ' + ointment['status'])
         for title in expected_tasks:
-            if not any(title in shown for shown in tasks):  # Title polish may add a verb.
+            if not any(title.casefold() in shown.casefold() for shown in tasks):  # Fallback wording may add a verb.
                 result['problems'].append('missing task: ' + title)
         for title in absent:
-            if any(title in shown for shown in tasks):
+            if any(title.casefold() in shown.casefold() for shown in tasks):
                 result['problems'].append('shown out of its day: ' + title)
         if schedule != expected_schedule:
             result['problems'].append(f'schedule {schedule} != {expected_schedule}')

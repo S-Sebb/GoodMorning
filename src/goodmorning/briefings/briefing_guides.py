@@ -45,10 +45,11 @@ TEXT = {
                'widen the range. Preparation is attendee requirements only (no join links, meeting IDs or privacy footers).'),
   'tasks': ('Run the read (follow next_offset to the last page) and copy every page\'s rows. Make no record writes; ids, dates, '
             'status and revisions stay exactly as returned. Copy each row\'s title and detail exactly: they are the wording saved with the item. '
-            'Only rows whose id is in the read\'s `fallback` list have no saved wording; for those alone, if the title is vague, a '
+            'Only rows whose id is in the read\'s `fallback` list have no saved wording, and those you must check: if the title is vague, a '
             'fragment, not an imperative action, overlong or awkward, reword it for display as a clear imperative with a specific object, '
             'same meaning, no new facts, keeping names, numbers and project terms (e.g. "Dentist" + "checkup before May" → "Book a '
-            'dentist checkup"), and rewrite only the free text of the detail as at most one short sentence the user acts on, leaving out '
+            'dentist checkup"), and whenever the detail holds more than one sentence or any of your own notes, rewrite its free text as at '
+            'most one short sentence the user acts on (or nothing), leaving out '
             'your own notes (how the reminder works, "I will check…", reminder dates or "tomorrow", "keep open until…", progress logs, IDs, '
             'remembered values); keep every code label ("Heads-up…", "Project:", "Optional", "Priority:", "Due:", "Soft target:", "Daily '
             'follow-up…", "Preparation for…", "Reminder trigger…", "Not reminded…") unchanged and in place. Rows whose '
@@ -116,9 +117,9 @@ TEXT = {
            '按其 next 命令执行。不要运行 news --ack。读取失败时发布一个 ["p","……"] 块，只说明无法获取该日期的新闻；不得跳过本章节。'),
   'schedule': '运行读取命令，原样复制返回的块（包括空日程段落）；不要重新计算日期或扩大范围。准备事项只写参会要求（不要加入会议链接、会议号或隐私声明）。',
   'tasks': ('运行读取命令（按 next_offset 一直翻到最后一页），复制每一页返回的行。不写入任何记录：id、日期、状态和 revision 必须与返回的完全一致。'
-            '原样复制每一行的标题和说明：它们是和事项一起保存的措辞。只有 id 在读取结果 `fallback` 列表里的行没有保存的措辞；仅对这些行：标题含糊、只是片段、'
+            '原样复制每一行的标题和说明：它们是和事项一起保存的措辞。只有 id 在读取结果 `fallback` 列表里的行没有保存的措辞，这些行你必须逐一检查：标题含糊、只是片段、'
             '不是祈使句、过长或别扭时，为展示改写成清楚的祈使句，带具体对象，含义不变，不添加事实，保留名称、数字和项目用语（例如 "牙医" + "五月前做检查" → '
-            '"预约牙医检查"）；说明只可以把自由文字改写成至多一句用户据此行动的话，去掉你自己的笔记（提醒机制、"我会去查……"、提醒日期或"明天"、"确认后再关闭"、'
+            '"预约牙医检查"）；说明只要超过一句或夹着你自己的笔记，就必须把自由文字改写成至多一句用户据此行动的话（或留空），去掉你自己的笔记（提醒机制、"我会去查……"、提醒日期或"明天"、"确认后再关闭"、'
             '进度记录、ID、记下的数值）；代码标签（"只是提醒……"、"项目："、"可选"、"优先级："、"截止："、"弹性目标日期："、"每天跟进……"、"为……准备"、'
             '"提醒触发……"、"……不提醒"等）原样保留在原位。'
             '说明里写着"只是提醒"的行只是提醒：'
