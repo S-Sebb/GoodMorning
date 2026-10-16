@@ -4,8 +4,8 @@ from contextvars import ContextVar
 MODELS = {
     'muse-spark': {'providerID': 'opencode-go', 'id': 'muse-spark-1.3-contributor', 'variant': 'xhigh',
                    'label': 'Muse Spark 1.3 · XHigh'},
-    'deepseek-flash': {'providerID': 'opencode', 'id': 'deepseek-v4.1-flash-free', 'variant': 'high',
-                       'label': 'DeepSeek V4.1 Flash Free · High'},
+    'deepseek-flash': {'providerID': 'opencode-go', 'id': 'deepseek-v4.1-flash', 'variant': 'high',
+                       'label': 'DeepSeek V4.1 Flash · High'},
 }
 DEFAULT = 'muse-spark'
 CURRENT = ContextVar('website_model', default=None)  # Explicit synthetic-trial override only.
