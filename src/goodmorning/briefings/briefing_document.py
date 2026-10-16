@@ -574,8 +574,13 @@ def render_block(value, images, briefing_date=None):
         items = []
         for row in value[1]:
             disp_title, disp_detail = _decision_display(row[2], row[3])
-            items.append('<li class="decision-card"><div class="decision-title">' + escaped(disp_title) +
-                         '</div>' + (f'<div class="decision-detail">{escaped(disp_detail)}</div>' if disp_detail else '') + '</li>')
+            # Short facts (source, time, place) share a line; each longer explanation gets its own.
+            parts = disp_detail.split(' · ') if disp_detail else []
+            short, long = [p for p in parts if len(p) <= 32], [p for p in parts if len(p) > 32]
+            detail = (f'<div class="decision-meta">{escaped(" · ".join(short))}</div>' if short else '') + ''.join(f'<div class="decision-detail">{escaped(p)}</div>' for p in long)
+            ask = (f'<a class="decision-ask" href="/chat" data-quick-ask="Let’s look at “{{title}}” together." data-quick-ask-title="{escaped(disp_title)}">'
+                   + ui.ui('Review with your secretary') + '</a>')
+            items.append('<li class="decision-card"><div class="decision-title">' + escaped(disp_title) + '</div>' + detail + ask + '</li>')
         return '<ul class="decision-list">' + ''.join(items) + '</ul>'
     if tag == 'p':
         return '<p>' + escaped(value[1]) + (' ' + citations(value[2]) if len(value) == 3 else '') + '</p>'
@@ -586,7 +591,8 @@ def render_block(value, images, briefing_date=None):
         for status, title, detail in value[1]:
             status_label='Completed' if status=='done' else 'Not completed'
             tick = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="m5 12.5 4.5 4.5L19 7"/></svg>' if status=='done' else ''
-            mark = '<span class="check'+(' is-done' if status=='done' else '')+'" data-ui-aria-label="'+status_label+'" aria-label="'+ui.text(status_label)+'">'+tick+'</span>'
+            # A read-only status dot; nothing here looks like a checkbox to tick.
+            mark = '<span class="check'+(' is-'+status if status in ('done', 'partial', 'blocked') else '')+'" role="img" data-ui-aria-label="'+status_label+'" aria-label="'+ui.text(status_label)+'">'+tick+'</span>'
             if status == 'open' and any(detail.startswith(ui.text(note, lang=lang)) for note in HEADS_UP for lang in ('en', 'zh-CN')):
                 mark = '<span class="check is-note" aria-hidden="true"></span>'  # A heads-up has nothing to tick.
             label = '<span class="task-status">' + ui.ui(status.capitalize()) + '</span> ' if status in ('partial', 'blocked') else ''

@@ -401,6 +401,18 @@
     if (event.target.closest?.('#quick-chat, #mobile-sections, .back-to-top')) tuck(false);
   });
 
+  // Review links open this panel with a starter line instead of leaving the page; nothing sends by itself.
+  document.addEventListener('click', event => {
+    const link = event.target.closest?.('[data-quick-ask]');
+    if (!link || !ready || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+    event.preventDefault();
+    const starter = t(link.dataset.quickAsk, {title: link.dataset.quickAskTitle || ''});
+    (open ? Promise.resolve() : openWindow()).then(() => {
+      if (!textBox.value.trim()) { textBox.value = starter; resizeComposer(); showStatus(); }
+      textBox.focus({preventScroll: true});
+    });
+  });
+
   window.addEventListener('pagehide', () => { if (open) remember(Date.now()); });
   window.addEventListener('pageshow', event => {
     if (!event.persisted || !ready) return;

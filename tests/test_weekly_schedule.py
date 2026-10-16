@@ -332,7 +332,10 @@ class ScheduleTests(unittest.TestCase):
         self.assertIn('id="schedule-info"', markup)
         self.assertIn('Europe/London', markup)
         self.assertIn(ui.text('Checked at {time}', time='13:00'), markup)
-        self.assertIn('id="schedule-review-count"', markup)
+        # Pending calendar changes are announced outside the details menu, with a way to review them.
+        review = markup.index('class="schedule-review"')
+        self.assertGreater(review, markup.index('</details>', markup.index('id="schedule-info"')))
+        self.assertIn('data-quick-ask=', markup[review:markup.index('</p>', review)])
         self.assertEqual(markup.count('class="schedule-calendar"'), 7)
         self.assertEqual(markup.count('class="schedule-work"'), 7)
         before = snapshot(self.app, 0)

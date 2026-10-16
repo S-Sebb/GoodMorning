@@ -150,11 +150,11 @@ def event_card(event, day, zone):
     location_html = '<span class="event-location" data-content>' + html.escape(location) + '</span>' if location else ''
     notes = '<p class="event-notes" data-content>' + html.escape(event['notes']) + '</p>' if event.get('notes') else ''
     pending = '<p class="event-review">' + ui.ui('Change awaiting review · last approved version') + '</p>' if event.get('pending_change') else ''
-    source = ui.ui('Custom calendar') if event['source'] == 'custom' else '<span data-content>' + html.escape(event['source']) + '</span>'
+    source = '' if event['source'] == 'custom' else '<p class="event-source">' + ui.ui('Calendar') + ' · <span data-content>' + html.escape(event['source']) + '</span></p>'
     return ('<details class="schedule-event" id="event-' + day + '-' + html.escape(event['id'], quote=True) + '">'
             '<summary id="summary-' + day + '-' + html.escape(event['id'], quote=True) + '"><span class="event-time">' + label + '</span><span class="event-title" data-content>' + html.escape(event['subject']) + '</span>'
             + location_html + ('<span class="review-dot" aria-label="Change awaiting review"></span>' if pending else '') + '</summary>'
-            '<div class="event-detail">' + duration + notes + pending + '<p class="event-source">' + ui.ui('Calendar') + ' · ' + source + '</p></div></details>')
+            '<div class="event-detail">' + duration + notes + pending + source + '</div></details>')
 
 
 def task_card(task):
@@ -218,20 +218,21 @@ def mode_switch(mode, week):
 def tools(data, checked, heading, events, tasks, done):
     refresh = ('<button id="schedule-refresh" class="schedule-icon" type="button" aria-label="Refresh saved plans" title="Refresh saved plans">'
                '<svg viewBox="0 0 20 20" width="18" height="18" fill="none" aria-hidden="true"><path d="M16 8a6 6 0 1 0 .2 3M16 3v5h-5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>')
-    review_marker = '<span class="schedule-review-dot" aria-hidden="true"></span>' if data['pending'] else ''
-    review_description = ' aria-describedby="schedule-review-count"' if data['pending'] else ''
-    review_count = '<span id="schedule-review-count" hidden>' + ui.ui('Calendar review: {count} pending', count=data['pending']) + '</span>' if data['pending'] else ''
-    info = ('<details class="schedule-info" id="schedule-info"><summary class="schedule-icon" aria-label="Schedule details" title="Schedule details"' + review_description + '>'
+    info = ('<details class="schedule-info" id="schedule-info"><summary class="schedule-icon" aria-label="Schedule details" title="Schedule details">'
             '<svg viewBox="0 0 20 20" width="18" height="18" fill="currentColor" aria-hidden="true"><circle cx="4" cy="10" r="1.4"/><circle cx="10" cy="10" r="1.4"/><circle cx="16" cy="10" r="1.4"/></svg>'
-            + review_marker + '</summary>' + review_count + '<div class="schedule-info-panel"><h2>' + ui.ui(heading) + '</h2><dl>'
+            '</summary><div class="schedule-info-panel"><h2>' + ui.ui(heading) + '</h2><dl>'
             '<dt>' + ui.ui('Events') + '</dt><dd>' + str(events) + '</dd>'
             '<dt>' + ui.ui('To-dos') + '</dt><dd>' + str(tasks) + ' · ' + ui.ui('{done} completed', done=done) + '</dd>'
             '<dt>' + ui.ui('Time zone') + '</dt><dd data-content>' + html.escape(data['timezone']) + '</dd>'
             '<dt>' + ui.ui('Saved records') + '</dt><dd id="schedule-status">' + ui.ui('Checked at {time}', time=checked) + '</dd></dl>')
-    if data['pending']:
-        info += ('<div class="schedule-review-note"><p>' + ui.ui('1 calendar change awaits review. New imports stay hidden until approved.' if data['pending'] == 1 else '{count} calendar changes await review. New imports stay hidden until approved.', count=data['pending'])
-                 + '</p><a href="/chat">' + ui.ui('Review with your secretary') + ' ↗</a></div>')
     return '<span class="schedule-tools">' + refresh + info + '</div></details></span>'
+
+
+def notices(data):
+    # Calendar changes waiting for approval stay in view, not behind the details menu.
+    review = ('<p class="schedule-review" role="status"><span>' + ui.ui('1 calendar change awaits review. New imports stay hidden until approved.' if data['pending'] == 1 else '{count} calendar changes await review. New imports stay hidden until approved.', count=data['pending'])
+              + '</span> <a href="/chat" data-quick-ask="Let’s review the calendar changes waiting for me.">' + ui.ui('Review with your secretary') + '</a></p>') if data['pending'] else ''
+    return review + ''.join('<p class="schedule-warning" role="status">' + ui.ui(warning) + '</p>' for warning in data['warnings'])
 
 
 def view(data, checked):
@@ -276,7 +277,7 @@ def view(data, checked):
         elif not day['tasks']:
             columns += '<span class="schedule-empty" role="img" aria-label="No to-dos saved" title="No to-dos saved">—</span>'
         columns += '</div></section>'
-    notice = ''.join('<p class="schedule-warning" role="status">' + ui.ui(warning) + '</p>' for warning in data['warnings'])
+    notice = notices(data)
     return controls + notice + overview + '</nav>' + columns + '</div>'
 
 
@@ -285,7 +286,7 @@ def day_event(event, day, zone, now):
     if event.get('draft'):
         place, notes = event['location'], event['detail']
         start, until, state, sort = ui.ui('TBC'), ui.ui('Appointment time not yet confirmed'), 'tbc', ''
-        source = ui.ui('Time zone') + ' · <span data-content>' + html.escape(event['timezone']) + '</span>'
+        source = '<p class="event-source">' + ui.ui('Time zone') + ' · <span data-content>' + html.escape(event['timezone']) + '</span></p>'
         title, review = event['title'], ''
     else:
         begins, ends = (point.astimezone(ZoneInfo(zone)) for point in endpoints(event))
@@ -302,8 +303,7 @@ def day_event(event, day, zone, now):
             until = ui.ui('Until {time}', time=end_label)
             state = '' if day != local.date().isoformat() else 'past' if ends <= local else 'now' if begins <= local else 'next'
         place, notes = event.get('location') or event.get('online'), event.get('notes')
-        source = ui.ui('Custom calendar') if event['source'] == 'custom' else '<span data-content>' + html.escape(event['source']) + '</span>'
-        source = ui.ui('Calendar') + ' · ' + source
+        source = '' if event['source'] == 'custom' else '<p class="event-source">' + ui.ui('Calendar') + ' · <span data-content>' + html.escape(event['source']) + '</span></p>'
         title = event['subject']
         review = '<p class="event-review">' + ui.ui('Change awaiting review · last approved version') + '</p>' if event.get('pending_change') else ''
     badge = {'now': '<span class="day-badge is-now">' + ui.ui('Now') + '</span>',
@@ -311,7 +311,7 @@ def day_event(event, day, zone, now):
     body = ('<span class="event-title" data-content>' + html.escape(title) + '</span>'
             + ('<span class="event-location" data-content>' + html.escape(place) + '</span>' if place else '')
             + ('<p class="event-notes" data-content>' + html.escape(notes) + '</p>' if notes else '')
-            + review + '<p class="event-source">' + source + '</p>')
+            + review + source)
     return {'start': start, 'until': until, 'state': state, 'badge': badge, 'body': body, 'title': title, 'sort': sort}
 
 
@@ -343,7 +343,7 @@ def day_view(data, checked, now):
                 + '<a id="day-current" class="current-week" data-schedule-nav href="/schedule?view=day">' + ui.ui('Today') + '</a>'
                 + step_link('day-next', '/schedule?view=day&day=' + str(offset + 1), 'Next day', '›', offset < DAY_RANGE)
                 + tools(data, checked, 'Day details', len(events), len(day['tasks']), done) + '</nav></div>')
-    notice = ''.join('<p class="schedule-warning" role="status">' + ui.ui(warning) + '</p>' for warning in data['warnings'])
+    notice = notices(data)
     empty_events = '<p class="schedule-empty">' + ui.ui('Calendar unavailable' if data.get('calendar_error') else 'No calendar events saved') + '</p>'
     today = ' is-today' if day['date'] == data['today'] else ''
     cards = ''.join('<li class="focus-event' + (' is-' + item['state'] if item['state'] else '') + '"><div class="focus-time"><strong>' + item['start'] + '</strong>'

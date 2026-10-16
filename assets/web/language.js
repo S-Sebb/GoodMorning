@@ -42,8 +42,6 @@ function applyWebsiteLanguage(language) {
     node.textContent = new Intl.DateTimeFormat(language, {weekday:'long',month:'long',day:'2-digit',year:'numeric',timeZone:'UTC'}).format(new Date(node.dataset.uiFullDate + 'T12:00:00Z'));
   });
   document.querySelector('#website-language').value = language;
-  const prefsCurrent = document.querySelector('#prefs-current');
-  if (prefsCurrent) prefsCurrent.textContent = language === 'zh-CN' ? '简体中文' : 'English';
   document.dispatchEvent(new Event('website:language'));
 }
 const languageForm = document.querySelector('#language-form');

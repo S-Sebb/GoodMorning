@@ -158,6 +158,9 @@ function leaveSecretary() {
 function showTopic() {
   document.querySelector('#chat-topic').textContent = conversationTitles.get(chat) || chatT(chat ? 'Conversation' : 'New conversation');
   document.querySelector('#chat-topic-mode').textContent = chatT(mode === 'todo' ? 'To-do' : mode[0].toUpperCase() + mode.slice(1));
+  // A fresh conversation has nothing to continue or replace yet.
+  document.querySelector('#new-conversation').hidden = !chat;
+  document.querySelector('.chat-topic-hint').hidden = !chat;
   const resume = !chat && validChat(workspace.resume);
   document.querySelector('#chat-resume-notice').hidden = !resume;
   if (resume) document.querySelector('#chat-resume').href = '/chat?id=' + workspace.resume;
@@ -779,7 +782,16 @@ async function fetchHistoryList() {
     const meta = make('span', '', 'history-meta');
     const badge=make('small',chatT(label));badge.dataset.uiText=label;
     const current = make('small', chatT('Current'), 'history-current'); current.dataset.uiText = 'Current'; current.hidden = item.id !== chat;
-    meta.append(badge, current); link.append(meta);
+    // A title still waiting for its summary is the mode name; don't repeat it.
+    if (item.title !== chatT(label)) meta.append(badge);
+    if (typeof item.created === 'number') {
+      const started = new Date(item.created * 1000);
+      const when = make('small', new Intl.DateTimeFormat(document.documentElement.lang || 'en', {timeZone: chatConfig.timezone || undefined,
+        month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false}).format(started), 'history-time');
+      when.title = started.toISOString();
+      meta.append(when);
+    }
+    meta.append(current); link.append(meta);
     if (item.id === chat) link.setAttribute('aria-current', 'page');
     return link;
   }));

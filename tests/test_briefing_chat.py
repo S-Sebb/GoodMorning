@@ -190,6 +190,7 @@ class ChatTests(unittest.TestCase):
         self.start(text=raw)
         session = self.chats.get(self.id)['session']
         self.assertEqual(self.chats.listing()[0]['title'], 'Secretary')
+        self.assertEqual(self.chats.listing()[0]['created'], self.chats.get(self.id)['created'])
         self.chamber.sessions[session]['title'] = 'Secretary Correct project priorities'
         self.assertEqual(self.chats.status(self.id)['state'], 'idle')
         before = self.chats.path.read_bytes()

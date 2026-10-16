@@ -89,6 +89,5 @@ html:not([data-edition="gn"])[data-day-scheme]:not([data-day-scheme="classic"]) 
 .toolbar-row .menu-panel { max-height: calc(100svh - 100px); overflow-y: auto; overscroll-behavior-y: contain; }
 #color-scheme-feedback { font-size: .75rem; overflow-wrap: anywhere; }
 #color-scheme-feedback:empty { display: none; }
-.settings-language { font-size: .7rem; color: var(--muted, #56746a); }
 @media (max-width: 700px) { #prefs-menu { position: static; } #prefs-menu > .menu-panel { left: 16px; right: 16px; top: calc(100% + 8px); width: auto; } }
 @media (max-width: 360px) { #prefs-menu .color-scheme-field label { font-size: 11px; } }

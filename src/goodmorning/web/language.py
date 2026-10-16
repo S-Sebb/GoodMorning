@@ -143,9 +143,8 @@ def page(source,csrf,return_to='/'):
     if match:
         account=match[0]
         source=source[:match.start()]+source[match.end():]
-    current_label='简体中文' if current()=='zh-CN' else 'English'
     prefs=('<details class="menu" id="prefs-menu"><summary><span aria-hidden="true">⚙</span> '
-           '<span class="menu-label">Settings</span><span id="prefs-current" class="settings-language" data-content>'+current_label+'</span></summary>'
+           '<span class="menu-label">Settings</span></summary>'
            '<div class="menu-panel"><div class="settings-menu-header"><div><h2>Settings</h2><p>Make this space yours.</p></div>'
            '<button class="settings-close" type="button" aria-label="Close settings"><svg viewBox="0 0 20 20" width="16" height="16" fill="none" aria-hidden="true"><path d="m6 6 8 8m0-8-8 8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></button></div>'
            '<form id="language-form" class="language-toolbar" action="/api/language" method="post">'
