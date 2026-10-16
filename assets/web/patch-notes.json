@@ -1,6 +1,24 @@
 {
   "notes": [
     {
+      "version": "0.53.0",
+      "date": "2026-10-16",
+      "author": "GoodMorning agent",
+      "title_en": "Tidy errand cards ✨",
+      "title_zh": "跑腿卡片更清爽 ✨",
+      "changes": [
+        {
+          "category": "Changed",
+          "en": [
+            "Errand cards in your morning briefing now use a heading your secretary chose when you set the errand up."
+          ],
+          "zh": [
+            "早报里的跑腿卡片现在会用你设置跑腿任务时秘书帮你选的标题，一眼就能看出每张卡片是什么。"
+          ]
+        }
+      ]
+    },
+    {
       "version": "0.52.0",
       "date": "2026-10-16",
       "author": "GoodMorning agent",
