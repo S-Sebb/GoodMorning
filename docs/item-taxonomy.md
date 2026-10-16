@@ -37,7 +37,8 @@ heading. Use `scripts/goodmorning.py` with the selected absolute runtime.
       Before saving: if the condition, source or rhythm is unclear ("when it's
       cheap", no shop named), ask first. Then do the errand once now with your own
       tools; only a figure read on the source page itself counts, not a search
-      snippet. If it works, save it with that result in `extra` and tell the user
+      snippet. If it works, save it with that result in `extra` and its card heading in
+      `display` (see Display wording below), and tell the user
       ("It's £139.99 now, so I'll stay quiet until it's under £120."). If you cannot get a
       reliable result, save nothing yet: say plainly that you could not check it and
       offer alternatives with a native question (a source you did read, a daily
@@ -70,8 +71,8 @@ heading. Use `scripts/goodmorning.py` with the selected absolute runtime.
    inbox entry `context` records the request as agreed at capture; do not copy it
    into `detail` or `extra`. Sort every new or changed item this way in the
    conversation, before saving, and confirm what was saved; briefings only read it.
-   **Display wording** (`display`, tasks, drafts and calendar events; not errands or
-   reference notes) is how the item reads on each page, decided when you save it:
+   **Display wording** (`display`, tasks including errands, drafts and calendar events;
+   not reference notes) is how the item reads on each page, decided when you save it:
    `{"en":{"morning":{"title","detail"},"evening":{"title","detail"},"schedule":"…"},"zh":{…}}`.
    Write both languages every time you create an item or change its title, detail,
    kind, project, subject, location or notes. **morning** gets it done today: the
@@ -85,7 +86,9 @@ heading. Use `scripts/goodmorning.py` with the selected absolute runtime.
    about the receipt upload error","detail":""}`, evening `{"title":"IT helpdesk
    call","detail":"Have a screenshot of the upload error ready."}`, schedule "IT
    helpdesk call". Code fingerprints the described fields: when they change without
-   new wording, pages fall back to the saved fields until you write it again.
+   new wording, pages fall back to the saved fields until you write it again. For an
+   errand only the morning title is shown, as the heading of its result card; leave
+   its detail empty and give it a schedule label anyway (the check requires one).
    When the user asks how an item should read on a page ("show X in my morning
    briefing as Y"), read it with `task --show` (or `calendar --show`), change only that
    place, use their words as given and adapt the other language to match, keep the

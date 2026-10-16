@@ -339,8 +339,14 @@ def task_view(store, today, kind='gm', offset=0, limit=7, owned=()):
                 rows.append(row)
     rows = [row for row in rows if (row['id'], row['occurrence_id']) not in owned]
     # The secretary does errands itself; they are never cards unless it reports a finding.
-    errands = [{'id': r['id'], 'revision': r['revision'], 'title': r['title'], 'instruction': r['detail'], 'extra': r.get('extra', '')}
-               for r in rows if r['category'] == 'errand']
+    from goodmorning.web import language as ui
+    from .display import wording
+    errands = []
+    for r in rows:
+        if r['category'] == 'errand':
+            heading = wording(r, 'task', 'morning', ui.current())  # The card heading; the body is each morning's result.
+            errands.append({'id': r['id'], 'revision': r['revision'], 'title': heading['title'] if heading else r['title'],
+                            'worded': bool(heading), 'instruction': r['detail'], 'extra': r.get('extra', '')})
     if errands:
         last = errand_memory(store.inbox.directory, today)
         for errand in errands:

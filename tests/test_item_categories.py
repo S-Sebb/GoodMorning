@@ -221,7 +221,7 @@ class CategoryTests(unittest.TestCase):
         self.assertEqual(self.tasks.show(daily)['category'], 'errand')
         view = routing.prepare(self.root, DAY, 'gm')
         self.assertEqual(view['tasks']['items'], [])  # Never a card to tick off.
-        self.assertEqual(view['tasks']['errands'], [{'id': daily, 'revision': 1, 'title': 'Check the black SIHOO M18 price on Amazon UK',
+        self.assertEqual(view['tasks']['errands'], [{'id': daily, 'revision': 1, 'title': 'Check the black SIHOO M18 price on Amazon UK', 'worded': False,
                                                      'instruction': 'Tell me only when it is under £120.', 'extra': '', 'last': None}])
         self.assertEqual([e['title'] for e in routing.prepare(self.root, '2026-10-14', 'gm')['tasks']['errands']],
                          ['Check the black SIHOO M18 price on Amazon UK', 'Look up the library opening hours'])

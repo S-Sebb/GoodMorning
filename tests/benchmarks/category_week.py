@@ -150,6 +150,9 @@ def seed(runtime, monday, language='en'):
                 ('chair-errand', t('Check the black SIHOO M18 chair price on Amazon UK', '查亚马逊英国黑色 SIHOO M18 椅子的价格'),
                  t('Tell me only when it is below £120.', '只在低于120英镑时告诉我。'), '')):
             task = {'title': title, 'kind': 'errand', 'detail': detail, **({'extra': extra} if extra else {})}
+            if key == 'chair-errand':  # Saved with its card heading, as the chat now records errands.
+                task['display'] = {'en': {'morning': {'title': 'SIHOO M18 chair price (black, Amazon UK)', 'detail': ''}, 'schedule': 'Chair price'},
+                                   'zh': {'morning': {'title': 'SIHOO M18 椅子价格（黑色，亚马逊英国）', 'detail': ''}, 'schedule': '椅子价格'}}
             ids[key] = inbox.mutate('add', {'kind': 'todo', 'raw': title, 'task': task}, 'ses_fixture', 'seed-' + key, stamp)['task_id']
         inbox.mutate('add', {'kind': 'todo', 'raw': 'Bring gym clothes', 'task': {'title': t('Bring gym clothes', '带运动衣服'),
                      'kind': 'nudge', 'timezone': ZONE, 'when': {'custom_rule_id': habit}}}, 'ses_fixture', 'seed-clothes', stamp)

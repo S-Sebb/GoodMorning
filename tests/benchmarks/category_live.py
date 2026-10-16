@@ -69,7 +69,7 @@ def calendar_events(runtime):
 def saved_items(runtime):
     """(kind, id, revision, item) for every task, draft and approved calendar event."""
     rows, drafts = tasks(runtime)
-    items = [('task', r['id'], r['revision'], r) for r in rows if r['status'] != 'cancelled' and r.get('kind') not in ('errand', 'reference')]
+    items = [('task', r['id'], r['revision'], r) for r in rows if r['status'] != 'cancelled' and r.get('kind') != 'reference']
     items += [('draft', d['id'], d['revision'], d) for d in drafts if d.get('state') not in ('withdrawn', 'converted')]
     store = CalendarStore(str(runtime / 'calendar.sqlite'), readonly=True)
     try:
@@ -81,7 +81,7 @@ def saved_items(runtime):
 
 
 def worded(runtime, before=frozenset()):
-    """Every item the conversation saved or changed carries page wording in both languages (errands and reference notes excepted)."""
+    """Every item the conversation saved or changed carries page wording in both languages (reference notes excepted)."""
     from goodmorning.records.display import fingerprint
     for kind, identifier, revision, item in saved_items(runtime):
         if (kind, identifier, revision) in before:

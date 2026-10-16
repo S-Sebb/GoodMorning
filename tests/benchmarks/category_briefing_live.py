@@ -132,12 +132,12 @@ def run(output, template, language, kind, selected=None):
         save(folder / 'document.json', document)
         tasks, schedule = saved_titles(runtime, document), rows(document, 'schedule')  # Page titles may be reworded; match items by ID.
         result['tasks'], result['schedule'] = tasks, schedule
-        errands = {row[2]: row for entry in document['sections'] if entry[0] == 'tasks'
+        errands = {row[0]: row for entry in document['sections'] if entry[0] == 'tasks'
                    for block in entry[1] if block[0] == 'errands' for row in block[1]}
         result['errands'] = list(errands.values())
-        wage, pi = t('Look up the UK National Living Wage on GOV.UK', '在 GOV.UK 查一下英国国家生活工资'), t('Check the Raspberry Pi 5 8GB price on raspberrypi.com', '在 raspberrypi.com 查树莓派5 8GB的价格')
+        wage, pi = seeded['wage'], seeded['pi']
         if kind == 'gm':
-            chair_title = t('Check the black SIHOO M18 chair price on Amazon UK', '查亚马逊英国黑色 SIHOO M18 椅子的价格')
+            chair_title = seeded['chair-errand']
             for title in (wage, pi, chair_title):
                 if title not in errands or day.isoformat() not in errands[title][5]:
                     result['problems'].append('errand without a dated note for the next morning: ' + title)
@@ -146,6 +146,9 @@ def run(output, template, language, kind, selected=None):
                 result['problems'].append('rate change against last result not shown with old/new rate and GOV.UK: '
                                           + json.dumps(errands[wage], ensure_ascii=False))
             chair = errands.get(chair_title)
+            heading = t('SIHOO M18 chair price (black, Amazon UK)', 'SIHOO M18 椅子价格（黑色，亚马逊英国）')
+            if chair and chair[2] != heading:
+                result['problems'].append('errand card heading is not the saved wording: ' + chair[2])
             if chair and not chair[3] and not re.search(r'£\s?\d', chair[5]):
                 result['problems'].append('chair check hidden without a price read: ' + json.dumps(chair, ensure_ascii=False))
         elif errands:
