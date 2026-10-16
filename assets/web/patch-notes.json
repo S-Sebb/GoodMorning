@@ -1,6 +1,72 @@
 {
   "notes": [
     {
+      "version": "0.49.0",
+      "date": "2026-10-16",
+      "author": "GoodMorning agent",
+      "title_en": "Clearer pages and more news pictures",
+      "title_zh": "页面更清楚，新闻图片更多",
+      "changes": [
+        {
+          "category": "Added",
+          "en": [
+            "Each reminder, and pending calendar changes on Schedule, now has a \"Review with your secretary\" button that opens quick chat with a starter line; nothing sends until you do.",
+            "Past days without a briefing now explain why one can't be made afterwards and link to that day in Schedule.",
+            "Secretary chat history now shows when each conversation started."
+          ],
+          "zh": [
+            "每条提醒，还有日程页上待处理的日程改动，现在都有一个「和秘书一起看看」按钮，点开就带着一句写好的开头进入快速对话；在你亲自发送之前，什么都不会发出去。",
+            "过去某天没有简报时，现在会说明为什么事后补不了，并给出「在日程页打开这一天」的链接。",
+            "秘书的对话记录里，现在会显示每段对话是什么时候开始的。"
+          ]
+        },
+        {
+          "category": "Changed",
+          "en": [
+            "The patch notes button now says \"What's new\", and Settings no longer shows your language next to its label.",
+            "Task status in briefings now uses round dots, with clear Partial and Blocked badges, instead of checkboxes you couldn't tick.",
+            "News stories without a picture now appear as clean text cards instead of empty picture boxes.",
+            "A news category with only one story now uses the full row.",
+            "Dates now read month first, like \"Tue, Oct 13\", and show the year only when it differs from the day you're viewing.",
+            "Every page now uses the same tagline, and the sign-in page uses the Morning Sky look.",
+            "On phones, the floating buttons slide away while you read down and come back when you scroll up or pause.",
+            "On phones, section tabs stay on one row that scrolls sideways.",
+            "Schedule is more compact: shorter rows, finished to-dos below open ones, and long notes trimmed to two lines in week view.",
+            "Avatar choices now sit together in a small card with the upload button."
+          ],
+          "zh": [
+            "更新日志的按钮现在写着「新变化」；「设置」按钮旁也不再显示当前语言了。",
+            "简报里的任务状态现在改用圆点，配上清楚的「部分完成」和「受阻」标签，不再是点不动的方框。",
+            "没有配图的新闻，现在会显示成干净的文字卡片，不再是空空的图片框。",
+            "某个新闻类别只有一条报道时，现在会占满整行。",
+            "英文界面的日期现在月份在前，比如 Tue, Oct 13；中英文都只在和你正在看的那天不同年时才显示年份。",
+            "现在每个页面都用同一句标语「一个只属于你的私人秘书」，登录页也换上了晨空的样子。",
+            "手机上，浮动的按钮会在你往下读时滑走，往上滚或停下来时再回来。",
+            "手机上，章节标签现在都待在同一行里，左右滑动就能看全。",
+            "日程更紧凑了：每一行更矮，做完的待办排在未完成的下方，周视图里太长的备注会收成两行。",
+            "形象选项现在和上传按钮一起，收在一张小卡片里。"
+          ]
+        },
+        {
+          "category": "Fixed",
+          "en": [
+            "More news stories now show their pictures, including from DW Chinese, NPR, CBC and SCMP.",
+            "Chinese headlines are now grouped across outlets and ranked fairly in News.",
+            "The phone Schedule week controls now have a background, so they stay readable over the sky.",
+            "An empty chat history no longer shows an empty bordered box.",
+            "Evening task day groups now have space between them, and phone day headings wrap cleanly."
+          ],
+          "zh": [
+            "现在有更多新闻能显示配图了，包括 DW 中文、NPR、CBC 和 SCMP 的报道。",
+            "中文标题现在会跨不同媒体归在一起，在新闻里的排序也更公平。",
+            "手机日程页的周切换控件现在有了底色，衬在天空上也能看清。",
+            "对话记录为空时，不会再显示一个空空的带边框方框。",
+            "晚间待办的各天分组之间现在有了间距，手机上的日期标题换行也更整齐。"
+          ]
+        }
+      ]
+    },
+    {
       "version": "0.48.0",
       "date": "2026-10-16",
       "author": "GoodMorning agent",
