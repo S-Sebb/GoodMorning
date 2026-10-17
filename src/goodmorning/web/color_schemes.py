@@ -65,7 +65,7 @@ def form(csrf, return_to):
         picker = 'website-style' if theme == 'style' else theme + '-color-scheme'
         controls += f'<fieldset class="scheme-picker" id="{picker}"><legend>{LEGENDS[theme]}</legend>'
         controls += ''.join(f'<label class="scheme-card"><input type="radio" name="{theme}" value="{code}"'+(' checked' if code == selected[theme] else '')+'>'
-                            f'<span class="scheme-swatch" data-swatch="{theme}-{code}" aria-hidden="true"><i></i><i></i><i></i></span>'
+                            f'<span class="scheme-swatch" data-swatch="{theme}-{code}" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span>'
                             f'<span class="scheme-name" data-ui-text="{label}">'+ui.text(label)+'</span></label>'
                             for code, label in choices.items()) + '</fieldset>'
     return (controls + '<input type="hidden" name="csrf" value="'+html.escape(csrf or '', quote=True)+'">'

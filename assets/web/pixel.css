@@ -53,6 +53,7 @@ html[data-style="pixel"] :is(.section-number, .check, .chat-special-icon, .chat-
   .day-badge, .schedule-review a, .is-today .schedule-day-number, .activity-desk, .activity-item a, .attachment-chip, .scheme-swatch,
   .scheme-swatch i, .pixel-style-switch, .pixel-style-switch input, .pixel-style-switch input::before, .settings-close, #close-sections) { border-radius: 0; }
 html[data-style="pixel"] .scheme-swatch { box-shadow: 0 0 0 2px var(--px-line); }
+html[data-style="pixel"] .scheme-swatch:not([data-swatch="style-soft"]) :is(i:nth-child(4), i:nth-child(5)) { box-shadow: 0 0 0 1px var(--sw-ink); }
 html[data-style="pixel"] .scheme-card input:checked + .scheme-swatch { box-shadow: 0 0 0 3px var(--surface), 0 0 0 6px var(--accent); }
 html[data-style="pixel"] .section-number { border: 0; box-shadow: 0 0 0 var(--px) var(--px-line); }
 html[data-style="pixel"] :is(.chat-portrait, .quick-chat-portrait) { box-shadow: 0 0 0 var(--px) var(--px-line); }
@@ -172,6 +173,5 @@ html[data-style="pixel"]:lang(zh) .today-marker { white-space: nowrap; }
 /* The Soft style card keeps its rounded shapes so both styles stay recognizable. */
 html[data-style="pixel"] #prefs-menu [data-swatch="style-soft"] { border-radius: 7px; box-shadow: 0 0 0 1px var(--line); }
 html[data-style="pixel"] #prefs-menu .scheme-card input:checked + [data-swatch="style-soft"] { box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--accent); }
-html[data-style="pixel"] #prefs-menu [data-swatch="style-soft"] i { border-radius: 2px; }
-html[data-style="pixel"] #prefs-menu [data-swatch="style-soft"] i:nth-child(1) { border-radius: 3px; }
-html[data-style="pixel"] #prefs-menu [data-swatch="style-soft"] i:nth-child(3) { border-radius: 4px; }
+html[data-style="pixel"] #prefs-menu [data-swatch="style-soft"] i:nth-child(4) { border-radius: 2px; }
+html[data-style="pixel"] #prefs-menu [data-swatch="style-soft"] i:nth-child(5) { border-radius: 3px; }

@@ -94,7 +94,7 @@ html:not([data-edition="gn"])[data-day-scheme]:not([data-day-scheme="classic"]) 
 html:not([data-edition="gn"])[data-day-scheme]:not([data-day-scheme="classic"]) .menu-panel .language-toolbar button { background: var(--bg); border-color: var(--line); color: var(--ink); }
 html:not([data-edition="gn"])[data-day-scheme]:not([data-day-scheme="classic"]) .account-card :focus-visible,
 html:not([data-edition="gn"])[data-day-scheme]:not([data-day-scheme="classic"]) .toolbar-row .menu > summary:focus-visible { outline-color: var(--accent); }
-#prefs-menu > .menu-panel { display: grid; gap: 14px; width: min(380px, calc(100vw - 32px)); padding: 18px; border-radius: 18px; }
+#prefs-menu > .menu-panel { display: grid; gap: 14px; width: min(460px, calc(100vw - 32px)); padding: 18px; border-radius: 18px; }
 .settings-menu-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; border-bottom: 1px solid var(--line, #b4c7c0); padding-bottom: 12px; }
 #prefs-menu .settings-close { display: grid; place-items: center; width: 28px; min-width: 28px; height: 28px; min-height: 28px; padding: 0; border: 0; border-radius: 8px; background: transparent; color: var(--muted, #56746a); }
 #prefs-menu .settings-close:hover { background: var(--wash, #f2f6f5); }
@@ -122,36 +122,52 @@ html:not([data-edition="gn"])[data-day-scheme]:not([data-day-scheme="classic"]) 
 .scheme-card input { position: absolute; top: 0; left: 0; width: 1px; height: 1px; opacity: 0; }
 .scheme-name { font-size: 11.5px; line-height: 1.3; color: var(--muted); overflow-wrap: anywhere; }
 .scheme-card input:checked ~ .scheme-name { color: var(--ink); font-weight: 600; }
-.scheme-swatch { position: relative; display: block; aspect-ratio: 16 / 9; overflow: hidden; border-radius: 7px; background: var(--sw-bg) var(--sw-img, none) var(--sw-at, center top) / cover no-repeat; box-shadow: 0 0 0 1px var(--line); }
-.scheme-swatch i { position: absolute; left: 12%; border-radius: 2px; }
-.scheme-swatch i:nth-child(1) { right: 12%; bottom: 10%; height: 36%; border-radius: 3px; background: var(--sw-surface); box-shadow: 0 0 0 1px var(--sw-line); }
-.scheme-swatch i:nth-child(2) { top: 16%; width: 52%; height: 10%; background: var(--sw-ink); }
-.scheme-swatch i:nth-child(3) { top: 33%; width: 24%; height: 10%; border-radius: 4px; background: var(--sw-accent); }
+/* Each swatch is a tiny page: the scheme's real scene layers, a sun or moon, the header, headline,
+   subtitle bubble and first section card, in that scheme's colors. Shapes follow the current style. */
+.scheme-swatch { position: relative; display: block; aspect-ratio: 16 / 10; overflow: hidden; border-radius: 7px; box-shadow: 0 0 0 1px var(--line);
+  background-color: var(--sw-bg); background-image: var(--sw-img, none); background-size: var(--sw-size, 100% auto); background-position: var(--sw-at, center top); background-repeat: no-repeat; }
+.scheme-swatch i { position: absolute; display: block; }
+/* Header: wordmark and the current-page pill. */
+.scheme-swatch i:nth-child(1) { top: 7%; left: 5%; right: 5%; height: 6%;
+  background: linear-gradient(var(--sw-ink), var(--sw-ink)) left center / 26% 70% no-repeat, linear-gradient(var(--sw-accent), var(--sw-accent)) right center / 16% 100% no-repeat; }
+/* Sun by day, a crescent moon by night. */
+.scheme-swatch i:nth-child(2) { top: 22%; right: 8%; width: 13%; aspect-ratio: 1; border-radius: 50%; background: radial-gradient(circle at 40% 35%, #fff4cf, #f2c96b 70%); box-shadow: 0 0 6px #f6d58b99; }
+[data-swatch^="night-"] i:nth-child(2) { background: radial-gradient(circle at 68% 34%, var(--sw-bg) 0 46%, transparent 48%), radial-gradient(circle, #eef1f8 0 68%, transparent 70%); box-shadow: none; }
+/* Headline lines. */
+.scheme-swatch i:nth-child(3) { top: 25%; left: 8%; width: 48%; height: 13%;
+  background: linear-gradient(var(--sw-ink), var(--sw-ink)) left top / 100% 36% no-repeat, linear-gradient(var(--sw-ink), var(--sw-ink)) left bottom / 70% 36% no-repeat; }
+/* Subtitle bubble. */
+.scheme-swatch i:nth-child(4) { top: 44%; left: 8%; width: 40%; height: 7%; border-radius: 2px; background: var(--sw-surface); box-shadow: 0 1px 2px #0000001a; }
+/* First section card. */
+.scheme-swatch i:nth-child(5) { top: 74%; left: 5%; right: 5%; bottom: -4%; border-radius: 3px; background: var(--sw-surface); box-shadow: 0 0 0 1px var(--sw-line);
+  background-image: linear-gradient(var(--sw-ink), var(--sw-ink)), linear-gradient(var(--sw-line), var(--sw-line));
+  background-size: 22% 9%, 90% 1px; background-position: 6% 22%, 50% 42%; background-repeat: no-repeat; }
 .scheme-card:hover .scheme-swatch { box-shadow: 0 0 0 1px var(--accent); }
 .scheme-card input:checked + .scheme-swatch { box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--accent); }
-.scheme-card input:checked + .scheme-swatch::after { content: "✓"; position: absolute; top: 4px; right: 4px; display: grid; place-items: center; width: 16px; height: 16px; border-radius: 50%; background: var(--accent); color: var(--surface); font: 700 10px/1 ui-sans-serif, system-ui, sans-serif; }
+.scheme-card input:checked + .scheme-swatch::after { content: "✓"; position: absolute; top: 4px; left: 4px; display: grid; place-items: center; width: 16px; height: 16px; border-radius: 50%; background: var(--accent); color: var(--surface); font: 700 10px/1 ui-sans-serif, system-ui, sans-serif; }
 .scheme-card input:focus-visible + .scheme-swatch { outline: 2px solid var(--accent); outline-offset: 4px; }
 .scheme-card input:disabled ~ * { cursor: progress; opacity: .7; }
-[data-swatch$="-grass-block"], [data-swatch$="-cottage"], [data-swatch$="-grass-block"] i, [data-swatch$="-cottage"] i { border-radius: 0; image-rendering: pixelated; }
-[data-swatch$="-grass-block"] i:nth-child(1), [data-swatch$="-cottage"] i:nth-child(1) { box-shadow: 0 0 0 2px var(--sw-line); }
 /* Style swatches draw the current colors in each style's shapes. */
 [data-swatch^="style-"] { --sw-bg: var(--bg); --sw-surface: var(--surface); --sw-ink: var(--ink); --sw-accent: var(--accent); --sw-line: var(--line); }
+[data-swatch="style-soft"] i:nth-child(2), [data-swatch="style-pixel"] i:nth-child(2) { display: none; }
+[data-swatch="style-pixel"] { image-rendering: pixelated; }
 [data-swatch="style-pixel"], [data-swatch="style-pixel"] i { border-radius: 0; }
-[data-swatch="style-pixel"] i:nth-child(1) { box-shadow: 0 -2px 0 0 var(--ink), 0 2px 0 0 var(--ink), -2px 0 0 0 var(--ink), 2px 0 0 0 var(--ink), 3px 4px 0 0 color-mix(in srgb, var(--ink) 25%, transparent); }
-[data-swatch="style-pixel"] i:nth-child(2) { box-shadow: 3px 3px 0 color-mix(in srgb, var(--ink) 20%, transparent); }
+[data-swatch="style-pixel"] i:nth-child(4), [data-swatch="style-pixel"] i:nth-child(5) { box-shadow: 0 -2px 0 0 var(--ink), 0 2px 0 0 var(--ink), -2px 0 0 0 var(--ink), 2px 0 0 0 var(--ink), 3px 3px 0 2px color-mix(in srgb, var(--ink) 22%, transparent); }
+[data-swatch="style-pixel"] i:nth-child(3) { filter: drop-shadow(2px 2px 0 color-mix(in srgb, var(--ink) 22%, transparent)); }
 [data-swatch="day-classic"] { --sw-bg: #f4f2ec; --sw-surface: #fffefa; --sw-ink: #233c36; --sw-accent: #35765b; --sw-line: #d8dfd4; }
 [data-swatch="day-warm"] { --sw-bg: #f6eee3; --sw-surface: #fffbf5; --sw-ink: #554032; --sw-accent: #987052; --sw-line: #e0cbb8; }
-[data-swatch="day-morning-sky"] { --sw-bg: #f3f8f9; --sw-img: url("/morning-sky.svg"); --sw-surface: #fffdf7; --sw-ink: #293e50; --sw-accent: #27465e; --sw-line: #cfdae0; }
-[data-swatch="day-first-light"] { --sw-bg: #f3ede2; --sw-img: url("/first-light.svg"); --sw-surface: #fffaf5; --sw-ink: #48443c; --sw-accent: #784a30; --sw-line: #e3d8c7; }
-[data-swatch="day-grass-block"] { --sw-bg: #9ccbf3; --sw-img: url("/grass-block-day.svg"); --sw-surface: #fbf6e9; --sw-ink: #2d2620; --sw-accent: #3a7d22; --sw-line: #2d2620; }
-[data-swatch="day-cottage"] { --sw-bg: #fbe9d6; --sw-img: url("/cottage-day.svg"); --sw-surface: #fff7e8; --sw-ink: #4a2f22; --sw-accent: #c2506a; --sw-line: #5b331c; }
+[data-swatch="day-morning-sky"] { --sw-bg: #f3f8f9; --sw-img: url("/morning-sky.svg"), url("/morning-clouds.webp"); --sw-size: 165% auto; --sw-at: 88% 34%; --sw-surface: #fffdf7; --sw-ink: #293e50; --sw-accent: #27465e; --sw-line: #cfdae0; }
+[data-swatch="day-first-light"] { --sw-bg: #f3ede2; --sw-img: url("/first-light.svg"); --sw-size: 130% auto; --sw-at: 60% 28%; --sw-surface: #fffaf5; --sw-ink: #48443c; --sw-accent: #784a30; --sw-line: #e3d8c7; }
+[data-swatch="day-grass-block"] { --sw-bg: #9ccbf3; --sw-img: url("/grass-block-ledge.svg"), url("/grass-block-day.svg"); --sw-size: auto 5%, cover; --sw-at: left 17%, center top; --sw-surface: #fbf6e9; --sw-ink: #2d2620; --sw-accent: #3a7d22; --sw-line: #c9b997; background-repeat: repeat-x, no-repeat; image-rendering: pixelated; }
+[data-swatch="day-cottage"] { --sw-bg: #fbe9d6; --sw-img: url("/cottage-day.svg"); --sw-size: 24px; --sw-surface: #fff7e8; --sw-ink: #4a2f22; --sw-accent: #c2506a; --sw-line: #ecd0ae; background-repeat: repeat; image-rendering: pixelated; }
 [data-swatch="night-classic"] { --sw-bg: #111c2a; --sw-surface: #192638; --sw-ink: #edece7; --sw-accent: #d8bd8b; --sw-line: #334156; }
-[data-swatch="night-starry"] { --sw-bg: #080f20; --sw-img: url("/starry-sky.svg"); --sw-surface: #111c32; --sw-ink: #eef2fb; --sw-accent: #b8c9f4; --sw-line: #2d3d59; }
-[data-swatch="night-city-lights"] { --sw-bg: #0b1020; --sw-img: url("/city-lights.svg"); --sw-at: center bottom; --sw-surface: #151b31; --sw-ink: #f2efe8; --sw-accent: #f2c27b; --sw-line: #2e3452; }
+[data-swatch="night-starry"] { --sw-bg: #080f20; --sw-img: radial-gradient(1px 1px at 18% 30%, #fff, transparent), radial-gradient(1px 1px at 72% 12%, #fff, transparent), radial-gradient(1px 1px at 40% 58%, #fffde8, transparent), radial-gradient(1px 1px at 88% 46%, #dbe6ff, transparent), radial-gradient(1px 1px at 60% 36%, #fff, transparent), radial-gradient(1px 1px at 8% 52%, #fff, transparent), radial-gradient(ellipse at 65% 12%, #24385b, transparent 65%); --sw-size: 100% 100%; --sw-surface: #111c32; --sw-ink: #eef2fb; --sw-accent: #b8c9f4; --sw-line: #2d3d59; }
+[data-swatch="night-city-lights"] { --sw-bg: #0b1020; --sw-img: url("/city-lights.svg"); --sw-size: cover; --sw-at: center bottom; --sw-surface: #151b31; --sw-ink: #f2efe8; --sw-accent: #f2c27b; --sw-line: #2e3452; }
+/* City Lights keeps its skyline in view: the section card sits lower and lighter. */
+[data-swatch="night-city-lights"] i:nth-child(5) { top: 90%; }
 [data-swatch="night-midnight-violet"] { --sw-bg: #1f2029; --sw-surface: #2a2b37; --sw-ink: #f8f8f2; --sw-accent: #ff79c6; --sw-line: #3d4052; }
-[data-swatch="night-grass-block"] { --sw-bg: #141a38; --sw-img: url("/grass-block-night.svg"); --sw-surface: #262b45; --sw-ink: #eef0f8; --sw-accent: #7650c4; --sw-line: #07091a; }
-[data-swatch="night-cottage"] { --sw-bg: #271d3a; --sw-img: url("/cottage-night.svg"); --sw-surface: #362a4c; --sw-ink: #f8eeff; --sw-accent: #b796ec; --sw-line: #140b1f; }
-[data-swatch$="-cottage"] { background-size: 96px; background-repeat: repeat; }
+[data-swatch="night-grass-block"] { --sw-bg: #141a38; --sw-img: url("/grass-block-ledge.svg"), url("/grass-block-night.svg"); --sw-size: auto 5%, cover; --sw-at: left 17%, center top; --sw-surface: #262b45; --sw-ink: #eef0f8; --sw-accent: #7650c4; --sw-line: #444b70; background-repeat: repeat-x, no-repeat; image-rendering: pixelated; }
+[data-swatch="night-cottage"] { --sw-bg: #271d3a; --sw-img: url("/cottage-night.svg"); --sw-size: 24px; --sw-surface: #362a4c; --sw-ink: #f8eeff; --sw-accent: #b796ec; --sw-line: #54446e; background-repeat: repeat; image-rendering: pixelated; }
 #color-scheme-form noscript, #color-scheme-feedback { grid-column: 1 / -1; }
 .toolbar-row .menu-panel { max-height: calc(100svh - 100px); overflow-y: auto; overscroll-behavior-y: contain; }
 #color-scheme-feedback { font-size: .75rem; overflow-wrap: anywhere; }
