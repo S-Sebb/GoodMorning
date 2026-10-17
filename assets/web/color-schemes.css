@@ -86,7 +86,6 @@ html:not([data-edition="gn"])[data-day-scheme="grass-block"] .orbit .sun { backg
 html[data-edition="gn"][data-night-scheme="grass-block"] .orbit .sun { background: url("/pixel-moon.svg") center / 144px no-repeat; image-rendering: pixelated; }
 /* Labels that sit on the hills keep a parchment chip so they stay readable. */
 :is(html:not([data-edition="gn"])[data-day-scheme="grass-block"], html[data-edition="gn"][data-night-scheme="grass-block"]) .briefing-section-nav a:not(.active, [aria-current]) { background: color-mix(in srgb, var(--surface) 88%, transparent); }
-:is(html:not([data-edition="gn"])[data-day-scheme="grass-block"], html[data-edition="gn"][data-night-scheme="grass-block"]) .secretary-identity > p:not(.eyebrow) { width: fit-content; padding: 4px 8px; margin-left: -8px; background: color-mix(in srgb, var(--surface) 88%, transparent); }
 @media (max-width: 700px) { :is(html:not([data-edition="gn"])[data-day-scheme="grass-block"], html[data-edition="gn"][data-night-scheme="grass-block"]) .orbit .sun { background-size: 36px; background-position: center 30%; } }
 html[data-edition="gn"][data-night-scheme="picnic"] .chat-page, html[data-edition="gn"][data-night-scheme="grass-block"] .chat-page { --special-question: #ffd38a; --special-answer: #a2cde9; --special-added: #9be59b; --special-updated: #c9b6ff; --special-cancelled: #ff8a8a; }
 /* Account pages retain Classic; every other day palette uses shared site tokens. */
