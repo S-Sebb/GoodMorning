@@ -22,9 +22,10 @@ html[data-style="pixel"] {
 html[data-style="pixel"] :is(h1, h2, h3, .wordmark, .eyebrow, .edition-link, .briefing-section-nav a, .week-picker a, .weather-label,
   .weather-value, .section-number, #new-conversation, .toolbar-row .menu > summary, #site-update-toggle, #quick-chat-launcher,
   .schedule-date, .preview-eyebrow, .preview-title, .today-marker, .scheme-name, #prefs-menu legend,
-  #activity-heading, .activity-title, #mobile-sections) { font-family: var(--px-font); letter-spacing: 0; }
+  #activity-heading, .activity-title, #mobile-sections, .secretary-identity > p:not(.eyebrow), .chat-topic-hint, #chat-help,
+  .settings-menu-header p) { font-family: var(--px-font); letter-spacing: 0; }
 html[data-style="pixel"] :is(.wordmark, h1, h2) { font-family: var(--px-title); }
-html[data-style="pixel"] :is(.eyebrow, .weather-label, .week-picker a, .today-marker, .preview-eyebrow, #activity-heading) { font-family: var(--px-label); }
+html[data-style="pixel"] :is(.eyebrow, .weather-label, .today-marker, .preview-eyebrow, #activity-heading) { font-family: var(--px-label); }
 html[data-style="pixel"] :is(.letter-copy > .subtitle, .section-takeaway, .briefing-closing, .wordmark span) { font-family: var(--px-font); font-style: normal; }
 html[data-style="pixel"] h1 { font-weight: 500; }
 html[data-style="pixel"] .wordmark { font-size: 30px; font-weight: 600; }
@@ -122,10 +123,10 @@ html[data-style="pixel"] .week-picker a.is-missing:not([aria-current]) { backgro
 :is(html[data-style="pixel"]:not([data-edition="gn"])[data-day-scheme="grass-block"], html[data-style="pixel"][data-edition="gn"][data-night-scheme="grass-block"]) .wordmark span { font: 11px/1.5 var(--px-label); }
 :is(html[data-style="pixel"]:not([data-edition="gn"])[data-day-scheme="grass-block"], html[data-style="pixel"][data-edition="gn"][data-night-scheme="grass-block"]) .week-picker { gap: 0; padding: 6px; background: #8b8b8b; box-shadow: 0 0 0 3px var(--px-line), inset 3px 3px 0 #b5b5b5, inset -3px -3px 0 #5a5a5a; }
 :is(html[data-style="pixel"]:not([data-edition="gn"])[data-day-scheme="grass-block"], html[data-style="pixel"][data-edition="gn"][data-night-scheme="grass-block"]) .week-picker a,
-:is(html[data-style="pixel"]:not([data-edition="gn"])[data-day-scheme="grass-block"], html[data-style="pixel"][data-edition="gn"][data-night-scheme="grass-block"]) .week-picker a.is-missing:not([aria-current]) { margin: 3px; background: #a9a9a9; color: #2b2b2b; font-size: 11px; border: 0; box-shadow: inset 3px 3px 0 #6c6c6c, inset -3px -3px 0 #d6d6d6; }
+:is(html[data-style="pixel"]:not([data-edition="gn"])[data-day-scheme="grass-block"], html[data-style="pixel"][data-edition="gn"][data-night-scheme="grass-block"]) .week-picker a.is-missing:not([aria-current]) { margin: 3px; background: #a9a9a9; color: #2b2b2b; border: 0; box-shadow: inset 3px 3px 0 #6c6c6c, inset -3px -3px 0 #d6d6d6; }
 :is(html[data-style="pixel"]:not([data-edition="gn"])[data-day-scheme="grass-block"], html[data-style="pixel"][data-edition="gn"][data-night-scheme="grass-block"]) .week-picker a small { color: #444; }
 :is(html[data-style="pixel"]:not([data-edition="gn"])[data-day-scheme="grass-block"], html[data-style="pixel"][data-edition="gn"][data-night-scheme="grass-block"]) .week-picker [aria-current] { position: relative; z-index: 1; background: var(--surface); color: var(--ink); box-shadow: 0 0 0 3px #ffffff, 0 0 0 6px var(--px-line); }
-:is(html[data-style="pixel"]:not([data-edition="gn"])[data-day-scheme="grass-block"], html[data-style="pixel"][data-edition="gn"][data-night-scheme="grass-block"]) .week-picker .today-marker { border: 0; background: var(--px-key); color: #fff; box-shadow: 0 0 0 2px var(--px-line); font-size: 8px; }
+:is(html[data-style="pixel"]:not([data-edition="gn"])[data-day-scheme="grass-block"], html[data-style="pixel"][data-edition="gn"][data-night-scheme="grass-block"]) .week-picker .today-marker { border: 0; background: var(--px-key); color: #fff; box-shadow: 0 0 0 2px var(--px-line); }
 :is(html[data-style="pixel"]:not([data-edition="gn"])[data-day-scheme="grass-block"], html[data-style="pixel"][data-edition="gn"][data-night-scheme="grass-block"]) .weather-tile { box-shadow: 0 -3px 0 0 var(--px-line), 0 3px 0 0 var(--px-line), -3px 0 0 0 var(--px-line), 3px 0 0 0 var(--px-line),
       inset 4px 4px 0 0 color-mix(in srgb, var(--tile-accent) 30%, transparent), inset -4px -4px 0 0 #ffffffaa; }
 :is(html[data-style="pixel"]:not([data-edition="gn"])[data-day-scheme="grass-block"], html[data-style="pixel"][data-edition="gn"][data-night-scheme="grass-block"]) #chat-history a[aria-current] { box-shadow: 0 -3px 0 0 var(--px-line), 0 3px 0 0 var(--px-line), -3px 0 0 0 var(--px-line), 3px 0 0 0 var(--px-line), inset 6px 0 0 0 var(--px-key); }
@@ -161,7 +162,8 @@ html[data-style="pixel"]:lang(zh) :is(h1, h2, h3, .wordmark span, .eyebrow, .edi
 }
 html[data-style="pixel"]:lang(zh) :is(h3, .wordmark span, .eyebrow, .edition-link, .briefing-section-nav a, .week-picker a, .weather-label,
   #new-conversation, .toolbar-row .menu > summary, #site-update-toggle, #quick-chat-launcher, .scheme-name, #prefs-menu legend,
-  .settings-menu-header h2, .color-scheme-heading, .preview-eyebrow, #activity-heading, #mobile-sections, .week-picker small, .today-marker) { font-size: 12px; line-height: 18px; }
+  .settings-menu-header h2, .color-scheme-heading, .preview-eyebrow, #activity-heading, #mobile-sections, .week-picker small, .today-marker,
+  .secretary-identity > p:not(.eyebrow), .chat-topic-hint, #chat-help, .settings-menu-header p) { font-size: 12px; line-height: 18px; }
 html[data-style="pixel"]:lang(zh) :is(h2, .preview-title, .activity-title) { font-size: 24px; line-height: 36px; }
 html[data-style="pixel"]:lang(zh) h1 { font-size: 36px; line-height: 48px; }
 @media (max-width: 700px) { html[data-style="pixel"]:lang(zh) h1 { font-size: 24px; line-height: 36px; } }
@@ -183,3 +185,8 @@ html[data-style="pixel"][data-edition="gn"]:not([data-night-scheme="grass-block"
   html[data-style="pixel"]:not([data-edition="gn"]):not([data-day-scheme="grass-block"]) .orbit .sun,
   html[data-style="pixel"][data-edition="gn"]:not([data-night-scheme="grass-block"]) .orbit .sun { background-size: 52px; }
 }
+
+/* Pixel faces read smaller than the system font, so the week strip gets a size up. */
+html[data-style="pixel"]:not(:lang(zh)) .week-picker a { font-size: 13px; }
+html[data-style="pixel"]:not(:lang(zh)) .week-picker small { font-size: 11px; }
+html[data-style="pixel"]:not(:lang(zh)) .week-picker .today-marker { font-size: 10px; }

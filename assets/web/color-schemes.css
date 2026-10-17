@@ -61,7 +61,7 @@ html:not([data-edition="gn"]):is([data-day-scheme="morning-sky"], [data-day-sche
 /* Keep atmospheric details in view when a portrait screen crops the wide scene. */
 @media screen and (max-width: 700px) {
   html:not([data-edition="gn"]):is([data-day-scheme="morning-sky"], [data-day-scheme="first-light"]) body { background-position: right top; }
-  :is(html:not([data-edition="gn"])[data-day-scheme="grass-block"], html[data-edition="gn"][data-night-scheme="grass-block"]) body { background-position: right top, 0 0; }
+  :is(html:not([data-edition="gn"])[data-day-scheme="grass-block"], html[data-edition="gn"][data-night-scheme="grass-block"]) body { background-position: right top, right top; }
   html:not([data-edition="gn"])[data-day-scheme="morning-sky"] body { background-position: right top, right top, right max(62.5vw, 100svh); }
 }
 /* Grass Block: plains of grass blocks under a square sun; further down the page the ground
@@ -73,19 +73,20 @@ html:not([data-edition="gn"])[data-day-scheme="picnic"] { color-scheme: light; -
 html[data-edition="gn"][data-night-scheme="picnic"] { color-scheme: dark; --bg: #271d3a; --surface: #362a4c; --ink: #f8eeff; --muted: #d2c3e4; --accent: #ffb3c7; --line: #54446e; --wash: #403257; --warm: #ffd38a; --chat-paper: #362a4c; --chat-border: #5f4b7d; --bubble: #3d3055; --your-bubble: #5a3a62; --bubble-line: #54446e; --your-line: #74507c; color: var(--ink); background: var(--bg); }
 @media screen {
   html:not([data-edition="gn"])[data-day-scheme="grass-block"] body { min-height: 100svh; color: var(--ink); image-rendering: pixelated;
-    background: url("/grass-block-day.svg") center top / max(100%, 160svh) auto no-repeat, #9a9a9a url("/grass-block-stone-day.svg") 0 0 / 96px repeat; }
+    background: url("/grass-block-day.svg") center top / max(100%, 160svh) auto no-repeat, #9a9a9a url("/grass-block-stone-day.svg") center top / calc(max(100%, 160svh) / 5) repeat; }
   html[data-edition="gn"][data-night-scheme="grass-block"] body { min-height: 100svh; color: var(--ink); image-rendering: pixelated;
-    background: url("/grass-block-night.svg") center top / max(100%, 160svh) auto no-repeat, #3c3f4a url("/grass-block-stone-night.svg") 0 0 / 96px repeat; }
+    background: url("/grass-block-night.svg") center top / max(100%, 160svh) auto no-repeat, #3c3f4a url("/grass-block-stone-night.svg") center top / calc(max(100%, 160svh) / 5) repeat; }
   html:not([data-edition="gn"])[data-day-scheme="picnic"] body { min-height: 100svh; color: var(--ink); background: var(--bg) url("/picnic-day.svg") repeat fixed; image-rendering: pixelated; }
   html[data-edition="gn"][data-night-scheme="picnic"] body { min-height: 100svh; color: var(--ink); background: var(--bg) url("/picnic-night.svg") repeat fixed; image-rendering: pixelated; }
 }
 html[data-edition="gn"][data-night-scheme="grass-block"] .weather-tile.cool { --tile-accent: #a2cde9; }
-/* A square pixel sun and moon replace the smooth edition artwork. */
+/* A square pixel sun by day and the pixel crescent moon by night replace the smooth edition artwork. */
 :is(html:not([data-edition="gn"])[data-day-scheme="grass-block"], html[data-edition="gn"][data-night-scheme="grass-block"]) .orbit .celestial-art > :not(path:first-child) { display: none; }
 html:not([data-edition="gn"])[data-day-scheme="grass-block"] .orbit .sun { background: url("/grass-block-sun.svg") center 38% / 96px no-repeat; image-rendering: pixelated; }
-html[data-edition="gn"][data-night-scheme="grass-block"] .orbit .sun { background: url("/grass-block-moon.svg") center 38% / 96px no-repeat; image-rendering: pixelated; }
+html[data-edition="gn"][data-night-scheme="grass-block"] .orbit .sun { background: url("/pixel-moon.svg") center / 144px no-repeat; image-rendering: pixelated; }
 /* Labels that sit on the hills keep a parchment chip so they stay readable. */
 :is(html:not([data-edition="gn"])[data-day-scheme="grass-block"], html[data-edition="gn"][data-night-scheme="grass-block"]) .briefing-section-nav a:not(.active, [aria-current]) { background: color-mix(in srgb, var(--surface) 88%, transparent); }
+:is(html:not([data-edition="gn"])[data-day-scheme="grass-block"], html[data-edition="gn"][data-night-scheme="grass-block"]) .secretary-identity > p:not(.eyebrow) { width: fit-content; padding: 4px 8px; margin-left: -8px; background: color-mix(in srgb, var(--surface) 88%, transparent); }
 @media (max-width: 700px) { :is(html:not([data-edition="gn"])[data-day-scheme="grass-block"], html[data-edition="gn"][data-night-scheme="grass-block"]) .orbit .sun { background-size: 36px; background-position: center 30%; } }
 html[data-edition="gn"][data-night-scheme="picnic"] .chat-page, html[data-edition="gn"][data-night-scheme="grass-block"] .chat-page { --special-question: #ffd38a; --special-answer: #a2cde9; --special-added: #9be59b; --special-updated: #c9b6ff; --special-cancelled: #ff8a8a; }
 /* Account pages retain Classic; every other day palette uses shared site tokens. */

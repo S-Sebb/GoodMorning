@@ -266,7 +266,7 @@ class ColorSchemeTests(unittest.TestCase):
             self.assertEqual(resources.paths[url].mime, 'font/woff2')
             self.assertIn(f'url("{url}")', pixel)
         for scene in ('grass-block-day', 'grass-block-night', 'grass-block-stone-day', 'grass-block-stone-night',
-                      'grass-block-sun', 'grass-block-moon', 'pixel-sun', 'pixel-moon', 'picnic-day', 'picnic-night'):
+                      'grass-block-sun', 'pixel-sun', 'pixel-moon', 'picnic-day', 'picnic-night'):
             root = ET.fromstring(resources.paths[resources.urls[scene + '.svg']].data)
             self.assertEqual(root.findall('.//' + SVG + 'script'), [])
             self.assertIn(f'url("{resources.urls[scene + ".svg"]}")', schemes + pixel)
