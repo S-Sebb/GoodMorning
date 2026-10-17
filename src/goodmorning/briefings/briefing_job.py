@@ -1,6 +1,6 @@
 """Code-owned browser workflow context and incremental authoring commands."""
 import argparse
-from contextlib import redirect_stdout
+from contextlib import redirect_stderr, redirect_stdout
 from copy import deepcopy
 import io
 import json
@@ -132,7 +132,7 @@ def next_step(runtime, identifier, session, context, checkpoint):
     elif context.get('document_version') == 2 and tag in ('schedule', 'tasks', 'attention', 'today'):
         read_command = ['python', 'scripts/goodmorning.py', 'task', '--secretary-dir', str(runtime),
                                 '--briefing', context['workflow'], '--date', context['date'],
-                                '--browser-job', identifier,
+                                '--browser-job', identifier, '--session', session,
                                 '--section', tag,
                                 '--website-language', context.get('website_language', 'en')]
         reads.append(shlex.join(read_command))
@@ -153,6 +153,25 @@ def next_step(runtime, identifier, session, context, checkpoint):
     else:
         action['instruction'] = instruction
     return action
+
+
+def run_reads(commands):
+    """Run a section's read recipes for the agent, exactly as written, so each costs no model turn."""
+    from goodmorning.cli import main as cli
+    results = []
+    for command in commands:
+        output, errors = io.StringIO(), io.StringIO()
+        with redirect_stdout(output), redirect_stderr(errors):
+            try:
+                code = cli(shlex.split(command)[2:])
+            except SystemExit as error:
+                code = error.code if isinstance(error.code, int) else 1
+        try:
+            value = json.loads(output.getvalue())
+        except ValueError:
+            value = (output.getvalue().strip() or errors.getvalue().strip())[-4000:]
+        results.append({'command':command, 'exit':code or 0, 'output':value})
+    return results
 
 
 def news_gaps(runtime, context, section):
@@ -270,6 +289,8 @@ def act(runtime, identifier, session, action, payload=None):
             if context.get('document_version') == 2:
                 next_action['guide'] = briefing_guides.guide(context, next_action, checkpoint['plan'] if checkpoint else default_plan(context),
                                                              runtime=runtime, job=identifier, session=session)
+                if next_action.get('read'):
+                    next_action['results'] = run_reads(next_action.pop('read'))
             rule = writing_rule(context, next_action)
             if rule:
                 next_action['writing'] = rule

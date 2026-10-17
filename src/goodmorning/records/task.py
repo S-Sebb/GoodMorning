@@ -85,6 +85,8 @@ def main(argv=None):
                 result = {**page, 'block': result.get('blocks', {}).get(args.section),
                            'warnings': result.get('warnings', []) + result['schedule'].get('warnings', []),
                            'timezone': result['schedule'].get('timezone')}
+                if args.section == 'today' and not result['block'][1]:
+                    result['block'] = None  # No outcome cards; an empty card block cannot be published.
                 if args.section == 'schedule' and not result.get('total') and not result['warnings']:
                     from goodmorning.web import language as ui
                     window = result['window']
