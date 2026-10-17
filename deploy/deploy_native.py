@@ -1,8 +1,10 @@
 """Guarded GoodMorning release helper, run as root on the server.
 
-stage ARCHIVE NAME  Unpack, verify and test a release while the website stays live.
-switch NAME         With the website paused, wait for idle, then make a staged
-                    release live. Keeps previous releases, credentials and private files.
+stage ARCHIVE NAME          Unpack, verify and test a release while the website stays live.
+engine OPENCHAMBER OPENCODE  Install and check an engine tree while the website stays live.
+switch NAME [ENGINE]        With the website paused, wait for idle, then make a staged
+                            release (and engine) live. Keeps previous releases,
+                            credentials and private files.
 
 Exit status 3 means switch changed nothing because the website never became idle.
 """
@@ -27,13 +29,18 @@ CURRENT = Path('/opt/goodmorning/current')
 RELEASES = Path('/opt/goodmorning/releases')
 PYTHON = '/opt/goodmorning/python/bin/python'
 NODE = '/opt/goodmorning/engine/bin/node'
+NODE_HOME = Path('/opt/goodmorning/node')
+ENGINES = Path('/opt/goodmorning/engines')
+ENGINE_CURRENT = ENGINES/'current'
+ENGINE_MOUNT = Path('/opt/goodmorning/engine/node_modules')
+REGISTRY = 'https://registry.npmjs.org'
 HOST = 'gm.love765.me'
 ALLOWED = frozenset({'.gitignore', '.opencode', 'LICENSE', 'README.md', 'AGENTS.md', 'AGENT-PROMPT-GUIDE.md',
                      'SERVER-USER-GUIDE.md', 'SERVER-DATA-GUIDE.md', 'config.example.md', 'skill-source',
                      'scripts', 'src', 'assets', 'integrations', 'vendor', 'requirements', 'docs',
                      'templates', 'deploy', 'tests'})
 UNITS = ('goodmorning-account@.service', 'goodmorning-viewer@.service',
-         'goodmorning-gateway.service', 'goodmorning-vault@.service')
+         'goodmorning-gateway.service', 'goodmorning-vault@.service', 'goodmorning-engine.service')
 NGINX = Path('/etc/nginx/conf.d/goodmorning.conf')
 HOOK = Path('/etc/letsencrypt/renewal-hooks/deploy/goodmorning-reload-nginx')
 SCHEMA = {'users': {'id', 'name', 'salt', 'digest', 'revision', 'temporary', 'enabled'},
@@ -142,6 +149,60 @@ def stage(archive, name):
                       'pythonTests': result['pythonTests'], 'nodeTests': result['nodeTests']}))
 
 
+def engine_path(name):
+    if not re.fullmatch(r'\d+\.\d+\.\d+-\d+\.\d+\.\d+', name):
+        raise ValueError('Engine names look like <openchamber>-<opencode> versions, such as 2.4.0-2.0.32')
+    return ENGINES/name
+
+
+def engine_versions(modules):
+    """The OpenChamber and OpenCode versions an engine tree really contains."""
+    chamber = json.loads((modules/'@openchamber/web/package.json').read_text())['version']
+    cli = command([str(modules/'@opencode/cli/bin/opencode.exe'), '--version']).stdout.strip().removeprefix('opencode v')
+    return chamber, cli
+
+
+def stage_engine(openchamber, opencode):
+    """Safe while live: installs one new engine tree beside the live one.
+
+    npm runs as nobody, and only @opencode/cli's install script runs: it links
+    the binary that suits this CPU. Root owns the result. Keeps only the live
+    tree and the new one; an older tree is never the rollback target.
+    """
+    name = f'{openchamber}-{opencode}'
+    target = engine_path(name)
+    modules = target/'lib/node_modules'
+    live = ENGINE_CURRENT.resolve() if ENGINE_CURRENT.exists() else None
+    if not target.exists():
+        ENGINES.mkdir(mode=0o755, exist_ok=True)
+        temporary = ENGINES/('.staging-'+name)
+        shutil.rmtree(temporary, ignore_errors=True)
+        temporary.mkdir(mode=0o755)
+        try:
+            shutil.chown(temporary, 'nobody', 'nogroup')
+            env = {'PATH': str(NODE_HOME/'bin')+':/usr/bin:/bin', 'HOME': str(temporary/'.cache'),
+                   'npm_config_cache': str(temporary/'.cache'), 'npm_config_update_notifier': 'false'}
+            command([str(NODE_HOME/'bin/npm'), 'install', '--global', '--prefix', str(temporary), '--registry', REGISTRY,
+                     '--allow-scripts=@opencode/cli', '--no-audit', '--no-fund', f'@openchamber/web@{openchamber}',
+                     f'@opencode/cli@{opencode}'], timeout=900, env=env, cwd=temporary, user='nobody', group='nogroup')
+            shutil.rmtree(temporary/'.cache')
+            command(['chown', '-R', 'root:root', str(temporary)])
+            assert engine_versions(temporary/'lib/node_modules') == (openchamber, opencode), 'Installed engine versions differ'
+            command([str(NODE_HOME/'bin/node'), str(temporary/'lib/node_modules/@openchamber/web/bin/cli.js'), '--version'])
+            # Agents reach the tree only through the read-only mount of this directory.
+            shutil.chown(temporary/'lib/node_modules', 'root', 'goodmorning-engine')
+            (temporary/'lib/node_modules').chmod(0o750)
+            temporary.rename(target)
+        except Exception:
+            shutil.rmtree(temporary, ignore_errors=True)
+            raise
+    assert engine_versions(modules) == (openchamber, opencode), 'Engine tree changed after staging'
+    for path in ENGINES.iterdir():
+        if path.is_dir() and not path.is_symlink() and not path.name.startswith('.') and path not in (target, live):
+            shutil.rmtree(path)
+    print(json.dumps({'engine': name, 'live': live.name if live else None}))
+
+
 def install(source, target, backup):
     """Copy only when different; return whether a rollback copy was taken."""
     if target.is_file() and target.read_bytes() == source.read_bytes():
@@ -173,13 +234,17 @@ def staged_record(name):
             'nodeTests': report.get('stagedNodeTests', report.get('candidateNodeTests'))}
 
 
-def switch(name):
+def switch(name, engine=None):
     release = release_path(name)
     staged = staged_record(name)
     assert release.is_dir() and CURRENT.resolve() != release, 'Stage a new release first'
     for path, value in staged['files'].items():
         assert digest(release/path) == value, 'Staged release changed after staging'
     old = CURRENT.resolve()
+    old_engine = ENGINE_CURRENT.resolve() if ENGINE_CURRENT.exists() else None
+    new_engine = engine_path(engine) if engine else old_engine
+    assert new_engine and (new_engine/'lib/node_modules').is_dir() and (NODE_HOME/'bin/node').is_file(), 'Stage the engine first'
+    expected_engine = tuple(new_engine.name.split('-'))
 
     with read_db() as db:
         require_schema(db)
@@ -279,8 +344,6 @@ print(json.dumps({'profileReady':status['profile_ready'],'nativeEditions':count}
         protected_paths.append(volume/'engine.json')
         protected_paths.extend((volume/'home/.config/openchamber').glob('*settings*.json'))
         protected_paths.append(volume/'home/.config/openchamber/preferences.json')
-    protected_paths += [Path('/home/ubuntu/.config/openchamber/settings.json'),
-                        Path('/home/ubuntu/.config/openchamber/preferences.json')]
     protected = {str(p): digest(p) for p in protected_paths if p.is_file()}
 
     def unchanged():
@@ -330,7 +393,7 @@ print(json.dumps({'profileReady':status['profile_ready'],'nativeEditions':count}
     except Busy as error:
         print(json.dumps({'notIdle': str(error), 'changed': False}))
         sys.exit(NOT_IDLE)
-    installed, switched, nginx_changed = [], False, False
+    installed, switched, nginx_changed, engine_switched = [], False, False, False
     started = time.monotonic()
     try:
         command(['systemctl', 'stop', 'goodmorning-gateway.service', *viewers])
@@ -348,7 +411,17 @@ print(json.dumps({'profileReady':status['profile_ready'],'nativeEditions':count}
         pointer.symlink_to(release)
         pointer.replace(CURRENT)
         switched = True
+        if new_engine != old_engine:
+            pointer = ENGINES/'current-native-switch'
+            assert not pointer.exists() and not pointer.is_symlink()
+            pointer.symlink_to(new_engine.name)
+            pointer.replace(ENGINE_CURRENT)
+            engine_switched = True
         command(['systemctl', 'daemon-reload'])
+        # The agents are stopped, so the engine mount is free to move.
+        if engine_switched or Path('/etc/systemd/system/goodmorning-engine.service') in installed:
+            command(['systemctl', 'restart', 'goodmorning-engine.service'])
+        assert engine_versions(ENGINE_MOUNT) == expected_engine, 'Agents must use the new engine'
         if NGINX.read_bytes() != candidate_nginx:
             shutil.copy2(NGINX, backup/'nginx-goodmorning.conf')
             write_nginx(candidate_nginx)
@@ -375,6 +448,13 @@ print(json.dumps({'profileReady':status['profile_ready'],'nativeEditions':count}
             pointer = CURRENT.with_name('current-native-rollback')
             pointer.symlink_to(old)
             pointer.replace(CURRENT)
+        if engine_switched:
+            if old_engine:
+                pointer = ENGINES/'current-native-rollback'
+                pointer.symlink_to(old_engine.name)
+                pointer.replace(ENGINE_CURRENT)
+            else:
+                ENGINE_CURRENT.unlink()
         for target in installed:
             shutil.copy2(backup/target.name, target)
         if nginx_changed:
@@ -382,6 +462,8 @@ print(json.dumps({'profileReady':status['profile_ready'],'nativeEditions':count}
             command(['nginx', '-t'])
             command(['systemctl', 'reload', 'nginx'])
         command(['systemctl', 'daemon-reload'])
+        if engine_switched or Path('/etc/systemd/system/goodmorning-engine.service') in installed:
+            command(['systemctl', 'restart', 'goodmorning-engine.service'])
         command(['systemctl', 'start', *services])
         gateway.clear_ticket(ticket)
         raise
@@ -389,6 +471,7 @@ print(json.dumps({'profileReady':status['profile_ready'],'nativeEditions':count}
               'stagedPythonTests': staged['pythonTests'], 'stagedNodeTests': staged['nodeTests'],
               'protectedPrivateFiles': len(protected), 'recordsPasswordsAndPreferencesUnchanged': True,
               'idleAccountsRestarted': len(accounts), 'unprovisionedAccountsUntouched': len(unprovisioned),
+              'engine': new_engine.name, 'previousEngine': old_engine.name if old_engine else None,
               'vaultsNotRestarted': True, 'modelCalls': 0, 'profiles': profiles,
               'updatedFiles': [str(path) for path in installed]+([str(NGINX)] if nginx_changed else []),
               'switchSeconds': round(time.monotonic()-started)}
@@ -403,9 +486,11 @@ def main(argv):
     sys.dont_write_bytecode = True
     if argv[:1] == ['stage'] and len(argv) == 3:
         stage(Path(argv[1]), argv[2])
-    elif argv[:1] == ['switch'] and len(argv) == 2:
+    elif argv[:1] == ['engine'] and len(argv) == 3:
+        stage_engine(argv[1], argv[2])
+    elif argv[:1] == ['switch'] and len(argv) in (2, 3):
         try:
-            switch(argv[1])
+            switch(*argv[1:])
         except Exception:
             # The caller's session may not survive to read stderr; keep the cause privately.
             error = ACCOUNTS/f'{argv[1]}-switch-error.txt'
