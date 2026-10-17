@@ -69,10 +69,11 @@ visible when they affect the user's decision, once and in concise language.
   to enforce an elapsed deadline including DNS and retries. Partial weather/AQI
   results remain pending verification even when weather.py exits zero.
 
-`rain yes` is a full-local-day umbrella heuristic: a rain/storm code, more than
-0.2 mm rain/showers, or at least 50% precipitation probability without a snow
-forecast. Missing facts can produce `unknown`; snow does not automatically mean
-rain. This brief is not a severe-weather alert service.
+`rain yes` is a full-local-day umbrella heuristic: at least 50% precipitation
+probability without a snow forecast, or a rain/storm code or more than 0.2 mm
+rain/showers when the probability is at least 30% or missing. A rain code with a
+lower probability is `no`, so the brief never pairs an umbrella with 0%. Missing
+facts can produce `unknown`; snow does not automatically mean rain. This brief is not a severe-weather alert service.
 
 JSON includes location, local date/time/timezone, daily conditions, freshness,
 and warnings. `cache_state` is `live`, `cached`, or `stale`; `fetched_at` is fetch
