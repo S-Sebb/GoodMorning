@@ -173,8 +173,8 @@ def capture(app, output):
             page.on('response', lambda response: errors.append(f'{response.status} {urlsplit(response.url).path}')
                     if response.status >= 400 else None)
 
-            def open_page(path, day='first-light'):
-                write_colors(app.runtime, {'day': day, 'night': 'starry'})
+            def open_page(path, day='first-light', night='starry', style='soft'):
+                write_colors(app.runtime, {'style': style, 'day': day, 'night': night})
                 page.goto(address + path)
                 page.evaluate('document.fonts.ready')
                 page.evaluate('''() => Promise.all(Array.from(document.images)
@@ -223,6 +223,12 @@ def capture(app, output):
             open_page('/gm.html', 'morning-sky')
             expect(page.locator('html')).to_have_attribute('data-day-scheme', 'morning-sky')
             shot('morning-sky')
+            open_page('/gm.html', 'grass-block', style='pixel')
+            expect(page.locator('html')).to_have_attribute('data-style', 'pixel')
+            shot('pixel-grass-block')
+            open_page('/gn.html', night='picnic', style='pixel')
+            expect(page.locator('html')).to_have_attribute('data-night-scheme', 'picnic')
+            shot('pixel-picnic')
             page.set_viewport_size({'width': 390, 'height': 844})
             open_page('/chat?id=' + CHAT, 'warm')
             expect(page.locator('#chat-compose')).to_be_visible()

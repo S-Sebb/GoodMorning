@@ -21,52 +21,62 @@
   <a href="https://github.com/S-Sebb/GoodMorning/issues">Feedback</a>
 </p>
 
-![Morning briefing in the First Light theme, with a mountain valley, personal desk, daily archive, and weather cards](assets/readme/morning.png)
+![Morning briefing in the First Light theme, with a mountain valley, the secretary at a desk, a sun rising behind a cloud, a daily archive, and weather cards](assets/readme/morning.png)
 
 GoodMorning brings your weather, news, appointments, tasks, and ideas into one
 quiet place. Start with a morning briefing, keep your saved plans close throughout
 the week, and close the day with an honest review of what actually happened.
 
-Between briefings, your secretary helps you think, remember a to-do, or catch an
-idea before it disappears. Built around **OpenCode and OpenChamber**, GoodMorning
-combines a personal AI workflow with a browser interface you can host yourself.
-Four tabs—**Morning, Evening, Schedule, and Secretary**—keep each part of the day
-within reach.
+Between briefings, your secretary helps you think, remember a to-do, catch an
+idea before it disappears, or run a small errand for you. Built around
+**OpenCode and OpenChamber**, GoodMorning combines a personal AI workflow with a
+browser interface you can host yourself. Four tabs—**Morning, Evening, Schedule,
+and Secretary**—keep each part of the day within reach, and a floating **Ask**
+button opens a quick chat without leaving the page.
 
 ## A day with GoodMorning
 
 **Morning · Find your bearings.** Weather, News, Schedule, Tasks, then Reminders:
 a familiar order for local conditions and air quality, yesterday's source-linked
-stories, upcoming appointments, saved actions, and decisions that need you.
+stories, today's appointments, saved actions, and decisions that need you.
 Tasks are grouped by workday and project, with clear action titles and essential
-work kept distinct from optional possibilities. Sections appear as they are
+work kept distinct from optional possibilities. Habits show up on the days they
+are due, and errand results appear as their own cards. Sections appear as they are
 prepared, so you can start reading before the whole briefing is ready.
 
 **Evening · Put the day down.** Report completed work, partial progress, and
-blockers, then look at tomorrow's appointments and agreed tasks. Unfinished work
-stays visible without silently moving to a new date. Completion comes from you,
-not an AI guess.
+blockers, then look at tomorrow's appointments and agreed tasks, worded around
+what to get ready tonight. Deadlines that have arrived get a gentle check, and
+each project has an optional progress box. Unfinished work stays visible without
+silently moving to a new date. Completion comes from you, not an AI guess.
 
-**Schedule · See the shape of your week.** A live Monday–Sunday view places
-appointments above dated to-dos, with today highlighted and three weeks of
-navigation on either side. Recurring work, reported progress, and confirmed
-appointments with a time still to be decided each have their place. Saved changes
-refresh without another AI call; this is a view of your records, not a generated
-weekly plan. See the [schedule guide](docs/weekly-schedule.md).
+**Schedule · See the shape of your week.** Switch between a Week view, with
+appointments above dated to-dos, and a Day view with every event detail and
+what's on now or next. Today is highlighted, with three weeks of navigation on
+either side. Deadlines are marked on their due day, habit days are shown, and
+recurring work, reported progress, and appointments with a time still to be
+decided each have their place. Saved changes refresh without another AI call;
+this is a view of your records, not a generated weekly plan. See the
+[schedule guide](docs/weekly-schedule.md).
 
 **Secretary · Keep a little space to think.** One conversation does it all:
-save a to-do, jot down an idea, plan your week, or change a preference. New
-users see only Initialize until setup is complete; afterward, Secretary is the
-single place to talk. Each reply says whether something was saved as a to-do or
-an idea, and when it's unclear whether you want something saved or done, the
-secretary asks first. File attachments, pasted images, Markdown replies, and saved
-conversation history keep the details close. Questions, accepted answers, and
-confirmed changes have their own clear, softly highlighted cards.
+save a to-do, jot down an idea, set up an errand, plan your week, or change a
+preference. A **What can I ask?** guide and starter buttons show what your
+secretary can do; starters only fill in the message box and never send. Each
+reply says whether something was saved as a to-do or an idea, and when it's
+unclear whether you want something saved or done, the secretary asks first.
+File attachments, pasted images, Markdown replies, and saved conversation history
+keep the details close; older To-do and Eureka chats stay in your history.
+
+**Ask from anywhere.** Morning, Evening, and Schedule each have a floating quick
+chat. Every reminder, and every pending calendar change on Schedule, has a
+**Review with your secretary** button that opens it with a starter line, and
+nothing sends until you do.
 
 <table>
   <tr>
     <td width="50%" valign="top"><img src="assets/readme/evening.png" alt="Evening briefing in the Starry theme, showing a review of reported progress" /></td>
-    <td width="50%" valign="top"><img src="assets/readme/secretary.png" alt="Secretary conversation with Aria in the Warm theme, with saved task and idea cards and a highlighted question and answer" /></td>
+    <td width="50%" valign="top"><img src="assets/readme/secretary.png" alt="Secretary conversation with Aria in the Warm theme, with a What can I ask? button, saved task and idea cards, and a highlighted question" /></td>
   </tr>
   <tr>
     <td align="center"><em>A clear ending to the day.</em></td>
@@ -117,22 +127,42 @@ invent a schedule.
 
 ## A little atmosphere
 
-Keep the same quiet workspace, with a different view outside. Morning Sky brings
-clouds and birds to daytime; Starry gives the evening a quieter sky. The phone
-layouts keep reading and the message box within reach.
+Keep the same quiet workspace, with a different view outside. In
+**Settings → Appearance**, picture cards let you choose three things separately,
+and each choice is saved to your account:
+
+- **Style** shapes the components. **Soft** is rounded and calm; **Pixel** brings
+  square frames, blocky buttons, and pixel headings, and each scheme adds its
+  own touches, like Grass Block's stone buttons and hotbar week. Body text stays
+  in an easy-to-read font.
+- **Day color scheme:** Classic, Warm, Morning Sky, First Light, Grass Block, or Picnic.
+- **Night color scheme:** Classic, Starry, City Lights, Midnight Violet, Grass Block, or Picnic.
+
+Every style works with every scheme. Clouds and birds, a mountain valley, stepped
+grass-block hills that turn to dirt and stone as you scroll, a gingham picnic
+blanket, a twinkling night sky, or a harbor glowing with city lights bring a
+little atmosphere without third-party image or font requests.
 
 <table>
   <tr>
-    <td width="50%" valign="top"><a href="assets/readme/morning-sky.png"><img src="assets/readme/morning-sky.png" alt="Morning Sky theme with photographic clouds and birds behind the morning briefing" /></a></td>
-    <td width="50%" valign="top"><a href="assets/readme/evening.png"><img src="assets/readme/evening.png" alt="Starry theme with a dark sky, scattered stars, and a crescent moon behind the evening briefing" /></a></td>
+    <td width="50%" valign="top"><a href="assets/readme/morning-sky.png"><img src="assets/readme/morning-sky.png" alt="Morning Sky theme in Soft style with clouds and birds behind the morning briefing" /></a></td>
+    <td width="50%" valign="top"><a href="assets/readme/evening.png"><img src="assets/readme/evening.png" alt="Starry theme in Soft style with a dark sky, scattered stars, and a crescent moon behind the evening briefing" /></a></td>
   </tr>
   <tr>
-    <td align="center"><strong>Morning Sky.</strong><br /><em>A little cloud, a little breathing room.</em></td>
-    <td align="center"><strong>Starry.</strong><br /><em>A quieter sky for the end of the day.</em></td>
+    <td align="center"><strong>Morning Sky · Soft.</strong><br /><em>A little cloud, a little breathing room.</em></td>
+    <td align="center"><strong>Starry · Soft.</strong><br /><em>A quieter sky for the end of the day.</em></td>
+  </tr>
+  <tr>
+    <td width="50%" valign="top"><a href="assets/readme/pixel-grass-block.png"><img src="assets/readme/pixel-grass-block.png" alt="Grass Block theme in Pixel style, with grass-block hills, oak trees, a square sun, stone buttons, and pixel headings" /></a></td>
+    <td width="50%" valign="top"><a href="assets/readme/pixel-picnic.png"><img src="assets/readme/pixel-picnic.png" alt="Picnic night theme in Pixel style, with a plum gingham background, sparkles, a pixel crescent moon, and wooden frames" /></a></td>
+  </tr>
+  <tr>
+    <td align="center"><strong>Grass Block · Pixel.</strong><br /><em>A blocky morning, still easy to read.</em></td>
+    <td align="center"><strong>Picnic · Pixel.</strong><br /><em>A cozy blanket under the stars.</em></td>
   </tr>
   <tr>
     <td align="center" valign="top"><a href="assets/readme/morning-mobile.png"><img src="assets/readme/morning-mobile.png" width="240" alt="Phone-sized Morning Sky briefing with compact date navigation and a Sections button" /></a></td>
-    <td align="center" valign="top"><a href="assets/readme/secretary-mobile.png"><img src="assets/readme/secretary-mobile.png" width="240" alt="Phone-sized secretary conversation with task and idea cards and the message box visible at the bottom" /></a></td>
+    <td align="center" valign="top"><a href="assets/readme/secretary-mobile.png"><img src="assets/readme/secretary-mobile.png" width="240" alt="Phone-sized secretary conversation with the message box visible at the bottom" /></a></td>
   </tr>
   <tr>
     <td align="center"><em>Your morning, on a smaller screen.</em></td>
@@ -148,36 +178,52 @@ layouts keep reading and the message box within reach.
   belong in Tasks; possibilities stay ideas until you choose to adopt them.
   A deadline does not silently reserve a workday, and an empty calendar does not
   mean you are free.
+- **The right kind of item.** Besides to-dos and ideas, your secretary can save
+  heads-ups that never ask to be ticked off, reference notes for moments it
+  can't see (like when something runs out), and follow-ups such as "every day
+  until I've bought it" that stop with one tick. You choose how many days ahead
+  a deadline, birthday, or appointment is mentioned, separately for mornings
+  and evenings.
+- **Errands with a clear answer.** Ask your secretary to check something for you,
+  like a price each morning. It tries the errand once while setting it up, then
+  tells you only when the result is something you asked to hear. When a check
+  fails, the morning briefing says what was tried and why.
+- **Worded once, read the same every day.** When an item is saved, your secretary
+  decides how it reads in the morning briefing, the evening briefing, and the
+  Schedule tab. You can ask to change one place without changing the others.
 - **Remember the rhythm, not a growing backlog.** Save agreed weekly, every-N-day,
   or specific-date task rules, with confirmed exceptions and supported conditions.
-  Completion can be recorded on the day it actually happened without shifting
-  the original recurring plan. These reminders appear in your briefings; they
-  are not an unattended notification service.
+  Weekly classes without a confirmed time show on every date and become calendar
+  events in one step once the time is known. Completion can be recorded on the
+  day it actually happened without shifting the original recurring plan. These
+  reminders appear in your briefings; they are not an unattended notification
+  service.
 - **A useful reminder has a reason.** Due reviews, updated or cancelled calendar
   entries, and unresolved decisions stay separate from ordinary work. Pending
   calendar reviews name overlapping appointments so you know what needs attention.
-- **A briefing presents your plans; it does not make them.** Generating or
-  regenerating a briefing does not create tasks, assign dates, or mark work done.
-  Ambiguous scheduling is clarified before it is saved. Calendar imports are
-  reviewed before becoming approved plans, and project writes require authorization.
+- **A briefing presents your plans; it does not make them.** Mornings focus on
+  today and evenings on tomorrow. Generating or regenerating a briefing does not
+  create tasks, assign dates, or mark work done. Ambiguous scheduling is clarified
+  before it is saved, and a bare weekday like "by Friday" means its next
+  occurrence. Calendar imports are reviewed before becoming approved plans, and
+  project writes require authorization.
 
 The [item and timing guide](docs/item-taxonomy.md) explains these boundaries in detail.
 
 ## Thoughtful by design
 
-- **Personal, not generic.** Choose your secretary's name, tone, and avatar.
-  English and Simplified Chinese are available throughout the website. Changing
-  the interface language does not rewrite your saved records or earlier replies.
-- **A view that feels like yours.** Choose Classic, Warm, Morning Sky, or First
-  Light for daytime, and Classic, Starry, City Lights, or Midnight Violet for
-  nighttime, plus the Grass Block and Picnic scenes. Pick the Soft or Pixel
-  style to give any of them rounded or square pixel frames and headings. Day and night choices
-  are independent and saved per account. Clouds and birds, a mountain valley, a
-  twinkling night sky, or a harbor glowing with city lights bring a little
-  atmosphere without third-party image or font requests.
+- **Personal, not generic.** Choose your secretary's name, tone, and avatar, and
+  tell it what to call you; briefing greetings use that name. The built-in
+  secretaries have a daytime and a night scene, a head-and-shoulders portrait
+  for chat, and come gently alive with a blink, swaying coffee steam, and a few
+  pen strokes. Custom avatars take separate day, night, and profile pictures.
+- **Two languages.** English and Simplified Chinese are available throughout the
+  website, including a crisp pixel font for Chinese in Pixel style. Changing the
+  interface language does not rewrite your saved records or earlier replies.
 - **Comfortable on a phone, too.** Responsive layouts, a growing message box,
-  click-to-enlarge images, section navigation, reading progress, and reduced-motion
-  support keep reading and conversation at the center.
+  floating buttons that slide away while you read, click-to-enlarge images,
+  section tabs, reading progress, and reduced-motion support keep reading and
+  conversation at the center.
 - **Continuity without clutter.** Saved briefings, a seven-day archive selector,
   persistent tasks and ideas, and previous conversations keep useful context close.
   The seven-day selector is a browsing window, not a record-deletion policy.
@@ -187,9 +233,10 @@ The [item and timing guide](docs/item-taxonomy.md) explains these boundaries in 
   steer the secretary while it works. Pending questions and permissions remain
   available until you answer them.
 - **Language-matched models.** English requests automatically use Muse Spark 1.3
-  Contributor XHigh; Chinese requests use DeepSeek V4.1 Flash High (paid tier). No model selector
-  is needed, and running requests keep their original model. In-app release notes explain
-  updates, and an open page never reloads itself over an unsent draft.
+  Contributor XHigh; Chinese requests use DeepSeek V4.1 Flash High (paid tier).
+  No model selector is needed, and running requests keep their original model.
+  **What's new** explains each update, and an open page never reloads itself over
+  an unsent draft.
 - **Your own space.** Personal records stay outside the public source. The hosted
   deployment supports authenticated HTTPS, encrypted storage, and separate agent
   accounts. Private messages are not saved in browser local storage.
@@ -208,7 +255,7 @@ GoodMorning is currently **beta**. It runs on **Linux with Python 3.14+** and an
 2. **Meet your secretary.** Open Initialize in the browser or ask the installed
    skill for setup. [Guided initialization](docs/initialization.md) saves your
    confirmed preferences and permissions; optional integrations can remain pending.
-    Ask Secretary later to review settings without resetting your records.
+   Ask Secretary later to review settings without resetting your records.
 3. **Begin when you are ready.** Prepare a briefing from Morning or Evening,
    check Schedule, or start a conversation in Secretary. With the installed skill,
    natural-language requests work too: ask for a morning briefing, an evening
@@ -236,8 +283,9 @@ Ideas, feedback, and focused improvements are welcome in
 ## License
 
 GoodMorning is licensed under the [MIT License](LICENSE).
-Bundled [relay code](vendor/openchamber-relay/LICENSE) and
-[fonts](assets/web/fonts/OFL.txt) retain their respective license notices.
+Bundled [relay code](vendor/openchamber-relay/LICENSE) and fonts
+([text fonts](assets/web/fonts/OFL.txt), [pixel fonts](assets/web/fonts/pixel-fonts-OFL.txt))
+retain their respective license notices.
 Theme imagery has its own [asset credits](docs/theme-asset-credits.md).
 
 ---
