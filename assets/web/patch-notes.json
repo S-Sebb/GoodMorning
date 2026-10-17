@@ -1,6 +1,52 @@
 {
   "notes": [
     {
+      "version": "0.55.0",
+      "date": "2026-10-17",
+      "author": "GoodMorning agent",
+      "title_en": "One Secretary chat ☕",
+      "title_zh": "秘书聊天，一个入口 ☕",
+      "changes": [
+        {
+          "category": "Added",
+          "en": [
+            "The built-in secretaries now come gently alive with a blink, swaying coffee steam and a few pen strokes; with reduced motion turned on, they stay still."
+          ],
+          "zh": [
+            "内置的秘书形象现在会轻轻动起来：眨眨眼、咖啡热气摇一摇，还会添上几笔；如果你开启了「减少动态效果」，它们就安静地保持不动。"
+          ]
+        },
+        {
+          "category": "Changed",
+          "en": [
+            "Secretary, To-do and Eureka are now one Secretary chat: just type to save a to-do or an idea, plan your week or change a preference.",
+            "A new What can I ask? guide and starter buttons show what your secretary can do; starters only fill in the message box and never send.",
+            "When it's unclear whether you want something saved or done, your secretary asks first, and each confirmation says whether it saved a to-do or an idea.",
+            "Your older To-do and Eureka chats stay in your history, and you can still reply to them.",
+            "A weekday without a date, like \"by Friday\", now means its next occurrence and never a past day, so your secretary no longer asks which one.",
+            "Morning and evening briefings are now ready noticeably sooner."
+          ],
+          "zh": [
+            "秘书、待办和灵感现在是同一个秘书聊天：想存一件待办或灵感、安排这一周，或者改个偏好，直接说出来就行。",
+            "新增「我可以问点什么？」指南和起头按钮，让你看看秘书能帮你做什么；这些按钮只会把话填进输入框，不会替你发送。",
+            "当你说的那件事是该存起来还是要去做、一时分不清时，秘书会先问你一句；每次保存好的确认里，也会说明存的是待办还是灵感。",
+            "以前的待办聊天和灵感聊天还留在历史记录里，你照样可以接着回复。",
+            "像「周五之前」这种没写日期的星期几，现在指的是接下来那一天，不会落到已经过去的日子，秘书也不会再追问是哪一个。",
+            "早报和晚报现在明显更快就能准备好。"
+          ]
+        },
+        {
+          "category": "Fixed",
+          "en": [
+            "Briefings no longer tell you to take an umbrella when rain is unlikely."
+          ],
+          "zh": [
+            "下雨可能性不大的时候，简报不会再提醒你带伞了。"
+          ]
+        }
+      ]
+    },
+    {
       "version": "0.54.0",
       "date": "2026-10-17",
       "author": "GoodMorning agent",
