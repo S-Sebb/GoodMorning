@@ -9,9 +9,9 @@ from goodmorning.runtime_files import atomic_text
 # Styles shape the components (frames, buttons, fonts); color schemes only set colors and scenery.
 OPTIONS = {'style': {'soft': 'Soft', 'pixel': 'Pixel'},
            'day': {'classic': 'Classic', 'warm': 'Warm', 'morning-sky': 'Morning Sky',
-                   'first-light': 'First Light', 'grass-block': 'Grass Block', 'cottage': 'Cottage'},
+                   'first-light': 'First Light', 'grass-block': 'Grass Block', 'picnic': 'Picnic'},
            'night': {'classic': 'Classic', 'starry': 'Starry', 'city-lights': 'City Lights',
-                     'midnight-violet': 'Midnight Violet', 'grass-block': 'Grass Block', 'cottage': 'Cottage'}}
+                     'midnight-violet': 'Midnight Violet', 'grass-block': 'Grass Block', 'picnic': 'Picnic'}}
 DEFAULT = {'style': 'soft', 'day': 'morning-sky', 'night': 'starry'}
 LEGENDS = {'style': 'Style', 'day': 'Day color scheme', 'night': 'Night color scheme'}
 CURRENT = ContextVar('website_color_schemes', default=DEFAULT)

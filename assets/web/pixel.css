@@ -1,6 +1,6 @@
 /* Pixel style: square, notched frames and pixel headings on any scene. Body text keeps the
    readable system font. Scenes only set colors and backgrounds; html[data-style="pixel"] (the Pixel
-   style switch) adds the components, with Grass Block and Cottage accents where they apply. */
+   style switch) adds the components, with Grass Block and Picnic accents where they apply. */
 @font-face { font-family: "GoodMorning Pixel"; src: url("fonts/pixelify-sans.woff2") format("woff2"); font-weight: 400 700; font-display: swap; }
 @font-face { font-family: "GoodMorning Pixel Labels"; src: url("fonts/silkscreen.woff2") format("woff2"); font-display: swap; }
 @font-face { font-family: "GoodMorning Pixel Titles"; src: url("fonts/jersey-10.woff2") format("woff2"); font-display: swap; }
@@ -84,38 +84,38 @@ html[data-edition="gn"][data-night-scheme="grass-block"] {
   --px-btn: #3a3f5c; --px-btn-hi: #565c82; --px-btn-lo: #22263a; --px-btn-ink: #eef0f8;
   --px-key: #7650c4; --px-key-hi: #9d7ee0; --px-key-lo: #4e3290; --px-key-ink: #ffffff; --px-key-shadow: #3b2470;
 }
-/* Cottage: wooden frames, cream keys and a berry current key (lavender at night). */
-html:not([data-edition="gn"])[data-day-scheme="cottage"], html[data-edition="gn"][data-night-scheme="cottage"] {
+/* Picnic: wooden frames, cream keys and a berry current key (lavender at night). */
+html:not([data-edition="gn"])[data-day-scheme="picnic"], html[data-edition="gn"][data-night-scheme="picnic"] {
   --px-line: #5b331c; --px-wood: #c8813f; --px-wood-hi: #eab573; --px-drop: #5b331c30;
   --px-btn: #fff7e8; --px-btn-lo: #e7c9a4; --px-btn-ink: #4a2f22;
   --px-key: #c2506a; --px-key-hi: #e8778f; --px-key-lo: #92384e; --px-key-ink: #ffffff; --px-key-shadow: transparent;
   --px-title: "GoodMorning Pixel Titles", "GoodMorning Pixel CJK", ui-sans-serif, sans-serif;
 }
-html[data-edition="gn"][data-night-scheme="cottage"] {
+html[data-edition="gn"][data-night-scheme="picnic"] {
   --px-line: #140b1f; --px-wood: #8b5a35; --px-wood-hi: #b07a4a; --px-drop: #00000055;
   --px-btn: #403257; --px-btn-lo: #2a1f3c; --px-btn-ink: #f8eeff;
   --px-key: #b796ec; --px-key-hi: #d6c2f7; --px-key-lo: #7d5cb8; --px-key-ink: #23183a;
 }
-:is(html[data-style="pixel"]:not([data-edition="gn"]):is([data-day-scheme="grass-block"], [data-day-scheme="cottage"]),
-    html[data-style="pixel"][data-edition="gn"]:is([data-night-scheme="grass-block"], [data-night-scheme="cottage"])) :is(.edition-link:not(.selected), .briefing-section-nav a:not(.active, [aria-current]), .toolbar-row .menu > summary, #site-update-toggle,
+:is(html[data-style="pixel"]:not([data-edition="gn"]):is([data-day-scheme="grass-block"], [data-day-scheme="picnic"]),
+    html[data-style="pixel"][data-edition="gn"]:is([data-night-scheme="grass-block"], [data-night-scheme="picnic"])) :is(.edition-link:not(.selected), .briefing-section-nav a:not(.active, [aria-current]), .toolbar-row .menu > summary, #site-update-toggle,
     #chat-help, #chat-latest, #quick-chat-launcher, #regenerate, .section-symbol, #mobile-sections, .back-to-top, .chat-page #chat-starters button,
     .schedule-navigation a, .week-arrow) {
     border: 0; border-radius: 0; background: var(--px-btn); color: var(--px-btn-ink);
     box-shadow: 0 -3px 0 0 var(--px-line), 0 3px 0 0 var(--px-line), -3px 0 0 0 var(--px-line), 3px 0 0 0 var(--px-line),
       inset 3px 3px 0 0 var(--px-btn-hi, transparent), inset -3px -3px 0 0 var(--px-btn-lo);
   }
-:is(html[data-style="pixel"]:not([data-edition="gn"]):is([data-day-scheme="grass-block"], [data-day-scheme="cottage"]),
-    html[data-style="pixel"][data-edition="gn"]:is([data-night-scheme="grass-block"], [data-night-scheme="cottage"])) :is(.edition-link.selected, .briefing-section-nav a.active, .briefing-section-nav a[aria-current], #new-conversation, #chat-send) { text-shadow: 2px 2px 0 var(--px-key-shadow); }
-:is(html[data-style="pixel"]:not([data-edition="gn"]):is([data-day-scheme="grass-block"], [data-day-scheme="cottage"]),
-    html[data-style="pixel"][data-edition="gn"]:is([data-night-scheme="grass-block"], [data-night-scheme="cottage"])) .edition-switch,
-:is(html[data-style="pixel"]:not([data-edition="gn"]):is([data-day-scheme="grass-block"], [data-day-scheme="cottage"]),
-    html[data-style="pixel"][data-edition="gn"]:is([data-night-scheme="grass-block"], [data-night-scheme="cottage"])) .briefing-section-nav { gap: 14px; }
-:is(html[data-style="pixel"]:not([data-edition="gn"]):is([data-day-scheme="grass-block"], [data-day-scheme="cottage"]),
-    html[data-style="pixel"][data-edition="gn"]:is([data-night-scheme="grass-block"], [data-night-scheme="cottage"])) h1 { font-weight: 600; text-shadow: 4px 4px 0 color-mix(in srgb, var(--ink) 16%, transparent); }
-:is(html[data-style="pixel"]:not([data-edition="gn"]):is([data-day-scheme="grass-block"], [data-day-scheme="cottage"]),
-    html[data-style="pixel"][data-edition="gn"]:is([data-night-scheme="grass-block"], [data-night-scheme="cottage"])) .wordmark { text-shadow: 3px 3px 0 color-mix(in srgb, var(--ink) 18%, transparent); }
-:is(html[data-style="pixel"]:not([data-edition="gn"]):is([data-day-scheme="grass-block"], [data-day-scheme="cottage"]),
-    html[data-style="pixel"][data-edition="gn"]:is([data-night-scheme="grass-block"], [data-night-scheme="cottage"])) .section-number { background: var(--wash); color: var(--accent); }
+:is(html[data-style="pixel"]:not([data-edition="gn"]):is([data-day-scheme="grass-block"], [data-day-scheme="picnic"]),
+    html[data-style="pixel"][data-edition="gn"]:is([data-night-scheme="grass-block"], [data-night-scheme="picnic"])) :is(.edition-link.selected, .briefing-section-nav a.active, .briefing-section-nav a[aria-current], #new-conversation, #chat-send) { text-shadow: 2px 2px 0 var(--px-key-shadow); }
+:is(html[data-style="pixel"]:not([data-edition="gn"]):is([data-day-scheme="grass-block"], [data-day-scheme="picnic"]),
+    html[data-style="pixel"][data-edition="gn"]:is([data-night-scheme="grass-block"], [data-night-scheme="picnic"])) .edition-switch,
+:is(html[data-style="pixel"]:not([data-edition="gn"]):is([data-day-scheme="grass-block"], [data-day-scheme="picnic"]),
+    html[data-style="pixel"][data-edition="gn"]:is([data-night-scheme="grass-block"], [data-night-scheme="picnic"])) .briefing-section-nav { gap: 14px; }
+:is(html[data-style="pixel"]:not([data-edition="gn"]):is([data-day-scheme="grass-block"], [data-day-scheme="picnic"]),
+    html[data-style="pixel"][data-edition="gn"]:is([data-night-scheme="grass-block"], [data-night-scheme="picnic"])) h1 { font-weight: 600; text-shadow: 4px 4px 0 color-mix(in srgb, var(--ink) 16%, transparent); }
+:is(html[data-style="pixel"]:not([data-edition="gn"]):is([data-day-scheme="grass-block"], [data-day-scheme="picnic"]),
+    html[data-style="pixel"][data-edition="gn"]:is([data-night-scheme="grass-block"], [data-night-scheme="picnic"])) .wordmark { text-shadow: 3px 3px 0 color-mix(in srgb, var(--ink) 18%, transparent); }
+:is(html[data-style="pixel"]:not([data-edition="gn"]):is([data-day-scheme="grass-block"], [data-day-scheme="picnic"]),
+    html[data-style="pixel"][data-edition="gn"]:is([data-night-scheme="grass-block"], [data-night-scheme="picnic"])) .section-number { background: var(--wash); color: var(--accent); }
 
 html[data-style="pixel"] .week-picker a.is-missing:not([aria-current]) { background: color-mix(in srgb, var(--surface) 70%, transparent); }
 /* Grass Block extras: the week as a hotbar and weather tiles as inventory slots. */
@@ -136,20 +136,20 @@ html[data-style="pixel"][data-edition="gn"][data-night-scheme="grass-block"] .we
 html[data-style="pixel"][data-edition="gn"][data-night-scheme="grass-block"] .week-picker a small { color: #9aa1c4; }
 html[data-style="pixel"][data-edition="gn"][data-night-scheme="grass-block"] .weather-tile { --tile-bg: #1e2340; box-shadow: 0 -3px 0 0 var(--px-line), 0 3px 0 0 var(--px-line), -3px 0 0 0 var(--px-line), 3px 0 0 0 var(--px-line), inset 4px 4px 0 0 #00000066, inset -4px -4px 0 0 #ffffff14; }
 
-/* Cottage extras: large panels sit in wooden frames; inner cards keep thin outlines. */
-:is(html[data-style="pixel"]:not([data-edition="gn"])[data-day-scheme="cottage"], html[data-style="pixel"][data-edition="gn"][data-night-scheme="cottage"]) :is(.briefing-section, .letter-copy > .subtitle, .toolbar-row .menu-panel, .conversation-panel, #conversation-history, .focus-panel,
+/* Picnic extras: large panels sit in wooden frames; inner cards keep thin outlines. */
+:is(html[data-style="pixel"]:not([data-edition="gn"])[data-day-scheme="picnic"], html[data-style="pixel"][data-edition="gn"][data-night-scheme="picnic"]) :is(.briefing-section, .letter-copy > .subtitle, .toolbar-row .menu-panel, .conversation-panel, #conversation-history, .focus-panel,
       .schedule-grid, .nav-preview, #quick-chat-window, #regenerate-dialog, #site-patch-note, #activity-window) {
     border: 4px solid var(--px-wood);
     box-shadow: 0 -3px 0 0 var(--px-line), 0 3px 0 0 var(--px-line), -3px 0 0 0 var(--px-line), 3px 0 0 0 var(--px-line), inset 0 0 0 3px var(--px-wood-hi), 6px 9px 0 0 var(--px-drop);
   }
-:is(html[data-style="pixel"]:not([data-edition="gn"])[data-day-scheme="cottage"], html[data-style="pixel"][data-edition="gn"][data-night-scheme="cottage"]) h1 { font-weight: 400; text-shadow: 0 4px 0 color-mix(in srgb, var(--accent) 28%, transparent); }
-:is(html[data-style="pixel"]:not([data-edition="gn"])[data-day-scheme="cottage"], html[data-style="pixel"][data-edition="gn"][data-night-scheme="cottage"]) .wordmark { font-size: 40px; font-weight: 400; text-shadow: 3px 3px 0 color-mix(in srgb, var(--accent) 35%, transparent); }
-:is(html[data-style="pixel"]:not([data-edition="gn"])[data-day-scheme="cottage"], html[data-style="pixel"][data-edition="gn"][data-night-scheme="cottage"]) .week-picker { gap: 12px; }
-:is(html[data-style="pixel"]:not([data-edition="gn"])[data-day-scheme="cottage"], html[data-style="pixel"][data-edition="gn"][data-night-scheme="cottage"]) .week-picker a:not(.is-missing, [aria-current]) { background: var(--px-btn); }
-:is(html[data-style="pixel"]:not([data-edition="gn"])[data-day-scheme="cottage"], html[data-style="pixel"][data-edition="gn"][data-night-scheme="cottage"]) .week-picker [aria-current] { background: var(--px-key); color: var(--px-key-ink); }
-:is(html[data-style="pixel"]:not([data-edition="gn"])[data-day-scheme="cottage"], html[data-style="pixel"][data-edition="gn"][data-night-scheme="cottage"]) .week-picker [aria-current] small { color: inherit; opacity: .85; }
-:is(html[data-style="pixel"]:not([data-edition="gn"])[data-day-scheme="cottage"], html[data-style="pixel"][data-edition="gn"][data-night-scheme="cottage"]) .week-picker .today-marker { border: 0; background: var(--warm); color: var(--px-line); box-shadow: 0 0 0 3px var(--px-line); }
-:is(html:not([data-edition="gn"])[data-day-scheme="cottage"], html[data-edition="gn"][data-night-scheme="cottage"]) .chat-message.user { background: var(--your-bubble); }
+:is(html[data-style="pixel"]:not([data-edition="gn"])[data-day-scheme="picnic"], html[data-style="pixel"][data-edition="gn"][data-night-scheme="picnic"]) h1 { font-weight: 400; text-shadow: 0 4px 0 color-mix(in srgb, var(--accent) 28%, transparent); }
+:is(html[data-style="pixel"]:not([data-edition="gn"])[data-day-scheme="picnic"], html[data-style="pixel"][data-edition="gn"][data-night-scheme="picnic"]) .wordmark { font-size: 40px; font-weight: 400; text-shadow: 3px 3px 0 color-mix(in srgb, var(--accent) 35%, transparent); }
+:is(html[data-style="pixel"]:not([data-edition="gn"])[data-day-scheme="picnic"], html[data-style="pixel"][data-edition="gn"][data-night-scheme="picnic"]) .week-picker { gap: 12px; }
+:is(html[data-style="pixel"]:not([data-edition="gn"])[data-day-scheme="picnic"], html[data-style="pixel"][data-edition="gn"][data-night-scheme="picnic"]) .week-picker a:not(.is-missing, [aria-current]) { background: var(--px-btn); }
+:is(html[data-style="pixel"]:not([data-edition="gn"])[data-day-scheme="picnic"], html[data-style="pixel"][data-edition="gn"][data-night-scheme="picnic"]) .week-picker [aria-current] { background: var(--px-key); color: var(--px-key-ink); }
+:is(html[data-style="pixel"]:not([data-edition="gn"])[data-day-scheme="picnic"], html[data-style="pixel"][data-edition="gn"][data-night-scheme="picnic"]) .week-picker [aria-current] small { color: inherit; opacity: .85; }
+:is(html[data-style="pixel"]:not([data-edition="gn"])[data-day-scheme="picnic"], html[data-style="pixel"][data-edition="gn"][data-night-scheme="picnic"]) .week-picker .today-marker { border: 0; background: var(--warm); color: var(--px-line); box-shadow: 0 0 0 3px var(--px-line); }
+:is(html:not([data-edition="gn"])[data-day-scheme="picnic"], html[data-edition="gn"][data-night-scheme="picnic"]) .chat-message.user { background: var(--your-bubble); }
 
 
 /* Chinese pixel glyphs sit on a 12px grid: they stay crisp only at 12/24/36px and without

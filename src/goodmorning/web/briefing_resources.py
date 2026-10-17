@@ -12,7 +12,7 @@ DESK_ICON_TYPES = {f'icons/desk-{name}.svg': 'image/svg+xml'
 PIXEL_FONTS = {f'fonts/{name}.woff2': 'font/woff2' for name in ('pixelify-sans', 'silkscreen', 'jersey-10', 'fusion-pixel-zh')}
 PIXEL_SCENES = {f'{name}.svg': 'image/svg+xml'
                 for name in ('grass-block-day', 'grass-block-night', 'grass-block-stone-day', 'grass-block-stone-night',
-                             'grass-block-sun', 'grass-block-moon', 'pixel-sun', 'pixel-moon', 'cottage-day', 'cottage-night')}
+                             'grass-block-sun', 'grass-block-moon', 'pixel-sun', 'pixel-moon', 'picnic-day', 'picnic-night')}
 
 
 def favicon_links(kind, prefix='/'):

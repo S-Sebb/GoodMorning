@@ -1,4 +1,4 @@
-Pixel fonts used by Pixel style, Grass Block and Cottage.
+Pixel fonts used by Pixel style, Grass Block and Picnic.
 pixelify-sans.woff2: Pixelify Sans (Latin subset from Google Fonts).
 silkscreen.woff2: Silkscreen (Latin subset from Google Fonts).
 jersey-10.woff2: Jersey 10 (Latin subset from Google Fonts).

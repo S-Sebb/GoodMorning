@@ -40,12 +40,12 @@ class ColorSchemeTests(unittest.TestCase):
     def test_catalog_and_invalid_requests(self):
         self.assertEqual(colors.DEFAULT, {'style': 'soft', 'day': 'morning-sky', 'night': 'starry'})
         self.assertEqual(set(colors.OPTIONS['style']), {'soft', 'pixel'})
-        self.assertEqual(set(colors.OPTIONS['day']), {'classic', 'warm', 'morning-sky', 'first-light', 'grass-block', 'cottage'})
-        self.assertEqual(set(colors.OPTIONS['night']), {'classic', 'starry', 'city-lights', 'midnight-violet', 'grass-block', 'cottage'})
+        self.assertEqual(set(colors.OPTIONS['day']), {'classic', 'warm', 'morning-sky', 'first-light', 'grass-block', 'picnic'})
+        self.assertEqual(set(colors.OPTIONS['night']), {'classic', 'starry', 'city-lights', 'midnight-violet', 'grass-block', 'picnic'})
         # Choices saved before styles existed stay soft.
         self.assertEqual(colors.validate({'day': 'warm', 'night': 'starry'}), {'style': 'soft', 'day': 'warm', 'night': 'starry'})
-        self.assertEqual(colors.validate({'style': 'pixel', 'day': 'cottage', 'night': 'grass-block'}),
-                         {'style': 'pixel', 'day': 'cottage', 'night': 'grass-block'})
+        self.assertEqual(colors.validate({'style': 'pixel', 'day': 'picnic', 'night': 'grass-block'}),
+                         {'style': 'pixel', 'day': 'picnic', 'night': 'grass-block'})
         for scheme in ('morning-sky', 'first-light'):
             self.assertEqual(colors.validate({'day': scheme, 'night': 'starry'})['day'], scheme)
         for value in (None, True, [], {}, {'day': 'warm'}, {'day': 'warm', 'night': 'warm'},
@@ -197,11 +197,11 @@ class ColorSchemeTests(unittest.TestCase):
             status, headers = form_post(fixture, '/api/color-schemes', {'day': 'warm', 'night': 'starry', 'csrf': fixture.csrf, 'return_to': target})
             self.assertEqual((status, headers['Location']), (303, '/chat' if target == '/chat' else '/'))
         self.assertEqual(fixture.store.website_color_schemes(fixture.id), {'day': 'warm', 'night': 'starry', 'style': 'soft'})
-        form_post(fixture, '/api/color-schemes', {'style': 'pixel', 'day': 'cottage', 'night': 'starry', 'csrf': fixture.csrf, 'return_to': '/chat'})
-        self.assertEqual(fixture.store.website_color_schemes(fixture.id), {'day': 'cottage', 'night': 'starry', 'style': 'pixel'})
+        form_post(fixture, '/api/color-schemes', {'style': 'pixel', 'day': 'picnic', 'night': 'starry', 'csrf': fixture.csrf, 'return_to': '/chat'})
+        self.assertEqual(fixture.store.website_color_schemes(fixture.id), {'day': 'picnic', 'night': 'starry', 'style': 'pixel'})
         status, _ = form_post(fixture, '/api/color-schemes', {'day': 'warm', 'night': 'starry', 'theme': 'x', 'csrf': fixture.csrf, 'return_to': '/chat'})
         self.assertEqual(status, 400)
-        self.assertEqual(fixture.store.website_color_schemes(fixture.id), {'day': 'cottage', 'night': 'starry', 'style': 'pixel'})
+        self.assertEqual(fixture.store.website_color_schemes(fixture.id), {'day': 'picnic', 'night': 'starry', 'style': 'pixel'})
 
     def test_proxy_headers_and_html_cache_are_server_owned(self):
         fixture = gateway(self); fixture.permanent()
@@ -248,7 +248,7 @@ class ColorSchemeTests(unittest.TestCase):
             return re.search(r'<html[^>]*>', page)[0]
         # Color schemes only change colors; only the style changes components, for every scheme and edition.
         for edition in ('gm', 'gn'):
-            for scene in ('grass-block', 'cottage', 'warm'):
+            for scene in ('grass-block', 'picnic', 'warm'):
                 night = scene if scene != 'warm' else 'starry'
                 for style in colors.OPTIONS['style']:
                     self.assertIn(f'data-style="{style}"', attributes(edition, {'style': style, 'day': scene, 'night': night}))
@@ -266,7 +266,7 @@ class ColorSchemeTests(unittest.TestCase):
             self.assertEqual(resources.paths[url].mime, 'font/woff2')
             self.assertIn(f'url("{url}")', pixel)
         for scene in ('grass-block-day', 'grass-block-night', 'grass-block-stone-day', 'grass-block-stone-night',
-                      'grass-block-sun', 'grass-block-moon', 'pixel-sun', 'pixel-moon', 'cottage-day', 'cottage-night'):
+                      'grass-block-sun', 'grass-block-moon', 'pixel-sun', 'pixel-moon', 'picnic-day', 'picnic-night'):
             root = ET.fromstring(resources.paths[resources.urls[scene + '.svg']].data)
             self.assertEqual(root.findall('.//' + SVG + 'script'), [])
             self.assertIn(f'url("{resources.urls[scene + ".svg"]}")', schemes + pixel)

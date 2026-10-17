@@ -66,10 +66,10 @@ also available. Night defaults to Starry, with a darker sky and static stars,
 and also offers Classic, City Lights (a harbor skyline fixed below the headline)
 and Midnight Violet (a flat Dracula-inspired palette). Both lists add two pixel
 scenes: Grass Block (plains of grass blocks under a square sun or moon; further
-down the page the ground turns to dirt and then stone) and Cottage
-(a pastel checkerboard). Styles are Soft (the default, today's rounded look)
+down the page the ground turns to dirt and then stone) and Picnic
+(a pastel gingham picnic blanket with tiny pixel flowers). Styles are Soft (the default, today's rounded look)
 and Pixel (square pixel frames, buttons and headings, with stone buttons and a
-hotbar on Grass Block and wooden frames on Cottage). Body text keeps the system
+hotbar on Grass Block and wooden frames on Picnic). Body text keeps the system
 font; Chinese pixel text uses a bundled pixel font subset snapped to its 12px
 grid. Existing saved choices are preserved and stay Soft. The account-wide choice paints the
 whole website through shared color tokens, including briefings, chat, controls

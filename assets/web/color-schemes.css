@@ -68,16 +68,16 @@ html:not([data-edition="gn"]):is([data-day-scheme="morning-sky"], [data-day-sche
    turns to dirt and then stone, as if digging down. Pixel components come from pixel.css. */
 html:not([data-edition="gn"])[data-day-scheme="grass-block"] { color-scheme: light; --bg: #cfe6f7; --surface: #fbf6e9; --ink: #2d2620; --muted: #5e5246; --accent: #3f7f26; --line: #c9b997; --wash: #f1e8d0; --warm: #e0a93a; --chat-paper: #fbf6e9; --chat-border: #b9a77f; --bubble: #fffdf6; --your-bubble: #e3f1d3; --bubble-line: #ddd0ad; --your-line: #b9d69f; color: var(--ink); background: var(--bg); }
 html[data-edition="gn"][data-night-scheme="grass-block"] { color-scheme: dark; --bg: #141a38; --surface: #262b45; --ink: #eef0f8; --muted: #b9bfd9; --accent: #ffd166; --line: #444b70; --wash: #30365a; --warm: #ffd166; --chat-paper: #262b45; --chat-border: #4a5280; --bubble: #2c3150; --your-bubble: #3b3266; --bubble-line: #3d4468; --your-line: #54467e; color: var(--ink); background: var(--bg); }
-/* Cottage: a pastel checkerboard by day, plum with sparkles at night. */
-html:not([data-edition="gn"])[data-day-scheme="cottage"] { color-scheme: light; --bg: #fbe9d6; --surface: #fff7e8; --ink: #4a2f22; --muted: #73533f; --accent: #b8445f; --line: #ecd0ae; --wash: #fdeedb; --warm: #f0b443; --chat-paper: #fff7e8; --chat-border: #d4ad86; --bubble: #fffbf2; --your-bubble: #fde0e6; --bubble-line: #ecd0ae; --your-line: #f0b8c4; color: var(--ink); background: var(--bg); }
-html[data-edition="gn"][data-night-scheme="cottage"] { color-scheme: dark; --bg: #271d3a; --surface: #362a4c; --ink: #f8eeff; --muted: #d2c3e4; --accent: #ffb3c7; --line: #54446e; --wash: #403257; --warm: #ffd38a; --chat-paper: #362a4c; --chat-border: #5f4b7d; --bubble: #3d3055; --your-bubble: #5a3a62; --bubble-line: #54446e; --your-line: #74507c; color: var(--ink); background: var(--bg); }
+/* Picnic: a pastel checkerboard by day, plum with sparkles at night. */
+html:not([data-edition="gn"])[data-day-scheme="picnic"] { color-scheme: light; --bg: #fbe9d6; --surface: #fff7e8; --ink: #4a2f22; --muted: #73533f; --accent: #b8445f; --line: #ecd0ae; --wash: #fdeedb; --warm: #f0b443; --chat-paper: #fff7e8; --chat-border: #d4ad86; --bubble: #fffbf2; --your-bubble: #fde0e6; --bubble-line: #ecd0ae; --your-line: #f0b8c4; color: var(--ink); background: var(--bg); }
+html[data-edition="gn"][data-night-scheme="picnic"] { color-scheme: dark; --bg: #271d3a; --surface: #362a4c; --ink: #f8eeff; --muted: #d2c3e4; --accent: #ffb3c7; --line: #54446e; --wash: #403257; --warm: #ffd38a; --chat-paper: #362a4c; --chat-border: #5f4b7d; --bubble: #3d3055; --your-bubble: #5a3a62; --bubble-line: #54446e; --your-line: #74507c; color: var(--ink); background: var(--bg); }
 @media screen {
   html:not([data-edition="gn"])[data-day-scheme="grass-block"] body { min-height: 100svh; color: var(--ink); image-rendering: pixelated;
     background: url("/grass-block-day.svg") center top / max(100%, 160svh) auto no-repeat, #9a9a9a url("/grass-block-stone-day.svg") 0 0 / 96px repeat; }
   html[data-edition="gn"][data-night-scheme="grass-block"] body { min-height: 100svh; color: var(--ink); image-rendering: pixelated;
     background: url("/grass-block-night.svg") center top / max(100%, 160svh) auto no-repeat, #3c3f4a url("/grass-block-stone-night.svg") 0 0 / 96px repeat; }
-  html:not([data-edition="gn"])[data-day-scheme="cottage"] body { min-height: 100svh; color: var(--ink); background: var(--bg) url("/cottage-day.svg") repeat fixed; image-rendering: pixelated; }
-  html[data-edition="gn"][data-night-scheme="cottage"] body { min-height: 100svh; color: var(--ink); background: var(--bg) url("/cottage-night.svg") repeat fixed; image-rendering: pixelated; }
+  html:not([data-edition="gn"])[data-day-scheme="picnic"] body { min-height: 100svh; color: var(--ink); background: var(--bg) url("/picnic-day.svg") repeat fixed; image-rendering: pixelated; }
+  html[data-edition="gn"][data-night-scheme="picnic"] body { min-height: 100svh; color: var(--ink); background: var(--bg) url("/picnic-night.svg") repeat fixed; image-rendering: pixelated; }
 }
 html[data-edition="gn"][data-night-scheme="grass-block"] .weather-tile.cool { --tile-accent: #a2cde9; }
 /* A square pixel sun and moon replace the smooth edition artwork. */
@@ -87,7 +87,7 @@ html[data-edition="gn"][data-night-scheme="grass-block"] .orbit .sun { backgroun
 /* Labels that sit on the hills keep a parchment chip so they stay readable. */
 :is(html:not([data-edition="gn"])[data-day-scheme="grass-block"], html[data-edition="gn"][data-night-scheme="grass-block"]) .briefing-section-nav a:not(.active, [aria-current]) { background: color-mix(in srgb, var(--surface) 88%, transparent); }
 @media (max-width: 700px) { :is(html:not([data-edition="gn"])[data-day-scheme="grass-block"], html[data-edition="gn"][data-night-scheme="grass-block"]) .orbit .sun { background-size: 36px; background-position: center 30%; } }
-html[data-edition="gn"][data-night-scheme="cottage"] .chat-page, html[data-edition="gn"][data-night-scheme="grass-block"] .chat-page { --special-question: #ffd38a; --special-answer: #a2cde9; --special-added: #9be59b; --special-updated: #c9b6ff; --special-cancelled: #ff8a8a; }
+html[data-edition="gn"][data-night-scheme="picnic"] .chat-page, html[data-edition="gn"][data-night-scheme="grass-block"] .chat-page { --special-question: #ffd38a; --special-answer: #a2cde9; --special-added: #9be59b; --special-updated: #c9b6ff; --special-cancelled: #ff8a8a; }
 /* Account pages retain Classic; every other day palette uses shared site tokens. */
 html:not([data-edition="gn"])[data-day-scheme]:not([data-day-scheme="classic"]) .avatar-display .avatar-toggle { color: var(--ink); }
 html:not([data-edition="gn"])[data-day-scheme]:not([data-day-scheme="classic"]) .avatar-display .avatar-toggle:hover:not(:disabled) { color: var(--accent); }
@@ -168,7 +168,7 @@ html:not([data-edition="gn"])[data-day-scheme]:not([data-day-scheme="classic"]) 
 [data-swatch="day-morning-sky"] { --sw-bg: #f3f8f9; --sw-img: url("/morning-sky.svg"), url("/morning-clouds.webp"); --sw-size: 165% auto; --sw-at: 88% 34%; --sw-surface: #fffdf7; --sw-ink: #293e50; --sw-accent: #27465e; --sw-line: #cfdae0; }
 [data-swatch="day-first-light"] { --sw-bg: #f3ede2; --sw-img: url("/first-light.svg"); --sw-size: 130% auto; --sw-at: 60% 28%; --sw-surface: #fffaf5; --sw-ink: #48443c; --sw-accent: #784a30; --sw-line: #e3d8c7; }
 [data-swatch="day-grass-block"] { --sw-bg: #9ccbf3; --sw-img: url("/grass-block-day.svg"); --sw-size: 100% auto; --sw-at: center 22%; --sw-surface: #fbf6e9; --sw-ink: #2d2620; --sw-accent: #3a7d22; --sw-line: #c9b997; image-rendering: pixelated; }
-[data-swatch="day-cottage"] { --sw-bg: #fbe9d6; --sw-img: url("/cottage-day.svg"); --sw-size: 24px; --sw-surface: #fff7e8; --sw-ink: #4a2f22; --sw-accent: #c2506a; --sw-line: #ecd0ae; background-repeat: repeat; image-rendering: pixelated; }
+[data-swatch="day-picnic"] { --sw-bg: #fbe9d6; --sw-img: url("/picnic-day.svg"); --sw-size: 24px; --sw-surface: #fff7e8; --sw-ink: #4a2f22; --sw-accent: #c2506a; --sw-line: #ecd0ae; background-repeat: repeat; image-rendering: pixelated; }
 [data-swatch="night-classic"] { --sw-bg: #111c2a; --sw-surface: #192638; --sw-ink: #edece7; --sw-accent: #d8bd8b; --sw-line: #334156; }
 [data-swatch="night-starry"] { --sw-bg: #080f20; --sw-img: radial-gradient(1px 1px at 18% 30%, #fff, transparent), radial-gradient(1px 1px at 72% 12%, #fff, transparent), radial-gradient(1px 1px at 40% 58%, #fffde8, transparent), radial-gradient(1px 1px at 88% 46%, #dbe6ff, transparent), radial-gradient(1px 1px at 60% 36%, #fff, transparent), radial-gradient(1px 1px at 8% 52%, #fff, transparent), radial-gradient(ellipse at 65% 12%, #24385b, transparent 65%); --sw-size: 100% 100%; --sw-surface: #111c32; --sw-ink: #eef2fb; --sw-accent: #b8c9f4; --sw-line: #2d3d59; }
 [data-swatch="night-city-lights"] { --sw-bg: #0b1020; --sw-img: url("/city-lights.svg"); --sw-size: cover; --sw-at: center bottom; --sw-surface: #151b31; --sw-ink: #f2efe8; --sw-accent: #f2c27b; --sw-line: #2e3452; }
@@ -176,7 +176,7 @@ html:not([data-edition="gn"])[data-day-scheme]:not([data-day-scheme="classic"]) 
 [data-swatch="night-city-lights"] i:nth-child(5) { top: 90%; }
 [data-swatch="night-midnight-violet"] { --sw-bg: #1f2029; --sw-surface: #2a2b37; --sw-ink: #f8f8f2; --sw-accent: #ff79c6; --sw-line: #3d4052; }
 [data-swatch="night-grass-block"] { --sw-bg: #141a38; --sw-img: url("/grass-block-night.svg"); --sw-size: 100% auto; --sw-at: center 22%; --sw-surface: #262b45; --sw-ink: #eef0f8; --sw-accent: #7650c4; --sw-line: #444b70; image-rendering: pixelated; }
-[data-swatch="night-cottage"] { --sw-bg: #271d3a; --sw-img: url("/cottage-night.svg"); --sw-size: 24px; --sw-surface: #362a4c; --sw-ink: #f8eeff; --sw-accent: #b796ec; --sw-line: #54446e; background-repeat: repeat; image-rendering: pixelated; }
+[data-swatch="night-picnic"] { --sw-bg: #271d3a; --sw-img: url("/picnic-night.svg"); --sw-size: 24px; --sw-surface: #362a4c; --sw-ink: #f8eeff; --sw-accent: #b796ec; --sw-line: #54446e; background-repeat: repeat; image-rendering: pixelated; }
 #color-scheme-form noscript, #color-scheme-feedback { grid-column: 1 / -1; }
 .toolbar-row .menu-panel { max-height: calc(100svh - 100px); overflow-y: auto; overscroll-behavior-y: contain; }
 #color-scheme-feedback { font-size: .75rem; overflow-wrap: anywhere; }

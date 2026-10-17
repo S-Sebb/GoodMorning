@@ -289,7 +289,7 @@ def main():
                 assert background(chat) == 'rgb(246, 238, 227)'
                 prefs(chat); chat.locator('#website-language').select_option('zh-CN')
                 for theme, value, name in (('day', 'warm', '暖色'), ('night', 'starry', '星空'), ('night', 'city-lights', '城市灯光'),
-                                           ('night', 'midnight-violet', '午夜紫'), ('day', 'grass-block', '草方块'), ('night', 'cottage', '小屋')):
+                                           ('night', 'midnight-violet', '午夜紫'), ('day', 'grass-block', '草方块'), ('night', 'picnic', '野餐')):
                     expect(card(chat, theme, value).locator('.scheme-name')).to_have_text(name)
                 expect(chat.locator('#night-color-scheme > legend')).to_have_text('夜间配色')
                 expect(chat.locator('#website-style > legend')).to_have_text('样式')
@@ -331,7 +331,7 @@ def main():
                 chat.locator('#chat-text').fill('Keep this private, unsent draft.')
                 choose(chat, 'soft', 'style')
                 expect(chat.locator('.conversation-panel')).not_to_have_css('border-radius', '0px')
-                choose(chat, 'grass-block'); choose(chat, 'cottage', 'night')
+                choose(chat, 'grass-block'); choose(chat, 'picnic', 'night')
                 # Soft Grass Block: its sky and colors, with the usual rounded components.
                 expect(chat.locator('html')).to_have_attribute('data-style', 'soft')
                 assert 'grass-block-day.svg' in stars(chat)
@@ -343,9 +343,9 @@ def main():
                 chat.clock.set_system_time(datetime.fromisoformat('2026-10-12T18:00:00+00:00'))
                 chat.evaluate('window.dispatchEvent(new Event("focus"))')
                 expect(chat.locator('html')).to_have_attribute('data-edition', 'gn')
-                assert 'cottage-night.svg' in stars(chat)
+                assert 'picnic-night.svg' in stars(chat)
                 expect(chat.locator('html')).to_have_attribute('data-style', 'pixel')
-                chat.screenshot(path=str(artifacts/'cottage-night-pixel-chat.png'), full_page=True)
+                chat.screenshot(path=str(artifacts/'picnic-night-pixel-chat.png'), full_page=True)
                 choose(chat, 'starry', 'night')
                 expect(chat.locator('html')).to_have_attribute('data-style', 'pixel')
                 chat.clock.set_system_time(datetime.fromisoformat('2026-10-12T10:00:00+00:00'))
@@ -355,7 +355,7 @@ def main():
                 radio(chat, 'day', 'grass-block').focus()
                 with chat.expect_response('**/api/color-schemes'):
                     chat.keyboard.press('ArrowRight')
-                expect(radio(chat, 'day', 'cottage')).to_be_checked()
+                expect(radio(chat, 'day', 'picnic')).to_be_checked()
                 choose(chat, 'warm')
                 expect(chat.locator('html')).to_have_attribute('data-style', 'soft')
                 expect(chat.locator('#chat-text')).to_have_value('Keep this private, unsent draft.')
