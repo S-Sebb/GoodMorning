@@ -55,7 +55,7 @@ def main():
             shutil.copyfile(ROOT.parent/'docs'/name,source/'docs'/name)
     else:
         source.mkdir(); runtime.mkdir(mode=0o700)
-        for name in ('src','scripts','docs','templates','assets','skill-source'):
+        for name in ('src','scripts','docs','templates','assets','skill-source','.opencode'):
             shutil.copytree(ROOT.parent/name, source/name, ignore=shutil.ignore_patterns('__pycache__'))
         for name in ('AGENTS.md', 'AGENT-PROMPT-GUIDE.md', 'SERVER-USER-GUIDE.md', 'SERVER-DATA-GUIDE.md'):
             shutil.copyfile(ROOT.parent/name, source/name)
