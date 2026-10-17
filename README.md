@@ -170,9 +170,11 @@ The [item and timing guide](docs/item-taxonomy.md) explains these boundaries in 
   the interface language does not rewrite your saved records or earlier replies.
 - **A view that feels like yours.** Choose Classic, Warm, Morning Sky, or First
   Light for daytime, and Classic, Starry, City Lights, or Midnight Violet for
-  nighttime. Day and night choices are independent and saved per account. Clouds
-  and birds, a mountain valley, a twinkling night sky, or a harbor glowing with
-  city lights bring a little atmosphere without third-party image requests.
+  nighttime, plus the Grass Block and Picnic scenes. Pick the Soft or Pixel
+  style to give any of them rounded or square pixel frames and headings. Day and night choices
+  are independent and saved per account. Clouds and birds, a mountain valley, a
+  twinkling night sky, or a harbor glowing with city lights bring a little
+  atmosphere without third-party image or font requests.
 - **Comfortable on a phone, too.** Responsive layouts, a growing message box,
   click-to-enlarge images, section navigation, reading progress, and reduced-motion
   support keep reading and conversation at the center.

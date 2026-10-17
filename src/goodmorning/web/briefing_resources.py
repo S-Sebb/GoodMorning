@@ -9,6 +9,10 @@ ICON_TYPES = {f'icons/{kind}.{extension}': mime
               for extension, mime in (('svg', 'image/svg+xml'), ('png', 'image/png'))}
 DESK_ICON_TYPES = {f'icons/desk-{name}.svg': 'image/svg+xml'
                   for name in ('morning', 'evening', 'schedule', 'secretary', 'idea', 'appearance', 'language')}
+PIXEL_FONTS = {f'fonts/{name}.woff2': 'font/woff2' for name in ('pixelify-sans', 'silkscreen', 'jersey-10', 'fusion-pixel-zh')}
+PIXEL_SCENES = {f'{name}.svg': 'image/svg+xml'
+                for name in ('grass-block-day', 'grass-block-night', 'grass-block-stone-day', 'grass-block-stone-night',
+                             'grass-block-sun', 'grass-block-moon', 'pixel-sun', 'pixel-moon', 'picnic-day', 'picnic-night')}
 
 
 def favicon_links(kind, prefix='/'):
@@ -71,7 +75,8 @@ class Resource:
 class Resources:
     def __init__(self, assets, *, types=None):
         self.paths, self.urls = {}, {}
-        types = types if types is not None else {**DESK_ICON_TYPES, 'fonts/lora-italic.woff2': 'font/woff2', 'briefing.css': 'text/css',
+        types = types if types is not None else {**DESK_ICON_TYPES, **PIXEL_FONTS, **PIXEL_SCENES,
+                 'fonts/lora-italic.woff2': 'font/woff2', 'briefing.css': 'text/css', 'pixel.css': 'text/css',
                   'briefing.js': 'text/javascript', 'browser.js': 'text/javascript',
                   'scroll-rails.js': 'text/javascript', 'scroll-rails.css': 'text/css',
                    'questions.js': 'text/javascript', 'chat.js': 'text/javascript', 'chat.css': 'text/css', 'language.js':'text/javascript',
@@ -90,7 +95,7 @@ class Resources:
                    'update.js': 'text/javascript', 'update.css': 'text/css',
                    'avatar.js': 'text/javascript', 'avatar.css': 'text/css',
                    'maintenance.css': 'text/css',
-                 'fonts/OFL.txt': 'text/plain',
+                 'fonts/OFL.txt': 'text/plain', 'fonts/pixel-fonts-OFL.txt': 'text/plain',
                  **{f'desk-secretary{person}{variant}.png': 'image/png' for person in ('', '-f2', '-m1', '-m2')
                     for variant in ('', '-day', '-animated', '-day-animated', '-profile')}, **ICON_TYPES}
         # Register the font first: CSS embeds its immutable, shared URL.
@@ -111,6 +116,10 @@ class Resources:
                 for icon in DESK_ICON_TYPES:
                     if icon in self.urls:
                         data = data.replace(icon.encode(), self.urls[icon].encode())
+            if name in ('color-schemes.css', 'pixel.css'):
+                for asset in (*PIXEL_FONTS, *PIXEL_SCENES):
+                    if asset in self.urls:
+                        data = data.replace((asset if asset.startswith('fonts/') else '/' + asset).encode(), self.urls[asset].encode())
             if name == 'color-schemes.css':
                 for sky in ('starry-sky.svg', 'city-lights.svg', 'morning-sky.svg', 'morning-clouds.webp', 'first-light.svg',
                             'morning-clouds-continuation.webp'):

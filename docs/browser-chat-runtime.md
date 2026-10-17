@@ -58,11 +58,20 @@ Use tables only for genuinely comparable details. Raw HTML is displayed as text;
 images show their alternative text without fetching URLs. User text and saved
 question/answer history remain literal. Briefing JSON strings stay plain text.
 
-Settings also offers independent Day and Night color schemes. Day defaults to
-Morning Sky, with Classic, Warm and First Light also available. Night defaults
-to Starry, with a darker sky and static stars, and also
-offers Classic, City Lights (a harbor skyline fixed below the headline) and
-Midnight Violet (a flat Dracula-inspired palette). Existing saved choices are preserved. The account-wide choice paints the
+Settings > Appearance offers three picture-card choices: a Style and
+independent Day and Night color schemes. The Style shapes the components
+(frames, buttons, headings); color schemes only set colors and scenery, so every
+style works with every scheme. Day defaults to Morning Sky, with Classic, Warm and First Light
+also available. Night defaults to Starry, with a darker sky and static stars,
+and also offers Classic, City Lights (a harbor skyline fixed below the headline)
+and Midnight Violet (a flat Dracula-inspired palette). Both lists add two pixel
+scenes: Grass Block (plains of grass blocks under a square sun or moon; further
+down the page the ground turns to dirt and then stone) and Picnic
+(a pastel gingham picnic blanket with tiny pixel flowers). Styles are Soft (the default, today's rounded look)
+and Pixel (square pixel frames, buttons and headings, with stone buttons and a
+hotbar on Grass Block and wooden frames on Picnic). Body text keeps the system
+font; Chinese pixel text uses a bundled pixel font subset snapped to its 12px
+grid. Existing saved choices are preserved and stay Soft. The account-wide choice paints the
 whole website through shared color tokens, including briefings, chat, controls
 and the floating desk. Color changes apply without reloads, preserving drafts,
 pending answers and uploaded avatars. The Secretary page still switches between
