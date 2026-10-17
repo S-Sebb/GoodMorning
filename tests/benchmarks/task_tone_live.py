@@ -228,7 +228,7 @@ def run_case(output, source, config, day, extended=True, selected='muse-spark', 
                             raise AssertionError('Unsupported synthetic answer field; needs review, not guessed approval')
                     app.chats.reply(result['chat'],'form',form['id'],{'answer':values})
                 elif not app.chats.items:
-                    app.chats.start({'id':result['chat'],'mode':'todo','text':message})
+                    app.chats.start({'id':result['chat'],'mode':'secretary','text':message})
                 else:
                     app.chats.send(result['chat'],{'id':pending['request'],'text':message})
         assert pending['stage']==stage, 'Resume only the preserved in-flight stage'

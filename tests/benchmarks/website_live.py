@@ -98,12 +98,9 @@ def main():
             page.locator('#prefs-menu summary').click()
             page.locator('#website-language').select_option('en')
             page.locator('#prefs-menu summary').click()
-            def send(text, mode=None):
-                if mode:
-                    # The page offers a new conversation only while one is open.
-                    new=page.get_by_role('button',name='New conversation',exact=True)
-                    if new.is_visible():new.click()
-                    page.locator(f'[data-mode="{mode}"]').click()
+            def send(text, fresh=False):
+                if fresh:
+                    page.goto(address+'/chat?mode=secretary')
                 page.get_by_label('Your message',exact=True).fill(text)
                 page.locator('#chat-send').click()
                 expect(page.locator('#chat-status')).to_contain_text(re.compile('Ready for your reply|Your secretary needs your answer'))
@@ -127,18 +124,18 @@ def main():
                 form.get_by_role('button',name='Send answer',exact=True).click()
                 expect(page.locator('#chat-status')).to_have_text('Ready for your reply')
             else:
-                send('Send Atlas report by Friday.', 'todo')
+                send('Remind me to send the Atlas report by Friday.', True)
                 first=tasks(); assert len(first)==1 and first[0]['due_date'] and not first[0]['planned_date'], first
                 identifier=first[0]['id']
-                results['checks'].append('To-do saves a deadline without assigning a workday')
+                results['checks'].append('A to-do saves a deadline without assigning a workday')
                 send('Also work on that report tomorrow.')
                 changed=tasks(); assert len(changed)==1 and changed[0]['id']==identifier and changed[0]['planned_date'], changed
                 results['checks'].append('Same-conversation follow-up updates the existing action without duplicate capture')
                 page.reload(); expect(page.locator('#chat-messages')).to_contain_text('Also work on that report tomorrow.')
-                send('Maybe build a dashboard for Atlas.', 'eureka')
+                send('I had an idea: maybe build a dashboard for Atlas.', True)
                 assert len(tasks())==1
-                results['checks'].append('Eureka saves an idea without work or clarification questions; transcript survives reload')
-                send('Record buying groceries today (no fixed time), and washing towels every Saturday. Also save my confirmed dentist appointment Thursday at Town Clinic; the time is unknown.', 'secretary')
+                results['checks'].append('An idea is saved without work or clarification questions; transcript survives reload')
+                send('Record buying groceries today (no fixed time), and washing towels every Saturday. Also save my confirmed dentist appointment Thursday at Town Clinic; the time is unknown.', True)
             current=tasks(); assert len(current)==3 and sum(bool(t['repeat']) for t in current)==1, current
             results['checks'].append('Secretary records supplied workday, untimed recurrence and a confirmed TBC appointment')
             inbox = InboxStore(runtime)
@@ -198,11 +195,10 @@ def main():
             page.screenshot(path=str(output/'evening.png'),full_page=True)
             if args.resume:
                 page.goto(address+'/chat')
-                send('Save my confirmed optician appointment Friday at Town Clinic. The time is unknown; it should be shown as TBC.', 'secretary')
+                send('Save my confirmed optician appointment Friday at Town Clinic. The time is unknown; it should be shown as TBC.', True)
                 results['checks'].append('Fresh session with the clarified prompts saves an already-confirmed TBC appointment without asking again')
             if args.ambiguity:
-                page.goto(address+'/chat')
-                page.locator('[data-mode="todo"]').click()
+                page.goto(address+'/chat?mode=secretary')
                 before=(runtime/'inbox.sqlite').read_bytes()
                 page.get_by_label('Your message',exact=True).fill('Remind me to review the notes every few days.')
                 page.locator('#chat-send').click()
