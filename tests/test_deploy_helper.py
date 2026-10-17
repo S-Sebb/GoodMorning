@@ -39,6 +39,27 @@ class DeployHelperTests(unittest.TestCase):
             with self.subTest(name=bad), self.assertRaises(ValueError):
                 helper.release_path(bad)
 
+    def test_engine_names_cannot_escape_the_engine_directory(self):
+        self.assertEqual(helper.engine_path('2.4.0-2.0.32'), helper.ENGINES/'2.4.0-2.0.32')
+        for bad in ('current', '../2.4.0-2.0.32', '2.4.0', '2.4.0-latest', '2.4.0-2.0.32/..', '.staging-2.4.0-2.0.32'):
+            with self.subTest(name=bad), self.assertRaises(ValueError):
+                helper.engine_path(bad)
+
+    def test_deploys_pair_latest_openchamber_with_its_pinned_opencode(self):
+        release = load('release')
+        manifest = {'version': '2.4.0', 'dependencies': {'@opencode/client': '2.0.32', 'zod': '^4.3.6'}}
+        self.assertEqual(release.engine_versions(manifest), ('2.4.0', '2.0.32'))
+        for pin in ('^2.0.32', '2.0.x', 'latest'):
+            manifest['dependencies']['@opencode/client'] = pin
+            with self.subTest(pin=pin), self.assertRaises(release.Stop):
+                release.engine_versions(manifest)
+
+    def test_engine_unit_mounts_only_root_owned_trees(self):
+        unit = (ROOT/'deploy/goodmorning-engine.service').read_text()
+        self.assertNotIn('/home/', unit)
+        self.assertIn('--bind /opt/goodmorning/engines/current/lib/node_modules /opt/goodmorning/engine/node_modules', unit)
+        self.assertIn('goodmorning-engine.service', helper.UNITS)
+
     def test_only_the_deployments_own_ticket_counts_as_idle(self):
         import json
         import sqlite3
