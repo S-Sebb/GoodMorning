@@ -2,36 +2,52 @@
 (() => {
   const config = JSON.parse(document.querySelector('#color-scheme-config').dataset.config);
   const form = document.querySelector('#color-scheme-form');
-  const day = document.querySelector('#day-color-scheme');
-  const night = document.querySelector('#night-color-scheme');
+  const pixel = document.querySelector('#pixel-style');
   const feedback = document.querySelector('#color-scheme-feedback');
+  const root = document.documentElement;
   const t = key => typeof goodmorningT === 'function' ? goodmorningT(key) : key;
+  // Mirrors PIXEL_SCENES in color_schemes.py.
+  const pixelScenes = ['grass-block', 'cottage'];
   let saved = config.schemes, saving = false, syncing = false, revision = 0;
-  const offered = select => Array.from(select.options, option => option.value);
-  const valid = value => value && offered(day).includes(value.day) && offered(night).includes(value.night);
+  const radios = theme => Array.from(form.querySelectorAll(`input[name="${theme}"]`));
+  const chosen = theme => radios(theme).find(radio => radio.checked)?.value;
+  const check = (theme, value) => radios(theme).forEach(radio => { radio.checked = radio.value === value; });
+  const valid = value => value && radios('day').some(radio => radio.value === value.day)
+    && radios('night').some(radio => radio.value === value.night) && typeof value.pixel === 'boolean';
+  const same = value => value.day === saved.day && value.night === saved.night && value.pixel === saved.pixel;
+  // Grass Block and Cottage draw in pixel style even when the switch is off; the edition can change in place.
+  function paint() {
+    const scene = root.dataset.edition === 'gn' ? saved.night : saved.day;
+    root.dataset.pixelStyle = saved.pixel ? 'on' : 'off';
+    if (saved.pixel || pixelScenes.includes(scene)) root.dataset.pixel = 'on'; else delete root.dataset.pixel;
+  }
+  function show(value) { check('day', value.day); check('night', value.night); pixel.checked = value.pixel; }
   function apply(value) {
     if (!valid(value)) throw new Error(t('Color schemes could not be saved. Try again.'));
-    saved = {day: value.day, night: value.night};
-    day.value = saved.day; night.value = saved.night;
-    document.documentElement.dataset.dayScheme = saved.day;
-    document.documentElement.dataset.nightScheme = saved.night;
+    saved = {day: value.day, night: value.night, pixel: value.pixel};
+    show(saved);
+    root.dataset.dayScheme = saved.day;
+    root.dataset.nightScheme = saved.night;
+    paint();
     document.dispatchEvent(new CustomEvent('website:color-schemes', {detail: saved}));
   }
+  const controls = () => [...form.querySelectorAll('input[type="radio"]'), pixel];
   async function save(event) {
     event?.preventDefault();
     if (saving) return;
-    saving = true; revision++; day.disabled = night.disabled = true;
+    saving = true; revision++;
+    const body = {day: chosen('day'), night: chosen('night'), pixel: pixel.checked};
+    controls().forEach(control => { control.disabled = true; });
     try {
       const response = await fetch('/api/color-schemes', {method: 'POST', credentials: 'same-origin', cache: 'no-store',
-        headers: {'Content-Type': 'application/json', 'X-Briefing-CSRF': config.csrf},
-        body: JSON.stringify({day: day.value, night: night.value})});
+        headers: {'Content-Type': 'application/json', 'X-Briefing-CSRF': config.csrf}, body: JSON.stringify(body)});
       const value = await goodmorningJSON(response);
       if (!response.ok) throw new Error(value.error || t('Color schemes could not be saved. Try again.'));
       apply(value); feedback.textContent = t('Color schemes saved.');
     } catch (error) {
-      day.value = saved.day; night.value = saved.night;
+      show(saved);
       feedback.textContent = error.message;
-    } finally { saving = false; day.disabled = night.disabled = false; }
+    } finally { saving = false; controls().forEach(control => { control.disabled = false; }); }
   }
   async function sync() {
     if (document.hidden || saving || syncing) return;
@@ -41,13 +57,14 @@
       const response = await fetch('/api/color-schemes', {credentials: 'same-origin', cache: 'no-store'});
       if (response.ok) {
         const value = await goodmorningJSON(response);
-        if (version === revision && valid(value) && (value.day !== saved.day || value.night !== saved.night)) apply(value);
+        if (version === revision && valid(value) && !same(value)) apply(value);
       }
     } catch { /* Preserve the last confirmed palette and all drafts during an outage. */ }
     finally { syncing = false; }
   }
   form.addEventListener('submit', save);
-  day.addEventListener('change', save); night.addEventListener('change', save);
+  form.addEventListener('change', save);
+  new MutationObserver(paint).observe(root, {attributes: true, attributeFilter: ['data-edition']});
   window.addEventListener('focus', sync); document.addEventListener('visibilitychange', sync);
   document.addEventListener('website:before-refresh', event => { if (saving) event.preventDefault(); });
   setInterval(sync, 15000);

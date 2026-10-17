@@ -58,11 +58,17 @@ Use tables only for genuinely comparable details. Raw HTML is displayed as text;
 images show their alternative text without fetching URLs. User text and saved
 question/answer history remain literal. Briefing JSON strings stay plain text.
 
-Settings also offers independent Day and Night color schemes. Day defaults to
-Morning Sky, with Classic, Warm and First Light also available. Night defaults
-to Starry, with a darker sky and static stars, and also
-offers Classic, City Lights (a harbor skyline fixed below the headline) and
-Midnight Violet (a flat Dracula-inspired palette). Existing saved choices are preserved. The account-wide choice paints the
+Settings also offers independent Day and Night color schemes, chosen from
+picture cards. Day defaults to Morning Sky, with Classic, Warm and First Light
+also available. Night defaults to Starry, with a darker sky and static stars,
+and also offers Classic, City Lights (a harbor skyline fixed below the headline)
+and Midnight Violet (a flat Dracula-inspired palette). Both lists add two pixel
+scenes: Grass Block (a blocky sky, a grass ledge and stone buttons) and Cottage
+(a pastel checkerboard with wooden frames). A Pixel style switch, off by
+default, gives any scene square pixel frames and pixel headings; Grass Block and
+Cottage are always pixel during their own edition. Body text keeps the system
+font, and Chinese headings use a bundled pixel font subset. Existing saved
+choices are preserved and stay smooth. The account-wide choice paints the
 whole website through shared color tokens, including briefings, chat, controls
 and the floating desk. Color changes apply without reloads, preserving drafts,
 pending answers and uploaded avatars. The Secretary page still switches between

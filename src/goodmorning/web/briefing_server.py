@@ -852,7 +852,8 @@ def serve_live(app, port, *, gateway_key=None, public_origins=()):
         def select_color_schemes(self):
             if gateway_key:
                 selected = site_colors.validate({'day': self.headers.get('X-GoodMorning-Day-Scheme', site_colors.DEFAULT['day']),
-                                                 'night': self.headers.get('X-GoodMorning-Night-Scheme', site_colors.DEFAULT['night'])})
+                                                 'night': self.headers.get('X-GoodMorning-Night-Scheme', site_colors.DEFAULT['night']),
+                                                 'pixel': self.headers.get('X-GoodMorning-Pixel-Style') == 'on'})
             else:
                 selected = site_colors.read(app.runtime)
             site_colors.CURRENT.set(selected)
@@ -1057,7 +1058,7 @@ def serve_live(app, port, *, gateway_key=None, public_origins=()):
                 if form:
                     fields=parse_qs(raw.decode(),keep_blank_values=True,strict_parsing=True)
                     expected={'csrf','language','return_to'} if path=='/api/language' else {'csrf','model','return_to'}
-                    if path=='/api/color-schemes':expected={'csrf','day','night','return_to'}
+                    if path=='/api/color-schemes':expected={'csrf','day','night','return_to'}|({'pixel'} if 'pixel' in fields else set())
                     if set(fields)!=expected or any(len(values)!=1 for values in fields.values()):raise ValueError('Invalid settings form')
                     body={key:values[0] for key,values in fields.items()}
                     origin=f'http://127.0.0.1:{self.server.server_port}'
@@ -1077,7 +1078,7 @@ def serve_live(app, port, *, gateway_key=None, public_origins=()):
                 if path=='/api/model':
                     return self.respond({'error':'Model selection is automatic from the website language.'},405)
                 if path=='/api/color-schemes':
-                    selected = site_colors.validate({key: body[key] for key in ('day', 'night')} if form else body)
+                    selected = site_colors.validate({'day': body['day'], 'night': body['night'], 'pixel': body.get('pixel') == 'on'} if form else body)
                     site_colors.write(app.runtime, selected)
                     site_colors.CURRENT.set(selected)
                     target=body.get('return_to','/')

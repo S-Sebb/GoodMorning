@@ -388,7 +388,7 @@ class GatewayTests(GatewayFixture):
         self.assertIn(b'data-password-target="password-password"',page)
         self.assertIn(b'aria-pressed="false"',page)
         self.assertIn(b'name="remember"',page)
-        self.assertNotIn(b'checked',page)
+        self.assertNotRegex(page,rb'name="remember"[^>]*checked')
         versions=re.findall(rb'/assets/([a-f0-9]{64})/auth\.(?:css|js)',page)
         self.assertEqual(len(versions),2)
         for path in re.findall(rb'(?:href|src)="([^"]+/auth\.(?:css|js))"',page):

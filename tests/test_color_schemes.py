@@ -38,15 +38,19 @@ def motion_only(css, fragment):
 class ColorSchemeTests(unittest.TestCase):
 
     def test_catalog_and_invalid_requests(self):
-        self.assertEqual(colors.DEFAULT, {'day': 'morning-sky', 'night': 'starry'})
-        self.assertEqual(set(colors.OPTIONS['day']), {'classic', 'warm', 'morning-sky', 'first-light'})
-        self.assertEqual(set(colors.OPTIONS['night']), {'classic', 'starry', 'city-lights', 'midnight-violet'})
-        self.assertEqual(colors.validate({'day': 'warm', 'night': 'starry'}), {'day': 'warm', 'night': 'starry'})
+        self.assertEqual(colors.DEFAULT, {'day': 'morning-sky', 'night': 'starry', 'pixel': False})
+        self.assertEqual(set(colors.OPTIONS['day']), {'classic', 'warm', 'morning-sky', 'first-light', 'grass-block', 'cottage'})
+        self.assertEqual(set(colors.OPTIONS['night']), {'classic', 'starry', 'city-lights', 'midnight-violet', 'grass-block', 'cottage'})
+        # Choices saved before Pixel style existed stay smooth.
+        self.assertEqual(colors.validate({'day': 'warm', 'night': 'starry'}), {'day': 'warm', 'night': 'starry', 'pixel': False})
+        self.assertEqual(colors.validate({'day': 'cottage', 'night': 'grass-block', 'pixel': True}),
+                         {'day': 'cottage', 'night': 'grass-block', 'pixel': True})
         for scheme in ('morning-sky', 'first-light'):
             self.assertEqual(colors.validate({'day': scheme, 'night': 'starry'})['day'], scheme)
         for value in (None, True, [], {}, {'day': 'warm'}, {'day': 'warm', 'night': 'warm'},
                       {'day': 'sunlit-garden', 'night': 'starry'},
-                      {'day': {}, 'night': 'classic'}, {'day': 'warm', 'night': 'classic', 'user': 'other'}):
+                      {'day': {}, 'night': 'classic'}, {'day': 'warm', 'night': 'classic', 'user': 'other'},
+                      {'day': 'warm', 'night': 'classic', 'pixel': 'on'}, {'day': 'warm', 'night': 'classic', 'pixel': 1}):
             with self.assertRaises(ValueError): colors.validate(value)
 
     def test_day_scenes_are_immutable_and_translated(self):
@@ -85,7 +89,7 @@ class ColorSchemeTests(unittest.TestCase):
 
     def test_retired_day_preference_preserves_night_and_does_not_rewrite_records(self):
         retired = {'day': 'sunlit-garden', 'night': 'classic'}
-        expected = {'day': colors.DEFAULT['day'], 'night': 'classic'}
+        expected = {'day': colors.DEFAULT['day'], 'night': 'classic', 'pixel': False}
         with tempfile.TemporaryDirectory(dir=TEMP_ROOT) as directory:
             runtime = Path(directory)
             path = runtime / 'website-color-schemes.json'
@@ -107,11 +111,11 @@ class ColorSchemeTests(unittest.TestCase):
         with tempfile.TemporaryDirectory(dir=TEMP_ROOT) as directory:
             runtime = Path(directory)
             self.assertEqual(colors.read(runtime), colors.DEFAULT)
-            classic = {'day': 'warm', 'night': 'classic'}
+            classic = {'day': 'warm', 'night': 'classic', 'pixel': False}
             colors.write(runtime, classic)
             self.assertEqual(colors.read(runtime), classic)
         fixture = gateway(self); fixture.permanent()
-        classic = {'day': 'classic', 'night': 'classic'}
+        classic = {'day': 'classic', 'night': 'classic', 'pixel': False}
         self.assertEqual(fixture.request('/api/color-schemes', classic)[0], 200)
         self.assertEqual(json.loads(fixture.request('/api/color-schemes')[2]), classic)
 
@@ -142,12 +146,15 @@ class ColorSchemeTests(unittest.TestCase):
         source = '<html lang="en"><head></head><body><header>Desk</header></body></html>'
         with palette(colors.DEFAULT):
             source = ui.page(source, 'backend-csrf', '/chat')
-        with palette({'day': 'warm', 'night': 'starry'}):
+        with palette({'day': 'warm', 'night': 'starry', 'pixel': True}):
             page = ui.page(source, 'session-csrf', '/chat')
         self.assertIn('data-day-scheme="warm"', page)
         self.assertIn('data-night-scheme="starry"', page)
-        self.assertIn('value="warm" data-ui-text="Warm" selected', page)
-        self.assertIn('value="starry" data-ui-text="Starry" selected', page)
+        self.assertIn('data-pixel-style="on" data-pixel="on"', page)
+        self.assertIn('name="day" value="warm" checked', page)
+        self.assertIn('name="night" value="starry" checked', page)
+        self.assertIn('name="pixel" value="on" role="switch" checked', page)
+        self.assertEqual(page.count(' checked'), 3)
         self.assertEqual(page.count('id="color-scheme-form"'), 1)
         self.assertEqual(page.count('src="/color-schemes.js"'), 1)
         self.assertIn('&quot;csrf&quot;: &quot;session-csrf&quot;', page)
@@ -156,7 +163,7 @@ class ColorSchemeTests(unittest.TestCase):
     def test_account_choices_sync_across_hosts_but_not_accounts(self):
         fixture = gateway(self); fixture.permanent()
         self.assertEqual(json.loads(fixture.request('/api/color-schemes')[2]), colors.DEFAULT)
-        choice = {'day': 'warm', 'night': 'starry'}
+        choice = {'day': 'warm', 'night': 'starry', 'pixel': True}
         original = fixture.cookie
         status, headers, raw = fixture.request('/api/color-schemes', choice)
         self.assertEqual((status, json.loads(raw)), (200, choice))
@@ -187,21 +194,29 @@ class ColorSchemeTests(unittest.TestCase):
         for target in ('/chat', '//evil.example'):
             status, headers = form_post(fixture, '/api/color-schemes', {'day': 'warm', 'night': 'starry', 'csrf': fixture.csrf, 'return_to': target})
             self.assertEqual((status, headers['Location']), (303, '/chat' if target == '/chat' else '/'))
-        self.assertEqual(fixture.store.website_color_schemes(fixture.id), {'day': 'warm', 'night': 'starry'})
+        self.assertEqual(fixture.store.website_color_schemes(fixture.id), {'day': 'warm', 'night': 'starry', 'pixel': False})
+        # A checked Pixel style switch posts "on"; an unchecked one posts nothing.
+        form_post(fixture, '/api/color-schemes', {'day': 'cottage', 'night': 'starry', 'pixel': 'on', 'csrf': fixture.csrf, 'return_to': '/chat'})
+        self.assertEqual(fixture.store.website_color_schemes(fixture.id), {'day': 'cottage', 'night': 'starry', 'pixel': True})
+        status, _ = form_post(fixture, '/api/color-schemes', {'day': 'warm', 'night': 'starry', 'theme': 'x', 'csrf': fixture.csrf, 'return_to': '/chat'})
+        self.assertEqual(status, 400)
+        self.assertEqual(fixture.store.website_color_schemes(fixture.id), {'day': 'cottage', 'night': 'starry', 'pixel': True})
 
     def test_proxy_headers_and_html_cache_are_server_owned(self):
         fixture = gateway(self); fixture.permanent()
         classic = fixture.request('/')[2]
-        fixture.request('/api/color-schemes', {'day': 'warm', 'night': 'starry'})
-        warm = fixture.request('/', headers={'X-GoodMorning-Day-Scheme': 'classic', 'X-GoodMorning-Night-Scheme': 'classic'})[2]
+        fixture.request('/api/color-schemes', {'day': 'warm', 'night': 'starry', 'pixel': True})
+        warm = fixture.request('/', headers={'X-GoodMorning-Day-Scheme': 'classic', 'X-GoodMorning-Night-Scheme': 'classic',
+                                             'X-GoodMorning-Pixel-Style': 'off'})[2]
         headers = {key.lower(): value for key, value in fixture.received[-1][1].items()}
         self.assertEqual(headers['x-goodmorning-day-scheme'], 'warm')
         self.assertEqual(headers['x-goodmorning-night-scheme'], 'starry')
+        self.assertEqual(headers['x-goodmorning-pixel-style'], 'on')
         self.assertIn(b'&quot;day&quot;: &quot;morning-sky&quot;', classic)
         self.assertIn(b'&quot;day&quot;: &quot;warm&quot;', warm)
         self.assertIn(b'&quot;night&quot;: &quot;starry&quot;', warm)
         fixture.request('/api/auth/logout', {})
-        self.assertEqual(fixture.store.website_color_schemes(fixture.id), {'day': 'warm', 'night': 'starry'})
+        self.assertEqual(fixture.store.website_color_schemes(fixture.id), {'day': 'warm', 'night': 'starry', 'pixel': True})
 
     def test_runtime_restart_and_briefing_cache_do_not_rewrite_saved_content(self):
         with tempfile.TemporaryDirectory(dir=TEMP_ROOT) as directory:
@@ -211,19 +226,52 @@ class ColorSchemeTests(unittest.TestCase):
             path.write_text(encode({'v': 1, 'greeting': 'Original title', 'opening': 'Keep this.', 'sections': [['notes', [['p', 'Exact wording.']]]]}))
             before = path.read_bytes(), (runtime/'profile.md').read_bytes()
             colors.write(runtime, {'day': 'warm', 'night': 'starry'})
-            self.assertEqual(colors.read(runtime), {'day': 'warm', 'night': 'starry'})
+            self.assertEqual(colors.read(runtime), {'day': 'warm', 'night': 'starry', 'pixel': False})
             app = BrowserApp(runtime, now=lambda: datetime(2026, 10, 11, 12, tzinfo=timezone.utc))
-            for value in (colors.DEFAULT, colors.read(runtime)):
+            for value in (colors.DEFAULT, colors.read(runtime), {**colors.read(runtime), 'pixel': True}):
                 with palette(value):
                     page = app.page('2026-10-11', 'gm', True).decode()
                     self.assertIn('data-day-scheme="'+value['day']+'"', page)
                     self.assertIn('data-night-scheme="'+value['night']+'"', page)
-            self.assertEqual(len(app.pages.items), 2)
+            self.assertEqual(len(app.pages.items), 3)
             self.assertEqual((path.read_bytes(), (runtime/'profile.md').read_bytes()), before)
             unsafe = runtime/'unsafe'; unsafe.mkdir()
             (unsafe/'website-color-schemes.json').symlink_to(runtime/'website-color-schemes.json')
             with self.assertRaises(ValueError): colors.read(unsafe)
             with self.assertRaises(ValueError): colors.write(unsafe, colors.DEFAULT)
+
+    def test_pixel_scenes_draw_in_pixel_style_only_in_their_edition(self):
+        def attributes(edition, value):
+            with palette(value):
+                page = colors.page(f'<html lang="en" data-edition="{edition}"><head></head><body></body></html>', 'csrf', '/')
+            return re.search(r'<html[^>]*>', page)[0]
+        grass_day = {'day': 'grass-block', 'night': 'starry', 'pixel': False}
+        self.assertIn('data-pixel="on"', attributes('gm', grass_day))
+        self.assertNotIn('data-pixel=', attributes('gn', grass_day))
+        cottage_night = {'day': 'warm', 'night': 'cottage', 'pixel': False}
+        self.assertNotIn('data-pixel=', attributes('gm', cottage_night))
+        self.assertIn('data-pixel="on"', attributes('gn', cottage_night))
+        for edition in ('gm', 'gn'):
+            tag = attributes(edition, {'day': 'warm', 'night': 'starry', 'pixel': True})
+            self.assertIn('data-pixel-style="on" data-pixel="on"', tag)
+        for scheme in colors.PIXEL_SCENES:
+            for theme in colors.OPTIONS:
+                self.assertIn(colors.OPTIONS[theme][scheme], ui.CATALOG)
+
+    def test_pixel_fonts_and_scenes_are_immutable_assets(self):
+        resources = Resources(Path(__file__).resolve().parents[1] / 'assets/web')
+        pixel = resources.paths[resources.urls['pixel.css']].data.decode()
+        schemes = resources.paths[resources.urls['color-schemes.css']].data.decode()
+        for font in ('pixelify-sans', 'silkscreen', 'jersey-10', 'fusion-pixel-zh'):
+            url = resources.urls[f'fonts/{font}.woff2']
+            self.assertEqual(resources.paths[url].mime, 'font/woff2')
+            self.assertIn(f'url("{url}")', pixel)
+        for scene in ('grass-block-day', 'grass-block-night', 'cottage-day', 'cottage-night'):
+            root = ET.fromstring(resources.paths[resources.urls[scene + '.svg']].data)
+            self.assertEqual(root.findall('.//' + SVG + 'script'), [])
+            self.assertIn(f'url("{resources.urls[scene + ".svg"]}")', schemes)
+        self.assertIn(f'url("{resources.urls["grass-block-ledge.svg"]}")', pixel)
+        self.assertIn(b'SIL Open Font License', resources.paths[resources.urls['fonts/pixel-fonts-OFL.txt']].data)
 
 
 if __name__ == '__main__':
