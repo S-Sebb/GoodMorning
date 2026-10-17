@@ -317,7 +317,7 @@
   "City Lights": "城市灯光",
   "Midnight Violet": "午夜紫",
   "Pixel style": "像素风格",
-  "Pixel frames and headings. Grass Block and Cottage are always pixel.": "开启后，边框和标题都变成像素风；“草方块”和“小屋”一直是像素风，不受这个开关影响。",
+  "Pixel frames, buttons and headings for any color scheme.": "开启后，边框、按钮和标题都变成像素风，日间和夜间配色都适用。",
   "Grass Block": "草方块",
   "Cottage": "小屋",
   "Color schemes saved.": "配色已保存。",

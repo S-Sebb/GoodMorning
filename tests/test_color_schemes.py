@@ -150,7 +150,7 @@ class ColorSchemeTests(unittest.TestCase):
             page = ui.page(source, 'session-csrf', '/chat')
         self.assertIn('data-day-scheme="warm"', page)
         self.assertIn('data-night-scheme="starry"', page)
-        self.assertIn('data-pixel-style="on" data-pixel="on"', page)
+        self.assertIn('data-night-scheme="starry" data-pixel="on"', page)
         self.assertIn('name="day" value="warm" checked', page)
         self.assertIn('name="night" value="starry" checked', page)
         self.assertIn('name="pixel" value="on" role="switch" checked', page)
@@ -240,21 +240,18 @@ class ColorSchemeTests(unittest.TestCase):
             with self.assertRaises(ValueError): colors.read(unsafe)
             with self.assertRaises(ValueError): colors.write(unsafe, colors.DEFAULT)
 
-    def test_pixel_scenes_draw_in_pixel_style_only_in_their_edition(self):
+    def test_pixel_style_is_independent_of_scenes_and_editions(self):
         def attributes(edition, value):
             with palette(value):
                 page = colors.page(f'<html lang="en" data-edition="{edition}"><head></head><body></body></html>', 'csrf', '/')
             return re.search(r'<html[^>]*>', page)[0]
-        grass_day = {'day': 'grass-block', 'night': 'starry', 'pixel': False}
-        self.assertIn('data-pixel="on"', attributes('gm', grass_day))
-        self.assertNotIn('data-pixel=', attributes('gn', grass_day))
-        cottage_night = {'day': 'warm', 'night': 'cottage', 'pixel': False}
-        self.assertNotIn('data-pixel=', attributes('gm', cottage_night))
-        self.assertIn('data-pixel="on"', attributes('gn', cottage_night))
+        # Scenes only change colors; only the switch turns pixel style on, for every scene and edition.
         for edition in ('gm', 'gn'):
-            tag = attributes(edition, {'day': 'warm', 'night': 'starry', 'pixel': True})
-            self.assertIn('data-pixel-style="on" data-pixel="on"', tag)
-        for scheme in colors.PIXEL_SCENES:
+            for scene in ('grass-block', 'cottage', 'warm'):
+                night = scene if scene != 'warm' else 'starry'
+                self.assertNotIn('data-pixel=', attributes(edition, {'day': scene, 'night': night, 'pixel': False}))
+                self.assertIn('data-pixel="on"', attributes(edition, {'day': scene, 'night': night, 'pixel': True}))
+        for scheme in ('grass-block', 'cottage'):
             for theme in colors.OPTIONS:
                 self.assertIn(colors.OPTIONS[theme][scheme], ui.CATALOG)
 

@@ -319,9 +319,9 @@ def main():
                 expect(chat.locator('.reply-portrait img')).to_have_attribute('src', re.compile(r'^/api/avatar/image/[a-f0-9]{64}\.png$'))
                 expect(chat.locator('.reply-portrait img')).to_have_css('object-fit', 'cover')
                 choose(chat, 'classic'); choose(chat, 'warm')
-                # Pixel style changes frames in place; Grass Block and Cottage are pixel only in their own edition.
+                # Pixel style changes components in place, for every scene and edition; scenes change only colors.
                 chat.locator('#chat-text').fill('Keep this private, unsent draft.')
-                expect(chat.locator('html')).to_have_attribute('data-pixel-style', 'off')
+                expect(chat.locator('html')).not_to_have_attribute('data-pixel', 'on')
                 with chat.expect_response('**/api/color-schemes') as response:
                     chat.locator('.pixel-style-switch').click()
                 assert response.value.json()['pixel'] is True
@@ -338,19 +338,29 @@ def main():
                 expect(chat.locator('html')).not_to_have_attribute('data-pixel', 'on')
                 expect(chat.locator('.conversation-panel')).not_to_have_css('border-radius', '0px')
                 choose(chat, 'grass-block'); choose(chat, 'cottage', 'night')
-                expect(chat.locator('html')).to_have_attribute('data-pixel', 'on')
+                # Soft Grass Block: its sky and colors, with the usual rounded components.
+                expect(chat.locator('html')).not_to_have_attribute('data-pixel', 'on')
                 assert 'grass-block-day.svg' in stars(chat)
-                chat.screenshot(path=str(artifacts/'grass-block-chat.png'), full_page=True)
+                expect(chat.locator('.conversation-panel')).not_to_have_css('border-radius', '0px')
+                chat.screenshot(path=str(artifacts/'grass-block-soft-chat.png'), full_page=True)
+                with chat.expect_response('**/api/color-schemes'):
+                    chat.locator('.pixel-style-switch').click()
+                expect(chat.locator('html')).to_have_attribute('data-pixel', 'on')
+                expect(chat.locator('#new-conversation')).to_have_css('background-color', 'rgb(58, 125, 34)')
+                chat.screenshot(path=str(artifacts/'grass-block-pixel-chat.png'), full_page=True)
                 chat.clock.set_system_time(datetime.fromisoformat('2026-10-12T18:00:00+00:00'))
                 chat.evaluate('window.dispatchEvent(new Event("focus"))')
                 expect(chat.locator('html')).to_have_attribute('data-edition', 'gn')
                 assert 'cottage-night.svg' in stars(chat)
-                chat.screenshot(path=str(artifacts/'cottage-night-chat.png'), full_page=True)
+                expect(chat.locator('html')).to_have_attribute('data-pixel', 'on')
+                chat.screenshot(path=str(artifacts/'cottage-night-pixel-chat.png'), full_page=True)
                 choose(chat, 'starry', 'night')
-                expect(chat.locator('html')).not_to_have_attribute('data-pixel', 'on')
+                expect(chat.locator('html')).to_have_attribute('data-pixel', 'on')
                 chat.clock.set_system_time(datetime.fromisoformat('2026-10-12T10:00:00+00:00'))
                 chat.evaluate('window.dispatchEvent(new Event("focus"))')
-                expect(chat.locator('html')).to_have_attribute('data-pixel', 'on')
+                with chat.expect_response('**/api/color-schemes'):
+                    chat.locator('.pixel-style-switch').click()
+                expect(chat.locator('html')).not_to_have_attribute('data-pixel', 'on')
                 # Native radios: arrow keys move between scenes.
                 radio(chat, 'day', 'grass-block').focus()
                 with chat.expect_response('**/api/color-schemes'):
@@ -380,7 +390,7 @@ def main():
                        'atmosphericDayThemes': day_results, 'dayReducedMotion': True, 'dayPrintClean': True,
                       'clockThemeIndependent': True, 'refreshAndCrossHost': True, 'draftPreserved': True,
                       'savedRecordsUnchanged': True, 'accountIsolation': True, 'bilingual': True,
-                      'customAvatarsPreserved': True, 'pixelStyle': True, 'pixelScenesPerEdition': True,
+                      'customAvatarsPreserved': True, 'pixelStyle': True, 'pixelStyleIndependentOfScenes': True,
                       'settingsLayoutAligned': True, 'settingsDismissible': True,
                       'widths': [1440, 768, 390, 320], 'pageErrors': 0}
             (artifacts/'result.json').write_text(json.dumps(report, indent=2))

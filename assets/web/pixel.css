@@ -1,6 +1,6 @@
 /* Pixel style: square, notched frames and pixel headings on any scene. Body text keeps the
-   readable system font. html[data-pixel] is set when the switch is on, or when the current
-   edition's scene is Grass Block or Cottage. */
+   readable system font. Scenes only set colors and backgrounds; html[data-pixel] (the Pixel
+   style switch) adds the components, with Grass Block and Cottage accents where they apply. */
 @font-face { font-family: "GoodMorning Pixel"; src: url("fonts/pixelify-sans.woff2") format("woff2"); font-weight: 400 700; font-display: swap; }
 @font-face { font-family: "GoodMorning Pixel Labels"; src: url("fonts/silkscreen.woff2") format("woff2"); font-display: swap; }
 @font-face { font-family: "GoodMorning Pixel Titles"; src: url("fonts/jersey-10.woff2") format("woff2"); font-display: swap; }
@@ -95,61 +95,61 @@ html[data-edition="gn"][data-night-scheme="cottage"] {
   --px-btn: #403257; --px-btn-lo: #2a1f3c; --px-btn-ink: #f8eeff;
   --px-key: #b796ec; --px-key-hi: #d6c2f7; --px-key-lo: #7d5cb8; --px-key-ink: #23183a;
 }
-:is(html:not([data-edition="gn"]):is([data-day-scheme="grass-block"], [data-day-scheme="cottage"]),
-    html[data-edition="gn"]:is([data-night-scheme="grass-block"], [data-night-scheme="cottage"])) :is(.edition-link:not(.selected), .briefing-section-nav a:not(.active, [aria-current]), .toolbar-row .menu > summary, #site-update-toggle,
+:is(html[data-pixel]:not([data-edition="gn"]):is([data-day-scheme="grass-block"], [data-day-scheme="cottage"]),
+    html[data-pixel][data-edition="gn"]:is([data-night-scheme="grass-block"], [data-night-scheme="cottage"])) :is(.edition-link:not(.selected), .briefing-section-nav a:not(.active, [aria-current]), .toolbar-row .menu > summary, #site-update-toggle,
     #chat-help, #chat-latest, #quick-chat-launcher, #regenerate, .section-symbol, #mobile-sections, .back-to-top, .chat-page #chat-starters button,
     .schedule-navigation a, .week-arrow) {
     border: 0; border-radius: 0; background: var(--px-btn); color: var(--px-btn-ink);
     box-shadow: 0 -3px 0 0 var(--px-line), 0 3px 0 0 var(--px-line), -3px 0 0 0 var(--px-line), 3px 0 0 0 var(--px-line),
       inset 3px 3px 0 0 var(--px-btn-hi, transparent), inset -3px -3px 0 0 var(--px-btn-lo);
   }
-:is(html:not([data-edition="gn"]):is([data-day-scheme="grass-block"], [data-day-scheme="cottage"]),
-    html[data-edition="gn"]:is([data-night-scheme="grass-block"], [data-night-scheme="cottage"])) :is(.edition-link.selected, .briefing-section-nav a.active, .briefing-section-nav a[aria-current], #new-conversation, #chat-send) { text-shadow: 2px 2px 0 var(--px-key-shadow); }
-:is(html:not([data-edition="gn"]):is([data-day-scheme="grass-block"], [data-day-scheme="cottage"]),
-    html[data-edition="gn"]:is([data-night-scheme="grass-block"], [data-night-scheme="cottage"])) .edition-switch,
-:is(html:not([data-edition="gn"]):is([data-day-scheme="grass-block"], [data-day-scheme="cottage"]),
-    html[data-edition="gn"]:is([data-night-scheme="grass-block"], [data-night-scheme="cottage"])) .briefing-section-nav { gap: 14px; }
-:is(html:not([data-edition="gn"]):is([data-day-scheme="grass-block"], [data-day-scheme="cottage"]),
-    html[data-edition="gn"]:is([data-night-scheme="grass-block"], [data-night-scheme="cottage"])) h1 { font-weight: 600; text-shadow: 4px 4px 0 color-mix(in srgb, var(--ink) 16%, transparent); }
-:is(html:not([data-edition="gn"]):is([data-day-scheme="grass-block"], [data-day-scheme="cottage"]),
-    html[data-edition="gn"]:is([data-night-scheme="grass-block"], [data-night-scheme="cottage"])) .wordmark { text-shadow: 3px 3px 0 color-mix(in srgb, var(--ink) 18%, transparent); }
-:is(html:not([data-edition="gn"]):is([data-day-scheme="grass-block"], [data-day-scheme="cottage"]),
-    html[data-edition="gn"]:is([data-night-scheme="grass-block"], [data-night-scheme="cottage"])) .section-number { background: var(--wash); color: var(--accent); }
+:is(html[data-pixel]:not([data-edition="gn"]):is([data-day-scheme="grass-block"], [data-day-scheme="cottage"]),
+    html[data-pixel][data-edition="gn"]:is([data-night-scheme="grass-block"], [data-night-scheme="cottage"])) :is(.edition-link.selected, .briefing-section-nav a.active, .briefing-section-nav a[aria-current], #new-conversation, #chat-send) { text-shadow: 2px 2px 0 var(--px-key-shadow); }
+:is(html[data-pixel]:not([data-edition="gn"]):is([data-day-scheme="grass-block"], [data-day-scheme="cottage"]),
+    html[data-pixel][data-edition="gn"]:is([data-night-scheme="grass-block"], [data-night-scheme="cottage"])) .edition-switch,
+:is(html[data-pixel]:not([data-edition="gn"]):is([data-day-scheme="grass-block"], [data-day-scheme="cottage"]),
+    html[data-pixel][data-edition="gn"]:is([data-night-scheme="grass-block"], [data-night-scheme="cottage"])) .briefing-section-nav { gap: 14px; }
+:is(html[data-pixel]:not([data-edition="gn"]):is([data-day-scheme="grass-block"], [data-day-scheme="cottage"]),
+    html[data-pixel][data-edition="gn"]:is([data-night-scheme="grass-block"], [data-night-scheme="cottage"])) h1 { font-weight: 600; text-shadow: 4px 4px 0 color-mix(in srgb, var(--ink) 16%, transparent); }
+:is(html[data-pixel]:not([data-edition="gn"]):is([data-day-scheme="grass-block"], [data-day-scheme="cottage"]),
+    html[data-pixel][data-edition="gn"]:is([data-night-scheme="grass-block"], [data-night-scheme="cottage"])) .wordmark { text-shadow: 3px 3px 0 color-mix(in srgb, var(--ink) 18%, transparent); }
+:is(html[data-pixel]:not([data-edition="gn"]):is([data-day-scheme="grass-block"], [data-day-scheme="cottage"]),
+    html[data-pixel][data-edition="gn"]:is([data-night-scheme="grass-block"], [data-night-scheme="cottage"])) .section-number { background: var(--wash); color: var(--accent); }
 
 html[data-pixel] .week-picker a.is-missing:not([aria-current]) { background: color-mix(in srgb, var(--surface) 70%, transparent); }
 /* Grass Block extras: a grass ledge under the masthead, the week as a hotbar and weather tiles as inventory slots. */
 :is(html:not([data-edition="gn"])[data-day-scheme="grass-block"], html[data-edition="gn"][data-night-scheme="grass-block"]) .masthead { position: relative; margin-bottom: 18px; }
 :is(html:not([data-edition="gn"])[data-day-scheme="grass-block"], html[data-edition="gn"][data-night-scheme="grass-block"]) .masthead::after { content: ""; position: absolute; left: 0; right: 0; bottom: -18px; height: 20px; background: url("/grass-block-ledge.svg") repeat-x left top / 32px 20px; image-rendering: pixelated; box-shadow: 0 4px 0 #0000001f; pointer-events: none; }
-:is(html:not([data-edition="gn"])[data-day-scheme="grass-block"], html[data-edition="gn"][data-night-scheme="grass-block"]) .wordmark span { font: 11px/1.5 var(--px-label); }
-:is(html:not([data-edition="gn"])[data-day-scheme="grass-block"], html[data-edition="gn"][data-night-scheme="grass-block"]) .week-picker { gap: 0; padding: 6px; background: #8b8b8b; box-shadow: 0 0 0 3px var(--px-line), inset 3px 3px 0 #b5b5b5, inset -3px -3px 0 #5a5a5a; }
-:is(html:not([data-edition="gn"])[data-day-scheme="grass-block"], html[data-edition="gn"][data-night-scheme="grass-block"]) .week-picker a,
-:is(html:not([data-edition="gn"])[data-day-scheme="grass-block"], html[data-edition="gn"][data-night-scheme="grass-block"]) .week-picker a.is-missing:not([aria-current]) { margin: 3px; background: #a9a9a9; color: #2b2b2b; font-size: 11px; border: 0; box-shadow: inset 3px 3px 0 #6c6c6c, inset -3px -3px 0 #d6d6d6; }
-:is(html:not([data-edition="gn"])[data-day-scheme="grass-block"], html[data-edition="gn"][data-night-scheme="grass-block"]) .week-picker a small { color: #444; }
-:is(html:not([data-edition="gn"])[data-day-scheme="grass-block"], html[data-edition="gn"][data-night-scheme="grass-block"]) .week-picker [aria-current] { position: relative; z-index: 1; background: var(--surface); color: var(--ink); box-shadow: 0 0 0 3px #ffffff, 0 0 0 6px var(--px-line); }
-:is(html:not([data-edition="gn"])[data-day-scheme="grass-block"], html[data-edition="gn"][data-night-scheme="grass-block"]) .week-picker .today-marker { border: 0; background: var(--px-key); color: #fff; box-shadow: 0 0 0 2px var(--px-line); font-size: 8px; }
-:is(html:not([data-edition="gn"])[data-day-scheme="grass-block"], html[data-edition="gn"][data-night-scheme="grass-block"]) .weather-tile { box-shadow: 0 -3px 0 0 var(--px-line), 0 3px 0 0 var(--px-line), -3px 0 0 0 var(--px-line), 3px 0 0 0 var(--px-line),
+:is(html[data-pixel]:not([data-edition="gn"])[data-day-scheme="grass-block"], html[data-pixel][data-edition="gn"][data-night-scheme="grass-block"]) .wordmark span { font: 11px/1.5 var(--px-label); }
+:is(html[data-pixel]:not([data-edition="gn"])[data-day-scheme="grass-block"], html[data-pixel][data-edition="gn"][data-night-scheme="grass-block"]) .week-picker { gap: 0; padding: 6px; background: #8b8b8b; box-shadow: 0 0 0 3px var(--px-line), inset 3px 3px 0 #b5b5b5, inset -3px -3px 0 #5a5a5a; }
+:is(html[data-pixel]:not([data-edition="gn"])[data-day-scheme="grass-block"], html[data-pixel][data-edition="gn"][data-night-scheme="grass-block"]) .week-picker a,
+:is(html[data-pixel]:not([data-edition="gn"])[data-day-scheme="grass-block"], html[data-pixel][data-edition="gn"][data-night-scheme="grass-block"]) .week-picker a.is-missing:not([aria-current]) { margin: 3px; background: #a9a9a9; color: #2b2b2b; font-size: 11px; border: 0; box-shadow: inset 3px 3px 0 #6c6c6c, inset -3px -3px 0 #d6d6d6; }
+:is(html[data-pixel]:not([data-edition="gn"])[data-day-scheme="grass-block"], html[data-pixel][data-edition="gn"][data-night-scheme="grass-block"]) .week-picker a small { color: #444; }
+:is(html[data-pixel]:not([data-edition="gn"])[data-day-scheme="grass-block"], html[data-pixel][data-edition="gn"][data-night-scheme="grass-block"]) .week-picker [aria-current] { position: relative; z-index: 1; background: var(--surface); color: var(--ink); box-shadow: 0 0 0 3px #ffffff, 0 0 0 6px var(--px-line); }
+:is(html[data-pixel]:not([data-edition="gn"])[data-day-scheme="grass-block"], html[data-pixel][data-edition="gn"][data-night-scheme="grass-block"]) .week-picker .today-marker { border: 0; background: var(--px-key); color: #fff; box-shadow: 0 0 0 2px var(--px-line); font-size: 8px; }
+:is(html[data-pixel]:not([data-edition="gn"])[data-day-scheme="grass-block"], html[data-pixel][data-edition="gn"][data-night-scheme="grass-block"]) .weather-tile { box-shadow: 0 -3px 0 0 var(--px-line), 0 3px 0 0 var(--px-line), -3px 0 0 0 var(--px-line), 3px 0 0 0 var(--px-line),
       inset 4px 4px 0 0 color-mix(in srgb, var(--tile-accent) 30%, transparent), inset -4px -4px 0 0 #ffffffaa; }
-:is(html:not([data-edition="gn"])[data-day-scheme="grass-block"], html[data-edition="gn"][data-night-scheme="grass-block"]) #chat-history a[aria-current] { box-shadow: 0 -3px 0 0 var(--px-line), 0 3px 0 0 var(--px-line), -3px 0 0 0 var(--px-line), 3px 0 0 0 var(--px-line), inset 6px 0 0 0 var(--px-key); }
+:is(html[data-pixel]:not([data-edition="gn"])[data-day-scheme="grass-block"], html[data-pixel][data-edition="gn"][data-night-scheme="grass-block"]) #chat-history a[aria-current] { box-shadow: 0 -3px 0 0 var(--px-line), 0 3px 0 0 var(--px-line), -3px 0 0 0 var(--px-line), 3px 0 0 0 var(--px-line), inset 6px 0 0 0 var(--px-key); }
 
-html[data-edition="gn"][data-night-scheme="grass-block"] .week-picker { background: #2a2f4a; box-shadow: 0 0 0 3px var(--px-line), inset 3px 3px 0 #3d4468, inset -3px -3px 0 #151829; }
-html[data-edition="gn"][data-night-scheme="grass-block"] .week-picker a,
-html[data-edition="gn"][data-night-scheme="grass-block"] .week-picker a.is-missing:not([aria-current]) { background: #1e2238; color: #c9cee6; box-shadow: inset 3px 3px 0 #10132a, inset -3px -3px 0 #3a4064; }
-html[data-edition="gn"][data-night-scheme="grass-block"] .week-picker a small { color: #9aa1c4; }
-html[data-edition="gn"][data-night-scheme="grass-block"] .weather-tile { --tile-bg: #1e2340; box-shadow: 0 -3px 0 0 var(--px-line), 0 3px 0 0 var(--px-line), -3px 0 0 0 var(--px-line), 3px 0 0 0 var(--px-line), inset 4px 4px 0 0 #00000066, inset -4px -4px 0 0 #ffffff14; }
+html[data-pixel][data-edition="gn"][data-night-scheme="grass-block"] .week-picker { background: #2a2f4a; box-shadow: 0 0 0 3px var(--px-line), inset 3px 3px 0 #3d4468, inset -3px -3px 0 #151829; }
+html[data-pixel][data-edition="gn"][data-night-scheme="grass-block"] .week-picker a,
+html[data-pixel][data-edition="gn"][data-night-scheme="grass-block"] .week-picker a.is-missing:not([aria-current]) { background: #1e2238; color: #c9cee6; box-shadow: inset 3px 3px 0 #10132a, inset -3px -3px 0 #3a4064; }
+html[data-pixel][data-edition="gn"][data-night-scheme="grass-block"] .week-picker a small { color: #9aa1c4; }
+html[data-pixel][data-edition="gn"][data-night-scheme="grass-block"] .weather-tile { --tile-bg: #1e2340; box-shadow: 0 -3px 0 0 var(--px-line), 0 3px 0 0 var(--px-line), -3px 0 0 0 var(--px-line), 3px 0 0 0 var(--px-line), inset 4px 4px 0 0 #00000066, inset -4px -4px 0 0 #ffffff14; }
 
 /* Cottage extras: large panels sit in wooden frames; inner cards keep thin outlines. */
-:is(html:not([data-edition="gn"])[data-day-scheme="cottage"], html[data-edition="gn"][data-night-scheme="cottage"]) :is(.briefing-section, .letter-copy > .subtitle, .toolbar-row .menu-panel, .conversation-panel, #conversation-history, .focus-panel,
+:is(html[data-pixel]:not([data-edition="gn"])[data-day-scheme="cottage"], html[data-pixel][data-edition="gn"][data-night-scheme="cottage"]) :is(.briefing-section, .letter-copy > .subtitle, .toolbar-row .menu-panel, .conversation-panel, #conversation-history, .focus-panel,
       .schedule-grid, .nav-preview, #quick-chat-window, #regenerate-dialog, #site-patch-note, #activity-window) {
     border: 4px solid var(--px-wood);
     box-shadow: 0 -3px 0 0 var(--px-line), 0 3px 0 0 var(--px-line), -3px 0 0 0 var(--px-line), 3px 0 0 0 var(--px-line), inset 0 0 0 3px var(--px-wood-hi), 6px 9px 0 0 var(--px-drop);
   }
-:is(html:not([data-edition="gn"])[data-day-scheme="cottage"], html[data-edition="gn"][data-night-scheme="cottage"]) h1 { font-weight: 400; text-shadow: 0 4px 0 color-mix(in srgb, var(--accent) 28%, transparent); }
-:is(html:not([data-edition="gn"])[data-day-scheme="cottage"], html[data-edition="gn"][data-night-scheme="cottage"]) .wordmark { font-size: 40px; font-weight: 400; text-shadow: 3px 3px 0 color-mix(in srgb, var(--accent) 35%, transparent); }
-:is(html:not([data-edition="gn"])[data-day-scheme="cottage"], html[data-edition="gn"][data-night-scheme="cottage"]) .week-picker { gap: 12px; }
-:is(html:not([data-edition="gn"])[data-day-scheme="cottage"], html[data-edition="gn"][data-night-scheme="cottage"]) .week-picker a:not(.is-missing, [aria-current]) { background: var(--px-btn); }
-:is(html:not([data-edition="gn"])[data-day-scheme="cottage"], html[data-edition="gn"][data-night-scheme="cottage"]) .week-picker [aria-current] { background: var(--px-key); color: var(--px-key-ink); }
-:is(html:not([data-edition="gn"])[data-day-scheme="cottage"], html[data-edition="gn"][data-night-scheme="cottage"]) .week-picker [aria-current] small { color: inherit; opacity: .85; }
-:is(html:not([data-edition="gn"])[data-day-scheme="cottage"], html[data-edition="gn"][data-night-scheme="cottage"]) .week-picker .today-marker { border: 0; background: var(--warm); color: var(--px-line); box-shadow: 0 0 0 3px var(--px-line); }
+:is(html[data-pixel]:not([data-edition="gn"])[data-day-scheme="cottage"], html[data-pixel][data-edition="gn"][data-night-scheme="cottage"]) h1 { font-weight: 400; text-shadow: 0 4px 0 color-mix(in srgb, var(--accent) 28%, transparent); }
+:is(html[data-pixel]:not([data-edition="gn"])[data-day-scheme="cottage"], html[data-pixel][data-edition="gn"][data-night-scheme="cottage"]) .wordmark { font-size: 40px; font-weight: 400; text-shadow: 3px 3px 0 color-mix(in srgb, var(--accent) 35%, transparent); }
+:is(html[data-pixel]:not([data-edition="gn"])[data-day-scheme="cottage"], html[data-pixel][data-edition="gn"][data-night-scheme="cottage"]) .week-picker { gap: 12px; }
+:is(html[data-pixel]:not([data-edition="gn"])[data-day-scheme="cottage"], html[data-pixel][data-edition="gn"][data-night-scheme="cottage"]) .week-picker a:not(.is-missing, [aria-current]) { background: var(--px-btn); }
+:is(html[data-pixel]:not([data-edition="gn"])[data-day-scheme="cottage"], html[data-pixel][data-edition="gn"][data-night-scheme="cottage"]) .week-picker [aria-current] { background: var(--px-key); color: var(--px-key-ink); }
+:is(html[data-pixel]:not([data-edition="gn"])[data-day-scheme="cottage"], html[data-pixel][data-edition="gn"][data-night-scheme="cottage"]) .week-picker [aria-current] small { color: inherit; opacity: .85; }
+:is(html[data-pixel]:not([data-edition="gn"])[data-day-scheme="cottage"], html[data-pixel][data-edition="gn"][data-night-scheme="cottage"]) .week-picker .today-marker { border: 0; background: var(--warm); color: var(--px-line); box-shadow: 0 0 0 3px var(--px-line); }
 :is(html:not([data-edition="gn"])[data-day-scheme="cottage"], html[data-edition="gn"][data-night-scheme="cottage"]) .chat-message.user { background: var(--your-bubble); }
 
 

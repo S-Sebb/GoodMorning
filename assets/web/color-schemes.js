@@ -6,8 +6,6 @@
   const feedback = document.querySelector('#color-scheme-feedback');
   const root = document.documentElement;
   const t = key => typeof goodmorningT === 'function' ? goodmorningT(key) : key;
-  // Mirrors PIXEL_SCENES in color_schemes.py.
-  const pixelScenes = ['grass-block', 'cottage'];
   let saved = config.schemes, saving = false, syncing = false, revision = 0;
   const radios = theme => Array.from(form.querySelectorAll(`input[name="${theme}"]`));
   const chosen = theme => radios(theme).find(radio => radio.checked)?.value;
@@ -15,12 +13,7 @@
   const valid = value => value && radios('day').some(radio => radio.value === value.day)
     && radios('night').some(radio => radio.value === value.night) && typeof value.pixel === 'boolean';
   const same = value => value.day === saved.day && value.night === saved.night && value.pixel === saved.pixel;
-  // Grass Block and Cottage draw in pixel style even when the switch is off; the edition can change in place.
-  function paint() {
-    const scene = root.dataset.edition === 'gn' ? saved.night : saved.day;
-    root.dataset.pixelStyle = saved.pixel ? 'on' : 'off';
-    if (saved.pixel || pixelScenes.includes(scene)) root.dataset.pixel = 'on'; else delete root.dataset.pixel;
-  }
+  function paint() { if (saved.pixel) root.dataset.pixel = 'on'; else delete root.dataset.pixel; }
   function show(value) { check('day', value.day); check('night', value.night); pixel.checked = value.pixel; }
   function apply(value) {
     if (!valid(value)) throw new Error(t('Color schemes could not be saved. Try again.'));
@@ -64,7 +57,6 @@
   }
   form.addEventListener('submit', save);
   form.addEventListener('change', save);
-  new MutationObserver(paint).observe(root, {attributes: true, attributeFilter: ['data-edition']});
   window.addEventListener('focus', sync); document.addEventListener('visibilitychange', sync);
   document.addEventListener('website:before-refresh', event => { if (saving) event.preventDefault(); });
   setInterval(sync, 15000);

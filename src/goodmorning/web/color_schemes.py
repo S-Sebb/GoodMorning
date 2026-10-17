@@ -10,8 +10,6 @@ OPTIONS = {'day': {'classic': 'Classic', 'warm': 'Warm', 'morning-sky': 'Morning
                    'first-light': 'First Light', 'grass-block': 'Grass Block', 'cottage': 'Cottage'},
            'night': {'classic': 'Classic', 'starry': 'Starry', 'city-lights': 'City Lights',
                      'midnight-violet': 'Midnight Violet', 'grass-block': 'Grass Block', 'cottage': 'Cottage'}}
-# These scenes always draw in pixel style, whatever the Pixel style switch says.
-PIXEL_SCENES = {'grass-block', 'cottage'}
 DEFAULT = {'day': 'morning-sky', 'night': 'starry', 'pixel': False}
 CURRENT = ContextVar('website_color_schemes', default=DEFAULT)
 
@@ -26,10 +24,6 @@ def validate(value):
         raise ValueError('Choose one of the offered color schemes')
     return {**{theme: value[theme] for theme in OPTIONS}, 'pixel': value.get('pixel', False)}
 
-
-def pixel_on(selected, edition):
-    """Whether a page in this edition draws in pixel style."""
-    return selected['pixel'] or selected['night' if edition == 'gn' else 'day'] in PIXEL_SCENES
 
 
 def current():
@@ -64,7 +58,7 @@ def form(csrf, return_to):
     selected = current()
     controls = ('<form id="color-scheme-form" class="language-toolbar" action="/api/color-schemes" method="post"><h3 class="color-scheme-heading">Appearance</h3>'
                 '<label class="pixel-style-switch"><span><span class="pixel-style-name">Pixel style</span>'
-                '<small>Pixel frames and headings. Grass Block and Cottage are always pixel.</small></span>'
+                '<small>Pixel frames, buttons and headings for any color scheme.</small></span>'
                 '<input type="checkbox" id="pixel-style" name="pixel" value="on" role="switch"'+(' checked' if selected['pixel'] else '')+'></label>')
     # Picture cards are native radios, so they work with a keyboard and without JavaScript.
     for theme, choices in OPTIONS.items():
@@ -81,11 +75,9 @@ def form(csrf, return_to):
 def page(source, csrf, return_to):
     selected = current()
     def attributes(match):
-        tag = re.sub(r'\sdata-(?:day-scheme|night-scheme|pixel-style|pixel)="[^"]*"', '', match[0])
-        edition = re.search(r'\sdata-edition="([^"]*)"', tag)
-        pixel = ' data-pixel="on"' if pixel_on(selected, edition and edition[1]) else ''
-        return (tag[:-1]+f' data-day-scheme="{selected["day"]}" data-night-scheme="{selected["night"]}"'
-                f' data-pixel-style="{"on" if selected["pixel"] else "off"}"{pixel}>')
+        tag = re.sub(r'\sdata-(?:day-scheme|night-scheme|pixel)="[^"]*"', '', match[0])
+        pixel = ' data-pixel="on"' if selected['pixel'] else ''
+        return tag[:-1]+f' data-day-scheme="{selected["day"]}" data-night-scheme="{selected["night"]}"{pixel}>'
     source = re.sub(r'<html\b[^>]*>', attributes, source, count=1)
     if 'id="color-scheme-form"' not in source:
         source = source.replace('</form></div></details>', '</form>'+form(csrf, return_to)+'</div></details>', 1)
