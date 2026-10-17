@@ -5,7 +5,7 @@ Public login/encryption are covered separately; the native bridge substitutes
 OpenChamber's control envelope only. No mock model, no private production records.
 """
 import argparse
-from datetime import datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 import json
 from pathlib import Path
 import re
@@ -100,7 +100,9 @@ def main():
             page.locator('#prefs-menu summary').click()
             def send(text, mode=None):
                 if mode:
-                    page.get_by_role('button',name='New conversation',exact=True).click()
+                    # The page offers a new conversation only while one is open.
+                    new=page.get_by_role('button',name='New conversation',exact=True)
+                    if new.is_visible():new.click()
                     page.locator(f'[data-mode="{mode}"]').click()
                 page.get_by_label('Your message',exact=True).fill(text)
                 page.locator('#chat-send').click()
@@ -139,9 +141,17 @@ def main():
                 send('Record buying groceries today (no fixed time), and washing towels every Saturday. Also save my confirmed dentist appointment Thursday at Town Clinic; the time is unknown.', 'secretary')
             current=tasks(); assert len(current)==3 and sum(bool(t['repeat']) for t in current)==1, current
             results['checks'].append('Secretary records supplied workday, untimed recurrence and a confirmed TBC appointment')
-            page.goto(address+'/schedule')
+            inbox = InboxStore(runtime)
+            try:drafts = list(TaskStore(inbox).all(draft=True))
+            finally:inbox.close()
+            assert len(drafts)==1, drafts
+            # Near a weekend the appointment falls in next week: open the week that holds it.
+            monday = lambda day:day-timedelta(days=day.weekday())
+            weeks = (monday(date.fromisoformat(drafts[0]['date']))-monday(date.fromisoformat(str(app.today())))).days//7
+            page.goto(address+f'/schedule?week={weeks}')
             expect(page.locator('.schedule-event.is-tbc')).to_have_count(1)
             expect(page.locator('.schedule-event.is-tbc')).to_contain_text('Town Clinic')
+            page.goto(address+'/schedule')
             expect(page.locator('.schedule-task')).not_to_have_count(0)
             assert not page.evaluate('document.documentElement.scrollWidth > innerWidth')
             page.screenshot(path=str(output/'schedule-desktop.png'),full_page=True)

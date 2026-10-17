@@ -97,7 +97,14 @@ def next_weekday(today, weekday):
 
 
 def scenarios(today):
-    saturday = next_weekday(today, 5)
+    # Two days ahead is never today, so the named weekday has one meaning.
+    workday = today + timedelta(days=2)
+    weekday_en = workday.strftime('%A')
+    weekday_zh = '周' + '一二三四五六日'[workday.weekday()]
+    names_en = ('Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday')
+    names_zh = tuple('周' + d for d in '一二三四五六日')
+    today_en, today_zh = names_en[today.weekday()], names_zh[today.weekday()]
+    past_en, past_zh = names_en[(today.weekday() - 1) % 7], names_zh[(today.weekday() - 1) % 7]
     nov1 = date(today.year, 11, 1).isoformat()
 
     def only(rows, **checks):
@@ -189,7 +196,7 @@ def scenarios(today):
 
     def day_task(runtime, setup):
         row = only(tasks(runtime)[0])
-        assert row['planned_date'] == saturday.isoformat() and not row['due_date'], row
+        assert row['planned_date'] == workday.isoformat() and not row['due_date'], row
 
     def deadline_window(runtime, setup):
         row = only(tasks(runtime)[0])
@@ -214,6 +221,15 @@ def scenarios(today):
         assert all(r.get('preview') for r in shown(runtime, 'gm', thursday)[0]), 'tickable before Friday'
         assert shown(runtime, 'gn', thursday)[0], 'no notice the evening before'
         assert [r for r in shown(runtime, 'gm', friday)[0] if not r.get('preview')], 'not actionable on Friday'
+
+    def weekday_today(runtime, setup):
+        row = only(tasks(runtime)[0])
+        assert row['planned_date'] == today.isoformat(), row
+
+    def weekday_past(runtime, setup):
+        row = only(tasks(runtime)[0])
+        assert row['due_date'] == (today + timedelta(days=6)).isoformat(), row
+        assert not any(turn['forms'] for turn in setup['turns']), 'asked which day a weekday name meant'
 
     def notice_inferred(runtime, setup):
         tasks_, _ = shown(runtime, 'gm', '2026-12-09')
@@ -341,7 +357,10 @@ def scenarios(today):
         ('routine_and_deadline', 'secretary', None,
          'Every week I need to follow up on visiting the new theatres and negotiating terms. The whole thing must be finished by 10 February 2027.',
          '每周跟进一次新剧场的考察和商务谈判，整件事必须在2027年2月10日前完成。', routine_and_deadline),
-        ('day_task', 'todo', None, f'Pass the HL60 cells on Saturday.', '周六传代HL60细胞。', day_task),
+        ('day_task', 'todo', None, f'Pass the HL60 cells on {weekday_en}.', f'{weekday_zh}传代HL60细胞。', day_task),
+        # A bare weekday name is its next occurrence, today included, never a past day.
+        ('weekday_today', 'todo', None, f'Water the lab plants on {today_en}.', f'{today_zh}给实验室的植物浇水。', weekday_today),
+        ('weekday_past', 'todo', None, f'Send the Atlas report by {past_en}.', f'{past_zh}之前把 Atlas 报告发出去。', weekday_past),
         ('deadline_window', 'todo', None, 'Buy the hand warmer at Bailian ZX sometime between 23 and 28 October.',
          '10月23日到28日之间去百联ZX买暖娃。', deadline_window),
         ('notice_stated', 'secretary', None,
