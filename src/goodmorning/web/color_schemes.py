@@ -6,23 +6,26 @@ import re
 
 from goodmorning.runtime_files import atomic_text
 
-OPTIONS = {'day': {'classic': 'Classic', 'warm': 'Warm', 'morning-sky': 'Morning Sky',
+# Styles shape the components (frames, buttons, fonts); color schemes only set colors and scenery.
+OPTIONS = {'style': {'soft': 'Soft', 'pixel': 'Pixel'},
+           'day': {'classic': 'Classic', 'warm': 'Warm', 'morning-sky': 'Morning Sky',
                    'first-light': 'First Light', 'grass-block': 'Grass Block', 'cottage': 'Cottage'},
            'night': {'classic': 'Classic', 'starry': 'Starry', 'city-lights': 'City Lights',
                      'midnight-violet': 'Midnight Violet', 'grass-block': 'Grass Block', 'cottage': 'Cottage'}}
-DEFAULT = {'day': 'morning-sky', 'night': 'starry', 'pixel': False}
+DEFAULT = {'style': 'soft', 'day': 'morning-sky', 'night': 'starry'}
+LEGENDS = {'style': 'Style', 'day': 'Day color scheme', 'night': 'Night color scheme'}
 CURRENT = ContextVar('website_color_schemes', default=DEFAULT)
 
 
 def validate(value):
-    """Pixel style is optional so older saved choices keep their scenes and stay smooth."""
-    if not isinstance(value, dict) or set(value) - {'pixel'} != set(OPTIONS):
+    """Style is optional so choices saved before styles existed keep their scenes and stay soft."""
+    if isinstance(value, dict) and 'style' not in value:
+        value = {**value, 'style': DEFAULT['style']}
+    if not isinstance(value, dict) or set(value) != set(OPTIONS):
         raise ValueError('Choose one of the offered color schemes')
     if any(not isinstance(value[theme], str) or value[theme] not in choices for theme, choices in OPTIONS.items()):
         raise ValueError('Choose one of the offered color schemes')
-    if not isinstance(value.get('pixel', False), bool):
-        raise ValueError('Choose one of the offered color schemes')
-    return {**{theme: value[theme] for theme in OPTIONS}, 'pixel': value.get('pixel', False)}
+    return {theme: value[theme] for theme in OPTIONS}
 
 
 
@@ -56,13 +59,11 @@ def write(runtime, value):
 def form(csrf, return_to):
     from . import language as ui
     selected = current()
-    controls = ('<form id="color-scheme-form" class="language-toolbar" action="/api/color-schemes" method="post"><h3 class="color-scheme-heading">Appearance</h3>'
-                '<label class="pixel-style-switch"><span><span class="pixel-style-name">Pixel style</span>'
-                '<small>Pixel frames, buttons and headings for any color scheme.</small></span>'
-                '<input type="checkbox" id="pixel-style" name="pixel" value="on" role="switch"'+(' checked' if selected['pixel'] else '')+'></label>')
+    controls = '<form id="color-scheme-form" class="language-toolbar" action="/api/color-schemes" method="post"><h3 class="color-scheme-heading">Appearance</h3>'
     # Picture cards are native radios, so they work with a keyboard and without JavaScript.
     for theme, choices in OPTIONS.items():
-        controls += f'<fieldset class="scheme-picker" id="{theme}-color-scheme"><legend>{theme.title()} color scheme</legend>'
+        picker = 'website-style' if theme == 'style' else theme + '-color-scheme'
+        controls += f'<fieldset class="scheme-picker" id="{picker}"><legend>{LEGENDS[theme]}</legend>'
         controls += ''.join(f'<label class="scheme-card"><input type="radio" name="{theme}" value="{code}"'+(' checked' if code == selected[theme] else '')+'>'
                             f'<span class="scheme-swatch" data-swatch="{theme}-{code}" aria-hidden="true"><i></i><i></i><i></i></span>'
                             f'<span class="scheme-name" data-ui-text="{label}">'+ui.text(label)+'</span></label>'
@@ -75,9 +76,8 @@ def form(csrf, return_to):
 def page(source, csrf, return_to):
     selected = current()
     def attributes(match):
-        tag = re.sub(r'\sdata-(?:day-scheme|night-scheme|pixel)="[^"]*"', '', match[0])
-        pixel = ' data-pixel="on"' if selected['pixel'] else ''
-        return tag[:-1]+f' data-day-scheme="{selected["day"]}" data-night-scheme="{selected["night"]}"{pixel}>'
+        tag = re.sub(r'\sdata-(?:style|day-scheme|night-scheme)="[^"]*"', '', match[0])
+        return tag[:-1]+f' data-style="{selected["style"]}" data-day-scheme="{selected["day"]}" data-night-scheme="{selected["night"]}">'
     source = re.sub(r'<html\b[^>]*>', attributes, source, count=1)
     if 'id="color-scheme-form"' not in source:
         source = source.replace('</form></div></details>', '</form>'+form(csrf, return_to)+'</div></details>', 1)

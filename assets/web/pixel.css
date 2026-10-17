@@ -1,5 +1,5 @@
 /* Pixel style: square, notched frames and pixel headings on any scene. Body text keeps the
-   readable system font. Scenes only set colors and backgrounds; html[data-pixel] (the Pixel
+   readable system font. Scenes only set colors and backgrounds; html[data-style="pixel"] (the Pixel
    style switch) adds the components, with Grass Block and Cottage accents where they apply. */
 @font-face { font-family: "GoodMorning Pixel"; src: url("fonts/pixelify-sans.woff2") format("woff2"); font-weight: 400 700; font-display: swap; }
 @font-face { font-family: "GoodMorning Pixel Labels"; src: url("fonts/silkscreen.woff2") format("woff2"); font-display: swap; }
@@ -8,7 +8,7 @@
 @font-face { font-family: "GoodMorning Pixel CJK"; src: url("fonts/fusion-pixel-zh.woff2") format("woff2"); font-display: swap;
   unicode-range: U+2014, U+2018-2019, U+201C-201D, U+2026, U+3000-303F, U+4E00-9FFF, U+FF00-FFEF; }
 
-html[data-pixel] {
+html[data-style="pixel"] {
   --px: 3px;
   --px-line: color-mix(in srgb, var(--ink) 30%, var(--line));
   --px-hi: transparent; --px-lo: transparent;
@@ -19,20 +19,20 @@ html[data-pixel] {
 }
 
 /* Type: pixel headings and labels only. */
-html[data-pixel] :is(h1, h2, h3, .wordmark, .eyebrow, .edition-link, .briefing-section-nav a, .week-picker a, .weather-label,
+html[data-style="pixel"] :is(h1, h2, h3, .wordmark, .eyebrow, .edition-link, .briefing-section-nav a, .week-picker a, .weather-label,
   .weather-value, .section-number, #new-conversation, .toolbar-row .menu > summary, #site-update-toggle, #quick-chat-launcher,
-  .schedule-date, .preview-eyebrow, .preview-title, .today-marker, .pixel-style-name, .scheme-name, #prefs-menu legend,
+  .schedule-date, .preview-eyebrow, .preview-title, .today-marker, .scheme-name, #prefs-menu legend,
   #activity-heading, .activity-title, #mobile-sections) { font-family: var(--px-font); letter-spacing: 0; }
-html[data-pixel] :is(.wordmark, h1, h2) { font-family: var(--px-title); }
-html[data-pixel] :is(.eyebrow, .weather-label, .week-picker a, .today-marker, .preview-eyebrow, #activity-heading) { font-family: var(--px-label); }
-html[data-pixel] :is(.letter-copy > .subtitle, .section-takeaway, .briefing-closing, .wordmark span) { font-family: var(--px-font); font-style: normal; }
-html[data-pixel] h1 { font-weight: 500; }
-html[data-pixel] .wordmark { font-size: 30px; font-weight: 600; }
-html[data-pixel] .wordmark span { font-size: 14px; }
-html[data-pixel] img { image-rendering: pixelated; }
+html[data-style="pixel"] :is(.wordmark, h1, h2) { font-family: var(--px-title); }
+html[data-style="pixel"] :is(.eyebrow, .weather-label, .week-picker a, .today-marker, .preview-eyebrow, #activity-heading) { font-family: var(--px-label); }
+html[data-style="pixel"] :is(.letter-copy > .subtitle, .section-takeaway, .briefing-closing, .wordmark span) { font-family: var(--px-font); font-style: normal; }
+html[data-style="pixel"] h1 { font-weight: 500; }
+html[data-style="pixel"] .wordmark { font-size: 30px; font-weight: 600; }
+html[data-style="pixel"] .wordmark span { font-size: 14px; }
+html[data-style="pixel"] img { image-rendering: pixelated; }
 
 /* Notched frames with a hard offset shadow. */
-html[data-pixel] :is(.briefing-section, .weather-tile, .task-card, .week-picker a, .letter-copy > .subtitle, .toolbar-row .menu > summary,
+html[data-style="pixel"] :is(.briefing-section, .weather-tile, .task-card, .week-picker a, .letter-copy > .subtitle, .toolbar-row .menu > summary,
   .toolbar-row .menu-panel, .conversation-panel, #conversation-history, #chat-history a, .chat-message, .chat-page [data-special],
   .chat-input-row, #quick-chat-launcher, #quick-chat-window, .quick-chat-message, #chat-help, #chat-latest, #site-update-toggle,
   #chat-scroll, .schedule-grid, .focus-panel, .schedule-event, .agenda-day, .schedule-review, .section-symbol,
@@ -43,33 +43,33 @@ html[data-pixel] :is(.briefing-section, .weather-tile, .task-card, .week-picker 
     var(--px) 0 0 0 var(--px-line), inset var(--px) var(--px) 0 0 var(--px-hi), inset calc(-1 * var(--px)) calc(-1 * var(--px)) 0 0 var(--px-lo),
     calc(2 * var(--px)) calc(2 * var(--px)) 0 0 var(--px-drop);
 }
-html[data-pixel] .chat-page [data-special] { --px-hi: var(--special-color); box-shadow: 0 -3px 0 0 var(--px-line), 0 3px 0 0 var(--px-line), -3px 0 0 0 var(--px-line), 3px 0 0 0 var(--px-line), inset 6px 0 0 0 var(--special-color), 6px 6px 0 0 var(--px-drop); }
-html[data-pixel] :is(.briefing-section.is-current, .week-picker [aria-current]) { --px-line: var(--accent); }
-html[data-pixel] .week-picker a.is-missing:not([aria-current]) { box-shadow: 0 -2px 0 0 var(--line), 0 2px 0 0 var(--line), -2px 0 0 0 var(--line), 2px 0 0 0 var(--line); }
-html[data-pixel] .section-takeaway { margin-left: var(--px); }
-html[data-pixel] :is(.section-number, .check, .chat-special-icon, .chat-portrait, .quick-chat-portrait, #chat-attach, #chat-send,
+html[data-style="pixel"] .chat-page [data-special] { --px-hi: var(--special-color); box-shadow: 0 -3px 0 0 var(--px-line), 0 3px 0 0 var(--px-line), -3px 0 0 0 var(--px-line), 3px 0 0 0 var(--px-line), inset 6px 0 0 0 var(--special-color), 6px 6px 0 0 var(--px-drop); }
+html[data-style="pixel"] :is(.briefing-section.is-current, .week-picker [aria-current]) { --px-line: var(--accent); }
+html[data-style="pixel"] .week-picker a.is-missing:not([aria-current]) { box-shadow: 0 -2px 0 0 var(--line), 0 2px 0 0 var(--line), -2px 0 0 0 var(--line), 2px 0 0 0 var(--line); }
+html[data-style="pixel"] .section-takeaway { margin-left: var(--px); }
+html[data-style="pixel"] :is(.section-number, .check, .chat-special-icon, .chat-portrait, .quick-chat-portrait, #chat-attach, #chat-send,
   #chat-history .history-current, .chat-help-mark, #quick-chat-dot, #quick-chat-send, .quick-chat-tool, #quick-chat-text, .today-marker,
   .edition-link, .briefing-section-nav a, .chat-page button, .schedule-navigation a, .week-arrow, .schedule-mode, .schedule-mode *,
   .day-badge, .schedule-review a, .is-today .schedule-day-number, .activity-desk, .activity-item a, .attachment-chip, .scheme-swatch,
   .scheme-swatch i, .pixel-style-switch, .pixel-style-switch input, .pixel-style-switch input::before, .settings-close, #close-sections) { border-radius: 0; }
-html[data-pixel] .scheme-swatch { box-shadow: 0 0 0 2px var(--px-line); }
-html[data-pixel] .scheme-card input:checked + .scheme-swatch { box-shadow: 0 0 0 3px var(--surface), 0 0 0 6px var(--accent); }
-html[data-pixel] .section-number { border: 0; box-shadow: 0 0 0 var(--px) var(--px-line); }
-html[data-pixel] :is(.chat-portrait, .quick-chat-portrait) { box-shadow: 0 0 0 var(--px) var(--px-line); }
+html[data-style="pixel"] .scheme-swatch { box-shadow: 0 0 0 2px var(--px-line); }
+html[data-style="pixel"] .scheme-card input:checked + .scheme-swatch { box-shadow: 0 0 0 3px var(--surface), 0 0 0 6px var(--accent); }
+html[data-style="pixel"] .section-number { border: 0; box-shadow: 0 0 0 var(--px) var(--px-line); }
+html[data-style="pixel"] :is(.chat-portrait, .quick-chat-portrait) { box-shadow: 0 0 0 var(--px) var(--px-line); }
 
 /* The current page and primary actions are solid keys. */
-html[data-pixel] :is(.edition-link.selected, .briefing-section-nav a.active, .briefing-section-nav a[aria-current], #new-conversation,
+html[data-style="pixel"] :is(.edition-link.selected, .briefing-section-nav a.active, .briefing-section-nav a[aria-current], #new-conversation,
   #chat-send, .initialize-button, .schedule-review a) {
   border: 0; border-radius: 0; background: var(--px-key); color: var(--px-key-ink);
   box-shadow: 0 -3px 0 0 var(--px-line), 0 3px 0 0 var(--px-line), -3px 0 0 0 var(--px-line), 3px 0 0 0 var(--px-line),
     inset 3px 3px 0 0 var(--px-key-hi), inset -3px -3px 0 0 var(--px-key-lo), 6px 6px 0 0 var(--px-drop);
 }
-@media (max-width: 700px) { html[data-pixel] .edition-link.selected::after { display: none; } }
+@media (max-width: 700px) { html[data-style="pixel"] .edition-link.selected::after { display: none; } }
 
-html[data-pixel] .reading-progress { height: 6px; background: var(--px-key); box-shadow: 0 3px 0 var(--px-line); }
-html[data-pixel] #chat-scroll::-webkit-scrollbar-thumb, html[data-pixel] #chat-scroll::-webkit-scrollbar-track { border-radius: 0; }
-html[data-pixel] .hero-copy .briefing-avatar::before { border-radius: 0; background: none; }
-html[data-pixel] .hero-copy .briefing-avatar::after { border-radius: 0; left: 18%; right: 18%; height: 6%; background: color-mix(in srgb, var(--ink) 18%, transparent); }
+html[data-style="pixel"] .reading-progress { height: 6px; background: var(--px-key); box-shadow: 0 3px 0 var(--px-line); }
+html[data-style="pixel"] #chat-scroll::-webkit-scrollbar-thumb, html[data-style="pixel"] #chat-scroll::-webkit-scrollbar-track { border-radius: 0; }
+html[data-style="pixel"] .hero-copy .briefing-avatar::before { border-radius: 0; background: none; }
+html[data-style="pixel"] .hero-copy .briefing-avatar::after { border-radius: 0; left: 18%; right: 18%; height: 6%; background: color-mix(in srgb, var(--ink) 18%, transparent); }
 
 /* Grass Block: black frames with bevels, stone buttons and a green current key (amethyst at night). */
 html:not([data-edition="gn"])[data-day-scheme="grass-block"], html[data-edition="gn"][data-night-scheme="grass-block"] {
@@ -95,77 +95,83 @@ html[data-edition="gn"][data-night-scheme="cottage"] {
   --px-btn: #403257; --px-btn-lo: #2a1f3c; --px-btn-ink: #f8eeff;
   --px-key: #b796ec; --px-key-hi: #d6c2f7; --px-key-lo: #7d5cb8; --px-key-ink: #23183a;
 }
-:is(html[data-pixel]:not([data-edition="gn"]):is([data-day-scheme="grass-block"], [data-day-scheme="cottage"]),
-    html[data-pixel][data-edition="gn"]:is([data-night-scheme="grass-block"], [data-night-scheme="cottage"])) :is(.edition-link:not(.selected), .briefing-section-nav a:not(.active, [aria-current]), .toolbar-row .menu > summary, #site-update-toggle,
+:is(html[data-style="pixel"]:not([data-edition="gn"]):is([data-day-scheme="grass-block"], [data-day-scheme="cottage"]),
+    html[data-style="pixel"][data-edition="gn"]:is([data-night-scheme="grass-block"], [data-night-scheme="cottage"])) :is(.edition-link:not(.selected), .briefing-section-nav a:not(.active, [aria-current]), .toolbar-row .menu > summary, #site-update-toggle,
     #chat-help, #chat-latest, #quick-chat-launcher, #regenerate, .section-symbol, #mobile-sections, .back-to-top, .chat-page #chat-starters button,
     .schedule-navigation a, .week-arrow) {
     border: 0; border-radius: 0; background: var(--px-btn); color: var(--px-btn-ink);
     box-shadow: 0 -3px 0 0 var(--px-line), 0 3px 0 0 var(--px-line), -3px 0 0 0 var(--px-line), 3px 0 0 0 var(--px-line),
       inset 3px 3px 0 0 var(--px-btn-hi, transparent), inset -3px -3px 0 0 var(--px-btn-lo);
   }
-:is(html[data-pixel]:not([data-edition="gn"]):is([data-day-scheme="grass-block"], [data-day-scheme="cottage"]),
-    html[data-pixel][data-edition="gn"]:is([data-night-scheme="grass-block"], [data-night-scheme="cottage"])) :is(.edition-link.selected, .briefing-section-nav a.active, .briefing-section-nav a[aria-current], #new-conversation, #chat-send) { text-shadow: 2px 2px 0 var(--px-key-shadow); }
-:is(html[data-pixel]:not([data-edition="gn"]):is([data-day-scheme="grass-block"], [data-day-scheme="cottage"]),
-    html[data-pixel][data-edition="gn"]:is([data-night-scheme="grass-block"], [data-night-scheme="cottage"])) .edition-switch,
-:is(html[data-pixel]:not([data-edition="gn"]):is([data-day-scheme="grass-block"], [data-day-scheme="cottage"]),
-    html[data-pixel][data-edition="gn"]:is([data-night-scheme="grass-block"], [data-night-scheme="cottage"])) .briefing-section-nav { gap: 14px; }
-:is(html[data-pixel]:not([data-edition="gn"]):is([data-day-scheme="grass-block"], [data-day-scheme="cottage"]),
-    html[data-pixel][data-edition="gn"]:is([data-night-scheme="grass-block"], [data-night-scheme="cottage"])) h1 { font-weight: 600; text-shadow: 4px 4px 0 color-mix(in srgb, var(--ink) 16%, transparent); }
-:is(html[data-pixel]:not([data-edition="gn"]):is([data-day-scheme="grass-block"], [data-day-scheme="cottage"]),
-    html[data-pixel][data-edition="gn"]:is([data-night-scheme="grass-block"], [data-night-scheme="cottage"])) .wordmark { text-shadow: 3px 3px 0 color-mix(in srgb, var(--ink) 18%, transparent); }
-:is(html[data-pixel]:not([data-edition="gn"]):is([data-day-scheme="grass-block"], [data-day-scheme="cottage"]),
-    html[data-pixel][data-edition="gn"]:is([data-night-scheme="grass-block"], [data-night-scheme="cottage"])) .section-number { background: var(--wash); color: var(--accent); }
+:is(html[data-style="pixel"]:not([data-edition="gn"]):is([data-day-scheme="grass-block"], [data-day-scheme="cottage"]),
+    html[data-style="pixel"][data-edition="gn"]:is([data-night-scheme="grass-block"], [data-night-scheme="cottage"])) :is(.edition-link.selected, .briefing-section-nav a.active, .briefing-section-nav a[aria-current], #new-conversation, #chat-send) { text-shadow: 2px 2px 0 var(--px-key-shadow); }
+:is(html[data-style="pixel"]:not([data-edition="gn"]):is([data-day-scheme="grass-block"], [data-day-scheme="cottage"]),
+    html[data-style="pixel"][data-edition="gn"]:is([data-night-scheme="grass-block"], [data-night-scheme="cottage"])) .edition-switch,
+:is(html[data-style="pixel"]:not([data-edition="gn"]):is([data-day-scheme="grass-block"], [data-day-scheme="cottage"]),
+    html[data-style="pixel"][data-edition="gn"]:is([data-night-scheme="grass-block"], [data-night-scheme="cottage"])) .briefing-section-nav { gap: 14px; }
+:is(html[data-style="pixel"]:not([data-edition="gn"]):is([data-day-scheme="grass-block"], [data-day-scheme="cottage"]),
+    html[data-style="pixel"][data-edition="gn"]:is([data-night-scheme="grass-block"], [data-night-scheme="cottage"])) h1 { font-weight: 600; text-shadow: 4px 4px 0 color-mix(in srgb, var(--ink) 16%, transparent); }
+:is(html[data-style="pixel"]:not([data-edition="gn"]):is([data-day-scheme="grass-block"], [data-day-scheme="cottage"]),
+    html[data-style="pixel"][data-edition="gn"]:is([data-night-scheme="grass-block"], [data-night-scheme="cottage"])) .wordmark { text-shadow: 3px 3px 0 color-mix(in srgb, var(--ink) 18%, transparent); }
+:is(html[data-style="pixel"]:not([data-edition="gn"]):is([data-day-scheme="grass-block"], [data-day-scheme="cottage"]),
+    html[data-style="pixel"][data-edition="gn"]:is([data-night-scheme="grass-block"], [data-night-scheme="cottage"])) .section-number { background: var(--wash); color: var(--accent); }
 
-html[data-pixel] .week-picker a.is-missing:not([aria-current]) { background: color-mix(in srgb, var(--surface) 70%, transparent); }
+html[data-style="pixel"] .week-picker a.is-missing:not([aria-current]) { background: color-mix(in srgb, var(--surface) 70%, transparent); }
 /* Grass Block extras: a grass ledge under the masthead, the week as a hotbar and weather tiles as inventory slots. */
 :is(html:not([data-edition="gn"])[data-day-scheme="grass-block"], html[data-edition="gn"][data-night-scheme="grass-block"]) .masthead { position: relative; margin-bottom: 18px; }
 :is(html:not([data-edition="gn"])[data-day-scheme="grass-block"], html[data-edition="gn"][data-night-scheme="grass-block"]) .masthead::after { content: ""; position: absolute; left: 0; right: 0; bottom: -18px; height: 20px; background: url("/grass-block-ledge.svg") repeat-x left top / 32px 20px; image-rendering: pixelated; box-shadow: 0 4px 0 #0000001f; pointer-events: none; }
-:is(html[data-pixel]:not([data-edition="gn"])[data-day-scheme="grass-block"], html[data-pixel][data-edition="gn"][data-night-scheme="grass-block"]) .wordmark span { font: 11px/1.5 var(--px-label); }
-:is(html[data-pixel]:not([data-edition="gn"])[data-day-scheme="grass-block"], html[data-pixel][data-edition="gn"][data-night-scheme="grass-block"]) .week-picker { gap: 0; padding: 6px; background: #8b8b8b; box-shadow: 0 0 0 3px var(--px-line), inset 3px 3px 0 #b5b5b5, inset -3px -3px 0 #5a5a5a; }
-:is(html[data-pixel]:not([data-edition="gn"])[data-day-scheme="grass-block"], html[data-pixel][data-edition="gn"][data-night-scheme="grass-block"]) .week-picker a,
-:is(html[data-pixel]:not([data-edition="gn"])[data-day-scheme="grass-block"], html[data-pixel][data-edition="gn"][data-night-scheme="grass-block"]) .week-picker a.is-missing:not([aria-current]) { margin: 3px; background: #a9a9a9; color: #2b2b2b; font-size: 11px; border: 0; box-shadow: inset 3px 3px 0 #6c6c6c, inset -3px -3px 0 #d6d6d6; }
-:is(html[data-pixel]:not([data-edition="gn"])[data-day-scheme="grass-block"], html[data-pixel][data-edition="gn"][data-night-scheme="grass-block"]) .week-picker a small { color: #444; }
-:is(html[data-pixel]:not([data-edition="gn"])[data-day-scheme="grass-block"], html[data-pixel][data-edition="gn"][data-night-scheme="grass-block"]) .week-picker [aria-current] { position: relative; z-index: 1; background: var(--surface); color: var(--ink); box-shadow: 0 0 0 3px #ffffff, 0 0 0 6px var(--px-line); }
-:is(html[data-pixel]:not([data-edition="gn"])[data-day-scheme="grass-block"], html[data-pixel][data-edition="gn"][data-night-scheme="grass-block"]) .week-picker .today-marker { border: 0; background: var(--px-key); color: #fff; box-shadow: 0 0 0 2px var(--px-line); font-size: 8px; }
-:is(html[data-pixel]:not([data-edition="gn"])[data-day-scheme="grass-block"], html[data-pixel][data-edition="gn"][data-night-scheme="grass-block"]) .weather-tile { box-shadow: 0 -3px 0 0 var(--px-line), 0 3px 0 0 var(--px-line), -3px 0 0 0 var(--px-line), 3px 0 0 0 var(--px-line),
+:is(html[data-style="pixel"]:not([data-edition="gn"])[data-day-scheme="grass-block"], html[data-style="pixel"][data-edition="gn"][data-night-scheme="grass-block"]) .wordmark span { font: 11px/1.5 var(--px-label); }
+:is(html[data-style="pixel"]:not([data-edition="gn"])[data-day-scheme="grass-block"], html[data-style="pixel"][data-edition="gn"][data-night-scheme="grass-block"]) .week-picker { gap: 0; padding: 6px; background: #8b8b8b; box-shadow: 0 0 0 3px var(--px-line), inset 3px 3px 0 #b5b5b5, inset -3px -3px 0 #5a5a5a; }
+:is(html[data-style="pixel"]:not([data-edition="gn"])[data-day-scheme="grass-block"], html[data-style="pixel"][data-edition="gn"][data-night-scheme="grass-block"]) .week-picker a,
+:is(html[data-style="pixel"]:not([data-edition="gn"])[data-day-scheme="grass-block"], html[data-style="pixel"][data-edition="gn"][data-night-scheme="grass-block"]) .week-picker a.is-missing:not([aria-current]) { margin: 3px; background: #a9a9a9; color: #2b2b2b; font-size: 11px; border: 0; box-shadow: inset 3px 3px 0 #6c6c6c, inset -3px -3px 0 #d6d6d6; }
+:is(html[data-style="pixel"]:not([data-edition="gn"])[data-day-scheme="grass-block"], html[data-style="pixel"][data-edition="gn"][data-night-scheme="grass-block"]) .week-picker a small { color: #444; }
+:is(html[data-style="pixel"]:not([data-edition="gn"])[data-day-scheme="grass-block"], html[data-style="pixel"][data-edition="gn"][data-night-scheme="grass-block"]) .week-picker [aria-current] { position: relative; z-index: 1; background: var(--surface); color: var(--ink); box-shadow: 0 0 0 3px #ffffff, 0 0 0 6px var(--px-line); }
+:is(html[data-style="pixel"]:not([data-edition="gn"])[data-day-scheme="grass-block"], html[data-style="pixel"][data-edition="gn"][data-night-scheme="grass-block"]) .week-picker .today-marker { border: 0; background: var(--px-key); color: #fff; box-shadow: 0 0 0 2px var(--px-line); font-size: 8px; }
+:is(html[data-style="pixel"]:not([data-edition="gn"])[data-day-scheme="grass-block"], html[data-style="pixel"][data-edition="gn"][data-night-scheme="grass-block"]) .weather-tile { box-shadow: 0 -3px 0 0 var(--px-line), 0 3px 0 0 var(--px-line), -3px 0 0 0 var(--px-line), 3px 0 0 0 var(--px-line),
       inset 4px 4px 0 0 color-mix(in srgb, var(--tile-accent) 30%, transparent), inset -4px -4px 0 0 #ffffffaa; }
-:is(html[data-pixel]:not([data-edition="gn"])[data-day-scheme="grass-block"], html[data-pixel][data-edition="gn"][data-night-scheme="grass-block"]) #chat-history a[aria-current] { box-shadow: 0 -3px 0 0 var(--px-line), 0 3px 0 0 var(--px-line), -3px 0 0 0 var(--px-line), 3px 0 0 0 var(--px-line), inset 6px 0 0 0 var(--px-key); }
+:is(html[data-style="pixel"]:not([data-edition="gn"])[data-day-scheme="grass-block"], html[data-style="pixel"][data-edition="gn"][data-night-scheme="grass-block"]) #chat-history a[aria-current] { box-shadow: 0 -3px 0 0 var(--px-line), 0 3px 0 0 var(--px-line), -3px 0 0 0 var(--px-line), 3px 0 0 0 var(--px-line), inset 6px 0 0 0 var(--px-key); }
 
-html[data-pixel][data-edition="gn"][data-night-scheme="grass-block"] .week-picker { background: #2a2f4a; box-shadow: 0 0 0 3px var(--px-line), inset 3px 3px 0 #3d4468, inset -3px -3px 0 #151829; }
-html[data-pixel][data-edition="gn"][data-night-scheme="grass-block"] .week-picker a,
-html[data-pixel][data-edition="gn"][data-night-scheme="grass-block"] .week-picker a.is-missing:not([aria-current]) { background: #1e2238; color: #c9cee6; box-shadow: inset 3px 3px 0 #10132a, inset -3px -3px 0 #3a4064; }
-html[data-pixel][data-edition="gn"][data-night-scheme="grass-block"] .week-picker a small { color: #9aa1c4; }
-html[data-pixel][data-edition="gn"][data-night-scheme="grass-block"] .weather-tile { --tile-bg: #1e2340; box-shadow: 0 -3px 0 0 var(--px-line), 0 3px 0 0 var(--px-line), -3px 0 0 0 var(--px-line), 3px 0 0 0 var(--px-line), inset 4px 4px 0 0 #00000066, inset -4px -4px 0 0 #ffffff14; }
+html[data-style="pixel"][data-edition="gn"][data-night-scheme="grass-block"] .week-picker { background: #2a2f4a; box-shadow: 0 0 0 3px var(--px-line), inset 3px 3px 0 #3d4468, inset -3px -3px 0 #151829; }
+html[data-style="pixel"][data-edition="gn"][data-night-scheme="grass-block"] .week-picker a,
+html[data-style="pixel"][data-edition="gn"][data-night-scheme="grass-block"] .week-picker a.is-missing:not([aria-current]) { background: #1e2238; color: #c9cee6; box-shadow: inset 3px 3px 0 #10132a, inset -3px -3px 0 #3a4064; }
+html[data-style="pixel"][data-edition="gn"][data-night-scheme="grass-block"] .week-picker a small { color: #9aa1c4; }
+html[data-style="pixel"][data-edition="gn"][data-night-scheme="grass-block"] .weather-tile { --tile-bg: #1e2340; box-shadow: 0 -3px 0 0 var(--px-line), 0 3px 0 0 var(--px-line), -3px 0 0 0 var(--px-line), 3px 0 0 0 var(--px-line), inset 4px 4px 0 0 #00000066, inset -4px -4px 0 0 #ffffff14; }
 
 /* Cottage extras: large panels sit in wooden frames; inner cards keep thin outlines. */
-:is(html[data-pixel]:not([data-edition="gn"])[data-day-scheme="cottage"], html[data-pixel][data-edition="gn"][data-night-scheme="cottage"]) :is(.briefing-section, .letter-copy > .subtitle, .toolbar-row .menu-panel, .conversation-panel, #conversation-history, .focus-panel,
+:is(html[data-style="pixel"]:not([data-edition="gn"])[data-day-scheme="cottage"], html[data-style="pixel"][data-edition="gn"][data-night-scheme="cottage"]) :is(.briefing-section, .letter-copy > .subtitle, .toolbar-row .menu-panel, .conversation-panel, #conversation-history, .focus-panel,
       .schedule-grid, .nav-preview, #quick-chat-window, #regenerate-dialog, #site-patch-note, #activity-window) {
     border: 4px solid var(--px-wood);
     box-shadow: 0 -3px 0 0 var(--px-line), 0 3px 0 0 var(--px-line), -3px 0 0 0 var(--px-line), 3px 0 0 0 var(--px-line), inset 0 0 0 3px var(--px-wood-hi), 6px 9px 0 0 var(--px-drop);
   }
-:is(html[data-pixel]:not([data-edition="gn"])[data-day-scheme="cottage"], html[data-pixel][data-edition="gn"][data-night-scheme="cottage"]) h1 { font-weight: 400; text-shadow: 0 4px 0 color-mix(in srgb, var(--accent) 28%, transparent); }
-:is(html[data-pixel]:not([data-edition="gn"])[data-day-scheme="cottage"], html[data-pixel][data-edition="gn"][data-night-scheme="cottage"]) .wordmark { font-size: 40px; font-weight: 400; text-shadow: 3px 3px 0 color-mix(in srgb, var(--accent) 35%, transparent); }
-:is(html[data-pixel]:not([data-edition="gn"])[data-day-scheme="cottage"], html[data-pixel][data-edition="gn"][data-night-scheme="cottage"]) .week-picker { gap: 12px; }
-:is(html[data-pixel]:not([data-edition="gn"])[data-day-scheme="cottage"], html[data-pixel][data-edition="gn"][data-night-scheme="cottage"]) .week-picker a:not(.is-missing, [aria-current]) { background: var(--px-btn); }
-:is(html[data-pixel]:not([data-edition="gn"])[data-day-scheme="cottage"], html[data-pixel][data-edition="gn"][data-night-scheme="cottage"]) .week-picker [aria-current] { background: var(--px-key); color: var(--px-key-ink); }
-:is(html[data-pixel]:not([data-edition="gn"])[data-day-scheme="cottage"], html[data-pixel][data-edition="gn"][data-night-scheme="cottage"]) .week-picker [aria-current] small { color: inherit; opacity: .85; }
-:is(html[data-pixel]:not([data-edition="gn"])[data-day-scheme="cottage"], html[data-pixel][data-edition="gn"][data-night-scheme="cottage"]) .week-picker .today-marker { border: 0; background: var(--warm); color: var(--px-line); box-shadow: 0 0 0 3px var(--px-line); }
+:is(html[data-style="pixel"]:not([data-edition="gn"])[data-day-scheme="cottage"], html[data-style="pixel"][data-edition="gn"][data-night-scheme="cottage"]) h1 { font-weight: 400; text-shadow: 0 4px 0 color-mix(in srgb, var(--accent) 28%, transparent); }
+:is(html[data-style="pixel"]:not([data-edition="gn"])[data-day-scheme="cottage"], html[data-style="pixel"][data-edition="gn"][data-night-scheme="cottage"]) .wordmark { font-size: 40px; font-weight: 400; text-shadow: 3px 3px 0 color-mix(in srgb, var(--accent) 35%, transparent); }
+:is(html[data-style="pixel"]:not([data-edition="gn"])[data-day-scheme="cottage"], html[data-style="pixel"][data-edition="gn"][data-night-scheme="cottage"]) .week-picker { gap: 12px; }
+:is(html[data-style="pixel"]:not([data-edition="gn"])[data-day-scheme="cottage"], html[data-style="pixel"][data-edition="gn"][data-night-scheme="cottage"]) .week-picker a:not(.is-missing, [aria-current]) { background: var(--px-btn); }
+:is(html[data-style="pixel"]:not([data-edition="gn"])[data-day-scheme="cottage"], html[data-style="pixel"][data-edition="gn"][data-night-scheme="cottage"]) .week-picker [aria-current] { background: var(--px-key); color: var(--px-key-ink); }
+:is(html[data-style="pixel"]:not([data-edition="gn"])[data-day-scheme="cottage"], html[data-style="pixel"][data-edition="gn"][data-night-scheme="cottage"]) .week-picker [aria-current] small { color: inherit; opacity: .85; }
+:is(html[data-style="pixel"]:not([data-edition="gn"])[data-day-scheme="cottage"], html[data-style="pixel"][data-edition="gn"][data-night-scheme="cottage"]) .week-picker .today-marker { border: 0; background: var(--warm); color: var(--px-line); box-shadow: 0 0 0 3px var(--px-line); }
 :is(html:not([data-edition="gn"])[data-day-scheme="cottage"], html[data-edition="gn"][data-night-scheme="cottage"]) .chat-message.user { background: var(--your-bubble); }
 
 
 /* Chinese pixel glyphs sit on a 12px grid: they stay crisp only at 12/24/36px and without
    synthetic bold, so Chinese pixel text snaps to those sizes. Reading text keeps the system font. */
-html[data-pixel]:lang(zh) :is(h1, h2, h3, .wordmark span, .eyebrow, .edition-link, .briefing-section-nav a, .week-picker a, .weather-label,
-  .section-number, #new-conversation, .toolbar-row .menu > summary, #site-update-toggle, #quick-chat-launcher, .pixel-style-name, .scheme-name,
+html[data-style="pixel"]:lang(zh) :is(h1, h2, h3, .wordmark span, .eyebrow, .edition-link, .briefing-section-nav a, .week-picker a, .weather-label,
+  .section-number, #new-conversation, .toolbar-row .menu > summary, #site-update-toggle, #quick-chat-launcher, .scheme-name,
   #prefs-menu legend, .preview-eyebrow, .preview-title, .today-marker, #activity-heading, .activity-title, #mobile-sections) {
   font-weight: 400; font-synthesis: none; letter-spacing: 0;
 }
-html[data-pixel]:lang(zh) :is(h3, .wordmark span, .eyebrow, .edition-link, .briefing-section-nav a, .week-picker a, .weather-label,
-  #new-conversation, .toolbar-row .menu > summary, #site-update-toggle, #quick-chat-launcher, .pixel-style-name, .scheme-name, #prefs-menu legend,
+html[data-style="pixel"]:lang(zh) :is(h3, .wordmark span, .eyebrow, .edition-link, .briefing-section-nav a, .week-picker a, .weather-label,
+  #new-conversation, .toolbar-row .menu > summary, #site-update-toggle, #quick-chat-launcher, .scheme-name, #prefs-menu legend,
   .settings-menu-header h2, .color-scheme-heading, .preview-eyebrow, #activity-heading, #mobile-sections, .week-picker small, .today-marker) { font-size: 12px; line-height: 18px; }
-html[data-pixel]:lang(zh) :is(h2, .preview-title, .activity-title) { font-size: 24px; line-height: 36px; }
-html[data-pixel]:lang(zh) h1 { font-size: 36px; line-height: 48px; }
-@media (max-width: 700px) { html[data-pixel]:lang(zh) h1 { font-size: 24px; line-height: 36px; } }
-html[data-pixel]:lang(zh) :is(.letter-copy > .subtitle, .section-takeaway, .briefing-closing) { font-family: var(--cn-sans); }
-html[data-pixel]:lang(zh) .week-picker a { word-break: keep-all; }
-html[data-pixel]:lang(zh) .today-marker { white-space: nowrap; }
+html[data-style="pixel"]:lang(zh) :is(h2, .preview-title, .activity-title) { font-size: 24px; line-height: 36px; }
+html[data-style="pixel"]:lang(zh) h1 { font-size: 36px; line-height: 48px; }
+@media (max-width: 700px) { html[data-style="pixel"]:lang(zh) h1 { font-size: 24px; line-height: 36px; } }
+html[data-style="pixel"]:lang(zh) :is(.letter-copy > .subtitle, .section-takeaway, .briefing-closing) { font-family: var(--cn-sans); }
+html[data-style="pixel"]:lang(zh) .week-picker a { word-break: keep-all; }
+html[data-style="pixel"]:lang(zh) .today-marker { white-space: nowrap; }
+/* The Soft style card keeps its rounded shapes so both styles stay recognizable. */
+html[data-style="pixel"] #prefs-menu [data-swatch="style-soft"] { border-radius: 7px; box-shadow: 0 0 0 1px var(--line); }
+html[data-style="pixel"] #prefs-menu .scheme-card input:checked + [data-swatch="style-soft"] { box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--accent); }
+html[data-style="pixel"] #prefs-menu [data-swatch="style-soft"] i { border-radius: 2px; }
+html[data-style="pixel"] #prefs-menu [data-swatch="style-soft"] i:nth-child(1) { border-radius: 3px; }
+html[data-style="pixel"] #prefs-menu [data-swatch="style-soft"] i:nth-child(3) { border-radius: 4px; }

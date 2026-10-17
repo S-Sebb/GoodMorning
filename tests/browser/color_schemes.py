@@ -86,16 +86,19 @@ def main():
                     prefs(page)
                     expect(page.locator('#day-color-scheme input[type=radio]')).to_have_count(6)
                     expect(page.locator('#night-color-scheme input[type=radio]')).to_have_count(6)
+                    expect(page.locator('#website-style input[type=radio]')).to_have_count(2)
                     with page.expect_response('**/api/color-schemes') as response:
                         card(page, theme, value).click()
                     assert response.value.status == 200
-                    expect(page.locator('html')).to_have_attribute('data-'+theme+'-scheme', value)
+                    expect(page.locator('html')).to_have_attribute('data-style' if theme == 'style' else 'data-'+theme+'-scheme', value)
                     expect(radio(page, theme, value)).to_be_checked()
                     expect(radio(page, theme, value)).to_be_enabled()
+                def picker(theme):
+                    return '#website-style' if theme == 'style' else f'#{theme}-color-scheme'
                 def radio(page, theme, value):
-                    return page.locator(f'#{theme}-color-scheme input[value="{value}"]')
+                    return page.locator(f'{picker(theme)} input[value="{value}"]')
                 def card(page, theme, value):
-                    return page.locator(f'#{theme}-color-scheme .scheme-card').filter(has=page.locator(f'input[value="{value}"]'))
+                    return page.locator(f'{picker(theme)} .scheme-card').filter(has=page.locator(f'input[value="{value}"]'))
                 def background(page):
                     return page.locator('body').evaluate('node => getComputedStyle(node).backgroundColor')
                 def stars(page):
@@ -128,7 +131,7 @@ def main():
                     const day = box('day-color-scheme'), night = box('night-color-scheme');
                     const tops = [...document.querySelectorAll('#day-color-scheme .scheme-card')].map(card => card.getBoundingClientRect().top);
                     return {modelRemoved: !document.getElementById('website-model'),
-                        stacked: day.bottom <= night.top && day.width === night.width, rows: new Set(tops).size};
+                        stacked: box('website-style').bottom <= day.top && day.bottom <= night.top && day.width === night.width, rows: new Set(tops).size};
                 }""")
                 assert layout == {'modelRemoved': True, 'stacked': True, 'rows': 2}, layout
                 chat.get_by_role('button', name='Close settings', exact=True).click()
@@ -289,22 +292,19 @@ def main():
                                            ('night', 'midnight-violet', '午夜紫'), ('day', 'grass-block', '草方块'), ('night', 'cottage', '小屋')):
                     expect(card(chat, theme, value).locator('.scheme-name')).to_have_text(name)
                 expect(chat.locator('#night-color-scheme > legend')).to_have_text('夜间配色')
-                expect(chat.locator('.pixel-style-name')).to_have_text('像素风格')
-                # Chinese headings draw in the Chinese pixel face once Pixel style is on.
-                with chat.expect_response('**/api/color-schemes'):
-                    chat.locator('.pixel-style-switch').click()
-                expect(chat.locator('html')).to_have_attribute('data-pixel', 'on')
+                expect(chat.locator('#website-style > legend')).to_have_text('样式')
+                expect(card(chat, 'style', 'pixel').locator('.scheme-name')).to_have_text('像素')
+                # Chinese headings draw in the Chinese pixel face in the Pixel style.
+                choose(chat, 'pixel', 'style')
                 chat.evaluate('document.fonts.ready')
                 assert chat.evaluate('''document.fonts.load('24px "GoodMorning Pixel CJK"', '设置').then(faces => faces.length)''') == 1
                 expect(chat.locator('.settings-menu-header h2')).to_have_css('font-family', re.compile('GoodMorning Pixel'))
                 # The 12px-grid Chinese face stays crisp only on its grid and without synthetic bold.
-                for selector in ('.settings-menu-header h2', '.pixel-style-name', '.scheme-name', '#prefs-menu legend'):
+                for selector in ('.settings-menu-header h2', '.scheme-name', '#prefs-menu legend'):
                     size, weight = chat.locator(selector).first.evaluate('e => [parseFloat(getComputedStyle(e).fontSize), getComputedStyle(e).fontWeight]')
                     assert size % 12 == 0 and weight == '400', (selector, size, weight)
                 chat.screenshot(path=str(artifacts/'pixel-zh-settings.png'), full_page=True)
-                with chat.expect_response('**/api/color-schemes'):
-                    chat.locator('.pixel-style-switch').click()
-                expect(chat.locator('html')).not_to_have_attribute('data-pixel', 'on')
+                choose(chat, 'soft', 'style')
                 chat.locator('#website-language').select_option('en')
                 chat.goto('https://sec.language.test/chat')
                 chat.locator('#chat-text').fill('A synthetic conversation for avatar checks.')
@@ -319,55 +319,45 @@ def main():
                 expect(chat.locator('.reply-portrait img')).to_have_attribute('src', re.compile(r'^/api/avatar/image/[a-f0-9]{64}\.png$'))
                 expect(chat.locator('.reply-portrait img')).to_have_css('object-fit', 'cover')
                 choose(chat, 'classic'); choose(chat, 'warm')
-                # Pixel style changes components in place, for every scene and edition; scenes change only colors.
+                # The style changes components in place, for every color scheme and edition; schemes change only colors.
                 chat.locator('#chat-text').fill('Keep this private, unsent draft.')
-                expect(chat.locator('html')).not_to_have_attribute('data-pixel', 'on')
-                with chat.expect_response('**/api/color-schemes') as response:
-                    chat.locator('.pixel-style-switch').click()
-                assert response.value.json()['pixel'] is True
-                expect(chat.locator('#pixel-style')).to_be_checked()
-                expect(chat.locator('html')).to_have_attribute('data-pixel', 'on')
+                expect(chat.locator('html')).to_have_attribute('data-style', 'soft')
+                choose(chat, 'pixel', 'style')
                 expect(chat.locator('.conversation-panel')).to_have_css('border-radius', '0px')
                 expect(chat.locator('#chat-text')).to_have_value('Keep this private, unsent draft.')
                 chat.screenshot(path=str(artifacts/'pixel-warm-chat.png'), full_page=True)
-                chat.reload(); expect(chat.locator('html')).to_have_attribute('data-pixel', 'on')
-                prefs(chat); expect(chat.locator('#pixel-style')).to_be_checked()
+                chat.reload(); expect(chat.locator('html')).to_have_attribute('data-style', 'pixel')
+                prefs(chat); expect(radio(chat, 'style', 'pixel')).to_be_checked()
                 chat.locator('#chat-text').fill('Keep this private, unsent draft.')
-                with chat.expect_response('**/api/color-schemes'):
-                    chat.locator('.pixel-style-switch').click()
-                expect(chat.locator('html')).not_to_have_attribute('data-pixel', 'on')
+                choose(chat, 'soft', 'style')
                 expect(chat.locator('.conversation-panel')).not_to_have_css('border-radius', '0px')
                 choose(chat, 'grass-block'); choose(chat, 'cottage', 'night')
                 # Soft Grass Block: its sky and colors, with the usual rounded components.
-                expect(chat.locator('html')).not_to_have_attribute('data-pixel', 'on')
+                expect(chat.locator('html')).to_have_attribute('data-style', 'soft')
                 assert 'grass-block-day.svg' in stars(chat)
                 expect(chat.locator('.conversation-panel')).not_to_have_css('border-radius', '0px')
                 chat.screenshot(path=str(artifacts/'grass-block-soft-chat.png'), full_page=True)
-                with chat.expect_response('**/api/color-schemes'):
-                    chat.locator('.pixel-style-switch').click()
-                expect(chat.locator('html')).to_have_attribute('data-pixel', 'on')
+                choose(chat, 'pixel', 'style')
                 expect(chat.locator('#new-conversation')).to_have_css('background-color', 'rgb(58, 125, 34)')
                 chat.screenshot(path=str(artifacts/'grass-block-pixel-chat.png'), full_page=True)
                 chat.clock.set_system_time(datetime.fromisoformat('2026-10-12T18:00:00+00:00'))
                 chat.evaluate('window.dispatchEvent(new Event("focus"))')
                 expect(chat.locator('html')).to_have_attribute('data-edition', 'gn')
                 assert 'cottage-night.svg' in stars(chat)
-                expect(chat.locator('html')).to_have_attribute('data-pixel', 'on')
+                expect(chat.locator('html')).to_have_attribute('data-style', 'pixel')
                 chat.screenshot(path=str(artifacts/'cottage-night-pixel-chat.png'), full_page=True)
                 choose(chat, 'starry', 'night')
-                expect(chat.locator('html')).to_have_attribute('data-pixel', 'on')
+                expect(chat.locator('html')).to_have_attribute('data-style', 'pixel')
                 chat.clock.set_system_time(datetime.fromisoformat('2026-10-12T10:00:00+00:00'))
                 chat.evaluate('window.dispatchEvent(new Event("focus"))')
-                with chat.expect_response('**/api/color-schemes'):
-                    chat.locator('.pixel-style-switch').click()
-                expect(chat.locator('html')).not_to_have_attribute('data-pixel', 'on')
+                choose(chat, 'soft', 'style')
                 # Native radios: arrow keys move between scenes.
                 radio(chat, 'day', 'grass-block').focus()
                 with chat.expect_response('**/api/color-schemes'):
                     chat.keyboard.press('ArrowRight')
                 expect(radio(chat, 'day', 'cottage')).to_be_checked()
                 choose(chat, 'warm')
-                expect(chat.locator('html')).not_to_have_attribute('data-pixel', 'on')
+                expect(chat.locator('html')).to_have_attribute('data-style', 'soft')
                 expect(chat.locator('#chat-text')).to_have_value('Keep this private, unsent draft.')
                 expect(chat.locator('.reply-portrait img')).to_have_attribute('src', re.compile(r'^/api/avatar/image/[a-f0-9]{64}\.png$'))
                 for width in (1440, 768, 390, 320):
@@ -382,7 +372,7 @@ def main():
                 other = context(390); bob = page_in(other)
                 login(bob, 'sec', 'bob', 'a1bob-temporary'); permanent(bob, 'bob')
                 expect(bob.locator('html')).to_have_attribute('data-day-scheme', 'morning-sky')
-                assert bob.evaluate("fetch('/api/color-schemes').then(response => response.json())") == {'day': 'morning-sky', 'night': 'starry', 'pixel': False}
+                assert bob.evaluate("fetch('/api/color-schemes').then(response => response.json())") == {'style': 'soft', 'day': 'morning-sky', 'night': 'starry'}
                 assert not errors, errors
                 browser.close()
             assert all(hashlib.sha256(path.read_bytes()).hexdigest() == digest for path, digest in preserved.items())
@@ -390,7 +380,7 @@ def main():
                        'atmosphericDayThemes': day_results, 'dayReducedMotion': True, 'dayPrintClean': True,
                       'clockThemeIndependent': True, 'refreshAndCrossHost': True, 'draftPreserved': True,
                       'savedRecordsUnchanged': True, 'accountIsolation': True, 'bilingual': True,
-                      'customAvatarsPreserved': True, 'pixelStyle': True, 'pixelStyleIndependentOfScenes': True,
+                      'customAvatarsPreserved': True, 'styles': ['soft', 'pixel'], 'styleIndependentOfColorSchemes': True,
                       'settingsLayoutAligned': True, 'settingsDismissible': True,
                       'widths': [1440, 768, 390, 320], 'pageErrors': 0}
             (artifacts/'result.json').write_text(json.dumps(report, indent=2))

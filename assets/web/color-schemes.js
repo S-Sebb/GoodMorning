@@ -2,7 +2,6 @@
 (() => {
   const config = JSON.parse(document.querySelector('#color-scheme-config').dataset.config);
   const form = document.querySelector('#color-scheme-form');
-  const pixel = document.querySelector('#pixel-style');
   const feedback = document.querySelector('#color-scheme-feedback');
   const root = document.documentElement;
   const t = key => typeof goodmorningT === 'function' ? goodmorningT(key) : key;
@@ -10,26 +9,25 @@
   const radios = theme => Array.from(form.querySelectorAll(`input[name="${theme}"]`));
   const chosen = theme => radios(theme).find(radio => radio.checked)?.value;
   const check = (theme, value) => radios(theme).forEach(radio => { radio.checked = radio.value === value; });
-  const valid = value => value && radios('day').some(radio => radio.value === value.day)
-    && radios('night').some(radio => radio.value === value.night) && typeof value.pixel === 'boolean';
-  const same = value => value.day === saved.day && value.night === saved.night && value.pixel === saved.pixel;
-  function paint() { if (saved.pixel) root.dataset.pixel = 'on'; else delete root.dataset.pixel; }
-  function show(value) { check('day', value.day); check('night', value.night); pixel.checked = value.pixel; }
+  const choices = ['style', 'day', 'night'];
+  const valid = value => value && choices.every(key => radios(key).some(radio => radio.value === value[key]));
+  const same = value => choices.every(key => value[key] === saved[key]);
+  function show(value) { choices.forEach(key => check(key, value[key])); }
   function apply(value) {
     if (!valid(value)) throw new Error(t('Color schemes could not be saved. Try again.'));
-    saved = {day: value.day, night: value.night, pixel: value.pixel};
+    saved = Object.fromEntries(choices.map(key => [key, value[key]]));
     show(saved);
+    root.dataset.style = saved.style;
     root.dataset.dayScheme = saved.day;
     root.dataset.nightScheme = saved.night;
-    paint();
     document.dispatchEvent(new CustomEvent('website:color-schemes', {detail: saved}));
   }
-  const controls = () => [...form.querySelectorAll('input[type="radio"]'), pixel];
+  const controls = () => form.querySelectorAll('input[type="radio"]');
   async function save(event) {
     event?.preventDefault();
     if (saving) return;
     saving = true; revision++;
-    const body = {day: chosen('day'), night: chosen('night'), pixel: pixel.checked};
+    const body = Object.fromEntries(choices.map(key => [key, chosen(key)]));
     controls().forEach(control => { control.disabled = true; });
     try {
       const response = await fetch('/api/color-schemes', {method: 'POST', credentials: 'same-origin', cache: 'no-store',

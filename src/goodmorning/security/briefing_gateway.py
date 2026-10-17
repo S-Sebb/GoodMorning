@@ -114,8 +114,8 @@ class Gateway:
         forwarded = {'Authorization':'Bearer '+backend['key'],'X-GoodMorning-Origin':'https://'+host,
                       'X-GoodMorning-Language':self.accounts.website_language(identifier) or ui.current()}
         schemes = self.accounts.website_color_schemes(identifier) or site_colors.DEFAULT
-        forwarded.update({'X-GoodMorning-Day-Scheme': schemes['day'], 'X-GoodMorning-Night-Scheme': schemes['night'],
-                          'X-GoodMorning-Pixel-Style': 'on' if schemes['pixel'] else 'off'})
+        forwarded.update({'X-GoodMorning-Style': schemes['style'], 'X-GoodMorning-Day-Scheme': schemes['day'],
+                          'X-GoodMorning-Night-Scheme': schemes['night']})
         if method == 'POST' and parsed.path in ('/api/generate', '/api/regenerate') and REQUESTED_AT.get() is not None:
             forwarded['X-GoodMorning-Requested-At'] = str(REQUESTED_AT.get())
         if body is not None:
@@ -975,7 +975,7 @@ def handler_for(gateway):
                 if form:
                     fields=parse_qs(raw.decode(),keep_blank_values=True,strict_parsing=True)
                     expected={'csrf','language','return_to'} if path=='/api/language' else {'csrf','model','return_to'}
-                    if path=='/api/color-schemes':expected={'csrf','day','night','return_to'}|({'pixel'} if 'pixel' in fields else set())
+                    if path=='/api/color-schemes':expected={'csrf','day','night','return_to'}|({'style'} if 'style' in fields else set())
                     if set(fields)!=expected or any(len(values)!=1 for values in fields.values()):raise ValueError('Invalid settings form')
                     body={key:values[0] for key,values in fields.items()}
                 else:body=json.loads(raw)
@@ -993,7 +993,7 @@ def handler_for(gateway):
                 if path=='/api/model':
                     return self.respond({'error':'Model selection is automatic from the website language.'},405)
                 if path=='/api/color-schemes':
-                    selected = site_colors.validate({'day': body['day'], 'night': body['night'], 'pixel': body.get('pixel') == 'on'} if form else body)
+                    selected = site_colors.validate({key: body[key] for key in site_colors.OPTIONS if key in body} if form else body)
                     if session['user_id']:gateway.accounts.website_color_schemes(session['user_id'], selected)
                     site_colors.CURRENT.set(selected)
                     target=body.get('return_to','/')
