@@ -110,7 +110,7 @@ function measureSections() {
   // Center in the actual content gutter, including wide screens and safe areas.
   const contentRight = sections[0].getBoundingClientRect().right;
   const safeRight = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--safe-right')) || 0;
-  backTop.style.right = `${safeRight + (document.documentElement.clientWidth - safeRight - contentRight - backTop.offsetWidth) / 2}px`;
+  backTop.style.setProperty('--gutter-right', `${safeRight + (document.documentElement.clientWidth - safeRight - contentRight - backTop.offsetWidth) / 2}px`);
   positions.forEach((position, index) => {
     // Segment length reflects the section's share of the document.
     links[index].parentElement.style.flexGrow = String(position.height);
