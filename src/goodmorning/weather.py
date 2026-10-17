@@ -31,6 +31,7 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 TIMEOUT = 8
 RAIN_WMO = {51, 53, 55, 56, 57, 61, 63, 65, 66, 67, 80, 81, 82, 95, 96, 97, 99}
 SNOW_WMO = {71, 73, 75, 77, 85, 86}
+RAIN_SIGNAL_MIN_PROB = 30
 WEATHER_TTL = 1800
 AQI_TTL = 3600
 STALE_LIMIT = 6 * 3600
@@ -374,7 +375,9 @@ def fetch_openmeteo(city, lat, lon, timeout=TIMEOUT):
     if (prob is not None and not 0 <= prob <= 100) or any(v is not None and v < 0 for v in (rain_sum, showers, snow_sum)):
         raise WeatherError("invalid precipitation data")
     snow = day_code in SNOW_WMO or (snow_sum or 0) > 0
-    rain = (day_code in RAIN_WMO or (rain_sum or 0) + (showers or 0) > 0.2
+    # The daily code reflects the worst hour, even trace drizzle; a low probability overrides it.
+    signal = day_code in RAIN_WMO or (rain_sum or 0) + (showers or 0) > 0.2
+    rain = (signal and (prob is None or prob >= RAIN_SIGNAL_MIN_PROB)
             or (prob is not None and prob >= 50 and not snow))
     if not rain and all(v is None for v in (day_code, prob, rain_sum, showers)):
         rain = None

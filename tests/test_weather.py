@@ -197,12 +197,21 @@ class WeatherTests(unittest.TestCase):
             self.assertEqual(fetch.call_count, len(w._geocode_languages(city)))
 
     def test_afternoon_rain_despite_clear_current_conditions(self):
-        for change in ({"weather_code": [61]}, {"rain_sum": [2]},
+        for change in ({"weather_code": [61], "precipitation_probability_max": [30]},
+                       {"rain_sum": [2], "precipitation_probability_max": [None]},
                        {"precipitation_probability_max": [80]}):
             with patch.object(w, "http_get_json", return_value=forecast(**change)):
                 out = w.fetch_openmeteo("Test", 0, 0)
             self.assertEqual(out["condition"], "clear")
             self.assertEqual(out["rain"], "yes")
+
+    def test_rain_code_with_low_probability_is_not_rain(self):
+        for change in ({"weather_code": [61], "precipitation_probability_max": [5]},
+                       {"weather_code": [51], "rain_sum": [0.4], "precipitation_probability_max": [0]}):
+            with patch.object(w, "http_get_json", return_value=forecast(**change)):
+                out = w.fetch_openmeteo("Test", 0, 0)
+            self.assertEqual(out["rain"], "no")
+            self.assertNotIn("umbrella", out["advice"])
 
     def test_daily_snow_is_not_rain(self):
         with patch.object(w, "http_get_json", return_value=forecast(weather_code=[73], snowfall_sum=[3], precipitation_probability_max=[90])):
