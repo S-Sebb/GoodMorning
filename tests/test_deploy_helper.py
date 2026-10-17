@@ -74,7 +74,8 @@ class DeployHelperTests(unittest.TestCase):
                 names = {item.name for item in archive.getmembers()}
         self.assertEqual(len(names), count)
         self.assertTrue({Path(name).parts[0] for name in names} <= helper.ALLOWED)
-        for required in ('LICENSE', 'AGENTS.md', 'SERVER-DATA-GUIDE.md', 'scripts/goodmorning.py', 'deploy/deploy_native.py'):
+        for required in ('LICENSE', 'AGENTS.md', 'SERVER-DATA-GUIDE.md', 'scripts/goodmorning.py', 'deploy/deploy_native.py',
+                         '.opencode/agents/secretary.md'):
             self.assertIn(required, names)
 
 

@@ -59,13 +59,14 @@ class NativeBridge:
 
     def control(self, action, **parameters):
         if action == 'session.create':
+            agent = self.agent or parameters.get('agent')
             result = self.api('post', '/api/session', {'location':{'directory':self.directory},
-                **({'agent':self.agent} if self.agent else {}),
+                **({'agent':agent} if agent else {}),
                 **({'title':parameters['title']} if parameters.get('title') else {})})
             session = result['data']['id']
             self.sessions[session] = {'idle':True}
-            if self.agent and result['data'].get('agent')!=self.agent:
-                raise ValueError('Experimental agent was not confirmed before model work')
+            if agent and result['data'].get('agent')!=agent:
+                raise ValueError('Requested agent was not confirmed before model work')
             self.api('put', f'/api/session/{session}/environment', {'variables':{
                 'SECRETARY_DIR':self.runtime, 'OPENCODE_SESSION_ID':session,
                 'GM_CACHE_DIR':str(Path(self.runtime)/'cache'),'TMPDIR':str(Path(self.runtime)/'tmp'),

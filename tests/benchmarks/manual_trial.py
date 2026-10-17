@@ -87,7 +87,7 @@ def main():
         if source.exists():
             shutil.rmtree(source)
         source.mkdir(parents=True, mode=0o700)
-        for name in ("src", "scripts", "docs", "templates", "assets", "skill-source"):
+        for name in ("src", "scripts", "docs", "templates", "assets", "skill-source", ".opencode"):
             shutil.copytree(ROOT / name, source / name,
                             ignore=shutil.ignore_patterns("__pycache__"))
         for name in ("AGENTS.md", "AGENT-PROMPT-GUIDE.md", "SERVER-USER-GUIDE.md", "SERVER-DATA-GUIDE.md"):

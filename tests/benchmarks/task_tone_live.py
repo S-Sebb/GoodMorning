@@ -414,7 +414,7 @@ def run_matrix(args,output,parser):
         day=datetime.fromisoformat(previous['date']).date()
     else:
         source.mkdir()
-        for name in ('src','scripts','docs','templates','assets','skill-source'):
+        for name in ('src','scripts','docs','templates','assets','skill-source','.opencode'):
             shutil.copytree(ROOT/name,source/name,ignore=shutil.ignore_patterns('__pycache__'))
         for name in ('AGENTS.md','AGENT-PROMPT-GUIDE.md','SERVER-USER-GUIDE.md','SERVER-DATA-GUIDE.md'):
             shutil.copyfile(ROOT/name,source/name)

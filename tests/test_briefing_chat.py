@@ -213,6 +213,7 @@ class ChatTests(unittest.TestCase):
         creates = [body for action,body in self.chamber.calls if action=='session.create']
         self.assertEqual(len(creates), 4)
         self.assertTrue(all('title' not in body for body in creates))
+        self.assertTrue(all(body.get('agent') == 'secretary' for body in creates))
 
     def test_native_timestamp_placeholder_is_hidden_and_late_title_is_read(self):
         self.start()

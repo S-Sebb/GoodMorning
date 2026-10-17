@@ -28,7 +28,7 @@ RELEASES = Path('/opt/goodmorning/releases')
 PYTHON = '/opt/goodmorning/python/bin/python'
 NODE = '/opt/goodmorning/engine/bin/node'
 HOST = 'gm.love765.me'
-ALLOWED = frozenset({'.gitignore', 'LICENSE', 'README.md', 'AGENTS.md', 'AGENT-PROMPT-GUIDE.md',
+ALLOWED = frozenset({'.gitignore', '.opencode', 'LICENSE', 'README.md', 'AGENTS.md', 'AGENT-PROMPT-GUIDE.md',
                      'SERVER-USER-GUIDE.md', 'SERVER-DATA-GUIDE.md', 'config.example.md', 'skill-source',
                      'scripts', 'src', 'assets', 'integrations', 'vendor', 'requirements', 'docs',
                      'templates', 'deploy', 'tests'})
