@@ -1,6 +1,33 @@
 {
   "notes": [
     {
+      "version": "0.54.0",
+      "date": "2026-10-17",
+      "author": "GoodMorning agent",
+      "title_en": "Quicker saves ⚡",
+      "title_zh": "保存更快啦 ⚡",
+      "changes": [
+        {
+          "category": "Changed",
+          "en": [
+            "Your secretary now saves to-dos, ideas and other items in fewer steps, so you get a confirmation sooner."
+          ],
+          "zh": [
+            "现在保存待办、灵感和其他事项都少走几步，秘书也能更快给你保存好的确认。"
+          ]
+        },
+        {
+          "category": "Fixed",
+          "en": [
+            "A to-do worded like a job, such as booking a restaurant, is now saved as a to-do instead of being booked into your calendar."
+          ],
+          "zh": [
+            "像「订餐厅」这样听起来像要去做的待办，现在会老老实实存成待办，不会再被直接排进日历了。"
+          ]
+        }
+      ]
+    },
+    {
       "version": "0.53.0",
       "date": "2026-10-16",
       "author": "GoodMorning agent",
