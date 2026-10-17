@@ -505,12 +505,25 @@ def run_flexible_case(output, template, language, scenario, instant):
         assert len(current) == len(baseline), 'Feedback or polish created or removed tasks'
         if kind == 'gm':
             vague, groceries, clear = baseline
+            # A briefing rewords vague rows on the page only; saved records stay as they are.
+            shown = {}
+            def rows(node):
+                if isinstance(node, list):
+                    if len(node) > 5 and isinstance(node[0], str) and node[0].startswith('task_'):
+                        shown.setdefault(node[0], node[5])
+                    for child in node:
+                        rows(child)
+                elif isinstance(node, dict):
+                    for child in node.values():
+                        rows(child)
+            rows(document)
             result['titles_after'] = [current[task['id']]['title'] for task in baseline]
-            result['polished_vague'] = sum(current[task['id']]['title'] != task['title'] for task in (vague, groceries))
-            assert current[clear['id']]['title'] == clear['title'], 'A clear title was rewritten'
-            assert all(current[task['id']][key] == task[key] for task in baseline for key in ('planned_date','status')), 'Polish changed a date or status'
-            assert result['polished_vague'] == 2, 'A materially vague title was left unpolished'
-            result['checks'].append('Both vague titles polished; clear title, dates and statuses unchanged')
+            result['titles_shown'] = [shown.get(task['id']) for task in baseline]
+            assert all(current[task['id']] == task for task in baseline), 'The briefing changed a saved task'
+            result['polished_vague'] = sum(shown.get(task['id']) not in (None, task['title']) for task in (vague, groceries))
+            assert shown.get(clear['id']) == clear['title'], 'A clear title was reworded'
+            assert result['polished_vague'] == 2, 'A materially vague title was shown unpolished'
+            result['checks'].append('Both vague titles reworded on the page; saved tasks and the clear title unchanged')
         else:
             boreal, atlas, groceries = baseline
             today = next(section for section in document['sections'] if section[0] == 'today')
