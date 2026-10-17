@@ -5,7 +5,8 @@ description: Capture a pending idea without doing the work. Save clear details, 
 
 # Idea capture
 
-Trigger: `/eureka` or an explicit idea-capture request. Inputs: raw idea, confirmed
+Trigger: the secretary workflow decided to save an idea (*Save or do* in
+`docs/workflows/secretary.md`). Inputs: raw idea, confirmed
 runtime/timezone, actual session, stable request key and supplied context/project.
 Result: one verified pending idea. Read `docs/core-rules.md` and
 `templates/eureka.reply.template.md`; use `docs/reply-voice.md` only for detailed discussion.

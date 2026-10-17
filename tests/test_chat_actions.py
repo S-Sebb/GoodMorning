@@ -17,7 +17,7 @@ from goodmorning.records.task_store import TaskStore
 from goodmorning.records import workflow
 from goodmorning.calendar.calendar_store import CalendarStore
 from goodmorning.web.chat_actions import read_changes, action_history, LIMIT
-from goodmorning.web.briefing_chat import Chats, MODES
+from goodmorning.web.briefing_chat import Chats, NEW_MODES
 
 NOW = '2026-10-13T12:00:00+01:00'
 SESSION = 'ses_chat_0'
@@ -141,7 +141,7 @@ class ActionTests(unittest.TestCase):
         (self.root / 'profile.md').write_text('city: London\ntimezone: Europe/London\nnews_country: GB\nsecretary_language: English\n')
         chamber = MockChamber(self.root)
         chats = Chats(self.root, chamber)
-        for index, mode in enumerate(MODES):
+        for index, mode in enumerate(NEW_MODES):
             with self.subTest(mode=mode):
                 chat = str(index + 1) * 32
                 with patch('time.time', return_value=0):

@@ -16,7 +16,7 @@ from urllib.request import Request
 from support import TEMP_ROOT, GatewayFixture, MockChamber, ImmediateThread
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'src'))
 from goodmorning.web.chat_uploads import Uploads, MAX_UPLOAD_BYTES, UploadReader, upload_name
-from goodmorning.web.briefing_chat import Chats, MODES
+from goodmorning.web.briefing_chat import Chats, NEW_MODES
 from goodmorning.web.briefing_server import BrowserApp, serve_live
 from goodmorning.web.bridge_json import read_json
 
@@ -149,7 +149,7 @@ class UploadTests(unittest.TestCase):
     def test_all_modes_send_native_files_without_leaking_paths_to_browser(self):
         self.upload(name='资料 <img>.txt')
         chats, chamber = self.chats()
-        for index, mode in enumerate(MODES):
+        for index, mode in enumerate(NEW_MODES):
             chat = format(index, '032x')
             body = {'id': chat, 'mode': mode, 'text': '', 'attachments': [self.file_id]}
             chats.start(body); chats.start(body)
@@ -168,7 +168,7 @@ class UploadTests(unittest.TestCase):
         chat = '0' * 32
         body = {'id': 'a' * 32, 'text': 'Please review', 'attachments': [self.file_id]}
         chats.send(chat, body); chats.send(chat, body)
-        self.assertEqual(len(chamber.replies), 5)
+        self.assertEqual(len(chamber.replies), len(NEW_MODES) + 1)
         self.assertIn('Please review', chats.status(chat)['messages'][-2]['text'])
         self.upload(name='second.txt', data=b'Second file', identifier='e' * 32)
         chats.send(chat, {'id': 'b' * 32, 'text': '', 'attachments': ['e' * 32]})
@@ -185,7 +185,7 @@ class UploadTests(unittest.TestCase):
         self.upload()
         chats, chamber = self.chats()
         chat = 'a'*32
-        chats.start({'id': chat, 'mode': 'todo', 'text': 'Synthetic task'})
+        chats.start({'id': chat, 'mode': 'secretary', 'text': 'Synthetic task'})
         session = chats.get(chat)['session']
         chamber.sessions[session]['directory'] = '/opt/goodmorning/releases/old'
         chats.send(chat, {'id': 'b'*32, 'text': 'Finish its setup', 'attachments': [self.file_id]})

@@ -752,7 +752,7 @@ class GatewayTests(GatewayFixture):
         self.permanent()
         self.gateway.proxy=lambda *args:(200,{},b'{"state":"idle"}') if args[3]=='GET' else (202,{},b'{"chat":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}')
         self.assertEqual(self.request('/api/chats',{'id':'a'*32,'mode':'initialize','text':''})[0],202)
-        self.assertEqual(self.request('/api/chats',{'id':'b'*32,'mode':'todo','text':'Capture this task'})[0],202)
+        self.assertEqual(self.request('/api/chats',{'id':'b'*32,'mode':'secretary','text':'Capture this task'})[0],202)
         self.assertEqual(self.gateway.ticket()['chat'],'b'*32)
 
     def test_real_native_message_limit_releases_finished_and_waiting_chat(self):
@@ -764,7 +764,7 @@ class GatewayTests(GatewayFixture):
             return 200 if method=='GET' else 202,{},json.dumps(result).encode()
         self.gateway.proxy=proxy
         with patch('goodmorning.web.briefing_chat.threading.Thread',ImmediateThread):
-            for identifier,mode in (('a','secretary'),('b','todo'),('c','initialize')):
+            for identifier,mode in (('a','secretary'),('b','secretary'),('c','initialize')):
                 body={'id':identifier*32,'mode':mode,'text':'' if mode=='initialize' else 'Synthetic capture'}
                 self.assertEqual(self.gateway.chat_message(self.id,'gm.example.test','/api/chats',json.dumps(body).encode(),{})[0],202)
             status,_,data=self.gateway.chat_message(self.other,'gm.example.test','/api/chats',json.dumps({'id':'d'*32,'mode':'secretary','text':'Other request'}).encode(),{})

@@ -25,7 +25,7 @@ def check_composer(browser, address, artifacts):
         layout = 'node => [node.offsetLeft, node.offsetTop, node.offsetWidth, node.offsetHeight]'
         for edition, scheme in (('gm', 'classic'), ('gm', 'warm'), ('gn', 'classic')):
             text.fill('Keep this draft')
-            page.locator('#mode-help').focus()
+            page.locator('#chat-help').focus()
             page.evaluate("([edition, scheme]) => { document.documentElement.dataset.edition = edition; document.documentElement.dataset.dayScheme = scheme; }", [edition, scheme])
             page.evaluate("async () => { await Promise.all(document.querySelector('.chat-input-row').getAnimations().map(a => a.finished)); }")
             before = row.evaluate(layout)
@@ -54,7 +54,7 @@ def check_composer(browser, address, artifacts):
             page.keyboard.press('Tab')
             expect(page.locator('#chat-send')).to_be_focused()
             expect(page.locator('#chat-send')).to_have_css('outline-style', 'solid')
-            page.locator('#mode-help').focus()
+            page.locator('#chat-help').focus()
             page.evaluate("async () => { await Promise.all(document.querySelector('.chat-input-row').getAnimations().map(a => a.finished)); }")
             expect(row).to_have_css('border-color', plain)
             expect(text).to_have_value('Keep this draft')
@@ -286,10 +286,6 @@ def check_uploads(browser, address, artifacts):
         expect(page.locator('#chat-attachments')).to_contain_text('资料 <img>.txt')
         page.get_by_role('button', name='Remove remove.txt', exact=True).click()
         expect(page.locator('#chat-attachments .attachment-chip')).to_have_count(1)
-        page.get_by_role('radio', name='To-do', exact=True).click()
-        expect(page.locator('#chat-attachments .attachment-chip')).to_have_count(0)
-        page.get_by_role('radio', name='Secretary', exact=True).click()
-        expect(page.locator('#chat-attachments .attachment-chip')).to_have_count(1)
         assert page.locator('#chat-attachments img').count() == 0
         assert not page.evaluate('document.documentElement.scrollWidth > innerWidth')
         page.screenshot(path=str(artifacts / f'attachments-{width}.png'), full_page=True)
@@ -306,7 +302,6 @@ def check_uploads(browser, address, artifacts):
         expect(page.get_by_role('log')).to_contain_text('follow-up.txt')
         expect(page.get_by_role('button', name='Send reply', exact=True)).to_be_enabled()
         page.get_by_role('button', name='New conversation', exact=True).click()
-        page.get_by_role('radio', name='Secretary', exact=True).click()
         requests = []
         page.on('request', lambda request: requests.append(request) if request.method == 'POST' else None)
         page.route('**/api/chat-uploads/*', lambda route: route.fulfill(status=413,
@@ -334,7 +329,6 @@ def check_uploads(browser, address, artifacts):
             expect(page.get_by_role('log')).to_contain_text('dropped.txt')
             expect(page.get_by_role('button', name='Send reply', exact=True)).to_be_enabled()
             page.get_by_role('button', name='New conversation', exact=True).click()
-            page.get_by_role('radio', name='Secretary', exact=True).click()
             page.evaluate("""() => {
                 const input = document.querySelector('#chat-files');
                 const transfer = new DataTransfer();
@@ -388,9 +382,6 @@ def check_images(browser, address, artifacts):
         assert dialog.locator('img').bounding_box()['width'] > preview.locator('img').bounding_box()['width']
         page.keyboard.press('Escape'); expect(dialog).not_to_be_visible()
         expect(preview).to_be_focused()
-        page.get_by_role('radio', name='To-do', exact=True).click()
-        expect(preview).to_have_count(0)
-        page.get_by_role('radio', name='Secretary', exact=True).click()
         expect(preview).to_have_count(1)
         assert preview.locator('img').get_attribute('src') == source
         page.locator('.conversation-panel').screenshot(path=str(artifacts / f'image-draft-{width}.png'))
@@ -615,8 +606,6 @@ def check_autogrow(browser, address, artifacts):
         text.press('End')
         page.locator('.conversation-panel').screenshot(path=str(artifacts/f'five-line-composer-{width}.png'))
         text.fill('Line one\nLine two');expect(text).to_have_css('height','48px')
-        page.get_by_role('radio',name='To-do',exact=True).click();expect(text).to_have_css('height','24px')
-        page.get_by_role('radio',name='Secretary',exact=True).click()
         expect(text).to_have_value('Line one\nLine two');expect(text).to_have_css('height','48px')
         text.fill('word '*20)
         page.set_viewport_size({'width':320,'height':568});expect(text).to_have_css('height','120px')
@@ -685,13 +674,14 @@ def main():
                             assert not page.evaluate('document.documentElement.scrollWidth > innerWidth')
                             page.screenshot(path=str(artifacts/(kind+'-initialize-button-desktop.png')),full_page=True)
                         page.get_by_role('link',name='Initialize my secretary').click()
-                        expect(page.get_by_role('radio',name='Initialize',exact=True)).to_have_attribute('aria-checked','true')
+                        expect(page.locator('#chat-topic-mode')).to_have_text('Initialize')
                         assert not list((root/'browser-chats').glob('*.context.json'))
                     page.goto(address + '/chat')
-                    modes = page.get_by_role('radiogroup', name='Secretary mode')
-                    expect(modes.get_by_role('radio')).to_have_count(1 if width == 1440 else 3)
-                    initial = 'Initialize' if width == 1440 else 'Secretary'
-                    expect(modes.get_by_role('radio', name=initial, exact=True)).to_have_attribute('aria-checked', 'true')
+                    topic = page.locator('#chat-topic-mode'); starters = page.locator('#chat-starters')
+                    message = page.get_by_label('Your message', exact=True)
+                    expect(page.locator('[data-mode], [role="radiogroup"]')).to_have_count(0)
+                    expect(topic).to_have_text('Initialize' if width == 1440 else 'Secretary')
+                    expect(starters).to_be_hidden() if width == 1440 else expect(starters).to_be_visible()
                     assert not page.evaluate('document.documentElement.scrollWidth > innerWidth')
                     if width == 1440:
                         page.screenshot(path=str(artifacts / 'initialization-desktop.png'), full_page=True)
@@ -710,21 +700,23 @@ def main():
                         expect(page.get_by_role('button', name='Send reply', exact=True)).to_be_enabled()
                         expect(page.get_by_role('log')).to_contain_text('Synthetic setup saved')
                         page.get_by_role('button', name='New conversation', exact=True).click()
-                        expect(modes.get_by_role('radio', name='Secretary', exact=True)).to_have_attribute('aria-checked', 'true')
-                    # Mode switch changes only the draft, not the saved conversation.
-                    modes.get_by_role('radio', name='To-do', exact=True).click()
-                    page.get_by_label('Your message', exact=True).fill('Capture a synthetic task')
-                    modes.get_by_role('radio', name='Eureka', exact=True).click()
-                    page.get_by_label('Your message', exact=True).fill('Capture a synthetic idea')
-                    modes.get_by_role('radio', name='To-do', exact=True).click()
-                    expect(page.get_by_label('Your message', exact=True)).to_have_value('Capture a synthetic task')
-                    page.get_by_role('button', name='Save to-do', exact=True).click()
+                        expect(topic).to_have_text('Secretary')
+                        expect(starters).to_be_visible()
+                    # A starter only fills in the message box; nothing is sent until the user sends it.
+                    posts = []
+                    page.on('request', lambda request: posts.append(request.url) if request.method == 'POST' and request.url.endswith('/api/chats') else None)
+                    page.get_by_role('button', name='Remind me to…', exact=True).click()
+                    expect(message).to_have_value('Remind me to ')
+                    expect(message).to_be_focused()
+                    assert posts == []
+                    message.fill('Capture a synthetic task')
+                    page.get_by_role('button', name='Start conversation', exact=True).click()
                     expect(page.get_by_role('log')).to_contain_text('Synthetic reply')
                     assert page.get_by_role('log').locator('.message-text img, .message-attachments img').count() == 0
                     expect(page.get_by_role('button', name='Send reply', exact=True)).to_be_enabled()
                     chat_url = page.url
                     page.reload()
-                    expect(modes.get_by_role('radio', name='To-do', exact=True)).to_have_attribute('aria-checked', 'true')
+                    expect(topic).to_have_text('Secretary')
                     expect(page.get_by_role('log')).to_contain_text('Capture a synthetic task')
                     page.get_by_label('Your message', exact=True).fill('A synthetic clarification')
                     page.get_by_role('button', name='Send reply', exact=True).click()
@@ -737,25 +729,27 @@ def main():
                         page.route('**/api/chats/*', lambda route: paused.append(route), times=1)
                         with page.expect_request('**/api/chats/*'):
                             page.evaluate('void pollChat()')
-                        modes.get_by_role('radio', name='Eureka', exact=True).click()
-                        page.get_by_label('Your message', exact=True).fill('Synthetic idea while a status request is pending')
+                        page.get_by_role('button', name='New conversation', exact=True).click()
+                        message.fill('Synthetic idea while a status request is pending')
                         with page.expect_response('**/api/chats'):
-                            page.get_by_role('button', name='Save idea', exact=True).click()
+                            page.get_by_role('button', name='Start conversation', exact=True).click()
                         assert len(paused) == 1
                         paused[0].continue_()
                         expect(page.get_by_role('log')).to_contain_text('Synthetic idea while a status request is pending')
                     page.get_by_role('button', name='New conversation', exact=True).click()
-                    expect(modes.get_by_role('radio', name='Secretary', exact=True)).to_have_attribute('aria-checked', 'true')
+                    expect(topic).to_have_text('Secretary')
                     page.goto(address + '/chat?mode=initialize')
-                    expect(modes.get_by_role('radio',name='Initialize',exact=True)).to_have_count(0)
-                    expect(modes.get_by_role('radio',name='Secretary',exact=True)).to_have_attribute('aria-checked','true')
+                    expect(topic).to_have_text('Secretary')
                     page.goto(address + '/gm.html')
                     expect(page.locator('#generate')).to_be_visible()
                     expect(page.locator('#initialize')).to_have_count(0)
                     page.goto(address + '/chat')
-                    modes.get_by_role('radio', name='Secretary', exact=True).focus()
-                    page.keyboard.press('ArrowRight')
-                    expect(modes.get_by_role('radio', name='To-do', exact=True)).to_be_focused()
+                    page.locator('#chat-help').click()
+                    expect(page.locator('#chat-guide [data-guide="secretary"]')).to_be_visible()
+                    expect(page.locator('#chat-guide [data-guide="initialize"]')).to_be_hidden()
+                    page.keyboard.press('Escape')
+                    expect(page.locator('#chat-guide')).to_be_hidden()
+                    expect(page.locator('#chat-help')).to_be_focused()
                     expect(page.locator('#conversation-history')).to_be_visible()
                     expect(page.locator('#conversation-history summary')).to_have_count(0)
                     assert page.locator('#chat-history a').count() > 0
@@ -763,7 +757,7 @@ def main():
                     assert not errors, errors
                     assert not page.evaluate('document.documentElement.scrollWidth > innerWidth')
                     results.append({'width': width, 'overflow': False, 'pageErrors': 0, 'refresh': 'same conversation',
-                                    'modeSwitch': 'pass', 'keyboard': 'pass', 'privateBrowserStorage': 'references only'})
+                                    'starters': 'fill only', 'guide': 'pass', 'privateBrowserStorage': 'references only'})
                     page.close()
                 browser.close()
             assert (root / 'preserved-record.txt').read_text() == 'Preserved synthetic evidence'

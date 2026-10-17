@@ -92,6 +92,21 @@ def worded(runtime, before=frozenset()):
         assert display.get('source') == fingerprint(kind, item), f'{kind} {name!r} wording is stale'
 
 
+def entries(runtime, kind):
+    inbox = InboxStore(runtime)
+    try:
+        return [dict(zip(('raw', 'status'), row)) for row in
+                inbox.db.execute('SELECT raw,status FROM entries WHERE kind=?', (kind,))]
+    finally:
+        inbox.close()
+
+
+# Messages worded as tasks, with no request to save or to act, must be asked about
+# (save it, or do it now) before anything is written; the trial answers "save".
+ASK_FIRST = {'day_task', 'deadline_window', 'notice_inferred', 'save_or_do_find', 'save_or_do_email', 'save_or_do_tickets'}
+SAVE_WORDS = ('save', 'to-do', 'todo', 'remember', '保存', '待办', '记下', '记')
+
+
 def next_weekday(today, weekday):
     return today + timedelta(days=(weekday - today.weekday()) % 7 or 7)
 
@@ -239,6 +254,24 @@ def scenarios(today):
         row = only([r for r in tasks(runtime)[0] if r['status'] != 'cancelled'])
         assert row['category'] not in ('errand', 'nudge', 'reference'), row
 
+    def said(setup, *words):
+        text = ' '.join(' '.join(turn['assistant']) for turn in setup['turns']).lower()
+        assert any(word in text for word in words), f'reply never says what it was saved as ({words})'
+
+    def explicit_save(runtime, setup):
+        plain_action(runtime, setup)
+        assert not entries(runtime, 'idea'), 'a reminder is not an idea'
+        said(setup, 'to-do', 'todo', '待办')
+
+    def idea_capture(runtime, setup):
+        assert not [r for r in tasks(runtime)[0] if r['status'] != 'cancelled'], 'an idea is not a task'
+        assert len(entries(runtime, 'idea')) == 1, 'expected one saved idea'
+        said(setup, 'idea', '灵感', '想法')
+
+    def do_now(runtime, setup):
+        assert not setup['turns'][0]['forms'], 'a direct question needs no save-or-do question'
+        assert not tasks(runtime)[0] and not entries(runtime, 'idea'), 'answering a question saves nothing'
+
     def with_habit(runtime):
         store = CustomStore(runtime, write=True)
         try:
@@ -318,7 +351,7 @@ def scenarios(today):
         ('reference', 'secretary', None,
          'When my protein powder runs out, remind me to rebuy it: Myprotein Impact Whey, vanilla, one scoop after training.',
          '蛋白粉吃完的时候提醒我回购：Myprotein Impact Whey 香草味，训练后一勺。', reference),
-        ('until_done', 'todo', None,
+        ('until_done', 'secretary', None,
          'Remind me every day after I wake up to buy the ointment, until I have bought it.',
          '每天醒来后提醒我买软膏，直到买到为止。', until_done),
         ('window_until_done', 'secretary', None,
@@ -357,11 +390,11 @@ def scenarios(today):
         ('routine_and_deadline', 'secretary', None,
          'Every week I need to follow up on visiting the new theatres and negotiating terms. The whole thing must be finished by 10 February 2027.',
          '每周跟进一次新剧场的考察和商务谈判，整件事必须在2027年2月10日前完成。', routine_and_deadline),
-        ('day_task', 'todo', None, f'Pass the HL60 cells on {weekday_en}.', f'{weekday_zh}传代HL60细胞。', day_task),
+        ('day_task', 'secretary', None, f'Pass the HL60 cells on {weekday_en}.', f'{weekday_zh}传代HL60细胞。', day_task),
         # A bare weekday name is its next occurrence, today included, never a past day.
-        ('weekday_today', 'todo', None, f'Water the lab plants on {today_en}.', f'{today_zh}给实验室的植物浇水。', weekday_today),
-        ('weekday_past', 'todo', None, f'Send the Atlas report by {past_en}.', f'{past_zh}之前把 Atlas 报告发出去。', weekday_past),
-        ('deadline_window', 'todo', None, 'Buy the hand warmer at Bailian ZX sometime between 23 and 28 October.',
+        ('weekday_today', 'secretary', None, f'Water the lab plants on {today_en}.', f'{today_zh}给实验室的植物浇水。', weekday_today),
+        ('weekday_past', 'secretary', None, f'Send the Atlas report by {past_en}.', f'{past_zh}之前把 Atlas 报告发出去。', weekday_past),
+        ('deadline_window', 'secretary', None, 'Buy the hand warmer at Bailian ZX sometime between 23 and 28 October.',
          '10月23日到28日之间去百联ZX买暖娃。', deadline_window),
         ('notice_stated', 'secretary', None,
          "Mum's birthday is on 17 December every year. Tell me 5 days before in my morning briefings so I can get a gift.",
@@ -369,15 +402,20 @@ def scenarios(today):
         ('notice_on_day', 'secretary', None,
          'Every Friday I claim my GTA salary. It can only be submitted on the Friday itself, so tell me the evening before as well.',
          '每周五我要申领助教工资，只能在周五当天提交，前一天晚上也提醒我一下。', notice_on_day),
-        ('notice_inferred', 'todo', None, 'Book a restaurant for our anniversary dinner on 12 December.',
+        ('notice_inferred', 'secretary', None, 'Book a restaurant for our anniversary dinner on 12 December.',
          '给12月12日的纪念日晚餐订餐厅。', notice_inferred),
-        # To-do messages worded as jobs for the secretary are still only saved.
-        ('todo_find', 'todo', None, 'Find a plumber to fix the leaking kitchen tap.',
+        # Worded as jobs, with no request to save or act: asked first, then saved.
+        ('save_or_do_find', 'secretary', None, 'Find a plumber to fix the leaking kitchen tap.',
          '找个水管工来修厨房漏水的水龙头。', plain_action),
-        ('todo_email', 'todo', None, 'Email Sam the signed lease and ask when he can collect the keys.',
+        ('save_or_do_email', 'secretary', None, 'Email Sam the signed lease and ask when he can collect the keys.',
          '给 Sam 发邮件，附上签好的租约，问他什么时候能来拿钥匙。', plain_action),
-        ('todo_tickets', 'todo', None, 'Get two tickets for the Hockney exhibition at the Tate.',
+        ('save_or_do_tickets', 'secretary', None, 'Get two tickets for the Hockney exhibition at the Tate.',
          '买两张泰特美术馆霍克尼展览的门票。', plain_action),
+        ('explicit_save', 'secretary', None, 'Remind me to call the dentist on Friday.',
+         '提醒我周五给牙医打电话。', explicit_save),
+        ('idea_capture', 'secretary', None, 'I had an idea: the Schedule page could show a small weekly mood line.',
+         '我有个想法：日程页面可以显示一条每周心情小曲线。', idea_capture),
+        ('do_now', 'secretary', None, "What's due this week?", '这周有什么事到期？', do_now),
     ]
 
 
@@ -437,13 +475,16 @@ def run_scenario(output, lang, selected, today, scenario, rounds, source=ROOT):
             if not status['forms']:
                 break
             form = status['forms'][0]
+            turn['saved_before_answer'] = len(saved_items(runtime)) - len(before) + len(entries(runtime, 'idea'))
             values = {}
             for field in form['fields']:
                 options = field.get('options') or []
                 if field.get('format') == 'date':
                     values[field['key']] = today.isoformat()
                 elif options:
-                    first = options[0]['value'] if isinstance(options[0], dict) else options[0]
+                    labels = [option['value'] if isinstance(option, dict) else option for option in options]
+                    preferred = [label for label in labels if any(word in str(label).lower() for word in SAVE_WORDS)]
+                    first = preferred[0] if name in ASK_FIRST and len(result['turns']) == 1 and preferred else labels[0]
                     values[field['key']] = [first] if field.get('type') == 'multiselect' else first
                 elif field.get('type') == 'boolean':
                     values[field['key']] = True
@@ -453,9 +494,10 @@ def run_scenario(output, lang, selected, today, scenario, rounds, source=ROOT):
             save(target, result)
             with context(lang, selected):
                 app.chats.reply(chat, 'form', form['id'], {'answer': values})
-        if mode == 'todo':
-            rows, drafts = tasks(runtime)
-            assert rows and not drafts and not calendar_events(runtime), 'To-do mode saves a task, never calendar entries or drafts'
+        if name in ASK_FIRST:
+            first = result['turns'][0]
+            assert first['forms'], 'a message worded as a task needs a save-or-do question first'
+            assert first.get('saved_before_answer') == 0, 'something was written before the save-or-do answer'
         check(runtime, {**facts, 'turns': result['turns']})
         worded(runtime, before)
         result['passed'] = True

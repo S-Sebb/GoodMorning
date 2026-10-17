@@ -9,7 +9,7 @@ from unittest.mock import patch
 
 from support import TEMP_ROOT, ImmediateThread, MockChamber
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'src'))
-from goodmorning.web.briefing_chat import Chats, MODES
+from goodmorning.web.briefing_chat import Chats, MODES, NEW_MODES
 from goodmorning.web.briefing_server import BrowserApp, Chamber, serve_live
 
 
@@ -27,22 +27,31 @@ class ChatTests(unittest.TestCase):
     def start(self, mode='secretary', text='Hello', chat=None):
         return self.chats.start({'id': chat or self.id, 'mode': mode, 'text': text})
 
+    def begin(self, mode, text='Hello', chat=None):
+        # Older To-do/Eureka chats can no longer be started; simulate a saved one.
+        if mode in NEW_MODES:
+            return self.start(mode, text, chat)
+        result = self.start('secretary', text, chat)
+        self.chats.items[chat or self.id]['mode'] = mode
+        return result
+
     def test_modes_are_fixed_and_commands_are_not_accepted(self):
         for mode in ('gm', 'gn', 'shell'):
             with self.assertRaises(ValueError): self.start(mode)
         for text in ('/gm', ' /secretary other', 'x' * 8001):
             with self.assertRaises(ValueError): self.start(text=text)
         for mode in ('todo', 'eureka'):
-            with self.assertRaises(ValueError): self.start(mode, '')
+            with self.assertRaises(ValueError): self.start(mode, 'Save this')
         self.assertEqual(self.chamber.calls, [])
 
     def test_new_profile_opens_setup_without_inventing_timezone(self):
         app = BrowserApp(self.root, self.chamber)
         self.assertEqual(app.chat_settings()['defaultMode'], 'initialize')
-        self.assertIn(b'role="radiogroup"', app.chat_page())
-        self.assertIn(b'data-mode="initialize"', app.chat_page())
-        for mode in ('secretary', 'todo', 'eureka'):
-            self.assertNotIn(f'data-mode="{mode}"'.encode(), app.chat_page())
+        page = app.chat_page()
+        self.assertNotIn(b'role="radiogroup"', page)
+        self.assertNotIn(b'data-mode=', page)
+        self.assertIn(b'data-guide="initialize">', page)
+        self.assertIn(b'id="chat-starters" hidden', page)
         self.assertFalse((self.root / 'profile.md').exists())
         with self.assertRaises(ValueError): app.today()
         self.start('initialize', '')
@@ -66,7 +75,7 @@ class ChatTests(unittest.TestCase):
         tone='Professional and reserved; use "clear" wording.'
         profile=self.root/'profile.md'
         profile.write_text('secretary_tone: '+tone+'\n')
-        self.start('todo','Record a task')
+        self.start('secretary','Record a task')
         prompts=[body['prompt'] for action,body in self.chamber.calls if action=='session.send']
         line=next(line for line in prompts[-1].splitlines() if line.startswith('Secretary tone at request start: '))
         self.assertEqual(json.loads(line.split(': ',1)[1]),{'value':tone,'source':'saved'})
@@ -80,7 +89,7 @@ class ChatTests(unittest.TestCase):
         self.assertEqual(user_texts,['Record a task','Follow up'])
 
     def test_unsaved_tone_is_labeled_default_not_stored_as_a_preference(self):
-        self.start('todo','Record a task')
+        self.start('secretary','Record a task')
         prompt=next(body['prompt'] for action,body in self.chamber.calls if action=='session.send')
         line=next(line for line in prompt.splitlines() if line.startswith('Secretary tone at request start: '))
         self.assertEqual(json.loads(line.split(': ',1)[1]),{'value':'warm and helpful','source':'default'})
@@ -99,9 +108,12 @@ class ChatTests(unittest.TestCase):
         app = BrowserApp(self.root, self.chamber)
         (self.root / 'profile.md').write_text('secretary_language: English\ncity: London\ntimezone: Europe/London\nnews_country: GB\n')
         self.assertEqual(app.chat_settings()['defaultMode'], 'secretary')
-        self.assertNotIn(b'data-mode="initialize"', app.chat_page())
-        for mode in ('secretary', 'todo', 'eureka'):
-            self.assertIn(f'data-mode="{mode}"'.encode(), app.chat_page())
+        page = app.chat_page()
+        self.assertNotIn(b'data-mode=', page)
+        self.assertIn(b'data-guide="initialize" hidden', page)
+        self.assertIn(b'data-guide="secretary">', page)
+        self.assertNotIn(b'id="chat-starters" hidden', page)
+        self.assertEqual(page.count(b'data-starter'), 3)
         self.assertRegex(app.today(), r'\d{4}-\d{2}-\d{2}')
         self.assertIn(b'href="/chat"', app.page(app.today(), 'gm', False))
 
@@ -110,7 +122,7 @@ class ChatTests(unittest.TestCase):
         for fields in ('city: London\n', 'city: London\ntimezone: Invalid/Zone\nnews_country: GB\n'):
             (self.root / 'profile.md').write_text(fields)
             self.assertEqual(app.chat_settings()['defaultMode'], 'initialize')
-            self.assertNotIn(b'data-mode="secretary"', app.chat_page())
+            self.assertIn(b'data-guide="secretary" hidden', app.chat_page())
             self.assertEqual((self.root / 'profile.md').read_text(), fields)
 
     def test_duplicate_creation_and_turn_do_not_dispatch_twice(self):
@@ -122,11 +134,11 @@ class ChatTests(unittest.TestCase):
         self.chats.send(self.id, body)
         self.chats.send(self.id, body)
         self.assertEqual(sum(action == 'session.send' for action, _ in self.chamber.calls), 2)
-        with self.assertRaises(ValueError): self.start('todo')
+        with self.assertRaises(ValueError): self.start('initialize')
         with self.assertRaises(ValueError): self.chats.send(self.id, {**body, 'text': 'Changed'})
 
     def test_resumed_chat_moves_to_current_release_and_refreshes_rules_once(self):
-        self.start('todo', 'Claim salary every Friday')
+        self.begin('todo', 'Claim salary every Friday')
         session = self.chats.get(self.id)['session']
         original = list(self.chamber.sessions[session]['messages'])
         self.chamber.sessions[session]['directory'] = '/opt/goodmorning/releases/old'
@@ -143,6 +155,7 @@ class ChatTests(unittest.TestCase):
         prompt = [body['prompt'] for action, body in self.chamber.calls if action == 'session.send'][-1]
         self.assertIn(f'Browser chat: {self.id}', prompt)
         self.assertIn(f'Runtime: {self.root}', prompt)
+        self.assertTrue(prompt.startswith('/secretary\n'), 'older To-do chats continue as Secretary')
         self.assertTrue(prompt.endswith(text))
         self.assertEqual(self.chats.status(self.id)['messages'][-2]['text'], text)
         self.chats.send(self.id, {'id': 'c'*32, 'text': 'Thanks'})
@@ -155,7 +168,7 @@ class ChatTests(unittest.TestCase):
         for index, mode in enumerate(MODES):
             with self.subTest(mode=mode):
                 chat = format(index, '032x')
-                self.start(mode, 'Synthetic request', chat=chat)
+                self.begin(mode, 'Synthetic request', chat=chat)
                 session = self.chats.get(chat)['session']
                 if mode == 'initialize':
                     self.chats.reply(chat, 'form', 'form_city', {'answer': {'city': 'London'}})
@@ -174,12 +187,13 @@ class ChatTests(unittest.TestCase):
                     self.assertIn('Website language: en', metadata)
                 self.assertNotIn('Workflow refresh:', prompts[1])
                 self.assertIn('Workflow refresh: true', prompts[2])
+                self.assertTrue(prompts[2].startswith('/' + (mode if mode in NEW_MODES else 'secretary') + '\n'))
 
     def test_failed_or_unconfirmed_release_move_never_dispatches_followup(self):
         for failure in ('failed', 'unconfirmed'):
             with self.subTest(failure=failure):
                 chat = ('d' if failure == 'failed' else 'e')*32
-                self.start('eureka', 'Synthetic idea', chat=chat)
+                self.begin('eureka', 'Synthetic idea', chat=chat)
                 session = self.chats.get(chat)['session']
                 self.chamber.sessions[session]['directory'] = '/opt/goodmorning/releases/old'
                 request = self.chamber.request
@@ -208,10 +222,10 @@ class ChatTests(unittest.TestCase):
         self.assertEqual(self.chats.get(self.id)['turns'][0]['text'], raw)
 
     def test_all_chat_modes_leave_native_title_generation_enabled(self):
-        for index, mode in enumerate(MODES):
+        for index, mode in enumerate(NEW_MODES):
             self.start(mode=mode, text='Synthetic request', chat=str(index)*32)
         creates = [body for action,body in self.chamber.calls if action=='session.create']
-        self.assertEqual(len(creates), 4)
+        self.assertEqual(len(creates), 2)
         self.assertTrue(all('title' not in body for body in creates))
         self.assertTrue(all(body.get('agent') == 'secretary' for body in creates))
 

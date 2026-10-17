@@ -12,8 +12,8 @@ data and keep content-hashed, cacheable URLs.
 
 The public website adds a security boundary to the local viewer; it is not an
 OpenChamber UI proxy. It permits login, current-password changes, logout and
-account-owned briefing viewing/generation/questions and the four secretary chat
-modes (Initialize alone before setup; Secretary, To-do and Eureka afterward).
+account-owned briefing viewing/generation/questions and secretary chats
+(Initialize alone before setup; Secretary afterward; older To-do and Eureka chats stay replyable).
 No web registration, account
 creation, username edit, forgotten-password shortcut or arbitrary agent API exists.
 Secretary chat also accepts private attachments up to 50 MB per file. Uploads

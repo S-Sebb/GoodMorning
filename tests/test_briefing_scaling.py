@@ -84,7 +84,7 @@ class ResourceTests(unittest.TestCase):
             resource = resources.alias('/' + name)
             self.assertEqual(resource.mime, 'image/svg+xml')
             self.assertIn(b'<svg', resource.data)
-        for name in ('briefing.css', 'schedule.css', 'chat.css'):
+        for name in ('briefing.css', 'schedule.css'):
             css = resources.alias('/' + name).data
             self.assertNotIn(b'url("icons/desk-', css)
             self.assertIn(resources.urls['icons/desk-schedule.svg'].encode(), css)

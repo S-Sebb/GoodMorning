@@ -33,8 +33,8 @@ body { margin: 0; background: var(--bg); color: var(--ink); font-family: ui-sans
 #language-feedback, #model-feedback { font-size: .75rem; overflow-wrap: anywhere; }
 #language-feedback:empty, #model-feedback:empty { display: none; }
 h1:lang(zh-CN), h1:lang(zh) { letter-spacing: 0; font-family: system-ui,"PingFang SC","Hiragino Sans GB","Microsoft YaHei","Noto Sans CJK SC","Source Han Sans SC",sans-serif; }
-#mode-guide { margin: .6rem 0 1rem; color: var(--muted); font-size: .85rem; }
-#mode-guide summary { cursor: pointer; }
+#chat-guide { margin: .6rem 0 1rem; color: var(--muted); font-size: .85rem; }
+#chat-guide summary { cursor: pointer; }
 #request-language-note { color: var(--muted); font-size: .8rem; }
 a { color: inherit; text-decoration-thickness: 1px; text-underline-offset: 4px; transition: color .22s ease, text-decoration-color .22s ease; }
 a:hover { color: var(--accent); }

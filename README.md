@@ -54,11 +54,12 @@ appointments with a time still to be decided each have their place. Saved change
 refresh without another AI call; this is a view of your records, not a generated
 weekly plan. See the [schedule guide](docs/weekly-schedule.md).
 
-**Secretary · Keep a little space to think.** Discuss plans, capture tasks with
-To-do, or save ideas with Eureka. New users see only Initialize until setup is
-complete; afterward, Secretary, To-do, and Eureka are available. Start with
-any mode and ask for another kind of help in the same conversation—there is no
-need to start over. File attachments, pasted images, Markdown replies, and saved
+**Secretary · Keep a little space to think.** One conversation does it all:
+save a to-do, jot down an idea, plan your week, or change a preference. New
+users see only Initialize until setup is complete; afterward, Secretary is the
+single place to talk. Each reply says whether something was saved as a to-do or
+an idea, and when it's unclear whether you want something saved or done, the
+secretary asks first. File attachments, pasted images, Markdown replies, and saved
 conversation history keep the details close. Questions, accepted answers, and
 confirmed changes have their own clear, softly highlighted cards.
 
