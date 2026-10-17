@@ -266,7 +266,8 @@ def main(argv=None):
         print(encode(result))
         return 0
     except (ValueError, OSError) as error:
-        message = str(error) if isinstance(error, ValueError) and not isinstance(error, json.JSONDecodeError) else "daily_unavailable: inspect selected record/input without overwriting it"
+        message = (f'invalid_input: malformed JSON ({error.msg}, line {error.lineno} column {error.colno}); nothing was saved'
+                   if isinstance(error, json.JSONDecodeError) else str(error) if isinstance(error, ValueError) else "daily_unavailable: inspect selected record/input without overwriting it")
         print(encode({"error": message.split(":", 1)[0], "next": message}))
         return 1
 

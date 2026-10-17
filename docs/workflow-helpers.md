@@ -6,9 +6,9 @@ decide task completion, approve imports, select news or claim delivery.
 
 ## Canonical tasks and event drafts
 
-Follow `docs/item-taxonomy.md`. `workflow --capture todo` accepts an optional
-`task` object for explicit title/detail/project/optionality/priority, due_date or
-due_at, planned_date, repeat/timezone, defer_until. It atomically saves raw input
+Follow `docs/item-taxonomy.md`; every write's JSON fields are in
+`docs/helper-inputs.md`. `workflow --capture todo` accepts an optional
+`task` object for explicit fields and timing. It atomically saves raw input
 and a minimal open task. Capture verbs do not grant execution consent.
 
 `task --show ID` returns canonical fields/revision; `--draft` selects an event
@@ -52,9 +52,8 @@ python scripts/goodmorning.py workflow --secretary-dir RUNTIME --capture todo --
   --request-key STABLE_KEY --input-stdin
 ```
 
-TODO JSON stdin: `{"raw":"Buy milk","summary":"Buy milk","task":{"title":"Buy milk","detail":""}}`.
-Supply revised title/grounded detail under `docs/workflows/todo.md`. `project`, `summary`,
-`context` and `questions` are optional; omit unknowns. Use `--capture eureka` for
+Input fields and tested examples: `docs/helper-inputs.md`. Supply revised
+title/grounded detail under `docs/workflows/todo.md`; omit unknowns. Use `--capture eureka` for
 ideas. `kind` comes from the workflow, not the payload. The command checks local
 setup, uses the actual timestamp and calls the transactional inbox once. Resolve
 ambiguous scheduling/targets through a question before any capture or pending note.

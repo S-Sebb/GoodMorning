@@ -20,8 +20,12 @@ Result: one verified pending idea. Read `docs/core-rules.md` and
    ```sh
    python scripts/goodmorning.py workflow --secretary-dir RUNTIME --capture eureka --session SESSION --request-key KEY --input-stdin
    ```
-   Supply exact JSON `raw` and optional confirmed project/current context. The
-   wrapper supplies `kind: "idea"`, checks setup, and returns a receipt/title suggestion
+   Supply exact JSON `raw` and optional confirmed project/current context
+   (all fields: `docs/helper-inputs.md`):
+   ```json workflow --capture eureka
+   {"raw":"What if the weekly page showed a mood line?","context":"Idea only; no work requested."}
+   ```
+   The wrapper supplies `kind: "idea"`, checks setup, and returns a receipt/title suggestion
    and reply preferences. Do not add `kind`, read old inbox history, or run separate
    preparation/profile/state checks. Timestamps use the profile timezone.
 3. For clear follow-up details, read `docs/inbox-pipeline.md` and append to the
