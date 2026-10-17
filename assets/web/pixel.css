@@ -152,3 +152,20 @@ html[data-edition="gn"][data-night-scheme="grass-block"] .weather-tile { --tile-
 :is(html:not([data-edition="gn"])[data-day-scheme="cottage"], html[data-edition="gn"][data-night-scheme="cottage"]) .week-picker .today-marker { border: 0; background: var(--warm); color: var(--px-line); box-shadow: 0 0 0 3px var(--px-line); }
 :is(html:not([data-edition="gn"])[data-day-scheme="cottage"], html[data-edition="gn"][data-night-scheme="cottage"]) .chat-message.user { background: var(--your-bubble); }
 
+
+/* Chinese pixel glyphs sit on a 12px grid: they stay crisp only at 12/24/36px and without
+   synthetic bold, so Chinese pixel text snaps to those sizes. Reading text keeps the system font. */
+html[data-pixel]:lang(zh) :is(h1, h2, h3, .wordmark span, .eyebrow, .edition-link, .briefing-section-nav a, .week-picker a, .weather-label,
+  .section-number, #new-conversation, .toolbar-row .menu > summary, #site-update-toggle, #quick-chat-launcher, .pixel-style-name, .scheme-name,
+  #prefs-menu legend, .preview-eyebrow, .preview-title, .today-marker, #activity-heading, .activity-title, #mobile-sections) {
+  font-weight: 400; font-synthesis: none; letter-spacing: 0;
+}
+html[data-pixel]:lang(zh) :is(h3, .wordmark span, .eyebrow, .edition-link, .briefing-section-nav a, .week-picker a, .weather-label,
+  #new-conversation, .toolbar-row .menu > summary, #site-update-toggle, #quick-chat-launcher, .pixel-style-name, .scheme-name, #prefs-menu legend,
+  .settings-menu-header h2, .color-scheme-heading, .preview-eyebrow, #activity-heading, #mobile-sections, .week-picker small, .today-marker) { font-size: 12px; line-height: 18px; }
+html[data-pixel]:lang(zh) :is(h2, .preview-title, .activity-title) { font-size: 24px; line-height: 36px; }
+html[data-pixel]:lang(zh) h1 { font-size: 36px; line-height: 48px; }
+@media (max-width: 700px) { html[data-pixel]:lang(zh) h1 { font-size: 24px; line-height: 36px; } }
+html[data-pixel]:lang(zh) :is(.letter-copy > .subtitle, .section-takeaway, .briefing-closing) { font-family: var(--cn-sans); }
+html[data-pixel]:lang(zh) .week-picker a { word-break: keep-all; }
+html[data-pixel]:lang(zh) .today-marker { white-space: nowrap; }

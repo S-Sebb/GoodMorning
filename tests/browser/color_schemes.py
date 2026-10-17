@@ -297,6 +297,10 @@ def main():
                 chat.evaluate('document.fonts.ready')
                 assert chat.evaluate('''document.fonts.load('24px "GoodMorning Pixel CJK"', '设置').then(faces => faces.length)''') == 1
                 expect(chat.locator('.settings-menu-header h2')).to_have_css('font-family', re.compile('GoodMorning Pixel'))
+                # The 12px-grid Chinese face stays crisp only on its grid and without synthetic bold.
+                for selector in ('.settings-menu-header h2', '.pixel-style-name', '.scheme-name', '#prefs-menu legend'):
+                    size, weight = chat.locator(selector).first.evaluate('e => [parseFloat(getComputedStyle(e).fontSize), getComputedStyle(e).fontWeight]')
+                    assert size % 12 == 0 and weight == '400', (selector, size, weight)
                 chat.screenshot(path=str(artifacts/'pixel-zh-settings.png'), full_page=True)
                 with chat.expect_response('**/api/color-schemes'):
                     chat.locator('.pixel-style-switch').click()
