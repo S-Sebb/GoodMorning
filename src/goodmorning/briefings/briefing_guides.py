@@ -22,28 +22,28 @@ TEXT = {
     'inspect files outside this release root and the runtime. Do not publish the affected section or finish while waiting.'),
   'shape': ('Submit `input` with its placeholders filled: BLOCKS is a list such as [["p","…"]] and NOTE is "" when there is '
             'none; keep its position, type and title unchanged. Plain text only (no Markdown/HTML). The note is a short grounded takeaway '
-            'in the saved tone, not a repeat of the cards. Run only this receipt\'s reads and publish before collecting any later '
-            'section. Before submitting, check every sentence against `writing`. '),
+            'in the saved tone, not a repeat of the cards. `results` holds this section\'s reads, already run for you (command, exit, '
+            'output); do not run them again unless this guide says so. Before submitting, check every sentence against `writing`. '),
   'init': ('Submit {"greeting":"…","opening":"…"} (each ≤350 chars, plain text); do not send plan or lang. Greeting is short, '
            'in the saved tone; if `reply_context.user_name` is set, address the user by exactly that name, otherwise greet '
            'unnamed. The opening may mention only these sections: SECTIONS. Say what will be reviewed, not findings.'),
   'regenerating': (' This is an explicitly authorized replacement, not a duplicate run: reuse saved feedback and current records; '
                    'do not replay task, daily, inbox, project or calendar writes, and ask nothing already answered.'),
-  'weather': ('Run the read. On success use one block ["weather",[[type,value,detail],...]] with types in order temperature, '
+  'weather': ('On a successful read use one block ["weather",[[type,value,detail],...]] with types in order temperature, '
               'precipitation, warning (only if one applies), air. Values are display text: "16°C (14.5–20.4°C)", "65% – Rain likely", '
               '"30 – Good" (no "US AQI" prefix, no raw yes/no). Detail holds advice, timestamps and material gaps; unknown AQI is not '
               'good air and an unknown warning is not "no warning". If the read fails, publish one ["p","…"] block saying only that this '
               'edition could not obtain the weather (no cause, no retry promise); never skip this section.'),
-  'news': ('Run the reads; each country\'s report lists every section\'s selected stories and more candidates. Publish one block '
+  'news': ('Each country\'s report in `results` lists every section\'s selected stories and more candidates. Publish one block '
            'for AI, one for world and one per national country (its block ends with the country code) whenever the reports have '
            'stories there. Choose meaningful stories (AI, world and national separately; an AI feed label alone is not an AI '
            'connection; fewer meaningful items over filler; label opinion or first-party claims). Block: '
            '["news",CATEGORY,[[headline,summary,[[source_label,absolute_url],...]],...],COUNTRY?]; keep every citation; only stories '
            'dated in this section\'s window. If a read asks for an editorial commit, follow its own next command. Never run news --ack. '
            'If reads fail, publish one ["p","…"] block saying only that this dated news could not be obtained; never skip this section.'),
-  'schedule': ('Run the read and copy its returned blocks exactly, including the empty-day paragraph; do not recompute dates or '
+  'schedule': ('Copy the read\'s returned block exactly, including the empty-day paragraph; do not recompute dates or '
                'widen the range. Preparation is attendee requirements only (no join links, meeting IDs or privacy footers).'),
-  'tasks': ('Run the read (follow next_offset to the last page) and copy every page\'s rows. Make no record writes; ids, dates, '
+  'tasks': ('Copy every page\'s rows (while next_offset is not null, rerun the read\'s command with --offset N). Make no record writes; ids, dates, '
             'status and revisions stay exactly as returned. Copy each row\'s title and detail exactly: they are the wording saved with the item. '
             'Only rows whose id is in the read\'s `fallback` list have no saved wording, and those you must check: if the title is vague, a '
             'fragment, not an imperative action, overlong or awkward, reword it for display as a clear imperative with a specific object, '
@@ -67,14 +67,14 @@ TEXT = {
             'row; and when you could not get a reliable result, what you tried and why it failed, and that they can change the source '
             'with you in chat. Cite the page you used or tried, or []. Note: the top 1–3 project groups and one useful next step. '
             'Zero rows and no errands: skip {"position":N}.'),
-  'attention': ('Run the read and copy its decisions block exactly (titles unchanged). Note: the count and the single next action. '
+  'attention': ('Copy the read\'s decisions block exactly (titles unchanged). Note: the count and the single next action. '
                 'Zero rows: skip {"position":N} instead of publishing.'),
   'today': ('Saved browser feedback (in prepare) is final: selected completions are already applied; never reapply or re-ask them. '
             'feedback.progress lines are project progress, not completion: mention them and never mark a step done from them. '
             'Blocked means something outside the user\'s control stops it (waiting on someone, missing material, closed). "Not done yet", '
             '"didn\'t get to it" or "will do it tomorrow" is neither blocked nor partial: write no status. A daily follow-up or deadline '
             'already comes back by itself; for other work a clearly named day is a move request (below). '
-            'Work in this order. 1) Reconcile: for each partial/blocked report in feedback.details, run the Tasks read in `read`, then '
+            'Work in this order. 1) Reconcile: for each partial/blocked report in feedback.details, use the Tasks read in `results`, then '
             'python scripts/goodmorning.py task --secretary-dir RUNTIME --show TASK_ID for its revision. When exactly one action clearly '
             'matches, record it once: an occurrence agreed for DATE uses task --report TASK_ID --date DATE; otherwise task --update TASK_ID '
             '(keep its planned date); both with --expect-revision REV --session SESSION --request-key gn-report:JOB:TASK_ID --input-json '
@@ -82,12 +82,12 @@ TEXT = {
             'with the native question tool listing only the matching actions and stop (no write, publish or finish). A clear request to move '
             'a named action to a clear day: after its status write, run task --update TASK_ID --expect-revision REV --session SESSION '
             '--request-key gn-move:JOB:TASK_ID --input-json \'{"planned_date":"YYYY-MM-DD"}\' (relative days count from DATE); if the '
-            'action or day is unclear, ask first. Anything else follows the ESCAPE HATCH. 2) After every write, run the Today read (the '
-            '--section today command in `read`) again; never reuse an earlier Today read. 3) Publish its returned blocks unchanged first: '
+            'action or day is unclear, ask first. Anything else follows the ESCAPE HATCH. 2) After any write, rerun the Today read\'s command (the '
+            '--section today entry in `results`); never reuse a Today read from before a write. 3) Publish its returned block unchanged first (none when it is null): '
             'they are the cards for completions and recorded partial/blocked work. Then add one ["p","…"] block and the note for reported '
             'outcomes the cards do not show (an accomplishment that matches no task, a moved date, a blocker\'s reason). Mention every '
             'reported outcome; add no advice or invented progress.'),
-  'today_regenerating': ('REGENERATION: make no task writes and ask nothing; reuse saved feedback. Run the read, copy its blocks and '
+  'today_regenerating': ('REGENERATION: make no task writes and ask nothing; reuse saved feedback. Copy the read\'s block (none when it is null) and '
                          'mention every reported outcome.'),
   'finish': ('Submit {} or {"closing":"…"} following `writing`. After a verified save, reply only with one short delivery line in '
              'the saved tone plus the returned relative url as a Markdown link.'),
@@ -104,20 +104,20 @@ TEXT = {
     'docs/item-taxonomy.md 中 grep 相关规则，然后执行明确要求且允许的写入，或用原生提问工具询问并等待。期间的进度说明仍用简体中文。'
     '不要查看本发布目录和运行目录之外的文件。等待期间不要发布受影响的章节或调用 finish。'),
   'shape': ('提交填好占位符的 `input`：BLOCKS 是块的列表，例如 [["p","……"]]；没有注记时 NOTE 填 ""；不要改动其中的位置、类型和标题。'
-            '只用纯文本（不用 Markdown/HTML）。注记是用保存语气写的简短、有依据的要点，不要复述卡片。只运行本回执的读取命令，发布后再收集后面的章节。'
+            '只用纯文本（不用 Markdown/HTML）。注记是用保存语气写的简短、有依据的要点，不要复述卡片。`results` 里是本章节已替你运行好的读取结果（command、exit、output）；除非本指南要求，不要再次运行。'
             '提交前逐句对照 `writing` 检查。'),
   'init': ('提交 {"greeting":"…","opening":"…"}（各不超过 350 字，纯文本），不要传 plan 或 lang。问候简短、符合保存的语气；若 `reply_context.user_name` 有值，就用这个称呼原样称呼用户，否则不带称呼。'
            '开场只能提及这些章节：SECTIONS。说明将要回顾的内容，不要提前给出结果。'),
   'regenerating': '这是经明确授权的重新生成，不是重复运行：沿用已保存的反馈和当前记录；不要重放任务、日记、收件箱、项目或日历写入，也不要再问已回答的问题。',
-  'weather': ('运行读取命令。成功时用一个块 ["weather",[[type,value,detail],...]]，type 依次为 temperature、precipitation、warning（仅适用时）、air。'
+  'weather': ('读取成功时用一个块 ["weather",[[type,value,detail],...]]，type 依次为 temperature、precipitation、warning（仅适用时）、air。'
               'value 是展示文本："16°C (14.5–20.4°C)"、"65% – 可能下雨"、"30 – 良好"（不加 "US AQI" 前缀，不用 yes/no 原始值）。detail 写建议、时间和重要缺口；'
               'AQI 未知不等于空气好，预警未知不等于没有预警。读取失败时发布一个 ["p","……"] 块，只说明本期无法获取天气（不写原因，不承诺补充）；不得跳过本章节。'),
-  'news': ('运行读取命令；每个国家的报告都会按板块列出已选报道和更多候选。只要报告在该板块有报道，就分别发布 AI、国际和每个国家的国内新闻块'
+  'news': ('`results` 中每个国家的报告都会按板块列出已选报道和更多候选。只要报告在该板块有报道，就分别发布 AI、国际和每个国家的国内新闻块'
            '（国内新闻块以国家代码结尾）。挑选有意义的报道（AI、国际、国内分开；仅有 AI 标签不算与 AI 相关；宁少勿滥；注明观点或当事方说法）。块格式：'
            '["news",CATEGORY,[[标题,摘要,[[来源名,绝对URL],...]],...],COUNTRY?]，保留全部引用，只收录本章节日期窗口内的报道。若读取结果要求编辑提交，'
            '按其 next 命令执行。不要运行 news --ack。读取失败时发布一个 ["p","……"] 块，只说明无法获取该日期的新闻；不得跳过本章节。'),
-  'schedule': '运行读取命令，原样复制返回的块（包括空日程段落）；不要重新计算日期或扩大范围。准备事项只写参会要求（不要加入会议链接、会议号或隐私声明）。',
-  'tasks': ('运行读取命令（按 next_offset 一直翻到最后一页），复制每一页返回的行。不写入任何记录：id、日期、状态和 revision 必须与返回的完全一致。'
+  'schedule': '原样复制读取返回的块（包括空日程段落）；不要重新计算日期或扩大范围。准备事项只写参会要求（不要加入会议链接、会议号或隐私声明）。',
+  'tasks': ('复制每一页返回的行（next_offset 不为 null 时，用读取结果的 command 加 --offset N 再运行一次）。不写入任何记录：id、日期、状态和 revision 必须与返回的完全一致。'
             '原样复制每一行的标题和说明：它们是和事项一起保存的措辞。只有 id 在读取结果 `fallback` 列表里的行没有保存的措辞，这些行你必须逐一检查：标题含糊、只是片段、'
             '不是祈使句、过长或别扭时，为展示改写成清楚的祈使句，带具体对象，含义不变，不添加事实，保留名称、数字和项目用语（例如 "牙医" + "五月前做检查" → '
             '"预约牙医检查"）；说明只要超过一句或夹着你自己的笔记，就必须把自由文字改写成至多一句用户据此行动的话，保留用户需要的数字、价格线、地点或联系方式（只有这类信息都没有时才留空），去掉你自己的笔记（提醒机制、"我会去查……"、提醒日期或"明天"、"确认后再关闭"、'
@@ -132,21 +132,21 @@ TEXT = {
             '£139.99"）。finding 是用户看到的内容：instruction 说要告诉用户（或没有设定条件）时，用一两句平实的话写结果（例如"今天亚马逊英国售价 £114.99，'
             '低于你定的 £120。"）；条件不满足时为 ""，该行不显示；无法得到可靠结果时，用平实的话说明你试了什么、为什么没成功，并说明可以在聊天里和你商量'
             '换个来源。引用你查看或尝试的页面，没有就用 []。注记：最重要的 1–3 个项目组和一个有用的下一步。读取为 0 行且没有代办事项时用 skip {"position":N}。'),
-  'attention': '运行读取命令，原样复制 decisions 块（标题不变）。注记：数量和唯一的下一步。读取为 0 行时用 skip {"position":N}。',
+  'attention': '原样复制读取返回的 decisions 块（标题不变）。注记：数量和唯一的下一步。读取为 0 行时用 skip {"position":N}。',
   'today': ('prepare 中保存的网页反馈是最终答案：已选的完成项已经应用，不要重复应用或再次询问。feedback.progress 是项目进展而不是完成：'
             '要提到，但不要据此把任何步骤标为完成。受阻指用户无法控制的原因阻止了它（在等别人、缺材料、店没开）。'
             '“还没做”“没顾上”“明天再去/明天再做”既不是受阻也不是部分完成：不要写入状态。每天跟进的事项和有截止日期的事项会自动再次出现；'
             '其他事项如明确说了哪一天，按下面的改期处理。按以下顺序处理。1）核对：对 feedback.details 中每条'
-            '部分完成/受阻的报告，先运行 `read` 中的 Tasks 读取，再运行 python scripts/goodmorning.py task --secretary-dir RUNTIME --show TASK_ID 获取版本号。'
+            '部分完成/受阻的报告，先查看 `results` 中的 Tasks 读取结果，再运行 python scripts/goodmorning.py task --secretary-dir RUNTIME --show TASK_ID 获取版本号。'
             '恰好只有一项明确匹配时记录一次：DATE 当天约定的事项用 task --report TASK_ID --date DATE；否则用 task --update TASK_ID（保留原计划日期）；'
             '两者都带 --expect-revision REV --session SESSION --request-key gn-report:JOB:TASK_ID --input-json '
             '\'{"status":"blocked|partial","detail":"<用户给出的原因，含义不变>"}\'。若某条报告可能对应多项，用原生提问工具只列出匹配的事项询问并停下'
             '（不写入、不发布、不 finish）。明确要求把某个指名事项挪到明确日期时：在其状态写入之后运行 task --update TASK_ID --expect-revision REV '
             '--session SESSION --request-key gn-move:JOB:TASK_ID --input-json \'{"planned_date":"YYYY-MM-DD"}\'（相对日期从 DATE 算起）；'
-            '事项或日期不明确时先询问。其他内容按例外通道处理。2）所有写入完成后，重新运行 Today 读取（`read` 中带 --section today 的命令）；'
-            '不要沿用之前的 Today 读取结果。3）先原样发布它返回的块：这些是完成项以及已记录的部分完成/受阻事项的卡片。然后为卡片没有体现的结果'
+            '事项或日期不明确时先询问。其他内容按例外通道处理。2）有写入时，完成后重新运行 Today 读取（`results` 中带 --section today 的命令）；'
+            '不要沿用写入之前的 Today 读取结果。3）先原样发布它返回的块（为 null 时没有）：这些是完成项以及已记录的部分完成/受阻事项的卡片。然后为卡片没有体现的结果'
             '（与任何待办都不对应的已完成事项、改动的日期、受阻原因）加一个 ["p","……"] 块和注记。提到用户报告的每项结果，不添加建议或臆测进展。'),
-  'today_regenerating': '重新生成：不写入任务、不提问；沿用已保存的反馈。运行读取命令并复制其块，提到用户报告的每项结果。',
+  'today_regenerating': '重新生成：不写入任务、不提问；沿用已保存的反馈。复制读取返回的块（为 null 时没有），提到用户报告的每项结果。',
   'finish': '提交 {} 或 {"closing":"…"}，遵循 `writing`。保存核实后，只用保存的语气写一句简短的交付语，并附上返回的相对 url 作为 Markdown 链接。',
  },
 }

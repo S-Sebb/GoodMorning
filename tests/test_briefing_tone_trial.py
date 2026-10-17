@@ -8,7 +8,7 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
-from support import TEMP_ROOT
+from support import TEMP_ROOT, offline_provider_reads
 from benchmarks.briefing_tone_live import CheckpointBridge, seed_tasks, seed_flexible, link_handoff, collection_order_issues, trial_config, external_allowed, job_action
 from goodmorning.briefings.briefing_job import act, writing_rule
 from goodmorning.briefings.briefing_preflight import initialize as prepare, answer
@@ -22,6 +22,7 @@ class BriefingTrialTests(unittest.TestCase):
         self.temporary = tempfile.TemporaryDirectory(dir=TEMP_ROOT)
         self.addCleanup(self.temporary.cleanup)
         self.runtime = Path(self.temporary.name)
+        offline_provider_reads(self)
         (self.runtime/'profile.md').write_text('city: London, GB\ntimezone: Europe/London\nnews_country: GB\ncalendar_source: custom\n')
         initialize(self.runtime)
         CalendarStore(str(self.runtime/'calendar.sqlite')).close()
@@ -228,8 +229,11 @@ class BriefingTrialTests(unittest.TestCase):
         prepared['feedback']['details']='One report is blocked, but the report is not named.'
         target.write_text(json.dumps(prepared))
         receipt=act(self.runtime,job['id'],'ses_trial','prepare')
-        self.assertIn('--section tasks',receipt['next']['read'][0])
-        self.assertIn('--section today',receipt['next']['read'][1])
+        tasks,today=receipt['next']['results']
+        self.assertIn('--section tasks',tasks['command'])
+        self.assertIn('--section today',today['command'])
+        self.assertEqual((tasks['exit'],today['exit']),(0,0))
+        self.assertIsNone(today['output']['block'])
         self.assertIn('completion choices',receipt['feedback_task_scope'])
 
 

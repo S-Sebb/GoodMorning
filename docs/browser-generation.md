@@ -27,10 +27,16 @@ tone for any visible text, even when helper instructions are written in English.
 Chinese requests state the edition and label the job/runtime in Chinese; the job ID, selected paths and
 `Website language` pin are unchanged. All labels refer to the same saved job.
 
-- Follow each receipt's `next` command/position/read recipes. For a fresh job,
+- Follow each receipt's `next` command and position. For a fresh job,
   immediately `init` before fetching or additional reads. Use the default plan
   unchanged, including titles. For an existing checkpoint, resume its returned
   next step; do not replace its greeting/opening/plan. Never invent flags.
+- v2 receipts run the next section's read recipes themselves, after the
+  previous publication, and return them as `next.results` (`command`, `exit`,
+  `output`). This removes one model turn per read without collecting future
+  sections. The agent reruns a result's command only for a later Tasks page or
+  a fresh Today read after a feedback write. Legacy v1 receipts still list
+  `read` commands for the agent to run.
 - Do not rerun `workflow`, ask missing-edition questions or re-ask supplied progress.
   Additional questions cover unresolved material ambiguity/consent only. Browser
   jobs use their pinned current briefing day (04:00 profile-timezone rollover),
@@ -51,7 +57,7 @@ Chinese requests state the edition and label the job/runtime in Chinese; the job
 Workflow steps describe section content, not permission to collect the entire
 edition before publication. After allowed feedback reconciliation, publish Today
 before reading Schedule or Reminders; then follow each receipt's next position.
-Task-section recipes carry `--browser-job`; reads check owner, date, edition,
+Task-section recipes carry `--browser-job` and `--session`; reads check owner, date, edition,
 language and next position. Active browser actors remain bound if that flag is
 omitted. An out-of-turn read error means publish the current section first, not
 that the provider is unavailable. Original evening attribution may read Tasks;
@@ -64,7 +70,7 @@ write agent-owned cumulative drafts. Check exits and `error`/`next` after every 
 1. **init:** `{"greeting":"…","opening":"…"}`. Optional `lang` must equal the
    pinned language; optional `plan` must equal the default. Greeting/opening remain
    immutable. Keep the opening factual before collection, not a speculative overview.
-2. **publish:** gather only the next section from saved context/returned recipes,
+2. **publish:** gather only the next section from saved context/returned results,
    follow pages/review requirements, then submit
    `{"position":N,"section":[TYPE,BLOCKS,NOTE?,TITLE?]}`. This notation describes
    fields, not literal JSON: omit unused trailing fields. `position` is zero-based

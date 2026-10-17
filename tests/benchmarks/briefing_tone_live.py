@@ -44,9 +44,29 @@ if sys.argv[1:2]==['job'] and action!='prepare' and '--help' not in sys.argv:
     sys.stdin=io.TextIOWrapper(io.BytesIO(raw),encoding='utf-8')
 with (runtime/'trial-commands.jsonl').open('a') as log:
     log.write(json.dumps(entry,ensure_ascii=False)+'\\n')
+FAULT={'error':'provider_unavailable','next':'Provider unavailable in this isolated test. Publish material unavailability; do not retry or use external sources.'}
+if sys.argv[1:2]==['job']:
+    # Receipts run section reads in-process; log and fault them like agent-run reads.
+    import shlex
+    from goodmorning.briefings import briefing_job
+    real=briefing_job.run_reads
+    def reads(commands):
+        results=[]
+        for command in commands:
+            argv=shlex.split(command)[2:]
+            call=uuid.uuid4().hex
+            with (runtime/'trial-commands.jsonl').open('a') as log:
+                log.write(json.dumps({'call':call,'argv':argv,'receipt':True},ensure_ascii=False)+'\\n')
+            result={'command':command,'exit':1,'output':FAULT} if argv[:1] in (['weather'],['news']) else real([command])[0]
+            output=result['output'] if isinstance(result['output'],dict) else {}
+            with (runtime/'trial-commands.jsonl').open('a') as log:
+                log.write(json.dumps({'call':call,'exit':result['exit'],'error':output.get('error')})+'\\n')
+            results.append(result)
+        return results
+    briefing_job.run_reads=reads
 captured=io.StringIO()
 if sys.argv[1:2] in (['weather'],['news']):
-    captured.write(json.dumps({'error':'provider_unavailable','next':'Provider unavailable in this isolated test. Publish material unavailability; do not retry or use external sources.'})+'\\n')
+    captured.write(json.dumps(FAULT)+'\\n')
     code=1
 else:
     try:

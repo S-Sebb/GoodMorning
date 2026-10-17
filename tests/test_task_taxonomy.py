@@ -12,7 +12,7 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
-from support import TEMP_ROOT
+from support import TEMP_ROOT, offline_provider_reads
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'src'))
 from goodmorning.records.inbox_store import InboxStore, initialize
 from goodmorning.records.task_store import TaskStore, migrate, occurrence_id
@@ -37,6 +37,7 @@ class TaxonomyTests(unittest.TestCase):
         self.root = Path(temp.name)
         env = patch.dict(os.environ, {}, clear=True)
         env.start(); self.addCleanup(env.stop)
+        offline_provider_reads(self)
         (self.root/'profile.md').write_text('city: London, GB\ntimezone: Europe/London\nnews_country: GB\nsecretary_language: English\n')
         initialize(self.root)
         CalendarStore(str(self.root/'calendar.sqlite')).close()
@@ -702,6 +703,22 @@ class TaxonomyTests(unittest.TestCase):
                                       runtime=self.root, job='j'*32, session='ses_test')
         self.assertIn('--secretary-dir '+str(self.root),guide)
         self.assertNotIn('RUNTIME',guide)
+
+    def test_receipts_carry_the_next_sections_reads_after_publication(self):
+        self.capture('Buy milk', task={'title': 'Buy milk', 'planned_date': DAY})
+        job = self.browser_job('d', kind='gm', state='running', session='ses_test', language='en')
+        preflight(self.root, job)
+        result = act(self.root, job['id'], 'ses_test', 'init', {'greeting': 'Hi.', 'opening': 'Weather first.'})
+        self.assertNotIn('read', result['next'])
+        self.assertEqual([r['command'].split()[2] for r in result['next']['results']], ['weather'])
+        for position, tag in ((0, 'weather'), (1, 'news')):
+            result = act(self.root, job['id'], 'ses_test', 'publish', {'position': position, 'section': [tag, [['p', 'Unavailable.']]]})
+        schedule, = result['next']['results']
+        self.assertEqual((schedule['exit'], schedule['output']['block'][0]), (0, 'p'))
+        result = act(self.root, job['id'], 'ses_test', 'publish', {'position': 2, 'section': ['schedule', [schedule['output']['block']]]})
+        tasks, = result['next']['results']
+        self.assertEqual(tasks['exit'], 0)  # Ran in turn: an out-of-turn read is refused.
+        self.assertEqual([row[5] for row in tasks['output']['block'][1]], ['Buy milk'])
 
     def test_account_schedule_ignores_process_calendar_override(self):
         other = self.root/'other-calendar.sqlite'

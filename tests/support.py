@@ -308,6 +308,20 @@ class HTTPFixture(unittest.TestCase):
             return json.load(response)
 
 
+def offline_provider_reads(test):
+    """Receipts run their section's reads; keep weather and news off the network."""
+    from goodmorning.briefings import briefing_job
+    real = briefing_job.run_reads
+    def reads(commands):
+        local = [command for command in commands if command.split()[2] not in ('weather', 'news')]
+        done = dict(zip(local, real(local)))
+        return [done.get(command) or {'command': command, 'exit': 1, 'output': {'error': 'provider_unavailable'}}
+                for command in commands]
+    patcher = patch.object(briefing_job, 'run_reads', reads)
+    patcher.start()
+    test.addCleanup(patcher.stop)
+
+
 def complete_profile(root):
     """A synthetic profile with every field briefing setup requires."""
     (Path(root)/'profile.md').write_text('secretary_language: English\ntimezone: Europe/London\ncity: London, GB\nnews_country: GB\n')

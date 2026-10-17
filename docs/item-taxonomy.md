@@ -216,6 +216,7 @@ heading. Use `scripts/goodmorning.py` with the selected absolute runtime.
    IDs/revisions/titles/dates/status. One actionable card per occurrence.
    Browser recipes use `--section schedule|tasks|attention|today`: return only that
    section's rows, `block`, counts and warnings, avoiding repeated whole-plan reads.
+   A Today read with no outcome cards returns `block: null`, never an empty card list.
 9. Each edition has one focus day: the morning shows today, the evening previews
     tomorrow. Appointments, occasions, TBC days, day tasks, routines, habits and
     nudges and errands appear only on their own day unless they carry a `notice`. The other
