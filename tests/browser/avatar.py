@@ -1,6 +1,7 @@
 """Shared briefing avatars on isolated synthetic records; no model calls."""
 import json
 import io
+import re
 from pathlib import Path
 import subprocess
 import sys
@@ -191,6 +192,17 @@ def check_motion(browser, address):
     page.locator(f'[data-avatar-choice="{next_avatar}"]').click()
     page.wait_for_function('() => avatarFrames.some(opacity => opacity > 0.4 && opacity < 1)')
     page.wait_for_function("() => document.querySelector('.avatar-display').getAttribute('aria-busy') === 'false'")
+    # The main portrait plays the gently animated scene; picker previews stay still.
+    page.wait_for_function(f"() => document.querySelector('.avatar-image').currentSrc.includes('{'-m2' if next_avatar == 'm2' else ''}-day-animated.png')")
+    assert page.locator('.avatar-image').evaluate('node => node.complete && node.naturalWidth > 0')
+    assert not any('-animated' in src for src in page.locator('.avatar-preview img').evaluate_all('nodes => nodes.map(node => node.currentSrc)'))
+    page.close()
+    page = browser.new_page(viewport={'width': 1440, 'height': 900}, reduced_motion='reduce')
+    page.goto(address + '/gn.html')
+    image = page.locator('.avatar-image')
+    expect(image).to_have_attribute('src', re.compile(r'desk-secretary(-m2)?\.png$'))
+    page.wait_for_function("() => document.querySelector('.avatar-image').complete")
+    assert image.evaluate('node => node.currentSrc') == image.evaluate('node => node.src'), 'Reduced motion keeps the still scene'
     page.close()
 
 

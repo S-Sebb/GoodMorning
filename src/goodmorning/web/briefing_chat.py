@@ -22,8 +22,11 @@ AVATARS = (('f1', 'desk-secretary.png', 'Classic'),
            ('m1', 'desk-secretary-m1.png', 'Male 1'),
            ('m2', 'desk-secretary-m2.png', 'Male 2'))
 AVATAR_IDS = tuple(entry[0] for entry in AVATARS)
-# Each built-in avatar has a lamp-lit night scene, a daylight scene and a round profile picture.
+# Each built-in avatar has a lamp-lit night scene, a daylight scene, a gently animated copy of each scene
+# and a round profile picture.
 AVATAR_FILES = {entry: {'night': filename, 'day': filename.replace('.png', '-day.png'),
+                        'nightAnimated': filename.replace('.png', '-animated.png'),
+                        'dayAnimated': filename.replace('.png', '-day-animated.png'),
                         'profile': filename.replace('.png', '-profile.png')} for entry, filename, _ in AVATARS}
 
 
@@ -50,9 +53,12 @@ def avatar_widget(selected='f1', sources=None, class_name='desk-figure', theme='
                                                 ('night', 'Scene · night', 'Upload night scene'),
                                                 ('profile', 'Profile', 'Upload profile picture')))
     profile = sources[selected]['profile'] or ''
+    animated = sources[selected].get(variant + 'Animated')
     return (f'<figure class="{class_name} avatar-display" data-avatar="{selected}" data-profile="{html.escape(profile, quote=True)}" data-avatar-options="{options}">'
             '<div class="avatar-frame">'
-            f'<img class="avatar-image" src="{html.escape(sources[selected][variant], quote=True)}" alt="Secretary avatar" width="220" height="220">'
+            # Only the main portrait moves, and never for readers who ask for reduced motion.
+            '<picture>' + (f'<source media="(prefers-reduced-motion: no-preference)" srcset="{html.escape(animated, quote=True)}">' if animated else '') +
+            f'<img class="avatar-image" src="{html.escape(sources[selected][variant], quote=True)}" alt="Secretary avatar" width="220" height="220"></picture>'
             f'<img class="avatar-profile" src="{html.escape(profile or sources[selected][variant], quote=True)}" alt="" width="44" height="44">'
             '<button class="avatar-toggle" type="button" data-avatar-toggle aria-label="Change avatar" title="Change avatar" aria-expanded="false" disabled>'
             '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'

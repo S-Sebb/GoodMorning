@@ -1,5 +1,6 @@
 .avatar-display { position: relative; }
 .avatar-frame { position: relative; width: 100%; }
+.avatar-frame picture { display: contents; }
 .avatar-image { display: block; width: 100%; height: auto; border-radius: 18px; image-rendering: pixelated; transition: opacity .18s ease; }
 .avatar-image.is-changing { opacity: .35; }
 .avatar-display .avatar-toggle { position: absolute; right: 8px; top: 8px; display: grid; place-items: center; width: 44px; height: 44px; min-height: 44px; padding: 0; border: 0; border-radius: 14px; background: transparent; color: #233c36; cursor: pointer; box-shadow: none; transition: color .18s ease, transform .18s ease; }
