@@ -29,7 +29,7 @@ def check_avatar(page, selected, label):
     kind = page.locator('html').get_attribute('data-edition')
     # Morning shows the daylight scene; evening keeps the lamp-lit one.
     assert image.get_attribute('src').endswith('-day.png') == (kind == 'gm'), image.get_attribute('src')
-    assert page.locator('#sun-light' if kind == 'gm' else '#moon-light').count() == 1
+    assert page.locator('#morning-sun-body' if kind == 'gm' else '#moon-light').count() == 1
     assert page.locator('.secretary-panel, .briefing-tools').count() == 0
     card = page.locator('.briefing-section').first
     assert card.evaluate('node => getComputedStyle(node).backgroundColor') != 'rgba(0, 0, 0, 0)'

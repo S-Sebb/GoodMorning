@@ -173,3 +173,13 @@ html[data-style="pixel"] #prefs-menu [data-swatch="style-soft"] { border-radius:
 html[data-style="pixel"] #prefs-menu .scheme-card input:checked + [data-swatch="style-soft"] { box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--accent); }
 html[data-style="pixel"] #prefs-menu [data-swatch="style-soft"] i:nth-child(4) { border-radius: 2px; }
 html[data-style="pixel"] #prefs-menu [data-swatch="style-soft"] i:nth-child(5) { border-radius: 3px; }
+
+/* Pixel sun and moon replace the soft edition artwork; Grass Block keeps its square ones. */
+html[data-style="pixel"]:not([data-edition="gn"]):not([data-day-scheme="grass-block"]) .orbit .celestial-art,
+html[data-style="pixel"][data-edition="gn"]:not([data-night-scheme="grass-block"]) .orbit .celestial-art { visibility: hidden; }
+html[data-style="pixel"]:not([data-edition="gn"]):not([data-day-scheme="grass-block"]) .orbit .sun { background: url("/pixel-sun.svg") center / 144px no-repeat; image-rendering: pixelated; }
+html[data-style="pixel"][data-edition="gn"]:not([data-night-scheme="grass-block"]) .orbit .sun { background: url("/pixel-moon.svg") center / 144px no-repeat; image-rendering: pixelated; }
+@media (max-width: 700px) {
+  html[data-style="pixel"]:not([data-edition="gn"]):not([data-day-scheme="grass-block"]) .orbit .sun,
+  html[data-style="pixel"][data-edition="gn"]:not([data-night-scheme="grass-block"]) .orbit .sun { background-size: 52px; }
+}
