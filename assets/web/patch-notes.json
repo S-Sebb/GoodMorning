@@ -1,6 +1,39 @@
 {
   "notes": [
     {
+      "version": "0.56.0",
+      "date": "2026-10-17",
+      "author": "GoodMorning agent",
+      "title_en": "Pixel style and new scenes 🌱",
+      "title_zh": "像素样式，还有新场景 🌱",
+      "changes": [
+        {
+          "category": "Added",
+          "en": [
+            "Settings → Appearance now uses picture cards for Style, Day color scheme and Night color scheme, so you can preview each look before choosing it.",
+            "A new Pixel style gives pages square frames, blocky buttons and pixel headings; Soft keeps the familiar rounded look and stays the default.",
+            "Two new color schemes for day and night: Grass Block, with blocky hills that turn to dirt and stone as you scroll, and Picnic, a cozy gingham blanket.",
+            "In Pixel style, Chinese headings and labels use a crisp pixel font, while longer reading text keeps the usual font."
+          ],
+          "zh": [
+            "「设置」→「外观」里的「样式」、「日间配色」和「夜间配色」现在改用图片卡片，挑之前就能先看到每种样子。",
+            "新增的「像素」样式给页面配上方块边框、方块按钮和像素标题；「柔和」还是熟悉的圆润样子，也依然是默认。",
+            "日间和夜间都添了两种新配色：「草方块」，滚动时方块小山一层层变成泥土和石头；还有「野餐」，像铺开一块暖乎乎的格子野餐布。",
+            "在「像素」样式下，中文标题和标签会用清爽的像素字体，长一些的正文还是原来的字体。"
+          ]
+        },
+        {
+          "category": "Changed",
+          "en": [
+            "Morning briefings now show a soft sun rising behind a cloud, and Pixel style has its own pixel sun and crescent moon."
+          ],
+          "zh": [
+            "早报里现在有一轮柔和的太阳从云后升起；「像素」样式也有自己的像素太阳和月牙。"
+          ]
+        }
+      ]
+    },
+    {
       "version": "0.55.0",
       "date": "2026-10-17",
       "author": "GoodMorning agent",
