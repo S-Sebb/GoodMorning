@@ -86,7 +86,7 @@ class AvatarTests(unittest.TestCase):
     def test_resources_and_gateway_serve_every_scene_and_profile(self):
         resources = Resources(WEB_ASSETS)
         filenames = [name for files in AVATAR_FILES.values() for name in files.values()]
-        self.assertEqual(len(set(filenames)), 12)
+        self.assertEqual(len(set(filenames)), 20)
         for filename in filenames:
             self.assertIn(filename, resources.urls)
             self.assertTrue(GET_ROUTES.fullmatch('/' + filename), filename)
@@ -98,6 +98,23 @@ class AvatarTests(unittest.TestCase):
         hashed = '/assets/' + 'a' * 64 + '/desk-secretary-m1.png'
         self.assertTrue(GET_ROUTES.fullmatch(hashed))
         self.assertFalse(GET_ROUTES.fullmatch('/desk-secretary-evil.png'))
+        self.assertFalse(GET_ROUTES.fullmatch('/desk-secretary-profile-animated.png'))
+
+    def test_built_in_portraits_animate_only_without_reduced_motion(self):
+        from PIL import Image
+        for files in AVATAR_FILES.values():
+            for still, moving in (('day', 'dayAnimated'), ('night', 'nightAnimated')):
+                with Image.open(WEB_ASSETS / files[still]) as base, Image.open(WEB_ASSETS / files[moving]) as image:
+                    self.assertTrue(image.is_animated, files[moving])
+                    self.assertEqual(image.size, base.size)
+                    self.assertEqual(image.convert('RGBA').getextrema()[3][0], 0, 'Background stays transparent')
+        source = '<source media="(prefers-reduced-motion: no-preference)" srcset="/desk-secretary-m1-animated.png">'
+        self.assertIn(source + '<img class="avatar-image" src="/desk-secretary-m1.png"', page('csrf', True, True, None, 'm1', theme='gn'))
+        self.assertIn('srcset="/desk-secretary-day-animated.png"', page('csrf', True, True, None))
+        # Picker previews and the round profile stay still.
+        self.assertEqual(page('csrf', True, True, None).count('-animated.png"'), 1)
+        custom = {'custom': {'day': '/api/avatar/image/' + 'a' * 64 + '.png', 'night': '/api/avatar/image/' + 'b' * 64 + '.png', 'profile': None}}
+        self.assertNotIn('<source', page('csrf', True, True, None, 'custom', custom))
 
     def test_avatar_is_private_per_runtime_and_survives_viewer_restart(self):
         profiles = {}

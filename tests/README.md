@@ -40,7 +40,7 @@ restoration.
 |---|---|
 | `activity` | Activity reminders across tabs, owner isolation, outage, motion, both languages |
 | `auth`, `auth_scroll` | Login form toggles; mobile auth layout under touch scrolling and viewport changes |
-| `avatar` | Shared briefing avatars, day and night scenes, custom uploads and layout alignment |
+| `avatar` | Shared briefing avatars, day and night scenes, animated portraits under reduced motion, custom uploads and layout alignment |
 | `chat` | Mode switch and conversation flow |
 | `chat_actions` | Question, answer, permission and change cards: all palettes, contrast, drafts, one-shot and reduced motion |
 | `chat_action_ownership` | Real chat API rendering native, browser-chat and browser-turn receipts in all modes |

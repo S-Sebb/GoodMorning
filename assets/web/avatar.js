@@ -27,7 +27,16 @@
     let notice = '';
     let uploadVariant = 'night';
     // Evening pages and night-time desks show the lamp-lit scene; everything else shows daylight.
-    const scene = id => sources[id][document.documentElement.dataset.edition === 'gn' ? 'night' : 'day'];
+    const variant = () => document.documentElement.dataset.edition === 'gn' ? 'night' : 'day';
+    const scene = id => sources[id][variant()];
+    // Built-in avatars also have a gently animated scene; the <source> shows it unless motion is reduced.
+    const moving = id => sources[id][variant() + 'Animated'] || '';
+    let motion = image.parentElement.querySelector('source');
+    if (!motion) {
+      motion = document.createElement('source');
+      motion.media = '(prefers-reduced-motion: no-preference)';
+      image.before(motion);
+    }
     menu.id = 'avatar-picker-' + index;
     toggle.setAttribute('aria-controls', menu.id);
     toggle.disabled = false;
@@ -67,12 +76,17 @@
       const revision = ++imageRevision;
       root.dataset.profile = sources[id].profile || '';
       profile.src = sources[id].profile || scene(id);
-      if (image.getAttribute('src') === scene(id)) { image.classList.remove('is-changing'); return; }
+      if (image.getAttribute('src') === scene(id) && (motion.getAttribute('srcset') || '') === moving(id)) {
+        image.classList.remove('is-changing');
+        return;
+      }
       const next = new Image();
-      next.src = scene(id);
+      next.src = moving(id) && !reduced() ? moving(id) : scene(id);
       image.classList.add('is-changing');
       try { await next.decode(); } catch { /* The normal image fallback remains visible. */ }
       if (revision !== imageRevision) return;
+      if (moving(id)) motion.srcset = moving(id);
+      else motion.removeAttribute('srcset');
       image.src = scene(id);
       image.classList.remove('is-changing');
       if (!reduced()) {

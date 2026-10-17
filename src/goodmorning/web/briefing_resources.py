@@ -92,7 +92,7 @@ class Resources:
                    'maintenance.css': 'text/css',
                  'fonts/OFL.txt': 'text/plain',
                  **{f'desk-secretary{person}{variant}.png': 'image/png' for person in ('', '-f2', '-m1', '-m2')
-                    for variant in ('', '-day', '-profile')}, **ICON_TYPES}
+                    for variant in ('', '-day', '-animated', '-day-animated', '-profile')}, **ICON_TYPES}
         # Register the font first: CSS embeds its immutable, shared URL.
         for name, mime in types.items():
             try:
