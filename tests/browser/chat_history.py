@@ -116,7 +116,7 @@ def check_continuity(browser, address):
     # Explicit links win over the workspace; independent tabs start fresh.
     page.goto(address + '/chat?id=' + OTHER); settled(page)
     page.goto(address + '/chat?mode=eureka')
-    expect(page.locator('[data-mode="eureka"]')).to_have_attribute('aria-checked', 'true')
+    expect(page.locator('#chat-topic-mode')).to_have_text('Secretary')
     expect(page.locator('#chat-empty')).to_be_visible()
     second = context.new_page(); mock_chats(second); second.goto(address + '/chat')
     expect(second.locator('#chat-empty')).to_be_visible()

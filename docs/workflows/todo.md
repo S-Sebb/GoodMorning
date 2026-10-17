@@ -5,14 +5,15 @@ description: Capture a TODO with exact raw input, a clear revised title and grou
 
 # TODO capture
 
-Trigger: `/todo` or an explicit task-capture request. Inputs: raw text, confirmed
+Trigger: the secretary workflow decided to save a to-do (*Save or do* in
+`docs/workflows/secretary.md`). Inputs: raw text, confirmed
 runtime/timezone, actual session, stable request key, and supplied context.
 Result: one verified pending TODO and linked action, not execution or a project-plan change.
 
 Read `docs/core-rules.md` and `templates/todo.reply.template.md`. Use the package
 root and selected absolute paths. `docs/reply-voice.md` is for detailed discussion;
-simple capture uses the core voice rules. Route explicitly requested other work
-to its workflow in this conversation; capture wording alone does not grant consent.
+simple capture uses the core voice rules. Other requested work returns to the
+secretary workflow in this conversation; capture wording alone does not grant consent.
 
 ## Steps
 

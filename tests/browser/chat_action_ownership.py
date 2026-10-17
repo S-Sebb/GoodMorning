@@ -15,7 +15,7 @@ sys.path.insert(0, str(REPO / 'src'))
 
 def fixture(directory):
     from goodmorning.records.inbox_store import InboxStore, initialize, stamp
-    from goodmorning.web.briefing_chat import MODES
+    from goodmorning.web.briefing_chat import MODES, NEW_MODES
     from goodmorning.web.briefing_server import BrowserApp, serve_live
     from support import MockChamber, ImmediateThread
     from support import returning_viewer
@@ -31,7 +31,8 @@ def fixture(directory):
         for index, mode in enumerate(MODES):
             chat, turn = str(index + 1) * 32, str(index + 5) * 32
             with patch('goodmorning.web.briefing_chat.threading.Thread', ImmediateThread):
-                app.chats.start({'id': chat, 'mode': mode, 'text': f'{mode} request'})
+                app.chats.start({'id': chat, 'mode': mode if mode in NEW_MODES else 'secretary', 'text': f'{mode} request'})
+                app.chats.items[chat]['mode'] = mode  # Older To-do/Eureka chats stay readable.
                 if mode == 'initialize':
                     app.chats.reply(chat, 'form', 'form_city', {'answer': {'city': 'London'}})
                     app.chats.reply(chat, 'permission', 'permission_setup', {'decision': 'reject'})

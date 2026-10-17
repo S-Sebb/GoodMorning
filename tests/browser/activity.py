@@ -93,13 +93,12 @@ def run(artifacts):
                     expect(visible).to_be_in_viewport()
                 owner = context()
                 source = owner.new_page(); source.on('pageerror', lambda error: errors.append(str(error)))
-                # This scenario starts initialization, so begin with an incomplete
-                # synthetic profile instead of selecting a mode hidden after setup.
+                # This scenario starts initialization, so begin with an incomplete synthetic profile.
                 profile = Path(settings['runtimes']['alice'])/'profile.md'
                 saved_profile = profile.read_text()
                 profile.write_text('secretary_language: English\n')
                 login(source, 'gm', 'alice', 'a1alice-temporary'); permanent(source, 'alice')
-                source.get_by_role('radio', name='Initialize', exact=True).click()
+                expect(source.locator('#chat-topic-mode')).to_have_text('Initialize')
                 started = time.monotonic()
                 with source.expect_response('**/api/activity', timeout=1000):
                     source.get_by_role('button', name='Start initialization', exact=True).click()

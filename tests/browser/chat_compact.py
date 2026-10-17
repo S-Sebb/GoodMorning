@@ -49,30 +49,30 @@ def check_compact(browser, address, artifacts):
                 const heading=document.querySelector('#chat-welcome').getBoundingClientRect();
                 const hint=document.querySelector('#chat-hint').getBoundingClientRect();
                 const symbol=document.querySelector('.desk-symbol').getBoundingClientRect();
+                const starters=document.querySelector('#chat-starters');
+                const last=(starters.hidden?document.querySelector('#chat-hint'):starters).getBoundingClientRect();
                 const style=getComputedStyle(scroll);
                 const centerX=box.left+scroll.clientLeft+scroll.clientWidth/2;
                 const centerY=box.top+scroll.clientTop+(scroll.clientHeight+parseFloat(style.paddingTop)-parseFloat(style.paddingBottom))/2;
-                const controls=document.querySelector('.mode-controls').getBoundingClientRect();
+                const controls=document.querySelector('.chat-help-row').getBoundingClientRect();
                 const panel=document.querySelector('.conversation-panel').getBoundingClientRect();
                 return {headingOffset:heading.left+heading.width/2-centerX, hintOffset:hint.left+hint.width/2-centerX,
-                    verticalOffset:(symbol.top+hint.bottom)/2-centerY, controlsTop:controls.top-panel.top,
+                    verticalOffset:(symbol.top+last.bottom)/2-centerY, controlsTop:controls.top-panel.top,
                     scrollOverflow:scroll.scrollHeight-scroll.clientHeight};
             }''')
             assert abs(geometry['headingOffset']) <= 1 and abs(geometry['hintOffset']) <= 1, geometry
             assert abs(geometry['verticalOffset']) <= 2, geometry
             assert geometry['controlsTop'] <= 190 and geometry['scrollOverflow'] <= 1, geometry
-            expect(page.locator('#mode-guide')).to_be_hidden()
-            page.get_by_role('button', name='Which mode should I use?', exact=True).click()
-            expect(page.locator('#mode-guide')).to_be_visible()
-            expect(page.locator('#mode-guide strong')).to_have_count(4)
-            expect(page.locator('#mode-guide')).to_contain_text('When in doubt, try it')
-            expect(page.locator('#mode-guide')).to_contain_text('does not automatically start the work')
-            page.locator('.conversation-panel').screenshot(path=str(artifacts/f'mode-guide-{edition}-{scheme}-{width}.png'))
-            expect(page.locator('#mode-help')).to_have_attribute('aria-expanded','true')
+            expect(page.locator('#chat-guide')).to_be_hidden()
+            page.locator('#chat-help').click()
+            expect(page.locator('#chat-guide')).to_be_visible()
+            expect(page.locator('#chat-guide [data-guide="secretary"] li')).to_have_count(4)
+            page.locator('.conversation-panel').screenshot(path=str(artifacts/f'chat-guide-{edition}-{scheme}-{width}.png'))
+            expect(page.locator('#chat-help')).to_have_attribute('aria-expanded','true')
             page.keyboard.press('Escape')
-            expect(page.locator('#mode-guide')).to_be_hidden()
-            expect(page.locator('#mode-help')).to_be_focused()
-            labels = page.locator('[data-mode]').evaluate_all('''nodes => nodes.map(node => {
+            expect(page.locator('#chat-guide')).to_be_hidden()
+            expect(page.locator('#chat-help')).to_be_focused()
+            labels = page.locator('#chat-help, [data-starter]').evaluate_all('''nodes => nodes.map(node => {
                 const range=document.createRange();range.selectNodeContents(node);
                 const text=range.getBoundingClientRect(), button=node.getBoundingClientRect();
                 return text.left >= button.left && text.right <= button.right;
@@ -124,7 +124,7 @@ def check_compact(browser, address, artifacts):
             assert page.evaluate('document.documentElement.scrollHeight-innerHeight')<=1
             assert 100<short['y']<300 and abs(avatar['y']-short['y'])<1, (short,avatar)
             assert short['y']+short['height']<=601, short
-            page.locator('#mode-help').click()
+            page.locator('#chat-help').click()
             expect(page.locator('#chat-send')).to_be_in_viewport()
             page.locator('.conversation-panel').screenshot(path=str(artifacts/f'short-desktop-help-{width}.png'))
         page.close()

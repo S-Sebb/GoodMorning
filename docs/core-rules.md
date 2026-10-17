@@ -12,8 +12,9 @@ that a deadline is easy, sufficient or achievable without evidence about the wor
 ## Scope and preparation
 
 - Keep the current session/model; do not delegate. Route an explicit changed request
-  to its workflow in this conversation without a manual switch/new session. Bare
-  TODO/idea content remains capture-only; ask when intent is unclear. Switching
+  to its workflow in this conversation without a manual switch/new session. Messages
+  worded as tasks follow the secretary *Save or do* rule; saved TODO/idea content
+  remains capture-only. Switching
   workflows never expands consent. Browser briefings remain on Morning/Evening pages.
 - Run helpers from the package root. Resolve selected `SECRETARY_DIR` and cache
   paths to absolute paths; defaults are `~/.local/share/GoodMorning/secretary` and

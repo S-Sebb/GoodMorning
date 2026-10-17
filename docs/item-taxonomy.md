@@ -17,7 +17,7 @@ heading. Use `scripts/goodmorning.py` with the selected absolute runtime.
    2. **Occasion**, a date to remember: an all-day calendar event. Birthdays and
       anniversaries use `repeat:{"yearly":true,"start":DATE}`. Describe it to the
       user by its date ("every 6 January"), never by the exclusive end date.
-   3. **Idea**, a possibility not adopted as work (`/eureka`).
+   3. **Idea**, a possibility not adopted as work (idea capture, `docs/workflows/eureka.md`).
    4. **Nudge**, a heads-up with nothing to tick off ("bring gym clothes on
       training days", "check the price"): task `kind:"nudge"`. Its trigger is a
       `repeat`, `planned_date`, `when.planned_task_id` or `when.custom_rule_id`
@@ -116,18 +116,18 @@ heading. Use `scripts/goodmorning.py` with the selected absolute runtime.
    is not ambiguous: a Deadline task with `defer_until` 23 and `due_date` 28. "Remind me
    daily until it's done" is a one-off with `follow_up:"until-done"`, not a repeat. Ask when requested
    scheduling is ambiguous; never infer duration, timezone or another person's agreement.
-4. `/todo` uses `workflow --capture todo`: exact raw input plus a revised clear task
+4. To-do capture (`docs/workflows/todo.md`) uses `workflow --capture todo`: exact raw input plus a revised clear task
    commit together. `raw` stays verbatim for audit; `summary` and `task.title` carry the
    improved imperative title and `task.detail` carries 1–2 grounded sentences (why it
    matters plus current state or next step from supplied facts only). Optional `task`
    fields preserve supplied explicit timing and project facts. `detail` is useful extra
    notes only: never repeat the title, project, deadline or priority — those live in structured fields and the page already
-   shows them once per project group. This holds for every task write, not only `/todo`. Rhythm and presentation mechanics plus setup
+   shows them once per project group. This holds for every task write, not only to-do capture. Rhythm and presentation mechanics plus setup
    narration stay in structured repeat/when fields, the inbox entry `context` (the request as agreed)
-   or the task's `extra` (notes for next time), never in `detail`. `/eureka` captures only an idea, even with action verbs/dates.
+   or the task's `extra` (notes for next time), never in `detail`. Idea capture saves only an idea, even with action verbs/dates.
    For clear input, capture, confirm, stop. The clarification-before-recording rule
    above applies to ambiguous scheduling; no unsolicited calendar offer or execution.
-   Keep `/todo` in its capture helper even when dates are supplied: use its optional
+   Keep to-do capture in its helper even when dates are supplied: use its optional
    `task` object, not a second `task --add` capture.
 5. Secretary task writes use `task --add` or revision-checked `--update`.
    `planned_date` assigns a workday; `due_date`/`due_at` does not. A repeat rule is

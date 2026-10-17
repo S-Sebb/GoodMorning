@@ -60,9 +60,9 @@ session. Status updates preserve answer drafts. Only new section patches transfe
 after a checkpoint changes. A matching final save marks completion; unfinished
 or failed previews never imply a completed run, task or news acknowledgement.
 
-`/chat` is separate. Its four modes are Initialize, Secretary, To-do and Eureka.
-Initialize reviews all saved preferences without resetting records. Mode drafts
-and previous conversations remain available; refresh resumes the selected chat.
+`/chat` is separate: Initialize before setup, then Secretary for everything,
+including to-dos and ideas. Initialize reviews all saved preferences without
+resetting records. Drafts and previous conversations remain available; refresh resumes the selected chat.
 No private text is placed in persistent browser storage. See `docs/browser-chat.md`.
 
 ## Images, resources and storage

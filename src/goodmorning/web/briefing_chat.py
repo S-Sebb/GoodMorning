@@ -1,4 +1,4 @@
-"""Account-local, durable conversations for the four website secretary modes."""
+"""Account-local, durable conversations for website setup and secretary chats."""
 import hashlib
 import html
 import json
@@ -16,6 +16,8 @@ from .chat_uploads import Uploads, attachment_ids, MAX_UPLOAD_BYTES
 from .avatar_images import image_urls
 
 MODES = {'initialize': 'Initialize', 'secretary': 'Secretary', 'todo': 'To-do', 'eureka': 'Eureka'}
+# Secretary now saves to-dos and ideas itself; older To-do/Eureka chats stay readable and replyable.
+NEW_MODES = ('initialize', 'secretary')
 
 AVATARS = (('f1', 'desk-secretary.png', 'Classic'),
            ('f2', 'desk-secretary-f2.png', 'Female 2'),
@@ -120,7 +122,7 @@ def message(value):
     if not isinstance(value, str) or len(value) > 8000 or '\x00' in value:
         raise ValueError('Use a message of up to 8,000 characters')
     if re.match(r'^\s*/[a-zA-Z]', value):
-        raise ValueError('Choose a mode using the switch instead of typing commands')
+        raise ValueError('Write in your own words; no commands are needed')
     return value.strip()
 
 
@@ -279,12 +281,10 @@ class Chats:
             return list(questions)
 
     def start(self, body):
-        if set(body) not in ({'id', 'mode', 'text'}, {'id', 'mode', 'text', 'attachments'}) or body['mode'] not in MODES:
-            raise ValueError('Choose one of the four secretary modes')
+        if set(body) not in ({'id', 'mode', 'text'}, {'id', 'mode', 'text', 'attachments'}) or body['mode'] not in NEW_MODES:
+            raise ValueError('Start a Secretary conversation')
         chat, text = identifier(body['id']), message(body['text'])
         attachments = [self.uploads.get(value) for value in attachment_ids(body)]
-        if not text and not attachments and body['mode'] not in ('initialize', 'secretary'):
-            raise ValueError('Write the task or idea you want to save')
         with self.lock:
             if chat in self.items:
                 item = self.items[chat]
@@ -391,7 +391,8 @@ class Chats:
                         raise ValueError('Conversation release update was not confirmed')
                     refresh = True
             site_models.apply_to_session(self.chamber, session, chosen)
-            prompt = (f"/{mode}\nBrowser chat: {chat_id}\nRuntime: {runtime}\n" if first or refresh else '')
+            # Older To-do/Eureka chats continue under the Secretary workflow.
+            prompt = (f"/{mode if mode in NEW_MODES else 'secretary'}\nBrowser chat: {chat_id}\nRuntime: {runtime}\n" if first or refresh else '')
             if refresh:
                 prompt += 'Workflow refresh: true\n'
             prompt += (f"Native session ID: {session}\n"
@@ -591,8 +592,6 @@ def page(csrf, ready, connected, secretary_name=None, avatar='f1', avatar_urls=N
                                     'timezone': timezone,
                                    'connected': connected, 'secretary_name': secretary_name,
                                    'avatar': avatar, 'avatars': [{'id': entry, **source} for entry, source in sources.items()]}), quote=True)
-    choices = ''.join(f'<button type="button" role="radio" aria-checked="false" data-mode="{mode}">{label}</button>'
-                      for mode, label in MODES.items() if (mode != 'initialize') == ready)
     heading = html.escape(secretary_name) if secretary_name else 'Your secretary'
     conversation_name = html.escape(secretary_name) if secretary_name else ui.text('Your secretary')
     title = (html.escape(secretary_name) + ' — GoodMorning') if secretary_name else 'Your secretary — GoodMorning'
@@ -619,19 +618,24 @@ def page(csrf, ready, connected, secretary_name=None, avatar='f1', avatar_urls=N
               '<button id="new-conversation" type="button"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg><span>New conversation</span></button></header>'
               '<p class="chat-topic-hint">Continue this topic, or start a new conversation for something different.</p>'
               '<p id="chat-resume-notice" role="status" hidden><span>A fresh space after 15 minutes away.</span> <a id="chat-resume" href="/chat">Resume previous conversation</a></p>'
-             '<div class="mode-controls"><div class="mode-switch" role="radiogroup" aria-label="Secretary mode">'+choices+'</div>'
-             '<button id="mode-help" type="button" aria-label="Which mode should I use?" title="Which mode should I use?" aria-controls="mode-guide" aria-expanded="false"><span aria-hidden="true">?</span></button></div>'
-             '<div id="mode-guide" hidden>'
-              '<p data-mode-guide="initialize"' + (' hidden' if ready else '') + '><strong>Initialize</strong> — Set up your secretary for the first time, or review your location, timezone, name and preferences. Existing records and saved work stay intact.</p>'
-              '<p data-mode-guide="secretary"' + ('' if ready else ' hidden') + '><strong>Secretary</strong> — Talk through plans, review your schedule and saved records, clarify priorities, or update preferences. Ask follow-up questions in your own words; changes that need your approval will be confirmed first.</p>'
-              '<p data-mode-guide="todo"' + ('' if ready else ' hidden') + '><strong>To-do</strong> — Capture a task and add details such as a project, deadline or priority when useful. Saving a task records it; it does not automatically start the work.</p>'
-              '<p data-mode-guide="eureka"' + ('' if ready else ' hidden') + '><strong>Eureka</strong> — Save an idea, observation or question before it slips away, then develop it through follow-up discussion. Capturing an idea does not automatically research or execute it.</p>'
-             '<p>When in doubt, try it—it can do a lot more than you think!</p>'
-              '<p>Choosing another mode starts a fresh draft. Returning from another website tab resumes your conversation. After 15 minutes away, settled conversations open as a fresh draft; your history is preserved.</p>'
+             '<div class="chat-help-row"><button id="chat-help" type="button" aria-controls="chat-guide" aria-expanded="false">'
+             '<span class="chat-help-mark" aria-hidden="true">?</span><span>What can I ask?</span></button></div>'
+             '<div id="chat-guide" hidden>'
+              '<p data-guide="initialize"' + (' hidden' if ready else '') + '><strong>Initialize</strong> — Set up your secretary for the first time, or review your location, timezone, name and preferences. Existing records and saved work stay intact.</p>'
+              '<div data-guide="secretary"' + ('' if ready else ' hidden') + '><p>Everything happens in this one conversation. Just say what you need.</p><ul>'
+               '<li><strong>Save a to-do or an idea</strong> <em>“Call the dentist on Friday”</em> <span>Your secretary tells you whether it was saved as a to-do or an idea.</span></li>'
+               '<li><strong>Plan and review</strong> <em>“What’s due this week?”</em></li>'
+               '<li><strong>Have something checked for you</strong> <em>“Tell me when the train tickets drop under £40”</em></li>'
+               '<li><strong>Change your preferences</strong> <em>“I moved to Leeds”</em></li></ul>'
+              '<p>When it’s unclear whether you want something saved or done, your secretary asks first. Saving never starts the work, and changes that need your approval are confirmed first.</p></div>'
+              '<p>Returning from another website tab resumes your conversation. After 15 minutes away, settled conversations open as a fresh draft; your history is preserved.</p>'
               '<p>Write naturally; no commands are needed. Enter sends your message; Shift+Enter adds a new line. Use the paperclip, paste images, or drag files into the composer to attach them. Click an image preview to enlarge it.</p></div>'
              '<div id="chat-scroll" role="region" aria-label="Conversation" tabindex="0">'
              '<div id="chat-empty"><span class="desk-symbol" aria-hidden="true">✦</span>'
-            '<h2 id="chat-welcome"></h2><p id="chat-hint"></p></div>'
+            '<h2 id="chat-welcome"></h2><p id="chat-hint"></p>'
+            '<div id="chat-starters"' + ('' if ready else ' hidden') + ' aria-label="Conversation starters">'
+             '<button type="button" data-starter>Remind me to…</button><button type="button" data-starter>I had an idea…</button>'
+             '<button type="button" data-starter>What’s on this week?</button></div></div>'
             '<div id="chat-messages" role="log" aria-label="Conversation messages" aria-live="polite" aria-relevant="additions text"></div>'
               '<p id="chat-action-notice" role="status" hidden data-ui-text="Saved changes are temporarily unavailable. Your conversation is preserved."></p>'
               '<div id="chat-questions"></div><p id="chat-status" role="status"></p><p id="request-language-note" role="status"></p></div>'

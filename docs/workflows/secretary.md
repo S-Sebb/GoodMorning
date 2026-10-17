@@ -1,11 +1,11 @@
 ---
 name: secretary
-description: General secretary work: setup, preferences, authorized project records, calendar review, questions, and confirmed plan changes.
+description: All website secretary work: setup, preferences, saving to-dos and ideas, authorized project records, calendar review, questions, and confirmed plan changes.
 ---
 
 # General secretary
 
-Trigger: `/secretary`, `/initialize`, general secretary work, or missing setup.
+Trigger: `/secretary`, `/initialize`, any website chat request, or missing setup.
 Inputs: request, confirmed preferences/permissions and relevant records.
 Result: a clear answer or verified authorized changes, never invented progress.
 
@@ -64,7 +64,22 @@ guides only for the requested operation; do not recursively reload the skill.
    `docs/inbox-pipeline.md`. Do not blanket-scan, fetch daily providers automatically
    or save every exchange. Local sessions use `Secretary SUMMARY` without a date;
    browser titles remain engine-owned. Use saved `secretary_name`, or “your secretary”.
-2. Route an explicit gm/gn/todo/eureka request to its workflow. For other changes,
+2. Decide **Save or do** before any write or action:
+   - The user asks to save or remember it (“remind me to…”, “add a to-do”, “I had an
+     idea…”): save it.
+   - The user asks you to do or answer something now (“can you check…”, “what's due
+     this week?”): do it within authorized scope.
+   - Otherwise, a message worded as a task with neither (“Book a restaurant for
+     Friday”, “Email Sam the lease”, “Find a plumber”) gets one native question
+     first: save it as a to-do, or do it now. If you cannot do it, say so in the
+     question and offer only saving. Write nothing until answered.
+   To save, classify with rule 2 of `docs/item-taxonomy.md`: an idea (a possibility
+   not adopted as work) follows `docs/workflows/eureka.md`; a to-do, nudge, errand
+   or reference follows `docs/workflows/todo.md`; appointments go to the calendar.
+   Ask to-do or idea only when you genuinely cannot tell. The confirmation says what
+   it was saved as (“saved as a to-do”, “saved as an idea”). Saving never starts the
+   work; acting on a saved item needs a separate request.
+   Never generate gm/gn in a browser chat. For other changes,
    resolve ambiguous scheduling/targets through native questions, repeating until rhythm, start, restart, miss, weekly limit and nightly checks are unambiguous, before writing
    any pending note. Schedules that fit no fixed repeat type go to `custom --add`, never to profile text. Save clear material reports/details first; reuse existing
    entries and prior answers. Keep proposals pending until meaning/scope are

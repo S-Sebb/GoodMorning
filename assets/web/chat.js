@@ -3,9 +3,7 @@ const chatConfig = JSON.parse(document.querySelector('#chat-config').dataset.con
 const chatT = (key, values) => typeof goodmorningT === 'function' ? goodmorningT(key, values) : key;
 const modes = {
   initialize: ['Let’s make this yours.', 'Start initialization'],
-  secretary: ['A little space to plan.', 'Start conversation'],
-  todo: ['Make space for what matters.', 'Save to-do'],
-  eureka: ['Keep that spark.', 'Save idea']
+  secretary: ['A little space to plan.', 'Start conversation']
 };
 const textBox = document.querySelector('#chat-text');
 const sendButton = document.querySelector('#chat-send');
@@ -98,9 +96,8 @@ window.addEventListener('resize', resizeComposer);
 document.addEventListener('scrollrails:layout', resizeComposer);
 let attachments = [];
 const make = secretaryElement;
-const requestedMode = new URLSearchParams(location.search).get('mode');
-const availableModes = () => chatConfig.defaultMode === 'initialize' ? ['initialize'] : ['secretary', 'todo', 'eureka'];
-let mode = availableModes().includes(requestedMode) ? requestedMode : chatConfig.defaultMode;
+// Older To-do/Eureka chats keep their mode label; new conversations use the profile's default.
+let mode = chatConfig.defaultMode;
 let chat = new URLSearchParams(location.search).get('id');
 let state = null;
 let sending = false;
@@ -171,7 +168,8 @@ function showTopic() {
 
 async function restoreWorkspace(initial = false) {
   if (restoringWorkspace) return;
-  if (initial && (new URLSearchParams(location.search).has('id') || Object.hasOwn(modes, requestedMode))) {
+  // Conversation links and setup links (?mode=) open their destination, not the workspace.
+  if (initial && ['id', 'mode'].some(name => new URLSearchParams(location.search).has(name))) {
     rememberWorkspace(null, null); showTopic(); return;
   }
   const saved = workspace;
@@ -185,7 +183,7 @@ async function restoreWorkspace(initial = false) {
       const status = await chatAPI(`/api/chats/${candidate}/status`);
       if (version !== revision || document.hidden) return;
       if (status.state === 'idle' && !(status.forms || []).length && !(status.permissions || []).length) {
-        newConversation(chatConfig.defaultMode, {resume: candidate});
+        newConversation({resume: candidate});
         return;
       }
     }
@@ -214,7 +212,7 @@ window.addEventListener('pageshow', event => {
   if (Object.hasOwn(saved, 'chat') && saved.chat !== chat) {
     workspace = saved;
     if (saved.chat) openConversation(saved.chat, {push: false});
-    else newConversation(chatConfig.defaultMode, {resume: saved.resume});
+    else newConversation({resume: saved.resume});
   }
   returnToSecretary();
 });
@@ -285,17 +283,26 @@ function specialForm(info, category, reply, refreshed, language, replay, existin
   enterMessage(form, !replay && !previous);
   return form;
 }
-const modeHelp = document.querySelector('#mode-help');
-const modeGuide = document.querySelector('#mode-guide');
-modeHelp.addEventListener('click', () => {
-  modeGuide.hidden = !modeGuide.hidden;
-  modeHelp.setAttribute('aria-expanded', String(!modeGuide.hidden));
+const chatHelp = document.querySelector('#chat-help');
+const chatGuide = document.querySelector('#chat-guide');
+chatHelp.addEventListener('click', () => {
+  chatGuide.hidden = !chatGuide.hidden;
+  chatHelp.setAttribute('aria-expanded', String(!chatGuide.hidden));
 });
 document.addEventListener('keydown', event => {
-  if (event.key !== 'Escape' || modeGuide.hidden) return;
-  modeGuide.hidden = true;
-  modeHelp.setAttribute('aria-expanded', 'false');
-  modeHelp.focus({preventScroll: true});
+  if (event.key !== 'Escape' || chatGuide.hidden) return;
+  chatGuide.hidden = true;
+  chatHelp.setAttribute('aria-expanded', 'false');
+  chatHelp.focus({preventScroll: true});
+});
+// A starter only fills in the message box; nothing is sent until the user does.
+document.querySelector('#chat-starters').addEventListener('click', event => {
+  const button = event.target.closest('[data-starter]');
+  if (!button || textBox.disabled) return;
+  const label = button.querySelector('[data-ui-text]')?.dataset.uiText || button.textContent;
+  textBox.value = chatT(label).replace(/…$/, typeof goodmorningLanguage !== 'undefined' && goodmorningLanguage === 'zh-CN' ? '' : ' ');
+  resizeComposer(); focusComposer(true);
+  textBox.setSelectionRange(textBox.value.length, textBox.value.length);
 });
 let themeTimer;
 
@@ -382,7 +389,7 @@ function composeState() {
   const sendLabel = chatT(chat ? 'Send reply' : modes[mode][1]);
   sendButton.querySelector('.chat-send-label').textContent = sendLabel;
   sendButton.setAttribute('aria-label', sendLabel);
-  textBox.required = !initializing && !attachments.length && (!chat && ['todo','eureka'].includes(mode) || Boolean(chat));
+  textBox.required = !initializing && !attachments.length && Boolean(chat);
   if (changed) resizeComposer();
   showActivity();
 }
@@ -568,15 +575,10 @@ function clearQueued() {
 function showMode() {
   showTopic();
   document.querySelector('#conversation-name').textContent = secretaryName || chatT('Your secretary');
-  const buttons = [...document.querySelectorAll('[data-mode]')];
-  buttons.forEach((button, index) => {
-    const selected = button.dataset.mode === mode;
-    button.setAttribute('aria-checked', String(selected));
-    button.tabIndex = selected || !availableModes().includes(mode) && index === 0 ? 0 : -1;
-  });
-  document.querySelector('#chat-welcome').textContent = chatT(modes[mode][0]);
+  document.querySelector('#chat-welcome').textContent = chatT((modes[mode] || modes.secretary)[0]);
   document.querySelector('#chat-hint').textContent = chatT(mode === 'initialize'
-    ? 'Review location, timezone and preferences a few answers at a time. Replies follow the website language.' : 'Write in your own words. Your secretary will take it from here.');
+    ? 'Review location, timezone and preferences a few answers at a time. Replies follow the website language.' : 'Save a to-do, jot down an idea, plan your week or change a preference, all in one place.');
+  document.querySelector('#chat-starters').hidden = mode === 'initialize';
   document.querySelector('#request-language-note').textContent = requestLanguage && state !== 'idle' && typeof goodmorningLanguage !== 'undefined' && requestLanguage !== goodmorningLanguage
     ? chatT('This request is finishing in {language}. New requests use your current website language.',{language:chatT(requestLanguage==='zh-CN'?'Simplified Chinese':'English')}) : '';
   composeState();
@@ -586,12 +588,11 @@ function draftKey() {
   return chat ? 'id:' + chat : mode;
 }
 
-function newConversation(next = chatConfig.defaultMode, {resume = null} = {}) {
-  if (!availableModes().includes(next)) next = chatConfig.defaultMode;
+function newConversation({resume = null} = {}) {
   drafts.set(draftKey(), {text: textBox.value, attachments});
   clearTimeout(timer); revision++;
   clearTimeout(titleTimer); titleRetries = 0;
-  chat = null; state = null; sending = false; mode = next; requestLanguage = null;
+  chat = null; state = null; sending = false; mode = chatConfig.defaultMode; requestLanguage = null;
   rememberWorkspace(null, resume);
   history.replaceState(null, '', '/chat');
   markCurrentHistoryLink(null);
@@ -616,36 +617,10 @@ function newConversation(next = chatConfig.defaultMode, {resume = null} = {}) {
   focusComposer(true);
 }
 
-const modeSwitch = document.querySelector('.mode-switch');
-modeSwitch.addEventListener('click', event => {
-  const button = event.target.closest('[data-mode]');
-  if (button && button.dataset.mode !== mode) newConversation(button.dataset.mode);
-});
-modeSwitch.addEventListener('keydown', event => {
-  const button = event.target.closest('[data-mode]');
-  if (!button || !['ArrowLeft','ArrowRight','Home','End'].includes(event.key)) return;
-  event.preventDefault();
-  const buttons = [...modeSwitch.children];
-  const index = buttons.indexOf(button);
-  const next = event.key === 'Home' ? 0 : event.key === 'End' ? buttons.length - 1
-    : (index + (event.key === 'ArrowRight' ? 1 : -1) + buttons.length) % buttons.length;
-  buttons[next].click(); buttons[next].focus();
-});
-
 function syncModes() {
-  const allowed = availableModes();
-  if ([...modeSwitch.children].map(button => button.dataset.mode).join() !== allowed.join()) {
-    const labels = {initialize: 'Initialize', secretary: 'Secretary', todo: 'To-do', eureka: 'Eureka'};
-    modeSwitch.replaceChildren(...allowed.map(value => {
-      const button = make('button', chatT(labels[value]));
-      button.type = 'button'; button.dataset.mode = value; button.dataset.uiText = labels[value];
-      button.setAttribute('role', 'radio');
-      return button;
-    }));
-  }
-  document.querySelectorAll('[data-mode-guide]').forEach(item => { item.hidden = !allowed.includes(item.dataset.modeGuide); });
+  document.querySelectorAll('[data-guide]').forEach(item => { item.hidden = item.dataset.guide !== chatConfig.defaultMode; });
   // Preserve an existing setup conversation and its replies after setup completes.
-  if (!chat && !allowed.includes(mode)) mode = chatConfig.defaultMode;
+  if (!chat) mode = chatConfig.defaultMode;
   showMode();
 }
 document.querySelector('#new-conversation').addEventListener('click', () => newConversation());
@@ -715,7 +690,7 @@ document.querySelector('#chat-resume').addEventListener('click', historyClick);
 window.addEventListener('popstate', () => {
   const id = new URLSearchParams(location.search).get('id');
   if (!id) {
-    if (chat !== null) newConversation(chatConfig.defaultMode);
+    if (chat !== null) newConversation();
     return;
   }
   if (id !== chat) openConversation(id, {push: false});
