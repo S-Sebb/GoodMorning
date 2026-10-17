@@ -65,7 +65,8 @@ style works with every scheme. Day defaults to Morning Sky, with Classic, Warm a
 also available. Night defaults to Starry, with a darker sky and static stars,
 and also offers Classic, City Lights (a harbor skyline fixed below the headline)
 and Midnight Violet (a flat Dracula-inspired palette). Both lists add two pixel
-scenes: Grass Block (a blocky sky, a grass ledge and stone buttons) and Cottage
+scenes: Grass Block (plains of grass blocks under a square sun or moon; further
+down the page the ground turns to dirt and then stone) and Cottage
 (a pastel checkerboard). Styles are Soft (the default, today's rounded look)
 and Pixel (square pixel frames, buttons and headings, with stone buttons and a
 hotbar on Grass Block and wooden frames on Cottage). Body text keeps the system

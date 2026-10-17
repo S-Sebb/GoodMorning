@@ -118,9 +118,7 @@ html[data-edition="gn"][data-night-scheme="cottage"] {
     html[data-style="pixel"][data-edition="gn"]:is([data-night-scheme="grass-block"], [data-night-scheme="cottage"])) .section-number { background: var(--wash); color: var(--accent); }
 
 html[data-style="pixel"] .week-picker a.is-missing:not([aria-current]) { background: color-mix(in srgb, var(--surface) 70%, transparent); }
-/* Grass Block extras: a grass ledge under the masthead, the week as a hotbar and weather tiles as inventory slots. */
-:is(html:not([data-edition="gn"])[data-day-scheme="grass-block"], html[data-edition="gn"][data-night-scheme="grass-block"]) .masthead { position: relative; margin-bottom: 18px; }
-:is(html:not([data-edition="gn"])[data-day-scheme="grass-block"], html[data-edition="gn"][data-night-scheme="grass-block"]) .masthead::after { content: ""; position: absolute; left: 0; right: 0; bottom: -18px; height: 20px; background: url("/grass-block-ledge.svg") repeat-x left top / 32px 20px; image-rendering: pixelated; box-shadow: 0 4px 0 #0000001f; pointer-events: none; }
+/* Grass Block extras: the week as a hotbar and weather tiles as inventory slots. */
 :is(html[data-style="pixel"]:not([data-edition="gn"])[data-day-scheme="grass-block"], html[data-style="pixel"][data-edition="gn"][data-night-scheme="grass-block"]) .wordmark span { font: 11px/1.5 var(--px-label); }
 :is(html[data-style="pixel"]:not([data-edition="gn"])[data-day-scheme="grass-block"], html[data-style="pixel"][data-edition="gn"][data-night-scheme="grass-block"]) .week-picker { gap: 0; padding: 6px; background: #8b8b8b; box-shadow: 0 0 0 3px var(--px-line), inset 3px 3px 0 #b5b5b5, inset -3px -3px 0 #5a5a5a; }
 :is(html[data-style="pixel"]:not([data-edition="gn"])[data-day-scheme="grass-block"], html[data-style="pixel"][data-edition="gn"][data-night-scheme="grass-block"]) .week-picker a,

@@ -265,11 +265,11 @@ class ColorSchemeTests(unittest.TestCase):
             url = resources.urls[f'fonts/{font}.woff2']
             self.assertEqual(resources.paths[url].mime, 'font/woff2')
             self.assertIn(f'url("{url}")', pixel)
-        for scene in ('grass-block-day', 'grass-block-night', 'cottage-day', 'cottage-night'):
+        for scene in ('grass-block-day', 'grass-block-night', 'grass-block-stone-day', 'grass-block-stone-night',
+                      'grass-block-sun', 'grass-block-moon', 'cottage-day', 'cottage-night'):
             root = ET.fromstring(resources.paths[resources.urls[scene + '.svg']].data)
             self.assertEqual(root.findall('.//' + SVG + 'script'), [])
             self.assertIn(f'url("{resources.urls[scene + ".svg"]}")', schemes)
-        self.assertIn(f'url("{resources.urls["grass-block-ledge.svg"]}")', pixel)
         self.assertIn(b'SIL Open Font License', resources.paths[resources.urls['fonts/pixel-fonts-OFL.txt']].data)
 
 
