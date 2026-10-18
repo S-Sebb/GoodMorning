@@ -44,8 +44,9 @@ def money(cents, country):
     return ('¥ %.2f' if country == 'CN' else '£%.2f') % (cents / (200 if country == 'CN' else 100))
 def request(url, cache=None, raw=False):
     if 'steamcommunity.com/id/' in url:
-        return '<profile><steamID64>76561198000000001</steamID64></profile>' if '/id/geralt/' in url else '<response><error>none</error></response>'
-    if 'GetWishlist' in url:
+        known = {'geralt':'76561198000000001', 'ciri':'76561198000000002'}.get(url.split('/id/')[1].split('/')[0])
+        return '<profile><steamID64>%s</steamID64></profile>' % known if known else '<response><error>none</error></response>'
+    if 'GetWishlist' in url:  # ciri's wishlist is private, which reads as empty.
         return {'response':{'items':[{'appid':1245620, 'priority':1}, {'appid':292030, 'priority':2}]} if '76561198000000001' in url else {}}
     if 'storesearch' in url:
         term = parse_qs(urlsplit(url).query)['term'][0].casefold()
@@ -78,7 +79,8 @@ raise SystemExit(code)
 '''
 
 BRIEFINGS = {'evening-deals': ('deals', 'playful'), 'evening-none': ('none', 'default'), 'evening-failed': ('fail', 'formal')}
-CHATS = ('enable-clear', 'enable-ambiguous')
+CHATS = ('enable-clear', 'enable-ambiguous', 'wishlist-display-name', 'wishlist-private')
+LINK = 'https://steamcommunity.com/id/geralt/'
 PUSH_WORDS = ('buy now', 'grab it', "don't miss", 'will drop', 'lowest ever', 'all-time low', 'store.steampowered', '赶紧入手', '快入手', '史低', '还会降', '别错过')
 FIELDS = ('game_sales', 'game_country', 'game_account', 'game_threshold', 'game_titles')
 
@@ -160,16 +162,24 @@ def titles(value):
     return sorted(part for part in (value or '').replace(',', ' ').split())
 
 
+FOLLOW_UPS = {('wishlist-display-name', 'en'): 'Here it is: ' + LINK, ('wishlist-display-name', 'zh-CN'): '给你：' + LINK,
+              ('wishlist-private', 'en'): "Keep following it — I'll make it public.", ('wishlist-private', 'zh-CN'): '继续关注吧，我去把它设成公开。'}
+
+
 def answer(form, language, scenario):
     """Answer only what these fixtures ask: the store region, 50% off, no extra wishlist, and confirmations."""
-    picks = (('united kingdom', 'uk', 'gb', '英国') if language == 'en' else ('china', 'cn', '中国', '国区')) + (
-        '50%', '五折', '5 折', 'wild hunt', '狂猎', 'just this', 'only', 'no wishlist', "don't", 'skip', '不用', '不关注', '跳过', '只',
+    picks = (('keep', 'continue', '保留', '继续') if scenario == 'wishlist-private' else ()) + (('united kingdom', 'uk', 'gb', '英国') if language == 'en' else ('china', 'cn', '中国', '国区')) + (
+        '50%', '五折', '5 折', 'wild hunt', '狂猎', 'just', 'only', 'no —', 'no -', 'no,', 'no wishlist', "don't", 'skip', '不用', '不关注', '跳过', '只',
         'set it up', 'save', 'yes', 'go ahead', '就这样', '存吧', '保存', '确认', '好')
     sentence = {('enable-clear', 'en'): 'Yes, exactly as I said: save it.', ('enable-clear', 'zh-CN'): '对，就按我说的存吧。',
                 ('enable-ambiguous', 'en'): 'The UK store, 50% off or more, and no wishlist — just The Witcher 3.',
-                ('enable-ambiguous', 'zh-CN'): '国区，打五折或更低就提醒，不用关注愿望单，只加《巫师3》。'}[scenario, language]
+                ('enable-ambiguous', 'zh-CN'): '国区，打五折或更低就提醒，不用关注愿望单，只加《巫师3》。',
+                **FOLLOW_UPS}[scenario, language]
     values = {}
     for field in form['fields']:
+        if scenario == 'wishlist-display-name' and (field.get('type') == 'string' or field.get('custom')):
+            values[field['key']] = sentence  # The link, never a canned option.
+            continue
         options = field.get('options') or []
         labels = [(option.get('label', '') + ' ' + str(option.get('value', ''))).casefold() for option in options]
         chosen = next((option['value'] for word in picks for option, label in zip(options, labels) if word in label), None)
@@ -188,7 +198,7 @@ def run_chat(output, language, selected, scenario, now):
     folder = output/scenario
     folder.mkdir(mode=0o700)
     zone, country = ('Europe/London', 'GB') if language == 'en' else ('Asia/Shanghai', 'CN')
-    tone = 'playful' if scenario == 'enable-clear' else 'default'
+    tone = {'enable-clear':'playful', 'wishlist-display-name':'formal', 'wishlist-private':'playful'}.get(scenario, 'default')
     runtime = account(folder, language, tone, '', zone)
     fixture(runtime, 'deals', now)
     source = source_copy(folder, runtime)
@@ -200,7 +210,11 @@ def run_chat(output, language, selected, scenario, now):
     message = {('enable-clear', 'en'): "Tell me in my night briefing when games on my Steam wishlist are 50% off or more, UK store. My Steam profile is geralt. Also add Monster Hunter: World, but for that one 30% off is enough.",
                ('enable-clear', 'zh-CN'): '想在晚间简报里看到 Steam 愿望单游戏打五折或更低的提醒，用国区价格。我的 Steam 主页是 geralt。另外加上《怪物猎人：世界》，它打七折就提醒我。',
                ('enable-ambiguous', 'en'): 'Can my night briefing tell me when The Witcher 3 goes on sale?',
-               ('enable-ambiguous', 'zh-CN'): '晚间简报能告诉我《巫师3》打折了吗？'}[scenario, language]
+               ('enable-ambiguous', 'zh-CN'): '晚间简报能告诉我《巫师3》打折了吗？',
+               ('wishlist-display-name', 'en'): 'Show me in my night briefing when games on my Steam wishlist are 50% off or more, UK store. My Steam name is Geralt of Rivia.',
+               ('wishlist-display-name', 'zh-CN'): '想在晚间简报里看到 Steam 愿望单游戏打五折或更低的提醒，用国区价格。我的 Steam 名字是 利维亚的杰洛特。',
+               ('wishlist-private', 'en'): "Show me in my night briefing when games on my Steam wishlist are 50% off or more, UK store. Here's my Steam profile: https://steamcommunity.com/id/ciri/",
+               ('wishlist-private', 'zh-CN'): '想在晚间简报里看到 Steam 愿望单游戏打五折或更低的提醒，用国区价格。这是我的 Steam 主页：https://steamcommunity.com/id/ciri/'}[scenario, language]
     result = {'scenario':scenario, 'language':language, 'tone':tone, 'model':selected, 'message':message, 'turns':[],
               'review':'pending manual language/tone review'}
 
@@ -221,8 +235,8 @@ def run_chat(output, language, selected, scenario, now):
     try:
         with context(language, selected):
             app.chats.start({'id':chat, 'mode':'secretary', 'text':message})
-        seen = 0
-        for _ in range(5):
+        seen, followed = 0, False
+        for _ in range(6):
             status = wait()
             replies = [m['text'] for m in status['messages'][seen:] if m['role'] == 'assistant' and m['text'].strip()]
             seen = len(status['messages'])
@@ -230,6 +244,11 @@ def run_chat(output, language, selected, scenario, now):
             result['turns'].append(turn)
             save(folder/'result.json', result)
             if not status['forms']:
+                if scenario in ('wishlist-display-name', 'wishlist-private') and not followed and not turn['settings']['game_sales']:
+                    followed = turn['followed_up'] = True  # A plain-text question gets one plain reply.
+                    with context(language, selected):
+                        app.chats.send(chat, {'id':uuid.uuid4().hex, 'text':FOLLOW_UPS[scenario, language]})
+                    continue
                 break
             turn['answered'] = answer(status['forms'][0], language, scenario)
             with context(language, selected):
@@ -241,6 +260,19 @@ def run_chat(output, language, selected, scenario, now):
             assert (settings['game_sales'], settings['game_country'], settings['game_account'], settings['game_threshold']) == \
                 ('true', country, '76561198000000001', '50'), 'Clear request did not save the region, resolved account and threshold'
             assert titles(settings['game_titles']) == ['582010:30'], 'Monster Hunter: World was not saved with its own 30% off'
+        elif scenario.startswith('wishlist-'):
+            guidance = ' '.join(a for t in result['turns'] for a in t['assistant']) + json.dumps([t['forms'] for t in result['turns']], ensure_ascii=False)
+            guidance = guidance.casefold()
+            if scenario == 'wishlist-display-name':
+                words = (('profile',), ('link', 'address', 'url')) if language == 'en' else (('主页', '个人资料'), ('链接', '地址', '网址'))
+                expected = '76561198000000001'
+            else:
+                words = (('game details',), ('my profile',)) if language == 'en' else (('游戏详情',), ('我的个人资料',))
+                expected = '76561198000000002'
+            assert all(any(word in guidance for word in group) for group in words), 'Missing guidance: ' + repr(words)
+            assert (settings['game_sales'], settings['game_country'], settings['game_account'], settings['game_threshold']) == \
+                ('true', country, expected, '50'), 'Wishlist account, region or threshold not saved as resolved'
+            assert not titles(settings['game_titles']), 'Games were added that the user never named'
         else:
             first = result['turns'][0]
             assert first['forms'], 'Request without a region or discount did not ask first'

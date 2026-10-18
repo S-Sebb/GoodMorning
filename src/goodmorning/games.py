@@ -199,11 +199,13 @@ def main(argv=None):
             account = steam_id(args.check_account, None)
             result = {'account': account, 'wishlist': len(wishlist(account, None))}
             if not result['wishlist']:
-                result['note'] = 'empty or private: the wishlist is followed only while its game details are public'
+                result['note'] = ('empty or private: Steam shares a wishlist only when Profile > Edit Profile > Privacy Settings sets both '
+                                  '"My profile" and "Game details" to Public; Game details also shows owned games, playtime and the game being played')
     except GameError as error:
         message = str(error)
         if message == 'not_found':
-            message = 'not_found: no such Steam profile; check the name or link'
+            message = ('not_found: no such Steam profile. Display and login names do not work; ask for the profile link: in Steam, '
+                       'click your name at the top, then Profile, and copy the address (steamcommunity.com/id/... or /profiles/...)')
         print(json.dumps({'error': 'games_unavailable', 'next': message}, ensure_ascii=False))
         return 1
     except (KeyError, TypeError, ValueError) as error:

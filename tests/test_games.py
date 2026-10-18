@@ -102,6 +102,15 @@ class GameTests(unittest.TestCase):
             with self.assertRaisesRegex(games.GameError, 'not_found'):
                 games.steam_id('nobody')
             self.assertEqual(games.wishlist(ACCOUNT), [292030, 1245620])
+            # A display name fails with directions to the profile link; a private wishlist with the privacy steps.
+            for given, expected in (('Geralt of Rivia', 'copy the address'), ('https://steamcommunity.com/id/geralt/', '"wishlist":2')):
+                with patch('builtins.print') as shown:
+                    games.main(['--secretary-dir', str(self.root), '--check-account', given])
+                self.assertIn(expected, shown.call_args.args[0])
+        with patch.object(games, 'request', lambda url, cache=None, raw=False: fake_steam(url, cache, raw) if raw else {'response': {}}):
+            with patch('builtins.print') as shown:
+                games.main(['--secretary-dir', str(self.root), '--check-account', 'geralt'])
+            self.assertIn('"Game details" to Public', json.loads(shown.call_args.args[0])['note'])
 
     def test_deal_blocks_stay_in_their_section_and_render_prices(self):
         row = ['steam:292030', 'The Witcher 3: Wild Hunt', 80, '£7.99', '£39.99', '2026-10-22T18:00', cover(292030)]

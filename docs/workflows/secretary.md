@@ -143,11 +143,16 @@ guides only for the requested operation; do not recursively reload the skill.
    save its two-letter code. b) Discount for every game: a whole percent off from 1
    to 100 (for example 50 means 50% off or more). Chinese 折 names the share paid:
    七折 is 30% off, 五折 50%, 两折 80%. c) Ask whether to follow their Steam
-   wishlist and which other games to add; either alone is enough. Check a profile
-   name, link or ID with `games --secretary-dir RUNTIME --check-account NAME`; on
-   `not_found` ask the user to check the name or link. When `wishlist` is 0, say it
-   is empty or private (Steam privacy setting “Game details” must be Public) and
-   ask whether to keep following it. Save the returned `account`, never the name.
+   wishlist and which other games to add; either alone is enough. To follow it,
+   ask for their Steam profile link: in Steam, click their name at the top, then
+   Profile, and copy the address. Check what they give with `games --secretary-dir
+   RUNTIME --check-account NAME`. On `not_found`, say display and login names do
+   not work and ask for the link again, with where to find it. When `wishlist` is
+   0, say the wishlist is empty or private; to share it, in Profile > Edit Profile >
+   Privacy Settings set both “My profile” and “Game details” to Public (Chinese
+   Steam: 编辑个人资料 > 隐私设置, “我的个人资料” and “游戏详情” 设为公开), which also
+   shows their owned games, playtime and the game they are playing. Then ask whether
+   to keep following it. Save the returned `account`, never the name.
    d) Find each game with `games --secretary-dir RUNTIME --search "TITLE" --country
    CC --website-language CODE`. Use an ID only when exactly one result clearly is
    the named game; DLC, soundtracks and kits do not make it unclear, but separate
