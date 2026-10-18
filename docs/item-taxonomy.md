@@ -63,8 +63,12 @@ heading. Use `scripts/goodmorning.py` with the selected absolute runtime.
    up every day from its start until confirmed done (not a repeat; one tick closes
    it); `project`, `optional`, `priority`. A hard deadline needs a real outside
    consequence the user stated; never invent one. When one request is two items
-   (watch + act, weekly check-in + final deadline), confirm the split, then save
-   one capture with `task` plus `also:[{...}]` siblings. Custom/imported is provenance.
+   (weekly check-in + final deadline), confirm the split, then save
+   one capture with `task` plus `also:[{...}]` siblings. A watch with a conditional
+   action ("check the price, buy if under £120") is one item: the action goes in the
+   watch's detail. No item appears only once a condition comes true, and you cannot
+   buy or act outside this account: never offer or save a separate action task or
+   an automatic purchase for it. Custom/imported is provenance.
    **Where text goes.** `detail` is what the user sees: 1–2 sentences of why, current
    state or next step. `extra` (any task or draft, at most 2000 characters) is the
    secretary's own dated notes for next time: what it found or observed, progress

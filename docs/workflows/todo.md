@@ -43,7 +43,8 @@ secretary workflow in this conversation; capture wording alone does not grant co
    out") is `kind:"reference"` with `trigger`; "remind me daily until done" is
    `follow_up:"until-done"`; birthdays and appointments belong to the calendar, not
    tasks, and a habit with a flexible rhythm uses `custom --add`. If one request is
-   two items, confirm the split with a native question, then send `also:[{...}]`.
+   two items, confirm the split with a native question, then send `also:[{...}]`;
+   a watch and its conditional action ("buy if under £120") stay one item.
    For any dated item decide its advance `notice` (rule 2): the user's stated "tell me
    N days before" wins; otherwise judge how early they need to hear and whether it
    can be done before its day (`early`), state it in the confirmation, and ask only
