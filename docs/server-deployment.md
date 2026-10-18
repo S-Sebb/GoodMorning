@@ -133,6 +133,12 @@ dispatches new work.
   deployment writes there only the pause flag, the deployment ticket, the
   staging marker, backups of replaced system files, and the report
   `<NAME>-deployment.json` (mode 0600).
+- Provider identifiers: `/etc/goodmorning/providers.env` (root-owned, mode 0600,
+  optional) feeds `goodmorning-account@` units; `briefing_runtime.py` forwards only
+  the keys in `PROVIDER_KEYS`. `MAL_CLIENT_ID` enables MyAnimeList lists for New
+  episodes: the owner registers an app at https://myanimelist.net/apiconfig and
+  writes `MAL_CLIENT_ID=…`. Accounts read it after their next agent restart. Without
+  it, the secretary offers only AniList and Bangumi.
 - `deploy/nginx-goodmorning.conf` is the exact live NGINX config. Only POST
   `/api/auth/login` and `/api/auth/password` get a per-IP limiter key; never rate
   limit assets, pages or read-only polling.

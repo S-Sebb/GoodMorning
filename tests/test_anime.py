@@ -30,7 +30,7 @@ AIRED = [(195516, 3, datetime(2026, 10, 16, 14, tzinfo=timezone.utc)), (235, 121
          (235, 1216, datetime(2026, 10, 10, 9, tzinfo=timezone.utc))]
 
 
-def fake_anilist(url, body=None, cache=None):
+def fake_anilist(url, body=None, cache=None, headers=None):
     variables = body['variables']
     if 'u' in variables:
         if variables['u'] != 'maomao':
@@ -41,7 +41,7 @@ def fake_anilist(url, body=None, cache=None):
     return {'data': {'Page': {'pageInfo': {'hasNextPage': False}, 'airingSchedules': rows}}}
 
 
-def fake_anilist_any_time(url, body=None, cache=None):
+def fake_anilist_any_time(url, body=None, cache=None, headers=None):
     """Job reads use the real clock; pretend every fixture episode aired inside its window."""
     if 'ids' in body['variables']:
         body = {**body, 'variables': {**body['variables'], 'a': 0, 'b': 2 ** 31}}
@@ -52,7 +52,7 @@ SUBJECT = {'id': 568244, 'name': '薬屋のひとりごと 第3期', 'name_cn': 
            'images': {'common': 'https://lain.bgm.tv/r/400/pic/cover/l/55/e2/568244.jpg'}}
 
 
-def fake_bangumi(url, body=None, cache=None):
+def fake_bangumi(url, body=None, cache=None, headers=None):
     if '/collections' in url:
         return {'total': 1, 'data': [{'subject_id': 568244, 'subject': SUBJECT}]}
     episodes = [{'ep': n, 'name': name, 'name_cn': cn, 'airdate': day} for n, name, cn, day in (
@@ -91,8 +91,9 @@ class AnimeTests(unittest.TestCase):
             ['anilist:195516', '薬屋のひとりごと 第3期', 'The Apothecary Diaries Season 3', '3', '', '', '2026-10-16T22:00', COVER],
             ['anilist:235', '名探偵コナン', 'Detective Conan', '1217', '', '', '2026-10-17T17:00',
              'https://s4.anilist.co/file/anilistcdn/media/anime/cover/medium/bx235.jpg']]])
-        # AniList has no Chinese titles: show the original alone rather than an English one.
-        self.assertEqual({row[2] for row in self.read('zh-CN')['block'][1]}, {''})
+        # Without a Bangumi match, Chinese pages show the original alone rather than an English one.
+        nothing = lambda url, body=None, cache=None, headers=None: {'data': []} if url.startswith(anime.BANGUMI) else fake_anilist(url, body, cache)
+        self.assertEqual({row[2] for row in self.read('zh-CN', nothing)['block'][1]}, {''})
 
     def test_nothing_new_and_unknown_account_are_distinct(self):
         self.profile(titles='')
@@ -113,6 +114,58 @@ class AnimeTests(unittest.TestCase):
         self.assertEqual(self.read('en', fake_bangumi)['block'][1][0][2::3], ['', ''])
         anime.save(self.root, '2026-10-16', result)
         self.assertIsNone(self.read('zh-CN', fake_bangumi)['block'])
+
+    def test_watching_lists_are_read_fresh_for_every_briefing(self):
+        self.profile(account='maomao')
+        calls = []
+        def recording(url, body=None, cache=None, headers=None):
+            calls.append(('u' in body['variables'], cache))
+            return fake_anilist(url, body, cache)
+        with patch.object(anime, 'request', recording):
+            anime.episodes(self.root, DAY, 'Asia/Shanghai', 'en', cache=self.root / 'cache', now=NOW)
+        self.assertEqual(calls, [(True, None), (False, self.root / 'cache')])
+
+    def test_myanimelist_lists_use_anilist_schedules(self):
+        self.profile('myanimelist', 'maomao', '235')
+        mapped = {59000: 195516, 235: 235}
+        seen = []
+        def fake(url, body=None, cache=None, headers=None):
+            if url.startswith(anime.MAL):
+                seen.append((url, headers))
+                return {'data': [{'node': {'id': 59000, 'title': 'Kusuriya no Hitorigoto 3rd Season'}}]}
+            if 'idMal_in' in body['query']:
+                return {'data': {'Page': {'media': [MEDIA[mapped[i]] for i in body['variables']['ids']]}}}
+            return fake_anilist(url, body, cache)
+        with self.assertRaisesRegex(anime.AnimeError, 'mal_unconfigured'):
+            self.read(fake=fake)
+        with patch.dict(os.environ, {'MAL_CLIENT_ID': 'synthetic-client'}):
+            rows = self.read(fake=fake)['block'][1]
+        self.assertEqual([row[:4] for row in rows], [['anilist:195516', '薬屋のひとりごと 第3期', 'The Apothecary Diaries Season 3', '3'],
+                                                     ['anilist:235', '名探偵コナン', 'Detective Conan', '1217']])
+        self.assertIn('/users/maomao/animelist?status=watching', seen[0][0])
+        self.assertEqual(seen[0][1], {'X-MAL-CLIENT-ID': 'synthetic-client'})
+
+    def test_profile_links_name_their_source_and_user(self):
+        for link, expected in (('https://myanimelist.net/animelist/S-Sebb', ('myanimelist', 'S-Sebb')),
+                               ('myanimelist.net/profile/S-Sebb?view=1', ('myanimelist', 'S-Sebb')),
+                               ('https://anilist.co/user/maomao/animelist', ('anilist', 'maomao')),
+                               ('https://bgm.tv/user/sai', ('bangumi', 'sai')), ('bangumi.tv/anime/list/sai/do', ('bangumi', 'sai')),
+                               ('maomao', (None, 'maomao')), ('https://example.com/user/maomao', (None, 'https://example.com/user/maomao'))):
+            self.assertEqual(anime.account_link(link), expected)
+        self.profile(account='https://anilist.co/user/maomao')
+        self.assertEqual(anime.settings(self.root)['account'], 'maomao')
+
+    def test_chinese_titles_come_only_from_an_exact_bangumi_match(self):
+        self.profile(titles='235, 195516')
+        def fake(url, body=None, cache=None, headers=None):
+            if url.startswith(anime.BANGUMI):
+                return {'data': {'名探偵コナン': [{'name': '名探偵コナン', 'name_cn': '名侦探柯南'},
+                                                   {'name': '名探偵コナン 瞳の中の暗殺者', 'name_cn': '名侦探柯南 瞳孔中的暗杀者'}],
+                                 '薬屋のひとりごと 第3期': [{'name': '薬屋のひとりごと', 'name_cn': '药屋少女的呢喃'}]}[body['keyword']]}
+            return fake_anilist(url, body, cache)
+        rows = self.read('zh-CN', fake)['block'][1]
+        self.assertEqual({row[1]: row[2] for row in rows}, {'名探偵コナン': '名侦探柯南', '薬屋のひとりごと 第3期': ''})
+        self.assertEqual({row[2] for row in self.read('en', fake)['block'][1]}, {'The Apothecary Diaries Season 3', 'Detective Conan'})
 
     def test_episode_blocks_stay_in_their_section_and_render_original_title_first(self):
         row = ['anilist:235', '名探偵コナン', 'Detective Conan', '1217', '', '', '2026-10-17T17:00', 'https://s4.anilist.co/c.jpg']
