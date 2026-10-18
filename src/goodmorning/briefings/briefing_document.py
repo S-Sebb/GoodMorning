@@ -6,14 +6,14 @@ from pathlib import Path
 import re
 from urllib.parse import urlsplit
 
-from .briefing_layout import icon, category_icon, news_visual
+from .briefing_layout import icon, category_icon, news_visual, episode_visual
 from goodmorning.web import language as ui
 
 MAX_BYTES = 150_000
 TITLES = {'weather': 'Weather', 'news': 'News', 'schedule': 'Schedule',
           'must-do': 'Project steps', 'nice-to-do': 'Optional project steps', 'reminders': 'Reminders',
           'today': 'Today', 'still-open': 'Still open', 'tomorrow': 'Tomorrow', 'notes': 'Notes',
-          'tasks': 'Tasks', 'attention': 'Reminders'}
+          'tasks': 'Tasks', 'attention': 'Reminders', 'anime': 'New episodes'}
 WEATHER = {'temperature': ('Temperature', 'thermometer', 'temperature cool'),
            'precipitation': ('Precipitation', 'rain', 'precipitation'),
            'warning': ('Extreme warning', 'warning', 'other'), 'air': ('AQI', 'leaf', 'air')}
@@ -205,6 +205,22 @@ def block(value, path):
             if row[4] != []:
                 sources(row[4], path + '.sources')
             text(row[5], path + '.note', 1000)
+    elif tag == 'episodes':
+        # [id, title, local_title, episode, episode_title, episode_local_title, aired, cover_url], copied from the anime read.
+        sequence(value, path, 2, 2)
+        sequence(value[1], path + '.items', 1, 50)
+        for row in value[1]:
+            sequence(row, path + '.row', 8, 8)
+            if not isinstance(row[0], str) or not re.fullmatch(r'(?:anilist|bangumi):\d{1,9}', row[0]):
+                fail(path, 'episode rows need a source title ID')
+            text(row[1], path + '.title', 300)
+            for cell in row[2:6]:
+                text(cell, path + '.cell', 300, empty=True)
+            if not row[3].strip() or not isinstance(row[6], str) or not re.fullmatch(r'\d{4}-\d{2}-\d{2}(?:T\d{2}:\d{2})?', row[6]):
+                fail(path, 'episode rows need an episode number and broadcast date')
+            if row[7] and (not isinstance(row[7], str) or not row[7].startswith('https://')):
+                fail(path, 'cover images require an HTTPS URL')
+            text(row[7], path + '.cover', 2000, empty=True)
     elif tag in ('p', 'list'):
         sequence(value, path, 2, 3 if tag == 'p' else 2)
         if tag == 'p':
@@ -280,7 +296,7 @@ def block(value, path):
         if len(value) == 4 and (not isinstance(value[3], str) or not re.fullmatch('[A-Z]{2}', value[3])):
             fail(path, 'country flag requires a two-letter country code')
     else:
-        fail(path, 'unknown block type; use p/list/table/agenda/tasks/weather/news/flexible')
+        fail(path, 'unknown block type; use p/list/table/agenda/tasks/weather/news/flexible/episodes')
 
 
 def validate(data, partial=False):
@@ -315,6 +331,8 @@ def validate(data, partial=False):
                     fail(path, 'v2 actions/events require source-linked blocks')
                 if value[0] in owner and section[0] not in owner[value[0]]:
                     fail(path, 'source-linked block has the wrong section owner')
+            if (value[0] == 'episodes') != (section[0] == 'anime') and value[0] != 'p':
+                fail(path, 'episodes blocks belong in the anime section, which holds only episodes and paragraphs')
             if value[0] == 'flexible':
                 if section[0] not in ('schedule', 'tomorrow'):
                     fail(path, 'flexible schedules belong in schedule or tomorrow, not reminders/notes')
@@ -661,6 +679,23 @@ def render_block(value, images, briefing_date=None):
                 metric = '<p class="weather-value"><span class="weather-main">' + escaped(main) + '</span></p>'
             cards.append(f'<div class="weather-tile {style}"><div class="weather-label">{icon(symbol)}<h3>{escaped(custom[0]) if custom else ui.ui(label)}</h3></div>{metric}<div class="weather-detail"><p>{escaped(detail)}</p></div></div>')
         return '<div class="weather-tiles">' + ''.join(cards) + '</div>'
+    if tag == 'episodes':
+        cards = []
+        for _, title, local, episode, episode_title, episode_local, aired, cover in value[1]:
+            # The original name leads; the website-language name follows as a small notation.
+            names = f'<h4 class="episode-show" data-content>{escaped(title)}</h4>'
+            if local:
+                names += f'<p class="episode-show-local" data-content>{escaped(local)}</p>'
+            line = f'<span class="episode-number">{ui.ui("Episode {number}", number=episode)}</span>'
+            if episode_title:
+                line += f'<span class="episode-name" data-content>{escaped(episode_title)}</span>'
+            if episode_local:
+                line += f'<span class="episode-name-local" data-content>{escaped(episode_local)}</span>'
+            day, _, clock = aired.partition('T')
+            when = ui.day_label(day, reference=briefing_date) + (' ' + clock if clock else '')
+            cards.append(f'<li class="episode-card">{episode_visual(cover, title, images)}<div class="episode-copy">{names}'
+                         f'<p class="episode-line">{line}</p><p class="episode-aired">{icon("clock")}<span>{when}</span></p></div></li>')
+        return '<ul class="episode-list">' + ''.join(cards) + '</ul>'
     if tag == 'news':
         from .briefing_layout import country_flag
         category = value[1]
@@ -683,3 +718,13 @@ def news_urls(data):
     return list(dict.fromkeys(url for section in data['sections'] for value in section[1]
                              if value[0] == 'news' for row in value[2] for _, url in row[2]
                              if url.startswith('https://')))[:32]
+
+
+def cover_urls(data):
+    return list(dict.fromkeys(row[7] for section in data['sections'] for value in section[1]
+                             if value[0] == 'episodes' for row in value[1] if row[7]))[:32]
+
+
+def image_urls(data):
+    """Every image a rendered edition may show: publisher previews and anime covers."""
+    return news_urls(data) + cover_urls(data)

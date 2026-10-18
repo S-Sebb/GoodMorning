@@ -216,19 +216,19 @@ def fetch_public(url, limit, deadline):
     raise ValueError("Too many publisher redirects")
 
 
-def cache_previews(urls, directory, shared_directory=None, hints=None):
+def cache_previews(urls, directory, shared_directory=None, hints=None, direct=False):
     """Serialize date manifests; successes persist, failures retry after one hour.
-    hints maps article URLs to image URLs their news feed supplied."""
+    hints maps article URLs to image URLs their news feed supplied; direct URLs are images themselves."""
     if directory.is_symlink() or directory.resolve() != directory:
         raise ValueError('Refusing symlinked preview cache')
     directory.mkdir(parents=True, exist_ok=True, mode=0o700)
     if (directory / '.images.lock').is_symlink():
         raise ValueError('Refusing symlinked preview lock')
     with runtime_lock(directory, '.images.lock'):
-        return collect_previews(urls, directory, shared_directory, hints)
+        return collect_previews(urls, directory, shared_directory, hints, direct)
 
 
-def collect_previews(urls, directory, shared_directory, hints=None):
+def collect_previews(urls, directory, shared_directory, hints=None, direct=False):
     """At most 32 articles, four workers, 18s/item within a shared 24s network budget."""
     from PIL import Image, ImageOps
     directory.mkdir(parents=True, exist_ok=True, mode=0o700)
@@ -276,6 +276,8 @@ def collect_previews(urls, directory, shared_directory, hints=None):
             with lock:
                 if host in refusing:
                     raise ValueError('Publisher refused an earlier preview request in this run')
+            if direct:
+                return url, preview(url, url, 'Cover art', deadline)
             try:
                 page, content_type, final_url = fetch_public(url, 3_000_000, deadline)
             except Exception as error:

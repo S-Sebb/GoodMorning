@@ -654,7 +654,7 @@ class BrowserApp:
         plan, outcomes, document = (checkpoint[key] for key in ('plan', 'outcomes', 'document'))
         if not -1 <= after <= len(outcomes):
             raise ValueError('Invalid preview offset')
-        images, _ = cached_previews(self.runtime / 'browser-images' / job['date'], native.news_urls(document), responsive=True)
+        images, _ = cached_previews(self.runtime / 'browser-images' / job['date'], native.image_urls(document), responsive=True)
         images = {url: {**entry, 'src': '/' + entry['src'].lstrip('/')} for url, entry in images.items()}
         changes, sections = [], iter(document['sections'])
         for index, outcome in enumerate(outcomes):

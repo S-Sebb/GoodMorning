@@ -27,6 +27,10 @@ news_additional_countries: ""
 news_latest: ""
 news_sources_path: ""
 calendar_source: ""
+anime_updates: ""
+anime_source: ""
+anime_account: ""
+anime_titles: ""
 
 ## Project roots
 
@@ -79,4 +83,6 @@ Never put passwords or keys here. -->
   older profiles keep the existing completed-day workflow without reinitialization.
 - Agree on custom-only, external imports, or Betterbird calendar access.
   Initialize SQLite; do not create `custom_schedule.md`. Imports need review.
+- Do not ask about anime during setup. The `anime_*` lines are set only when the
+  user asks for new-episode updates (`docs/workflows/secretary.md`).
 - Keep credentials in the environment, never in this file.
