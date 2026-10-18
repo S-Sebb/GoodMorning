@@ -115,18 +115,21 @@ guides only for the requested operation; do not recursively reload the skill.
    environment/code changes. Confirm role/field changes before writing them.
    New-episode updates: when the user asks to see new episodes of their anime in
    the night briefing, or to change which shows it follows, set the profile lines
-   below. a) If `anime_source` is empty or the user wants another, ask which source:
+   below. A profile or list link the user shares (for example
+   myanimelist.net/animelist/NAME) answers both the source and the account: pass it
+   unchanged to `--check-account`, which returns both; do not ask about them again.
+   a) If `anime_source` is empty or the user wants another, ask which source:
    AniList (English titles, exact broadcast times), Bangumi (Chinese titles and
    episode names, broadcast dates only) or MyAnimeList (their MAL list; titles and
    times come from AniList). b) Ask whether to follow their watching list there and
    which other shows to add; either alone is enough. With the account question, say
    in one short line where the username is (the last part of their profile link,
-   such as anilist.co/user/NAME, bgm.tv/user/NAME or myanimelist.net/profile/NAME)
-   and that the list must be public. The list is reread before every night briefing,
+   such as anilist.co/user/NAME, bgm.tv/user/NAME or myanimelist.net/profile/NAME;
+   pasting the link works too) and that the list must be public. The list is reread before every night briefing,
    so later changes to it need nothing from you. Check an account with `anime
    --secretary-dir RUNTIME --source SOURCE --check-account NAME`; on `not_found` ask
    the user to check the spelling or the list's privacy, and save no account until a
-   check succeeds. On `mal_unconfigured`, say MyAnimeList is not available yet and
+   check succeeds; save the `source` and `account` it returns. On `mal_unconfigured`, say MyAnimeList is not available yet and
    offer AniList or Bangumi. c) Find each show with `anime --secretary-dir RUNTIME
    --source SOURCE --search "TITLE" --website-language CODE`.
    Use an ID only when exactly one result clearly matches the show and season;

@@ -91,8 +91,9 @@ class AnimeTests(unittest.TestCase):
             ['anilist:195516', '薬屋のひとりごと 第3期', 'The Apothecary Diaries Season 3', '3', '', '', '2026-10-16T22:00', COVER],
             ['anilist:235', '名探偵コナン', 'Detective Conan', '1217', '', '', '2026-10-17T17:00',
              'https://s4.anilist.co/file/anilistcdn/media/anime/cover/medium/bx235.jpg']]])
-        # AniList has no Chinese titles: show the original alone rather than an English one.
-        self.assertEqual({row[2] for row in self.read('zh-CN')['block'][1]}, {''})
+        # Without a Bangumi match, Chinese pages show the original alone rather than an English one.
+        nothing = lambda url, body=None, cache=None, headers=None: {'data': []} if url.startswith(anime.BANGUMI) else fake_anilist(url, body, cache)
+        self.assertEqual({row[2] for row in self.read('zh-CN', nothing)['block'][1]}, {''})
 
     def test_nothing_new_and_unknown_account_are_distinct(self):
         self.profile(titles='')
@@ -143,6 +144,28 @@ class AnimeTests(unittest.TestCase):
                                                      ['anilist:235', '名探偵コナン', 'Detective Conan', '1217']])
         self.assertIn('/users/maomao/animelist?status=watching', seen[0][0])
         self.assertEqual(seen[0][1], {'X-MAL-CLIENT-ID': 'synthetic-client'})
+
+    def test_profile_links_name_their_source_and_user(self):
+        for link, expected in (('https://myanimelist.net/animelist/S-Sebb', ('myanimelist', 'S-Sebb')),
+                               ('myanimelist.net/profile/S-Sebb?view=1', ('myanimelist', 'S-Sebb')),
+                               ('https://anilist.co/user/maomao/animelist', ('anilist', 'maomao')),
+                               ('https://bgm.tv/user/sai', ('bangumi', 'sai')), ('bangumi.tv/anime/list/sai/do', ('bangumi', 'sai')),
+                               ('maomao', (None, 'maomao')), ('https://example.com/user/maomao', (None, 'https://example.com/user/maomao'))):
+            self.assertEqual(anime.account_link(link), expected)
+        self.profile(account='https://anilist.co/user/maomao')
+        self.assertEqual(anime.settings(self.root)['account'], 'maomao')
+
+    def test_chinese_titles_come_only_from_an_exact_bangumi_match(self):
+        self.profile(titles='235, 195516')
+        def fake(url, body=None, cache=None, headers=None):
+            if url.startswith(anime.BANGUMI):
+                return {'data': {'名探偵コナン': [{'name': '名探偵コナン', 'name_cn': '名侦探柯南'},
+                                                   {'name': '名探偵コナン 瞳の中の暗殺者', 'name_cn': '名侦探柯南 瞳孔中的暗杀者'}],
+                                 '薬屋のひとりごと 第3期': [{'name': '薬屋のひとりごと', 'name_cn': '药屋少女的呢喃'}]}[body['keyword']]}
+            return fake_anilist(url, body, cache)
+        rows = self.read('zh-CN', fake)['block'][1]
+        self.assertEqual({row[1]: row[2] for row in rows}, {'名探偵コナン': '名侦探柯南', '薬屋のひとりごと 第3期': ''})
+        self.assertEqual({row[2] for row in self.read('en', fake)['block'][1]}, {'The Apothecary Diaries Season 3', 'Detective Conan'})
 
     def test_episode_blocks_stay_in_their_section_and_render_original_title_first(self):
         row = ['anilist:235', '名探偵コナン', 'Detective Conan', '1217', '', '', '2026-10-17T17:00', 'https://s4.anilist.co/c.jpg']

@@ -232,6 +232,36 @@ def bangumi_search(text, language, cache=None):
             for subject in data['data']]
 
 
+def bangumi_chinese(names, cache=None):
+    """Chinese names for originals that exactly match one Bangumi anime; a near match gives nothing."""
+    def lookup(name):
+        try:
+            found = request(f'{BANGUMI}/v0/search/subjects?limit=5', {'keyword': name, 'filter': {'type': [2]}}, cache)['data']
+        except AnimeError:
+            return name, ''
+        same = {subject.get('name_cn') or '' for subject in found if (subject.get('name') or '').split() == name.split()}
+        return name, next(iter(same)) if len(same) == 1 else ''
+    with ThreadPoolExecutor(max_workers=4) as pool:
+        return dict(pool.map(lookup, set(names)))
+
+
+# Accounts given as links: the site names the source, the path names the user.
+
+LINKS = (('myanimelist', r'(?:www\.)?myanimelist\.net/(?:animelist|profile)/([^/?#\s]+)'),
+         ('anilist', r'(?:www\.)?anilist\.co/user/([^/?#\s]+)'),
+         ('bangumi', r'(?:bgm\.tv|bangumi\.tv|chii\.in)/(?:user|anime/list)/([^/?#\s]+)'))
+
+
+def account_link(text):
+    """(source, username) from a profile or list link; (None, text) for a bare username."""
+    value = (text or '').strip()
+    for source, pattern in LINKS:
+        match = re.fullmatch(r'(?:https?://)?' + pattern + r'(?:[/?#].*)?', value, re.I)
+        if match:
+            return source, urllib.parse.unquote(match[1])
+    return None, value
+
+
 # Briefing read.
 
 def settings(runtime):
@@ -241,7 +271,7 @@ def settings(runtime):
     if source not in SOURCES or any(not part.isdigit() for part in titles):
         raise AnimeError('invalid_settings: anime_source must be anilist, bangumi or myanimelist and anime_titles comma-separated IDs')
     return {'enabled': fields.get('anime_updates', '').casefold() == 'true', 'source': source,
-            'account': fields.get('anime_account', ''), 'titles': [int(part) for part in titles]}
+            'account': account_link(fields.get('anime_account', ''))[1], 'titles': [int(part) for part in titles]}
 
 
 def window(runtime, today, zone, now=None):
@@ -279,6 +309,11 @@ def episodes(runtime, today, zone_name, language, cache=None, now=None):
         shown = {(row[0], row[3]) for row in saved_rows(runtime, previous)} if previous else set()
         rows = [row for row in bangumi_episodes(subjects, first, Date.fromisoformat(today), language, cache)
                 if (row['id'], row['episode']) not in shown]
+    if chosen['source'] != 'bangumi' and language == 'zh-CN' and rows:
+        # AniList has no Chinese titles; Bangumi does, for shows it lists under the same original name.
+        chinese = bangumi_chinese([row['title'] for row in rows], cache)
+        for row in rows:
+            row['local'] = '' if chinese[row['title']] == row['title'] else chinese[row['title']]
     rows.sort(key=lambda row: (row['aired'].astimezone(zone).replace(tzinfo=None) if isinstance(row['aired'], datetime)
                                else datetime.combine(row['aired'], datetime.min.time()), row['title'], row['episode']))
     block = [[row['id'], row['title'], row['local'], row['episode'], row['episode_title'], row['episode_local'],
@@ -319,19 +354,24 @@ def main(argv=None):
     action = parser.add_mutually_exclusive_group(required=True)
     action.add_argument('--date', help='Briefing read: episodes since the previous evening briefing')
     action.add_argument('--search', help='Find title IDs on --source')
-    action.add_argument('--check-account', help='Confirm a public account and count its watching list on --source')
+    action.add_argument('--check-account', help='Confirm a public account (username, or profile/list link) and count its watching list')
     parser.add_argument('--timezone')
     parser.add_argument('--source', type=str.lower, choices=SOURCES)
     args = parser.parse_args(argv)
     cache = cache_path(args.cache_dir)
     try:
         runtime = secretary_path(args.secretary_dir)
+        linked, name = account_link(args.check_account)
+        if linked:
+            if args.source and args.source != linked:
+                raise AnimeError(f'invalid_input: this link is from {linked}; use --source {linked} or ask the user which source they want')
+            args.source, args.check_account = linked, name
         if args.date:
             zone = args.timezone or profile_fields(runtime).get('timezone')
             result = episodes(runtime, args.date, zone, args.website_language, cache)
             save(runtime, args.date, result)
         elif not args.source:
-            raise AnimeError('invalid_input: --search and --check-account need --source')
+            raise AnimeError('invalid_input: --search and --check-account need --source, or a profile link')
         elif args.search:
             found = {'anilist': anilist_search, 'bangumi': bangumi_search, 'myanimelist': mal_search}[args.source](args.search, args.website_language, cache)
             if args.source == 'anilist':
