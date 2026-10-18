@@ -282,7 +282,7 @@ def main(argv=None):
     action.add_argument('--search', help='Find title IDs on --source')
     action.add_argument('--check-account', help='Confirm a public account and count its watching list on --source')
     parser.add_argument('--timezone')
-    parser.add_argument('--source', choices=SOURCES)
+    parser.add_argument('--source', type=str.lower, choices=SOURCES)
     args = parser.parse_args(argv)
     cache = cache_path(args.cache_dir)
     try:

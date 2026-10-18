@@ -124,14 +124,17 @@ guides only for the requested operation; do not recursively reload the skill.
    save no account until a check succeeds. c) Find each show with `anime
    --secretary-dir RUNTIME --source SOURCE --search "TITLE" --website-language CODE`.
    Use an ID only when exactly one result clearly matches the show and season;
-   otherwise ask with the native question tool, listing the candidates. d) Save
+   otherwise ask with the native question tool, listing the candidates. A show
+   named without a season means its main TV series: films, specials and tie-ins
+   do not make it unclear, but several seasons do. d) Save
    `anime_updates: "true"`, `anime_source`, `anime_account` (or `""`) and
    `anime_titles` (comma-separated IDs, or `""`). A new source needs its own IDs:
    search the saved shows again there. Turning it off sets `anime_updates: "false"`
    and keeps the other lines. e) Confirm in everyday words: from the next night
-   briefing, a New episodes section shows covers and episodes that aired since the
+   briefing, a section titled New episodes (追番更新) shows covers and episodes that aired since the
    previous night briefing, or a short line when nothing new came out. Promise no
-   notifications or watch links.
+   notifications or watch links. Questions and confirmations name shows, seasons
+   and sources in everyday words, never profile fields or IDs.
 5. Project writes follow `docs/project-access.md`: exact authorized target, full
    contents/current hash, scoped confirmation, preserved unrelated work and updated
    `last_update`. Calendar changes/imports follow `docs/calendar-pipeline.md`:
