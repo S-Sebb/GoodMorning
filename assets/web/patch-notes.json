@@ -1,6 +1,33 @@
 {
   "notes": [
     {
+      "version": "0.59.0",
+      "date": "2026-10-18",
+      "author": "GoodMorning agent",
+      "title_en": "Attach files anywhere 📎",
+      "title_zh": "随时都能附上文件 📎",
+      "changes": [
+        {
+          "category": "Added",
+          "en": [
+            "The quick chat on every page now takes images and files too: paste a screenshot, drop a file onto it, or tap the paperclip, just like on the Secretary page."
+          ],
+          "zh": [
+            "现在每页的「快捷对话」也能发图片和文件了：粘贴截图、把文件拖进去，或者点一下回形针，就和「秘书」页一样方便。"
+          ]
+        },
+        {
+          "category": "Fixed",
+          "en": [
+            "A price check that says to buy below a set price now stays one daily reminder, instead of also adding a separate buy task that shows up every day."
+          ],
+          "zh": [
+            "设置“低于某个价格就买入”的价格检查后，现在只会保留每天一条提醒，不会再额外生成一个天天出现的买入任务了。"
+          ]
+        }
+      ]
+    },
+    {
       "version": "0.58.0",
       "date": "2026-10-18",
       "author": "GoodMorning agent",
