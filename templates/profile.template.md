@@ -31,6 +31,11 @@ anime_updates: ""
 anime_source: ""
 anime_account: ""
 anime_titles: ""
+game_sales: ""
+game_country: ""
+game_account: ""
+game_threshold: ""
+game_titles: ""
 
 ## Project roots
 
@@ -84,5 +89,6 @@ Never put passwords or keys here. -->
 - Agree on custom-only, external imports, or Betterbird calendar access.
   Initialize SQLite; do not create `custom_schedule.md`. Imports need review.
 - Do not ask about anime during setup. The `anime_*` lines are set only when the
-  user asks for new-episode updates (`docs/workflows/secretary.md`).
+  user asks for new-episode updates (`docs/workflows/secretary.md`). Likewise the
+  `game_*` lines, only when the user asks for game-sale updates.
 - Keep credentials in the environment, never in this file.

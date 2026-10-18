@@ -105,8 +105,10 @@ feedback and blockers in Chinese too; English planning notes are not user replie
 8. New episodes (only when `anime_updates: "true"`): copy the anime read's
    `episodes` block unchanged, or publish one short line in the saved tone when it
    is null; a failed read says only that episodes could not be checked.
+9. Game sales (only when `game_sales: "true"`): the same with the games read's
+   `deals` block; a failed read says only that game sales could not be checked.
 
-Keep the order Today, Schedule, Tasks, Reminders, then New episodes when on. Browser jobs use `skip` only for
+Keep the order Today, Schedule, Tasks, Reminders, then New episodes and Game sales when on. Browser jobs use `skip` only for
 empty optional positions; local JSON omits those sections. Never hide a material
 retrieval failure. Check each receipt.
 Conflicts require a targeted reread; uncertain writes require inspection and the

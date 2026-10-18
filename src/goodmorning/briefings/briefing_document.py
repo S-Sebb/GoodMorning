@@ -6,14 +6,14 @@ from pathlib import Path
 import re
 from urllib.parse import urlsplit
 
-from .briefing_layout import icon, category_icon, news_visual, episode_visual
+from .briefing_layout import icon, category_icon, news_visual, episode_visual, deal_visual
 from goodmorning.web import language as ui
 
 MAX_BYTES = 150_000
 TITLES = {'weather': 'Weather', 'news': 'News', 'schedule': 'Schedule',
           'must-do': 'Project steps', 'nice-to-do': 'Optional project steps', 'reminders': 'Reminders',
           'today': 'Today', 'still-open': 'Still open', 'tomorrow': 'Tomorrow', 'notes': 'Notes',
-          'tasks': 'Tasks', 'attention': 'Reminders', 'anime': 'New episodes'}
+          'tasks': 'Tasks', 'attention': 'Reminders', 'anime': 'New episodes', 'games': 'Game sales'}
 WEATHER = {'temperature': ('Temperature', 'thermometer', 'temperature cool'),
            'precipitation': ('Precipitation', 'rain', 'precipitation'),
            'warning': ('Extreme warning', 'warning', 'other'), 'air': ('AQI', 'leaf', 'air')}
@@ -221,6 +221,24 @@ def block(value, path):
             if row[7] and (not isinstance(row[7], str) or not row[7].startswith('https://')):
                 fail(path, 'cover images require an HTTPS URL')
             text(row[7], path + '.cover', 2000, empty=True)
+    elif tag == 'deals':
+        # [id, name, discount_percent, final_price, original_price, sale_ends, cover_url], copied from the games read.
+        sequence(value, path, 2, 2)
+        sequence(value[1], path + '.items', 1, 50)
+        for row in value[1]:
+            sequence(row, path + '.row', 7, 7)
+            if not isinstance(row[0], str) or not re.fullmatch(r'steam:\d{1,9}', row[0]):
+                fail(path, 'deal rows need a Steam app ID')
+            if type(row[2]) is not int or not 1 <= row[2] <= 100:
+                fail(path, 'deal rows need a discount percent')
+            text(row[1], path + '.name', 300)
+            text(row[3], path + '.price', 40)
+            text(row[4], path + '.original', 40, empty=True)
+            if not isinstance(row[5], str) or row[5] and not re.fullmatch(r'\d{4}-\d{2}-\d{2}T\d{2}:\d{2}', row[5]):
+                fail(path, 'sale end must be a local date and time or empty')
+            if row[6] and (not isinstance(row[6], str) or not row[6].startswith('https://')):
+                fail(path, 'cover images require an HTTPS URL')
+            text(row[6], path + '.cover', 2000, empty=True)
     elif tag in ('p', 'list'):
         sequence(value, path, 2, 3 if tag == 'p' else 2)
         if tag == 'p':
@@ -296,7 +314,7 @@ def block(value, path):
         if len(value) == 4 and (not isinstance(value[3], str) or not re.fullmatch('[A-Z]{2}', value[3])):
             fail(path, 'country flag requires a two-letter country code')
     else:
-        fail(path, 'unknown block type; use p/list/table/agenda/tasks/weather/news/flexible/episodes')
+        fail(path, 'unknown block type; use p/list/table/agenda/tasks/weather/news/flexible/episodes/deals')
 
 
 def validate(data, partial=False):
@@ -333,6 +351,8 @@ def validate(data, partial=False):
                     fail(path, 'source-linked block has the wrong section owner')
             if (value[0] == 'episodes') != (section[0] == 'anime') and value[0] != 'p':
                 fail(path, 'episodes blocks belong in the anime section, which holds only episodes and paragraphs')
+            if (value[0] == 'deals') != (section[0] == 'games') and value[0] != 'p':
+                fail(path, 'deals blocks belong in the games section, which holds only deals and paragraphs')
             if value[0] == 'flexible':
                 if section[0] not in ('schedule', 'tomorrow'):
                     fail(path, 'flexible schedules belong in schedule or tomorrow, not reminders/notes')
@@ -696,6 +716,20 @@ def render_block(value, images, briefing_date=None):
             cards.append(f'<li class="episode-card">{episode_visual(cover, title, images)}<div class="episode-copy">{names}'
                          f'<p class="episode-line">{line}</p><p class="episode-aired">{icon("clock")}<span>{when}</span></p></div></li>')
         return '<ul class="episode-list">' + ''.join(cards) + '</ul>'
+    if tag == 'deals':
+        cards = []
+        for _, name, discount, price, original, ends, cover in value[1]:
+            prices = f'<span class="deal-discount">−{discount}%</span><span class="deal-price">{escaped(price)}</span>'
+            if original:
+                prices += f'<s class="deal-original">{escaped(original)}</s>'
+            when = ''
+            if ends:
+                day, _, clock = ends.partition('T')
+                when = (f'<p class="deal-ends">{icon("clock")}<span>{ui.ui("Sale ends")} '
+                        f'{ui.day_label(day, reference=briefing_date)} {clock}</span></p>')
+            cards.append(f'<li class="deal-card">{deal_visual(cover, name, images)}<div class="deal-copy">'
+                         f'<h4 class="deal-name" data-content>{escaped(name)}</h4><p class="deal-line">{prices}</p>{when}</div></li>')
+        return '<ul class="deal-list">' + ''.join(cards) + '</ul>'
     if tag == 'news':
         from .briefing_layout import country_flag
         category = value[1]
@@ -721,10 +755,12 @@ def news_urls(data):
 
 
 def cover_urls(data):
-    return list(dict.fromkeys(row[7] for section in data['sections'] for value in section[1]
-                             if value[0] == 'episodes' for row in value[1] if row[7]))[:32]
+    """Anime and game covers, which are images themselves rather than pages to preview."""
+    cell = {'episodes': 7, 'deals': 6}
+    return list(dict.fromkeys(row[cell[value[0]]] for section in data['sections'] for value in section[1]
+                             if value[0] in cell for row in value[1] if row[cell[value[0]]]))[:32]
 
 
 def image_urls(data):
-    """Every image a rendered edition may show: publisher previews and anime covers."""
+    """Every image a rendered edition may show: publisher previews and anime and game covers."""
     return news_urls(data) + cover_urls(data)

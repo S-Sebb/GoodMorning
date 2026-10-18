@@ -152,6 +152,8 @@ on its actual day: `{"status":"done","confirmed_completion":true}` with optional
 - New-episode updates: `anime --source anilist|bangumi --check-account NAME` and
   `--search "TITLE"` only read; the profile lines they inform follow the rule
   below (`docs/workflows/secretary.md`, step 4).
+- Game-sale updates: `games --check-account NAME` and `--search "TITLE" --country CC`
+  only read; the same rule applies.
 - Profile fields (names, tone, city): no helper. Edit only that field's
   `key: "value"` line in `RUNTIME/profile.md`, quoted as in
   `templates/profile.template.md`, then read the line back.
