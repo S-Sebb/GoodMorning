@@ -78,6 +78,17 @@ pending answers and uploaded avatars. The Secretary page still switches between
 day and night at the existing account-local time boundaries; a color scheme is
 not a theme or timezone change.
 
+The server administrator can leave a message for a user (`admin message`, see
+`docs/server-deployment.md`). It becomes a new Secretary conversation that opens
+with the administrator's exact words in the secretary's voice: a "Your secretary
+reached out" tag above the bubble and a "Sent on behalf of the GoodMorning team"
+footnote below it. No model runs and no session exists until the user replies;
+that reply creates the session and carries the opening as `Secretary opening`.
+Until opened, the conversation shows a **New** badge in the chat list, and the
+floating chat pill on other pages reads "New message from {name}" with a softly
+bouncing dot; tapping it opens that conversation. Opening it anywhere marks it
+read for the account (stored with the conversation, not in browser storage).
+
 Workflow changes reuse the same conversation under `docs/browser-chat.md`.
 Native scheduling questions create a durable waiting indicator; pending permissions
 remain explicit one-time approvals/rejections. Briefings stay on their own pages.

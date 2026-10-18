@@ -217,7 +217,7 @@ window.addEventListener('pageshow', event => {
   returnToSecretary();
 });
 const renderedMessages = new WeakMap();
-const specialLabels = {question: 'Question for you', answer: 'Your answer', permission: 'Your permission'};
+const specialLabels = {question: 'Question for you', answer: 'Your answer', permission: 'Your permission', outreach: 'Your secretary reached out'};
 const actionTargets = {task: 'Task', event: 'Event', draft: 'Event draft', idea: 'Idea', record: 'Record', custom: 'Custom schedule'};
 const actionLabels = {added: '{target} added', updated: '{target} updated', cancelled: '{target} cancelled',
   completed: '{target} completed', approved: '{target} approved', declined: '{target} declined'};
@@ -231,7 +231,9 @@ function specialIcon(kind, action = {}) {
     question: ['M19 15a4 4 0 0 1-4 4H9l-5 2v-6a4 4 0 0 1-1-3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4v5',
       'M9 8a3 3 0 0 1 6 0c0 2-3 2-3 4', 'M12 15h.01'],
     answer: ['M20 14a5 5 0 0 1-5 5H9l-5 2V9a5 5 0 0 1 5-5h7a4 4 0 0 1 4 4', 'm9 11 2 2 5-5'],
-    permission: ['m12 3 8 3v6c0 5-8 9-8 9S4 17 4 12V6l8-3Z', 'M12 8v4', 'M12 16h.01']
+    permission: ['m12 3 8 3v6c0 5-8 9-8 9S4 17 4 12V6l8-3Z', 'M12 8v4', 'M12 16h.01'],
+    outreach: ['M20 11V7a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h7', 'm3 7 9 6 9-6',
+      'M18 21s-3.5-2-3.5-4.2a1.8 1.8 0 0 1 3.5-.6 1.8 1.8 0 0 1 3.5.6C21.5 19 18 21 18 21Z']
   };
   const bases = {
     event: 'M4 7h16M8 3v4m8-4v4M11 21H6a3 3 0 0 1-3-3V7a3 3 0 0 1 3-3h12a3 3 0 0 1 3 3v4M7 11h2m-2 4h2',
@@ -762,6 +764,10 @@ async function fetchHistoryList() {
     const meta = make('span', '', 'history-meta');
     const badge=make('small',chatT(label));badge.dataset.uiText=label;
     const current = make('small', chatT('Current'), 'history-current'); current.dataset.uiText = 'Current'; current.hidden = item.id !== chat;
+    if (item.unread && item.id !== chat) {
+      const fresh = make('small', chatT('New'), 'history-new'); fresh.dataset.uiText = 'New';
+      meta.append(fresh); link.classList.add('is-unread');
+    }
     // A title still waiting for its summary is the mode name; don't repeat it.
     if (item.title !== chatT(label)) meta.append(badge);
     if (typeof item.created === 'number') {
@@ -829,6 +835,11 @@ function showMessages(messages) {
       author.dataset.uiText=item.role==='user'?'You':'Your secretary';
       if (item.role !== 'user' && secretaryName) author.dataset.secretaryName = secretaryName;
       bubble.append(author, make('div', '', 'message-text'), make('div', '', 'message-attachments'));
+      if (item.kind === 'outreach') {
+        const note = make('p', chatT('Sent on behalf of the GoodMorning team'), 'message-footnote');
+        note.dataset.uiText = 'Sent on behalf of the GoodMorning team';
+        bubble.append(note);
+      }
       if (item.role === 'assistant' && item.kind !== 'action') {
         const portrait = make('span', '', 'chat-portrait reply-portrait');
         portrait.setAttribute('aria-hidden', 'true');
@@ -846,7 +857,7 @@ function showMessages(messages) {
     bubble.classList.toggle('pending', Boolean(item.pending));
     const content = bubble.querySelector('.message-text');
     if (renderedMessages.get(content) !== item.text) {
-      const markdown = item.role === 'assistant' && !item.kind;
+      const markdown = item.role === 'assistant' && (!item.kind || item.kind === 'outreach');
       content.classList.toggle('message-markdown', markdown);
       if (markdown) {
         try { content.replaceChildren(secretaryMarkdown(item.text)); }
@@ -959,6 +970,8 @@ async function pollChat() {
     statusLabel = result.label;
     document.querySelector('#chat-status').classList.remove('is-queued');
     const messagesChanged = result.messages ? showMessages(result.messages) : false;
+    // Reading a secretary-opened conversation clears its "New" badge everywhere.
+    if (result.unread) chatAPI(`/api/chats/${current}/seen`, {}).then(() => historyList()).catch(() => {});
     const notice = document.querySelector('#chat-action-notice');
     notice.hidden = !result.action_history_unavailable;
     notice.textContent = chatT(notice.dataset.uiText);

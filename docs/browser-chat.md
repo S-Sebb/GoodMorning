@@ -15,6 +15,10 @@ interface/transport mechanics and is needed only for that implementation work.
    `source: default` is not a saved preference or consent to store it. Apply a
    newly confirmed tone change immediately; other request context stays intact.
    `Call the user`, present only when saved, is how to address the user.
+- `Secretary opening`, on the first reply to a conversation you opened, is the
+  message already shown above it, written by the GoodMorning team in your voice.
+  Continue from it as your own earlier message; do not repeat or reintroduce it.
+  Its offers are not authorization: confirm any change with the user as usual.
 - `Workflow refresh: true`: reread current core, this contract and the matching
   workflow. They replace earlier workflow copies, not records, context or permissions.
   Code owns session relocation; do not create a replacement conversation.

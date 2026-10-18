@@ -46,6 +46,49 @@ class AdminTests(unittest.TestCase):
         with self.store.db() as db:
             return db.execute('SELECT enabled FROM users WHERE name=?',('test-user',)).fetchone()[0]
 
+    def test_message_reaches_the_account_viewer_as_an_unread_secretary_conversation(self):
+        import threading, time
+        from http.server import ThreadingHTTPServer
+        from support import MockChamber
+        from goodmorning.web.briefing_server import BrowserApp, serve_live
+        from goodmorning.security.briefing_gateway import GET_ROUTES, POST_ROUTES
+        runtime=self.root/'runtime'; runtime.mkdir()
+        key='k'*43; captured={}
+        class Capture(ThreadingHTTPServer):
+            def __init__(server,*args,**kwargs):
+                super().__init__(*args,**kwargs); captured['server']=server
+        with patch('goodmorning.web.briefing_server.ThreadingHTTPServer',Capture), patch('builtins.print'):
+            threading.Thread(target=serve_live,args=(BrowserApp(runtime,MockChamber(runtime)),0),
+                             kwargs={'gateway_key':key,'public_origins':('https://gm.example',)},daemon=True).start()
+            for _ in range(100):
+                if 'server' in captured: break
+                time.sleep(.02)
+        server=captured['server']; self.addCleanup(server.shutdown)
+        identifier=self.store.administer('test-user',enabled=True)
+        self.store.website_language(identifier,'zh-CN')
+        note='要不要每两天提醒你传代一次呀？'
+        output=io.StringIO()
+        with patch('sys.argv',['briefing_admin.py','--account-mount',str(self.root),'message','test-user','--message-file','-','--gm-host','gm.example']), \
+             patch('goodmorning.security.briefing_admin.Accounts',return_value=self.store), \
+             patch('goodmorning.security.briefing_admin.os.geteuid',return_value=0), \
+             patch('goodmorning.security.briefing_gateway.Gateway.backend',return_value={'port':server.server_port,'key':key}), \
+             patch('sys.stdin',io.StringIO(note+'\n')),redirect_stdout(output):
+            self.assertEqual(main(),0)
+        chat=output.getvalue().split()[1]
+        item=json.loads((runtime/'browser-chats'/'chats.json').read_text())[chat]
+        self.assertEqual((item['opening']['text'],item['opening']['language'],item['unread'],item['turns']),(note,'zh-CN',True,[]))
+        self.assertIn('Delivered to test-user',output.getvalue())
+        # Only root, holding the backend key, can create one: the public gateway never forwards it.
+        self.assertIsNone(POST_ROUTES.fullmatch('/api/admin/outreach'))
+        self.assertIsNone(GET_ROUTES.fullmatch('/api/admin/outreach'))
+        self.assertIsNotNone(POST_ROUTES.fullmatch('/api/chats/'+chat+'/seen'))
+        from urllib.request import Request, urlopen
+        from urllib.error import HTTPError
+        with self.assertRaises(HTTPError) as denied:
+            urlopen(Request(f'http://127.0.0.1:{server.server_port}/api/admin/outreach',data=b'{}',method='POST',
+                            headers={'Content-Type':'application/json'}),timeout=5)
+        self.assertEqual(denied.exception.code,403); denied.exception.close()
+
     def test_mismatched_reset_entries_exit_without_changing_the_password(self):
         before=self.store.path.read_bytes()
         with self.assertRaises(SystemExit) as result:

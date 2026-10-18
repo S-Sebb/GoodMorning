@@ -5,6 +5,7 @@ import json
 import os
 from pathlib import Path
 import stat
+import sys
 
 from .briefing_accounts import Accounts, username
 
@@ -58,15 +59,48 @@ def backend_status(store,name,host):
     return 0
 
 
+def send_message(store,name,host,text,title=None,chat=None):
+    """Leave the administrator's exact words as a new, unread conversation from the account's secretary.
+
+    The account's own viewer writes it (as the account's service user); no model runs until the user replies."""
+    import uuid
+    from urllib.request import Request, build_opener
+    from .briefing_gateway import Gateway
+    with store.db() as db:
+        row = db.execute('SELECT id,enabled FROM users WHERE name=?',(username(name),)).fetchone()
+    if not row or not row['enabled']:
+        print('Account not found or disabled.')
+        return 1
+    chat = chat or uuid.uuid4().hex
+    backend = Gateway(store,{host:'gm'}).backend(row['id'])
+    body = {'id': chat, 'text': text, **({'title': title} if title else {})}
+    # Printed first, so an interrupted delivery can be retried with --chat-id without a duplicate.
+    print(f'Conversation {chat}')
+    request = Request(f'http://127.0.0.1:{backend["port"]}/api/admin/outreach', data=json.dumps(body).encode(), method='POST',
+                      headers={'Authorization': 'Bearer '+backend['key'], 'X-GoodMorning-Origin': 'https://'+host,
+                               'X-GoodMorning-Language': store.website_language(row['id']) or 'en',
+                               'Content-Type': 'application/json'})
+    with build_opener().open(request, timeout=20) as response:
+        result = json.loads(response.read(10000))
+    if result.get('chat') != chat:
+        print('Delivery was not confirmed; inspect the account before retrying with --chat-id.')
+        return 1
+    print(f'Delivered to {name}: it waits as an unread message from their secretary until they open it.')
+    return 0
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--account-mount',type=Path,required=True)
-    parser.add_argument('action',choices=('create','rename','reset','disable','enable','list','check','check-backend','pause','resume','pause-status'))
+    parser.add_argument('action',choices=('create','rename','reset','disable','enable','list','check','check-backend','pause','resume','pause-status','message'))
     parser.add_argument('username',nargs='?')
     parser.add_argument('--new-name')
     parser.add_argument('--reason')
     parser.add_argument('--by')
     parser.add_argument('--gm-host',default='gm.love765.me')
+    parser.add_argument('--message-file',type=Path,help='message: UTF-8 text in the user\'s language and secretary tone; - reads stdin')
+    parser.add_argument('--title',help='message: conversation title (default: A note from your secretary)')
+    parser.add_argument('--chat-id',help='message: retry an interrupted delivery with its printed conversation id')
     args = parser.parse_args()
     if os.geteuid() != 0:
         parser.error('SSH administration requires root')
@@ -96,6 +130,12 @@ def main():
         parser.error('Username is required')
     if args.action == 'check-backend':
         return backend_status(store,args.username,args.gm_host)
+    if args.action == 'message':
+        if not args.message_file:
+            parser.error('--message-file is required')
+        # "-" streams the text over SSH, so private wording never lands on the server's disk.
+        text = sys.stdin.read() if str(args.message_file) == '-' else args.message_file.read_text(encoding='utf-8')
+        return send_message(store,args.username,args.gm_host,text,args.title,args.chat_id)
     if args.action == 'check':
         matches=store.check_password(args.username,getpass.getpass('Password to check (not saved): '))
         print('Password matches the saved account.' if matches else 'Password does not match the saved account.')

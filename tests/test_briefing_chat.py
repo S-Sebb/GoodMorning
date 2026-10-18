@@ -44,6 +44,65 @@ class ChatTests(unittest.TestCase):
             with self.assertRaises(ValueError): self.start(mode, 'Save this')
         self.assertEqual(self.chamber.calls, [])
 
+    def test_secretary_opened_conversation_waits_unread_then_continues_with_the_secretary(self):
+        note = 'Want me to remind you to passage the cells every two days? Just say the word.'
+        self.assertEqual(self.chats.outreach({'id': self.id, 'text': note}), {'chat': self.id})
+        self.assertEqual(self.chats.outreach({'id': self.id, 'text': note}), {'chat': self.id})  # A retried delivery is one conversation.
+        with self.assertRaises(ValueError): self.chats.outreach({'id': self.id, 'text': 'Different words'})
+        for bad in ({'id': 'b' * 32, 'text': '/secretary hi'}, {'id': 'b' * 32, 'text': ' '}, {'id': 'b' * 32},
+                    {'id': 'b' * 32, 'text': 'Hi', 'mode': 'initialize'}):
+            with self.assertRaises(ValueError): self.chats.outreach(bad)
+        self.assertEqual(self.chamber.calls, [])  # No session and no model run until the user replies.
+        listed, = self.chats.listing()
+        self.assertEqual((listed['title'], listed['unread'], listed['mode']), ('A note from your secretary', True, 'secretary'))
+        status = self.chats.status(self.id)
+        self.assertEqual((status['state'], status['unread'], status['language']), ('idle', True, 'en'))
+        self.assertEqual(status['messages'], [{'id': 'opening-' + self.id, 'role': 'assistant', 'text': note,
+                                               'attachments': [], 'kind': 'outreach', 'language': 'en'}])
+        self.assertEqual(self.chats.status(self.id, include_messages=False)['state'], 'idle')
+        with self.assertRaises(ValueError): self.start(text=note)  # A browser start cannot take over the opening.
+        self.chats.seen(self.id)
+        self.assertNotIn('unread', self.chats.listing()[0])
+        restarted = Chats(self.root, self.chamber)
+        self.assertNotIn('unread', restarted.status(self.id))
+
+        self.chats.send(self.id, {'id': 'c' * 32, 'text': 'Yes please!'})
+        creates = [call for call in self.chamber.calls if call[0] == 'session.create']
+        self.assertEqual(len(creates), 1)
+        prompt = next(body['prompt'] for action, body in self.chamber.calls if action == 'session.send')
+        self.assertTrue(prompt.startswith('/secretary\nBrowser chat: ' + self.id))
+        self.assertIn('Secretary opening: ' + json.dumps(note), prompt)
+        self.assertTrue(prompt.endswith('\n\nYes please!'))
+        status = self.chats.status(self.id)
+        self.assertEqual(status['state'], 'idle')
+        self.assertEqual([(m['role'], m.get('kind'), m['text']) for m in status['messages']][:3],
+                         [('assistant', 'outreach', note), ('user', None, 'Yes please!'),
+                          ('assistant', None, 'Synthetic reply. Your text stays text: <img src=x onerror=alert(1)>')])
+        self.assertEqual(self.chats.listing()[0]['title'], 'A note from your secretary')
+        self.chats.send(self.id, {'id': 'd' * 32, 'text': 'Thanks'})
+        later = [body['prompt'] for action, body in self.chamber.calls if action == 'session.send'][-1]
+        self.assertNotIn('Secretary opening', later)
+        self.assertEqual(len([call for call in self.chamber.calls if call[0] == 'session.create']), 1)
+
+    def test_secretary_opened_conversation_keeps_its_title_and_language(self):
+        from goodmorning.web import language as ui
+        token = ui.CURRENT.set('zh-CN')
+        try:
+            self.chats.outreach({'id': self.id, 'text': '要不要每两天提醒你传代一次呀？', 'title': '  传代提醒  '})
+            default = 'b' * 32
+            self.chats.outreach({'id': default, 'text': '你好呀'})
+        finally:
+            ui.CURRENT.reset(token)
+        titles = {item['id']: item['title'] for item in self.chats.listing()}
+        self.assertEqual(titles, {self.id: '传代提醒', default: 'A note from your secretary'})
+        token = ui.CURRENT.set('zh-CN')
+        try:
+            titles = {item['id']: item['title'] for item in self.chats.listing()}
+        finally:
+            ui.CURRENT.reset(token)
+        self.assertEqual(titles, {self.id: '传代提醒', default: '你的秘书留了句话'})
+        self.assertEqual(self.chats.status(self.id)['language'], 'zh-CN')
+
     def test_new_profile_opens_setup_without_inventing_timezone(self):
         app = BrowserApp(self.root, self.chamber)
         self.assertEqual(app.chat_settings()['defaultMode'], 'initialize')

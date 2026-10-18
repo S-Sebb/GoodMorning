@@ -24,7 +24,7 @@
   const dot = $('#quick-chat-dot');
   const awayLimit = 15 * 60 * 1000;
   const modes = {secretary: 'Secretary', todo: 'To-do', eureka: 'Eureka', initialize: 'Initialize'};
-  const specialLabels = {question: 'Question for you', answer: 'Your answer', permission: 'Your permission'};
+  const specialLabels = {question: 'Question for you', answer: 'Your answer', permission: 'Your permission', outreach: 'Your secretary reached out'};
   const actionTargets = {task: 'Task', event: 'Event', draft: 'Event draft', idea: 'Idea', record: 'Record', custom: 'Custom schedule'};
   const actionLabels = {added: '{target} added', updated: '{target} updated', cancelled: '{target} cancelled',
     completed: '{target} completed', approved: '{target} approved', declined: '{target} declined'};
@@ -34,6 +34,8 @@
   let chat = null, mode = 'secretary', state = null, statusLabel = '';
   let open = false, sending = false, polling = false, revision = 0, timer, titleTimer, titleRetries = 0;
   let messageSignature = '', formSignature = '', follow = true, unread = false;
+  // A conversation the secretary opened, waiting to be read (persisted server-side).
+  let note = null;
   // Sent messages show at once and stay until the transcript includes their turn.
   let pendingMessages = [], shownMessages = [];
   let workspace = readWorkspace();
@@ -96,9 +98,11 @@
 
   function showHeader() {
     const name = secretaryName || t('Your secretary');
-    $('#quick-chat-launcher-label').textContent = secretaryName ? t('Ask {name}', {name: secretaryName}) : t('Ask your secretary');
-    launcher.setAttribute('aria-label', [secretaryName ? t('Ask {name}', {name: secretaryName}) : t('Ask your secretary'),
-      ...(dot.hidden ? [] : [dot.title])].join(' · '));
+    const ask = note ? (secretaryName ? t('New message from {name}', {name: secretaryName}) : t('New message from your secretary'))
+      : secretaryName ? t('Ask {name}', {name: secretaryName}) : t('Ask your secretary');
+    $('#quick-chat-launcher-label').textContent = ask;
+    launcher.classList.toggle('has-note', Boolean(note));
+    launcher.setAttribute('aria-label', [ask, ...(dot.hidden || note ? [] : [dot.title])].join(' · '));
     $('#quick-chat-title').textContent = titles.get(chat) || t(chat ? 'Conversation' : 'New conversation');
     $('#quick-chat-mode').textContent = t(modes[mode] || 'Secretary') + ' · ' + name;
     $('#quick-chat-open').href = chat ? '/chat?id=' + chat : '/chat';
@@ -110,9 +114,11 @@
 
   function showDot() {
     const label = state === 'waiting' ? 'Your secretary needs your answer'
-      : ['starting', 'running', 'queued'].includes(state) ? 'Your secretary is working' : unread ? 'A new reply is ready' : '';
+      : ['starting', 'running', 'queued'].includes(state) ? 'Your secretary is working' : unread ? 'A new reply is ready'
+      : note ? 'New message from your secretary' : '';
     dot.hidden = open || !label;
-    dot.dataset.state = state === 'waiting' ? 'waiting' : unread && !['starting', 'running', 'queued'].includes(state) ? 'unread' : 'working';
+    dot.dataset.state = state === 'waiting' ? 'waiting' : ['starting', 'running', 'queued'].includes(state) ? 'working'
+      : unread ? 'unread' : 'note';
     dot.title = label ? t(label) : '';
     showHeader();
   }
@@ -168,11 +174,13 @@
       const label = messageLabel(item);
       if (label) bubble.append(make('p', label, 'quick-chat-label'));
       const content = make('div', '', 'quick-chat-text');
-      if (item.role === 'assistant' && !item.kind) {
+      if (item.kind === 'outreach') bubble.classList.add('outreach');
+      if (item.role === 'assistant' && (!item.kind || item.kind === 'outreach')) {
         try { content.classList.add('message-markdown'); content.append(secretaryMarkdown(item.text)); }
         catch { content.classList.remove('message-markdown'); content.textContent = item.text; }
       } else content.textContent = item.text;
       bubble.append(content);
+      if (item.kind === 'outreach') bubble.append(make('p', t('Sent on behalf of the GoodMorning team'), 'quick-chat-footnote'));
       for (const entry of item.attachments || []) {
         const file = make('p', '', 'quick-chat-attachment');
         if (imageTypes.has(entry.mime) && /^[a-f0-9]{32}$/.test(entry.id)) {
@@ -236,6 +244,7 @@
         if (version !== revision) return;
         if (mine?.work === 'reply') { state = 'queued'; statusLabel = queueText(mine.position, mine.depth); formSignature = ''; questions.replaceChildren(); return; }
       }
+      if (full && result.unread) api(`/api/chats/${current}/seen`, {}).then(refreshTitles).catch(() => {});
       if (full) {
         const keep = follow || nearLatest();
         const messagesChanged = result.messages ? showMessages(result.messages) : false;
@@ -268,11 +277,16 @@
       const result = await api('/api/chats');
       connected = result.connected;
       for (const item of result.chats || []) titles.set(item.id, item.title);
+      findNote(result.chats);
       if (typeof result.secretary_name === 'string' && result.secretary_name) secretaryName = result.secretary_name;
       showStatus();
       if (chat && (result.chats || []).some(item => item.id === chat && item.title_pending) && titleRetries++ < 20)
         titleTimer = setTimeout(refreshTitles, 3000);
     } catch { /* Titles are decoration; the conversation stays usable. */ }
+  }
+
+  function findNote(chats) {
+    note = (chats || []).find(item => item.unread && !(open && item.id === chat))?.id || null;
   }
 
   function reset() {
@@ -338,7 +352,11 @@
     if (active()) poll();
   }
 
-  launcher.addEventListener('click', () => openWindow());
+  launcher.addEventListener('click', () => {
+    // A waiting note opens instead of the last conversation; reading it clears the note.
+    if (note) { const id = note; note = null; reset(); chat = id; remember(null); }
+    openWindow();
+  });
   $('#quick-chat-minimize').addEventListener('click', closeWindow);
   $('#quick-chat-new').addEventListener('click', () => newConversation());
   $('#quick-chat-open').addEventListener('click', () => remember(null));
@@ -439,7 +457,11 @@
     if (!textBox.value.trim() && !sending) return;
     event.preventDefault(); event.returnValue = '';
   });
-  document.addEventListener('visibilitychange', () => { if (!document.hidden && ready && (open || active())) poll(); });
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden || !ready) return;
+    if (open || active()) poll();
+    else refreshTitles();
+  });
   document.addEventListener('website:before-refresh', event => { if (sending) event.preventDefault(); });
   document.addEventListener('website:refresh-drafts', event => { if (textBox.value.trim()) event.preventDefault(); });
   document.addEventListener('website:language', () => {
@@ -456,6 +478,7 @@
     ready = true; connected = settings.connected;
     if (typeof settings.secretary_name === 'string' && settings.secretary_name) secretaryName = settings.secretary_name;
     for (const item of settings.chats || []) titles.set(item.id, item.title);
+    findNote(settings.chats);
     showAvatar(avatars);
     root.hidden = false;
     if (!connected) errorBox.textContent = t('The secretary is unavailable.');

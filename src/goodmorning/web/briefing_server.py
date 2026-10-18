@@ -1104,6 +1104,12 @@ def serve_live(app, port, *, gateway_key=None, public_origins=()):
                 chat = re.fullmatch(r'/api/chats/([a-f0-9]{32})/messages', path)
                 if chat:
                     return self.respond(app.chats.send(chat[1], body), 202)
+                chat_seen = re.fullmatch(r'/api/chats/([a-f0-9]{32})/seen', path)
+                if chat_seen:
+                    return self.respond(app.chats.seen(chat_seen[1]))
+                if path == '/api/admin/outreach':
+                    # Root-only: the public gateway never forwards /api/admin routes.
+                    return self.respond(app.chats.outreach(body), 201)
                 chat_reply = re.fullmatch(r'/api/chats/([a-f0-9]{32})/(form|permission)/([A-Za-z0-9_]+)/reply', path)
                 if chat_reply:
                     return self.respond(app.chats.reply(*chat_reply.groups(), body))

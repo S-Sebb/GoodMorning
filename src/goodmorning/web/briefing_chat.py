@@ -18,6 +18,7 @@ from .avatar_images import image_urls
 MODES = {'initialize': 'Initialize', 'secretary': 'Secretary', 'todo': 'To-do', 'eureka': 'Eureka'}
 # Secretary now saves to-dos and ideas itself; older To-do/Eureka chats stay readable and replyable.
 NEW_MODES = ('initialize', 'secretary')
+OUTREACH_TITLE = 'A note from your secretary'
 
 AVATARS = (('f1', 'desk-secretary.png', 'Classic'),
            ('f2', 'desk-secretary-f2.png', 'Female 2'),
@@ -177,6 +178,18 @@ def question_history(messages, questions, pending):
     return result
 
 
+def chat_language(item, latest=False):
+    """A secretary-opened conversation speaks its opening's language until the user replies."""
+    if item['turns']:
+        return item['turns'][-1 if latest else 0].get('language', 'en')
+    return item.get('opening', {}).get('language', 'en' if not latest else None)
+
+
+def opening_message(opening):
+    return {'id': opening['id'], 'role': 'assistant', 'text': opening['text'], 'attachments': [],
+            'kind': 'outreach', 'language': opening['language']}
+
+
 class Chats:
     def __init__(self, runtime, chamber):
         self.runtime, self.chamber = runtime, chamber
@@ -244,7 +257,7 @@ class Chats:
                         if not isinstance(title, str) or not title.strip():
                             continue
                         item = sessions[session]
-                        language = item['turns'][0].get('language', 'en')
+                        language = chat_language(item)
                         label = ui.text(MODES[item['mode']], lang=language)
                         # A seeded raw-message title is not an AI summary.
                         if (title == chat_session_title(label, item['title']) or title == chat_session_title(label, '')
@@ -261,8 +274,10 @@ class Chats:
                 pass  # Title lookup must not hide preserved conversations during an outage.
         with self.lock:
             return [{'id': item['id'], 'mode': item['mode'],
-                     'title': self.title_cache.get(item.get('session')) or ui.text(MODES[item['mode']]),
+                     'title': ((item['title'] or ui.text(OUTREACH_TITLE)) if 'opening' in item else
+                               self.title_cache.get(item.get('session')) or ui.text(MODES[item['mode']])),
                      'title_pending': bool(item.get('native_title') and item.get('session') not in self.title_cache),
+                     **({'unread': True} if item.get('unread') else {}),
                      **({'created': item['created']} if isinstance(item.get('created'), (int, float)) else {})}
                     for item in items]
 
@@ -288,7 +303,7 @@ class Chats:
         with self.lock:
             if chat in self.items:
                 item = self.items[chat]
-                if item['mode'] != body['mode'] or item['turns'][0]['text'] != text or item['turns'][0].get('attachments', []) != attachments:
+                if not item['turns'] or item['mode'] != body['mode'] or item['turns'][0]['text'] != text or item['turns'][0].get('attachments', []) != attachments:
                     raise ValueError('Request ID already belongs to another conversation')
                 return {'chat': chat}
             if not self.chamber:
@@ -304,6 +319,37 @@ class Chats:
             self.save()  # Save intent before any model request; never blindly replay.
             threading.Thread(target=self.dispatch, args=(chat, chat, text, True), daemon=True).start()
         return {'chat': chat}
+
+    def outreach(self, body):
+        """The administrator's exact words, delivered in the secretary's voice; no model runs until the user replies."""
+        if set(body) - {'title'} != {'id', 'text'}:
+            raise ValueError('Send an id and the message text')
+        chat, text = identifier(body['id']), message(body['text'])
+        title = ' '.join(str(body.get('title') or '').split())[:160]  # Empty: the default follows the account language.
+        if not text:
+            raise ValueError('Write the message first')
+        with self.lock:
+            if chat in self.items:
+                item = self.items[chat]
+                if item.get('opening', {}).get('text') != text:
+                    raise ValueError('Request ID already belongs to another conversation')
+                return {'chat': chat}
+            if len(self.items) >= 500:
+                raise ValueError('Conversation storage needs administrator archival')
+            self.capacity({'text': text, 'title': title})
+            now = time.time()
+            self.items[chat] = {'id': chat, 'mode': 'secretary', 'title': title, 'state': 'idle', 'turns': [],
+                                'opening': {'id': 'opening-' + chat, 'text': text, 'language': ui.current(), 'created': now},
+                                'unread': True, 'created': now}
+            self.save()
+        return {'chat': chat}
+
+    def seen(self, chat):
+        with self.lock:
+            self.get(chat)
+            if self.items[chat].pop('unread', None):
+                self.save()
+        return {'seen': True}
 
     def send(self, chat, body):
         if set(body) not in ({'id', 'text'}, {'id', 'text', 'attachments'}):
@@ -330,10 +376,13 @@ class Chats:
             if len(item['turns']) >= 200:
                 raise ValueError('Start a new conversation to keep context bounded')
             self.capacity({'text': text, 'attachments': attachments})
+            # A secretary-opened conversation has no session until the user's first reply.
+            first = 'opening' in item and not item['turns']
             item['turns'].append({'id': request, 'text': text, 'attachments': attachments,'language':ui.current(),'model':site_models.current(), 'created': time.time()})
             item['state'] = 'starting'
+            item.pop('unread', None)
             self.save()
-            threading.Thread(target=self.dispatch, args=(item['id'], request, text, False), daemon=True).start()
+            threading.Thread(target=self.dispatch, args=(item['id'], request, text, first), daemon=True).start()
         return {'chat': chat}
 
     def dispatch(self, chat_id, turn_id, text, first):
@@ -351,6 +400,7 @@ class Chats:
                 attachments = list(turn.get('attachments', []))
                 mode = item['mode']
                 runtime = self.runtime
+                opening = item.get('opening') if first else None
             if first:
                 # A custom title disables the engine's built-in AI title generation.
                 # The secretary agent (.opencode/agents) is denied reading source code and tests.
@@ -405,6 +455,8 @@ class Chats:
                        f"Secretary tone at request start: {json.dumps(tone_context,ensure_ascii=False)}\n")
             if fields.get('user_name'):
                 prompt += f"Call the user: {json.dumps(fields['user_name'],ensure_ascii=False)}\n"
+            if opening:
+                prompt += f"Secretary opening: {json.dumps(opening['text'],ensure_ascii=False)}\n"
             prompt += f"\n{text}"
             if attachments:
                 # Distinguish file-only turns with identical text when matching
@@ -457,8 +509,11 @@ class Chats:
             secretary_name = normalize_secretary_name(profile_fields(self.runtime).get("secretary_name", "")) or None
         except (ValueError, OSError):
             secretary_name = None
-        result = {'chat': chat, 'mode': item['mode'], 'state': item['state'], 'forms': [], 'permissions': [],'language':item['turns'][-1].get('language') if item['turns'] else None,
-                  'secretary_name': secretary_name}
+        result = {'chat': chat, 'mode': item['mode'], 'state': item['state'], 'forms': [], 'permissions': [],'language':chat_language(item, latest=True),
+                  'secretary_name': secretary_name, **({'unread': True} if item.get('unread') else {})}
+        opening = [opening_message(item['opening'])] if 'opening' in item else []
+        if opening and not item.get('session') and include_messages:
+            result['messages'] = opening
         if item.get('session') and self.chamber:
             try:
                 forms, permissions = self.chamber.pending(item['session'])
@@ -525,7 +580,7 @@ class Chats:
                     changes, unavailable = read_changes(self.runtime, item['session'], aliases=aliases)
                     unavailable = unavailable or len(aliases) != expected_aliases
                     history = question_history(messages, questions, {form['id'] for form in forms})
-                    result.update(messages=action_history(history, changes, item['turns'], item['created']),
+                    result.update(messages=opening + action_history(history, changes, item['turns'], item['created']),
                                   action_history_unavailable=unavailable,
                                   history_limited=len(messages) >= 100)
                 if (forms or permissions) and item['state'] not in ('starting', 'uncertain'):
