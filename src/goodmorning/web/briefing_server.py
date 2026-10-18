@@ -878,6 +878,8 @@ def serve_live(app, port, *, gateway_key=None, public_origins=()):
                     data={key:ui.text(value) if key in ('error','label','recovery') and isinstance(value,str) else value for key,value in data.items()}
                 data = json.dumps(data).encode()
             if content_type.startswith('text/html'):compress=False
+            # Unsent attachment previews are local blob: images on /chat and in the desk pages' quick chat.
+            previews = content_type.startswith('text/html') and (urlsplit(self.path).path == '/chat' or b'id="quick-chat"' in data)
             compressed = resource.compressed if resource else gzip.compress(data, compresslevel=6, mtime=0) if compress else data
             encoded = len(compressed) < len(data) and accepts_gzip(self.headers.get('Accept-Encoding', ''))
             tag = (resource.etag if resource else '"' + hashlib.sha256(data).hexdigest() + '"') if cache != 'no-store' else None
@@ -901,7 +903,7 @@ def serve_live(app, port, *, gateway_key=None, public_origins=()):
                 self.send_header('ETag', tag)
             self.send_header('X-Content-Type-Options', 'nosniff')
             self.send_header('Referrer-Policy', 'same-origin' if content_type.startswith('text/html') else 'no-referrer')
-            image_sources = "'self' blob:" if urlsplit(self.path).path == '/chat' else "'self'"
+            image_sources = "'self' blob:" if previews else "'self'"
             self.send_header('Content-Security-Policy', f"default-src 'none'; style-src 'self'; script-src 'self'; img-src {image_sources}; font-src 'self'; connect-src 'self'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'")
             self.end_headers()
             if self.command != 'HEAD' and status != 304:

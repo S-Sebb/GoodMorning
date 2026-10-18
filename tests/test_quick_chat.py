@@ -41,6 +41,10 @@ class QuickChatPageTests(unittest.TestCase):
                     self.assertEqual(scripts.count(helper), 1)
                     self.assertLess(scripts.index(helper), scripts.index('quick-chat.js'))
                 self.assertIn('/quick-chat.css"', page)
+                # Files attach as on the Secretary page, with the same size limit.
+                self.assertIn('id="quick-chat-attach"', page)
+                self.assertIn('id="quick-chat-files" type="file" multiple hidden', page)
+                self.assertIn('&quot;maxUploadBytes&quot;: 52428800', page)
 
     def test_setup_page_has_no_quick_chat(self):
         (self.root / 'profile.md').write_text('secretary_language: English\ntimezone: Europe/London\n')

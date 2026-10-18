@@ -738,7 +738,7 @@ def handler_for(gateway):
             self.send_header('Cache-Control',cache)
             self.send_header('Content-Language',ui.current())
             self.send_header('Vary','Accept-Encoding')
-            policy = POLICY.replace("img-src 'self'", "img-src 'self' blob:") if mime.startswith('text/html') and b'id="chat-config"' in data else POLICY
+            policy = POLICY.replace("img-src 'self'", "img-src 'self' blob:") if mime.startswith('text/html') and (b'id="chat-config"' in data or b'id="quick-chat"' in data) else POLICY
             self.send_header('Content-Security-Policy',policy)
             self.send_header('X-Content-Type-Options','nosniff')
             # Native same-origin forms need a non-null Origin for strict CSRF checks.
