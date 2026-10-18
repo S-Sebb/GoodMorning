@@ -1,6 +1,46 @@
 {
   "notes": [
     {
+      "version": "0.57.0",
+      "date": "2026-10-18",
+      "author": "GoodMorning agent",
+      "title_en": "Calendar links that stay up to date 📅",
+      "title_zh": "一直保持最新的日历链接 📅",
+      "changes": [
+        {
+          "category": "Added",
+          "en": [
+            "Give your secretary a published calendar link (Outlook, Google or iCloud) and every morning and evening briefing checks it first, putting new, moved and removed events in Reminders for you to approve."
+          ],
+          "zh": [
+            "把 Outlook、Google 或 iCloud 的日历订阅链接交给秘书，之后每天的早报和晚报都会先查一遍，把新增、改期和取消的日程放进「提醒」里等你确认。"
+          ]
+        },
+        {
+          "category": "Changed",
+          "en": [
+            "The back-to-top button is now a quiet circle next to Ask your secretary, and the activity card is more compact."
+          ],
+          "zh": [
+            "「返回顶部」按钮现在是「问问你的秘书」旁边一个低调的小圆圈，活动卡片也更紧凑了。"
+          ]
+        },
+        {
+          "category": "Fixed",
+          "en": [
+            "Plans you write in the evening progress box with a clear day, like checking cells the day after tomorrow, now become tasks for that day instead of only being noted.",
+            "An appointment first saved without a time no longer shows twice in Schedule once you give its time.",
+            "Review cards for events removed from your calendar now show the event's name and time instead of just \"Cancellation\"."
+          ],
+          "zh": [
+            "晚报里在进展框写下的、带明确日期的计划，比如后天看看细胞长势，现在会直接变成那天的任务，而不只是记下来。",
+            "第一次保存时没有填时间的预约，补上时间后不会再在「日程」里出现两次。",
+            "日历里被删掉的日程，确认卡片现在会显示它的名称和时间，而不只是「取消安排」。"
+          ]
+        }
+      ]
+    },
+    {
       "version": "0.56.0",
       "date": "2026-10-17",
       "author": "GoodMorning agent",
