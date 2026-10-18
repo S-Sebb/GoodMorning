@@ -29,7 +29,15 @@ events. These commands are implementation details, not required user work.
 1. For a custom event, quote the date, time, timezone, title, place and duration.
    Ask for missing details; never infer an uncertain date or time. Get
    confirmation before adding, editing, or cancelling an event.
-2. For an import, ask which source, account/calendar, and date range the user
+2. A published calendar link (an Outlook, Google or iCloud `.ics` address) is a
+   feed: run `calendar --sync-ics --source NAME --ics-url URL` once, with a short
+   source name for that calendar (for example `outlook`). It stages the next 30
+   days and saves the link only if the sync succeeds. From then on, code syncs the
+   feed at the start of every morning and evening briefing, staging new, moved
+   and removed events for review. Do not save a task or errand to check the
+   feed, and never parse feed contents yourself. If the sync fails, report the
+   error and save nothing.
+   For any other import, ask which source, account/calendar, and date range the user
    means. Obtain an authorized provider response, local cache, pasted data,
    or export. Do not create credentials or integrations without permission.
 3. The secretary maps source fields into the event contract below and stages
@@ -53,7 +61,7 @@ events. These commands are implementation details, not required user work.
    changes the subject, location or notes, and `--add` includes `display` wording
    in English and Chinese (rule 2 of `docs/item-taxonomy.md`).
 6. Briefings query the stored, approved schedule. They do not read the whole
-   database or re-fetch providers. `python scripts/goodmorning.py state --check` reports pending review
+   database or re-fetch providers; code has already synced any saved feed. `python scripts/goodmorning.py state --check` reports pending review
    counts. Save only a concise schedule summary in the daily Markdown file.
    Before reporting preparation requirements, prefer `--json --details` for a
    narrow approved window in one query. Use `--show` only when examining originals/
@@ -207,7 +215,8 @@ unknown timezones, legacy recurrence schemas and missing definitions stop the
 entire batch without partial imports. Expansion is bounded to 200,000 days of
 series history and 10,000 generated dates per series / staged events per batch.
 Use an expanded provider/export view for unsupported rules; never flatten a
-rule into one event. Native ICS file parsing and provider login/sync are still
+rule into one event. Published ICS feeds use `--sync-ics`, which accepts
+the same rule components plus Windows timezone names; provider login/sync is
 not implemented. Metadata preflight verifies schema only, not individual rules.
 Cache schema/locking behavior varies by version. Verify staged events against
 the source before relying on this adapter for a new account or version.

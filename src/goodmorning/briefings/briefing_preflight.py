@@ -16,9 +16,13 @@ def write(path, value):
 
 def initialize(runtime, job, previous=None):
     selected=job.get('language',ui.current())
+    from goodmorning.calendar.calendar_ics import refresh
+    feed = refresh(runtime, job['date'])
     context = prepare(runtime, job['kind'], job['date'], Path(runtime)/'cache', task_limit=200, website_language=selected,
                       replacement='replacement' in job)
     context['website_language']=selected
+    if feed is not None:
+        context['calendar_feed'] = feed
     policy_path = Path(runtime)/'browser-policy.json'
     policy = bounded_json(policy_path,2000) if policy_path.exists() else {}
     if not isinstance(policy,dict) or set(policy)-{'live_project_access','calendar_sync','publisher_images','news_acknowledgement'} or any(type(v) is not bool for v in policy.values()):
