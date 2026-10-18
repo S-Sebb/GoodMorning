@@ -35,6 +35,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]/'src'))
 from goodmorning import anime
 from goodmorning.cli import main
 runtime = Path(os.environ['SECRETARY_DIR'])
+os.environ['MAL_CLIENT_ID'] = 'synthetic-client'
 fixture = json.loads((runtime/'anime-fixture.json').read_text())
 call = uuid.uuid4().hex
 with (runtime/'trial-commands.jsonl').open('a') as log:
@@ -53,16 +54,23 @@ def matches(text):
         return 'conan'
     if any(word in text for word in ('apothecary', 'kusuriya', '药屋', '薬屋', '藥屋')):
         return 'apothecary'
+MAL_IDS = {195516:59000, 176301:58514, 161645:54492, 235:235}
 def media(identifier):
     romaji, english, native, year = ANILIST[identifier]
-    return {'id':identifier, 'title':{'romaji':romaji, 'english':english, 'native':native}, 'seasonYear':year,
+    return {'id':identifier, 'idMal':MAL_IDS.get(identifier), 'title':{'romaji':romaji, 'english':english, 'native':native}, 'seasonYear':year,
             'format':'TV' if year else 'SPECIAL', 'status':'RELEASING' if identifier in (195516, 235) else 'FINISHED',
             'coverImage':{'large':'https://s4.anilist.co/file/anilistcdn/media/anime/cover/medium/bx%d.jpg' % identifier}}
 def subject(identifier):
     name, name_cn, day = BANGUMI[identifier]
     return {'id':identifier, 'name':name, 'name_cn':name_cn, 'date':day, 'eps':12,
             'images':{'common':'https://lain.bgm.tv/r/400/pic/cover/l/%d.jpg' % identifier}}
-def request(url, body=None, cache=None):
+def request(url, body=None, cache=None, headers=None):
+    if url.startswith(anime.MAL):
+        if '/users/maomao/' not in url:
+            raise anime.AnimeError('not_found')
+        return {'data':[{'node':{'id':59000, 'title':'Kusuriya no Hitorigoto 3rd Season'}}]}
+    if url == anime.ANILIST and 'idMal_in' in body['query']:
+        return {'data':{'Page':{'media':[media(i) for i, mal in MAL_IDS.items() if mal in body['variables']['ids']]}}}
     if url == anime.ANILIST:
         values = body['variables']
         if 'u' in values:
@@ -104,7 +112,7 @@ raise SystemExit(code)
 
 BRIEFINGS = {'evening-episodes': ('episodes', 'playful'), 'evening-empty': ('empty', 'default'),
              'evening-failed': ('fail', 'formal')}
-CHATS = ('enable-clear', 'enable-ambiguous')
+CHATS = ('enable-clear', 'enable-ambiguous', 'enable-mal')
 WATCH_WORDS = ('crunchyroll', 'netflix', 'bilibili', 'hulu', 'watch it on', 'stream it on', '哔哩', 'b站', '在哪看', '爱奇艺', '腾讯视频')
 
 
@@ -256,7 +264,9 @@ def run_chat(output, language, selected, scenario, now):
     message = {('enable-clear', 'en'): "I'd love my night briefing to show new episodes of the anime I'm watching. Use AniList, my username is maomao, and please add Detective Conan too.",
                ('enable-clear', 'zh-CN'): '想让晚间简报显示我在追的番剧更新。用 Bangumi，我的用户名是 maomao，另外把《名侦探柯南》也加上。',
                ('enable-ambiguous', 'en'): 'Can my night briefing tell me when The Apothecary Diaries gets a new episode?',
-               ('enable-ambiguous', 'zh-CN'): '晚间简报能告诉我《药屋少女的呢喃》出新集了吗？'}[scenario, language]
+               ('enable-ambiguous', 'zh-CN'): '晚间简报能告诉我《药屋少女的呢喃》出新集了吗？',
+               ('enable-mal', 'en'): "Please put new episodes from my MyAnimeList watching list in my night briefing. My MAL username is maomao.",
+               ('enable-mal', 'zh-CN'): '请把我 MyAnimeList 在看列表的新剧集放进晚间简报，我的 MAL 用户名是 maomao。'}[scenario, language]
     result = {'scenario':scenario, 'language':language, 'tone':tone, 'model':selected, 'message':message, 'turns':[],
               'review':'pending manual language/tone review'}
 
@@ -294,7 +304,20 @@ def run_chat(output, language, selected, scenario, now):
         settings = anime_settings(runtime)
         result['settings'] = settings
         titles = sorted(int(part) for part in (settings['anime_titles'] or '').replace(',', ' ').split())
-        if scenario == 'enable-clear':
+        # A question is about an account by its own wording (a source option may mention lists too);
+        # the guidance may sit in the question or in the option that asks for the username.
+        fields = [field for turn in result['turns'] for form in turn['forms'] for field in form['fields']]
+        about_account = [field for field in fields if any(word in ((field.get('title') or '') + ' ' + (field.get('description') or '')).casefold()
+                                                          for word in ('account', 'username', 'watching list', '账号', '用户名', '列表'))]
+        result['account_guidance'] = [any(word in json.dumps(field, ensure_ascii=False).casefold() for word in ('public', '公开'))
+                                      for field in about_account]
+        if scenario == 'enable-ambiguous':  # Elsewhere the user already gave the username.
+            assert all(result['account_guidance']), 'An account question did not say the list must be public'
+        if scenario == 'enable-mal':
+            assert (settings['anime_updates'], settings['anime_source'], settings['anime_account']) == ('true', 'myanimelist', 'maomao'), \
+                'MyAnimeList list was not saved with its verified account'
+            assert titles == [], 'Shows were added that the user never named'
+        elif scenario == 'enable-clear':
             expected = ('anilist', [235]) if language == 'en' else ('bangumi', [899])
             assert (settings['anime_updates'], settings['anime_source'], settings['anime_account']) == ('true', expected[0], 'maomao'), \
                 'Clear request did not save the source and verified account'

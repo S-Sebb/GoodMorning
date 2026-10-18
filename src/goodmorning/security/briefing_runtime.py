@@ -53,6 +53,9 @@ class LocalBridge(Chamber):
         raise ValueError('Authentication was not confirmed')
 
 
+PROVIDER_KEYS=('MAL_CLIENT_ID',)
+
+
 def main():
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--volume',type=Path,required=True)
@@ -65,13 +68,15 @@ def main():
     config=json.loads((volume/'engine.json').read_text())
     source=ROOT
     home=volume/'home'
+    # Only named, server-wide provider identifiers pass the cleared environment.
+    providers={key:os.environ[key] for key in PROVIDER_KEYS if os.environ.get(key)}
     env={'HOME':str(home),'USER':os.environ['USER'],'LOGNAME':os.environ['USER'],
          'PATH':'/opt/goodmorning/engine/bin:/usr/local/bin:/usr/bin:/bin',
          'XDG_CONFIG_HOME':str(home/'.config'),'XDG_DATA_HOME':str(home/'.local/share'),
          'XDG_CACHE_HOME':str(home/'.cache'),'XDG_STATE_HOME':str(home/'.local/state'),
          'XDG_RUNTIME_DIR':str(volume/'run'),'TMPDIR':str(volume/'tmp'),
          'SECRETARY_DIR':str(volume/'secretary'),'GM_CACHE_DIR':str(volume/'cache'),
-         'PYTHONDONTWRITEBYTECODE':'1','OPENCODE_BINARY':'/opt/goodmorning/engine/bin/opencode'}
+         'PYTHONDONTWRITEBYTECODE':'1','OPENCODE_BINARY':'/opt/goodmorning/engine/bin/opencode',**providers}
     os.environ.clear();os.environ.update(env)
     os.chdir(source)
     if args.action=='engine':

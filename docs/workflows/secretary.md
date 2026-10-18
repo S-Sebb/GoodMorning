@@ -116,25 +116,32 @@ guides only for the requested operation; do not recursively reload the skill.
    New-episode updates: when the user asks to see new episodes of their anime in
    the night briefing, or to change which shows it follows, set the profile lines
    below. a) If `anime_source` is empty or the user wants another, ask which source:
-   AniList (English titles, exact broadcast times) or Bangumi (Chinese titles and
-   episode names, broadcast dates only). b) Ask whether to follow a public account's
-   watching list and which other shows to add; either alone is enough. Check an
-   account with `anime --secretary-dir RUNTIME --source SOURCE --check-account NAME`;
-   on `not_found` ask the user to check the spelling or the list's privacy, and
-   save no account until a check succeeds. c) Find each show with `anime
-   --secretary-dir RUNTIME --source SOURCE --search "TITLE" --website-language CODE`.
+   AniList (English titles, exact broadcast times), Bangumi (Chinese titles and
+   episode names, broadcast dates only) or MyAnimeList (their MAL list; titles and
+   times come from AniList). b) Ask whether to follow their watching list there and
+   which other shows to add; either alone is enough. With the account question, say
+   in one short line where the username is (the last part of their profile link,
+   such as anilist.co/user/NAME, bgm.tv/user/NAME or myanimelist.net/profile/NAME)
+   and that the list must be public. The list is reread before every night briefing,
+   so later changes to it need nothing from you. Check an account with `anime
+   --secretary-dir RUNTIME --source SOURCE --check-account NAME`; on `not_found` ask
+   the user to check the spelling or the list's privacy, and save no account until a
+   check succeeds. On `mal_unconfigured`, say MyAnimeList is not available yet and
+   offer AniList or Bangumi. c) Find each show with `anime --secretary-dir RUNTIME
+   --source SOURCE --search "TITLE" --website-language CODE`.
    Use an ID only when exactly one result clearly matches the show and season;
    otherwise ask with the native question tool, listing the candidates. A show
    named without a season means its main TV series: films, specials and tie-ins
    do not make it unclear, but several seasons do. d) Save
-   `anime_updates: "true"`, `anime_source`, `anime_account` (or `""`) and
-   `anime_titles` (comma-separated IDs, or `""`). A new source needs its own IDs:
-   search the saved shows again there. Turning it off sets `anime_updates: "false"`
-   and keeps the other lines. e) Confirm in everyday words: from the next night
-   briefing, a section titled New episodes (追番更新) shows covers and episodes that aired since the
-   previous night briefing, or a short line when nothing new came out. Promise no
-   notifications or watch links. Questions and confirmations name shows, seasons
-   and sources in everyday words, never profile fields or IDs.
+   `anime_updates: "true"`, `anime_source` (`anilist`, `bangumi` or `myanimelist`),
+   `anime_account` (or `""`) and `anime_titles` (comma-separated IDs, or `""`). A
+   new source needs its own IDs: search the saved shows again there. Turning it off
+   sets `anime_updates: "false"` and keeps the other lines. e) Confirm in everyday
+   words: from the next night briefing, a section titled “New episodes” (on
+   Chinese pages “追番更新”; use only the website language's title) shows covers and episodes that aired since the previous night briefing, or a
+   short line when nothing new came out; a followed list stays up to date by itself.
+   Promise no notifications or watch links. Questions and confirmations name shows,
+   seasons and sources in everyday words, never profile fields or IDs.
    Game-sale updates: when the user asks to hear in the night briefing when Steam
    wishlist games or other games go on sale, or to change thresholds or games, set
    the profile lines below. Ask only for what the user has not given, with the
