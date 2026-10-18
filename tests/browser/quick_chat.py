@@ -1,5 +1,6 @@
 """Floating quick chat on desk pages: shared tab conversation, layout and setup gating. Synthetic, no model calls."""
 import json
+import re
 from pathlib import Path
 import subprocess
 import sys
@@ -220,6 +221,63 @@ def check_layouts(browser, address, artifacts):
     return results
 
 
+PNG = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4v+HIfwAImANzCMzkcwAAAABJRU5ErkJggg=='
+
+
+def file_event(page, kind, target, name, mime='image/png'):
+    """Dispatch a real paste or drop carrying a file, as the browser does for a copied screenshot."""
+    page.evaluate("""([kind, target, name, mime, data]) => {
+      const transfer = new DataTransfer();
+      const bytes = Uint8Array.from(atob(data), c => c.charCodeAt(0));
+      transfer.items.add(new File([bytes], name, {type: mime}));
+      const node = document.querySelector(target);
+      if (kind === 'paste') node.dispatchEvent(new ClipboardEvent('paste', {clipboardData: transfer, bubbles: true, cancelable: true}));
+      else for (const type of ['dragenter', 'dragover', 'drop'])
+        node.dispatchEvent(new DragEvent(type, {dataTransfer: transfer, bubbles: true, cancelable: true}));
+    }""", [kind, target, name, mime, PNG])
+
+
+def check_attachments(browser, address, artifacts):
+    page = browser.new_page(viewport={'width': 1440, 'height': 900})
+    errors = watch(page)
+    page.goto(address + '/schedule')
+    page.locator('#quick-chat-launcher').click()
+    page.locator('#quick-chat-new').click()
+    expect(page.locator('#quick-chat-send')).to_be_disabled()
+    # A pasted screenshot becomes an attachment; a file-only message can be sent.
+    file_event(page, 'paste', '#quick-chat-text', 'screenshot.png')
+    chips = page.locator('#quick-chat-attachments .quick-chat-chip')
+    expect(chips).to_have_count(1)
+    expect(chips.first).to_contain_text('screenshot.png')
+    expect(chips.first.locator('img')).to_have_count(1)
+    page.wait_for_function("() => document.querySelector('#quick-chat-attachments img')?.naturalWidth > 0")
+    expect(page.locator('#quick-chat-send')).to_be_enabled()
+    # Dropping onto the panel and the attach button add more; × removes one.
+    file_event(page, 'drop', '#quick-chat-scroll', 'dropped.png')
+    page.locator('#quick-chat-files').set_input_files({'name': 'notes.txt', 'mimeType': 'text/plain', 'buffer': b'Synthetic notes'})
+    expect(chips).to_have_count(3)
+    page.screenshot(path=str(artifacts / 'quick-chat-attachments.png'))
+    chips.nth(1).locator('button').click()
+    expect(chips).to_have_count(2)
+    page.locator('#quick-chat-text').press('Enter')
+    expect(page.locator('#quick-chat-messages')).to_contain_text('Synthetic attachment reply')
+    user = page.locator('.quick-chat-message.user').last
+    expect(user.locator('img')).to_have_count(1)
+    expect(user.locator('img')).to_have_attribute('src', re.compile(r'^(blob:|/api/chat-uploads/[a-f0-9]{32}/image)'))
+    user.locator('img').evaluate("image => image.complete ? image.naturalWidth : new Promise(done => image.onload = () => done(image.naturalWidth))")
+    expect(user).to_contain_text('notes.txt')
+    expect(page.locator('#quick-chat-attachments')).to_be_hidden()
+    expect(page.locator('#quick-chat-attachments .quick-chat-chip')).to_have_count(0)
+    # A file dropped outside the open panel never navigates away from the page.
+    before = page.url
+    file_event(page, 'drop', 'main, body', 'stray.png')
+    assert page.url == before
+    expect(page.locator('#quick-chat-attachments .quick-chat-chip')).to_have_count(0)
+    assert 'screenshot.png' not in page.evaluate('JSON.stringify(sessionStorage)')
+    assert not errors, errors
+    page.close()
+
+
 def check_setup_gate(browser, address, runtime):
     profile = runtime / 'profile.md'
     profile.write_text('secretary_language: English\n')
@@ -246,6 +304,7 @@ def main():
                 browser = playwright.chromium.launch()
                 report = {'flow': check_flow(browser, address), 'layouts': check_layouts(browser, address, artifacts), 'modelCalls': 0}
                 check_waiting(browser, address, artifacts)
+                check_attachments(browser, address, artifacts)
                 check_setup_gate(browser, address, runtime)
                 browser.close()
         finally:

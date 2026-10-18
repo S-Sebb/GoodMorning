@@ -3,6 +3,8 @@ import hashlib
 import html
 import json
 
+from .chat_uploads import MAX_UPLOAD_BYTES
+
 SVG = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'
 
 
@@ -10,7 +12,7 @@ def widget(source, csrf):
     """Add the launcher and window once; the script reveals them only for a set-up secretary."""
     if 'id="quick-chat"' in source:
         return source
-    config = html.escape(json.dumps({'workspaceScope': hashlib.sha256(('chat-workspace:' + csrf).encode()).hexdigest()}), quote=True)
+    config = html.escape(json.dumps({'workspaceScope': hashlib.sha256(('chat-workspace:' + csrf).encode()).hexdigest(), 'maxUploadBytes': MAX_UPLOAD_BYTES}), quote=True)
     markup = ('<aside id="quick-chat" hidden aria-label="Quick chat" data-config="' + config + '">'
               '<button id="quick-chat-launcher" type="button" aria-expanded="false" aria-controls="quick-chat-window">'
               '<span class="quick-chat-portrait" aria-hidden="true"><img alt=""></span>'
@@ -27,7 +29,10 @@ def widget(source, csrf):
               '<div id="quick-chat-empty"><p class="quick-chat-welcome">A little space to plan.</p><p>Ask something quick without leaving this page.</p></div>'
               '<div id="quick-chat-messages" role="log" aria-label="Conversation messages" aria-live="polite" aria-relevant="additions text"></div>'
               '<div id="quick-chat-questions"></div><p id="quick-chat-status" role="status" hidden></p></div>'
-              '<form id="quick-chat-compose"><textarea id="quick-chat-text" rows="1" maxlength="8000" placeholder="Your message…" aria-label="Your message" enterkeyhint="send"></textarea>'
+              '<div id="quick-chat-attachments" aria-live="polite" hidden></div>'
+              '<form id="quick-chat-compose"><button id="quick-chat-attach" class="quick-chat-tool" type="button" aria-label="Attach files" title="Attach files">'
+              + SVG + '<path d="m8 12 6-6a3 3 0 0 1 4 4l-8 8a5 5 0 0 1-7-7l9-9"/></svg></button>'
+              '<input id="quick-chat-files" type="file" multiple hidden><textarea id="quick-chat-text" rows="1" maxlength="8000" placeholder="Your message…" aria-label="Your message" enterkeyhint="send"></textarea>'
               '<button id="quick-chat-send" type="submit" aria-label="Send message" title="Send message" disabled>' + SVG + '<path d="m4 5 16 7-16 7 3-7-3-7Zm3 7h13"/></svg></button></form>'
               '<p id="quick-chat-error" role="alert"></p></section></aside>')
     scripts = ''.join(f'<script src="/{name}" defer></script>' for name in ('questions.js', 'marked.js', 'markdown.js')

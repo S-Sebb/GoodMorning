@@ -7,7 +7,9 @@
   const $ = selector => root.querySelector(selector);
   const make = secretaryElement;
   const csrf = JSON.parse(document.querySelector('#language-config').dataset.config).csrf;
-  const scope = JSON.parse(root.dataset.config).workspaceScope;
+  const widgetConfig = JSON.parse(root.dataset.config);
+  const scope = widgetConfig.workspaceScope;
+  const maxUploadBytes = widgetConfig.maxUploadBytes || 50 * 1024 * 1024;
   const workspaceKey = /^[a-f0-9]{64}$/.test(scope || '') ? 'goodmorning.chat.workspace.' + scope : null;
   const openKey = workspaceKey && 'goodmorning.quick-chat.open.' + scope;
   const launcher = $('#quick-chat-launcher');
@@ -22,6 +24,9 @@
   const statusBox = $('#quick-chat-status');
   const errorBox = $('#quick-chat-error');
   const dot = $('#quick-chat-dot');
+  const attachButton = $('#quick-chat-attach');
+  const fileInput = $('#quick-chat-files');
+  const attachBox = $('#quick-chat-attachments');
   const awayLimit = 15 * 60 * 1000;
   const modes = {secretary: 'Secretary', todo: 'To-do', eureka: 'Eureka', initialize: 'Initialize'};
   const specialLabels = {question: 'Question for you', answer: 'Your answer', permission: 'Your permission', outreach: 'Your secretary reached out'};
@@ -38,6 +43,8 @@
   let note = null;
   // Sent messages show at once and stay until the transcript includes their turn.
   let pendingMessages = [], shownMessages = [];
+  // Files wait in memory until sent, like the Secretary page; they never enter browser storage.
+  let attachments = [];
   let workspace = readWorkspace();
 
   function validChat(id) { return typeof id === 'string' && /^[a-f0-9]{32}$/.test(id); }
@@ -57,12 +64,12 @@
     try { if (workspaceKey) sessionStorage.setItem(workspaceKey, JSON.stringify(workspace)); } catch { /* The Secretary link still carries the id. */ }
   }
 
-  async function api(path, body) {
+  async function api(path, body, binary = false) {
     let response;
     try {
       response = await fetch(path, {method: body ? 'POST' : 'GET', cache: 'no-store', credentials: 'same-origin',
-        headers: body ? {'Content-Type': 'application/json', 'X-Briefing-CSRF': csrf} : {},
-        body: body ? JSON.stringify(body) : undefined});
+        headers: body ? {'Content-Type': binary ? 'application/octet-stream' : 'application/json', 'X-Briefing-CSRF': csrf} : {},
+        body: body ? (binary ? body : JSON.stringify(body)) : undefined});
     } catch {
       const error = new Error(t('The connection was interrupted. Refresh to check delivery before sending again.'));
       error.uncertain = Boolean(body); throw error;
@@ -136,8 +143,10 @@
     statusBox.append(make('span', text));
     statusBox.hidden = !text;
     const blocked = chat && ['waiting', 'uncertain', 'unavailable'].includes(state);
-    sendButton.disabled = sending || !connected || blocked || !textBox.value.trim();
+    sendButton.disabled = sending || !connected || blocked || (!textBox.value.trim() && !attachments.length);
     textBox.disabled = sending || blocked;
+    attachButton.disabled = sending || !connected || blocked;
+    attachBox.querySelectorAll('button').forEach(button => { button.disabled = sending; });
     sendButton.setAttribute('aria-label', t(chat ? 'Send reply' : 'Send message'));
     showDot();
   }
@@ -183,8 +192,8 @@
       if (item.kind === 'outreach') bubble.append(make('p', t('Sent on behalf of the GoodMorning team'), 'quick-chat-footnote'));
       for (const entry of item.attachments || []) {
         const file = make('p', '', 'quick-chat-attachment');
-        if (imageTypes.has(entry.mime) && /^[a-f0-9]{32}$/.test(entry.id)) {
-          const image = make('img'); image.alt = entry.name; image.src = `/api/chat-uploads/${entry.id}/image`;
+        if (entry.preview || (imageTypes.has(entry.mime) && /^[a-f0-9]{32}$/.test(entry.id))) {
+          const image = make('img'); image.alt = entry.name; image.src = entry.preview || `/api/chat-uploads/${entry.id}/image`;
           file.append(image);
         } else file.textContent = '📎 ' + entry.name;
         bubble.append(file);
@@ -352,6 +361,83 @@
     if (active()) poll();
   }
 
+  function fileSize(size) {
+    return size < 1024 * 1024 ? `${Math.ceil(size / 1024)} KB` : `${(size / (1024 * 1024)).toFixed(1)} MB`;
+  }
+
+  function releasePreviews(entries) {
+    for (const entry of entries) if (entry.preview) URL.revokeObjectURL(entry.preview);
+  }
+
+  function showAttachments() {
+    attachBox.replaceChildren(...attachments.map(entry => {
+      const chip = make('div', '', 'quick-chat-chip');
+      if (entry.preview) { const image = make('img'); image.alt = ''; image.src = entry.preview; chip.append(image); }
+      chip.append(make('span', `${entry.file.name} · ${fileSize(entry.file.size)}`));
+      const remove = make('button', '×');
+      remove.type = 'button';
+      remove.setAttribute('aria-label', t('Remove {name}', {name: entry.file.name}));
+      remove.addEventListener('click', () => {
+        releasePreviews([entry]);
+        attachments = attachments.filter(item => item !== entry);
+        showAttachments(); textBox.focus({preventScroll: true});
+      });
+      chip.append(remove);
+      return chip;
+    }));
+    attachBox.hidden = !attachments.length;
+    showStatus();
+  }
+
+  function addFiles(files) {
+    if (attachButton.disabled) return;
+    errorBox.textContent = '';
+    for (const file of files) {
+      if (file.size > maxUploadBytes) { errorBox.textContent = t('Files must be 50 MB or smaller.'); continue; }
+      if (attachments.length >= 100) { errorBox.textContent = t('Attach up to 100 files per message.'); break; }
+      attachments.push({file, id: crypto.randomUUID().replaceAll('-', ''), uploaded: false,
+        preview: imageTypes.has(file.type) ? URL.createObjectURL(file) : null});
+    }
+    showAttachments();
+  }
+
+  attachButton.addEventListener('click', () => fileInput.click());
+  fileInput.addEventListener('change', () => { addFiles(fileInput.files); fileInput.value = ''; });
+  textBox.addEventListener('paste', event => {
+    const clipboard = event.clipboardData;
+    const files = Array.from(clipboard?.items || []).filter(item => item.kind === 'file').map(item => item.getAsFile()).filter(Boolean);
+    if (!files.length) files.push(...Array.from(clipboard?.files || []));
+    if (!files.length) return;
+    event.preventDefault();
+    addFiles(files);
+    const text = clipboard.getData('text/plain');
+    if (text) {
+      textBox.setRangeText(text, textBox.selectionStart, textBox.selectionEnd, 'end');
+      textBox.dispatchEvent(new Event('input', {bubbles: true}));
+    }
+  });
+  const draggingFiles = event => Array.from(event.dataTransfer?.types || []).includes('Files');
+  let dragDepth = 0;
+  panel.addEventListener('dragenter', event => {
+    if (!draggingFiles(event) || attachButton.disabled) return;
+    event.preventDefault(); dragDepth++; panel.classList.add('is-dragging');
+  });
+  panel.addEventListener('dragleave', event => {
+    if (!draggingFiles(event)) return;
+    dragDepth = Math.max(0, dragDepth - 1);
+    if (!dragDepth) panel.classList.remove('is-dragging');
+  });
+  // A file dropped elsewhere on the page must not navigate away from an open, unsent draft.
+  for (const name of ['dragover', 'drop']) document.addEventListener(name, event => {
+    if (!open || !draggingFiles(event)) return;
+    event.preventDefault();
+    if (name === 'dragover') event.dataTransfer.dropEffect = panel.contains(event.target) && !attachButton.disabled ? 'copy' : 'none';
+    else {
+      dragDepth = 0; panel.classList.remove('is-dragging');
+      if (panel.contains(event.target)) addFiles(event.dataTransfer.files);
+    }
+  });
+
   launcher.addEventListener('click', () => {
     // A waiting note opens instead of the last conversation; reading it clears the note.
     if (note) { const id = note; note = null; reset(); chat = id; remember(null); }
@@ -379,16 +465,29 @@
     if (sendButton.disabled) return;
     const first = !chat, request = crypto.randomUUID().replaceAll('-', ''), current = chat || request, version = revision;
     const text = textBox.value;
+    const selectedFiles = attachments;
     sending = true; errorBox.textContent = ''; showStatus(); showHeader();
-    const pending = {turn: request, text};
+    const pending = {turn: request, text, attachments: selectedFiles.map(entry => ({id: entry.id, name: entry.file.name,
+      size: entry.file.size, preview: entry.preview}))};
     pendingMessages.push(pending);
     showMessages(shownMessages); scrollToLatest();
     let result;
     try {
-      result = await api(first ? '/api/chats' : `/api/chats/${current}/messages`,
-        first ? {id: current, mode: 'secretary', text} : {id: request, text});
+      for (const entry of selectedFiles) {
+        if (!entry.uploaded) {
+          await api(`/api/chat-uploads/${entry.id}?name=${encodeURIComponent(entry.file.name)}`, entry.file, true);
+          entry.uploaded = true;
+        }
+        if (version !== revision) return;
+      }
+      const body = first ? {id: current, mode: 'secretary', text} : {id: request, text};
+      if (selectedFiles.length) body.attachments = selectedFiles.map(entry => entry.id);
+      result = await api(first ? '/api/chats' : `/api/chats/${current}/messages`, body);
       if (version !== revision) return;
       chat = current; textBox.value = ''; resizeComposer();
+      attachments = []; showAttachments();
+      // Keep local previews until the transcript shows the delivered turn's own images.
+      setTimeout(() => releasePreviews(selectedFiles), 60000);
       state = result?.queued ? 'queued' : 'starting';
       statusLabel = result?.queued ? queueText(result.position, result.depth) : '';
       follow = true; remember(null, null);
@@ -454,7 +553,7 @@
     if (open) restore(); else { chat = workspace.chat || null; poll(); }
   });
   window.addEventListener('beforeunload', event => {
-    if (!textBox.value.trim() && !sending) return;
+    if (!textBox.value.trim() && !attachments.length && !sending) return;
     event.preventDefault(); event.returnValue = '';
   });
   document.addEventListener('visibilitychange', () => {
@@ -463,7 +562,7 @@
     else refreshTitles();
   });
   document.addEventListener('website:before-refresh', event => { if (sending) event.preventDefault(); });
-  document.addEventListener('website:refresh-drafts', event => { if (textBox.value.trim()) event.preventDefault(); });
+  document.addEventListener('website:refresh-drafts', event => { if (textBox.value.trim() || attachments.length) event.preventDefault(); });
   document.addEventListener('website:language', () => {
     messageSignature = ''; formSignature = '';
     showStatus(); if (open) poll();

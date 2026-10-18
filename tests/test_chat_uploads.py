@@ -334,7 +334,12 @@ class UploadHTTPTests(unittest.TestCase):
         self.assertEqual(self.fixture.request(path)[0], 401)
         self.fixture.cookie = cookie
         self.assertIn("img-src 'self' blob:", self.fixture.request('/chat')[1]['Content-Security-Policy'])
-        self.assertNotIn('blob:', self.fixture.request('/gm.html')[1]['Content-Security-Policy'])
+        self.assertNotIn('blob:', self.fixture.request('/gm.html')[1]['Content-Security-Policy'])  # Setup page: no quick chat.
+        (self.runtime / 'profile.md').write_text('secretary_language: English\ncity: London\ntimezone: Europe/London\nnews_country: GB\n')
+        status, headers, page = self.fixture.request('/schedule')
+        self.assertEqual(status, 200)
+        self.assertIn(b'id="quick-chat"', page)  # Its unsent image previews are local blob: images too.
+        self.assertIn("img-src 'self' blob:", headers['Content-Security-Policy'])
 
     def test_fifty_megabytes_cross_gateway_and_backend_without_whole_file_buffer(self):
         self.fixture.permanent()
