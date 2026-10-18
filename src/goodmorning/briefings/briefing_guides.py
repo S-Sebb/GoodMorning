@@ -93,6 +93,12 @@ TEXT = {
             'they are the cards for completions and recorded partial/blocked work. Then add one ["p","…"] block and the note for reported '
             'outcomes the cards do not show (an accomplishment that matches no task, a moved date or newly planned step, a blocker\'s reason). Mention every '
             'reported outcome; add no advice or invented progress.'),
+  'anime': ('New episodes of the user\'s shows that aired since the previous night briefing. If the read succeeded and its `block` '
+            'is not null, publish that block exactly as returned (rows, titles, numbers, dates and covers are code-owned; never '
+            'translate, reorder or add rows). NOTE: one short, lively line in the saved tone inviting the user to unwind with them. If '
+            '`block` is null, publish one ["p","…"] block instead: a short, lively line in the saved tone saying no new episodes came out '
+            'since the last night briefing, with NOTE "". If the read failed, publish one ["p","…"] block saying only that new episodes '
+            'could not be checked this time (no cause, no retry promise). Never skip this section.'),
   'today_regenerating': ('REGENERATION: make no task writes and ask nothing; reuse saved feedback. Copy the read\'s block (none when it is null) and '
                          'mention every reported outcome.'),
   'finish': ('Submit {} or {"closing":"…"} following `writing`. After a verified save, reply only with one short delivery line in '
@@ -156,6 +162,10 @@ TEXT = {
             '"detail":"<用户给的条件，例如细胞量足够才做>"}}\' 保存一次。没有明确日期的进展不排期。其他内容按例外通道处理。2）有写入时，完成后重新运行 Today 读取（`results` 中带 --section today 的命令）；'
             '不要沿用写入之前的 Today 读取结果。3）先原样发布它返回的块（为 null 时没有）：这些是完成项以及已记录的部分完成/受阻事项的卡片。然后为卡片没有体现的结果'
             '（与任何待办都不对应的已完成事项、改动的日期或新排的步骤、受阻原因）加一个 ["p","……"] 块和注记。提到用户报告的每项结果，不添加建议或臆测进展。'),
+  'anime': ('这是用户在追的番剧自上次晚间简报以来更新的剧集。读取成功且 `block` 不为 null 时，原样发布该块（行、标题、集数、日期和封面都由代码生成；'
+            '不要翻译、调整顺序或增加行）。注记：用保存的语气写一句简短、活泼的话，邀请用户放松追番。`block` 为 null 时改为发布一个 ["p","……"] 块：'
+            '用保存的语气写一句简短、活泼的话，说明自上次晚间简报以来没有新剧集，注记为 ""。读取失败时发布一个 ["p","……"] 块，只说明这次没能查到新剧集'
+            '（不写原因，不承诺补充）。不得跳过本章节。'),
   'today_regenerating': '重新生成：不写入任务、不提问；沿用已保存的反馈。复制读取返回的块（为 null 时没有），提到用户报告的每项结果。',
   'finish': '提交 {} 或 {"closing":"…"}，遵循 `writing`。保存核实后，只用保存的语气写一句简短的交付语，并附上返回的相对 url 作为 Markdown 链接。',
  },

@@ -20,6 +20,7 @@ ICONS = {
     "globe": '<circle cx="12" cy="12" r="9"/><ellipse cx="12" cy="12" rx="4" ry="9"/><path d="M3 12h18M5 7h14M5 17h14"/>',
     "chip": '<rect x="6" y="6" width="12" height="12" rx="2"/><rect x="9" y="9" width="6" height="6" rx="1"/><path d="M9 2v4m6-4v4M9 18v4m6-4v4M2 9h4m-4 6h4m12-6h4m-4 6h4"/>',
     "news": '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 8h4v4H7ZM14 8h3m-3 4h3M7 16h10"/>',
+    "tv": '<rect x="3" y="7" width="18" height="13" rx="2.5"/><path d="m8 3 4 4 4-4M10 11.5v5l4-2.5Z"/>',
 }
 
 
@@ -80,6 +81,16 @@ def country_flag(code):
 def category_icon(category):
     country = re.search(r'\bNational\s*(?:[—–:-]\s*)?([A-Z]{2})\s*$', category)
     return country_flag(country[1]) if country else icon('chip' if category.casefold() == 'ai' else 'globe')
+
+
+def episode_visual(url, title, images):
+    """A locally cached cover, or a quiet placeholder; never a remote image."""
+    cached = images.get(url) if url else None
+    if not cached:
+        return '<div class="episode-cover is-empty" aria-hidden="true">' + icon('tv') + '</div>'
+    source = cached.get('small_src') or cached['src']
+    return (f'<figure class="episode-cover"><img src="{html.escape(source, quote=True)}" alt="{html.escape(title, quote=True)}" '
+            f'width="{cached.get("small_width", cached.get("width", 320))}" loading="lazy" decoding="async"></figure>')
 
 
 def news_visual(url, source_label, images):

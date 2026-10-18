@@ -6,6 +6,7 @@ import sys
 COMMANDS = {
     'setup': 'setup_check',
     'weather': 'weather',
+    'anime': 'anime',
     'news': 'news.news',
     'calendar': 'calendar.secretary_calendar',
     'state': 'records.state',

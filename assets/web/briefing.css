@@ -292,6 +292,23 @@ html[data-edition="gn"] .weather-tile.air { --tile-accent: #aed4b7; --tile-bg: #
 .news-card.text-only .news-copy { grid-column: 1 / -1; }
 /* A lone story uses the full row. */
 .section-body .news-grid > .news-card:only-child { grid-column: 1 / -1; }
+/* New episodes: portrait cover, original title first, website-language title as a small notation. */
+.section-body .episode-list { padding: 0; margin: 0; list-style: none; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.section-body .episode-list > .episode-card:only-child { grid-column: 1 / -1; }
+.section-body .episode-card { display: grid; grid-template-columns: 84px minmax(0, 1fr); gap: 16px; padding: 16px; border: 1px solid var(--line); border-radius: 14px; align-items: start; background: var(--surface); transition: background-color .25s ease, border-color .25s ease; }
+.episode-cover { margin: 0; width: 84px; height: 118px; border-radius: 10px; overflow: hidden; background: var(--wash); }
+.episode-cover img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.episode-cover.is-empty { display: grid; place-items: center; color: var(--muted); }
+.episode-copy { min-width: 0; }
+.episode-copy h4.episode-show { margin: 0; font: 600 18px/1.4 ui-sans-serif, system-ui, sans-serif; letter-spacing: -.2px; overflow-wrap: anywhere; }
+.episode-show-local { margin: 2px 0 0; font-size: 12px; line-height: 1.5; color: var(--muted); overflow-wrap: anywhere; }
+.episode-line { margin: 12px 0 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; font-size: 14px; line-height: 1.5; }
+.episode-number { padding: 2px 9px; border-radius: 999px; background: var(--wash); color: var(--accent); font-size: 12px; font-weight: 600; white-space: nowrap; }
+.episode-name { overflow-wrap: anywhere; }
+.episode-name-local { flex-basis: 100%; font-size: 12px; color: var(--muted); overflow-wrap: anywhere; }
+.episode-aired { margin: 8px 0 0; display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); white-space: nowrap; }
+.episode-aired .data-icon { width: 14px; height: 14px; }
+.anime .section-body > p:not(.section-takeaway) { background: var(--wash); border-radius: 12px; padding: 18px 22px; margin: 0; color: var(--muted); font-family: Georgia, serif; font-size: 17px; }
 .news .section-body > p { background: var(--wash); border-radius: 12px; padding: 18px 22px; margin-top: 28px; color: var(--muted); font-family: Georgia, serif; font-size: 17px; }
 .section-body .task-list { margin: 0; padding: 0; list-style: none; display: grid; gap: 12px; }
 .section-body .task-card { position: relative; border: 1px solid var(--line); border-radius: 12px; padding: 20px; background: var(--surface); font-size: 14px; transition: background-color .25s ease, border-color .25s ease, box-shadow .25s ease; }
@@ -326,7 +343,7 @@ details.task-project .task-project-heading { margin: 0; }
 .decision-ask { display: inline-block; margin-top: 10px; padding: 5px 14px; border: 1px solid var(--line); border-radius: 999px; background: var(--wash); color: var(--ink); font-size: 12px; text-decoration: none; }
 .decision-ask:hover { border-color: var(--accent); }
 .decision-ask:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-@media (max-width: 1000px) { .section-body .news-grid { grid-template-columns: minmax(0, 1fr); } .weather-tiles { gap: 12px; } .weather-tile { padding: 18px; } .weather-label { gap: 8px; } .weather-label h3 { letter-spacing: .8px; font-size: 10px; } }
+@media (max-width: 1000px) { .section-body .news-grid, .section-body .episode-list { grid-template-columns: minmax(0, 1fr); } .weather-tiles { gap: 12px; } .weather-tile { padding: 18px; } .weather-label { gap: 8px; } .weather-label h3 { letter-spacing: .8px; font-size: 10px; } }
 @media (max-width: 700px) {
   .section-symbol { width: 34px; height: 34px; border-radius: 9px; }
   .section-symbol .data-icon { width: 19px; height: 19px; }
@@ -343,6 +360,9 @@ details.task-project .task-project-heading { margin: 0; }
   .agenda-day { display: block; font-size: 13px; }
   .agenda-day .data-icon { margin-right: 8px; vertical-align: -4px; }
   .section-body .news-card { grid-template-columns: minmax(0, 1fr); padding: 16px; gap: 16px; }
+  .section-body .episode-card { grid-template-columns: 64px minmax(0, 1fr); padding: 14px; gap: 12px; }
+  .episode-cover { width: 64px; height: 90px; border-radius: 8px; }
+  .episode-copy h4.episode-show { font-size: 16px; }
   .news-visual { width: 100%; height: 136px; }
   .news-visual figcaption { font-size: 9px; }
   .news-copy h4 { font-size: 17px; }
@@ -358,7 +378,7 @@ footer { max-width: 1440px; margin: 48px auto 0; padding: 26px max(80px, calc(en
 .briefing-section.arriving { animation: arrive .8s cubic-bezier(.25, .1, .25, 1); }
 /* Text stays on its final pixel grid: no translated layer to snap at settling. */
 @keyframes arrive { from { opacity: .14; } to { opacity: 1; } }
-@media (hover: hover) and (pointer: fine) { .briefing-section:hover { box-shadow: 0 8px 28px #00000008; } .section-body .task-card:hover, .section-body .agenda-event:hover, .section-body .news-card:hover, .section-body .news-card:focus-within { background: var(--wash); border-color: var(--accent); box-shadow: 0 4px 14px #00000008; } .weather-tile:hover { border-color: var(--tile-accent); box-shadow: 0 4px 14px #00000009; } .section-body tbody tr:hover { background: var(--wash); } }
+@media (hover: hover) and (pointer: fine) { .briefing-section:hover { box-shadow: 0 8px 28px #00000008; } .section-body .task-card:hover, .section-body .agenda-event:hover, .section-body .news-card:hover, .section-body .news-card:focus-within, .section-body .episode-card:hover { background: var(--wash); border-color: var(--accent); box-shadow: 0 4px 14px #00000008; } .weather-tile:hover { border-color: var(--tile-accent); box-shadow: 0 4px 14px #00000009; } .section-body tbody tr:hover { background: var(--wash); } }
 @media (hover: hover) and (pointer: fine) { .edition-link:hover { transform: translateY(-2px); box-shadow: 0 5px 16px #0001; } .edition-link:not(.selected):hover { background: var(--wash); } }
 @media (max-width: 1000px) { .briefing-section { padding: 26px; } .hero { grid-template-columns: 1fr 220px; } .orbit { width: 220px; } }
 @media (max-width: 1100px) and (min-width: 701px) { .briefing-letter .hero { grid-template-columns: minmax(0, 1fr) 140px; gap: 20px; } .briefing-letter .hero-copy { grid-template-columns: 168px minmax(0, 1fr); gap: 28px; } .briefing-letter .orbit { width: 140px; } .briefing-letter .orbit .sky-scene { height: 100px; } .briefing-letter .orbit .sun { width: 140px; height: 100px; } }
@@ -499,8 +519,8 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
 body:lang(zh) { font-family: var(--cn-sans); }
 h1:lang(zh), .briefing-letter h1:lang(zh) { font-family: var(--cn-sans); letter-spacing: 0; font-weight: 600; line-height: 1.3; }
 h2:lang(zh), .preview-title:lang(zh) { font-family: var(--cn-sans); letter-spacing: 0; font-weight: 600; }
-.news-copy h4:lang(zh), .event-copy h4:lang(zh), .task-title:lang(zh), .agenda-day:lang(zh) { font-family: var(--cn-sans); letter-spacing: 0; font-weight: 600; line-height: 1.65; }
+.news-copy h4:lang(zh), .episode-copy h4:lang(zh), .event-copy h4:lang(zh), .task-title:lang(zh), .agenda-day:lang(zh) { font-family: var(--cn-sans); letter-spacing: 0; font-weight: 600; line-height: 1.65; }
 .section-body strong:lang(zh) { font-weight: 600; }
-.subtitle:lang(zh), .briefing-closing:lang(zh), .section-body > p.section-takeaway:lang(zh), .news .section-body > p:lang(zh), .weather .section-body > p:lang(zh), .weather-detailed .section-body > p:lang(zh) { font-family: var(--cn-sans); font-style: normal; letter-spacing: 0; }
+.subtitle:lang(zh), .briefing-closing:lang(zh), .section-body > p.section-takeaway:lang(zh), .news .section-body > p:lang(zh), .anime .section-body > p:lang(zh), .weather .section-body > p:lang(zh), .weather-detailed .section-body > p:lang(zh) { font-family: var(--cn-sans); font-style: normal; letter-spacing: 0; }
 .eyebrow:lang(zh), h3:lang(zh), .weather-label h3:lang(zh) { letter-spacing: .1em; }
 .news-summary:lang(zh), .section-body:lang(zh) { line-height: 1.9; }

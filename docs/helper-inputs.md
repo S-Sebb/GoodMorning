@@ -149,6 +149,9 @@ on its actual day: `{"status":"done","confirmed_completion":true}` with optional
 - `task --adopt ENTRY` and `task --convert ID`: `docs/item-taxonomy.md` rules 6–7.
 - Calendar events (`calendar --approve`, `event`): `docs/calendar-pipeline.md`.
 - `daily --amend`: `docs/workflow-helpers.md`.
+- New-episode updates: `anime --source anilist|bangumi --check-account NAME` and
+  `--search "TITLE"` only read; the profile lines they inform follow the rule
+  below (`docs/workflows/secretary.md`, step 4).
 - Profile fields (names, tone, city): no helper. Edit only that field's
   `key: "value"` line in `RUNTIME/profile.md`, quoted as in
   `templates/profile.template.md`, then read the line back.

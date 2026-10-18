@@ -94,7 +94,8 @@ JSON
 ```
 
 Order: gm Weather, yesterday's News, opted-in dated latest News if planned,
-Schedule, Tasks, Reminders; gn Today, Schedule, Tasks, Reminders. Do not alter the
+Schedule, Tasks, Reminders; gn Today, Schedule, Tasks, Reminders, then New episodes
+when `anime_updates` is on (never skipped). Do not alter the
 default plan. Use code-owned blocks/pages under `docs/item-taxonomy.md`. Project/
 personal and optional/required are task labels, not new sections. Read all selected
 news/citations before publishing. Presentation grants no task creation, scheduling,

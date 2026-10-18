@@ -86,6 +86,8 @@ def default_plan(context):
     if context.get('news', {}).get('latest_enabled'):
         index = next((n + 1 for n, item in enumerate(plan) if item[0] == 'news'), len(plan))
         plan.insert(index, ['news', ui.text('Latest news — {date}',lang=selected,date=context['date'])])
+    if context['workflow'] == 'gn' and context.get('document_version') == 2 and context.get('anime', {}).get('enabled'):
+        plan.append(['anime', ui.text(native.TITLES['anime'], lang=selected)])
     return plan
 
 
@@ -129,6 +131,10 @@ def next_step(runtime, identifier, session, context, checkpoint):
         reads.append(shlex.join(['python','scripts/goodmorning.py','calendar','--secretary-dir',str(runtime),
             '--db',selected['calendar_db'],'--from',context['tomorrow'] if tag == 'tomorrow' else context['date'],
             '--days','1' if tag == 'tomorrow' else '3','--timezone',context['timezone'],'--json','--details']))
+    elif tag == 'anime':
+        reads.append(shlex.join(['python','scripts/goodmorning.py','anime','--secretary-dir',str(runtime),'--date',context['date'],
+                                 '--timezone',context['timezone'],'--website-language',context.get('website_language','en'),
+                                 '--cache-dir',selected['cache']]))
     elif context.get('document_version') == 2 and tag in ('schedule', 'tasks', 'attention', 'today'):
         read_command = ['python', 'scripts/goodmorning.py', 'task', '--secretary-dir', str(runtime),
                                 '--briefing', context['workflow'], '--date', context['date'],
@@ -238,6 +244,30 @@ def image_previews(runtime, job, context, checkpoint):
         return {'unavailable':True, 'next':'Keep honest placeholders; preserve the image cache and inspect it separately.'}
 
 
+def anime_rows(runtime, job, section):
+    """Episode cards are code-owned: each must be a row the anime read returned, unchanged."""
+    from goodmorning.anime import saved_rows
+    returned = saved_rows(runtime, job['date'])
+    for value in section[1] if len(section) > 1 and isinstance(section[1], list) else []:
+        if isinstance(value, list) and value[:1] == ['episodes'] and len(value) > 1 and isinstance(value[1], list):
+            if any(row not in returned for row in value[1]):
+                raise ValueError('Episode rows must be copied unchanged from the anime read; copy its block and publish again')
+
+
+def cover_previews(runtime, job, checkpoint):
+    """Turning the section on asked for covers, so they are cached like publisher previews."""
+    from .briefing_images import cache_previews
+    urls = native.cover_urls(checkpoint['document'])
+    if not urls:
+        return None
+    try:
+        entries = cache_previews(urls, Path(runtime)/'browser-images'/job['date'], Path(runtime)/'browser-images/objects', direct=True)
+    except (ValueError, OSError, ImportError, sqlite3.Error):
+        return {'unavailable': True}
+    return {'cached': sum(entry['status'] == 'cached' for entry in entries.values()),
+            'unavailable': sum(entry['status'] == 'unavailable' for entry in entries.values())}
+
+
 def writing_rule(context, next_action):
     """Compact, localized source-meaning reminders at the point of authoring."""
     chinese = context.get('website_language') == 'zh-CN'
@@ -261,6 +291,9 @@ def writing_rule(context, next_action):
                     'Copy returned code-owned blocks. The morning schedule covers today plus any later cards the read returns (advance notices the user asked for; call them coming up); do not add other upcoming appointments. Use the returned empty-schedule paragraph without recalculating dates/weekdays or widening the range. No saved appointments does not establish free time, absence of preparation or absence of conflicts. Add a short note in the saved tone summarizing the day in plain words (empty: no appointments saved; non-empty: count and earliest time plus most useful preparation); do not mention windows, glances, TBC, timed focus, or code blocks; do not repeat every card.')
         return ('复制返回的代码生成块；晚间日程覆盖明天，以及读取结果中返回的更晚日期卡片（用户要求提前提醒的事项，称为“即将到来”）；不要自行加入其他更远日期的约定；空日程使用返回的明日段落，不自行改写日期、星期或扩大范围。没有已保存的约定不能证明空闲、没有准备工作或没有冲突。用保存的语气加一句简短注记，用通俗说法总结当天（空：仅说明当天没有已保存的约定，不说空闲；非空：数量和最早时间加最有用的准备），不要出现窗口、三天一览、TBC、timed 焦点、代码块等内部说法，不要重复每张卡片。' if chinese else
                 'Copy returned code-owned blocks. The evening schedule covers tomorrow plus any later cards the read returns (advance notices the user asked for; call them coming up); do not add other later appointments. Use the returned empty-schedule paragraph without recalculating dates/weekdays or widening the range. No saved appointments does not establish free time, absence of preparation or absence of conflicts. Add a short note in the saved tone summarizing the day in plain words (empty: no appointments saved; non-empty: count and earliest time plus most useful preparation); do not mention windows, glances, TBC, timed focus, or code blocks; do not repeat every card.')
+    if tag == 'anime':
+        return ('只写读取结果里有的剧集；不剧透、不猜剧情、不说在哪里看，也不承诺之后补上或提醒。' if chinese else
+                'Mention only episodes the read returned. No spoilers or guessed plot, no where-to-watch, no promise of later updates or reminders.')
     if tag in ('weather','news'):
         return ('来源不可用时，只说明本次无法获取相应日期的数据，不补写预测或报道，也不推断没有新闻、预警或风险。没有安排自动重试或后续更新；不能说“恢复后我再整理”“稍后补上”。只说明当前失败，不编造失败原因或恢复入口。' if chinese else
                 'If the source is unavailable, report only that this edition could not obtain the requested dated data. Do not invent forecasts/stories or infer no news, warnings or risks. No automatic retry or later update is scheduled; do not promise to fill it in after recovery. Do not invent a failure cause or recovery route.')
@@ -321,7 +354,7 @@ def act(runtime, identifier, session, action, payload=None):
             expected = default_plan(context)
             if context.get('document_version') == 2 and checkpoint is None:
                 if 'plan' in payload and payload['plan'] != expected:
-                    raise ValueError('Briefing plan order is fixed; use the default plan unchanged (gm Weather, News, Schedule, Tasks, Reminders; gn Today, Schedule, Tasks, Reminders)')
+                    raise ValueError('Briefing plan order is fixed; use the default plan unchanged (gm Weather, News, Schedule, Tasks, Reminders; gn Today, Schedule, Tasks, Reminders, then New episodes when on)')
                 plan = expected
             else:
                 plan = payload.get('plan', expected)
@@ -350,7 +383,7 @@ def act(runtime, identifier, session, action, payload=None):
             if requested != position or position == len(checkpoint['plan']):
                 raise ValueError('Publish only the next unresolved section')
             if action == 'skip':
-                if checkpoint['plan'][position][0] in ('weather','news','schedule','today','tomorrow'):
+                if checkpoint['plan'][position][0] in ('weather','news','schedule','today','tomorrow','anime'):
                     raise ValueError('Publish material unavailability; do not skip a required section')
                 return receipt(publish(runtime, identifier, skip=True, position=position))
             if (checkpoint['plan'][position][0] == 'news' and isinstance(payload['section'], list) and payload['section'][:1] == ['news']
@@ -361,12 +394,18 @@ def act(runtime, identifier, session, action, payload=None):
                     raise ValueError('News leaves out ' + labels + ', which the saved reports filled. Add one news block for each '
                                      '(a national block ends with its country code), using the read\'s selected or more stories; '
                                      'then publish again.')
+            if checkpoint['plan'][position][0] == 'anime' and isinstance(payload['section'], list):
+                anime_rows(runtime, job, payload['section'])
             document['sections'].append(payload['section'])
             result = publish(runtime, identifier, document, position=position)
             if payload['section'][0] == 'news':
                 images = image_previews(runtime, job, context, load(target))
                 if images is not None:
                     result['images'] = images
+            if payload['section'][0] == 'anime':
+                covers = cover_previews(runtime, job, load(target))
+                if covers is not None:
+                    result['images'] = covers
             return receipt(result)
         if action == 'finish':
             if not isinstance(payload, dict) or set(payload) - {'closing'}:

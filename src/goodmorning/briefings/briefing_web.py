@@ -78,7 +78,7 @@ def navigation(number, title, body, kind, ui_title=False):
 def section_markup(number, heading, content, layout, pending=False):
     symbol = {'weather': 'sun', 'news': 'news', 'schedule': 'calendar',
               'must-do': 'check', 'nice-to-do': 'list', 'reminders': 'bell', 'tomorrow': 'calendar',
-              'today': 'sun', 'still-open': 'list', 'tasks': 'check', 'attention': 'bell'}.get(layout, 'list')
+              'today': 'sun', 'still-open': 'list', 'tasks': 'check', 'attention': 'bell', 'anime': 'tv'}.get(layout, 'list')
     busy = ' data-pending="true" aria-busy="true"' if pending else ''
     return f'<section id="section-{number}" class="briefing-section {layout}"{busy}><header><span class="section-number">{number:02d}</span><h2>{heading}</h2><span class="section-symbol">{icon(symbol)}</span></header><div class="section-body">{content}</div></section>'
 
@@ -142,6 +142,7 @@ def build(runtime, date, fetch_images=False, include_assets=True, kind=None):
         raise ValueError("No saved morning or evening briefing for this date")
     documents = {kind: native.parse(source.decode('utf-8')) for kind, source in sources.items()}
     urls = list(dict.fromkeys(url for document in documents.values() for url in native.news_urls(document)))[:32]
+    covers = [url for document in documents.values() for url in native.cover_urls(document)]
     cache = runtime / 'browser-images' / date
     if fetch_images and urls:
         try:
@@ -149,7 +150,7 @@ def build(runtime, date, fetch_images=False, include_assets=True, kind=None):
         except (ValueError, sqlite3.Error):
             hints = {}  # The archive only adds a fallback; previews still work without it.
         cache_previews(urls, cache, runtime / 'browser-images' / 'objects', hints)
-    images, image_files = cached_previews(cache, urls, responsive=not include_assets)
+    images, image_files = cached_previews(cache, urls + covers, responsive=not include_assets)
     files = dict(image_files)
     for kind, document in documents.items():
         files[f'{kind}.html'] = edition(document, date, kind, documents, images).encode()
