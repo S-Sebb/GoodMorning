@@ -7,6 +7,7 @@ COMMANDS = {
     'setup': 'setup_check',
     'weather': 'weather',
     'anime': 'anime',
+    'games': 'games',
     'news': 'news.news',
     'calendar': 'calendar.secretary_calendar',
     'state': 'records.state',

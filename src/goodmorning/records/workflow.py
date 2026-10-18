@@ -88,6 +88,7 @@ def prepare(directory, kind, today=None, cache=None, *, task_limit=7, website_la
     if kind == "gn":
         result["calendar_source"] = fields.get("calendar_source", "")
         result["anime"] = {"enabled": fields.get("anime_updates", "").casefold() == "true"}
+        result["games"] = {"enabled": fields.get("game_sales", "").casefold() == "true"}
     if kind in ('gm', 'gn'):
         from .routing import prepare as item_prepare
         from goodmorning.web import language as ui

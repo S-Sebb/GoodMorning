@@ -99,6 +99,12 @@ TEXT = {
             '`block` is null, publish one ["p","…"] block instead: a short, lively line in the saved tone saying no new episodes came out '
             'since the last night briefing, with NOTE "". If the read failed, publish one ["p","…"] block saying only that new episodes '
             'could not be checked this time (no cause, no retry promise). Never skip this section.'),
+  'games': ('Steam games the user follows that are on sale right now at or above their chosen discount. If the read succeeded and its '
+            '`block` is not null, publish that block exactly as returned (rows, names, discounts, prices, end dates and covers are '
+            'code-owned; never translate, reorder or add rows). NOTE: one short, lively line in the saved tone about the deals. If `block` '
+            'is null, publish one ["p","…"] block instead: a short, lively line in the saved tone saying none of the followed games is on '
+            'sale at the chosen discount tonight, with NOTE "". If the read failed, publish one ["p","…"] block saying only that game '
+            'sales could not be checked this time (no cause, no retry promise). Never skip this section.'),
   'today_regenerating': ('REGENERATION: make no task writes and ask nothing; reuse saved feedback. Copy the read\'s block (none when it is null) and '
                          'mention every reported outcome.'),
   'finish': ('Submit {} or {"closing":"…"} following `writing`. After a verified save, reply only with one short delivery line in '
@@ -165,6 +171,10 @@ TEXT = {
   'anime': ('这是用户在追的番剧自上次晚间简报以来更新的剧集。读取成功且 `block` 不为 null 时，原样发布该块（行、标题、集数、日期和封面都由代码生成；'
             '不要翻译、调整顺序或增加行）。注记：用保存的语气写一句简短、活泼的话，邀请用户放松追番。`block` 为 null 时改为发布一个 ["p","……"] 块：'
             '用保存的语气写一句简短、活泼的话，说明自上次晚间简报以来没有新剧集，注记为 ""。读取失败时发布一个 ["p","……"] 块，只说明这次没能查到新剧集'
+            '（不写原因，不承诺补充）。不得跳过本章节。'),
+  'games': ('这是用户关注的 Steam 游戏中，此刻折扣达到其设定幅度的特惠。读取成功且 `block` 不为 null 时，原样发布该块（行、名称、折扣、价格、截止时间和封面'
+            '都由代码生成；不要翻译、调整顺序或增加行）。注记：用保存的语气写一句简短、活泼的话说说这些特惠。`block` 为 null 时改为发布一个 ["p","……"] 块：'
+            '用保存的语气写一句简短、活泼的话，说明今晚关注的游戏都没有达到设定折扣，注记为 ""。读取失败时发布一个 ["p","……"] 块，只说明这次没能查到游戏特惠'
             '（不写原因，不承诺补充）。不得跳过本章节。'),
   'today_regenerating': '重新生成：不写入任务、不提问；沿用已保存的反馈。复制读取返回的块（为 null 时没有），提到用户报告的每项结果。',
   'finish': '提交 {} 或 {"closing":"…"}，遵循 `writing`。保存核实后，只用保存的语气写一句简短的交付语，并附上返回的相对 url 作为 Markdown 链接。',

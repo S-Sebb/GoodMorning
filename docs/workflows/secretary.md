@@ -135,6 +135,38 @@ guides only for the requested operation; do not recursively reload the skill.
    previous night briefing, or a short line when nothing new came out. Promise no
    notifications or watch links. Questions and confirmations name shows, seasons
    and sources in everyday words, never profile fields or IDs.
+   Game-sale updates: when the user asks to hear in the night briefing when Steam
+   wishlist games or other games go on sale, or to change thresholds or games, set
+   the profile lines below. Ask only for what the user has not given, with the
+   native question tool. a) Store region: if `game_country` is empty, ask which
+   Steam store region sets their prices, offering the saved city's country first;
+   save its two-letter code. b) Discount for every game: a whole percent off from 1
+   to 100 (for example 50 means 50% off or more). Chinese 折 names the share paid:
+   七折 is 30% off, 五折 50%, 两折 80%. c) Ask whether to follow their Steam
+   wishlist and which other games to add; either alone is enough. To follow it,
+   ask for their Steam profile link: in Steam, click their name at the top, then
+   Profile, and copy the address. Check what they give with `games --secretary-dir
+   RUNTIME --check-account NAME`. On `not_found`, say display and login names do
+   not work and ask for the link again, with where to find it. When `wishlist` is
+   0, say the wishlist is empty or private; to share it, in Profile > Edit Profile >
+   Privacy Settings set both “My profile” and “Game details” to Public (Chinese
+   Steam: 编辑个人资料 > 隐私设置, “我的个人资料” and “游戏详情” 设为公开), which also
+   shows their owned games, playtime and the game they are playing. Then ask whether
+   to keep following it. Save the returned `account`, never the name.
+   d) Find each game with `games --secretary-dir RUNTIME --search "TITLE" --country
+   CC --website-language CODE`. Use an ID only when exactly one result clearly is
+   the named game; DLC, soundtracks and kits do not make it unclear, but separate
+   editions or remakes sold as their own games do: then ask, listing them. e) Write
+   `APPID:PERCENT` only when the user gives that game a discount different from
+   the one for every game, wishlisted or not; otherwise write the bare ID. f) Save `game_sales: "true"`,
+   `game_country`, `game_account` (or `""`), `game_threshold` and `game_titles`
+   (comma-separated, or `""`). Turning it off sets `game_sales: "false"` and keeps
+   the other lines; other changes edit only their line. g) Confirm in everyday
+   words: from the next night briefing, a section titled Game sales (游戏特惠) lists
+   followed games on sale at or above their discount, with price and sale end,
+   every night while the sale lasts, or a short line when none is. Promise no other
+   notifications, price predictions or store links. Name games, discounts and
+   regions in everyday words, never profile fields or IDs.
 5. Project writes follow `docs/project-access.md`: exact authorized target, full
    contents/current hash, scoped confirmation, preserved unrelated work and updated
    `last_update`. Calendar changes/imports follow `docs/calendar-pipeline.md`:
