@@ -86,6 +86,20 @@ sudo /opt/goodmorning/python/bin/python -B /opt/goodmorning/current/scripts/good
   --account-mount /srv/goodmorning/live/accounts pause|resume|pause-status [--reason TEXT --by NAME]
 ```
 
+Leave a message from a user's secretary (only when the owner asks). Write it in
+the user's website language and their secretary's saved tone; it is delivered
+verbatim as an unread conversation, and their usual secretary answers replies:
+
+```sh
+ssh TCSFrontEnd 'sudo /opt/goodmorning/python/bin/python -B /opt/goodmorning/current/scripts/goodmorning.py admin \
+  --account-mount /srv/goodmorning/live/accounts message USERNAME --message-file - [--title TEXT]' < note.txt
+```
+
+It prints the conversation ID before delivery; if delivery is interrupted, rerun
+with `--chat-id ID` (the same text is accepted once, never duplicated). The
+account's own viewer writes the conversation as the account's service user, and
+the text streams over SSH, so it is never saved on the server outside that account.
+
 While paused, pages return the bilingual maintenance page with HTTP 503 and
 `Retry-After: 60`, and APIs return 503 JSON. Static assets, `/api/release` and
 sign-out still work. The queue pump only reconciles finished work; it never
