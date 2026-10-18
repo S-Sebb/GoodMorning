@@ -251,6 +251,7 @@ class InboxStore:
             (identifier, item["reviewed_event"])).fetchone()[0]
         if self.version == 2:
             item['task_ids'] = [r[0] for r in self.db.execute('SELECT id FROM tasks WHERE source_entry_id=?', (identifier,))]
+            item['draft_ids'] = [r[0] for r in self.db.execute('SELECT id FROM event_drafts WHERE source_entry_id=?', (identifier,))]
         return item
 
     @read_snapshot
@@ -321,6 +322,14 @@ class InboxStore:
                         from .task_store import TaskStore
                         if any(TaskStore(self).show(task_id)['status'] not in ('done', 'cancelled') for task_id in current['task_ids']):
                             raise ValueError('organization_required: resolve live actions before reclassifying their capture')
+                    if current['kind'] == 'event_proposal' and payload.get('status', 'pending') != 'pending':
+                        # A separate calendar event would leave the draft showing as a TBC duplicate.
+                        from .task_store import TaskStore
+                        for draft_id in current['draft_ids']:
+                            if TaskStore(self).show(draft_id, True)['state'] not in ('converted', 'withdrawn'):
+                                raise ValueError(f'organization_required: event draft {draft_id} is still open; '
+                                                 'save its time with task --convert instead of calendar --add, or withdraw it '
+                                                 'with task --update --draft {"state":"withdrawn"}, before closing this capture')
                     if current["needs_review"] and payload.get("status", "pending") != "pending" and not reviewed:
                         raise ValueError("unreviewed_details: incorporate saved follow-ups before closing")
                     if current['kind'] == 'todo' and payload.get('status') == 'done':

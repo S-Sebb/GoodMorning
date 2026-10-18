@@ -426,6 +426,18 @@ class CategoryTests(unittest.TestCase):
         events = [e for day in self.week(1).values() for e in day['events']]
         self.assertEqual([e.get('draft') for e in events], [None])
 
+    def test_event_capture_cannot_close_while_its_tbc_draft_is_open(self):
+        identifier = self.draft(title='Translate for mom', date=DAY, timezone=ZONE, confirmed_day=True)
+        entry = self.tasks.show(identifier, True)['source_entry_id']
+        self.assertEqual(self.inbox.show(entry)['draft_ids'], [identifier])
+        # Closing the capture after a separate calendar add would leave a TBC duplicate.
+        with self.assertRaisesRegex(ValueError, f'organization_required: event draft {identifier} is still open'):
+            self.inbox.mutate('update', {'status': 'confirmed'}, 'ses_test', 'close-1', NOW, entry, 1)
+        event = {'subject': 'Translate for mom', 'start': DAY + 'T09:00:00+01:00', 'end': DAY + 'T10:00:00+01:00', 'timezone': ZONE}
+        self.tasks.convert(self.root, identifier, 1, {'event': event}, 'ses_test', 'convert', NOW)
+        self.assertTrue(self.inbox.mutate('update', {'status': 'confirmed'}, 'ses_test', 'close-2', NOW, entry, 1)['saved'])
+        self.assertEqual([i.get('time') for i in routing.prepare(self.root, DAY, 'gm')['schedule']['items']], [None])
+
     def test_all_day_events_are_occasions_and_timed_events_appointments(self):
         calendar = CalendarStore(str(self.root/'calendar.sqlite'))
         try:
