@@ -2,9 +2,10 @@
 #quick-chat[hidden], #quick-chat [hidden] { display: none !important; }
 #quick-chat button, #quick-chat a { font: inherit; }
 #quick-chat :is(button, a, [tabindex]):focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-body:has(#quick-chat:not([hidden])) .back-to-top { bottom: max(92px, calc(env(safe-area-inset-bottom) + 84px)); }
+/* Back to top shares the launcher's row, starting at the activity card's left edge when that card is open. */
+body:has(#quick-chat-launcher:not([hidden])) .back-to-top { right: calc(max(24px, env(safe-area-inset-right)) + var(--quick-chat-width, 128px) + 10px); bottom: max(28px, calc(env(safe-area-inset-bottom) + 20px)); }
+@media (min-width: 701px) { body:has(#quick-chat-launcher:not([hidden])):has(#account-activity:not([hidden]) #activity-window:not([hidden])) .back-to-top { right: calc(max(24px, env(safe-area-inset-right)) + max(var(--quick-chat-width, 128px) + 10px, 258px)); } }
 body:has(#quick-chat:not([hidden])) #account-activity { bottom: max(92px, calc(env(safe-area-inset-bottom) + 84px)); }
-body:has(#quick-chat:not([hidden])):has(.back-to-top.is-visible) #account-activity { bottom: max(152px, calc(env(safe-area-inset-bottom) + 144px)); }
 body.quick-chat-open #account-activity { display: none; }
 
 .quick-chat-portrait { position: relative; display: block; flex-shrink: 0; overflow: hidden; width: 38px; height: 38px; border: 1px solid var(--line); border-radius: 50%; background: var(--wash); }
@@ -84,7 +85,8 @@ html[data-edition="gn"] #quick-chat-window { box-shadow: 0 18px 54px #0008; }
   #quick-chat-launcher .quick-chat-portrait { width: 42px; height: 42px; }
   #quick-chat-launcher-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
   #quick-chat-dot { top: 2px; left: auto; right: 2px; }
-  body:has(#quick-chat:not([hidden])) .back-to-top, body:has(#quick-chat:not([hidden])) #account-activity { bottom: max(88px, calc(env(safe-area-inset-bottom) + 80px)); }
+  body:has(#quick-chat:not([hidden])) #account-activity { bottom: max(88px, calc(env(safe-area-inset-bottom) + 80px)); }
+  body:has(#quick-chat-launcher:not([hidden])) .back-to-top { right: calc(max(16px, env(safe-area-inset-right)) + var(--quick-chat-width, 56px) + 10px); }
   body.quick-chat-open #quick-chat { left: max(8px, env(safe-area-inset-left)); right: max(8px, env(safe-area-inset-right)); bottom: calc(max(8px, env(safe-area-inset-bottom)) + var(--quick-chat-keyboard, 0px)); }
   #quick-chat-window { width: 100%; height: min(78vh, 600px); height: min(78dvh, 600px, calc(var(--quick-chat-viewport, 100dvh) - 16px)); border-radius: 22px 22px 16px 16px; transform-origin: bottom center; }
   #quick-chat-text { font-size: 16px; }

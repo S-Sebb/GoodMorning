@@ -11,6 +11,8 @@
   const workspaceKey = /^[a-f0-9]{64}$/.test(scope || '') ? 'goodmorning.chat.workspace.' + scope : null;
   const openKey = workspaceKey && 'goodmorning.quick-chat.open.' + scope;
   const launcher = $('#quick-chat-launcher');
+  // Lets the back-to-top button line up beside the launcher (quick-chat.css).
+  if ('ResizeObserver' in window) new ResizeObserver(() => document.documentElement.style.setProperty('--quick-chat-width', root.offsetWidth + 'px')).observe(root);
   const panel = $('#quick-chat-window');
   const textBox = $('#quick-chat-text');
   const sendButton = $('#quick-chat-send');
