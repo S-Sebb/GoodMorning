@@ -314,13 +314,19 @@ class CalendarStore:
         return self.get(event_id)
 
     def pending(self, limit: int = 20, offset: int = 0) -> list[dict]:
-        rows = self.con.execute("SELECT id,source,raw_json,raw_revision,revision "
+        rows = self.con.execute("SELECT id,source,raw_json,approved_json,raw_revision,revision "
                                 "FROM events WHERE review='pending' ORDER BY rowid LIMIT ? OFFSET ?",
                                 (limit, offset))
-        return [{"id": r["id"], "source": r["source"], "revision": r["revision"],
-                 "raw_revision": r["raw_revision"],
-                 **{k: v for k, v in json.loads(r["raw_json"]).items()
-                    if k in ("subject", "start", "end", "status", "all_day")}} for r in rows]
+        out = []
+        for r in rows:
+            raw = json.loads(r["raw_json"])
+            if "subject" not in raw and r["approved_json"]:
+                # A bare source cancellation names the approved event it would remove.
+                raw = {**json.loads(r["approved_json"]), "status": raw["status"]}
+            out.append({"id": r["id"], "source": r["source"], "revision": r["revision"],
+                        "raw_revision": r["raw_revision"],
+                        **{k: v for k, v in raw.items() if k in ("subject", "start", "end", "status", "all_day")}})
+        return out
 
     def query(self, start: datetime, end: datetime, source: str = "auto",
               no_custom: bool = False, limit: int = 100, offset: int = 0,

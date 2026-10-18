@@ -34,6 +34,8 @@ heading. Use `scripts/goodmorning.py` with the selected absolute runtime.
       above and shows a card only when the result is worth telling; nothing is
       shown otherwise. Never asked at night or completed; retire it with
       `status:"cancelled"`. Never save as a nudge something the user asked you to do.
+      Checking a published calendar link is not an errand: save the feed with
+      `calendar --sync-ics` (`docs/calendar-pipeline.md`), which briefings sync themselves.
       Before saving: if the condition, source or rhythm is unclear ("when it's
       cheap", no shop named), ask first. Then do the errand once now with your own
       tools; only a figure read on the source page itself counts, not a search

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Secretary calendar commands: SQLite storage, conversational edits, reviewed imports.
 
-Reads never fetch providers. --sync-betterbird and --import-json stage imports;
+Reads never fetch providers. --sync-ics, --sync-betterbird and --import-json stage imports;
 --pending / --show / --approve perform review. See docs/calendar-pipeline.md.
 Config: CLI > environment > JSON config > defaults. Stdlib only.
 """
@@ -508,6 +508,7 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--actor", default="secretary", help="session/user label recorded in history")
     ap.add_argument("--expect-revision", type=int, help="required for edits/reviews; get it with --show")
     ap.add_argument("--event-json", help="event object or patch, supplied by the secretary")
+    ap.add_argument("--ics-url", help="published calendar link for --sync-ics; saved after a successful sync")
     actions = ap.add_mutually_exclusive_group()
     actions.add_argument("--probe-betterbird", action="store_true", help="Read authorized cache compatibility metadata only; no calendar storage or import")
     actions.add_argument("--init", action="store_true", help="create/validate empty calendar storage")
@@ -524,6 +525,7 @@ def main(argv: list[str] | None = None) -> int:
     actions.add_argument("--stats", action="store_true", help="small calendar summary")
     actions.add_argument("--sync-betterbird", action="store_true", help="stage cache events in the date window")
     actions.add_argument("--import-json", metavar="PATH", help="secretary's normalized import batch; - for stdin")
+    actions.add_argument("--sync-ics", action="store_true", help="stage the saved (or --ics-url) published calendar feed")
     args = ap.parse_args(argv)
     cfg = load_config_file(args.config)
     from goodmorning.runtime_files import secretary_path, profile_fields, calendar_config, calendar_path
@@ -549,6 +551,8 @@ def main(argv: list[str] | None = None) -> int:
             raise ValueError("--event-json must contain an object")
         if patch is not None and not (args.add is not None or args.update or args.approve):
             raise ValueError("--event-json requires --add, --update, or --approve")
+        if args.ics_url and not args.sync_ics:
+            raise ValueError("--ics-url requires --sync-ics")
         tz = local_tz(tzname if isinstance(tzname, str) and tzname.strip() else None)
         now = datetime.now(tz)
         day_start = (datetime.fromisoformat(args.from_date).replace(tzinfo=tz)
@@ -562,7 +566,7 @@ def main(argv: list[str] | None = None) -> int:
             print(encode(result))
             return 0 if result["status"] == "verified" else 1
         writes = args.init or args.add is not None or any((args.update, args.cancel, args.approve,
-                 args.reject, args.import_json, args.sync_betterbird))
+                 args.reject, args.import_json, args.sync_betterbird, args.sync_ics))
         store = CalendarStore(db_path, readonly=not writes)
         result = None
         if args.init:
@@ -597,6 +601,17 @@ def main(argv: list[str] | None = None) -> int:
             if not isinstance(batch, dict) or set(batch) != {"source", "events"}:
                 raise ValueError("import needs exactly source and events")
             result = store.stage(batch["source"], batch["events"], args.actor)
+        elif args.sync_ics:
+            from .calendar_ics import FEED_DAYS, fetch, sync
+            url = args.ics_url or cfg.get("ics_url")
+            if not url:
+                raise ValueError("no saved calendar feed; pass --ics-url with the published calendar link")
+            source = args.source if args.source != "auto" else cfg.get("ics_source") or "ics"
+            result = sync(store, source, fetch(url), day_start, day_start + timedelta(days=FEED_DAYS), tz, tzname, args.actor)
+            if args.ics_url and (args.ics_url, source) != (cfg.get("ics_url"), cfg.get("ics_source")):
+                from goodmorning.runtime_files import atomic_text
+                atomic_text(Path(secretary_dir) / "calendar.config.json",
+                            json.dumps({**calendar_config(secretary_dir), "ics_url": args.ics_url, "ics_source": source}, indent=2) + "\n")
         elif args.sync_betterbird:
             db = find_betterbird_db(bb_arg, secretary_dir)
             if not db:
