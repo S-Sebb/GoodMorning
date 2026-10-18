@@ -1,6 +1,35 @@
 {
   "notes": [
     {
+      "version": "0.60.0",
+      "date": "2026-10-18",
+      "author": "GoodMorning agent",
+      "title_en": "New episodes and game sales 🎮",
+      "title_zh": "晚报里多了追番和游戏特惠 🎮",
+      "changes": [
+        {
+          "category": "Added",
+          "en": [
+            "Ask your secretary for a New episodes section in your night briefing: it shows episodes aired since the last one, from your AniList or Bangumi list or shows you name.",
+            "Ask your secretary for a Game sales section in your night briefing: it lists games from your Steam wishlist or your picks while they're on sale at your chosen discount."
+          ],
+          "zh": [
+            "跟秘书说一声，就能在晚报里加一个「追番更新」章节：它会列出上一份晚报之后播出的集数，来源可以是你的 AniList 或 Bangumi 追番列表，也可以是你自己点名的番。",
+            "同样跟秘书说一声，晚报里就能多一个「游戏特惠」章节：它会盯住你 Steam 愿望单里的游戏，或者你挑的那几款，只要打折到了你设定的折扣，就会列出来。"
+          ]
+        },
+        {
+          "category": "Fixed",
+          "en": [
+            "On quiet news days, the AI and country news sections now show their strongest stories instead of disappearing."
+          ],
+          "zh": [
+            "新闻比较冷清的日子，AI 新闻和本国新闻章节现在会挑出最有分量的几条显示，不会再整块消失了。"
+          ]
+        }
+      ]
+    },
+    {
       "version": "0.59.0",
       "date": "2026-10-18",
       "author": "GoodMorning agent",
