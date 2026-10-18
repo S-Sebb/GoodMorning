@@ -84,6 +84,27 @@ class QualityTests(unittest.TestCase):
         result = news.select_stories(news.group_stories([item("An entertaining AI anecdote")]), 4)
         self.assertEqual(result, [])
 
+    def test_quiet_day_keeps_the_strongest_relevant_stories_in_an_empty_section(self):
+        raw = [item("Websites are closing their doors to AI agents", priority=2),
+               item("Meta removes language that raised AI training concerns", hour=11, priority=2),
+               item("Replit makes OpenAI its default model, CEO says", hour=10, priority=2),
+               item("Show HN: feel how fast a local LLM runs", hour=9, points=500),
+               item("Music service removes songs", hour=8, priority=2),
+               item("Corrupt officials have nowhere to hide, watchdog warns", "national", priority=1),
+               item("Opinion: why a cheap import is scary", "national", priority=1)]
+        result = news.select_stories(news.group_stories(raw), 4)
+        self.assertEqual([story["title"] for story in result],
+                         [raw[0]["title"], raw[1]["title"], raw[5]["title"]])
+        for story in result:
+            self.assertFalse(story["ranking"]["eligible"])
+            self.assertIn("best_available_on_quiet_day", story["ranking"]["reasons"])
+
+    def test_quiet_day_floor_does_not_pad_a_section_with_eligible_picks(self):
+        raw = [item("Government approves national NHS budget legislation", "national"),
+               item("Corrupt officials have nowhere to hide, watchdog warns", "national", 11, priority=1)]
+        result = news.select_stories(news.group_stories(raw), 4)
+        self.assertEqual([story["title"] for story in result], [raw[0]["title"]])
+
     def test_background_mentions_do_not_outrank_the_actual_event(self):
         background = item("Carrier returns home after long deployment", "major", 23, summary="Its deployment involved a war and government decisions.")
         event = item("Government signs ceasefire after missile attacks", "major", 10)

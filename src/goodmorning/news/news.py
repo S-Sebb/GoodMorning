@@ -391,6 +391,9 @@ def is_ai(title):
     return bool(AI_PATTERN.search(title))
 
 
+QUIET_DAY_FLOOR = 2
+
+
 def select_stories(stories, max_items):
     """Same day/section limit for both renderers; favor breadth over repeated outlets."""
     selected, counts, outlet_counts = [], {}, {}
@@ -413,6 +416,18 @@ def select_stories(stories, max_items):
     for story in deferred:
         key = story["date"], story["section"]
         if counts.get(key, 0) < max_items:
+            selected.append(story)
+            counts[key] = counts.get(key, 0) + 1
+    # A quiet day must not silently empty a section: keep its strongest
+    # relevant straight-news stories that still carry some positive signal.
+    filled = set(counts)
+    for story in ordered:
+        ranking = story["ranking"]
+        key = story["date"], story["section"]
+        if (counts.get(key, 0) < min(QUIET_DAY_FLOOR, max_items) and not ranking["eligible"] and ranking["score"] > 0
+                and ranking["genre"] == "news" and ranking.get("ai_relevant", True)
+                and key not in filled):
+            ranking["reasons"] = ranking["reasons"] + ["best_available_on_quiet_day"]
             selected.append(story)
             counts[key] = counts.get(key, 0) + 1
     positions = {id(story): index for index, story in enumerate(ordered)}

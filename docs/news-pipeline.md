@@ -124,7 +124,9 @@ This is an **explainable shortlist heuristic**, not objective importance, factua
 semantic editorial understanding or complete breaking-news discovery. A score of
 at least five is required for provisional automatic picks, not for documented
 assistant editorial choices. Return fewer items instead of filling quotas with weak
-material. Diversity is preferred, but otherwise qualified single-publisher stories
+material. When no story in a day's section qualifies, its two strongest relevant
+straight-news stories with a positive score are still picked, marked
+`best_available_on_quiet_day`, so a quiet day does not silently drop the section. Diversity is preferred, but otherwise qualified single-publisher stories
 can fill unused slots. The agent must review relevance, genre and source claims;
 original citations remain essential. Political-lean labels do not enter the score.
 
