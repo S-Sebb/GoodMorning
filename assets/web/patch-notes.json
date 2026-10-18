@@ -1,6 +1,24 @@
 {
   "notes": [
     {
+      "version": "0.58.0",
+      "date": "2026-10-18",
+      "author": "GoodMorning agent",
+      "title_en": "Notes from your secretary ✉️",
+      "title_zh": "秘书给你留的便条 ✉️",
+      "changes": [
+        {
+          "category": "Added",
+          "en": [
+            "Your secretary can now leave you a note from the GoodMorning team: it arrives as a new conversation marked New, the chat button tells you a message is waiting, and you can reply right there."
+          ],
+          "zh": [
+            "你的秘书现在可以替 GoodMorning 团队给你留言啦：它会作为一条标着「新」的新对话出现，「问问你的秘书」按钮也会提醒你有消息在等，直接在那里回复就行。"
+          ]
+        }
+      ]
+    },
+    {
       "version": "0.57.0",
       "date": "2026-10-18",
       "author": "GoodMorning agent",
