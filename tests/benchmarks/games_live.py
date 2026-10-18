@@ -160,13 +160,14 @@ def titles(value):
     return sorted(part for part in (value or '').replace(',', ' ').split())
 
 
-def answer(form, language):
-    """Answer only what these fixtures ask: the store region, 50% off, no wishlist, and confirmations."""
+def answer(form, language, scenario):
+    """Answer only what these fixtures ask: the store region, 50% off, no extra wishlist, and confirmations."""
     picks = (('united kingdom', 'uk', 'gb', '英国') if language == 'en' else ('china', 'cn', '中国', '国区')) + (
-        '50%', '五折', '5 折', 'wild hunt', '狂猎', 'no wishlist', 'no,', "don't", 'not now', 'skip', 'just this', 'only',
-        '不用', '不关注', '跳过', '只', 'save', 'yes', 'go ahead', '保存', '确认', '好')
-    sentence = ('The UK store, 50% off or more, and no wishlist — just The Witcher 3.' if language == 'en' else
-                '国区，打五折或更低就提醒，不用关注愿望单，只加《巫师3》。')
+        '50%', '五折', '5 折', 'wild hunt', '狂猎', 'just this', 'only', 'no wishlist', "don't", 'skip', '不用', '不关注', '跳过', '只',
+        'set it up', 'save', 'yes', 'go ahead', '就这样', '存吧', '保存', '确认', '好')
+    sentence = {('enable-clear', 'en'): 'Yes, exactly as I said: save it.', ('enable-clear', 'zh-CN'): '对，就按我说的存吧。',
+                ('enable-ambiguous', 'en'): 'The UK store, 50% off or more, and no wishlist — just The Witcher 3.',
+                ('enable-ambiguous', 'zh-CN'): '国区，打五折或更低就提醒，不用关注愿望单，只加《巫师3》。'}[scenario, language]
     values = {}
     for field in form['fields']:
         options = field.get('options') or []
@@ -174,6 +175,8 @@ def answer(form, language):
         chosen = next((option['value'] for word in picks for option, label in zip(options, labels) if word in label), None)
         if chosen is not None:
             values[field['key']] = [chosen] if field.get('type') == 'multiselect' else chosen
+        elif field.get('type') == 'multiselect':
+            values[field['key']] = []  # Neither the wishlist nor more games.
         elif field.get('type') == 'string' or field.get('custom'):
             values[field['key']] = sentence
         else:
@@ -228,7 +231,7 @@ def run_chat(output, language, selected, scenario, now):
             save(folder/'result.json', result)
             if not status['forms']:
                 break
-            turn['answered'] = answer(status['forms'][0], language)
+            turn['answered'] = answer(status['forms'][0], language, scenario)
             with context(language, selected):
                 app.chats.reply(chat, 'form', status['forms'][0]['id'], {'answer':turn['answered']})
         save(folder/'messages.json', status['messages'])

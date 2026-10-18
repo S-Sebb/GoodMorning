@@ -140,8 +140,9 @@ guides only for the requested operation; do not recursively reload the skill.
    the profile lines below. Ask only for what the user has not given, with the
    native question tool. a) Store region: if `game_country` is empty, ask which
    Steam store region sets their prices, offering the saved city's country first;
-   save its two-letter code. b) Discount for every game: a whole percent from 1 to
-   100 (for example 50 means 50% off or more). c) Ask whether to follow their Steam
+   save its two-letter code. b) Discount for every game: a whole percent off from 1
+   to 100 (for example 50 means 50% off or more). Chinese 折 names the share paid:
+   七折 is 30% off, 五折 50%, 两折 80%. c) Ask whether to follow their Steam
    wishlist and which other games to add; either alone is enough. Check a profile
    name, link or ID with `games --secretary-dir RUNTIME --check-account NAME`; on
    `not_found` ask the user to check the name or link. When `wishlist` is 0, say it
@@ -150,9 +151,9 @@ guides only for the requested operation; do not recursively reload the skill.
    d) Find each game with `games --secretary-dir RUNTIME --search "TITLE" --country
    CC --website-language CODE`. Use an ID only when exactly one result clearly is
    the named game; DLC, soundtracks and kits do not make it unclear, but separate
-   editions or remakes sold as their own games do: then ask, listing them. e) A
-   game with its own discount is written `APPID:PERCENT`; a wishlist game gets one
-   too when the user sets its own discount. f) Save `game_sales: "true"`,
+   editions or remakes sold as their own games do: then ask, listing them. e) Write
+   `APPID:PERCENT` only when the user gives that game a discount different from
+   the one for every game, wishlisted or not; otherwise write the bare ID. f) Save `game_sales: "true"`,
    `game_country`, `game_account` (or `""`), `game_threshold` and `game_titles`
    (comma-separated, or `""`). Turning it off sets `game_sales: "false"` and keeps
    the other lines; other changes edit only their line. g) Confirm in everyday
