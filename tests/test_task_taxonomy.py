@@ -703,6 +703,7 @@ class TaxonomyTests(unittest.TestCase):
                                       runtime=self.root, job='j'*32, session='ses_test')
         self.assertIn('--secretary-dir '+str(self.root),guide)
         self.assertNotIn('RUNTIME',guide)
+        self.assertIn('gn-plan:'+'j'*32, guide)  # Dated plans in progress notes are scheduled, not only mentioned.
 
     def test_receipts_carry_the_next_sections_reads_after_publication(self):
         self.capture('Buy milk', task={'title': 'Buy milk', 'planned_date': DAY})
