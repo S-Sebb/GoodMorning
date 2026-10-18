@@ -71,6 +71,7 @@ TEXT = {
                 'Zero rows: skip {"position":N} instead of publishing.'),
   'today': ('Saved browser feedback (in prepare) is final: selected completions are already applied; never reapply or re-ask them. '
             'feedback.progress lines are project progress, not completion: mention them and never mark a step done from them. '
+            'A plan in feedback.details or feedback.progress that names a clear day for a step ("the day after tomorrow, check growth") is scheduling (step 1). '
             'Blocked means something outside the user\'s control stops it (waiting on someone, missing material, closed). "Not done yet", '
             '"didn\'t get to it" or "will do it tomorrow" is neither blocked nor partial: write no status. A daily follow-up or deadline '
             'already comes back by itself; for other work a clearly named day is a move request (below). '
@@ -82,10 +83,15 @@ TEXT = {
             'with the native question tool listing only the matching actions and stop (no write, publish or finish). A clear request to move '
             'a named action to a clear day: after its status write, run task --update TASK_ID --expect-revision REV --session SESSION '
             '--request-key gn-move:JOB:TASK_ID --input-json \'{"planned_date":"YYYY-MM-DD"}\' (relative days count from DATE); if the '
-            'action or day is unclear, ask first. Anything else follows the ESCAPE HATCH. 2) After any write, rerun the Today read\'s command (the '
+            'action or day is unclear, ask first. A plan for a named action on a clear day needs no status report: run only that move; '
+            'a step planned for that day only if a condition holds ("if there are enough cells, do X") still moves, and the note states the condition. '
+            'A planned step matching no saved action: save it once with python scripts/goodmorning.py task --secretary-dir RUNTIME --session SESSION --request-key gn-plan:JOB:N --add --input-json '
+            '\'{"raw":"<the user\'s words>","task":{"title":"…","project":"<its project>","planned_date":"YYYY-MM-DD","timezone":"<profile timezone>",'
+            '"detail":"<any condition the user gave, e.g. only if enough cells>"}}\'. '
+            'Progress without a clear day schedules nothing. Anything else follows the ESCAPE HATCH. 2) After any write, rerun the Today read\'s command (the '
             '--section today entry in `results`); never reuse a Today read from before a write. 3) Publish its returned block unchanged first (none when it is null): '
             'they are the cards for completions and recorded partial/blocked work. Then add one ["p","…"] block and the note for reported '
-            'outcomes the cards do not show (an accomplishment that matches no task, a moved date, a blocker\'s reason). Mention every '
+            'outcomes the cards do not show (an accomplishment that matches no task, a moved date or newly planned step, a blocker\'s reason). Mention every '
             'reported outcome; add no advice or invented progress.'),
   'today_regenerating': ('REGENERATION: make no task writes and ask nothing; reuse saved feedback. Copy the read\'s block (none when it is null) and '
                          'mention every reported outcome.'),
@@ -134,7 +140,7 @@ TEXT = {
             '换个来源。引用你查看或尝试的页面，没有就用 []。注记：最重要的 1–3 个项目组和一个有用的下一步。读取为 0 行且没有代办事项时用 skip {"position":N}。'),
   'attention': '原样复制读取返回的 decisions 块（标题不变）。注记：数量和唯一的下一步。读取为 0 行时用 skip {"position":N}。',
   'today': ('prepare 中保存的网页反馈是最终答案：已选的完成项已经应用，不要重复应用或再次询问。feedback.progress 是项目进展而不是完成：'
-            '要提到，但不要据此把任何步骤标为完成。受阻指用户无法控制的原因阻止了它（在等别人、缺材料、店没开）。'
+            '要提到，但不要据此把任何步骤标为完成。feedback.details 或 feedback.progress 中给某个步骤说了明确日期的计划（“后天看细胞生长情况”）属于排期，按第 1 步处理。受阻指用户无法控制的原因阻止了它（在等别人、缺材料、店没开）。'
             '“还没做”“没顾上”“明天再去/明天再做”既不是受阻也不是部分完成：不要写入状态。每天跟进的事项和有截止日期的事项会自动再次出现；'
             '其他事项如明确说了哪一天，按下面的改期处理。按以下顺序处理。1）核对：对 feedback.details 中每条'
             '部分完成/受阻的报告，先查看 `results` 中的 Tasks 读取结果，再运行 python scripts/goodmorning.py task --secretary-dir RUNTIME --show TASK_ID 获取版本号。'
@@ -143,9 +149,13 @@ TEXT = {
             '\'{"status":"blocked|partial","detail":"<用户给出的原因，含义不变>"}\'。若某条报告可能对应多项，用原生提问工具只列出匹配的事项询问并停下'
             '（不写入、不发布、不 finish）。明确要求把某个指名事项挪到明确日期时：在其状态写入之后运行 task --update TASK_ID --expect-revision REV '
             '--session SESSION --request-key gn-move:JOB:TASK_ID --input-json \'{"planned_date":"YYYY-MM-DD"}\'（相对日期从 DATE 算起）；'
-            '事项或日期不明确时先询问。其他内容按例外通道处理。2）有写入时，完成后重新运行 Today 读取（`results` 中带 --section today 的命令）；'
+            '事项或日期不明确时先询问。给指名事项定了明确日期的计划不需要先写状态，只做这一次改期；'
+            '带条件的步骤（“细胞量足够就做 X”）同样改到那天，并在注记里写明条件。'
+            '计划中的步骤没有对应的已保存事项时，用 python scripts/goodmorning.py task --secretary-dir RUNTIME --session SESSION --request-key gn-plan:JOB:N --add --input-json '
+            '\'{"raw":"<用户原话>","task":{"title":"……","project":"<所属项目>","planned_date":"YYYY-MM-DD","timezone":"<档案时区>",'
+            '"detail":"<用户给的条件，例如细胞量足够才做>"}}\' 保存一次。没有明确日期的进展不排期。其他内容按例外通道处理。2）有写入时，完成后重新运行 Today 读取（`results` 中带 --section today 的命令）；'
             '不要沿用写入之前的 Today 读取结果。3）先原样发布它返回的块（为 null 时没有）：这些是完成项以及已记录的部分完成/受阻事项的卡片。然后为卡片没有体现的结果'
-            '（与任何待办都不对应的已完成事项、改动的日期、受阻原因）加一个 ["p","……"] 块和注记。提到用户报告的每项结果，不添加建议或臆测进展。'),
+            '（与任何待办都不对应的已完成事项、改动的日期或新排的步骤、受阻原因）加一个 ["p","……"] 块和注记。提到用户报告的每项结果，不添加建议或臆测进展。'),
   'today_regenerating': '重新生成：不写入任务、不提问；沿用已保存的反馈。复制读取返回的块（为 null 时没有），提到用户报告的每项结果。',
   'finish': '提交 {} 或 {"closing":"…"}，遵循 `writing`。保存核实后，只用保存的语气写一句简短的交付语，并附上返回的相对 url 作为 Markdown 链接。',
  },
