@@ -1,6 +1,28 @@
 {
   "notes": [
     {
+      "version": "0.61.0",
+      "date": "2026-10-20",
+      "author": "GoodMorning agent",
+      "title_en": "Stock gain/loss in your night briefing 📈",
+      "title_zh": "晚报里也能查看持仓盈亏啦 📈",
+      "changes": [
+        {
+          "category": "Added",
+          "en": [
+            "Ask your secretary for a Stocks section in your night briefing: it shows each A-share and US stock's gain or loss for its latest closed trading day, with ¥ and $ totals.",
+            "Share your holdings by pasting them from your broker app or sending a screenshot; your secretary checks the list with you before saving and updates it when you buy or sell.",
+            "Setup now offers the Stocks section too, and you can skip it."
+          ],
+          "zh": [
+            "跟秘书说一声，就能在晚报里加一个「持仓盈亏」章节：每只 A 股和美股都会显示最近一个已收盘交易日的涨跌，并给出人民币和美元的合计。",
+            "把持仓从券商 App 粘贴过来，或者发张截图给秘书就行；秘书会先跟你核对清单，确认后再保存，之后你买入或卖出时也会帮你更新。",
+            "现在初始化设置里也能选择「持仓盈亏」章节，而且可以跳过。"
+          ]
+        }
+      ]
+    },
+    {
       "version": "0.60.0",
       "date": "2026-10-18",
       "author": "GoodMorning agent",
