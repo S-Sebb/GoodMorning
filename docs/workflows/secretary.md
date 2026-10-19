@@ -190,12 +190,17 @@ guides only for the requested operation; do not recursively reload the skill.
    with `stocks --search "NAME OR CODE"`. Use it only when exactly one result
    clearly is that stock; otherwise ask with the native question tool, listing the
    candidates. c) Build `SYMBOL:SHARES[:COST]` entries (`sh600519:100:1650.5`,
-   `usAAPL:12.5`) and run `stocks --check "ENTRIES" --website-language CODE`.
+   `usAAPL:12.5`) for the full resulting list. A saved entry the user leaves
+   unchanged keeps its `@DATE` exactly; a new or changed entry has none. Run
+   `stocks --secretary-dir RUNTIME --check "ENTRIES" --website-language CODE`; it
+   dates the undated entries (cash dividends after that date count toward total
+   gain/loss).
    Correct every `not_found` symbol with the user. Then list what will be saved
    (name, the returned `code`, shares, cost) and wait for the user's confirmation.
    Every change (first save, buy, sell, correction or replacement) shows the full
    resulting list and waits, even when the user's numbers are exact. d) Save
-   `stock_report: "true"` and `stock_holdings` (comma-separated entries). A buy or
+   `stock_report: "true"` and `stock_holdings` set to the returned `save` value
+   exactly; never write dates yourself. A buy or
    sell changes only that entry; selling everything removes it. When new holdings
    arrive while some are saved and it is unclear whether they replace the list or
    add to it, ask. Turning it off sets `stock_report: "false"` and keeps the
@@ -204,7 +209,10 @@ guides only for the requested operation; do not recursively reload the skill.
    latest closed trading day (A-shares that day; US stocks the latest finished
    session, usually the night before), with ¥ and $ totals kept apart and total
    gain/loss where a cost was given. Holdings do not update themselves: the user
-   tells you when they buy or sell. Promise no alerts, forecasts or advice. Name
+   tells you when they buy or sell. Cash dividends from now on are added to the
+   total before tax, as brokers do; bonus or transfer shares (送股, 转增) only
+   bring a note in the night briefing asking them to restate their shares (you do
+   not ask them yourself). Promise no alerts, forecasts or advice. Name
    stocks by name and code, never profile fields or symbol prefixes.
 5. Project writes follow `docs/project-access.md`: exact authorized target, full
    contents/current hash, scoped confirmation, preserved unrelated work and updated
