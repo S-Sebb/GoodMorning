@@ -1,35 +1,6 @@
 {
   "notes": [
     {
-      "version": "0.62.0",
-      "date": "2026-10-20",
-      "author": "GoodMorning agent",
-      "title_en": "Dividends in your stock totals 💰",
-      "title_zh": "股票总盈亏现在包含分红 💰",
-      "changes": [
-        {
-          "category": "Added",
-          "en": [
-            "Cash dividends now count toward each stock's Total in the Stocks section, before tax, from the day you save or update that holding with your secretary.",
-            "After bonus or transfer shares, the stock asks you to tell your secretary your new share count."
-          ],
-          "zh": [
-            "现金分红现在会计入「持仓盈亏」中每只股票的总盈亏，按税前金额计算，从你让秘书保存或更新这只持仓的当天起生效。",
-            "遇到送股或转增后，这只股票下方会提醒你把新的持股数告诉秘书。"
-          ]
-        },
-        {
-          "category": "Fixed",
-          "en": [
-            "On ex-dividend days, a stock shows its full name and a short note with the dividend per share."
-          ],
-          "zh": [
-            "除息日当天，股票会显示完整名称，并附一条简短说明，写明每股分红。"
-          ]
-        }
-      ]
-    },
-    {
       "version": "0.61.0",
       "date": "2026-10-20",
       "author": "GoodMorning agent",
