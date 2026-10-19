@@ -107,8 +107,11 @@ feedback and blockers in Chinese too; English planning notes are not user replie
    is null; a failed read says only that episodes could not be checked.
 9. Game sales (only when `game_sales: "true"`): the same with the games read's
    `deals` block; a failed read says only that game sales could not be checked.
+10. Stocks (only when `stock_report: "true"`): copy the stocks read's `holdings`
+    block unchanged; the note gives each market's day result from `markets`. A
+    failed read says only that stock prices could not be checked.
 
-Keep the order Today, Schedule, Tasks, Reminders, then New episodes and Game sales when on. Browser jobs use `skip` only for
+Keep the order Today, Schedule, Tasks, Reminders, then New episodes, Game sales and Stocks when on. Browser jobs use `skip` only for
 empty optional positions; local JSON omits those sections. Never hide a material
 retrieval failure. Check each receipt.
 Conflicts require a targeted reread; uncertain writes require inspection and the

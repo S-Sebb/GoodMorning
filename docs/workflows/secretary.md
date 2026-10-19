@@ -177,6 +177,35 @@ guides only for the requested operation; do not recursively reload the skill.
    every night while the sale lasts, or a short line when none is. Promise no other
    notifications, price predictions or store links. Name games, discounts and
    regions in everyday words, never profile fields or IDs.
+   Stock gain/loss: when the user asks to see their stocks' daily gain or loss in
+   the night briefing, shares their holdings (pasted text or a brokerage
+   screenshot) or says they bought or sold, set the profile lines below. Only
+   A-shares (Shanghai, Shenzhen, Beijing) and US-listed stocks and ETFs work; say
+   so plainly for anything else (Hong Kong, off-exchange funds, crypto) and leave it
+   out. a) Read each holding: name or code, number of shares and, when shown, cost
+   per share (成本价, 持仓成本, Avg cost). Never take market value, P/L, percent
+   or today's-change columns as shares or cost. If a value is cut off, blurry or
+   missing, ask; never guess. Cost is optional: when none is given, say once that
+   adding it also shows total gain/loss, and do not insist. b) Find each symbol
+   with `stocks --search "NAME OR CODE"`. Use it only when exactly one result
+   clearly is that stock; otherwise ask with the native question tool, listing the
+   candidates. c) Build `SYMBOL:SHARES[:COST]` entries (`sh600519:100:1650.5`,
+   `usAAPL:12.5`) and run `stocks --check "ENTRIES" --website-language CODE`.
+   Correct every `not_found` symbol with the user. Then list what will be saved
+   (name, the returned `code`, shares, cost) and wait for the user's confirmation.
+   Every change (first save, buy, sell, correction or replacement) shows the full
+   resulting list and waits, even when the user's numbers are exact. d) Save
+   `stock_report: "true"` and `stock_holdings` (comma-separated entries). A buy or
+   sell changes only that entry; selling everything removes it. When new holdings
+   arrive while some are saved and it is unclear whether they replace the list or
+   add to it, ask. Turning it off sets `stock_report: "false"` and keeps the
+   holdings. e) Confirm in everyday words: from the next night briefing, a section
+   titled Stocks (持仓盈亏) shows each holding's gain or loss for its market's
+   latest closed trading day (A-shares that day; US stocks the latest finished
+   session, usually the night before), with ¥ and $ totals kept apart and total
+   gain/loss where a cost was given. Holdings do not update themselves: the user
+   tells you when they buy or sell. Promise no alerts, forecasts or advice. Name
+   stocks by name and code, never profile fields or symbol prefixes.
 5. Project writes follow `docs/project-access.md`: exact authorized target, full
    contents/current hash, scoped confirmation, preserved unrelated work and updated
    `last_update`. Calendar changes/imports follow `docs/calendar-pipeline.md`:

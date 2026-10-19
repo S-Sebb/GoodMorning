@@ -90,6 +90,8 @@ def default_plan(context):
         plan.append(['anime', ui.text(native.TITLES['anime'], lang=selected)])
     if context['workflow'] == 'gn' and context.get('document_version') == 2 and context.get('games', {}).get('enabled'):
         plan.append(['games', ui.text(native.TITLES['games'], lang=selected)])
+    if context['workflow'] == 'gn' and context.get('document_version') == 2 and context.get('stocks', {}).get('enabled'):
+        plan.append(['stocks', ui.text(native.TITLES['stocks'], lang=selected)])
     return plan
 
 
@@ -137,8 +139,8 @@ def next_step(runtime, identifier, session, context, checkpoint):
         reads.append(shlex.join(['python','scripts/goodmorning.py','anime','--secretary-dir',str(runtime),'--date',context['date'],
                                  '--timezone',context['timezone'],'--website-language',context.get('website_language','en'),
                                  '--cache-dir',selected['cache']]))
-    elif tag == 'games':
-        reads.append(shlex.join(['python','scripts/goodmorning.py','games','--secretary-dir',str(runtime),'--date',context['date'],
+    elif tag in ('games', 'stocks'):
+        reads.append(shlex.join(['python','scripts/goodmorning.py',tag,'--secretary-dir',str(runtime),'--date',context['date'],
                                  '--timezone',context['timezone'],'--website-language',context.get('website_language','en'),
                                  '--cache-dir',selected['cache']]))
     elif context.get('document_version') == 2 and tag in ('schedule', 'tasks', 'attention', 'today'):
@@ -251,13 +253,16 @@ def image_previews(runtime, job, context, checkpoint):
 
 
 def read_rows(runtime, job, tag, section):
-    """Episode and deal cards are code-owned: each must be a row their read returned, unchanged."""
+    """Episode, deal and holding rows are code-owned: each must be a row their read returned, unchanged."""
     if tag == 'anime':
         from goodmorning.anime import saved_rows
         kind, label = 'episodes', 'Episode'
-    else:
+    elif tag == 'games':
         from goodmorning.games import saved_rows
         kind, label = 'deals', 'Deal'
+    else:
+        from goodmorning.stocks import saved_rows
+        kind, label = 'holdings', 'Holding'
     returned = saved_rows(runtime, job['date'])
     for value in section[1] if len(section) > 1 and isinstance(section[1], list) else []:
         if isinstance(value, list) and value[:1] == [kind] and len(value) > 1 and isinstance(value[1], list):
@@ -302,6 +307,9 @@ def writing_rule(context, next_action):
                     'Copy returned code-owned blocks. The morning schedule covers today plus any later cards the read returns (advance notices the user asked for; call them coming up); do not add other upcoming appointments. Use the returned empty-schedule paragraph without recalculating dates/weekdays or widening the range. No saved appointments does not establish free time, absence of preparation or absence of conflicts. Add a short note in the saved tone summarizing the day in plain words (empty: no appointments saved; non-empty: count and earliest time plus most useful preparation); do not mention windows, glances, TBC, timed focus, or code blocks; do not repeat every card.')
         return ('复制返回的代码生成块；晚间日程覆盖明天，以及读取结果中返回的更晚日期卡片（用户要求提前提醒的事项，称为“即将到来”）；不要自行加入其他更远日期的约定；空日程使用返回的明日段落，不自行改写日期、星期或扩大范围。没有已保存的约定不能证明空闲、没有准备工作或没有冲突。用保存的语气加一句简短注记，用通俗说法总结当天（空：仅说明当天没有已保存的约定，不说空闲；非空：数量和最早时间加最有用的准备），不要出现窗口、三天一览、TBC、timed 焦点、代码块等内部说法，不要重复每张卡片。' if chinese else
                 'Copy returned code-owned blocks. The evening schedule covers tomorrow plus any later cards the read returns (advance notices the user asked for; call them coming up); do not add other later appointments. Use the returned empty-schedule paragraph without recalculating dates/weekdays or widening the range. No saved appointments does not establish free time, absence of preparation or absence of conflicts. Add a short note in the saved tone summarizing the day in plain words (empty: no appointments saved; non-empty: count and earliest time plus most useful preparation); do not mention windows, glances, TBC, timed focus, or code blocks; do not repeat every card.')
+    if tag == 'stocks':
+        return ('只写读取结果里有的股票和涨跌；不预测走势、不给买卖建议，也不承诺之后提醒。' if chinese else
+                'Mention only stocks and moves the read returned. No forecasts, no buy or sell advice, no promise of later alerts.')
     if tag == 'games':
         return ('只写读取结果里有的游戏和价格；不评价游戏、不猜之后会不会更便宜，也不劝买或承诺之后提醒。' if chinese else
                 'Mention only games and prices the read returned. No reviews, no guessing whether prices will drop further, no urging to buy, no promise of later reminders.')
@@ -368,7 +376,7 @@ def act(runtime, identifier, session, action, payload=None):
             expected = default_plan(context)
             if context.get('document_version') == 2 and checkpoint is None:
                 if 'plan' in payload and payload['plan'] != expected:
-                    raise ValueError('Briefing plan order is fixed; use the default plan unchanged (gm Weather, News, Schedule, Tasks, Reminders; gn Today, Schedule, Tasks, Reminders, then New episodes and Game sales when on)')
+                    raise ValueError('Briefing plan order is fixed; use the default plan unchanged (gm Weather, News, Schedule, Tasks, Reminders; gn Today, Schedule, Tasks, Reminders, then New episodes, Game sales and Stocks when on)')
                 plan = expected
             else:
                 plan = payload.get('plan', expected)
@@ -397,7 +405,7 @@ def act(runtime, identifier, session, action, payload=None):
             if requested != position or position == len(checkpoint['plan']):
                 raise ValueError('Publish only the next unresolved section')
             if action == 'skip':
-                if checkpoint['plan'][position][0] in ('weather','news','schedule','today','tomorrow','anime','games'):
+                if checkpoint['plan'][position][0] in ('weather','news','schedule','today','tomorrow','anime','games','stocks'):
                     raise ValueError('Publish material unavailability; do not skip a required section')
                 return receipt(publish(runtime, identifier, skip=True, position=position))
             if (checkpoint['plan'][position][0] == 'news' and isinstance(payload['section'], list) and payload['section'][:1] == ['news']
@@ -408,7 +416,7 @@ def act(runtime, identifier, session, action, payload=None):
                     raise ValueError('News leaves out ' + labels + ', which the saved reports filled. Add one news block for each '
                                      '(a national block ends with its country code), using the read\'s selected or more stories; '
                                      'then publish again.')
-            if checkpoint['plan'][position][0] in ('anime', 'games') and isinstance(payload['section'], list):
+            if checkpoint['plan'][position][0] in ('anime', 'games', 'stocks') and isinstance(payload['section'], list):
                 read_rows(runtime, job, checkpoint['plan'][position][0], payload['section'])
             document['sections'].append(payload['section'])
             result = publish(runtime, identifier, document, position=position)

@@ -13,7 +13,7 @@ MAX_BYTES = 150_000
 TITLES = {'weather': 'Weather', 'news': 'News', 'schedule': 'Schedule',
           'must-do': 'Project steps', 'nice-to-do': 'Optional project steps', 'reminders': 'Reminders',
           'today': 'Today', 'still-open': 'Still open', 'tomorrow': 'Tomorrow', 'notes': 'Notes',
-          'tasks': 'Tasks', 'attention': 'Reminders', 'anime': 'New episodes', 'games': 'Game sales'}
+          'tasks': 'Tasks', 'attention': 'Reminders', 'anime': 'New episodes', 'games': 'Game sales', 'stocks': 'Stocks'}
 WEATHER = {'temperature': ('Temperature', 'thermometer', 'temperature cool'),
            'precipitation': ('Precipitation', 'rain', 'precipitation'),
            'warning': ('Extreme warning', 'warning', 'other'), 'air': ('AQI', 'leaf', 'air')}
@@ -239,6 +239,22 @@ def block(value, path):
             if row[6] and (not isinstance(row[6], str) or not row[6].startswith('https://')):
                 fail(path, 'cover images require an HTTPS URL')
             text(row[6], path + '.cover', 2000, empty=True)
+    elif tag == 'holdings':
+        # [symbol, name, session_date, shares, close, previous_close, cost_or_null, currency], copied from the stocks read.
+        sequence(value, path, 2, 2)
+        sequence(value[1], path + '.items', 1, 50)
+        for row in value[1]:
+            sequence(row, path + '.row', 8, 8)
+            if not isinstance(row[0], str) or not re.fullmatch(r'(?:sh|sz|bj)\d{6}|us[A-Z][A-Z0-9.-]{0,9}', row[0]):
+                fail(path, 'holding rows need an A-share or US symbol')
+            text(row[1], path + '.name', 100)
+            if not isinstance(row[2], str) or not re.fullmatch(r'\d{4}-\d{2}-\d{2}', row[2]):
+                fail(path, 'holding rows need a session date')
+            if any(type(cell) not in (int, float) or not 0 < cell < 1e9 for cell in row[3:6]) or (
+                    row[6] is not None and (type(row[6]) not in (int, float) or not 0 < row[6] < 1e9)):
+                fail(path, 'holding rows need positive shares, prices and an optional cost')
+            if row[7] not in ('CNY', 'USD'):
+                fail(path, 'holding rows need CNY or USD')
     elif tag in ('p', 'list'):
         sequence(value, path, 2, 3 if tag == 'p' else 2)
         if tag == 'p':
@@ -314,7 +330,7 @@ def block(value, path):
         if len(value) == 4 and (not isinstance(value[3], str) or not re.fullmatch('[A-Z]{2}', value[3])):
             fail(path, 'country flag requires a two-letter country code')
     else:
-        fail(path, 'unknown block type; use p/list/table/agenda/tasks/weather/news/flexible/episodes/deals')
+        fail(path, 'unknown block type; use p/list/table/agenda/tasks/weather/news/flexible/episodes/deals/holdings')
 
 
 def validate(data, partial=False):
@@ -353,6 +369,8 @@ def validate(data, partial=False):
                 fail(path, 'episodes blocks belong in the anime section, which holds only episodes and paragraphs')
             if (value[0] == 'deals') != (section[0] == 'games') and value[0] != 'p':
                 fail(path, 'deals blocks belong in the games section, which holds only deals and paragraphs')
+            if (value[0] == 'holdings') != (section[0] == 'stocks') and value[0] != 'p':
+                fail(path, 'holdings blocks belong in the stocks section, which holds only holdings and paragraphs')
             if value[0] == 'flexible':
                 if section[0] not in ('schedule', 'tomorrow'):
                     fail(path, 'flexible schedules belong in schedule or tomorrow, not reminders/notes')
@@ -606,6 +624,58 @@ def action_day(day, briefing_date):
     return ui.agenda_day(day, briefing_date)
 
 
+def holdings_markup(rows, briefing_date):
+    """Each market's latest closed session: totals first, then every holding's day and total gain/loss."""
+    def signed(amount, symbol='', suffix=''):
+        sign = '+' if amount > 0.005 else '−' if amount < -0.005 else ''
+        return f'{sign}{symbol}{abs(amount):,.2f}{suffix}'
+
+    def trend(amount):
+        return 'is-up' if amount > 0.005 else 'is-down' if amount < -0.005 else 'is-flat'
+
+    def price(amount):
+        return f'{amount:,.3f}' if round(amount * 1000) % 10 else f'{amount:,.2f}'
+
+    def count(amount):
+        return f'{amount:,}' if type(amount) is int else f'{amount:,.4f}'.rstrip('0').rstrip('.')
+
+    markets = []
+    for currency, market in (('CNY', 'A-shares'), ('USD', 'US stocks')):
+        group = [row for row in rows if row[7] == currency]
+        if not group:
+            continue
+        money = '¥' if currency == 'CNY' else '$'
+        session = max(row[2] for row in group)
+        change = sum((row[4] - row[5]) * row[3] for row in group)
+        before = sum(row[5] * row[3] for row in group)
+        costed = [row for row in group if row[6]]
+        meta = ui.ui('Market value') + f' {money}{sum(row[4] * row[3] for row in group):,.2f}'
+        if costed:
+            total = sum((row[4] - row[6]) * row[3] for row in costed)
+            label = ui.ui('Total gain/loss') if len(costed) == len(group) else ui.ui('Total gain/loss ({count} with a cost)', count=len(costed))
+            meta += f' · {label} <span class="{trend(total)}">{signed(total, money)}</span>'
+        items = []
+        for symbol, name, day, shares, close, previous, cost, _ in group:
+            move = (close - previous) * shares
+            detail = (f'<span>{escaped(symbol[2:])}</span> · {ui.ui("{shares} shares", shares=count(shares))} · '
+                      f'{ui.ui("Close {price}", price=money + price(close))}')
+            if day < session:
+                detail += f' · <span class="holding-paused">{ui.ui("No trading")}</span>'
+            since = ''
+            if cost:
+                since = (f'<p class="holding-since">{ui.ui("Total")} <span class="{trend(close - cost)}">'
+                         f'{signed((close - cost) * shares, money)} ({signed((close - cost) / cost * 100, suffix="%")})</span></p>')
+            items.append(f'<li class="holding-row"><div class="holding-copy"><h4 class="holding-name" data-content>{escaped(name)}</h4>'
+                         f'<p class="holding-detail">{detail}</p>{since}</div><div class="holding-change {trend(move)}">'
+                         f'<span class="holding-amount">{signed(move, money)}</span>'
+                         f'<span class="holding-percent">{signed((close - previous) / previous * 100, suffix="%")}</span></div></li>')
+        markets.append(f'<div class="holding-market"><div class="holding-summary"><h3>{ui.ui(market)} · {ui.day_label(session, reference=briefing_date)}</h3>'
+                       f'<p class="holding-total {trend(change)}"><span class="holding-amount">{signed(change, money)}</span>'
+                       f'<span class="holding-percent">{signed(change / before * 100, suffix="%")}</span></p>'
+                       f'<p class="holding-meta">{meta}</p></div><ul class="holding-list">{"".join(items)}</ul></div>')
+    return '<div class="holdings">' + ''.join(markets) + '</div>'
+
+
 def render_block(value, images, briefing_date=None):
     tag = value[0]
     if tag == 'actions':
@@ -730,6 +800,8 @@ def render_block(value, images, briefing_date=None):
             cards.append(f'<li class="deal-card">{deal_visual(cover, name, images)}<div class="deal-copy">'
                          f'<h4 class="deal-name" data-content>{escaped(name)}</h4><p class="deal-line">{prices}</p>{when}</div></li>')
         return '<ul class="deal-list">' + ''.join(cards) + '</ul>'
+    if tag == 'holdings':
+        return holdings_markup(value[1], briefing_date)
     if tag == 'news':
         from .briefing_layout import country_flag
         category = value[1]

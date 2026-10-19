@@ -20,6 +20,7 @@ ICONS = {
     "globe": '<circle cx="12" cy="12" r="9"/><ellipse cx="12" cy="12" rx="4" ry="9"/><path d="M3 12h18M5 7h14M5 17h14"/>',
     "chip": '<rect x="6" y="6" width="12" height="12" rx="2"/><rect x="9" y="9" width="6" height="6" rx="1"/><path d="M9 2v4m6-4v4M9 18v4m6-4v4M2 9h4m-4 6h4m12-6h4m-4 6h4"/>',
     "news": '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 8h4v4H7ZM14 8h3m-3 4h3M7 16h10"/>',
+    "chart": '<path d="M3 3v18h18"/><path d="m7 15 4-4 3 3 6-7"/>',
     "tag": '<path d="M3 12V4h8l10 10-8 8Z"/><circle cx="7.5" cy="8.5" r="1.5"/>',
     "tv": '<rect x="3" y="7" width="18" height="13" rx="2.5"/><path d="m8 3 4 4 4-4M10 11.5v5l4-2.5Z"/>',
 }
