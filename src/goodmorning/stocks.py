@@ -153,20 +153,22 @@ def report(runtime, language, cache=None, now=None):
         if row[2] < latest[row[7]]:
             row[5] = row[4]
     rows.sort(key=lambda row: (row[7] != 'CNY', -(row[4] - row[5]) * row[3], row[0]))
-    return {'block': ['holdings', rows] if rows else None, 'markets': summaries(rows), 'not_found': missing}
+    return {'block': ['holdings', rows] if rows else None, 'markets': summaries(rows, language),
+            'not_found': [symbol[2:] for symbol in missing]}
 
 
-def summaries(rows):
-    """Per-currency totals the note may mention; the rendered section computes the same."""
+def summaries(rows, language='en'):
+    """Per-market totals the note may mention; the rendered section computes the same."""
+    from goodmorning.web import language as ui
     markets = []
-    for currency in ('CNY', 'USD'):
+    for currency, label in (('CNY', 'A-shares'), ('USD', 'US stocks')):
         group = [row for row in rows if row[7] == currency]
         if not group:
             continue
         before = sum(row[5] * row[3] for row in group)
         change = sum((row[4] - row[5]) * row[3] for row in group)
         costed = [row for row in group if row[6]]
-        market = {'currency': currency, 'session': max(row[2] for row in group), 'day_change': round(change, 2),
+        market = {'market': ui.text(label, lang=language), 'currency': currency, 'session': max(row[2] for row in group), 'day_change': round(change, 2),
                   'day_percent': round(change / before * 100, 2), 'value': round(sum(row[4] * row[3] for row in group), 2),
                   'up': sum(row[4] > row[5] for row in group), 'down': sum(row[4] < row[5] for row in group)}
         if costed:
@@ -219,10 +221,10 @@ def main(argv=None):
         else:
             chosen = holdings(args.check)
             known = quotes(list(chosen), None)
-            result = {'holdings': [{'symbol': symbol, 'name': known[symbol]['english'] if args.website_language == 'en' and known[symbol]['english']
+            result = {'holdings': [{'symbol': symbol, 'code': symbol[2:], 'name': known[symbol]['english'] if args.website_language == 'en' and known[symbol]['english']
                                     else known[symbol]['name'], 'shares': shares, 'cost': cost, 'currency': known[symbol]['currency'],
                                     'price': known[symbol]['price']} for symbol, (shares, cost) in chosen.items() if symbol in known],
-                      'not_found': [symbol for symbol in chosen if symbol not in known]}
+                      'not_found': [symbol[2:] for symbol in chosen if symbol not in known]}
     except StockError as error:
         print(json.dumps({'error': 'stocks_unavailable', 'next': str(error)}, ensure_ascii=False))
         return 1

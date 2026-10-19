@@ -65,7 +65,7 @@ class StockTests(unittest.TestCase):
             ['sh600519', '贵州茅台', DAY, 100, 1324.97, 1329.0, 1450, 'CNY'],
             ['usAAPL', 'Apple Inc.', '2026-10-16', 30, 343.46, 342.0, None, 'USD']]])
         cny, usd = result['markets']
-        self.assertEqual((cny['day_change'], cny['up'], cny['down'], cny['total_change']), (-103.0, 1, 1, -12503.0))
+        self.assertEqual((cny['market'], cny['day_change'], cny['up'], cny['down'], cny['total_change']), ('A-shares', -103.0, 1, 1, -12503.0))
         self.assertEqual((usd['session'], usd['day_change']), ('2026-10-16', 43.8))
         self.assertNotIn('total_change', usd)
         self.assertEqual(self.read('usAAPL:30', 'zh-CN')['block'][1][0][1], '苹果')
@@ -76,7 +76,7 @@ class StockTests(unittest.TestCase):
         result = self.read('sz000002:1000, sh600519:100, sh999999:5')
         held = {row[0]: row for row in result['block'][1]}
         self.assertEqual(held['sz000002'][2:6], ['2026-10-16', 1000, 7.0, 7.0])
-        self.assertEqual(result['not_found'], ['sh999999'])
+        self.assertEqual(result['not_found'], ['999999'])
         self.assertIn('No trading', native.render_block(result['block'], {}, DAY))
 
     def test_holdings_must_be_symbol_shares_and_optional_cost(self):
