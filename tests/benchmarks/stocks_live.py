@@ -76,7 +76,8 @@ raise SystemExit(code)
 '''
 
 BRIEFINGS = {'evening-holdings': ('ok', 'playful'), 'evening-failed': ('fail', 'formal')}
-CHATS = ('enable-paste', 'enable-screenshot', 'update-trade')
+CHATS = ('enable-paste', 'enable-screenshot', 'update-trade', 'replace-all', 'swap-several', 'adjust-shares', 'unclear-list')
+CHANGES = ('update-trade', 'replace-all', 'swap-several', 'adjust-shares', 'unclear-list')
 ADVICE_WORDS = ('should buy', 'should sell', 'buy more', 'sell now', 'will rise', 'will fall', 'rebound', 'recover', 'target price',
                 '建议买入', '建议卖出', '加仓', '减仓', '抄底', '会反弹', '会上涨', '会下跌', '目标价')
 PASTE = {'en': ('Please add my stocks to the night briefing. From my broker app:\n\n'
@@ -94,10 +95,23 @@ PASTE = {'en': ('Please add my stocks to the night briefing. From my broker app:
 MESSAGES = {('enable-screenshot', 'en'): 'Here is a screenshot of my holdings. Please show their daily gain/loss in my night briefing.',
             ('enable-screenshot', 'zh-CN'): '这是我的持仓截图，帮我在晚间简报里看每天的盈亏。',
             ('update-trade', 'en'): 'I sold all my Tesla today, and bought 200 shares of Ping An Bank (000001) at 11.20.',
-            ('update-trade', 'zh-CN'): '今天把特斯拉全卖了，另外买了 200 股平安银行（000001），成本 11.20。'}
+            ('update-trade', 'zh-CN'): '今天把特斯拉全卖了，另外买了 200 股平安银行（000001），成本 11.20。',
+            ('replace-all', 'en'): 'Forget my old stock list completely. I now hold only China Ping An 601318, 500 shares at 48, and Nvidia, 40 shares at 95.',
+            ('replace-all', 'zh-CN'): '之前的持仓全部清掉不要了，我现在只有中国平安 601318 500 股成本 48，英伟达 40 股成本 95。',
+            ('swap-several', 'en'): 'I sold all my Apple. Then I bought 500 shares of China Ping An (601318) at 48 and 40 Nvidia at 95.',
+            ('swap-several', 'zh-CN'): '苹果全部卖掉了，然后买了 500 股中国平安（601318），成本 48，还有 40 股英伟达，成本 95。',
+            ('adjust-shares', 'en'): 'Two fixes: I actually have 150 Moutai shares, not 100, same cost. And I sold 5 of my 10 Tesla shares.',
+            ('adjust-shares', 'zh-CN'): '改两处：茅台其实是 150 股不是 100 股，成本不变；特斯拉 10 股卖掉了 5 股。',
+            ('unclear-list', 'en'): 'My holdings: China Ping An 601318, 500 shares at 48; Nvidia, 40 shares at 95.',
+            ('unclear-list', 'zh-CN'): '我的持仓：中国平安 601318，500 股，成本 48；英伟达 40 股，成本 95。'}
 EXPECTED = {'enable-paste': {'sh600519': (100, 1450), 'sz000001': (2000, 10.8), 'usAAPL': (30, 180), 'usTSLA': (10, None)},
             'enable-screenshot': {'sh601318': (500, 48), 'usNVDA': (40, 95), 'sh600519': (100, 1450)},
-            'update-trade': {'sh600519': (100, 1450), 'usAAPL': (30, 180), 'sz000001': (200, 11.2)}}
+            'update-trade': {'sh600519': (100, 1450), 'usAAPL': (30, 180), 'sz000001': (200, 11.2)},
+            'replace-all': {'sh601318': (500, 48), 'usNVDA': (40, 95)},
+            'swap-several': {'sh600519': (100, 1450), 'usTSLA': (10, 250), 'sh601318': (500, 48), 'usNVDA': (40, 95)},
+            'adjust-shares': {'sh600519': (150, 1450), 'usTSLA': (5, 250), 'usAAPL': (30, 180)},
+            # Asked whether the list replaces or adds to the saved one, the user replaces it.
+            'unclear-list': {'sh601318': (500, 48), 'usNVDA': (40, 95)}}
 SAVED = 'stock_report: "true"\nstock_holdings: "sh600519:100:1450, usTSLA:10:250, usAAPL:30:180"\n'
 SCREEN = '''<html><body style="margin:0;font:15px system-ui,sans-serif;background:#f5f6f8;width:420px">
 <div style="background:#c8102e;color:#fff;padding:14px 16px;font-weight:600">{title}</div>
@@ -192,9 +206,9 @@ def settings(runtime):
     return {key:fields.get(key) for key in ('stock_report', 'stock_holdings')}
 
 
-def answer(form, language):
+def answer(form, language, scenario=''):
     """Confirm what the secretary read; these fixtures leave nothing else to choose."""
-    picks = ('yes', 'correct', 'confirm', 'save', 'looks right', 'go ahead', 'without', 'skip', 'no cost',
+    picks = (('replace', 'only these', 'instead', '替换', '换成', '覆盖', '只保留', '只要') if scenario == 'unclear-list' else ()) + ('yes', 'correct', 'confirm', 'save', 'looks right', 'go ahead', 'without', 'skip', 'no cost',
              '对', '确认', '保存', '没问题', '是', '不用', '跳过', '好')
     sentence = 'Yes, that is right; save it.' if language == 'en' else '对，没问题，保存吧。'
     values = {}
@@ -215,8 +229,8 @@ def run_chat(output, language, selected, scenario, now):
     folder = output/scenario
     folder.mkdir(mode=0o700)
     zone = 'Europe/London' if language == 'en' else 'Asia/Shanghai'
-    tone = {'enable-paste':'playful', 'update-trade':'formal'}.get(scenario, 'default')
-    runtime = account(folder, language, tone, SAVED if scenario == 'update-trade' else '', zone)
+    tone = {'enable-paste':'playful', 'update-trade':'formal', 'swap-several':'playful', 'adjust-shares':'formal'}.get(scenario, 'default')
+    runtime = account(folder, language, tone, SAVED if scenario in CHANGES else '', zone)
     fixture(runtime, 'ok', now)
     source = source_copy(folder, runtime)
     before = (runtime/'profile.md').read_text()
@@ -233,7 +247,8 @@ def run_chat(output, language, selected, scenario, now):
         body['attachments'] = [upload]
     result = {'scenario':scenario, 'language':language, 'tone':tone, 'model':selected, 'message':message, 'turns':[],
               'review':'pending manual language/tone review'}
-    confirm = 'Yes, that is right; save it.' if language == 'en' else '对，没问题，保存吧。'
+    confirm = {('unclear-list', 'en'): 'Replace the old ones; keep only these. Save it.', ('unclear-list', 'zh-CN'): '替换掉旧的，只保留这两只，保存吧。'}.get(
+        (scenario, language), 'Yes, that is right; save it.' if language == 'en' else '对，没问题，保存吧。')
     proceed = 'Please go on.' if language == 'en' else '继续吧。'
 
     def wait():
@@ -264,13 +279,13 @@ def run_chat(output, language, selected, scenario, now):
             if not status['forms']:
                 if turn['settings'] == settings_before(before) and followed < 3:
                     followed += 1  # A plain-text question gets a plain confirmation; a turn that stopped early only a nudge.
-                    asked = any('?' in text or '？' in text for text in replies)
+                    asked = any(mark in text.casefold() for text in replies for mark in ('?', '？', 'confirm', '确认'))
                     turn['followed_up'] = confirm if asked else proceed
                     with context(language, selected):
                         app.chats.send(chat, {'id':uuid.uuid4().hex, 'text':turn['followed_up']})
                     continue
                 break
-            turn['answered'] = answer(status['forms'][0], language)
+            turn['answered'] = answer(status['forms'][0], language, scenario)
             with context(language, selected):
                 app.chats.reply(chat, 'form', status['forms'][0]['id'], {'answer':turn['answered']})
         save(folder/'messages.json', status['messages'])
@@ -281,6 +296,10 @@ def run_chat(output, language, selected, scenario, now):
         first = next(i for i, turn in enumerate(result['turns']) if turn['settings'] != settings_before(before))
         assert any('answered' in turn or turn.get('followed_up') == confirm for turn in result['turns'][:first]), \
             'Holdings were saved before the user confirmed them'
+        if scenario == 'unclear-list':
+            asked = json.dumps([turn['forms'] for turn in result['turns'][:first]] + [turn['assistant'] for turn in result['turns'][:first]], ensure_ascii=False).casefold()
+            assert any(word in asked for word in ('replace', '替换', '换成', '覆盖')) and any(word in asked for word in ('add', '加', '追加', '新增')), \
+                'Did not ask whether the new list replaces or adds to the saved holdings'
         after = (runtime/'profile.md').read_text().splitlines()
         assert [line for line in before.splitlines() if not line.startswith('stock_')] == \
             [line for line in after if not line.startswith('stock_')], 'Unrelated profile lines changed'

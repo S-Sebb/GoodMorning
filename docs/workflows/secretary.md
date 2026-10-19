@@ -192,7 +192,9 @@ guides only for the requested operation; do not recursively reload the skill.
    candidates. c) Build `SYMBOL:SHARES[:COST]` entries (`sh600519:100:1650.5`,
    `usAAPL:12.5`) and run `stocks --check "ENTRIES" --website-language CODE`.
    Correct every `not_found` symbol with the user. Then list what will be saved
-   (name, the returned `code`, shares, cost) and wait for the user's confirmation. d) Save
+   (name, the returned `code`, shares, cost) and wait for the user's confirmation.
+   Every change (first save, buy, sell, correction or replacement) shows the full
+   resulting list and waits, even when the user's numbers are exact. d) Save
    `stock_report: "true"` and `stock_holdings` (comma-separated entries). A buy or
    sell changes only that entry; selling everything removes it. When new holdings
    arrive while some are saved and it is unclear whether they replace the list or
