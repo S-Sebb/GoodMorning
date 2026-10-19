@@ -36,6 +36,8 @@ game_country: ""
 game_account: ""
 game_threshold: ""
 game_titles: ""
+stock_report: ""
+stock_holdings: ""
 
 ## Project roots
 
@@ -91,4 +93,6 @@ Never put passwords or keys here. -->
 - Do not ask about anime during setup. The `anime_*` lines are set only when the
   user asks for new-episode updates (`docs/workflows/secretary.md`). Likewise the
   `game_*` lines, only when the user asks for game-sale updates.
+- Offer the night briefing's stock gain/loss once during setup (optional);
+  the `stock_*` lines follow `docs/workflows/secretary.md`.
 - Keep credentials in the environment, never in this file.

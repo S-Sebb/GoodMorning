@@ -8,6 +8,7 @@ COMMANDS = {
     'weather': 'weather',
     'anime': 'anime',
     'games': 'games',
+    'stocks': 'stocks',
     'news': 'news.news',
     'calendar': 'calendar.secretary_calendar',
     'state': 'records.state',

@@ -36,6 +36,12 @@ integration access or verification consent.
    confirmed values. Group location/timezone, work/sleep/tone, news/calendar/project
    scope. Optional roles/fields, special needs and interests may be skipped; reuse
    industry/expertise answers and never invent optional defaults.
+   Then, alone and skippable, ask whether the night briefing should report the
+   day's gain or loss on their A-share or US stocks (a review shows whether it is
+   on and how many holdings are saved, and allows keeping them). If yes, collect
+   holdings by pasted text or a brokerage screenshot under “Stock gain/loss” in
+   `docs/workflows/secretary.md` step 4, saved with the profile after storage
+   consent. A skip leaves `stock_report` unchanged.
 6. Prefer `question` with meaningful options and built-in custom input; no dummy
    “Provide a city” buttons. For unsupported text-only forms, ask plainly and wait.
    State date/timezone where needed. Clear answers within an agreed scope need no
