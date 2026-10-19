@@ -2,14 +2,19 @@
 """Stock gain/loss for the evening briefing: A-shares and US stocks, public Tencent quotes, no keys.
 
 The profile lists holdings in `stock_holdings` as comma-separated
-`SYMBOL:SHARES[:COST]` (`sh600519:100:1650.5, usAAPL:12.5`): `sh`/`sz`/`bj` plus
-six digits for A-shares, `us` plus the ticker for US stocks, and an optional cost
-per share in the stock's own currency. The briefing read reports each market's
-latest closed session, so a night briefing in China shows today's A-share close
-and the previous US session, as one code-owned `holdings` block.
+`SYMBOL:SHARES[:COST][@DATE]` (`sh600519:100:1650.5@2026-10-20, usAAPL:12.5`):
+`sh`/`sz`/`bj` plus six digits for A-shares, `us` plus the ticker for US stocks,
+an optional cost per share in the stock's own currency, and the date the user
+stated those shares and cost. The briefing read reports each market's latest
+closed session, so a night briefing in China shows today's A-share close and the
+previous US session, as one code-owned `holdings` block.
+
+Cash dividends whose ex-date falls after DATE count toward the total gain/loss,
+pre-tax, as brokers do. Bonus or transfer shares are only flagged: the share count
+is the user's to restate.
 """
 import argparse
-from datetime import date as Date, datetime, time as Time
+from datetime import date as Date, datetime, time as Time, timedelta
 import hashlib
 import json
 from pathlib import Path
@@ -73,15 +78,33 @@ def quotes(symbols, cache=None):
             continue
         us = symbol.startswith('us')
         # A-share names come padded with spaces (五 粮 液).
-        found[symbol] = {'name': fields[1] if us else ''.join(fields[1].split()), 'english': fields[46] if us else '', 'code': 'us' + fields[2] if us else symbol,
+        name = fields[1] if us else ''.join(fields[1].split())
+        if not us and re.match('XD|XR|DR', name):
+            # Ex-dividend/rights days prefix the name and cut it to four characters (XD中国人); search has the full name.
+            name = next((hit['name'] for hit in search(symbol[2:], cache) if hit['symbol'] == symbol), name[2:])
+        found[symbol] = {'name': name, 'english': fields[46] if us else '', 'code': 'us' + fields[2] if us else symbol,
                          'currency': 'USD' if us else 'CNY', 'price': float(fields[3])}
     return found
 
 
-def bars(code, cache=None):
-    """Recent daily bars as (date, close, volume), oldest first."""
-    data = json.loads(request(f'{KLINE}{code},day,,,6,qfq', cache))['data'][code]
-    return [(row[0], float(row[2]), float(row[5])) for row in data.get('qfqday') or data.get('day') or []]
+def bars(code, start=None, cache=None):
+    """Daily bars as (date, close, volume, corporate action or None), oldest first: the last few, or every one since start."""
+    data = json.loads(request(f'{KLINE}{code},day,{start or ""},,{1000 if start else 6},qfq', cache))['data'][code]
+    return [(row[0], float(row[2]), float(row[5]), row[6] if len(row) > 6 and isinstance(row[6], dict) else None)
+            for row in data.get('qfqday') or data.get('day') or []]
+
+
+def action(event, currency):
+    """(ex-date, cash per share, whether the share count changes) from Tencent's dividend note."""
+    content = event.get('FHcontent') or ''
+    if currency == 'CNY':
+        cash = float(event['fh_sh']) / 10 if event.get('fh_sh') else 0.0
+        shares = bool(re.search('[送转配]', content))
+    else:
+        paid = re.search(r'每股分配([\d.]+)美元', content)
+        cash = float(paid.group(1)) if paid else 0.0
+        shares = bool(content) and not paid
+    return event.get('cqr', ''), cash, shares
 
 
 def search(text, cache=None):
@@ -104,17 +127,20 @@ def number(value):
 
 
 def holdings(text):
-    """{symbol: (shares, cost or None)} from SYMBOL:SHARES[:COST] parts."""
+    """{symbol: (shares, cost or None, since or None)} from SYMBOL:SHARES[:COST][@DATE] parts."""
     chosen = {}
     for part in [part for part in re.split(r'[\s,]+', text) if part]:
-        pieces = part.split(':')
+        entry, _, since = part.partition('@')
+        pieces = entry.split(':')
         try:
             if not re.fullmatch(SYMBOL, pieces[0]) or len(pieces) not in (2, 3) or pieces[0] in chosen:
                 raise ValueError
-            chosen[pieces[0]] = (number(pieces[1]), number(pieces[2]) if len(pieces) == 3 else None)
+            if since and Date.fromisoformat(since).isoformat() != since:
+                raise ValueError
+            chosen[pieces[0]] = (number(pieces[1]), number(pieces[2]) if len(pieces) == 3 else None, since or None)
         except ValueError:
-            raise StockError(f'invalid_settings: {part[:40]} is not SYMBOL:SHARES[:COST] (sh600519:100:1650.5, usAAPL:12.5), '
-                             'each symbol once') from None
+            raise StockError(f'invalid_settings: {part[:40]} is not SYMBOL:SHARES[:COST][@YYYY-MM-DD] '
+                             '(sh600519:100:1650.5@2026-10-20, usAAPL:12.5), each symbol once') from None
     if not 1 <= len(chosen) <= MAX_HOLDINGS:
         raise StockError(f'invalid_settings: stock_holdings needs 1 to {MAX_HOLDINGS} holdings')
     return chosen
@@ -136,16 +162,29 @@ def report(runtime, language, cache=None, now=None):
     missing = [symbol for symbol in chosen if symbol not in known]
     rows = []
     for symbol, info in known.items():
-        series = settled(bars(info['code'], cache), info['currency'], now)
+        shares, cost, since = chosen[symbol]
+        # Enough history for the day's move, and every corporate action since the holding was stated.
+        start = min(since, (now.date() - timedelta(days=20)).isoformat()) if since else None
+        series = settled(bars(info['code'], start, cache), info['currency'], now)
         if not series:
             missing.append(symbol)
             continue
-        day, close, volume = series[-1]
+        day, close, volume, _ = series[-1]
         # No trade that session (suspended): unchanged rather than an older day's move.
         previous = series[-2][1] if len(series) > 1 and volume > 0 else close
-        shares, cost = chosen[symbol]
+        counted, today, flagged = 0.0, 0.0, False
+        for bar in series:
+            if not bar[3]:
+                continue
+            ex, cash, changes = action(bar[3], info['currency'])
+            ex = ex or bar[0]
+            if since and since < ex <= day:
+                counted += cash
+            if ex == day:
+                today += cash
+            flagged = flagged or changes and (since < ex <= day if since else ex == day)
         name = info['english'] if language == 'en' and info['english'] else info['name']
-        rows.append([symbol, name, day, shares, close, previous, cost, info['currency']])
+        rows.append([symbol, name, day, shares, close, previous, cost, info['currency'], round(counted, 4), round(today, 4), flagged])
     latest = {}
     for row in rows:
         latest[row[7]] = max(latest.get(row[7], ''), row[2])
@@ -172,7 +211,7 @@ def summaries(rows, language='en'):
                   'day_percent': round(change / before * 100, 2), 'value': round(sum(row[4] * row[3] for row in group), 2),
                   'up': sum(row[4] > row[5] for row in group), 'down': sum(row[4] < row[5] for row in group)}
         if costed:
-            market['total_change'] = round(sum((row[4] - row[6]) * row[3] for row in costed), 2)
+            market['total_change'] = round(sum((row[4] - row[6] + row[8]) * row[3] for row in costed), 2)
         markets.append(market)
     return markets
 
@@ -219,12 +258,16 @@ def main(argv=None):
         elif args.search:
             result = {'results': search(args.search, cache)}
         else:
-            chosen = holdings(args.check)
+            # Code dates entries, not the model: undated ones (new, changed or saved before dates) get today in the user's timezone.
+            today = datetime.now(ZoneInfo(profile_fields(secretary_path(args.secretary_dir)).get('timezone') or 'UTC')).date().isoformat()
+            chosen = {symbol: (shares, cost, since or today) for symbol, (shares, cost, since) in holdings(args.check).items()}
             known = quotes(list(chosen), None)
             result = {'holdings': [{'symbol': symbol, 'code': symbol[2:], 'name': known[symbol]['english'] if args.website_language == 'en' and known[symbol]['english']
-                                    else known[symbol]['name'], 'shares': shares, 'cost': cost, 'currency': known[symbol]['currency'],
-                                    'price': known[symbol]['price']} for symbol, (shares, cost) in chosen.items() if symbol in known],
-                      'not_found': [symbol[2:] for symbol in chosen if symbol not in known]}
+                                    else known[symbol]['name'], 'shares': shares, 'cost': cost, 'since': since, 'currency': known[symbol]['currency'],
+                                    'price': known[symbol]['price']} for symbol, (shares, cost, since) in chosen.items() if symbol in known],
+                      'not_found': [symbol[2:] for symbol in chosen if symbol not in known],
+                      'save': ', '.join(f'{symbol}:{shares}' + (f':{cost}' if cost else '') + '@' + since
+                                        for symbol, (shares, cost, since) in chosen.items() if symbol in known)}
     except StockError as error:
         print(json.dumps({'error': 'stocks_unavailable', 'next': str(error)}, ensure_ascii=False))
         return 1

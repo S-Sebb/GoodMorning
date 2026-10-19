@@ -21,11 +21,17 @@ from goodmorning.web import language as ui
 DAY = '2026-10-19'
 # 22:00 in Shanghai: A-shares closed today, New York is mid-session.
 NIGHT = datetime(2026, 10, 19, 14, tzinfo=timezone.utc)
-# symbol: (Chinese name, provider code, English name, daily bars as (date, close, volume))
+# symbol: (Chinese name, provider code, English name, daily bars as (date, close, volume[, corporate action]))
 MARKET = {'sh600519': ('贵州茅台', '600519', '', [('2026-10-16', 1329.0, 9), ('2026-10-19', 1324.97, 9)]),
           'sz000001': ('平安银行', '000001', '', [('2026-10-16', 11.5, 9), ('2026-10-19', 11.65, 9)]),
           'sz000002': ('万科A', '000002', '', [('2026-10-15', 7.1, 9), ('2026-10-16', 7.0, 9)]),
-          'usAAPL': ('苹果', 'AAPL.OQ', 'Apple Inc.', [('2026-10-15', 342.0, 9), ('2026-10-16', 343.46, 9), ('2026-10-19', 344.9, 9)])}
+          'usAAPL': ('苹果', 'AAPL.OQ', 'Apple Inc.', [('2026-10-15', 342.0, 9), ('2026-10-16', 343.46, 9), ('2026-10-19', 344.9, 9)]),
+          # Ex-dividend tonight, under the quote feed's cut name; a bonus issue two days before.
+          'sh601628': ('XD中国人', '601628', '', [('2026-10-15', 34.19, 9, {'fh_sh': '2.1', 'cqr': '2026-10-15', 'FHcontent': '10派2.1元'}),
+                                                 ('2026-10-16', 34.12, 9, {'fh_sh': '0', 'cqr': '2026-10-16', 'FHcontent': '10送2股'}),
+                                                 ('2026-10-19', 34.4, 9, {'fh_sh': '3.58', 'djr': '2026-10-16', 'cqr': '2026-10-19', 'FHcontent': '10派3.58元'})]),
+          'usMSFT': ('微软', 'MSFT.OQ', 'Microsoft Corporation', [('2026-10-15', 520.0, 9, {'FHcontent': '每股分配0.83美元', 'cqr': '2026-10-15'}),
+                                                               ('2026-10-16', 529.05, 9)])}
 
 
 def fake_tencent(url, cache=None, encoding='utf-8'):
@@ -41,7 +47,9 @@ def fake_tencent(url, cache=None, encoding='utf-8'):
     if url.startswith(stocks.KLINE):
         code = url[len(stocks.KLINE):].split(',')[0]
         symbol = next(key for key, value in MARKET.items() if (key[:2] + value[1] if key.startswith('us') else key) == code)
-        return json.dumps({'data': {code: {'qfqday': [[day, '0', str(close), '0', '0', str(volume)] for day, close, volume in MARKET[symbol][3]]}}})
+        return json.dumps({'data': {code: {'qfqday': [[day, '0', str(close), '0', '0', str(volume), *event] for day, close, volume, *event in MARKET[symbol][3]]}}})
+    if '601628' in url:
+        return 'v_hint="sh~601628~\\u4e2d\\u56fd\\u4eba\\u5bff~zgrs~GP-A"'
     return 'v_hint="sh~600519~\\u8d35\\u5dde\\u8305\\u53f0~gzmt~GP-A^sh~000001~\\u4e0a\\u8bc1\\u6307\\u6570~szzs~ZS^us~brk.b.n~Berkshire~bks~GP"'
 
 
@@ -61,9 +69,9 @@ class StockTests(unittest.TestCase):
         result = self.read('sh600519:100:1450, usAAPL:30, sz000001:2000')
         # Tonight's A-share close; Apple's 19 October bar is still trading, so Friday's session is reported.
         self.assertEqual(result['block'], ['holdings', [
-            ['sz000001', '平安银行', DAY, 2000, 11.65, 11.5, None, 'CNY'],
-            ['sh600519', '贵州茅台', DAY, 100, 1324.97, 1329.0, 1450, 'CNY'],
-            ['usAAPL', 'Apple Inc.', '2026-10-16', 30, 343.46, 342.0, None, 'USD']]])
+            ['sz000001', '平安银行', DAY, 2000, 11.65, 11.5, None, 'CNY', 0.0, 0.0, False],
+            ['sh600519', '贵州茅台', DAY, 100, 1324.97, 1329.0, 1450, 'CNY', 0.0, 0.0, False],
+            ['usAAPL', 'Apple Inc.', '2026-10-16', 30, 343.46, 342.0, None, 'USD', 0.0, 0.0, False]]])
         cny, usd = result['markets']
         self.assertEqual((cny['market'], cny['day_change'], cny['up'], cny['down'], cny['total_change']), ('A-shares', -103.0, 1, 1, -12503.0))
         self.assertEqual((usd['session'], usd['day_change']), ('2026-10-16', 43.8))
@@ -80,10 +88,45 @@ class StockTests(unittest.TestCase):
         self.assertIn('No trading', native.render_block(result['block'], {}, DAY))
 
     def test_holdings_must_be_symbol_shares_and_optional_cost(self):
-        self.assertEqual(stocks.holdings('sh600519:100:1650.5, usBRK.B:2.5'), {'sh600519': (100, 1650.5), 'usBRK.B': (2.5, None)})
-        for bad in ('', '600519:100', 'sh600519', 'sh600519:0', 'sh600519:100:x', 'usaapl:1', 'sh600519:1, sh600519:2'):
+        self.assertEqual(stocks.holdings('sh600519:100:1650.5@2026-10-19, usBRK.B:2.5'),
+                         {'sh600519': (100, 1650.5, '2026-10-19'), 'usBRK.B': (2.5, None, None)})
+        for bad in ('', '600519:100', 'sh600519', 'sh600519:0', 'sh600519:100:x', 'usaapl:1', 'sh600519:1, sh600519:2',
+                    'sh600519:100@2026-13-01', 'sh600519:100@yesterday'):
             with self.assertRaisesRegex(stocks.StockError, 'invalid_settings'):
                 stocks.holdings(bad)
+
+    def test_cash_dividends_since_the_stated_date_count_toward_the_total(self):
+        rows = {row[0]: row for row in self.read('sh601628:300:36.15@2026-10-15, usMSFT:15:400@2026-10-14')['block'][1]}
+        # The full name replaces the ex-dividend marker; tonight's ¥0.358 counts, the 15 October one predates the stated date.
+        self.assertEqual(rows['sh601628'][1], '中国人寿')
+        self.assertEqual(rows['sh601628'][8:], [0.358, 0.358, True])
+        self.assertEqual(rows['usMSFT'][8:], [0.83, 0.0, False])
+        html = native.render_block(['holdings', [rows['sh601628']]], {}, DAY)
+        self.assertIn('−¥417.60', html)  # (34.40 − 36.15 + 0.358) × 300
+        self.assertIn('Ex-dividend ¥0.358/share, counted in Total', html)
+        self.assertIn('tell your secretary your current shares', html)
+        # Undated holdings count nothing, flag only tonight's action, and still name it.
+        undated = self.read('sh601628:300:36.15')['block'][1][0]
+        self.assertEqual(undated[8:], [0.0, 0.358, False])
+        self.assertIn('Ex-dividend ¥0.358/share<', native.render_block(['holdings', [undated]], {}, DAY))
+
+    def test_check_dates_undated_entries_in_the_users_timezone(self):
+        (self.root / 'profile.md').write_text('timezone: Asia/Shanghai\n')
+        clock = type('Clock', (datetime,), {'now': staticmethod(lambda tz=None: NIGHT.replace(hour=17).astimezone(tz))})
+        with patch.object(stocks, 'datetime', clock), patch('builtins.print') as shown:
+            stocks.main(['--secretary-dir', str(self.root), '--check', 'sh600519:100:1450@2026-09-01, usAAPL:30, sh999999:1'])
+        result = json.loads(shown.call_args.args[0])
+        # 17:00 UTC is already the next day in Shanghai; the saved date stays, the unknown code is left out.
+        self.assertEqual(result['save'], 'sh600519:100:1450@2026-09-01, usAAPL:30@2026-10-20')
+        self.assertEqual(result['not_found'], ['999999'])
+
+    def test_briefings_saved_before_dividends_still_render(self):
+        row = ['sh600519', '贵州茅台', DAY, 100, 1324.97, 1329.0, 1450, 'CNY']
+        native.validate({'v': 2, 'greeting': 'Hi.', 'opening': 'Tonight.', 'sections': [['stocks', [['holdings', [row]]]]]})
+        self.assertIn('−¥12,503.00', native.render_block(['holdings', [row]], {}, DAY))
+        for bad in (row + [0.1], row + [0.1, 0.0, 'yes'], row + [-1, 0.0, False]):
+            with self.assertRaises(ValueError):
+                native.validate({'v': 2, 'greeting': 'Hi.', 'opening': 'Tonight.', 'sections': [['stocks', [['holdings', [bad]]]]]})
 
     def test_search_keeps_stocks_and_funds_but_not_indexes(self):
         self.assertEqual(stocks.search('x'), [{'symbol': 'sh600519', 'name': '贵州茅台'}, {'symbol': 'usBRK.B', 'name': 'Berkshire'}])

@@ -14,6 +14,7 @@ from pathlib import Path
 import sys
 import time
 import uuid
+from zoneinfo import ZoneInfo
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT/'src'))
@@ -112,7 +113,8 @@ EXPECTED = {'enable-paste': {'sh600519': (100, 1450), 'sz000001': (2000, 10.8), 
             'adjust-shares': {'sh600519': (150, 1450), 'usTSLA': (5, 250), 'usAAPL': (30, 180)},
             # Asked whether the list replaces or adds to the saved one, the user replaces it.
             'unclear-list': {'sh601318': (500, 48), 'usNVDA': (40, 95)}}
-SAVED = 'stock_report: "true"\nstock_holdings: "sh600519:100:1450, usTSLA:10:250, usAAPL:30:180"\n'
+# Moutai was stated on 1 September; the rest predate dated entries.
+SAVED = 'stock_report: "true"\nstock_holdings: "sh600519:100:1450@2026-09-01, usTSLA:10:250, usAAPL:30:180"\n'
 SCREEN = '''<html><body style="margin:0;font:15px system-ui,sans-serif;background:#f5f6f8;width:420px">
 <div style="background:#c8102e;color:#fff;padding:14px 16px;font-weight:600">{title}</div>
 <table style="width:100%;border-collapse:collapse;background:#fff">{rows}</table></body></html>'''
@@ -265,6 +267,7 @@ def run_chat(output, language, selected, scenario, now):
             time.sleep(3)
         raise TimeoutError('No settled reply within ten minutes')
 
+    started = datetime.now(ZoneInfo(zone)).date().isoformat()
     try:
         with context(language, selected):
             app.chats.start(body)
@@ -292,7 +295,13 @@ def run_chat(output, language, selected, scenario, now):
         saved = settings(runtime)
         result['settings'] = saved
         assert saved['stock_report'] == 'true', 'The section was not turned on'
-        assert stocks.holdings(saved['stock_holdings'] or '') == EXPECTED[scenario], 'Saved holdings differ: ' + repr(saved['stock_holdings'])
+        held = stocks.holdings(saved['stock_holdings'] or '')
+        assert {symbol: entry[:2] for symbol, entry in held.items()} == EXPECTED[scenario], 'Saved holdings differ: ' + repr(saved['stock_holdings'])
+        # An unchanged Moutai keeps its date; every other entry is new, changed or was undated, so it carries the account's today.
+        days = {started, datetime.now(ZoneInfo(zone)).date().isoformat()}
+        kept = scenario in ('update-trade', 'swap-several')
+        assert all(entry[2] == '2026-09-01' if kept and symbol == 'sh600519' else entry[2] in days for symbol, entry in held.items()), \
+            'Entries were not dated as expected: ' + repr(saved['stock_holdings'])
         first = next(i for i, turn in enumerate(result['turns']) if turn['settings'] != settings_before(before))
         assert any('answered' in turn or turn.get('followed_up') == confirm for turn in result['turns'][:first]), \
             'Holdings were saved before the user confirmed them'

@@ -343,6 +343,7 @@ html[data-edition="gn"] .holdings:lang(zh) { --gain: #f2928a; --loss: #7fd3a0; }
 .holding-copy h4.holding-name { margin: 0; font: 600 16px/1.4 ui-sans-serif, system-ui, sans-serif; overflow-wrap: anywhere; }
 .section-body .holding-detail, .section-body .holding-since { margin: 4px 0 0; font-size: 12px; line-height: 1.5; color: var(--muted); }
 .holding-detail > *, .holding-since > span, .holding-meta > span { white-space: nowrap; }
+.section-body .holding-note { margin: 6px 0 0; padding: 4px 10px; border-radius: 8px; background: var(--wash); font-size: 12px; line-height: 1.5; color: var(--ink); }
 .holding-paused { padding: 1px 7px; border-radius: 999px; background: var(--wash); color: var(--ink); white-space: nowrap; }
 .holding-change { display: grid; justify-items: end; flex-shrink: 0; text-align: right; }
 .holding-change .holding-amount { font-size: 16px; font-weight: 650; white-space: nowrap; }

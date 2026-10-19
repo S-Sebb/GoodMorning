@@ -240,11 +240,16 @@ def block(value, path):
                 fail(path, 'cover images require an HTTPS URL')
             text(row[6], path + '.cover', 2000, empty=True)
     elif tag == 'holdings':
-        # [symbol, name, session_date, shares, close, previous_close, cost_or_null, currency], copied from the stocks read.
+        # [symbol, name, session_date, shares, close, previous_close, cost_or_null, currency,
+        #  dividends_counted, dividend_today, shares_may_have_changed], copied from the stocks read.
+        # Briefings saved before dividends were counted end at currency.
         sequence(value, path, 2, 2)
         sequence(value[1], path + '.items', 1, 50)
         for row in value[1]:
-            sequence(row, path + '.row', 8, 8)
+            sequence(row, path + '.row', 8, 11)
+            if len(row) not in (8, 11) or len(row) == 11 and (
+                    any(type(cell) not in (int, float) or not 0 <= cell < 1e9 for cell in row[8:10]) or type(row[10]) is not bool):
+                fail(path, 'holding rows need dividend amounts and a share-change flag')
             if not isinstance(row[0], str) or not re.fullmatch(r'(?:sh|sz|bj)\d{6}|us[A-Z][A-Z0-9.-]{0,9}', row[0]):
                 fail(path, 'holding rows need an A-share or US symbol')
             text(row[1], path + '.name', 100)
@@ -634,14 +639,16 @@ def holdings_markup(rows, briefing_date):
         return 'is-up' if amount > 0.005 else 'is-down' if amount < -0.005 else 'is-flat'
 
     def price(amount):
-        return f'{amount:,.3f}' if round(amount * 1000) % 10 else f'{amount:,.2f}'
+        # At least two decimals; dividends may need four (¥2.5797).
+        text = f'{amount:,.4f}'.rstrip('0')
+        return text + '0' * (2 - len(text.partition('.')[2]))
 
     def count(amount):
         return f'{amount:,}' if type(amount) is int else f'{amount:,.4f}'.rstrip('0').rstrip('.')
 
     markets = []
     for currency, market in (('CNY', 'A-shares'), ('USD', 'US stocks')):
-        group = [row for row in rows if row[7] == currency]
+        group = [row + [0, 0, False][len(row) - 8:] for row in rows if row[7] == currency]
         if not group:
             continue
         money = '¥' if currency == 'CNY' else '$'
@@ -651,11 +658,11 @@ def holdings_markup(rows, briefing_date):
         costed = [row for row in group if row[6]]
         meta = ui.ui('Market value') + f' {money}{sum(row[4] * row[3] for row in group):,.2f}'
         if costed:
-            total = sum((row[4] - row[6]) * row[3] for row in costed)
+            total = sum((row[4] - row[6] + row[8]) * row[3] for row in costed)
             label = ui.ui('Total gain/loss') if len(costed) == len(group) else ui.ui('Total gain/loss ({count} with a cost)', count=len(costed))
             meta += f' · {label} <span class="{trend(total)}">{signed(total, money)}</span>'
         items = []
-        for symbol, name, day, shares, close, previous, cost, _ in group:
+        for symbol, name, day, shares, close, previous, cost, _, counted, today, changed in group:
             move = (close - previous) * shares
             detail = (f'<span>{escaped(symbol[2:])}</span> · {ui.ui("{shares} shares", shares=count(shares))} · '
                       f'{ui.ui("Close {price}", price=money + price(close))}')
@@ -663,8 +670,16 @@ def holdings_markup(rows, briefing_date):
                 detail += f' · <span class="holding-paused">{ui.ui("No trading")}</span>'
             since = ''
             if cost:
-                since = (f'<p class="holding-since">{ui.ui("Total")} <span class="{trend(close - cost)}">'
-                         f'{signed((close - cost) * shares, money)} ({signed((close - cost) / cost * 100, suffix="%")})</span></p>')
+                gain = close - cost + counted
+                since = (f'<p class="holding-since">{ui.ui("Total")} <span class="{trend(gain)}">'
+                         f'{signed(gain * shares, money)} ({signed(gain / cost * 100, suffix="%")})</span></p>')
+            notes = []
+            if today:
+                notes.append(ui.ui('Ex-dividend {amount}/share, counted in Total' if cost and counted >= today else 'Ex-dividend {amount}/share',
+                                   amount=money + price(today)))
+            if changed:
+                notes.append(ui.ui('Bonus or transfer shares may have changed your share count; tell your secretary your current shares'))
+            since += ''.join(f'<p class="holding-note">{note}</p>' for note in notes)
             items.append(f'<li class="holding-row"><div class="holding-copy"><h4 class="holding-name" data-content>{escaped(name)}</h4>'
                          f'<p class="holding-detail">{detail}</p>{since}</div><div class="holding-change {trend(move)}">'
                          f'<span class="holding-amount">{signed(move, money)}</span>'
