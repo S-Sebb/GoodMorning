@@ -1,6 +1,39 @@
 {
   "notes": [
     {
+      "version": "0.62.0",
+      "date": "2026-10-20",
+      "author": "GoodMorning agent",
+      "title_en": "Evening check-in pop-up 🌙",
+      "title_zh": "晚间回顾的小弹窗 🌙",
+      "changes": [
+        {
+          "category": "Changed",
+          "en": [
+            "After you prepare your evening briefing, your secretary checks in with a pop-up: first today's due tasks one at a time, then anything you finished early.",
+            "If you close the check-in, a card on the page lets you continue it later, and your answers so far are kept.",
+            "History conversations no longer show a mode badge on each row; titles and times are enough.",
+            "Your secretary uses your saved name less often, mostly in a first hello or a briefing's greeting."
+          ],
+          "zh": [
+            "准备晚报的时候，秘书会弹出来陪你回顾一下：先一件一件问你今天到期的待办，再问问有没有提前完成的事。",
+            "要是把回顾关掉了，页面上会留一张卡片，之后还能接着回顾，已经回答的内容也会留着。",
+            "历史对话的每一行不再显示模式标签了，有标题和时间就够啦。",
+            "秘书现在更少用你保存的称呼了，大多只在第一次打招呼，或者简报开头的问候里出现。"
+          ]
+        },
+        {
+          "category": "Removed",
+          "en": [
+            "The \"Progress on…\" boxes in the evening task check are gone; mention partial progress in the closing note instead."
+          ],
+          "zh": [
+            "晚间回顾里每个项目的「进展」小框已经去掉了；有做到一半的事，写在「其他补充」里就好。"
+          ]
+        }
+      ]
+    },
+    {
       "version": "0.61.0",
       "date": "2026-10-20",
       "author": "GoodMorning agent",
