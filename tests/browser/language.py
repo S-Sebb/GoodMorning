@@ -239,19 +239,25 @@ def run(artifacts):
                 new.goto('https://sec.language.test/gm.html');expect(new.get_by_role('button',name='准备我的早报')).to_be_visible()
                 no_overflow(new);new.screenshot(path=str(artifacts/'chinese-waiting-mobile.png'),full_page=True)
                 new.goto('https://sec.language.test/gn.html');new.get_by_role('button',name='准备我的晚报').click()
-                expect(new.get_by_role('heading',name='一起回顾一下今天')).to_be_visible()
-                expect(new.locator('.agent-form input[type=checkbox]')).to_have_count(0)
-                new.get_by_placeholder('写下今天的进展，或其他想补充的事……').fill('保留这份未提交的进展。')
+                checkin=new.get_by_role('dialog')
+                expect(checkin.get_by_role('heading',name='一起回顾一下今天')).to_be_visible()
+                expect(checkin.locator('input[type=checkbox]')).to_have_count(0)
+                checkin.get_by_placeholder('写下今天的进展，或其他想补充的事……').fill('保留这份未提交的进展。')
+                new.keyboard.press('Escape')
                 switch(new,'en')
-                expect(new.get_by_role('heading',name='一起回顾一下今天')).to_be_visible()
-                expect(new.get_by_placeholder('写下今天的进展，或其他想补充的事……')).to_have_value('保留这份未提交的进展。')
+                # Request text keeps its language; the dialog's own labels follow the website.
+                new.get_by_role('button',name='Continue check-in').click()
+                expect(checkin.get_by_role('heading',name='一起回顾一下今天')).to_be_visible()
+                expect(checkin.get_by_placeholder('写下今天的进展，或其他想补充的事……')).to_have_value('保留这份未提交的进展。')
+                expect(checkin.get_by_role('button',name='Save and write my briefing')).to_be_visible()
                 expect(new.locator('#request-language-note')).to_contain_text('Simplified Chinese')
+                new.keyboard.press('Escape')
                 # Recovery uses a stable action, not a translated button label.
                 switch(new,'zh-CN')
                 with new.expect_response(lambda response:response.url.endswith('/recover')) as recovered:
                     new.get_by_role('button',name='刷新任务列表',exact=True).click()
                 assert recovered.value.status==202
-                expect(new.get_by_role('heading',name='一起回顾一下今天')).to_be_visible()
+                expect(new.get_by_role('dialog').get_by_role('heading',name='一起回顾一下今天')).to_be_visible()
                 assert not errors,errors
                 assert page.evaluate('''() => localStorage.length === 0 && Object.entries(sessionStorage).every(([key,raw]) => {
                     if (!/^goodmorning\\.chat\\.workspace\\.[a-f0-9]{64}$/.test(key)) return false;

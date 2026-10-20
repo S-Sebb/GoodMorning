@@ -1,4 +1,4 @@
-"""Evening completion choices and adaptive empty state; synthetic data, no models."""
+"""Evening check-in dialog, its completion choices and the empty state; synthetic data, no models."""
 import json
 from pathlib import Path
 import subprocess
@@ -47,6 +47,8 @@ def fixture(root, scenario):
             (root/'daily'/f'{day}.gm.json').write_text(encode(
                 {'v':2,'greeting':'Morning.','opening':'Choices.','sections':[['tasks',[block]]]}))
             inbox.mutate('add', {'kind':'todo','raw':'Unshown backlog'},'ses_fixture','unshown',stamp(root))
+            inbox.mutate('add', {'kind':'todo','raw':'Planned errand','task':{'title':'Planned errand','planned_date':day}},
+                         'ses_fixture','planned',stamp(root))
         finally:
             inbox.close()
     serve_live(app,0)
@@ -59,94 +61,81 @@ def main():
     with sync_playwright() as p:
         browser = p.chromium.launch()
         for language,scenario in [('en','empty'),('en','tasks'),('zh-CN','empty'),('zh-CN','tasks')]:
-            copy = ({'title':'Let’s look back on today','empty':'How did today go?',
-                     'none':'None of these today.','extra':'Nothing else to add.',
-                     'empty_extra':'Nothing extra to add today.','other':'Other tasks',
-                     'future':'Future tasks (optional)','background':'Background',
-                     'placeholder':'Share any progress or updates…','send':'Send answer'} if language=='en' else
-                    {'title':'一起回顾一下今天','empty':'今天过得怎么样？',
-                     'none':'这些任务今天都还没做完','extra':'没有其他要补充的了',
-                     'empty_extra':'今天没有别的要补充了','other':'其他任务',
-                     'future':'以后要做的任务（可选）','background':'无固定日期',
-                     'placeholder':'写下今天的进展，或其他想补充的事……','send':'提交回答'})
-            with tempfile.TemporaryDirectory(dir='/tmp/opencode',prefix='gm-night-preflight-') as directory:
-                root = Path(directory)
-                (root/'profile.md').write_text('secretary_language: English\ntimezone: Europe/London\ncity: London, GB\nnews_country: GB\n')
-                (root/'website-language.json').write_text(json.dumps({'language':language}))
-                process = subprocess.Popen([sys.executable,__file__,'--serve',directory,scenario],
-                                           stdout=subprocess.PIPE,stderr=subprocess.PIPE,text=True)
-                address = process.stdout.readline().strip().removeprefix('Private live viewer: ')
-                try:
-                    for width in (390,1440):
+            copy = ({'title':'Let’s look back on today','empty':'How did today go?','not_done':'Not done',
+                     'early':'Anything finished early?','other':'Other tasks','next':'Next','close':'Close',
+                     'continue':'Continue check-in','save':'Save and write my briefing','open':'stays open'} if language=='en' else
+                    {'title':'一起回顾一下今天','empty':'今天过得怎么样？','not_done':'未完成',
+                     'early':'有提前完成的吗？','other':'其他任务','next':'接下来','close':'关闭',
+                     'continue':'继续回顾','save':'保存并写简报','open':'先留着'})
+            for width in (390,1440):
+                # Each viewport answers its own fresh job.
+                with tempfile.TemporaryDirectory(dir='/tmp/opencode',prefix='gm-night-preflight-') as directory:
+                    root = Path(directory)
+                    (root/'profile.md').write_text('secretary_language: English\ntimezone: Europe/London\ncity: London, GB\nnews_country: GB\n')
+                    (root/'website-language.json').write_text(json.dumps({'language':language}))
+                    process = subprocess.Popen([sys.executable,__file__,'--serve',directory,scenario],
+                                               stdout=subprocess.PIPE,stderr=subprocess.PIPE,text=True)
+                    address = process.stdout.readline().strip().removeprefix('Private live viewer: ')
+                    try:
                         page = browser.new_page(viewport={'width':width,'height':900},reduced_motion='reduce')
                         errors=[]; page.on('pageerror',lambda error:errors.append(str(error)))
                         page.goto(address+'/gn.html')
-                        if width == 390:
-                            page.locator('#generate').click()
+                        page.locator('#generate').click()
+                        # The check-in opens by itself in a modal dialog.
+                        dialog = page.get_by_role('dialog')
+                        expect(dialog).to_be_visible()
+                        expect(dialog.get_by_role('heading',name=copy['title'],exact=True)).to_be_visible()
                         expect(page.get_by_text('Past missing editions',exact=True)).to_have_count(0)
-                        expect(page.get_by_text('Continue today',exact=True)).to_have_count(0)
-                        expect(page.get_by_role('heading',name=copy['title'],exact=True)).to_be_visible()
                         if scenario == 'empty':
-                            expect(page.get_by_text(copy['empty'],exact=True)).to_be_visible()
-                            expect(page.get_by_text(copy['none'],exact=True)).to_have_count(0)
-                            expect(page.locator('input[type=checkbox]')).to_have_count(0)
-                            expect(page.get_by_text(copy['empty_extra'],exact=True)).to_be_visible()
+                            expect(dialog.get_by_text(copy['empty'],exact=True)).to_be_visible()
+                            expect(dialog.locator('.checkin-steps')).to_have_count(0)
+                            expect(dialog.locator('input[type=checkbox]')).to_have_count(0)
                         else:
-                            expect(page.get_by_text(f"Morning option · {copy['background']}",exact=True)).to_be_visible()
-                            expect(page.get_by_text('Unshown backlog',exact=True)).to_have_count(0)
-                            expect(page.get_by_text(copy['future'],exact=True)).to_be_visible()
-                            expect(page.get_by_text(copy['none'],exact=True)).to_have_count(0)
-                            expect(page.locator('.answer-project-group')).to_have_count(3)
-                            expect(page.locator('.answer-project-group > legend')).to_have_text(['Atlas','Paper <review>',copy['other']])
-                            atlas=page.get_by_role('group',name='Atlas',exact=True)
-                            paper=page.get_by_role('group',name='Paper <review>',exact=True)
-                            other=page.get_by_role('group',name=copy['other'],exact=True)
+                            expect(dialog.locator('.checkin-steps li')).to_have_count(3)
+                            expect(dialog.get_by_role('heading',name='Planned errand',exact=True)).to_be_visible()
+                            dialog.get_by_role('button',name=copy['not_done']).click()
+                            expect(dialog.get_by_text(copy['early'],exact=True)).to_be_visible()
+                            expect(dialog.get_by_text('Unshown backlog',exact=True)).to_have_count(0)
+                            expect(dialog.locator('.checkin-group h4')).to_have_text(['Atlas','Paper <review>',copy['other']])
+                            expect(dialog.locator('.checkin-group img')).to_have_count(0)
+                            atlas=dialog.locator('.checkin-group').nth(0); paper=dialog.locator('.checkin-group').nth(1)
                             expect(atlas.get_by_role('checkbox')).to_have_count(2)
-                            expect(other.get_by_text(f"Morning option · {copy['background']}",exact=True)).to_be_visible()
-                            expect(page.locator('.answer-project-group img')).to_have_count(0)
-                            expect(page.locator('.answer-project-group').get_by_text(copy['none'],exact=True)).to_have_count(0)
-                            atlas.get_by_role('checkbox',name=f"Review results · {copy['background']}",exact=True).check()
-                            paper.get_by_role('checkbox',name=f"Review results · {copy['background']}",exact=True).check()
+                            expect(dialog.locator('.checkin-group').nth(2).get_by_text('Morning option',exact=True)).to_be_visible()
+                            atlas.get_by_role('checkbox',name='Review results',exact=True).check()
+                            paper.get_by_role('checkbox',name='Review results',exact=True).check()
+                            # Polling and closing keep answers; the page offers a way back in.
                             page.evaluate('poll()')
-                            expect(atlas.get_by_role('checkbox',name=f"Review results · {copy['background']}",exact=True)).to_be_checked()
-                            expect(paper.get_by_role('checkbox',name=f"Review results · {copy['background']}",exact=True)).to_be_checked()
-                        updates=page.get_by_placeholder(copy['placeholder'],exact=True)
-                        no_extra=page.get_by_role('radio',name=copy['empty_extra'] if scenario=='empty' else copy['extra'],exact=True)
-                        assert updates.evaluate('node => Boolean(node.compareDocumentPosition(node.parentElement.querySelector(".answer-option")) & Node.DOCUMENT_POSITION_FOLLOWING)')
-                        no_extra.check()
-                        updates.fill('A little progress to share.' if language=='en' else '今天又推进了一点。')
-                        expect(no_extra).not_to_be_checked()
-                        no_extra.check()
-                        expect(updates).to_have_value('')
-                        updates.fill('Some work is still in progress.' if language=='en' else '有些事情还在继续做。')
-                        expect(no_extra).not_to_be_checked()
-                        page.evaluate('poll()')
-                        expect(updates).not_to_be_empty()
+                            dialog.get_by_role('button',name=copy['close']).click()
+                            expect(dialog).to_be_hidden()
+                            page.get_by_role('button',name=copy['continue']).click()
+                            expect(atlas.get_by_role('checkbox',name='Review results',exact=True)).to_be_checked()
+                            expect(paper.get_by_role('checkbox',name='Review results',exact=True)).to_be_checked()
+                            dialog.get_by_role('button',name=copy['next']).click()
+                            expect(dialog.locator('.checkin-summary')).to_contain_text('Planned errand · '+copy['open'])
                         assert not page.evaluate('document.documentElement.scrollWidth>innerWidth')
-                        assert not errors, errors
                         if artifacts:
-                            page.screenshot(path=str(artifacts/f'{language}-{scenario}-{width}.png'),full_page=True)
-                        if width == 1440:
-                            no_extra.check()
-                            with page.expect_response(lambda response:'/form/' in response.url and response.request.method=='POST') as receipt:
-                                page.get_by_role('button',name=copy['send']).click()
-                            assert receipt.value.ok
-                            jobs=json.loads((root/'browser-jobs/jobs.json').read_text())
-                            job=next(j for j in jobs.values() if j['kind']=='gn')
-                            context=json.loads((root/'browser-jobs'/(job['id']+'.context.json')).read_text())
-                            assert context['feedback']['saved']
-                            assert context['feedback']['completed']==(['Review results','Review results'] if scenario=='tasks' else [])
-                            if scenario=='tasks':
-                                selected=[t for t in context['feedback_tasks'] if t['done']]
-                                assert len({t['task_id'] for t in selected})==2
+                            page.screenshot(path=str(artifacts/f'{language}-{scenario}-{width}.png'))
+                        with page.expect_response(lambda response:'/form/' in response.url and response.request.method=='POST') as receipt:
+                            dialog.get_by_role('button',name=copy['save']).click()
+                        assert receipt.value.ok
+                        expect(page.locator('dialog.checkin')).to_have_count(0)
+                        assert not errors, errors
+                        jobs=json.loads((root/'browser-jobs/jobs.json').read_text())
+                        job=next(j for j in jobs.values() if j['kind']=='gn')
+                        context=json.loads((root/'browser-jobs'/(job['id']+'.context.json')).read_text())
+                        assert context['feedback']['saved']
+                        assert context['feedback']['completed']==(['Review results','Review results'] if scenario=='tasks' else [])
+                        if scenario=='tasks':
+                            assert context['browser_answer']['completed']==['none']
+                            selected=[t for t in context['feedback_tasks'] if t['done']]
+                            assert len({t['task_id'] for t in selected})==2
                         page.close()
-                finally:
-                    process.terminate();process.communicate(timeout=5)
+                    finally:
+                        process.terminate();process.communicate(timeout=5)
         browser.close()
-    print(json.dumps({'morning_choices':'pass','project_groups':'pass','unassigned_group':'last','selection_during_poll':'preserved',
-                      'text_box_above_no_extra_choice':True,'text_and_no_extra_choice':'mutually exclusive',
-                      'languages':['en','zh-CN'],'archive_gap_question':'absent','adaptive_empty_state':'pass',
-                      'feedback_save':'pass','viewports':2,'model_calls':0}))
+    print(json.dumps({'opens_as_dialog':'pass','due_step':'pass','project_groups':'pass','unassigned_group':'last',
+                      'answers_kept_after_poll_and_close':True,'not_done_stays_open':'pass','languages':['en','zh-CN'],
+                      'archive_gap_question':'absent','adaptive_empty_state':'pass','feedback_save':'pass','viewports':2,'model_calls':0}))
 
 
 if __name__ == '__main__':

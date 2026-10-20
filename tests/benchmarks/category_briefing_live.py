@@ -116,10 +116,6 @@ def run(output, template, language, kind, selected=None):
                       'details': t('Bought nothing yet; the ointment is still on my list.', '软膏还没买，明天再去。')}
             if 'completed_longterm' in keys:
                 answer['completed_longterm'] = []
-            for field in form['fields']:
-                if field['key'].startswith('progress_'):
-                    answer[field['key']] = (t('Tried two deblurring kernels; the second looks better.', '试了两个去模糊卷积核，第二个效果更好。')
-                                            if field['project'] == 'MRHarmon' else '')
             result['form_fields'] = sorted(keys)
             result['form_today'] = [o['label'] for f in form['fields'] if f['key'] == 'completed' for o in f['options']]
             result['form_future'] = [o['label'] for f in form['fields'] if f['key'] == 'completed_longterm' for o in f['options']]
