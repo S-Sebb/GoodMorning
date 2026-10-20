@@ -191,6 +191,8 @@ def check_layouts(browser, address, artifacts):
           return meta.top >= title.bottom && meta.bottom <= box.bottom - 6;
         })''')
         assert all(rows), 'History titles or subtitles overlap their row borders'
+        badges = page.locator('#chat-history .history-meta [data-ui-text]:not(.history-current)').all_inner_texts()
+        assert badges == ['Eureka', 'To-do', 'Eureka', 'To-do'], badges
         for edition, scheme in (('gm', 'classic'), ('gm', 'warm'), ('gn', 'classic'), ('gn', 'parchment')):
             page.evaluate('''([edition, scheme]) => {
               clearTimeout(themeTimer); document.documentElement.dataset.edition = edition;

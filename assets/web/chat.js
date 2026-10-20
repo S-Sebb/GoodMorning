@@ -768,8 +768,9 @@ async function fetchHistoryList() {
       const fresh = make('small', chatT('New'), 'history-new'); fresh.dataset.uiText = 'New';
       meta.append(fresh); link.classList.add('is-unread');
     }
-    // A title still waiting for its summary is the mode name; don't repeat it.
-    if (item.title !== chatT(label)) meta.append(badge);
+    // Secretary is the default mode, so only other modes are labelled. A title
+    // still waiting for its summary is the mode name; don't repeat it.
+    if (item.mode !== 'secretary' && item.title !== chatT(label)) meta.append(badge);
     if (typeof item.created === 'number') {
       const started = new Date(item.created * 1000);
       const when = make('small', new Intl.DateTimeFormat(document.documentElement.lang || 'en', {timeZone: chatConfig.timezone || undefined,
