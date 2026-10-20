@@ -25,8 +25,8 @@ TEXT = {
             'in the saved tone, not a repeat of the cards. `results` holds this section\'s reads, already run for you (command, exit, '
             'output); do not run them again unless this guide says so. Before submitting, check every sentence against `writing`. '),
   'init': ('Submit {"greeting":"…","opening":"…"} (each ≤350 chars, plain text); do not send plan or lang. Greeting is short, '
-           'in the saved tone; if `reply_context.user_name` is set, address the user by exactly that name, otherwise greet '
-           'unnamed. The opening may mention only these sections: SECTIONS. Say what will be reviewed, not findings.'),
+           'in the saved tone. If `reply_context.user_name` is set, the greeting may call the user by exactly that name, or by none; '
+           'it is the only place in the briefing for the name, so never use it in the opening, notes or progress. The opening may mention only these sections: SECTIONS. Say what will be reviewed, not findings.'),
   'regenerating': (' This is an explicitly authorized replacement, not a duplicate run: reuse saved feedback and current records; '
                    'do not replay task, daily, inbox, project or calendar writes, and ask nothing already answered.'),
   'weather': ('On a successful read use one block ["weather",[[type,value,detail],...]] with types in order temperature, '
@@ -131,7 +131,7 @@ TEXT = {
   'shape': ('提交填好占位符的 `input`：BLOCKS 是块的列表，例如 [["p","……"]]；没有注记时 NOTE 填 ""；不要改动其中的位置、类型和标题。'
             '只用纯文本（不用 Markdown/HTML）。注记是用保存语气写的简短、有依据的要点，不要复述卡片。`results` 里是本章节已替你运行好的读取结果（command、exit、output）；除非本指南要求，不要再次运行。'
             '提交前逐句对照 `writing` 检查。'),
-  'init': ('提交 {"greeting":"…","opening":"…"}（各不超过 350 字，纯文本），不要传 plan 或 lang。问候简短、符合保存的语气；若 `reply_context.user_name` 有值，就用这个称呼原样称呼用户，否则不带称呼。'
+  'init': ('提交 {"greeting":"…","opening":"…"}（各不超过 350 字，纯文本），不要传 plan 或 lang。问候简短、符合保存的语气；若 `reply_context.user_name` 有值，问候里可以原样用这个称呼，也可以不称呼；整份简报只有问候可以出现这个称呼，开场、注记和进度里都不要用。'
            '开场只能提及这些章节：SECTIONS。说明将要回顾的内容，不要提前给出结果。'),
   'regenerating': '这是经明确授权的重新生成，不是重复运行：沿用已保存的反馈和当前记录；不要重放任务、日记、收件箱、项目或日历写入，也不要再问已回答的问题。',
   'weather': ('读取成功时用一个块 ["weather",[[type,value,detail],...]]，type 依次为 temperature、precipitation、warning（仅适用时）、air。'

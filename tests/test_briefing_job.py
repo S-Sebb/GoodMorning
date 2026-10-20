@@ -12,6 +12,7 @@ from unittest.mock import patch
 from support import TEMP_ROOT, FakeChamber, complete_profile
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'src'))
 from goodmorning.briefings.briefing_job import act, context_path, decode_input, next_step
+from goodmorning.briefings import briefing_guides
 from goodmorning.briefings.briefing_preflight import answer, initialize
 from goodmorning.web.briefing_server import BrowserApp
 from goodmorning.briefings.briefing_stream import load
@@ -57,6 +58,12 @@ class JobTests(unittest.TestCase):
         initialize(self.root,self.job)
         result=act(self.root,self.identifier,'ses_fixture','prepare')
         self.assertEqual(result['reply_context']['user_name'],'Sam')
+        for language,optional,only in (('en','or by none','never use it in the opening, notes or progress'),
+                                       ('zh-CN','也可以不称呼','开场、注记和进度里都不要用')):
+            guide=briefing_guides.guide({'date':'2026-10-20','website_language':language},{'action':'init'},[],
+                                        runtime=self.root,job='j'*32,session='ses_fixture')
+            self.assertIn(optional,guide)  # The name is optional and limited to the greeting.
+            self.assertIn(only,guide)
 
     def test_owner_and_prepared_context_are_code_owned(self):
         with self.assertRaises(ValueError): act(self.root,self.identifier,'ses_other','prepare')
