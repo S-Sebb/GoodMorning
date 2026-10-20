@@ -753,6 +753,17 @@ def main():
                     expect(page.locator('#conversation-history')).to_be_visible()
                     expect(page.locator('#conversation-history summary')).to_have_count(0)
                     assert page.locator('#chat-history a').count() > 0
+                    # Every chat continues as Secretary, so summarized history rows carry no mode badge.
+                    def summarized(route):
+                        listing = route.fetch().json()
+                        for item, mode in zip(listing['chats'], ('secretary', 'todo', 'eureka', 'initialize')):
+                            item.update(mode=mode, title='Summarized ' + mode)
+                        route.fulfill(json=listing)
+                    page.route('**/api/chats', lambda route: summarized(route) if route.request.method == 'GET' else route.fallback())
+                    page.reload()
+                    expect(page.locator('#chat-history .history-title').first).to_have_text('Summarized secretary')
+                    expect(page.locator('#chat-history .history-meta small:not([class])')).to_have_count(0)
+                    page.unroute('**/api/chats')
                     assert page.evaluate("localStorage.length === 0 && Object.values(sessionStorage).every(raw => !raw.includes('Synthetic idea'))")
                     assert not errors, errors
                     assert not page.evaluate('document.documentElement.scrollWidth > innerWidth')
