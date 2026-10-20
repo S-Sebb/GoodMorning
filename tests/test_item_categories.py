@@ -451,7 +451,7 @@ class CategoryTests(unittest.TestCase):
         nextyear = routing.prepare(self.root, '2027-10-13', 'gm')['schedule']['items']
         self.assertEqual([i['subject'] for i in nextyear], ["Mum's birthday"])
 
-    def test_due_deadline_is_a_required_night_check_and_steps_get_progress_notes(self):
+    def test_due_deadline_is_a_required_night_check_and_steps_are_early_choices(self):
         due = self.capture(title='Submit council form', due_date=DAY)
         later = self.capture(title='Book flights', due_date='2026-10-30')
         step = self.capture(title='Fix blur correction', project='MRHarmon', due_date='2026-12-31', due_soft=True)
@@ -461,19 +461,22 @@ class CategoryTests(unittest.TestCase):
             {'v': 2, 'greeting': 'Hello.', 'opening': 'Synthetic.', 'sections': [['tasks', [block]]]}))
         job = {'id': 'c'*32, 'date': DAY, 'kind': 'gn', 'state': 'preflight'}
         context = preflight(self.root, job)
+        self.assertTrue(context['form']['checkin'])
         fields = {f['key']: f for f in context['form']['fields']}
-        today = {o['value']: o['label'] for o in fields['completed']['options']}
-        self.assertEqual(today[occurrence_id(due, DAY)], 'Submit council form · ' + ui.text('Due: {date}', date=ui.day_text(DAY)))
-        future = [o['value'] for o in fields['completed_longterm']['options']]
+        self.assertEqual(set(fields), {'completed', 'completed_longterm', 'details'})
+        today = {o['value']: o for o in fields['completed']['options']}
+        self.assertEqual((today[occurrence_id(due, DAY)]['label'], today[occurrence_id(due, DAY)]['description']),
+                         ('Submit council form', ui.text('Due: {date}', date=ui.day_text(DAY))))
+        future = {o['value']: o for o in fields['completed_longterm']['options']}
         self.assertEqual(set(future), {occurrence_id(later, DAY), occurrence_id(step, DAY)})
-        self.assertEqual((fields['progress_1']['project'], fields['progress_1']['required']), ('MRHarmon', False))
-        result = answer(self.root, job, {'completed': [occurrence_id(due, DAY)], 'completed_longterm': [],
-                                         'progress_1': 'Tested two kernels.', 'details': 'No other updates'})
-        self.assertEqual(result['feedback']['progress'], ['Progress on MRHarmon: Tested two kernels.'])
+        self.assertEqual((future[occurrence_id(step, DAY)]['label'], future[occurrence_id(step, DAY)]['group']),
+                         ('Fix blur correction', 'MRHarmon'))
+        result = answer(self.root, job, {'completed': [occurrence_id(due, DAY)], 'completed_longterm': [occurrence_id(step, DAY)],
+                                         'details': 'No other updates'})
+        self.assertEqual(result['feedback']['completed'], ['Submit council form', 'Fix blur correction'])
         self.assertEqual(self.tasks.show(due)['status'], 'done')
-        self.assertEqual(self.tasks.show(step)['status'], 'open')
-        self.assertIn('Progress on MRHarmon: Tested two kernels.', (self.root/'daily'/f'{DAY}.md').read_text())
-
+        self.assertEqual(self.tasks.show(step)['status'], 'done')
+        self.assertEqual(self.tasks.show(later)['status'], 'open')
 
 if __name__ == '__main__':
     unittest.main()

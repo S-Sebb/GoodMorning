@@ -59,7 +59,7 @@ restoration.
 | `image_refresh` | Late cached images refresh a news preview without rewriting its text |
 | `initialization`, `setup_pending` | Localized initialize start; readable gateway failures on all layouts |
 | `language` | Bilingual flow through the real gateway |
-| `night_preflight` | Evening completion choices and the empty state |
+| `night_preflight` | Evening check-in dialog: due-today answers, early finishes by project, reopening, and the empty state |
 | `schedule` (`--canonical`) | Schedule tab with v2 tasks, statuses and TBC items; refresh, Chinese, mobile, source failures, no JavaScript |
 | `scroll_rails` | Phone scroll rails on all four tabs, drag, keyboard control, drafts |
 | `taxonomy` (`--screenshots DIR`) | v2 renderer at desktop and phone widths, English and Chinese |

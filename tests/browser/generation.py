@@ -54,22 +54,27 @@ def check_recovery(browser, artifacts):
             expect(page.locator('#generation-status')).not_to_contain_text('In queue')
             page.unroute('**/api/queue')
             daily.write_text(daily.read_text()+'- [ ] New user task\n')
+            # The check-in dialog covers the page; closing it reaches the refresh, which reopens it.
+            page.keyboard.press('Escape')
             page.get_by_role('button',name='Refresh task list').click()
-            expect(page.get_by_text('New user task',exact=True)).to_be_visible()
+            dialog=page.get_by_role('dialog')
+            expect(dialog.get_by_text('Original task',exact=True)).to_be_visible()
             assert not (root/'sends').exists()
-            page.get_by_text('None of these today.',exact=True).click()
-            page.get_by_text('Nothing else to add.',exact=True).click()
+            dialog.get_by_role('button',name='Not done').click()
+            expect(dialog.get_by_text('New user task',exact=True)).to_be_visible()
+            dialog.get_by_role('button',name='Not done').click()
             job=json.loads((root/'browser-jobs/jobs.json').read_text())[date+'.gn']['id']
             form=json.loads((root/'browser-jobs'/(job+'.context.json')).read_text())['form']['id']
             reply=f'/api/jobs/{job}/form/{form}/reply'
             queued={'queue':[{'work':'reply','job':job,'position':1}], 'depth':1}
             page.route('**/api/queue',lambda route:route.fulfill(json=queued))
             page.route('**'+reply,lambda route:route.fulfill(status=202,json={'queued':True,'job':job,'position':1,'depth':1}),times=1)
-            page.get_by_role('button',name='Send answer').click()
+            dialog.get_by_role('button',name='Save and write my briefing').click()
             expect(page.locator('#generation-status')).to_contain_text('In queue')
+            expect(page.locator('dialog.checkin')).to_have_count(0)
             page.reload()
             expect(page.locator('#generation-status')).to_contain_text('In queue')
-            expect(page.get_by_role('button',name='Send answer')).to_have_count(0)
+            expect(page.get_by_role('dialog')).to_have_count(0)
             assert not (root/'sends').exists()
             csrf=json.loads(page.locator('#browser-config').get_attribute('data-config'))['csrf']
             receipt=page.request.post(address+reply,data={'answer':{'completed':['none'],'details':'No other updates'}},

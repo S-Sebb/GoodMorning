@@ -128,26 +128,20 @@ def initialize(runtime, job, previous=None):
         _token = ui.CURRENT.set(selected)
         try:
             from goodmorning.web.language import day_text as _day_text
-            _labels = {}
+            # Dates travel as option descriptions so the check-in never parses titles.
+            _notes = {}
             for _t in today_tasks:
                 if _t.get('due_now'):
-                    _labels[_t['id']] = f"{_t['text']} · {ui.text('Due: {date}', date=_day_text(_t['due_now']), lang=selected)}"
+                    _notes[_t['id']] = ui.text('Due: {date}', date=_day_text(_t['due_now']), lang=selected)
                 elif _t.get('actual'):
                     # Overdue: show original workday, not today.
                     _dates = [d for d in _orig_dates(_t['task_id']) if d]
                     if _dates:
-                        _labels[_t['id']] = f"{_t['text']} · {_day_text(min(_dates))}"
-                    else:
-                        _labels[_t['id']] = _t['text']
-                else:
-                    _labels[_t['id']] = _t['text']
+                        _notes[_t['id']] = _day_text(min(_dates))
             for _t in longterm_tasks:
                 _dates = [d for d in _orig_dates(_t['task_id']) if d]
                 if _dates:
-                    _suffix = ', '.join(_day_text(d) for d in _dates)
-                    _labels[_t['id']] = f"{_t['text']} · {_suffix}"
-                else:
-                    _labels[_t['id']] = f"{_t['text']} · {ui.text('Background', lang=selected)}"
+                    _notes[_t['id']] = ', '.join(_day_text(d) for d in _dates)
         finally:
             ui.CURRENT.reset(_token)
         # Keep project order stable, with unassigned work after every named project.
@@ -162,22 +156,15 @@ def initialize(runtime, job, previous=None):
                     {'key':'completed','title':'What did you finish today?','type':'multiselect','required':True,
                      'minItems':1,'description':'Tick anything you fully finished. If something is still in progress, leave it unticked—you can tell me about it below.',
                      'options':[{'value':'none','label':'None of these today.'}]+[
-                         {'value':t['id'],'label':_labels[t['id']],'group':t.get('project') or ui.text('Other tasks',lang=selected)} for t in today_tasks]})
+                         {'value':t['id'],'label':t['text'],'group':t.get('project') or ui.text('Other tasks',lang=selected),
+                          **({'description':_notes[t['id']]} if t['id'] in _notes else {})} for t in today_tasks]})
             if longterm_tasks:
                 fields.append(
                     {'key':'completed_longterm','title':'Future tasks (optional)','type':'multiselect','required':False,
                      'description':'Only tick if fully done early.',
                      'options':[
-                         {'value':t['id'],'label':_labels[t['id']],'group':t.get('project') or ui.text('Other tasks',lang=selected)} for t in longterm_tasks]})
-            # Project steps get a progress note, not a verdict: they are rarely finished in one day.
-            projects = []
-            for _t in longterm_tasks:
-                if _t.get('category') == 'project' and _t.get('project') and _t['project'] not in projects:
-                    projects.append(_t['project'])
-            for index, name in enumerate(projects[:3], 1):
-                fields.append({'key':'progress_'+str(index),'project':name,'type':'string','required':False,
-                               'title':ui.text('Progress on {project} (optional)',project=name,lang=selected),
-                               'placeholder':'What moved forward, or what got in the way?'})
+                         {'value':t['id'],'label':t['text'],'group':t.get('project') or ui.text('Other tasks',lang=selected),
+                          **({'description':_notes[t['id']]} if t['id'] in _notes else {})} for t in longterm_tasks]})
             fields.append(
                 {'key':'details','title':'Anything else you’d like to share?','type':'string','required':True,
                  'custom':True,'customFirst':True,'placeholder':'Share any progress or updates…',
@@ -191,14 +178,14 @@ def initialize(runtime, job, previous=None):
     context['awaiting'] = bool(fields)
     for field in fields:
         for key in ('title','description','placeholder'):
-            if key in field and not (key == 'title' and 'project' in field):  # Project titles are filled in already.
+            if key in field:
                 field[key]=ui.text(field[key],lang=selected)
         for option in field.get('options',[]):
             if option['value'] in ('today','stop','none','No other updates','No updates today'):option['label']=ui.text(option['label'],lang=selected)
     revision = '_'+str(job['preflight_revision']) if job.get('preflight_revision') else ''
     context['form'] = {'id':'preflight_'+job['id']+revision,
                        'title':ui.text('Let’s look back on today' if job['kind']=='gn' else 'Before your briefing',lang=selected),
-                       'fields':fields} if fields else None
+                       'fields':fields, **({'checkin':True} if job['kind']=='gn' else {})} if fields else None
     write(context_path(runtime, job['id']), context)
     return context
 
@@ -282,6 +269,7 @@ def answer(runtime, job, value):
             raise ValueError('Give actual details or choose the no-updates option')
         details = one_line(details)
         progress = []
+        # Only forms prepared before project progress notes were removed still ask them.
         for field in context['form']['fields']:
             if field['key'].startswith('progress_'):
                 note = value[field['key']]

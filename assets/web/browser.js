@@ -198,7 +198,169 @@ async function pollRegenerationQueue() {
 }
 
 function questionForm(info) {
+  if (info.checkin) return nightCheckin(info);
   return secretaryQuestion(info, replyToAgent, refreshAnswers, briefingRequestLanguage);
+}
+
+// The evening check-in asks one plain question per due item, then shows every
+// not-yet-due item at once. Answers map onto the unchanged preflight form.
+const checkinStates = new Map();
+const checkinOpened = new Set();
+const checkinDialogs = new Map();
+// A refreshed task list or a queued reply replaces the form; its dialog must go too.
+function pruneCheckins(keep) {
+  for (const [id, dialog] of checkinDialogs) if (!keep.includes(id)) { dialog.remove(); checkinDialogs.delete(id); }
+}
+function nightCheckin(info) {
+  const make = element, t = browserT;
+  const field = key => info.fields.find(item => item.key === key);
+  const due = field('completed'), early = field('completed_longterm'), details = field('details');
+  const dueItems = due ? due.options.filter(option => option.value !== 'none') : [];
+  const steps = [dueItems.length && 'due', early && 'early', 'details'].filter(Boolean);
+  if (!checkinStates.has(info.id)) checkinStates.set(info.id, { step: 0, index: 0, verdicts: {}, early: new Set(), text: '' });
+  const state = checkinStates.get(info.id);
+
+  const launcher = make('section', '', 'agent-form checkin-launcher');
+  const open = make('button', '', 'checkin-primary'); open.type = 'button';
+  launcher.append(make('h2', t('Your secretary is waiting for you')),
+    make('p', t('Answer a few quick questions about today, then your secretary writes your briefing.')), open);
+  // The dialog lives outside the polled question area so a refresh cannot remove it mid-answer.
+  if (!checkinDialogs.has(info.id)) {
+    const created = make('dialog', '', 'checkin'); created.setAttribute('aria-label', info.title);
+    document.body.append(created); checkinDialogs.set(info.id, created);
+  }
+  const dialog = checkinDialogs.get(info.id);
+  open.addEventListener('click', () => dialog.showModal());
+  dialog.onclose = () => { open.textContent = t('Continue check-in'); };
+  dialog.onkeydown = event => {
+    if (steps[state.step] !== 'due' || event.ctrlKey || event.metaKey || event.altKey) return;
+    if (event.key === 'y') answer(true); else if (event.key === 'n') answer(false);
+  };
+
+  function answer(done) {
+    state.verdicts[dueItems[state.index].value] = done;
+    const next = dueItems.findIndex(option => !(option.value in state.verdicts));
+    dialog.querySelector('.checkin-card')?.classList.add(done ? 'is-done' : 'is-not-done');
+    setTimeout(() => { if (next < 0) { state.step++; state.index = 0; } else state.index = next; render(); }, 260);
+  }
+  function wins() {
+    const done = dueItems.filter(option => state.verdicts[option.value]);
+    const notDone = dueItems.filter(option => state.verdicts[option.value] === false);
+    const earlyDone = early ? early.options.filter(option => state.early.has(option.value)) : [];
+    return { done, notDone, earlyDone };
+  }
+  function footer(...buttons) { const row = make('div', '', 'checkin-footer'); row.append(...buttons); return row; }
+  function button(text, action, primary) {
+    const node = make('button', text, primary ? 'checkin-primary' : 'checkin-secondary'); node.type = 'button';
+    node.addEventListener('click', action); return node;
+  }
+  function back() { return state.step ? button(t('Back'), () => { state.step--; state.index = 0; render(); }) : make('span'); }
+
+  function render() {
+    const body = [];
+    const head = make('header', '', 'checkin-head');
+    const close = make('button', '×', 'checkin-close'); close.type = 'button'; close.setAttribute('aria-label', t('Close'));
+    close.addEventListener('click', () => dialog.close());
+    const avatar = document.querySelector('img[src*="desk-secretary"][src*="profile"]');
+    if (avatar) { const image = avatar.cloneNode(); image.className = 'checkin-avatar'; image.alt = ''; head.append(image); }
+    head.append(make('h2', info.title), close);
+    const stepper = make('ol', '', 'checkin-steps');
+    const names = { due: t('Due today'), early: t('Finished early?'), details: t('Anything else') };
+    steps.forEach((name, index) => {
+      const item = make('li', names[name]);
+      if (index === state.step) item.setAttribute('aria-current', 'step'); else if (index < state.step) item.className = 'is-past';
+      stepper.append(item);
+    });
+    body.push(head);
+    if (steps.length > 1) body.push(stepper);
+    const step = steps[state.step];
+    const { done, notDone, earlyDone } = wins();
+    if (step === 'due') {
+      const option = dueItems[state.index];
+      body.push(make('p', dueItems.length === 1 ? t('One thing was planned for today. Did you get it done?')
+        : t('{count} things were planned for today. Did you get each one done?', { count: dueItems.length }), 'checkin-lead'));
+      const card = make('div', '', 'checkin-card');
+      card.append(make('p', t('{index} of {total}', { index: state.index + 1, total: dueItems.length }), 'checkin-eyebrow'), make('h3', option.label));
+      if (option.description) card.append(make('p', option.description, 'checkin-meta'));
+      const choices = make('div', '', 'checkin-verdict');
+      const no = button(t('Not done'), () => answer(false)), yes = button(t('Done'), () => answer(true), true);
+      no.append(make('kbd', 'N')); yes.append(make('kbd', 'Y'));
+      if (state.verdicts[option.value] === true) yes.setAttribute('aria-pressed', 'true');
+      if (state.verdicts[option.value] === false) no.setAttribute('aria-pressed', 'true');
+      choices.append(no, yes); card.append(choices); body.push(card);
+      const answered = make('ul', '', 'checkin-answered');
+      dueItems.forEach((item, index) => {
+        if (!(item.value in state.verdicts) || index === state.index) return;
+        const row = make('li', '', state.verdicts[item.value] ? 'is-done' : 'is-not-done');
+        const change = button(item.label, () => { state.index = index; render(); });
+        change.prepend(make('span', state.verdicts[item.value] ? '✓' : '–', 'checkin-mark'));
+        row.append(change); answered.append(row);
+      });
+      body.push(answered);
+      setTimeout(() => dialog.querySelector('.checkin-verdict .checkin-primary')?.focus(), 0);
+    } else if (step === 'early') {
+      body.push(make('h3', t('Anything finished early?'), 'checkin-title'),
+        make('p', t('None of these are due yet. Tick only what is completely done. Everything else simply stays open.'), 'checkin-lead'));
+      const board = make('div', '', 'checkin-board');
+      const groups = new Map();
+      for (const option of early.options) {
+        const name = option.group || t('Other tasks');
+        if (!groups.has(name)) { const group = make('section', '', 'checkin-group'); group.append(make('h4', name)); groups.set(name, group); board.append(group); }
+        const item = make('label', '', 'checkin-item');
+        const box = make('input'); box.type = 'checkbox'; box.checked = state.early.has(option.value);
+        box.addEventListener('change', () => { box.checked ? state.early.add(option.value) : state.early.delete(option.value); count.textContent = earlyCount(); });
+        const text = make('span', option.label); if (option.description) text.append(make('small', option.description));
+        item.append(box, text); groups.get(name).append(item);
+      }
+      const earlyCount = () => state.early.size ? t('{count} finished early', { count: state.early.size }) : t('Nothing finished early. That’s fine.');
+      const count = make('span', earlyCount(), 'checkin-count');
+      body.push(board, footer(back(), count, button(t('Next'), () => { state.step++; render(); }, true)));
+    } else {
+      body.push(make('h3', details.title, 'checkin-title'));
+      if (details.description) body.push(make('p', details.description, 'checkin-lead'));
+      const text = make('textarea'); text.value = state.text; text.placeholder = details.placeholder || '';
+      text.setAttribute('aria-label', details.title);
+      text.addEventListener('input', () => { state.text = text.value; });
+      body.push(text);
+      const total = done.length + earlyDone.length;
+      if (steps.length > 1) {
+        const summary = make('div', '', 'checkin-summary');
+        summary.append(make('p', total ? t('{count} done today', { count: total }) : t('A quiet day. Thanks for checking in.'), 'checkin-total'));
+        const list = make('ul');
+        for (const option of done) list.append(make('li', '✓ ' + option.label, 'is-done'));
+        for (const option of earlyDone) list.append(make('li', '★ ' + option.label, 'is-early'));
+        for (const option of notDone) list.append(make('li', '– ' + option.label + ' · ' + t('stays open'), 'is-not-done'));
+        summary.append(list); body.push(summary);
+      }
+      const error = make('p', '', 'checkin-error'); error.setAttribute('role', 'alert');
+      const save = button(t('Save and write my briefing'), async () => {
+        // Forms saved before project progress notes were removed still list them; send them empty.
+        const answer = Object.fromEntries(info.fields.map(item => [item.key, '']));
+        answer.details = state.text.trim() || details.options[0].value;
+        if (due) answer.completed = done.length ? done.map(option => option.value) : ['none'];
+        if (early) answer.completed_longterm = earlyDone.map(option => option.value);
+        save.disabled = true;
+        try {
+          const result = await replyToAgent('form', info.id, { answer });
+          launcher.remove();
+          // A queued reply is not saved yet; the page's queue status says so instead.
+          if (result.queued) { pruneCheckins([]); refreshAnswers(); return; }
+          checkinDialogs.delete(info.id);  // Let the thank-you stay while the page refreshes.
+          dialog.classList.add('is-saved');
+          dialog.replaceChildren(make('p', total ? '✨' : '☾', 'checkin-burst'),
+            make('h2', total ? t('{count} done today', { count: total }) : t('Thanks for checking in')),
+            make('p', t('Your secretary is writing tonight’s briefing now.'), 'checkin-lead'));
+          setTimeout(() => { dialog.close(); dialog.remove(); refreshAnswers(); }, 1800);
+        } catch (failure) { error.textContent = failure.message; save.disabled = false; }
+      }, true);
+      body.push(error, footer(back(), save));
+    }
+    dialog.replaceChildren(...body);
+  }
+  render();
+  open.textContent = checkinOpened.has(info.id) ? t('Continue check-in') : t('Start check-in');
+  if (!checkinOpened.has(info.id)) { checkinOpened.add(info.id); setTimeout(() => { if (dialog.isConnected) dialog.showModal(); }, 300); }
+  return launcher;
 }
 
 function permissionForm(info) {
@@ -235,6 +397,7 @@ async function poll() {
       if (mine) {
         queuedRecovery = job;
         document.querySelector('#agent-questions').replaceChildren();
+        pruneCheckins([]);
         formSignature = '';
         showBriefingQueued(mine.position, waiting.depth);
         pollTimer = setTimeout(pollBriefingQueue, 2500);
@@ -258,6 +421,7 @@ async function poll() {
     if (signature !== formSignature) {
       const questions = document.querySelector('#agent-questions');
       questions.replaceChildren(...state.forms.map(questionForm), ...state.permissions.map(permissionForm));
+      pruneCheckins(state.forms.map(form => form.id));
       formSignature = signature;
     }
     errorBox.textContent = state.preview_error || '';
@@ -379,6 +543,8 @@ document.addEventListener('visibilitychange', () => {
   else { checkDay(); if (queuedRegeneration) pollRegenerationQueue(); else if (job) poll(); else if (queuedBriefing || queuedRecovery) pollBriefingQueue(); }
 });
 window.addEventListener('focus', checkDay);
-document.addEventListener('website:language', () => { if (queuedRegeneration) pollRegenerationQueue(); else if (job) poll(); else if (queuedBriefing || queuedRecovery) pollBriefingQueue(); });
+document.addEventListener('website:language', () => {
+  if (checkinDialogs.size) formSignature = '';  // Redraw check-in labels; its answers live in checkinStates.
+  if (queuedRegeneration) pollRegenerationQueue(); else if (job) poll(); else if (queuedBriefing || queuedRecovery) pollBriefingQueue(); });
 setInterval(checkDay, 60000);
 checkDay(); resume();
