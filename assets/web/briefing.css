@@ -478,24 +478,70 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
 .briefing-section[hidden], .section-entry[hidden], .scroll-segment[hidden], .scroll-map[hidden] { display: none; }
 .section-loading { min-height: 148px; padding: 8px 0; }
 .section-loading-label { font-size: 13px; color: var(--muted); }
-.section-loader { display: flex; gap: 6px; align-items: center; height: 32px; color: var(--accent); }
-.section-loader span { display: block; width: 8px; height: 8px; border-radius: 50%; background: currentColor; opacity: .25; }
-.is-working .section-loader span { animation: section-pulse 1.5s ease-in-out infinite; }
-.is-working .section-loader span:nth-child(2) { animation-delay: .18s; }
-.is-working .section-loader span:nth-child(3) { animation-delay: .36s; }
-.loading-weather .section-loader span { width: 19px; height: 19px; border: 2px solid currentColor; background: none; }
-.loading-news .section-loader span, .loading-notes .section-loader span { width: 16px; height: 22px; border-radius: 3px; border: 1px solid currentColor; background: var(--wash); }
-.loading-schedule .section-loader span, .loading-tomorrow .section-loader span { width: 24px; height: 7px; border-radius: 2px; }
-.loading-must-do .section-loader span, .loading-still-open .section-loader span { border-radius: 3px; width: 12px; height: 12px; }
+.section-loader { display: flex; align-items: center; height: 56px; color: var(--accent); }
+.loader-scene { display: block; width: 96px; height: 48px; overflow: visible; opacity: .35; transition: opacity .4s ease; }
+.is-working .loader-scene, .is-waiting .loader-scene, .is-stopped .loader-scene { opacity: 1; }
+.loader-scene .wash { fill: var(--wash); }
+.loader-scene .fill { fill: currentColor; stroke: none; }
+.loader-scene .mark { fill: currentColor; stroke: none; opacity: .2; }
+.loader-scene .cells { stroke-width: 1; opacity: .45; }
+.loader-scene .tick, .loader-scene .ink { stroke-width: 2; }
+.loader-scene [class*="a"] { transform-box: fill-box; }
+.loader-weather .a1 { transform-origin: center; }
+.loader-news .a2 { transform-origin: 0 100%; transform: rotate(-6deg); }
+.loader-attention .a1 { transform-origin: 50% 0; }
+.loader-anime .a1 { transform-origin: center; }
+.loader-games .a1 { transform-origin: 100% 50%; }
+.loader-games .a2, .loader-games .a3 { transform-origin: center; }
+.loader-tasks .tick { stroke-dasharray: 12; }
+.loader-today .ink { stroke-dasharray: 28; }
+.loader-stocks .ink { stroke-dasharray: 80; }
+.loader-stocks .a2 { transform-origin: center; }
+.is-working .loader-weather .a1 { animation: loader-spin 14s linear infinite; }
+.is-working .loader-weather .a2 { animation: loader-drift 3.2s ease-in-out infinite alternate; }
+.is-working .loader-news .a1 { animation: loader-scan 3.6s ease-in-out infinite; }
+.is-working .loader-news .a2 { animation: loader-fan 1.8s ease-in-out infinite alternate; }
+.is-working .loader-schedule .a1 { animation: loader-hop 4.8s step-end infinite; }
+.is-working .loader-tasks .tick { animation: loader-tick 3.6s ease-out infinite both; }
+.is-working .loader-tasks .a2 { animation-delay: .5s; }
+.is-working .loader-tasks .a3 { animation-delay: 1s; }
+.is-working .loader-attention .a1 { animation: loader-ring 2.8s ease-in-out infinite; }
+.is-working .loader-attention .a2 { animation: loader-glow 2.8s ease-in-out infinite; }
+.is-working .loader-today .a2 { animation: loader-write 3.2s ease-in-out infinite; }
+.is-working .loader-today .a1 { animation: loader-pen 3.2s ease-in-out infinite; }
+.is-working .loader-anime .a1 { animation: loader-beat 1.6s ease-in-out infinite; }
+.is-working .loader-anime .a2 { animation: loader-sweep 2.4s ease-in-out infinite; }
+.is-working .loader-games .a1 { animation: loader-swing 2.6s ease-in-out infinite alternate; }
+.is-working .loader-games .a2, .is-working .loader-games .a3 { animation: loader-twinkle 1.8s ease-in-out infinite; }
+.is-working .loader-games .a3 { animation-delay: .9s; }
+.is-working .loader-stocks .a1 { animation: loader-chart 3.6s ease-out infinite; }
+.is-working .loader-stocks .a2 { animation: loader-beat 1.2s ease-in-out infinite; }
+@keyframes loader-spin { to { transform: rotate(360deg); } }
+@keyframes loader-drift { from { transform: translateX(-5px); } to { transform: translateX(6px); } }
+@keyframes loader-scan { 0%, 10% { transform: translateY(0); } 30%, 40% { transform: translateY(6px); } 60%, 70% { transform: translateY(12px); } 90%, 100% { transform: translateY(18px); } }
+@keyframes loader-fan { to { transform: rotate(-12deg); } }
+@keyframes loader-hop { 0% { transform: translate(0, 0); } 12.5% { transform: translate(11px, 0); } 25% { transform: translate(22px, 0); } 37.5% { transform: translate(33px, 0); } 50% { transform: translate(0, 10px); } 62.5% { transform: translate(11px, 10px); } 75% { transform: translate(22px, 10px); } 87.5% { transform: translate(33px, 10px); } }
+@keyframes loader-tick { 0%, 8% { stroke-dashoffset: 12; opacity: 1; } 28%, 82% { stroke-dashoffset: 0; opacity: 1; } 100% { stroke-dashoffset: 0; opacity: 0; } }
+@keyframes loader-ring { 0%, 45%, 100% { transform: rotate(0); } 8% { transform: rotate(14deg); } 18% { transform: rotate(-11deg); } 28% { transform: rotate(7deg); } 38% { transform: rotate(-3deg); } }
+@keyframes loader-glow { 0%, 45%, 100% { opacity: .15; } 12%, 30% { opacity: 1; } }
+@keyframes loader-write { 0% { stroke-dashoffset: 28; } 70%, 100% { stroke-dashoffset: 0; } }
+@keyframes loader-pen { 0% { transform: translate(-28px, 0); } 70% { transform: translate(0, 0); } 85% { transform: translate(0, -3px); } 100% { transform: translate(-28px, 0); } }
+@keyframes loader-beat { 50% { transform: scale(1.18); } }
+@keyframes loader-sweep { 0% { transform: translateX(0); opacity: 0; } 20%, 80% { opacity: 1; } 100% { transform: translateX(30px); opacity: 0; } }
+@keyframes loader-swing { from { transform: rotate(-8deg); } to { transform: rotate(8deg); } }
+@keyframes loader-twinkle { 0%, 100% { transform: scale(.4); opacity: .3; } 50% { transform: scale(1); opacity: 1; } }
+@keyframes loader-chart { 0% { stroke-dashoffset: 80; } 60%, 100% { stroke-dashoffset: 0; } }
+.generation-desk #generation-elapsed { grid-column: 2; }
+#generation-elapsed { margin: 0; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+#generation-elapsed:empty { display: none; }
 .skeleton-lines { display: grid; gap: 12px; max-width: 680px; }
 .skeleton-lines i { display: block; height: 8px; width: 100%; border-radius: 8px; background: var(--line); opacity: .45; }
 .skeleton-lines i:nth-child(2) { width: 82%; }
 .skeleton-lines i:nth-child(3) { width: 57%; }
 .is-working .skeleton-lines { animation: section-breathe 2s ease-in-out infinite; }
 .is-waiting .section-loader, .is-stopped .section-loader { color: var(--warm); }
-@keyframes section-pulse { 50% { opacity: 1; } }
 @keyframes section-breathe { 50% { opacity: .45; } }
-@media (prefers-reduced-motion: reduce) { .is-working .section-loader span, .is-working .skeleton-lines { animation: none; } .is-working .section-loader span { opacity: .75; } }
+@media (prefers-reduced-motion: reduce) { .is-working .loader-scene *, .is-working .skeleton-lines { animation: none !important; } .loader-scene { transition: none; } }
 @media (max-width: 700px) { .week-picker { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px 6px; } .week-picker a { padding: 10px 4px; font-size: 10px; } .week-picker small { font-size: 8px; } .agent-form { padding: 16px; } }
 @media (max-width: 700px) { .masthead { padding-right: max(68px, calc(env(safe-area-inset-right) + 64px)); } }
 @media (max-width: 350px) { .week-picker { grid-template-columns: repeat(3, minmax(0, 1fr)); } }

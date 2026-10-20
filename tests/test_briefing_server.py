@@ -210,6 +210,37 @@ class LiveTests(unittest.TestCase):
         (self.app.job_dir/(job+'.preview.json')).write_text(json.dumps({'plan':plan,'outcomes':['ready'],'document':doc}))
         self.assertTrue(5<self.app.status(job)['progress']<100)
 
+    def test_recorded_steps_label_and_move_the_bar_within_a_section(self):
+        job=self.start()
+        self.chamber.forms,self.chamber.permissions=[],[]
+        import time
+        while 'running_at' not in self.app.jobs['2026-10-10.gm']:time.sleep(.01)  # Dispatch records its start last.
+        with self.app.lock:
+            self.app.jobs['2026-10-10.gm']['running_at']=time.time()-75
+        self.assertGreaterEqual(self.app.status(job)['elapsed'],75)
+        activity=self.app.job_dir/(job+'.activity.json')
+        def step(**value):
+            activity.write_text(json.dumps(value))
+            return self.app.status(job)
+        self.assertEqual((step(step='opening')['label'],self.app.status(job)['progress']),('Writing your greeting',12))
+        doc=json.loads(GM);doc.pop('closing',None);doc['sections']=doc['sections'][:1]
+        plan=[['weather','Weather'],['news','News'],['schedule','Schedule']]
+        (self.app.job_dir/(job+'.preview.json')).write_text(json.dumps({'plan':plan,'outcomes':['ready'],'document':doc}))
+        first=step(step='collect',position=1,section='news',done=0,total=2)
+        second=step(step='collect',position=1,section='news',done=1,total=2)
+        writing=step(step='write',position=1,section='news',count=12)
+        self.assertEqual([first['label'],second['label'],writing['label']],
+                         ['Collecting the news · 1 of 2','Collecting the news · 2 of 2','Choosing from 12 stories'])
+        self.assertEqual(writing['step_label'],writing['label'])
+        self.assertTrue(45<first['progress']<second['progress']<writing['progress']<writing['progress_cap']<70)
+        self.assertEqual(step(step='write',position=1,section='news',count=1)['label'],'Choosing from 1 story')
+        stale=step(step='write',position=0,section='weather',count=None)
+        self.assertEqual((stale['label'],stale.get('step_label')),('Preparing News',None))
+        from support import selected
+        from goodmorning.web import language as ui
+        with selected(ui.CURRENT,'zh-CN'):
+            self.assertEqual(step(step='write',position=1,section='news',count=12)['label'],'正在从 12 条新闻里挑选')
+
     def test_ready_needs_idle_and_saved_snapshot_not_agent_claim(self):
         job=self.start()
         self.chamber.idle()

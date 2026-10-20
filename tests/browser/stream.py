@@ -94,7 +94,7 @@ def run(artifacts):
                         expect(page.locator('.briefing-section[data-pending]')).to_have_count(len(plan))
                         expect(page.locator('.briefing-section.is-working')).to_have_count(1)
                         page.emulate_media(reduced_motion='reduce')
-                        assert page.locator('.is-working .section-loader span').first.evaluate('el => getComputedStyle(el).animationName') == 'none'
+                        assert page.locator('.is-working .loader-scene .a1').first.evaluate('el => getComputedStyle(el).animationName') == 'none'
                         assert page.locator('.is-working .skeleton-lines').evaluate('el => getComputedStyle(el).animationName') == 'none'
                         page.emulate_media(reduced_motion='no-preference')
                         screenshot('section-loaders')

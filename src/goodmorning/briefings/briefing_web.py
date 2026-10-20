@@ -83,8 +83,35 @@ def section_markup(number, heading, content, layout, pending=False):
     return f'<section id="section-{number}" class="briefing-section {layout}"{busy}><header><span class="section-number">{number:02d}</span><h2>{heading}</h2><span class="section-symbol">{icon(symbol)}</span></header><div class="section-body">{content}</div></section>'
 
 
+# Small scenes for a section being prepared; parts a1–a3 animate only while it is the working section.
+LOADER_SCENES = {
+    'weather': '<g class="a1"><path d="M46 22h4M42.5 30.5l2.8 2.8M34 34v4M25.5 30.5l-2.8 2.8M22 22h-4M25.5 13.5l-2.8-2.8M34 10V6M42.5 13.5l2.8-2.8"/></g>'
+               '<circle class="wash" cx="34" cy="22" r="8"/><path class="a2 wash" d="M46 40h28a8 8 0 0 0 1-16 11 11 0 0 0-21-2 8 8 0 0 0-8 18Z"/>',
+    'news': '<rect class="a2 wash" x="28" y="9" width="30" height="34" rx="3"/><rect class="wash" x="34" y="6" width="30" height="36" rx="3"/>'
+            '<path d="M39 14h20M39 20h20M39 26h20M39 32h14"/><rect class="a1 mark" x="37" y="11" width="24" height="6" rx="2"/>',
+    'schedule': '<rect class="wash" x="22" y="8" width="52" height="34" rx="4"/><path d="M22 16h52M34 5v6M62 5v6"/>'
+                '<path class="cells" d="M28 21h8v7h-8ZM39 21h8v7h-8ZM50 21h8v7h-8ZM61 21h8v7h-8ZM28 31h8v7h-8ZM39 31h8v7h-8ZM50 31h8v7h-8ZM61 31h8v7h-8Z"/>'
+                '<rect class="a1 mark" x="28" y="21" width="8" height="7" rx="1.5"/>',
+    'tasks': '<rect class="wash" x="24" y="8" width="8" height="8" rx="2"/><rect class="wash" x="24" y="20" width="8" height="8" rx="2"/><rect class="wash" x="24" y="32" width="8" height="8" rx="2"/>'
+             '<path d="M38 12h34M38 24h28M38 36h22"/><path class="a1 tick" d="M25.5 12l2 2 4-4.5"/><path class="a2 tick" d="M25.5 24l2 2 4-4.5"/><path class="a3 tick" d="M25.5 36l2 2 4-4.5"/>',
+    'attention': '<g class="a1"><path class="wash" d="M40 32v-8a8 8 0 0 1 16 0v8l3 4H37Z"/><path d="M48 12v4"/><circle cx="48" cy="39" r="2"/></g>'
+                 '<path class="a2" d="M62 18a8 8 0 0 1 0 12M34 18a8 8 0 0 0 0 12"/>',
+    'today': '<rect class="wash" x="26" y="6" width="40" height="36" rx="3"/><path d="M32 15h28M32 23h28"/>'
+             '<path class="a2 ink" d="M32 31h28"/><path class="a1" d="M62 25l-8 8-3 1 1-3 8-8Z"/>',
+    'anime': '<path d="M40 4l8 6 8-6"/><rect class="wash" x="28" y="10" width="40" height="28" rx="4"/>'
+             '<rect class="a2 mark" x="31" y="13" width="4" height="22" rx="1"/><path class="a1 fill" d="M45 19v10l8-5Z"/>',
+    'games': '<g class="a1"><path class="wash" d="M30 14h26l12 10-12 10H30Z"/><circle cx="60" cy="24" r="2"/><path d="M36 21h12M36 27h8"/></g>'
+             '<path class="a2" d="M22 8v6M19 11h6"/><path class="a3" d="M76 34v6M73 37h6"/>',
+    'stocks': '<path d="M22 40h54M22 8v32"/><path class="a1 ink" d="M24 34l10-6 8 4 10-12 8 4 12-12"/><circle class="a2 fill" cx="72" cy="12" r="2.5"/>',
+}
+LOADER_LAYOUTS = {'tomorrow': 'schedule', 'reminders': 'attention', 'notes': 'attention'}
+
+
 def loading_body(layout):
-    return f'<div class="section-loading loading-{layout}"><div class="section-loader" aria-hidden="true"><span></span><span></span><span></span></div><p class="section-loading-label">{ui.ui("Waiting its turn")}</p><div class="skeleton-lines" aria-hidden="true"><i></i><i></i><i></i></div></div>'
+    scene = LOADER_LAYOUTS.get(layout, layout if layout in LOADER_SCENES else 'tasks')
+    loader = (f'<svg class="loader-scene loader-{scene}" viewBox="0 0 96 48" fill="none" stroke="currentColor" stroke-width="1.6" '
+              f'stroke-linecap="round" stroke-linejoin="round" focusable="false">{LOADER_SCENES[scene]}</svg>')
+    return f'<div class="section-loading loading-{layout}"><div class="section-loader" aria-hidden="true">{loader}</div><p class="section-loading-label">{ui.ui("Waiting its turn")}</p><div class="skeleton-lines" aria-hidden="true"><i></i><i></i><i></i></div></div>'
 
 
 def preview_shell(plan, kind, ui_titles=False):

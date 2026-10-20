@@ -25,7 +25,7 @@ function queueLabel(position, depth) {
 
 function showBriefingQueued(position, depth) {
   document.querySelector('#generation').hidden = false;
-  document.querySelector('#generation-progress').value = 2;
+  showMeter({state: 'queued', progress: 2});
   const status = document.querySelector('#generation-status');
   status.textContent = queueLabel(position, depth);
   status.classList.add('is-queued');
@@ -125,6 +125,36 @@ async function updatePreview(state) {
   document.dispatchEvent(new Event('briefing:updated'));
 }
 
+// The bar eases to the server's position, then creeps toward the current step's
+// ceiling while work runs, so long steps still show movement without overstating.
+const meter = {shown: 0, target: 0, cap: 0, running: false, elapsed: null, at: 0, tick: null};
+const calm = matchMedia('(prefers-reduced-motion: reduce)');
+
+function showMeter(state) {
+  meter.running = ['running', 'starting'].includes(state.state);
+  meter.target = state.progress;
+  meter.cap = Math.max(state.progress, meter.running && state.progress_cap || 0);
+  meter.elapsed = meter.running && Number.isFinite(state.elapsed) ? state.elapsed : null;
+  meter.at = performance.now();
+  meter.tick ||= setInterval(stepMeter, 250);
+  stepMeter();
+}
+
+function stepMeter() {
+  const bar = document.querySelector('#generation-progress');
+  // Never moves backwards: a pause keeps the bar where it was.
+  if (calm.matches || meter.shown < meter.target - 30) meter.shown = Math.max(meter.shown, meter.target);
+  else if (meter.shown < meter.target) meter.shown = Math.min(meter.target, meter.shown + Math.max(.2, (meter.target - meter.shown) * .25));
+  else if (meter.running && meter.shown < meter.cap) meter.shown += (meter.cap - meter.shown) / 120;
+  bar.value = meter.shown;
+  const clock = document.querySelector('#generation-elapsed');
+  if (meter.elapsed === null) { clock.textContent = ''; return; }
+  const seconds = meter.elapsed + Math.floor((performance.now() - meter.at) / 1000);
+  const time = seconds < 60 ? browserT('{seconds} s', {seconds})
+    : browserT('{minutes} min {seconds} s', {minutes: Math.floor(seconds / 60), seconds: String(seconds % 60).padStart(2, '0')});
+  clock.textContent = browserT('Working for {time}', {time});
+}
+
 function sectionActivity(state) {
   const pending = [...document.querySelectorAll('.briefing-section[data-pending]:not([hidden])')];
   const running = ['running', 'starting'].includes(state.state);
@@ -132,12 +162,19 @@ function sectionActivity(state) {
     section.classList.toggle('is-working', index === 0 && running);
     section.classList.toggle('is-waiting', index === 0 && state.state === 'waiting');
     section.classList.toggle('is-stopped', index === 0 && ['stopped', 'uncertain'].includes(state.state));
+    const target = section.querySelector('.section-loading-label');
+    if (index === 0 && running && state.step_label) {
+      // Already in the request's language; keep it out of the page's retranslation.
+      delete target.dataset.uiText;
+      target.textContent = state.step_label;
+      return;
+    }
     const label = index > 0 ? 'Waiting its turn'
       : state.state === 'waiting' ? 'Waiting for your answer'
       : ['stopped', 'uncertain'].includes(state.state) ? 'Preparation paused · check the briefing session'
       : resolvedSections === -1 ? 'Getting your plans ready' : 'Preparing this section';
-    section.querySelector('.section-loading-label').dataset.uiText=label;
-    section.querySelector('.section-loading-label').textContent=browserT(label);
+    target.dataset.uiText=label;
+    target.textContent=browserT(label);
   });
   const notice = document.querySelector('.preview-notice');
   if (notice) notice.textContent = browserT(state.state === 'stopped'
@@ -406,7 +443,7 @@ async function poll() {
     }
     briefingRequestLanguage = state.language;
     document.querySelector('#generation').hidden = false;
-    document.querySelector('#generation-progress').value = state.progress;
+    showMeter(state);
     document.querySelector('#generation-status').textContent = state.label + (state.reservation_required === false
       ? ' ' + browserT('Take your time. Other requests can continue while you decide.') : '');
     document.querySelector('#generation-status').classList.remove('is-queued');

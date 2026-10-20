@@ -169,6 +169,30 @@ def next_step(runtime, identifier, session, context, checkpoint):
     return action
 
 
+def activity_path(runtime, identifier):
+    return context_path(runtime, identifier).with_name(identifier + '.activity.json')
+
+
+def note(runtime, identifier, step, **values):
+    """Record the step code is on, for the waiting page. Only code writes it, so it never overstates progress."""
+    atomic_text(activity_path(runtime, identifier), json.dumps({'step':step, **values}, separators=(',',':')))
+
+
+def read_count(runtime, job, tag, results):
+    """Items the section's reads returned, when their shape says so plainly."""
+    if tag in ('anime', 'games', 'stocks'):
+        from importlib import import_module
+        return len(import_module('goodmorning.' + tag).saved_rows(runtime, job['date']))
+    outputs = [result['output'] for result in results if result['exit'] == 0 and isinstance(result['output'], dict)]
+    if tag == 'news':
+        stories = [len(value.get('selected', [])) for output in outputs
+                   for value in output.get('sections', {}).values() if isinstance(value, dict)]
+        return sum(stories) if stories else None
+    if tag in ('schedule', 'tasks', 'attention', 'today') and outputs and isinstance(outputs[-1].get('total'), int):
+        return outputs[-1]['total']
+    return None
+
+
 def run_reads(commands):
     """Run a section's read recipes for the agent, exactly as written, so each costs no model turn."""
     from goodmorning.cli import main as cli
@@ -344,8 +368,17 @@ def act(runtime, identifier, session, action, payload=None):
             if context.get('document_version') == 2:
                 next_action['guide'] = briefing_guides.guide(context, next_action, checkpoint['plan'] if checkpoint else default_plan(context),
                                                              runtime=runtime, job=identifier, session=session)
+                position, tag = next_action.get('position'), next_action.get('section', [None])[0]
                 if next_action.get('read'):
-                    next_action['results'] = run_reads(next_action.pop('read'))
+                    reads, next_action['results'] = next_action.pop('read'), []
+                    for done, command in enumerate(reads):
+                        note(runtime, identifier, 'collect', position=position, section=tag, done=done, total=len(reads))
+                        next_action['results'] += run_reads([command])
+                if next_action['action'] == 'publish':
+                    note(runtime, identifier, 'write', position=position, section=tag,
+                         count=read_count(runtime, job, tag, next_action.get('results', [])))
+                else:
+                    note(runtime, identifier, 'opening' if next_action['action'] == 'init' else 'closing')
             rule = writing_rule(context, next_action)
             if rule:
                 next_action['writing'] = rule
@@ -420,6 +453,11 @@ def act(runtime, identifier, session, action, payload=None):
                 read_rows(runtime, job, checkpoint['plan'][position][0], payload['section'])
             document['sections'].append(payload['section'])
             result = publish(runtime, identifier, document, position=position)
+            pictures = (native.news_urls(document) if payload['section'][0] == 'news' and context.get('integration_policy', {}).get('publisher_images') is True
+                        else native.cover_urls(document) if payload['section'][0] in ('anime', 'games') else [])
+            if pictures:
+                note(runtime, identifier, 'images', position=position + 1, total=len(pictures),
+                     pictures='stories' if payload['section'][0] == 'news' else 'covers')
             if payload['section'][0] == 'news':
                 images = image_previews(runtime, job, context, load(target))
                 if images is not None:
@@ -434,6 +472,7 @@ def act(runtime, identifier, session, action, payload=None):
                 raise ValueError('Finish accepts only an optional closing')
             if 'closing' in payload:
                 document['closing'] = payload['closing']
+            note(runtime, identifier, 'save')
             source = native.source_path(runtime, job['date'], job['kind'])
             if source.exists() and 'replacement' not in job:
                 if native.parse(source.read_text()) != document:

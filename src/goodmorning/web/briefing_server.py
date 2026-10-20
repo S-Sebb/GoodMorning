@@ -42,6 +42,22 @@ from . import quick_chat
 
 DESK_ART = '<svg viewBox="0 0 64 64" width="64" height="64" fill="none" aria-hidden="true"><rect x="15" y="8" width="36" height="48" rx="7" fill="var(--surface)" stroke="currentColor" stroke-width="1.5"/><path d="M24 19h18M24 25h12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" opacity=".4"/><circle cx="27" cy="36" r="1.5" fill="currentColor"/><circle cx="39" cy="36" r="1.5" fill="currentColor"/><path d="M28 43q5 5 10 0" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>'
 
+# Waiting-page labels for the step the job helper recorded: collecting a section's
+# sources, then writing it with (one, many, none-or-unknown) item counts.
+COLLECTING = {'weather': 'Checking the weather forecast', 'news': 'Collecting the news',
+              'schedule': 'Looking through your calendar', 'tasks': 'Gathering your tasks',
+              'attention': 'Checking your reminders', 'today': 'Looking over today’s updates',
+              'anime': 'Checking for new episodes', 'games': 'Checking game sales', 'stocks': 'Checking your stocks'}
+WRITING = {'weather': ('Writing up the weather',) * 3,
+           'news': ('Choosing from 1 story', 'Choosing from {count} stories', 'Writing up the news'),
+           'schedule': ('Arranging 1 appointment', 'Arranging {count} appointments', 'Writing up your schedule'),
+           'tasks': ('Sorting 1 task', 'Sorting {count} tasks', 'Writing up your tasks'),
+           'attention': ('Writing up 1 reminder', 'Writing up {count} reminders', 'Writing up your reminders'),
+           'today': ('Reviewing 1 update from today', 'Reviewing {count} updates from today', 'Reviewing your day'),
+           'anime': ('Writing up 1 new episode', 'Writing up {count} new episodes', 'Writing up new episodes'),
+           'games': ('Writing up 1 game deal', 'Writing up {count} game deals', 'Writing up game sales'),
+           'stocks': ('Summing up 1 holding', 'Summing up {count} holdings', 'Summing up your stocks')}
+
 
 class NoRedirect(HTTPRedirectHandler):
     def redirect_request(self, *_):
@@ -415,7 +431,7 @@ class BrowserApp:
                       '<div class="dialog-actions"><button value="cancel">Keep this briefing</button><button value="regenerate" id="confirm-regenerate">Regenerate briefing</button></div></form></dialog>')
             text = text.replace('</body>', dialog + '</body>')
         text = text.replace('<span>▱</span>', '<span>' + DESK_ART + '</span>')
-        text=text.replace('<p id="generation-status" role="status"></p>','<p id="generation-status" role="status"></p><p id="request-language-note" role="status"></p>')
+        text=text.replace('<p id="generation-status" role="status"></p>','<p id="generation-status" role="status"></p><p id="generation-elapsed"></p><p id="request-language-note" role="status"></p>')
         missing = not confirmed
         config = json.dumps({'date': date, 'kind': kind, 'pinned': pinned, 'csrf': self.csrf if missing or can_restart else None, 'missing': missing,
                              'job': current_job['id'] if current_job else None}).replace('<', '\\u003c')
@@ -496,7 +512,7 @@ class BrowserApp:
             if dispatched.get('promptDispatched') is not True:
                 raise ValueError('Prompt dispatch was not confirmed')
             with self.lock:
-                job['state'] = 'running'
+                job.update(state='running', running_at=time.time())
                 self.save_jobs()
         except Exception:
             with self.lock:
@@ -636,6 +652,8 @@ class BrowserApp:
             state = 'uncertain'
         with self.lock:
             job['state'] = state
+            if state == 'running':
+                job['running_at'] = time.time()
             self.save_jobs()
 
     def job(self, identifier):
@@ -686,6 +704,46 @@ class BrowserApp:
     def preview_revision(self, checkpoint, job):
         return hashlib.sha256(json.dumps([checkpoint, self.image_revision(job)], ensure_ascii=False, separators=(',', ':')).encode()).hexdigest()[:24]
 
+    def activity(self, identifier, checkpoint):
+        """Label and bar position for the step the job helper last recorded.
+        A marker for another section than the preview's next one is stale and ignored."""
+        path = self.job_dir / (identifier + '.activity.json')
+        try:
+            from goodmorning.briefings.briefing_stream import bounded_json
+            step = bounded_json(path, 4_000) if path.exists() else None
+        except (ValueError, OSError, UnicodeError):
+            return None
+        if not isinstance(step, dict):
+            return None
+        if not checkpoint:
+            return {'progress': 12, 'progress_cap': 19, 'label': ui.text('Writing your greeting')} if step.get('step') == 'opening' else None
+        resolved, planned = len(checkpoint['outcomes']), len(checkpoint['plan'])
+        if step.get('step') in ('closing', 'save') and resolved == planned:
+            return {'progress': 95, 'progress_cap': 97, 'label': ui.text('Writing a closing note')} if step['step'] == 'closing' else \
+                   {'progress': 97, 'progress_cap': 99, 'label': ui.text('Saving your briefing')}
+        if step.get('position') != resolved:
+            return None
+        share, base = 75 / planned, 20 + 75 * resolved / planned
+        if step['step'] == 'images':
+            label = ui.text('Fetching {total} cover pictures' if step.get('pictures') == 'covers' else 'Fetching {total} story pictures', total=step['total'])
+            return {'progress': base, 'progress_cap': base + share * .05, 'label': label, 'step_label': label}
+        if resolved == planned:
+            return None
+        tag = checkpoint['plan'][resolved][0]
+        if step['step'] == 'collect' and step.get('section') == tag:
+            done, total = step['done'], max(step['total'], 1)
+            label = ui.text(COLLECTING.get(tag, 'Gathering this section’s sources'))
+            if total > 1:
+                label += ' · ' + ui.text('{done} of {total}', done=done + 1, total=total)
+            return {'progress': base + share * (.05 + .35 * done / total), 'progress_cap': base + share * (.05 + .35 * (done + 1) / total),
+                    'label': label, 'step_label': label}
+        if step['step'] == 'write' and step.get('section') == tag:
+            count = step.get('count')
+            one, many, none = WRITING.get(tag, ('Writing this section',) * 3)
+            label = ui.text(none) if not isinstance(count, int) or count == 0 else ui.text(one) if count == 1 else ui.text(many, count=count)
+            return {'progress': base + share * .45, 'progress_cap': base + share * .95, 'label': label, 'step_label': label}
+        return None
+
     def status(self, identifier):
         job = self.job(identifier)
         if job['state'] == 'superseded':
@@ -732,6 +790,7 @@ class BrowserApp:
             return {**result,'state':'waiting','label':ui.text('Before your briefing'),'forms':[context['form']] if context['awaiting'] else [],
                     'reservation_required': False,
                     'recovery':'Refresh task list' if job['kind'] == 'gn' else None,'recovery_action':'refresh' if job['kind']=='gn' else None}
+        checkpoint = None
         if preview_path.exists():
             try:
                 checkpoint = load_preview(preview_path)
@@ -740,6 +799,9 @@ class BrowserApp:
                               label=f'{resolved} of {planned} sections resolved' if resolved == planned else f'Preparing {checkpoint["plan"][resolved][1]}')
             except (ValueError, OSError, UnicodeError, TypeError, KeyError):
                 result.update(preview_error='The preview is unreadable. Preserve it and inspect the briefing session.')
+        result.update(self.activity(identifier, checkpoint) or {})
+        if job.get('running_at'):
+            result['elapsed'] = max(0, int(time.time() - job['running_at']))
         if job.get('session') and self.chamber:
             try:
                 forms, permissions = self.chamber.pending(job['session'])
@@ -767,6 +829,9 @@ class BrowserApp:
                             # Only this job's verified transient preview; never delete unrelated records.
                             if preview_path.exists() and not preview_path.is_symlink():
                                 preview_path.unlink()
+                            activity = self.job_dir / (identifier + '.activity.json')
+                            if activity.exists() and not activity.is_symlink():
+                                activity.unlink()
                         result.update(state='ready', progress=100, label='Your briefing is ready')
                     else:
                         replacement = 'replacement' in job
