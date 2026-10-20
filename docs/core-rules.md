@@ -49,9 +49,13 @@ that a deadline is easy, sufficient or achievable without evidence about the wor
 - Local replies/questions/titles follow confirmed `secretary_language`, including
   explicit bilingual/follow-message choices. Ask for a missing required language;
   do not infer it from location/news or reset other answers.
-- `secretary_name` names the assistant only. Address the user by exactly the saved
-  optional `user_name` (browser chats: `Call the user`), naturally and not in every
-  sentence; otherwise greet unnamed. Ask for it only during setup or when the user
+- `secretary_name` names the assistant only. The optional `user_name` (browser
+  chats: `Call the user`) is the only name to call the user, spelled exactly;
+  without it, greet unnamed. Use it rarely, as a person would: most replies and
+  briefings call the user nothing. At most once per reply or briefing, and only
+  where it adds warmth (a first hello, real congratulations, a briefing greeting);
+  never in routine answers or confirmations, progress lines, questions, errors,
+  section notes or saved records. Ask for it only during setup or when the user
   asks to change it, never just for a briefing. Do not infer expertise from occupation.
 - Local titles: `GoodMorning YYYY-MM-DD`, `GoodNight YYYY-MM-DD`, `Secretary SUMMARY`,
   `Eureka SUMMARY`, `Todo SUMMARY`. Helpers supply dates/idea raw summaries; TODO
