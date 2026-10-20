@@ -760,16 +760,12 @@ async function fetchHistoryList() {
     conversationTitles.set(item.id, item.title);
     const link = make('a'); link.href = '/chat?id=' + item.id;
     link.append(make('span', item.title, 'history-title'));
-    const label=item.mode === 'todo' ? 'To-do' : item.mode[0].toUpperCase() + item.mode.slice(1);
     const meta = make('span', '', 'history-meta');
-    const badge=make('small',chatT(label));badge.dataset.uiText=label;
     const current = make('small', chatT('Current'), 'history-current'); current.dataset.uiText = 'Current'; current.hidden = item.id !== chat;
     if (item.unread && item.id !== chat) {
       const fresh = make('small', chatT('New'), 'history-new'); fresh.dataset.uiText = 'New';
       meta.append(fresh); link.classList.add('is-unread');
     }
-    // A title still waiting for its summary is the mode name; don't repeat it.
-    if (item.title !== chatT(label)) meta.append(badge);
     if (typeof item.created === 'number') {
       const started = new Date(item.created * 1000);
       const when = make('small', new Intl.DateTimeFormat(document.documentElement.lang || 'en', {timeZone: chatConfig.timezone || undefined,
