@@ -141,8 +141,10 @@ function readWorkspace() {
 function hasUnsentInput() {
   return Boolean(textBox.value.trim() || attachments.length || sending || pendingChatMutations
     || [...drafts.values()].some(draft => draft.text.trim() || draft.attachments.length)
-    || [...document.querySelectorAll('#chat-questions input, #chat-questions textarea, #chat-questions select')]
-      .some(input => input.type === 'checkbox' || input.type === 'radio' ? input.checked : input.value.trim()));
+    // Question answers count only once they differ from the question's own defaults.
+    || [...document.querySelectorAll('#chat-questions input, #chat-questions textarea')]
+      .some(input => input.type === 'checkbox' || input.type === 'radio' ? input.checked !== input.defaultChecked
+        : input.value.trim() !== input.defaultValue.trim()));
 }
 
 function rememberWorkspace(away = null, resume = workspace.resume || null) {

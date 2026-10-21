@@ -109,6 +109,22 @@ def check_continuity(browser, address):
     page.locator('.edition-switch a[href="/schedule"]').click(no_wait_after=True)
     expect(page).to_have_url(address + '/chat?id=' + CHAT)
     page.locator('#chat-text').fill('')
+    # A question's preselected answers are not a draft; changing them is.
+    control['forms'] = [{'id': 'pick', 'title': 'Which day?', 'fields': [
+        {'key': 'day', 'title': 'Day', 'type': 'string', 'default': 'tue',
+         'options': [{'value': 'mon', 'label': 'Monday'}, {'value': 'tue', 'label': 'Tuesday'}]},
+        {'key': 'remind', 'title': 'Remind me', 'type': 'boolean', 'default': True},
+        {'key': 'note', 'title': 'Note', 'type': 'string', 'default': 'Morning'}]}]
+    page.evaluate('pollChat()')
+    expect(page.get_by_label('Tuesday')).to_be_checked()
+    assert not page.evaluate('hasUnsentInput()')
+    page.get_by_label('Monday').check()
+    assert page.evaluate('hasUnsentInput()')
+    page.get_by_label('Tuesday').check()
+    page.get_by_role('textbox', name='Note', exact=True).fill('Evening')
+    assert page.evaluate('hasUnsentInput()')
+    control['forms'] = []
+    page.evaluate('pollChat()'); expect(page.locator('#chat-questions .agent-form')).to_have_count(0)
     page.get_by_role('button', name='New conversation', exact=True).click()
     page.goto(address + '/schedule'); page.goto(address + '/chat')
     expect(page.locator('#chat-empty')).to_be_visible()

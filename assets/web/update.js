@@ -222,12 +222,11 @@
       feedback.textContent = t('Wait for your message to finish sending before refreshing.');
       return;
     }
-    const dirty = [...document.querySelectorAll('input,textarea,select')].some(field => {
-      if (field.closest('#language-form') || field.type === 'hidden') return false;
-      if (['checkbox','radio'].includes(field.type)) return field.checked !== field.defaultChecked;
-      if (field.tagName === 'SELECT') return [...field.options].some(option => option.selected !== option.defaultSelected);
-      return field.value !== field.defaultValue;
-    });
+    // Typed text and changed answers to a secretary's questions count. Settings controls save at once,
+    // and pages fill them in after loading, so their state is never a draft.
+    const dirty = [...document.querySelectorAll('textarea, input:is(:not([type]), [type=text], [type=search], [type=email], [type=url], [type=tel], [type=number])')]
+      .some(field => field.value !== field.defaultValue)
+      || [...document.querySelectorAll('.agent-form input:is([type=checkbox], [type=radio])')].some(field => field.checked !== field.defaultChecked);
     const event = new Event('website:refresh-drafts', {cancelable:true});
     if ((dirty || !document.dispatchEvent(event)) && !window.confirm(t('Refreshing will discard unsent text. Refresh anyway?'))) return;
     refreshButton.disabled = true;

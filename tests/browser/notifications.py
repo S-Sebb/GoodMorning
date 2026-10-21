@@ -164,6 +164,12 @@ def main():
                 menu(desktop, 'prefs')
                 expect(desktop.locator('#notification-form input[name=chat]')).not_to_be_checked()
                 expect(desktop.locator('#notification-lead')).to_have_value('30')
+                # Saved choices filled in after loading are not unsent text: the update button refreshes without asking.
+                dialogs = []
+                desktop.on('dialog', lambda dialog: (dialogs.append(dialog.message), dialog.dismiss()))
+                with desktop.expect_event('domcontentloaded'):
+                    desktop.evaluate("document.querySelector('#update-refresh').click()")
+                assert dialogs == [], dialogs
                 devices = menu(desktop, 'account').locator('#notification-device-list li')
                 expect(devices).to_have_count(1)
                 expect(devices.first).to_contain_text('Chrome on Linux (this device)')
