@@ -48,8 +48,11 @@ def fixture(runtime):
         ):
             calendar.add({'subject': title, 'start': f'{day}T{start}:00+01:00',
                           'end': f'{day}T{end}:00+01:00', 'location': place, 'notes': notes})
-        calendar.stage('Demo calendar', [{'external_id': 'demo-invitation', 'subject': 'Planning workshop',
+        # The synced calendar added a workshop since last night's briefing; this morning reports it.
+        calendar.mark('2026-10-12.gn')
+        calendar.import_events('Demo calendar', [{'external_id': 'demo-invitation', 'subject': 'Planning workshop',
             'start': '2026-10-14T14:30:00+01:00', 'end': '2026-10-14T15:30:00+01:00', 'location': 'Studio 1'}])
+        calendar.mark(DAY + '.gm')
     finally:
         calendar.close()
     inbox = InboxStore(runtime, write=True)
@@ -101,7 +104,7 @@ def fixture(runtime):
             ['news', news, 'Fictional stories and example source links, included only to demonstrate the layout.', 'News — 2026-10-12'],
             ['schedule', [morning['blocks']['schedule']], 'Today and the next two days, from your saved appointments.'],
             ['tasks', [morning['blocks']['tasks']], 'Atlas is the main thread today. Keep the comparison focused; the walk is optional.'],
-            ['attention', [morning['blocks']['attention']], 'One invitation needs review. Check the overlap before accepting.'],
+            ['attention', [morning['blocks']['attention']], 'Your calendar added a workshop that overlaps the design review.'],
         ], 'closing': 'Less noise. One thing at a time.'}
     validate_sources(runtime, document, DAY, 'gm')
     source_path(runtime, DAY, 'gm').write_text(encode(document))
@@ -121,8 +124,7 @@ def fixture(runtime):
         'sections': [[tag, [evening['blocks'][tag]], note] for tag, note in (
             ('today', 'The books are collected. The methods have moved forward, but are not finished.'),
             ('schedule', 'The design review is tomorrow. Bring the two layouts; the dentist time is still to be confirmed.'),
-            ('tasks', 'Prepare the review slides tomorrow. Unfinished work stays on its original date.'),
-            ('attention', 'The workshop invitation still needs your decision.'))],
+            ('tasks', 'Prepare the review slides tomorrow. Unfinished work stays on its original date.'))],
         'closing': 'That is enough for tonight. Let tomorrow have its own space.'}
     validate_sources(runtime, document, DAY, 'gn')
     source_path(runtime, DAY, 'gn').write_text(encode(document))
@@ -140,8 +142,8 @@ def chat_status():
              'action': {'operation': 'added', 'target': 'task'}},
             {'id': 'idea', 'role': 'assistant', 'kind': 'action', 'text': 'A tiny balcony garden',
              'action': {'operation': 'added', 'target': 'idea'}},
-            {'id': 'question', 'role': 'assistant', 'kind': 'question', 'text': 'Accept the workshop invitation despite the clash?'},
-            {'id': 'answer', 'role': 'user', 'kind': 'answer', 'text': 'Not yet. Leave it pending while I check.'},
+            {'id': 'question', 'role': 'assistant', 'kind': 'question', 'text': 'The new workshop overlaps the design review. Should I move the review?'},
+            {'id': 'answer', 'role': 'user', 'kind': 'answer', 'text': 'Not yet. I will check with the organiser first.'},
         ]}
 
 

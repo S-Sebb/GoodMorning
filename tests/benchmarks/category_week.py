@@ -49,8 +49,8 @@ def seed(runtime, monday, language='en'):
         calendar.add({'subject': t("Mum's birthday", '妈妈生日'), 'start': day(2), 'end': day(3), 'all_day': True,
                       'timezone': ZONE, 'repeat': {'yearly': True, 'start': day(2)}})
         start = datetime.combine(monday + timedelta(days=1), time(16), zone)
-        calendar.stage('outlook', [{'external_id': 'catchup', 'subject': t('Imperial-QMUL catch-up', '帝国理工-伦敦玛丽女王大学例会'),
-                                    'start': start.isoformat(), 'end': (start + timedelta(hours=1)).isoformat(), 'timezone': ZONE}])
+        calendar.import_events('outlook', [{'external_id': 'catchup', 'subject': t('Imperial-QMUL catch-up', '帝国理工-伦敦玛丽女王大学例会'),
+                                            'start': start.isoformat(), 'end': (start + timedelta(hours=1)).isoformat(), 'timezone': ZONE}])
     finally:
         calendar.close()
     habits = CustomStore(runtime, write=True)

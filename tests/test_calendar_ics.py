@@ -1,4 +1,4 @@
-"""Published ICS feeds: Outlook-style content expands, stages for review and reconciles removals."""
+"""Published ICS feeds: Outlook-style content expands, applies to the schedule and reconciles removals."""
 import contextlib
 from datetime import datetime, timedelta
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -60,7 +60,7 @@ class FeedTests(unittest.TestCase):
         return {(r['external_id'], r['occurrence_id']): json.loads(r['raw_json'])
                 for r in self.store.con.execute('SELECT * FROM events')}
 
-    def test_outlook_feed_expands_into_reviewable_occurrences(self):
+    def test_outlook_feed_expands_into_scheduled_occurrences(self):
         self.assertEqual(self.sync(), {'new': 6, 'changed': 0, 'unchanged': 0, 'removed': 0})
         raw = self.raw()
         series = sorted((v['start'], v['status'], v['subject']) for (uid, _), v in raw.items() if uid == SERIES)
@@ -73,29 +73,26 @@ class FeedTests(unittest.TestCase):
         self.assertEqual((raw['cancelled', '']['status'], raw['cancelled', '']['start']), ('cancelled', '2026-10-20T09:00:00+00:00'))
         self.assertEqual((raw['holiday', '']['all_day'], raw['holiday', '']['start']), (True, '2026-10-26'))
         self.assertNotIn(('old', ''), raw)
-        self.assertEqual({r['review'] for r in self.store.con.execute('SELECT review FROM events')}, {'pending'})
+        self.assertEqual(len(self.store.query(self.start, self.start + timedelta(days=30), limit=-1)), 4)  # Cancelled ones stay off.
 
-    def test_resync_keeps_identities_and_stages_removed_events_as_cancellations(self):
+    def test_resync_keeps_identities_and_cancels_removed_events(self):
         self.sync()
         single = self.store.con.execute("SELECT id,revision FROM events WHERE external_id='single-utc'").fetchone()
-        self.store.change(single['id'], 'approve', single['revision'], actor='test')
         self.assertEqual(self.sync(), {'new': 0, 'changed': 0, 'unchanged': 6, 'removed': 0})
         without = FEED.replace('UID:single-utc', 'UID:gone').replace('T:20261019', 'T:20251019').replace('D:20261019', 'D:20251019')
         self.assertEqual(self.sync(without), {'new': 0, 'changed': 1, 'unchanged': 5, 'removed': 1})
-        row = self.store.get(single['id'])
-        self.assertEqual((row['review'], row['raw']['status'], row['approved']['status']), ('pending', 'cancelled', 'confirmed'))
-        self.assertEqual(self.sync(without)['changed'], 0)  # An already staged cancellation is not restaged.
-        # The review names the approved event it would remove, not a bare "Cancellation".
-        pending = next(p for p in self.store.pending(limit=-1) if p['id'] == single['id'])
-        self.assertEqual((pending['subject'], pending['status'], pending['start']),
+        approved = self.store.get(single['id'])['approved']
+        # The cancellation keeps the event it removed, so briefings can name it.
+        self.assertEqual((approved['subject'], approved['status'], approved['start']),
                          ('Call with, Jessica', 'cancelled', '2026-10-19T12:00:00+00:00'))
+        self.assertEqual(self.sync(without)['changed'], 0)  # An applied cancellation is not repeated.
 
     def test_unsupported_content_imports_nothing(self):
         for broken in (FEED.replace('China Standard Time', 'Mars Standard Time'),
                        FEED.replace('RRULE:FREQ=WEEKLY', 'RRULE:FREQ=HOURLY')):
             with self.assertRaises(ValueError):
                 self.sync(broken)
-        self.assertEqual(self.store.stats()['pending'], 0)
+        self.assertEqual(self.store.stats()['total'], 0)
 
     def serve(self, body):
         class Handler(BaseHTTPRequestHandler):
@@ -123,9 +120,9 @@ class FeedTests(unittest.TestCase):
         config = json.loads((self.root / 'calendar.config.json').read_text())
         self.assertEqual((config['ics_url'], config['ics_source']), (url, 'outlook'))
         self.assertEqual(oct((self.root / 'calendar.config.json').stat().st_mode & 0o777), '0o600')
-        self.assertEqual(calendar_ics.refresh(self.root, '2026-10-18'), {'new': 0, 'changed': 0, 'unchanged': 6, 'removed': 0})
+        self.assertEqual(calendar_ics.refresh(self.root, '2026-10-18', 'gm'), {'new': 0, 'changed': 0, 'unchanged': 6, 'removed': 0})
         with patch.object(calendar_ics, 'fetch', side_effect=OSError('offline')):
-            self.assertEqual(calendar_ics.refresh(self.root, '2026-10-18'), {'unavailable': 'OSError'})
+            self.assertEqual(calendar_ics.refresh(self.root, '2026-10-18', 'gn'), {'unavailable': 'OSError'})
 
     def test_cli_without_a_saved_link_asks_for_one(self):
         self.store.close()
@@ -133,7 +130,7 @@ class FeedTests(unittest.TestCase):
         with contextlib.redirect_stderr(err):
             self.assertEqual(calendar.main(['--secretary-dir', str(self.root), '--sync-ics']), 2)
         self.assertIn('--ics-url', err.getvalue())
-        self.assertIsNone(calendar_ics.refresh(self.root, '2026-10-18'))
+        self.assertIsNone(calendar_ics.refresh(self.root, '2026-10-18', 'gm'))
 
 
 if __name__ == '__main__':

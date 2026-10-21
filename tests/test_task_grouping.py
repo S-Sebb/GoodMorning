@@ -89,22 +89,23 @@ class GroupingTests(unittest.TestCase):
         self.assertIn('data-quick-ask-title="Canceled: Imperial-QMUL Catchup"', html)
         self.assertIn('href="/chat"', html)
 
-    def test_calendar_review_copy_uses_action_prefix_and_human_range(self):
+    def test_calendar_change_copy_says_what_changed_with_human_times(self):
         from goodmorning.web import language as ui
         token = ui.CURRENT.set('en')
+        meeting = {'subject': 'Planning sync', 'start': '2026-10-23T10:00:00+00:00', 'end': '2026-10-23T11:00:00+00:00',
+                   'all_day': False, 'status': 'confirmed', 'location': 'Room 1', 'notes': 'Agenda'}
+        copy = lambda before, after: routing.calendar_change_copy({'before': before, 'after': after}, 'Europe/London', ui)
         try:
-            title, facts = routing.calendar_review_copy(
-                {'subject': 'Canceled: Imperial-QMUL Catchup', 'source': 'outlook',
-                 'start': '2026-10-23T11:00:00+00:00', 'end': '2026-10-23T12:00:00+00:00',
-                 'status': 'cancelled', 'raw_revision': 2}, 'Europe/London', ui)
-            self.assertEqual(title, ui.text('Canceled: {title}', title='Imperial-QMUL Catchup'))
-            self.assertNotIn('2026-10-23T11', facts)
-            self.assertIn('Oct 23', facts)
-            title2, _ = routing.calendar_review_copy(
-                {'subject': 'Planning sync', 'source': 'outlook',
-                 'start': '2026-10-23T10:00:00+00:00', 'end': '2026-10-23T11:00:00+00:00',
-                 'status': 'confirmed', 'raw_revision': 3}, 'Europe/London', ui)
-            self.assertEqual(title2, ui.text('Updated: {title}', title='Planning sync'))
+            self.assertEqual(copy(None, meeting), ('New: Planning sync', ['Fri, Oct 23 11:00–12:00', 'Room 1']))
+            self.assertEqual(copy(meeting, {**meeting, 'status': 'cancelled'}), ('Canceled: Planning sync', ['Fri, Oct 23 11:00–12:00']))
+            self.assertIsNone(copy(meeting, {**meeting, 'notes': 'New agenda'}))
+            self.assertIsNone(copy(None, {**meeting, 'status': 'cancelled'}))
+            moved = {**meeting, 'start': '2026-10-23T13:00:00+00:00', 'end': '2026-10-23T14:00:00+00:00', 'location': 'Room 2'}
+            self.assertEqual(copy(meeting, moved), ('Changed: Planning sync', ['Fri, Oct 23 11:00–12:00 → 14:00–15:00', 'Place: Room 1 → Room 2']))
+            renamed = {**meeting, 'subject': 'Roadmap', 'start': '2026-10-26T10:00:00+00:00', 'end': '2026-10-26T11:00:00+00:00'}
+            renamed.pop('location')
+            self.assertEqual(copy(meeting, renamed), ('Changed: Roadmap', ['Renamed from “Planning sync”',
+                             'Fri, Oct 23 11:00–12:00 → Mon, Oct 26 10:00–11:00', 'No place listed now (was Room 1)']))
         finally:
             ui.CURRENT.reset(token)
 

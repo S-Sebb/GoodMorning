@@ -74,7 +74,6 @@ class TrialBridgeTests(unittest.TestCase):
             self.assertEqual(variables['GM_CACHE_DIR'],str(Path(directory)/'cache'))
             self.assertEqual(variables['TMPDIR'],str(Path(directory)/'tmp'))
             self.assertEqual(variables['CALENDAR_DB_PATH'],str(Path(directory)/'calendar.sqlite'))
-            self.assertEqual(variables['BETTERBIRD_PATH'],str(Path(directory)/'unconfigured-betterbird'))
             self.assertTrue((Path(directory)/'tmp').is_dir())
 
 

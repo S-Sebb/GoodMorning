@@ -98,12 +98,12 @@ class DisplayWordingTests(unittest.TestCase):
     def test_calendar_events_and_tbc_appointments_use_their_wording(self):
         calendar = CalendarStore(str(self.root/'calendar.sqlite'))
         try:
-            calendar.stage('outlook', [{'external_id': 'sync', 'subject': 'FW: Weekly sync (updated invite)',
-                                        'start': DAY + 'T10:00:00+01:00', 'end': DAY + 'T11:00:00+01:00', 'timezone': ZONE}])
-            pending = calendar.pending()[0]
-            calendar.change(pending['id'], 'approve', pending['revision'], {'display': words('Weekly sync', detail='Bring the slides.')})
+            calendar.import_events('outlook', [{'external_id': 'sync', 'subject': 'FW: Weekly sync (updated invite)',
+                                                'start': DAY + 'T10:00:00+01:00', 'end': DAY + 'T11:00:00+01:00', 'timezone': ZONE}])
+            imported = calendar.con.execute("SELECT id,revision FROM events").fetchone()
+            calendar.change(imported['id'], 'update', imported['revision'], {'display': words('Weekly sync', detail='Bring the slides.')})
             with self.assertRaisesRegex(ValueError, 'unsupported import fields'):
-                calendar.stage('outlook', [{'external_id': 'x', 'subject': 'X', 'start': DAY + 'T12:00:00+01:00',
+                calendar.import_events('outlook', [{'external_id': 'x', 'subject': 'X', 'start': DAY + 'T12:00:00+01:00',
                                             'end': DAY + 'T13:00:00+01:00', 'display': words('X')}])
         finally:
             calendar.close()

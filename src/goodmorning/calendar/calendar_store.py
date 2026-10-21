@@ -1,4 +1,4 @@
-"""Transactional calendar storage. Original imports never become schedule entries directly."""
+"""Transactional calendar storage. Imports apply to the schedule directly; history records each change for briefings."""
 
 from __future__ import annotations
 
@@ -139,6 +139,7 @@ class CalendarStore:
                 at TEXT NOT NULL, snapshot TEXT NOT NULL,
                 UNIQUE(event_id, revision)
             );
+            CREATE TABLE IF NOT EXISTS editions (edition TEXT PRIMARY KEY, at TEXT NOT NULL);
             PRAGMA user_version=1;
         """)
 
@@ -225,7 +226,7 @@ class CalendarStore:
                 ids.append(event_id)
         return ids
 
-    def stage(self, source: str, events: list[dict], actor: str = "secretary") -> dict:
+    def import_events(self, source: str, events: list[dict], actor: str = "secretary") -> dict:
         if not isinstance(source, str) or not source.strip() or source == "custom":
             raise ValueError("imports need a nonempty source other than custom")
         if source != source.strip():
@@ -260,21 +261,70 @@ class CalendarStore:
                     event_id = old["id"]
                     self.con.execute("UPDATE events SET raw_json=?,raw_hash=?,"
                                      "raw_revision=raw_revision+1,revision=revision+1,"
-                                     "review='pending' WHERE id=?", (raw, digest, event_id))
+                                     "review='approved' WHERE id=?", (raw, digest, event_id))
+                    approved = json.loads(old["approved_json"]) if old["approved_json"] else None
                     result["changed"] += 1
                 else:
                     event_id = uuid.uuid4().hex[:16]
                     self.con.execute("INSERT INTO events(id,source,external_id,occurrence_id,"
                                      "raw_json,raw_hash,raw_revision,review,revision) "
-                                     "VALUES(?,?,?,?,?,?,1,'pending',1)",
+                                     "VALUES(?,?,?,?,?,?,1,'approved',1)",
                                      (event_id, source, key, occurrence, raw, digest))
+                    approved = None
                     result["new"] += 1
+                self._apply(event_id, data, approved)
                 self._audit(event_id, "import", actor)
         return result
 
+    def _apply(self, event_id: str, raw: dict, approved: dict | None):
+        """The source version replaces the schedule one, keeping the secretary's notice and
+        wording; wording goes stale by itself when the fields it describes change."""
+        if "subject" not in raw:  # A bare source cancellation.
+            if approved is not None:
+                self._set_approved(event_id, {**approved, "status": "cancelled"})
+            return
+        kept = {k: approved[k] for k in ("notice", "display") if approved and k in approved}
+        self._set_approved(event_id, normalize(raw | kept))
+
+    def apply_pending(self, actor: str) -> int:
+        """Imports staged before they applied directly; each is reported once like any import."""
+        with self.con:
+            self.con.execute("BEGIN IMMEDIATE")
+            rows = self.con.execute("SELECT id,raw_json,approved_json FROM events WHERE review='pending'").fetchall()
+            for row in rows:
+                self._apply(row["id"], json.loads(row["raw_json"]),
+                            json.loads(row["approved_json"]) if row["approved_json"] else None)
+                self.con.execute("UPDATE events SET review='approved',revision=revision+1 WHERE id=?", (row["id"],))
+                self._audit(row["id"], "import", actor)
+        return len(rows)
+
+    def mark(self, edition: str):
+        """Record when a briefing edition first ran; its report covers imports since the previous one."""
+        with self.con:
+            self.con.execute("INSERT OR IGNORE INTO editions(edition,at) VALUES(?,?)",
+                             (edition, datetime.now(timezone.utc).isoformat()))
+
+    def changes(self, edition: str) -> list[dict]:
+        """Imported events that changed since the edition before this one: before and after schedule versions."""
+        if not self.con.execute("SELECT 1 FROM sqlite_master WHERE name='editions'").fetchone():
+            return []
+        mine = self.con.execute("SELECT at FROM editions WHERE edition=?", (edition,)).fetchone()
+        if mine is None:
+            return []
+        previous = self.con.execute("SELECT MAX(at) FROM editions WHERE at<?", (mine[0],)).fetchone()[0]
+        out = []
+        for row in self.con.execute("SELECT event_id,MIN(revision) FROM history WHERE action='import' AND at>? "
+                                    "GROUP BY event_id ORDER BY MIN(seq)", (previous or mine[0],)).fetchall():
+            before = self.con.execute("SELECT snapshot FROM history WHERE event_id=? AND revision=?",
+                                      (row[0], row[1] - 1)).fetchone()
+            item = self.get(row[0])
+            out.append({"id": item["id"], "source": item["source"], "revision": item["revision"],
+                        "before": json.loads(before[0])["approved"] if before else None, "after": item["approved"]})
+        return out
+
     def change(self, event_id: str, action: str, expected: int,
                patch: dict | None = None, actor: str = "secretary") -> dict:
-        if action not in ("approve", "reject", "update", "cancel"):
+        if action not in ("update", "cancel"):
             raise ValueError("unknown event action")
         if patch is not None and (not isinstance(patch, dict) or set(patch) - FIELDS):
             raise ValueError("unsupported event patch")
@@ -287,46 +337,16 @@ class CalendarStore:
                 raise ValueError('clarification_required: this annual occurrence is projected; confirm series scope before editing its source event')
             if old["revision"] != expected:
                 raise ValueError("event changed; read it again before writing")
-            if action in ("approve", "reject"):
-                if old["source"] == "custom" or old["review"] != "pending":
-                    raise ValueError("only pending imports can be reviewed")
-                if action == "approve":
-                    data = normalize(old["raw"] | (patch or {}))
-                    # A simplification may not silently undo a provider cancellation.
-                    if old["raw"]["status"] == "cancelled" and data["status"] != "cancelled":
-                        raise ValueError("cannot approve a cancellation as confirmed")
-                    self._set_approved(event_id, data)
-                elif patch:
-                    raise ValueError("reject does not accept event changes")
-                review = "approved" if action == "approve" else "rejected"
-            else:
-                if old["approved"] is None:
-                    raise ValueError("review the imported event before editing")
-                if action == "cancel" and patch:
-                    raise ValueError("cancel does not accept event changes")
-                data = normalize(old["approved"] | (patch or {}) |
-                                 ({"status": "cancelled"} if action == "cancel" else {}))
-                self._set_approved(event_id, data)
-                review = old["review"]
-            self.con.execute("UPDATE events SET review=?,revision=revision+1 WHERE id=?",
-                             (review, event_id))
+            if old["approved"] is None:
+                raise ValueError("this imported event has no schedule version to edit")
+            if action == "cancel" and patch:
+                raise ValueError("cancel does not accept event changes")
+            data = normalize(old["approved"] | (patch or {}) |
+                             ({"status": "cancelled"} if action == "cancel" else {}))
+            self._set_approved(event_id, data)
+            self.con.execute("UPDATE events SET revision=revision+1 WHERE id=?", (event_id,))
             self._audit(event_id, action, actor)
         return self.get(event_id)
-
-    def pending(self, limit: int = 20, offset: int = 0) -> list[dict]:
-        rows = self.con.execute("SELECT id,source,raw_json,approved_json,raw_revision,revision "
-                                "FROM events WHERE review='pending' ORDER BY rowid LIMIT ? OFFSET ?",
-                                (limit, offset))
-        out = []
-        for r in rows:
-            raw = json.loads(r["raw_json"])
-            if "subject" not in raw and r["approved_json"]:
-                # A bare source cancellation names the approved event it would remove.
-                raw = {**json.loads(r["approved_json"]), "status": raw["status"]}
-            out.append({"id": r["id"], "source": r["source"], "revision": r["revision"],
-                        "raw_revision": r["raw_revision"],
-                        **{k: v for k, v in raw.items() if k in ("subject", "start", "end", "status", "all_day")}})
-        return out
 
     def query(self, start: datetime, end: datetime, source: str = "auto",
               no_custom: bool = False, limit: int = 100, offset: int = 0,
@@ -364,14 +384,13 @@ class CalendarStore:
                 data = {k: v for k, v in data.items() if k not in ("notes", "organizer") and v != ""}
             elif "notes" in data:
                 # Schedule reads show concise preparation, never join boilerplate.
-                # Review of originals/revisions still uses --show/--pending.
+                # Originals and revisions stay readable through --show.
                 cleaned = clean_preparation(data.get("notes", ""))
                 if cleaned:
                     data["notes"] = cleaned
                 else:
                     data.pop("notes", None)
-            out.append({"id": row["id"], "source": row["source"], "revision": row["revision"],
-                         **data, **({"pending_change": True} if row["review"] == "pending" else {})})
+            out.append({"id": row["id"], "source": row["source"], "revision": row["revision"], **data})
         if series:
             from zoneinfo import ZoneInfo
             for row in series:
@@ -397,8 +416,7 @@ class CalendarStore:
                         else:
                             value.pop('notes',None)
                     out.append({'id':projected['id'],'source':row['source'],'revision':row['revision'],
-                        **value,'series_event_id':row['id'], 'projected':True,
-                        **({'pending_change':True} if row['review']=='pending' else {})})
+                        **value,'series_event_id':row['id'], 'projected':True})
             out.sort(key=lambda item:(endpoints(item)[0].timestamp(),item['id']))
             out=out[offset:offset+limit] if limit>=0 else out[offset:]
         return out
@@ -414,15 +432,14 @@ class CalendarStore:
     def stats(self) -> dict:
         row = self.con.execute("SELECT COUNT(*) AS total, "
                                "COUNT(CASE WHEN source='custom' AND starts IS NOT NULL THEN 1 END) AS custom, "
-                               "COUNT(CASE WHEN source!='custom' AND starts IS NOT NULL THEN 1 END) AS imported, "
-                               "COUNT(CASE WHEN review='pending' THEN 1 END) AS pending FROM events").fetchone()
+                               "COUNT(CASE WHEN source!='custom' AND starts IS NOT NULL THEN 1 END) AS imported FROM events").fetchone()
         return dict(row)
 
 
 def read_stats(path: str) -> dict:
     """Read the small summary without creating or migrating a database."""
     if not Path(path).is_file():
-        return {"total": 0, "custom": 0, "imported": 0, "pending": 0}
+        return {"total": 0, "custom": 0, "imported": 0}
     store = CalendarStore.__new__(CalendarStore)
     store.con = sqlite3.connect(Path(path).resolve().as_uri() + "?mode=ro", uri=True)
     store.con.row_factory = sqlite3.Row

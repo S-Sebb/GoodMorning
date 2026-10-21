@@ -78,8 +78,8 @@ plan position and use `skip` for empty optional ones; local JSON omits empty opt
    Leave detail empty when no grounded why/state was supplied; never invent one.
    Do not promote ideas, copy project Markdown into new tasks or assign a workday
    merely by showing a task. No appointments does not establish a free day.
-6. Reminders contains due decisions/reviews. Code humanizes calendar times and
-   uses `Canceled:`/`Updated:` prefixes. Keep titles exact, keep details grounded,
+6. Reminders contains due decisions/reviews and the calendar changes code
+   applied since the previous briefing, with `New:`/`Changed:`/`Canceled:` prefixes. Keep titles exact, keep details grounded,
    and add a brief note with the count and single next action. Ask only missing material facts
    or permissions affecting today's useful/safe plan. Do not interview every task,
    invent clarification work from clear ideas or re-ask saved answers. Skip an

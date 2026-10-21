@@ -45,7 +45,7 @@ def clean_task_detail(title, detail):
 
 
 def _human_when(start_raw, end_raw, all_day, zone):
-    """Human range for calendar review cards; raw ISO is never shown."""
+    """Human range for calendar change cards; raw ISO is never shown."""
     from goodmorning.web.language import short_day
     try:
         if all_day:
@@ -74,47 +74,29 @@ def _human_when(start_raw, end_raw, all_day, zone):
         return ''
 
 
-def calendar_review_copy(pending, zone, ui):
-    """Concise, comfortable review copy: action prefix + subject, human time detail."""
-    subject = (pending.get('subject') or '').strip() or ui.text('Cancellation')
-    subject = re.sub(r'^(?:Review calendar change|Calendar (?:change|update))\s*[:：]\s*', '', subject, flags=re.IGNORECASE).strip() or subject
-    status = str(pending.get('status') or '')
-    raw_revision = pending.get('raw_revision') or 0
-    if status == 'cancelled' or re.match(r'(?i)^cancell?ed\s*[:：]', subject):
-        clean = re.sub(r'(?i)^cancell?ed\s*[:：]\s*', '', subject).strip() or subject
-        title = ui.text('Canceled: {title}', title=clean)
-    elif (raw_revision or 0) > 1:
-        title = ui.text('Updated: {title}', title=subject)
-    else:
-        # New imports keep the plain subject; the section title already says review.
-        title = subject
-    when = _human_when(pending.get('start'), pending.get('end'), pending.get('all_day'), zone)
-    source = str(pending.get('source') or '').strip()
-    facts = ' · '.join(p for p in (source, when) if p)
-    if not facts:
-        facts = ui.text('Review the supplied details.')
-    return title, facts
-
-
-def _review_interval(start_raw, end_raw, zone):
-    """Aware clock interval for clash checks; all-day never reserves clock time."""
-    try:
-        if not start_raw or not end_raw:
-            return None
-        start = dt.datetime.fromisoformat(str(start_raw))
-        end = dt.datetime.fromisoformat(str(end_raw))
-        if start.tzinfo is None or end.tzinfo is None:
-            from zoneinfo import ZoneInfo
-            tz = ZoneInfo(zone) if zone else dt.timezone.utc
-            if start.tzinfo is None:
-                start = start.replace(tzinfo=tz)
-            if end.tzinfo is None:
-                end = end.replace(tzinfo=tz)
-        if end <= start:
-            return None
-        return (start, end)
-    except Exception:
-        return None
+def calendar_change_copy(change, zone, ui):
+    """Title and facts for one imported change: what the event is now and what it was. None when nothing shown changed."""
+    before, after = (e if e and e.get('status') != 'cancelled' and 'subject' in e else None
+                     for e in (change['before'], change['after']))
+    when = lambda e: _human_when(e['start'], e['end'], e['all_day'], zone)
+    if after and not before:
+        return ui.text('New: {title}', title=after['subject']), [when(after), after.get('location', '')]
+    if before and not after:
+        return ui.text('Canceled: {title}', title=before['subject']), [when(before)]
+    shown = ('subject', 'start', 'end', 'all_day', 'location')
+    if not after or [before.get(k) for k in shown] == [after.get(k) for k in shown]:
+        return None  # Notes-only changes are mostly invitation boilerplate.
+    facts = [ui.text('Renamed from “{title}”', title=before['subject'])] if after['subject'] != before['subject'] else []
+    old, new = when(before), when(after)
+    timed = not (before['all_day'] or after['all_day']) and '→' not in old + new
+    if old != new and timed and old.rsplit(' ', 1)[0] == new.rsplit(' ', 1)[0]:
+        new = new.rsplit(' ', 1)[1]  # Same day: only the clock moved.
+    facts.append(new if old == new else old + ' → ' + new)
+    old, new = before.get('location', ''), after.get('location', '')
+    if old != new:
+        facts.append(ui.text('Place: {old} → {new}', old=old, new=new) if old and new else
+                     ui.text('Place: {place}', place=new) if new else ui.text('No place listed now (was {place})', place=old))
+    return ui.text('Changed: {title}', title=after['subject']), facts
 
 
 def _clash_label(subject, start_raw, end_raw, all_day, zone):
@@ -505,7 +487,7 @@ def feedback_day(store, day):
     return list(rows.values())
 
 
-def attention(store, today, offset=0, limit=7, calendar_reviews=()):
+def attention(store, today, offset=0, limit=7, calendar_changes=()):
     rows = []
     db = store.db
     for entry in db.execute("SELECT id,revision,kind,summary,questions,needs_review,review_after FROM entries WHERE "
@@ -529,7 +511,7 @@ def attention(store, today, offset=0, limit=7, calendar_reviews=()):
             rows.append({'id': draft['id'], 'revision': draft['revision'], 'title': draft['title'],
                          'questions': ['Confirm the exact appointment before adding it.'], 'needs_review': False,
                          'draft_id': draft['id'], 'event': draft['event'], 'owner': 'attention'})
-    rows.extend(calendar_reviews)
+    rows.extend(calendar_changes)
     return {'items': rows[offset:offset + limit], 'total': len(rows),
             'next_offset': offset + limit if offset + limit < len(rows) else None}
 
@@ -570,11 +552,11 @@ def event_day(event, zone):
 
 def schedule(runtime, today, kind, store=None, offset=0, limit=7):
     from goodmorning.runtime_files import profile_fields
-    from goodmorning.calendar.calendar_store import CalendarStore
+    from goodmorning.calendar.calendar_store import CalendarStore, endpoints
     from zoneinfo import ZoneInfo
     start_day = dt.date.fromisoformat(today) + dt.timedelta(days=kind == 'gn')
     end_day = start_day + dt.timedelta(days=1)  # One focus day: today for gm, tomorrow for gn.
-    result = {'items': [], 'pending': 0, 'warnings': [], 'reviews': [],
+    result = {'items': [], 'warnings': [], 'calendar_changes': [],
               'window': {'start': start_day.isoformat(), 'end': (end_day - dt.timedelta(days=1)).isoformat()}}
     converted = set()
     calendar = None
@@ -597,54 +579,22 @@ def schedule(runtime, today, kind, store=None, offset=0, limit=7):
             if item.get('notice') and end_day.isoformat() <= event_day(item, zone) <= notice_end(today, item, kind, 0):
                 result['items'].append({**item, 'category': 'occasion' if item.get('all_day') else 'appointment'})
         converted = converted_draft_ids(calendar)
-        result['pending'] = calendar.stats()['pending']
         from goodmorning.web import language as ui
-        pendings = calendar.pending(limit=-1)
-        pending_windows = {}
-        for candidate in pendings:
-            if str(candidate.get('status') or '') == 'cancelled' or candidate.get('all_day'):
+        for change in calendar.changes(f'{today}.{kind}'):
+            copy = calendar_change_copy(change, zone, ui)
+            if not copy:
                 continue
-            window = _review_interval(candidate.get('start'), candidate.get('end'), zone)
-            if window:
-                pending_windows[candidate['id']] = window
-        # Pending reviews carry no date filter, so a clash partner can sit far
-        # outside the 3-day display window. Check each pending's own interval.
-        approved_by_pending: dict[str, list] = {}
-        for candidate in pendings:
-            window = pending_windows.get(candidate['id'])
-            if not window:
-                continue
-            try:
-                neighbours = calendar.query(window[0], window[1], details=True, limit=-1)
-            except (ValueError, KeyError, OSError, sqlite3.Error):
-                neighbours = []
-            approved_by_pending[candidate['id']] = [
-                approved for approved in neighbours
-                if not approved.get('draft') and not approved.get('all_day')
-                and approved.get('status') != 'cancelled']
-        for pending in pendings:
-            title, facts = calendar_review_copy(pending, zone, ui)
-            window = pending_windows.get(pending['id'])
-            if window:
-                clashes = []
-                for approved in approved_by_pending.get(pending['id'], []):
-                    clashes.append(_clash_label(approved.get('subject'), approved.get('start'),
-                                                approved.get('end'), approved.get('all_day'), zone))
-                for other in pendings:
-                    if other['id'] == pending['id']:
-                        continue
-                    sibling = pending_windows.get(other['id'])
-                    if sibling and window[0] < sibling[1] and sibling[0] < window[1]:
-                        clashes.append(_clash_label(other.get('subject'), other.get('start'),
-                                                    other.get('end'), other.get('all_day'), zone))
-                seen = set()
-                unique = [entry for entry in clashes if entry and not (entry in seen or seen.add(entry))]
-                if unique:
-                    clash_text = ui.text('Schedule clash needs review: overlaps {events}',
-                                         events='; '.join(unique))
-                    facts = (facts + ' · ' + clash_text) if facts else clash_text
-            result['reviews'].append({'id': pending['id'], 'revision': pending['revision'], 'title': title,
-                                      'questions': [facts], 'needs_review': True, 'owner': 'attention'})
+            title, facts = copy
+            after = change['after']
+            if after and after.get('status') != 'cancelled' and not after.get('all_day'):
+                overlaps = [_clash_label(other['subject'], other['start'], other['end'], False, zone)
+                            for other in calendar.query(*endpoints(after), details=True, limit=-1)
+                            if other['id'] != change['id'] and not other.get('all_day')]
+                if overlaps:
+                    facts.append(ui.text('Overlaps {events}', events='; '.join(dict.fromkeys(overlaps))))
+            result['calendar_changes'].append({'id': change['id'], 'revision': change['revision'], 'title': title,
+                                               'questions': [' · '.join(f for f in facts if f)],
+                                               'needs_review': False, 'owner': 'attention'})
         result['timezone'] = zone
     except (ValueError, KeyError, OSError, sqlite3.Error):
         result['warnings'].append('Calendar unavailable; saved tasks do not establish free time.')
@@ -666,8 +616,6 @@ def schedule(runtime, today, kind, store=None, offset=0, limit=7):
             event = indexed.get(task['calendar_event_id'])
             if not event or event.get('draft') or not task['planned_date'] or task['status'] in ('done', 'cancelled'):
                 continue
-            from goodmorning.calendar.calendar_store import endpoints
-            from zoneinfo import ZoneInfo
             begin, finish = [p.astimezone(ZoneInfo(zone)) for p in endpoints(event)]
             target = dt.datetime.combine(dt.date.fromisoformat(task['planned_date']), dt.time(), ZoneInfo(zone))
             if begin < target + dt.timedelta(days=1) and finish > target:
@@ -696,8 +644,8 @@ def prepare(runtime, today, kind, offset=0, limit=7):
             inbox.db.execute('BEGIN')
             agenda = schedule(runtime, today, kind, store, offset, limit)
             result = {'tasks': task_view(store, today, kind, offset, limit, agenda['owned_tasks']),
-                    'attention': attention(store, today, offset, limit, agenda['reviews']),
-                    'schedule': {k: v for k, v in agenda.items() if k not in ('reviews', 'owned_tasks')}, 'warnings': []}
+                    'attention': attention(store, today, offset, limit, agenda['calendar_changes']),
+                    'schedule': {k: v for k, v in agenda.items() if k not in ('calendar_changes', 'owned_tasks')}, 'warnings': []}
             outcomes = reported_day(store, today) if kind == 'gn' else []
             result['today'] = outcomes[offset:offset + limit]
             result['today_total'] = len(outcomes)
@@ -736,7 +684,7 @@ def validate_sources(runtime, document, today, kind):
         errands = {r['id']: r for r in view['errands']}
         outcomes = {(r['id'], r['occurrence_id']): r for r in reported_day(store, today)}
         events = {r['id']: r for r in agenda['items']}
-        decisions = {r['id']: r for r in attention(store, today, limit=1000000, calendar_reviews=agenda['reviews'])['items']}
+        decisions = {r['id']: r for r in attention(store, today, limit=1000000, calendar_changes=agenda['calendar_changes'])['items']}
         for section in document['sections']:
             for block in section[1]:
                 tag = block[0]

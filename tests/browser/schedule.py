@@ -44,9 +44,7 @@ def check(app, url, shots, canonical=False):
             # A deadline is a marker on its due day, never a workday.
             expect(page.get_by_text('Deadline only, not a workday', exact=True)).to_have_count(1)
             expect(page.locator('#day-2026-10-16 .task-marker')).to_have_text('Deadline · no workday assigned')
-        # A pending calendar change is announced in view; routine metadata stays in the details menu.
-        expect(page.locator('.schedule-review')).to_contain_text('awaits review')
-        expect(page.locator('.schedule-review a')).to_have_attribute('data-quick-ask', re.compile('.'))
+        # Routine metadata stays in the details menu.
         visible_text = page.locator('main').inner_text()
         assert 'Europe/London' not in visible_text
         assert 'completed' not in visible_text and 'Checked at' not in visible_text

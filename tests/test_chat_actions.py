@@ -82,18 +82,21 @@ class ActionTests(unittest.TestCase):
         self.assertNotIn('Never saved', json.dumps(changes))
         self.assertEqual(set(changes[0]), {'id', 'role', 'kind', 'text', 'action', 'at'})
 
-    def test_import_review_cards_describe_the_reviewed_revision(self):
+    def test_import_cards_show_edits_and_earlier_review_decisions(self):
         event = {'external_id': 'lunch', 'subject': 'Team lunch', 'start': '2026-10-14T14:00:00+01:00',
                  'end': '2026-10-14T15:00:00+01:00'}
-        self.calendar.stage('work', [event], SESSION)
-        identifier = self.calendar.pending()[0]['id']
-        self.calendar.change(identifier, 'approve', 1, actor=SESSION)
-        self.calendar.stage('work', [{**event, 'subject': 'Moved team lunch'}], SESSION)
-        self.calendar.change(identifier, 'reject', 3, actor=SESSION)
+        self.calendar.import_events('work', [event], SESSION)
+        identifier = self.calendar.con.execute("SELECT id FROM events").fetchone()[0]
+        self.calendar.change(identifier, 'update', 1, {'location': 'Canteen'}, actor=SESSION)
+        # Conversations from before imports applied directly keep their review cards.
+        for revision, action, subject in ((3, 'approve', 'Team lunch'), (4, 'reject', 'Moved team lunch')):
+            self.calendar.con.execute("INSERT INTO history(event_id,revision,action,actor,at,snapshot) VALUES (?,?,?,?,?,?)",
+                (identifier, revision, action, SESSION, NOW, json.dumps({'raw': {'subject': subject}, 'approved': {'subject': subject}})))
+        self.calendar.con.commit()
         changes, unavailable = read_changes(self.root, SESSION)
         self.assertFalse(unavailable)
         self.assertEqual([(entry['action']['operation'], entry['text']) for entry in changes],
-                         [('approved', 'Team lunch'), ('declined', 'Moved team lunch')])
+                         [('approved', 'Team lunch'), ('declined', 'Moved team lunch'), ('updated', 'Team lunch')])
 
     def test_missing_corrupt_and_symlink_stores_preserve_chat(self):
         with tempfile.TemporaryDirectory(dir=TEMP_ROOT) as directory:

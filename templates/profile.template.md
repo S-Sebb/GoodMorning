@@ -88,8 +88,8 @@ Never put passwords or keys here. -->
 - Ask whether to add separately dated latest/current developments alongside
   yesterday's digest; set `news_latest: true` only if chosen. Optional skips and
   older profiles keep the existing completed-day workflow without reinitialization.
-- Agree on custom-only, external imports, or Betterbird calendar access.
-  Initialize SQLite; do not create `custom_schedule.md`. Imports need review.
+- Agree on custom-only events or a published calendar link (`.ics`).
+  Initialize SQLite; do not create `custom_schedule.md`. Imports apply directly.
 - Do not ask about anime during setup. The `anime_*` lines are set only when the
   user asks for new-episode updates (`docs/workflows/secretary.md`). Likewise the
   `game_*` lines, only when the user asks for game-sale updates.
