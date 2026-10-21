@@ -8,7 +8,7 @@ ICON_TYPES = {f'icons/{kind}.{extension}': mime
               for kind in ('gm', 'gn', 'secretary')
               for extension, mime in (('svg', 'image/svg+xml'), ('png', 'image/png'))}
 DESK_ICON_TYPES = {f'icons/desk-{name}.svg': 'image/svg+xml'
-                  for name in ('morning', 'evening', 'schedule', 'secretary', 'idea', 'appearance', 'language')}
+                  for name in ('morning', 'evening', 'schedule', 'secretary', 'idea', 'appearance', 'language', 'notifications')}
 PIXEL_FONTS = {f'fonts/{name}.woff2': 'font/woff2' for name in ('pixelify-sans', 'silkscreen', 'jersey-10', 'fusion-pixel-zh')}
 PIXEL_SCENES = {f'{name}.svg': 'image/svg+xml'
                 for name in ('grass-block-day', 'grass-block-night', 'grass-block-stone-day', 'grass-block-stone-night',
@@ -95,7 +95,7 @@ class Resources:
                    'update.js': 'text/javascript', 'update.css': 'text/css',
                    'avatar.js': 'text/javascript', 'avatar.css': 'text/css',
                    'maintenance.css': 'text/css',
-                   'app.js': 'text/javascript', 'manifest.webmanifest': 'application/manifest+json',
+                   'app.js': 'text/javascript', 'sw.js': 'text/javascript', 'manifest.webmanifest': 'application/manifest+json',
                    **{f'icons/app-{size}.png': 'image/png' for size in ('192', '512', 'maskable-512')},
                  'fonts/OFL.txt': 'text/plain', 'fonts/pixel-fonts-OFL.txt': 'text/plain',
                  **{f'desk-secretary{person}{variant}.png': 'image/png' for person in ('', '-f2', '-m1', '-m2')

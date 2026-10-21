@@ -123,7 +123,9 @@ dispatches new work.
   upgrade it.
 - Python: `/opt/goodmorning/python` is a symlink to the uv-managed environment
   `/opt/goodmorning/python-3.14`. Its CPython lives in `/opt/goodmorning/uv/python`,
-  and the environment holds only Pillow. `/opt/goodmorning/python-3.12` stays for
+  and the environment holds Pillow and `cryptography` (Web Push). Install both
+  before deploying a release that lists them in `requirements/browser.txt`; the
+  staged tests fail without them. `/opt/goodmorning/python-3.12` stays for
   rollback. For a Python patch update, run as root:
   `UV_PYTHON_INSTALL_DIR=/opt/goodmorning/uv/python uv python upgrade 3.14`; the
   next deployment restarts services on it. Install packages with

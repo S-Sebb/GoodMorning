@@ -362,6 +362,89 @@ class GatewayTests(GatewayFixture):
                 status,headers,_=self.request('/app')
                 self.assertEqual((status,headers['Location']),(302,expected))
 
+    def test_notification_settings_and_device_subscriptions(self):
+        from goodmorning.security import web_push
+        self.assertEqual(self.request('/api/push')[0],401)
+        self.permanent()
+        status,headers,body=self.request('/api/push')
+        value=json.loads(body)
+        self.assertEqual((status,headers['Cache-Control'],value['settings']),(200,'no-store',web_push.DEFAULTS))
+        self.assertEqual(len(web_push.unb64(value['publicKey'])),65)
+        _,page=self.request('/chat')[1:]
+        self.assertIn(b'id="notification-form"',page)
+        self.assertRegex(page,rb'<form id="notification-form"[^>]*hidden')
+        chosen={**web_push.DEFAULTS,'waiting':False,'lead':5}
+        self.assertEqual(self.request('/api/push/settings',{'settings':chosen})[0],200)
+        self.assertEqual(json.loads(self.request('/api/push')[2])['settings'],chosen)
+        self.assertEqual(self.request('/api/push/settings',{'settings':{**chosen,'lead':2}})[0],400)
+        keys={'p256dh':value['publicKey'],'auth':web_push.b64(b'0123456789abcdef')}
+        endpoint='https://fcm.googleapis.com/fcm/send/device'
+        self.assertEqual(self.request('/api/push/subscribe',{'subscription':{'endpoint':'https://evil.test/x','keys':keys}})[0],400)
+        self.assertEqual(self.request('/api/push/subscribe',{'subscription':{'endpoint':endpoint,'keys':keys}})[0],200)
+        self.assertEqual([item['endpoint'] for item in web_push.account(self.store,self.id)['subscriptions']],[endpoint])
+        csrf,self.csrf=self.csrf,'x'*43
+        self.assertEqual(self.request('/api/push/unsubscribe',{'endpoint':endpoint})[0],403)
+        self.csrf=csrf
+        self.assertEqual(self.request('/api/push/unsubscribe',{'endpoint':endpoint})[0],200)
+        self.assertEqual(web_push.account(self.store,self.id)['subscriptions'],[])
+        self.assertEqual(self.request('/sw.js')[1]['Cache-Control'],'public, no-cache')
+
+    def test_finished_and_waiting_work_is_announced_in_the_account_language(self):
+        sent=[]
+        self.gateway.notify=lambda user,kind,message,**options:sent.append((user,kind,message))
+        self.store.website_language(self.id,'zh-CN')
+        chat={'user':self.id,'host':'gm.example.test','chat':'a'*32}
+        job={'user':self.id,'host':'gm.example.test','kind':'gm','date':'2026-10-21','job':'b'*32}
+        replies={'messages':[{'role':'user','text':'Hi'},{'role':'assistant','text':'**Done** — your plan is '+'x'*300}]}
+        with patch.object(self.gateway,'proxy',lambda *args:(200,{},json.dumps(replies).encode())):
+            self.gateway.announce(chat,{'state':'idle'})
+        self.gateway.announce({**chat,'chat':'c'*32},{'state':'waiting','forms':[{'title':'Questions','fields':[{'title':'Which day works?'}]}],'permissions':[]})
+        self.gateway.announce(job,{'state':'ready'})
+        self.gateway.announce(job,{'state':'stopped','label':'Something went wrong'})
+        (user,kind,reply),(_,waiting_kind,waiting),(_,_,ready),(_,_,stopped)=sent
+        self.assertEqual((user,kind,reply['url']),(self.id,'chat','/chat?id='+'a'*32))
+        self.assertTrue(reply['body'].startswith('Done — your plan is') and len(reply['body'])==180)
+        self.assertEqual((waiting_kind,waiting['body'],waiting['url']),('waiting','Which day works?','/chat?id='+'c'*32))
+        self.assertEqual(ready['url'],'/d/2026-10-21/gm.html')
+        self.assertNotEqual(ready['title'],'Your morning briefing is ready')  # Chinese account.
+        self.assertNotEqual(stopped['title'],ready['title'])
+
+    def test_reconcile_announces_each_transition_once(self):
+        announced=[]
+        self.gateway.announce=lambda ticket,result:announced.append(result['state'])
+        ticket={'user':self.id,'host':'gm.example.test','chat':'a'*32}
+        for state in ('running','waiting','idle'):
+            with self.store.db() as db:
+                db.execute('INSERT OR REPLACE INTO metadata VALUES (?,?)',('generation',json.dumps(ticket,separators=(',',':'))))
+            result={'state':state,'reservation_required':False} if state=='waiting' else {'state':state}
+            with patch.object(self.gateway,'proxy',lambda *args:(200,{},json.dumps(result).encode())):
+                self.gateway.reconcile_ticket()
+                self.gateway.reconcile_ticket()
+        self.assertEqual(announced,['waiting','idle'])
+
+    def test_event_reminders_follow_the_lead_time_once(self):
+        from goodmorning.security import web_push
+        sent=[]
+        self.gateway.notify=lambda user,kind,message,**options:sent.append((kind,message))
+        reads=[]
+        def proxy(user,host,path,*args):
+            reads.append(path)
+            return 200,{},json.dumps({'events':[{'key':'e1@x','subject':'Dentist','starts':start+20*60,'time':'15:00','location':'Town Clinic'},
+                                                {'key':'e2@x','subject':'Later','starts':start+3600,'time':'16:00','location':''}]}).encode()
+        start=now=1_800_000_000
+        self.gateway.remind()
+        self.assertEqual(reads,[])  # Nobody turned notifications on.
+        keys={'p256dh':web_push.public_key(self.store),'auth':web_push.b64(b'0123456789abcdef')}
+        web_push.subscribe(self.store,self.id,{'endpoint':'https://fcm.googleapis.com/x','keys':keys})
+        with patch.object(self.gateway,'proxy',proxy), patch('goodmorning.security.briefing_gateway.time.time',lambda:now):
+            self.gateway.remind()
+            self.assertEqual(sent,[])  # 20 minutes away, 15-minute lead.
+            now+=6*60
+            self.gateway.remind()
+            self.gateway.remind()
+        self.assertEqual(reads,['/api/reminders','/api/reminders'])
+        self.assertEqual(sent,[('events',{'title':'Dentist','body':'Starts at 15:00 · Town Clinic','url':'/schedule?view=day','tag':'event-e1@x'})])
+
     def test_login_cookie_and_initial_password_gate(self):
         session=self.login()
         self.assertTrue(session['temporary'])

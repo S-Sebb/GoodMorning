@@ -36,6 +36,22 @@ draft without dispatching a model or resetting records. Direct generation also
 refuses incomplete setup. Explicit host/origin allowlists and TLS certificates
 must include all configured hosts; never use wildcard origin/cookie permissions.
 
+## Notifications
+
+Web Push uses VAPID (RFC 8292) and aes128gcm payload encryption (RFC 8291)
+through the `cryptography` library, with no custom cryptography. The VAPID key,
+each account's settings and its device subscriptions are encrypted account
+metadata (`push-vapid`, `push:<account>`). Payloads are readable only by the
+subscribed browser. The push service sees the endpoint, size and timing, not
+the text. Subscriptions are accepted only for HTTPS endpoints on Google,
+Mozilla, Apple and Microsoft push services, so a request can never make the
+gateway contact another host. An account keeps at most ten devices. A device
+belongs to the account that subscribed it last; signing out unsubscribes it.
+Push services' 404 or 410 answers remove the subscription. The `/api/push`
+routes require a permanent password, the exact origin and the session CSRF
+token. Sending runs in background threads and never affects the work it
+reports.
+
 ## Encryption and trust
 
 Use gocryptfs for encrypted filenames and authenticated content encryption, not

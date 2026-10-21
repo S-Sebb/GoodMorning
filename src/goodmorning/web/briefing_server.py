@@ -1003,6 +1003,8 @@ def serve_live(app, port, *, gateway_key=None, public_origins=()):
                     return self.respond(activity_snapshot(app, activity[1], activity[2]))
                 if path == '/api/day':
                     return self.respond({'date': app.today(), 'timezone': app.zone})
+                if path == '/api/reminders':
+                    return self.respond(schedule.upcoming(app))
                 if path in ('/schedule', '/api/schedule'):
                     mode, offset = schedule.schedule_query(parse_qs(parsed.query, keep_blank_values=True))
                     if path == '/api/schedule':

@@ -173,6 +173,18 @@ def page(source,csrf,return_to='/'):
            '</select><input type="hidden" name="csrf" value="'+html.escape(csrf or '',quote=True)+'">'
            '<input type="hidden" name="return_to" value="'+html.escape(return_to,quote=True)+'">'
            '<noscript><button type="submit">Apply</button></noscript><span id="language-feedback" role="status"></span></form>'
+           # Hosted pages reveal this in browsers that support push; see app.js.
+           '<form id="notification-form" class="language-toolbar notification-settings" hidden>'
+           '<h3 class="color-scheme-heading notification-heading">Notifications</h3><p id="notification-status"></p>'
+           '<button type="button" id="notification-device" hidden></button>'
+           '<fieldset id="notification-kinds"><legend>Notify me when</legend>'
+           +''.join(f'<label><input type="checkbox" name="{name}"> {label}</label>' for name,label in (
+               ('briefing','A briefing is ready'),('waiting','My secretary needs my answer'),
+               ('chat','A chat reply is finished'),('events','An event is about to start')))+
+           '</fieldset><label for="notification-lead">Remind me before events</label><select id="notification-lead" name="lead">'
+           +''.join(f'<option value="{minutes}">{minutes} minutes</option>' for minutes in (5,10,15,30,60))+
+           '</select><p class="notification-note">These choices apply to all your devices.</p>'
+           '<span id="notification-feedback" role="status"></span></form>'
            '</div></details>')
     account_menu=('<details class="menu" id="account-menu"><summary><span class="menu-label">Account</span></summary>'
                   '<div class="menu-panel">'+account+'</div></details>') if account else ''

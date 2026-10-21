@@ -56,6 +56,8 @@ document.addEventListener('website:before-refresh', event => {
 if (logout) logout.addEventListener('click', async () => {
   logout.disabled = true;
   try {
+    // This device stops receiving the account's notifications (app.js).
+    if (typeof goodmorningBeforeSignOut === 'function') await goodmorningBeforeSignOut();
     const response = await fetch('/api/auth/logout', {
       method:'POST',headers:{'Content-Type':'application/json','X-Briefing-CSRF':logout.dataset.csrf},
       body:'{}',cache:'no-store',credentials:'same-origin'
