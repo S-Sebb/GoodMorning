@@ -18,15 +18,11 @@ self.addEventListener('notificationclick', event => {
   const url = new URL(event.notification.data.url, self.location.origin);
   if (url.origin !== self.location.origin) return;
   event.waitUntil((async () => {
-    const windows = await clients.matchAll({type: 'window', includeUncontrolled: true});
-    const open = windows.find(window => 'navigate' in window);
+    // navigate() works only on pages this worker controls, and a click allows a single
+    // focus() or openWindow(), so navigate first and spend the click on focus last.
+    const open = (await clients.matchAll({type: 'window'})).find(window => 'navigate' in window);
     if (!open) return clients.openWindow(url.href);
-    try {
-      // navigate() works only for pages this worker controls; others get a new window.
-      await open.focus();
-      await open.navigate(url.href);
-    } catch {
-      await clients.openWindow(url.href);
-    }
+    const navigated = await open.navigate(url.href);
+    return (navigated || open).focus();
   })());
 });
