@@ -3,4 +3,6 @@
     <color name="background">#111C32</color>
     <color name="ink">#EEF2FB</color>
     <color name="error">#F2B8B5</color>
+    <color name="widget_surface">#1B2A44</color>
+    <color name="muted">#B0BED6</color>
 </resources>

@@ -7,6 +7,14 @@
     <!-- The daily update check waits for a network and stays scheduled after a restart. -->
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <!-- Event reminders on phones without Web Push are exact alarms; a calendar reminder may use them. -->
+    <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" android:maxSdkVersion="32" />
+
+    <queries>
+        <!-- Decides between Chrome's full-screen view and the app's own WebView; see Device. -->
+        <package android:name="com.google.android.gms" />
+    </queries>
 
     <application
         android:allowBackup="false"
@@ -49,6 +57,50 @@
             android:exported="false"
             android:label="@string/change_server"
             android:windowSoftInputMode="adjustResize" />
+
+        <activity
+            android:name=".WebActivity"
+            android:enableOnBackInvokedCallback="true"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden|uiMode"
+            android:exported="false"
+            android:launchMode="singleTask"
+            android:windowSoftInputMode="adjustResize" />
+
+        <activity
+            android:name=".LinkActivity"
+            android:exported="false"
+            android:label="@string/link_title" />
+
+        <activity
+            android:name=".AskActivity"
+            android:excludeFromRecents="true"
+            android:exported="false"
+            android:taskAffinity=""
+            android:theme="@style/Dialog"
+            android:windowSoftInputMode="adjustResize" />
+
+        <receiver android:name=".Widgets$Today" android:exported="false" android:label="@string/widget_today_name">
+            <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_today" />
+        </receiver>
+        <receiver android:name=".Widgets$Week" android:exported="false" android:label="@string/widget_week_name">
+            <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_week" />
+        </receiver>
+        <receiver android:name=".Widgets$Chat" android:exported="false" android:label="@string/widget_chat_name">
+            <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_chat" />
+        </receiver>
+        <receiver android:name=".Reminders" android:exported="false" />
+
+        <service
+            android:name=".ListService"
+            android:exported="false"
+            android:permission="android.permission.BIND_REMOTEVIEWS" />
+        <service
+            android:name=".SyncJob"
+            android:exported="false"
+            android:permission="android.permission.BIND_JOB_SERVICE" />
 
         <activity
             android:name=".UpdateActivity"

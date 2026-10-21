@@ -10,4 +10,14 @@
             android:targetPackage="me.love765.goodmorning"
             android:targetClass="me.love765.goodmorning.ServerActivity" />
     </shortcut>
+    <shortcut
+        android:shortcutId="link"
+        android:enabled="true"
+        android:icon="@drawable/ic_link"
+        android:shortcutShortLabel="@string/link_title">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetPackage="me.love765.goodmorning"
+            android:targetClass="me.love765.goodmorning.LinkActivity" />
+    </shortcut>
 </shortcuts>

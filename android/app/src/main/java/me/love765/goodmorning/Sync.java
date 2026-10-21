@@ -1,0 +1,183 @@
+package me.love765.goodmorning;
+
+import android.app.Notification;
+import android.app.NotificationChannel;
+import android.app.NotificationManager;
+import android.app.PendingIntent;
+import android.app.job.JobInfo;
+import android.app.job.JobScheduler;
+import android.content.ComponentName;
+import android.content.Context;
+import android.content.Intent;
+import android.content.SharedPreferences;
+import android.net.Uri;
+
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
+
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.util.HashSet;
+import java.util.Set;
+
+/**
+ * Reads the app summary from the server and keeps the widgets, and on phones without Google
+ * services also status notifications and event reminders, up to date.
+ */
+final class Sync {
+    static final int JOB = 2;
+    private static final long PERIOD = 15 * 60 * 1000L;
+    private static final Object LOCK = new Object();
+
+    private Sync() {}
+
+    private static SharedPreferences prefs(Context context) {
+        return context.getSharedPreferences("sync", Context.MODE_PRIVATE);
+    }
+
+    private static File cache(Context context) {
+        return new File(context.getFilesDir(), "sync.json");
+    }
+
+    /** The last summary the server sent, or an empty object. */
+    static JSONObject cached(Context context) {
+        try (FileInputStream in = new FileInputStream(cache(context))) {
+            return new JSONObject(Server.read(in, 4 << 20));
+        } catch (IOException | JSONException missing) {
+            return new JSONObject();
+        }
+    }
+
+    static boolean linked(Context context) {
+        return Api.token(context) != null;
+    }
+
+    static void inBackground(Context context) {
+        Context app = context.getApplicationContext();
+        new Thread(() -> run(app)).start();
+    }
+
+    /** Runs every fifteen minutes while the phone is linked; Android batches it with other work. */
+    static void schedule(Context context) {
+        JobScheduler scheduler = context.getSystemService(JobScheduler.class);
+        if (!linked(context)) {
+            scheduler.cancel(JOB);
+            return;
+        }
+        if (scheduler.getPendingJob(JOB) != null) return;
+        scheduler.schedule(new JobInfo.Builder(JOB, new ComponentName(context, SyncJob.class))
+                .setPeriodic(PERIOD)
+                .setRequiredNetworkType(JobInfo.NETWORK_TYPE_ANY)
+                .setPersisted(true)
+                .build());
+    }
+
+    static void run(Context context) {
+        synchronized (LOCK) {
+            String token = Api.token(context);
+            if (token == null) {
+                forget(context);
+                return;
+            }
+            SharedPreferences prefs = prefs(context);
+            long cursor = prefs.getLong("cursor", -1);
+            JSONObject data;
+            try {
+                data = Api.sync(context, token, Math.max(cursor, 0));
+            } catch (Api.Failure failure) {
+                if (failure.status == 403) {
+                    Api.forget(context);  // Unlinked in Settings: show the link prompt again.
+                    forget(context);
+                }
+                return;
+            } catch (IOException | JSONException offline) {
+                return;  // The widgets keep showing the last summary.
+            }
+            try {
+                JSONObject previous = cached(context);
+                for (String part : new String[] {"schedule", "reminders", "chat"}) {
+                    if (data.isNull(part) && previous.has(part)) data.put(part, previous.get(part));
+                }
+                JSONArray notifications = (JSONArray) data.remove("notifications");
+                data.put("synced", System.currentTimeMillis());
+                write(context, data);
+                long newest = Math.max(cursor, 0);
+                for (int i = 0; i < notifications.length(); i++) newest = Math.max(newest, notifications.getJSONObject(i).getLong("seq"));
+                if (!Device.chromeMode(context)) {
+                    // The first summary after linking only sets the starting point; old news stays quiet.
+                    if (cursor >= 0) post(context, notifications, cursor);
+                    Reminders.schedule(context, data);
+                }
+                prefs.edit().putLong("cursor", newest).apply();
+            } catch (IOException | JSONException unreadable) {
+                return;
+            }
+            Widgets.updateAll(context);
+        }
+    }
+
+    static void forget(Context context) {
+        cache(context).delete();
+        prefs(context).edit().clear().apply();
+        context.getSystemService(JobScheduler.class).cancel(JOB);
+        Reminders.cancelAll(context);
+        Widgets.updateAll(context);
+    }
+
+    /** Marks the latest conversation as waiting for its reply until the next summary arrives. */
+    static void markSent(Context context, String chat) {
+        try {
+            JSONObject data = cached(context);
+            JSONObject summary = data.optJSONObject("chat");
+            if (summary == null || !summary.optString("id").equals(chat)) summary = new JSONObject().put("id", chat == null ? "" : chat);
+            data.put("chat", summary.put("state", "running").put("reply", ""));
+            write(context, data);
+        } catch (IOException | JSONException ignored) {
+            // The next summary corrects the widget either way.
+        }
+        Widgets.updateAll(context);
+    }
+
+    private static void write(Context context, JSONObject data) throws IOException {
+        File temporary = new File(context.getFilesDir(), "sync.json.tmp");
+        try (FileOutputStream out = new FileOutputStream(temporary)) {
+            out.write(data.toString().getBytes(StandardCharsets.UTF_8));
+        }
+        if (!temporary.renameTo(cache(context))) throw new IOException("Could not save the summary");
+    }
+
+    private static void post(Context context, JSONArray notifications, long cursor) throws JSONException {
+        NotificationManager manager = context.getSystemService(NotificationManager.class);
+        if (!manager.areNotificationsEnabled()) return;
+        manager.createNotificationChannel(new NotificationChannel("status",
+                context.getString(R.string.channel_status), NotificationManager.IMPORTANCE_DEFAULT));
+        for (int i = 0; i < notifications.length(); i++) {
+            JSONObject item = notifications.getJSONObject(i);
+            if (item.getLong("seq") <= cursor) continue;
+            manager.notify(item.optString("tag"), 1, new Notification.Builder(context, "status")
+                    .setSmallIcon(R.drawable.ic_notification)
+                    .setContentTitle(item.optString("title"))
+                    .setContentText(item.optString("body"))
+                    .setStyle(new Notification.BigTextStyle().bigText(item.optString("body")))
+                    .setContentIntent(open(context, item.optString("url"), (int) item.getLong("seq")))
+                    .setAutoCancel(true)
+                    .build());
+        }
+    }
+
+    /** Opens a page of the linked server in the app. */
+    static PendingIntent open(Context context, String path, int request) {
+        Intent intent = new Intent(context, Launcher.class)
+                .setData(Uri.parse(Server.get(context) + (path.startsWith("/") ? path : "/app")))
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        return PendingIntent.getActivity(context, request, intent, PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
+    }
+
+    static Set<String> strings(SharedPreferences prefs, String key) {
+        return new HashSet<>(prefs.getStringSet(key, new HashSet<>()));
+    }
+}

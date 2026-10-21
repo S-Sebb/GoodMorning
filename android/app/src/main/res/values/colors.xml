@@ -6,4 +6,6 @@
     <color name="sun">#D88B38</color>
     <color name="ink">#2B2620</color>
     <color name="error">#B3261E</color>
+    <color name="widget_surface">#FFFBF5</color>
+    <color name="muted">#6B6258</color>
 </resources>
