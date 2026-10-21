@@ -323,5 +323,12 @@ document.addEventListener('briefing:updated', refreshBriefing);
 document.addEventListener('website:language', refreshBriefing);
 if (document.fonts) document.fonts.ready.then(measureSections);
 refreshBriefing();
+// The app's News widget opens ?section=news: start at that kind of section, as its own anchor would.
+const asked = new URLSearchParams(location.search).get('section');
+if (asked) {
+  const start = sections.find(section => section.classList.contains(asked));
+  history.replaceState(history.state, '', location.pathname + (start ? '#' + start.id : ''));
+  start?.scrollIntoView({behavior: 'instant'});
+}
 const days = document.querySelector('.briefing-letter .week-picker');
 if (days && innerWidth <= 700) days.scrollLeft = days.scrollWidth;

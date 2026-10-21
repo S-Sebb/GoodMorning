@@ -20,7 +20,9 @@ def main():
         root=Path(directory);(root/'daily').mkdir()
         (root/'profile.md').write_text('secretary_language: English\ntimezone: Europe/London\ncity: London, GB\nnews_country: GB\n')
         document=encode({'v':1,'lang':'en','greeting':'Synthetic navigation test.','opening':'Preserved sample records.',
-            'sections':[['notes',[['p','Synthetic reading content, unchanged by navigation. '*12] for _ in range(4)],'',
+            'sections':[['news',[['news','World',[['Synthetic headline '+str(story),'Synthetic summary. '*12,[['Publisher','https://example.org/a']]]
+                                                  for story in range(4)]]],'','Synthetic section 7'] if index==6 else
+                        ['notes',[['p','Synthetic reading content, unchanged by navigation. '*12] for _ in range(4)],'',
                          'Synthetic section '+str(index+1)] for index in range(10)]})
         day=briefing_day('Europe/London')
         for kind in ('gm','gn'):(root/'daily'/f'{day}.{kind}.json').write_text(document)
@@ -87,6 +89,17 @@ def main():
                     page.goto(address+'/gm.html');expect(page.locator('#mobile-sections')).to_be_hidden()
                     page.locator('.briefing-section-nav a').nth(1).click()
                     expect(page).to_have_url(address+'/gm.html#section-2')
+                    page.close()
+                    # The app's News widget opens ?section=news and lands on the news section's own anchor.
+                    page=browser.new_page(viewport={'width':390,'height':844},is_mobile=True,has_touch=True)
+                    page.goto(address+'/gm.html?section=news')
+                    expect(page).to_have_url(address+'/gm.html#section-7')
+                    expect(page.locator('#section-7')).to_be_in_viewport()
+                    # The page's 32px scroll padding plus the section's 32px scroll margin.
+                    top=page.evaluate("document.querySelector('#section-7').getBoundingClientRect().top")
+                    assert abs(top-64)<2,top
+                    page.goto(address+'/gn.html?section=missing')
+                    expect(page).to_have_url(address+'/gn.html');assert page.evaluate('scrollY')==0
                     page.close();browser.close()
             assert all((root/'daily'/f'{day}.{kind}.json').read_text()==document for kind in ('gm','gn'))
         finally:
