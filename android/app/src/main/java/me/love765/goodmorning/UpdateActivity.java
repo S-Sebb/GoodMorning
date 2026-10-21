@@ -9,6 +9,7 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.provider.Settings;
 import android.widget.ProgressBar;
+import android.widget.Toast;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -24,26 +25,50 @@ public class UpdateActivity extends Activity {
     private AlertDialog dialog;
     private ProgressBar progress;
     private Updates.Release release;
+    /** Opened from the website's update pill (goodmorning://update) rather than at launch. */
+    private boolean asked;
 
     @Override
     protected void onCreate(Bundle state) {
         super.onCreate(state);
         if (installed(getIntent())) return;
-        release = Updates.pending(this);
-        if (release == null) {
+        asked = getIntent().getData() != null;
+        release = Updates.pending(this, asked);
+        if (release != null) {
+            offer();
+        } else if (!asked) {
             openSite();
-            return;
+        } else {
+            // The website may know of a release before this phone's last check: check now.
+            new Thread(() -> {
+                Updates.check(this);
+                runOnUiThread(() -> {
+                    release = Updates.pending(this, true);
+                    if (release != null) {
+                        offer();
+                    } else {
+                        Toast.makeText(this, R.string.update_current, Toast.LENGTH_SHORT).show();
+                        finish();
+                    }
+                });
+            }).start();
         }
+    }
+
+    private void offer() {
         dialog = new AlertDialog.Builder(this, R.style.Dialog)
                 .setTitle(R.string.update_title)
                 .setMessage(getString(R.string.update_message, release.name))
                 .setPositiveButton(R.string.update_install, (d, which) -> start())
-                .setNegativeButton(R.string.update_later, (d, which) -> {
-                    Updates.snooze(this);
-                    openSite();
-                })
+                .setNegativeButton(R.string.update_later, (d, which) -> later())
                 .setCancelable(false)
                 .show();
+    }
+
+    /** Later waits a day at launch; from the website it simply returns there. */
+    private void later() {
+        if (!asked) Updates.snooze(this);
+        openSite();
     }
 
     /** Android allows installing only after the user lets this app install apps, once. */
@@ -57,10 +82,7 @@ public class UpdateActivity extends Activity {
                 .setMessage(R.string.update_permission)
                 .setPositiveButton(R.string.update_continue, (d, which) -> startActivityForResult(
                         new Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:" + getPackageName())), 1))
-                .setNegativeButton(R.string.update_later, (d, which) -> {
-                    Updates.snooze(this);
-                    openSite();
-                })
+                .setNegativeButton(R.string.update_later, (d, which) -> later())
                 .setCancelable(false)
                 .show();
     }
@@ -159,8 +181,9 @@ public class UpdateActivity extends Activity {
                 .show();
     }
 
+    /** Back to GoodMorning: the website below when it asked for this screen, otherwise a fresh launch. */
     private void openSite() {
-        startActivity(Launcher.start(this));
+        if (!asked) startActivity(Launcher.start(this));
         finish();
     }
 }

@@ -151,7 +151,9 @@ notifications go through `/app?next=<page>`. Inside the installed app, `app.js`
 saves the current page path in the `GoodMorningAppPage` cookie, and `/app`
 redirects to `next` when it is a page route, otherwise to that saved path when it
 is one, otherwise to `/chat`. Sign-in inside the app also continues to `/app`. The
-cookie holds only a path, never page content.
+cookie holds only a path, never page content. The app also adds `app=<build>`,
+which `/app` keeps in the `GoodMorningApp` cookie so the update pill can offer
+the app's own updates (`docs/android-app.md`, Updates).
 
 Chrome withholds `SameSite=Strict` cookies, the login cookie included, when
 another app opens a page. Without a login cookie, `/app` therefore answers with a

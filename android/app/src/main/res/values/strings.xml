@@ -100,4 +100,5 @@
     <string name="link_copy">Copy code</string>
     <string name="link_copied">Code copied.</string>
     <string name="link_in_app">Link in GoodMorning</string>
+    <string name="update_current">You have the newest GoodMorning app.</string>
 </resources>

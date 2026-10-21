@@ -8,17 +8,20 @@ import android.content.ComponentName;
 import android.content.Context;
 
 /**
- * A once-a-day release check that Android batches with other work and runs only when online,
+ * An hourly release check that Android batches with other work and runs only when online,
  * so updates are noticed even while the app stays open in the background for days.
  */
 public class UpdateJob extends JobService {
-    private static final int ID = 1;
+    /** Job 1 was the daily check of earlier versions. */
+    private static final int ID = 4;
+    private static final long PERIOD = 60 * 60 * 1000L;
 
     static void schedule(Context context) {
         JobScheduler scheduler = context.getSystemService(JobScheduler.class);
+        scheduler.cancel(1);
         if (scheduler.getPendingJob(ID) != null) return;
         scheduler.schedule(new JobInfo.Builder(ID, new ComponentName(context, UpdateJob.class))
-                .setPeriodic(Updates.DAY)
+                .setPeriodic(PERIOD)
                 .setRequiredNetworkType(JobInfo.NETWORK_TYPE_ANY)
                 .setPersisted(true)
                 .build());

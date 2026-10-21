@@ -3,29 +3,22 @@ package me.love765.goodmorning;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 
-import org.json.JSONArray;
+import org.json.JSONObject;
 import org.junit.Test;
 
 public class UpdatesTest {
-    private static String release(String tag, boolean draft, boolean prerelease, String asset) {
-        return "{\"tag_name\":\"" + tag + "\",\"name\":\"\",\"draft\":" + draft + ",\"prerelease\":" + prerelease
-                + ",\"assets\":[{\"browser_download_url\":\"https://example.test/" + asset + "\"}]}";
+    private static JSONObject release(int code, String apk) throws Exception {
+        return new JSONObject().put("code", code).put("name", "0." + code).put("apk", apk);
     }
 
     @Test
-    public void picksHighestPublishedApkAboveCurrentIncludingPrereleases() throws Exception {
-        JSONArray releases = new JSONArray("[" + String.join(",",
-                release("deploy/20261021-ship-abc", false, false, "site.apk"),
-                release("android-v9", true, false, "draft.apk"),
-                release("android-v8", false, false, "notes.txt"),
-                release("android-v6", false, true, "GoodMorning-6.apk"),
-                release("android-v3", false, false, "GoodMorning-3.apk"),
-                release("android-v5", false, false, "GoodMorning-5.apk"),
-                release("android-v1", false, false, "GoodMorning-1.apk")) + "]");
-        Updates.Release newest = Updates.newest(releases, 2);
-        assertEquals(6, newest.code);
-        assertEquals("android-v6", newest.name);
-        assertEquals("https://example.test/GoodMorning-6.apk", newest.apk);
-        assertNull(Updates.newest(releases, 6));
+    public void offersOnlyAHigherBuildWithAGitHubApk() throws Exception {
+        Updates.Release newer = Updates.newer(release(6, "https://github.com/S-Sebb/GoodMorning/releases/download/android-v6/GoodMorning-0.6.apk"), 5);
+        assertEquals(6, newer.code);
+        assertEquals("0.6", newer.name);
+        assertNull(Updates.newer(release(5, "https://github.com/x/GoodMorning.apk"), 5));
+        assertNull(Updates.newer(release(6, "https://evil.test/GoodMorning.apk"), 5));
+        assertNull(Updates.newer(release(6, "https://github.com/x/notes.txt"), 5));
+        assertNull(Updates.newer(new JSONObject(), 5));  // The server knows no release yet.
     }
 }

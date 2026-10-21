@@ -99,4 +99,5 @@
     <string name="link_copy">复制配对码</string>
     <string name="link_copied">配对码已复制。</string>
     <string name="link_in_app">在 GoodMorning 里关联</string>
+    <string name="update_current">你的 GoodMorning 应用已经是最新版本。</string>
 </resources>

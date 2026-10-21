@@ -704,5 +704,12 @@
   "Turn off": "关闭",
   "Notifications turned off for {name}.": "{name} 的通知已关闭。",
   "Check that this code matches the app, then tap Link phone.": "先看看这个配对码和应用上的一样不一样，然后点“关联手机”。",
-  "Link this phone again in GoodMorning under Account → Linked phones.": "在 GoodMorning 的 账号 → 已关联的手机 里重新关联这台手机。"
+  "Link this phone again in GoodMorning under Account → Linked phones.": "在 GoodMorning 的 账号 → 已关联的手机 里重新关联这台手机。",
+  "App update": "应用更新",
+  "App update available. View details": "应用有新版本，查看详情",
+  "New features available. View patch notes": "网站有新功能，查看更新日志",
+  "GoodMorning app {version} is ready.": "GoodMorning 应用 {version} 准备好啦。",
+  "Update app": "更新应用",
+  "GoodMorning has new features. Refresh to use them; the app itself doesn't need updating.": "GoodMorning 网站有新功能了，刷新一下就能用；应用本身不用更新。",
+  "You have the newest GoodMorning features.": "你已经用上 GoodMorning 最新的功能了。"
 }

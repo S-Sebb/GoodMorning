@@ -130,22 +130,38 @@ cd android
 
 ## Updates
 
-At launch (at most once a day) and from a daily `JobScheduler` job that runs
-only when online, the app reads
-`https://api.github.com/repos/S-Sebb/GoodMorning/releases?per_page=10`. It
-looks for the highest published release, pre-releases included, tagged
-`android-v<versionCode>` above its own code that has an `.apk` asset. When it
-finds one:
+The GoodMorning server reads
+`https://api.github.com/repos/S-Sebb/GoodMorning/releases?per_page=10` at most
+every ten minutes and answers `GET /api/app/release` with the highest published
+release, pre-releases included, tagged `android-v<versionCode>` with a GitHub
+`.apk` asset (`app_release.py`). Phones never need GitHub's API, only the APK
+download.
+
+The app asks its server at every launch (unless it asked in the last ten
+minutes) and from an hourly `JobScheduler` job that runs only when online. When
+it finds a higher build:
 
 - it posts one "Update available" notification, if notifications are allowed;
 - the next cold launch, or a tap on the notification, shows Update / Later.
   Later waits a day.
 
+The website inside the app offers the same update. Each launch opens
+`/app?app=<versionCode>`, and the server keeps that build in the
+`GoodMorningApp` cookie. In the app, the website's update pill then reads
+"App update" when `/api/app/release` is higher, opens the patch notes with
+"GoodMorning app <version> is ready" once per release, and its Update app button
+opens `goodmorning://update`, the app's own update screen (no Later delay
+there). Website releases in the app read "Refresh" and say the app itself needs
+no update, so they are never mistaken for an app update. Browsers keep the usual
+wording.
+
 Update first makes sure Android lets GoodMorning install apps; on the first
 update it explains why and opens that setting. It then streams the APK into
 Android's installer, which asks the user to confirm. On phones with Google Play
-services, Play Protect may first offer to scan the sideloaded app. Nothing runs
-in the background between checks.
+services, Play Protect may first offer to scan the sideloaded app.
+
+Versions 0.1 and 0.2 still read GitHub directly, once a day; they find 0.3 that
+way, and from 0.3 on updates come through the server.
 
 ## Releasing a new APK
 
@@ -166,7 +182,7 @@ Only when the owner asks. GitHub releases are public.
      --prerelease --title <versionName> --notes "<what changed, for users>"
    ```
 
-Installed apps notice the release within a day. Website deployments use
+Installed apps from 0.3 on notice the release within about ten minutes of their next launch, or within the hour in the background (the server caches the list for up to ten minutes). Website deployments use
 `deploy/<name>` tags, not releases, so the two never mix.
 
 ## Testing on the emulator

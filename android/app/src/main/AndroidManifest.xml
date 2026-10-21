@@ -111,11 +111,19 @@
             android:exported="false"
             android:permission="android.permission.BIND_JOB_SERVICE" />
 
+        <!-- Also opened by the website's update pill through goodmorning://update. -->
         <activity
             android:name=".UpdateActivity"
-            android:exported="false"
+            android:exported="true"
             android:launchMode="singleTask"
-            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
+            android:theme="@android:style/Theme.Translucent.NoTitleBar">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="goodmorning" android:host="update" />
+            </intent-filter>
+        </activity>
 
         <!-- The launcher enables this "Site Settings" shortcut; current Chrome manages every
              verified origin, older Chrome only the default server below. -->
