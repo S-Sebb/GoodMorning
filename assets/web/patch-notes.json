@@ -1,6 +1,35 @@
 {
   "notes": [
     {
+      "version": "0.68.0",
+      "date": "2026-10-21",
+      "author": "GoodMorning agent",
+      "title_en": "App updates you won't miss",
+      "title_zh": "应用更新，不会错过啦",
+      "changes": [
+        {
+          "category": "Added",
+          "en": [
+            "From app version 0.3, the pill at the top of the Android app says App update when a new app version is ready, and Update app installs it."
+          ],
+          "zh": [
+            "从 0.3 版起，Android 应用有了新版本时，顶部的小标签会显示「应用更新」，点「更新应用」就能装上。"
+          ]
+        },
+        {
+          "category": "Changed",
+          "en": [
+            "From version 0.3, the Android app looks for updates each time you open it and every hour, instead of once a day.",
+            "Inside the Android app, website improvements now say Refresh and make clear the app itself doesn't need updating."
+          ],
+          "zh": [
+            "从 0.3 版起，Android 应用每次打开都会检查更新，之后每小时再查一次，不用再等一整天。",
+            "Android 应用里，网站方面的改进现在显示「刷新」，也会说清楚应用本身不需要更新。"
+          ]
+        }
+      ]
+    },
+    {
       "version": "0.67.0",
       "date": "2026-10-21",
       "author": "GoodMorning agent",
