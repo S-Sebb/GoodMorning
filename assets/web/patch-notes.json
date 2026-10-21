@@ -1,6 +1,32 @@
 {
   "notes": [
     {
+      "version": "0.65.0",
+      "date": "2026-10-21",
+      "author": "GoodMorning agent",
+      "title_en": "Notifications and phone widgets 🔔",
+      "title_zh": "通知和手机小组件 🔔",
+      "changes": [
+        {
+          "category": "Added",
+          "en": [
+            "Turn on notifications in Settings to hear when a briefing is ready, your secretary needs your answer, a chat reply is finished, or an event is about to start.",
+            "Event reminders arrive before each timed event; choose 5 to 60 minutes ahead in Settings. While GoodMorning is open in front of you, only reminders show.",
+            "The GoodMorning Android app now has home screen widgets for today, the next seven days and your secretary chat, in your own color scheme.",
+            "Link your phone in Settings → Phone widgets by entering the code the app shows; you can unlink it there at any time.",
+            "On phones without Google services, the app opens GoodMorning in its own view, brings updates about every 15 minutes, and still reminds you of events on time."
+          ],
+          "zh": [
+            "在「设置」里打开通知，简报准备好了、秘书等你的回答、对话回复写完了、日程快要开始了，都会提醒你一声。",
+            "定好时间的日程开始前会提前提醒你，提前 5 到 60 分钟可以在「设置」里自己选。GoodMorning 就开在你眼前的时候，只会弹出日程提醒。",
+            "GoodMorning 的 Android 应用现在有了主屏幕小组件：今天、未来七天，还有秘书对话，配色是你自己那一套。",
+            "在「设置 → 手机小组件」里输入应用显示的配对码就能关联手机，想取消也在这里，随时都行。",
+            "没有 Google 服务的手机，应用会在自己的窗口里打开 GoodMorning，大约每 15 分钟送来一次更新，日程照样准时提醒你。"
+          ]
+        }
+      ]
+    },
+    {
       "version": "0.64.0",
       "date": "2026-10-21",
       "author": "GoodMorning agent",
