@@ -59,7 +59,6 @@
     <string name="reminder_body_place">Starts at %1$s · %2$s</string>
     <string name="preview_event_one">Team check-in</string>
     <string name="preview_event_two">Dentist</string>
-    <string name="preview_place">Studio 2</string>
     <string name="preview_reply">Here is your evening: dinner at 7, then an hour for the report.</string>
     <string name="widget_label_today">Today</string>
     <string name="widget_label_week">Next 7 days</string>

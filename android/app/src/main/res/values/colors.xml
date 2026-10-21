@@ -6,14 +6,10 @@
     <color name="sun">#D88B38</color>
     <color name="ink">#2B2620</color>
     <color name="error">#B3261E</color>
-    <color name="widget_surface">#FFFBF5</color>
-    <color name="muted">#6B6258</color>
     <!-- Widget picker previews: the website's default Morning Sky (day) and Starry (night) schemes. -->
     <color name="preview_surface">#FFFDF7</color>
-    <color name="preview_paper">#F3F8F9</color>
     <color name="preview_ink">#293E50</color>
     <color name="preview_muted">#5B7083</color>
     <color name="preview_accent">#27465E</color>
     <color name="preview_line">#CFDAE0</color>
-    <color name="preview_wash">#E5EEF3</color>
 </resources>

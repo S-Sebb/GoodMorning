@@ -63,6 +63,7 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="8dp"
         android:gravity="top"
+        android:hint="@string/ask_hint"
         android:importantForAutofill="no"
         android:inputType="textMultiLine|textCapSentences"
         android:maxLength="8000"
