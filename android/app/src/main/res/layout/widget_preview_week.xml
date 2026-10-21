@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Sample content for the widget picker; the real widget fills in the owner's schedule. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/widget_background"
+    android:orientation="vertical"
+    android:padding="12dp">
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/widget_week_name"
+        android:textColor="@color/ink"
+        android:textSize="15sp"
+        android:textStyle="bold" />
+
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp">
+        <TextView android:layout_width="56dp" android:layout_height="wrap_content" android:text="09:30" android:textColor="@color/sun" android:textSize="13sp" />
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/preview_event_one" android:textColor="@color/ink" android:textSize="13sp" />
+    </LinearLayout>
+    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginStart="56dp" android:text="@string/preview_place" android:textColor="@color/muted" android:textSize="12sp" />
+
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp">
+        <TextView android:layout_width="56dp" android:layout_height="wrap_content" android:text="15:00" android:textColor="@color/sun" android:textSize="13sp" />
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/preview_event_two" android:textColor="@color/ink" android:textSize="13sp" />
+    </LinearLayout>
+</LinearLayout>
