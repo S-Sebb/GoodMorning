@@ -51,6 +51,14 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+            <!-- Chrome delegates notifications only to an app that opens the site's links. Other
+                 servers cannot be listed here, so their notifications stay Chrome's. -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" android:host="gm.love765.me" />
+            </intent-filter>
         </activity>
 
         <activity

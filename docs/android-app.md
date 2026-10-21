@@ -19,7 +19,10 @@ The app:
   Widgets and notifications open `/app?next=<page>`: the site signs the app in
   only through `/app` (`docs/browser-delivery.md`, Installed app);
 - shows website notifications as its own, through Chrome's notification
-  delegation;
+  delegation. Chrome delegates only to an app that opens the site's links, so
+  the app opens `https://gm.love765.me` links (verified App Links), through
+  `/app?next=<page>`. A server chosen with "Change server" cannot be listed in
+  the manifest, so its notifications stay Chrome's;
 - offers home screen widgets once the phone is linked (below);
 - updates itself from this repository's GitHub releases (below).
 
