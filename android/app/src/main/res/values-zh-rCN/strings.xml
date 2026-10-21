@@ -35,7 +35,6 @@
     <string name="widget_week_description">未来七天的日程和待办</string>
     <string name="widget_chat_description">你和秘书最近的对话，还有一个快捷的“问一下”按钮</string>
     <string name="widget_link">关联这台手机，就能在这里看到 GoodMorning 的日程和对话。点一下开始。</string>
-    <string name="widget_today_title">今天 · %1$s</string>
     <string name="widget_loading">正在加载你的日程…</string>
     <string name="widget_empty_today">今天还没有安排。</string>
     <string name="widget_empty_week">这一周还没有安排。</string>
@@ -45,13 +44,6 @@
     <string name="widget_until">到 %1$s</string>
     <string name="widget_tasks">待办完成 %1$d / %2$d</string>
     <string name="widget_refresh">刷新</string>
-    <string name="chat_title_default">秘书</string>
-    <string name="chat_working">秘书正在处理…</string>
-    <string name="chat_waiting">秘书在等你的回答</string>
-    <string name="chat_empty">点“问一下”，就能和秘书说话。</string>
-    <string name="chat_ask">问一下</string>
-    <string name="chat_open">打开</string>
-    <string name="ask_title">问问你的秘书</string>
     <string name="ask_hint">消息</string>
     <string name="ask_new">开始新的对话</string>
     <string name="ask_continues">接着“%1$s”聊</string>
@@ -68,4 +60,16 @@
     <string name="preview_event_two">看牙</string>
     <string name="preview_place">2 号工作室</string>
     <string name="preview_reply">你今晚的安排：7 点吃饭，然后留一小时写报告。</string>
+    <string name="widget_label_today">今天</string>
+    <string name="widget_label_week">未来 7 天</string>
+    <string name="widget_week_range">%1$s – %2$s</string>
+    <string name="widget_more">还有 %1$d 项</string>
+    <string name="section_todos">待办</string>
+    <string name="chat_label">秘书</string>
+    <string name="chat_name_default">你的秘书</string>
+    <string name="chat_placeholder">给 %1$s 发消息…</string>
+    <string name="chat_working">%1$s 正在处理…</string>
+    <string name="chat_waiting">%1$s 在等你的回答</string>
+    <string name="chat_empty">点一下下面的消息框，就能和 %1$s 说话。</string>
+    <string name="ask_heading">问问 %1$s</string>
 </resources>

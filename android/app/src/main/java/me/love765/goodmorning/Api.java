@@ -133,6 +133,27 @@ final class Api {
         return request(context, "GET", "/api/app/sync?after=" + after, null, "X-GoodMorning-App", token);
     }
 
+    /** The account's uploaded portrait, as PNG bytes. */
+    static byte[] portrait(Context context, String token, String path) throws IOException {
+        HttpURLConnection connection = (HttpURLConnection) new URL(Server.get(context) + "/api/app/avatar?path="
+                + java.net.URLEncoder.encode(path, "UTF-8")).openConnection();
+        connection.setConnectTimeout(15000);
+        connection.setReadTimeout(20000);
+        connection.setRequestProperty("X-GoodMorning-App", token);
+        try (InputStream in = connection.getInputStream()) {
+            if (connection.getResponseCode() != 200) throw new Failure(connection.getResponseCode(), "");
+            java.io.ByteArrayOutputStream out = new java.io.ByteArrayOutputStream();
+            byte[] buffer = new byte[16384];
+            for (int n; (n = in.read(buffer)) != -1; ) {
+                out.write(buffer, 0, n);
+                if (out.size() > 8 << 20) throw new IOException("Portrait too large");
+            }
+            return out.toByteArray();
+        } finally {
+            connection.disconnect();
+        }
+    }
+
     static JSONObject chat(Context context, String token, String text, String chat) throws IOException, JSONException {
         JSONObject body = new JSONObject().put("text", text);
         if (chat != null) body.put("chat", chat);

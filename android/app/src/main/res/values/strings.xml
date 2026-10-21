@@ -36,7 +36,6 @@
     <string name="widget_week_description">Events and to-dos for the next seven days</string>
     <string name="widget_chat_description">Your latest secretary conversation, with a quick Ask button</string>
     <string name="widget_link">Link this phone to show your GoodMorning schedule and chat here. Tap to start.</string>
-    <string name="widget_today_title">Today · %1$s</string>
     <string name="widget_loading">Loading your schedule…</string>
     <string name="widget_empty_today">Nothing planned today.</string>
     <string name="widget_empty_week">Nothing planned this week.</string>
@@ -46,13 +45,6 @@
     <string name="widget_until">Until %1$s</string>
     <string name="widget_tasks">%1$d of %2$d to-dos done</string>
     <string name="widget_refresh">Refresh</string>
-    <string name="chat_title_default">Secretary</string>
-    <string name="chat_working">Your secretary is working on it…</string>
-    <string name="chat_waiting">Your secretary needs your answer</string>
-    <string name="chat_empty">Tap Ask to talk to your secretary.</string>
-    <string name="chat_ask">Ask</string>
-    <string name="chat_open">Open</string>
-    <string name="ask_title">Ask your secretary</string>
     <string name="ask_hint">Message</string>
     <string name="ask_new">Start a new conversation</string>
     <string name="ask_continues">Continues “%1$s”</string>
@@ -69,4 +61,16 @@
     <string name="preview_event_two">Dentist</string>
     <string name="preview_place">Studio 2</string>
     <string name="preview_reply">Here is your evening: dinner at 7, then an hour for the report.</string>
+    <string name="widget_label_today">Today</string>
+    <string name="widget_label_week">Next 7 days</string>
+    <string name="widget_week_range">%1$s – %2$s</string>
+    <string name="widget_more">+%1$d more</string>
+    <string name="section_todos">To-dos</string>
+    <string name="chat_label">Secretary</string>
+    <string name="chat_name_default">Your secretary</string>
+    <string name="chat_placeholder">Message %1$s…</string>
+    <string name="chat_working">%1$s is working on it…</string>
+    <string name="chat_waiting">%1$s needs your answer</string>
+    <string name="chat_empty">Tap the message box below to talk to %1$s.</string>
+    <string name="ask_heading">Ask %1$s</string>
 </resources>

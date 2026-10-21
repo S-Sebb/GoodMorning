@@ -1,31 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Sample content for the widget picker; the real widget shows the owner's latest conversation. -->
+<!-- Sample content for the widget picker, in the website's default colors. -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@drawable/widget_background"
+    android:background="@drawable/preview_card"
     android:orientation="vertical"
-    android:padding="12dp">
+    android:padding="14dp">
 
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="@string/chat_title_default"
-        android:textColor="@color/ink"
-        android:textSize="15sp"
-        android:textStyle="bold" />
-
-    <TextView
-        android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_marginTop="6dp"
-        android:layout_weight="1"
-        android:text="@string/preview_reply"
-        android:textColor="@color/ink"
-        android:textSize="13sp" />
-
-    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="end">
-        <TextView android:layout_width="wrap_content" android:layout_height="40dp" android:gravity="center" android:paddingHorizontal="16dp" android:text="@string/chat_open" android:textColor="@color/sun" />
-        <TextView android:layout_width="wrap_content" android:layout_height="40dp" android:background="@drawable/widget_button" android:gravity="center" android:minWidth="88dp" android:paddingHorizontal="20dp" android:text="@string/chat_ask" android:textColor="#FFFFFFFF" />
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center_vertical">
+        <ImageView android:layout_width="42dp" android:layout_height="42dp" android:importantForAccessibility="no" android:src="@drawable/portrait_f1" />
+        <LinearLayout android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginStart="10dp" android:orientation="vertical">
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:letterSpacing="0.14" android:text="@string/chat_label" android:textAllCaps="true" android:textColor="@color/preview_muted" android:textSize="10sp" android:textStyle="bold" />
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:fontFamily="serif" android:text="@string/chat_name_default" android:textColor="@color/preview_ink" android:textSize="19sp" />
+        </LinearLayout>
     </LinearLayout>
+    <TextView android:layout_width="match_parent" android:layout_height="0dp" android:layout_marginTop="10dp" android:layout_weight="1" android:background="@drawable/preview_bubble" android:padding="12dp" android:text="@string/preview_reply" android:textColor="@color/preview_ink" android:textSize="13sp" />
 </LinearLayout>

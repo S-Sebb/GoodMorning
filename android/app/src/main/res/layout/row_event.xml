@@ -1,19 +1,30 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- An event, marked like the website's schedule: a thin accent bar, time and title, then details. -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:id="@+id/item"
+    android:id="@+id/row"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="horizontal"
     android:paddingTop="5dp"
     android:paddingBottom="5dp">
 
+    <ImageView
+        android:id="@+id/bar"
+        android:layout_width="3dp"
+        android:layout_height="match_parent"
+        android:importantForAccessibility="no"
+        android:scaleType="fitXY"
+        android:src="@drawable/round_bar" />
+
     <TextView
         android:id="@+id/time"
-        android:layout_width="56dp"
+        android:layout_width="52dp"
         android:layout_height="wrap_content"
+        android:layout_marginStart="9dp"
         android:maxLines="1"
-        android:textColor="@color/sun"
-        android:textSize="13sp" />
+        android:paddingTop="1dp"
+        android:textSize="12sp"
+        android:textStyle="bold" />
 
     <LinearLayout
         android:layout_width="0dp"
@@ -27,8 +38,7 @@
             android:layout_height="wrap_content"
             android:ellipsize="end"
             android:maxLines="2"
-            android:textColor="@color/ink"
-            android:textSize="13sp" />
+            android:textSize="14sp" />
 
         <TextView
             android:id="@+id/detail"
@@ -36,7 +46,6 @@
             android:layout_height="wrap_content"
             android:ellipsize="end"
             android:maxLines="1"
-            android:textColor="@color/muted"
             android:textSize="12sp" />
     </LinearLayout>
 </LinearLayout>

@@ -113,6 +113,7 @@ final class Sync {
                     Reminders.schedule(context, data);
                 }
                 prefs.edit().putLong("cursor", newest).apply();
+                portrait(context, token, data.optJSONObject("secretary"));
             } catch (IOException | JSONException unreadable) {
                 return;
             }
@@ -120,8 +121,35 @@ final class Sync {
         }
     }
 
+    /** Keeps a small copy of an uploaded portrait for the chat widget; built-in ones ship with the app. */
+    private static void portrait(Context context, String token, JSONObject secretary) {
+        String path = secretary == null || secretary.isNull("image") ? "" : secretary.optString("image");
+        SharedPreferences prefs = prefs(context);
+        if (path.isEmpty() || path.equals(prefs.getString("portrait", ""))) return;
+        try {
+            byte[] data = Api.portrait(context, token, path);
+            android.graphics.Bitmap image = android.graphics.BitmapFactory.decodeByteArray(data, 0, data.length);
+            if (image == null) return;
+            // A round crop, like the built-in portraits and the website's portrait badge.
+            int side = Math.min(image.getWidth(), image.getHeight());
+            android.graphics.Bitmap square = android.graphics.Bitmap.createBitmap(image, (image.getWidth() - side) / 2, (image.getHeight() - side) / 2, side, side);
+            android.graphics.Bitmap small = android.graphics.Bitmap.createBitmap(128, 128, android.graphics.Bitmap.Config.ARGB_8888);
+            android.graphics.Paint paint = new android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG);
+            paint.setShader(new android.graphics.BitmapShader(android.graphics.Bitmap.createScaledBitmap(square, 128, 128, true),
+                    android.graphics.Shader.TileMode.CLAMP, android.graphics.Shader.TileMode.CLAMP));
+            new android.graphics.Canvas(small).drawCircle(64, 64, 64, paint);
+            try (FileOutputStream out = new FileOutputStream(new File(context.getFilesDir(), "portrait.png"))) {
+                small.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, out);
+            }
+            prefs.edit().putString("portrait", path).apply();
+        } catch (IOException offline) {
+            // The built-in portrait shows until the next check.
+        }
+    }
+
     static void forget(Context context) {
         cache(context).delete();
+        new File(context.getFilesDir(), "portrait.png").delete();
         prefs(context).edit().clear().apply();
         context.getSystemService(JobScheduler.class).cancel(JOB);
         Reminders.cancelAll(context);

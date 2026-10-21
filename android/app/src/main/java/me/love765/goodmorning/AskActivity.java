@@ -2,7 +2,15 @@ package me.love765.goodmorning;
 
 import android.app.Activity;
 import android.content.Intent;
+import android.content.res.ColorStateList;
+import android.content.res.Configuration;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.graphics.Color;
+import android.graphics.drawable.ColorDrawable;
+import android.graphics.drawable.GradientDrawable;
 import android.os.Bundle;
+import android.widget.ImageView;
 import android.view.View;
 import android.view.WindowManager;
 import android.widget.Button;
@@ -29,9 +37,16 @@ public class AskActivity extends Activity {
         }
         setContentView(R.layout.ask);
         getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_VISIBLE);
+        getWindow().setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
+        style();
         JSONObject latest = Sync.cached(this).optJSONObject("chat");
         String chat = latest == null || latest.optString("id").isEmpty() ? null : latest.optString("id");
         TextView conversation = findViewById(R.id.conversation);
+        JSONObject secretary = Sync.cached(this).optJSONObject("secretary");
+        String name = secretary == null || secretary.isNull("name") || secretary.optString("name").isEmpty()
+                ? getString(R.string.chat_name_default) : secretary.optString("name");
+        ((TextView) findViewById(R.id.heading)).setText(getString(R.string.ask_heading, name));
+        portrait(secretary);
         CheckBox fresh = findViewById(R.id.fresh);
         if (chat == null) {
             conversation.setText(R.string.ask_starts_new);
@@ -77,5 +92,53 @@ public class AskActivity extends Activity {
                 });
             }).start();
         });
+    }
+
+    /** The website's look in the account's day or night scheme, as in the chat widget. */
+    private void style() {
+        Palette[] schemes = Palette.of(this);
+        boolean night = (getResources().getConfiguration().uiMode & Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES;
+        Palette p = schemes[night ? 1 : 0];
+        float density = getResources().getDisplayMetrics().density;
+        findViewById(R.id.card).setBackground(rounded(p.paper, p.border, 24 * density, density));
+        findViewById(R.id.text).setBackground(rounded(p.surface, p.border, 16 * density, density));
+        ((EditText) findViewById(R.id.text)).setTextColor(p.ink);
+        ((EditText) findViewById(R.id.text)).setHintTextColor(p.muted);
+        ((TextView) findViewById(R.id.label)).setTextColor(p.muted);
+        ((TextView) findViewById(R.id.heading)).setTextColor(p.ink);
+        ((TextView) findViewById(R.id.conversation)).setTextColor(p.muted);
+        CheckBox fresh = findViewById(R.id.fresh);
+        fresh.setTextColor(p.ink);
+        fresh.setButtonTintList(ColorStateList.valueOf(p.accent));
+        Button send = findViewById(R.id.send);
+        send.setBackground(rounded(p.ink, p.ink, 22 * density, density));
+        send.setTextColor(p.surface);
+        ((Button) findViewById(R.id.cancel)).setTextColor(p.muted);
+        findViewById(R.id.portrait).setBackground(circle(p.wash));
+    }
+
+    private static GradientDrawable rounded(int fill, int stroke, float radius, float density) {
+        GradientDrawable shape = new GradientDrawable();
+        shape.setColor(fill);
+        shape.setStroke(Math.round(density), stroke);
+        shape.setCornerRadius(radius);
+        return shape;
+    }
+
+    private static GradientDrawable circle(int fill) {
+        GradientDrawable shape = new GradientDrawable();
+        shape.setShape(GradientDrawable.OVAL);
+        shape.setColor(fill);
+        return shape;
+    }
+
+    private void portrait(JSONObject secretary) {
+        String avatar = secretary == null ? "f1" : secretary.optString("avatar", "f1");
+        ImageView view = findViewById(R.id.portrait);
+        java.io.File custom = new java.io.File(getFilesDir(), "portrait.png");
+        Bitmap image = "custom".equals(avatar) && custom.exists() ? BitmapFactory.decodeFile(custom.getPath()) : null;
+        if (image != null) view.setImageBitmap(image);
+        else view.setImageResource("f2".equals(avatar) ? R.drawable.portrait_f2 : "m1".equals(avatar) ? R.drawable.portrait_m1
+                : "m2".equals(avatar) ? R.drawable.portrait_m2 : R.drawable.portrait_f1);
     }
 }

@@ -5,4 +5,11 @@
     <color name="error">#F2B8B5</color>
     <color name="widget_surface">#1B2A44</color>
     <color name="muted">#B0BED6</color>
+    <color name="preview_surface">#111C32</color>
+    <color name="preview_paper">#0D172B</color>
+    <color name="preview_ink">#EEF2FB</color>
+    <color name="preview_muted">#B0BED6</color>
+    <color name="preview_accent">#B8C9F4</color>
+    <color name="preview_line">#2D3D59</color>
+    <color name="preview_wash">#1B2A44</color>
 </resources>

@@ -40,11 +40,17 @@ the app then claims its token (`docs/browser-delivery.md`, Phone widgets and app
 linking). The token is encrypted with an AES key in the Android Keystore, and
 unlinking in Settings makes the app forget it on its next check.
 
+Widgets follow the website's look: serif headings, small uppercase labels, the
+desk icons, the secretary's portrait and name, and the account's chosen day and
+night color schemes (`Palette`, copied from `assets/web/color-schemes.css`),
+switched with the phone's dark mode. On Android 12 and newer the launcher
+switches them itself; older versions use the colors of the mode at drawing time.
+
 | Widget | Shows | Taps |
 |---|---|---|
 | Today's schedule | Today's events (time, until, place) and to-dos | Day schedule; refresh button |
 | Week schedule | Seven days from today: events and to-do progress | That day's schedule |
-| Secretary chat | Latest secretary conversation: title, state, start of the reply | Ask (dialog, may start paid model work), Open |
+| Secretary chat | Portrait and name, latest conversation title, its reply in a bubble, and a message box | Message box: Ask (dialog, may start paid model work); elsewhere: the conversation |
 
 `Sync` reads `GET /api/app/sync` once per run and caches the answer for the
 widgets. It runs when the app opens, after linking, from a widget's refresh
