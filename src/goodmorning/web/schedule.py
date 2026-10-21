@@ -364,6 +364,30 @@ def day_view(data, checked, now):
     return controls + notice + body, [item['state'] for item in events]
 
 
+def upcoming(app, hours=3):
+    """Timed calendar events that start within the next hours, for reminder notifications."""
+    zone = app.profile().get('timezone')
+    calendar = app.runtime / 'calendar.sqlite'
+    if not zone or calendar.is_symlink() or not calendar.exists():
+        return {'events': []}
+    now = app.now() if app.now else datetime.now(timezone.utc)
+    store = CalendarStore(str(calendar), readonly=True)
+    try:
+        events = safe_value(store.query(now, now + timedelta(hours=hours), limit=-1, details=True))
+    finally:
+        store.close()
+    result = []
+    for event in events:
+        if event.get('all_day') or event.get('draft'):
+            continue
+        begins = endpoints(event)[0]
+        if begins > now:
+            result.append({'key': event['id'] + '@' + begins.isoformat(), 'subject': event['subject'],
+                           'starts': begins.timestamp(), 'time': begins.astimezone(ZoneInfo(zone)).strftime('%H:%M'),
+                           'location': event.get('location') or event.get('online') or ''})
+    return {'events': result}
+
+
 def snapshot(app, offset, mode='week'):
     zone = app.profile().get('timezone')
     if not zone:

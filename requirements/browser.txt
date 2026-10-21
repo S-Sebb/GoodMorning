@@ -1,2 +1,4 @@
-# Optional browser renderer only. Existing secretary helpers remain standard-library.
+# Website server: Pillow for optional image previews, cryptography for Web Push notifications.
+# Existing secretary helpers remain standard-library.
 Pillow>=10,<13
+cryptography>=44

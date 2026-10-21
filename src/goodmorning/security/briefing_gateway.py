@@ -30,18 +30,20 @@ from goodmorning.web.avatar_images import AVATAR_UPLOAD_ROUTE, MAX_AVATAR_BYTES
 from goodmorning.web.activity import ACTIVITY_PATH, panel as activity_panel
 from goodmorning.web.generation_clock import REQUESTED_AT
 from . import maintenance as deploy_pause
+from . import web_push
 
 ASSETS = WEB_ASSETS
 # Digital Asset Links let the Android app open this origin without browser controls.
 ASSET_LINKS = (ASSETS / 'assetlinks.json').read_bytes()
 POLICY = "default-src 'none'; style-src 'self'; script-src 'self'; img-src 'self'; font-src 'self'; connect-src 'self'; manifest-src 'self'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'"
-GET_ROUTES = re.compile(r'(?:/|/(?:index|gm|gn)\.html|/chat|/schedule|/api/schedule|/api/avatar(?:/image/[a-f0-9]{64}\.png)?|/api/chats(?:/[a-f0-9]{32}(?:/status)?)?|/api/day|/api/edition/\d{4}-\d{2}-\d{2}/(?:gm|gn)|/api/jobs/[a-f0-9]{32}(?:/preview)?|/d/\d{4}-\d{2}-\d{2}/(?:gm|gn)\.(?:html|json)|/media/(?:thumb-v1/)?[a-f0-9]{64}\.webp|/d/\d{4}-\d{2}-\d{2}/media/[a-f0-9]+\.webp|/(?:assets/[a-f0-9]{64}/)?desk-secretary(?:-f2|-m1|-m2)?(?:-profile|(?:-day)?(?:-animated)?)\.png|/(?:assets/[a-f0-9]{64}/)?(?:briefing\.css|briefing\.js|browser\.js|schedule\.js|schedule\.css|questions\.js|chat\.js|chat\.css|avatar\.js|avatar\.css|fonts/(?:lora-italic\.woff2|OFL\.txt)))')
+GET_ROUTES = re.compile(r'(?:/|/(?:index|gm|gn)\.html|/chat|/schedule|/api/schedule|/api/avatar(?:/image/[a-f0-9]{64}\.png)?|/api/chats(?:/[a-f0-9]{32}(?:/status)?)?|/api/day|/api/reminders|/api/edition/\d{4}-\d{2}-\d{2}/(?:gm|gn)|/api/jobs/[a-f0-9]{32}(?:/preview)?|/d/\d{4}-\d{2}-\d{2}/(?:gm|gn)\.(?:html|json)|/media/(?:thumb-v1/)?[a-f0-9]{64}\.webp|/d/\d{4}-\d{2}-\d{2}/media/[a-f0-9]+\.webp|/(?:assets/[a-f0-9]{64}/)?desk-secretary(?:-f2|-m1|-m2)?(?:-profile|(?:-day)?(?:-animated)?)\.png|/(?:assets/[a-f0-9]{64}/)?(?:briefing\.css|briefing\.js|browser\.js|schedule\.js|schedule\.css|questions\.js|chat\.js|chat\.css|avatar\.js|avatar\.css|fonts/(?:lora-italic\.woff2|OFL\.txt)))')
 POST_ROUTES = re.compile(r'(?:/api/avatar(?:/upload/(?:day|night|profile))?|/api/(?:generate|regenerate)|/api/chat-uploads/[a-f0-9]{32}|/api/chats|/api/chats/[a-f0-9]{32}/(?:messages|seen|(?:form|permission)/[A-Za-z0-9_]+/reply)|/api/jobs/[a-f0-9]{32}/(?:recover|(?:form|permission)/[A-Za-z0-9_]+/reply))')
 QUEUE_KEY = 'generation_queue'
 WAITING_KEY = 'generation_waiting'
 MAX_QUEUE = 20
 QUEUE_FULL = 'The secretary queue is full. Please wait for earlier requests to finish.'
 PUMP_INTERVAL = 5
+REMINDER_REFRESH = 300  # Seconds between reads of each opted-in account's upcoming events.
 PAGE_ROUTES = re.compile(r'(?:/|/(?:index|gm|gn)\.html|/chat|/schedule|/d/\d{4}-\d{2}-\d{2}/(?:gm|gn)\.html)')
 BACKEND_PENDING = 'Your secretary is not set up yet. Please contact the server administrator to complete account setup.'
 BACKEND_UNAVAILABLE = 'Secretary temporarily unavailable; records are unchanged'
@@ -59,6 +61,10 @@ def pump_forever(gateway, interval=PUMP_INTERVAL):
             gateway.pump_queue()
         except Exception:
             pass  # Background maintenance must never stop serving.
+        try:
+            gateway.remind()
+        except Exception:
+            pass
 
 
 class NoRedirect(HTTPRedirectHandler):
@@ -78,6 +84,7 @@ class Gateway:
         # They must not fall through the private account route allowlist.
         self.icons = Resources(ASSETS)
         self.html_cache = ByteCache(8 * 1024 * 1024, 32)
+        self.reminders = {}  # account -> (last read, upcoming events)
         self.html_lock = threading.RLock()
         labels=[host.split('.')[::-1] for host in hosts]
         shared=[]
@@ -286,10 +293,91 @@ class Gateway:
                                              ('generation', json.dumps(current, separators=(',', ':'))))
                         if deleted.rowcount:
                             self.remember_waiting(db, current)
+                    if deleted.rowcount:
+                        self.announce(current, result)
                 elif status == 200 and result.get('state') in terminal:
                     self.clear_ticket(current)
+                    self.announce(current, result)
             except Exception:
                 pass  # Uncertain work keeps its reservation. Never launch work blindly.
+
+    def notify(self, user, kind, message, *, ttl=3600, urgency='normal'):
+        """Sends without blocking the caller; delivery problems never affect the work itself."""
+        def send():
+            try:
+                web_push.send(self.accounts, user, message, kind=kind, ttl=ttl, urgency=urgency,
+                              subject='https://' + next(iter(self.hosts)))
+            except Exception as error:
+                logging.getLogger(__name__).warning('Notification failed (%s)', type(error).__name__)
+        threading.Thread(target=send, daemon=True).start()
+
+    def announce(self, ticket, result):
+        """A reserved task just finished or needs the account owner."""
+        user, chat = ticket['user'], ticket.get('chat')
+        lang = self.accounts.website_language(user) or 'en'
+        def t(source, **values):
+            return ui.text(source, lang=lang, **values)
+        day, edition = ticket.get('date'), ticket.get('kind')
+        page = '/chat?id=' + chat if chat else (f'/d/{day}/{edition}.html' if edition in ('gm', 'gn') and day else '/')
+        if result.get('state') == 'waiting':
+            forms, permissions = result.get('forms') or [], result.get('permissions') or []
+            detail = ''
+            if forms:
+                fields = forms[0].get('fields') or [{}]
+                detail = fields[0].get('title') or (forms[0].get('title') if forms[0].get('title') != 'Questions' else '')
+            elif permissions:
+                detail = permissions[0].get('action') or ''
+            return self.notify(user, 'waiting', {'title': t('Your secretary needs your answer'),
+                'body': str(detail)[:200] or t('Open GoodMorning to answer.'), 'url': page, 'tag': 'waiting-' + (chat or ticket.get('job', ''))},
+                urgency='high')
+        if chat:
+            return self.notify(user, 'chat', {'title': t('Your secretary replied'), 'body': self.reply_excerpt(user, ticket) or t('Open the chat to read it.'),
+                                              'url': page, 'tag': 'chat-' + chat})
+        name = t('Your morning briefing') if edition == 'gm' else t('Your evening briefing')
+        if result.get('state') == 'ready':
+            message = {'title': t('{name} is ready', name=name), 'body': t('Tap to read it.')}
+        else:
+            message = {'title': t('{name} could not finish', name=name), 'body': t(result.get('label') or 'Open it to see what happened.')}
+        self.notify(user, 'briefing', {**message, 'url': page, 'tag': 'briefing-' + str(day) + '-' + str(edition)})
+
+    def reply_excerpt(self, user, ticket):
+        try:
+            status, _, raw = self.proxy(user, ticket['host'], '/api/chats/' + ticket['chat'], 'GET', None, {})
+            replies = [item['text'] for item in json.loads(raw).get('messages', []) if item.get('role') == 'assistant' and isinstance(item.get('text'), str)]
+        except Exception:
+            return ''
+        if status != 200 or not replies:
+            return ''
+        text = ' '.join(re.sub(r'[*_`#>\[\]]+', '', replies[-1]).split())
+        return text if len(text) <= 180 else text[:179] + '…'
+
+    def remind(self):
+        """Event reminders for accounts that turned them on: read upcoming events every few minutes, send when due."""
+        now = time.time()
+        with self.accounts.db() as db:
+            users = [key[5:] for (key,) in db.execute("SELECT key FROM metadata WHERE key LIKE 'push:%'")]
+        for user in users:
+            state = web_push.account(self.accounts, user)
+            if not state['settings']['events'] or not state['subscriptions']:
+                self.reminders.pop(user, None)
+                continue
+            checked, events = self.reminders.get(user, (0, []))
+            if now - checked >= REMINDER_REFRESH:
+                try:
+                    status, _, raw = self.proxy(user, next(iter(self.hosts)), '/api/reminders', 'GET', None, {})
+                    events = json.loads(raw)['events'] if status == 200 else events
+                except Exception:
+                    pass  # Keep the last known events; the next refresh tries again.
+                self.reminders[user] = (now, events)
+            lead = state['settings']['lead'] * 60
+            lang = self.accounts.website_language(user) or 'en'
+            for event in events:
+                if event['starts'] - lead <= now < event['starts'] and web_push.remembered(self.accounts, user, event['key']):
+                    body = ui.text('Starts at {time}', lang=lang, time=event['time'])
+                    if event.get('location'):
+                        body += ' · ' + event['location']
+                    self.notify(user, 'events', {'title': event['subject'], 'body': body, 'url': '/schedule?view=day', 'tag': 'event-' + event['key']},
+                                ttl=max(60, int(event['starts'] - now)), urgency='high')
 
     @staticmethod
     def _valid_queue_entry(entry):
@@ -912,6 +1000,9 @@ def handler_for(gateway):
                     return self.respond(gateway.queue_status(session['user_id']))
                 if path=='/api/activity':
                     return self.respond(gateway.activity(session['user_id']))
+                if path=='/api/push':
+                    return self.respond({'publicKey':web_push.public_key(gateway.accounts),
+                                         'settings':web_push.account(gateway.accounts,session['user_id'])['settings']})
                 status,headers,data=gateway.proxy(session['user_id'],host,self.path,'GET',None,self.headers)
                 if status >= 500 and PAGE_ROUTES.fullmatch(path):
                     return self.unavailable(session,host)
@@ -1039,6 +1130,17 @@ def handler_for(gateway):
                     return self.respond({'next':'/login'},token='')
                 if session['temporary']:
                     raise Denied('Change your temporary password first')
+                if path=='/api/push/subscribe':
+                    if set(body)!={'subscription'}:raise ValueError('Invalid push subscription')
+                    web_push.subscribe(gateway.accounts,session['user_id'],body['subscription'])
+                    return self.respond({'subscribed':True})
+                if path=='/api/push/unsubscribe':
+                    if set(body)!={'endpoint'} or not isinstance(body['endpoint'],str):raise ValueError('Invalid push subscription')
+                    web_push.unsubscribe(gateway.accounts,session['user_id'],body['endpoint'])
+                    return self.respond({'subscribed':False})
+                if path=='/api/push/settings':
+                    if set(body)!={'settings'} or not isinstance(body['settings'],dict):raise ValueError('Invalid notification settings')
+                    return self.respond({'settings':web_push.settings(gateway.accounts,session['user_id'],body['settings'])})
                 # Reject incomplete setup before taking a global reservation or queue slot.
                 gateway.backend(session['user_id'])
                 if path=='/api/generate':
@@ -1064,7 +1166,7 @@ def handler_for(gateway):
                 return self.maintenance_json()
             except (ValueError,KeyError,TypeError):
                 route=urlsplit(self.path).path
-                error='Invalid upload' if UPLOAD_ROUTE.fullmatch(route) else 'Invalid release version' if route=='/api/release/seen' else 'Choose English or Simplified Chinese' if route=='/api/language' else 'Choose one of the offered website models' if route=='/api/model' else 'Choose one of the offered color schemes' if route=='/api/color-schemes' else 'Invalid request. '+PASSWORD_RULE
+                error='Invalid upload' if UPLOAD_ROUTE.fullmatch(route) else 'Notification settings could not be saved. Try again.' if route.startswith('/api/push/') else 'Invalid release version' if route=='/api/release/seen' else 'Choose English or Simplified Chinese' if route=='/api/language' else 'Choose one of the offered website models' if route=='/api/model' else 'Choose one of the offered color schemes' if route=='/api/color-schemes' else 'Invalid request. '+PASSWORD_RULE
                 return self.respond({'error':error},400)
             except Exception:
                 return self.respond({'error':'Request could not be confirmed. Refresh before retrying.'},503)

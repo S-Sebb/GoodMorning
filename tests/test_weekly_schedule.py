@@ -15,7 +15,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'src'))
 from goodmorning.calendar.calendar_store import CalendarStore
 from goodmorning.web import language as ui
 from goodmorning.web.briefing_server import BrowserApp
-from goodmorning.web.schedule import saved_week, schedule_query, snapshot, week_offset
+from goodmorning.web.schedule import saved_week, schedule_query, snapshot, upcoming, week_offset
 from goodmorning.records.inbox_store import InboxStore, initialize
 from goodmorning.records.task_store import TaskStore
 
@@ -81,6 +81,17 @@ class ScheduleTests(unittest.TestCase):
 
     def data(self, offset=0):
         return saved_week(self.root, 'Europe/London', self.app.now(), offset)
+
+    def test_reminders_list_only_timed_events_that_have_not_started(self):
+        def events(hour, minute=0):
+            app = BrowserApp(self.root, now=lambda: datetime(2026, 10, 13, hour, minute, tzinfo=timezone.utc))
+            return upcoming(app)['events']
+        (meeting,) = events(7)
+        self.assertEqual({key: meeting[key] for key in ('subject', 'time', 'location')},
+                         {'subject': 'Team check-in', 'time': '09:30', 'location': 'Studio 2'})
+        self.assertEqual(meeting['starts'], datetime(2026, 10, 13, 8, 30, tzinfo=timezone.utc).timestamp())
+        self.assertEqual(events(8, 45), [])  # Already started.
+        self.assertEqual(events(16), [])  # The all-day event on Saturday is never a reminder.
 
     def test_canonical_week_shows_tbc_attributes_reports_and_only_agreed_workdays(self):
         canonical_records(self.root)

@@ -152,6 +152,33 @@ redirects to that path when it is a page route, otherwise to `/chat`. Sign-in
 inside the app also continues to `/app`. The cookie holds only a path, never
 page content.
 
+## Notifications
+
+Settings has a Notifications section on the hosted website, shown in browsers
+that support Web Push. Turning it on for a device asks for permission, then
+registers `/sw.js` and subscribes that device. Turning it off, or signing out,
+unsubscribes the device and unregisters the worker. The worker has no fetch
+handler, so page loads never start it; it runs only to show a notification or
+open one. The four switches and the reminder lead time (5, 10, 15, 30 or 60
+minutes; 15 by default) belong to the account and apply to all its devices.
+
+| Switch | Sent when |
+|---|---|
+| A briefing is ready | A reserved briefing job becomes ready, or stops without finishing |
+| My secretary needs my answer | A briefing or chat waits for a question or permission; the text shows the first question or the requested action |
+| A chat reply is finished | A chat turn becomes idle; the text is the start of the reply |
+| An event is about to start | A timed calendar event starts within the lead time; all-day and unconfirmed (TBC) events are skipped |
+
+The gateway notices the first three in its five-second reservation check
+(`reconcile_ticket`); each transition is announced once. For reminders, it reads
+`/api/reminders` from each opted-in account's own backend every five minutes.
+That endpoint lists the timed events starting in the next three hours. Each
+reminder is sent once per event start. While a GoodMorning window is focused,
+the worker shows only reminders, because the page already shows everything
+else. Notification text uses the account's website language. A tap opens the
+related chat, briefing or day schedule. In the Android app, Chrome shows them
+as the app's own notifications.
+
 ## Session organization
 
 Each website conversation and each briefing owns exactly one OpenChamber
