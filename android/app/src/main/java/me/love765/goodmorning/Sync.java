@@ -30,7 +30,10 @@ import java.util.Set;
  */
 final class Sync {
     static final int JOB = 2;
+    /** One extra check a few minutes after a briefing starts, so its widget shows it soon after it is saved. */
+    static final int SOON = 3;
     private static final long PERIOD = 15 * 60 * 1000L;
+    private static final long SOON_DELAY = 3 * 60 * 1000L;
     private static final Object LOCK = new Object();
 
     private Sync() {}
@@ -99,7 +102,7 @@ final class Sync {
             }
             try {
                 JSONObject previous = cached(context);
-                for (String part : new String[] {"schedule", "reminders", "chat"}) {
+                for (String part : new String[] {"schedule", "reminders", "chat", "briefings"}) {
                     if (data.isNull(part) && previous.has(part)) data.put(part, previous.get(part));
                 }
                 JSONArray notifications = (JSONArray) data.remove("notifications");
@@ -113,6 +116,7 @@ final class Sync {
                     Reminders.schedule(context, data);
                 }
                 prefs.edit().putLong("cursor", newest).apply();
+                if (preparing(context)) soon(context);
                 portrait(context, token, data.optJSONObject("secretary"));
             } catch (IOException | JSONException unreadable) {
                 return;
@@ -152,7 +156,58 @@ final class Sync {
         new File(context.getFilesDir(), "portrait.png").delete();
         prefs(context).edit().clear().apply();
         context.getSystemService(JobScheduler.class).cancel(JOB);
+        context.getSystemService(JobScheduler.class).cancel(SOON);
         Reminders.cancelAll(context);
+        Widgets.updateAll(context);
+    }
+
+    /** Whether a briefing of today is being prepared, by the last summary. */
+    static boolean preparing(Context context) {
+        JSONObject briefings = cached(context).optJSONObject("briefings");
+        JSONObject editions = briefings == null ? null : briefings.optJSONObject("editions");
+        if (editions == null) return false;
+        for (String kind : new String[] {"gm", "gn"}) {
+            JSONObject edition = editions.optJSONObject(kind);
+            if (edition != null && "working".equals(edition.optString("state"))) return true;
+        }
+        return false;
+    }
+
+    /** Checks again in a few minutes; SyncJob repeats it, further apart each time, while preparation lasts. */
+    private static void soon(Context context) {
+        JobScheduler scheduler = context.getSystemService(JobScheduler.class);
+        if (scheduler.getPendingJob(SOON) != null) return;
+        scheduler.schedule(new JobInfo.Builder(SOON, new ComponentName(context, SyncJob.class))
+                .setMinimumLatency(SOON_DELAY)
+                .setBackoffCriteria(SOON_DELAY, JobInfo.BACKOFF_POLICY_LINEAR)
+                .setRequiredNetworkType(JobInfo.NETWORK_TYPE_ANY)
+                .build());
+    }
+
+    /** The briefings widgets' Generate button: shows the edition as being prepared at once, then asks the server. */
+    static void generate(Context context, String kind) {
+        String token = Api.token(context);
+        if (token == null) return;
+        briefingState(context, kind, "working");
+        try {
+            Api.generate(context, token, kind);
+        } catch (IOException | JSONException failed) {
+            // Offline, or the server's queue is full: the widget offers the button again.
+            briefingState(context, kind, "failed");
+            return;
+        }
+        run(context);
+    }
+
+    private static void briefingState(Context context, String kind, String state) {
+        try {
+            JSONObject data = cached(context);
+            JSONObject edition = data.getJSONObject("briefings").getJSONObject("editions").getJSONObject(kind);
+            edition.put("state", state);
+            write(context, data);
+        } catch (IOException | JSONException ignored) {
+            // No summary yet; the next one shows the state either way.
+        }
         Widgets.updateAll(context);
     }
 

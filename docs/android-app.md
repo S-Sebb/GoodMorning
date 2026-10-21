@@ -3,8 +3,11 @@
 `android/` is a small Trusted Web Activity (TWA) shell: Chrome shows the chosen
 GoodMorning server full screen, without browser controls. The website does all
 the work, so website deployments reach the app immediately. A new APK is needed
-only when the shell changes: its screens, icon, name, permissions or the helper
-library. The release APK is under 200 KB.
+only when the shell changes: its screens, widgets, icon, name, permissions or
+the helper library. The release APK is about 320 KB.
+
+The app is in beta, like the website: versions start at 0.1, and its releases
+are GitHub pre-releases.
 
 The app:
 
@@ -12,8 +15,9 @@ The app:
   It accepts only an HTTPS origin whose `/.well-known/assetlinks.json` names
   `me.love765.goodmorning`. Long-pressing the icon offers "Change server" and
   Chrome's "Site Settings";
-- opens `<server>/app`, which reopens the last page, or chat on the first visit
-  (`docs/browser-delivery.md`, Installed app);
+- opens `<server>/app`, which reopens the last page, or chat on the first visit.
+  Widgets and notifications open `/app?next=<page>`: the site signs the app in
+  only through `/app` (`docs/browser-delivery.md`, Installed app);
 - shows website notifications as its own, through Chrome's notification
   delegation;
 - offers home screen widgets once the phone is linked (below);
@@ -23,21 +27,32 @@ The app:
 
 Chrome's full-screen view needs Google services. Chrome verifies the site
 through Google's Digital Asset Links service, which is blocked in mainland
-China, and Chrome's Web Push travels through Google's FCM. `Device.chromeMode`
-therefore uses Chrome only when Google Play services and a browser that
-supports Trusted Web Activities are both present. Otherwise `WebActivity`
-shows the server in the app's own WebView, which handles file uploads, back
+China, and Chrome's Web Push travels through Google's FCM. The app therefore
+uses Chrome itself (`com.android.chrome`), never the phone's default browser:
+other browsers, such as some phone makers' own, may claim to support the
+full-screen view yet open an ordinary tab with an address bar.
+
+At each launch, when Google Play services and Chrome are both present,
+`Launcher` asks Chrome to verify the site and waits up to six seconds, showing
+the splash screen. Chrome answers from its cache after the first check. Only a
+verified site opens in Chrome; otherwise, for example where Google's service is
+unreachable, `WebActivity` shows the server in the app's own WebView, which handles file uploads, back
 navigation, external links in the browser, and edge-to-edge insets. Its user
 agent includes `GoodMorningApp/<version>`, so the website still reopens the last
 page and keeps notification settings visible. WebView has no Web Push, so on
-these phones the linked app posts notifications itself (below).
+these phones, and while Chrome cannot verify the site, the linked app posts
+notifications itself (below). The WebView writes its cookies to disk whenever
+the app leaves the screen, so a remembered sign-in survives closing it.
 
 ## Linking and widgets
 
 "Link this phone" (a launcher shortcut, or a tap on an unlinked widget) asks the
 server for a pairing code. The owner enters it in Settings → Phone widgets, and
 the app then claims its token (`docs/browser-delivery.md`, Phone widgets and app
-linking). The token is encrypted with an AES key in the Android Keystore, and
+linking). `Pairing` keeps the code until it expires, so the screen shows the
+same code however often it opens. While a code waits, the app checks for its
+token every three seconds, also with the screen closed, and again whenever the
+app or the link screen opens. The token is encrypted with an AES key in the Android Keystore, and
 unlinking in Settings makes the app forget it on its next check.
 
 Widgets follow the website's look: serif headings, small uppercase labels, the
@@ -46,16 +61,26 @@ night color schemes (`Palette`, copied from `assets/web/color-schemes.css`),
 switched with the phone's dark mode. On Android 12 and newer the launcher
 switches them itself; older versions use the colors of the mode at drawing time.
 
-| Widget | Shows | Taps |
-|---|---|---|
-| Today's schedule | Today's events (time, until, place) and to-dos | Day schedule; refresh button |
-| Week schedule | Seven days from today: events and to-do progress | That day's schedule |
-| Secretary chat | Portrait and name, latest conversation title, its reply in a bubble, and a message box | Message box: Ask (dialog, may start paid model work); elsewhere: the conversation |
+| Widget | Default size | Shows | Taps |
+|---|---|---|---|
+| Today's schedule | 4×4 | Today's events (time, until, place) and to-dos | Day schedule; refresh button |
+| Week schedule | 4×5 | Seven days from today: events and to-do progress | That day's schedule |
+| Secretary chat | 4×3 | Portrait and name, latest conversation title, its reply in a bubble, and a message box | Message box: Ask (dialog, may start paid model work); elsewhere: the conversation |
+| Briefings | 4×5 | Today's morning or evening briefing in full, scrolling, with a Morning/Evening switch | The briefing page; Prepare button (starts generation at once, may start paid model work); refresh button |
+| News | 4×4 | The news sections of today's morning briefing | The morning briefing; Prepare button while it is missing |
+
+Every widget can be resized. Launchers hide a widget whose minimum size exceeds
+their grid, so minimum sizes stay small and the defaults fit the common 4×5
+grid. The Briefings widget shows the morning edition before 17:00 and the
+evening edition from then on; a choice in the widget holds until the clock
+passes the next switch.
 
 `Sync` reads `GET /api/app/sync` once per run and caches the answer for the
 widgets. It runs when the app opens, after linking, from a widget's refresh
 button, and every 15 minutes from a `JobScheduler` job that needs a network and
-that Android batches with other work. A part the server cannot read keeps its
+that Android batches with other work. While a briefing is being prepared, an
+extra job checks again after three minutes, then further apart, until it is
+saved or stops. A part the server cannot read keeps its
 last value. A 403 means the phone was unlinked: the app forgets its token and the
 widgets show the link prompt.
 
@@ -104,7 +129,7 @@ cd android
 At launch (at most once a day) and from a daily `JobScheduler` job that runs
 only when online, the app reads
 `https://api.github.com/repos/S-Sebb/GoodMorning/releases?per_page=10`. It
-looks for the highest non-draft, non-prerelease release tagged
+looks for the highest published release, pre-releases included, tagged
 `android-v<versionCode>` above its own code that has an `.apk` asset. When it
 finds one:
 
@@ -125,6 +150,8 @@ Only when the owner asks. GitHub releases are public.
 1. In a normal PR, raise `versionCode` by one and set `versionName` in
    `android/app/build.gradle`. The release title is shown to users as
    "GoodMorning <title> is ready", so use the `versionName` as the title.
+   While the app is in beta, `versionName` stays below 1.0. Codes 1 and 2 were
+   the withdrawn 1.0 and 1.1 releases; 0.1 is code 3.
 2. After the merge, build from the primary checkout on an up-to-date `main` and
    publish:
 
@@ -132,7 +159,7 @@ Only when the owner asks. GitHub releases are public.
    cd android && ./gradlew test assembleRelease
    cp app/build/outputs/apk/release/app-release.apk /tmp/opencode/GoodMorning-<versionName>.apk
    gh release create android-v<versionCode> /tmp/opencode/GoodMorning-<versionName>.apk \
-     --title <versionName> --notes "<what changed, for users>"
+     --prerelease --title <versionName> --notes "<what changed, for users>"
    ```
 
 Installed apps notice the release within a day. Website deployments use

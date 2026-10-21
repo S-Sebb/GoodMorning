@@ -119,6 +119,13 @@ public class WebActivity extends Activity {
         }
     }
 
+    /** WebView writes cookies to disk only now and then; closing the app soon after signing in would lose them. */
+    @Override
+    protected void onPause() {
+        CookieManager.getInstance().flush();
+        super.onPause();
+    }
+
     @Override
     protected void onSaveInstanceState(Bundle out) {
         super.onSaveInstanceState(out);

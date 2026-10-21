@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Sample content for the widget picker, in the website's default colors. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/preview_card"
+    android:orientation="vertical"
+    android:padding="16dp">
+
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center_vertical">
+        <ImageView android:layout_width="28dp" android:layout_height="28dp" android:importantForAccessibility="no" android:src="@drawable/ic_news" android:tint="@color/preview_accent" tools:ignore="UseAppTint" />
+        <LinearLayout android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginStart="10dp" android:orientation="vertical">
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:letterSpacing="0.14" android:text="@string/news_label" android:textAllCaps="true" android:textColor="@color/preview_muted" android:textSize="10sp" android:textStyle="bold" />
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:fontFamily="serif" android:text="@string/widget_news_name" android:textColor="@color/preview_ink" android:textSize="19sp" />
+        </LinearLayout>
+    </LinearLayout>
+    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="14dp" android:text="@string/preview_news_headline" android:textColor="@color/preview_ink" android:textSize="14sp" android:textStyle="bold" />
+    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="2dp" android:text="@string/preview_news_summary" android:textColor="@color/preview_muted" android:textSize="13sp" />
+</LinearLayout>

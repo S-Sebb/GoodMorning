@@ -1,4 +1,5 @@
 """Public request boundaries and private account routing with synthetic data."""
+import html
 import json
 from pathlib import Path
 import re
@@ -344,7 +345,11 @@ class GatewayTests(GatewayFixture):
         target=json.loads(body)[0]['target']
         self.assertEqual(target['package_name'],'me.love765.goodmorning')
         self.assertRegex(target['sha256_cert_fingerprints'][0],'^([0-9A-F]{2}:){31}[0-9A-F]{2}$')
-        self.assertEqual(self.request('/app')[1]['Location'],'/login')
+        # Opened from the app, the browser holds back the SameSite=Strict cookie; one same-site step sends it.
+        status,headers,page=self.request('/app?next=%2Fschedule%3Fview%3Dday')
+        target=html.unescape(re.search(rb'http-equiv="refresh" content="0;url=([^"]+)"',page)[1].decode())
+        self.assertEqual((status,headers['Content-Type'],target),(200,'text/html; charset=utf-8','/app?next=%2Fschedule%3Fview%3Dday&b=1'))
+        self.assertEqual(self.request(target)[1]['Location'],'/login')
         self.permanent()
         _,headers,page=self.request('/chat')
         self.assertIn("manifest-src 'self'",headers['Content-Security-Policy'])
@@ -360,6 +365,12 @@ class GatewayTests(GatewayFixture):
             with self.subTest(saved=saved):
                 self.cookie=session+('; GoodMorningAppPage='+saved if saved else '')
                 status,headers,_=self.request('/app')
+                self.assertEqual((status,headers['Location']),(302,expected))
+        self.cookie=session+'; GoodMorningAppPage=%2Fgm.html'
+        for asked,expected in (('%2Fschedule%3Fview%3Dday%26day%3D2','/schedule?view=day&day=2'),('%2Fchat%3Fid%3D'+'a'*32,'/chat?id='+'a'*32),
+                               ('%2Fgn.html','/gn.html'),('%2F%2Fevil.test','/gm.html'),('%2Fapi%2Fchats','/gm.html'),('%2Fchat%3Fx%3D%0d%0aSet-Cookie','/gm.html')):
+            with self.subTest(asked=asked):
+                status,headers,_=self.request('/app?next='+asked+'&b=1')
                 self.assertEqual((status,headers['Location']),(302,expected))
 
     def test_notification_settings_and_device_subscriptions(self):
@@ -468,7 +479,8 @@ class GatewayTests(GatewayFixture):
         app_link.record(self.store,self.id,'chat',{'title':'Your secretary replied','body':'Done','url':'/chat','tag':'c'})
         answers={'/api/app-schedule':{'today':'2026-10-21','days':[]},'/api/app-profile':{'name':'Aria','avatar':'f2','image':None},'/api/reminders?hours=24':{'events':[]},
                  '/api/chats':{'chats':[{'id':'a'*32,'mode':'secretary','title':'Plan','unread':True}]},
-                 '/api/chats/'+'a'*32:{'state':'idle','messages':[{'role':'assistant','text':'**All** set'}]}}
+                 '/api/chats/'+'a'*32:{'state':'idle','messages':[{'role':'assistant','text':'**All** set'}]},
+                 '/api/app-briefings':{'date':'2026-10-21','editions':{'gm':{'state':'missing'},'gn':{'state':'missing'}}}}
         with patch.object(self.gateway,'proxy',lambda user,host,path,*args:(200,{},json.dumps(answers[path]).encode())):
             status,headers,body=phone('/api/app/sync?after=0',headers={'X-GoodMorning-App':token})
         value=json.loads(body)
@@ -477,6 +489,20 @@ class GatewayTests(GatewayFixture):
         self.assertEqual([item['body'] for item in value['notifications']],['Done'])
         self.assertEqual((value['schedule']['today'],value['reminders']),('2026-10-21',[]))
         self.assertEqual((value['secretary']['name'],value['appearance']['day']),('Aria','morning-sky'))
+        self.assertEqual(value['briefings']['editions']['gm'],{'state':'missing'})
+        # A request still waiting in the shared queue already counts as being prepared.
+        queue={'queue':[{'work':'generate','position':1,'date':'2026-10-21','edition':'gn'}],'depth':1,'active':True}
+        with patch.object(self.gateway,'proxy',lambda user,host,path,*args:(200,{},json.dumps(answers[path]).encode())), \
+             patch.object(self.gateway,'queue_status',lambda user:queue):
+            editions=json.loads(phone('/api/app/sync?after=0',headers={'X-GoodMorning-App':token})[2])['briefings']['editions']
+        self.assertEqual(editions,{'gm':{'state':'missing'},'gn':{'state':'working'}})
+        generated=[]
+        self.gateway.generate=lambda user,host,raw,headers:generated.append((user,json.loads(raw))) or (202,{'Content-Type':'application/json'},b'{"job":"j"}')
+        with patch.object(self.gateway,'proxy',lambda user,host,path,*args:(200,{},b'{"date":"2026-10-21","timezone":"Europe/London"}')):
+            self.assertEqual(phone('/api/app/generate',{'kind':'gn'},headers={'X-GoodMorning-App':token})[0],202)
+            self.assertEqual(phone('/api/app/generate',{'kind':'gx'},headers={'X-GoodMorning-App':token})[0],400)
+            self.assertEqual(phone('/api/app/generate',{'kind':'gm'},headers={'X-GoodMorning-App':'gma_wrong'})[0],403)
+        self.assertEqual(generated,[(self.id,{'date':'2026-10-21','kind':'gn'})])
         sent=[]
         self.gateway.chat_message=lambda user,host,path,raw,headers:sent.append((user,path,json.loads(raw))) or (202,{'Content-Type':'application/json'},b'{"chat":"x"}')
         self.assertEqual(phone('/api/app/chat',{'text':'Plan my day'},headers={'X-GoodMorning-App':token})[0],202)

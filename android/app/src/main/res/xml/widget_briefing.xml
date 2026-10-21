@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A whole page on the common 4×5 home screen grid; resizable to taller grids. Launchers hide
+     widgets whose minimum size exceeds their grid, so the minimum stays small. -->
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    android:description="@string/widget_briefing_description"
+    android:initialLayout="@layout/widget_briefing"
+    android:minWidth="300dp"
+    android:minHeight="300dp"
+    android:minResizeWidth="180dp"
+    android:minResizeHeight="180dp"
+    android:previewLayout="@layout/widget_preview_briefing"
+    android:resizeMode="horizontal|vertical"
+    android:targetCellWidth="4"
+    android:targetCellHeight="5"
+    android:updatePeriodMillis="0"
+    android:widgetCategory="home_screen" />

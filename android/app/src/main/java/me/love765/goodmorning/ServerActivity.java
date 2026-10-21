@@ -1,7 +1,6 @@
 package me.love765.goodmorning;
 
 import android.app.Activity;
-import android.content.Intent;
 import android.os.Bundle;
 import android.view.inputmethod.EditorInfo;
 import android.widget.Button;
@@ -59,7 +58,7 @@ public class ServerActivity extends Activity {
                     return;
                 }
                 Server.set(this, origin);
-                startActivity(new Intent(this, Launcher.class));
+                startActivity(Launcher.start(this));
                 finish();
             });
         }).start();

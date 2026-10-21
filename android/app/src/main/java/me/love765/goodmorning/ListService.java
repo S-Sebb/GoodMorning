@@ -17,11 +17,12 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
-/** Rows for the Today and Week widgets, built from the cached summary in the account's colors. */
+/** Rows for the schedule and briefing widgets, built from the cached summary in the account's colors. */
 public class ListService extends RemoteViewsService {
     @Override
     public RemoteViewsFactory onGetViewFactory(Intent intent) {
-        return new Rows(getApplicationContext(), intent.getStringExtra("kind"));
+        return new Rows(getApplicationContext(), intent.getStringExtra("kind"),
+                intent.getIntExtra(android.appwidget.AppWidgetManager.EXTRA_APPWIDGET_ID, 0));
     }
 
     private static final class Rows implements RemoteViewsFactory {
@@ -31,18 +32,24 @@ public class ListService extends RemoteViewsService {
                 {R.id.event3, R.id.bar3, R.id.time3, R.id.text3}};
         private final Context context;
         private final String kind;
+        private final int widget;
         private final List<RemoteViews> rows = new ArrayList<>();
         private Palette[] schemes;
 
-        Rows(Context context, String kind) {
+        Rows(Context context, String kind, int widget) {
             this.context = context;
             this.kind = kind;
+            this.widget = widget;
         }
 
         @Override
         public void onDataSetChanged() {
             rows.clear();
             schemes = Palette.of(context);
+            if ("briefing".equals(kind) || "news".equals(kind)) {
+                briefing("news".equals(kind));
+                return;
+            }
             JSONObject schedule = Sync.cached(context).optJSONObject("schedule");
             JSONArray days = schedule == null ? null : schedule.optJSONArray("days");
             if (days == null || days.length() == 0) return;
@@ -123,6 +130,70 @@ public class ListService extends RemoteViewsService {
             rows.add(row);
         }
 
+        /** The saved briefing in reading order; the news widget keeps only its news sections. */
+        private void briefing(boolean news) {
+            String edition = news ? "gm" : Widgets.edition(context, widget);
+            JSONObject briefings = Sync.cached(context).optJSONObject("briefings");
+            JSONObject editions = briefings == null ? null : briefings.optJSONObject("editions");
+            JSONObject document = editions == null ? null : editions.optJSONObject(edition);
+            if (document == null || !"ready".equals(document.optString("state"))) return;  // The empty view explains.
+            String page = "/" + edition + ".html";
+            if (!news) {
+                heading(document.optString("greeting"), document.optString("opening"), page);
+            }
+            JSONArray sections = document.optJSONArray("sections");
+            for (int i = 0; sections != null && i < sections.length(); i++) {
+                JSONObject section = sections.optJSONObject(i);
+                if (news && !"news".equals(section.optString("type"))) continue;
+                heading(section.optString("title"), section.optString("note"), page);
+                JSONArray items = section.optJSONArray("rows");
+                for (int j = 0; items != null && j < items.length(); j++) {
+                    JSONObject item = items.optJSONObject(j);
+                    String style = item.optString("style");
+                    if ("heading".equals(style)) {
+                        RemoteViews row = view(R.layout.row_section, page);
+                        row.setViewVisibility(R.id.icon, View.GONE);
+                        row.setTextViewText(R.id.text, item.optString("title").toUpperCase(Locale.getDefault()));
+                        Palette.text(context, row, schemes, R.id.text, p -> p.muted);
+                        rows.add(row);
+                    } else if ("text".equals(style)) {
+                        paragraph(item.optString("text"), page);
+                    } else {
+                        RemoteViews row = view(R.layout.row_item, page);
+                        Palette.text(context, row, schemes, R.id.side, p -> p.accent);
+                        Palette.text(context, row, schemes, R.id.title, p -> p.ink);
+                        Palette.text(context, row, schemes, R.id.text, p -> p.muted);
+                        shown(row, R.id.side, item.optString("side"));
+                        shown(row, R.id.title, item.optString("title"));
+                        shown(row, R.id.text, item.optString("text"));
+                        rows.add(row);
+                    }
+                }
+            }
+            if (!news && !document.optString("closing").isEmpty()) paragraph(document.optString("closing"), page);
+        }
+
+        private void heading(String title, String note, String page) {
+            RemoteViews row = view(R.layout.row_heading, page);
+            Palette.text(context, row, schemes, R.id.title, p -> p.ink);
+            Palette.text(context, row, schemes, R.id.text, p -> p.muted);
+            shown(row, R.id.title, title);
+            shown(row, R.id.text, note);
+            rows.add(row);
+        }
+
+        private void paragraph(String text, String page) {
+            RemoteViews row = view(R.layout.row_text, page);
+            Palette.text(context, row, schemes, R.id.row, p -> p.ink);
+            row.setTextViewText(R.id.row, text);
+            rows.add(row);
+        }
+
+        private static void shown(RemoteViews row, int id, String text) {
+            row.setTextViewText(id, text);
+            row.setViewVisibility(id, text.isEmpty() ? View.GONE : View.VISIBLE);
+        }
+
         private RemoteViews section(int icon, int label, String page) {
             RemoteViews row = view(R.layout.row_section, page);
             row.setImageViewResource(R.id.icon, icon);
@@ -155,7 +226,7 @@ public class ListService extends RemoteViewsService {
         @Override public int getCount() { return rows.size(); }
         @Override public RemoteViews getViewAt(int position) { return rows.get(position); }
         @Override public RemoteViews getLoadingView() { return null; }
-        @Override public int getViewTypeCount() { return 4; }
+        @Override public int getViewTypeCount() { return 7; }
         @Override public long getItemId(int position) { return position; }
         @Override public boolean hasStableIds() { return false; }
     }

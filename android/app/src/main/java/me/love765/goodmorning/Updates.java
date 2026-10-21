@@ -19,8 +19,9 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * Finds newer APKs among the GitHub releases tagged android-v{versionCode}. Checks run when the
- * app opens (at most once a day) and from {@link UpdateJob}. A found update is offered on the next
+ * Finds newer APKs among the GitHub releases tagged android-v{versionCode}, pre-releases included
+ * while the app is in beta. Checks run when the app opens (at most once a day) and from
+ * {@link UpdateJob}. A found update is offered on the next
  * launch and, when notifications are allowed, announced once as a notification.
  */
 final class Updates {
@@ -111,13 +112,13 @@ final class Updates {
         return newest(releases, BuildConfig.VERSION_CODE);
     }
 
-    /** The highest android-v{code} release above current that has an APK, or null. */
+    /** The highest published android-v{code} release above current that has an APK, or null. */
     static Release newest(JSONArray releases, int current) throws JSONException {
         Release best = null;
         for (int i = 0; i < releases.length(); i++) {
             JSONObject release = releases.getJSONObject(i);
             Matcher tag = TAG.matcher(release.optString("tag_name"));
-            if (release.optBoolean("draft") || release.optBoolean("prerelease") || !tag.matches()) continue;
+            if (release.optBoolean("draft") || !tag.matches()) continue;
             int code = Integer.parseInt(tag.group(1));
             if (code <= current || (best != null && code <= best.code)) continue;
             JSONArray assets = release.getJSONArray("assets");

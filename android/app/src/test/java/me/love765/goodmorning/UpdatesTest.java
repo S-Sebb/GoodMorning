@@ -13,19 +13,19 @@ public class UpdatesTest {
     }
 
     @Test
-    public void picksHighestPublishedApkAboveCurrent() throws Exception {
+    public void picksHighestPublishedApkAboveCurrentIncludingPrereleases() throws Exception {
         JSONArray releases = new JSONArray("[" + String.join(",",
                 release("deploy/20261021-ship-abc", false, false, "site.apk"),
                 release("android-v9", true, false, "draft.apk"),
-                release("android-v8", false, true, "beta.apk"),
-                release("android-v7", false, false, "notes.txt"),
+                release("android-v8", false, false, "notes.txt"),
+                release("android-v6", false, true, "GoodMorning-6.apk"),
                 release("android-v3", false, false, "GoodMorning-3.apk"),
                 release("android-v5", false, false, "GoodMorning-5.apk"),
                 release("android-v1", false, false, "GoodMorning-1.apk")) + "]");
         Updates.Release newest = Updates.newest(releases, 2);
-        assertEquals(5, newest.code);
-        assertEquals("android-v5", newest.name);
-        assertEquals("https://example.test/GoodMorning-5.apk", newest.apk);
-        assertNull(Updates.newest(releases, 5));
+        assertEquals(6, newest.code);
+        assertEquals("android-v6", newest.name);
+        assertEquals("https://example.test/GoodMorning-6.apk", newest.apk);
+        assertNull(Updates.newest(releases, 6));
     }
 }

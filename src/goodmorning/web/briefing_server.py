@@ -37,6 +37,7 @@ from .chat_uploads import MAX_UPLOAD_BYTES, UPLOAD_ROUTE, IMAGE_ROUTE, upload_na
 from .avatar_images import MAX_AVATAR_BYTES, AVATAR_UPLOAD_ROUTE, find_image, image_urls, save_image
 from .bridge_json import read_json
 from .activity import ACTIVITY_PATH, snapshot as activity_snapshot
+from . import app_briefings
 from . import schedule
 from . import quick_chat
 
@@ -1020,6 +1021,8 @@ def serve_live(app, port, *, gateway_key=None, public_origins=()):
                     return self.respond(app.app_profile())
                 if path == '/api/app-schedule':
                     return self.respond(schedule.compact(app), compress=True)
+                if path == '/api/app-briefings':
+                    return self.respond(app_briefings.summary(app), compress=True)
                 if path in ('/schedule', '/api/schedule'):
                     mode, offset = schedule.schedule_query(parse_qs(parsed.query, keep_blank_values=True))
                     if path == '/api/schedule':

@@ -12,8 +12,9 @@
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" android:maxSdkVersion="32" />
 
     <queries>
-        <!-- Decides between Chrome's full-screen view and the app's own WebView; see Device. -->
+        <!-- Decide between Chrome's full-screen view and the app's own WebView; see Device. -->
         <package android:name="com.google.android.gms" />
+        <package android:name="com.android.chrome" />
     </queries>
 
     <application
@@ -90,6 +91,14 @@
         <receiver android:name=".Widgets$Chat" android:exported="false" android:label="@string/widget_chat_name">
             <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
             <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_chat" />
+        </receiver>
+        <receiver android:name=".Widgets$Briefing" android:exported="false" android:label="@string/widget_briefing_name">
+            <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_briefing" />
+        </receiver>
+        <receiver android:name=".Widgets$News" android:exported="false" android:label="@string/widget_news_name">
+            <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_news" />
         </receiver>
         <receiver android:name=".Reminders" android:exported="false" />
 
