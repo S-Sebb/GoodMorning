@@ -364,6 +364,35 @@ def day_view(data, checked, now):
     return controls + notice + body, [item['state'] for item in events]
 
 
+def compact(app):
+    """Seven days from today for the Android widgets: plain fields, no markup."""
+    zone = app.profile().get('timezone')
+    if not zone:
+        raise ValueError('Initialize your profile timezone first')
+    now = app.now() if app.now else datetime.now(timezone.utc)
+    weeks = [saved_week(app.runtime, zone, now, offset) for offset in (0, 1)]
+    today = weeks[0]['today']
+    days = [day for week in weeks for day in week['days'] if day['date'] >= today][:7]
+    result = []
+    for day in days:
+        events = []
+        for event in day['events']:
+            if event.get('draft'):
+                events.append({'subject': event['title'], 'time': '', 'end': '', 'all_day': False, 'tbc': True,
+                               'location': event.get('location') or ''})
+                continue
+            begins, ends = (point.astimezone(ZoneInfo(zone)) for point in endpoints(event))
+            timed = not event['all_day']
+            events.append({'subject': event['subject'], 'all_day': bool(event['all_day']), 'tbc': False,
+                           'time': begins.strftime('%H:%M') if timed and begins.date().isoformat() == day['date'] else '',
+                           'end': ends.strftime('%H:%M') if timed and ends.date().isoformat() == day['date'] else '',
+                           'location': event.get('location') or event.get('online') or ''})
+        result.append({'date': day['date'], 'events': events,
+                       'tasks': [{'text': task['text'], 'done': bool(task['done'])} for task in day['tasks']]})
+    return {'today': today, 'timezone': zone, 'days': result,
+            'warnings': list(dict.fromkeys(weeks[0]['warnings'] + weeks[1]['warnings']))}
+
+
 def upcoming(app, hours=3):
     """Timed calendar events that start within the next hours, for reminder notifications."""
     zone = app.profile().get('timezone')

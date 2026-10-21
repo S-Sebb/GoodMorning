@@ -1004,7 +1004,12 @@ def serve_live(app, port, *, gateway_key=None, public_origins=()):
                 if path == '/api/day':
                     return self.respond({'date': app.today(), 'timezone': app.zone})
                 if path == '/api/reminders':
-                    return self.respond(schedule.upcoming(app))
+                    hours = parse_qs(parsed.query).get('hours', ['3'])
+                    if hours not in (['3'], ['24']):
+                        return self.respond({'error': 'Invalid reminder window'}, 400)
+                    return self.respond(schedule.upcoming(app, int(hours[0])))
+                if path == '/api/app-schedule':
+                    return self.respond(schedule.compact(app), compress=True)
                 if path in ('/schedule', '/api/schedule'):
                     mode, offset = schedule.schedule_query(parse_qs(parsed.query, keep_blank_values=True))
                     if path == '/api/schedule':

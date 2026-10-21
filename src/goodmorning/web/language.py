@@ -185,6 +185,14 @@ def page(source,csrf,return_to='/'):
            +''.join(f'<option value="{minutes}">{minutes} minutes</option>' for minutes in (5,10,15,30,60))+
            '</select><p class="notification-note">These choices apply to all your devices.</p>'
            '<span id="notification-feedback" role="status"></span></form>'
+           '<form id="app-link-form" class="language-toolbar app-link-settings" hidden>'
+           '<h3 class="color-scheme-heading app-link-heading">Phone widgets</h3>'
+           '<p class="notification-note">Show your schedule and secretary chat in Android home screen widgets. '
+           'In the GoodMorning app, open Link this phone, then enter the code it shows.</p>'
+           '<label for="app-link-code">Code from the app</label>'
+           '<input id="app-link-code" name="code" autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="9" placeholder="ABCD-2345" required>'
+           '<button type="submit">Link phone</button><ul id="app-links"></ul>'
+           '<span id="app-link-feedback" role="status"></span></form>'
            '</div></details>')
     account_menu=('<details class="menu" id="account-menu"><summary><span class="menu-label">Account</span></summary>'
                   '<div class="menu-panel">'+account+'</div></details>') if account else ''

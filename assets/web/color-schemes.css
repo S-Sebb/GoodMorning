@@ -123,6 +123,12 @@ html:not([data-edition="gn"])[data-day-scheme]:not([data-day-scheme="classic"]) 
 #prefs-menu label[for="website-model"] { --settings-icon: url("icons/desk-idea.svg"); }
 #prefs-menu .color-scheme-heading { --settings-icon: url("icons/desk-appearance.svg"); }
 #prefs-menu .notification-heading { --settings-icon: url("icons/desk-notifications.svg"); }
+#prefs-menu .app-link-heading { --settings-icon: url("icons/desk-phone.svg"); }
+#prefs-menu #app-link-code { font: inherit; letter-spacing: .08em; text-transform: uppercase; min-height: 44px; padding: .4rem .65rem; border: 1px solid var(--line); border-radius: .6rem; background: var(--bg); color: var(--ink); }
+#prefs-menu #app-links { display: grid; gap: 6px; margin: 4px 0 0; padding: 0; list-style: none; }
+#prefs-menu #app-links li { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: .8rem; }
+#prefs-menu #app-links li small { display: block; color: var(--muted); }
+#prefs-menu #app-links li button { width: auto; min-height: 36px; }
 #prefs-menu #notification-kinds { display: grid; gap: 2px; min-width: 0; margin: 4px 0 6px; padding: 0; border: 0; }
 #prefs-menu #notification-kinds legend { margin: 0 0 4px; padding: 0; font-size: 12px; }
 #prefs-menu #notification-kinds label { display: flex; align-items: center; gap: 8px; min-height: 36px; font-size: .8rem; color: inherit; }

@@ -179,6 +179,37 @@ else. Notification text uses the account's website language. A tap opens the
 related chat, briefing or day schedule. In the Android app, Chrome shows them
 as the app's own notifications.
 
+## Phone widgets and app linking
+
+Android widgets and app-side notifications use a separate, revocable app
+token, never the website's login cookie. To link a phone:
+
+1. The app calls `POST /api/app/pair` with the phone's name. It receives a code
+   (like `ABCD-2345`) to show, and a pairing secret that it keeps.
+2. The signed-in owner enters that code in Settings → Phone widgets
+   (`POST /api/app/link`).
+3. The app polls `GET /api/app/pair` with its secret and receives its token
+   exactly once.
+
+Codes expire after ten minutes, and nothing secret travels in a URL. Settings
+lists linked phones; Unlink revokes one immediately.
+
+With its token (`X-GoodMorning-App` header) the app can call:
+
+- `GET /api/app/sync?after=N`: everything the widgets and background check
+  need, in one request. It returns the account's notification settings, seven
+  plain days of schedule from today (`/api/app-schedule` on the account's
+  backend), timed events in the next 24 hours for on-phone reminders, a summary
+  of the latest secretary conversation, and status notifications newer than
+  `N`. If one part cannot be read, that part is `null`; the rest still updates.
+- `POST /api/app/chat` with `{text}` or `{text, chat}`: starts a secretary
+  conversation or continues one through the normal queue. It may start paid
+  model work.
+
+The status notifications that Web Push sends are also kept, as the latest
+thirty, for accounts with a linked phone. Phones without Google services read
+them in their background check.
+
 ## Session organization
 
 Each website conversation and each briefing owns exactly one OpenChamber

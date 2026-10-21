@@ -96,3 +96,60 @@ let goodmorningBeforeSignOut;
     } catch { /* Without the server's answer the section stays hidden. */ }
   })();
 })();
+
+// Phone & widgets: the owner types the code the Android app shows; linked phones can be removed.
+(() => {
+  const form = document.querySelector('#app-link-form');
+  if (!form) return;
+  const t = (key, values) => typeof goodmorningT === 'function' ? goodmorningT(key, values) : key;
+  const csrf = JSON.parse(document.querySelector('#language-config').dataset.config).csrf;
+  const list = form.querySelector('#app-links');
+  const feedback = form.querySelector('#app-link-feedback');
+  const code = form.querySelector('#app-link-code');
+  const post = async (path, body) => {
+    const response = await fetch(path, {method: 'POST', credentials: 'same-origin', cache: 'no-store',
+      headers: {'Content-Type': 'application/json', 'X-Briefing-CSRF': csrf}, body: JSON.stringify(body)});
+    const value = await goodmorningJSON(response);
+    if (!response.ok) throw new Error(value.error || t('Phone request could not be read. Update the app or try again.'));
+    return value;
+  };
+  function show(links) {
+    list.replaceChildren(...links.map(link => {
+      const item = document.createElement('li');
+      const name = document.createElement('span');
+      name.textContent = link.label;
+      const when = document.createElement('small');
+      when.textContent = t('Linked {date}', {date: new Date(link.created * 1000).toLocaleDateString()});
+      name.append(when);
+      const remove = document.createElement('button');
+      remove.type = 'button';
+      remove.textContent = t('Unlink');
+      remove.addEventListener('click', async () => {
+        remove.disabled = true;
+        try { show((await post('/api/app/unlink', {id: link.id})).links); feedback.textContent = t('Phone unlinked. Its widgets stop updating.'); }
+        catch (error) { feedback.textContent = error.message; remove.disabled = false; }
+      });
+      item.append(name, remove);
+      return item;
+    }));
+  }
+  form.addEventListener('submit', async event => {
+    event.preventDefault();
+    const button = form.querySelector('button[type="submit"]');
+    button.disabled = true; feedback.textContent = '';
+    try {
+      const value = await post('/api/app/link', {code: code.value});
+      show(value.links); code.value = '';
+      feedback.textContent = t('{name} is linked. Its widgets update within a minute.', {name: value.label});
+    } catch (error) { feedback.textContent = error.message; }
+    finally { button.disabled = false; }
+  });
+  (async () => {
+    try {
+      const response = await fetch('/api/app/links', {credentials: 'same-origin', cache: 'no-store'});
+      if (!response.ok) return;
+      show((await goodmorningJSON(response)).links);
+      form.hidden = false;
+    } catch { /* Without the server's answer the section stays hidden. */ }
+  })();
+})();
