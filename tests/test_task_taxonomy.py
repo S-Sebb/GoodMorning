@@ -391,16 +391,19 @@ class TaxonomyTests(unittest.TestCase):
         calendar = CalendarStore(str(self.root/'calendar.sqlite'))
         self.addCleanup(calendar.close)
         event = {'external_id': 'provider-id', 'subject': 'Meeting', 'start': DAY+'T10:00:00+01:00', 'end': DAY+'T11:00:00+01:00'}
-        calendar.mark('2026-10-12.gn')
+        stamp = lambda: datetime.now(timezone.utc).isoformat()
+        calendar.mark('2026-10-12.gn', stamp())
+        started = stamp()
         calendar.import_events('work', [event, {**event, 'external_id': 'other', 'subject': 'Lunch',
                                                 'start': DAY+'T12:30:00+01:00', 'end': DAY+'T13:30:00+01:00'}])
-        calendar.mark(DAY + '.gm')
+        calendar.mark(DAY + '.gm', started)
         view = self.view()
         self.assertEqual([r['subject'] for r in view['schedule']['items']], ['Meeting', 'Lunch'])
         self.assertEqual([r[2] for r in view['blocks']['attention'][1]], ['New: Meeting', 'New: Lunch'])
         routing.validate_sources(self.root, self.document(view['blocks']['attention'], 'attention'), DAY, 'gm')
+        started = stamp()
         calendar.import_events('work', [{**event, 'start': DAY+'T12:00:00+01:00', 'end': DAY+'T13:00:00+01:00'}])
-        calendar.mark(DAY + '.gn')
+        calendar.mark(DAY + '.gn', started)
         view = self.view('gn')
         self.assertEqual(view['blocks']['attention'][1][0][2:], [
             'Changed: Meeting', 'Tue, Oct 13 10:00–11:00 → 12:00–13:00 · Overlaps Lunch (Tue, Oct 13 12:30–13:30)'])

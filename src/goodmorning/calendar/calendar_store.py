@@ -139,7 +139,7 @@ class CalendarStore:
                 at TEXT NOT NULL, snapshot TEXT NOT NULL,
                 UNIQUE(event_id, revision)
             );
-            CREATE TABLE IF NOT EXISTS editions (edition TEXT PRIMARY KEY, at TEXT NOT NULL);
+            CREATE TABLE IF NOT EXISTS editions (edition TEXT PRIMARY KEY, at TEXT NOT NULL, synced TEXT NOT NULL);
             PRAGMA user_version=1;
         """)
 
@@ -298,23 +298,25 @@ class CalendarStore:
                 self._audit(row["id"], "import", actor)
         return len(rows)
 
-    def mark(self, edition: str):
-        """Record when a briefing edition first ran; its report covers imports since the previous one."""
+    def mark(self, edition: str, started: str):
+        """Record a briefing edition's sync: when it first started and when its latest sync finished."""
         with self.con:
-            self.con.execute("INSERT OR IGNORE INTO editions(edition,at) VALUES(?,?)",
-                             (edition, datetime.now(timezone.utc).isoformat()))
+            self.con.execute("INSERT INTO editions(edition,at,synced) VALUES(?,?,?) ON CONFLICT(edition) "
+                             "DO UPDATE SET synced=excluded.synced",
+                             (edition, started, datetime.now(timezone.utc).isoformat()))
 
     def changes(self, edition: str) -> list[dict]:
-        """Imported events that changed since the edition before this one: before and after schedule versions."""
+        """Imported events that changed after the previous edition's sync: before and after schedule versions.
+        The first edition reports its own sync."""
         if not self.con.execute("SELECT 1 FROM sqlite_master WHERE name='editions'").fetchone():
             return []
         mine = self.con.execute("SELECT at FROM editions WHERE edition=?", (edition,)).fetchone()
         if mine is None:
             return []
-        previous = self.con.execute("SELECT MAX(at) FROM editions WHERE at<?", (mine[0],)).fetchone()[0]
+        previous = self.con.execute("SELECT synced FROM editions WHERE at<? ORDER BY at DESC LIMIT 1", (mine[0],)).fetchone()
         out = []
         for row in self.con.execute("SELECT event_id,MIN(revision) FROM history WHERE action='import' AND at>? "
-                                    "GROUP BY event_id ORDER BY MIN(seq)", (previous or mine[0],)).fetchall():
+                                    "GROUP BY event_id ORDER BY MIN(seq)", (previous[0] if previous else mine[0],)).fetchall():
             before = self.con.execute("SELECT snapshot FROM history WHERE event_id=? AND revision=?",
                                       (row[0], row[1] - 1)).fetchone()
             item = self.get(row[0])

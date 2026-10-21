@@ -188,17 +188,17 @@ def sync(store, source, feed, start, end, tz, tzname, actor):
 
 
 def refresh(runtime, day, kind):
-    """Briefing start: mark the edition, then sync a saved feed so it reports current changes. Never blocks the briefing."""
+    """Briefing start: sync a saved feed so the edition reports current changes, then mark it. Never blocks the briefing."""
     from goodmorning.runtime_files import calendar_config, calendar_path, profile_fields
     from .calendar_store import CalendarStore
     config = calendar_config(runtime)
     path = calendar_path(runtime, config=config)
     if not path.is_file():
         return None
+    started = datetime.now(timezone.utc).isoformat()
     try:
         store = CalendarStore(str(path))
         try:
-            store.mark(f'{day}.{kind}')
             store.apply_pending('calendar-feed')
             if not config.get('ics_url'):
                 return None
@@ -208,6 +208,7 @@ def refresh(runtime, day, kind):
             return sync(store, config.get('ics_source') or 'ics', fetch(config['ics_url']), start,
                         start + timedelta(days=FEED_DAYS), tz, tzname, 'calendar-feed')
         finally:
+            store.mark(f'{day}.{kind}', started)
             store.close()
     except Exception as error:  # The edition still runs on the saved schedule.
         return {'unavailable': type(error).__name__}

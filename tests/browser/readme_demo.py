@@ -4,7 +4,7 @@ python tests/browser/readme_demo.py /tmp/opencode/goodmorning-readme-demo
 Review the resulting PNGs before copying them into assets/readme/.
 """
 import argparse
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 import json
 from pathlib import Path
 import sys
@@ -49,10 +49,10 @@ def fixture(runtime):
             calendar.add({'subject': title, 'start': f'{day}T{start}:00+01:00',
                           'end': f'{day}T{end}:00+01:00', 'location': place, 'notes': notes})
         # The synced calendar added a workshop since last night's briefing; this morning reports it.
-        calendar.mark('2026-10-12.gn')
+        calendar.mark('2026-10-12.gn', (NOW - timedelta(hours=12)).isoformat())
         calendar.import_events('Demo calendar', [{'external_id': 'demo-invitation', 'subject': 'Planning workshop',
             'start': '2026-10-14T14:30:00+01:00', 'end': '2026-10-14T15:30:00+01:00', 'location': 'Studio 1'}])
-        calendar.mark(DAY + '.gm')
+        calendar.mark(DAY + '.gm', NOW.isoformat())
     finally:
         calendar.close()
     inbox = InboxStore(runtime, write=True)

@@ -151,15 +151,17 @@ class StoreTests(unittest.TestCase):
         self.assertEqual(self.store.query(START, END)[0]["subject"], "Group meeting")
         self.assertEqual(self.store.apply_pending("calendar-feed"), 0)
 
-    def test_changes_cover_imports_since_the_previous_edition(self):
+    def test_changes_cover_imports_after_the_previous_edition_sync(self):
+        stamp = lambda: datetime.now(timezone.utc).isoformat()
         moved = self.imported()
         self.store.import_events("work", [{"external_id": "gone", **event(subject="Lunch")}])
-        self.store.mark("2026-10-09.gn")
+        self.store.mark("2026-10-09.gn", stamp())
+        started = stamp()  # This edition's own sync follows its start.
         self.store.import_events("work", [{"external_id": "meeting-1", **event(start="2026-10-10T11:00:00+01:00", end="2026-10-10T12:00:00+01:00")},
                                           {"external_id": "gone", "status": "cancelled"},
                                           {"external_id": "new", **event(subject="Review")}])
         self.store.change(moved, "update", self.store.get(moved)["revision"], {"location": "Room 9"})  # Secretary edits are not reported.
-        self.store.mark("2026-10-10.gm")
+        self.store.mark("2026-10-10.gm", started)
         changes = {c["after"]["subject"]: c for c in self.store.changes("2026-10-10.gm")}
         self.assertEqual(set(changes), {"Group meeting", "Lunch", "Review"})
         self.assertEqual(changes["Group meeting"]["before"]["start"], "2026-10-10T08:00:00+00:00")
@@ -167,8 +169,8 @@ class StoreTests(unittest.TestCase):
         self.assertIsNone(changes["Review"]["before"])
         self.assertEqual(changes["Lunch"]["after"]["status"], "cancelled")
         self.assertEqual(len(self.store.changes("2026-10-09.gn")), 3)  # The first edition reports from its own start; its window stays open.
-        self.store.mark("2026-10-10.gn")
-        self.assertEqual(self.store.changes("2026-10-10.gn"), [])
+        self.store.mark("2026-10-10.gn", stamp())
+        self.assertEqual(self.store.changes("2026-10-10.gn"), [])  # The morning's sync is not reported twice.
         self.assertEqual(self.store.changes("2026-10-11.gm"), [])  # Unmarked editions report nothing.
 
     def test_update_cancel_and_history(self):
