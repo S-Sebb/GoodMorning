@@ -8,4 +8,8 @@
     <style name="Dialog" parent="@android:style/Theme.Material.Dialog.Alert">
         <item name="android:colorAccent">@color/sun</item>
     </style>
+    <style name="AskDialog" parent="@android:style/Theme.Material.Dialog">
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:colorAccent">@color/sun</item>
+    </style>
 </resources>

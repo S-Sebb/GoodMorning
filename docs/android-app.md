@@ -16,7 +16,60 @@ The app:
   (`docs/browser-delivery.md`, Installed app);
 - shows website notifications as its own, through Chrome's notification
   delegation;
+- offers home screen widgets once the phone is linked (below);
 - updates itself from this repository's GitHub releases (below).
+
+## Phones with and without Google services
+
+Chrome's full-screen view needs Google services. Chrome verifies the site
+through Google's Digital Asset Links service, which is blocked in mainland
+China, and Chrome's Web Push travels through Google's FCM. `Device.chromeMode`
+therefore uses Chrome only when Google Play services and a browser that
+supports Trusted Web Activities are both present. Otherwise `WebActivity`
+shows the server in the app's own WebView, which handles file uploads, back
+navigation, external links in the browser, and edge-to-edge insets. Its user
+agent includes `GoodMorningApp/<version>`, so the website still reopens the last
+page and keeps notification settings visible. WebView has no Web Push, so on
+these phones the linked app posts notifications itself (below).
+
+## Linking and widgets
+
+"Link this phone" (a launcher shortcut, or a tap on an unlinked widget) asks the
+server for a pairing code. The owner enters it in Settings → Phone widgets, and
+the app then claims its token (`docs/browser-delivery.md`, Phone widgets and app
+linking). The token is encrypted with an AES key in the Android Keystore, and
+unlinking in Settings makes the app forget it on its next check.
+
+Widgets follow the website's look: serif headings, small uppercase labels, the
+desk icons, the secretary's portrait and name, and the account's chosen day and
+night color schemes (`Palette`, copied from `assets/web/color-schemes.css`),
+switched with the phone's dark mode. On Android 12 and newer the launcher
+switches them itself; older versions use the colors of the mode at drawing time.
+
+| Widget | Shows | Taps |
+|---|---|---|
+| Today's schedule | Today's events (time, until, place) and to-dos | Day schedule; refresh button |
+| Week schedule | Seven days from today: events and to-do progress | That day's schedule |
+| Secretary chat | Portrait and name, latest conversation title, its reply in a bubble, and a message box | Message box: Ask (dialog, may start paid model work); elsewhere: the conversation |
+
+`Sync` reads `GET /api/app/sync` once per run and caches the answer for the
+widgets. It runs when the app opens, after linking, from a widget's refresh
+button, and every 15 minutes from a `JobScheduler` job that needs a network and
+that Android batches with other work. A part the server cannot read keeps its
+last value. A 403 means the phone was unlinked: the app forgets its token and the
+widgets show the link prompt.
+
+On phones without Google services, the same run also:
+
+- posts status notifications (briefing ready, needs your answer, reply
+  finished) newer than its last check, so they arrive up to about 15 minutes
+  late. The first check after linking only records where to start;
+- schedules each timed event in the next 24 hours as an exact alarm at its
+  start minus the account's lead time. Reminders fire on time even offline,
+  each once; moved or deleted events lose their alarms on the next check.
+
+Phones with Google services get these through Web Push instead, when turned on
+in Settings, so nothing is shown twice.
 
 No `android/` file is deployed to the server; the deployment archive keeps only
 the top-level names in `deploy/deploy_native.py`.
