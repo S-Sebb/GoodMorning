@@ -1,6 +1,46 @@
 {
   "notes": [
     {
+      "version": "0.69.0",
+      "date": "2026-10-21",
+      "author": "GoodMorning agent",
+      "title_en": "Notifications that say GoodMorning",
+      "title_zh": "通知上写着 GoodMorning 啦",
+      "changes": [
+        {
+          "category": "Changed",
+          "en": [
+            "In Android app 0.4, notifications show as GoodMorning instead of Chrome, and gm.love765.me links open in the app.",
+            "In Android app 0.4, the News widget opens your morning briefing right at its news section."
+          ],
+          "zh": [
+            "在 Android 应用 0.4 版里，通知会显示成 GoodMorning，不再是 Chrome；点开 gm.love765.me 的链接也会直接进应用。",
+            "在 Android 应用 0.4 版里，点「新闻」小组件就能打开你的早报，并直接停在新闻章节。"
+          ]
+        },
+        {
+          "category": "Fixed",
+          "en": [
+            "Refresh no longer warns about unsent text when you haven't typed anything.",
+            "Secretary chat no longer asks before you leave just because a question has answers picked by default."
+          ],
+          "zh": [
+            "什么都没输入的时候，点「刷新」不会再提醒你有还没发送的文字。",
+            "秘书聊天里，某个问题本来就有默认选好的答案时，你离开前不会再被多问一句。"
+          ]
+        },
+        {
+          "category": "Notes",
+          "en": [
+            "After updating the Android app, open it once so its notifications can switch from Chrome to GoodMorning."
+          ],
+          "zh": [
+            "更新 Android 应用以后，请打开它一次，通知才能从 Chrome 换成 GoodMorning。"
+          ]
+        }
+      ]
+    },
+    {
       "version": "0.68.0",
       "date": "2026-10-21",
       "author": "GoodMorning agent",
