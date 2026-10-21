@@ -51,7 +51,8 @@ function secretaryQuestion(info, send, refreshed, language) {
         const input = make('input');
         input.type = single ? 'radio' : 'checkbox';
         input.name = field.key; input.value = option.value;
-        input.checked = Array.isArray(field.default) ? field.default.includes(option.value) : field.default === option.value;
+        // Defaults are the starting state, so draft checks see only the user's own changes.
+        input.defaultChecked = Array.isArray(field.default) ? field.default.includes(option.value) : field.default === option.value;
         label.append(input, make('span', option.label));
         if (option.description) label.append(make('small', option.description));
         target.append(label); inputs.push(input);
@@ -65,8 +66,8 @@ function secretaryQuestion(info, send, refreshed, language) {
       const input = make(field.type === 'string' && !field.format ? 'textarea' : 'input');
       if (input.tagName === 'INPUT') input.type = field.type === 'boolean' ? 'checkbox' : ['number','integer'].includes(field.type) ? 'number' : field.format === 'date' ? 'date' : 'text';
       if (field.type === 'integer') input.step = '1';
-      if (field.type === 'boolean') input.checked = field.default === true;
-      else input.value = field.default ?? '';
+      if (field.type === 'boolean') input.defaultChecked = field.default === true;
+      else input.defaultValue = field.default ?? '';
       input.setAttribute('aria-label', field.title || questionT('Your answer'));
       input.required = field.required && field.type !== 'boolean';
       for (const key of ['placeholder','minLength','maxLength']) if (field[key] !== undefined) input[key] = field[key];
