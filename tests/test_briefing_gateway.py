@@ -466,7 +466,7 @@ class GatewayTests(GatewayFixture):
         token=waiting()['token']
         self.assertEqual(phone('/api/app/pair',headers={'X-GoodMorning-Pairing':pairing['secret']})[0],404)
         app_link.record(self.store,self.id,'chat',{'title':'Your secretary replied','body':'Done','url':'/chat','tag':'c'})
-        answers={'/api/app-schedule':{'today':'2026-10-21','days':[]},'/api/reminders?hours=24':{'events':[]},
+        answers={'/api/app-schedule':{'today':'2026-10-21','days':[]},'/api/app-profile':{'name':'Aria','avatar':'f2','image':None},'/api/reminders?hours=24':{'events':[]},
                  '/api/chats':{'chats':[{'id':'a'*32,'mode':'secretary','title':'Plan','unread':True}]},
                  '/api/chats/'+'a'*32:{'state':'idle','messages':[{'role':'assistant','text':'**All** set'}]}}
         with patch.object(self.gateway,'proxy',lambda user,host,path,*args:(200,{},json.dumps(answers[path]).encode())):
@@ -476,6 +476,7 @@ class GatewayTests(GatewayFixture):
         self.assertEqual(value['chat'],{'id':'a'*32,'title':'Plan','state':'idle','unread':True,'reply':'All set'})
         self.assertEqual([item['body'] for item in value['notifications']],['Done'])
         self.assertEqual((value['schedule']['today'],value['reminders']),('2026-10-21',[]))
+        self.assertEqual((value['secretary']['name'],value['appearance']['day']),('Aria','morning-sky'))
         sent=[]
         self.gateway.chat_message=lambda user,host,path,raw,headers:sent.append((user,path,json.loads(raw))) or (202,{'Content-Type':'application/json'},b'{"chat":"x"}')
         self.assertEqual(phone('/api/app/chat',{'text':'Plan my day'},headers={'X-GoodMorning-App':token})[0],202)
