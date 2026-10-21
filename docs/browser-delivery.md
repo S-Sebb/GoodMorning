@@ -140,6 +140,18 @@ Chat history reads bounded native V2 pages of at most 200 raw records, retaining
 the latest 100 visible messages. This avoids OpenChamber 2.2's fourfold prefetch
 overflow. Pending input and uncertain delivery still retain the global busy flag.
 
+## Installed app
+
+Private pages link a web app manifest, so Android Chrome can install the site,
+and the Android app opens it in full screen. `/.well-known/assetlinks.json`
+vouches for the app package `me.love765.goodmorning` and its release-key
+fingerprint. Every server running this source serves it, so the app can connect
+to any of them. The app starts at `/app`. Inside the installed app, `app.js`
+saves the current page path in the `GoodMorningAppPage` cookie, and `/app`
+redirects to that path when it is a page route, otherwise to `/chat`. Sign-in
+inside the app also continues to `/app`. The cookie holds only a path, never
+page content.
+
 ## Session organization
 
 Each website conversation and each briefing owns exactly one OpenChamber

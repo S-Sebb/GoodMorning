@@ -229,7 +229,7 @@ class GatewayFixture(unittest.TestCase):
                     self.wfile.write(b'{"job":null}')
                     return
                 self.send_response(200);self.send_header('Content-Type','text/html');self.end_headers()
-                self.wfile.write(('<body><div data-config="{&quot;csrf&quot;: &quot;'+('a'*43)+'&quot;}"></div>Alice private record</body>').encode())
+                self.wfile.write(('<head></head><body><div data-config="{&quot;csrf&quot;: &quot;'+('a'*43)+'&quot;}"></div>Alice private record</body>').encode())
             def do_POST(self):
                 received.append((self.path,dict(self.headers)))
                 self.send_response(202);self.end_headers();self.wfile.write(b'{"accepted":true}')

@@ -14,7 +14,7 @@ import secrets
 import socketserver
 import threading
 import time
-from urllib.parse import urlsplit, parse_qs
+from urllib.parse import urlsplit, parse_qs, unquote
 from urllib.request import Request, build_opener, HTTPRedirectHandler
 from urllib.error import HTTPError
 
@@ -32,7 +32,9 @@ from goodmorning.web.generation_clock import REQUESTED_AT
 from . import maintenance as deploy_pause
 
 ASSETS = WEB_ASSETS
-POLICY = "default-src 'none'; style-src 'self'; script-src 'self'; img-src 'self'; font-src 'self'; connect-src 'self'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'"
+# Digital Asset Links let the Android app open this origin without browser controls.
+ASSET_LINKS = (ASSETS / 'assetlinks.json').read_bytes()
+POLICY = "default-src 'none'; style-src 'self'; script-src 'self'; img-src 'self'; font-src 'self'; connect-src 'self'; manifest-src 'self'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'"
 GET_ROUTES = re.compile(r'(?:/|/(?:index|gm|gn)\.html|/chat|/schedule|/api/schedule|/api/avatar(?:/image/[a-f0-9]{64}\.png)?|/api/chats(?:/[a-f0-9]{32}(?:/status)?)?|/api/day|/api/edition/\d{4}-\d{2}-\d{2}/(?:gm|gn)|/api/jobs/[a-f0-9]{32}(?:/preview)?|/d/\d{4}-\d{2}-\d{2}/(?:gm|gn)\.(?:html|json)|/media/(?:thumb-v1/)?[a-f0-9]{64}\.webp|/d/\d{4}-\d{2}-\d{2}/media/[a-f0-9]+\.webp|/(?:assets/[a-f0-9]{64}/)?desk-secretary(?:-f2|-m1|-m2)?(?:-profile|(?:-day)?(?:-animated)?)\.png|/(?:assets/[a-f0-9]{64}/)?(?:briefing\.css|briefing\.js|browser\.js|schedule\.js|schedule\.css|questions\.js|chat\.js|chat\.css|avatar\.js|avatar\.css|fonts/(?:lora-italic\.woff2|OFL\.txt)))')
 POST_ROUTES = re.compile(r'(?:/api/avatar(?:/upload/(?:day|night|profile))?|/api/(?:generate|regenerate)|/api/chat-uploads/[a-f0-9]{32}|/api/chats|/api/chats/[a-f0-9]{32}/(?:messages|seen|(?:form|permission)/[A-Za-z0-9_]+/reply)|/api/jobs/[a-f0-9]{32}/(?:recover|(?:form|permission)/[A-Za-z0-9_]+/reply))')
 QUEUE_KEY = 'generation_queue'
@@ -798,6 +800,14 @@ def handler_for(gateway):
                 return ui.language(cookie['GoodMorningLanguage'].value)
             except (KeyError,ValueError,CookieError):return 'en'
 
+        def app_page(self):
+            """The installed app reopens its last page; the first launch opens chat."""
+            try:
+                cookie=SimpleCookie();cookie.load(self.headers.get('Cookie','')[:4096])
+                page=unquote(cookie['GoodMorningAppPage'].value)
+            except (KeyError,ValueError,CookieError):return '/chat'
+            return page if PAGE_ROUTES.fullmatch(page) else '/chat'
+
         def select_language(self,session=None):
             selected=(gateway.accounts.website_language(session['user_id']) or 'en') if session and session.get('user_id') else self.browser_language()
             ui.CURRENT.set(selected)
@@ -861,6 +871,8 @@ def handler_for(gateway):
                     cached=any(value.strip().removeprefix('W/') in (tag,'*') for value in self.headers.get('If-None-Match','').split(','))
                     return self.respond(b'' if cached else resource.data,304 if cached else 200,resource.mime,
                                         cache='public, max-age=31536000, immutable' if path in gateway.icons.paths else 'public, no-cache',etag=tag,resource=resource)
+                if path=='/.well-known/assetlinks.json':
+                    return self.respond(ASSET_LINKS,cache='public, max-age=3600')
                 if gateway.paused():
                     if path.startswith('/api/'):
                         return self.maintenance_json()
@@ -894,6 +906,8 @@ def handler_for(gateway):
                     return self.respond(self.account_html(session,'Change password',host),mime='text/html; charset=utf-8')
                 if path=='/login':
                     return self.respond(b'',302,location='/')
+                if path=='/app':
+                    return self.respond(b'',302,location=self.app_page())
                 if path=='/api/queue':
                     return self.respond(gateway.queue_status(session['user_id']))
                 if path=='/api/activity':
@@ -912,7 +926,8 @@ def handler_for(gateway):
                     # A public, non-authorizing namespace changes with every login.
                     scope=hashlib.sha256(('chat-workspace:'+session['csrf']).encode()).hexdigest()
                     text=re.sub(r'(&quot;workspaceScope&quot;:\s*&quot;)[a-f0-9]{64}(&quot;)',r'\g<1>'+scope+r'\g<2>',text)
-                    controls='<nav class="account-tools" aria-label="Account"><a href="/password">Change password</a><button id="sign-out" data-csrf="'+session['csrf']+'">Sign out</button></nav><script src="/auth.js" defer></script>'
+                    controls='<nav class="account-tools" aria-label="Account"><a href="/password">Change password</a><button id="sign-out" data-csrf="'+session['csrf']+'">Sign out</button></nav><script src="/auth.js" defer></script><script src="/app.js" defer></script>'
+                    text=text.replace('</head>','<link rel="manifest" href="/manifest.webmanifest"></head>',1)
                     data=text.replace('</body>',controls+'</body>').encode()
                     data=gateway.icons.rewrite(ui.page(activity_panel(data.decode(),gateway.hosts),session['csrf'],self.path)).encode()
                     if status == 200:

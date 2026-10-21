@@ -95,6 +95,8 @@ class Resources:
                    'update.js': 'text/javascript', 'update.css': 'text/css',
                    'avatar.js': 'text/javascript', 'avatar.css': 'text/css',
                    'maintenance.css': 'text/css',
+                   'app.js': 'text/javascript', 'manifest.webmanifest': 'application/manifest+json',
+                   **{f'icons/app-{size}.png': 'image/png' for size in ('192', '512', 'maskable-512')},
                  'fonts/OFL.txt': 'text/plain', 'fonts/pixel-fonts-OFL.txt': 'text/plain',
                  **{f'desk-secretary{person}{variant}.png': 'image/png' for person in ('', '-f2', '-m1', '-m2')
                     for variant in ('', '-day', '-animated', '-day-animated', '-profile')}, **ICON_TYPES}
