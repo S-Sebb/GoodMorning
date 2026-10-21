@@ -1,0 +1,16 @@
+{
+  "id": "/app",
+  "name": "GoodMorning",
+  "short_name": "GoodMorning",
+  "description": "Your personal secretary",
+  "start_url": "/app",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f8eee0",
+  "theme_color": "#f8eee0",
+  "icons": [
+    {"src": "/icons/app-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any"},
+    {"src": "/icons/app-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any"},
+    {"src": "/icons/app-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable"}
+  ]
+}

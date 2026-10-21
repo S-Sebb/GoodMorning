@@ -338,6 +338,30 @@ class GatewayTests(GatewayFixture):
         self.assertEqual(self.request('/icons/../accounts.sqlite')[0],302)
         self.assertEqual(self.request('/icons/gm.svg',headers={'Host':'evil.test'})[0],403)
 
+    def test_android_app_links_manifest_and_last_page(self):
+        status,headers,body=self.request('/.well-known/assetlinks.json')
+        self.assertEqual((status,headers['Content-Type']),(200,'application/json'))
+        target=json.loads(body)[0]['target']
+        self.assertEqual(target['package_name'],'me.love765.goodmorning')
+        self.assertRegex(target['sha256_cert_fingerprints'][0],'^([0-9A-F]{2}:){31}[0-9A-F]{2}$')
+        self.assertEqual(self.request('/app')[1]['Location'],'/login')
+        self.permanent()
+        _,headers,page=self.request('/chat')
+        self.assertIn("manifest-src 'self'",headers['Content-Security-Policy'])
+        manifest=re.search(rb'<link rel="manifest" href="(/assets/[a-f0-9]{64}/manifest\.webmanifest)">',page)[1].decode()
+        self.assertRegex(page,rb'<script src="/assets/[a-f0-9]{64}/app\.js" defer>')
+        status,headers,body=self.request(manifest)
+        self.assertEqual((status,headers['Content-Type']),(200,'application/manifest+json'))
+        for icon in json.loads(body)['icons']:
+            self.assertEqual(self.request(icon['src'])[0],200)
+        session=self.cookie
+        for saved,expected in ((None,'/chat'),('%2Fgm.html','/gm.html'),('%2Fd%2F2026-10-20%2Fgn.html','/d/2026-10-20/gn.html'),
+                               ('%2F%2Fevil.test','/chat'),('https%3A%2F%2Fevil.test%2Fchat','/chat'),('%2Fapi%2Fchats','/chat')):
+            with self.subTest(saved=saved):
+                self.cookie=session+('; GoodMorningAppPage='+saved if saved else '')
+                status,headers,_=self.request('/app')
+                self.assertEqual((status,headers['Location']),(302,expected))
+
     def test_login_cookie_and_initial_password_gate(self):
         session=self.login()
         self.assertTrue(session['temporary'])

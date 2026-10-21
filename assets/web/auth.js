@@ -43,7 +43,9 @@ if (form) form.addEventListener('submit', async event => {
     const result = await goodmorningJSON(response);
     if (!response.ok) throw new Error(result.error || authT('Sign-in unavailable.'));
     form.reset();
-    location.replace(result.next);
+    // The installed app resumes its own last page instead of the website's home.
+    const app = result.next === '/' && matchMedia('(display-mode: standalone)').matches;
+    location.replace(app ? '/app' : result.next);
   } catch (failure) { error.textContent = failure.message; }
   finally { button.disabled = false; }
 });

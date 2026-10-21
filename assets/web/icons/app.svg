@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <title>GoodMorning app icon</title>
+  <rect width="64" height="64" fill="#f8eee0"/>
+  <g stroke="#d88b38" stroke-width="4" stroke-linecap="round">
+    <path d="M32 10v6m0 32v6M10 32h6m32 0h6M16 16l4 4m24 24 4 4M16 48l4-4m24-24 4-4"/>
+  </g>
+  <circle cx="32" cy="32" r="11" fill="#d88b38"/>
+</svg>

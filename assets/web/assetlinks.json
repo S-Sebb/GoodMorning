@@ -1,0 +1,3 @@
+[{"relation": ["delegate_permission/common.handle_all_urls"],
+  "target": {"namespace": "android_app", "package_name": "me.love765.goodmorning",
+             "sha256_cert_fingerprints": ["DC:D7:E7:5E:C9:19:D8:5C:E3:95:1C:93:92:37:0A:8D:94:C1:23:D1:D1:23:D7:B6:32:41:5C:D0:62:2E:80:29"]}}]
