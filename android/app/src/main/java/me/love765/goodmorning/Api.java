@@ -154,6 +154,11 @@ final class Api {
         }
     }
 
+    /** Starts preparing today's gm or gn briefing; it may start paid model work. */
+    static JSONObject generate(Context context, String token, String kind) throws IOException, JSONException {
+        return request(context, "POST", "/api/app/generate", new JSONObject().put("kind", kind), "X-GoodMorning-App", token);
+    }
+
     static JSONObject chat(Context context, String token, String text, String chat) throws IOException, JSONException {
         JSONObject body = new JSONObject().put("text", text);
         if (chat != null) body.put("chat", chat);

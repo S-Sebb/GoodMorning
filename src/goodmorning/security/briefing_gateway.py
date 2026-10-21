@@ -14,7 +14,7 @@ import secrets
 import socketserver
 import threading
 import time
-from urllib.parse import urlsplit, parse_qs, unquote
+from urllib.parse import urlsplit, parse_qs, unquote, urlencode
 from urllib.request import Request, build_opener, HTTPRedirectHandler
 from urllib.error import HTTPError
 
@@ -36,7 +36,7 @@ ASSETS = WEB_ASSETS
 # Digital Asset Links let the Android app open this origin without browser controls.
 ASSET_LINKS = (ASSETS / 'assetlinks.json').read_bytes()
 POLICY = "default-src 'none'; style-src 'self'; script-src 'self'; img-src 'self'; font-src 'self'; connect-src 'self'; manifest-src 'self'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'"
-GET_ROUTES = re.compile(r'(?:/|/(?:index|gm|gn)\.html|/chat|/schedule|/api/schedule|/api/avatar(?:/image/[a-f0-9]{64}\.png)?|/api/chats(?:/[a-f0-9]{32}(?:/status)?)?|/api/day|/api/reminders|/api/app-schedule|/api/app-profile|/api/edition/\d{4}-\d{2}-\d{2}/(?:gm|gn)|/api/jobs/[a-f0-9]{32}(?:/preview)?|/d/\d{4}-\d{2}-\d{2}/(?:gm|gn)\.(?:html|json)|/media/(?:thumb-v1/)?[a-f0-9]{64}\.webp|/d/\d{4}-\d{2}-\d{2}/media/[a-f0-9]+\.webp|/(?:assets/[a-f0-9]{64}/)?desk-secretary(?:-f2|-m1|-m2)?(?:-profile|(?:-day)?(?:-animated)?)\.png|/(?:assets/[a-f0-9]{64}/)?(?:briefing\.css|briefing\.js|browser\.js|schedule\.js|schedule\.css|questions\.js|chat\.js|chat\.css|avatar\.js|avatar\.css|fonts/(?:lora-italic\.woff2|OFL\.txt)))')
+GET_ROUTES = re.compile(r'(?:/|/(?:index|gm|gn)\.html|/chat|/schedule|/api/schedule|/api/avatar(?:/image/[a-f0-9]{64}\.png)?|/api/chats(?:/[a-f0-9]{32}(?:/status)?)?|/api/day|/api/reminders|/api/app-schedule|/api/app-briefings|/api/app-profile|/api/edition/\d{4}-\d{2}-\d{2}/(?:gm|gn)|/api/jobs/[a-f0-9]{32}(?:/preview)?|/d/\d{4}-\d{2}-\d{2}/(?:gm|gn)\.(?:html|json)|/media/(?:thumb-v1/)?[a-f0-9]{64}\.webp|/d/\d{4}-\d{2}-\d{2}/media/[a-f0-9]+\.webp|/(?:assets/[a-f0-9]{64}/)?desk-secretary(?:-f2|-m1|-m2)?(?:-profile|(?:-day)?(?:-animated)?)\.png|/(?:assets/[a-f0-9]{64}/)?(?:briefing\.css|briefing\.js|browser\.js|schedule\.js|schedule\.css|questions\.js|chat\.js|chat\.css|avatar\.js|avatar\.css|fonts/(?:lora-italic\.woff2|OFL\.txt)))')
 POST_ROUTES = re.compile(r'(?:/api/avatar(?:/upload/(?:day|night|profile))?|/api/(?:generate|regenerate)|/api/chat-uploads/[a-f0-9]{32}|/api/chats|/api/chats/[a-f0-9]{32}/(?:messages|seen|(?:form|permission)/[A-Za-z0-9_]+/reply)|/api/jobs/[a-f0-9]{32}/(?:recover|(?:form|permission)/[A-Za-z0-9_]+/reply))')
 QUEUE_KEY = 'generation_queue'
 WAITING_KEY = 'generation_waiting'
@@ -356,12 +356,32 @@ class Gateway:
         for key, read_part in (('schedule', lambda: read('/api/app-schedule')),
                                ('secretary', lambda: read('/api/app-profile')),
                                ('reminders', lambda: read('/api/reminders?hours=24')['events']),
-                               ('chat', lambda: self.app_chat_summary(user, read))):
+                               ('chat', lambda: self.app_chat_summary(user, read)),
+                               ('briefings', lambda: self.app_briefings(user, read))):
             try:
                 result[key] = read_part()
             except Exception:
                 result[key] = None  # The app keeps showing what it had; other parts still update.
         return result
+
+    def app_briefings(self, user, read):
+        result = read('/api/app-briefings')
+        # A request still waiting in the shared queue is not yet a job on the account's backend.
+        for item in self.queue_status(user)['queue']:
+            edition = result['editions'].get(item.get('edition'))
+            if item['work'] == 'generate' and item.get('date') == result['date'] and edition and edition['state'] == 'missing':
+                edition['state'] = 'working'
+        return result
+
+    def app_generate(self, user, body):
+        """The briefings widget's Generate button: today's edition, through the usual queue."""
+        host = next(iter(self.hosts))
+        if set(body) != {'kind'} or body['kind'] not in ('gm', 'gn'):
+            raise ValueError('Invalid generation request')
+        status, headers, raw = self.proxy(user, host, '/api/day', 'GET', None, {})
+        if status != 200:
+            return status, headers, raw
+        return self.generate(user, host, json.dumps({'date': json.loads(raw)['date'], 'kind': body['kind']}).encode(), {})
 
     def app_chat_summary(self, user, read):
         chats = [item for item in read('/api/chats')['chats'] if item['mode'] == 'secretary']
@@ -961,11 +981,14 @@ def handler_for(gateway):
             user=self.app_user()
             self.select_language({'user_id':user})
             gateway.backend(user)
-            status,headers,data=gateway.app_chat(user,body)
+            status,headers,data=(gateway.app_generate if path=='/api/app/generate' else gateway.app_chat)(user,body)
             return self.respond(data,status,headers.get('Content-Type','application/json'))
 
         def app_page(self):
-            """The installed app reopens its last page; the first launch opens chat."""
+            """A page the app asked for (widgets, notifications), else the last page; the first launch opens chat."""
+            target=parse_qs(urlsplit(self.path).query).get('next',[''])[0]
+            page,_,query=target.partition('?')
+            if PAGE_ROUTES.fullmatch(page) and re.fullmatch(r'[A-Za-z0-9=&_.%-]*',query):return target
             try:
                 cookie=SimpleCookie();cookie.load(self.headers.get('Cookie','')[:4096])
                 page=unquote(cookie['GoodMorningAppPage'].value)
@@ -1067,6 +1090,13 @@ def handler_for(gateway):
                     if path=='/api/language':return self.respond({'language':ui.current()})
                     if path=='/api/model':return self.respond({'model':site_models.for_language(ui.current())})
                     if path=='/api/color-schemes':return self.respond(site_colors.current())
+                    query=parse_qs(urlsplit(self.path).query)
+                    if path=='/app' and 'b' not in query:
+                        # The app opens /app from outside the site, so the browser holds back the SameSite=Strict
+                        # login cookie. One same-site step through this page sends it, without loosening the cookie.
+                        target='/app?'+urlencode({**{key:value[0] for key,value in query.items()},'b':'1'})
+                        return self.respond(('<!doctype html><meta charset="utf-8"><meta http-equiv="refresh" content="0;url='
+                                             +html.escape(target,quote=True)+'"><title>GoodMorning</title>').encode(),mime='text/html; charset=utf-8')
                     if path!='/login':
                         return self.respond({'error':'Login required'},401) if path.startswith('/api/') else self.respond(b'',302,location='/login')
                     gateway.accounts.limit([('prelogin-ip:'+self.address(),60)])
@@ -1143,7 +1173,7 @@ def handler_for(gateway):
             try:
                 host=self.host()
                 self.select_language()
-                if urlsplit(self.path).path in ('/api/app/pair','/api/app/chat'):
+                if urlsplit(self.path).path in ('/api/app/pair','/api/app/chat','/api/app/generate'):
                     return self.app_post(host,urlsplit(self.path).path)
                 if self.headers.get('Origin')!='https://'+host or self.headers.get('Sec-Fetch-Site','same-origin')!='same-origin':
                     raise Denied('Forbidden')

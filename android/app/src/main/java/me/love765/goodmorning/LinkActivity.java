@@ -12,23 +12,23 @@ import android.widget.Button;
 import android.widget.TextView;
 
 import org.json.JSONException;
-import org.json.JSONObject;
 
 import java.io.IOException;
-import java.security.GeneralSecurityException;
 
 /**
- * Shows a code for the owner to enter in GoodMorning Settings, then collects this phone's app token.
- * Opened from the "Link this phone" shortcut and from unlinked widgets.
+ * Shows a code for the owner to enter in GoodMorning Settings; {@link Pairing} collects this
+ * phone's app token. Opened from the "Link this phone" shortcut and from unlinked widgets.
  */
 public class LinkActivity extends Activity {
-    private static final long POLL = 3000;
+    private static final long REFRESH = 1000;
     private final Handler handler = new Handler(Looper.getMainLooper());
     private TextView code;
     private TextView status;
     private Button again;
-    private String secret;
     private boolean visible;
+    private boolean starting;
+    private boolean failed;
+    private boolean waiting;
 
     @Override
     protected void onCreate(Bundle state) {
@@ -43,85 +43,60 @@ public class LinkActivity extends Activity {
         status = findViewById(R.id.status);
         again = findViewById(R.id.again);
         again.setOnClickListener(view -> pair());
-        findViewById(R.id.open).setOnClickListener(view -> startActivity(new Intent(this, Launcher.class)));
-        if (Sync.linked(this)) show(R.string.link_done, true);
-        else pair();
-    }
-
-    private void show(int text, boolean offerNewCode) {
-        status.setText(text);
-        again.setVisibility(offerNewCode ? View.VISIBLE : View.GONE);
-        if (offerNewCode) code.setText("");
+        findViewById(R.id.open).setOnClickListener(view -> startActivity(Launcher.start(this)));
+        // The code from an earlier visit stays valid; a new one would make the entered code useless.
+        if (!Sync.linked(this) && Pairing.code(this) == null) pair();
     }
 
     private void pair() {
-        secret = null;
-        show(R.string.link_starting, false);
-        String name = (Build.MANUFACTURER + " " + Build.MODEL).trim();
+        starting = true;
+        failed = false;
+        show();
         new Thread(() -> {
+            boolean started;
             try {
-                JSONObject pairing = Api.pair(this, name.length() > 60 ? name.substring(0, 60) : name);
-                runOnUiThread(() -> {
-                    secret = pairing.optString("secret");
-                    code.setText(pairing.optString("code"));
-                    show(R.string.link_waiting, false);
-                    poll();
-                });
+                Pairing.start(this);
+                started = true;
             } catch (IOException | JSONException error) {
-                runOnUiThread(() -> show(R.string.link_failed, true));
+                started = false;
             }
-        }).start();
-    }
-
-    private void poll() {
-        handler.removeCallbacksAndMessages(null);
-        if (secret != null && visible) handler.postDelayed(this::claim, POLL);
-    }
-
-    private void claim() {
-        String current = secret;
-        new Thread(() -> {
-            int result;
-            try {
-                JSONObject answer = Api.claim(this, current);
-                if (answer.has("token")) {
-                    Api.saveToken(this, answer.getString("token"));
-                    Sync.schedule(this);
-                    Sync.run(this);
-                    result = R.string.link_done;
-                } else {
-                    result = 0;
-                }
-            } catch (Api.Failure failure) {
-                result = failure.status == 404 ? R.string.link_expired : 0;
-            } catch (IOException | JSONException | GeneralSecurityException error) {
-                result = 0;  // Offline for a moment: keep waiting while the code is valid.
-            }
-            int shown = result;
+            boolean ok = started;
             runOnUiThread(() -> {
-                if (!current.equals(secret)) return;
-                if (shown == 0) {
-                    poll();
-                    return;
-                }
-                secret = null;
-                show(shown, shown == R.string.link_expired);
-                if (shown == R.string.link_done) {
-                    code.setText("");
-                    // Without Web Push the app posts notifications itself, which needs Android's permission.
-                    if (Build.VERSION.SDK_INT >= 33 && !Device.chromeMode(this)) {
-                        requestPermissions(new String[] {Manifest.permission.POST_NOTIFICATIONS}, 1);
-                    }
-                }
+                starting = false;
+                failed = !ok;
+                Pairing.claimInBackground(this);
+                show();
             });
         }).start();
+    }
+
+    /** Follows the saved code: waiting, linked or expired. */
+    private void show() {
+        handler.removeCallbacksAndMessages(null);
+        String current = Pairing.code(this);
+        boolean linked = Sync.linked(this);
+        if (linked && waiting) linked();  // The code on screen was just used.
+        waiting = !starting && !linked && current != null;
+        code.setText(waiting ? current : "");
+        status.setText(starting ? R.string.link_starting : linked ? R.string.link_done : failed ? R.string.link_failed
+                : waiting ? R.string.link_waiting : R.string.link_expired);
+        again.setVisibility(starting || linked || waiting ? View.GONE : View.VISIBLE);
+        if (visible && (starting || waiting)) handler.postDelayed(this::show, REFRESH);
+    }
+
+    /** Without Web Push the app posts notifications itself, which needs Android's permission. */
+    private void linked() {
+        if (Build.VERSION.SDK_INT >= 33 && !Device.chromeMode(this)) {
+            requestPermissions(new String[] {Manifest.permission.POST_NOTIFICATIONS}, 1);
+        }
     }
 
     @Override
     protected void onResume() {
         super.onResume();
         visible = true;
-        poll();
+        Pairing.claimInBackground(this);
+        show();
     }
 
     @Override

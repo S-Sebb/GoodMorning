@@ -115,6 +115,25 @@ class LiveTests(unittest.TestCase):
         with self.assertRaises(ValueError): self.app.page('2026-10-03','gm',True)
         self.assertEqual(self.chamber.calls, [])
 
+    def test_widget_briefings_are_plain_rows_and_follow_preparation(self):
+        from goodmorning.web.app_briefings import summary
+        self.assertEqual(summary(self.app), {'date': '2026-10-10', 'editions': {'gm': {'state': 'missing'}, 'gn': {'state': 'missing'}}})
+        self.start()
+        self.assertEqual(summary(self.app)['editions']['gm'], {'state': 'waiting'})  # The fixture's secretary asks first.
+        (self.root/'daily/2026-10-10.gn.json').write_text(GM)
+        before = {path: path.read_bytes() for path in self.root.rglob('*') if path.is_file()}
+        evening = summary(self.app)['editions']['gn']
+        self.assertEqual({path: path.read_bytes() for path in before}, before)
+        self.assertEqual((evening['state'], evening['greeting'], evening['closing']), ('ready', 'Good morning', 'A warm closing.'))
+        self.assertEqual([section['type'] for section in evening['sections']], ['weather', 'news', 'schedule', 'must-do'])
+        rows = {section['type']: section['rows'] for section in evening['sections']}
+        self.assertEqual(rows['weather'][0], {'style': 'item', 'side': '14°C', 'title': 'Temperature', 'text': 'Cool.'})
+        self.assertEqual(rows['news'], [{'style': 'heading', 'side': '', 'title': 'World', 'text': ''},
+                                        {'style': 'item', 'side': '', 'title': 'A complete story.', 'text': 'A full summary.'}])
+        self.assertEqual(rows['schedule'][0], {'style': 'item', 'side': '09:00–11:00', 'title': 'Teaching', 'text': 'Room A · Bring notes'})
+        self.assertEqual([row['side'] for row in rows['must-do']], ['○', '✓'])
+        self.assertTrue(evening['sections'][1]['title'].startswith('News — 2026-10-09'))
+
     def test_missing_today_has_generation_layout(self):
         page = self.app.page('2026-10-10','gm',False).decode()
         self.assertIn('id="generate"', page)

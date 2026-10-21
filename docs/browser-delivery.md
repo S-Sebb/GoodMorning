@@ -146,11 +146,18 @@ Private pages link a web app manifest, so Android Chrome can install the site,
 and the Android app opens it in full screen. `/.well-known/assetlinks.json`
 vouches for the app package `me.love765.goodmorning` and its release-key
 fingerprint. Every server running this source serves it, so the app can connect
-to any of them. The app starts at `/app`. Inside the installed app, `app.js`
+to any of them. The app starts at `/app`, and pages it opens for widgets and
+notifications go through `/app?next=<page>`. Inside the installed app, `app.js`
 saves the current page path in the `GoodMorningAppPage` cookie, and `/app`
-redirects to that path when it is a page route, otherwise to `/chat`. Sign-in
-inside the app also continues to `/app`. The cookie holds only a path, never
-page content.
+redirects to `next` when it is a page route, otherwise to that saved path when it
+is one, otherwise to `/chat`. Sign-in inside the app also continues to `/app`. The
+cookie holds only a path, never page content.
+
+Chrome withholds `SameSite=Strict` cookies, the login cookie included, when
+another app opens a page. Without a login cookie, `/app` therefore answers with a
+page that refreshes once to `/app?b=1`: that same-site step sends the cookie, so a
+remembered sign-in survives closing the app. Only a request that still has no
+session after this step goes to `/login`.
 
 ## Notifications
 
@@ -189,7 +196,9 @@ token, never the website's login cookie. To link a phone:
 2. The signed-in owner enters that code in Settings → Phone widgets
    (`POST /api/app/link`).
 3. The app polls `GET /api/app/pair` with its secret and receives its token
-   exactly once.
+   exactly once. It keeps the code and secret until they expire, so closing
+   and reopening "Link this phone" shows the same code, and it keeps polling
+   in the background while the owner types the code into the website.
 
 Codes expire after ten minutes, and nothing secret travels in a URL. Settings
 lists linked phones; Unlink revokes one immediately.
@@ -200,11 +209,18 @@ With its token (`X-GoodMorning-App` header) the app can call:
   need, in one request. It returns the account's notification settings, seven
   plain days of schedule from today (`/api/app-schedule` on the account's
   backend), timed events in the next 24 hours for on-phone reminders, a summary
-  of the latest secretary conversation, and status notifications newer than
-  `N`. If one part cannot be read, that part is `null`; the rest still updates.
+  of the latest secretary conversation, today's two briefings
+  (`/api/app-briefings`), and status notifications newer than `N`. A saved
+  briefing comes as plain rows in reading order, without hidden record IDs; an
+  unsaved one only as `missing`, `working` (also while queued), `waiting` (a
+  question first) or `stopped`. If one part cannot be read, that part is
+  `null`; the rest still updates.
 - `POST /api/app/chat` with `{text}` or `{text, chat}`: starts a secretary
   conversation or continues one through the normal queue. It may start paid
   model work.
+- `POST /api/app/generate` with `{kind}` (`gm` or `gn`): prepares today's
+  morning or evening briefing through the normal queue, like the website's
+  button. It may start paid model work.
 
 The status notifications that Web Push sends are also kept, as the latest
 thirty, for accounts with a linked phone. Phones without Google services read

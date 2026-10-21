@@ -160,7 +160,7 @@ public class UpdateActivity extends Activity {
     }
 
     private void openSite() {
-        startActivity(new Intent(this, Launcher.class));
+        startActivity(Launcher.start(this));
         finish();
     }
 }

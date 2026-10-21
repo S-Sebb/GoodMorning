@@ -13,9 +13,10 @@ android {
         applicationId 'me.love765.goodmorning'
         minSdk 26
         targetSdk 36
-        // Each release is tagged android-v<versionCode>; the app updates to higher codes.
-        versionCode 2
-        versionName '1.1'
+        // Each release is tagged android-v<versionCode>; the app updates to higher codes. Codes 1 and 2
+        // were the withdrawn 1.0 and 1.1, so phones that installed them still update to 0.1.
+        versionCode 3
+        versionName '0.1'
         buildConfigField 'String', 'RELEASES_URL', '"https://api.github.com/repos/S-Sebb/GoodMorning/releases?per_page=10"'
     }
 
