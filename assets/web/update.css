@@ -30,7 +30,8 @@ html[data-edition="gn"] #site-update-toggle[data-state="current"] { color: #8cb9
 #site-patch-note .patch-footer { grid-column: 1 / -1; display: block; max-width: none; margin: 0; padding: 16px 24px; border-top: 1px solid var(--line,#b4c7c0); color: inherit; font-size: 14px; }
 .patch-footer p { margin: 0 0 10px; }
 .patch-footer > div { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
-#site-patch-note #update-refresh { background: #2563c4; border-color: #2364bd; color: #fff; }
+#site-patch-note :is(#update-refresh, #app-update) { background: #2563c4; border-color: #2364bd; color: #fff; }
+#site-patch-note #app-update-status { font-weight: 600; }
 #update-feedback:empty { display: none; }
 #site-patch-note #update-feedback { margin: 0 0 10px; }
 #site-update-toggle:focus-visible, #site-patch-note button:focus-visible, .patch-content:focus-visible { outline: 3px solid #568de0; outline-offset: 2px; }

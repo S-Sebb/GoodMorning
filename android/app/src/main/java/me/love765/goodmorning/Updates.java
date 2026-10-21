@@ -8,25 +8,23 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 
-import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.io.IOException;
 import java.net.HttpURLConnection;
 import java.net.URL;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 /**
- * Finds newer APKs among the GitHub releases tagged android-v{versionCode}, pre-releases included
- * while the app is in beta. Checks run when the app opens (at most once a day) and from
- * {@link UpdateJob}. A found update is offered on the next
- * launch and, when notifications are allowed, announced once as a notification.
+ * Finds newer APKs through the GoodMorning server, which reads the GitHub releases tagged
+ * android-v{versionCode}. Checks run when the app opens and hourly from {@link UpdateJob}. A found
+ * update is offered on the next launch, in the website's update pill, and, when notifications are
+ * allowed, once as a notification.
  */
 final class Updates {
     static final long DAY = 24 * 60 * 60 * 1000L;
-    private static final Pattern TAG = Pattern.compile("android-v(\\d+)");
+    /** Releases come often while the app is in beta, so every launch checks unless one just did. */
+    private static final long GAP = 10 * 60 * 1000L;
 
     /** A release newer than this build. */
     static final class Release {
@@ -47,11 +45,12 @@ final class Updates {
         return context.getSharedPreferences("updates", Context.MODE_PRIVATE);
     }
 
-    /** The saved newer release, unless the user chose Later within the last day. */
-    static Release pending(Context context) {
+    /** The saved newer release, unless the user chose Later within the last day and did not ask again. */
+    static Release pending(Context context, boolean asked) {
         SharedPreferences prefs = prefs(context);
         int code = prefs.getInt("code", 0);
-        if (code <= BuildConfig.VERSION_CODE || System.currentTimeMillis() < prefs.getLong("snoozed", 0) + DAY) return null;
+        boolean snoozed = System.currentTimeMillis() < prefs.getLong("snoozed", 0) + DAY;
+        if (code <= BuildConfig.VERSION_CODE || (snoozed && !asked)) return null;
         return new Release(code, prefs.getString("name", ""), prefs.getString("apk", ""));
     }
 
@@ -62,13 +61,13 @@ final class Updates {
     static void checkInBackground(Context context) {
         Context app = context.getApplicationContext();
         UpdateJob.schedule(app);
-        if (System.currentTimeMillis() < prefs(app).getLong("checked", 0) + DAY) return;
+        if (System.currentTimeMillis() < prefs(app).getLong("checked", 0) + GAP) return;
         new Thread(() -> check(app)).start();
     }
 
     static void check(Context context) {
         try {
-            Release latest = latest();
+            Release latest = latest(context);
             SharedPreferences prefs = prefs(context);
             SharedPreferences.Editor edit = prefs.edit().putLong("checked", System.currentTimeMillis());
             if (latest != null && latest.code > prefs.getInt("code", 0)) {
@@ -77,7 +76,7 @@ final class Updates {
             }
             edit.apply();
         } catch (IOException | JSONException | RuntimeException ignored) {
-            // Offline or rate limited: the next launch or daily check tries again.
+            // Offline: the next launch or hourly check tries again.
         }
     }
 
@@ -97,40 +96,27 @@ final class Updates {
                 .build());
     }
 
-    private static Release latest() throws IOException, JSONException {
-        HttpURLConnection connection = (HttpURLConnection) new URL(BuildConfig.RELEASES_URL).openConnection();
+    /** Asks the GoodMorning server, which reads this repository's releases, so phones need no GitHub API access. */
+    private static Release latest(Context context) throws IOException, JSONException {
+        String server = Server.get(context);
+        if (server == null) return null;
+        HttpURLConnection connection = (HttpURLConnection) new URL(server + "/api/app/release").openConnection();
         connection.setConnectTimeout(10000);
         connection.setReadTimeout(10000);
-        connection.setRequestProperty("Accept", "application/vnd.github+json");
-        JSONArray releases;
         try {
             if (connection.getResponseCode() != 200) throw new IOException("Release check failed");
-            releases = new JSONArray(Server.read(connection.getInputStream(), 1 << 20));
+            return newer(new JSONObject(Server.read(connection.getInputStream(), 1 << 16)), BuildConfig.VERSION_CODE);
         } finally {
             connection.disconnect();
         }
-        return newest(releases, BuildConfig.VERSION_CODE);
     }
 
-    /** The highest published android-v{code} release above current that has an APK, or null. */
-    static Release newest(JSONArray releases, int current) throws JSONException {
-        Release best = null;
-        for (int i = 0; i < releases.length(); i++) {
-            JSONObject release = releases.getJSONObject(i);
-            Matcher tag = TAG.matcher(release.optString("tag_name"));
-            if (release.optBoolean("draft") || !tag.matches()) continue;
-            int code = Integer.parseInt(tag.group(1));
-            if (code <= current || (best != null && code <= best.code)) continue;
-            JSONArray assets = release.getJSONArray("assets");
-            for (int j = 0; j < assets.length(); j++) {
-                String url = assets.getJSONObject(j).optString("browser_download_url");
-                if (url.endsWith(".apk")) {
-                    String name = release.optString("name");
-                    best = new Release(code, name.isEmpty() ? tag.group() : name, url);
-                    break;
-                }
-            }
-        }
-        return best;
+    /** The server's newest release when it is above current and its APK comes from GitHub; otherwise null. */
+    static Release newer(JSONObject release, int current) {
+        int code = release.optInt("code");
+        String apk = release.optString("apk");
+        if (code <= current || !apk.startsWith("https://github.com/") || !apk.endsWith(".apk")) return null;
+        String name = release.optString("name");
+        return new Release(code, name.isEmpty() ? String.valueOf(code) : name, apk);
     }
 }

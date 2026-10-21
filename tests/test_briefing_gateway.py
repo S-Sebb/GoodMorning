@@ -350,6 +350,13 @@ class GatewayTests(GatewayFixture):
         target=html.unescape(re.search(rb'http-equiv="refresh" content="0;url=([^"]+)"',page)[1].decode())
         self.assertEqual((status,headers['Content-Type'],target),(200,'text/html; charset=utf-8','/app?next=%2Fschedule%3Fview%3Dday&b=1'))
         self.assertEqual(self.request(target)[1]['Location'],'/login')
+        # The app's build travels with its launch, so the page can offer the app's own updates.
+        self.assertEqual(self.request('/app?app=5')[1]['Set-Cookie'],'GoodMorningApp=5; Path=/; Secure; SameSite=Lax; Max-Age=31536000')
+        self.assertNotIn('Set-Cookie',self.request('/app?app=evil')[1])
+        from goodmorning.security import app_release
+        with patch.object(app_release,'latest',lambda:{'code':5,'name':'0.3','apk':'https://github.com/x/GoodMorning.apk'}):
+            status,headers,body=self.request('/api/app/release',headers={'Cookie':''})
+        self.assertEqual((status,json.loads(body)['code'],headers['Cache-Control']),(200,5,'public, max-age=300'))
         self.permanent()
         _,headers,page=self.request('/chat')
         self.assertIn("manifest-src 'self'",headers['Content-Security-Policy'])
@@ -366,6 +373,8 @@ class GatewayTests(GatewayFixture):
                 self.cookie=session+('; GoodMorningAppPage='+saved if saved else '')
                 status,headers,_=self.request('/app')
                 self.assertEqual((status,headers['Location']),(302,expected))
+        self.cookie=session
+        self.assertIn('GoodMorningApp=5;',self.request('/app?app=5&b=1')[1]['Set-Cookie'])
         self.cookie=session+'; GoodMorningAppPage=%2Fgm.html'
         for asked,expected in (('%2Fschedule%3Fview%3Dday%26day%3D2','/schedule?view=day&day=2'),('%2Fchat%3Fid%3D'+'a'*32,'/chat?id='+'a'*32),
                                ('%2Fgn.html','/gn.html'),('%2F%2Fevil.test','/gm.html'),('%2Fapi%2Fchats','/gm.html'),('%2Fchat%3Fx%3D%0d%0aSet-Cookie','/gm.html')):

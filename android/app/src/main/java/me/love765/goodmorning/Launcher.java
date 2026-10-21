@@ -33,7 +33,7 @@ public class Launcher extends LauncherActivity {
     @Override
     protected boolean shouldLaunchImmediately() {
         if (Server.get(this) == null) return open(new Intent(this, ServerActivity.class));
-        if (Updates.pending(this) != null) return open(new Intent(this, UpdateActivity.class));
+        if (Updates.pending(this, false) != null) return open(new Intent(this, UpdateActivity.class));
         Updates.checkInBackground(this);
         Pairing.claimInBackground(this);
         if (Sync.linked(this)) {
@@ -125,7 +125,8 @@ public class Launcher extends LauncherActivity {
     @Override
     protected Uri getLaunchingUrl() {
         Uri data = getIntent().getData();
-        Uri.Builder app = Uri.parse(Server.get(this) + "/app").buildUpon();
+        // The build number lets the website offer this app's own updates.
+        Uri.Builder app = Uri.parse(Server.get(this) + "/app").buildUpon().appendQueryParameter("app", String.valueOf(BuildConfig.VERSION_CODE));
         if (isTrustedIntentUrl(data) && !"/app".equals(data.getPath())) {
             app.appendQueryParameter("next", data.getEncodedPath() + (data.getEncodedQuery() == null ? "" : "?" + data.getEncodedQuery()));
         }

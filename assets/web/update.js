@@ -1,7 +1,12 @@
 // Public release history; dismissals live with the account, never with browser drafts.
 (() => {
   const initial = document.querySelector('#site-release')?.dataset.version ?? null;
-  const t = key => typeof goodmorningT === 'function' ? goodmorningT(key) : key;
+  const t = (key, values) => typeof goodmorningT === 'function' ? goodmorningT(key, values) : key;
+  // Inside the Android app the website still updates by refreshing; the app itself updates separately,
+  // and the app's launch tells the site which build it is.
+  const appBuild = Number((document.cookie.match(/(?:^|; )GoodMorningApp=(\d+)/) || [])[1] || 0);
+  const inApp = appBuild > 0 || matchMedia('(display-mode: standalone)').matches || navigator.userAgent.includes('GoodMorningApp/');
+  let appRelease = null;  // A newer app build, {code, name}, once the server reports one.
   const localized = (note, prefix = '') => note[prefix + (document.documentElement.lang === 'zh-CN' ? 'zh' : 'en')];
   const toggle = document.createElement('button');
   toggle.id = 'site-update-toggle';
@@ -21,9 +26,10 @@
     + '<section class="patch-content" tabindex="0" aria-labelledby="patch-note-version">'
     + '<p id="patch-note-version"></p><h3 id="patch-note-title"></h3><p id="patch-note-date"></p>'
     + '<div id="patch-note-text"></div><p id="patch-note-source"></p></section>'
-    + '<footer class="patch-footer"><p id="update-status" role="status"></p>'
+    + '<footer class="patch-footer"><p id="app-update-status" role="status" hidden></p><p id="update-status" role="status"></p>'
     + '<p id="update-feedback" role="status" aria-live="polite"></p>'
-    + '<div><button id="patch-note-dismiss" type="button"></button><button id="update-refresh" type="button"></button></div></footer></div>';
+    + '<div><button id="patch-note-dismiss" type="button"></button><button id="app-update" type="button" hidden></button>'
+    + '<button id="update-refresh" type="button"></button></div></footer></div>';
   document.body.append(patch);
   // The toggle lives in the top utility row's fixed slot; without it (older
   // cached pages) it falls back to a body-level button as before.
@@ -33,6 +39,7 @@
   const feedback = patch.querySelector('#update-feedback');
   const refreshButton = patch.querySelector('#update-refresh');
   const dismissButton = patch.querySelector('#patch-note-dismiss');
+  const appButton = patch.querySelector('#app-update');
   let latest = initial, release = null, notes = [], selected = null;
   let checking = false, checkedAt = 0, shown = null, seen = null, accountEnabled = false;
   let returnFocus = null;
@@ -47,18 +54,26 @@
 
   function render() {
     toggle.hidden = notes.length === 0;
-    toggle.dataset.state = stale() ? 'available' : 'current';
-    const label = t(stale() ? 'Update available. View patch notes' : 'What’s new: view patch notes');
+    toggle.dataset.state = stale() || appRelease ? 'available' : 'current';
+    // An app update comes first; in the app a website update is only a refresh.
+    const label = t(appRelease ? 'App update available. View details'
+      : stale() ? (inApp ? 'New features available. View patch notes' : 'Update available. View patch notes') : 'What’s new: view patch notes');
     toggle.setAttribute('aria-label', label);
     toggle.title = label;
-    toggle.querySelector('span').textContent = t(stale() ? 'Update' : 'What’s new');
+    toggle.querySelector('span').textContent = t(appRelease ? 'App update' : stale() ? (inApp ? 'Refresh' : 'Update') : 'What’s new');
+    const appStatus = patch.querySelector('#app-update-status');
+    appStatus.hidden = appButton.hidden = !appRelease;
+    if (appRelease) appStatus.textContent = t('GoodMorning app {version} is ready.', {version: appRelease.name});
+    appButton.textContent = t('Update app');
     patch.querySelector('#patch-note-heading').textContent = t('Patch notes');
     patch.querySelector('#patch-beta').textContent = t('Beta');
     versions.setAttribute('aria-label', t('Patch note versions'));
-    refreshButton.textContent = t('Update');
+    refreshButton.textContent = t(inApp ? 'Refresh' : 'Update');
     refreshButton.hidden = !stale();
     dismissButton.textContent = t('Dismiss');
-    patch.querySelector('#update-status').textContent = t(stale() ? 'A website update is available.' : "You're up to date.")
+    patch.querySelector('#update-status').textContent = t(inApp
+        ? (stale() ? "GoodMorning has new features. Refresh to use them; the app itself doesn't need updating." : 'You have the newest GoodMorning features.')
+        : (stale() ? 'A website update is available.' : "You're up to date."))
       + (release ? ' · v' + release : '');
     // Polling must not replace a focused history button or reset reading position.
     if ([...versions.children].map(button => button.dataset.version).join(',') !== notes.map(note => note.version).join(',')) {
@@ -153,6 +168,8 @@
     else toggle.focus();
   });
   toggle.addEventListener('click', open);
+  // The app's own update screen downloads the new build and hands it to Android's installer.
+  appButton.addEventListener('click', () => { location.href = 'goodmorning://update'; });
   dismissButton.addEventListener('click', dismiss);
   document.addEventListener('website:language', render);
 
@@ -183,9 +200,17 @@
         accountEnabled = status.enabled === true;
         seen = status.version;
       }
+      if (appBuild) {
+        const app = await fetch('/api/app/release', {cache: 'no-cache', credentials: 'omit'}).then(answer => answer.ok ? answer.json() : {}).catch(() => ({}));
+        appRelease = Number.isInteger(app.code) && app.code > appBuild && typeof app.name === 'string' ? app : null;
+      }
       render();
       if (accountEnabled && unseen() && shown !== release) {
         shown = release;
+        open();
+      } else if (appRelease && localStorage.getItem('goodmorningAppUpdateShown') !== String(appRelease.code)) {
+        // Each new app build is announced once on this phone; afterwards the pill keeps offering it.
+        localStorage.setItem('goodmorningAppUpdateShown', String(appRelease.code));
         open();
       }
     } catch { /* Preserve readable pages and drafts during outages. */ }

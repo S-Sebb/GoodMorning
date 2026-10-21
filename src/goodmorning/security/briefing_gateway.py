@@ -30,7 +30,7 @@ from goodmorning.web.avatar_images import AVATAR_UPLOAD_ROUTE, MAX_AVATAR_BYTES
 from goodmorning.web.activity import ACTIVITY_PATH, panel as activity_panel
 from goodmorning.web.generation_clock import REQUESTED_AT
 from . import maintenance as deploy_pause
-from . import app_link, web_push
+from . import app_link, app_release, web_push
 
 ASSETS = WEB_ASSETS
 # Digital Asset Links let the Android app open this origin without browser controls.
@@ -887,7 +887,7 @@ def handler_for(gateway):
             super().setup()
             self.connection.settimeout(25)
 
-        def respond(self,data,status=200,mime='application/json',*,token=None,cookie_age=SESSION_SECONDS,location=None,cache='no-store',etag=None,language_cookie=None,color_cookie=None,resource=None,retry_after=None):
+        def respond(self,data,status=200,mime='application/json',*,token=None,cookie_age=SESSION_SECONDS,location=None,cache='no-store',etag=None,language_cookie=None,color_cookie=None,app_cookie=None,resource=None,retry_after=None):
             if not isinstance(data,bytes):
                 if isinstance(data,dict) and isinstance(data.get('error'),str):data={**data,'error':ui.text(data['error'])}
                 data=json.dumps(data,separators=(',',':')).encode()
@@ -926,6 +926,9 @@ def handler_for(gateway):
                 value = site_colors.validate(color_cookie)['day']
                 domain = '; Domain='+gateway.language_domain if gateway.language_domain else ''
                 self.send_header('Set-Cookie', 'GoodMorningDayScheme='+value+'; Path=/; Secure; SameSite=Lax; Max-Age=31536000'+domain)
+            if app_cookie is not None:
+                # Which app build shows this site, so the page can offer the app's own updates.
+                self.send_header('Set-Cookie','GoodMorningApp='+str(int(app_cookie))+'; Path=/; Secure; SameSite=Lax; Max-Age=31536000')
             self.end_headers()
             if self.command!='HEAD' and status!=304:
                 self.wfile.write(data)
@@ -992,6 +995,11 @@ def handler_for(gateway):
             status,headers,data=(gateway.app_generate if path=='/api/app/generate' else gateway.app_chat)(user,body)
             return self.respond(data,status,headers.get('Content-Type','application/json'))
 
+        def app_build(self):
+            """The app's version code from its launch address (/app?app=N), or None."""
+            build=parse_qs(urlsplit(self.path).query).get('app',[''])[0]
+            return int(build) if re.fullmatch(r'[1-9][0-9]{0,5}',build) else None
+
         def app_page(self):
             """A page the app asked for (widgets, notifications), else the last page; the first launch opens chat."""
             target=parse_qs(urlsplit(self.path).query).get('next',[''])[0]
@@ -1055,6 +1063,8 @@ def handler_for(gateway):
                 host=self.host()
                 self.select_language()
                 path=urlsplit(self.path).path
+                if path == '/api/app/release':
+                    return self.respond(app_release.latest(),cache='public, max-age=300')
                 if path == '/api/release':
                     tag='W/"'+VERSION+'"'
                     cached=self.headers.get('If-None-Match')==tag
@@ -1104,7 +1114,8 @@ def handler_for(gateway):
                         # login cookie. One same-site step through this page sends it, without loosening the cookie.
                         target='/app?'+urlencode({**{key:value[0] for key,value in query.items()},'b':'1'})
                         return self.respond(('<!doctype html><meta charset="utf-8"><meta http-equiv="refresh" content="0;url='
-                                             +html.escape(target,quote=True)+'"><title>GoodMorning</title>').encode(),mime='text/html; charset=utf-8')
+                                             +html.escape(target,quote=True)+'"><title>GoodMorning</title>').encode(),mime='text/html; charset=utf-8',
+                                            app_cookie=self.app_build())
                     if path!='/login':
                         return self.respond({'error':'Login required'},401) if path.startswith('/api/') else self.respond(b'',302,location='/login')
                     gateway.accounts.limit([('prelogin-ip:'+self.address(),60)])
@@ -1128,7 +1139,7 @@ def handler_for(gateway):
                 if path=='/login':
                     return self.respond(b'',302,location='/')
                 if path=='/app':
-                    return self.respond(b'',302,location=self.app_page())
+                    return self.respond(b'',302,location=self.app_page(),app_cookie=self.app_build())
                 if path=='/api/queue':
                     return self.respond(gateway.queue_status(session['user_id']))
                 if path=='/api/activity':
