@@ -1,6 +1,50 @@
 {
   "notes": [
     {
+      "version": "0.67.0",
+      "date": "2026-10-21",
+      "author": "GoodMorning agent",
+      "title_en": "Settings for this device, Account for you",
+      "title_zh": "设置管设备，账号管你",
+      "changes": [
+        {
+          "category": "Added",
+          "en": [
+            "Each device now keeps its own notification choices, including how early event reminders arrive.",
+            "Account → Devices with notifications lists every browser and phone getting notifications, so you can turn off one you no longer use.",
+            "The Android app's link screen can now copy the code, or open GoodMorning with the code filled in so you only need to confirm."
+          ],
+          "zh": [
+            "每台设备现在各自记着自己的通知选择，包括日程提醒提前多久送到。",
+            "「账号 → 已开启通知的设备」会列出每个正在收通知的浏览器和手机，不用的那台可以直接关掉。",
+            "Android 应用的关联页面现在能复制配对码，也能带着配对码打开 GoodMorning，你只要确认一下就好。"
+          ]
+        },
+        {
+          "category": "Changed",
+          "en": [
+            "Settings now holds only this device's notifications; website language, appearance and linked phones moved to Account.",
+            "Settings appears only where notifications can work on this device.",
+            "Phone widgets is now Account → Linked phones, which lists every linked phone."
+          ],
+          "zh": [
+            "「设置」里现在只管这台设备的通知；网站语言、外观和已关联的手机，都搬到「账号」了。",
+            "只有这台设备能收通知时，才会出现「设置」。",
+            "「手机小组件」现在变成了「账号 → 已关联的手机」，每台关联过的手机都会列在这里。"
+          ]
+        },
+        {
+          "category": "Fixed",
+          "en": [
+            "Pasting a phone code now works, and the dash fills in after the first four characters."
+          ],
+          "zh": [
+            "粘贴手机配对码现在能用了，输入前四位以后会自动补上横线。"
+          ]
+        }
+      ]
+    },
+    {
       "version": "0.66.0",
       "date": "2026-10-21",
       "author": "GoodMorning agent",
