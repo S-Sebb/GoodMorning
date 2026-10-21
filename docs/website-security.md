@@ -52,6 +52,18 @@ routes require a permanent password, the exact origin and the session CSRF
 token. Sending runs in background threads and never affects the work it
 reports.
 
+## App tokens
+
+Android app tokens are random 256-bit values, stored only as SHA-256 hashes in
+the encrypted account metadata (`app-links:<account>`). A token can only read
+the app summary and send secretary chat messages. Each account keeps at most
+ten linked phones, and any of them can be unlinked from Settings at once.
+Linking needs both a code the signed-in owner types and a pairing secret only
+the phone holds (`app-pair:<hash>`, ten minutes). App requests carry no cookies,
+so they skip the Origin and CSRF checks. Pairing requests, claims, code entries
+and failed tokens are rate-limited per address or account. The token travels in
+a header, never in a URL.
+
 ## Encryption and trust
 
 Use gocryptfs for encrypted filenames and authenticated content encryption, not

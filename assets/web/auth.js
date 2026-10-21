@@ -44,7 +44,7 @@ if (form) form.addEventListener('submit', async event => {
     if (!response.ok) throw new Error(result.error || authT('Sign-in unavailable.'));
     form.reset();
     // The installed app resumes its own last page instead of the website's home.
-    const app = result.next === '/' && matchMedia('(display-mode: standalone)').matches;
+    const app = result.next === '/' && (matchMedia('(display-mode: standalone)').matches || navigator.userAgent.includes('GoodMorningApp/'));
     location.replace(app ? '/app' : result.next);
   } catch (failure) { error.textContent = failure.message; }
   finally { button.disabled = false; }

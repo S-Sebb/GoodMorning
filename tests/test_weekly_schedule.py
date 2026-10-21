@@ -15,7 +15,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'src'))
 from goodmorning.calendar.calendar_store import CalendarStore
 from goodmorning.web import language as ui
 from goodmorning.web.briefing_server import BrowserApp
-from goodmorning.web.schedule import saved_week, schedule_query, snapshot, upcoming, week_offset
+from goodmorning.web.schedule import compact, saved_week, schedule_query, snapshot, upcoming, week_offset
 from goodmorning.records.inbox_store import InboxStore, initialize
 from goodmorning.records.task_store import TaskStore
 
@@ -81,6 +81,17 @@ class ScheduleTests(unittest.TestCase):
 
     def data(self, offset=0):
         return saved_week(self.root, 'Europe/London', self.app.now(), offset)
+
+    def test_widgets_get_seven_plain_days_from_today(self):
+        app = BrowserApp(self.root, now=lambda: datetime(2026, 10, 16, 12, tzinfo=timezone.utc))  # Friday
+        data = compact(app)
+        self.assertEqual([day['date'] for day in data['days']], ['2026-10-%d' % day for day in range(16, 23)])
+        friday, saturday = data['days'][0], data['days'][1]
+        self.assertEqual(friday['events'], [{'subject': 'Design review', 'all_day': False, 'tbc': False, 'time': '14:00',
+                                             'end': '15:00', 'location': 'Library'}])
+        self.assertEqual((saturday['events'][0]['subject'], saturday['events'][0]['all_day'], saturday['events'][0]['time']), ('A day away', True, ''))
+        self.assertEqual(data['days'][4]['events'][0]['subject'], 'Imported invitation')  # Next week's Tuesday.
+        self.assertNotIn('<', json.dumps(data))
 
     def test_reminders_list_only_timed_events_that_have_not_started(self):
         def events(hour, minute=0):

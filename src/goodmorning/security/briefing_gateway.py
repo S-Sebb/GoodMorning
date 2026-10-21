@@ -30,13 +30,13 @@ from goodmorning.web.avatar_images import AVATAR_UPLOAD_ROUTE, MAX_AVATAR_BYTES
 from goodmorning.web.activity import ACTIVITY_PATH, panel as activity_panel
 from goodmorning.web.generation_clock import REQUESTED_AT
 from . import maintenance as deploy_pause
-from . import web_push
+from . import app_link, web_push
 
 ASSETS = WEB_ASSETS
 # Digital Asset Links let the Android app open this origin without browser controls.
 ASSET_LINKS = (ASSETS / 'assetlinks.json').read_bytes()
 POLICY = "default-src 'none'; style-src 'self'; script-src 'self'; img-src 'self'; font-src 'self'; connect-src 'self'; manifest-src 'self'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'"
-GET_ROUTES = re.compile(r'(?:/|/(?:index|gm|gn)\.html|/chat|/schedule|/api/schedule|/api/avatar(?:/image/[a-f0-9]{64}\.png)?|/api/chats(?:/[a-f0-9]{32}(?:/status)?)?|/api/day|/api/reminders|/api/edition/\d{4}-\d{2}-\d{2}/(?:gm|gn)|/api/jobs/[a-f0-9]{32}(?:/preview)?|/d/\d{4}-\d{2}-\d{2}/(?:gm|gn)\.(?:html|json)|/media/(?:thumb-v1/)?[a-f0-9]{64}\.webp|/d/\d{4}-\d{2}-\d{2}/media/[a-f0-9]+\.webp|/(?:assets/[a-f0-9]{64}/)?desk-secretary(?:-f2|-m1|-m2)?(?:-profile|(?:-day)?(?:-animated)?)\.png|/(?:assets/[a-f0-9]{64}/)?(?:briefing\.css|briefing\.js|browser\.js|schedule\.js|schedule\.css|questions\.js|chat\.js|chat\.css|avatar\.js|avatar\.css|fonts/(?:lora-italic\.woff2|OFL\.txt)))')
+GET_ROUTES = re.compile(r'(?:/|/(?:index|gm|gn)\.html|/chat|/schedule|/api/schedule|/api/avatar(?:/image/[a-f0-9]{64}\.png)?|/api/chats(?:/[a-f0-9]{32}(?:/status)?)?|/api/day|/api/reminders|/api/app-schedule|/api/app-profile|/api/edition/\d{4}-\d{2}-\d{2}/(?:gm|gn)|/api/jobs/[a-f0-9]{32}(?:/preview)?|/d/\d{4}-\d{2}-\d{2}/(?:gm|gn)\.(?:html|json)|/media/(?:thumb-v1/)?[a-f0-9]{64}\.webp|/d/\d{4}-\d{2}-\d{2}/media/[a-f0-9]+\.webp|/(?:assets/[a-f0-9]{64}/)?desk-secretary(?:-f2|-m1|-m2)?(?:-profile|(?:-day)?(?:-animated)?)\.png|/(?:assets/[a-f0-9]{64}/)?(?:briefing\.css|briefing\.js|browser\.js|schedule\.js|schedule\.css|questions\.js|chat\.js|chat\.css|avatar\.js|avatar\.css|fonts/(?:lora-italic\.woff2|OFL\.txt)))')
 POST_ROUTES = re.compile(r'(?:/api/avatar(?:/upload/(?:day|night|profile))?|/api/(?:generate|regenerate)|/api/chat-uploads/[a-f0-9]{32}|/api/chats|/api/chats/[a-f0-9]{32}/(?:messages|seen|(?:form|permission)/[A-Za-z0-9_]+/reply)|/api/jobs/[a-f0-9]{32}/(?:recover|(?:form|permission)/[A-Za-z0-9_]+/reply))')
 QUEUE_KEY = 'generation_queue'
 WAITING_KEY = 'generation_waiting'
@@ -305,6 +305,8 @@ class Gateway:
         """Sends without blocking the caller; delivery problems never affect the work itself."""
         def send():
             try:
+                if kind != 'events':  # Linked phones schedule their own event reminders.
+                    app_link.record(self.accounts, user, kind, message)
                 web_push.send(self.accounts, user, message, kind=kind, ttl=ttl, urgency=urgency,
                               subject='https://' + next(iter(self.hosts)))
             except Exception as error:
@@ -339,6 +341,51 @@ class Gateway:
         else:
             message = {'title': t('{name} could not finish', name=name), 'body': t(result.get('label') or 'Open it to see what happened.')}
         self.notify(user, 'briefing', {**message, 'url': page, 'tag': 'briefing-' + str(day) + '-' + str(edition)})
+
+    def app_sync(self, user, after):
+        """Everything the app's widgets and background check need, in one request."""
+        host = next(iter(self.hosts))
+        def read(path):
+            status, _, raw = self.proxy(user, host, path, 'GET', None, {})
+            if status != 200:
+                raise ValueError('Backend read failed')
+            return json.loads(raw)
+        result = {'settings': web_push.account(self.accounts, user)['settings'],
+                  'appearance': self.accounts.website_color_schemes(user) or site_colors.DEFAULT,
+                  'notifications': app_link.outbox(self.accounts, user, after)}
+        for key, read_part in (('schedule', lambda: read('/api/app-schedule')),
+                               ('secretary', lambda: read('/api/app-profile')),
+                               ('reminders', lambda: read('/api/reminders?hours=24')['events']),
+                               ('chat', lambda: self.app_chat_summary(user, read))):
+            try:
+                result[key] = read_part()
+            except Exception:
+                result[key] = None  # The app keeps showing what it had; other parts still update.
+        return result
+
+    def app_chat_summary(self, user, read):
+        chats = [item for item in read('/api/chats')['chats'] if item['mode'] == 'secretary']
+        if not chats:
+            return {}
+        latest = chats[0]
+        status = read('/api/chats/' + latest['id'])
+        replies = [item['text'] for item in status.get('messages', []) if item.get('role') == 'assistant' and isinstance(item.get('text'), str)]
+        text = ' '.join(re.sub(r'[*_`#>\[\]]+', '', replies[-1]).split()) if replies else ''
+        return {'id': latest['id'], 'title': latest['title'], 'state': status.get('state'),
+                'unread': bool(latest.get('unread')), 'reply': text[:600]}
+
+    def app_chat(self, user, body):
+        """A message from the chat widget: continues a conversation or starts one, through the usual queue."""
+        from goodmorning.web.briefing_chat import identifier as chat_id
+        host = next(iter(self.hosts))
+        if set(body) not in ({'text'}, {'text', 'chat'}):
+            raise ValueError('Invalid conversation message')
+        request = secrets.token_hex(16)
+        if 'chat' in body:
+            path, payload = '/api/chats/' + chat_id(body['chat']) + '/messages', {'id': request, 'text': body['text']}
+        else:
+            path, payload = '/api/chats', {'id': request, 'mode': 'secretary', 'text': body['text']}
+        return self.chat_message(user, host, path, json.dumps(payload).encode(), {})
 
     def reply_excerpt(self, user, ticket):
         try:
@@ -888,6 +935,35 @@ def handler_for(gateway):
                 return ui.language(cookie['GoodMorningLanguage'].value)
             except (KeyError,ValueError,CookieError):return 'en'
 
+        def app_user(self):
+            """The account behind the app's token; repeated failures from one address are limited."""
+            user=app_link.verify(gateway.accounts,self.headers.get('X-GoodMorning-App'))
+            if not user:
+                gateway.accounts.limit([('app-token-ip:'+self.address(),30)])
+                raise Denied('Link this phone again in GoodMorning Settings.')
+            return user
+
+        def app_post(self,host,path):
+            """App requests carry no browser Origin or cookies; the pairing secret or app token authorizes them."""
+            if gateway.paused():
+                return self.maintenance_json()
+            if self.headers.get('Transfer-Encoding') or len(self.headers.get_all('Content-Length',[]))!=1:
+                raise ValueError('Invalid request body')
+            size=int(self.headers['Content-Length'])
+            if not 0<size<=20000 or self.headers.get('Content-Type')!='application/json':
+                raise ValueError('Invalid request body')
+            body=json.loads(self.rfile.read(size))
+            if not isinstance(body,dict):raise ValueError('A JSON object is required')
+            if path=='/api/app/pair':
+                gateway.accounts.limit([('app-pair-ip:'+self.address(),20)])
+                if set(body)!={'label'}:raise ValueError('Invalid phone name')
+                return self.respond(app_link.pair(gateway.accounts,body['label']))
+            user=self.app_user()
+            self.select_language({'user_id':user})
+            gateway.backend(user)
+            status,headers,data=gateway.app_chat(user,body)
+            return self.respond(data,status,headers.get('Content-Type','application/json'))
+
         def app_page(self):
             """The installed app reopens its last page; the first launch opens chat."""
             try:
@@ -965,6 +1041,25 @@ def handler_for(gateway):
                     if path.startswith('/api/'):
                         return self.maintenance_json()
                     return self.maintenance_html()
+                if path=='/api/app/pair':
+                    gateway.accounts.limit([('app-claim-ip:'+self.address(),240)])
+                    try:
+                        claimed=app_link.claim(gateway.accounts,self.headers.get('X-GoodMorning-Pairing'))
+                    except ValueError:
+                        return self.respond({'error':'This code expired. Show a new code in the app.'},404)
+                    return self.respond(claimed or {'pending':True})
+                if path=='/api/app/avatar':
+                    user=self.app_user()
+                    image=parse_qs(urlsplit(self.path).query).get('path',[''])[0]
+                    if not re.fullmatch(r'/api/avatar/image/[a-f0-9]{64}\.png',image):raise ValueError('Invalid portrait')
+                    status,headers,data=gateway.proxy(user,next(iter(gateway.hosts)),image,'GET',None,{})
+                    return self.respond(data,status,headers.get('Content-Type','image/png') if status==200 else 'application/json')
+                if path=='/api/app/sync':
+                    user=self.app_user()
+                    after=parse_qs(urlsplit(self.path).query).get('after',['0'])[0]
+                    if not after.isdigit():raise ValueError('Invalid cursor')
+                    self.select_language({'user_id':user})
+                    return self.respond(gateway.app_sync(user,int(after)))
                 try:
                     session=self.session(host)
                 except Denied:
@@ -1000,6 +1095,8 @@ def handler_for(gateway):
                     return self.respond(gateway.queue_status(session['user_id']))
                 if path=='/api/activity':
                     return self.respond(gateway.activity(session['user_id']))
+                if path=='/api/app/links':
+                    return self.respond({'links':app_link.links(gateway.accounts,session['user_id'])})
                 if path=='/api/push':
                     return self.respond({'publicKey':web_push.public_key(gateway.accounts),
                                          'settings':web_push.account(gateway.accounts,session['user_id'])['settings']})
@@ -1046,6 +1143,8 @@ def handler_for(gateway):
             try:
                 host=self.host()
                 self.select_language()
+                if urlsplit(self.path).path in ('/api/app/pair','/api/app/chat'):
+                    return self.app_post(host,urlsplit(self.path).path)
                 if self.headers.get('Origin')!='https://'+host or self.headers.get('Sec-Fetch-Site','same-origin')!='same-origin':
                     raise Denied('Forbidden')
                 path=urlsplit(self.path).path
@@ -1130,6 +1229,15 @@ def handler_for(gateway):
                     return self.respond({'next':'/login'},token='')
                 if session['temporary']:
                     raise Denied('Change your temporary password first')
+                if path=='/api/app/link':
+                    if set(body)!={'code'}:raise ValueError(app_link.INVALID_CODE)
+                    gateway.accounts.limit([('app-link-user:'+session['user_id'],10)])
+                    return self.respond({'label':app_link.confirm(gateway.accounts,session['user_id'],body['code']),
+                                         'links':app_link.links(gateway.accounts,session['user_id'])})
+                if path=='/api/app/unlink':
+                    if set(body)!={'id'} or not isinstance(body['id'],str):raise ValueError('Invalid phone')
+                    app_link.unlink(gateway.accounts,session['user_id'],body['id'])
+                    return self.respond({'links':app_link.links(gateway.accounts,session['user_id'])})
                 if path=='/api/push/subscribe':
                     if set(body)!={'subscription'}:raise ValueError('Invalid push subscription')
                     web_push.subscribe(gateway.accounts,session['user_id'],body['subscription'])
@@ -1166,7 +1274,7 @@ def handler_for(gateway):
                 return self.maintenance_json()
             except (ValueError,KeyError,TypeError):
                 route=urlsplit(self.path).path
-                error='Invalid upload' if UPLOAD_ROUTE.fullmatch(route) else 'Notification settings could not be saved. Try again.' if route.startswith('/api/push/') else 'Invalid release version' if route=='/api/release/seen' else 'Choose English or Simplified Chinese' if route=='/api/language' else 'Choose one of the offered website models' if route=='/api/model' else 'Choose one of the offered color schemes' if route=='/api/color-schemes' else 'Invalid request. '+PASSWORD_RULE
+                error='Invalid upload' if UPLOAD_ROUTE.fullmatch(route) else app_link.INVALID_CODE if route=='/api/app/link' else 'Phone request could not be read. Update the app or try again.' if route.startswith('/api/app/') else 'Notification settings could not be saved. Try again.' if route.startswith('/api/push/') else 'Invalid release version' if route=='/api/release/seen' else 'Choose English or Simplified Chinese' if route=='/api/language' else 'Choose one of the offered website models' if route=='/api/model' else 'Choose one of the offered color schemes' if route=='/api/color-schemes' else 'Invalid request. '+PASSWORD_RULE
                 return self.respond({'error':error},400)
             except Exception:
                 return self.respond({'error':'Request could not be confirmed. Refresh before retrying.'},503)

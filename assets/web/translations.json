@@ -680,5 +680,18 @@
   "Open it to see what happened.": "打开看看是怎么回事。",
   "Starts at {time}": "{time} 就要开始了",
   "Notifications could not be turned on for this device. Try again later.": "这台设备上的通知没能开启。晚一点再试一次吧。",
-  "Notifications could not be turned off. Try again.": "通知没能关闭，再试一次吧。"
+  "Notifications could not be turned off. Try again.": "通知没能关闭，再试一次吧。",
+  "Phone widgets": "手机小组件",
+  "Show your schedule and secretary chat in Android home screen widgets. In the GoodMorning app, open Link this phone, then enter the code it shows.": "在 Android 主屏幕小组件里看你的日程和秘书对话。在 GoodMorning 应用里打开“关联这台手机”，然后输入它显示的配对码。",
+  "Code from the app": "应用里的配对码",
+  "Link phone": "关联手机",
+  "Linked {date}": "关联于 {date}",
+  "Unlink": "取消关联",
+  "Phone unlinked. Its widgets stop updating.": "手机已取消关联，它的小组件不会再更新。",
+  "{name} is linked. Its widgets update within a minute.": "{name} 已关联，小组件会在一分钟内更新。",
+  "Phone request could not be read. Update the app or try again.": "没能读取手机的请求。请更新应用，或者再试一次。",
+  "That code is not valid. Check it, or show a new code in the app.": "这个配对码不对。请检查一下，或者在应用里显示新的配对码。",
+  "This code expired. Show a new code in the app.": "这个配对码过期了。请在应用里显示新的配对码。",
+  "Link this phone again in GoodMorning Settings.": "请在 GoodMorning 的“设置”里重新关联这台手机。",
+  "This phone gets notifications through the GoodMorning app after you link it under Phone widgets.": "把这台手机在“手机小组件”里关联好，通知就会通过 GoodMorning 应用送来。"
 }

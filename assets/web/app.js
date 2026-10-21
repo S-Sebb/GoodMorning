@@ -1,5 +1,7 @@
-// Inside the installed app only, remember this page so the next launch reopens it.
-if (matchMedia('(display-mode: standalone)').matches) {
+// Inside the installed app only (Chrome's app view or the app's own WebView), remember this page
+// so the next launch reopens it.
+const goodmorningInApp = matchMedia('(display-mode: standalone)').matches || navigator.userAgent.includes('GoodMorningApp/');
+if (goodmorningInApp) {
   document.cookie = 'GoodMorningAppPage=' + encodeURIComponent(location.pathname) + '; Path=/; Secure; SameSite=Strict; Max-Age=31536000';
 }
 
@@ -7,7 +9,10 @@ if (matchMedia('(display-mode: standalone)').matches) {
 let goodmorningBeforeSignOut;
 (() => {
   const form = document.querySelector('#notification-form');
-  if (!form || !('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) return;
+  const pushable = 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
+  // The app's WebView has no Web Push; once linked, the app itself posts this account's notifications.
+  const appNotifies = navigator.userAgent.includes('GoodMorningApp/');
+  if (!form || (!pushable && !appNotifies)) return;
   const t = key => typeof goodmorningT === 'function' ? goodmorningT(key) : key;
   const csrf = JSON.parse(document.querySelector('#language-config').dataset.config).csrf;
   const status = form.querySelector('#notification-status');
@@ -31,6 +36,11 @@ let goodmorningBeforeSignOut;
   const key = () => Uint8Array.from(atob(publicKey.replace(/-/g, '+').replace(/_/g, '/')), c => c.charCodeAt(0));
 
   async function show() {
+    if (!pushable) {
+      device.hidden = true;
+      status.textContent = t('This phone gets notifications through the GoodMorning app after you link it under Phone widgets.');
+      return;
+    }
     const subscription = await current();
     device.hidden = Notification.permission === 'denied';
     if (Notification.permission === 'denied') status.textContent = t('Notifications are blocked for this site. Allow them in your browser or app settings, then reload.');
@@ -80,6 +90,7 @@ let goodmorningBeforeSignOut;
   });
 
   goodmorningBeforeSignOut = async () => {
+    if (!pushable) return;
     try { await turnOff(); } catch { /* Signing out must still work offline. */ }
   };
 
@@ -92,6 +103,70 @@ let goodmorningBeforeSignOut;
       kinds.forEach(name => { form.elements[name].checked = value.settings[name]; });
       lead.value = String(value.settings.lead);
       await show();
+      form.hidden = false;
+    } catch { /* Without the server's answer the section stays hidden. */ }
+  })();
+})();
+
+// Phone & widgets: the owner types the code the Android app shows; linked phones can be removed.
+(() => {
+  const form = document.querySelector('#app-link-form');
+  if (!form) return;
+  const t = (key, values) => typeof goodmorningT === 'function' ? goodmorningT(key, values) : key;
+  const csrf = JSON.parse(document.querySelector('#language-config').dataset.config).csrf;
+  const list = form.querySelector('#app-links');
+  const feedback = form.querySelector('#app-link-feedback');
+  const code = form.querySelector('#app-link-code');
+  const post = async (path, body) => {
+    const response = await fetch(path, {method: 'POST', credentials: 'same-origin', cache: 'no-store',
+      headers: {'Content-Type': 'application/json', 'X-Briefing-CSRF': csrf}, body: JSON.stringify(body)});
+    const value = await goodmorningJSON(response);
+    if (!response.ok) throw new Error(value.error || t('Phone request could not be read. Update the app or try again.'));
+    return value;
+  };
+  function show(links) {
+    list.replaceChildren(...links.map(link => {
+      const item = document.createElement('li');
+      const name = document.createElement('span');
+      name.textContent = link.label;
+      const when = document.createElement('small');
+      when.textContent = t('Linked {date}', {date: new Date(link.created * 1000).toLocaleDateString()});
+      name.append(when);
+      const remove = document.createElement('button');
+      remove.type = 'button';
+      remove.textContent = t('Unlink');
+      remove.addEventListener('click', async () => {
+        remove.disabled = true;
+        try { show((await post('/api/app/unlink', {id: link.id})).links); feedback.textContent = t('Phone unlinked. Its widgets stop updating.'); }
+        catch (error) { feedback.textContent = error.message; remove.disabled = false; }
+      });
+      item.append(name, remove);
+      return item;
+    }));
+  }
+  form.addEventListener('submit', async event => {
+    event.preventDefault();
+    const button = form.querySelector('button[type="submit"]');
+    button.disabled = true; feedback.textContent = '';
+    try {
+      const value = await post('/api/app/link', {code: code.value});
+      show(value.links); code.value = '';
+      feedback.textContent = t('{name} is linked. Its widgets update within a minute.', {name: value.label});
+      // The phone collects its token a few seconds later; then it appears in the list.
+      for (let attempt = 0; attempt < 10; attempt++) {
+        await new Promise(resolve => setTimeout(resolve, 3000));
+        const response = await fetch('/api/app/links', {credentials: 'same-origin', cache: 'no-store'});
+        const links = response.ok ? (await goodmorningJSON(response)).links : [];
+        if (links.length > value.links.length) { show(links); break; }
+      }
+    } catch (error) { feedback.textContent = error.message; }
+    finally { button.disabled = false; }
+  });
+  (async () => {
+    try {
+      const response = await fetch('/api/app/links', {credentials: 'same-origin', cache: 'no-store'});
+      if (!response.ok) return;
+      show((await goodmorningJSON(response)).links);
       form.hidden = false;
     } catch { /* Without the server's answer the section stays hidden. */ }
   })();

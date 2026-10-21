@@ -445,6 +445,51 @@ class GatewayTests(GatewayFixture):
         self.assertEqual(reads,['/api/reminders','/api/reminders'])
         self.assertEqual(sent,[('events',{'title':'Dentist','body':'Starts at 15:00 · Town Clinic','url':'/schedule?view=day','tag':'event-e1@x'})])
 
+    def test_phone_pairing_sync_and_chat_through_the_gateway(self):
+        from goodmorning.security import app_link
+        def phone(path,body=None,headers=None,method=None):
+            cookie,self.cookie=self.cookie,None
+            try:return self.request(path,body,headers={'Origin':'','Sec-Fetch-Site':'',**(headers or {})},method=method)
+            finally:self.cookie=cookie
+        status,_,body=phone('/api/app/pair',{'label':'Pixel 7'})
+        pairing=json.loads(body)
+        self.assertEqual(status,200)
+        waiting=lambda:json.loads(phone('/api/app/pair',headers={'X-GoodMorning-Pairing':pairing['secret']})[2])
+        self.assertEqual(waiting(),{'pending':True})
+        self.assertEqual(phone('/api/app/pair',headers={'X-GoodMorning-Pairing':'wrong'})[0],404)
+        self.assertEqual(phone('/api/app/sync')[0],403)
+        self.assertEqual(self.request('/api/app/links')[0],401)
+        self.permanent()
+        self.assertEqual(self.request('/api/app/link',{'code':'AAAA-BBBB'})[0],400)
+        status,_,body=self.request('/api/app/link',{'code':pairing['code']})
+        self.assertEqual((status,json.loads(body)['label']),(200,'Pixel 7'))
+        token=waiting()['token']
+        self.assertEqual(phone('/api/app/pair',headers={'X-GoodMorning-Pairing':pairing['secret']})[0],404)
+        app_link.record(self.store,self.id,'chat',{'title':'Your secretary replied','body':'Done','url':'/chat','tag':'c'})
+        answers={'/api/app-schedule':{'today':'2026-10-21','days':[]},'/api/app-profile':{'name':'Aria','avatar':'f2','image':None},'/api/reminders?hours=24':{'events':[]},
+                 '/api/chats':{'chats':[{'id':'a'*32,'mode':'secretary','title':'Plan','unread':True}]},
+                 '/api/chats/'+'a'*32:{'state':'idle','messages':[{'role':'assistant','text':'**All** set'}]}}
+        with patch.object(self.gateway,'proxy',lambda user,host,path,*args:(200,{},json.dumps(answers[path]).encode())):
+            status,headers,body=phone('/api/app/sync?after=0',headers={'X-GoodMorning-App':token})
+        value=json.loads(body)
+        self.assertEqual((status,headers['Cache-Control']),(200,'no-store'))
+        self.assertEqual(value['chat'],{'id':'a'*32,'title':'Plan','state':'idle','unread':True,'reply':'All set'})
+        self.assertEqual([item['body'] for item in value['notifications']],['Done'])
+        self.assertEqual((value['schedule']['today'],value['reminders']),('2026-10-21',[]))
+        self.assertEqual((value['secretary']['name'],value['appearance']['day']),('Aria','morning-sky'))
+        sent=[]
+        self.gateway.chat_message=lambda user,host,path,raw,headers:sent.append((user,path,json.loads(raw))) or (202,{'Content-Type':'application/json'},b'{"chat":"x"}')
+        self.assertEqual(phone('/api/app/chat',{'text':'Plan my day'},headers={'X-GoodMorning-App':token})[0],202)
+        self.assertEqual(phone('/api/app/chat',{'text':'More','chat':'b'*32},headers={'X-GoodMorning-App':token})[0],202)
+        self.assertEqual(phone('/api/app/chat',{'text':'x'},headers={'X-GoodMorning-App':'gma_wrong'})[0],403)
+        (user,path,new),(_,follow_path,follow)=sent
+        self.assertEqual((user,path,new['mode'],new['text']),(self.id,'/api/chats','secretary','Plan my day'))
+        self.assertEqual((follow_path,follow['text']),('/api/chats/'+'b'*32+'/messages','More'))
+        self.assertRegex(new['id'],'^[a-f0-9]{32}$')
+        links=json.loads(self.request('/api/app/links')[2])['links']
+        self.assertEqual(self.request('/api/app/unlink',{'id':links[0]['id']})[0],200)
+        self.assertEqual(phone('/api/app/sync',headers={'X-GoodMorning-App':token})[0],403)
+
     def test_login_cookie_and_initial_password_gate(self):
         session=self.login()
         self.assertTrue(session['temporary'])
