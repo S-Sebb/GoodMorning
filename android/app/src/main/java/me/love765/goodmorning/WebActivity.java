@@ -26,6 +26,7 @@ public class WebActivity extends Activity {
     private static final int FILES = 1;
     private WebView web;
     private ValueCallback<Uri[]> chooser;
+    private String agent;
 
     @Override
     protected void onCreate(Bundle state) {
@@ -45,8 +46,8 @@ public class WebActivity extends Activity {
         WebSettings settings = web.getSettings();
         settings.setJavaScriptEnabled(true);
         settings.setDomStorageEnabled(true);
-        // Lets the website recognize the app, for example to reopen the last page.
-        settings.setUserAgentString(settings.getUserAgentString() + " GoodMorningApp/" + BuildConfig.VERSION_NAME);
+        agent = settings.getUserAgentString() + " GoodMorningApp/" + BuildConfig.VERSION_NAME;
+        name();
         CookieManager.getInstance().setAcceptCookie(true);
         CookieManager.getInstance().setAcceptThirdPartyCookies(web, false);
         web.setWebViewClient(new WebViewClient() {
@@ -80,6 +81,15 @@ public class WebActivity extends Activity {
         }
         if (state != null) web.restoreState(state);
         else web.loadUrl(target(getIntent()));
+    }
+
+    /**
+     * Lets the website recognize the app, for example to reopen the last page, and, once linked,
+     * which linked phone this is, so its Settings show this phone's notification choices.
+     */
+    private void name() {
+        String link = Sync.cached(this).optString("device");
+        web.getSettings().setUserAgentString(agent + (link.matches("[a-f0-9]{16}") ? " GoodMorningLink/" + link : ""));
     }
 
     private boolean own(Uri uri) {
@@ -117,6 +127,12 @@ public class WebActivity extends Activity {
             chooser.onReceiveValue(WebChromeClient.FileChooserParams.parseResult(result, data));
             chooser = null;
         }
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        name();  // Linking may have finished since; the next page load names this phone.
     }
 
     /** WebView writes cookies to disk only now and then; closing the app soon after signing in would lose them. */

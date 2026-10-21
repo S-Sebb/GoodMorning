@@ -59,8 +59,8 @@ def main():
                     page.clock.set_system_time(datetime.fromisoformat('2026-10-12T10:00:00+00:00'))
                     return page
                 def prefs(page):
-                    if page.locator('#prefs-menu').get_attribute('open') is None:
-                        page.locator('#prefs-menu > summary').click()
+                    if page.locator('details.menu:has(#website-language)').get_attribute('open') is None:
+                        page.locator('details.menu:has(#website-language) > summary').click()
                 def login(page, host, name, password):
                     page.goto('https://'+host+'.language.test/login')
                     page.locator('input[name=username]').fill(name)
@@ -116,7 +116,7 @@ def main():
                 assert chat.url == original_url and background(chat) == 'rgb(246, 238, 227)'
                 expect(chat.locator('.conversation-panel')).to_have_css('background-color', 'rgb(255, 251, 245)')
                 expect(chat.locator('.toolbar-row .menu-panel').first).to_have_css('background-color', 'rgb(255, 251, 245)')
-                chat.locator('#prefs-menu > summary').click()
+                chat.locator('details.menu:has(#website-language) > summary').click()
                 # This known, synthetic activity exercises the floating desk palette,
                 # without creating a real work reservation or model request.
                 chat.route('**/api/activity', lambda route: route.fulfill(json={'activity': [
@@ -134,10 +134,10 @@ def main():
                         stacked: box('website-style').bottom <= day.top && day.bottom <= night.top && day.width === night.width, rows: new Set(tops).size};
                 }""")
                 assert layout == {'modelRemoved': True, 'stacked': True, 'rows': 2}, layout
-                chat.get_by_role('button', name='Close settings', exact=True).click()
-                expect(chat.locator('#prefs-menu')).not_to_have_attribute('open')
+                chat.get_by_role('button', name='Close menu', exact=True).click()
+                expect(chat.locator('details.menu:has(#website-language)')).not_to_have_attribute('open')
                 prefs(chat); chat.keyboard.press('Escape')
-                expect(chat.locator('#prefs-menu')).not_to_have_attribute('open')
+                expect(chat.locator('details.menu:has(#website-language)')).not_to_have_attribute('open')
 
                 morning = page_in(owner); login(morning, 'gm', 'alice', 'a1alice-permanent')
                 expect(morning.locator('html')).to_have_attribute('data-day-scheme', 'warm')
@@ -149,7 +149,7 @@ def main():
                         ('morning-sky', 'rgb(255, 253, 247)', '晨空'),
                         ('first-light', 'rgb(255, 250, 245)', '曙光')):
                     choose(morning, scheme)
-                    morning.get_by_role('button', name='Close settings', exact=True).click()
+                    morning.get_by_role('button', name='Close menu', exact=True).click()
                     scene = morning.evaluate("name => fetch('/' + name + '.svg').then(r => ({status: r.status, type: r.headers.get('content-type')}))", scheme)
                     assert scene['status'] == 200 and scene['type'].startswith('image/svg+xml')
                     if scheme == 'morning-sky':
@@ -208,7 +208,7 @@ def main():
                     chat.locator('#chat-text').fill('Keep this private, unsent draft.')
                     day_results.append(scheme)
                 choose(morning, 'warm')
-                morning.get_by_role('button', name='Close settings', exact=True).click()
+                morning.get_by_role('button', name='Close menu', exact=True).click()
                 chat.bring_to_front(); chat.evaluate('window.dispatchEvent(new Event("focus"))')
                 expect(chat.locator('html')).to_have_attribute('data-day-scheme', 'warm')
                 evening = page_in(owner); login(evening, 'gn', 'alice', 'a1alice-permanent')
@@ -222,7 +222,7 @@ def main():
                 assert 'starry-sky.svg' in stars(evening)
                 expect(evening.locator('body')).to_have_css('background-repeat', 'no-repeat, no-repeat')
                 expect(evening.locator('.briefing-section').first).to_have_css('background-color', 'rgb(17, 28, 50)')
-                evening.locator('#prefs-menu > summary').click()
+                evening.locator('details.menu:has(#website-language) > summary').click()
                 evening.screenshot(path=str(artifacts/'starry-night-full.png'), full_page=True)
                 evening.screenshot(path=str(artifacts/'starry-night-viewport.png'))
                 evening.locator('footer').first.scroll_into_view_if_needed()
@@ -240,7 +240,7 @@ def main():
                 for scheme, color, surface, scene in (('city-lights', 'rgb(11, 16, 32)', 'rgb(21, 27, 49)', 'city-lights.svg'),
                                                       ('midnight-violet', 'rgb(31, 32, 41)', 'rgb(42, 43, 55)', None)):
                     choose(evening, scheme, 'night')
-                    evening.locator('#prefs-menu > summary').click()
+                    evening.locator('details.menu:has(#website-language) > summary').click()
                     assert background(evening) == color
                     assert scene in stars(evening) if scene else stars(evening) == 'none'
                     expect(evening.locator('.briefing-section').first).to_have_css('background-color', surface)
@@ -259,7 +259,7 @@ def main():
                 expect(chat.locator('html')).to_have_attribute('data-night-scheme', 'starry')
                 assert stars(chat) == 'none'
                 expect(chat.locator('#chat-text')).to_have_value('Keep this private, unsent draft.')
-                chat.locator('#prefs-menu > summary').click() if chat.locator('#prefs-menu').get_attribute('open') else None
+                chat.locator('details.menu:has(#website-language) > summary').click() if chat.locator('details.menu:has(#website-language)').get_attribute('open') else None
                 chat.screenshot(path=str(artifacts/'classic-chat-full.png'), full_page=True)
                 choose(chat, 'warm')
                 chat.reload(); expect(chat.locator('html')).to_have_attribute('data-day-scheme', 'warm')
@@ -275,7 +275,7 @@ def main():
                 expect(chat.locator('#chat-text')).to_have_value('Keep this private, unsent draft.')
                 choose(chat, 'starry', 'night')
                 expect(chat.locator('#chat-text')).to_have_value('Keep this private, unsent draft.')
-                chat.locator('#prefs-menu > summary').click()
+                chat.locator('details.menu:has(#website-language) > summary').click()
                 chat.screenshot(path=str(artifacts/'starry-chat-full.png'), full_page=True)
                 expect(radio(chat, 'day', 'warm')).to_be_checked()
                 chat.clock.set_system_time(datetime.fromisoformat('2026-10-12T10:00:00+00:00'))
@@ -300,7 +300,7 @@ def main():
                 assert chat.evaluate('''document.fonts.load('24px "GoodMorning Pixel CJK"', '设置').then(faces => faces.length)''') == 1
                 expect(chat.locator('.settings-menu-header h2')).to_have_css('font-family', re.compile('GoodMorning Pixel'))
                 # The 12px-grid Chinese face stays crisp only on its grid and without synthetic bold.
-                for selector in ('.settings-menu-header h2', '.scheme-name', '#prefs-menu legend'):
+                for selector in ('.settings-menu-header h2', '.scheme-name', 'details.menu:has(#website-language) legend'):
                     size, weight = chat.locator(selector).first.evaluate('e => [parseFloat(getComputedStyle(e).fontSize), getComputedStyle(e).fontWeight]')
                     assert size % 12 == 0 and weight == '400', (selector, size, weight)
                 chat.screenshot(path=str(artifacts/'pixel-zh-settings.png'), full_page=True)
@@ -364,10 +364,10 @@ def main():
                     chat.set_viewport_size({'width': width, 'height': 1000})
                     prefs(chat)
                     assert not chat.evaluate('document.documentElement.scrollWidth > innerWidth')
-                    bounds = chat.locator('#prefs-menu > .menu-panel').bounding_box()
+                    bounds = chat.locator('details.menu:has(#website-language) > .menu-panel').bounding_box()
                     assert bounds['x'] >= 0 and bounds['x'] + bounds['width'] <= width, bounds
                     if width in (390, 320):chat.screenshot(path=str(artifacts/f'warm-site-{width}.png'), full_page=True)
-                    chat.locator('#prefs-menu > summary').click()
+                    chat.locator('details.menu:has(#website-language) > summary').click()
 
                 other = context(390); bob = page_in(other)
                 login(bob, 'sec', 'bob', 'a1bob-temporary'); permanent(bob, 'bob')

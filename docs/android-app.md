@@ -41,15 +41,19 @@ navigation, external links in the browser, and edge-to-edge insets. Its user
 agent includes `GoodMorningApp/<version>`, so the website still reopens the last
 page and keeps notification settings visible. WebView has no Web Push, so on
 these phones, and while Chrome cannot verify the site, the linked app posts
-notifications itself (below). The WebView writes its cookies to disk whenever
+notifications itself (below), with the choices made in Settings on that phone.
+The WebView's user agent names the phone's link (`GoodMorningLink/<id>`), and
+each summary request says whether the app posts notifications itself, so
+Account lists it among the devices with notifications. The WebView writes its cookies to disk whenever
 the app leaves the screen, so a remembered sign-in survives closing it.
 
 ## Linking and widgets
 
 "Link this phone" (a launcher shortcut, or a tap on an unlinked widget) asks the
-server for a pairing code. The owner enters it in Settings → Phone widgets, and
-the app then claims its token (`docs/browser-delivery.md`, Phone widgets and app
-linking). `Pairing` keeps the code until it expires, so the screen shows the
+server for a pairing code. The owner taps "Link in GoodMorning", which opens the
+site with the code filled in to confirm, or copies the code ("Copy code") or types
+it in Account → Linked phones on any device. The app then claims its token
+(`docs/browser-delivery.md`, Linked phones and app linking). `Pairing` keeps the code until it expires, so the screen shows the
 same code however often it opens. While a code waits, the app checks for its
 token every three seconds, also with the screen closed, and again whenever the
 app or the link screen opens. The token is encrypted with an AES key in the Android Keystore, and

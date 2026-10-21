@@ -58,8 +58,8 @@ Use tables only for genuinely comparable details. Raw HTML is displayed as text;
 images show their alternative text without fetching URLs. User text and saved
 question/answer history remain literal. Briefing JSON strings stay plain text.
 
-Settings > Appearance offers three picture-card choices: a Style and
-independent Day and Night color schemes. The Style shapes the components
+Account > Appearance (Settings > Appearance when signed out) offers three
+picture-card choices: a Style and independent Day and Night color schemes. The Style shapes the components
 (frames, buttons, headings); color schemes only set colors and scenery, so every
 style works with every scheme. Day defaults to Morning Sky, with Classic, Warm and First Light
 also available. Night defaults to Starry, with a darker sky and static stars,

@@ -90,31 +90,55 @@ class WebPushTests(unittest.TestCase):
                       (head + '.' + claims).encode(), ec.ECDSA(hashes.SHA256()))
         self.assertEqual(web_push.public_key(self.accounts), key)  # Created once, then reused.
 
-    def test_settings_are_validated_and_kept_per_account(self):
-        self.assertEqual(web_push.account(self.accounts, self.alice)['settings'], web_push.DEFAULTS)
+    def test_each_device_keeps_its_own_validated_choices(self):
+        _, subscription = browser()
+        laptop = web_push.subscribe(self.accounts, self.alice, subscription, 'Firefox on Linux')
+        phone = web_push.subscribe(self.accounts, self.alice, {**subscription, 'endpoint': ENDPOINT + '-phone'}, 'Chrome on Android')
+        self.assertEqual((laptop['settings'], laptop['device']), (web_push.DEFAULTS, web_push.device(ENDPOINT)))
         chosen = {**web_push.DEFAULTS, 'chat': False, 'lead': 30}
-        web_push.settings(self.accounts, self.alice, chosen)
-        self.assertEqual(web_push.account(self.accounts, self.alice)['settings'], chosen)
-        self.assertEqual(web_push.account(self.accounts, self.bob)['settings'], web_push.DEFAULTS)
+        web_push.settings(self.accounts, self.alice, laptop['device'], chosen)
+        listed = {item['label']: item['settings'] for item in web_push.devices(self.accounts, self.alice)}
+        self.assertEqual(listed, {'Firefox on Linux': chosen, 'Chrome on Android': web_push.DEFAULTS})
+        self.assertNotIn(ENDPOINT, json.dumps(web_push.devices(self.accounts, self.alice)))  # Endpoints stay private.
+        # Subscribing again keeps the device's choices.
+        self.assertEqual(web_push.subscribe(self.accounts, self.alice, subscription, 'Firefox on Linux')['settings'], chosen)
         for bad in ({**chosen, 'lead': 7}, {**chosen, 'lead': True}, {**chosen, 'chat': 'no'}, {**chosen, 'extra': True}, {'chat': False}):
             with self.subTest(bad=bad), self.assertRaises(ValueError):
-                web_push.settings(self.accounts, self.alice, bad)
+                web_push.settings(self.accounts, self.alice, laptop['device'], bad)
+        with self.assertRaises(ValueError):
+            web_push.settings(self.accounts, self.bob, laptop['device'], chosen)  # Not Bob's device.
+        for name in ('', 'x' * 61, 'bad\nname', None):
+            with self.subTest(name=name), self.assertRaises(ValueError):
+                web_push.subscribe(self.accounts, self.alice, subscription, name)
+        web_push.unsubscribe(self.accounts, self.alice, identifier=phone['device'])
+        self.assertEqual([item['label'] for item in web_push.devices(self.accounts, self.alice)], ['Firefox on Linux'])
+
+    def test_devices_from_before_per_device_choices_start_from_the_account_choices(self):
+        _, subscription = browser()
+        older = {**web_push.DEFAULTS, 'waiting': False, 'lead': 60}
+        with self.accounts.db() as db:
+            db.execute('INSERT INTO metadata VALUES (?,?)', ('push:' + self.alice, json.dumps(
+                {'settings': older, 'subscriptions': [web_push.subscription(subscription)]})))
+        self.assertEqual(web_push.devices(self.accounts, self.alice)[0]['settings'], older)
+        self.assertEqual(web_push.subscribe(self.accounts, self.alice, {**subscription, 'endpoint': ENDPOINT + '-new'}, 'Edge on Windows')['settings'], older)
 
     def test_a_shared_device_belongs_to_the_account_that_subscribed_last(self):
         _, subscription = browser()
-        web_push.subscribe(self.accounts, self.alice, subscription)
-        web_push.subscribe(self.accounts, self.alice, subscription)
+        web_push.subscribe(self.accounts, self.alice, subscription, 'Firefox on Linux')
+        web_push.subscribe(self.accounts, self.alice, subscription, 'Firefox on Linux')
         self.assertEqual(len(web_push.account(self.accounts, self.alice)['subscriptions']), 1)
-        web_push.subscribe(self.accounts, self.bob, subscription)
+        web_push.subscribe(self.accounts, self.bob, subscription, 'Firefox on Linux')
         self.assertEqual(web_push.account(self.accounts, self.alice)['subscriptions'], [])
         self.assertEqual(len(web_push.account(self.accounts, self.bob)['subscriptions']), 1)
         web_push.unsubscribe(self.accounts, self.bob, ENDPOINT)
         self.assertEqual(web_push.account(self.accounts, self.bob)['subscriptions'], [])
 
-    def test_delivery_respects_each_kind_and_forgets_expired_devices(self):
+    def test_delivery_respects_each_devices_kinds_and_forgets_expired_devices(self):
         private, subscription = browser()
-        web_push.subscribe(self.accounts, self.alice, subscription)
-        web_push.subscribe(self.accounts, self.alice, {**subscription, 'endpoint': ENDPOINT + '-old'})
+        laptop = web_push.subscribe(self.accounts, self.alice, subscription, 'Firefox on Linux')
+        quiet = web_push.subscribe(self.accounts, self.alice, {**subscription, 'endpoint': ENDPOINT + '-quiet'}, 'Edge on Windows')
+        web_push.subscribe(self.accounts, self.alice, {**subscription, 'endpoint': ENDPOINT + '-old'}, 'Chrome on Android')
+        web_push.settings(self.accounts, self.alice, quiet['device'], {**web_push.DEFAULTS, 'briefing': False})
         sent = []
         def post(request):
             sent.append(request)
@@ -122,12 +146,14 @@ class WebPushTests(unittest.TestCase):
         with patch.object(web_push, 'post', post):
             self.assertEqual(web_push.send(self.accounts, self.alice, {'title': 'Ready', 'url': '/'}, kind='briefing',
                                            ttl=60, subject='https://gm.example.test'), 1)
-            web_push.settings(self.accounts, self.alice, {**web_push.DEFAULTS, 'briefing': False})
-            self.assertEqual(web_push.send(self.accounts, self.alice, {'title': 'Ready'}, kind='briefing', ttl=60, subject='x'), 0)
-        self.assertEqual([item['endpoint'] for item in web_push.account(self.accounts, self.alice)['subscriptions']], [ENDPOINT])
-        request = next(item for item in sent if item.full_url == ENDPOINT)
+            self.assertEqual(sorted(item.full_url for item in sent), [ENDPOINT, ENDPOINT + '-old'])
+            sent.clear()
+            self.assertEqual(web_push.send(self.accounts, self.alice, {'title': 'Soon'}, kind='events', ttl=60, subject='x', only=quiet['device']), 1)
+            self.assertEqual([item.full_url for item in sent], [ENDPOINT + '-quiet'])
+        self.assertEqual([item['label'] for item in web_push.devices(self.accounts, self.alice)], ['Firefox on Linux', 'Edge on Windows'])
+        request = sent[0]
         self.assertEqual((request.get_header('Ttl'), request.get_header('Content-encoding')), ('60', 'aes128gcm'))
-        self.assertEqual(json.loads(decrypt(private, subscription, request.data)), {'title': 'Ready', 'url': '/', 'kind': 'briefing'})
+        self.assertEqual(laptop['device'], web_push.device(ENDPOINT))
 
     def test_reminders_are_sent_once(self):
         self.assertTrue(web_push.remembered(self.accounts, self.alice, 'event@1'))

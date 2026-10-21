@@ -21,7 +21,7 @@
     <string name="update_channel">App updates</string>
     <string name="update_notification">GoodMorning %1$s is ready. Tap to update.</string>
     <string name="link_title">Link this phone</string>
-    <string name="link_note">To show your schedule, briefings and secretary chat in widgets, open GoodMorning, go to Settings → Phone widgets, and enter this code:</string>
+    <string name="link_note">To show your schedule, briefings and secretary chat in widgets, tap Link in GoodMorning and confirm there. Or, on another device, enter this code in GoodMorning under Account → Linked phones:</string>
     <string name="link_starting">Getting a code…</string>
     <string name="link_waiting">Waiting for you to enter the code. It works for 10 minutes, and you can close this screen meanwhile.</string>
     <string name="link_done">This phone is linked. Your widgets will update shortly.</string>
@@ -52,7 +52,7 @@
     <string name="ask_send">Send</string>
     <string name="ask_sent">Sent. Your secretary is on it; the reply will show in the widget and the app.</string>
     <string name="ask_failed">Couldn\'t send. Check your connection and try again.</string>
-    <string name="ask_unlinked">This phone is no longer linked. Link it again in GoodMorning Settings.</string>
+    <string name="ask_unlinked">This phone is no longer linked. Link it again in GoodMorning under Account → Linked phones.</string>
     <string name="channel_status">Secretary updates</string>
     <string name="channel_reminders">Event reminders</string>
     <string name="reminder_body">Starts at %1$s</string>
@@ -97,4 +97,7 @@
     <string name="preview_briefing_section">News</string>
     <string name="preview_news_headline">City opens a new riverside park</string>
     <string name="preview_news_summary">The park adds walking paths and a playground along the river.</string>
+    <string name="link_copy">Copy code</string>
+    <string name="link_copied">Code copied.</string>
+    <string name="link_in_app">Link in GoodMorning</string>
 </resources>

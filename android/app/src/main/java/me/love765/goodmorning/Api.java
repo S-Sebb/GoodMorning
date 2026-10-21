@@ -84,7 +84,8 @@ final class Api {
         prefs(context).edit().clear().apply();
     }
 
-    private static JSONObject request(Context context, String method, String path, JSONObject body, String header, String value)
+    /** headers are name/value pairs. */
+    private static JSONObject request(Context context, String method, String path, JSONObject body, String... headers)
             throws IOException, JSONException {
         HttpURLConnection connection = (HttpURLConnection) new URL(Server.get(context) + path).openConnection();
         connection.setConnectTimeout(15000);
@@ -92,7 +93,7 @@ final class Api {
         connection.setInstanceFollowRedirects(false);
         connection.setRequestMethod(method);
         connection.setRequestProperty("Accept", "application/json");
-        if (header != null && value != null) connection.setRequestProperty(header, value);
+        for (int i = 0; i + 1 < headers.length; i += 2) connection.setRequestProperty(headers[i], headers[i + 1]);
         try {
             if (body != null) {
                 byte[] raw = body.toString().getBytes(StandardCharsets.UTF_8);
@@ -122,15 +123,17 @@ final class Api {
     }
 
     static JSONObject pair(Context context, String label) throws IOException, JSONException {
-        return request(context, "POST", "/api/app/pair", new JSONObject().put("label", label), null, null);
+        return request(context, "POST", "/api/app/pair", new JSONObject().put("label", label));
     }
 
     static JSONObject claim(Context context, String secret) throws IOException, JSONException {
         return request(context, "GET", "/api/app/pair", null, "X-GoodMorning-Pairing", secret);
     }
 
+    /** The summary; the app also says whether it posts notifications itself, as the website lists it then. */
     static JSONObject sync(Context context, String token, long after) throws IOException, JSONException {
-        return request(context, "GET", "/api/app/sync?after=" + after, null, "X-GoodMorning-App", token);
+        return request(context, "GET", "/api/app/sync?after=" + after, null, "X-GoodMorning-App", token,
+                "X-GoodMorning-Notify", Device.chromeMode(context) ? "push" : "app");
     }
 
     /** The account's uploaded portrait, as PNG bytes. */

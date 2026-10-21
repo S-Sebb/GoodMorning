@@ -1,7 +1,8 @@
-"""Web Push notifications: per-account subscriptions and settings, VAPID signing and RFC 8291 encryption.
+"""Web Push notifications: per-device subscriptions and choices, VAPID signing and RFC 8291 encryption.
 
 Everything is stored in the encrypted account database's metadata table: the server's VAPID key
-under ``push-vapid`` and each account's settings and subscriptions under ``push:<account>``.
+under ``push-vapid`` and each account's subscriptions under ``push:<account>``. Each subscription
+keeps its own choices; the account-wide ``settings`` from before only seed devices that lack them.
 """
 import base64
 import hashlib
@@ -71,15 +72,35 @@ def account(accounts, user):
     return {'settings': {**DEFAULTS, **value.get('settings', {})}, 'subscriptions': value.get('subscriptions', [])}
 
 
-def settings(accounts, user, replacement):
-    if set(replacement) != set(DEFAULTS) or any(type(replacement[kind]) is not bool for kind in KINDS) \
-            or replacement['lead'] not in LEADS or type(replacement['lead']) is not int:
+def device(endpoint):
+    """A stable name for one browser's subscription; the endpoint itself never leaves the server."""
+    return hashlib.sha256(endpoint.encode()).hexdigest()[:16]
+
+
+def choices(state, entry):
+    """What one device asked to hear about."""
+    return {**state['settings'], **entry.get('settings', {})}
+
+
+def validated(replacement):
+    if not isinstance(replacement, dict) or set(replacement) != set(DEFAULTS) \
+            or any(type(replacement[kind]) is not bool for kind in KINDS) \
+            or type(replacement['lead']) is not int or replacement['lead'] not in LEADS:
         raise ValueError('Invalid notification settings')
-    with accounts.db() as db:
-        db.execute('BEGIN IMMEDIATE')
-        value = _metadata(db, 'push:' + user, {})
-        _store(db, 'push:' + user, {**value, 'settings': replacement})
     return replacement
+
+
+def label(value):
+    """The browser and system the page reports, shown in Account; never used for decisions."""
+    if not isinstance(value, str) or not 0 < len(value.strip()) <= 60 or any(ord(c) < 32 for c in value):
+        raise ValueError('Invalid device name')
+    return ' '.join(value.split())
+
+
+def devices(accounts, user):
+    state = account(accounts, user)
+    return [{'id': device(entry['endpoint']), 'label': entry.get('label', ''), 'created': entry.get('created'),
+             'settings': choices(state, entry)} for entry in state['subscriptions']]
 
 
 def subscription(value):
@@ -102,8 +123,9 @@ def subscription(value):
     return {'endpoint': endpoint, 'p256dh': keys['p256dh'], 'auth': keys['auth']}
 
 
-def subscribe(accounts, user, value):
-    entry = subscription(value)
+def subscribe(accounts, user, value, name):
+    """Adds this browser, keeping its earlier choices when it subscribes again."""
+    entry = {**subscription(value), 'label': label(name)}
     with accounts.db() as db:
         db.execute('BEGIN IMMEDIATE')
         # A shared device now belongs to whoever signed in last; earlier accounts stop reaching it.
@@ -113,16 +135,36 @@ def subscribe(accounts, user, value):
             if key != 'push:' + user and len(kept) != len(other.get('subscriptions', [])):
                 _store(db, key, {**other, 'subscriptions': kept})
         value = _metadata(db, 'push:' + user, {})
+        state = {'settings': {**DEFAULTS, **value.get('settings', {})}}
+        earlier = next((item for item in value.get('subscriptions', []) if item['endpoint'] == entry['endpoint']), {})
+        entry.update(settings=choices(state, earlier), created=earlier.get('created', time.time()))
         kept = [item for item in value.get('subscriptions', []) if item['endpoint'] != entry['endpoint']]
         _store(db, 'push:' + user, {**value, 'subscriptions': (kept + [entry])[-MAX_SUBSCRIPTIONS:]})
+    return {'device': device(entry['endpoint']), 'settings': entry['settings']}
 
 
-def unsubscribe(accounts, user, endpoint):
+def unsubscribe(accounts, user, endpoint=None, *, identifier=None):
+    """Forgets a device by its endpoint (the browser itself) or its device name (from Account)."""
     with accounts.db() as db:
         db.execute('BEGIN IMMEDIATE')
         value = _metadata(db, 'push:' + user, {})
-        _store(db, 'push:' + user, {**value, 'subscriptions': [item for item in value.get('subscriptions', [])
-                                                               if item['endpoint'] != endpoint]})
+        _store(db, 'push:' + user, {**value, 'subscriptions': [
+            item for item in value.get('subscriptions', [])
+            if item['endpoint'] != endpoint and device(item['endpoint']) != identifier]})
+
+
+def settings(accounts, user, identifier, replacement):
+    """Replaces one device's choices."""
+    replacement = validated(replacement)
+    with accounts.db() as db:
+        db.execute('BEGIN IMMEDIATE')
+        value = _metadata(db, 'push:' + user, {})
+        entries = value.get('subscriptions', [])
+        if not any(device(item['endpoint']) == identifier for item in entries):
+            raise ValueError('This device no longer gets notifications. Turn them on again.')
+        _store(db, 'push:' + user, {**value, 'subscriptions': [
+            {**item, 'settings': replacement} if device(item['endpoint']) == identifier else item for item in entries]})
+    return replacement
 
 
 def remembered(accounts, user, key):
@@ -177,14 +219,14 @@ def post(request):
         return None
 
 
-def send(accounts, user, message, *, kind, ttl, urgency='normal', subject):
-    """Encrypts message for each of the account's devices when it allows this kind."""
+def send(accounts, user, message, *, kind, ttl, urgency='normal', subject, only=None):
+    """Encrypts message for each of the account's devices that allows this kind, or only the named one."""
     state = account(accounts, user)
-    if not state['settings'].get(kind):
-        return 0
     payload = json.dumps({**message, 'kind': kind}, ensure_ascii=False, separators=(',', ':')).encode()
     delivered = 0
     for entry in state['subscriptions']:
+        if not choices(state, entry).get(kind) or only not in (None, device(entry['endpoint'])):
+            continue
         request = Request(entry['endpoint'], data=encrypt(entry, payload), method='POST', headers={
             'Authorization': vapid(accounts, entry['endpoint'], subject), 'TTL': str(int(ttl)),
             'Urgency': urgency, 'Content-Encoding': 'aes128gcm', 'Content-Type': 'application/octet-stream'})

@@ -53,11 +53,11 @@ document.querySelectorAll('.toolbar-row details.menu').forEach(menu => {
     if (menu.open) document.querySelectorAll('.toolbar-row details.menu').forEach(other => { if (other !== menu) other.open = false; });
   });
 });
-const settingsMenu = document.querySelector('#prefs-menu');
-document.querySelector('.settings-close')?.addEventListener('click', () => {
-  settingsMenu.open = false;
-  settingsMenu.querySelector('summary').focus({preventScroll: true});
-});
+document.querySelectorAll('.settings-close').forEach(button => button.addEventListener('click', () => {
+  const menu = button.closest('details.menu');
+  menu.open = false;
+  menu.querySelector('summary').focus({preventScroll: true});
+}));
 document.addEventListener('pointerdown', event => {
   document.querySelectorAll('.toolbar-row details.menu[open]').forEach(menu => {
     if (!menu.contains(event.target)) menu.open = false;

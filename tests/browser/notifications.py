@@ -1,4 +1,6 @@
-"""Notification settings through the real gateway with synthetic accounts; no push service or model is contacted."""
+"""Per-device notification settings and Account device controls through the real gateway with synthetic
+accounts; no push service or model is contacted (one browser gets a stubbed push subscription)."""
+import base64
 import json
 from pathlib import Path
 import subprocess
@@ -6,6 +8,8 @@ import sys
 import tempfile
 from urllib.parse import urlsplit
 
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric import ec
 from playwright.sync_api import sync_playwright, expect
 
 REPO = Path(__file__).resolve().parents[2]
@@ -62,35 +66,20 @@ def main():
                 assert changed.value.status == 200, changed.value.json()
                 expect(page.locator('#chat-compose')).to_be_visible()
 
-                def settings_panel():
-                    if page.locator('#prefs-menu').get_attribute('open') is None:
-                        page.locator('#prefs-menu > summary').click()
-                    form = page.locator('#notification-form')
-                    expect(form).to_be_visible()
-                    return form
-                form = settings_panel()
-                for name in ('briefing', 'waiting', 'chat', 'events'):
-                    expect(form.locator(f'input[name={name}]')).to_be_checked()
-                expect(page.locator('#notification-lead')).to_have_value('15')
+                def menu(page, name):
+                    if page.locator(f'#{name}-menu').get_attribute('open') is None:
+                        page.locator(f'#{name}-menu > summary').click()
+                    return page.locator(f'#{name}-menu')
+
+                # Settings holds only this device's notifications; Account holds what follows the owner.
+                settings_menu = menu(page, 'prefs')
+                form = page.locator('#notification-form')
+                expect(form).to_be_visible()
                 expect(page.locator('#notification-status')).to_have_text('Notifications are off for this device.')
                 expect(page.locator('#notification-device')).to_have_text('Turn on for this device')
-                # The appearance controls still follow, unchanged.
-                assert page.evaluate("document.querySelector('#notification-form').compareDocumentPosition(document.querySelector('#color-scheme-form')) & 4")
-                form.scroll_into_view_if_needed()
-                page.screenshot(path=str(artifacts/'notifications-390.png'), full_page=True)
-
-                with page.expect_response('**/api/push/settings') as saved:
-                    form.locator('input[name=chat]').uncheck()
-                assert saved.value.status == 200
-                expect(page.locator('#notification-feedback')).to_have_text('Notification settings saved.')
-                with page.expect_response('**/api/push/settings') as saved:
-                    page.locator('#notification-lead').select_option('30')
-                assert saved.value.status == 200
-                page.reload()
-                form = settings_panel()
-                expect(form.locator('input[name=chat]')).not_to_be_checked()
-                expect(form.locator('input[name=events]')).to_be_checked()
-                expect(page.locator('#notification-lead')).to_have_value('30')
+                expect(page.locator('#notification-choices')).to_be_hidden()  # Choices appear once this device is on.
+                assert settings_menu.locator('#website-language').count() == 0
+                page.screenshot(path=str(artifacts/'settings-390.png'), full_page=True)
 
                 # This browser has no push service: turning on fails clearly and leaves nothing registered.
                 page.locator('#notification-device').click()
@@ -101,32 +90,104 @@ def main():
                 worker = page.evaluate("fetch('/sw.js').then(response => response.text())")
                 assert "addEventListener('push'" in worker and "addEventListener('fetch'" not in worker
 
-                page.locator('#website-language').select_option('zh-CN')
+                account = menu(page, 'account')
+                for part in ('#language-form', '#color-scheme-form', '#app-link-form', '#sign-out'):
+                    expect(account.locator(part)).to_be_visible()
+                expect(account.locator('#notification-devices')).to_be_hidden()  # No device gets notifications yet.
+                code = account.locator('#app-link-code')
+                code.press_sequentially('abcd')
+                expect(code).to_have_value('ABCD-')  # The dash follows the first four.
+                code.press('Backspace')
+                expect(code).to_have_value('ABCD')
+                code.fill('')
+                page.evaluate("""() => { const input = document.querySelector('#app-link-code'); const data = new DataTransfer();
+                    data.setData('text/plain', ' abcd 2345\\n'); input.focus();
+                    input.dispatchEvent(new ClipboardEvent('paste', {clipboardData: data, bubbles: true, cancelable: true})); }""")
+                if code.input_value() == '':
+                    code.press_sequentially(' abcd 2345')  # Headless Chromium ignores synthetic pastes; typing takes the same path.
+                expect(code).to_have_value('ABCD-2345')
+                page.screenshot(path=str(artifacts/'account-390.png'), full_page=True)
+
+                # The app's "Link in GoodMorning" opens a page with the code to confirm.
+                page.goto('https://sec.language.test/chat?link=wxyz2345')
+                expect(page.locator('#account-menu')).to_have_attribute('open', '')
+                expect(page.locator('#app-link-code')).to_have_value('WXYZ-2345')
+                expect(page.locator('#app-link-feedback')).to_have_text('Check that this code matches the app, then tap Link phone.')
+                assert '?link=' not in page.url
+
+                account = menu(page, 'account')
+                account.locator('#website-language').select_option('zh-CN')
                 expect(page.locator('#notification-form h3')).to_have_text('通知')
                 page.reload()
-                form = settings_panel()
+                menu(page, 'prefs')
                 expect(page.locator('#notification-status')).to_have_text('这台设备上的通知已关闭。')
-                page.screenshot(path=str(artifacts/'notifications-390-zh.png'), full_page=True)
-                page.locator('#website-language').select_option('en')
+                page.screenshot(path=str(artifacts/'settings-390-zh.png'), full_page=True)
+                menu(page, 'account').locator('#website-language').select_option('en')
 
-                desktop = context(1440).new_page()
+                # A second browser with a (stubbed) push subscription turns on and keeps its own choices.
+                key = ec.generate_private_key(ec.SECP256R1()).public_key().public_bytes(
+                    serialization.Encoding.X962, serialization.PublicFormat.UncompressedPoint)
+                p256dh = base64.urlsafe_b64encode(key).rstrip(b'=').decode()
+                desktop_context = context(1440)
+                desktop_context.grant_permissions(['notifications'], origin='https://sec.language.test')
+                desktop_context.add_init_script("""(() => {
+                    const subscription = {endpoint: 'https://fcm.googleapis.com/fcm/send/browser-test',
+                        toJSON() { return {endpoint: this.endpoint, keys: {p256dh: '%s', auth: 'MDEyMzQ1Njc4OWFiY2RlZg'}}; },
+                        async unsubscribe() { localStorage.removeItem('subscribed'); return true; }};
+                    PushManager.prototype.subscribe = async () => { localStorage.setItem('subscribed', '1'); return subscription; };
+                    PushManager.prototype.getSubscription = async () => localStorage.getItem('subscribed') ? subscription : null;
+                })();""" % p256dh)
+                desktop = desktop_context.new_page()
                 desktop.on('pageerror', lambda error: errors.append(str(error)))
                 desktop.goto('https://sec.language.test/login')
                 desktop.locator('input[name=username]').fill('alice')
                 desktop.locator('#password-password').fill('a1alice-permanent')
                 desktop.locator('#account-form button[type=submit]').click()
                 expect(desktop.locator('#chat-compose')).to_be_visible()
-                desktop.locator('#prefs-menu > summary').click()
-                expect(desktop.locator('#notification-form')).to_be_visible()
-                expect(desktop.locator('#notification-form input[name=chat]')).not_to_be_checked()  # Shared across devices.
-                expect(desktop.locator('#notification-status')).to_have_text('Notifications are off for this device.')  # Per device.
-                expect(desktop.locator('#notification-device')).to_be_visible()
-                desktop.screenshot(path=str(artifacts/'notifications-1440.png'))
+                menu(desktop, 'prefs')
+                with desktop.expect_response('**/api/push/subscribe') as subscribed:
+                    desktop.locator('#notification-device').click()
+                assert subscribed.value.status == 200, subscribed.value.json()
+                expect(desktop.locator('#notification-status')).to_have_text('Notifications are on for this device.')
+                expect(desktop.locator('#notification-choices')).to_be_visible()
+                for name in ('briefing', 'waiting', 'chat', 'events'):
+                    expect(desktop.locator(f'#notification-form input[name={name}]')).to_be_checked()
+                expect(desktop.locator('#notification-lead')).to_have_value('15')
+                expect(desktop.locator('.notification-note').first).to_have_text('These choices apply to this device only.')
+                with desktop.expect_response('**/api/push/settings') as saved:
+                    desktop.locator('#notification-form input[name=chat]').uncheck()
+                assert saved.value.status == 200
+                with desktop.expect_response('**/api/push/settings') as saved:
+                    desktop.locator('#notification-lead').select_option('30')
+                assert saved.value.status == 200
+                desktop.reload()
+                menu(desktop, 'prefs')
+                expect(desktop.locator('#notification-form input[name=chat]')).not_to_be_checked()
+                expect(desktop.locator('#notification-lead')).to_have_value('30')
+                devices = menu(desktop, 'account').locator('#notification-device-list li')
+                expect(devices).to_have_count(1)
+                expect(devices.first).to_contain_text('Chrome on Linux (this device)')
+                desktop.screenshot(path=str(artifacts/'account-1440.png'))
+
+                # The first browser is still off, sees the other device in Account and turns it off from there.
+                page.reload()
+                menu(page, 'prefs')
+                expect(page.locator('#notification-status')).to_have_text('Notifications are off for this device.')
+                account = menu(page, 'account')
+                expect(account.locator('#notification-device-list li')).to_have_count(1)
+                expect(account.locator('#notification-device-list li').first).to_contain_text('Chrome on Linux')
+                with page.expect_response('**/api/push/unsubscribe') as removed:
+                    account.locator('#notification-device-list li button').click()
+                assert removed.value.status == 200
+                expect(account.locator('#notification-devices')).to_be_hidden()
+                desktop.reload()
+                menu(desktop, 'prefs')
+                expect(desktop.locator('#notification-status')).to_have_text('Notifications are off for this device.')
                 browser.close()
             assert errors == [], errors
-            print(json.dumps({'modelCalls': 0, 'pushServiceContacted': False, 'settingsSavedAcrossReloadAndDevices': True,
-                              'failedTurnOnLeavesNoWorker': True, 'deviceStateSeparate': True, 'workerHasNoFetchHandler': True, 'bilingual': True,
-                              'widths': [390, 1440], 'pageErrors': 0}))
+            print(json.dumps({'modelCalls': 0, 'pushServiceContacted': False, 'choicesPerDevice': True, 'accountTurnsOtherDevicesOff': True,
+                              'failedTurnOnLeavesNoWorker': True, 'linkCodeFormatted': True, 'linkCodePrefilled': True,
+                              'workerHasNoFetchHandler': True, 'bilingual': True, 'widths': [390, 1440], 'pageErrors': 0}))
         finally:
             process.terminate(); process.wait(timeout=10)
 

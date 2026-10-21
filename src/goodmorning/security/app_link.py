@@ -95,8 +95,9 @@ def claim(accounts, secret):
     raise ValueError('Unknown pairing')
 
 
-def verify(accounts, token):
-    """The account a token belongs to, or None."""
+def verify(accounts, token, notifies=None):
+    """The account and link a token belongs to, or None. notifies records whether the phone posts
+    notifications itself (no Web Push there), as the app reports it."""
     if not isinstance(token, str) or not token.startswith('gma_') or len(token) > 100:
         return None
     digest = _hash(token)
@@ -106,17 +107,39 @@ def verify(accounts, token):
             links = json.loads(raw)
             for entry in links:
                 if secrets.compare_digest(entry['hash'], digest):
-                    if not entry['used'] or time.time() - entry['used'] > 3600:
+                    stale = not entry['used'] or time.time() - entry['used'] > 3600
+                    if stale or (notifies is not None and entry.get('notifies') != notifies):
                         entry['used'] = time.time()
+                        if notifies is not None:
+                            entry['notifies'] = notifies
                         _store(db, key, links)
-                    return key.removeprefix('app-links:')
+                    return key.removeprefix('app-links:'), entry['id']
     return None
 
 
+def choices(state, entry):
+    """What one phone asked to hear about; phones linked before choices moved to devices start from the account's."""
+    return {**state['settings'], **entry.get('settings', {})}
+
+
 def links(accounts, user):
+    state = web_push.account(accounts, user)
     with accounts.db() as db:
-        return [{key: entry[key] for key in ('id', 'label', 'created', 'used')}
+        return [{**{key: entry[key] for key in ('id', 'label', 'created', 'used')},
+                 'notifies': bool(entry.get('notifies')), 'settings': choices(state, entry)}
                 for entry in _metadata(db, 'app-links:' + user, [])]
+
+
+def settings(accounts, user, identifier, replacement):
+    """Replaces one linked phone's notification choices."""
+    replacement = web_push.validated(replacement)
+    with accounts.db() as db:
+        db.execute('BEGIN IMMEDIATE')
+        entries = _metadata(db, 'app-links:' + user, [])
+        if not any(entry['id'] == identifier for entry in entries):
+            raise ValueError('This phone is no longer linked. Link it again in Account.')
+        _store(db, 'app-links:' + user, [{**entry, 'settings': replacement} if entry['id'] == identifier else entry for entry in entries])
+    return replacement
 
 
 def unlink(accounts, user, identifier):
@@ -127,9 +150,8 @@ def unlink(accounts, user, identifier):
 
 
 def record(accounts, user, kind, message):
-    """Keeps recent status notifications for linked phones that cannot receive Web Push."""
-    if not web_push.account(accounts, user)['settings'].get(kind):
-        return
+    """Keeps recent status notifications for linked phones that cannot receive Web Push; each phone
+    reads only the kinds it chose."""
     with accounts.db() as db:
         db.execute('BEGIN IMMEDIATE')
         if not _metadata(db, 'app-links:' + user, []):
@@ -140,6 +162,6 @@ def record(accounts, user, kind, message):
         _store(db, 'app-outbox:' + user, (outbox + [entry])[-OUTBOX:])
 
 
-def outbox(accounts, user, after):
+def outbox(accounts, user, after, chosen):
     with accounts.db() as db:
-        return [entry for entry in _metadata(db, 'app-outbox:' + user, []) if entry['seq'] > after]
+        return [entry for entry in _metadata(db, 'app-outbox:' + user, []) if entry['seq'] > after and chosen.get(entry['kind'])]

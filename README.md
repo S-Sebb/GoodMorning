@@ -129,7 +129,7 @@ invent a schedule.
 ## A little atmosphere
 
 Keep the same quiet workspace, with a different view outside. In
-**Settings → Appearance**, picture cards let you choose three things separately,
+**Account → Appearance**, picture cards let you choose three things separately,
 and each choice is saved to your account:
 
 - **Style** shapes the components. **Soft** is rounded and calm; **Pixel** brings

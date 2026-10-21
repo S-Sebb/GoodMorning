@@ -101,15 +101,15 @@ def run(artifacts):
                     page.locator('#account-form button[type=submit]').click()
                     expect(page).not_to_have_url('https://'+host+'.language.test/login')
                 def open_prefs(page):
-                    if page.locator('#prefs-menu').get_attribute('open') is None:
-                        page.locator('#prefs-menu > summary').click()
+                    if page.locator('details.menu:has(#website-language)').get_attribute('open') is None:
+                        page.locator('details.menu:has(#website-language) > summary').click()
                 def switch(page,value):
                     expect(page.locator('#language-form button[type=submit]')).to_have_count(0)
                     open_prefs(page)
                     page.locator('#website-language').select_option(value)
                     expect(page.locator('html')).to_have_attribute('lang',value)
-                    if page.locator('#prefs-menu').get_attribute('open') is not None:
-                        page.locator('#prefs-menu > summary').click()
+                    if page.locator('details.menu:has(#website-language)').get_attribute('open') is not None:
+                        page.locator('details.menu:has(#website-language) > summary').click()
                 def no_overflow(page):
                     assert not page.evaluate('document.documentElement.scrollWidth>innerWidth')
                 desktop=context(viewport={'width':1440,'height':900},reduced_motion='reduce')
@@ -276,7 +276,7 @@ def run(artifacts):
                 expect(model_page.locator('#model-form')).to_have_count(0)
                 model_page.close()
                 fallback=plain.new_page();fallback.goto('https://gm.language.test/login')
-                fallback.locator('#prefs-menu > summary').click()
+                fallback.locator('details.menu:has(#website-language) > summary').click()
                 fallback.locator('#website-language').select_option('zh-CN')
                 # Redirected navigations bypass Playwright routing. Follow the verified
                 # native redirect explicitly here; live HTTPS checks use no routing.

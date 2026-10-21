@@ -159,15 +159,35 @@ page that refreshes once to `/app?b=1`: that same-site step sends the cookie, so
 remembered sign-in survives closing the app. Only a request that still has no
 session after this step goes to `/login`.
 
+## Settings and Account
+
+Signed in, the two top menus split by scope. **Settings** holds what belongs to
+this device: its notifications. It appears only where notifications can work
+(a browser with Web Push, or the Android app). **Account** holds what follows the
+owner everywhere: website language, appearance, linked phones, devices with
+notifications, Change password and Sign out. Without a sign-in (the sign-in page,
+a local viewer) language and appearance stay in Settings.
+
 ## Notifications
 
-Settings has a Notifications section on the hosted website, shown in browsers
-that support Web Push. Turning it on for a device asks for permission, then
-registers `/sw.js` and subscribes that device. Turning it off, or signing out,
-unsubscribes the device and unregisters the worker. The worker has no fetch
-handler, so page loads never start it; it runs only to show a notification or
-open one. The four switches and the reminder lead time (5, 10, 15, 30 or 60
-minutes; 15 by default) belong to the account and apply to all its devices.
+Settings → Notifications belongs to the device it is shown on. In a browser,
+turning it on asks for permission, registers `/sw.js` and subscribes that browser
+under a name such as "Firefox on Linux". Turning it off, or signing out,
+unsubscribes it and unregisters the worker. The worker has no fetch handler, so
+page loads never start it; it runs only to show a notification or open one. Each
+device keeps its own four switches and reminder lead time (5, 10, 15, 30 or 60
+minutes; 15 by default). Devices that subscribed before choices moved to devices
+start from the account-wide choices saved then.
+
+In the Android app's own WebView (phones without Google services), the app posts
+notifications itself, up to about 15 minutes late. The app names its link in its
+user agent (`GoodMorningLink/<id>`, from app 0.2), so Settings there edits that
+linked phone's choices, and the phone's summary returns only those kinds.
+
+Account → Devices with notifications lists every subscribed browser and every
+linked phone that posts its own notifications, each with Turn off, so a lost or
+unused device can be stopped from anywhere. Subscription endpoints stay on the
+server; pages see only a short name derived from them.
 
 | Switch | Sent when |
 |---|---|
@@ -180,21 +200,24 @@ The gateway notices the first three in its five-second reservation check
 (`reconcile_ticket`); each transition is announced once. For reminders, it reads
 `/api/reminders` from each opted-in account's own backend every five minutes.
 That endpoint lists the timed events starting in the next three hours. Each
-reminder is sent once per event start. While a GoodMorning window is focused,
+device gets each reminder once, at its own lead time. While a GoodMorning window is focused,
 the worker shows only reminders, because the page already shows everything
 else. Notification text uses the account's website language. A tap opens the
 related chat, briefing or day schedule. In the Android app, Chrome shows them
 as the app's own notifications.
 
-## Phone widgets and app linking
+## Linked phones and app linking
 
 Android widgets and app-side notifications use a separate, revocable app
 token, never the website's login cookie. To link a phone:
 
 1. The app calls `POST /api/app/pair` with the phone's name. It receives a code
    (like `ABCD-2345`) to show, and a pairing secret that it keeps.
-2. The signed-in owner enters that code in Settings → Phone widgets
-   (`POST /api/app/link`).
+2. The signed-in owner enters that code in Account → Linked phones
+   (`POST /api/app/link`). The box adds the dash after four characters and
+   cleans up pasted codes. On the phone being linked, "Link in GoodMorning"
+   opens the site at `/chat?link=<code>`, which opens Account with the code
+   filled in for the owner to confirm.
 3. The app polls `GET /api/app/pair` with its secret and receives its token
    exactly once. It keeps the code and secret until they expire, so closing
    and reopening "Link this phone" shows the same code, and it keeps polling
