@@ -377,7 +377,7 @@ class GatewayTests(GatewayFixture):
         self.assertIn('GoodMorningApp=5;',self.request('/app?app=5&b=1')[1]['Set-Cookie'])
         self.cookie=session+'; GoodMorningAppPage=%2Fgm.html'
         for asked,expected in (('%2Fschedule%3Fview%3Dday%26day%3D2','/schedule?view=day&day=2'),('%2Fchat%3Fid%3D'+'a'*32,'/chat?id='+'a'*32),
-                               ('%2Fgn.html','/gn.html'),('%2F%2Fevil.test','/gm.html'),('%2Fapi%2Fchats','/gm.html'),('%2Fchat%3Fx%3D%0d%0aSet-Cookie','/gm.html')):
+                               ('%2Fgn.html','/gn.html'),('%2Fgm.html%3Fsection%3Dnews','/gm.html?section=news'),('%2F%2Fevil.test','/gm.html'),('%2Fapi%2Fchats','/gm.html'),('%2Fchat%3Fx%3D%0d%0aSet-Cookie','/gm.html')):
             with self.subTest(asked=asked):
                 status,headers,_=self.request('/app?next='+asked+'&b=1')
                 self.assertEqual((status,headers['Location']),(302,expected))
