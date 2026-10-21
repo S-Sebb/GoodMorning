@@ -30,6 +30,8 @@ class PublicAssetTests(unittest.TestCase):
         self.assertRegex(proxied,r'limit_req zone=goodmorning_auth_submit\b')
         self.assertIn('proxy_pass',proxied)
 
+    # Deployed releases omit android/; the check runs in checkouts and CI.
+    @unittest.skipUnless((ROOT/'android').is_dir(),'android/ is not deployed')
     def test_android_app_package_matches_asset_links(self):
         import json
         gradle=(ROOT/'android/app/build.gradle').read_text()
