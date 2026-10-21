@@ -299,20 +299,34 @@ def scenarios(today):
         try:
             day = next_weekday(today, 2)
             start = datetime.combine(day, datetime.min.time().replace(hour=15), ZoneInfo(ZONE))
-            calendar.stage('outlook', [{'external_id': 'review-1', 'subject': 'FW: Quarterly budget review - updated invitation',
+            calendar.import_events('outlook', [{'external_id': 'review-1', 'subject': 'FW: Quarterly budget review - updated invitation',
                 'start': start.isoformat(), 'end': (start + timedelta(hours=1)).isoformat(), 'timezone': ZONE,
                 'location': 'Room 4.12', 'notes': 'Please bring the Q3 spending sheet.\nJoin Microsoft Teams Meeting\nMeeting ID: 123 456 789'}])
+            return {'start': calendar.con.execute("SELECT json_extract(approved_json,'$.start') FROM events").fetchone()[0]}
         finally:
             calendar.close()
-        return {}
 
-    def reviewed(runtime, setup):
+    def synced(runtime):
         store = CalendarStore(str(runtime / 'calendar.sqlite'), readonly=True)
         try:
-            row = store.con.execute("SELECT review FROM events WHERE source='outlook'").fetchone()
+            return [(r[0], json.loads(r[1]), r[2]) for r in store.con.execute("SELECT source,approved_json,revision FROM events")]
         finally:
             store.close()
-        assert row and row[0] == 'approved', 'import not approved'
+
+    def already_scheduled(runtime, setup):
+        rows = synced(runtime)
+        assert len(rows) == 1, 'the synced invite was added again'
+        assert rows[0][1]['start'] == setup['start'] and rows[0][1]['status'] == 'confirmed', 'the synced invite moved or was cancelled'
+
+    def tidied(runtime, setup):
+        already_scheduled(runtime, setup)
+        source, event, revision = synced(runtime)[0]
+        assert revision > 1 and event.get('display'), 'the synced invite was not given page wording'
+
+    def feed_refused(runtime, setup):
+        config = runtime / 'calendar.config.json'
+        assert not (config.exists() and json.loads(config.read_text()).get('ics_url')), 'a failed calendar link was saved'
+        assert not synced(runtime), 'events were saved from a failed sync'
 
     def with_worded(runtime):
         inbox = InboxStore(runtime, write=True)
@@ -372,9 +386,15 @@ def scenarios(today):
         ('reword', 'secretary', with_worded,
          'In my morning briefing, show the library books task as "Library run: 3 books" instead.',
          '早报里那条还书的待办，改成显示"图书馆跑一趟：3 本书"。', reworded),
-        ('calendar_review', 'secretary', with_import,
+        ('calendar_synced', 'secretary', with_import,
          'Please review the calendar invite that just synced from Outlook and add it if it looks fine.',
-         '帮我看一下刚从 Outlook 同步过来的日历邀请，没问题就加上。', reviewed),
+         '帮我看一下刚从 Outlook 同步过来的日历邀请，没问题就加上。', already_scheduled),
+        ('calendar_tidy', 'secretary', with_import,
+         'The budget review that synced from Outlook has a messy forwarded title and Teams joining text. Tidy it up for my briefings.',
+         '从 Outlook 同步过来的预算评审，标题带着转发前缀，还有一堆 Teams 入会信息，帮我整理一下，让简报里好看点。', tidied),
+        ('calendar_feed_fail', 'secretary', None,
+         'Here is my Outlook calendar link, please keep my schedule in sync with it: https://calendar.invalid/owa/calendar.ics',
+         '这是我的 Outlook 日历链接，帮我把日程和它保持同步：https://calendar.invalid/owa/calendar.ics', feed_refused),
         ('errand_blocked', 'secretary', None,
          'Check the black SIHOO M18 chair price on Amazon UK for me each morning, and only tell me when it is below £120.',
          '每天早上帮我查一下亚马逊英国上黑色 SIHOO M18 椅子的价格，低于120英镑时再告诉我。', errand_blocked),

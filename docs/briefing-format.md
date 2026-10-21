@@ -48,8 +48,8 @@ facts. Title and detail are not part of source validation.
   Add a short section note in the saved tone (default warm and helpful), naming the top 1–3 project groups and the next
   useful step (for example which group to pick today); do not repeat every card.
 - `["events",[[event_or_draft_id,revision,date,time,title,place,preparation],...]]`:
-  only in Schedule. Code supplies approved events and confirmed TBC drafts;
-  retain timezone in adjacent prose, actual dates and pending-change markers.
+  only in Schedule. Code supplies saved events and confirmed TBC drafts;
+  retain timezone in adjacent prose and actual dates.
   Preparation is concise attendee requirements only, never meeting-invitation
   boilerplate (join instructions, Meeting IDs, help/meeting-options links,
   system references or privacy footers). Join via the original invitation.

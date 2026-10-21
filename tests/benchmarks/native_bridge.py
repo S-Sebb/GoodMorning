@@ -70,8 +70,7 @@ class NativeBridge:
             self.api('put', f'/api/session/{session}/environment', {'variables':{
                 'SECRETARY_DIR':self.runtime, 'OPENCODE_SESSION_ID':session,
                 'GM_CACHE_DIR':str(Path(self.runtime)/'cache'),'TMPDIR':str(Path(self.runtime)/'tmp'),
-                'CALENDAR_DB_PATH':str(Path(self.runtime)/'calendar.sqlite'),
-                'BETTERBIRD_PATH':str(Path(self.runtime)/'unconfigured-betterbird')}})
+                'CALENDAR_DB_PATH':str(Path(self.runtime)/'calendar.sqlite')}})
             return {'sessionId':session}
         session = parameters['sessionId']
         if session not in self.sessions:

@@ -132,11 +132,10 @@ briefing pages. Selecting a language applies and saves it immediately; only the
 no-JavaScript fallback needs an Apply button. Saved content is not translated. Active agent requests keep their
 starting language; new requests receive the latest language explicitly.
 
-- Production Betterbird staging expands common daily/weekly/monthly/yearly rules,
-  additions, exclusions and stored exceptions. Unsupported rules/schemas and
-  locked caches are refused without partial imports. Metadata preflight verifies
-  schema only; see `calendar-pipeline.md` for supported components and limits.
-- Native provider login, ICS file parsing, arbitrary recurrence rules, Twitter/X
+- Published calendar feeds (`.ics` links) expand common daily/weekly/monthly/yearly
+  rules, additions, exclusions and moved exceptions. Unsupported rules are refused
+  without partial imports; see `calendar-pipeline.md` for supported components.
+- Native provider login, arbitrary recurrence rules, Twitter/X
   ingestion, automatic collection scheduling and unattended model calls are not implemented.
 - Feed reachability, historical RSS coverage and model-authored editorial relevance
   are not guaranteed by passing tests. Source attribution and material gaps remain.

@@ -36,7 +36,8 @@ def make_runtime(root):
         store.add({'subject': 'Quiet working block', 'start': '2026-10-14T10:00:00+01:00', 'end': '2026-10-14T11:30:00+01:00'})
         store.add({'subject': 'Design review', 'start': '2026-10-16T14:00:00+01:00', 'end': '2026-10-16T15:00:00+01:00', 'location': 'Library'})
         store.add({'subject': 'A day away', 'start': '2026-10-17', 'end': '2026-10-18', 'all_day': True, 'timezone': 'Europe/London'})
-        store.stage('work', [{'external_id': 'pending-1', **meeting, 'subject': 'Unreviewed invitation'}])
+        store.import_events('work', [{'external_id': 'imported-1', **meeting, 'subject': 'Imported invitation',
+                                      'start': '2026-10-20T09:30:00+01:00', 'end': '2026-10-20T10:00:00+01:00'}])
     finally:
         store.close()
     return BrowserApp(root, now=lambda: NOW)
@@ -240,20 +241,12 @@ class ScheduleTests(unittest.TestCase):
         self.assertIn('Calendar unavailable', markup)
         self.assertIn('Atlas: draft the methods', markup)
 
-    def test_review_gate_cancellation_and_approved_version(self):
+    def test_imports_show_at_once_and_source_cancellations_remove_them(self):
         store = CalendarStore(str(self.root / 'calendar.sqlite'))
         self.addCleanup(store.close)
-        row = store.pending()[0]
-        self.assertNotIn('Unreviewed invitation', snapshot(self.app, 0)['view'])
-        store.change(row['id'], 'approve', row['revision'])
-        self.assertIn('Unreviewed invitation', snapshot(self.app, 0)['view'])
-        store.stage('work', [{'external_id': 'pending-1', 'status': 'cancelled'}])
-        markup = snapshot(self.app, 0)['view']
-        self.assertIn('Unreviewed invitation', markup)
-        self.assertIn('last approved version', markup)
-        row = store.get(row['id'])
-        store.change(row['id'], 'approve', row['revision'])
-        self.assertNotIn('Unreviewed invitation', snapshot(self.app, 0)['view'])
+        self.assertIn('Imported invitation', snapshot(self.app, 1)['view'])
+        store.import_events('work', [{'external_id': 'imported-1', 'status': 'cancelled'}])
+        self.assertNotIn('Imported invitation', snapshot(self.app, 1)['view'])
 
     def test_overnight_exclusive_end_all_day_and_dst(self):
         store = CalendarStore(str(self.root / 'calendar.sqlite'))
@@ -332,10 +325,6 @@ class ScheduleTests(unittest.TestCase):
         self.assertIn('id="schedule-info"', markup)
         self.assertIn('Europe/London', markup)
         self.assertIn(ui.text('Checked at {time}', time='13:00'), markup)
-        # Pending calendar changes are announced outside the details menu, with a way to review them.
-        review = markup.index('class="schedule-review"')
-        self.assertGreater(review, markup.index('</details>', markup.index('id="schedule-info"')))
-        self.assertIn('data-quick-ask=', markup[review:markup.index('</p>', review)])
         self.assertEqual(markup.count('class="schedule-calendar"'), 7)
         self.assertEqual(markup.count('class="schedule-work"'), 7)
         before = snapshot(self.app, 0)

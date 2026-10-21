@@ -127,10 +127,10 @@ and deferrals; clear ideas/TODOs do not create daily clarification work.
   Markdown is not current task state. Showing work never creates, schedules,
   executes or completes it. Follow `docs/briefing-format.md` for native save/source checks.
 - Calendar mutations require confirmed date/time/timezone/title/place/duration and
-  current revision. No inferred times or automatic rescheduling. Imports require
-  authorized source/window, staging and review. Read `docs/calendar-pipeline.md`.
-  Approved reads use narrow paginated `--json --details` windows, including preparation
-  once. Pending imports are not approved; stored events do not prove fresh synchronization.
+  current revision. No inferred times or automatic rescheduling. Imports require an
+  authorized source/window and apply directly. Read `docs/calendar-pipeline.md`.
+  Reads use narrow paginated `--json --details` windows, including preparation
+  once. Stored events do not prove fresh synchronization.
 - Project writes follow `docs/project-access.md`: read instructions/full target,
   exact registered scope/current hash, consent and preserved unrelated work.
   Never reconstruct truncated/redacted text, expand scope, enable execution,

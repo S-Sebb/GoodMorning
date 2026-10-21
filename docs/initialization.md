@@ -90,8 +90,7 @@ Run selected checks once with a shared elapsed budget:
 python scripts/goodmorning.py setup --secretary-dir RUNTIME --verify SELECTED_CHECKS --budget 20
 ```
 
-Replace `SELECTED_CHECKS` with only approved names: `weather`, `news`, `projects`,
-`calendar`. Browser calls also pass website language. The shared 20-second budget
+Replace `SELECTED_CHECKS` with only approved names: `weather`, `news`, `projects`. Browser calls also pass website language. The shared 20-second budget
 covers DNS, reads and worker shutdown; unfinished checks remain pending. Inspect
 statuses/counts/warnings, not exit codes alone; no private output dumps.
 
@@ -102,10 +101,6 @@ statuses/counts/warnings, not exit codes alone; no private output dumps.
   does not prove historical coverage, every story's language or editorial truth.
 - Projects: already authorized registry only; no probes/writes. Detailed reads are
   separate scoped work; batch them. Pairing repair belongs to the owner.
-- Betterbird: `--probe-betterbird` checks metadata compatibility only, not descriptions,
-  staging or storage initialization. Busy caches need owner action. Supported schema
-  does not prove every recurrence rule valid; defer unsupported rules or request
-  expanded event data under `docs/calendar-pipeline.md`, not a coding detour.
 
 Do not fetch omitted checks, retry failures, refresh caches, change outlets, expand
 access or adopt a sandbox prototype automatically. State actionable pending items
@@ -113,12 +108,11 @@ once. Resume only after a request or owner resolution of the stated prerequisite
 
 ## Optional calendar follow-up
 
-Metadata permission does not authorize event contents. Confirm source calendar,
-timezone and exact date window/exclusive end before importing. Use a consistent
-SQLite backup, not a raw live copy. Stage credential-redacted originals; protected
-links/passcodes stay in source invitations. Inspect each event/current revision
-before approval, preserve preparation, and ask only ambiguous/substantive changes.
-Never infer attendance/completion. Initialization need not import events.
+A published calendar link (`.ics`) is the supported external source; save it with
+`calendar --sync-ics` under `docs/calendar-pipeline.md`. Confirm the source
+calendar and timezone first. Imports apply directly; protected links/passcodes
+stay in source invitations. Never infer attendance/completion. Initialization
+need not import events.
 
 Validate changes with synthetic records, never personal data. Unit/helper checks
 verify mechanics, not actual model behavior or live-provider availability.

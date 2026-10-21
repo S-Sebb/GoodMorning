@@ -17,7 +17,7 @@ def write(path, value):
 def initialize(runtime, job, previous=None):
     selected=job.get('language',ui.current())
     from goodmorning.calendar.calendar_ics import refresh
-    feed = refresh(runtime, job['date'])
+    feed = refresh(runtime, job['date'], job['kind'])
     context = prepare(runtime, job['kind'], job['date'], Path(runtime)/'cache', task_limit=200, website_language=selected,
                       replacement='replacement' in job)
     context['website_language']=selected

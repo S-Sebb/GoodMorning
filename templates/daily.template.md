@@ -29,7 +29,7 @@ Preserve `must-do`, `nice-to-do`, `flexible`, checked boxes, run lines and unrel
 edits. They are historical compatibility records, not live task state or source
 of new work. Never infer completion, reset existing completions, automatically
 roll over work or silently merge title-similar actions. Reconciliation/migration
-needs owner approval under `docs/item-taxonomy.md`; imports still require calendar review.
+needs owner approval under `docs/item-taxonomy.md`.
 
 Use `python scripts/goodmorning.py daily --show` and
 `daily --date DATE --amend --expect HASH` with the selected runtime for routine

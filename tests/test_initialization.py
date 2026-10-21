@@ -1,11 +1,9 @@
 """Initialization failure regressions; synthetic inputs, no real providers."""
 
 import contextlib
-from contextlib import closing
 import io
 import json
 from pathlib import Path
-import sqlite3
 import sys
 import tempfile
 from support import TEMP_ROOT
@@ -16,7 +14,6 @@ from unittest.mock import patch
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 from goodmorning import setup_check
-from goodmorning.calendar import secretary_calendar as calendar
 from goodmorning.news import news
 
 
@@ -75,14 +72,12 @@ class InitializationTests(unittest.TestCase):
 
     def test_optional_configuration_failures_preserve_valid_profile_and_do_not_fetch(self):
         (self.root / "profile.md").write_text("secretary_language: English\ncity: London, GB\ntimezone: Europe/London\nnews_country: XX\n")
-        (self.root / "calendar.config.json").write_text("not JSON")
         out = io.StringIO()
         with patch.object(setup_check.subprocess, "Popen", side_effect=AssertionError("network")), contextlib.redirect_stdout(out):
-            self.assertEqual(setup_check.main(["--secretary-dir", str(self.root), "--verify", "news", "calendar"]), 1)
+            self.assertEqual(setup_check.main(["--secretary-dir", str(self.root), "--verify", "news"]), 1)
         data = json.loads(out.getvalue())
         self.assertTrue(data["profile_ready"])
         self.assertEqual(data["checks"]["news:XX"]["reason"], "missing_or_invalid_country_feed_configuration")
-        self.assertEqual(data["checks"]["calendar"]["reason"], "invalid_calendar_configuration")
 
     def test_zero_exit_with_partial_weather_is_not_verification_success(self):
         command = [sys.executable, "-c", 'print(\'{"country":"GB","warnings":[],"aqi":null}\')']
@@ -95,39 +90,6 @@ class InitializationTests(unittest.TestCase):
         result = setup_check.run_checks({"news": command}, 1)
         self.assertEqual(result["news"]["status"], "pending")
         self.assertEqual(result["news"]["result"], payload)
-
-    def test_calendar_probe_reads_metadata_without_runtime_creation(self):
-        cache = self.root / "cache.sqlite"
-        with closing(sqlite3.connect(cache)) as con:
-            con.execute("CREATE TABLE cal_events(id TEXT, title TEXT, event_start INTEGER, event_end INTEGER, cal_id TEXT, flags INTEGER)")
-            con.execute("INSERT INTO cal_events VALUES('fictional-id','Do not expose event contents',0,1,'fictional-calendar',16)")
-            con.commit()
-        runtime = self.root / "uninitialized"
-        out = io.StringIO()
-        with contextlib.redirect_stdout(out):
-            code = calendar.main(["--probe-betterbird", "--betterbird-path", str(cache), "--secretary-dir", str(runtime), "--timezone", "UTC"])
-        self.assertEqual(code, 1)
-        self.assertEqual(json.loads(out.getvalue())["reason"], "unsupported_recurrence_schema")
-        self.assertNotIn("Do not expose event contents", out.getvalue())
-        self.assertFalse(runtime.exists())
-        with closing(sqlite3.connect(cache)) as con:
-            con.execute("CREATE TABLE cal_recurrence(item_id TEXT, cal_id TEXT, icalString TEXT)")
-            con.execute("INSERT INTO cal_recurrence VALUES ('fictional-id','fictional-calendar','RRULE:FREQ=WEEKLY')")
-            con.commit()
-        out = io.StringIO()
-        with contextlib.redirect_stdout(out):
-            code = calendar.main(["--probe-betterbird", "--betterbird-path", str(cache), "--secretary-dir", str(runtime), "--timezone", "UTC"])
-        self.assertEqual(code, 0)
-        self.assertTrue(json.loads(out.getvalue())["has_recurrence"])
-        self.assertNotIn("Do not expose event contents", out.getvalue())
-        self.assertNotIn("FREQ", out.getvalue())
-        self.assertFalse(runtime.exists())
-
-    def test_locked_snapshot_never_falls_back_to_inconsistent_copy_or_live_parse(self):
-        with patch("tempfile.tempdir", str(self.root)), patch.object(calendar, "_copy_live_db", return_value=False), patch.object(calendar, "_parse_betterbird_snapshot") as parse:
-            with self.assertRaisesRegex(ValueError, "calendar_busy"):
-                calendar.parse_betterbird("fictional-cache", None, None, None)
-        parse.assert_not_called()
 
     def test_national_verification_calls_only_chosen_feeds_and_creates_no_cache(self):
         config = {"feeds": [{"name": "Unneeded world", "url": "https://world.invalid/feed", "section": "major"}],

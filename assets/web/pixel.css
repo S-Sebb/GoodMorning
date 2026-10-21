@@ -36,7 +36,7 @@ html[data-style="pixel"] img { image-rendering: pixelated; }
 html[data-style="pixel"] :is(.briefing-section, .weather-tile, .task-card, .week-picker a, .letter-copy > .subtitle, .toolbar-row .menu > summary,
   .toolbar-row .menu-panel, .conversation-panel, #conversation-history, #chat-history a, .chat-message, .chat-page [data-special],
   .chat-input-row, #quick-chat-launcher, #quick-chat-window, .quick-chat-message, #chat-help, #chat-latest, #site-update-toggle,
-  #chat-scroll, .schedule-grid, .focus-panel, .schedule-event, .agenda-day, .schedule-review, .section-symbol,
+  #chat-scroll, .schedule-grid, .focus-panel, .schedule-event, .agenda-day, .section-symbol,
   .section-takeaway, #mobile-sections, #mobile-section-dialog, #mobile-section-list a, .back-to-top, .nav-preview, #regenerate,
   #regenerate-dialog, #activity-window, #site-patch-note, .briefing-tools .source-link, .menu-panel select) {
   border: 0; border-radius: 0;
@@ -51,7 +51,7 @@ html[data-style="pixel"] .section-takeaway { margin-left: var(--px); }
 html[data-style="pixel"] :is(.section-number, .check, .chat-special-icon, .chat-portrait, .quick-chat-portrait, #chat-attach, #chat-send,
   #chat-history .history-current, .chat-help-mark, #quick-chat-dot, #quick-chat-send, .quick-chat-tool, #quick-chat-text, .today-marker,
   .edition-link, .briefing-section-nav a, .chat-page button, .schedule-navigation a, .week-arrow, .schedule-mode, .schedule-mode *,
-  .day-badge, .schedule-review a, .is-today .schedule-day-number, .activity-desk, .activity-item a, .attachment-chip, .scheme-swatch,
+  .day-badge, .is-today .schedule-day-number, .activity-desk, .activity-item a, .attachment-chip, .scheme-swatch,
   .scheme-swatch i, .pixel-style-switch, .pixel-style-switch input, .pixel-style-switch input::before, .settings-close, #close-sections) { border-radius: 0; }
 html[data-style="pixel"] .scheme-swatch { box-shadow: 0 0 0 2px var(--px-line); }
 html[data-style="pixel"] .scheme-swatch:not([data-swatch="style-soft"]) :is(i:nth-child(4), i:nth-child(5)) { box-shadow: 0 0 0 1px var(--sw-ink); }
@@ -61,7 +61,7 @@ html[data-style="pixel"] :is(.chat-portrait, .quick-chat-portrait) { box-shadow:
 
 /* The current page and primary actions are solid keys. */
 html[data-style="pixel"] :is(.edition-link.selected, .briefing-section-nav a.active, .briefing-section-nav a[aria-current], #new-conversation,
-  #chat-send, .initialize-button, .schedule-review a) {
+  #chat-send, .initialize-button) {
   border: 0; border-radius: 0; background: var(--px-key); color: var(--px-key-ink);
   box-shadow: 0 -3px 0 0 var(--px-line), 0 3px 0 0 var(--px-line), -3px 0 0 0 var(--px-line), 3px 0 0 0 var(--px-line),
     inset 3px 3px 0 0 var(--px-key-hi), inset -3px -3px 0 0 var(--px-key-lo), 6px 6px 0 0 var(--px-drop);

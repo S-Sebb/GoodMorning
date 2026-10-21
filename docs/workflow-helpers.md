@@ -126,7 +126,7 @@ coverage warning and review state without reprinting candidate/diagnostic histor
 second `--show` is needed. The full view remains for explicitly requested diagnostics.
 None of these commands acknowledge delivery or automate editorial judgment.
 
-Calendar `--json --details` on a narrow approved window includes actual notes and
+Calendar `--json --details` on a narrow window includes actual notes and
 organizer in one query. No per-event detail reread unless examining an import/
 change/original. Ordinary calendar reads are read-only; missing storage is a setup
 failure, not an empty schedule or permission to initialize a database.

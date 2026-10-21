@@ -1,7 +1,7 @@
-"""Published ICS feeds (Outlook, Google, iCloud): fetch, expand and stage for review.
+"""Published ICS feeds (Outlook, Google, iCloud): fetch, expand and apply to the schedule.
 
 A feed is the whole calendar, so an event that disappears from the window is
-staged as a cancellation. Unsupported content stops the batch; nothing is imported.
+applied as a cancellation. Unsupported content stops the batch; nothing is imported.
 """
 
 import json
@@ -171,40 +171,44 @@ def batch(items, tzname):
 
 
 def sync(store, source, feed, start, end, tz, tzname, actor):
-    """Stage the feed's window; previously imported events missing from it become cancellations."""
+    """Apply the feed's window; previously imported events missing from it become cancellations."""
     staged = batch(events(feed, start, end, tz), tzname)
     present = {(e['external_id'], e['occurrence_id']) for e in staged}
     for row in store.con.execute("SELECT external_id,occurrence_id,raw_json FROM events "
-                                 "WHERE source=? AND review!='rejected' AND raw_json IS NOT NULL", (source,)):
+                                 "WHERE source=? AND raw_json IS NOT NULL", (source,)):
         raw = json.loads(row['raw_json'])
         if raw.get('status') == 'cancelled' or (row['external_id'], row['occurrence_id']) in present:
             continue
         begin, finish = endpoints(raw)
         if finish > start and begin < end:
             staged.append({'external_id': row['external_id'], 'occurrence_id': row['occurrence_id'], 'status': 'cancelled'})
-    result = store.stage(source, staged, actor)
+    result = store.import_events(source, staged, actor)
     result['removed'] = len(staged) - len(present)
     return result
 
 
-def refresh(runtime, day):
-    """Briefing start: sync a saved feed so the edition reviews current changes. Never blocks the briefing."""
+def refresh(runtime, day, kind):
+    """Briefing start: sync a saved feed so the edition reports current changes, then mark it. Never blocks the briefing."""
     from goodmorning.runtime_files import calendar_config, calendar_path, profile_fields
     from .calendar_store import CalendarStore
     config = calendar_config(runtime)
     path = calendar_path(runtime, config=config)
-    if not config.get('ics_url') or not path.is_file():
+    if not path.is_file():
         return None
+    started = datetime.now(timezone.utc).isoformat()
     try:
-        tzname = config.get('timezone') or profile_fields(runtime).get('timezone')
-        tz = ZoneInfo(tzname)
-        start = datetime.fromisoformat(day).replace(tzinfo=tz)
-        feed = fetch(config['ics_url'])
         store = CalendarStore(str(path))
         try:
-            return sync(store, config.get('ics_source') or 'ics', feed, start, start + timedelta(days=FEED_DAYS),
-                        tz, tzname, 'calendar-feed')
+            store.apply_pending('calendar-feed')
+            if not config.get('ics_url'):
+                return None
+            tzname = config.get('timezone') or profile_fields(runtime).get('timezone')
+            tz = ZoneInfo(tzname)
+            start = datetime.fromisoformat(day).replace(tzinfo=tz)
+            return sync(store, config.get('ics_source') or 'ics', fetch(config['ics_url']), start,
+                        start + timedelta(days=FEED_DAYS), tz, tzname, 'calendar-feed')
         finally:
+            store.mark(f'{day}.{kind}', started)
             store.close()
     except Exception as error:  # The edition still runs on the saved schedule.
         return {'unavailable': type(error).__name__}

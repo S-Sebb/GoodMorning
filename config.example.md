@@ -65,7 +65,7 @@ python scripts/goodmorning.py setup --secretary-dir secretary
 After consent for the listed checks only:
 
 ```bash
-python scripts/goodmorning.py setup --secretary-dir secretary --verify weather news projects calendar --budget 20
+python scripts/goodmorning.py setup --secretary-dir secretary --verify weather news projects --budget 20
 ```
 
 Checks run in parallel with a shared 20-second elapsed budget. Select a subset
@@ -142,8 +142,7 @@ confirmed IANA timezone before initializing:
 ```json
 {
   "secretary_dir": "secretary",
-  "timezone": "",
-  "betterbird_path": ""
+  "timezone": ""
 }
 ```
 
@@ -153,10 +152,10 @@ python scripts/goodmorning.py calendar --config secretary/calendar.config.json -
 
 Calendar precedence is CLI flags, environment, JSON config, then defaults.
 Supported environment variables are `SECRETARY_DIR`, `CALENDAR_DB_PATH`,
-`CALENDAR_TIMEZONE`, and `BETTERBIRD_PATH`. An optional `calendar_db` JSON key
+and `CALENDAR_TIMEZONE`. An optional `calendar_db` JSON key
 overrides the default database path. If using another database, set
-`CALENDAR_DB_PATH` for both calendar and state commands. Betterbird sync stages
-imports; it does not approve them or write back to the external calendar.
+`CALENDAR_DB_PATH` for both calendar and state commands. Calendar sync never
+writes back to the external calendar.
 
 ## State and shared settings
 

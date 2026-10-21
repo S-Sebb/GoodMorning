@@ -147,7 +147,7 @@ on its actual day: `{"status":"done","confirmed_completion":true}` with optional
 ## Other inputs
 
 - `task --adopt ENTRY` and `task --convert ID`: `docs/item-taxonomy.md` rules 6–7.
-- Calendar events (`calendar --approve`, `event`): `docs/calendar-pipeline.md`.
+- Calendar events (`calendar --update`, `event`): `docs/calendar-pipeline.md`.
 - `daily --amend`: `docs/workflow-helpers.md`.
 - New-episode updates: `anime --source anilist|bangumi|myanimelist --check-account NAME` (or `--check-account LINK`, which picks the source) and
   `--search "TITLE"` only read; the profile lines they inform follow the rule

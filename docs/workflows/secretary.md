@@ -1,6 +1,6 @@
 ---
 name: secretary
-description: All website secretary work: setup, preferences, saving to-dos and ideas, authorized project records, calendar review, questions, and confirmed plan changes.
+description: All website secretary work: setup, preferences, saving to-dos and ideas, authorized project records, calendar imports, questions, and confirmed plan changes.
 ---
 
 # General secretary
@@ -49,8 +49,8 @@ guides only for the requested operation; do not recursively reload the skill.
 6. Verify only explicitly authorized providers once with `setup --secretary-dir RUNTIME
    --verify SELECTED_CHECKS --budget 20`. Inspect statuses/counts/warnings, not exit
    codes alone. Preserve saved setup and pending failures; retry only after owner
-   action/authorization. Follow project registry/lock rules and calendar metadata
-   preflight before content import. Unsupported/locked sources need owner action,
+   action/authorization. Follow project registry/lock rules. Unsupported/locked
+   sources need owner action,
    not code development or repair loops; execution remains disabled.
 7. Report saved, verified and pending items separately. Offer to resume the original
     request; if setup alone was requested, stop rather than launching another workflow.
@@ -217,8 +217,8 @@ guides only for the requested operation; do not recursively reload the skill.
 5. Project writes follow `docs/project-access.md`: exact authorized target, full
    contents/current hash, scoped confirmation, preserved unrelated work and updated
    `last_update`. Calendar changes/imports follow `docs/calendar-pipeline.md`:
-   confirm exact details, stage redacted originals, inspect each pending version
-   and use its current revision. Never approve unseen events in bulk.
+   confirm exact details and use the event's current revision. Imports apply
+   directly; briefings report what changed.
 6. Amend daily history through `daily --date DATE --amend --expect HASH` without
    changing snapshots. Do not rebuild after every edit or mark gm/gn for general
    secretary work. Reply outcome-first with verified changes and relevant open items;

@@ -69,7 +69,7 @@ File attachments, pasted images, Markdown replies, and saved conversation histor
 keep the details close; older To-do and Eureka chats stay in your history.
 
 **Ask from anywhere.** Morning, Evening, and Schedule each have a floating quick
-chat. Every reminder, and every pending calendar change on Schedule, has a
+chat. Every reminder has a
 **Review with your secretary** button that opens it with a starter line, and
 nothing sends until you do.
 
@@ -91,7 +91,7 @@ nothing sends until you do.
 From the forecast to the next useful action, everything has its own place.
 These close-ups use the current layouts and fictional data; click a screenshot
 to see it at full size. **Tasks** brings actions together by day and project;
-**Reminders** keeps reviews and decisions separate.
+**Reminders** keeps reviews, decisions and calendar changes separate.
 
 ![Weather detail showing temperature, rain probability, air quality, and practical advice](assets/readme/weather.png)
 
@@ -114,10 +114,11 @@ to see it at full size. **Tasks** brings actions together by day and project;
   </tr>
 </table>
 
-**Know what needs you.** A pending invitation names the approved appointment
-it overlaps, so the decision has context rather than another vague alert.
+**Know what changed.** Your synced calendar updates the schedule on its own;
+Reminders says once what was added, moved or cancelled, and names any
+appointment it now overlaps.
 
-![Reminders naming the overlap between a pending planning workshop and an approved design review](assets/readme/reminders.png)
+![Reminders reporting a planning workshop the calendar added, and its overlap with a design review](assets/readme/reminders.png)
 
 **A week within reach.** Appointments above, dated to-dos below, and reported
 progress still visible. The weekly view reads saved plans without asking AI to
@@ -198,15 +199,15 @@ little atmosphere without third-party image or font requests.
   day it actually happened without shifting the original recurring plan. These
   reminders appear in your briefings; they are not an unattended notification
   service.
-- **A useful reminder has a reason.** Due reviews, updated or cancelled calendar
-  entries, and unresolved decisions stay separate from ordinary work. Pending
-  calendar reviews name overlapping appointments so you know what needs attention.
+- **A useful reminder has a reason.** Due reviews, calendar changes and
+  unresolved decisions stay separate from ordinary work. Synced calendar changes
+  apply on their own; Reminders says once what was added, moved, renamed or
+  cancelled, and names any overlapping appointments.
 - **A briefing presents your plans; it does not make them.** Mornings focus on
   today and evenings on tomorrow. Generating or regenerating a briefing does not
   create tasks, assign dates, or mark work done. Ambiguous scheduling is clarified
   before it is saved, and a bare weekday like "by Friday" means its next
-  occurrence. Calendar imports are reviewed before becoming approved plans, and
-  project writes require authorization.
+  occurrence. Project writes require authorization.
 
 The [item and timing guide](docs/item-taxonomy.md) explains these boundaries in detail.
 

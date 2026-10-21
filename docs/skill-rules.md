@@ -15,7 +15,7 @@ reference adds operation-specific details; it does not override core gates or
 | Browser job ownership, incremental publication and regeneration | `docs/browser-generation.md` |
 | Browser language, session IDs, questions and workflow refresh | `docs/browser-chat.md` |
 | News selection, country namespaces and actual delivery | `docs/news-delivery.md` |
-| Calendar source/window, staging, review and mutations | `docs/calendar-pipeline.md` |
+| Calendar source/window, imports and mutations | `docs/calendar-pipeline.md` |
 | Exact project access/write scope, hashes, locks and jobs | `docs/project-access.md` |
 | Detailed replies, tone and grounded personalization | `docs/reply-voice.md` |
 | Chinese interface copy, `translations.json` keys and placeholders | `docs/chinese-copy.md` |

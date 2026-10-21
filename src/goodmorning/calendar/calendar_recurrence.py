@@ -1,4 +1,4 @@
-"""Bounded expansion of common Thunderbird recurrence properties (stdlib only).
+"""Bounded expansion of common ICS recurrence properties (stdlib only).
 
 Unknown rule parts fail closed. This is not a general ICS file parser.
 """
@@ -14,26 +14,17 @@ MAX_OCCURRENCES = 10000
 
 
 def recurrence_zone(name, fallback):
-    if not name or name == 'floating':
+    if not name:
         return fallback
     if name in ('UTC', 'Etc/UTC', 'Z'):
         return timezone.utc
-    # Thunderbird can store a VTIMEZONE component instead of a bare TZID.
-    match = re.search(r'(?:^|\n)TZID:([^\r\n]+)', name)
-    if match:
-        name = match[1]
-    # Older Mozilla TZIDs prefix the IANA identifier with a version.
-    if name.startswith('/mozilla.org/'):
-        name = '/'.join(name.split('/')[3:])
     try:
         return ZoneInfo(name)
     except (KeyError, ValueError) as exc:
-        raise ValueError('unsupported Betterbird recurrence timezone; nothing imported') from exc
+        raise ValueError('unsupported recurrence timezone; nothing imported') from exc
 
 
-def occurrence_id(stamp, floating=False):
-    if floating:
-        stamp = stamp.replace(tzinfo=timezone.utc)
+def occurrence_id(stamp):
     return str(int(stamp.astimezone(timezone.utc).timestamp() * 1000000))
 
 
@@ -172,9 +163,9 @@ def _rule(value, seed, stop, all_day):
             return
 
 
-def expand(properties, seed, stop, all_day=False, floating=False):
-    """Return (start, excluded) pairs. Exclusions stage explicit cancellations."""
-    included = {occurrence_id(seed, floating): seed} if seed < stop else {}
+def expand(properties, seed, stop, all_day=False):
+    """Return (start, excluded) pairs. Exclusions become explicit cancellations."""
+    included = {occurrence_id(seed): seed} if seed < stop else {}
     excluded = {}
     positive = False
     for raw in properties:
@@ -206,7 +197,7 @@ def expand(properties, seed, stop, all_day=False, floating=False):
         target = excluded if kind == 'EXDATE' else included
         for stamp in stamps:
             if stamp < stop:
-                target[occurrence_id(stamp, floating)] = stamp
+                target[occurrence_id(stamp)] = stamp
             if len(included) + len(excluded) > MAX_OCCURRENCES:
                 raise ValueError('recurrence expansion exceeds occurrence limit')
     if not positive:

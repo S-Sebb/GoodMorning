@@ -44,8 +44,8 @@ class StoreTests(unittest.TestCase):
         self.tmp.cleanup()
 
     def imported(self, **changes):
-        self.store.stage("work", [{"external_id": "meeting-1", **event(**changes)}])
-        return self.store.pending()[0]["id"]
+        self.store.import_events("work", [{"external_id": "meeting-1", **event(**changes)}])
+        return self.store.con.execute("SELECT id FROM events WHERE external_id='meeting-1'").fetchone()[0]
 
     def test_custom_dedup_and_positional_notes(self):
         parsed = custom_event("2026-10-10 09:00-10:00 | Meeting | | Bring card", timezone.utc)
@@ -58,10 +58,10 @@ class StoreTests(unittest.TestCase):
     def test_credentials_are_redacted_before_any_import_history_is_saved(self):
         secret = "fictional-meeting-secret"
         data = event(notes="Bring slides.\nPasscode: " + secret + "\nhttps://teams.microsoft.com/meet/123?p=" + secret)
-        self.store.stage("work", [{"external_id": "meeting", **data}])
+        self.store.import_events("work", [{"external_id": "meeting", **data}])
         dump = "\n".join(self.store.con.iterdump())
         self.assertFalse(secret in dump, "meeting credentials reached the calendar database")
-        raw = self.store.get(self.store.pending()[0]["id"])["raw"]
+        raw = self.store.query(START, END, details=True)[0]
         self.assertIn("Bring slides", raw["notes"])
 
     def test_redaction_is_idempotent_and_keeps_adjacent_preparation_and_public_links(self):
@@ -94,11 +94,10 @@ class StoreTests(unittest.TestCase):
         public = "Bring slides. https://example.org/registration?p=2"
         self.assertEqual(clean_preparation(public), public)
 
-    def test_schedule_query_filters_boilerplate_but_show_keeps_original_for_review(self):
+    def test_schedule_query_filters_boilerplate_but_show_keeps_original(self):
         notes = ("Bring slides.\nMicrosoft Teams meeting Join: "
                  "https://teams.microsoft.com/l/meetup-join/abc\nMeeting ID: 123")
         eid = self.imported(notes=notes)
-        self.store.change(eid, "approve", 1)
         rows = self.store.query(START, END, details=True)
         self.assertEqual(rows[0]["notes"], "Bring slides.")
         shown = self.store.get(eid)
@@ -119,33 +118,60 @@ class StoreTests(unittest.TestCase):
         self.assertFalse(secret in encode(self.store.get(eid)))
         self.assertTrue(secret in self.store.con.execute("SELECT approved_json FROM events WHERE id=?", (eid,)).fetchone()[0])
 
-    def test_review_gate_simplification_and_source_refresh(self):
+    def test_imports_apply_directly_and_source_changes_keep_notice_and_wording(self):
+        from goodmorning.records.display import wording
         eid = self.imported(notes="Lengthy provider description")
-        self.assertEqual(self.store.query(START, END), [])
-        reviewed = self.store.change(eid, "approve", 1, {"subject": "Team sync", "notes": "Bring slides"})
-        self.assertEqual(reviewed["raw"]["subject"], "Group meeting")
-        self.assertEqual(reviewed["approved"]["subject"], "Team sync")
-        self.assertEqual(self.store.stage("work", [{"external_id": "meeting-1", **event(notes="Lengthy provider description")}])["unchanged"], 1)
-        self.store.stage("work", [{"external_id": "meeting-1", **event(subject="Moved by organizer")}])
-        shown = self.store.query(START, END)[0]
-        self.assertEqual(shown["subject"], "Team sync")
-        self.assertTrue(shown["pending_change"])
-        with self.assertRaisesRegex(ValueError, "changed"):
-            self.store.change(eid, "approve", reviewed["revision"])
-        current = self.store.get(eid)
-        self.store.change(eid, "reject", current["revision"])
-        self.assertEqual(self.store.query(START, END)[0]["subject"], "Team sync")
+        self.assertEqual(self.store.query(START, END)[0]["subject"], "Group meeting")
+        words = {lang: {"morning": {"title": title, "detail": ""}, "schedule": title}
+                 for lang, title in (("en", "Team sync"), ("zh", "团队例会"))}
+        current = self.store.change(eid, "update", 1, {"notice": {"morning": 2}, "display": words})
+        self.assertEqual(self.store.import_events("work", [{"external_id": "meeting-1", **event(notes="Lengthy provider description")}])["unchanged"], 1)
+        self.store.import_events("work", [{"external_id": "meeting-1", **event(start="2026-10-10T11:00:00+01:00", end="2026-10-10T12:00:00+01:00", notes="Lengthy provider description")}])
+        moved = self.store.get(eid)["approved"]
+        self.assertEqual((moved["start"], moved["notice"]), ("2026-10-10T10:00:00+00:00", {"morning": 2}))
+        self.assertEqual(wording(moved, "event", "morning", "en")["title"], "Team sync")  # Only the time moved.
+        self.store.import_events("work", [{"external_id": "meeting-1", **event(subject="Renamed by organizer")}])
+        renamed = self.store.get(eid)
+        self.assertIsNone(wording(renamed["approved"], "event", "morning", "en"))
+        self.assertEqual(renamed["revision"], current["revision"] + 2)
         self.assertEqual(len(self.store.history(eid)), 4)
 
-    def test_approved_source_cancellation_is_reviewed(self):
+    def test_source_cancellation_applies(self):
         eid = self.imported()
-        self.store.change(eid, "approve", 1)
-        self.store.stage("work", [{"external_id": "meeting-1", "status": "cancelled"}])
-        self.assertEqual(len(self.store.query(START, END)), 1)
-        current = self.store.get(eid)
-        self.store.change(eid, "approve", current["revision"])
+        self.store.import_events("work", [{"external_id": "meeting-1", "status": "cancelled"}])
         self.assertEqual(self.store.query(START, END), [])
         self.assertEqual(self.store.get(eid)["approved"]["status"], "cancelled")
+
+    def test_pending_reviews_from_older_versions_apply_once(self):
+        eid = self.imported()
+        self.store.con.execute("UPDATE events SET review='pending',approved_json=NULL,starts=NULL,ends=NULL WHERE id=?", (eid,))
+        self.store.con.commit()
+        self.assertEqual(self.store.query(START, END), [])
+        self.assertEqual(self.store.apply_pending("calendar-feed"), 1)
+        self.assertEqual(self.store.query(START, END)[0]["subject"], "Group meeting")
+        self.assertEqual(self.store.apply_pending("calendar-feed"), 0)
+
+    def test_changes_cover_imports_after_the_previous_edition_sync(self):
+        stamp = lambda: datetime.now(timezone.utc).isoformat()
+        moved = self.imported()
+        self.store.import_events("work", [{"external_id": "gone", **event(subject="Lunch")}])
+        self.store.mark("2026-10-09.gn", stamp())
+        started = stamp()  # This edition's own sync follows its start.
+        self.store.import_events("work", [{"external_id": "meeting-1", **event(start="2026-10-10T11:00:00+01:00", end="2026-10-10T12:00:00+01:00")},
+                                          {"external_id": "gone", "status": "cancelled"},
+                                          {"external_id": "new", **event(subject="Review")}])
+        self.store.change(moved, "update", self.store.get(moved)["revision"], {"location": "Room 9"})  # Secretary edits are not reported.
+        self.store.mark("2026-10-10.gm", started)
+        changes = {c["after"]["subject"]: c for c in self.store.changes("2026-10-10.gm")}
+        self.assertEqual(set(changes), {"Group meeting", "Lunch", "Review"})
+        self.assertEqual(changes["Group meeting"]["before"]["start"], "2026-10-10T08:00:00+00:00")
+        self.assertEqual(changes["Group meeting"]["after"]["location"], "Room 9")
+        self.assertIsNone(changes["Review"]["before"])
+        self.assertEqual(changes["Lunch"]["after"]["status"], "cancelled")
+        self.assertEqual(len(self.store.changes("2026-10-09.gn")), 3)  # The first edition reports from its own start; its window stays open.
+        self.store.mark("2026-10-10.gn", stamp())
+        self.assertEqual(self.store.changes("2026-10-10.gn"), [])  # The morning's sync is not reported twice.
+        self.assertEqual(self.store.changes("2026-10-11.gm"), [])  # Unmarked editions report nothing.
 
     def test_update_cancel_and_history(self):
         eid = self.store.add(event())
@@ -160,23 +186,21 @@ class StoreTests(unittest.TestCase):
 
     def test_import_batches_are_atomic(self):
         with self.assertRaises(ValueError):
-            self.store.stage("work", [{"external_id": "valid", **event()},
-                                      {"external_id": "bad", **event(end="bad")}])
+            self.store.import_events("work", [{"external_id": "valid", **event()},
+                                              {"external_id": "bad", **event(end="bad")}])
         self.assertEqual(self.store.stats()["total"], 0)
         with self.assertRaises(ValueError):
-            self.store.stage("work", [{"external_id": "same", **event()},
-                                      {"external_id": "same", **event()}])
+            self.store.import_events("work", [{"external_id": "same", **event()},
+                                              {"external_id": "same", **event()}])
         self.assertEqual(self.store.stats()["total"], 0)
 
     def test_identity_not_title_dedup(self):
-        self.store.stage("work", [{"external_id": "same", "occurrence_id": "1", **event()},
-                                  {"external_id": "same", "occurrence_id": "2", **event()}])
-        self.store.stage("personal", [{"external_id": "same", **event()}])
-        for row in self.store.pending():
-            self.store.change(row["id"], "approve", row["revision"])
+        self.store.import_events("work", [{"external_id": "same", "occurrence_id": "1", **event()},
+                                          {"external_id": "same", "occurrence_id": "2", **event()}])
+        self.store.import_events("personal", [{"external_id": "same", **event()}])
         self.assertEqual(len(self.store.query(START, END)), 3)
         self.assertEqual(len(self.store.query(START, END, source="work")), 2)
-        self.assertEqual(self.store.stage("work", [])["changed"], 0)
+        self.assertEqual(self.store.import_events("work", [])["changed"], 0)
         self.assertEqual(len(self.store.query(START, END)), 3)
 
     def test_overlap_and_exclusive_midnight(self):
@@ -286,7 +310,7 @@ class StoreTests(unittest.TestCase):
         self.imported()
         summary = rebuild_index(self.tmp.name, blank_state())
         self.assertEqual(summary["calendar"]["custom"], 1)
-        self.assertEqual(summary["calendar"]["pending"], 1)
+        self.assertEqual(summary["calendar"]["imported"], 1)
         self.assertEqual(read_stats(str(Path(self.tmp.name) / "absent.sqlite"))["total"], 0)
         self.assertFalse((Path(self.tmp.name) / "absent.sqlite").exists())
 
@@ -310,16 +334,16 @@ class CommandTests(unittest.TestCase):
                 sys.stdin = old
         return code, out.getvalue(), err.getvalue()
 
-    def test_conversational_import_review_and_read(self):
+    def test_conversational_import_edit_and_read(self):
         code, out, _ = self.run_command("--import-json", "-", stdin=json.dumps(
             {"source": "work", "events": [{"external_id": "abc", **event()}]}))
         self.assertEqual(code, 0)
         self.assertEqual(json.loads(out)["new"], 1)
-        _, out, _ = self.run_command("--pending")
-        pending = json.loads(out)[0]
-        code, _, _ = self.run_command("--approve", pending["id"])
+        _, out, _ = self.run_command("--from", "2026-10-10", "--json")
+        imported = json.loads(out)[0]
+        code, _, _ = self.run_command("--update", imported["id"], "--event-json", '{"subject":"Team sync"}')
         self.assertEqual(code, 2)
-        code, _, _ = self.run_command("--approve", pending["id"], "--expect-revision", "1",
+        code, _, _ = self.run_command("--update", imported["id"], "--expect-revision", "1",
                                      "--event-json", '{"subject":"Team sync"}')
         self.assertEqual(code, 0)
         _, out, _ = self.run_command("--from", "2026-10-10", "--json")
@@ -334,70 +358,9 @@ class CommandTests(unittest.TestCase):
         self.assertEqual(self.run_command("--json")[0], 2)
         self.assertFalse((Path(self.tmp.name) / "calendar.sqlite").exists())
         self.assertEqual(self.run_command("--init")[0], 0)
-        code, out, _ = self.run_command("--betterbird-path", "/nonexistent", "--json")
+        code, out, _ = self.run_command("--json")
         self.assertEqual(code, 0)
         self.assertEqual(json.loads(out), [])
-
-    def test_betterbird_stages_stable_ids_and_cancellations(self):
-        path = Path(self.tmp.name) / "fake-cache.sqlite"
-        con = sqlite3.connect(path)
-        con.execute("CREATE TABLE cal_events(id TEXT, cal_id TEXT, title TEXT, event_start INTEGER, "
-                    "event_end INTEGER, ical_status TEXT, recurrence_id INTEGER)")
-        s = int(datetime(2026, 10, 10, 8, tzinfo=timezone.utc).timestamp() * 1e6)
-        con.execute("INSERT INTO cal_events VALUES('event','cal','Meeting',?,?,NULL,0)", (s, s + 3600000000))
-        con.commit()
-        args = ("--sync-betterbird", "--betterbird-path", str(path), "--from", "2026-10-10")
-        code, out, _ = self.run_command(*args)
-        self.assertEqual(code, 0)
-        self.assertEqual(json.loads(out)["new"], 1)
-        self.assertEqual(json.loads(self.run_command(*args)[1])["unchanged"], 1)
-        _, out, _ = self.run_command("--pending")
-        eid = json.loads(out)[0]["id"]
-        self.run_command("--approve", eid, "--expect-revision", "1")
-        con.execute("UPDATE cal_events SET ical_status='CANCELLED'")
-        con.commit()
-        con.close()
-        self.assertEqual(json.loads(self.run_command(*args)[1])["changed"], 1)
-        self.assertEqual(len(json.loads(self.run_command("--from", "2026-10-10", "--json")[1])), 1)
-
-    def test_betterbird_legacy_tables_without_recurrence_id_keep_all_day_and_calendar_identity(self):
-        path = Path(self.tmp.name) / "all-day.sqlite"
-        con = sqlite3.connect(path)
-        con.execute("CREATE TABLE cal_events(id TEXT, cal_id TEXT, title TEXT, event_start INTEGER, "
-                    "event_end INTEGER, flags INTEGER, event_start_tz TEXT)")
-        con.execute("CREATE TABLE cal_properties(item_id TEXT, cal_id TEXT, key TEXT, value TEXT)")
-        s = int(datetime(2026, 10, 10, tzinfo=timezone.utc).timestamp() * 1e6)
-        for cal_id, loc in (("work", "Work room"), ("personal", "Personal room")):
-            con.execute("INSERT INTO cal_events VALUES('same-id',?,'All-day',?,?,8,'floating')",
-                        (cal_id, s, s + 86400000000))
-            con.execute("INSERT INTO cal_properties VALUES('same-id',?,'LOCATION',?)", (cal_id, loc))
-        con.commit()
-        con.close()
-        code, out, err = self.run_command("--sync-betterbird", "--betterbird-path", str(path),
-                                          "--from", "2026-10-10")
-        self.assertEqual(code, 0, err)
-        self.assertEqual(json.loads(out)["new"], 2)
-        store = CalendarStore(str(Path(self.tmp.name) / "calendar.sqlite"))
-        try:
-            rows = [store.get(row["id"]) for row in store.pending()]
-            self.assertEqual({r["raw"]["location"] for r in rows}, {"Work room", "Personal room"})
-            self.assertTrue(all(r["raw"]["all_day"] for r in rows))
-            self.assertTrue(all(r["raw"]["start"] == "2026-10-10" for r in rows))
-        finally:
-            store.close()
-
-    def test_betterbird_recurrence_fails_without_partial_import(self):
-        path = Path(self.tmp.name) / "recurrence.sqlite"
-        con = sqlite3.connect(path)
-        con.execute("CREATE TABLE cal_events(id TEXT, title TEXT, event_start INTEGER, "
-                    "event_end INTEGER, flags INTEGER)")
-        con.execute("INSERT INTO cal_events VALUES('series','Weekly meeting',0,1000,16)")
-        con.commit()
-        con.close()
-        code, _, err = self.run_command("--sync-betterbird", "--betterbird-path", str(path))
-        self.assertEqual(code, 2)
-        self.assertIn("recurrence rules", err)
-        self.assertEqual(json.loads(self.run_command("--stats")[1])["total"], 0)
 
 
 if __name__ == "__main__":

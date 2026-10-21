@@ -135,7 +135,7 @@ def blank_state() -> dict:
             "history_before": None,
             "inbox": {"pending": 0, "oldest_pending_date": None, "total": 0},
             "projects": {},
-            "calendar": {"total": 0, "custom": 0, "imported": 0, "pending": 0}}
+            "calendar": {"total": 0, "custom": 0, "imported": 0}}
 
 
 def browser_owner(secretary_dir: str, day: str, kind: str) -> dict | None:
@@ -511,8 +511,7 @@ def cmd_check(secretary_dir: str, today: str, as_json: bool, limit: int = 7, off
     else:
         print("projects: none registered yet.")
     cal = state["calendar"]
-    print(f"calendar: {cal['custom']} custom, {cal['imported']} approved imports, "
-          f"{cal['pending']} awaiting review.")
+    print(f"calendar: {cal['custom']} custom, {cal['imported']} imported.")
     print(f"answer re-read cost: last 7d ~{c7['tokens_est']} tok "
           f"({c7['snapshots']} snapshots), last 30d ~{c30['tokens_est']} tok. "
            "Open snapshots only on demand, never in bulk.")

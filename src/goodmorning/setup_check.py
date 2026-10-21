@@ -95,7 +95,7 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--secretary-dir")
     parser.add_argument('--website-language',choices=('en','zh-CN'),help='Use the selected website language without changing local preferences')
-    parser.add_argument("--verify", nargs="+", choices=("weather", "news", "projects", "calendar"), default=[])
+    parser.add_argument("--verify", nargs="+", choices=("weather", "news", "projects"), default=[])
     parser.add_argument("--budget", type=float, default=20, help="Total elapsed budget for all selected checks (default 20 seconds)")
     args = parser.parse_args(argv)
     if not math.isfinite(args.budget) or not 0 < args.budget <= 120:
@@ -136,20 +136,6 @@ def main(argv=None):
                 commands["projects"] = ["node", "scripts/projects.mjs", "status", "--all", "--registry", str(registry), "--timeout", "5"]
             else:
                 checks["projects"] = {"status": "pending", "reason": "no_authorized_registry"}
-        if "calendar" in args.verify:
-            config = runtime / "calendar.config.json"
-            try:
-                selected = json.loads(config.read_text()).get("betterbird_path") if config.is_file() else ""
-                if not isinstance(selected, str):
-                    raise ValueError
-            except (OSError, ValueError, TypeError, AttributeError):
-                selected = ""
-                checks["calendar"] = {"status": "pending", "reason": "invalid_calendar_configuration"}
-            if selected and fields.get("timezone"):
-                commands["calendar"] = [py, "scripts/goodmorning.py", "calendar", "--probe-betterbird", "--betterbird-path", selected,
-                                         "--secretary-dir", str(runtime), "--timezone", fields["timezone"]]
-            elif "calendar" not in checks:
-                checks["calendar"] = {"status": "pending", "reason": "no_authorized_cache_path"}
         env = dict(os.environ, PYTHONDONTWRITEBYTECODE="1", SECRETARY_DIR=str(runtime),
                    CALENDAR_DB_PATH=str(runtime / "calendar.sqlite"), GM_CACHE_DIR=str(cache))
         checks.update(run_checks(commands, args.budget, env))

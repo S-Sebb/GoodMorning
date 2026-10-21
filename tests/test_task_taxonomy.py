@@ -387,22 +387,29 @@ class TaxonomyTests(unittest.TestCase):
             calendar.close()
         self.assertEqual(self.tasks.show(identifier, True)['calendar_event_id'], result['calendar_event_id'])
 
-    def test_unreviewed_import_stays_out_and_changed_event_keeps_approved_version(self):
+    def test_imports_apply_and_the_next_edition_reports_them_once(self):
         calendar = CalendarStore(str(self.root/'calendar.sqlite'))
         self.addCleanup(calendar.close)
         event = {'external_id': 'provider-id', 'subject': 'Meeting', 'start': DAY+'T10:00:00+01:00', 'end': DAY+'T11:00:00+01:00'}
-        calendar.stage('work', [event])
-        self.assertEqual(self.view()['schedule']['items'], [])
-        self.assertEqual(self.view()['schedule']['pending'], 1)
+        stamp = lambda: datetime.now(timezone.utc).isoformat()
+        calendar.mark('2026-10-12.gn', stamp())
+        started = stamp()
+        calendar.import_events('work', [event, {**event, 'external_id': 'other', 'subject': 'Lunch',
+                                                'start': DAY+'T12:30:00+01:00', 'end': DAY+'T13:30:00+01:00'}])
+        calendar.mark(DAY + '.gm', started)
         view = self.view()
-        self.assertEqual(view['attention']['total'], 1)
+        self.assertEqual([r['subject'] for r in view['schedule']['items']], ['Meeting', 'Lunch'])
+        self.assertEqual([r[2] for r in view['blocks']['attention'][1]], ['New: Meeting', 'New: Lunch'])
         routing.validate_sources(self.root, self.document(view['blocks']['attention'], 'attention'), DAY, 'gm')
-        pending = calendar.pending()[0]
-        calendar.change(pending['id'], 'approve', pending['revision'])
-        calendar.stage('work', [{**event, 'start': DAY+'T12:00:00+01:00', 'end': DAY+'T13:00:00+01:00'}])
-        row = self.view()['schedule']['items'][0]
-        self.assertTrue(row['pending_change'])
-        self.assertIn('10:00', routing.event_cells(row, 'Europe/London')[1])
+        started = stamp()
+        calendar.import_events('work', [{**event, 'start': DAY+'T12:00:00+01:00', 'end': DAY+'T13:00:00+01:00'}])
+        calendar.mark(DAY + '.gn', started)
+        view = self.view('gn')
+        self.assertEqual(view['blocks']['attention'][1][0][2:], [
+            'Changed: Meeting', 'Tue, Oct 13 10:00–11:00 → 12:00–13:00 · Overlaps Lunch (Tue, Oct 13 12:30–13:30)'])
+        morning = self.view()
+        self.assertIn('12:00', routing.event_cells(morning['schedule']['items'][0], 'Europe/London')[1])
+        self.assertEqual(morning['attention']['total'], 2)  # A regenerated edition keeps its own report.
 
     def test_event_cells_preserve_overnight_and_exclusive_all_day_end_dates(self):
         event = {'subject': 'Overnight', 'start': DAY+'T23:00:00+01:00',

@@ -31,9 +31,7 @@ does not require a connected agent or a new morning/evening briefing.
   completion remains visible. Empty days say nothing is saved, not that the day
   is free. Past weeks are the current saved records, not immutable snapshots.
 - The corner **Schedule details** menu holds appointment/task counts, confirmed
-  completion totals, timezone, and the saved-record check time. An amber dot on
-  that control signals pending calendar review; the explanation and secretary
-  link are inside the menu. There is no summary strip, sync footer, marketing
+  completion totals, timezone, and the saved-record check time. There is no summary strip, sync footer, marketing
   introduction, or general help section around the calendar. Real read failures
   remain visible as concise notices. The adjacent refresh icon checks saved plans.
   The menu has no provider-sync disclaimer; the check timestamp is labelled as a
@@ -67,8 +65,7 @@ There is no second schedule store and no extraction from chat text.
 4. **Completion:** user-confirmed IDs use revision-checked `task --update` or
    per-occurrence `task --report`, with `confirmed_completion: true`. Neither
    opening the page nor an elapsed date marks work done or moves it forward.
-5. **Excluded:** raw/undated TODOs, nudges, errands, reference notes, ideas, speculative project steps, unapproved
-   new imports, cancelled events, and inferred deadlines. No browser action
+5. **Excluded:** raw/undated TODOs, nudges, errands, reference notes, ideas, speculative project steps, cancelled events, and inferred deadlines. No browser action
    changes calendar or daily records. The secretary link starts ordinary chat;
    it does not send a prompt or create a task automatically.
 
@@ -89,7 +86,7 @@ credential redaction and HTML escaping apply to all displayed content.
 - A revision derived from the rendered records replaces the view only when
   content changes. Expanded appointments are retained when still present. A
   failed check keeps the last readable view with a visible error.
-- Calendar edits/review/cancellations, daily amendments and confirmed completion,
+- Calendar edits/imports/cancellations, daily amendments and confirmed completion,
   and saved briefing tasks are picked up on the next check. The details menu reports
   when saved records were checked, explicitly **not** a provider-sync timestamp.
 - Each check recomputes the local date, permitted weeks and day/night palette.

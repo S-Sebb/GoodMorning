@@ -59,7 +59,6 @@ def saved_week(runtime, zone, now, offset):
     days = [{'date': (monday + timedelta(days=i)).isoformat(), 'events': [], 'tasks': [],
              'plan_error': False} for i in range(7)]
     warnings = []
-    pending = 0
     converted = set()
     calendar_error = False
     calendar = runtime / 'calendar.sqlite'
@@ -74,7 +73,6 @@ def saved_week(runtime, zone, now, offset):
                 end = datetime.combine(monday + timedelta(days=7), time(), local.tzinfo)
                 events = [worded(event, 'event') for event in safe_value(store.query(start, end, limit=-1, details=True))]
                 converted = converted_draft_ids(store)
-                pending = store.stats()['pending']
                 for event in events:
                     begins, ends = endpoints(event)
                     for day in days:
@@ -127,7 +125,7 @@ def saved_week(runtime, zone, now, offset):
             if inbox:
                 inbox.close()
     return {'today': today.isoformat(), 'start': monday.isoformat(), 'offset': offset,
-            'timezone': zone, 'days': days, 'pending': pending, 'warnings': warnings, 'calendar_error': calendar_error}
+            'timezone': zone, 'days': days, 'warnings': warnings, 'calendar_error': calendar_error}
 
 
 def worded(item, kind):
@@ -165,12 +163,11 @@ def event_card(event, day, zone):
     location = event.get('location') or event.get('online')
     location_html = '<span class="event-location" data-content>' + html.escape(location) + '</span>' if location else ''
     notes = '<p class="event-notes" data-content>' + html.escape(event['notes']) + '</p>' if event.get('notes') else ''
-    pending = '<p class="event-review">' + ui.ui('Change awaiting review · last approved version') + '</p>' if event.get('pending_change') else ''
     source = '' if event['source'] == 'custom' else '<p class="event-source">' + ui.ui('Calendar') + ' · <span data-content>' + html.escape(event['source']) + '</span></p>'
     return ('<details class="schedule-event" id="event-' + day + '-' + html.escape(event['id'], quote=True) + '">'
             '<summary id="summary-' + day + '-' + html.escape(event['id'], quote=True) + '"><span class="event-time">' + label + '</span><span class="event-title" data-content>' + html.escape(event['subject']) + '</span>'
-            + location_html + ('<span class="review-dot" aria-label="Change awaiting review"></span>' if pending else '') + '</summary>'
-            '<div class="event-detail">' + duration + notes + pending + source + '</div></details>')
+            + location_html + '</summary>'
+            '<div class="event-detail">' + duration + notes + source + '</div></details>')
 
 
 def task_card(task, day=None):
@@ -245,10 +242,7 @@ def tools(data, checked, heading, events, tasks, done):
 
 
 def notices(data):
-    # Calendar changes waiting for approval stay in view, not behind the details menu.
-    review = ('<p class="schedule-review" role="status"><span>' + ui.ui('1 calendar change awaits review. New imports stay hidden until approved.' if data['pending'] == 1 else '{count} calendar changes await review. New imports stay hidden until approved.', count=data['pending'])
-              + '</span> <a href="/chat" data-quick-ask="Let’s review the calendar changes waiting for me.">' + ui.ui('Review with your secretary') + '</a></p>') if data['pending'] else ''
-    return review + ''.join('<p class="schedule-warning" role="status">' + ui.ui(warning) + '</p>' for warning in data['warnings'])
+    return ''.join('<p class="schedule-warning" role="status">' + ui.ui(warning) + '</p>' for warning in data['warnings'])
 
 
 def view(data, checked):
@@ -303,7 +297,7 @@ def day_event(event, day, zone, now):
         place, notes = event['location'], event['detail']
         start, until, state, sort = ui.ui('TBC'), ui.ui('Appointment time not yet confirmed'), 'tbc', ''
         source = '<p class="event-source">' + ui.ui('Time zone') + ' · <span data-content>' + html.escape(event['timezone']) + '</span></p>'
-        title, review = event['title'], ''
+        title = event['title']
     else:
         begins, ends = (point.astimezone(ZoneInfo(zone)) for point in endpoints(event))
         local = now.astimezone(ZoneInfo(zone))
@@ -321,13 +315,12 @@ def day_event(event, day, zone, now):
         place, notes = event.get('location') or event.get('online'), event.get('notes')
         source = '' if event['source'] == 'custom' else '<p class="event-source">' + ui.ui('Calendar') + ' · <span data-content>' + html.escape(event['source']) + '</span></p>'
         title = event['subject']
-        review = '<p class="event-review">' + ui.ui('Change awaiting review · last approved version') + '</p>' if event.get('pending_change') else ''
     badge = {'now': '<span class="day-badge is-now">' + ui.ui('Now') + '</span>',
              'past': '<span class="day-badge">' + ui.ui('Ended') + '</span>'}.get(state, '')
     body = ('<span class="event-title" data-content>' + html.escape(title) + '</span>'
             + ('<span class="event-location" data-content>' + html.escape(place) + '</span>' if place else '')
             + ('<p class="event-notes" data-content>' + html.escape(notes) + '</p>' if notes else '')
-            + review + source)
+            + source)
     return {'start': start, 'until': until, 'state': state, 'badge': badge, 'body': body, 'title': title, 'sort': sort}
 
 
