@@ -1,6 +1,52 @@
 {
   "notes": [
     {
+      "version": "0.66.0",
+      "date": "2026-10-21",
+      "author": "GoodMorning agent",
+      "title_en": "Briefings on your home screen 📰",
+      "title_zh": "早报和晚报，搬上主屏幕 📰",
+      "changes": [
+        {
+          "category": "Added",
+          "en": [
+            "New Briefings widget for the Android app shows today's morning or evening briefing in full, and a tap on Prepare starts one that isn't ready yet.",
+            "New News widget shows the news from today's morning briefing."
+          ],
+          "zh": [
+            "Android 应用新增「早报晚报」小组件，今天的早报或晚报会整篇显示在上面；还没准备好的，点一下「准备」就能开始。",
+            "新增「新闻」小组件，把今天早报里的新闻显示出来。"
+          ]
+        },
+        {
+          "category": "Changed",
+          "en": [
+            "Today's and week schedule widgets now start taller, and every widget can still be resized.",
+            "The Android app now opens in Chrome's full-screen view only when Chrome can confirm the site; otherwise it uses its own full-screen view instead of a browser tab.",
+            "The Android app is now a beta, version 0.1, like the website. Installed copies update to it on their own."
+          ],
+          "zh": [
+            "「今日日程」和「一周日程」小组件现在默认就高一些，每个小组件的大小也还是能自己调。",
+            "Android 应用现在只在 Chrome 能确认这个网站的时候，才用 Chrome 的全屏视图打开；不然就用自己的全屏视图，不会再开成浏览器标签页。",
+            "Android 应用现在是测试版 0.1，和网站一样。已经装好的会自己更新过去。"
+          ]
+        },
+        {
+          "category": "Fixed",
+          "en": [
+            "Linking your phone works again: the app keeps the same code until it expires and finishes linking even after you close its screen.",
+            "\"Remember me for 60 days\" now keeps you signed in when you reopen the Android app.",
+            "Choosing a server the first time you open the Android app now opens GoodMorning instead of closing the app."
+          ],
+          "zh": [
+            "关联手机又能用了：应用里的配对码会一直保持不变，直到过期；就算你关掉配对页面，关联也会接着完成。",
+            "勾选「60 天内记住我」以后，再打开 Android 应用还是登录状态。",
+            "第一次打开 Android 应用时选好服务器，现在会打开 GoodMorning，不会再关掉应用。"
+          ]
+        }
+      ]
+    },
+    {
       "version": "0.65.0",
       "date": "2026-10-21",
       "author": "GoodMorning agent",
