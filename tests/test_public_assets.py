@@ -30,6 +30,13 @@ class PublicAssetTests(unittest.TestCase):
         self.assertRegex(proxied,r'limit_req zone=goodmorning_auth_submit\b')
         self.assertIn('proxy_pass',proxied)
 
+    def test_android_app_package_matches_asset_links(self):
+        import json
+        gradle=(ROOT/'android/app/build.gradle').read_text()
+        package=re.search(r"applicationId '([^']+)'",gradle)[1]
+        target=json.loads((ROOT/'assets/web/assetlinks.json').read_text())[0]['target']
+        self.assertEqual(target['package_name'],package)
+
     @unittest.skipUnless(shutil.which('node'),'Node is not available')
     def test_shared_response_reader(self):
         result=subprocess.run(['node','--test',str(ROOT/'tests/test_network.mjs')],capture_output=True,text=True,timeout=20)
