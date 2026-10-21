@@ -693,7 +693,10 @@ class TaxonomyTests(unittest.TestCase):
             self.assertIn('temperature',guide)
             self.assertNotIn('polish:',guide)
             self.assertNotIn('instruction',result['next'])
+            activity = self.root/'browser-jobs'/(identifier+'.activity.json')
+            self.assertEqual(json.loads(activity.read_text()),{'step':'write','position':0,'section':'weather','count':None})
             result = act(self.root,identifier,'ses_test','publish',{'position':0,'section':['weather',[['p','Unavailable.']],'',title]})
+            self.assertEqual(json.loads(activity.read_text())['section'],'news')
             self.assertEqual(result['next']['input']['position'],1)
             self.assertEqual(result['next']['input']['section'][0],'news')
         guide = briefing_guides.guide({'date':DAY}, {'action':'publish','section':['tasks','Tasks']}, [],
