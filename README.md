@@ -69,7 +69,7 @@ File attachments, pasted images, Markdown replies, and saved conversation histor
 keep the details close; older To-do and Eureka chats stay in your history.
 
 **Ask from anywhere.** Morning, Evening, and Schedule each have a floating quick
-chat. Every reminder has a
+chat. Every reminder that needs a decision has a
 **Review with your secretary** button that opens it with a starter line, and
 nothing sends until you do.
 

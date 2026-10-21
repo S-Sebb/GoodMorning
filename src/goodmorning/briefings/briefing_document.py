@@ -720,8 +720,10 @@ def render_block(value, images, briefing_date=None):
             parts = disp_detail.split(' · ') if disp_detail else []
             short, long = [p for p in parts if len(p) <= 32], [p for p in parts if len(p) > 32]
             detail = (f'<div class="decision-meta">{escaped(" · ".join(short))}</div>' if short else '') + ''.join(f'<div class="decision-detail">{escaped(p)}</div>' for p in long)
-            ask = (f'<a class="decision-ask" href="/chat" data-quick-ask="Let’s look at “{{title}}” together." data-quick-ask-title="{escaped(disp_title)}">'
-                   + ui.ui('Review with your secretary') + '</a>')
+            # A bare event ID is a calendar change that already applied: a notice, nothing to review.
+            ask = '' if re.fullmatch('[0-9a-f]{16}', row[0]) else (
+                f'<a class="decision-ask" href="/chat" data-quick-ask="Let’s look at “{{title}}” together." data-quick-ask-title="{escaped(disp_title)}">'
+                + ui.ui('Review with your secretary') + '</a>')
             items.append('<li class="decision-card"><div class="decision-title">' + escaped(disp_title) + '</div>' + detail + ask + '</li>')
         return '<ul class="decision-list">' + ''.join(items) + '</ul>'
     if tag == 'p':

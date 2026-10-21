@@ -85,8 +85,10 @@ class GroupingTests(unittest.TestCase):
         self.assertNotIn('Review calendar change', html)
         self.assertNotIn('2026-10-23T11', html)
         self.assertIn('Fri, Oct 23 11:00–12:00', html)
-        # Each card offers a way to talk it through, starting from its own title.
-        self.assertIn('data-quick-ask-title="Canceled: Imperial-QMUL Catchup"', html)
+        # An applied calendar change is a notice; other reminders offer a way to talk them through.
+        self.assertNotIn('decision-ask', html)
+        html = native.render_block(['decisions', [['ib_abcdefabcdefabcd', 1, 'Pick a venue', 'Two options saved']]], {}, '2026-10-11')
+        self.assertIn('data-quick-ask-title="Pick a venue"', html)
         self.assertIn('href="/chat"', html)
 
     def test_calendar_change_copy_says_what_changed_with_human_times(self):
