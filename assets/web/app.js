@@ -152,6 +152,13 @@ let goodmorningBeforeSignOut;
       const value = await post('/api/app/link', {code: code.value});
       show(value.links); code.value = '';
       feedback.textContent = t('{name} is linked. Its widgets update within a minute.', {name: value.label});
+      // The phone collects its token a few seconds later; then it appears in the list.
+      for (let attempt = 0; attempt < 10; attempt++) {
+        await new Promise(resolve => setTimeout(resolve, 3000));
+        const response = await fetch('/api/app/links', {credentials: 'same-origin', cache: 'no-store'});
+        const links = response.ok ? (await goodmorningJSON(response)).links : [];
+        if (links.length > value.links.length) { show(links); break; }
+      }
     } catch (error) { feedback.textContent = error.message; }
     finally { button.disabled = false; }
   });
