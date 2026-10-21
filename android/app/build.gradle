@@ -1,0 +1,62 @@
+plugins {
+    id 'com.android.application'
+}
+
+// The release key and its password live outside the repository; see docs/android-app.md.
+def keyDir = new File(System.getProperty('user.home'), '.local/share/goodmorning-android')
+
+android {
+    namespace 'me.love765.goodmorning'
+    compileSdk 36
+
+    defaultConfig {
+        applicationId 'me.love765.goodmorning'
+        minSdk 26
+        targetSdk 36
+        // Each release is tagged android-v<versionCode>; the app updates to higher codes.
+        versionCode 1
+        versionName '1.0'
+        buildConfigField 'String', 'RELEASES_URL', '"https://api.github.com/repos/S-Sebb/GoodMorning/releases?per_page=10"'
+    }
+
+    androidResources {
+        localeFilters += ['en', 'zh-rCN']
+    }
+
+    buildFeatures {
+        buildConfig true
+    }
+
+    signingConfigs {
+        release {
+            storeFile new File(keyDir, 'release.keystore')
+            keyAlias 'goodmorning'
+            def password = new File(keyDir, 'keystore-password.txt')
+            if (password.exists()) {
+                storePassword password.text.trim()
+                keyPassword password.text.trim()
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled true
+            shrinkResources true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt')
+            signingConfig signingConfigs.release
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
+
+dependencies {
+    implementation 'com.google.androidbrowserhelper:androidbrowserhelper:2.7.4'
+    testImplementation 'junit:junit:4.13.2'
+    // Android's org.json is a stub in local unit tests.
+    testImplementation 'org.json:json:20260814'
+}

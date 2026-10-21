@@ -29,10 +29,16 @@ as the fixture root when it exists; set `GM_TEST_TMPDIR` to use another.
 4. Changes to `assets/web/patch-notes.json`: also run the validation under
    [Patch notes](#patch-notes).
 
+5. Changes under `android/`: also run `./gradlew test assembleRelease` and an
+   emulator check, as described in `docs/android-app.md`.
+
 Put the exact commands and results in the PR's Validation section. CI repeats
-step 1 on every PR; it does not replace steps 2–3.
+step 1 on every PR; it does not replace steps 2–5.
 
 ## Releases
+
+Website releases are below. Android APKs are released separately, only when the
+owner asks; see `docs/android-app.md`.
 
 One deployment is one release: one version and one patch note covering
 everything merged into `main` since the previous deployment. Feature PRs never
