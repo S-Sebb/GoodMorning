@@ -692,5 +692,6 @@
   "Phone request could not be read. Update the app or try again.": "没能读取手机的请求。请更新应用，或者再试一次。",
   "That code is not valid. Check it, or show a new code in the app.": "这个配对码不对。请检查一下，或者在应用里显示新的配对码。",
   "This code expired. Show a new code in the app.": "这个配对码过期了。请在应用里显示新的配对码。",
-  "Link this phone again in GoodMorning Settings.": "请在 GoodMorning 的“设置”里重新关联这台手机。"
+  "Link this phone again in GoodMorning Settings.": "请在 GoodMorning 的“设置”里重新关联这台手机。",
+  "This phone gets notifications through the GoodMorning app after you link it under Phone widgets.": "把这台手机在“手机小组件”里关联好，通知就会通过 GoodMorning 应用送来。"
 }

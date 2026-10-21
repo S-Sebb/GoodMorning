@@ -1,5 +1,7 @@
-// Inside the installed app only, remember this page so the next launch reopens it.
-if (matchMedia('(display-mode: standalone)').matches) {
+// Inside the installed app only (Chrome's app view or the app's own WebView), remember this page
+// so the next launch reopens it.
+const goodmorningInApp = matchMedia('(display-mode: standalone)').matches || navigator.userAgent.includes('GoodMorningApp/');
+if (goodmorningInApp) {
   document.cookie = 'GoodMorningAppPage=' + encodeURIComponent(location.pathname) + '; Path=/; Secure; SameSite=Strict; Max-Age=31536000';
 }
 
@@ -7,7 +9,10 @@ if (matchMedia('(display-mode: standalone)').matches) {
 let goodmorningBeforeSignOut;
 (() => {
   const form = document.querySelector('#notification-form');
-  if (!form || !('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) return;
+  const pushable = 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
+  // The app's WebView has no Web Push; once linked, the app itself posts this account's notifications.
+  const appNotifies = navigator.userAgent.includes('GoodMorningApp/');
+  if (!form || (!pushable && !appNotifies)) return;
   const t = key => typeof goodmorningT === 'function' ? goodmorningT(key) : key;
   const csrf = JSON.parse(document.querySelector('#language-config').dataset.config).csrf;
   const status = form.querySelector('#notification-status');
@@ -31,6 +36,11 @@ let goodmorningBeforeSignOut;
   const key = () => Uint8Array.from(atob(publicKey.replace(/-/g, '+').replace(/_/g, '/')), c => c.charCodeAt(0));
 
   async function show() {
+    if (!pushable) {
+      device.hidden = true;
+      status.textContent = t('This phone gets notifications through the GoodMorning app after you link it under Phone widgets.');
+      return;
+    }
     const subscription = await current();
     device.hidden = Notification.permission === 'denied';
     if (Notification.permission === 'denied') status.textContent = t('Notifications are blocked for this site. Allow them in your browser or app settings, then reload.');
@@ -80,6 +90,7 @@ let goodmorningBeforeSignOut;
   });
 
   goodmorningBeforeSignOut = async () => {
+    if (!pushable) return;
     try { await turnOff(); } catch { /* Signing out must still work offline. */ }
   };
 
