@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name" translatable="false">GoodMorning</string>
+    <string name="change_server">Change server</string>
+    <string name="server_title">Choose your server</string>
+    <string name="server_note">Enter the address of the GoodMorning website you sign in to. If you\'re not sure, keep the address below.</string>
+    <string name="server_hint">Server address</string>
+    <string name="server_continue">Continue</string>
+    <string name="server_checking">Checking the server…</string>
+    <string name="server_error_address">Enter a website address that starts with https://.</string>
+    <string name="server_error_unreachable">Couldn\'t reach this server. Check the address and your connection, then try again.</string>
+    <string name="server_error_unsupported">This server doesn\'t support the GoodMorning app yet. Check the address or ask the server\'s owner.</string>
+    <string name="update_title">Update available</string>
+    <string name="update_message">GoodMorning %1$s is ready. Updating takes a moment; your account and records are kept on the server and stay unchanged.</string>
+    <string name="update_install">Update</string>
+    <string name="update_later">Later</string>
+    <string name="update_downloading">Downloading the update…</string>
+    <string name="update_failed">The update didn\'t finish, so you\'re still on the current version. We\'ll offer it again later.</string>
+    <string name="update_continue">Continue</string>
+    <string name="update_permission">Android needs your OK once before GoodMorning can install its own updates. On the next screen, turn on \"Allow from this source\", then come back.</string>
+    <string name="update_channel">App updates</string>
+    <string name="update_notification">GoodMorning %1$s is ready. Tap to update.</string>
+</resources>

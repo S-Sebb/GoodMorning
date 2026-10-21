@@ -23,6 +23,7 @@ package-qualified; no legacy module aliases or duplicate implementations remain.
 | `requirements/` | Optional dependency lists |
 | `tests/` | Unit contracts, shared fixtures, `browser/` checks, and `benchmarks/` |
 | `deploy/` | Public service and HTTPS configuration |
+| `android/` | Android app shell, released as an APK and never deployed to the server (`docs/android-app.md`) |
 | `docs/history/` | Historical plans and point-in-time reviews, not active workflow instructions |
 
 Keep personal runtimes, logs, reports, generated screenshots, caches, backups,

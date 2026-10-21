@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="background">#F8EEE0</color>
+    <color name="background_dark">#111C32</color>
+    <color name="icon_background">#F8EEE0</color>
+    <color name="sun">#D88B38</color>
+    <color name="ink">#2B2620</color>
+    <color name="error">#B3261E</color>
+</resources>

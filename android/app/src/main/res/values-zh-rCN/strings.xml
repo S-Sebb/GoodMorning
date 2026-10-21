@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="change_server">更换服务器</string>
+    <string name="server_title">选择你的服务器</string>
+    <string name="server_note">输入你登录的 GoodMorning 网站地址。不确定的话，就用下面这个地址。</string>
+    <string name="server_hint">服务器地址</string>
+    <string name="server_continue">继续</string>
+    <string name="server_checking">正在检查服务器…</string>
+    <string name="server_error_address">请输入以 https:// 开头的网站地址。</string>
+    <string name="server_error_unreachable">没能连上这个服务器。检查一下地址和网络，再试一次吧。</string>
+    <string name="server_error_unsupported">这个服务器暂时还不支持 GoodMorning 应用。检查一下地址，或者问问服务器的主人。</string>
+    <string name="update_title">有可用更新</string>
+    <string name="update_message">GoodMorning %1$s 已经就绪。更新会花一点时间；你的账号和记录都存在服务器上，不会改变。</string>
+    <string name="update_install">更新</string>
+    <string name="update_later">稍后</string>
+    <string name="update_downloading">正在下载更新…</string>
+    <string name="update_failed">更新没有完成，所以你现在还在当前版本。之后会再提示你更新。</string>
+    <string name="update_continue">继续</string>
+    <string name="update_permission">在 GoodMorning 安装自己的更新之前，Android 需要你同意一次。在下一个页面打开“允许来自此来源的应用”，然后回来就好。</string>
+    <string name="update_channel">应用更新</string>
+    <string name="update_notification">GoodMorning %1$s 已经就绪，点一下就能更新。</string>
+</resources>
