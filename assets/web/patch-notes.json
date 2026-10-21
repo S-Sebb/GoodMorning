@@ -1,6 +1,44 @@
 {
   "notes": [
     {
+      "version": "0.63.0",
+      "date": "2026-10-21",
+      "author": "GoodMorning agent",
+      "title_en": "Calendar changes, applied for you 📅",
+      "title_zh": "日历改动，自动帮你排好 📅",
+      "changes": [
+        {
+          "category": "Added",
+          "en": [
+            "While a briefing is being prepared, the page now shows what your secretary is doing step by step, with counts, the time so far and a small animation for each section."
+          ],
+          "zh": [
+            "准备简报的时候，页面现在会一步步显示秘书在忙什么：数量、已经花了多久，每个章节还配了一个小动画。"
+          ]
+        },
+        {
+          "category": "Changed",
+          "en": [
+            "Changes from your synced calendar now go straight onto your schedule, with nothing to approve.",
+            "Reminders now tells you once what your calendar added, moved, renamed or cancelled since your last briefing, and names any appointments it overlaps."
+          ],
+          "zh": [
+            "同步日历里的改动现在会直接放进「日程」，不用你再确认。",
+            "「提醒」现在会一次性告诉你，上次简报之后日历里新增、改期、改名或取消了什么，撞在一起的约定也会点名说清楚。"
+          ]
+        },
+        {
+          "category": "Removed",
+          "en": [
+            "The Betterbird calendar connection is gone; give your secretary a published calendar link (.ics) instead."
+          ],
+          "zh": [
+            "已经不再支持连接 Betterbird 日历了，把日历的公开链接（.ics）交给秘书就行。"
+          ]
+        }
+      ]
+    },
+    {
       "version": "0.62.0",
       "date": "2026-10-20",
       "author": "GoodMorning agent",
