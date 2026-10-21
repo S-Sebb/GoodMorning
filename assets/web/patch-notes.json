@@ -1,6 +1,26 @@
 {
   "notes": [
     {
+      "version": "0.64.0",
+      "date": "2026-10-21",
+      "author": "GoodMorning agent",
+      "title_en": "Install GoodMorning as an app 📱",
+      "title_zh": "把 GoodMorning 装成应用 📱",
+      "changes": [
+        {
+          "category": "Added",
+          "en": [
+            "On Android, Chrome can now install GoodMorning as an app with its own icon and window, so it is easy to switch to from other apps.",
+            "The installed app reopens the page you last used, or your secretary chat the first time."
+          ],
+          "zh": [
+            "在 Android 上，Chrome 现在能把 GoodMorning 装成应用，它有自己的图标和窗口，从别的应用切过来很方便。",
+            "装好以后，打开会回到你上次用的那个页面；第一次打开，进的是秘书对话。"
+          ]
+        }
+      ]
+    },
+    {
       "version": "0.63.0",
       "date": "2026-10-21",
       "author": "GoodMorning agent",
