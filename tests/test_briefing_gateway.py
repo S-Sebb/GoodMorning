@@ -373,30 +373,48 @@ class GatewayTests(GatewayFixture):
                 status,headers,_=self.request('/app?next='+asked+'&b=1')
                 self.assertEqual((status,headers['Location']),(302,expected))
 
-    def test_notification_settings_and_device_subscriptions(self):
-        from goodmorning.security import web_push
+    def test_notification_choices_belong_to_each_device(self):
+        from goodmorning.security import app_link, web_push
         self.assertEqual(self.request('/api/push')[0],401)
         self.permanent()
         status,headers,body=self.request('/api/push')
         value=json.loads(body)
-        self.assertEqual((status,headers['Cache-Control'],value['settings']),(200,'no-store',web_push.DEFAULTS))
+        self.assertEqual((status,headers['Cache-Control'],value['devices'],value['links']),(200,'no-store',[],[]))
         self.assertEqual(len(web_push.unb64(value['publicKey'])),65)
+        # Signed in, Settings holds only this device's notifications; language and appearance follow the account.
         _,page=self.request('/chat')[1:]
-        self.assertIn(b'id="notification-form"',page)
-        self.assertRegex(page,rb'<form id="notification-form"[^>]*hidden')
-        chosen={**web_push.DEFAULTS,'waiting':False,'lead':5}
-        self.assertEqual(self.request('/api/push/settings',{'settings':chosen})[0],200)
-        self.assertEqual(json.loads(self.request('/api/push')[2])['settings'],chosen)
-        self.assertEqual(self.request('/api/push/settings',{'settings':{**chosen,'lead':2}})[0],400)
+        settings=re.search(rb'<details class="menu" id="prefs-menu" hidden>.*?</details>',page,re.S)[0]
+        account=re.search(rb'<details class="menu" id="account-menu">.*?</details>',page,re.S)[0]
+        self.assertRegex(settings,rb'<form id="notification-form"[^>]*hidden')
+        self.assertNotIn(b'id="language-form"',settings)
+        for part in (b'id="language-form"',b'id="color-scheme-form"',b'id="app-link-form"',b'id="notification-devices"',b'id="sign-out"'):
+            self.assertIn(part,account)
         keys={'p256dh':value['publicKey'],'auth':web_push.b64(b'0123456789abcdef')}
         endpoint='https://fcm.googleapis.com/fcm/send/device'
-        self.assertEqual(self.request('/api/push/subscribe',{'subscription':{'endpoint':'https://evil.test/x','keys':keys}})[0],400)
-        self.assertEqual(self.request('/api/push/subscribe',{'subscription':{'endpoint':endpoint,'keys':keys}})[0],200)
-        self.assertEqual([item['endpoint'] for item in web_push.account(self.store,self.id)['subscriptions']],[endpoint])
+        self.assertEqual(self.request('/api/push/subscribe',{'subscription':{'endpoint':'https://evil.test/x','keys':keys},'label':'Firefox on Linux'})[0],400)
+        self.assertEqual(self.request('/api/push/subscribe',{'subscription':{'endpoint':endpoint,'keys':keys}})[0],400)
+        status,_,body=self.request('/api/push/subscribe',{'subscription':{'endpoint':endpoint,'keys':keys},'label':'Firefox on Linux'})
+        device=json.loads(body)
+        self.assertEqual((status,device['device'],device['settings']),(200,web_push.device(endpoint),web_push.DEFAULTS))
+        chosen={**web_push.DEFAULTS,'waiting':False,'lead':5}
+        self.assertEqual(self.request('/api/push/settings',{'device':device['device'],'settings':chosen})[0],200)
+        listed=json.loads(self.request('/api/push')[2])['devices']
+        self.assertEqual([(item['label'],item['settings']) for item in listed],[('Firefox on Linux',chosen)])
+        self.assertNotIn(endpoint,json.dumps(listed))
+        self.assertEqual(self.request('/api/push/settings',{'device':device['device'],'settings':{**chosen,'lead':2}})[0],400)
+        self.assertEqual(self.request('/api/push/settings',{'device':'0'*16,'settings':chosen})[0],400)
+        self.assertEqual(self.request('/api/push/settings',{'settings':chosen})[0],400)
+        # A linked phone without Web Push keeps its own choices too.
+        pairing=app_link.pair(self.store,'Pixel 7');app_link.confirm(self.store,self.id,pairing['code'])
+        phone=app_link.claim(self.store,pairing['secret'])
+        self.assertEqual(self.request('/api/push/settings',{'link':phone['id'],'settings':{**web_push.DEFAULTS,'chat':False}})[0],200)
+        self.assertFalse(json.loads(self.request('/api/push')[2])['links'][0]['settings']['chat'])
         csrf,self.csrf=self.csrf,'x'*43
         self.assertEqual(self.request('/api/push/unsubscribe',{'endpoint':endpoint})[0],403)
         self.csrf=csrf
-        self.assertEqual(self.request('/api/push/unsubscribe',{'endpoint':endpoint})[0],200)
+        # Account turns another device off by its name.
+        self.assertEqual(self.request('/api/push/unsubscribe',{'device':device['device'],'endpoint':endpoint})[0],400)
+        self.assertEqual(json.loads(self.request('/api/push/unsubscribe',{'device':device['device']})[2])['devices'],[])
         self.assertEqual(web_push.account(self.store,self.id)['subscriptions'],[])
         self.assertEqual(self.request('/sw.js')[1]['Cache-Control'],'public, no-cache')
 
@@ -433,10 +451,10 @@ class GatewayTests(GatewayFixture):
                 self.gateway.reconcile_ticket()
         self.assertEqual(announced,['waiting','idle'])
 
-    def test_event_reminders_follow_the_lead_time_once(self):
+    def test_event_reminders_follow_each_devices_lead_time_once(self):
         from goodmorning.security import web_push
         sent=[]
-        self.gateway.notify=lambda user,kind,message,**options:sent.append((kind,message))
+        self.gateway.notify=lambda user,kind,message,**options:sent.append((kind,message['title'],options['only']))
         reads=[]
         def proxy(user,host,path,*args):
             reads.append(path)
@@ -446,15 +464,19 @@ class GatewayTests(GatewayFixture):
         self.gateway.remind()
         self.assertEqual(reads,[])  # Nobody turned notifications on.
         keys={'p256dh':web_push.public_key(self.store),'auth':web_push.b64(b'0123456789abcdef')}
-        web_push.subscribe(self.store,self.id,{'endpoint':'https://fcm.googleapis.com/x','keys':keys})
+        laptop=web_push.subscribe(self.store,self.id,{'endpoint':'https://fcm.googleapis.com/x','keys':keys},'Firefox on Linux')['device']
+        early=web_push.subscribe(self.store,self.id,{'endpoint':'https://fcm.googleapis.com/y','keys':keys},'Chrome on Android')['device']
+        quiet=web_push.subscribe(self.store,self.id,{'endpoint':'https://fcm.googleapis.com/z','keys':keys},'Edge on Windows')['device']
+        web_push.settings(self.store,self.id,early,{**web_push.DEFAULTS,'lead':30})
+        web_push.settings(self.store,self.id,quiet,{**web_push.DEFAULTS,'events':False})
         with patch.object(self.gateway,'proxy',proxy), patch('goodmorning.security.briefing_gateway.time.time',lambda:now):
             self.gateway.remind()
-            self.assertEqual(sent,[])  # 20 minutes away, 15-minute lead.
+            self.assertEqual(sent,[('events','Dentist',early)])  # 20 minutes away: only the 30-minute device.
             now+=6*60
             self.gateway.remind()
             self.gateway.remind()
         self.assertEqual(reads,['/api/reminders','/api/reminders'])
-        self.assertEqual(sent,[('events',{'title':'Dentist','body':'Starts at 15:00 · Town Clinic','url':'/schedule?view=day','tag':'event-e1@x'})])
+        self.assertEqual(sent,[('events','Dentist',early),('events','Dentist',laptop)])
 
     def test_phone_pairing_sync_and_chat_through_the_gateway(self):
         from goodmorning.security import app_link
@@ -474,7 +496,7 @@ class GatewayTests(GatewayFixture):
         self.assertEqual(self.request('/api/app/link',{'code':'AAAA-BBBB'})[0],400)
         status,_,body=self.request('/api/app/link',{'code':pairing['code']})
         self.assertEqual((status,json.loads(body)['label']),(200,'Pixel 7'))
-        token=waiting()['token']
+        claimed=waiting();token,waiting_id=claimed['token'],claimed['id']
         self.assertEqual(phone('/api/app/pair',headers={'X-GoodMorning-Pairing':pairing['secret']})[0],404)
         app_link.record(self.store,self.id,'chat',{'title':'Your secretary replied','body':'Done','url':'/chat','tag':'c'})
         answers={'/api/app-schedule':{'today':'2026-10-21','days':[]},'/api/app-profile':{'name':'Aria','avatar':'f2','image':None},'/api/reminders?hours=24':{'events':[]},
@@ -488,6 +510,7 @@ class GatewayTests(GatewayFixture):
         self.assertEqual(value['chat'],{'id':'a'*32,'title':'Plan','state':'idle','unread':True,'reply':'All set'})
         self.assertEqual([item['body'] for item in value['notifications']],['Done'])
         self.assertEqual((value['schedule']['today'],value['reminders']),('2026-10-21',[]))
+        self.assertEqual((value['device'],value['settings']),(waiting_id,app_link.links(self.store,self.id)[0]['settings']))
         self.assertEqual((value['secretary']['name'],value['appearance']['day']),('Aria','morning-sky'))
         self.assertEqual(value['briefings']['editions']['gm'],{'state':'missing'})
         # A request still waiting in the shared queue already counts as being prepared.

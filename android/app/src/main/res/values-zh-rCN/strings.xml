@@ -20,7 +20,7 @@
     <string name="update_channel">应用更新</string>
     <string name="update_notification">GoodMorning %1$s 已经就绪，点一下就能更新。</string>
     <string name="link_title">关联这台手机</string>
-    <string name="link_note">想在小组件里看到你的日程、早报晚报和秘书对话，就打开 GoodMorning，进入 设置 → 手机小组件，然后输入这个配对码：</string>
+    <string name="link_note">想在小组件里看到你的日程、早报晚报和秘书对话，就点“在 GoodMorning 里关联”，在那里确认一下。或者在另一台设备上，在 GoodMorning 的 账号 → 已关联的手机 里输入这个配对码：</string>
     <string name="link_starting">正在获取配对码…</string>
     <string name="link_waiting">等你输入配对码。它 10 分钟内有效，这期间你可以先关掉这个页面。</string>
     <string name="link_done">这台手机已关联。小组件马上就会更新。</string>
@@ -51,7 +51,7 @@
     <string name="ask_send">发送</string>
     <string name="ask_sent">已发送。秘书正在处理，回复会显示在小组件和应用里。</string>
     <string name="ask_failed">没能发送。检查一下网络，再试一次吧。</string>
-    <string name="ask_unlinked">这台手机已经不关联了。在 GoodMorning 的“设置”里重新关联一下吧。</string>
+    <string name="ask_unlinked">这台手机已经不关联了。在 GoodMorning 的 账号 → 已关联的手机 里重新关联一下吧。</string>
     <string name="channel_status">秘书更新</string>
     <string name="channel_reminders">日程提醒</string>
     <string name="reminder_body">开始于 %1$s</string>
@@ -96,4 +96,7 @@
     <string name="preview_briefing_section">新闻</string>
     <string name="preview_news_headline">城市新开了一座河边公园</string>
     <string name="preview_news_summary">公园沿着河边修了步道，还有一个儿童游乐场。</string>
+    <string name="link_copy">复制配对码</string>
+    <string name="link_copied">配对码已复制。</string>
+    <string name="link_in_app">在 GoodMorning 里关联</string>
 </resources>

@@ -162,46 +162,58 @@ def page(source,csrf,return_to='/'):
     if match:
         account=match[0]
         source=source[:match.start()]+source[match.end():]
-    prefs=('<details class="menu" id="prefs-menu"><summary><span aria-hidden="true">⚙</span> '
-           '<span class="menu-label">Settings</span></summary>'
-           '<div class="menu-panel"><div class="settings-menu-header"><div><h2>Settings</h2><p>Make this space yours.</p></div>'
-           '<button class="settings-close" type="button" aria-label="Close settings"><svg viewBox="0 0 20 20" width="16" height="16" fill="none" aria-hidden="true"><path d="m6 6 8 8m0-8-8 8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></button></div>'
-           '<form id="language-form" class="language-toolbar" action="/api/language" method="post">'
+    close=('<button class="settings-close" type="button" aria-label="Close menu"><svg viewBox="0 0 20 20" width="16" height="16" fill="none" aria-hidden="true">'
+           '<path d="m6 6 8 8m0-8-8 8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></button>')
+    language_form=('<form id="language-form" class="language-toolbar" action="/api/language" method="post">'
            '<label for="website-language">Website language</label><select id="website-language" name="language">'
            +''.join(f'<option value="{code}" lang="{code}"'+(' selected' if code==current() else '')+' data-content>'+label+'</option>'
                     for code,label in (('en','English'),('zh-CN','简体中文')))+
            '</select><input type="hidden" name="csrf" value="'+html.escape(csrf or '',quote=True)+'">'
            '<input type="hidden" name="return_to" value="'+html.escape(return_to,quote=True)+'">'
            '<noscript><button type="submit">Apply</button></noscript><span id="language-feedback" role="status"></span></form>'
-           # Hosted pages reveal this in browsers that support push; see app.js.
-           '<form id="notification-form" class="language-toolbar notification-settings" hidden>'
+           '<form id="color-scheme-form"></form>')  # Filled by color_schemes.page.
+    # Hosted pages reveal this where the device can show notifications; see app.js.
+    notifications=('<form id="notification-form" class="language-toolbar notification-settings" hidden>'
            '<h3 class="color-scheme-heading notification-heading">Notifications</h3><p id="notification-status"></p>'
            '<button type="button" id="notification-device" hidden></button>'
-           '<fieldset id="notification-kinds"><legend>Notify me when</legend>'
+           '<div id="notification-choices" hidden><fieldset id="notification-kinds"><legend>Notify me when</legend>'
            +''.join(f'<label><input type="checkbox" name="{name}"> {label}</label>' for name,label in (
                ('briefing','A briefing is ready'),('waiting','My secretary needs my answer'),
                ('chat','A chat reply is finished'),('events','An event is about to start')))+
            '</fieldset><label for="notification-lead">Remind me before events</label><select id="notification-lead" name="lead">'
            +''.join(f'<option value="{minutes}">{minutes} minutes</option>' for minutes in (5,10,15,30,60))+
-           '</select><p class="notification-note">These choices apply to all your devices.</p>'
-           '<span id="notification-feedback" role="status"></span></form>'
-           '<form id="app-link-form" class="language-toolbar app-link-settings" hidden>'
-           '<h3 class="color-scheme-heading app-link-heading">Phone widgets</h3>'
-           '<p class="notification-note">Show your schedule and secretary chat in Android home screen widgets. '
+           '</select><p class="notification-note">These choices apply to this device only.</p></div>'
+           '<span id="notification-feedback" role="status"></span></form>')
+    phones=('<form id="app-link-form" class="language-toolbar app-link-settings" hidden>'
+           '<h3 class="color-scheme-heading app-link-heading">Linked phones</h3>'
+           '<p class="notification-note">Linked phones show your schedule, briefings and secretary chat in Android home screen widgets. '
            'In the GoodMorning app, open Link this phone, then enter the code it shows.</p>'
            '<label for="app-link-code">Code from the app</label>'
-           '<input id="app-link-code" name="code" autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="9" placeholder="ABCD-2345" required>'
+           '<input id="app-link-code" name="code" autocomplete="off" autocapitalize="characters" spellcheck="false" inputmode="text" placeholder="ABCD-2345" required>'
            '<button type="submit">Link phone</button><ul id="app-links"></ul>'
            '<span id="app-link-feedback" role="status"></span></form>'
-           '</div></details>')
+           '<section id="notification-devices" class="language-toolbar notification-settings" hidden>'
+           '<h3 class="color-scheme-heading notification-heading">Devices with notifications</h3>'
+           '<p class="notification-note">Each device chooses its own notifications in its Settings. Turn one off here if you no longer use it.</p>'
+           '<ul id="notification-device-list"></ul><span id="notification-devices-feedback" role="status"></span></section>')
+    # Settings holds what belongs to this device; Account what follows the signed-in owner everywhere.
+    # Without an account (sign-in page, local viewer) language and appearance stay with this device.
+    prefs=('<details class="menu" id="prefs-menu"'+(' hidden' if account else '')+'><summary><span aria-hidden="true">⚙</span> '
+           '<span class="menu-label">Settings</span></summary>'
+           '<div class="menu-panel"><div class="settings-menu-header"><div><h2>Settings</h2><p>'
+           +('Choices for this device only.' if account else 'Make this space yours.')+'</p></div>'+close+'</div>'
+           +(notifications if account else language_form)+'</div></details>')
     account_menu=('<details class="menu" id="account-menu"><summary><span class="menu-label">Account</span></summary>'
-                  '<div class="menu-panel">'+account+'</div></details>') if account else ''
+                  '<div class="menu-panel"><div class="settings-menu-header account-menu-header"><div><h2>Account</h2>'
+                  '<p>These follow you on every device you sign in on.</p></div>'+close+'</div>'
+                  +language_form+phones+account+'</div></details>') if account else ''
     controls=('<div class="toolbar-row">'+prefs+account_menu+'<span id="update-slot"></span></div>')
     source=re.sub(r'<html\b[^>]*\blang="[^"]*"',lambda match:re.sub(r'lang="[^"]*"','lang="'+current()+'"',match[0]),source,count=1)
     if 'id="language-form"' not in source:
         source=re.sub(r'(<body\b[^>]*>)',lambda match:match[0]+controls,source,count=1)
     elif account and 'id="account-menu"' not in source:
-        source=source.replace('<span id="update-slot">',account_menu+'<span id="update-slot">',1)
+        # A proxied backend page brings device-only menus; signed in, they are rebuilt with Account.
+        source=re.sub(r'<div class="toolbar-row">.*?<span id="update-slot"></span></div>',lambda _:controls,source,count=1,flags=re.S)
     marker='<div id="language-config" hidden data-config="'+config+'"></div>'
     if 'id="language-config"' in source:
         source=re.sub(r'<div id="language-config"[^>]*></div>',lambda _:marker,source,count=1)

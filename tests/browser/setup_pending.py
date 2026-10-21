@@ -41,11 +41,11 @@ def main():
                         response=page.goto('https://gm.example.test/chat',wait_until='networkidle')
                         assert response.status==503
                         expect(page.get_by_role('heading',name='Secretary setup pending' if pending else 'Secretary temporarily unavailable',exact=True)).to_be_visible()
-                        page.locator('#prefs-menu > summary').click()
+                        page.locator('details.menu:has(#website-language) > summary').click()
                         page.get_by_label('Website language',exact=True).select_option('zh-CN')
                         expect(page.get_by_role('heading',name='秘书服务尚未完成配置' if pending else '秘书服务暂时不可用',exact=True)).to_be_visible()
                         expect(page.locator('html')).to_have_attribute('lang','zh-CN')
-                        page.get_by_role('button',name='关闭设置',exact=True).click()
+                        page.get_by_role('button',name='关闭菜单',exact=True).click()
                         expect(page.get_by_role('link',name='重试',exact=True)).to_be_visible()
                         assert page.evaluate('document.documentElement.scrollWidth<=innerWidth')
                         page.screenshot(path=str(artifacts/(('pending' if pending else 'outage')+'-'+str(width)+'.png')),full_page=True)

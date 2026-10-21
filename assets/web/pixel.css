@@ -21,7 +21,7 @@ html[data-style="pixel"] {
 /* Type: pixel headings and labels only. */
 html[data-style="pixel"] :is(h1, h2, h3, .wordmark, .eyebrow, .edition-link, .briefing-section-nav a, .week-picker a, .weather-label,
   .weather-value, .section-number, #new-conversation, .toolbar-row .menu > summary, #site-update-toggle, #quick-chat-launcher,
-  .schedule-date, .preview-eyebrow, .preview-title, .today-marker, .scheme-name, #prefs-menu legend,
+  .schedule-date, .preview-eyebrow, .preview-title, .today-marker, .scheme-name, :is(#prefs-menu, #account-menu) legend,
   #activity-heading, .activity-title, #mobile-sections, .secretary-identity > p:not(.eyebrow), .chat-topic-hint, #chat-help,
   .settings-menu-header p) { font-family: var(--px-font); letter-spacing: 0; }
 html[data-style="pixel"] :is(.wordmark, h1, h2) { font-family: var(--px-title); }
@@ -157,11 +157,11 @@ html[data-style="pixel"][data-edition="gn"][data-night-scheme="grass-block"] .we
    synthetic bold, so Chinese pixel text snaps to those sizes. Reading text keeps the system font. */
 html[data-style="pixel"]:lang(zh) :is(h1, h2, h3, .wordmark span, .eyebrow, .edition-link, .briefing-section-nav a, .week-picker a, .weather-label,
   .section-number, #new-conversation, .toolbar-row .menu > summary, #site-update-toggle, #quick-chat-launcher, .scheme-name,
-  #prefs-menu legend, .preview-eyebrow, .preview-title, .today-marker, #activity-heading, .activity-title, #mobile-sections) {
+  :is(#prefs-menu, #account-menu) legend, .preview-eyebrow, .preview-title, .today-marker, #activity-heading, .activity-title, #mobile-sections) {
   font-weight: 400; font-synthesis: none; letter-spacing: 0;
 }
 html[data-style="pixel"]:lang(zh) :is(h3, .wordmark span, .eyebrow, .edition-link, .briefing-section-nav a, .week-picker a, .weather-label,
-  #new-conversation, .toolbar-row .menu > summary, #site-update-toggle, #quick-chat-launcher, .scheme-name, #prefs-menu legend,
+  #new-conversation, .toolbar-row .menu > summary, #site-update-toggle, #quick-chat-launcher, .scheme-name, :is(#prefs-menu, #account-menu) legend,
   .settings-menu-header h2, .color-scheme-heading, .preview-eyebrow, #activity-heading, #mobile-sections, .week-picker small, .today-marker,
   .secretary-identity > p:not(.eyebrow), .chat-topic-hint, #chat-help, .settings-menu-header p) { font-size: 12px; line-height: 18px; }
 html[data-style="pixel"]:lang(zh) :is(h2, .preview-title, .activity-title) { font-size: 24px; line-height: 36px; }
@@ -171,10 +171,10 @@ html[data-style="pixel"]:lang(zh) :is(.letter-copy > .subtitle, .section-takeawa
 html[data-style="pixel"]:lang(zh) .week-picker a { word-break: keep-all; }
 html[data-style="pixel"]:lang(zh) .today-marker { white-space: nowrap; }
 /* The Soft style card keeps its rounded shapes so both styles stay recognizable. */
-html[data-style="pixel"] #prefs-menu [data-swatch="style-soft"] { border-radius: 7px; box-shadow: 0 0 0 1px var(--line); }
-html[data-style="pixel"] #prefs-menu .scheme-card input:checked + [data-swatch="style-soft"] { box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--accent); }
-html[data-style="pixel"] #prefs-menu [data-swatch="style-soft"] i:nth-child(4) { border-radius: 2px; }
-html[data-style="pixel"] #prefs-menu [data-swatch="style-soft"] i:nth-child(5) { border-radius: 3px; }
+html[data-style="pixel"] :is(#prefs-menu, #account-menu) [data-swatch="style-soft"] { border-radius: 7px; box-shadow: 0 0 0 1px var(--line); }
+html[data-style="pixel"] :is(#prefs-menu, #account-menu) .scheme-card input:checked + [data-swatch="style-soft"] { box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--accent); }
+html[data-style="pixel"] :is(#prefs-menu, #account-menu) [data-swatch="style-soft"] i:nth-child(4) { border-radius: 2px; }
+html[data-style="pixel"] :is(#prefs-menu, #account-menu) [data-swatch="style-soft"] i:nth-child(5) { border-radius: 3px; }
 
 /* Pixel sun and moon replace the soft edition artwork; Grass Block keeps its square ones. */
 html[data-style="pixel"]:not([data-edition="gn"]):not([data-day-scheme="grass-block"]) .orbit .celestial-art,

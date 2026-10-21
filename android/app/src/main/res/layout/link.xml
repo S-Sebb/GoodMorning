@@ -60,6 +60,14 @@
             android:orientation="horizontal">
 
             <Button
+                android:id="@+id/copy"
+                style="@android:style/Widget.Material.Button.Borderless.Colored"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/link_copy"
+                android:visibility="gone" />
+
+            <Button
                 android:id="@+id/again"
                 style="@android:style/Widget.Material.Button.Borderless.Colored"
                 android:layout_width="wrap_content"

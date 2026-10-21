@@ -301,13 +301,13 @@ class Gateway:
             except Exception:
                 pass  # Uncertain work keeps its reservation. Never launch work blindly.
 
-    def notify(self, user, kind, message, *, ttl=3600, urgency='normal'):
+    def notify(self, user, kind, message, *, ttl=3600, urgency='normal', only=None):
         """Sends without blocking the caller; delivery problems never affect the work itself."""
         def send():
             try:
                 if kind != 'events':  # Linked phones schedule their own event reminders.
                     app_link.record(self.accounts, user, kind, message)
-                web_push.send(self.accounts, user, message, kind=kind, ttl=ttl, urgency=urgency,
+                web_push.send(self.accounts, user, message, kind=kind, ttl=ttl, urgency=urgency, only=only,
                               subject='https://' + next(iter(self.hosts)))
             except Exception as error:
                 logging.getLogger(__name__).warning('Notification failed (%s)', type(error).__name__)
@@ -342,17 +342,19 @@ class Gateway:
             message = {'title': t('{name} could not finish', name=name), 'body': t(result.get('label') or 'Open it to see what happened.')}
         self.notify(user, 'briefing', {**message, 'url': page, 'tag': 'briefing-' + str(day) + '-' + str(edition)})
 
-    def app_sync(self, user, after):
-        """Everything the app's widgets and background check need, in one request."""
+    def app_sync(self, user, link, after):
+        """Everything the app's widgets and background check need, in one request, with this phone's own
+        notification choices; the phone names itself to the website through `device`."""
         host = next(iter(self.hosts))
         def read(path):
             status, _, raw = self.proxy(user, host, path, 'GET', None, {})
             if status != 200:
                 raise ValueError('Backend read failed')
             return json.loads(raw)
-        result = {'settings': web_push.account(self.accounts, user)['settings'],
+        chosen = next(entry['settings'] for entry in app_link.links(self.accounts, user) if entry['id'] == link)
+        result = {'device': link, 'settings': chosen,
                   'appearance': self.accounts.website_color_schemes(user) or site_colors.DEFAULT,
-                  'notifications': app_link.outbox(self.accounts, user, after)}
+                  'notifications': app_link.outbox(self.accounts, user, after, chosen)}
         for key, read_part in (('schedule', lambda: read('/api/app-schedule')),
                                ('secretary', lambda: read('/api/app-profile')),
                                ('reminders', lambda: read('/api/reminders?hours=24')['events']),
@@ -425,7 +427,10 @@ class Gateway:
             users = [key[5:] for (key,) in db.execute("SELECT key FROM metadata WHERE key LIKE 'push:%'")]
         for user in users:
             state = web_push.account(self.accounts, user)
-            if not state['settings']['events'] or not state['subscriptions']:
+            # Each device keeps its own reminders switch and lead time.
+            devices = [(web_push.device(entry['endpoint']), web_push.choices(state, entry)) for entry in state['subscriptions']]
+            devices = [(device, chosen) for device, chosen in devices if chosen['events']]
+            if not devices:
                 self.reminders.pop(user, None)
                 continue
             checked, events = self.reminders.get(user, (0, []))
@@ -436,15 +441,15 @@ class Gateway:
                 except Exception:
                     pass  # Keep the last known events; the next refresh tries again.
                 self.reminders[user] = (now, events)
-            lead = state['settings']['lead'] * 60
             lang = self.accounts.website_language(user) or 'en'
             for event in events:
-                if event['starts'] - lead <= now < event['starts'] and web_push.remembered(self.accounts, user, event['key']):
-                    body = ui.text('Starts at {time}', lang=lang, time=event['time'])
-                    if event.get('location'):
-                        body += ' · ' + event['location']
-                    self.notify(user, 'events', {'title': event['subject'], 'body': body, 'url': '/schedule?view=day', 'tag': 'event-' + event['key']},
-                                ttl=max(60, int(event['starts'] - now)), urgency='high')
+                body = ui.text('Starts at {time}', lang=lang, time=event['time'])
+                if event.get('location'):
+                    body += ' · ' + event['location']
+                for device, chosen in devices:
+                    if event['starts'] - chosen['lead'] * 60 <= now < event['starts'] and web_push.remembered(self.accounts, user, event['key'] + '@' + device):
+                        self.notify(user, 'events', {'title': event['subject'], 'body': body, 'url': '/schedule?view=day', 'tag': 'event-' + event['key']},
+                                    ttl=max(60, int(event['starts'] - now)), urgency='high', only=device)
 
     @staticmethod
     def _valid_queue_entry(entry):
@@ -956,11 +961,14 @@ def handler_for(gateway):
             except (KeyError,ValueError,CookieError):return 'en'
 
         def app_user(self):
-            """The account behind the app's token; repeated failures from one address are limited."""
-            user=app_link.verify(gateway.accounts,self.headers.get('X-GoodMorning-App'))
-            if not user:
+            """The account behind the app's token; repeated failures from one address are limited.
+            The link stays on the request; the app says whether it posts notifications itself."""
+            notifies={'app':True,'push':False}.get(self.headers.get('X-GoodMorning-Notify'))
+            found=app_link.verify(gateway.accounts,self.headers.get('X-GoodMorning-App'),notifies)
+            if not found:
                 gateway.accounts.limit([('app-token-ip:'+self.address(),30)])
-                raise Denied('Link this phone again in GoodMorning Settings.')
+                raise Denied('Link this phone again in GoodMorning under Account → Linked phones.')
+            user,self.app_link=found
             return user
 
         def app_post(self,host,path):
@@ -1082,7 +1090,7 @@ def handler_for(gateway):
                     after=parse_qs(urlsplit(self.path).query).get('after',['0'])[0]
                     if not after.isdigit():raise ValueError('Invalid cursor')
                     self.select_language({'user_id':user})
-                    return self.respond(gateway.app_sync(user,int(after)))
+                    return self.respond(gateway.app_sync(user,self.app_link,int(after)))
                 try:
                     session=self.session(host)
                 except Denied:
@@ -1129,7 +1137,8 @@ def handler_for(gateway):
                     return self.respond({'links':app_link.links(gateway.accounts,session['user_id'])})
                 if path=='/api/push':
                     return self.respond({'publicKey':web_push.public_key(gateway.accounts),
-                                         'settings':web_push.account(gateway.accounts,session['user_id'])['settings']})
+                                         'devices':web_push.devices(gateway.accounts,session['user_id']),
+                                         'links':app_link.links(gateway.accounts,session['user_id'])})
                 status,headers,data=gateway.proxy(session['user_id'],host,self.path,'GET',None,self.headers)
                 if status >= 500 and PAGE_ROUTES.fullmatch(path):
                     return self.unavailable(session,host)
@@ -1269,16 +1278,19 @@ def handler_for(gateway):
                     app_link.unlink(gateway.accounts,session['user_id'],body['id'])
                     return self.respond({'links':app_link.links(gateway.accounts,session['user_id'])})
                 if path=='/api/push/subscribe':
-                    if set(body)!={'subscription'}:raise ValueError('Invalid push subscription')
-                    web_push.subscribe(gateway.accounts,session['user_id'],body['subscription'])
-                    return self.respond({'subscribed':True})
+                    if set(body)!={'subscription','label'}:raise ValueError('Invalid push subscription')
+                    return self.respond(web_push.subscribe(gateway.accounts,session['user_id'],body['subscription'],body['label']))
                 if path=='/api/push/unsubscribe':
-                    if set(body)!={'endpoint'} or not isinstance(body['endpoint'],str):raise ValueError('Invalid push subscription')
-                    web_push.unsubscribe(gateway.accounts,session['user_id'],body['endpoint'])
-                    return self.respond({'subscribed':False})
+                    # The browser itself names its endpoint; Account turns another device off by its name.
+                    if len(body)!=1 or not isinstance(next(iter(body.values()),None),str) or set(body)-{'endpoint','device'}:raise ValueError('Invalid push subscription')
+                    web_push.unsubscribe(gateway.accounts,session['user_id'],body.get('endpoint'),identifier=body.get('device'))
+                    return self.respond({'devices':web_push.devices(gateway.accounts,session['user_id'])})
                 if path=='/api/push/settings':
-                    if set(body)!={'settings'} or not isinstance(body['settings'],dict):raise ValueError('Invalid notification settings')
-                    return self.respond({'settings':web_push.settings(gateway.accounts,session['user_id'],body['settings'])})
+                    if set(body) not in ({'device','settings'},{'link','settings'}) or not isinstance(body.get('device',body.get('link')),str):
+                        raise ValueError('Invalid notification settings')
+                    if 'device' in body:
+                        return self.respond({'settings':web_push.settings(gateway.accounts,session['user_id'],body['device'],body['settings'])})
+                    return self.respond({'settings':app_link.settings(gateway.accounts,session['user_id'],body['link'],body['settings'])})
                 # Reject incomplete setup before taking a global reservation or queue slot.
                 gateway.backend(session['user_id'])
                 if path=='/api/generate':

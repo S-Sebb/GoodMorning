@@ -105,43 +105,46 @@ html:not([data-edition="gn"])[data-day-scheme]:not([data-day-scheme="classic"]) 
 html:not([data-edition="gn"])[data-day-scheme]:not([data-day-scheme="classic"]) .menu-panel .language-toolbar button { background: var(--bg); border-color: var(--line); color: var(--ink); }
 html:not([data-edition="gn"])[data-day-scheme]:not([data-day-scheme="classic"]) .account-card :focus-visible,
 html:not([data-edition="gn"])[data-day-scheme]:not([data-day-scheme="classic"]) .toolbar-row .menu > summary:focus-visible { outline-color: var(--accent); }
-#prefs-menu > .menu-panel { display: grid; gap: 14px; width: min(460px, calc(100vw - 32px)); padding: 18px; border-radius: 18px; }
+:is(#prefs-menu, #account-menu) > .menu-panel { display: grid; gap: 14px; width: min(460px, calc(100vw - 32px)); padding: 18px; border-radius: 18px; }
 .settings-menu-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; border-bottom: 1px solid var(--line, #b4c7c0); padding-bottom: 12px; }
-#prefs-menu .settings-close { display: grid; place-items: center; width: 28px; min-width: 28px; height: 28px; min-height: 28px; padding: 0; border: 0; border-radius: 8px; background: transparent; color: var(--muted, #56746a); }
-#prefs-menu .settings-close:hover { background: var(--wash, #f2f6f5); }
+:is(#prefs-menu, #account-menu) .settings-close { display: grid; place-items: center; width: 28px; min-width: 28px; height: 28px; min-height: 28px; padding: 0; border: 0; border-radius: 8px; background: transparent; color: var(--muted, #56746a); }
+:is(#prefs-menu, #account-menu) .settings-close:hover { background: var(--wash, #f2f6f5); }
 .settings-menu-header h2 { display: flex; align-items: center; gap: 7px; font: 600 14px/1.4 ui-sans-serif, system-ui, sans-serif; letter-spacing: 0; margin: 0; }
 .settings-menu-header h2::before { content: "⚙"; font-size: 14px; font-weight: 400; line-height: 1; }
 .settings-menu-header p { font-size: 11px; line-height: 1.5; color: var(--muted, #56746a); margin: 4px 0 0; }
-#prefs-menu .language-toolbar { display: grid; justify-content: stretch; align-items: stretch; gap: 6px; width: auto; margin: 0; }
-#prefs-menu .language-toolbar label { font-size: 12px; line-height: 20px; }
-#prefs-menu .language-toolbar select { width: 100%; min-height: 44px; padding: 8px 12px; font-size: 13px; border-radius: 10px; }
-#prefs-menu #color-scheme-form { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 12px; border-top: 1px solid var(--line, #b4c7c0); padding-top: 14px; }
-#prefs-menu .color-scheme-heading { grid-column: 1 / -1; color: inherit; font: 600 12px/1.5 ui-sans-serif, system-ui, sans-serif; text-transform: none; letter-spacing: 0; margin: 0 0 4px; }
-#prefs-menu label[for="website-language"], #prefs-menu .color-scheme-heading, #prefs-menu .scheme-picker legend { display: flex; align-items: center; gap: 7px; }
-#prefs-menu label[for="website-language"]::before, #prefs-menu .color-scheme-heading::before, #prefs-menu .scheme-picker legend::before { content: ""; flex: 0 0 20px; width: 20px; height: 20px; background: var(--settings-icon) center / contain no-repeat; }
-#prefs-menu label[for="website-language"] { --settings-icon: url("icons/desk-language.svg"); }
-#prefs-menu label[for="website-model"] { --settings-icon: url("icons/desk-idea.svg"); }
-#prefs-menu .color-scheme-heading { --settings-icon: url("icons/desk-appearance.svg"); }
-#prefs-menu .notification-heading { --settings-icon: url("icons/desk-notifications.svg"); }
-#prefs-menu .app-link-heading { --settings-icon: url("icons/desk-phone.svg"); }
-#prefs-menu #app-link-code { font: inherit; letter-spacing: .08em; text-transform: uppercase; min-height: 44px; padding: .4rem .65rem; border: 1px solid var(--line); border-radius: .6rem; background: var(--bg); color: var(--ink); }
-#prefs-menu #app-links { display: grid; gap: 6px; margin: 4px 0 0; padding: 0; list-style: none; }
-#prefs-menu #app-links li { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: .8rem; }
-#prefs-menu #app-links li small { display: block; color: var(--muted); }
-#prefs-menu #app-links li button { width: auto; min-height: 36px; }
-#prefs-menu #notification-kinds { display: grid; gap: 2px; min-width: 0; margin: 4px 0 6px; padding: 0; border: 0; }
-#prefs-menu #notification-kinds legend { margin: 0 0 4px; padding: 0; font-size: 12px; }
-#prefs-menu #notification-kinds label { display: flex; align-items: center; gap: 8px; min-height: 36px; font-size: .8rem; color: inherit; }
-#prefs-menu #notification-kinds input { flex: none; width: 18px; height: 18px; margin: 0; accent-color: var(--accent); }
-#prefs-menu #notification-status, #prefs-menu .notification-note { margin: 0; font-size: .75rem; color: var(--muted); }
+:is(#prefs-menu, #account-menu) .language-toolbar { display: grid; justify-content: stretch; align-items: stretch; gap: 6px; width: auto; margin: 0; }
+:is(#prefs-menu, #account-menu) .language-toolbar label { font-size: 12px; line-height: 20px; }
+:is(#prefs-menu, #account-menu) .language-toolbar select { width: 100%; min-height: 44px; padding: 8px 12px; font-size: 13px; border-radius: 10px; }
+:is(#prefs-menu, #account-menu) #color-scheme-form { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 12px; border-top: 1px solid var(--line, #b4c7c0); padding-top: 14px; }
+:is(#prefs-menu, #account-menu) .color-scheme-heading { grid-column: 1 / -1; color: inherit; font: 600 12px/1.5 ui-sans-serif, system-ui, sans-serif; text-transform: none; letter-spacing: 0; margin: 0 0 4px; }
+:is(#prefs-menu, #account-menu) label[for="website-language"], :is(#prefs-menu, #account-menu) .color-scheme-heading, :is(#prefs-menu, #account-menu) .scheme-picker legend { display: flex; align-items: center; gap: 7px; }
+:is(#prefs-menu, #account-menu) label[for="website-language"]::before, :is(#prefs-menu, #account-menu) .color-scheme-heading::before, :is(#prefs-menu, #account-menu) .scheme-picker legend::before { content: ""; flex: 0 0 20px; width: 20px; height: 20px; background: var(--settings-icon) center / contain no-repeat; }
+:is(#prefs-menu, #account-menu) label[for="website-language"] { --settings-icon: url("icons/desk-language.svg"); }
+:is(#prefs-menu, #account-menu) label[for="website-model"] { --settings-icon: url("icons/desk-idea.svg"); }
+:is(#prefs-menu, #account-menu) .color-scheme-heading { --settings-icon: url("icons/desk-appearance.svg"); }
+:is(#prefs-menu, #account-menu) .notification-heading { --settings-icon: url("icons/desk-notifications.svg"); }
+:is(#prefs-menu, #account-menu) .app-link-heading { --settings-icon: url("icons/desk-phone.svg"); }
+:is(#prefs-menu, #account-menu) #app-link-code { font: inherit; letter-spacing: .08em; text-transform: uppercase; min-height: 44px; padding: .4rem .65rem; border: 1px solid var(--line); border-radius: .6rem; background: var(--bg); color: var(--ink); }
+:is(#prefs-menu, #account-menu) :is(#app-links, #notification-device-list) { display: grid; gap: 6px; margin: 4px 0 0; padding: 0; list-style: none; }
+:is(#prefs-menu, #account-menu) :is(#app-links, #notification-device-list) li { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: .8rem; }
+:is(#prefs-menu, #account-menu) :is(#app-links, #notification-device-list) li small { display: block; color: var(--muted); }
+:is(#prefs-menu, #account-menu) :is(#app-links, #notification-device-list) li button { width: auto; min-height: 36px; }
+#account-menu .settings-menu-header h2::before { content: none; }
+:is(#prefs-menu, #account-menu) [hidden] { display: none; }
+#account-menu :is(#app-link-form, #notification-devices, .account-tools) { border-top: 1px solid var(--line, #b4c7c0); padding-top: 14px; }
+:is(#prefs-menu, #account-menu) #notification-kinds { display: grid; gap: 2px; min-width: 0; margin: 4px 0 6px; padding: 0; border: 0; }
+:is(#prefs-menu, #account-menu) #notification-kinds legend { margin: 0 0 4px; padding: 0; font-size: 12px; }
+:is(#prefs-menu, #account-menu) #notification-kinds label { display: flex; align-items: center; gap: 8px; min-height: 36px; font-size: .8rem; color: inherit; }
+:is(#prefs-menu, #account-menu) #notification-kinds input { flex: none; width: 18px; height: 18px; margin: 0; accent-color: var(--accent); }
+:is(#prefs-menu, #account-menu) #notification-status, :is(#prefs-menu, #account-menu) .notification-note { margin: 0; font-size: .75rem; color: var(--muted); }
 #website-style > legend { --settings-icon: url("icons/desk-idea.svg"); }
 #day-color-scheme > legend { --settings-icon: url("icons/desk-morning.svg"); }
 #night-color-scheme > legend { --settings-icon: url("icons/desk-evening.svg"); }
 #color-scheme-form > * { grid-column: 1 / -1; }
 /* Scene pickers: native radios as picture cards; each swatch is a tiny page drawn in that scene's colors. */
 .scheme-picker { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px 8px; min-width: 0; margin: 4px 0 0; padding: 0; border: 0; }
-#prefs-menu .scheme-picker legend { margin: 0 0 8px; padding: 0; font-size: 12px; line-height: 20px; }
-#prefs-menu .scheme-card { position: relative; display: grid; gap: 5px; min-width: 0; font-size: 12px; line-height: 1.3; color: var(--ink); cursor: pointer; }
+:is(#prefs-menu, #account-menu) .scheme-picker legend { margin: 0 0 8px; padding: 0; font-size: 12px; line-height: 20px; }
+:is(#prefs-menu, #account-menu) .scheme-card { position: relative; display: grid; gap: 5px; min-width: 0; font-size: 12px; line-height: 1.3; color: var(--ink); cursor: pointer; }
 .scheme-card input { position: absolute; top: 0; left: 0; width: 1px; height: 1px; opacity: 0; }
 .scheme-name { font-size: 11.5px; line-height: 1.3; color: var(--muted); overflow-wrap: anywhere; }
 .scheme-card input:checked ~ .scheme-name { color: var(--ink); font-weight: 600; }
@@ -193,5 +196,5 @@ html:not([data-edition="gn"])[data-day-scheme]:not([data-day-scheme="classic"]) 
 .toolbar-row .menu-panel { max-height: calc(100svh - 100px); overflow-y: auto; overscroll-behavior-y: contain; }
 #color-scheme-feedback { font-size: .75rem; overflow-wrap: anywhere; }
 #color-scheme-feedback:empty { display: none; }
-@media (max-width: 700px) { #prefs-menu { position: static; } #prefs-menu > .menu-panel { left: 16px; right: 16px; top: calc(100% + 8px); width: auto; } }
-@media (max-width: 360px) { #prefs-menu .scheme-card { font-size: 11px; } .scheme-picker { gap: 8px 6px; } }
+@media (max-width: 700px) { :is(#prefs-menu, #account-menu) { position: static; } :is(#prefs-menu, #account-menu) > .menu-panel { left: 16px; right: 16px; top: calc(100% + 8px); width: auto; } }
+@media (max-width: 360px) { :is(#prefs-menu, #account-menu) .scheme-card { font-size: 11px; } .scheme-picker { gap: 8px 6px; } }

@@ -40,7 +40,7 @@ class AppLinkTests(unittest.TestCase):
         self.assertTrue(claimed['token'].startswith('gma_'))
         with self.assertRaises(ValueError):
             app_link.claim(self.accounts, pairing['secret'])  # Exactly once.
-        self.assertEqual(app_link.verify(self.accounts, claimed['token']), self.alice)
+        self.assertEqual(app_link.verify(self.accounts, claimed['token']), (self.alice, claimed['id']))
         self.assertIsNone(app_link.verify(self.accounts, claimed['token'] + 'x'))
         self.assertEqual([item['label'] for item in app_link.links(self.accounts, self.alice)], ['Pixel 7'])
         self.assertNotIn('hash', app_link.links(self.accounts, self.alice)[0])
@@ -61,23 +61,37 @@ class AppLinkTests(unittest.TestCase):
         first, second = self.link(), self.link(name='Tablet')
         app_link.unlink(self.accounts, self.alice, first['id'])
         self.assertIsNone(app_link.verify(self.accounts, first['token']))
-        self.assertEqual(app_link.verify(self.accounts, second['token']), self.alice)
+        self.assertEqual(app_link.verify(self.accounts, second['token']), (self.alice, second['id']))
 
-    def test_outbox_keeps_recent_allowed_status_for_linked_accounts_only(self):
+    def test_outbox_keeps_recent_status_and_each_phone_reads_only_its_kinds(self):
         message = {'title': 'Ready', 'body': 'Tap', 'url': '/', 'tag': 't'}
+        everything = web_push.DEFAULTS
         app_link.record(self.accounts, self.alice, 'chat', message)
-        self.assertEqual(app_link.outbox(self.accounts, self.alice, 0), [])  # No phone linked yet.
-        self.link()
+        self.assertEqual(app_link.outbox(self.accounts, self.alice, 0, everything), [])  # No phone linked yet.
+        phone = self.link()
         for _ in range(app_link.OUTBOX + 5):
             app_link.record(self.accounts, self.alice, 'chat', message)
-        web_push.settings(self.accounts, self.alice, {**web_push.DEFAULTS, 'briefing': False})
         app_link.record(self.accounts, self.alice, 'briefing', message)
-        recent = app_link.outbox(self.accounts, self.alice, 0)
+        recent = app_link.outbox(self.accounts, self.alice, 0, everything)
         self.assertEqual(len(recent), app_link.OUTBOX)
-        self.assertEqual((recent[-1]['seq'], recent[-1]['kind']), (app_link.OUTBOX + 5, 'chat'))
-        self.assertEqual(app_link.outbox(self.accounts, self.alice, recent[-1]['seq']), [])
-        self.assertEqual(app_link.outbox(self.accounts, self.bob, 0), [])
+        self.assertEqual((recent[-1]['seq'], recent[-1]['kind']), (app_link.OUTBOX + 6, 'briefing'))
+        self.assertEqual(app_link.outbox(self.accounts, self.alice, recent[-1]['seq'], everything), [])
+        self.assertEqual(app_link.outbox(self.accounts, self.bob, 0, everything), [])
+        quiet = app_link.settings(self.accounts, self.alice, phone['id'], {**everything, 'chat': False})
+        self.assertEqual({item['kind'] for item in app_link.outbox(self.accounts, self.alice, 0, quiet)}, {'briefing'})
+        self.assertEqual(app_link.links(self.accounts, self.alice)[0]['settings'], quiet)
+        with self.assertRaises(ValueError):
+            app_link.settings(self.accounts, self.bob, phone['id'], everything)  # Not Bob's phone.
 
+    def test_the_app_reports_whether_it_posts_notifications_itself(self):
+        phone = self.link()
+        self.assertFalse(app_link.links(self.accounts, self.alice)[0]['notifies'])
+        app_link.verify(self.accounts, phone['token'], True)
+        self.assertTrue(app_link.links(self.accounts, self.alice)[0]['notifies'])
+        app_link.verify(self.accounts, phone['token'])  # Older apps do not say; nothing changes.
+        self.assertTrue(app_link.links(self.accounts, self.alice)[0]['notifies'])
+        app_link.verify(self.accounts, phone['token'], False)
+        self.assertFalse(app_link.links(self.accounts, self.alice)[0]['notifies'])
 
 if __name__ == '__main__':
     unittest.main()
