@@ -50,12 +50,18 @@
             android:layout_width="wrap_content"
             android:layout_height="40dp"
             android:text="@string/chat_open"
+            android:textAllCaps="false"
             android:textColor="@color/sun" />
 
         <Button
             android:id="@+id/ask"
             android:layout_width="wrap_content"
             android:layout_height="40dp"
-            android:text="@string/chat_ask" />
+            android:background="@drawable/widget_button"
+            android:minWidth="88dp"
+            android:paddingHorizontal="20dp"
+            android:text="@string/chat_ask"
+            android:textAllCaps="false"
+            android:textColor="#FFFFFFFF" />
     </LinearLayout>
 </LinearLayout>

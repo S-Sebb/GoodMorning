@@ -14,6 +14,7 @@ import android.webkit.WebResourceRequest;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
+import android.widget.FrameLayout;
 import android.window.OnBackInvokedDispatcher;
 
 /**
@@ -30,9 +31,12 @@ public class WebActivity extends Activity {
     protected void onCreate(Bundle state) {
         super.onCreate(state);
         web = new WebView(this);
-        setContentView(web);
+        // A WebView ignores its own padding, so system bars and the keyboard pad a container instead.
+        FrameLayout frame = new FrameLayout(this);
+        frame.addView(web);
+        setContentView(frame);
         if (Build.VERSION.SDK_INT >= 30) {
-            web.setOnApplyWindowInsetsListener((view, insets) -> {
+            frame.setOnApplyWindowInsetsListener((view, insets) -> {
                 Insets bars = insets.getInsets(android.view.WindowInsets.Type.systemBars() | android.view.WindowInsets.Type.ime());
                 view.setPadding(bars.left, bars.top, bars.right, bars.bottom);
                 return insets;

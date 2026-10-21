@@ -76,7 +76,7 @@
             android:excludeFromRecents="true"
             android:exported="false"
             android:taskAffinity=""
-            android:theme="@style/Dialog"
+            android:theme="@style/AskDialog"
             android:windowSoftInputMode="adjustResize" />
 
         <receiver android:name=".Widgets$Today" android:exported="false" android:label="@string/widget_today_name">

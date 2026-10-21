@@ -40,6 +40,7 @@
             android:fontFamily="monospace"
             android:gravity="center"
             android:letterSpacing="0.1"
+            android:textColor="@color/ink"
             android:textIsSelectable="true"
             android:textSize="36sp"
             android:textStyle="bold" />

@@ -42,6 +42,9 @@ public abstract class Widgets extends AppWidgetProvider {
         @Override
         RemoteViews draw(Context context, int id) {
             RemoteViews views = new RemoteViews(context.getPackageName(), R.layout.widget_chat);
+            // Text from layouts follows the launcher's language; the app's own language must be set here.
+            views.setTextViewText(R.id.open, context.getString(R.string.chat_open));
+            views.setTextViewText(R.id.ask, context.getString(R.string.chat_ask));
             if (!Sync.linked(context)) {
                 views.setTextViewText(R.id.title, context.getString(R.string.widget_chat_name));
                 views.setTextViewText(R.id.state, "");
@@ -111,6 +114,8 @@ public abstract class Widgets extends AppWidgetProvider {
 
     RemoteViews list(Context context, int id, String kind) {
         RemoteViews views = new RemoteViews(context.getPackageName(), R.layout.widget_list);
+        views.setTextViewText(R.id.link, context.getString(R.string.widget_link));
+        views.setContentDescription(R.id.refresh, context.getString(R.string.widget_refresh));
         boolean linked = Sync.linked(context);
         JSONObject schedule = Sync.cached(context).optJSONObject("schedule");
         String today = schedule == null ? "" : schedule.optString("today");

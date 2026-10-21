@@ -64,4 +64,8 @@
     <string name="channel_reminders">日程提醒</string>
     <string name="reminder_body">开始于 %1$s</string>
     <string name="reminder_body_place">开始于 %1$s · %2$s</string>
+    <string name="preview_event_one">团队碰头</string>
+    <string name="preview_event_two">看牙</string>
+    <string name="preview_place">2 号工作室</string>
+    <string name="preview_reply">你今晚的安排：7 点吃饭，然后留一小时写报告。</string>
 </resources>
