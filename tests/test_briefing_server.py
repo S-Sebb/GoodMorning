@@ -115,6 +115,17 @@ class LiveTests(unittest.TestCase):
         with self.assertRaises(ValueError): self.app.page('2026-10-03','gm',True)
         self.assertEqual(self.chamber.calls, [])
 
+    def test_widget_weather_rows_use_the_frame_headlines(self):
+        from goodmorning.web.app_briefings import document
+        frame = {'start': '2026-10-10T06:00', 'past': 1, 'hours': [[10 + h / 4, 80 if h >= 15 else 5, 30] for h in range(18)],
+                 'sun': [], 'night': [], 'snow': False,
+                 'links': {'forecast': 'https://open-meteo.com/en/docs', 'air': 'https://open-meteo.com/en/docs/air-quality-api'}}
+        data = {'greeting': 'Morning', 'opening': 'Hi', 'sections': [['weather', [['weather', [
+            ['temperature', '12°C', 'Mild.'], ['precipitation', '80% – Rain likely', 'Umbrella after 21:00.']], frame]]]]}
+        rows = document(data, '2026-10-10')['sections'][0]['rows']
+        self.assertEqual([(row['side'], row['text']) for row in rows],
+                         [('14°', 'High · low 10° · Mild.'), ('Dry until 21:00', 'Then rain likely · up to 80% · Umbrella after 21:00.')])
+
     def test_widget_briefings_are_plain_rows_and_follow_preparation(self):
         from goodmorning.web.app_briefings import summary
         self.assertEqual(summary(self.app), {'date': '2026-10-10', 'editions': {'gm': {'state': 'missing'}, 'gn': {'state': 'missing'}}})

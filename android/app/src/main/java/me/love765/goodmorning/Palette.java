@@ -65,11 +65,16 @@ final class Palette {
     }
 
     static void color(Context context, RemoteViews views, Palette[] schemes, int id, String method, Pick pick) {
+        pair(context, views, id, method, pick.from(schemes[0]), pick.from(schemes[1]));
+    }
+
+    /** A fixed day and night color, switched by the launcher on Android 12+. */
+    static void pair(Context context, RemoteViews views, int id, String method, int day, int night) {
         if (Build.VERSION.SDK_INT >= 31) {
-            views.setColorInt(id, method, pick.from(schemes[0]), pick.from(schemes[1]));
+            views.setColorInt(id, method, day, night);
         } else {
-            boolean night = (context.getResources().getConfiguration().uiMode & Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES;
-            views.setInt(id, method, pick.from(schemes[night ? 1 : 0]));
+            boolean dark = (context.getResources().getConfiguration().uiMode & Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES;
+            views.setInt(id, method, dark ? night : day);
         }
     }
 

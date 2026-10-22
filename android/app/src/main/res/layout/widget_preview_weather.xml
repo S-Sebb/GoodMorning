@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Sample content for the widget picker, in the website's default colors. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/preview_card"
+    android:orientation="vertical"
+    android:padding="10dp">
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginStart="6dp" android:gravity="center_vertical">
+        <ImageView android:layout_width="24dp" android:layout_height="24dp" android:importantForAccessibility="no" android:src="@drawable/ic_sun" android:tint="@color/preview_accent" tools:ignore="UseAppTint" />
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginStart="10dp" android:fontFamily="serif" android:text="@string/widget_weather_name" android:textColor="@color/preview_ink" android:textSize="17sp" />
+    </LinearLayout>
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="6dp" android:orientation="horizontal">
+    <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:layout_marginStart="3dp" android:layout_marginEnd="3dp" android:background="@drawable/preview_card" android:backgroundTint="#EDF4F8" android:orientation="vertical" android:padding="10dp">
+        <LinearLayout android:layout_width="wrap_content" android:layout_height="wrap_content" android:gravity="center_vertical">
+            <ImageView android:layout_width="14dp" android:layout_height="14dp" android:importantForAccessibility="no" android:src="@drawable/ic_thermometer" android:tint="#316D97" tools:ignore="UseAppTint" />
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginStart="6dp" android:letterSpacing="0.14" android:text="@string/weather_temperature" android:textAllCaps="true" android:textColor="#316D97" android:textSize="10sp" android:textStyle="bold" />
+        </LinearLayout>
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="14°" android:textColor="#316D97" android:textSize="17sp" />
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/preview_weather_high_low" android:textColor="#316D97" android:textSize="12sp" />
+    </LinearLayout>
+    <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:layout_marginStart="3dp" android:layout_marginEnd="3dp" android:background="@drawable/preview_card" android:backgroundTint="#F1EEF8" android:orientation="vertical" android:padding="10dp">
+        <LinearLayout android:layout_width="wrap_content" android:layout_height="wrap_content" android:gravity="center_vertical">
+            <ImageView android:layout_width="14dp" android:layout_height="14dp" android:importantForAccessibility="no" android:src="@drawable/ic_rain" android:tint="#706392" tools:ignore="UseAppTint" />
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginStart="6dp" android:letterSpacing="0.14" android:text="@string/weather_precipitation" android:textAllCaps="true" android:textColor="#706392" android:textSize="10sp" android:textStyle="bold" />
+        </LinearLayout>
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/preview_weather_dry_until" android:textColor="#706392" android:textSize="17sp" />
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/preview_weather_then_rain" android:textColor="#706392" android:textSize="12sp" />
+    </LinearLayout>
+    <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:layout_marginStart="3dp" android:layout_marginEnd="3dp" android:background="@drawable/preview_card" android:backgroundTint="#EDF5EE" android:orientation="vertical" android:padding="10dp">
+        <LinearLayout android:layout_width="wrap_content" android:layout_height="wrap_content" android:gravity="center_vertical">
+            <ImageView android:layout_width="14dp" android:layout_height="14dp" android:importantForAccessibility="no" android:src="@drawable/ic_leaf" android:tint="#387559" tools:ignore="UseAppTint" />
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginStart="6dp" android:letterSpacing="0.14" android:text="@string/weather_air" android:textAllCaps="true" android:textColor="#387559" android:textSize="10sp" android:textStyle="bold" />
+        </LinearLayout>
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/weather_aqi_good" android:textColor="#387559" android:textSize="17sp" />
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/preview_weather_aqi" android:textColor="#387559" android:textSize="12sp" />
+    </LinearLayout>
+    </LinearLayout>
+</LinearLayout>

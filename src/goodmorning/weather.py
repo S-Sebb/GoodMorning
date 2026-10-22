@@ -632,7 +632,18 @@ def brief(out):
     return "\n".join(lines)
 
 
-def main(argv=None):
+def widget(runtime):
+    """The phone widgets' forecast: the account's own city and cache, read the way the briefing reads it."""
+    try:
+        out = read(arguments(["--secretary-dir", str(runtime), "--timeout", "5"]))
+    except WeatherError:
+        out = {}
+    if not out.get("frame"):
+        return {"error": "Forecast unavailable"}
+    return {"city": out["city"], "frame": out["frame"]}
+
+
+def arguments(argv=None):
     ap = argparse.ArgumentParser(description="GoodMorning weather + AQI fetch (free sources only)")
     ap.add_argument("--city", default="")
     ap.add_argument("--region", choices=["global", "mainland-china"], default="")
@@ -655,79 +666,89 @@ def main(argv=None):
         a.profile = a.profile or str(runtime / 'profile.md')
         a.cache_dir = a.cache_dir or str(runtime / 'cache')
     a.cache_dir = a.cache_dir or str(cache_path())
+    return a
 
+
+def read(a):
+    """The weather, AQI and forecast frame for parsed arguments; raises WeatherError when weather is unavailable."""
+    from .runtime_files import cache_path
     prof_city, _ = parse_profile(find_profile(a.profile or None))
     city = a.city or os.environ.get("GM_CITY") or os.environ.get("CITY") or prof_city
     waqi_tok = os.environ.get("WAQI_TOKEN") or os.environ.get("WAQI_API_TOKEN", "")
+    if not math.isfinite(a.timeout) or a.timeout <= 0:
+        raise WeatherError("--timeout must be a positive finite number")
+    if a.aqi_source == "waqi" and not waqi_tok:
+        raise WeatherError("WAQI_TOKEN missing; get a free token at https://aqicn.org/data-platform/token/")
+    cache = Cache(None if a.no_cache else cache_path(a.cache_dir) / "weather", a.refresh)
+    location = {}
+    if a.lat is not None or a.lon is not None:
+        validate_coordinates(a.lat, a.lon)
+        lat, lon = a.lat, a.lon
+        city = a.city or f"{lat:g},{lon:g}"
+    else:
+        if not city:
+            raise WeatherError("no city; pass --city, set GM_CITY, or set city in secretary/profile.md")
+        location = cache.get("geocode:v2:" + city.casefold().strip(),
+                             lambda: openmeteo_geocode(city, a.timeout), GEOCODE_TTL,
+                             stale_limit=365 * 86400)
+        lat, lon, city = location["latitude"], location["longitude"], location["city"]
+    key = f"{lat},{lon}"
+    jobs = {"weather": lambda: cache.get("weather:" + key,
+            lambda: fetch_openmeteo(city, lat, lon, a.timeout), WEATHER_TTL, STALE_LIMIT, daily=True)}
+    if a.aqi_source in ("auto", "open-meteo"):
+        jobs["model"] = lambda: cache.get("aqi:" + key,
+            lambda: fetch_aqi_openmeteo(lat, lon, a.timeout), AQI_TTL, STALE_LIMIT, daily=True)
+    if waqi_tok and a.aqi_source in ("auto", "waqi"):
+        # WAQI forbids redistribution of cached/archive data. Keep station data live-only.
+        jobs["station"] = lambda: fetch_aqi_waqi(lat=lat, lon=lon, token=waqi_tok, timeout=a.timeout)
+    results, warnings = {}, []
+    with ThreadPoolExecutor(max_workers=len(jobs)) as pool:
+        futures = {name: pool.submit(fetch) for name, fetch in jobs.items()}
+        for name, future in futures.items():
+            try:
+                results[name] = future.result()
+            except (WeatherError, KeyError, TypeError, ValueError, AttributeError) as e:
+                message = str(e) if isinstance(e, WeatherError) else "invalid provider response"
+                if name == "weather":
+                    raise WeatherError("weather unavailable: " + message) from None
+                results[name] = {"error": message, "source": "waqi-station" if name == "station" else "open-meteo/cams-model"}
+                warnings.append(name + ": " + message)
+    out = results["weather"]
+    out["city"] = city  # Labels are not part of the coordinate-keyed cache.
+    out["latitude"], out["longitude"] = lat, lon
+    if location.get("country"):
+        out["country"], out["admin1"] = location["country"], location.get("admin1")
+    for name in ("weather", "model"):
+        if results.get(name, {}).get("cache_state") == "stale":
+            warnings.append(name + ": using stale same-day data (" + results[name]["error"] + ")")
+    if location.get("cache_state") == "stale":
+        warnings.append("geocode: using saved coordinates")
+    model, station = results.get("model"), results.get("station")
+    if model and model.get("us_aqi") is not None:
+        aqi = {**model}
+        if station:
+            aqi["station"] = station
+    elif station and station.get("us_aqi") is not None:
+        aqi = {**station}
+        if model:
+            aqi["model"] = model
+    else:
+        aqi = model or station
+    out.update(aqi=aqi, aqi_source=a.aqi_source, warnings=warnings)
+    frame = forecast_frame(out, aqi)
+    if frame:
+        apply_frame(out, frame)
+    out.pop("hourly", None)
+    for value in (aqi, (aqi or {}).get("model")):
+        if isinstance(value, dict):
+            value.pop("hourly", None)
+    return out
 
+
+def main(argv=None):
+    a = arguments(argv)
     try:
-        if not math.isfinite(a.timeout) or a.timeout <= 0:
-            raise WeatherError("--timeout must be a positive finite number")
-        if a.aqi_source == "waqi" and not waqi_tok:
-            raise WeatherError("WAQI_TOKEN missing; get a free token at https://aqicn.org/data-platform/token/")
-        cache = Cache(None if a.no_cache else cache_path(a.cache_dir) / "weather", a.refresh)
-        location = {}
-        if a.lat is not None or a.lon is not None:
-            validate_coordinates(a.lat, a.lon)
-            lat, lon = a.lat, a.lon
-            city = a.city or f"{lat:g},{lon:g}"
-        else:
-            if not city:
-                raise WeatherError("no city; pass --city, set GM_CITY, or set city in secretary/profile.md")
-            location = cache.get("geocode:v2:" + city.casefold().strip(),
-                                 lambda: openmeteo_geocode(city, a.timeout), GEOCODE_TTL,
-                                 stale_limit=365 * 86400)
-            lat, lon, city = location["latitude"], location["longitude"], location["city"]
-        key = f"{lat},{lon}"
-        jobs = {"weather": lambda: cache.get("weather:" + key,
-                lambda: fetch_openmeteo(city, lat, lon, a.timeout), WEATHER_TTL, STALE_LIMIT, daily=True)}
-        if a.aqi_source in ("auto", "open-meteo"):
-            jobs["model"] = lambda: cache.get("aqi:" + key,
-                lambda: fetch_aqi_openmeteo(lat, lon, a.timeout), AQI_TTL, STALE_LIMIT, daily=True)
-        if waqi_tok and a.aqi_source in ("auto", "waqi"):
-            # WAQI forbids redistribution of cached/archive data. Keep station data live-only.
-            jobs["station"] = lambda: fetch_aqi_waqi(lat=lat, lon=lon, token=waqi_tok, timeout=a.timeout)
-        results, warnings = {}, []
-        with ThreadPoolExecutor(max_workers=len(jobs)) as pool:
-            futures = {name: pool.submit(fetch) for name, fetch in jobs.items()}
-            for name, future in futures.items():
-                try:
-                    results[name] = future.result()
-                except (WeatherError, KeyError, TypeError, ValueError, AttributeError) as e:
-                    message = str(e) if isinstance(e, WeatherError) else "invalid provider response"
-                    if name == "weather":
-                        raise WeatherError("weather unavailable: " + message) from None
-                    results[name] = {"error": message, "source": "waqi-station" if name == "station" else "open-meteo/cams-model"}
-                    warnings.append(name + ": " + message)
-        out = results["weather"]
-        out["city"] = city  # Labels are not part of the coordinate-keyed cache.
-        out["latitude"], out["longitude"] = lat, lon
-        if location.get("country"):
-            out["country"], out["admin1"] = location["country"], location.get("admin1")
-        for name in ("weather", "model"):
-            if results.get(name, {}).get("cache_state") == "stale":
-                warnings.append(name + ": using stale same-day data (" + results[name]["error"] + ")")
-        if location.get("cache_state") == "stale":
-            warnings.append("geocode: using saved coordinates")
-        model, station = results.get("model"), results.get("station")
-        if model and model.get("us_aqi") is not None:
-            aqi = {**model}
-            if station:
-                aqi["station"] = station
-        elif station and station.get("us_aqi") is not None:
-            aqi = {**station}
-            if model:
-                aqi["model"] = model
-        else:
-            aqi = model or station
-        out.update(aqi=aqi, aqi_source=a.aqi_source, warnings=warnings)
-        frame = forecast_frame(out, aqi)
-        if frame:
-            apply_frame(out, frame)
-        out.pop("hourly", None)
-        for value in (aqi, (aqi or {}).get("model")):
-            if isinstance(value, dict):
-                value.pop("hourly", None)
+        out = read(a)
         print(json.dumps(out, ensure_ascii=False, separators=(",", ":"), allow_nan=False) if a.json else brief(out))
         return 0
     except WeatherError as e:

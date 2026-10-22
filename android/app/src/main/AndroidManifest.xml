@@ -112,6 +112,26 @@
             <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
             <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_news" />
         </receiver>
+        <receiver android:name=".Widgets$Weather" android:exported="false" android:label="@string/widget_weather_name">
+            <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_weather" />
+        </receiver>
+        <receiver android:name=".Widgets$WeatherFull" android:exported="false" android:label="@string/widget_weather_full_name">
+            <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_weather_full" />
+        </receiver>
+        <receiver android:name=".Widgets$Temperature" android:exported="false" android:label="@string/widget_temperature_name">
+            <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_temperature" />
+        </receiver>
+        <receiver android:name=".Widgets$Rain" android:exported="false" android:label="@string/widget_rain_name">
+            <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_rain" />
+        </receiver>
+        <receiver android:name=".Widgets$Air" android:exported="false" android:label="@string/widget_air_name">
+            <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_air" />
+        </receiver>
         <receiver android:name=".Reminders" android:exported="false" />
 
         <service
