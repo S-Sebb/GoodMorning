@@ -22,9 +22,12 @@ from goodmorning.calendar.calendar_store import CalendarStore
 from goodmorning.web.briefing_server import BrowserApp
 from goodmorning.web.models import MODELS, session_payload
 
-# The real CLI with command logging only: no provider faults.
-LOGGING_CLI = (TRIAL_CLI.replace("if sys.argv[1:2] in (['weather'],['news']):", "if False:")
-               .replace("if argv[:1] in (['weather'],['news']) else", "if False else"))
+# The real CLI with command logging only: no provider faults or synthetic weather.
+FAULTS = ("if argv[:1]==['weather']:", "if argv[:1]==['news'] else", "if sys.argv[1:2]==['weather']:", "elif sys.argv[1:2]==['news']:")
+assert all(TRIAL_CLI.count(fault) == 1 for fault in FAULTS), 'Trial CLI changed; update the fault switches'
+LOGGING_CLI = TRIAL_CLI
+for fault in FAULTS:
+    LOGGING_CLI = LOGGING_CLI.replace(fault, fault.split('if', 1)[0] + 'if False' + (' else' if fault.endswith('else') else ':'))
 
 
 def source_copy(folder):
