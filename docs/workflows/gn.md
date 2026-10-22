@@ -5,32 +5,28 @@ description: Evening review of reported outcomes, tomorrow's Schedule and Tasks,
 
 # Evening briefing
 
-Trigger: `/gn` or an evening-review request. Inputs: confirmed runtime/session/date,
+Trigger: a website evening-briefing job (`/gn`). Inputs: the job's runtime/session/date,
 language, actual user feedback and current records. Result: a verified native v2
 evening edition and browser link, not inferred completion or a rescheduled plan.
 
-Read `docs/core-rules.md`, `docs/item-taxonomy.md`, `docs/briefing-format.md` and
-`docs/reply-voice.md` for local runs. Browser jobs follow their receipts' step
-guides instead (`docs/browser-generation.md`) and open these docs only for
-feedback no guide covers.
+Browser jobs follow their receipts' step guides (`docs/browser-generation.md`) and
+open `docs/core-rules.md`, `docs/item-taxonomy.md`, `docs/briefing-format.md` or
+`docs/reply-voice.md` only for feedback no guide covers.
 Use selected absolute paths, actual session, pinned date and confirmed language.
 Every visible sentence, from the first progress update through questions and the
 final link, uses `Website language` and the saved tone. For `zh-CN`, describe
 feedback and blockers in Chinese too; English planning notes are not user replies.
 
-1. Browser jobs start with `job prepare`, then follow its receipt: immediately init
+1. Start with `job prepare`, then follow its receipt: immediately init
    a fresh preview with the default plan, or resume an existing checkpoint.
-   Do not run local preparation or re-ask saved browser feedback. Preflight already asks
+   Do not re-ask saved browser feedback. Preflight already asks
     which of today's planned occurrences were fully completed in a due-today check,
     plus an optional Future tasks check for saved morning tasks finished early,
     and for partial, blocked, changed or additional work. With no choices, it asks about actual
     accomplishments/progress instead of showing an empty checklist. Celebrate
     confirmed accomplishments and make unfinished reviewed work visible without
     implying every unchecked morning option was due today. Reuse saved exact answers; never apply
-   completions again. Local invocations use `workflow --prepare gn` once and ask
-   about actual work, not the entire undated project backlog. Handle setup,
-   migration, duplicates and local missing-edition choices before collection.
-   Browser jobs use their pinned current day without gap reconstruction.
+   completions again. Use the pinned current day without gap reconstruction.
    Do not save or mark a waiting edition.
 2. Today's review reports actual completions, partial progress and blockers without
    exaggeration. If no plan exists, ask about actual work without inventing a plan.
@@ -95,7 +91,7 @@ feedback and blockers in Chinese too; English planning notes are not user replie
    Clear ideas are not automatic nightly questions. Ask before changing dates;
    unanswered optional decisions do not block confirmed outcome reporting.
 7. No routine weather/news. Finish with a grounded closing in the user's tone.
-   Browser jobs finish through `job`; local native v2 JSON saves use `state --mark-gn`.
+   Finish through `job`.
    Save/check success once; no snapshot-to-task writes, execution, silent
    rescheduling or completion inference. Return the browser link, not copies.
 
@@ -108,8 +104,8 @@ feedback and blockers in Chinese too; English planning notes are not user replie
     block unchanged; the note gives each market's day result from `markets`. A
     failed read says only that stock prices could not be checked.
 
-Keep the order Today, Schedule, Tasks, Reminders, then New episodes, Game sales and Stocks when on. Browser jobs use `skip` only for
-empty optional positions; local JSON omits those sections. Never hide a material
+Keep the order Today, Schedule, Tasks, Reminders, then New episodes, Game sales and Stocks when on. Use `skip` only for
+empty optional positions. Never hide a material
 retrieval failure. Check each receipt.
 Conflicts require a targeted reread; uncertain writes require inspection and the
 original key/input. Never replay saved completions or mutate immutable sections.

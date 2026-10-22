@@ -15,7 +15,6 @@ from unittest.mock import patch
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 from goodmorning.news import news
 from goodmorning.news.news_rank import POLICY, importance
-from goodmorning.news.news_reports import context_key
 from goodmorning.news.news_cache import Fetcher, NewsCache, SourceUnavailable
 
 DAY = dt.date(2026, 10, 8)
@@ -129,7 +128,7 @@ class QualityTests(unittest.TestCase):
 
     def test_default_policy_has_one_report_namespace(self):
         cfg = {"feeds": [], "countries": {"GB": []}}
-        self.assertEqual(context_key("UTC", "GB", cfg), context_key("UTC", "GB", {**cfg, "ranking_policy": POLICY}))
+        self.assertEqual(news.context_key("UTC", "GB", cfg), news.context_key("UTC", "GB", {**cfg, "ranking_policy": POLICY}))
 
     def test_discovery_dates_are_not_claimed_as_publication(self):
         story = news.group_stories([item("OpenAI releases reasoning model", date_basis="submitted", role="discovery")])[0]
@@ -186,7 +185,6 @@ class LatestTests(unittest.TestCase):
         self.assertEqual(data["scope"],"latest_24h")
         # One period across midnight: 11:00 and 23:00 yesterday and 10:00 today, never before the window or after the cutoff.
         self.assertEqual(sorted(story["title"] for story in data["candidates"]),sorted(titles[1:4]))
-        self.assertFalse((Path(self.tmp.name)/"news_reports.sqlite").exists())
 
     def test_latest_cutoff_cannot_be_in_the_future(self):
         with patch.object(news.dt,"datetime",Clock),self.assertRaises(SystemExit),contextlib.redirect_stderr(io.StringIO()):

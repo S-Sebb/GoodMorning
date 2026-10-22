@@ -20,23 +20,18 @@ reference adds operation-specific details; it does not override core gates or
 | Detailed replies, tone and grounded personalization | `docs/reply-voice.md` |
 | Chinese interface copy, `translations.json` keys and placeholders | `docs/chinese-copy.md` |
 
-## Preparation and local titles
+## Preparation and titles
 
-Use `workflow --prepare KIND` once, or direct `workflow --capture todo|eureka` for
-clear new input. Do not separately read full profiles/daily history/state to
-duplicate helper context. Browser jobs use their saved `job prepare` instead.
-Pass absolute selected runtime/cache/profile/calendar paths and keep sandbox
-tmp/cache under its selected runtime. Missing optional preferences, bad optional
-calendar configuration or provider outages do not erase confirmed setup.
+Chats use `workflow --prepare secretary|todo|eureka` once, or direct
+`workflow --capture todo|eureka` for clear new input; briefing jobs use their saved
+`job prepare`. Do not separately read full profiles/daily history/state to
+duplicate helper context. Pass absolute selected runtime/cache/profile/calendar
+paths and keep sandbox tmp/cache under its selected runtime. Missing optional
+preferences, bad optional calendar configuration or provider outages do not erase
+confirmed setup.
 
-Core title rules apply only to local sessions and briefing jobs; browser chat
-titles remain native-engine-owned. Local Secretary/Eureka/Todo summaries are
-short (about six words), single-line, credential-free and undated. Eureka uses
-raw summary wording; Todo uses the revised title. Translate only the prefix;
-bilingual/follow-message language follows the current turn. Rename once when the
-request/date is known, only after successful capture for Eureka/Todo. Rename
-failure is non-blocking. Use no invented session identity. Local historical/gap
-choices follow core rules; browser jobs never reconstruct gaps.
+Session titles belong to the website; never rename a session. Browser jobs never
+reconstruct archive gaps.
 
 ## Questions and record-only capture
 

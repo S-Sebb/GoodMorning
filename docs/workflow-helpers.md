@@ -31,13 +31,9 @@ python scripts/goodmorning.py workflow --secretary-dir RUNTIME --prepare secreta
 This returns relevant confirmed preferences (including optional `secretary_name` for self-reference and website labels, and `user_name` for addressing the user), local date/adjacent dates, resolved
 paths, bounded daily tasks and active inbox summaries. No provider or remote
 project access, setup writes, snapshot reads, briefing marks or index rebuild/save.
-Duplicate gm/gn returns only the original session/pointer and stop instruction,
-before loading tasks/inbox content. Missed-day metadata shows the oldest; the
-agent asks once which date to work on for local requests. Browser jobs instead use
-`job prepare` with their pinned current date and never reconstruct archive gaps.
-Continue task/inbox pages only as needed.
-Fetch weather/news only when the agent has resolved duplicate/missed/setup gates.
-For capture with supplied raw input, skip preparation and use the fast path.
+Briefings never prepare here: browser jobs use `job prepare` with their pinned
+current date and never reconstruct archive gaps. Continue task/inbox pages only as
+needed. For capture with supplied raw input, skip preparation and use the fast path.
 
 English title suggestions are deterministic. For other languages, `title:null`
 means translate the workflow prefix using the confirmed language, not guess a
@@ -110,21 +106,18 @@ Amendment JSON example:
   check detects many outside edits, not an impossible cross-editor transaction.
   A conflict requires a focused reread/reconciliation. Repeat exact amendments
   with a fresh hash after verifying an uncertain outcome; dedup makes them no-ops.
-- After daily amendments, mark gm/gn using the exact answer file/stdin through
-  `scripts/goodmorning.py state`. Do not mark a waiting `/gn`, acknowledge news, or alter snapshots
-  during a normal amendment. Index reads/marking already rescan current records;
+- Daily amendments never mark gm/gn or alter snapshots; only a browser job's
+  `finish` saves an edition. Index reads already rescan current records;
   do not run a redundant `--rebuild` after every edit.
 
 ## News and calendar reads
 
-`python scripts/goodmorning.py news --show DATE --view candidates --limit 10 --offset N` returns complete
-candidate records and a `next_offset`, preserving IDs and current report ID. Read
-all pages needed for editorial judgment; pagination is not permission to ignore
-evidence. `--view stories` returns every selected story, source/summary/date,
-coverage warning and review state without reprinting candidate/diagnostic history.
-`--curate ... --view stories` returns the saved reviewed stories directly; no
-second `--show` is needed. The full view remains for explicitly requested diagnostics.
-None of these commands acknowledge delivery or automate editorial judgment.
+`python scripts/goodmorning.py news --latest --format json --view sections` lists
+each section's picks and strongest other candidates; `--view candidates --limit 10
+--offset N` pages the complete pool with a `next_offset`, and `--view stories`
+returns the selected stories with coverage warnings. Read all pages needed for
+editorial judgment; pagination is not permission to ignore evidence. Reads save
+nothing and do not automate editorial judgment.
 
 Calendar `--json --details` on a narrow window includes actual notes and
 organizer in one query. No per-event detail reread unless examining an import/

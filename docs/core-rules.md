@@ -29,11 +29,12 @@ that a deadline is easy, sufficient or achievable without evidence about the wor
 - Change records only through helpers (profile lines excepted); never write SQLite
   or JSON stores directly. Undo a mistaken save with a revision-checked update to
   `status:"cancelled"`, never deletion.
-- General work/local briefings use `python scripts/goodmorning.py workflow --prepare KIND`
+- Chat work uses `python scripts/goodmorning.py workflow --prepare secretary|todo|eureka`
   once for confirmed preferences, dates, paths and bounded context. It does not
   fetch, initialize, execute or mark runs. Clear capture uses its direct helper below.
+  Briefings run only as browser jobs through `job prepare`.
 - Missing setup follows `docs/workflows/secretary.md`: secretary name first; how
-  to call the user second; reply language third for local use only; remaining missing answers in small groups.
+  to call the user second; remaining missing answers in small groups.
   Reuse confirmed answers, allow optional skips and never infer preferences/permissions.
   Optional provider failures leave setup saved; installation grants no setup/access/write consent.
 - Use the actual session ID/label for `--session` and calendar `--actor`; ask if
@@ -43,12 +44,9 @@ that a deadline is easy, sufficient or achievable without evidence about the wor
 
 - Browser requests supply `Website language: en|zh-CN`. Use it for every visible
   reply, question, title, error and briefing string; preserve literal names/code/paths/
-  source quotes. It overrides local reply preferences, not earlier records/replies.
+  source quotes. It overrides saved reply preferences, not earlier records/replies.
   Pass `--website-language CODE` to setup/workflow helpers; jobs use saved language.
-  Never ask for another browser reply language or rewrite local `secretary_language`.
-- Local replies/questions/titles follow confirmed `secretary_language`, including
-  explicit bilingual/follow-message choices. Ask for a missing required language;
-  do not infer it from location/news or reset other answers.
+  Never ask for another reply language or rewrite saved `secretary_language`.
 - `secretary_name` names the assistant only. The optional `user_name` (browser
   chats: `Call the user`) is the only name to call the user, spelled exactly;
   without it, greet unnamed. Use it rarely, as a person would: most replies and
@@ -57,14 +55,8 @@ that a deadline is easy, sufficient or achievable without evidence about the wor
   never in routine answers or confirmations, progress lines, questions, errors,
   section notes or saved records. Ask for it only during setup or when the user
   asks to change it, never just for a briefing. Do not infer expertise from occupation.
-- Local titles: `GoodMorning YYYY-MM-DD`, `GoodNight YYYY-MM-DD`, `Secretary SUMMARY`,
-  `Eureka SUMMARY`, `Todo SUMMARY`. Helpers supply dates/idea raw summaries; TODO
-  uses its revised title; Secretary uses a short undated request summary. Translate
-  only the prefix; preserve summary wording. Browser chat titles belong to the
-  native generator: no custom mode/raw-summary titles or agent renames.
-  Rename local sessions/briefing jobs with the available session tool or
-  `opencode api patch /api/session/$OPENCODE_SESSION_ID --data '{"title":"..."}'`.
-  Rename failure is internal and non-blocking; duplicates trigger no rename/fetch.
+- Session titles belong to the website: briefing jobs are titled by the server and
+  chat titles by the native generator. Never rename a session.
 
 ## Decisions and writes: apply these gates in order
 
@@ -141,22 +133,16 @@ and deferrals; clear ideas/TODOs do not create daily clarification work.
 
 ## Briefing dates, ownership and delivery
 
-- Profile-local briefing days start at 04:00; timestamps stay real. Historical
-  local runs require an explicitly selected `--today` date and reconstruction label;
-  never substitute today's weather. Local missing-edition decisions ask once
-  whether to finish the oldest or continue today. Browser jobs always use their
-  pinned current day, leaving archive gaps untouched and asking no missing-run question.
+- Profile-local briefing days start at 04:00; timestamps stay real. Browser jobs
+  always use their pinned current day, leaving archive gaps untouched and asking no
+  missing-run question.
 - Duplicate gm/gn identifies the original session and stops before fetching/marking.
   Ordinary amendments preserve snapshots; full replacement/`--force` needs explicit
   authorization. Browser `regenerating: true` grants presentation replacement only,
-  not replay of record/project mutations. Save through its owning job, never a
-  foreign chat/local `state --mark-* --force` while the browser owns a live job.
+  not replay of record/project mutations. Save only through the owning job's `finish`.
 - News work alone reads `docs/news-delivery.md`. Morning news covers the 24
   hours before the briefing job, per confirmed country. Review actual evidence,
   not scores alone. Keep every selected story/citation and requested country.
-  Selected-story views omit old candidate pools/diagnostics, not stories or warnings.
-  Never acknowledge before verified visible delivery; partial/unreviewed reports
-  remain unresolved. Country/report namespaces must match; snapshots are not delivery.
 - Publish/save native JSON only with the actual session/input/date. Return its
   browser link, not Markdown/card/presentation/HTML copies or bookkeeping. A preview
   or existing snapshot alone does not prove this run complete.

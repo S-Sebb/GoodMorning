@@ -99,7 +99,7 @@ conflict, reread affected records; never infer progress or alter immutable secti
   absolute HTTP(S) URLs and no credentials. Country is an optional uppercase
   two-letter code, independent of translated category. Assessments belong in note,
   not the reported summary. Default news title is the job's as-of time; override
-  titles for other windows/languages. Saving is not delivery acknowledgement.
+  titles for other windows/languages.
 
 Use JSON double quotes. Limits: 150,000 UTF-8 bytes, 1–80 sections, 1–100 blocks
 per section, 200 rows/items per block and 16 sources per paragraph/story.
@@ -113,14 +113,8 @@ only as unfinished previews, never saved editions.
 Browser jobs use `job prepare`, immediate `init`, then the next `publish`/`skip`
 and `finish`. Code assembles the cumulative JSON and binds it to the owning job,
 session/date. Do not create an agent-owned cumulative draft or save separately.
-Local runs use one reusable draft under the selected private runtime, then:
-
-```bash
-python scripts/goodmorning.py state --secretary-dir RUNTIME --today DATE --mark-gm --session REAL_SESSION --answer-file DRAFT --json
-```
-
-Use `--mark-gn` for evening. Validation precedes writes; check the receipt. Ordinary
-amendments preserve original snapshots. Full replacement requires explicit
-authorization; browser regeneration uses its owning job, never `--force`.
+Validation precedes writes; check the receipt. Ordinary amendments preserve
+original snapshots. Full replacement requires explicit authorization; browser
+regeneration uses its owning job.
 Unknown/interrupted saves require inspection before retry, not blind replay.
 No Markdown, card, presentation or HTML copies. Return the browser link.

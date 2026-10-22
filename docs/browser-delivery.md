@@ -58,7 +58,7 @@ Progress counts resolved sections, not elapsed time or model claims.
 Refresh restores the same job, preview and questions without launching another
 session. Status updates preserve answer drafts. Only new section patches transfer
 after a checkpoint changes. A matching final save marks completion; unfinished
-or failed previews never imply a completed run, task or news acknowledgement.
+or failed previews never imply a completed run or task.
 
 `/chat` is separate: Initialize before setup, then Secretary for everything,
 including to-dos and ideas. Initialize reviews all saved preferences without

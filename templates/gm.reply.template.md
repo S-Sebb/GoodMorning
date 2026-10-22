@@ -6,7 +6,7 @@ Use native JSON v2 under `docs/briefing-format.md` and code-owned item routing u
 Give a short natural greeting/opening in the selected language and saved tone.
 Publish only the next default-plan section: Weather, News, Schedule, Tasks,
 Reminders. Browser jobs retain plan
-positions and `skip` empty optional ones; local JSON omits empty optional sections.
+positions and `skip` empty optional ones.
 Retain material unavailability/conflicts.
 
 Schedule contains appointments and confirmed TBC commitments. Tasks contains all

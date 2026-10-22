@@ -137,7 +137,7 @@ heading. Use `scripts/goodmorning.py` with the selected absolute runtime.
    `task` object, not a second `task --add` capture.
 5. Secretary task writes use `task --add` or revision-checked `--update`.
    `planned_date` assigns a workday; `due_date`/`due_at` does not. A repeat rule is
-   `{"weekdays":[5],"start":"YYYY-MM-DD"}` with timezone (0=Monday, 6=Sunday),
+   `{"weekdays":[4],"start":"YYYY-MM-DD"}` (every Friday) with timezone (0=Monday, 4=Friday, 6=Sunday),
    optional `until`. Clarify ambiguous requested recurrence before recording it.
    Repeats also support `interval_days` or explicit `dates` instead of `weekdays`,
    and optional `include`/`exclude` dates for confirmed exceptions; every rule needs

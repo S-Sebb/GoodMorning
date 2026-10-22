@@ -40,7 +40,7 @@ TEXT = {
            'stories there. Choose meaningful stories (AI, world and national separately; an AI feed label alone is not an AI '
            'connection; fewer meaningful items over filler; label opinion or first-party claims). Block: '
            '["news",CATEGORY,[[headline,summary,[[source_label,absolute_url],...]],...],COUNTRY?]; keep every citation; only stories '
-           'from these reads. Call them the past day\'s news, not yesterday\'s or breaking news. Never run news --ack. '
+           'from these reads. Call them the past day\'s news, not yesterday\'s or breaking news. '
            'If reads fail, publish one ["p","…"] block saying only that the news could not be obtained; never skip this section.'),
   'schedule': ('Copy the read\'s returned block exactly, including the empty-day paragraph; do not recompute dates or '
                'widen the range. Preparation is attendee requirements only (no join links, meeting IDs or privacy footers).'),
@@ -142,7 +142,7 @@ TEXT = {
            '只要读取结果在该板块有报道，就分别发布 AI、国际和每个国家的国内新闻块'
            '（国内新闻块以国家代码结尾）。挑选有意义的报道（AI、国际、国内分开；仅有 AI 标签不算与 AI 相关；宁少勿滥；注明观点或当事方说法）。块格式：'
            '["news",CATEGORY,[[标题,摘要,[[来源名,绝对URL],...]],...],COUNTRY?]，保留全部引用，只收录这些读取结果中的报道。称之为过去一天的新闻，'
-           '不要说成昨天的新闻或突发新闻。不要运行 news --ack。读取失败时发布一个 ["p","……"] 块，只说明无法获取新闻；不得跳过本章节。'),
+           '不要说成昨天的新闻或突发新闻。读取失败时发布一个 ["p","……"] 块，只说明无法获取新闻；不得跳过本章节。'),
   'schedule': '原样复制读取返回的块（包括空日程段落）；不要重新计算日期或扩大范围。准备事项只写参会要求（不要加入会议链接、会议号或隐私声明）。',
   'tasks': ('复制每一页返回的行（next_offset 不为 null 时，用读取结果的 command 加 --offset N 再运行一次）。不写入任何记录：id、日期、状态和 revision 必须与返回的完全一致。'
             '原样复制每一行的标题和说明：它们是和事项一起保存的措辞。只有 id 在读取结果 `fallback` 列表里的行没有保存的措辞，这些行你必须逐一检查：标题含糊、只是片段、'

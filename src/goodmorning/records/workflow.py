@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Local workflow preparation and save-first capture; no providers, jobs or hidden setup."""
+"""Workflow preparation and save-first capture; no providers, jobs or hidden setup."""
 
 import argparse
 import datetime as dt
@@ -15,7 +15,6 @@ from goodmorning.setup_check import profile_status
 from .state import load_state, rebuild_index, parse_daily, missed_page, today_str
 from goodmorning.briefings.briefing_document import source_path
 
-KINDS = ("gm", "gn", "eureka", "todo", "secretary")
 PERSONAL = ("secretary_name", "user_name", "secretary_language", "secretary_tone", "special_needs", "occupations", "expertise_fields",
             "work_days", "work_hours", "sleep_time", "industry", "knowledge_area", "project_scope")
 
@@ -123,7 +122,8 @@ def main(argv=None):
     parser.add_argument("--cache-dir")
     parser.add_argument("--website-language",choices=('en','zh-CN'),help='Explicit browser request language; does not rewrite local preferences')
     action = parser.add_mutually_exclusive_group(required=True)
-    action.add_argument("--prepare", choices=KINDS)
+    # Briefings prepare through their browser job; the command line serves chat work.
+    action.add_argument("--prepare", choices=("secretary", "todo", "eureka"))
     action.add_argument("--capture", choices=("eureka", "todo"))
     parser.add_argument("--today")
     parser.add_argument("--session")

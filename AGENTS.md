@@ -44,7 +44,7 @@ public release. Reread those files from the current working directory; they
 replace earlier workflow rules, not saved user context or permissions. Follow
 the user's current request across modes without requiring a manual switch.
 Every browser request supplies `Website language: en` or `zh-CN`. Use that
-language for replies, questions and titles, not the profile's local reply-language
+language for replies, questions and titles, not the profile's saved reply-language
 preference. Website initialization never asks for a separate reply language.
 Use `--website-language CODE` with setup/workflow helpers in browser chats.
 An active request keeps its starting language; a later chat turn can choose

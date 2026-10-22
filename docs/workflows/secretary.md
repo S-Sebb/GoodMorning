@@ -25,9 +25,8 @@ guides only for the requested operation; do not recursively reload the skill.
    and no control characters. Allow skipping; save exact confirmed spelling only
    after storage consent. It names the assistant, never the user. Then ask, alone,
    what to call the user (`user_name`, optional, same rules, skippable).
-   Browser chats use website language and leave local `secretary_language` unchanged;
-   pass `--website-language CODE`. For local setup, ask reply language third, alone,
-   wait for its explicit choice, then use it throughout. Never infer language from location/news.
+   Chats use website language and leave saved `secretary_language` unchanged;
+   pass `--website-language CODE`. Never ask for a reply language.
 3. Collect remaining settings in small related groups: qualified city/timezone;
    work/sleep hours and tone; news countries/outlets/language; calendar/project scope.
    Optional roles and familiar fields populate `occupations`/`expertise_fields` from
@@ -44,7 +43,7 @@ guides only for the requested operation; do not recursively reload the skill.
 5. After consent, create only missing authorized files/folders. Initialize missing
    calendar/inbox with `calendar --init --timezone ZONE` and `inbox --init`, then
    `state --rebuild --json`. No Markdown schedule/task checklists, completions,
-   briefing marks or news report store during setup. For v1 stores, review read-only
+   or briefing marks during setup. For v1 stores, review read-only
    `task --migrate`; require explicit backed-up upgrade consent before `--confirm`.
 6. Verify only explicitly authorized providers once with `setup --secretary-dir RUNTIME
    --verify SELECTED_CHECKS --budget 20`. Inspect statuses/counts/warnings, not exit

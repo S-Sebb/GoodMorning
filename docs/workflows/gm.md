@@ -5,25 +5,22 @@ description: Morning plan with weather, sourced news, Schedule, Tasks and Remind
 
 # Morning briefing
 
-Trigger: `/gm` or a morning-briefing request. Inputs: confirmed runtime, session,
-language and date; browser jobs supply saved preparation. Result: a verified native
-v2 morning edition and browser link, not a new task plan.
+Trigger: a website morning-briefing job (`/gm`). Inputs: the job's saved runtime,
+session, language, date and preparation. Result: a verified native v2 morning
+edition and browser link, not a new task plan.
 
-Read `docs/core-rules.md`, `docs/item-taxonomy.md`, `docs/briefing-format.md` and
-`docs/reply-voice.md` for local runs. Browser jobs follow their receipts' step
-guides instead (`docs/browser-generation.md`) and open these docs only for
-feedback no guide covers.
+Browser jobs follow their receipts' step guides (`docs/browser-generation.md`) and
+open `docs/core-rules.md`, `docs/item-taxonomy.md`, `docs/briefing-format.md` or
+`docs/reply-voice.md` only for feedback no guide covers.
 Run `python scripts/goodmorning.py` from the package root with selected absolute
-runtime/cache paths. Keep the current session/model and use the confirmed language.
-Use the default plan in order: Weather, News, Schedule, Tasks, Reminders. Browser jobs keep every
-plan position and use `skip` for empty optional ones; local JSON omits empty optional sections.
+runtime/cache paths. Keep the current session/model and use the job's language.
+Use the default plan in order: Weather, News, Schedule, Tasks, Reminders. Keep every
+plan position and use `skip` for empty optional ones.
 
-1. Browser jobs start with `job --secretary-dir RUNTIME --job JOB prepare`, then
-   follow its receipt: immediately init a fresh preview with the unchanged default
-   plan, or resume an existing checkpoint. Reuse saved decisions/date/context;
-   do not run local preparation or re-ask browser preflight questions. Local requests
-   use `workflow --prepare gm` once. Resolve setup, migration, duplicate and local
-   missing-edition decisions before fetching. Duplicates identify the original and stop.
+1. Start with `job --secretary-dir RUNTIME --job JOB prepare`, then follow its
+   receipt: immediately init a fresh preview with the unchanged default plan, or
+   resume an existing checkpoint. Reuse saved decisions/date/context; do not re-ask
+   browser preflight questions. Duplicates identify the original and stop.
 2. Weather: fetch once with qualified city and explicit profile/cache paths.
    Order temperature, precipitation/advice, applicable extreme warning, AQI/health.
    Values are display-ready: `16°C (14.5–20.4°C)`, `65% – Rain likely`
@@ -32,8 +29,7 @@ plan position and use `skip` for empty optional ones; local JSON omits empty opt
    weather as historical fact.
 3. News: follow `docs/news-delivery.md`. It covers the 24 hours before the job's
    as-of time, per confirmed country. Review actual candidates and retain every
-   selected story, citation and material coverage gap. A snapshot is not delivery;
-   acknowledge only after actual visible delivery is verified.
+   selected story, citation and material coverage gap.
 4. Publish Schedule from the normalized approved event/draft rows. Morning shows
    today's timed appointments only; all-day events and unknown-time confirmed
    appointments stay TBC across today and the next two days. Upcoming timed
@@ -81,11 +77,10 @@ plan position and use `skip` for empty optional ones; local JSON omits empty opt
    and add a brief note with the count and single next action. Ask only missing material facts
    or permissions affecting today's useful/safe plan. Do not interview every task,
    invent clarification work from clear ideas or re-ask saved answers. Skip an
-   empty optional browser position using `skip`, or omit it from local JSON. Pending optional
+   empty optional position using `skip`. Pending optional
    decisions do not block unrelated work.
-7. Browser jobs publish one complete next section and finish through `job`. Local
-   saves use native v2 JSON and `state --mark-gm` with the actual session/date.
-   Neither path schedules or creates tasks from the presentation. Return the
+7. Publish one complete next section at a time and finish through `job`. This
+   never schedules or creates tasks from the presentation. Return the
    browser link, not repeated JSON, Markdown/card/presentation/HTML copies.
 
 New tasks, changes or feedback supplied in the conversation follow the capture/task
