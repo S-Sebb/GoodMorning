@@ -84,6 +84,7 @@ public class Reminders extends BroadcastReceiver {
         prefs.edit().putStringSet("fired", fired).apply();
         NotificationManager manager = context.getSystemService(NotificationManager.class);
         if (!manager.areNotificationsEnabled()) return;
+        context = Language.apply(context);
         manager.createNotificationChannel(new NotificationChannel("reminders",
                 context.getString(R.string.channel_reminders), NotificationManager.IMPORTANCE_HIGH));
         String location = intent.getStringExtra("location");

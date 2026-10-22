@@ -243,6 +243,7 @@ final class Sync {
     private static void post(Context context, JSONArray notifications, long cursor) throws JSONException {
         NotificationManager manager = context.getSystemService(NotificationManager.class);
         if (!manager.areNotificationsEnabled()) return;
+        context = Language.apply(context);
         manager.createNotificationChannel(new NotificationChannel("status",
                 context.getString(R.string.channel_status), NotificationManager.IMPORTANCE_DEFAULT));
         for (int i = 0; i < notifications.length(); i++) {

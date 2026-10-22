@@ -3,6 +3,7 @@ package me.love765.goodmorning;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.app.PendingIntent;
+import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageInstaller;
 import android.net.Uri;
@@ -27,6 +28,11 @@ public class UpdateActivity extends Activity {
     private Updates.Release release;
     /** Opened from the website's update pill (goodmorning://update) rather than at launch. */
     private boolean asked;
+
+    @Override
+    protected void attachBaseContext(Context base) {
+        super.attachBaseContext(Language.apply(base));
+    }
 
     @Override
     protected void onCreate(Bundle state) {

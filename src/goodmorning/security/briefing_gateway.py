@@ -352,7 +352,7 @@ class Gateway:
                 raise ValueError('Backend read failed')
             return json.loads(raw)
         chosen = next(entry['settings'] for entry in app_link.links(self.accounts, user) if entry['id'] == link)
-        result = {'device': link, 'settings': chosen,
+        result = {'device': link, 'settings': chosen, 'language': self.accounts.website_language(user) or 'en',
                   'appearance': self.accounts.website_color_schemes(user) or site_colors.DEFAULT,
                   'notifications': app_link.outbox(self.accounts, user, after, chosen)}
         for key, read_part in (('schedule', lambda: read('/api/app-schedule')),

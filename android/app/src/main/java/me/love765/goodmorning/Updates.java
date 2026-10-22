@@ -83,6 +83,7 @@ final class Updates {
     private static void notify(Context context, Release release) {
         NotificationManager manager = context.getSystemService(NotificationManager.class);
         if (!manager.areNotificationsEnabled()) return;
+        context = Language.apply(context);
         manager.createNotificationChannel(new NotificationChannel("updates",
                 context.getString(R.string.update_channel), NotificationManager.IMPORTANCE_DEFAULT));
         PendingIntent open = PendingIntent.getActivity(context, 0, new Intent(context, UpdateActivity.class),

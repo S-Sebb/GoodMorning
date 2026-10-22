@@ -4,6 +4,7 @@ import android.Manifest;
 import android.app.Activity;
 import android.content.ClipData;
 import android.content.ClipboardManager;
+import android.content.Context;
 import android.content.Intent;
 import android.net.Uri;
 import android.os.Build;
@@ -35,6 +36,11 @@ public class LinkActivity extends Activity {
     private boolean starting;
     private boolean failed;
     private boolean waiting;
+
+    @Override
+    protected void attachBaseContext(Context base) {
+        super.attachBaseContext(Language.apply(base));
+    }
 
     @Override
     protected void onCreate(Bundle state) {

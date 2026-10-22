@@ -147,7 +147,8 @@ final class Notes {
     private static String day(Context context, long created) {
         if (DateUtils.isToday(created)) return context.getString(R.string.note_today);
         if (DateUtils.isToday(created + DateUtils.DAY_IN_MILLIS)) return context.getString(R.string.note_yesterday);
-        return DateUtils.formatDateTime(context, created, DateUtils.FORMAT_SHOW_DATE | DateUtils.FORMAT_ABBREV_MONTH | DateUtils.FORMAT_NO_YEAR);
+        java.util.Locale locale = Language.of(context);
+        return new java.text.SimpleDateFormat(DateFormat.getBestDateTimePattern(locale, "MMMd"), locale).format(new Date(created));
     }
 
     static Note find(Context context, String id) {

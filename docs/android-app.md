@@ -71,6 +71,10 @@ desk icons, the secretary's portrait and name, and the account's chosen day and
 night color schemes (`Palette`, copied from `assets/web/color-schemes.css`),
 switched with the phone's dark mode. On Android 12 and newer the launcher
 switches them itself; older versions use the colors of the mode at drawing time.
+Once the phone is linked, widgets, the screens they open and the app's own
+notifications use the account's website language (`Language`), not the phone's;
+a change reaches them with the next sync. The launcher's widget list and the
+screens before linking follow the phone.
 
 | Widget | Default size | Shows | Taps |
 |---|---|---|---|
