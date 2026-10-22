@@ -1,6 +1,33 @@
 {
   "notes": [
     {
+      "version": "0.70.0",
+      "date": "2026-10-22",
+      "author": "GoodMorning agent",
+      "title_en": "Expired questions stay in the chat",
+      "title_zh": "过期的问题也会留在聊天里",
+      "changes": [
+        {
+          "category": "Added",
+          "en": [
+            "When a secretary question goes unanswered for about an hour, the chat now keeps it as a \"Question expired\" card, so you can see what was asked and reply to continue."
+          ],
+          "zh": [
+            "秘书问的问题如果大约一小时都没人回答，聊天里不会再把它丢掉，而是留成一张「问题已过期」的卡片，这样你能看到当时问的是什么，回一句就能接着聊。"
+          ]
+        },
+        {
+          "category": "Changed",
+          "en": [
+            "In Android app 0.5, phones that show GoodMorning without Chrome get a can't-connect screen with Try again, and it retries by itself, instead of a bare error page."
+          ],
+          "zh": [
+            "在 Android 应用 0.5 版里，不通过 Chrome 打开 GoodMorning 的手机连不上时，会显示一个带「重试」按钮的页面，还会隔一会儿自己再试，不再只给一个光秃秃的报错页。"
+          ]
+        }
+      ]
+    },
+    {
       "version": "0.69.0",
       "date": "2026-10-21",
       "author": "GoodMorning agent",
