@@ -116,6 +116,7 @@ html:not([data-edition="gn"])[data-day-scheme]:not([data-day-scheme="classic"]) 
 :is(#prefs-menu, #account-menu) .language-toolbar label { font-size: 12px; line-height: 20px; }
 :is(#prefs-menu, #account-menu) .language-toolbar select { width: 100%; min-height: 44px; padding: 8px 12px; font-size: 13px; border-radius: 10px; }
 :is(#prefs-menu, #account-menu) #color-scheme-form { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 12px; border-top: 1px solid var(--line, #b4c7c0); padding-top: 14px; }
+#prefs-menu .settings-menu-header + #color-scheme-form { border-top: 0; padding-top: 0; }
 :is(#prefs-menu, #account-menu) .color-scheme-heading { grid-column: 1 / -1; color: inherit; font: 600 12px/1.5 ui-sans-serif, system-ui, sans-serif; text-transform: none; letter-spacing: 0; margin: 0 0 4px; }
 :is(#prefs-menu, #account-menu) label[for="website-language"], :is(#prefs-menu, #account-menu) .color-scheme-heading, :is(#prefs-menu, #account-menu) .scheme-picker legend { display: flex; align-items: center; gap: 7px; }
 :is(#prefs-menu, #account-menu) label[for="website-language"]::before, :is(#prefs-menu, #account-menu) .color-scheme-heading::before, :is(#prefs-menu, #account-menu) .scheme-picker legend::before { content: ""; flex: 0 0 20px; width: 20px; height: 20px; background: var(--settings-icon) center / contain no-repeat; }

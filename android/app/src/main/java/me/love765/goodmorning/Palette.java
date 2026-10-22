@@ -12,8 +12,8 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * The website's color schemes (assets/web/color-schemes.css), so widgets match the account's
- * chosen day and night look. Widgets follow the phone's dark mode: the day scheme in light mode,
+ * The website's color schemes (assets/web/color-schemes.css), so widgets match the day and night
+ * look chosen on this phone (the account's earlier choice until the phone chooses its own). Widgets follow the phone's dark mode: the day scheme in light mode,
  * the night scheme in dark mode.
  */
 final class Palette {
@@ -67,7 +67,7 @@ final class Palette {
         NIGHT.put("picnic", new Palette("#362a4c", "#f8eeff", "#d2c3e4", "#ffb3c7", "#54446e", "#403257", "#362a4c", "#3d3055", "#54446e", "#5f4b7d", "#ffd38a"));
     }
 
-    /** The account's day and night schemes, or the website's defaults. */
+    /** This phone's day and night schemes, or the website's defaults. */
     static Palette[] of(Context context) {
         JSONObject appearance = Sync.cached(context).optJSONObject("appearance");
         String day = appearance == null ? "" : appearance.optString("day");
@@ -75,7 +75,7 @@ final class Palette {
         return new Palette[] {DAY.getOrDefault(day, DAY.get("morning-sky")), NIGHT.getOrDefault(night, NIGHT.get("starry"))};
     }
 
-    /** Whether the account chose the website's Pixel style. */
+    /** Whether this phone uses the website's Pixel style. */
     static boolean pixel(Context context) {
         JSONObject appearance = Sync.cached(context).optJSONObject("appearance");
         return appearance != null && "pixel".equals(appearance.optString("style"));

@@ -67,10 +67,24 @@ app or the link screen opens. The token is encrypted with an AES key in the Andr
 unlinking in Settings makes the app forget it on its next check.
 
 Widgets follow the website's look: serif headings, small uppercase labels, the
-desk icons, the secretary's portrait and name, and the account's chosen day and
-night color schemes (`Palette`, copied from `assets/web/color-schemes.css`),
+desk icons, the secretary's portrait and name, and the day and night color
+schemes chosen on this phone (`Palette`, copied from `assets/web/color-schemes.css`),
 switched with the phone's dark mode. On Android 12 and newer the launcher
 switches them itself; older versions use the colors of the mode at drawing time.
+The app opens the site at `/app?link=<id>`, so colors chosen in the app (or in
+Chrome on the same phone) are saved for its link (`docs/browser-delivery.md`,
+Settings and Account) and reach the widgets with the next sync. The app's own
+WebView syncs as it leaves the screen; in Chrome's full-screen view the change
+arrives with the next sync (within 15 minutes, or at once with a refresh button
+or by opening the app). Until the phone chooses colors, widgets use the
+account's earlier choice.
+
+The launcher's widget list shows each widget's `widget_preview_*` layout: the
+real layout filled with a sample Thursday, in the default Morning Sky and Starry
+schemes, switched with dark mode. Their hourly charts are `WeatherChart` layers
+saved as `drawable-nodpi/preview_chart_*` (axis layers with period names also in
+`drawable-zh-rCN-nodpi`). A change to a widget's look needs the same change in
+its preview.
 Once the phone is linked, widgets, the screens they open and the app's own
 notifications use the account's website language (`Language`), not the phone's;
 a change reaches them with the next sync. The launcher's widget list and the

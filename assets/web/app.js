@@ -176,11 +176,8 @@ let goodmorningBeforeSignOut;
     try {
       await load();
       await show();
-      // Settings holds only this device's choices, so it appears only where notifications can work.
-      if (pushable || inApp) {
-        form.hidden = false;
-        document.querySelector('#prefs-menu')?.removeAttribute('hidden');
-      }
+      // Notifications show only where they can work.
+      if (pushable || inApp) form.hidden = false;
     } catch { /* Without the server's answer the sections stay hidden. */ }
   })();
 })();

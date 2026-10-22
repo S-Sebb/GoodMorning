@@ -127,6 +127,9 @@ public class Launcher extends LauncherActivity {
         Uri data = getIntent().getData();
         // The build number lets the website offer this app's own updates.
         Uri.Builder app = Uri.parse(Server.get(this) + "/app").buildUpon().appendQueryParameter("app", String.valueOf(BuildConfig.VERSION_CODE));
+        // The phone's link, so the colors chosen in the app also reach its widgets.
+        String link = Sync.linked(this) ? Sync.cached(this).optString("device") : "";
+        if (link.matches("[a-f0-9]{16}")) app.appendQueryParameter("link", link);
         if (isTrustedIntentUrl(data) && !"/app".equals(data.getPath())) {
             app.appendQueryParameter("next", data.getEncodedPath() + (data.getEncodedQuery() == null ? "" : "?" + data.getEncodedQuery()));
         }

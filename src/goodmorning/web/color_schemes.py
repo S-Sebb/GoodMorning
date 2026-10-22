@@ -1,4 +1,6 @@
-"""Account-wide palettes, independent of edition and authored content."""
+"""Website palettes, independent of edition and authored content. On the hosted site each device keeps
+its own choice; a device that has not chosen yet uses the one its account saved before choices moved
+to devices. A local install keeps one choice in its runtime."""
 from contextvars import ContextVar
 import html
 import json
@@ -38,6 +40,19 @@ def saved(value):
     if isinstance(value, dict) and value.get('day') == 'sunlit-garden':
         value = {**value, 'day': DEFAULT['day']}
     return validate(value)
+
+
+def cookie(value):
+    """This device's choice, as the GoodMorningAppearance cookie holds it."""
+    value = validate(value)
+    return '.'.join(value[key] for key in OPTIONS)
+
+
+def from_cookie(raw):
+    parts = raw.split('.')
+    if len(parts) != len(OPTIONS):
+        raise ValueError('Invalid color scheme cookie')
+    return saved(dict(zip(OPTIONS, parts)))
 
 
 def read(runtime):

@@ -71,7 +71,7 @@ def main():
                         page.locator(f'#{name}-menu > summary').click()
                     return page.locator(f'#{name}-menu')
 
-                # Settings holds only this device's notifications; Account holds what follows the owner.
+                # Settings holds this device's appearance and notifications; Account holds what follows the owner.
                 settings_menu = menu(page, 'prefs')
                 form = page.locator('#notification-form')
                 expect(form).to_be_visible()
@@ -79,6 +79,7 @@ def main():
                 expect(page.locator('#notification-device')).to_have_text('Turn on for this device')
                 expect(page.locator('#notification-choices')).to_be_hidden()  # Choices appear once this device is on.
                 assert settings_menu.locator('#website-language').count() == 0
+                expect(settings_menu.locator('#color-scheme-form')).to_be_visible()
                 page.screenshot(path=str(artifacts/'settings-390.png'), full_page=True)
 
                 # This browser has no push service: turning on fails clearly and leaves nothing registered.
@@ -91,7 +92,8 @@ def main():
                 assert "addEventListener('push'" in worker and "addEventListener('fetch'" not in worker
 
                 account = menu(page, 'account')
-                for part in ('#language-form', '#color-scheme-form', '#app-link-form', '#sign-out'):
+                assert account.locator('#color-scheme-form').count() == 0
+                for part in ('#language-form', '#app-link-form', '#sign-out'):
                     expect(account.locator(part)).to_be_visible()
                 expect(account.locator('#notification-devices')).to_be_hidden()  # No device gets notifications yet.
                 code = account.locator('#app-link-code')

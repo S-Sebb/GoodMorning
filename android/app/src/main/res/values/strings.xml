@@ -190,4 +190,32 @@
     <string name="note_not_kept">Couldn\'t save this note on the phone. Copy the text somewhere safe before leaving.</string>
     <string name="preview_note_text">Ask the landlord about the boiler before Friday</string>
     <string name="preview_note_older">Oat milk, bin bags</string>
+    <!-- Sample content for the widget picker previews, one consistent Thursday. -->
+    <string name="preview_date">Thursday, October 22</string>
+    <string name="preview_week_range">Oct 22 – Oct 28</string>
+    <string name="preview_event_one_detail">Until 10:00 · Room 4</string>
+    <string name="preview_event_lunch">Lunch with Sam</string>
+    <string name="preview_event_lunch_detail">Until 13:30 · Café Lumen</string>
+    <string name="preview_event_gym">Gym</string>
+    <string name="preview_event_review">Design review</string>
+    <string name="preview_event_brunch">Brunch with Mia</string>
+    <string name="preview_todo_done"><strike>Send the quarterly notes</strike></string>
+    <string name="preview_todo_one">Book train tickets</string>
+    <string name="preview_todo_two">Water the plants</string>
+    <string name="preview_week_tasks">1 of 3 to-dos done</string>
+    <string name="preview_weekday_thu">THU</string>
+    <string name="preview_weekday_fri">FRI</string>
+    <string name="preview_weekday_sat">SAT</string>
+    <string name="preview_weekday_sun">SUN</string>
+    <string name="preview_secretary_name">Aria</string>
+    <string name="preview_chat_title">Plan for Thursday</string>
+    <string name="preview_chat_placeholder">Message Aria…</string>
+    <string name="preview_news_headline_two">Telescope spots water vapour around a young star</string>
+    <string name="preview_news_summary_two">Astronomers say the find helps explain how rocky planets get their water.</string>
+    <string name="preview_news_source_two">BBC News, Reuters  ↗</string>
+    <string name="preview_city">London</string>
+    <string name="preview_note_when">Today · 09:41</string>
+    <string name="preview_note_older_two">Gift ideas for Mia</string>
+    <string name="preview_note_older_three">Call the bank</string>
+    <string name="preview_note_sort">Sort 3 notes with Aria</string>
 </resources>

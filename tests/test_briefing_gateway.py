@@ -12,6 +12,7 @@ from support import GatewayFixture, ImmediateThread, MockChamber
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'src'))
 from goodmorning.security.briefing_accounts import COOKIE, REMEMBER_SECONDS
 from goodmorning.security.briefing_gateway import Gateway
+from goodmorning.web import color_schemes as colors
 from goodmorning.web.generation_clock import REQUESTED_AT
 
 
@@ -390,13 +391,15 @@ class GatewayTests(GatewayFixture):
         value=json.loads(body)
         self.assertEqual((status,headers['Cache-Control'],value['devices'],value['links']),(200,'no-store',[],[]))
         self.assertEqual(len(web_push.unb64(value['publicKey'])),65)
-        # Signed in, Settings holds only this device's notifications; language and appearance follow the account.
+        # Signed in, Settings holds this device's appearance and notifications; language follows the account.
         _,page=self.request('/chat')[1:]
-        settings=re.search(rb'<details class="menu" id="prefs-menu" hidden>.*?</details>',page,re.S)[0]
+        settings=re.search(rb'<details class="menu" id="prefs-menu">.*?</details>',page,re.S)[0]
         account=re.search(rb'<details class="menu" id="account-menu">.*?</details>',page,re.S)[0]
         self.assertRegex(settings,rb'<form id="notification-form"[^>]*hidden')
+        self.assertIn(b'id="color-scheme-form"',settings)
         self.assertNotIn(b'id="language-form"',settings)
-        for part in (b'id="language-form"',b'id="color-scheme-form"',b'id="app-link-form"',b'id="notification-devices"',b'id="sign-out"'):
+        self.assertNotIn(b'id="color-scheme-form"',account)
+        for part in (b'id="language-form"',b'id="app-link-form"',b'id="notification-devices"',b'id="sign-out"'):
             self.assertIn(part,account)
         keys={'p256dh':value['publicKey'],'auth':web_push.b64(b'0123456789abcdef')}
         endpoint='https://fcm.googleapis.com/fcm/send/device'
@@ -528,6 +531,21 @@ class GatewayTests(GatewayFixture):
         with patch.object(self.gateway,'proxy',lambda user,host,path,*args:(200,{},json.dumps(answers[path]).encode())):
             self.assertEqual(json.loads(phone('/api/app/sync?after=0',headers={'X-GoodMorning-App':token})[2])['language'],'zh-CN')
         self.store.website_language(self.id,'en')
+        # Widgets follow the colors chosen on this phone, which the app names when it opens the site.
+        sync=lambda:json.loads(phone('/api/app/sync?after=0',headers={'X-GoodMorning-App':token})[2])['appearance']
+        with patch.object(self.gateway,'proxy',lambda user,host,path,*args:(200,{},json.dumps(answers[path]).encode())):
+            self.store.website_color_schemes(self.id,{'style':'soft','day':'classic','night':'classic'})
+            self.assertEqual(sync()['day'],'classic')  # Not chosen on the phone yet: the account's earlier choice.
+            self.assertNotIn('GoodMorningLink','\n'.join(self.request('/app?link='+'0'*16+'&b=1')[1].values()))
+            pixel={'style':'pixel','day':'warm','night':'starry'}
+            device='GoodMorningAppearance='+colors.cookie(pixel)
+            headers=self.request('/app?link='+waiting_id+'&b=1',headers={'Cookie':self.cookie+'; '+device})[1]
+            self.assertIn('GoodMorningLink='+waiting_id+';',headers['Set-Cookie'])
+            self.assertEqual(sync(),pixel)
+            picnic={'style':'soft','day':'picnic','night':'picnic'}
+            self.assertEqual(self.request('/api/color-schemes',picnic,headers={'Cookie':self.cookie+'; GoodMorningLink='+waiting_id})[0],200)
+            self.assertEqual(sync(),picnic)
+            self.assertEqual(self.store.website_color_schemes(self.id)['day'],'classic')
         self.assertEqual(value['briefings']['editions']['gm'],{'state':'missing'})
         self.assertEqual(value['weather'],{'city':'London','frame':{'start':'2026-10-21T06:00'}})
         # A request still waiting in the shared queue already counts as being prepared.

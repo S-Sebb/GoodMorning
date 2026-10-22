@@ -1,8 +1,10 @@
 # Website security and account operations
 
-The account-wide interface language and Day/Night color schemes are encrypted
-account metadata, not profile rewrites. Only the non-secret pre-login language
-and day-palette cookies use the hosts' common parent domain. Authentication
+The account-wide interface language and a linked phone's color schemes are
+encrypted account metadata, not profile rewrites. Color schemes otherwise belong
+to each device. Only the non-secret language, appearance and pre-login
+day-palette cookies, and the HttpOnly linked-phone cookie, use the hosts' common
+parent domain. Authentication
 cookies remain host-only. Language and color changes require
 the same origin and session CSRF checks, including the no-JavaScript form. HTML
 uses `Referrer-Policy: same-origin` so native forms send a verifiable Origin;

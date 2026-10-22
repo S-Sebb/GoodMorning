@@ -1,4 +1,4 @@
-"""Isolated, account-wide palettes. No models, real accounts or private records."""
+"""Isolated, per-device palettes. No models, real accounts or private records."""
 from datetime import datetime, timezone
 import json
 from pathlib import Path
@@ -16,6 +16,11 @@ SVG = '{http://www.w3.org/2000/svg}'
 
 
 def palette(value): return selected(colors.CURRENT, value)
+
+
+def device(headers):
+    """The device cookie a color choice set, ready to send back."""
+    return re.search(r'GoodMorningAppearance=[^;]+', headers['Set-Cookie'])[0]
 
 
 def motion_only(css, fragment):
@@ -118,8 +123,9 @@ class ColorSchemeTests(unittest.TestCase):
             self.assertEqual(colors.read(runtime), classic)
         fixture = gateway(self); fixture.permanent()
         classic = {'day': 'classic', 'night': 'classic', 'style': 'soft'}
-        self.assertEqual(fixture.request('/api/color-schemes', classic)[0], 200)
-        self.assertEqual(json.loads(fixture.request('/api/color-schemes')[2]), classic)
+        status, headers, _ = fixture.request('/api/color-schemes', classic)
+        self.assertEqual(status, 200)
+        self.assertEqual(json.loads(fixture.request('/api/color-schemes', headers={'Cookie': fixture.cookie+'; '+device(headers)})[2]), classic)
 
     def test_star_field_is_irregular_and_twinkles_only_when_motion_is_allowed(self):
         resources = Resources(Path(__file__).resolve().parents[1] / 'assets/web')
@@ -162,23 +168,31 @@ class ColorSchemeTests(unittest.TestCase):
         self.assertIn('&quot;csrf&quot;: &quot;session-csrf&quot;', page)
         self.assertNotIn('backend-csrf', page)
 
-    def test_account_choices_sync_across_hosts_but_not_accounts(self):
+    def test_choices_belong_to_the_device_and_start_from_the_account(self):
         fixture = gateway(self); fixture.permanent()
         self.assertEqual(json.loads(fixture.request('/api/color-schemes')[2]), colors.DEFAULT)
+        earlier = {'day': 'classic', 'night': 'classic', 'style': 'soft'}
+        fixture.store.website_color_schemes(fixture.id, earlier)
+        self.assertEqual(json.loads(fixture.request('/api/color-schemes')[2]), earlier)
         choice = {'day': 'warm', 'night': 'starry', 'style': 'pixel'}
         original = fixture.cookie
         status, headers, raw = fixture.request('/api/color-schemes', choice)
         self.assertEqual((status, json.loads(raw)), (200, choice))
-        self.assertIn('GoodMorningDayScheme=warm', headers['Set-Cookie'])
+        self.assertIn('GoodMorningAppearance=pixel.warm.starry; Path=/; Secure; SameSite=Lax;', headers['Set-Cookie'])
         self.assertEqual(fixture.cookie, original)
+        # The account keeps its earlier choice for devices that have not chosen; this device shares its choice across hosts.
+        self.assertEqual(fixture.store.website_color_schemes(fixture.id), earlier)
+        self.assertEqual(json.loads(fixture.request('/api/color-schemes')[2]), earlier)
         for host in HOSTS:
-            _, _, raw = fixture.request('/api/color-schemes', headers={'Host': host, 'Cookie': session_cookie(fixture, fixture.id, host)})
+            _, _, raw = fixture.request('/api/color-schemes', headers={'Host': host, 'Cookie': session_cookie(fixture, fixture.id, host)+'; '+device(headers)})
             self.assertEqual(json.loads(raw), choice)
-        _, _, raw = fixture.request('/api/color-schemes', headers={'Cookie': session_cookie(fixture, fixture.other)+'; GoodMorningDayScheme=warm'})
-        self.assertEqual(json.loads(raw), colors.DEFAULT)
+        _, _, raw = fixture.request('/api/color-schemes', headers={'Cookie': fixture.cookie+'; GoodMorningAppearance=pixel.warm.evil'})
+        self.assertEqual(json.loads(raw), earlier)
+        # Signed out, the device's choice still applies; before devices, only the day scheme was kept.
+        self.assertEqual(json.loads(fixture.request('/api/color-schemes', headers={'Cookie': device(headers)})[2]), choice)
+        _, _, raw = fixture.request('/api/color-schemes', headers={'Cookie': 'GoodMorningDayScheme=warm'})
+        self.assertEqual(json.loads(raw), {**colors.DEFAULT, 'day': 'warm'})
         self.assertIsNone(fixture.store.website_color_schemes(fixture.other))
-        fixture.store.administer('alice', new_name='alice-renamed')
-        self.assertEqual(fixture.store.website_color_schemes(fixture.id), choice)
 
     def test_csrf_origin_and_unoffered_night_choices_are_rejected(self):
         fixture = gateway(self); fixture.permanent()
@@ -196,19 +210,20 @@ class ColorSchemeTests(unittest.TestCase):
         for target in ('/chat', '//evil.example'):
             status, headers = form_post(fixture, '/api/color-schemes', {'day': 'warm', 'night': 'starry', 'csrf': fixture.csrf, 'return_to': target})
             self.assertEqual((status, headers['Location']), (303, '/chat' if target == '/chat' else '/'))
-        self.assertEqual(fixture.store.website_color_schemes(fixture.id), {'day': 'warm', 'night': 'starry', 'style': 'soft'})
-        form_post(fixture, '/api/color-schemes', {'style': 'pixel', 'day': 'picnic', 'night': 'starry', 'csrf': fixture.csrf, 'return_to': '/chat'})
-        self.assertEqual(fixture.store.website_color_schemes(fixture.id), {'day': 'picnic', 'night': 'starry', 'style': 'pixel'})
-        status, _ = form_post(fixture, '/api/color-schemes', {'day': 'warm', 'night': 'starry', 'theme': 'x', 'csrf': fixture.csrf, 'return_to': '/chat'})
+            self.assertEqual(device(headers), 'GoodMorningAppearance=soft.warm.starry')
+        status, headers = form_post(fixture, '/api/color-schemes', {'style': 'pixel', 'day': 'picnic', 'night': 'starry', 'csrf': fixture.csrf, 'return_to': '/chat'})
+        self.assertEqual(device(headers), 'GoodMorningAppearance=pixel.picnic.starry')
+        status, headers = form_post(fixture, '/api/color-schemes', {'day': 'warm', 'night': 'starry', 'theme': 'x', 'csrf': fixture.csrf, 'return_to': '/chat'})
         self.assertEqual(status, 400)
-        self.assertEqual(fixture.store.website_color_schemes(fixture.id), {'day': 'picnic', 'night': 'starry', 'style': 'pixel'})
+        self.assertNotIn('GoodMorningAppearance', headers.get('Set-Cookie', ''))
+        self.assertIsNone(fixture.store.website_color_schemes(fixture.id))
 
     def test_proxy_headers_and_html_cache_are_server_owned(self):
         fixture = gateway(self); fixture.permanent()
         classic = fixture.request('/')[2]
-        fixture.request('/api/color-schemes', {'day': 'warm', 'night': 'starry', 'style': 'pixel'})
+        chosen = device(fixture.request('/api/color-schemes', {'day': 'warm', 'night': 'starry', 'style': 'pixel'})[1])
         warm = fixture.request('/', headers={'X-GoodMorning-Day-Scheme': 'classic', 'X-GoodMorning-Night-Scheme': 'classic',
-                                             'X-GoodMorning-Style': 'soft'})[2]
+                                             'X-GoodMorning-Style': 'soft', 'Cookie': fixture.cookie+'; '+chosen})[2]
         headers = {key.lower(): value for key, value in fixture.received[-1][1].items()}
         self.assertEqual(headers['x-goodmorning-day-scheme'], 'warm')
         self.assertEqual(headers['x-goodmorning-night-scheme'], 'starry')
@@ -216,8 +231,7 @@ class ColorSchemeTests(unittest.TestCase):
         self.assertIn(b'&quot;day&quot;: &quot;morning-sky&quot;', classic)
         self.assertIn(b'&quot;day&quot;: &quot;warm&quot;', warm)
         self.assertIn(b'&quot;night&quot;: &quot;starry&quot;', warm)
-        fixture.request('/api/auth/logout', {})
-        self.assertEqual(fixture.store.website_color_schemes(fixture.id), {'day': 'warm', 'night': 'starry', 'style': 'pixel'})
+        self.assertIsNone(fixture.store.website_color_schemes(fixture.id))
 
     def test_runtime_restart_and_briefing_cache_do_not_rewrite_saved_content(self):
         with tempfile.TemporaryDirectory(dir=TEMP_ROOT) as directory:

@@ -164,11 +164,26 @@ session after this step goes to `/login`.
 ## Settings and Account
 
 Signed in, the two top menus split by scope. **Settings** holds what belongs to
-this device: its notifications. It appears only where notifications can work
-(a browser with Web Push, or the Android app). **Account** holds what follows the
-owner everywhere: website language, appearance, linked phones, devices with
-notifications, Change password and Sign out. Without a sign-in (the sign-in page,
-a local viewer) language and appearance stay in Settings.
+this device: its appearance and, where they can work (a browser with Web Push,
+or the Android app), its notifications. **Account** holds what follows the owner
+everywhere: website language, linked phones, devices with notifications, Change
+password and Sign out. Without a sign-in (the sign-in page, a local viewer)
+language stays in Settings too.
+
+Appearance (style, day and night color schemes) lives in the
+`GoodMorningAppearance` cookie (`style.day.night`, one year, shared by the
+hosts' common parent domain like the language cookie), so every browser keeps its
+own. A device without that cookie uses the account's earlier saved choice, from
+when appearance followed the account; nothing writes that choice any more.
+Signed out, a device without the cookie falls back to the older
+`GoodMorningDayScheme` cookie, then to the defaults. A local install keeps one
+choice in its runtime (`website-color-schemes.json`).
+
+The Android app opens `/app?link=<id>` once linked. If that link belongs to the
+signed-in account, the site sets the HttpOnly `GoodMorningLink` cookie and copies
+this device's appearance to the link; later appearance changes on that device
+update the link too, and `/api/app/sync` returns it so the phone's widgets match.
+A link that has none yet gets the account's earlier choice.
 
 ## Notifications
 
@@ -231,8 +246,8 @@ lists linked phones; Unlink revokes one immediately.
 With its token (`X-GoodMorning-App` header) the app can call:
 
 - `GET /api/app/sync?after=N`: everything the widgets and background check
-  need, in one request. It returns the account's notification settings and
-  website language, seven
+  need, in one request. It returns this phone's notification settings and
+  color schemes (`appearance`), the account's website language, seven
   plain days of schedule from today (`/api/app-schedule` on the account's
   backend), timed events in the next 24 hours for on-phone reminders, a summary
   of the latest secretary conversation, today's two briefings
