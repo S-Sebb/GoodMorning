@@ -36,8 +36,8 @@ ASSETS = WEB_ASSETS
 # Digital Asset Links let the Android app open this origin without browser controls.
 ASSET_LINKS = (ASSETS / 'assetlinks.json').read_bytes()
 POLICY = "default-src 'none'; style-src 'self'; script-src 'self'; img-src 'self'; font-src 'self'; connect-src 'self'; manifest-src 'self'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'"
-GET_ROUTES = re.compile(r'(?:/|/(?:index|gm|gn)\.html|/chat|/schedule|/api/schedule|/api/avatar(?:/image/[a-f0-9]{64}\.png)?|/api/chats(?:/[a-f0-9]{32}(?:/status)?)?|/api/day|/api/reminders|/api/app-schedule|/api/app-briefings|/api/app-weather|/api/app-profile|/api/edition/\d{4}-\d{2}-\d{2}/(?:gm|gn)|/api/jobs/[a-f0-9]{32}(?:/preview)?|/d/\d{4}-\d{2}-\d{2}/(?:gm|gn)\.(?:html|json)|/media/(?:thumb-v1/)?[a-f0-9]{64}\.webp|/d/\d{4}-\d{2}-\d{2}/media/[a-f0-9]+\.webp|/(?:assets/[a-f0-9]{64}/)?desk-secretary(?:-f2|-m1|-m2)?(?:-profile|(?:-day)?(?:-animated)?)\.png|/(?:assets/[a-f0-9]{64}/)?(?:briefing\.css|briefing\.js|browser\.js|schedule\.js|schedule\.css|questions\.js|chat\.js|chat\.css|avatar\.js|avatar\.css|fonts/(?:lora-italic\.woff2|OFL\.txt)))')
-POST_ROUTES = re.compile(r'(?:/api/avatar(?:/upload/(?:day|night|profile))?|/api/(?:generate|regenerate)|/api/chat-uploads/[a-f0-9]{32}|/api/chats|/api/chats/[a-f0-9]{32}/(?:messages|seen|(?:form|permission)/[A-Za-z0-9_]+/reply)|/api/jobs/[a-f0-9]{32}/(?:recover|(?:form|permission)/[A-Za-z0-9_]+/reply))')
+GET_ROUTES = re.compile(r'(?:/|/(?:index|gm|gn)\.html|/chat|/schedule|/api/schedule|/api/avatar(?:/image/[a-f0-9]{64}\.png)?|/api/chats(?:/[a-f0-9]{32}(?:/status)?)?|/api/day|/api/reminders|/api/app-schedule|/api/app-briefings|/api/app-weather|/api/app-profile|/api/notes(?:/batch)?|/api/edition/\d{4}-\d{2}-\d{2}/(?:gm|gn)|/api/jobs/[a-f0-9]{32}(?:/preview)?|/d/\d{4}-\d{2}-\d{2}/(?:gm|gn)\.(?:html|json)|/media/(?:thumb-v1/)?[a-f0-9]{64}\.webp|/d/\d{4}-\d{2}-\d{2}/media/[a-f0-9]+\.webp|/(?:assets/[a-f0-9]{64}/)?desk-secretary(?:-f2|-m1|-m2)?(?:-profile|(?:-day)?(?:-animated)?)\.png|/(?:assets/[a-f0-9]{64}/)?(?:briefing\.css|briefing\.js|browser\.js|schedule\.js|schedule\.css|questions\.js|chat\.js|chat\.css|avatar\.js|avatar\.css|fonts/(?:lora-italic\.woff2|OFL\.txt)))')
+POST_ROUTES = re.compile(r'(?:/api/notes(?:/sorted)?|/api/avatar(?:/upload/(?:day|night|profile))?|/api/(?:generate|regenerate)|/api/chat-uploads/[a-f0-9]{32}|/api/chats|/api/chats/[a-f0-9]{32}/(?:messages|seen|(?:form|permission)/[A-Za-z0-9_]+/reply)|/api/jobs/[a-f0-9]{32}/(?:recover|(?:form|permission)/[A-Za-z0-9_]+/reply))')
 QUEUE_KEY = 'generation_queue'
 WAITING_KEY = 'generation_waiting'
 MAX_QUEUE = 20
@@ -409,6 +409,30 @@ class Gateway:
         else:
             path, payload = '/api/chats', {'id': request, 'mode': 'secretary', 'text': body['text']}
         return self.chat_message(user, host, path, json.dumps(payload).encode(), {})
+
+    def app_note(self, user, body):
+        """Saves one quick note word for word; no model runs."""
+        return self.proxy(user, next(iter(self.hosts)), '/api/notes', 'POST', json.dumps(body).encode(), {})
+
+    def app_sort(self, user, body):
+        """Sort with the secretary: a new Secretary conversation through the usual queue, with the
+        unsorted and edited notes that fit one message. The notes are marked once it is accepted."""
+        host = next(iter(self.hosts))
+        if body:
+            raise ValueError('Invalid sort request')
+        status, headers, raw = self.proxy(user, host, '/api/notes/batch', 'GET', None, {})
+        if status != 200:
+            return status, headers, raw
+        batch = json.loads(raw)
+        if not batch['notes']:
+            return 409, {'Content-Type': 'application/json'}, json.dumps({'error': ui.text('There are no notes to sort.')}).encode()
+        chat = secrets.token_hex(16)
+        status, headers, raw = self.chat_message(user, host, '/api/chats',
+                                                 json.dumps({'id': chat, 'mode': 'secretary', 'text': batch['text']}).encode(), {})
+        if status >= 300:
+            return status, headers, raw
+        self.proxy(user, host, '/api/notes/sorted', 'POST', json.dumps({'chat': chat, 'notes': batch['notes']}).encode(), {})
+        return 202, {'Content-Type': 'application/json'}, json.dumps({'chat': chat, 'remaining': batch['remaining']}).encode()
 
     def reply_excerpt(self, user, ticket):
         try:
@@ -993,7 +1017,9 @@ def handler_for(gateway):
             user=self.app_user()
             self.select_language({'user_id':user})
             gateway.backend(user)
-            status,headers,data=(gateway.app_generate if path=='/api/app/generate' else gateway.app_chat)(user,body)
+            handler={'/api/app/generate':gateway.app_generate,'/api/app/chat':gateway.app_chat,
+                     '/api/app/note':gateway.app_note,'/api/app/notes/sort':gateway.app_sort}[path]
+            status,headers,data=handler(user,body)
             return self.respond(data,status,headers.get('Content-Type','application/json'))
 
         def app_build(self):
@@ -1096,6 +1122,12 @@ def handler_for(gateway):
                     if not re.fullmatch(r'/api/avatar/image/[a-f0-9]{64}\.png',image):raise ValueError('Invalid portrait')
                     status,headers,data=gateway.proxy(user,next(iter(gateway.hosts)),image,'GET',None,{})
                     return self.respond(data,status,headers.get('Content-Type','image/png') if status==200 else 'application/json')
+                if path=='/api/app/notes':
+                    user=self.app_user()
+                    self.select_language({'user_id':user})
+                    gateway.backend(user)
+                    status,headers,data=gateway.proxy(user,next(iter(gateway.hosts)),'/api/notes','GET',None,{})
+                    return self.respond(data,status,'application/json')
                 if path=='/api/app/sync':
                     user=self.app_user()
                     after=parse_qs(urlsplit(self.path).query).get('after',['0'])[0]
@@ -1194,7 +1226,7 @@ def handler_for(gateway):
             try:
                 host=self.host()
                 self.select_language()
-                if urlsplit(self.path).path in ('/api/app/pair','/api/app/chat','/api/app/generate'):
+                if urlsplit(self.path).path in ('/api/app/pair','/api/app/chat','/api/app/generate','/api/app/note','/api/app/notes/sort'):
                     return self.app_post(host,urlsplit(self.path).path)
                 if self.headers.get('Origin')!='https://'+host or self.headers.get('Sec-Fetch-Site','same-origin')!='same-origin':
                     raise Denied('Forbidden')

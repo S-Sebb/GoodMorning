@@ -741,5 +741,11 @@
   "Overnight": "夜间",
   "{day} morning": "{day}上午",
   "Forecast source: {name}": "预报来源：{name}",
-  "Air quality source: {name}": "空气质量来源：{name}"
+  "Air quality source: {name}": "空气质量来源：{name}",
+  "Quick notes to sort": "待整理的速记",
+  "I jotted these down on my phone. Please save each one as whatever fits and ask me about anything unclear.": "这些是我在手机上随手记的。请按合适的方式逐条存好，有哪里不清楚就问我。",
+  "Edited after you sorted it": "整理后又改过",
+  "Now: {text}": "现在：{text}",
+  "Before: {text}": "原来：{text}",
+  "There are no notes to sort.": "没有需要整理的速记。"
 }

@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Sample content for the widget picker, in the website's default colors. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="10dp">
+
+    <TextView android:layout_width="match_parent" android:layout_height="30dp" android:layout_marginStart="12dp" android:layout_marginEnd="12dp" android:layout_marginBottom="-6dp"
+        android:background="@drawable/note_tab" android:backgroundTint="#EADAB4" android:fontFamily="serif" android:maxLines="1" android:paddingStart="12dp" android:paddingTop="5dp"
+        android:text="@string/preview_note_older" android:textColor="@color/preview_ink" android:textSize="13sp" android:textStyle="italic" />
+    <LinearLayout android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" android:background="@drawable/note_paper" android:backgroundTint="#F3E7CB"
+        android:orientation="vertical" android:padding="16dp" android:rotation="-1.5">
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:letterSpacing="0.14" android:text="@string/note_today" android:textAllCaps="true"
+            android:textColor="@color/preview_muted" android:textSize="10sp" android:textStyle="bold" />
+        <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="4dp" android:fontFamily="serif" android:lineSpacingExtra="3sp"
+            android:text="@string/preview_note_text" android:textColor="@color/preview_ink" android:textSize="16sp" android:textStyle="italic" />
+    </LinearLayout>
+</LinearLayout>

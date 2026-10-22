@@ -121,6 +121,11 @@ final class Sync {
             } catch (IOException | JSONException unreadable) {
                 return;
             }
+            try {
+                Notes.sync(context, token);
+            } catch (IOException | JSONException offline) {
+                // Waiting notes stay on the phone; the next run sends them.
+            }
             Widgets.updateAll(context);
         }
     }
@@ -157,6 +162,8 @@ final class Sync {
         prefs(context).edit().clear().apply();
         context.getSystemService(JobScheduler.class).cancel(JOB);
         context.getSystemService(JobScheduler.class).cancel(SOON);
+        context.getSystemService(JobScheduler.class).cancel(Notes.JOB);
+        Notes.forgetSent(context);
         Reminders.cancelAll(context);
         Widgets.updateAll(context);
     }

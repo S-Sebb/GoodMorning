@@ -1,6 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
 <shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
     <shortcut
+        android:shortcutId="note"
+        android:enabled="true"
+        android:icon="@drawable/ic_note"
+        android:shortcutShortLabel="@string/widget_note_name">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetPackage="me.love765.goodmorning"
+            android:targetClass="me.love765.goodmorning.NoteActivity" />
+    </shortcut>
+    <shortcut
         android:shortcutId="server"
         android:enabled="true"
         android:icon="@drawable/ic_server"

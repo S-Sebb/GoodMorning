@@ -248,6 +248,20 @@ With its token (`X-GoodMorning-App` header) the app can call:
 - `POST /api/app/generate` with `{kind}` (`gm` or `gn`): prepares today's
   morning or evening briefing through the normal queue, like the website's
   button. It may start paid model work.
+- `POST /api/app/note` with `{id, text, created}`: saves one quick note word for
+  word in the account's `quick-notes.sqlite` (`src/goodmorning/web/quick_notes.py`).
+  The phone names the note (32 hex characters), so a retried save never makes a
+  copy; `created` is when it was first written, in milliseconds. Empty text
+  deletes it. No model runs.
+- `GET /api/app/notes`: the newest 100 notes, each `unsorted`, `sorting`,
+  `question` (its sorting conversation waits for an answer), `sorted`, `changed`
+  (edited since it was sorted) or `check` (that conversation's delivery is
+  uncertain), with the count still to sort.
+- `POST /api/app/notes/sort` with `{}`: starts a new Secretary conversation
+  through the normal queue with the unsorted and changed notes that fit one
+  message (`Quick notes to sort`, handled by `docs/workflows/secretary.md`), then
+  marks them with that conversation and the words it received. Returns `{chat,
+  remaining}`, or 409 when nothing waits. It starts paid model work.
 
 The status notifications that Web Push sends are also kept, as the latest
 thirty, for accounts with a linked phone. Phones without Google services read

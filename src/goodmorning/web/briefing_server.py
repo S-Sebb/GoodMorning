@@ -40,6 +40,7 @@ from .activity import ACTIVITY_PATH, snapshot as activity_snapshot
 from . import app_briefings
 from . import schedule
 from . import quick_chat
+from .quick_notes import Notes
 
 DESK_ART = '<svg viewBox="0 0 64 64" width="64" height="64" fill="none" aria-hidden="true"><rect x="15" y="8" width="36" height="48" rx="7" fill="var(--surface)" stroke="currentColor" stroke-width="1.5"/><path d="M24 19h18M24 25h12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" opacity=".4"/><circle cx="27" cy="36" r="1.5" fill="currentColor"/><circle cx="39" cy="36" r="1.5" fill="currentColor"/><path d="M28 43q5 5 10 0" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>'
 
@@ -136,6 +137,7 @@ class BrowserApp:
         self.thumbnails = ByteCache(2 * 1024 * 1024, 128)
         self.resources = Resources(ASSETS)
         self.chats = Chats(self.runtime, chamber)
+        self.notes = Notes(self.runtime)
         self.job_dir = self.runtime / 'browser-jobs'
         if self.job_dir.is_symlink():
             raise ValueError('Unsafe job directory')
@@ -205,6 +207,13 @@ class BrowserApp:
         avatar = self.avatar()
         urls = image_urls(self.runtime) if avatar == 'custom' else None
         return {'name': name, 'avatar': avatar, 'image': urls and (urls['profile'] or urls['day'])}
+
+    def chat_state(self, chat):
+        """A sort conversation's state; one still waiting in the gateway's line is not here yet."""
+        try:
+            return self.chats.status(chat, include_messages=False)['state']
+        except ValueError:
+            return 'starting'
 
     def avatar_settings(self):
         with self.lock:
@@ -1033,6 +1042,10 @@ def serve_live(app, port, *, gateway_key=None, public_origins=()):
                 if path == '/api/app-weather':
                     from goodmorning.weather import widget
                     return self.respond(widget(app.runtime))
+                if path == '/api/notes':
+                    return self.respond(app.notes.listing(app.chat_state), compress=True)
+                if path == '/api/notes/batch':
+                    return self.respond(app.notes.batch(app.profile().get('timezone')))
                 if path in ('/schedule', '/api/schedule'):
                     mode, offset = schedule.schedule_query(parse_qs(parsed.query, keep_blank_values=True))
                     if path == '/api/schedule':
@@ -1194,6 +1207,10 @@ def serve_live(app, port, *, gateway_key=None, public_origins=()):
                     return self.respond(app.recover(recovery[1], body), 202)
                 if path == '/api/chats':
                     return self.respond(app.chats.start(body), 202)
+                if path == '/api/notes':
+                    return self.respond(app.notes.save(body))
+                if path == '/api/notes/sorted':
+                    return self.respond(app.notes.mark(body))
                 if path == '/api/avatar':
                     if set(body) != {'avatar'}:
                         raise ValueError('Choose a secretary avatar')
