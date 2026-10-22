@@ -337,6 +337,34 @@ class ChatTests(unittest.TestCase):
         self.chamber.sessions[session]['title'] = chat_session_title('Secretary', old)
         self.assertEqual(self.chats.listing()[0]['title'], 'Secretary')
 
+    def test_question_closed_by_the_engine_shows_as_expired(self):
+        self.start()
+        session = self.chamber.sessions[self.chats.get(self.id)['session']]
+        def interrupt(tool):
+            session['messages'].append({'id': 'message_' + str(len(session['messages'])), 'role': 'assistant', 'text': '',
+                'native': {'error': {'type': 'aborted'}, 'content': [{'type': 'tool', 'id': tool, 'name': 'question'}]}})
+        ready = self.chats.status(self.id)['label']
+        # Never seen while it waited: a plain note in the request language.
+        interrupt('prt_unseen')
+        status = self.chats.status(self.id)
+        unseen = status['messages'][-1]
+        self.assertEqual((unseen['kind'], unseen['language'], status['state']), ('expired', 'en', 'idle'))
+        self.assertTrue(unseen['text'])
+        self.assertNotIn('tools', unseen)
+        self.assertNotEqual(status['label'], ready)
+        # Seen while it waited: the expired message shows the question itself, once.
+        session['forms'] = [{'id': 'form_reminder', 'title': 'How often?', 'metadata': {'tool': {'id': 'prt_seen'}},
+                             'fields': [{'key': 'q0', 'title': 'Reminder', 'options': [{'value': 'once', 'label': 'Just tonight'}]}]}]
+        self.chats.status(self.id)
+        session['forms'] = []
+        interrupt('prt_seen')
+        messages = self.chats.status(self.id)['messages']
+        self.assertEqual([(entry.get('kind'), entry['text']) for entry in messages[-2:]],
+                         [('expired', unseen['text']), ('expired', 'How often?\nReminder\n• Just tonight')])
+        self.assertFalse(any(entry.get('kind') == 'question' for entry in messages))
+        self.chats.send(self.id, {'id': 'b' * 32, 'text': 'Just tonight'})
+        self.assertEqual(self.chats.status(self.id)['label'], ready)
+
     def test_questions_and_permissions_are_bound_to_owning_conversation(self):
         self.start('initialize', '')
         with self.assertRaises(ValueError): self.chats.reply(self.id, 'form', 'foreign', {'answer': {}})

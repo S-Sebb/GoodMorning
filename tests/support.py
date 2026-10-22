@@ -181,7 +181,7 @@ class MockChamber(Chamber):
                 rows = [row for row in rows if row['role'] == query['type'][0]]
             rows = rows[offset:offset+limit]
             return {'data': [{'id': row['id'], 'type': row['role'], **({'text': row['text']} if row['role']=='user'
-                    else {'content':[{'type':'text','text':row['text']}]})} for row in rows],
+                    else {'content':[{'type':'text','text':row['text']}]}), **row.get('native', {})} for row in rows],
                     'cursor': {'next': str(offset+limit) if len(session['messages'])>offset+limit else None}}
         self.replies.append((path, body))
         session_id = path.split('/')[3]

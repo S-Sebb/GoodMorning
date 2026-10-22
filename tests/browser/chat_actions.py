@@ -39,6 +39,7 @@ def main():
                         {'id': 'reply', 'role': 'assistant', 'text': 'A little room for your plans.'},
                         {'id': 'question', 'role': 'assistant', 'kind': 'question', 'text': 'Which afternoon works for you?'},
                         {'id': 'answer', 'role': 'user', 'kind': 'answer', 'text': 'Thursday, after lunch.'},
+                        {'id': 'expired', 'role': 'assistant', 'kind': 'expired', 'text': 'Should I remind you every evening?'},
                         action('add', 'added', 'event', 'Tea with Sam · Thursday, 14:00'),
                         action('edit', 'updated', 'task', 'Prepare the final slides'),
                         action('cancel', 'cancelled', 'event', 'Friday check-in'),
@@ -52,7 +53,7 @@ def main():
                     page.route('**/api/chats/*', lambda route: route.fulfill(json=status))
                     page.goto(address + '/chat?id=' + 'f' * 32)
                     expect(page.locator('[data-special="action"]')).to_have_count(9)
-                    expect(page.locator('.chat-special-icon svg')).to_have_count(11)
+                    expect(page.locator('.chat-special-icon svg')).to_have_count(12)
                     expect(page.locator('[data-message="unsafe"] .message-text img')).to_have_count(0)
                     assert page.evaluate('window.executed !== true')
                     assert page.locator('.message-enter').count() == 0

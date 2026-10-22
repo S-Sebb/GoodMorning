@@ -91,7 +91,11 @@ read for the account (stored with the conversation, not in browser storage).
 
 Workflow changes reuse the same conversation under `docs/browser-chat.md`.
 Native scheduling questions create a durable waiting indicator; pending permissions
-remain explicit one-time approvals/rejections. Briefings stay on their own pages.
+remain explicit one-time approvals/rejections. The engine interrupts a run after
+about an hour without activity, which closes a question nobody answered. Its place
+in the conversation then shows a muted "Question expired" card (the question
+itself if the page saw it while it waited, otherwise a plain note; the native
+question input is private tool state), and the status asks for a new message. Briefings stay on their own pages.
 
 ## Mechanical contract
 

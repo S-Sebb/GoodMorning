@@ -219,7 +219,10 @@ window.addEventListener('pageshow', event => {
   returnToSecretary();
 });
 const renderedMessages = new WeakMap();
-const specialLabels = {question: 'Question for you', answer: 'Your answer', permission: 'Your permission', outreach: 'Your secretary reached out'};
+const specialLabels = {question: 'Question for you', answer: 'Your answer', permission: 'Your permission', outreach: 'Your secretary reached out',
+  expired: 'Question expired'};
+const footnotes = {outreach: 'Sent on behalf of the GoodMorning team',
+  expired: 'Questions can close after about an hour without an answer. Send a message to continue where you left off.'};
 const actionTargets = {task: 'Task', event: 'Event', draft: 'Event draft', idea: 'Idea', record: 'Record', custom: 'Custom schedule'};
 const actionLabels = {added: '{target} added', updated: '{target} updated', cancelled: '{target} cancelled',
   completed: '{target} completed', approved: '{target} approved', declined: '{target} declined'};
@@ -235,7 +238,9 @@ function specialIcon(kind, action = {}) {
     answer: ['M20 14a5 5 0 0 1-5 5H9l-5 2V9a5 5 0 0 1 5-5h7a4 4 0 0 1 4 4', 'm9 11 2 2 5-5'],
     permission: ['m12 3 8 3v6c0 5-8 9-8 9S4 17 4 12V6l8-3Z', 'M12 8v4', 'M12 16h.01'],
     outreach: ['M20 11V7a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h7', 'm3 7 9 6 9-6',
-      'M18 21s-3.5-2-3.5-4.2a1.8 1.8 0 0 1 3.5-.6 1.8 1.8 0 0 1 3.5.6C21.5 19 18 21 18 21Z']
+      'M18 21s-3.5-2-3.5-4.2a1.8 1.8 0 0 1 3.5-.6 1.8 1.8 0 0 1 3.5.6C21.5 19 18 21 18 21Z'],
+    expired: ['M11 19H9l-5 2v-6a4 4 0 0 1-1-3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4v3',
+      'M9 8a3 3 0 0 1 6 0c0 1-.6 1.6-1.3 2', 'M18 21a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z', 'M18 15.5V17l1 1']
   };
   const bases = {
     event: 'M4 7h16M8 3v4m8-4v4M11 21H6a3 3 0 0 1-3-3V7a3 3 0 0 1 3-3h12a3 3 0 0 1 3 3v4M7 11h2m-2 4h2',
@@ -833,9 +838,9 @@ function showMessages(messages) {
       author.dataset.uiText=item.role==='user'?'You':'Your secretary';
       if (item.role !== 'user' && secretaryName) author.dataset.secretaryName = secretaryName;
       bubble.append(author, make('div', '', 'message-text'), make('div', '', 'message-attachments'));
-      if (item.kind === 'outreach') {
-        const note = make('p', chatT('Sent on behalf of the GoodMorning team'), 'message-footnote');
-        note.dataset.uiText = 'Sent on behalf of the GoodMorning team';
+      if (footnotes[item.kind]) {
+        const note = make('p', chatT(footnotes[item.kind]), 'message-footnote');
+        note.dataset.uiText = footnotes[item.kind];
         bubble.append(note);
       }
       if (item.role === 'assistant' && item.kind !== 'action') {

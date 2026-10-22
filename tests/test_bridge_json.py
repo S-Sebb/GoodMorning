@@ -69,6 +69,24 @@ class BridgeMessageTests(unittest.TestCase):
             self.assertEqual([entry['text'] for entry in result['messages']], ['Prompt', 'Visible answer'])
             self.assertEqual(result['sessionStatus']['type'], 'idle')
 
+    def test_interrupted_question_becomes_an_expired_message_without_its_private_input(self):
+        question = {'type': 'tool', 'id': 'prt_question', 'name': 'question', 'state': {'input': {'questions': ['private']}}}
+        value = {'data': [
+            {'id': 'later', 'type': 'user', 'text': 'Remind me again'},
+            {'id': 'aborted', 'type': 'assistant', 'error': {'type': 'aborted'},
+             'content': [{'type': 'text', 'text': 'One thing first.'}, question]},
+            {'id': 'answered', 'type': 'assistant', 'content': [{**question, 'id': 'prt_answered'}]},
+            {'id': 'u', 'type': 'user', 'text': 'Remind me'}], 'cursor': {'next': None}}
+        chamber = Chamber('http://127.0.0.1:1234', '/synthetic')
+        with patch('goodmorning.web.briefing_server.build_opener') as opener:
+            opener.return_value.open.side_effect = [io.BytesIO(json.dumps(value).encode()), io.BytesIO(b'{"sessionStatus":{"type":"idle"}}')]
+            result = chamber.control('session.messages', sessionId='ses_test', limit=100)
+        self.assertEqual(result['messages'], [
+            {'id': 'u', 'role': 'user', 'text': 'Remind me'},
+            {'id': 'aborted', 'role': 'assistant', 'text': 'One thing first.'},
+            {'id': 'aborted:expired', 'role': 'assistant', 'text': '', 'kind': 'expired', 'tools': ['prt_question']},
+            {'id': 'later', 'role': 'user', 'text': 'Remind me again'}])
+
 
 if __name__ == '__main__':
     unittest.main()
