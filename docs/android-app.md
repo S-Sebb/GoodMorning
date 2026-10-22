@@ -77,10 +77,11 @@ switches them itself; older versions use the colors of the mode at drawing time.
 | Today's schedule | 4×4 | Today's events (time, until, place) and to-dos | Day schedule; refresh button |
 | Week schedule | 4×5 | Seven days from today: events and to-do progress | That day's schedule |
 | Secretary chat | 4×3 | Portrait and name, latest conversation title, its reply in a bubble, and a message box | Message box: Ask (dialog, may start paid model work); elsewhere: the conversation |
+| Secretary | 1×1, fixed | The portrait alone, with an accent dot while a reply runs or waits for an answer | The latest conversation |
 | Briefings | 4×5 | Today's morning or evening briefing in full, scrolling, with a Morning/Evening switch | The briefing page; Prepare button (starts generation at once, may start paid model work); refresh button |
 | News | 4×4 | The news sections of today's morning briefing | The morning briefing at its first news section (`/gm.html?section=news`); Prepare button while it is missing |
 
-Every widget can be resized. Launchers hide a widget whose minimum size exceeds
+Every widget but Secretary can be resized. Launchers hide a widget whose minimum size exceeds
 their grid, so minimum sizes stay small and the defaults fit the common 4×5
 grid. The Briefings widget shows the morning edition before 17:00 and the
 evening edition from then on; a choice in the widget holds until the clock

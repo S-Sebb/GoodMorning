@@ -35,6 +35,9 @@
     <string name="widget_today_description">Today\'s events and to-dos</string>
     <string name="widget_week_description">Events and to-dos for the next seven days</string>
     <string name="widget_chat_description">Your latest secretary conversation, with a quick Ask button</string>
+    <string name="widget_portrait_name">Secretary</string>
+    <string name="widget_portrait_description">Your secretary\'s portrait. A dot shows while they\'re working or need your answer; tap to open your latest conversation</string>
+    <string name="portrait_open">Chat with %1$s</string>
     <string name="widget_link">Link this phone to show your GoodMorning schedule, briefings and chat here. Tap to start.</string>
     <string name="widget_loading">Loading your schedule…</string>
     <string name="widget_empty_today">Nothing planned today.</string>

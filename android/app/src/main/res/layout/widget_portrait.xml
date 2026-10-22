@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The secretary's portrait alone, the size of an app icon, with a dot while a reply runs or waits.
+     Launchers round this frame's corners into a circle, so the dot stays inside it. -->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <FrameLayout
+        android:layout_width="56dp"
+        android:layout_height="56dp"
+        android:layout_gravity="center">
+
+        <ImageView
+            android:id="@+id/portrait_ring"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:importantForAccessibility="no"
+            android:src="@drawable/round_circle" />
+
+        <ImageView
+            android:id="@+id/portrait"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:layout_margin="2dp"
+            android:importantForAccessibility="no"
+            android:src="@drawable/portrait_f1" />
+
+        <FrameLayout
+            android:id="@+id/dot"
+            android:layout_width="16dp"
+            android:layout_height="16dp"
+            android:layout_gravity="top|end"
+            android:layout_margin="6dp"
+            android:visibility="gone">
+
+            <ImageView
+                android:id="@+id/dot_ring"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:importantForAccessibility="no"
+                android:src="@drawable/round_circle" />
+
+            <ImageView
+                android:id="@+id/dot_fill"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:layout_margin="3dp"
+                android:importantForAccessibility="no"
+                android:src="@drawable/round_circle" />
+        </FrameLayout>
+    </FrameLayout>
+</FrameLayout>

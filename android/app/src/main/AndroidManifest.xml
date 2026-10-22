@@ -100,6 +100,10 @@
             <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
             <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_chat" />
         </receiver>
+        <receiver android:name=".Widgets$Portrait" android:exported="false" android:label="@string/widget_portrait_name">
+            <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_portrait" />
+        </receiver>
         <receiver android:name=".Widgets$Briefing" android:exported="false" android:label="@string/widget_briefing_name">
             <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
             <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_briefing" />
