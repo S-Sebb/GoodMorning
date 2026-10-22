@@ -102,7 +102,7 @@ final class Sync {
             }
             try {
                 JSONObject previous = cached(context);
-                for (String part : new String[] {"schedule", "reminders", "chat", "briefings"}) {
+                for (String part : new String[] {"schedule", "reminders", "chat", "briefings", "weather"}) {
                     if (data.isNull(part) && previous.has(part)) data.put(part, previous.get(part));
                 }
                 JSONArray notifications = (JSONArray) data.remove("notifications");

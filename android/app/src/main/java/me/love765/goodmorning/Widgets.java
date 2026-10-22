@@ -20,8 +20,10 @@ import org.json.JSONObject;
 
 import java.io.File;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
+import java.time.format.TextStyle;
 import java.util.Locale;
 
 /** Home screen widgets drawn from the last summary the app received; see {@link Sync}. */
@@ -163,6 +165,43 @@ public abstract class Widgets extends AppWidgetProvider {
         }
     }
 
+    /** Temperature, rain and air headlines side by side. */
+    public static class Weather extends Widgets {
+        @Override
+        RemoteViews draw(Context context, int id) {
+            return weather(context, id, null, false, size(context, id));
+        }
+    }
+
+    /** The three weather tiles with their hourly charts. */
+    public static class WeatherFull extends Widgets {
+        @Override
+        RemoteViews draw(Context context, int id) {
+            return weather(context, id, null, true, size(context, id));
+        }
+    }
+
+    public static class Temperature extends Widgets {
+        @Override
+        RemoteViews draw(Context context, int id) {
+            return weather(context, id, WeatherChart.Kind.TEMPERATURE, true, size(context, id));
+        }
+    }
+
+    public static class Rain extends Widgets {
+        @Override
+        RemoteViews draw(Context context, int id) {
+            return weather(context, id, WeatherChart.Kind.RAIN, true, size(context, id));
+        }
+    }
+
+    public static class Air extends Widgets {
+        @Override
+        RemoteViews draw(Context context, int id) {
+            return weather(context, id, WeatherChart.Kind.AIR, true, size(context, id));
+        }
+    }
+
     abstract RemoteViews draw(Context context, int id);
 
     @Override
@@ -203,7 +242,8 @@ public abstract class Widgets extends AppWidgetProvider {
     /** Redraws every widget of every kind, for example after a new summary. */
     static void updateAll(Context context) {
         AppWidgetManager manager = AppWidgetManager.getInstance(context);
-        for (Widgets kind : new Widgets[] {new Today(), new Week(), new Chat(), new Portrait(), new Briefing(), new News()}) {
+        for (Widgets kind : new Widgets[] {new Today(), new Week(), new Chat(), new Portrait(), new Briefing(), new News(),
+                new Weather(), new WeatherFull(), new Temperature(), new Rain(), new Air()}) {
             int[] ids = manager.getAppWidgetIds(new ComponentName(context, kind.getClass()));
             if (ids.length > 0) kind.onUpdate(context, manager, ids);
         }
@@ -388,5 +428,151 @@ public abstract class Widgets extends AppWidgetProvider {
                 PendingIntent.FLAG_MUTABLE | PendingIntent.FLAG_UPDATE_CURRENT));
         views.setOnClickPendingIntent(R.id.refresh, action(context, REFRESH, id, kind));
         return views;
+    }
+
+    /** The website's weather tile colors (briefing.css): {accent, fill} by day, then by night. */
+    private static int[] tileColors(WeatherChart.Kind kind) {
+        switch (kind) {
+            case TEMPERATURE: return new int[] {0xFF316D97, 0xFFEDF4F8, 0xFFA2CDE9, 0xFF203345};
+            case RAIN: return new int[] {0xFF706392, 0xFFF1EEF8, 0xFFC8B9EA, 0xFF2B2B43};
+            default: return new int[] {0xFF387559, 0xFFEDF5EE, 0xFFAED4B7, 0xFF23392F};
+        }
+    }
+
+    /**
+     * The weather widgets: all three topics or one, as headline columns or tiles with hourly charts.
+     * Headlines count only the hours from now, as the briefing page does.
+     */
+    RemoteViews weather(Context context, int id, WeatherChart.Kind only, boolean charts, int[] size) {
+        RemoteViews views = new RemoteViews(context.getPackageName(), R.layout.widget_weather);
+        Palette[] schemes = Palette.of(context);
+        card(context, views, schemes, p -> p.line, p -> p.surface);
+        Palette.tint(context, views, schemes, R.id.icon, p -> p.accent);
+        Palette.tint(context, views, schemes, R.id.refresh, p -> p.muted);
+        Palette.text(context, views, schemes, R.id.label, p -> p.muted);
+        Palette.text(context, views, schemes, R.id.title, p -> p.ink);
+        Palette.text(context, views, schemes, R.id.message, p -> p.muted);
+        views.setContentDescription(R.id.refresh, context.getString(R.string.widget_refresh));
+        views.setViewVisibility(R.id.header, only == null ? View.VISIBLE : View.GONE);
+        views.setViewVisibility(R.id.label, charts ? View.VISIBLE : View.GONE);  // The compact widget keeps one header line.
+        views.setTextViewText(R.id.label, context.getString(R.string.weather_label).toUpperCase(Locale.getDefault()));
+        JSONObject data = Sync.cached(context).optJSONObject("weather");
+        String city = data == null ? "" : data.optString("city");
+        views.setTextViewText(R.id.title, city.isEmpty() ? context.getString(R.string.widget_weather_name) : city);
+        views.removeAllViews(R.id.tiles);
+        views.removeAllViews(R.id.columns);
+        boolean linked = Sync.linked(context);
+        views.setViewVisibility(R.id.refresh, linked ? View.VISIBLE : View.GONE);
+        if (!linked) {
+            message(views, context.getString(R.string.widget_link));
+            views.setOnClickPendingIntent(R.id.root, screen(context, LinkActivity.class));
+            return views;
+        }
+        views.setOnClickPendingIntent(R.id.root, Sync.open(context, "/gm.html?section=weather", 7000 + id));
+        views.setOnClickPendingIntent(R.id.refresh, action(context, REFRESH, id, "weather"));
+        WeatherFrame frame = WeatherFrame.parse(data == null ? null : data.optJSONObject("frame"));
+        int past = frame == null ? -1 : frame.past(LocalDateTime.now());
+        if (past < 0 || (only == WeatherChart.Kind.AIR && frame.air == null)) {
+            message(views, context.getString(data == null ? R.string.weather_loading : R.string.weather_unavailable));
+            return views;
+        }
+        views.setViewVisibility(R.id.message, View.GONE);
+        int width = size[0], height = size[1];
+        int topics = frame.air == null ? 2 : 3;
+        // A single topic stacks its chart under the headline; the details widget puts each chart beside it.
+        // What is left after the text decides the chart's size; too little hides it.
+        int chartWidth = only != null ? width - 44 : (width - 48) * 3 / 5;
+        int chart = only != null ? Math.min(180, height - 112) : Math.min(120, (height - 82) / topics - 20);
+        float density = context.getResources().getDisplayMetrics().density;
+        for (WeatherChart.Kind kind : WeatherChart.Kind.values()) {
+            if ((only != null && kind != only) || (kind == WeatherChart.Kind.AIR && frame.air == null)) continue;
+            RemoteViews tile = new RemoteViews(context.getPackageName(), !charts ? R.layout.widget_weather_brief
+                    : only != null ? R.layout.widget_weather_tile : R.layout.widget_weather_row);
+            int[] colors = tileColors(kind);
+            if (only != null) {
+                // A single topic is the whole card, in its tile color.
+                Palette.pair(context, views, R.id.card_fill, "setColorFilter", colors[1], colors[3]);
+                tile.setViewVisibility(R.id.tile_fill, View.GONE);
+            }
+            Palette.pair(context, tile, R.id.tile_fill, "setColorFilter", colors[1], colors[3]);
+            tile.setViewVisibility(R.id.tile_label, charts ? View.VISIBLE : View.GONE);  // Columns rely on their icons.
+            Palette.pair(context, tile, R.id.tile_icon, "setColorFilter", colors[0], colors[2]);
+            for (int text : new int[] {R.id.tile_label, R.id.tile_main, R.id.tile_sub}) {
+                Palette.pair(context, tile, text, "setTextColor", colors[0], colors[2]);
+            }
+            tile.setImageViewResource(R.id.tile_icon, kind == WeatherChart.Kind.TEMPERATURE ? R.drawable.ic_thermometer
+                    : kind == WeatherChart.Kind.RAIN ? R.drawable.ic_rain : R.drawable.ic_leaf);
+            tile.setTextViewText(R.id.tile_label, context.getString(kind == WeatherChart.Kind.TEMPERATURE ? R.string.weather_temperature
+                    : kind == WeatherChart.Kind.RAIN ? R.string.weather_precipitation : R.string.weather_air).toUpperCase(Locale.getDefault()));
+            String[] headline = headline(context, frame, kind, past);
+            tile.setTextViewText(R.id.tile_main, headline[0]);
+            tile.setTextViewText(R.id.tile_sub, headline[1]);
+            if (charts) {
+                tile.setViewVisibility(R.id.tile_chart, chart >= 56 ? View.VISIBLE : View.GONE);
+                if (chart >= 56) {
+                    Bitmap[] layers = new WeatherChart(frame, kind, past, density, chartWidth >= 240 ? periods(context, frame) : null)
+                            .draw(Math.round(chartWidth * density), Math.round(chart * density));
+                    tile.setImageViewBitmap(R.id.chart_accent, layers[0]);
+                    tile.setImageViewBitmap(R.id.chart_muted, layers[1]);
+                    Palette.pair(context, tile, R.id.chart_accent, "setColorFilter", colors[0], colors[2]);
+                    Palette.color(context, tile, schemes, R.id.chart_muted, "setColorFilter", p -> p.muted);
+                }
+            }
+            views.addView(charts ? R.id.tiles : R.id.columns, tile);
+        }
+        return views;
+    }
+
+    /** The widget's portrait width and height in dp; the defaults match a 4×4 cell area. */
+    private static int[] size(Context context, int id) {
+        Bundle options = AppWidgetManager.getInstance(context).getAppWidgetOptions(id);
+        return new int[] {options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH, 250),
+                options.getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_HEIGHT, 250)};
+    }
+
+    private static void message(RemoteViews views, String text) {
+        views.setViewVisibility(R.id.message, View.VISIBLE);
+        views.setTextViewText(R.id.message, text);
+    }
+
+    private static String[] periods(Context context, WeatherFrame frame) {
+        if (!frame.late()) {
+            return new String[] {context.getString(R.string.weather_this_morning), context.getString(R.string.weather_this_afternoon),
+                    context.getString(R.string.weather_this_evening)};
+        }
+        String day = frame.start.plusDays(1).getDayOfWeek().getDisplayName(TextStyle.SHORT, Locale.getDefault());
+        return new String[] {context.getString(R.string.weather_this_evening), context.getString(R.string.weather_overnight),
+                context.getString(R.string.weather_day_morning, day)};
+    }
+
+    /** The tile's big headline and the line under it. */
+    static String[] headline(Context context, WeatherFrame frame, WeatherChart.Kind kind, int past) {
+        if (kind == WeatherChart.Kind.TEMPERATURE) {
+            return new String[] {frame.high(past) + "°", context.getString(R.string.weather_high_low, frame.low(past))};
+        }
+        if (kind == WeatherChart.Kind.AIR) {
+            int low = frame.airLow(past), high = frame.airHigh(past);
+            String span = low == high ? String.valueOf(low) : low + "–" + high;
+            int[] levels = {R.string.weather_aqi_good, R.string.weather_aqi_moderate, R.string.weather_aqi_sensitive,
+                    R.string.weather_aqi_unhealthy, R.string.weather_aqi_very_unhealthy, R.string.weather_aqi_hazardous};
+            return new String[] {context.getString(levels[frame.airLevel(past)]),
+                    context.getString(frame.late() ? R.string.weather_aqi_night : R.string.weather_aqi_day, span)};
+        }
+        int peak = frame.rainPeak(past);
+        boolean snow = frame.snow;
+        switch (frame.rainState(past)) {
+            case DRY:
+                return new String[] {context.getString(R.string.weather_dry),
+                        context.getString(snow ? R.string.weather_snow_chance : R.string.weather_rain_chance, peak)};
+            case DRY_UNTIL:
+                return new String[] {context.getString(R.string.weather_dry_until, frame.clock(frame.rainChange(past, true))),
+                        context.getString(snow ? R.string.weather_then_snow : R.string.weather_then_rain, peak)};
+            case EASING:
+                return new String[] {context.getString(snow ? R.string.weather_snow_likely : R.string.weather_rain_likely),
+                        context.getString(R.string.weather_easing, frame.clock(frame.rainChange(past, false)), peak)};
+            default:
+                return new String[] {context.getString(snow ? R.string.weather_snow_likely : R.string.weather_rain_likely),
+                        context.getString(R.string.weather_through, frame.clock(WeatherFrame.HOURS), peak)};
+        }
     }
 }
