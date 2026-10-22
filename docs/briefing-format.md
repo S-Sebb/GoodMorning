@@ -98,7 +98,7 @@ conflict, reread affected records; never infer progress or alter immutable secti
   selected story and all citations. Sources are nonempty `[[label,url],...]` with
   absolute HTTP(S) URLs and no credentials. Country is an optional uppercase
   two-letter code, independent of translated category. Assessments belong in note,
-  not the reported summary. Default news title is yesterday's pinned date; override
+  not the reported summary. Default news title is the job's as-of time; override
   titles for other windows/languages. Saving is not delivery acknowledgement.
 
 Use JSON double quotes. Limits: 150,000 UTF-8 bytes, 1–80 sections, 1–100 blocks

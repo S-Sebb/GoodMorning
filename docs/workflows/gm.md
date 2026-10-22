@@ -15,8 +15,7 @@ guides instead (`docs/browser-generation.md`) and open these docs only for
 feedback no guide covers.
 Run `python scripts/goodmorning.py` from the package root with selected absolute
 runtime/cache paths. Keep the current session/model and use the confirmed language.
-Use the default plan in order: Weather, News, Schedule, Tasks, Reminders, with
-opted-in dated latest News only when the plan includes it. Browser jobs keep every
+Use the default plan in order: Weather, News, Schedule, Tasks, Reminders. Browser jobs keep every
 plan position and use `skip` for empty optional ones; local JSON omits empty optional sections.
 
 1. Browser jobs start with `job --secretary-dir RUNTIME --job JOB prepare`, then
@@ -31,10 +30,9 @@ plan position and use `skip` for empty optional ones; local JSON omits empty opt
    (never `rain yes`), `30 – Good` (never `US AQI` prefix).
    Retain material stale/unavailable data. Historical editions never use today's
    weather as historical fact.
-3. News: follow `docs/news-delivery.md`. Default is yesterday in the saved timezone,
-   per confirmed country. Review actual candidates and retain every selected story,
-   citation and material coverage gap. Latest collection requires saved opt-in or
-   explicit permission and a separate dated heading. A snapshot is not delivery;
+3. News: follow `docs/news-delivery.md`. It covers the 24 hours before the job's
+   as-of time, per confirmed country. Review actual candidates and retain every
+   selected story, citation and material coverage gap. A snapshot is not delivery;
    acknowledge only after actual visible delivery is verified.
 4. Publish Schedule from the normalized approved event/draft rows. Morning shows
    today's timed appointments only; all-day events and unknown-time confirmed

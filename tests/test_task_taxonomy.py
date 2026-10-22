@@ -28,6 +28,7 @@ from goodmorning.web import language as ui
 
 DAY = '2026-10-13'
 NOW = DAY + 'T12:00:00+01:00'
+CREATED = datetime.fromisoformat(DAY + 'T07:30:00+01:00').timestamp()
 
 
 class TaxonomyTests(unittest.TestCase):
@@ -58,7 +59,7 @@ class TaxonomyTests(unittest.TestCase):
 
     def browser_job(self, letter, kind='gn', state='preflight', **fields):
         app = BrowserApp(self.root, now=lambda: datetime(2026, 10, 13, 12, tzinfo=timezone.utc), preflight=True)
-        job = {'id': letter*32, 'date': DAY, 'kind': kind, 'state': state, **fields}
+        job = {'id': letter*32, 'date': DAY, 'kind': kind, 'state': state, 'created': CREATED, **fields}
         app.jobs[DAY+'.'+kind] = job; app.save_jobs()
         return job
 
@@ -685,7 +686,7 @@ class TaxonomyTests(unittest.TestCase):
         app = BrowserApp(self.root, now=lambda:datetime(2026,10,13,12,tzinfo=timezone.utc), preflight=True)
         for language, contract, title in (('en','ESCAPE HATCH','Weather'), ('zh-CN','例外通道','天气')):
             identifier = ('e' if language == 'en' else 'c')*32
-            job = {'id':identifier,'date':DAY,'kind':'gm','state':'running','session':'ses_test','language':language}
+            job = {'id':identifier,'date':DAY,'kind':'gm','state':'running','session':'ses_test','language':language,'created':CREATED}
             app.jobs[DAY+'.gm']=job; app.save_jobs(); preflight(self.root,job)
             result = act(self.root,identifier,'ses_test','prepare')
             self.assertIn(contract,result['contract'])

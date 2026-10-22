@@ -1,9 +1,9 @@
-"""Opt-in paid check: does a real model publish every news category its saved reports filled?
+"""Opt-in paid check: does a real model publish every news category its read filled?
 
 Runs one morning briefing through the real browser job helpers with a real model.
-The template directory supplies a `news_reports.sqlite` and a minimal `profile.md`
-(synthetic, or an owner-approved private copy). Weather is fetched live; collected
-report dates are not refetched. Output stays in the private directory you name.
+The template directory supplies a minimal `profile.md` (synthetic, or an
+owner-approved private copy). Weather and the past 24 hours of news are fetched
+live. Output stays in the private directory you name.
 """
 import argparse
 from datetime import datetime, timezone
@@ -23,7 +23,8 @@ from goodmorning.web.briefing_server import BrowserApp
 from goodmorning.web.models import MODELS, session_payload
 
 # The real CLI with command logging only: no provider faults.
-LOGGING_CLI = TRIAL_CLI.replace("if sys.argv[1:2] in (['weather'],['news']):", "if False:")
+LOGGING_CLI = (TRIAL_CLI.replace("if sys.argv[1:2] in (['weather'],['news']):", "if False:")
+               .replace("if argv[:1] in (['weather'],['news']) else", "if False else"))
 
 
 def source_copy(folder):
@@ -47,7 +48,7 @@ def news_blocks(document):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--output', type=Path, required=True, help='New private directory')
-    parser.add_argument('--template', type=Path, required=True, help='Directory with news_reports.sqlite and profile.md')
+    parser.add_argument('--template', type=Path, required=True, help='Directory with profile.md')
     parser.add_argument('--language', choices=('en', 'zh-CN'), default='en')
     parser.add_argument('--model', choices=MODELS, default='muse-spark')
     args = parser.parse_args()
@@ -58,7 +59,6 @@ def main():
     source = source_copy(folder)
     (source/'opencode.json').write_text(json.dumps(trial_config(runtime)))
     (runtime/'profile.md').write_text((args.template/'profile.md').read_text() + 'calendar_source: custom\n')
-    shutil.copyfile(args.template/'news_reports.sqlite', runtime/'news_reports.sqlite')
     (runtime/'browser-policy.json').write_text(json.dumps({key: False for key in (
         'live_project_access', 'calendar_sync', 'publisher_images', 'news_acknowledgement')}))
     initialize(runtime)
@@ -86,6 +86,7 @@ def main():
             document = json.loads(app.source(day, 'gm').read_text())
             save(folder/'document.json', document)
             result['published_news'] = news_blocks(document)
+            result['news_title'] = next(section for section in document['sections'] if section[0] == 'news')[3]
     except Exception as error:
         result['failure'] = str(error)[:1500]
     finally:

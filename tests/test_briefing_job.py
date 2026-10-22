@@ -44,7 +44,8 @@ class JobTests(unittest.TestCase):
         self.chamber = FakeChamber()
         self.app = BrowserApp(self.root,self.chamber,now=lambda:datetime(2026,10,11,12,tzinfo=timezone.utc),preflight=True)
         self.identifier = 'a'*32
-        self.job = {'id':self.identifier,'date':'2026-10-11','kind':'gm','session':'ses_fixture','state':'running','workflow':2}
+        self.job = {'id':self.identifier,'date':'2026-10-11','kind':'gm','session':'ses_fixture','state':'running','workflow':2,
+                    'created':datetime(2026,10,11,6,30,tzinfo=timezone.utc).timestamp()}
         self.app.jobs['2026-10-11.gm'] = self.job
         self.app.save_jobs()
         initialize(self.root,self.job)
@@ -90,8 +91,8 @@ class JobTests(unittest.TestCase):
         self.assertIn('goodmorning.py weather --secretary-dir',result['next']['read'][0])
         result = act(self.root,self.identifier,'ses_fixture','publish',{'position':0,'section':['weather',[['p','Forecast unavailable; check before travelling.']]]})
         self.assertEqual(result['next']['position'],1)
-        self.assertEqual(result['next']['section'],['news','News — 2026-10-10'])
-        self.assertIn('--today 2026-10-11',result['next']['read'][0])
+        self.assertEqual(result['next']['section'],['news','News — as of 07:30'])
+        self.assertIn('--latest --as-of 2026-10-11T07:30:00+01:00',result['next']['read'][0])
         self.assertNotIn('calendar',str(result['next']))
 
     def test_weather_read_frame_is_attached_by_code_when_publishing(self):
@@ -180,20 +181,27 @@ class JobTests(unittest.TestCase):
             act(self.root,self.identifier,'ses_fixture','publish',{'position':0,'section':section})
             fetch.assert_called_once()
 
-    def save_report(self, counts):
-        from goodmorning.news.news import load_sources
-        from goodmorning.news.news_reports import ReportStore, context_key
-        stories = [{'date':'2026-10-10','section':section,'title':f'{section} story {n}','outlets':1,
-                    'links':[{'source':'Publisher','url':f'https://example.org/{section}/{n}'}]}
-                   for section, count in counts.items() for n in range(count)]
-        store = ReportStore(self.root, create=True)
-        try:
-            store.save(context_key('Europe/London', 'GB', load_sources()), {'date':'2026-10-10','counts':counts,'stories':stories,'notes':[]})
-        finally:
-            store.close()
+    def read_news(self, counts, shown=()):
+        """The news read as the job receives it, after the previous morning's links are removed."""
+        from goodmorning.briefings.briefing_job import fresh_news
+        story = lambda section, n: {'title':f'{section} story {n}','links':[{'source':'Publisher','url':f'https://example.org/{section}/{n}'}]}
+        sections = {section:{'selected':[story(section, n) for n in range(count)],'more':[story(section, 9)]} for section, count in counts.items()}
+        if shown:
+            (self.root/'daily/2026-10-10.gm.json').write_text(json.dumps({'v':2,'greeting':'Morning.','opening':'Earlier.','lang':'en','sections':[
+                ['news',[['news','World',[['Seen','Shown yesterday.',[['Publisher',url] for url in shown]]]]],'','News — as of 07:00']]}))
+        results = [{'command':'news','exit':0,'output':{'sections':sections}}]
+        fresh_news(self.root, self.identifier, self.job, json.loads(context_path(self.root,self.identifier).read_text()), results)
+        return sections
 
-    def test_news_must_cover_every_category_its_saved_reports_filled(self):
-        self.save_report({'ai':1,'major':2,'national':1})
+    def test_news_leaves_out_stories_the_previous_morning_showed(self):
+        sections = self.read_news({'ai':1,'major':1,'national':1}, shown=('https://example.org/major/0', 'https://example.org/ai/9'))
+        self.assertEqual(sections['major']['selected'], [])
+        self.assertEqual(sections['ai']['more'], [])
+        self.assertEqual(len(sections['national']['selected']), 1)
+        self.assertEqual(json.loads((self.app.job_dir/(self.identifier+'.news.json')).read_text()), ['GB','ai'])
+
+    def test_news_must_cover_every_category_its_read_filled(self):
+        self.read_news({'ai':1,'major':2,'national':1})
         act(self.root,self.identifier,'ses_fixture','init',{'greeting':'Morning.','opening':'Let’s look.', 'plan':[['news','News — 2026-10-10']]})
         story = lambda name: [name+' headline','Sourced summary.',[['Publisher','https://example.org/'+name]]]
         ai_only = {'position':0,'section':['news',[['news','AI',[story('ai')]]]]}
@@ -204,11 +212,14 @@ class JobTests(unittest.TestCase):
                                                     ['news','UK',[story('uk')],'GB']]]}
         self.assertEqual(act(self.root,self.identifier,'ses_fixture','publish',complete)['next']['action'],'finish')
 
-    def test_news_without_saved_material_is_not_held_to_coverage(self):
-        self.save_report({'ai':1,'major':0,'national':0})
+    def test_news_without_read_material_is_not_held_to_coverage(self):
+        self.read_news({'ai':1,'major':0,'national':0})
         act(self.root,self.identifier,'ses_fixture','init',{'greeting':'Morning.','opening':'Let’s look.', 'plan':[['news','News — 2026-10-10']]})
         section = ['news',[['news','AI',[['Headline','Sourced summary.',[['Publisher','https://example.org/a']]]]]]]
         self.assertEqual(act(self.root,self.identifier,'ses_fixture','publish',{'position':0,'section':section})['next']['action'],'finish')
+        # An omitted title would render as yesterday's date, so the plan's title is saved with the section.
+        self.assertEqual(load(self.app.job_dir/(self.identifier+'.preview.json'))['document']['sections'][0][2:],['','News — 2026-10-10'])
+        self.assertTrue(act(self.root,self.identifier,'ses_fixture','publish',{'position':0,'section':section})['reused'])
 
     def test_news_read_lists_every_section_at_once(self):
         result = act(self.root,self.identifier,'ses_fixture','init',{'greeting':'Morning.','opening':'Let’s look.'})

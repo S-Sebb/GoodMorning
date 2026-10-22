@@ -34,7 +34,7 @@ class HelpersTests(unittest.TestCase):
         self.addCleanup(self.env.stop)
         (self.root / "profile.md").write_text('city: "London, GB"\ntimezone: "Europe/London"\n'
             'news_country: "GB"\nnews_additional_countries: "CN,GB"\nsecretary_language: "English"\n'
-            'secretary_tone: "Warm"\nnews_latest: "false"\n')
+            'secretary_tone: "Warm"\n')
 
     def file(self, text):
         path = self.root / "daily" / (DAY + ".md")
@@ -89,7 +89,6 @@ class HelpersTests(unittest.TestCase):
         self.assertEqual(result["yesterday"], "2026-10-09")
         self.assertEqual(result["tomorrow"], "2026-10-11")
         self.assertEqual(result["news"]["countries"], ["GB", "CN"])
-        self.assertFalse(result["news"]["latest_enabled"])
         self.assertEqual(result["daily"]["sha256"], "missing")
         self.assertFalse((self.root / "state.json").exists())
         missing = self.root / "missing"

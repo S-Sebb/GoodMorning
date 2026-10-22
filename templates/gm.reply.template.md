@@ -4,8 +4,8 @@ Use native JSON v2 under `docs/briefing-format.md` and code-owned item routing u
 `docs/item-taxonomy.md`. Do not produce Markdown, card, presentation or HTML copies.
 
 Give a short natural greeting/opening in the selected language and saved tone.
-Publish only the next default-plan section: Weather, News (including opted-in
-latest News when planned), Schedule, Tasks, Reminders. Browser jobs retain plan
+Publish only the next default-plan section: Weather, News, Schedule, Tasks,
+Reminders. Browser jobs retain plan
 positions and `skip` empty optional ones; local JSON omits empty optional sections.
 Retain material unavailability/conflicts.
 

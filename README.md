@@ -37,8 +37,8 @@ button opens a quick chat without leaving the page.
 ## A day with GoodMorning
 
 **Morning · Find your bearings.** Weather, News, Schedule, Tasks, then Reminders:
-a familiar order for local conditions and air quality, yesterday's source-linked
-stories, today's appointments, saved actions, and decisions that need you.
+a familiar order for local conditions and air quality, source-linked stories from
+the past 24 hours, today's appointments, saved actions, and decisions that need you.
 Tasks are grouped by workday and project, with clear action titles and essential
 work kept distinct from optional possibilities. Habits show up on the days they
 are due, and errand results appear as their own cards. Sections appear as they are
@@ -264,10 +264,11 @@ GoodMorning is currently **beta**. It runs on **Linux with Python 3.14+** and an
    and `/eureka` are workflow names, not separately installed slash commands.
 
 Weather and news need outbound HTTPS. Ordinary weather, modelled air quality,
-and RSS/Hacker News collection do not require extra API keys. News normally covers
-**yesterday in your saved timezone**, with AI, world, and your chosen countries'
-stories; same-day updates require opt-in. Coverage and provider availability can
-be incomplete, and source links do not imply independent fact-checking.
+and RSS/Hacker News collection do not require extra API keys. News covers **the
+24 hours before your briefing is prepared**, with AI, world, and your chosen
+countries' stories, and leaves out stories your previous morning briefing already
+showed. Coverage and provider availability can be incomplete, and source links do
+not imply independent fact-checking.
 
 Self-hosting does not hide requests from the AI provider you choose, and storage
 encryption does not hide live data from trusted server administrators. Read the

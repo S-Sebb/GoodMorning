@@ -50,7 +50,7 @@ def curate(payload, choices, expected, actor):
             raise EditorialError("selection exceeds the requested section limit")
         if story.get("ranking", {}).get("genre", "news") != "news":
             raise EditorialError("opinion or entertainment cannot be approved as straight news")
-        if story.get("date") != payload.get("date", payload.get("since")):
+        if not payload.get("date", payload.get("since")) <= story.get("date", "") <= payload.get("date", payload.get("until")):
             raise EditorialError("candidate belongs to a different news date")
         if section == 'ai' and not ai_relevance(story):
             raise EditorialError('AI selection requires an explicit AI connection in the collected title or publisher excerpt; skip unrelated or ambiguous candidates')
@@ -63,6 +63,7 @@ def curate(payload, choices, expected, actor):
     if "counts" in payload:
         value["counts"] = counts
     else:
-        value["coverage"] = {payload["since"]: counts}
+        value["coverage"] = {day: {name: sum(story["date"] == day and story["section"] == name for story in selected) for name in counts}
+                             for day in payload["coverage"]}
     # Keep the unchanged candidate evidence and review choices under a new content ID.
     return seal(value)

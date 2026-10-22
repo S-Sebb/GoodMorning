@@ -82,10 +82,7 @@ def default_plan(context):
     for item in plan:
         item[1]=ui.text(item[1],lang=selected)
         if item[0] == 'news':
-            item[1] += ' — ' + context['yesterday']
-    if context.get('news', {}).get('latest_enabled'):
-        index = next((n + 1 for n, item in enumerate(plan) if item[0] == 'news'), len(plan))
-        plan.insert(index, ['news', ui.text('Latest news — {date}',lang=selected,date=context['date'])])
+            item[1] = ui.text('News — as of {time}', lang=selected, time=context['news']['as_of'][11:16])
     if context['workflow'] == 'gn' and context.get('document_version') == 2 and context.get('anime', {}).get('enabled'):
         plan.append(['anime', ui.text(native.TITLES['anime'], lang=selected)])
     if context['workflow'] == 'gn' and context.get('document_version') == 2 and context.get('games', {}).get('enabled'):
@@ -119,18 +116,13 @@ def next_step(runtime, identifier, session, context, checkpoint):
         reads.append(shlex.join(['python','scripts/goodmorning.py','weather','--secretary-dir',str(runtime),
                                 '--city',context['city'],'--cache-dir',selected['cache']]))
     elif tag == 'news':
-        latest = any(entry[0] == 'news' for entry in checkpoint['plan'][:position])
-        if latest and not context['news']['latest_enabled']:
-            return {'action':'publish','command':shlex.join(command + ['publish']), 'position':position,
-                    'section':[tag,title], 'instruction':'No same-day collection is authorized. Use only the explicitly approved dated news window.'}
         for country in context['news']['countries']:
-            base = ['python','scripts/goodmorning.py','news','--secretary-dir',str(runtime),'--country',country,
-                    '--timezone',context['timezone'],'--cache-dir',selected['cache']]
+            read = ['python','scripts/goodmorning.py','news','--secretary-dir',str(runtime),'--country',country,
+                    '--timezone',context['timezone'],'--cache-dir',selected['cache'],
+                    '--latest','--as-of',context['news']['as_of'],'--format','json','--view','sections']
             if context['news'].get('sources'):
-                base += ['--sources',context['news']['sources']]
-            reads.append(shlex.join(base + (['--latest','--format','json'] if latest else ['--backfill','--today',context['date']])))
-            if not latest:
-                reads.append(shlex.join(base + ['--show',context['yesterday'],'--view','sections']))
+                read += ['--sources',context['news']['sources']]
+            reads.append(shlex.join(read))
     elif context.get('document_version', 1) == 1 and tag in ('schedule', 'tomorrow') and selected.get('calendar_db'):
         reads.append(shlex.join(['python','scripts/goodmorning.py','calendar','--secretary-dir',str(runtime),
             '--db',selected['calendar_db'],'--from',context['tomorrow'] if tag == 'tomorrow' else context['date'],
@@ -244,31 +236,44 @@ def run_reads(commands):
     return results
 
 
-def news_gaps(runtime, context, section):
-    """Categories the saved dated reports filled but this news section leaves out."""
-    from goodmorning.news.news import load_sources, SOURCES_FILE
-    from goodmorning.news.news_reports import ReportStore, context_key
-    countries = context.get('news', {}).get('countries', [])
-    if not countries or not (Path(runtime)/'news_reports.sqlite').exists():
+def news_path(runtime, identifier):
+    return context_path(runtime, identifier).with_name(identifier + '.news.json')
+
+
+def shown_news(runtime, date):
+    """Links the previous morning briefing showed; a rolling window would otherwise repeat them."""
+    from goodmorning.news.news import canonical_url
+    for source in sorted((Path(runtime)/'daily').glob('????-??-??.gm.json'), reverse=True):
+        if source.name[:10] < date:
+            try:
+                document = native.validate(bounded_json(source, native.MAX_BYTES))
+            except (ValueError, OSError):
+                return set()  # An unreadable edition only allows repeats.
+            return {canonical_url(url) for section in document['sections'] for block in section[1]
+                    if block[0] == 'news' for row in block[2] for _, url in row[2]}
+    return set()
+
+
+def fresh_news(runtime, identifier, job, context, results):
+    """Drop stories the previous morning showed, then record the categories left with picks for news_gaps."""
+    from goodmorning.news.news import canonical_url
+    shown, filled = shown_news(runtime, job['date']), set()
+    for result, country in zip(results, context['news']['countries']):
+        sections = result['output'].get('sections') if result['exit'] == 0 and isinstance(result['output'], dict) else None
+        for name, value in (sections or {}).items():
+            for key in ('selected', 'more'):
+                value[key] = [story for story in value[key] if not shown & {canonical_url(link['url']) for link in story['links']}]
+            if value['selected']:
+                filled.add(country if name == 'national' else name)
+    atomic_text(news_path(runtime, identifier), json.dumps(sorted(filled)))
+
+
+def news_gaps(runtime, identifier, context, section):
+    """Categories this job's news read filled but the section leaves out."""
+    path = news_path(runtime, identifier)
+    if not path.exists():
         return []
-    try:
-        sources = load_sources(context['news'].get('sources') or SOURCES_FILE)
-        store = ReportStore(runtime)
-    except (OSError, ValueError, sqlite3.Error):
-        return []  # Unreadable reports are a read failure, reported by the reads themselves.
-    filled = set()
-    try:
-        for country in countries:
-            row = store.get(context_key(context['timezone'], country, sources), context['yesterday'])
-            if row:
-                counts = row['payload']['counts']
-                filled |= {name for name in ('ai', 'major') if counts.get(name)}
-                if counts.get('national'):
-                    filled.add(country)
-    except (ValueError, sqlite3.Error):
-        return []
-    finally:
-        store.close()
+    filled = set(json.loads(path.read_text()))
     present = set()
     for block in section[1] if isinstance(section, list) and len(section) > 1 and isinstance(section[1], list) else []:
         if not (isinstance(block, list) and len(block) >= 3 and block[0] == 'news' and isinstance(block[1], str)):
@@ -279,7 +284,7 @@ def news_gaps(runtime, context, section):
             present.add('ai')
         else:
             present.add('major')
-    return [name for name in ('ai', 'major', *countries) if name in filled and name not in present]
+    return [name for name in ('ai', 'major', *context['news']['countries']) if name in filled and name not in present]
 
 
 def image_previews(runtime, job, context, checkpoint):
@@ -408,6 +413,8 @@ def act(runtime, identifier, session, action, payload=None):
                         next_action['results'] += run_reads([command])
                     if tag == 'weather':
                         save_weather_frame(runtime, identifier, reads[0], next_action['results'])
+                    if tag == 'news':
+                        fresh_news(runtime, identifier, job, context, next_action['results'])
                 if next_action['action'] == 'publish':
                     note(runtime, identifier, 'write', position=position, section=tag,
                          count=read_count(runtime, job, tag, next_action.get('results', [])))
@@ -462,6 +469,10 @@ def act(runtime, identifier, session, action, payload=None):
             requested = payload['position']
             if type(requested) is not int or requested < 0:
                 raise ValueError('Invalid section position')
+            section = payload.get('section')
+            if isinstance(section, list) and section[:1] == ['news'] and 2 <= len(section) < 4 and requested < len(checkpoint['plan']):
+                # An omitted news title renders as yesterday's date for older editions, so new ones keep their as-of title.
+                payload['section'] = section + [''] * (3 - len(section)) + [checkpoint['plan'][requested][1]]
             if requested < position:
                 outcome = checkpoint['outcomes'][requested]
                 sections = iter(document['sections'])
@@ -476,12 +487,11 @@ def act(runtime, identifier, session, action, payload=None):
                 if checkpoint['plan'][position][0] in ('weather','news','schedule','today','tomorrow','anime','games','stocks'):
                     raise ValueError('Publish material unavailability; do not skip a required section')
                 return receipt(publish(runtime, identifier, skip=True, position=position))
-            if (checkpoint['plan'][position][0] == 'news' and isinstance(payload['section'], list) and payload['section'][:1] == ['news']
-                    and not any(entry[0] == 'news' for entry in checkpoint['plan'][:position])):
-                missing = news_gaps(runtime, context, payload['section'])
+            if checkpoint['plan'][position][0] == 'news' and isinstance(payload['section'], list) and payload['section'][:1] == ['news']:
+                missing = news_gaps(runtime, identifier, context, payload['section'])
                 if missing:
                     labels = ', '.join({'ai':'AI', 'major':'World'}.get(name, 'National ' + name) for name in missing)
-                    raise ValueError('News leaves out ' + labels + ', which the saved reports filled. Add one news block for each '
+                    raise ValueError('News leaves out ' + labels + ', which the news read filled. Add one news block for each '
                                      '(a national block ends with its country code), using the read\'s selected or more stories; '
                                      'then publish again.')
             if checkpoint['plan'][position][0] in ('anime', 'games', 'stocks') and isinstance(payload['section'], list):

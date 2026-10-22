@@ -166,7 +166,7 @@ updates are not provider retries and do not consume a fetch attempt.
 For latest news, save the exact `--latest --format json` candidate output inside
 the runtime, then use `--curate-latest FILE --selection-file CHOICES --expect
 CANDIDATE_BATCH_ID --session SESSION --secretary-dir RUNTIME`. This validates the
-current-day snapshot and returns reviewed JSON without fetching or touching report
+snapshot from the past 24 hours and returns reviewed JSON without fetching or touching report
 delivery state. The batch seal covers the actual rendered JSON. Preserve its
 original cutoff and any offline/stale notes; do not pass a replay off as a new
 live fetch. A reviewed shortlist can contain fewer than four stories per section.
@@ -188,21 +188,23 @@ The editorial-review setting also separates report namespaces, preserving the
 earlier delivered reports. `collected` means required sections are populated;
 only reviewed, complete reports are ready for the normal presentation/ack flow.
 
-### Current developments are separate from yesterday
+### Latest: the 24 hours before a cutoff
 
 ```bash
 python scripts/goodmorning.py news --latest --country GB --timezone Europe/London --format json
+python scripts/goodmorning.py news --latest --as-of 2026-10-22T07:12:00+01:00 --country GB --timezone Europe/London --format json --view sections
 ```
 
 Pass the selected runtime, cache and custom sources explicitly when relocated.
-This mode selects the current local day only, excludes future timestamps, and
-labels the actual collection cutoff as `as_of`. Response cache TTL is five minutes;
+This mode selects the 24 hours before `--as-of` (default: now; never in the future)
+as one period, so per-section limits and the candidate pool span the whole window,
+and labels that cutoff as `as_of`. Morning briefings pass their job's creation time
+and the `sections` view. Response cache TTL is five minutes;
 outage fallbacks remain disclosed, so this is not a real-time ticker. Known older
 RSS publications rediscovered through HN are excluded rather than re-dated as new.
 Unknown HN submission dates still remain submission dates, not publication proof.
 No report store, daily mark or delivery acknowledgement is written by `--latest`.
-Preserve yesterday's dated digest, label the current snapshot separately and do
-not call all fresh headlines “breaking.” Historical `--since/--until` cannot be
+Do not call all fresh headlines “breaking.” Historical `--since/--until` cannot be
 combined with this mode. No Twitter/X account access or ingestion is implemented.
 
 ### Source repair verified on 2026-10-09

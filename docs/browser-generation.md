@@ -40,8 +40,8 @@ Chinese requests state the edition and label the job/runtime in Chinese; the job
 - Do not rerun `workflow`, ask missing-edition questions or re-ask supplied progress.
   Additional questions cover unresolved material ambiguity/consent only. Browser
   jobs use their pinned current briefing day (04:00 profile-timezone rollover),
-  leaving archive gaps read-only. News uses completed calendar days; weather keeps
-  actual timestamps. Pass the pinned date to backfill, not the shell's date.
+  leaving archive gaps read-only. News covers the 24 hours before the job was created;
+  weather keeps actual timestamps.
 - `migration_required`: stop generation and use Secretary for read-only
   `task --migrate` review and explicit backed-up upgrade consent. Keep saved setup;
   never reset the runtime or loop on generation.
@@ -93,8 +93,7 @@ python scripts/goodmorning.py job --secretary-dir RUNTIME --job JOB publish <<'J
 JSON
 ```
 
-Order: gm Weather, yesterday's News, opted-in dated latest News if planned,
-Schedule, Tasks, Reminders; gn Today, Schedule, Tasks, Reminders, then New episodes
+Order: gm Weather, News (the 24 hours before the job's as-of time), Schedule, Tasks, Reminders; gn Today, Schedule, Tasks, Reminders, then New episodes
 when `anime_updates` is on, Game sales when `game_sales` is on and Stocks when
 `stock_report` is on (never skipped). Do not alter the
 default plan. Use code-owned blocks/pages under `docs/item-taxonomy.md`. Project/

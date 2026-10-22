@@ -82,8 +82,7 @@ def prepare(directory, kind, today=None, cache=None, *, task_limit=7, website_la
                        "cache": str(cache), "calendar_db": calendar,
                        "projects_registry": str(Path(directory) / "projects.json")}
     if kind == "gm":
-        result["news"] = {"countries": ready["countries"], "sources": fields.get("news_sources_path") or None,
-                          "latest_enabled": fields.get("news_latest", "false").casefold() == "true"}
+        result["news"] = {"countries": ready["countries"], "sources": fields.get("news_sources_path") or None}
         result["city"] = fields["city"]
     if kind == "gn":
         result["calendar_source"] = fields.get("calendar_source", "")
