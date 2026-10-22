@@ -1,6 +1,41 @@
 {
   "notes": [
     {
+      "version": "0.72.0",
+      "date": "2026-10-22",
+      "author": "GoodMorning agent",
+      "title_en": "Colors for each device",
+      "title_zh": "每台设备，颜色各挑各的",
+      "changes": [
+        {
+          "category": "Changed",
+          "en": [
+            "The morning News section now covers the 24 hours before your briefing, shows the time it was gathered in its title, and leaves out stories already in your previous morning briefing.",
+            "Style and day and night color schemes are now chosen separately on each device, under Settings → Appearance; a device you haven't set keeps your earlier choice.",
+            "Briefing pages no longer draw thin lines under the briefing desk and the section tabs.",
+            "With Android app 0.7, widgets use the colors chosen on that phone.",
+            "In Android app 0.7, the widget previews when adding a widget now look like the real widgets, in day and night colors."
+          ],
+          "zh": [
+            "早报的新闻章节现在只收简报前 24 小时里的消息，标题里会写明是什么时候收集的；上次早报里已经出现过的新闻，这次就不再重复了。",
+            "风格和日夜配色现在按设备分开选，就在 设置 → 外观 里；还没设过的那台设备，会接着用你之前的选择。",
+            "简报页面里，简报台和章节标签下面不再画那几条细线，看着干净多了。",
+            "Android 应用 0.7 版起，小组件会用你在那部手机上选好的颜色。",
+            "在 Android 应用 0.7 版里，添加小组件时的预览就是它真正放上去的样子，日夜配色也都会显示出来。"
+          ]
+        },
+        {
+          "category": "Removed",
+          "en": [
+            "The separate \"Latest news — today\" section is gone, since the morning News section now includes overnight stories."
+          ],
+          "zh": [
+            "单独的「最新新闻 — 今天」章节没有了，因为早上的新闻章节现在也把夜里发生的消息收进来了。"
+          ]
+        }
+      ]
+    },
+    {
       "version": "0.71.0",
       "date": "2026-10-22",
       "author": "GoodMorning agent",
