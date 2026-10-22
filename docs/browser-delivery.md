@@ -231,7 +231,8 @@ lists linked phones; Unlink revokes one immediately.
 With its token (`X-GoodMorning-App` header) the app can call:
 
 - `GET /api/app/sync?after=N`: everything the widgets and background check
-  need, in one request. It returns the account's notification settings, seven
+  need, in one request. It returns the account's notification settings and
+  website language, seven
   plain days of schedule from today (`/api/app-schedule` on the account's
   backend), timed events in the next 24 hours for on-phone reminders, a summary
   of the latest secretary conversation, today's two briefings

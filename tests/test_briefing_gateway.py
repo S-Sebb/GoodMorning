@@ -522,6 +522,12 @@ class GatewayTests(GatewayFixture):
         self.assertEqual((value['schedule']['today'],value['reminders']),('2026-10-21',[]))
         self.assertEqual((value['device'],value['settings']),(waiting_id,app_link.links(self.store,self.id)[0]['settings']))
         self.assertEqual((value['secretary']['name'],value['appearance']['day']),('Aria','morning-sky'))
+        self.assertEqual(value['language'],'en')
+        # Widgets follow the language chosen on the website, not the phone's.
+        self.store.website_language(self.id,'zh-CN')
+        with patch.object(self.gateway,'proxy',lambda user,host,path,*args:(200,{},json.dumps(answers[path]).encode())):
+            self.assertEqual(json.loads(phone('/api/app/sync?after=0',headers={'X-GoodMorning-App':token})[2])['language'],'zh-CN')
+        self.store.website_language(self.id,'en')
         self.assertEqual(value['briefings']['editions']['gm'],{'state':'missing'})
         self.assertEqual(value['weather'],{'city':'London','frame':{'start':'2026-10-21T06:00'}})
         # A request still waiting in the shared queue already counts as being prepared.

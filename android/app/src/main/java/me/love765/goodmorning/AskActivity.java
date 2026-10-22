@@ -1,6 +1,7 @@
 package me.love765.goodmorning;
 
 import android.app.Activity;
+import android.content.Context;
 import android.content.Intent;
 import android.content.res.ColorStateList;
 import android.content.res.Configuration;
@@ -26,6 +27,11 @@ import java.io.IOException;
 
 /** A small dialog over the home screen for asking the secretary from the chat widget. */
 public class AskActivity extends Activity {
+    @Override
+    protected void attachBaseContext(Context base) {
+        super.attachBaseContext(Language.apply(base));
+    }
+
     @Override
     protected void onCreate(Bundle state) {
         super.onCreate(state);

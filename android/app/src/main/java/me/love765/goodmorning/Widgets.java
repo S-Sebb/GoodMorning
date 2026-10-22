@@ -24,7 +24,6 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.TextStyle;
-import java.util.Locale;
 
 /** Home screen widgets drawn from the last summary the app received; see {@link Sync}. */
 public abstract class Widgets extends AppWidgetProvider {
@@ -83,7 +82,7 @@ public abstract class Widgets extends AppWidgetProvider {
             JSONObject secretary = data.optJSONObject("secretary");
             String name = secretary == null || secretary.optString("name").isEmpty() || secretary.isNull("name")
                     ? context.getString(R.string.chat_name_default) : secretary.optString("name");
-            views.setTextViewText(R.id.label, context.getString(R.string.chat_label).toUpperCase(Locale.getDefault()));
+            views.setTextViewText(R.id.label, context.getString(R.string.chat_label).toUpperCase(Language.of(context)));
             views.setTextViewText(R.id.name, name);
             portrait(context, views, secretary);
             views.setTextViewText(R.id.placeholder, context.getString(R.string.chat_placeholder, name));
@@ -256,7 +255,7 @@ public abstract class Widgets extends AppWidgetProvider {
             }
             Notes.Note front = notes.isEmpty() ? null : notes.get(0);
             String label = front == null ? context.getString(R.string.note_label) : Notes.when(context, front.created);
-            views.setTextViewText(R.id.label, label.toUpperCase(Locale.getDefault()));
+            views.setTextViewText(R.id.label, label.toUpperCase(Language.of(context)));
             views.setTextViewText(R.id.text, front == null ? context.getString(R.string.note_empty) : front.text);
             Palette.text(context, views, schemes, R.id.text, front == null ? (p -> p.muted) : (p -> p.ink));
             views.setInt(R.id.text, "setMaxLines", Math.max(2, (height - fit * 24 - 150) / 22));
@@ -282,13 +281,13 @@ public abstract class Widgets extends AppWidgetProvider {
 
     @Override
     public void onUpdate(Context context, AppWidgetManager manager, int[] ids) {
-        for (int id : ids) manager.updateAppWidget(id, draw(context, id));
+        for (int id : ids) manager.updateAppWidget(id, draw(Language.apply(context), id));
         manager.notifyAppWidgetViewDataChanged(ids, R.id.list);
     }
 
     @Override
     public void onAppWidgetOptionsChanged(Context context, AppWidgetManager manager, int id, Bundle options) {
-        manager.updateAppWidget(id, draw(context, id));  // Resized: fit the content again.
+        manager.updateAppWidget(id, draw(Language.apply(context), id));  // Resized: fit the content again.
     }
 
     @Override
@@ -299,7 +298,7 @@ public abstract class Widgets extends AppWidgetProvider {
             int id = intent.getIntExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, 0);
             choose(context, id, intent.getStringExtra("edition"));
             AppWidgetManager manager = AppWidgetManager.getInstance(context);
-            manager.updateAppWidget(id, draw(context, id));
+            manager.updateAppWidget(id, draw(Language.apply(context), id));
             manager.notifyAppWidgetViewDataChanged(id, R.id.list);
             return;
         }
@@ -379,9 +378,9 @@ public abstract class Widgets extends AppWidgetProvider {
         views.setImageViewResource(R.id.portrait, resource);
     }
 
-    static String day(String date, String skeleton) {
-        String pattern = DateFormat.getBestDateTimePattern(Locale.getDefault(), skeleton);
-        return LocalDate.parse(date).format(DateTimeFormatter.ofPattern(pattern, Locale.getDefault()));
+    static String day(Context context, String date, String skeleton) {
+        String pattern = DateFormat.getBestDateTimePattern(Language.of(context), skeleton);
+        return LocalDate.parse(date).format(DateTimeFormatter.ofPattern(pattern, Language.of(context)));
     }
 
     RemoteViews list(Context context, int id, String kind) {
@@ -400,12 +399,12 @@ public abstract class Widgets extends AppWidgetProvider {
         JSONObject schedule = Sync.cached(context).optJSONObject("schedule");
         JSONArray days = schedule == null ? null : schedule.optJSONArray("days");
         views.setTextViewText(R.id.label, context.getString(today ? R.string.widget_label_today : R.string.widget_label_week)
-                .toUpperCase(Locale.getDefault()));
+                .toUpperCase(Language.of(context)));
         String title = context.getString(today ? R.string.widget_today_name : R.string.widget_week_name);
         if (days != null && days.length() > 0) {
             String first = days.optJSONObject(0).optString("date");
-            title = today ? day(first, "EEEEMMMMd")
-                    : context.getString(R.string.widget_week_range, day(first, "MMMd"), day(days.optJSONObject(days.length() - 1).optString("date"), "MMMd"));
+            title = today ? day(context, first, "EEEEMMMMd")
+                    : context.getString(R.string.widget_week_range, day(context, first, "MMMd"), day(context, days.optJSONObject(days.length() - 1).optString("date"), "MMMd"));
         }
         views.setTextViewText(R.id.title, title);
         boolean linked = Sync.linked(context);
@@ -451,11 +450,11 @@ public abstract class Widgets extends AppWidgetProvider {
         views.setContentDescription(R.id.refresh, context.getString(R.string.widget_refresh));
         views.setImageViewResource(R.id.icon, news ? R.drawable.ic_news : morning ? R.drawable.ic_morning : R.drawable.ic_evening);
         views.setTextViewText(R.id.label, context.getString(news ? R.string.news_label : morning ? R.string.briefing_label_gm : R.string.briefing_label_gn)
-                .toUpperCase(Locale.getDefault()));
+                .toUpperCase(Language.of(context)));
         JSONObject briefings = Sync.cached(context).optJSONObject("briefings");
         String date = briefings == null ? "" : briefings.optString("date");
         views.setTextViewText(R.id.title, date.isEmpty() ? context.getString(news ? R.string.widget_news_name : R.string.widget_briefing_name)
-                : day(date, "EEEEMMMMd"));
+                : day(context, date, "EEEEMMMMd"));
         // The chosen edition is a filled pill, as in the website's edition switch.
         views.setViewVisibility(R.id.editions, news ? View.GONE : View.VISIBLE);
         for (String option : new String[] {"gm", "gn"}) {
@@ -531,7 +530,7 @@ public abstract class Widgets extends AppWidgetProvider {
         views.setContentDescription(R.id.refresh, context.getString(R.string.widget_refresh));
         views.setViewVisibility(R.id.header, only == null ? View.VISIBLE : View.GONE);
         views.setViewVisibility(R.id.label, charts ? View.VISIBLE : View.GONE);  // The compact widget keeps one header line.
-        views.setTextViewText(R.id.label, context.getString(R.string.weather_label).toUpperCase(Locale.getDefault()));
+        views.setTextViewText(R.id.label, context.getString(R.string.weather_label).toUpperCase(Language.of(context)));
         JSONObject data = Sync.cached(context).optJSONObject("weather");
         String city = data == null ? "" : data.optString("city");
         views.setTextViewText(R.id.title, city.isEmpty() ? context.getString(R.string.widget_weather_name) : city);
@@ -579,7 +578,7 @@ public abstract class Widgets extends AppWidgetProvider {
             tile.setImageViewResource(R.id.tile_icon, kind == WeatherChart.Kind.TEMPERATURE ? R.drawable.ic_thermometer
                     : kind == WeatherChart.Kind.RAIN ? R.drawable.ic_rain : R.drawable.ic_leaf);
             tile.setTextViewText(R.id.tile_label, context.getString(kind == WeatherChart.Kind.TEMPERATURE ? R.string.weather_temperature
-                    : kind == WeatherChart.Kind.RAIN ? R.string.weather_precipitation : R.string.weather_air).toUpperCase(Locale.getDefault()));
+                    : kind == WeatherChart.Kind.RAIN ? R.string.weather_precipitation : R.string.weather_air).toUpperCase(Language.of(context)));
             String[] headline = headline(context, frame, kind, past);
             tile.setTextViewText(R.id.tile_main, headline[0]);
             tile.setTextViewText(R.id.tile_sub, headline[1]);
@@ -616,7 +615,7 @@ public abstract class Widgets extends AppWidgetProvider {
             return new String[] {context.getString(R.string.weather_this_morning), context.getString(R.string.weather_this_afternoon),
                     context.getString(R.string.weather_this_evening)};
         }
-        String day = frame.start.plusDays(1).getDayOfWeek().getDisplayName(TextStyle.SHORT, Locale.getDefault());
+        String day = frame.start.plusDays(1).getDayOfWeek().getDisplayName(TextStyle.SHORT, Language.of(context));
         return new String[] {context.getString(R.string.weather_this_evening), context.getString(R.string.weather_overnight),
                 context.getString(R.string.weather_day_morning, day)};
     }

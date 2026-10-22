@@ -15,7 +15,6 @@ import org.json.JSONObject;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
 
 /** Rows for the schedule and briefing widgets, built from the cached summary in the account's colors. */
 public class ListService extends RemoteViewsService {
@@ -30,14 +29,15 @@ public class ListService extends RemoteViewsService {
                 {R.id.event1, R.id.bar1, R.id.time1, R.id.text1},
                 {R.id.event2, R.id.bar2, R.id.time2, R.id.text2},
                 {R.id.event3, R.id.bar3, R.id.time3, R.id.text3}};
-        private final Context context;
+        private final Context base;
         private final String kind;
         private final int widget;
         private final List<RemoteViews> rows = new ArrayList<>();
+        private Context context;
         private Palette[] schemes;
 
         Rows(Context context, String kind, int widget) {
-            this.context = context;
+            this.base = context;
             this.kind = kind;
             this.widget = widget;
         }
@@ -45,6 +45,7 @@ public class ListService extends RemoteViewsService {
         @Override
         public void onDataSetChanged() {
             rows.clear();
+            context = Language.apply(base);  // The language may have changed since the last rows.
             schemes = Palette.of(context);
             if ("briefing".equals(kind) || "news".equals(kind)) {
                 briefing("news".equals(kind));
@@ -102,7 +103,7 @@ public class ListService extends RemoteViewsService {
             Palette.text(context, row, schemes, R.id.number, offset == 0 ? (p -> p.surface) : (p -> p.ink));
             Palette.text(context, row, schemes, R.id.weekday, offset == 0 ? (p -> p.ink) : (p -> p.muted));
             Palette.text(context, row, schemes, R.id.note, p -> p.muted);
-            row.setTextViewText(R.id.weekday, Widgets.day(date, "EEE").toUpperCase(Locale.getDefault()));
+            row.setTextViewText(R.id.weekday, Widgets.day(context, date, "EEE").toUpperCase(Language.of(context)));
             row.setTextViewText(R.id.number, String.valueOf(Integer.parseInt(date.substring(8))));
             JSONArray events = day.optJSONArray("events");
             JSONArray tasks = day.optJSONArray("tasks");
@@ -152,7 +153,7 @@ public class ListService extends RemoteViewsService {
                     String style = item.optString("style");
                     if ("heading".equals(style)) {
                         RemoteViews row = view(R.layout.row_category, page);
-                        row.setTextViewText(R.id.text, item.optString("title").toUpperCase(Locale.getDefault()));
+                        row.setTextViewText(R.id.text, item.optString("title").toUpperCase(Language.of(context)));
                         Palette.text(context, row, schemes, R.id.text, p -> p.accent);
                         Palette.tint(context, row, schemes, R.id.rule, p -> p.line);
                         rows.add(row);

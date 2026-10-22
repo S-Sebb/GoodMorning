@@ -70,6 +70,11 @@ public class NoteActivity extends Activity {
     }
 
     @Override
+    protected void attachBaseContext(Context base) {
+        super.attachBaseContext(Language.apply(base));
+    }
+
+    @Override
     protected void onCreate(Bundle state) {
         super.onCreate(state);
         setContentView(R.layout.note);
