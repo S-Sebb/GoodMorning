@@ -87,6 +87,128 @@ def weather_display(card, metric):
     return text.strip() or text
 
 
+FRAME_HOURS = 18
+WET_HOUR_PROB = 50
+AQI_LEVELS = ((50, 'Good'), (100, 'Moderate'), (150, 'Unhealthy for sensitive groups'),
+              (200, 'Unhealthy'), (300, 'Very unhealthy'), (float('inf'), 'Hazardous'))
+
+
+def weather_frame(value, path):
+    """The code-owned hourly frame weather.py attached to a weather block."""
+    if not isinstance(value, dict) or set(value) != {'start', 'past', 'hours', 'sun', 'night', 'snow', 'links'}:
+        fail(path, 'invalid weather frame')
+    if not isinstance(value['start'], str) or not re.fullmatch(r'\d{4}-\d{2}-\d{2}T(06|18):00', value['start']):
+        fail(path + '.start', 'frame starts at 06:00 or 18:00')
+    Date.fromisoformat(value['start'][:10])
+    if type(value['past']) is not int or not 0 <= value['past'] < FRAME_HOURS:
+        fail(path + '.past', 'invalid past hours')
+    sequence(value['hours'], path + '.hours', FRAME_HOURS, FRAME_HOURS)
+    real = lambda v: type(v) in (int, float) and abs(v) < 1000
+    air = [row[2] if isinstance(row, list) and len(row) == 3 else 0 for row in value['hours']]
+    for row in value['hours']:
+        if (not isinstance(row, list) or len(row) != 3 or not real(row[0]) or type(row[1]) is not int or not 0 <= row[1] <= 100
+                or not (row[2] is None or type(row[2]) is int and 0 <= row[2] <= 999)):
+            fail(path + '.hours', 'invalid hourly values')
+    if None in air and any(v is not None for v in air):
+        fail(path + '.hours', 'AQI is all hours or none')
+    for kind, entries, size in (('sun', value['sun'], 2), ('night', value['night'], 2)):
+        sequence(entries, f'{path}.{kind}', 0, 6)
+        for entry in entries:
+            sequence(entry, f'{path}.{kind}', size, size)
+            numbers = entry[1:] if kind == 'sun' else entry
+            if (kind == 'sun' and entry[0] not in ('sunrise', 'sunset')) or not all(real(v) and 0 <= v <= FRAME_HOURS for v in numbers):
+                fail(f'{path}.{kind}', 'invalid entry')
+    if type(value['snow']) is not bool or not isinstance(value['links'], dict) or set(value['links']) != {'forecast', 'air'}:
+        fail(path, 'invalid weather frame')
+    sources([['forecast', value['links']['forecast']], ['air', value['links']['air']]], path + '.links')
+
+
+def frame_clock(frame, offset):
+    hour, minutes = divmod(int(frame['start'][11:13]) * 60 + round(offset * 60), 60)
+    return '24:00' if (hour, minutes) == (24, 0) and offset == FRAME_HOURS else f'{hour % 24:02d}:{minutes:02d}'
+
+
+def weather_summary(card, frame):
+    """Headline and its second line, judged only from the hours after the briefing was made."""
+    rows = frame['hours'][frame['past']:]
+    if card == 'temperature':
+        temps = [round(t) for t, _, _ in rows]
+        return f'{max(temps)}°', ui.ui('High · low {low}°', low=max(min(temps), -99))
+    if card == 'precipitation':
+        peak = max(p for _, p, _ in rows)
+        wet = [p >= WET_HOUR_PROB for _, p, _ in rows]
+        snow = frame['snow']
+        if not any(wet):
+            return ui.ui('Dry'), ui.ui('Up to {peak}% chance of snow' if snow else 'Up to {peak}% chance of rain', peak=peak)
+        first = wet.index(True)
+        if first:
+            return (ui.ui('Dry until {time}', time=frame_clock(frame, frame['past'] + first)),
+                    ui.ui('Then snow likely · up to {peak}%' if snow else 'Then rain likely · up to {peak}%', peak=peak))
+        main = ui.ui('Snow likely' if snow else 'Rain likely')
+        if False in wet:
+            return main, ui.ui('Easing by {time} · up to {peak}%', time=frame_clock(frame, frame['past'] + wet.index(False)), peak=peak)
+        return main, ui.ui('Through {time} · up to {peak}%', time=frame_clock(frame, FRAME_HOURS), peak=peak)
+    if card == 'air' and rows[0][2] is not None:
+        values = [a for _, _, a in rows]
+        level = next(name for limit, name in AQI_LEVELS if max(values) <= limit)
+        late = frame['start'][11:13] == '18'
+        span = f'{min(values)}–{max(values)}' if min(values) != max(values) else str(values[0])
+        return ui.ui(level), ui.ui('AQI {span} overnight' if late else 'AQI {span} through the day', span=span)
+    return None
+
+
+def weather_chart(card, frame):
+    """Hourly trend in the fixed frame: three named periods, night shaded, sunrise and sunset marked.
+
+    The page CSP forbids inline styles, so shapes are SVG geometry stretched to the
+    tile width and labels sit in equal-width flex rows aligned with the hours.
+    """
+    column = {'temperature': 0, 'precipitation': 1, 'air': 2}.get(card)
+    hours = frame['hours']
+    if column is None or hours[0][column] is None:
+        return ''
+    count, past = FRAME_HOURS, frame['past']
+    values = [round(row[column]) for row in hours]
+    sun = {min(int(at), count - 1): (kind, frame_clock(frame, at)) for kind, at in frame['sun']}
+    near_sun = lambda i: any(abs(i - s) <= 2 for s in sun)
+    row = lambda cells, kind: f'<div class="wx-row {kind}" aria-hidden="true">' + ''.join(cells) + '</div>'
+    cell = lambda i, content: f'<span{" class=\"past\"" if i < past else ""}>{content}</span>'
+    axis = row([cell(i, icon('sun' if sun[i][0] == 'sunrise' else 'moon') + sun[i][1]) if i in sun else
+                cell(i, '' if near_sun(i) or i % 3 else f'{(int(frame["start"][11:13]) + i) % 24:02d}') for i in range(count)], 'wx-axis')
+    if frame['start'][11:13] == '18':
+        day = Date.fromisoformat(frame['start'][:10]) + timedelta(days=1)
+        weekday = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'][day.weekday()] if ui.current() == 'zh-CN' else f'{day:%a}'
+        names = [ui.ui('This evening'), ui.ui('Overnight'), ui.ui('{day} morning', day=weekday)]
+    else:
+        names = [ui.ui('This morning'), ui.ui('This afternoon'), ui.ui('This evening')]
+    periods = row([f'<span>{name}</span>' for name in names], 'wx-periods')
+    night = ''.join(f'<rect class="wx-night" x="{start * 10:g}" y="0" width="{(end - start) * 10:g}" height="100"/>'
+                    for start, end in frame['night'])
+    svg = f'<svg class="wx-plot" viewBox="0 0 {count * 10} 100" preserveAspectRatio="none" aria-hidden="true">{night}'
+    if card == 'precipitation':
+        bars = ''.join(f'<rect class="wx-bar{" wet" if p >= WET_HOUR_PROB else ""}{" past" if i < past else ""}" x="{i * 10 + 1.5:g}" '
+                       f'y="{100 - max(p, 2):g}" width="7" height="{max(p, 2):g}"/>' for i, p in enumerate(values))
+        # Name the wettest hours first, at least three hours apart, so labels never collide.
+        marked = []
+        for i in sorted(range(count), key=lambda i: (-values[i], i)):
+            if values[i] >= 10 and all(abs(i - j) >= 3 for j in marked):
+                marked.append(i)
+        labels = row([cell(i, f'{p}%' if i in marked else '') for i, p in enumerate(values)], 'wx-values')
+        plot = svg + f'<path class="wx-gridline" d="M0 50H{count * 10}"/>{bars}</svg>' + labels
+    else:
+        high, low = max(values), min(values)
+        span = max(high - low, 4 if card == 'temperature' else 20)
+        points = [((i + .5) * 10, 14 + (high - v) / span * 70) for i, v in enumerate(values)]
+        line = lambda part: ' '.join(f'{x:g},{y:.1f}' for x, y in part)
+        unit = '°' if card == 'temperature' else ''
+        labels = row([cell(i, f'{v}{unit}' if i % 3 == 0 else '') for i, v in enumerate(values)], 'wx-values')
+        dots = ''.join(f'<path class="wx-dot{" past" if i < past else ""}" d="M{x:g} {y:.1f}h0"/>' for i, (x, y) in enumerate(points) if i % 3 == 0)
+        plot = (labels + svg + f'<polygon class="wx-area" points="5,100 {line(points)} {(count - .5) * 10:g},100"/>'
+                + (f'<polyline class="wx-line past" points="{line(points[:past + 1])}"/>' if past else '')
+                + f'<polyline class="wx-line" points="{line(points[past:])}"/>{dots}</svg>')
+    return f'<figure class="wx-chart {card}">{plot}{axis}{periods}</figure>'
+
+
 def weather_parts(card, metric):
     """Split a normalized weather value into (main, sub|None) for card display.
 
@@ -306,7 +428,9 @@ def block(value, path):
                 text(row[1], path + '.time', 200)
                 text(row[2], path + '.event', 600)
     elif tag == 'weather':
-        sequence(value, path, 2, 2)
+        sequence(value, path, 2, 3)
+        if len(value) == 3:
+            weather_frame(value[2], path + '.frame')
         sequence(value[1], path + '.cards', 1, 4)
         order = []
         for index, row in enumerate(value[1]):
@@ -773,19 +897,32 @@ def render_block(value, images, briefing_date=None):
         return '<div class="agenda">' + ''.join(groups) + '</ol></div></div>'
     if tag == 'weather':
         cards = []
+        frame = value[2] if len(value) == 3 else None
         for row in value[1]:
             card, metric, detail, *custom = row
             label, symbol, style = WEATHER[card]
-            main, sub = weather_parts(card, metric) if metric is not None else (None, None)
+            summary = weather_summary(card, frame) if frame else None
+            if summary:
+                main, sub = summary
+            else:
+                main, sub = weather_parts(card, metric) if metric is not None else (None, None)
+                main, sub = escaped(main) if main else main, escaped(sub) if sub else sub
             if main is None:
                 metric = ''
             elif sub:
-                metric = ('<p class="weather-value"><span class="weather-main">' + escaped(main) +
-                          '</span><span class="weather-sub">' + escaped(sub) + '</span></p>')
+                metric = f'<p class="weather-value"><span class="weather-main">{main}</span><span class="weather-sub">{sub}</span></p>'
             else:
-                metric = '<p class="weather-value"><span class="weather-main">' + escaped(main) + '</span></p>'
-            cards.append(f'<div class="weather-tile {style}"><div class="weather-label">{icon(symbol)}<h3>{escaped(custom[0]) if custom else ui.ui(label)}</h3></div>{metric}<div class="weather-detail"><p>{escaped(detail)}</p></div></div>')
-        return '<div class="weather-tiles">' + ''.join(cards) + '</div>'
+                metric = f'<p class="weather-value"><span class="weather-main">{main}</span></p>'
+            source = ''
+            if frame and card in ('temperature', 'precipitation', 'air') and (card != 'air' or frame['hours'][0][2] is not None):
+                url = frame['links']['air' if card == 'air' else 'forecast']
+                name = 'Open-Meteo' if card != 'air' else 'WAQI' if 'open-meteo.com' not in url else 'CAMS'
+                purpose = ui.text('Air quality source: {name}' if card == 'air' else 'Forecast source: {name}', name=name)
+                source = (f'<a class="weather-tile-source" href="{escaped(url)}" target="_blank" rel="noopener noreferrer" '
+                          f'aria-label="{escaped(purpose)}" title="{escaped(purpose)}">{name}<span aria-hidden="true"> ↗</span></a>')
+            chart = weather_chart(card, frame) if frame else ''
+            cards.append(f'<div class="weather-tile {style}"><div class="weather-label">{icon(symbol)}<h3>{escaped(custom[0]) if custom else ui.ui(label)}</h3>{source}</div>{metric}<div class="weather-detail"><p>{escaped(detail)}</p></div>{chart}</div>')
+        return f'<div class="weather-tiles{" charted" if frame else ""}">' + ''.join(cards) + '</div>'
     if tag == 'episodes':
         cards = []
         for _, title, local, episode, episode_title, episode_local, aired, cover in value[1]:

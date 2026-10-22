@@ -178,6 +178,38 @@ def note(runtime, identifier, step, **values):
     atomic_text(activity_path(runtime, identifier), json.dumps({'step':step, **values}, separators=(',',':')))
 
 
+def weather_frame_path(runtime, identifier):
+    return context_path(runtime, identifier).with_name(identifier + '.weather.json')
+
+
+def save_weather_frame(runtime, identifier, command, results):
+    """Keep the hourly frame the agent's weather read used; publishing attaches it, so charts never come from the model."""
+    path = weather_frame_path(runtime, identifier)
+    frame = None
+    if results and results[0]['exit'] == 0:
+        output = run_reads([command + ' --json'])[0]['output']
+        frame = output.get('frame') if isinstance(output, dict) else None
+    if frame:
+        atomic_text(path, json.dumps(frame, separators=(',', ':')))
+    else:
+        path.unlink(missing_ok=True)
+
+
+def with_weather_frame(runtime, identifier, section):
+    """The section as saved: its first weather block carries the read's frame."""
+    try:
+        frame = json.loads(weather_frame_path(runtime, identifier).read_text())
+    except (OSError, ValueError):
+        return section
+    blocks = section[1] if isinstance(section, list) and len(section) > 1 and isinstance(section[1], list) else []
+    for index, block in enumerate(blocks):
+        if isinstance(block, list) and block[:1] == ['weather'] and len(block) == 2:
+            section = deepcopy(section)
+            section[1][index] = [*block, frame]
+            break
+    return section
+
+
 def read_count(runtime, job, tag, results):
     """Items the section's reads returned, when their shape says so plainly."""
     if tag in ('anime', 'games', 'stocks'):
@@ -374,6 +406,8 @@ def act(runtime, identifier, session, action, payload=None):
                     for done, command in enumerate(reads):
                         note(runtime, identifier, 'collect', position=position, section=tag, done=done, total=len(reads))
                         next_action['results'] += run_reads([command])
+                    if tag == 'weather':
+                        save_weather_frame(runtime, identifier, reads[0], next_action['results'])
                 if next_action['action'] == 'publish':
                     note(runtime, identifier, 'write', position=position, section=tag,
                          count=read_count(runtime, job, tag, next_action.get('results', [])))
@@ -432,7 +466,8 @@ def act(runtime, identifier, session, action, payload=None):
                 outcome = checkpoint['outcomes'][requested]
                 sections = iter(document['sections'])
                 previous = [next(sections) if value == 'ready' else None for value in checkpoint['outcomes']]
-                if (action == 'skip' and outcome == 'skipped') or (action == 'publish' and outcome == 'ready' and previous[requested] == payload['section']):
+                if (action == 'skip' and outcome == 'skipped') or (action == 'publish' and outcome == 'ready' and previous[requested] in (
+                        payload['section'], with_weather_frame(runtime, identifier, payload['section']))):
                     return receipt({'resolved':position,'planned':len(checkpoint['plan']),'saved':False,'reused':True})
                 raise ValueError('Published sections cannot change')
             if requested != position or position == len(checkpoint['plan']):
@@ -451,7 +486,10 @@ def act(runtime, identifier, session, action, payload=None):
                                      'then publish again.')
             if checkpoint['plan'][position][0] in ('anime', 'games', 'stocks') and isinstance(payload['section'], list):
                 read_rows(runtime, job, checkpoint['plan'][position][0], payload['section'])
-            document['sections'].append(payload['section'])
+            section = payload['section']
+            if checkpoint['plan'][position][0] == 'weather':
+                section = with_weather_frame(runtime, identifier, section)
+            document['sections'].append(section)
             result = publish(runtime, identifier, document, position=position)
             pictures = (native.news_urls(document) if payload['section'][0] == 'news' and context.get('integration_policy', {}).get('publisher_images') is True
                         else native.cover_urls(document) if payload['section'][0] in ('anime', 'games') else [])
@@ -498,6 +536,7 @@ def act(runtime, identifier, session, action, payload=None):
             if code:
                 raise ValueError('Final save was not confirmed: '+output.getvalue().strip())
             draft.unlink()  # Only this confirmed job's temporary cumulative input.
+            weather_frame_path(runtime, identifier).unlink(missing_ok=True)
             return {'saved':True,'date':job['date'],'kind':job['kind'],
                     'url':f"/d/{job['date']}/{job['kind']}.html",
                     'reply_context':reply_context,

@@ -37,6 +37,8 @@ AQI_TTL = 3600
 STALE_LIMIT = 6 * 3600
 GEOCODE_TTL = 30 * 86400
 MAX_RESPONSE_BYTES = 256 * 1024
+FRAME_HOURS = 18
+WET_HOUR_PROB = 50
 
 WMO_TEXT = {
     0: "clear", 1: "mainly clear", 2: "partly cloudy", 3: "overcast",
@@ -229,8 +231,9 @@ def find_profile(explicit):
     return str(Path(explicit).expanduser().resolve() if explicit else secretary_path() / "profile.md")
 
 
-def build_advice(temp_c, rain, snow=False):
-    bits = ["take umbrella"] if rain else (["rain forecast unavailable"] if rain is None else [])
+def build_advice(temp_c, rain, snow=False, rain_from=None):
+    umbrella = f"umbrella for after {rain_from}" if rain_from else "take umbrella"
+    bits = [umbrella] if rain else (["rain forecast unavailable"] if rain is None else [])
     if snow:
         bits.append("snow, wear boots")
     elif rain and temp_c is not None and temp_c < 10:
@@ -349,8 +352,9 @@ def fetch_openmeteo(city, lat, lon, timeout=TIMEOUT):
     q = urllib.parse.urlencode({
         "latitude": lat, "longitude": lon,
         "current": "temperature_2m,weather_code",
-        "daily": "temperature_2m_max,temperature_2m_min,precipitation_probability_max,weather_code,rain_sum,showers_sum,snowfall_sum",
-        "timezone": "auto", "forecast_days": 1,
+        "hourly": "temperature_2m,precipitation_probability",
+        "daily": "temperature_2m_max,temperature_2m_min,precipitation_probability_max,weather_code,rain_sum,showers_sum,snowfall_sum,sunrise,sunset",
+        "timezone": "auto", "forecast_days": 2,
     })
     d = http_get_json("https://api.open-meteo.com/v1/forecast?" + q, timeout=timeout)
     cur, daily = d.get("current", {}), d.get("daily", {})
@@ -396,14 +400,31 @@ def fetch_openmeteo(city, lat, lon, timeout=TIMEOUT):
         "advice": build_advice(temp, rain, snow=snow),
         "provider": "open-meteo",
         "aqi": None,
+        "hourly": hourly_series(d.get("hourly"), {"temp": "temperature_2m", "prob": "precipitation_probability"}),
+        "sun": [[rise, sunset] for rise, sunset in zip(daily.get("sunrise") or [], daily.get("sunset") or [])
+                if isinstance(rise, str) and isinstance(sunset, str)],
     }
+
+
+def hourly_series(hourly, fields):
+    """Hourly values keyed by local ISO hour; None when the provider omitted or broke them."""
+    if not isinstance(hourly, dict) or not isinstance(hourly.get("time"), list):
+        return None
+    series = {"time": hourly["time"]}
+    for name, key in fields.items():
+        values = hourly.get(key)
+        if not isinstance(values, list) or len(values) != len(series["time"]):
+            return None
+        series[name] = [number(value) for value in values]
+    return series if all(isinstance(t, str) for t in series["time"]) else None
 
 
 def fetch_aqi_openmeteo(lat, lon, timeout=TIMEOUT):
     q = urllib.parse.urlencode({
         "latitude": lat, "longitude": lon,
         "current": "us_aqi,european_aqi,pm2_5,ozone",
-        "timezone": "auto", "forecast_days": 1,
+        "hourly": "us_aqi",
+        "timezone": "auto", "forecast_days": 2,
     })
     d = http_get_json("https://air-quality-api.open-meteo.com/v1/air-quality?" + q, timeout=timeout)
     cur = d.get("current")
@@ -424,6 +445,7 @@ def fetch_aqi_openmeteo(lat, lon, timeout=TIMEOUT):
         "pollutant_unit": "ug/m3",
         "level": aqi_level(us),
         "source": "open-meteo/cams-model",
+        "hourly": hourly_series(d.get("hourly"), {"us_aqi": "us_aqi"}),
     }
 
 
@@ -473,6 +495,92 @@ def validate_coordinates(lat, lon):
         raise WeatherError("provide both --lat (-90..90) and --lon (-180..180)")
 
 
+def forecast_frame(out, aqi, now=None):
+    """The 18 hours a briefing charts: 06:00–24:00, or 18:00 to noon for late briefings.
+
+    `past` counts frame hours already gone when the briefing was made; summaries
+    use only the hours after it. None when the provider sent no usable hours.
+    """
+    hourly = out.get("hourly")
+    if not hourly:
+        return None
+    zone = ZoneInfo(out["timezone"])
+    now = datetime.fromtimestamp(time.time() if now is None else now, zone)
+    start = now.replace(hour=18 if now.hour >= 18 else 6, minute=0, second=0, microsecond=0)
+    try:
+        first = hourly["time"].index(start.strftime("%Y-%m-%dT%H:%M"))
+    except ValueError:
+        return None
+    temps, probs = hourly["temp"][first:first + FRAME_HOURS], hourly["prob"][first:first + FRAME_HOURS]
+    if len(temps) < FRAME_HOURS or None in temps or None in probs:
+        return None
+    air = [None] * FRAME_HOURS
+    series = (aqi or {}).get("hourly") or ((aqi or {}).get("model") or {}).get("hourly")
+    if series and start.strftime("%Y-%m-%dT%H:%M") in series["time"]:
+        at = series["time"].index(start.strftime("%Y-%m-%dT%H:%M"))
+        values = series["us_aqi"][at:at + FRAME_HOURS]
+        if len(values) == FRAME_HOURS and None not in values:
+            air = values
+    offset = lambda stamp: (datetime.fromisoformat(stamp).replace(tzinfo=zone) - start).total_seconds() / 3600
+    sun, light = [], []
+    for rise, sunset in out.get("sun") or []:
+        rise, sunset = offset(rise), offset(sunset)
+        light.append((rise, sunset))
+        sun += [["sunrise", round(at, 2)] for at in (rise,) if 0 <= at < FRAME_HOURS]
+        sun += [["sunset", round(at, 2)] for at in (sunset,) if 0 <= at < FRAME_HOURS]
+    night, cursor = [], 0
+    for rise, sunset in sorted(light):
+        if rise > cursor and cursor < FRAME_HOURS:
+            night.append([round(cursor, 2), round(min(rise, FRAME_HOURS), 2)])
+        cursor = max(cursor, sunset)
+    if light and cursor < FRAME_HOURS:
+        night.append([round(cursor, 2), FRAME_HOURS])
+    lat, lon = out["latitude"], out["longitude"]
+    station = (aqi or {}).get("url") if (aqi or {}).get("source") == "waqi-station" else None
+    return {
+        "start": start.strftime("%Y-%m-%dT%H:%M"),
+        "past": min(max(int((now - start).total_seconds() // 3600), 0), FRAME_HOURS - 1),
+        "hours": [[round(t, 1), round(p), None if a is None else round(a)] for t, p, a in zip(temps, probs, air)],
+        "sun": sorted(sun, key=lambda entry: entry[1]),
+        "night": [span for span in night if span[1] > span[0]],
+        "snow": bool(out.get("snow")),
+        "links": {
+            "forecast": "https://open-meteo.com/en/docs?" + urllib.parse.urlencode({
+                "latitude": lat, "longitude": lon, "hourly": "temperature_2m,precipitation_probability",
+                "timezone": "auto", "forecast_days": 2}) + "#api_response",
+            "air": station if isinstance(station, str) and station.startswith("https://") else
+                   "https://open-meteo.com/en/docs/air-quality-api?" + urllib.parse.urlencode({
+                       "latitude": lat, "longitude": lon, "hourly": "us_aqi",
+                       "timezone": "auto", "forecast_days": 2}) + "#api_response",
+        },
+    }
+
+
+def frame_ahead(frame):
+    """The hours after the briefing: high/low, rain peak and when it starts or eases."""
+    first = datetime.fromisoformat(frame["start"]).hour
+    clock = lambda index: "24:00" if first + index == 24 and index == FRAME_HOURS else f"{(first + index) % 24:02d}:00"
+    rows = frame["hours"][frame["past"]:]
+    wet = [prob >= WET_HOUR_PROB for _, prob, _ in rows]
+    first_wet = wet.index(True) if any(wet) else None
+    return {
+        "from": clock(frame["past"]), "until": clock(FRAME_HOURS),
+        "temp_min_c": min(t for t, _, _ in rows), "temp_max_c": max(t for t, _, _ in rows),
+        "rain_peak_pct": max(prob for _, prob, _ in rows),
+        "rain_from": None if first_wet is None else clock(frame["past"] + first_wet),
+        "rain_until": (None if not wet[0] else clock(frame["past"] + wet.index(False)) if False in wet else clock(FRAME_HOURS)),
+    }
+
+
+def apply_frame(out, frame):
+    """Judge rain and advice from the hours ahead, not hours that already passed."""
+    ahead = frame_ahead(frame)
+    rain = ahead["rain_from"] is not None and not out.get("snow")
+    later = ahead["rain_from"] if rain and ahead["rain_from"] != ahead["from"] else None
+    out.update(frame=frame, ahead=ahead, rain="yes" if rain else "no", precip_prob_pct=ahead["rain_peak_pct"],
+               advice=build_advice(out["temp_c"], rain, snow=out.get("snow"), rain_from=later))
+
+
 def brief(out):
     def fmt(value):
         return "?" if value is None else f"{value:g}"
@@ -482,6 +590,18 @@ def brief(out):
     line = (f"{out['city']} {out['date']} {out['time'][11:16]} {out['timezone']}{stale}: "
             f"{out['condition']}, {fmt(out['temp_c'])}C "
             f"({fmt(out['temp_min_c'])}..{fmt(out['temp_max_c'])}C); rain {rain}.")
+    ahead = out.get("ahead")
+    if ahead:
+        if ahead["rain_from"] is None:
+            wet = "dry"
+        elif ahead["rain_from"] == ahead["from"]:
+            wet = "rain likely now" + (f", easing by {ahead['rain_until']}" if ahead["rain_until"] != ahead["until"] else "")
+        else:
+            wet = f"dry until {ahead['rain_from']}, then rain likely"
+        line = (f"{out['city']} {out['date']} {out['time'][11:16]} {out['timezone']}{stale}: "
+                f"{out['condition']}, {fmt(out['temp_c'])}C; {ahead['from']}–{ahead['until']}: "
+                f"{fmt(ahead['temp_min_c'])}..{fmt(ahead['temp_max_c'])}C, {wet} "
+                f"(rain chance up to {fmt(ahead['rain_peak_pct'])}%).")
     if out["advice"]:
         line += " " + out["advice"]
     lines = [line + " [Open-Meteo]"]
@@ -601,6 +721,13 @@ def main(argv=None):
         else:
             aqi = model or station
         out.update(aqi=aqi, aqi_source=a.aqi_source, warnings=warnings)
+        frame = forecast_frame(out, aqi)
+        if frame:
+            apply_frame(out, frame)
+        out.pop("hourly", None)
+        for value in (aqi, (aqi or {}).get("model")):
+            if isinstance(value, dict):
+                value.pop("hourly", None)
         print(json.dumps(out, ensure_ascii=False, separators=(",", ":"), allow_nan=False) if a.json else brief(out))
         return 0
     except WeatherError as e:

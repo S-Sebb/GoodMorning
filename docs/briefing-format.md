@@ -81,7 +81,7 @@ conflict, reread affected records; never infer progress or alter immutable secti
 - `["table",[column,...],[[cell,...],...]]`: reported progress or extra metadata;
   every cell is text and each row exactly matches its columns. Do not replace
   linked action/event blocks with unverified prose tables.
-- `["weather",[[type,value,detail,label?],...]]`: temperature, precipitation,
+- `["weather",[[type,value,detail,label?],...],frame?]`: temperature, precipitation,
   applicable warning, then air, with no duplicates. Value is text or null when
   unavailable. Detail retains health advice, actual timestamps and material gaps.
   Unknown AQI is not good air; an unknown warning is not proof of no warning.
@@ -91,6 +91,9 @@ conflict, reread affected records; never infer progress or alter immutable secti
   never raw `rain yes/no/unknown`;
   air uses number plus level, e.g. `30 – Good`, never a `US AQI`/`EU AQI` prefix
   (the card label already says AQI; sources belong in detail).
+  `frame` is the weather read's hourly forecast; code attaches it when the
+  section is published, and the page draws charts and headlines from it. Never
+  write or copy it.
 - `["news",category,[[headline,summary,sources],...],country?]`: retain every
   selected story and all citations. Sources are nonempty `[[label,url],...]` with
   absolute HTTP(S) URLs and no credentials. Country is an optional uppercase

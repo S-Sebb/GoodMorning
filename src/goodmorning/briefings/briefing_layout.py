@@ -11,6 +11,7 @@ ICONS = {
     "cloud": '<path d="M6 18a4 4 0 1 1 1-7.9A6 6 0 0 1 19 12a3 3 0 0 1 0 6H6Z"/>',
     "leaf": '<path d="M20 3C9 2 3 7 4 14c1 7 12 7 15-1 1-3 1-6 1-10Z"/><path d="M3 22 15 10"/>',
     "warning": '<path d="m12 3 10 18H2L12 3Z"/><path d="M12 9v5m0 3v1"/>',
+    "moon": '<path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5Z"/>',
     "clock": '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
     "calendar": '<rect x="3" y="5" width="18" height="16" rx="3"/><path d="M7 3v4m10-4v4M3 10h18M7 14h3m4 0h3M7 17h3"/>',
     "pin": '<path d="M19 10c0 5-7 11-7 11S5 15 5 10a7 7 0 0 1 14 0Z"/><circle cx="12" cy="10" r="2"/>',

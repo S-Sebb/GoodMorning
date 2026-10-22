@@ -94,6 +94,24 @@ class JobTests(unittest.TestCase):
         self.assertIn('--today 2026-10-11',result['next']['read'][0])
         self.assertNotIn('calendar',str(result['next']))
 
+    def test_weather_read_frame_is_attached_by_code_when_publishing(self):
+        frame = {'start':'2026-10-11T06:00','past':6,'hours':[[12,5,30]]*18,'sun':[['sunrise',1.2]],'night':[[0,1.2]],'snow':False,
+                 'links':{'forecast':'https://open-meteo.com/en/docs#api_response','air':'https://open-meteo.com/en/docs/air-quality-api#api_response'}}
+        def reads(commands):
+            return [{'command':command,'exit':0,'output':{'frame':frame} if command.endswith('--json') else 'London: dry.'} for command in commands]
+        from goodmorning.records.inbox_store import initialize as version_two
+        version_two(self.root)
+        initialize(self.root,self.job)
+        with patch('goodmorning.briefings.briefing_job.run_reads', side_effect=reads):
+            act(self.root,self.identifier,'ses_fixture','init',{'greeting':'Morning.','opening':'Let’s look.'})
+        self.assertTrue((self.app.job_dir/(self.identifier+'.weather.json')).exists())
+        section = ['weather',[['weather',[['temperature','12°C','Mild.'],['precipitation','5% – No rain','Dry.']]]]]
+        act(self.root,self.identifier,'ses_fixture','publish',{'position':0,'section':section})
+        saved = load(self.app.job_dir/(self.identifier+'.preview.json'))['document']['sections'][0]
+        self.assertEqual(saved[1][0][2], frame)
+        # A retried publish of the agent's own section is recognised as the same one.
+        self.assertTrue(act(self.root,self.identifier,'ses_fixture','publish',{'position':0,'section':section})['reused'])
+
     def test_bad_json_and_block_shape_preserve_preview_and_explain_repairs(self):
         self.init()
         target = self.app.job_dir/(self.identifier+'.preview.json')
