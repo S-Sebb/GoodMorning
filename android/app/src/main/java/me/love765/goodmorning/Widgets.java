@@ -94,7 +94,6 @@ public abstract class Widgets extends AppWidgetProvider {
                 return views;
             }
             JSONObject chat = data.optJSONObject("chat");
-            String identifier = chat == null ? "" : chat.optString("id");
             String state = chat == null ? "" : chat.optString("state");
             String reply = chat == null ? "" : chat.optString("reply");
             views.setTextViewText(R.id.title, chat == null ? "" : chat.optString("title"));
@@ -103,11 +102,49 @@ public abstract class Widgets extends AppWidgetProvider {
             views.setViewVisibility(R.id.state, "running".equals(state) || "waiting".equals(state) ? View.VISIBLE : View.GONE);
             views.setTextViewText(R.id.reply, reply.isEmpty() && !"running".equals(state) ? context.getString(R.string.chat_empty, name) : reply);
             views.setViewVisibility(R.id.composer, View.VISIBLE);
-            String page = identifier.isEmpty() ? "/chat" : "/chat?id=" + identifier;
-            views.setOnClickPendingIntent(R.id.root, Sync.open(context, page, 1000 + id));
+            views.setOnClickPendingIntent(R.id.root, Sync.open(context, conversation(chat), 1000 + id));
             views.setOnClickPendingIntent(R.id.composer, screen(context, AskActivity.class));
             return views;
         }
+    }
+
+    /** Just the secretary's portrait, with a dot while a reply runs or waits; opens the latest conversation. */
+    public static class Portrait extends Widgets {
+        @Override
+        RemoteViews draw(Context context, int id) {
+            RemoteViews views = new RemoteViews(context.getPackageName(), R.layout.widget_portrait);
+            Palette[] schemes = Palette.of(context);
+            Palette.tint(context, views, schemes, R.id.portrait_ring, p -> p.wash);
+            Palette.tint(context, views, schemes, R.id.dot_ring, p -> p.surface);
+            Palette.tint(context, views, schemes, R.id.dot_fill, p -> p.accent);
+
+            JSONObject data = Sync.cached(context);
+            JSONObject secretary = data.optJSONObject("secretary");
+            String name = secretary == null || secretary.optString("name").isEmpty() || secretary.isNull("name")
+                    ? context.getString(R.string.chat_name_default) : secretary.optString("name");
+            portrait(context, views, secretary);
+            if (!Sync.linked(context)) {
+                views.setViewVisibility(R.id.dot, View.GONE);
+                views.setContentDescription(R.id.root, context.getString(R.string.widget_link));
+                views.setOnClickPendingIntent(R.id.root, screen(context, LinkActivity.class));
+                return views;
+            }
+            JSONObject chat = data.optJSONObject("chat");
+            String state = chat == null ? "" : chat.optString("state");
+            boolean busy = "running".equals(state) || "waiting".equals(state);
+            views.setViewVisibility(R.id.dot, busy ? View.VISIBLE : View.GONE);
+            views.setContentDescription(R.id.root, "running".equals(state) ? context.getString(R.string.chat_working, name)
+                    : "waiting".equals(state) ? context.getString(R.string.chat_waiting, name)
+                    : context.getString(R.string.portrait_open, name));
+            views.setOnClickPendingIntent(R.id.root, Sync.open(context, conversation(chat), 1000 + id));
+            return views;
+        }
+    }
+
+    /** The chat page at the latest conversation, if there is one. */
+    private static String conversation(JSONObject chat) {
+        String identifier = chat == null ? "" : chat.optString("id");
+        return identifier.isEmpty() ? "/chat" : "/chat?id=" + identifier;
     }
 
     /** Today's morning or evening briefing, switched in the widget. */
@@ -166,7 +203,7 @@ public abstract class Widgets extends AppWidgetProvider {
     /** Redraws every widget of every kind, for example after a new summary. */
     static void updateAll(Context context) {
         AppWidgetManager manager = AppWidgetManager.getInstance(context);
-        for (Widgets kind : new Widgets[] {new Today(), new Week(), new Chat(), new Briefing(), new News()}) {
+        for (Widgets kind : new Widgets[] {new Today(), new Week(), new Chat(), new Portrait(), new Briefing(), new News()}) {
             int[] ids = manager.getAppWidgetIds(new ComponentName(context, kind.getClass()));
             if (ids.length > 0) kind.onUpdate(context, manager, ids);
         }

@@ -34,6 +34,9 @@
     <string name="widget_today_description">今天的日程和待办</string>
     <string name="widget_week_description">未来七天的日程和待办</string>
     <string name="widget_chat_description">你和秘书最近的对话，还有一个快捷的“问一下”按钮</string>
+    <string name="widget_portrait_name">秘书形象</string>
+    <string name="widget_portrait_description">你的秘书形象。秘书正在处理，或者在等你的回答时，会显示一个小圆点；点一下就能打开最近的对话。</string>
+    <string name="portrait_open">和 %1$s 聊天</string>
     <string name="widget_link">关联这台手机，就能在这里看到 GoodMorning 的日程、早报晚报和对话。点一下开始。</string>
     <string name="widget_loading">正在加载你的日程…</string>
     <string name="widget_empty_today">今天还没有安排。</string>
