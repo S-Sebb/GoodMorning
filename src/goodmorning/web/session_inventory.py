@@ -83,7 +83,7 @@ def summarize_local(runtime):
 def _job_transients(runtime, identifier):
     directory = Path(runtime).expanduser().resolve() / 'browser-jobs'
     return [directory / (identifier + suffix)
-            for suffix in ('.context.json', '.preview.json', '.draft.json')] + \
+            for suffix in ('.context.json', '.preview.json', '.draft.json', '.weather.json')] + \
         sorted(directory.glob(identifier + '.context-r*.json'))
 
 

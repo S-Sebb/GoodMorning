@@ -253,6 +253,33 @@ html[data-edition="gn"] .weather-tile.air { --tile-accent: #aed4b7; --tile-bg: #
 .weather-detail ul, .weather-detail ol { list-style: none; margin: 0; padding: 0; }
 .weather-detail li { padding: 0; }
 .weather-detail > p { margin: 12px 0 0; }
+.weather-tiles.charted:has(> :nth-child(4)) { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.weather-tiles.charted .weather-tile { display: flex; flex-direction: column; }
+.weather-tiles.charted .weather-value { margin: 18px 0 10px; }
+.weather-tiles.charted .weather-detail { font-size: 15px; line-height: 1.6; color: var(--ink); }
+.weather-tiles.charted .weather-detail > p { margin: 0 0 20px; }
+.weather-tile-source { margin-left: auto; display: inline-flex; align-items: center; min-height: 32px; padding: 0 12px; border: 1px solid color-mix(in srgb, var(--tile-accent) 45%, transparent); gap: 4px; border-radius: 999px; color: var(--tile-accent); font-size: 12px; font-weight: 600; text-decoration: none; white-space: nowrap; }
+.weather-tile-source:hover { background: color-mix(in srgb, var(--tile-accent) 12%, transparent); }
+.wx-chart { margin: auto 0 0; }
+.wx-plot { display: block; width: 100%; height: 84px; overflow: visible; }
+.wx-chart.precipitation .wx-plot { height: 72px; }
+.wx-night { fill: var(--tile-accent); opacity: .07; }
+.wx-line { fill: none; stroke: var(--tile-accent); stroke-width: 2.4; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
+.wx-line.past { stroke-dasharray: 3 4; opacity: .45; }
+.wx-area { fill: var(--tile-accent); opacity: .08; }
+.wx-dot { stroke: var(--tile-accent); stroke-width: 7; stroke-linecap: round; vector-effect: non-scaling-stroke; }
+.wx-bar { fill: var(--tile-accent); opacity: .35; }
+.wx-bar.wet { opacity: .9; }
+.wx-bar.past, .wx-dot.past { opacity: .2; }
+.wx-gridline { stroke: var(--line); stroke-width: 1; stroke-dasharray: 3 3; vector-effect: non-scaling-stroke; }
+.wx-row { display: flex; font-variant-numeric: tabular-nums; }
+.wx-row span { flex: 1 1 0; min-width: 0; display: flex; justify-content: center; align-items: center; gap: 2px; white-space: nowrap; overflow: visible; }
+.wx-row span.past { opacity: .45; }
+.wx-values { font-size: 12px; font-weight: 600; color: var(--tile-accent); margin: 4px 0; }
+.wx-axis { margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--line); font-size: 11px; color: var(--muted); min-height: 18px; }
+.wx-axis .data-icon { width: 15px; height: 15px; flex: none; color: var(--tile-accent); }
+.wx-periods { margin-top: 6px; font-size: 11px; font-weight: 600; letter-spacing: .4px; color: var(--muted); }
+.wx-periods span + span { border-left: 1px solid var(--line); }
 .weather .section-body > p, .weather-detailed .section-body > p { color: var(--muted); font-family: Georgia, serif; font-size: 18px; margin-top: 24px; }
 .agenda { margin: 28px 0; }
 .agenda-group + .agenda-group, .action-group + .action-group { margin-top: 30px; }
@@ -389,7 +416,8 @@ details.task-project .task-project-heading { margin: 0; }
 @media (max-width: 700px) {
   .section-symbol { width: 34px; height: 34px; border-radius: 9px; }
   .section-symbol .data-icon { width: 19px; height: 19px; }
-  .weather-tiles, .weather-detailed .weather-tiles { grid-template-columns: minmax(0, 1fr); }
+  .weather-tiles, .weather-detailed .weather-tiles, .weather-tiles.charted, .weather-tiles.charted:has(> :nth-child(4)) { grid-template-columns: minmax(0, 1fr); }
+  .wx-values { font-size: 11px; }
   .weather-label h3 { font-size: 11px; }
   .weather-tile .weather-value { font-size: 38px; margin: 16px 0 12px; }
   .weather-tile .weather-sub { font-size: 17px; }

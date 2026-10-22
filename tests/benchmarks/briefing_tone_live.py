@@ -45,6 +45,12 @@ if sys.argv[1:2]==['job'] and action!='prepare' and '--help' not in sys.argv:
 with (runtime/'trial-commands.jsonl').open('a') as log:
     log.write(json.dumps(entry,ensure_ascii=False)+'\\n')
 FAULT={'error':'provider_unavailable','next':'Provider unavailable in this isolated test. Publish material unavailability; do not retry or use external sources.'}
+WEATHER=runtime/'trial-weather.json'
+def weather(argv):
+    """A synthetic reading from the real weather code, when the case supplies one."""
+    if not WEATHER.exists():return 1,FAULT
+    reading=json.loads(WEATHER.read_text())
+    return 0,(reading['json'] if '--json' in argv else reading['brief'])
 if sys.argv[1:2]==['job']:
     # Receipts run section reads in-process; log and fault them like agent-run reads.
     import shlex
@@ -57,7 +63,10 @@ if sys.argv[1:2]==['job']:
             call=uuid.uuid4().hex
             with (runtime/'trial-commands.jsonl').open('a') as log:
                 log.write(json.dumps({'call':call,'argv':argv,'receipt':True},ensure_ascii=False)+'\\n')
-            result={'command':command,'exit':1,'output':FAULT} if argv[:1] in (['weather'],['news']) else real([command])[0]
+            if argv[:1]==['weather']:
+                code,value=weather(argv);result={'command':command,'exit':code,'output':value}
+            else:
+                result={'command':command,'exit':1,'output':FAULT} if argv[:1]==['news'] else real([command])[0]
             output=result['output'] if isinstance(result['output'],dict) else {}
             with (runtime/'trial-commands.jsonl').open('a') as log:
                 log.write(json.dumps({'call':call,'exit':result['exit'],'error':output.get('error')})+'\\n')
@@ -65,7 +74,10 @@ if sys.argv[1:2]==['job']:
         return results
     briefing_job.run_reads=reads
 captured=io.StringIO()
-if sys.argv[1:2] in (['weather'],['news']):
+if sys.argv[1:2]==['weather']:
+    code,value=weather(sys.argv[1:])
+    captured.write((value if isinstance(value,str) else json.dumps(value))+'\\n')
+elif sys.argv[1:2]==['news']:
     captured.write(json.dumps(FAULT)+'\\n')
     code=1
 else:
@@ -125,6 +137,46 @@ class CheckpointBridge(NativeBridge):
             self.seeded = {**intro, 'weather':weather}
             save(Path(self.runtime)/'seeded-checkpoint.json', self.seeded)
         return super().control(action, **parameters)
+
+
+def synthetic_weather(instant):
+    """Brief text and JSON from the real weather code for a dry day with past night rain and rain from 21:00."""
+    from unittest.mock import patch
+    from zoneinfo import ZoneInfo
+    from goodmorning import weather as w
+    local = instant.astimezone(ZoneInfo('Europe/London'))
+    day = local.date()
+    times = [f'{day + timedelta(days=h // 24)}T{h % 24:02d}:00' for h in range(48)]
+    forecast = {'timezone':'Europe/London', 'hourly':{'time':times, 'temperature_2m':[9 + (h % 24) / 4 for h in range(48)],
+                'precipitation_probability':[100 if h % 24 in (3, 4) else 70 + h % 24 if h % 24 >= 21 else 5 for h in range(48)]},
+                'current':{'time':local.strftime('%Y-%m-%dT%H:00'), 'temperature_2m':12, 'weather_code':3},
+                'daily':{'time':[str(day), str(day + timedelta(days=1))], 'temperature_2m_min':[9, 9], 'temperature_2m_max':[14.8, 14.8],
+                         'precipitation_probability_max':[100, 100], 'weather_code':[61, 61], 'rain_sum':[3, 3], 'showers_sum':[1, 1],
+                         'snowfall_sum':[0, 0], 'sunrise':[f'{day}T07:36', f'{day + timedelta(days=1)}T07:38'],
+                         'sunset':[f'{day}T17:53', f'{day + timedelta(days=1)}T17:50']}}
+    air = {'timezone':'Europe/London', 'current':{'time':local.strftime('%Y-%m-%dT%H:00'), 'us_aqi':27},
+           'hourly':{'time':times, 'us_aqi':[27] * 48}}
+    with patch.object(w, 'http_get_json', side_effect=lambda url, **kw: air if 'air-quality' in url else forecast), \
+         patch.object(w.time, 'time', return_value=instant.timestamp()):
+        out = w.fetch_openmeteo('London', 51.51, -0.13)
+        aqi = w.fetch_aqi_openmeteo(51.51, -0.13)
+        out.update(latitude=51.51, longitude=-0.13, country='GB', cache_state='live', fetched_at=instant.isoformat(),
+                   aqi=aqi, aqi_source='auto', warnings=[])
+        frame = w.forecast_frame(out, aqi)
+        w.apply_frame(out, frame)
+    out.pop('hourly'); aqi.pop('hourly')
+    return {'brief':w.brief(out), 'json':out}
+
+
+def protected_state(runtime):
+    """Settings bytes and calendar events/history; a briefing may record which editions reported the calendar."""
+    import sqlite3
+    state = {name:hashlib.sha256((runtime/name).read_bytes()).hexdigest() for name in ('profile.md','browser-policy.json')}
+    from contextlib import closing
+    with closing(sqlite3.connect(f'file:{runtime/"calendar.sqlite"}?mode=ro', uri=True)) as calendar:
+        state['calendar'] = hashlib.sha256(repr([calendar.execute(f'SELECT * FROM {table} ORDER BY rowid').fetchall()
+                                                 for table in ('events','history')]).encode()).hexdigest()
+    return state
 
 
 def seed_tasks(runtime, language, scenario, day):
@@ -267,7 +319,7 @@ def run_case(output, template, language, scenario, instant):
     shutil.copytree(template, source)
     (source/'opencode.json').write_text(json.dumps(trial_config(runtime)))
     selected = for_language(language)
-    tone = {'morning-empty':'default', 'morning-resume':'formal',
+    tone = {'morning-empty':'default', 'morning-weather':'default', 'morning-resume':'formal',
             'evening-feedback':'playful', 'evening-ambiguous':'formal'}[scenario]
     profile = ('city: London, GB\ntimezone: Europe/London\nnews_country: GB\n'
                'secretary_name: Nora\ncalendar_source: custom\n')
@@ -282,12 +334,15 @@ def run_case(output, template, language, scenario, instant):
         'live_project_access','calendar_sync','publisher_images','news_acknowledgement')}))
     initialize(runtime)
     CalendarStore(str(runtime/'calendar.sqlite')).close()
+    if scenario == 'morning-weather':
+        reading = synthetic_weather(instant)
+        save(runtime/'trial-weather.json', reading)
+        save(folder/'weather-reading.json', reading)
     bridge = CheckpointBridge(source, runtime, scenario == 'morning-resume', language)
     app = BrowserApp(runtime, bridge, now=lambda:instant, preflight=True)
     day = app.today()
     baseline = seed_tasks(runtime, language, scenario, day)
-    protected = {name:hashlib.sha256((runtime/name).read_bytes()).hexdigest()
-                 for name in ('profile.md','calendar.sqlite','browser-policy.json')}
+    protected = protected_state(runtime)
     result = {'scenario':scenario, 'language':language, 'tone':tone, 'model':session_payload(selected),
               'date':day, 'checks':[], 'review':'pending manual language/tone/grounding review'}
     save(folder/'baseline.json', {'tasks':baseline, 'protected':protected})
@@ -319,8 +374,7 @@ def run_case(output, template, language, scenario, instant):
                 app.reply(job, 'form', form['id'], {'answer':answer})
             result['checks'].append('Browser feedback saved before model dispatch')
         status = observe(app, bridge, job, folder, 'original', language, selected)
-        assert all(hashlib.sha256((runtime/name).read_bytes()).hexdigest() == digest
-                   for name,digest in protected.items()), 'Protected settings/calendar changed'
+        assert protected_state(runtime) == protected, 'Protected settings/calendar changed'
         result['checks'].append('Settings, calendar and integration policy unchanged')
         log = commands(runtime)
         assert not any(entry.get('exit',0) is None for entry in log), 'A helper outcome is unknown; inspect, do not infer success'
@@ -353,7 +407,17 @@ def run_case(output, template, language, scenario, instant):
             if kind == 'gm':
                 assert records(runtime) == baseline, 'Morning presentation changed task records'
                 assert any(section[0] == 'news' for section in document['sections'])
-                if scenario == 'morning-empty':
+                if scenario == 'morning-weather':
+                    blocks = document['sections'][0][1]
+                    weather = next(block for block in blocks if block[0] == 'weather')
+                    assert len(weather) == 3 and weather[2] == reading['json']['frame'], 'Code did not attach the read frame'
+                    cards = {row[0]:row for row in weather[1]}
+                    assert {'temperature','precipitation','air'} <= set(cards), 'Weather cards missing'
+                    rain = ' '.join(str(value) for value in cards['precipitation'][1:3])
+                    assert '100%' not in rain, 'Precipitation repeated the whole-day 100% the read no longer reports'
+                    result['weather_cards'] = weather[1]
+                    result['checks'].append('Weather published from the forward-looking read; frame attached by code')
+                elif scenario == 'morning-empty':
                     assert [section[0] for section in document['sections']] == ['weather','news','news','schedule']
                     result['checks'].append('Required unavailable sections retained; empty optional positions skipped; opted-in latest news retained')
                     operations = [entry for entry in log if '--help' not in entry['argv'] and '-h' not in entry['argv']
@@ -576,6 +640,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--output', type=Path, required=True)
     parser.add_argument('--language', choices=('en','zh-CN'), required=True)
+    parser.add_argument('--weather', action='store_true', help='Only the morning case with a synthetic weather reading')
     args = parser.parse_args()
     output = args.output.resolve()
     if not output.is_relative_to('/tmp/opencode'):
@@ -594,10 +659,13 @@ def main():
             {'action':'websearch','resource':'*','effect':'deny'}]}))
         (source/'scripts/goodmorning.py').write_text(TRIAL_CLI)
         instant = datetime.now(timezone.utc)
-        results = [run_case(output, source, args.language, scenario, instant) for scenario in (
-            'morning-empty','morning-resume','evening-feedback','evening-ambiguous')]
-        results += [run_flexible_case(output, source, args.language, scenario, instant)
-                    for scenario in ('morning-vague','evening-complex')]
+        if args.weather:
+            results = [run_case(output, source, args.language, 'morning-weather', instant)]
+        else:
+            results = [run_case(output, source, args.language, scenario, instant) for scenario in (
+                'morning-empty','morning-resume','evening-feedback','evening-ambiguous')]
+            results += [run_flexible_case(output, source, args.language, scenario, instant)
+                        for scenario in ('morning-vague','evening-complex')]
         save(output/'matrix.json', {'cases':results, 'limitations':[
             'Real native models and browser job/controller helpers; no public HTTPS/encrypted account test.',
             'Provider faults and prepublished checkpoint are synthetic; no real weather/news provider validation.',

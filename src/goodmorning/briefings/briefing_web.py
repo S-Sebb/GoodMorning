@@ -27,9 +27,20 @@ class PreviewText(HTMLParser):
     def __init__(self):
         super().__init__(convert_charrefs=True)
         self.parts = []
+        self.skipping = 0
+
+    def handle_starttag(self, tag, attrs):
+        # Chart labels and source buttons are not prose; keep them out of the excerpt.
+        if self.skipping or {'wx-chart', 'weather-tile-source'} & set((dict(attrs).get('class') or '').split()):
+            self.skipping += 1
+
+    def handle_endtag(self, tag):
+        if self.skipping:
+            self.skipping -= 1
 
     def handle_data(self, data):
-        self.parts.append(data)
+        if not self.skipping:
+            self.parts.append(data)
 
     def excerpt(self, content):
         self.feed(content)

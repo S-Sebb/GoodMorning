@@ -29,6 +29,13 @@ def forecast(**daily):
                       "showers_sum": [0], "snowfall_sum": [0], **daily}}
 
 
+def hourly(wet=(21, 22, 23, 27)):
+    """Two synthetic local days; rain at 03:00 (already past by 10:00) and from 21:00."""
+    times = [f"2026-10-{9 + h // 24:02d}T{h % 24:02d}:00" for h in range(48)]
+    return {"time": times, "temperature_2m": [8 + (h % 24) / 4 for h in range(48)],
+            "precipitation_probability": [100 if h == 3 else 80 if h in wet else 5 for h in range(48)]}
+
+
 def model():
     return {"timezone": "Europe/London", "current": {"time": "2026-10-09T10:00",
             "us_aqi": 27, "european_aqi": 21, "pm2_5": 3.8, "ozone": 54}}
@@ -399,6 +406,49 @@ class WeatherTests(unittest.TestCase):
         with patch.object(w.urllib.request, "urlopen", return_value=contextlib.nullcontext(io.BytesIO(b"x" * (w.MAX_RESPONSE_BYTES + 1)))):
             with self.assertRaisesRegex(w.WeatherError, "too large"):
                 w.http_get_json("https://example.org")
+
+    def frame_output(self, now=NOW):
+        data = forecast()
+        data["hourly"] = hourly()
+        data["daily"].update(sunrise=["2026-10-09T07:30", "2026-10-10T07:32"], sunset=["2026-10-09T18:00", "2026-10-10T17:58"])
+        with patch.object(w, "http_get_json", return_value=data):
+            out = w.fetch_openmeteo("Test", 51.5, -0.12)
+        out.update(latitude=51.5, longitude=-0.12)
+        air = {"source": "open-meteo/cams-model", "hourly": {"time": data["hourly"]["time"], "us_aqi": [30] * 48}}
+        return out, w.forecast_frame(out, air, now=now)
+
+    def test_frame_judges_rain_from_the_hours_ahead_not_the_whole_day(self):
+        out, frame = self.frame_output()  # 10:00 in London: the 03:00 rain has passed.
+        self.assertEqual((frame["start"], frame["past"]), ("2026-10-09T06:00", 4))
+        self.assertEqual(frame["sun"], [["sunrise", 1.5], ["sunset", 12.0]])
+        self.assertEqual(frame["night"], [[0, 1.5], [12.0, 18]])
+        self.assertTrue(frame["links"]["forecast"].endswith("#api_response"))
+        w.apply_frame(out, frame)
+        self.assertEqual(out["ahead"]["rain_from"], "21:00")
+        self.assertEqual(out["precip_prob_pct"], 80)
+        self.assertEqual(out["advice"], "umbrella for after 21:00; cool, bring a jacket.")
+        out.update(cache_state="live", aqi=None, aqi_source="off", warnings=[])
+        self.assertIn("10:00–24:00: 10.5..13.8C, dry until 21:00, then rain likely (rain chance up to 80%)", w.brief(out))
+
+    def test_late_frame_runs_to_noon_and_dry_hours_mean_no_umbrella(self):
+        out, frame = self.frame_output(datetime(2026, 10, 9, 22, tzinfo=timezone.utc).timestamp())
+        self.assertEqual((frame["start"], frame["past"]), ("2026-10-09T18:00", 5))
+        self.assertEqual(frame["night"], [[0, 13.53]])
+        w.apply_frame(out, frame)
+        self.assertEqual((out["ahead"]["rain_from"], out["ahead"]["rain_until"]), ("23:00", "00:00"))
+        frame["hours"] = [[10, 5, 30]] * 18
+        w.apply_frame(out, frame)
+        self.assertEqual(out["rain"], "no")
+        self.assertNotIn("umbrella", out["advice"])
+
+    def test_missing_hourly_data_keeps_the_daily_judgement(self):
+        with patch.object(w, "http_get_json", return_value=forecast(precipitation_probability_max=[80])):
+            out = w.fetch_openmeteo("Test", 0, 0)
+        self.assertIsNone(w.forecast_frame(out, None, now=NOW))
+        self.assertEqual(out["rain"], "yes")
+        code, text, _ = self.run_cli("--city", "Test", "--json")
+        self.assertNotIn("frame", json.loads(text))
+        self.assertNotIn("hourly", json.loads(text))
 
     def test_aqi_thresholds_and_missing_model_value(self):
         for value, level in ((50, "good"), (51, "moderate"), (101, "unhealthy for sensitive groups"),

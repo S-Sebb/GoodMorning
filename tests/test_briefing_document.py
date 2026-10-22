@@ -218,6 +218,42 @@ class DocumentTests(unittest.TestCase):
         for value in ('lang="zh-CN"', 'weather-tile', 'agenda-event', 'country-flag', '气温', '地点', '准备'):
             self.assertIn(value, page)
 
+    def weather_frame(self, start='2034-03-17T06:00', past=1, air=30):
+        return {'start': start, 'past': past,
+                'hours': [[10 + h / 4, 80 if h >= 15 else 5, air] for h in range(18)],
+                'sun': [['sunrise', 1.6], ['sunset', 11.88]], 'night': [[0, 1.6], [11.88, 18]], 'snow': False,
+                'links': {'forecast': 'https://open-meteo.com/en/docs?latitude=1#api_response',
+                          'air': 'https://open-meteo.com/en/docs/air-quality-api?latitude=1#api_response'}}
+
+    def test_weather_frame_charts_the_hours_ahead_with_sources(self):
+        doc = document()
+        weather = doc['sections'][0][1][0]
+        weather.append(self.weather_frame())
+        page = web.edition(native.parse(native.encode(doc)), DATE, 'gm', {'gm': True})
+        for value in ('Dry until 21:00', 'Then rain likely · up to 80%', 'High · low 10°', 'AQI 30 through the day',
+                      '07:36', '17:53', 'This afternoon', 'wx-chart temperature', 'wx-chart precipitation', 'wx-chart air',
+                      'href="https://open-meteo.com/en/docs?latitude=1#api_response"', 'aria-label="Air quality source: CAMS"'):
+            self.assertIn(value, page)
+        self.assertNotIn('style=', page.split('weather-tiles', 1)[1].split('</section>', 1)[0])  # The page CSP blocks inline styles.
+        weather[2] = self.weather_frame(start='2034-03-17T18:00', past=5, air=None)
+        page = web.edition(native.parse(native.encode(doc)), DATE, 'gm', {'gm': True})
+        for value in ('Dry until 09:00', 'Overnight', 'Sat morning'):
+            self.assertIn(value, page)
+        excerpt = page.split('class="preview-excerpt" data-content>', 1)[1].split('</span>', 1)[0]
+        self.assertTrue(excerpt.startswith('Temperature 14° High · low 11° London'), excerpt[:80])
+        self.assertNotIn('wx-chart air', page)
+        self.assertNotIn('Air quality source', page)
+
+    def test_invalid_weather_frames_are_rejected(self):
+        for change in ({'start': '2034-03-17T07:00'}, {'past': 18}, {'hours': [[10, 5, 30]] * 17},
+                       {'hours': [[10, 101, 30]] * 18}, {'hours': [[10, 5, 30]] * 17 + [[10, 5, None]]},
+                       {'sun': [['moonrise', 1]]}, {'night': [[0, 19]]}, {'snow': 'no'},
+                       {'links': {'forecast': 'javascript:alert(1)', 'air': 'https://example.org'}}, {'extra': 1}):
+            doc = document()
+            doc['sections'][0][1][0].append({**self.weather_frame(), **change})
+            with self.subTest(change=change), self.assertRaises(ValueError):
+                native.parse(json.dumps(doc))
+
     def test_same_section_type_notes_are_not_overwritten(self):
         doc = {'v': 1, 'greeting': 'Hello.', 'opening': 'Keep both contexts.', 'sections': [
             ['notes', [['p', 'First context.']], 'First note.', 'First'],
