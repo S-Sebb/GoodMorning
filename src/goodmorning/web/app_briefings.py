@@ -1,7 +1,8 @@
 """Today's briefings as plain rows for the Android widgets: no markup, no hidden record IDs.
 
-Each row is {'style': 'heading'|'item'|'text', 'side', 'title', 'text'}: a news category heading, a
-card with an optional short leading label (time, status, value), or a paragraph.
+Each row is {'style': 'heading'|'story'|'item'|'text', 'side', 'title', 'text'}: a news category heading,
+a news story whose 'source' names its publishers, a card with an optional short leading label (time,
+status, value), or a paragraph.
 """
 from goodmorning.briefings import briefing_document as native
 from goodmorning.briefings.briefing_web import KINDS
@@ -34,7 +35,8 @@ def _rows(block, date):
     if tag == 'weather':
         return [_row('item', row[3] if len(row) == 4 else ui.text(native.WEATHER[row[0]][0]), row[2], row[1] or '—') for row in items]
     if tag == 'news':
-        return [_row('heading', items)] + [_row('item', story[0], story[1]) for story in block[2]]
+        return [_row('heading', items)] + [{**_row('story', story[0], story[1]), 'source': _joined(*(ref[0] for ref in story[2]))}
+                                           for story in block[2]]
     if tag == 'actions':
         return [_row('item', row[5], row[6], MARKS[row[4]]) for row in items]
     if tag == 'events':

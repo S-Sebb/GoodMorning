@@ -15,6 +15,9 @@
             <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:fontFamily="serif" android:text="@string/widget_news_name" android:textColor="@color/preview_ink" android:textSize="19sp" />
         </LinearLayout>
     </LinearLayout>
-    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="14dp" android:text="@string/preview_news_headline" android:textColor="@color/preview_ink" android:textSize="14sp" android:textStyle="bold" />
-    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="2dp" android:text="@string/preview_news_summary" android:textColor="@color/preview_muted" android:textSize="13sp" />
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="14dp" android:background="@drawable/preview_tile" android:orientation="vertical" android:padding="12dp">
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/preview_news_headline" android:textColor="@color/preview_ink" android:textSize="14sp" android:textStyle="bold" />
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="4dp" android:text="@string/preview_news_summary" android:textColor="@color/preview_muted" android:textSize="13sp" />
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:text="@string/preview_news_source" android:textColor="@color/preview_accent" android:textSize="11sp" android:textStyle="bold" />
+    </LinearLayout>
 </LinearLayout>

@@ -100,6 +100,7 @@
     <string name="preview_briefing_section">News</string>
     <string name="preview_news_headline">City opens a new riverside park</string>
     <string name="preview_news_summary">The park adds walking paths and a playground along the river.</string>
+    <string name="preview_news_source">City Gazette  ↗</string>
     <string name="link_copy">Copy code</string>
     <string name="link_copied">Code copied.</string>
     <string name="link_in_app">Link in GoodMorning</string>
