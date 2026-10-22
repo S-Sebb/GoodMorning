@@ -16,4 +16,5 @@
     <color name="preview_muted">#5B7083</color>
     <color name="preview_accent">#27465E</color>
     <color name="preview_line">#CFDAE0</color>
+    <color name="preview_wash">#E5EEF3</color>
 </resources>

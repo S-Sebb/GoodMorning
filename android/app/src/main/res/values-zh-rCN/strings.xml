@@ -99,6 +99,7 @@
     <string name="preview_briefing_section">新闻</string>
     <string name="preview_news_headline">城市新开了一座河边公园</string>
     <string name="preview_news_summary">公园沿着河边修了步道，还有一个儿童游乐场。</string>
+    <string name="preview_news_source">城市日报  ↗</string>
     <string name="link_copy">复制配对码</string>
     <string name="link_copied">配对码已复制。</string>
     <string name="link_in_app">在 GoodMorning 里关联</string>

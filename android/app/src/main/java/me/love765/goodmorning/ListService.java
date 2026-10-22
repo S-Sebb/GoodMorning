@@ -151,10 +151,21 @@ public class ListService extends RemoteViewsService {
                     JSONObject item = items.optJSONObject(j);
                     String style = item.optString("style");
                     if ("heading".equals(style)) {
-                        RemoteViews row = view(R.layout.row_section, page);
-                        row.setViewVisibility(R.id.icon, View.GONE);
+                        RemoteViews row = view(R.layout.row_category, page);
                         row.setTextViewText(R.id.text, item.optString("title").toUpperCase(Locale.getDefault()));
+                        Palette.text(context, row, schemes, R.id.text, p -> p.accent);
+                        Palette.tint(context, row, schemes, R.id.rule, p -> p.line);
+                        rows.add(row);
+                    } else if ("story".equals(style)) {
+                        RemoteViews row = view(R.layout.row_story, page);
+                        Palette.tint(context, row, schemes, R.id.card_fill, p -> p.wash);
+                        Palette.text(context, row, schemes, R.id.title, p -> p.ink);
                         Palette.text(context, row, schemes, R.id.text, p -> p.muted);
+                        Palette.text(context, row, schemes, R.id.source, p -> p.accent);
+                        shown(row, R.id.title, item.optString("title"));
+                        shown(row, R.id.text, item.optString("text"));
+                        String source = item.optString("source");
+                        shown(row, R.id.source, source.isEmpty() ? "" : source + "  ↗");
                         rows.add(row);
                     } else if ("text".equals(style)) {
                         paragraph(item.optString("text"), page);
@@ -226,7 +237,7 @@ public class ListService extends RemoteViewsService {
         @Override public int getCount() { return rows.size(); }
         @Override public RemoteViews getViewAt(int position) { return rows.get(position); }
         @Override public RemoteViews getLoadingView() { return null; }
-        @Override public int getViewTypeCount() { return 7; }
+        @Override public int getViewTypeCount() { return 9; }
         @Override public long getItemId(int position) { return position; }
         @Override public boolean hasStableIds() { return false; }
     }

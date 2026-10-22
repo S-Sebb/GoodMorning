@@ -129,7 +129,7 @@ class LiveTests(unittest.TestCase):
         rows = {section['type']: section['rows'] for section in evening['sections']}
         self.assertEqual(rows['weather'][0], {'style': 'item', 'side': '14°C', 'title': 'Temperature', 'text': 'Cool.'})
         self.assertEqual(rows['news'], [{'style': 'heading', 'side': '', 'title': 'World', 'text': ''},
-                                        {'style': 'item', 'side': '', 'title': 'A complete story.', 'text': 'A full summary.'}])
+                                        {'style': 'story', 'side': '', 'title': 'A complete story.', 'text': 'A full summary.', 'source': 'Source'}])
         self.assertEqual(rows['schedule'][0], {'style': 'item', 'side': '09:00–11:00', 'title': 'Teaching', 'text': 'Room A · Bring notes'})
         self.assertEqual([row['side'] for row in rows['must-do']], ['○', '✓'])
         self.assertTrue(evening['sections'][1]['title'].startswith('News — 2026-10-09'))
