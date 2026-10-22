@@ -3,17 +3,23 @@ package me.love765.goodmorning;
 import android.app.Activity;
 import android.content.ActivityNotFoundException;
 import android.content.Intent;
+import android.graphics.Bitmap;
 import android.graphics.Insets;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
+import android.view.View;
 import android.webkit.CookieManager;
 import android.webkit.ValueCallback;
 import android.webkit.WebChromeClient;
+import android.webkit.WebResourceError;
 import android.webkit.WebResourceRequest;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
+import android.widget.Button;
 import android.widget.FrameLayout;
 import android.window.OnBackInvokedDispatcher;
 
@@ -27,6 +33,13 @@ public class WebActivity extends Activity {
     private WebView web;
     private ValueCallback<Uri[]> chooser;
     private String agent;
+    /** Covers the WebView's own error page while the server can't be reached. */
+    private View offline;
+    private Button retry;
+    private String failed;
+    private boolean broken;
+    private final Handler later = new Handler(Looper.getMainLooper());
+    private final Runnable again = this::retry;
 
     @Override
     protected void onCreate(Bundle state) {
@@ -35,6 +48,10 @@ public class WebActivity extends Activity {
         // A WebView ignores its own padding, so system bars and the keyboard pad a container instead.
         FrameLayout frame = new FrameLayout(this);
         frame.addView(web);
+        offline = getLayoutInflater().inflate(R.layout.offline, frame, false);
+        frame.addView(offline);
+        retry = offline.findViewById(R.id.retry);
+        retry.setOnClickListener(view -> retry());
         setContentView(frame);
         if (Build.VERSION.SDK_INT >= 30) {
             frame.setOnApplyWindowInsetsListener((view, insets) -> {
@@ -60,6 +77,27 @@ public class WebActivity extends Activity {
                     // Nothing can open this link; stay on the current page.
                 }
                 return true;
+            }
+
+            @Override
+            public void onPageStarted(WebView view, String url, Bitmap favicon) {
+                broken = false;
+            }
+
+            @Override
+            public void onReceivedError(WebView view, WebResourceRequest request, WebResourceError error) {
+                if (!request.isForMainFrame()) return;
+                broken = true;
+                failed = request.getUrl().toString();
+            }
+
+            @Override
+            public void onPageFinished(WebView view, String url) {
+                if (broken) offline();
+                else {
+                    later.removeCallbacks(again);
+                    offline.setVisibility(View.GONE);
+                }
             }
         });
         web.setWebChromeClient(new WebChromeClient() {
@@ -102,6 +140,21 @@ public class WebActivity extends Activity {
         return own(data) ? data.toString() : Server.get(this) + "/app";
     }
 
+    private void offline() {
+        offline.setVisibility(View.VISIBLE);
+        retry.setEnabled(true);
+        retry.setText(R.string.offline_retry);
+        later.removeCallbacks(again);
+        later.postDelayed(again, 30_000);
+    }
+
+    private void retry() {
+        later.removeCallbacks(again);
+        retry.setEnabled(false);
+        retry.setText(R.string.offline_retrying);
+        web.loadUrl(failed);
+    }
+
     @Override
     protected void onNewIntent(Intent intent) {
         super.onNewIntent(intent);
@@ -133,12 +186,14 @@ public class WebActivity extends Activity {
     protected void onResume() {
         super.onResume();
         name();  // Linking may have finished since; the next page load names this phone.
+        if (offline.getVisibility() == View.VISIBLE) retry();  // The connection may be back.
     }
 
     /** WebView writes cookies to disk only now and then; closing the app soon after signing in would lose them. */
     @Override
     protected void onPause() {
         CookieManager.getInstance().flush();
+        later.removeCallbacks(again);
         super.onPause();
     }
 
@@ -150,6 +205,7 @@ public class WebActivity extends Activity {
 
     @Override
     protected void onDestroy() {
+        later.removeCallbacks(again);
         web.destroy();
         super.onDestroy();
     }
