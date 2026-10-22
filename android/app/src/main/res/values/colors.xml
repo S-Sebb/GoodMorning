@@ -10,11 +10,26 @@
     <color name="card">#FFFDF7</color>
     <color name="line">#E3D6C3</color>
     <color name="muted">#6B5F51</color>
-    <!-- Widget picker previews: the website's default Morning Sky (day) and Starry (night) schemes. -->
+    <!-- Widget picker previews: Palette's default Morning Sky (day) and Starry (night) schemes, the notes
+         mixed as Palette mixes them, and the weather tiles of Widgets.tileColors. -->
     <color name="preview_surface">#FFFDF7</color>
     <color name="preview_ink">#293E50</color>
-    <color name="preview_muted">#5B7083</color>
+    <color name="preview_muted">#304758</color>
     <color name="preview_accent">#27465E</color>
     <color name="preview_line">#CFDAE0</color>
     <color name="preview_wash">#E5EEF3</color>
+    <color name="preview_paper">#F3F8F9</color>
+    <color name="preview_bubble">#FFFDF7</color>
+    <color name="preview_bubble_line">#CFDAE0</color>
+    <color name="preview_border">#9EB8C8</color>
+    <color name="preview_note">#F0E2C5</color>
+    <color name="preview_note_behind">#EBD9B3</color>
+    <color name="preview_note_back">#E5D0A2</color>
+    <color name="preview_tape">#BEC6C9</color>
+    <color name="preview_temperature">#316D97</color>
+    <color name="preview_temperature_tile">#EDF4F8</color>
+    <color name="preview_rain">#706392</color>
+    <color name="preview_rain_tile">#F1EEF8</color>
+    <color name="preview_air">#387559</color>
+    <color name="preview_air_tile">#EDF5EE</color>
 </resources>

@@ -122,7 +122,7 @@ class Gateway:
             path = '/chat' if self.hosts[host] == 'sec' else '/'+self.hosts[host]+'.html'
         forwarded = {'Authorization':'Bearer '+backend['key'],'X-GoodMorning-Origin':'https://'+host,
                       'X-GoodMorning-Language':self.accounts.website_language(identifier) or ui.current()}
-        schemes = self.accounts.website_color_schemes(identifier) or site_colors.DEFAULT
+        schemes = site_colors.current()  # This device's choice, from select_language.
         forwarded.update({'X-GoodMorning-Style': schemes['style'], 'X-GoodMorning-Day-Scheme': schemes['day'],
                           'X-GoodMorning-Night-Scheme': schemes['night']})
         if method == 'POST' and parsed.path in ('/api/generate', '/api/regenerate') and REQUESTED_AT.get() is not None:
@@ -351,9 +351,10 @@ class Gateway:
             if status != 200:
                 raise ValueError('Backend read failed')
             return json.loads(raw)
-        chosen = next(entry['settings'] for entry in app_link.links(self.accounts, user) if entry['id'] == link)
+        entry = next(entry for entry in app_link.links(self.accounts, user) if entry['id'] == link)
+        chosen = entry['settings']
         result = {'device': link, 'settings': chosen, 'language': self.accounts.website_language(user) or 'en',
-                  'appearance': self.accounts.website_color_schemes(user) or site_colors.DEFAULT,
+                  'appearance': entry['appearance'] or self.accounts.website_color_schemes(user) or site_colors.DEFAULT,
                   'notifications': app_link.outbox(self.accounts, user, after, chosen)}
         for key, read_part in (('schedule', lambda: read('/api/app-schedule')),
                                ('secretary', lambda: read('/api/app-profile')),
@@ -912,7 +913,7 @@ def handler_for(gateway):
             super().setup()
             self.connection.settimeout(25)
 
-        def respond(self,data,status=200,mime='application/json',*,token=None,cookie_age=SESSION_SECONDS,location=None,cache='no-store',etag=None,language_cookie=None,color_cookie=None,app_cookie=None,resource=None,retry_after=None):
+        def respond(self,data,status=200,mime='application/json',*,token=None,cookie_age=SESSION_SECONDS,location=None,cache='no-store',etag=None,language_cookie=None,color_cookie=None,app_cookie=None,link_cookie=None,resource=None,retry_after=None):
             if not isinstance(data,bytes):
                 if isinstance(data,dict) and isinstance(data.get('error'),str):data={**data,'error':ui.text(data['error'])}
                 data=json.dumps(data,separators=(',',':')).encode()
@@ -948,12 +949,16 @@ def handler_for(gateway):
                 domain='; Domain='+gateway.language_domain if gateway.language_domain else ''
                 self.send_header('Set-Cookie','GoodMorningLanguage='+value+'; Path=/; Secure; SameSite=Lax; Max-Age=31536000'+domain)
             if color_cookie is not None:
-                value = site_colors.validate(color_cookie)['day']
+                value = site_colors.cookie(color_cookie)
                 domain = '; Domain='+gateway.language_domain if gateway.language_domain else ''
-                self.send_header('Set-Cookie', 'GoodMorningDayScheme='+value+'; Path=/; Secure; SameSite=Lax; Max-Age=31536000'+domain)
+                self.send_header('Set-Cookie', 'GoodMorningAppearance='+value+'; Path=/; Secure; SameSite=Lax; Max-Age=31536000'+domain)
             if app_cookie is not None:
                 # Which app build shows this site, so the page can offer the app's own updates.
                 self.send_header('Set-Cookie','GoodMorningApp='+str(int(app_cookie))+'; Path=/; Secure; SameSite=Lax; Max-Age=31536000')
+            if link_cookie is not None:
+                # Which linked phone shows this site, so a color scheme chosen here also reaches its widgets.
+                domain = '; Domain='+gateway.language_domain if gateway.language_domain else ''
+                self.send_header('Set-Cookie','GoodMorningLink='+link_cookie+'; Path=/; Secure; HttpOnly; SameSite=Lax; Max-Age=31536000'+domain)
             self.end_headers()
             if self.command!='HEAD' and status!=304:
                 self.wfile.write(data)
@@ -1041,15 +1046,30 @@ def handler_for(gateway):
         def select_language(self,session=None):
             selected=(gateway.accounts.website_language(session['user_id']) or 'en') if session and session.get('user_id') else self.browser_language()
             ui.CURRENT.set(selected)
-            if session and session.get('user_id'):
-                colors = gateway.accounts.website_color_schemes(session['user_id']) or site_colors.DEFAULT
-            else:
-                try:
-                    cookie = SimpleCookie(); cookie.load(self.headers.get('Cookie', '')[:4096])
-                    colors = site_colors.validate({'day': cookie['GoodMorningDayScheme'].value, 'night': site_colors.DEFAULT['night']})
-                except (KeyError, ValueError, CookieError):
-                    colors = site_colors.DEFAULT
+            # Colors belong to the device; one that has not chosen yet keeps its account's earlier choice.
+            try:
+                colors = site_colors.from_cookie(self.cookie('GoodMorningAppearance'))
+            except (KeyError, ValueError, CookieError):
+                if session and session.get('user_id'):
+                    colors = gateway.accounts.website_color_schemes(session['user_id']) or site_colors.DEFAULT
+                else:
+                    try:  # Before devices, a signed-out page knew only the account's day scheme.
+                        colors = site_colors.validate({'day': self.cookie('GoodMorningDayScheme'), 'night': site_colors.DEFAULT['night']})
+                    except (KeyError, ValueError, CookieError):
+                        colors = site_colors.DEFAULT
             site_colors.CURRENT.set(dict(colors))
+
+        def cookie(self,name):
+            cookie = SimpleCookie(); cookie.load(self.headers.get('Cookie', '')[:4096])
+            return cookie[name].value
+
+        def this_link(self,user):
+            """The linked phone showing this page (GoodMorningLink), if it is still one of the account's."""
+            try:
+                link = self.cookie('GoodMorningLink')
+            except (KeyError, CookieError):
+                return None
+            return link if any(entry['id'] == link for entry in app_link.links(gateway.accounts, user)) else None
 
         def account_html(self,session,title,host):
             source=account_page(session,title,gateway.hosts[host]).decode()
@@ -1172,7 +1192,13 @@ def handler_for(gateway):
                 if path=='/login':
                     return self.respond(b'',302,location='/')
                 if path=='/app':
-                    return self.respond(b'',302,location=self.app_page(),app_cookie=self.app_build())
+                    link=parse_qs(urlsplit(self.path).query).get('link',[''])[0]
+                    entry=next((entry for entry in app_link.links(gateway.accounts,session['user_id']) if entry['id']==link),None)
+                    if entry and entry['appearance']!=site_colors.current():
+                        # Colors chosen on this phone before the app named its link reach the widgets too.
+                        app_link.appearance(gateway.accounts,session['user_id'],link,site_colors.current())
+                    if not entry:link=None
+                    return self.respond(b'',302,location=self.app_page(),app_cookie=self.app_build(),link_cookie=link)
                 if path=='/api/queue':
                     return self.respond(gateway.queue_status(session['user_id']))
                 if path=='/api/activity':
@@ -1282,7 +1308,8 @@ def handler_for(gateway):
                     return self.respond({'error':'Model selection is automatic from the website language.'},405)
                 if path=='/api/color-schemes':
                     selected = site_colors.validate({key: body[key] for key in site_colors.OPTIONS if key in body} if form else body)
-                    if session['user_id']:gateway.accounts.website_color_schemes(session['user_id'], selected)
+                    link=session['user_id'] and self.this_link(session['user_id'])
+                    if link:app_link.appearance(gateway.accounts,session['user_id'],link,selected)
                     site_colors.CURRENT.set(selected)
                     target=body.get('return_to','/')
                     if form and (len(target)>2048 or any(ord(c)<32 for c in target) or '\\' in target or urlsplit(target).netloc or urlsplit(target).scheme or not (GET_ROUTES.fullmatch(urlsplit(target).path) or target in ('/login','/password'))):target='/'

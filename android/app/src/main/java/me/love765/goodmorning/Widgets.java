@@ -356,7 +356,7 @@ public abstract class Widgets extends AppWidgetProvider {
                 new Intent(context, activity).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK), PendingIntent.FLAG_IMMUTABLE);
     }
 
-    /** The rounded card with its 1dp border, both in the account's colors. */
+    /** The rounded card with its 1dp border, both in this phone's colors. */
     static void card(Context context, RemoteViews views, Palette[] schemes, Palette.Pick border, Palette.Pick fill) {
         Palette.tint(context, views, schemes, R.id.card_border, border);
         Palette.tint(context, views, schemes, R.id.card_fill, fill);

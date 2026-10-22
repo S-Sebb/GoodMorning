@@ -1,4 +1,4 @@
-// Account-wide colors change in place: never reload, rewrite content, or lose drafts.
+// This device's colors change in place: never reload, rewrite content, or lose drafts.
 (() => {
   const config = JSON.parse(document.querySelector('#color-scheme-config').dataset.config);
   const form = document.querySelector('#color-scheme-form');

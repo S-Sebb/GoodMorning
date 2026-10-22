@@ -1,18 +1,43 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Sample content for the widget picker, in the website's default colors. -->
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<!-- Secretary chat for the widget picker: widget_chat with a sample conversation in the website's
+     default colors. Keep it in step with the widget. -->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@drawable/preview_card"
-    android:orientation="vertical"
-    android:padding="14dp">
+    tools:ignore="UseAppTint">
 
-    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center_vertical">
-        <ImageView android:layout_width="42dp" android:layout_height="42dp" android:importantForAccessibility="no" android:src="@drawable/portrait_f1" />
-        <LinearLayout android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginStart="10dp" android:orientation="vertical">
-            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:letterSpacing="0.14" android:text="@string/chat_label" android:textAllCaps="true" android:textColor="@color/preview_muted" android:textSize="10sp" android:textStyle="bold" />
-            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:fontFamily="serif" android:text="@string/chat_name_default" android:textColor="@color/preview_ink" android:textSize="19sp" />
+    <ImageView android:layout_width="match_parent" android:layout_height="match_parent" android:importantForAccessibility="no" android:scaleType="fitXY" android:src="@drawable/round_card" android:tint="@color/preview_border" />
+    <ImageView android:layout_width="match_parent" android:layout_height="match_parent" android:layout_margin="1dp" android:importantForAccessibility="no" android:scaleType="fitXY" android:src="@drawable/round_card" android:tint="@color/preview_paper" />
+
+    <LinearLayout android:layout_width="match_parent" android:layout_height="match_parent" android:orientation="vertical" android:padding="14dp">
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center_vertical">
+            <FrameLayout android:layout_width="42dp" android:layout_height="42dp">
+                <ImageView android:layout_width="match_parent" android:layout_height="match_parent" android:importantForAccessibility="no" android:src="@drawable/round_circle" android:tint="@color/preview_wash" />
+                <ImageView android:layout_width="match_parent" android:layout_height="match_parent" android:layout_margin="2dp" android:importantForAccessibility="no" android:src="@drawable/portrait_f1" />
+            </FrameLayout>
+            <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_marginStart="10dp" android:layout_weight="1" android:orientation="vertical">
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:letterSpacing="0.14" android:maxLines="1" android:text="@string/chat_label" android:textAllCaps="true" android:textColor="@color/preview_muted" android:textSize="10sp" android:textStyle="bold" />
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:ellipsize="end" android:fontFamily="serif" android:maxLines="1" android:text="@string/preview_secretary_name" android:textColor="@color/preview_ink" android:textSize="19sp" />
+            </LinearLayout>
+        </LinearLayout>
+        <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="10dp" android:ellipsize="end" android:maxLines="1" android:text="@string/preview_chat_title" android:textColor="@color/preview_ink" android:textSize="13sp" android:textStyle="bold" />
+        <FrameLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="6dp">
+            <ImageView android:layout_width="match_parent" android:layout_height="match_parent" android:importantForAccessibility="no" android:scaleType="fitXY" android:src="@drawable/round_bubble" android:tint="@color/preview_bubble_line" />
+            <ImageView android:layout_width="match_parent" android:layout_height="match_parent" android:layout_margin="1dp" android:importantForAccessibility="no" android:scaleType="fitXY" android:src="@drawable/round_bubble" android:tint="@color/preview_bubble" />
+            <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:ellipsize="end" android:lineSpacingMultiplier="1.15" android:maxLines="3" android:paddingStart="12dp" android:paddingTop="9dp" android:paddingEnd="12dp" android:paddingBottom="9dp" android:text="@string/preview_reply" android:textColor="@color/preview_ink" android:textSize="13sp" />
+        </FrameLayout>
+        <LinearLayout android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" android:orientation="vertical" />
+        <LinearLayout android:layout_width="match_parent" android:layout_height="44dp" android:layout_marginTop="10dp" android:gravity="center_vertical">
+            <FrameLayout android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1">
+                <ImageView android:layout_width="match_parent" android:layout_height="match_parent" android:importantForAccessibility="no" android:scaleType="fitXY" android:src="@drawable/round_pill" android:tint="@color/preview_border" />
+                <ImageView android:layout_width="match_parent" android:layout_height="match_parent" android:layout_margin="1.5dp" android:importantForAccessibility="no" android:scaleType="fitXY" android:src="@drawable/round_pill" android:tint="@color/preview_surface" />
+                <TextView android:layout_width="match_parent" android:layout_height="match_parent" android:ellipsize="end" android:gravity="center_vertical" android:maxLines="1" android:paddingStart="16dp" android:paddingEnd="12dp" android:text="@string/preview_chat_placeholder" android:textColor="@color/preview_muted" android:textSize="14sp" />
+            </FrameLayout>
+            <FrameLayout android:layout_width="44dp" android:layout_height="44dp" android:layout_marginStart="8dp">
+                <ImageView android:layout_width="match_parent" android:layout_height="match_parent" android:importantForAccessibility="no" android:src="@drawable/round_circle" android:tint="@color/preview_ink" />
+                <ImageView android:layout_width="match_parent" android:layout_height="match_parent" android:importantForAccessibility="no" android:padding="12dp" android:src="@drawable/ic_send" android:tint="@color/preview_surface" />
+            </FrameLayout>
         </LinearLayout>
     </LinearLayout>
-    <TextView android:layout_width="match_parent" android:layout_height="0dp" android:layout_marginTop="10dp" android:layout_weight="1" android:background="@drawable/preview_bubble" android:padding="12dp" android:text="@string/preview_reply" android:textColor="@color/preview_ink" android:textSize="13sp" />
-</LinearLayout>
+</FrameLayout>

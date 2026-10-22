@@ -197,6 +197,13 @@ public class WebActivity extends Activity {
         super.onPause();
     }
 
+    /** Colors chosen in the app reach the widgets as soon as the app leaves the screen. */
+    @Override
+    protected void onStop() {
+        if (!isChangingConfigurations() && Sync.linked(this)) Sync.inBackground(this);
+        super.onStop();
+    }
+
     @Override
     protected void onSaveInstanceState(Bundle out) {
         super.onSaveInstanceState(out);

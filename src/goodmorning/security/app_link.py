@@ -126,7 +126,7 @@ def links(accounts, user):
     state = web_push.account(accounts, user)
     with accounts.db() as db:
         return [{**{key: entry[key] for key in ('id', 'label', 'created', 'used')},
-                 'notifies': bool(entry.get('notifies')), 'settings': choices(state, entry)}
+                 'notifies': bool(entry.get('notifies')), 'settings': choices(state, entry), 'appearance': entry.get('appearance')}
                 for entry in _metadata(db, 'app-links:' + user, [])]
 
 
@@ -140,6 +140,17 @@ def settings(accounts, user, identifier, replacement):
             raise ValueError('This phone is no longer linked. Link it again in Account.')
         _store(db, 'app-links:' + user, [{**entry, 'settings': replacement} if entry['id'] == identifier else entry for entry in entries])
     return replacement
+
+
+def appearance(accounts, user, identifier, replacement):
+    """The color schemes chosen on this phone, for its widgets; False when it is not one of the account's links."""
+    with accounts.db() as db:
+        db.execute('BEGIN IMMEDIATE')
+        entries = _metadata(db, 'app-links:' + user, [])
+        if not any(entry['id'] == identifier for entry in entries):
+            return False
+        _store(db, 'app-links:' + user, [{**entry, 'appearance': replacement} if entry['id'] == identifier else entry for entry in entries])
+    return True
 
 
 def unlink(accounts, user, identifier):

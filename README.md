@@ -129,8 +129,8 @@ invent a schedule.
 ## A little atmosphere
 
 Keep the same quiet workspace, with a different view outside. In
-**Account → Appearance**, picture cards let you choose three things separately,
-and each choice is saved to your account:
+**Settings → Appearance**, picture cards let you choose three things separately,
+and each device keeps its own choice (a linked phone's widgets follow it too):
 
 - **Style** shapes the components. **Soft** is rounded and calm; **Pixel** brings
   square frames, blocky buttons, and pixel headings, and each scheme adds its

@@ -1,31 +1,96 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Sample content for the widget picker, in the website's default colors. -->
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<!-- Week schedule for the widget picker: widget_week with sample row_day rows in the website's
+     default colors. Keep it in step with the widget. -->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@drawable/preview_card"
-    android:orientation="vertical"
-    android:padding="16dp">
+    tools:ignore="HardcodedText,UseAppTint">
 
-    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center_vertical">
-        <ImageView android:layout_width="30dp" android:layout_height="30dp" android:importantForAccessibility="no" android:src="@drawable/desk_schedule" />
-        <LinearLayout android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginStart="10dp" android:orientation="vertical">
-            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:letterSpacing="0.14" android:text="@string/widget_label_week" android:textAllCaps="true" android:textColor="@color/preview_muted" android:textSize="10sp" android:textStyle="bold" />
-            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:fontFamily="serif" android:text="@string/widget_week_name" android:textColor="@color/preview_ink" android:textSize="19sp" />
+    <ImageView android:layout_width="match_parent" android:layout_height="match_parent" android:importantForAccessibility="no" android:scaleType="fitXY" android:src="@drawable/round_card" android:tint="@color/preview_line" />
+    <ImageView android:layout_width="match_parent" android:layout_height="match_parent" android:layout_margin="1dp" android:importantForAccessibility="no" android:scaleType="fitXY" android:src="@drawable/round_card" android:tint="@color/preview_surface" />
+
+    <LinearLayout android:layout_width="match_parent" android:layout_height="match_parent" android:orientation="vertical" android:paddingStart="16dp" android:paddingTop="14dp" android:paddingEnd="10dp" android:paddingBottom="6dp">
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center_vertical">
+            <ImageView android:layout_width="30dp" android:layout_height="30dp" android:importantForAccessibility="no" android:src="@drawable/desk_schedule" />
+            <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_marginStart="10dp" android:layout_weight="1" android:orientation="vertical">
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:letterSpacing="0.14" android:maxLines="1" android:text="@string/widget_label_week" android:textAllCaps="true" android:textColor="@color/preview_muted" android:textSize="10sp" android:textStyle="bold" />
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:ellipsize="end" android:fontFamily="serif" android:maxLines="1" android:text="@string/preview_week_range" android:textColor="@color/preview_ink" android:textSize="19sp" />
+            </LinearLayout>
+            <ImageView android:layout_width="36dp" android:layout_height="36dp" android:importantForAccessibility="no" android:padding="8dp" android:src="@drawable/ic_refresh" android:tint="@color/preview_muted" />
+        </LinearLayout>
+        <ImageView android:layout_width="match_parent" android:layout_height="1dp" android:layout_marginTop="10dp" android:layout_marginEnd="6dp" android:importantForAccessibility="no" android:scaleType="fitXY" android:src="@drawable/round_card" android:tint="@color/preview_line" />
+
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:paddingTop="4dp">
+            <!-- Today: the date in a filled circle. -->
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:paddingTop="8dp" android:paddingBottom="8dp">
+                <LinearLayout android:layout_width="44dp" android:layout_height="wrap_content" android:gravity="center_horizontal" android:orientation="vertical">
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:letterSpacing="0.08" android:maxLines="1" android:text="@string/preview_weekday_thu" android:textColor="@color/preview_ink" android:textSize="10sp" />
+                    <TextView android:layout_width="32dp" android:layout_height="32dp" android:layout_marginTop="2dp" android:background="@drawable/round_circle" android:backgroundTint="@color/preview_ink" android:fontFamily="serif" android:gravity="center" android:text="22" android:textColor="@color/preview_surface" android:textSize="17sp" />
+                </LinearLayout>
+                <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_marginStart="10dp" android:layout_weight="1" android:orientation="vertical">
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:paddingTop="2dp" android:paddingBottom="2dp">
+                        <ImageView android:layout_width="3dp" android:layout_height="match_parent" android:importantForAccessibility="no" android:scaleType="fitXY" android:src="@drawable/round_bar" android:tint="@color/preview_accent" />
+                        <TextView android:layout_width="48dp" android:layout_height="wrap_content" android:layout_marginStart="8dp" android:maxLines="1" android:text="09:30" android:textColor="@color/preview_accent" android:textSize="12sp" android:textStyle="bold" />
+                        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:ellipsize="end" android:maxLines="1" android:text="@string/preview_event_one" android:textColor="@color/preview_ink" android:textSize="13sp" />
+                    </LinearLayout>
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:paddingTop="2dp" android:paddingBottom="2dp">
+                        <ImageView android:layout_width="3dp" android:layout_height="match_parent" android:importantForAccessibility="no" android:scaleType="fitXY" android:src="@drawable/round_bar" android:tint="@color/preview_accent" />
+                        <TextView android:layout_width="48dp" android:layout_height="wrap_content" android:layout_marginStart="8dp" android:maxLines="1" android:text="12:30" android:textColor="@color/preview_accent" android:textSize="12sp" android:textStyle="bold" />
+                        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:ellipsize="end" android:maxLines="1" android:text="@string/preview_event_lunch" android:textColor="@color/preview_ink" android:textSize="13sp" />
+                    </LinearLayout>
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:paddingTop="2dp" android:paddingBottom="2dp">
+                        <ImageView android:layout_width="3dp" android:layout_height="match_parent" android:importantForAccessibility="no" android:scaleType="fitXY" android:src="@drawable/round_bar" android:tint="@color/preview_accent" />
+                        <TextView android:layout_width="48dp" android:layout_height="wrap_content" android:layout_marginStart="8dp" android:maxLines="1" android:text="16:30" android:textColor="@color/preview_accent" android:textSize="12sp" android:textStyle="bold" />
+                        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:ellipsize="end" android:maxLines="1" android:text="@string/preview_event_two" android:textColor="@color/preview_ink" android:textSize="13sp" />
+                    </LinearLayout>
+                    <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:paddingTop="2dp" android:text="@string/preview_week_tasks" android:textColor="@color/preview_muted" android:textSize="12sp" />
+                </LinearLayout>
+            </LinearLayout>
+
+            <ImageView android:layout_width="match_parent" android:layout_height="1dp" android:layout_marginEnd="6dp" android:importantForAccessibility="no" android:scaleType="fitXY" android:src="@drawable/round_card" android:tint="@color/preview_line" />
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:paddingTop="8dp" android:paddingBottom="8dp">
+                <LinearLayout android:layout_width="44dp" android:layout_height="wrap_content" android:gravity="center_horizontal" android:orientation="vertical">
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:letterSpacing="0.08" android:maxLines="1" android:text="@string/preview_weekday_fri" android:textColor="@color/preview_muted" android:textSize="10sp" />
+                    <TextView android:layout_width="32dp" android:layout_height="32dp" android:layout_marginTop="2dp" android:fontFamily="serif" android:gravity="center" android:text="23" android:textColor="@color/preview_ink" android:textSize="17sp" />
+                </LinearLayout>
+                <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_marginStart="10dp" android:layout_weight="1" android:orientation="vertical">
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:paddingTop="2dp" android:paddingBottom="2dp">
+                        <ImageView android:layout_width="3dp" android:layout_height="match_parent" android:importantForAccessibility="no" android:scaleType="fitXY" android:src="@drawable/round_bar" android:tint="@color/preview_accent" />
+                        <TextView android:layout_width="48dp" android:layout_height="wrap_content" android:layout_marginStart="8dp" android:maxLines="1" android:text="08:00" android:textColor="@color/preview_accent" android:textSize="12sp" android:textStyle="bold" />
+                        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:ellipsize="end" android:maxLines="1" android:text="@string/preview_event_gym" android:textColor="@color/preview_ink" android:textSize="13sp" />
+                    </LinearLayout>
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:paddingTop="2dp" android:paddingBottom="2dp">
+                        <ImageView android:layout_width="3dp" android:layout_height="match_parent" android:importantForAccessibility="no" android:scaleType="fitXY" android:src="@drawable/round_bar" android:tint="@color/preview_accent" />
+                        <TextView android:layout_width="48dp" android:layout_height="wrap_content" android:layout_marginStart="8dp" android:maxLines="1" android:text="14:00" android:textColor="@color/preview_accent" android:textSize="12sp" android:textStyle="bold" />
+                        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:ellipsize="end" android:maxLines="1" android:text="@string/preview_event_review" android:textColor="@color/preview_ink" android:textSize="13sp" />
+                    </LinearLayout>
+                </LinearLayout>
+            </LinearLayout>
+
+            <ImageView android:layout_width="match_parent" android:layout_height="1dp" android:layout_marginEnd="6dp" android:importantForAccessibility="no" android:scaleType="fitXY" android:src="@drawable/round_card" android:tint="@color/preview_line" />
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:paddingTop="8dp" android:paddingBottom="8dp">
+                <LinearLayout android:layout_width="44dp" android:layout_height="wrap_content" android:gravity="center_horizontal" android:orientation="vertical">
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:letterSpacing="0.08" android:maxLines="1" android:text="@string/preview_weekday_sat" android:textColor="@color/preview_muted" android:textSize="10sp" />
+                    <TextView android:layout_width="32dp" android:layout_height="32dp" android:layout_marginTop="2dp" android:fontFamily="serif" android:gravity="center" android:text="24" android:textColor="@color/preview_ink" android:textSize="17sp" />
+                </LinearLayout>
+                <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_marginStart="10dp" android:layout_weight="1" android:paddingTop="2dp" android:text="@string/widget_free" android:textColor="@color/preview_muted" android:textSize="12sp" />
+            </LinearLayout>
+
+            <ImageView android:layout_width="match_parent" android:layout_height="1dp" android:layout_marginEnd="6dp" android:importantForAccessibility="no" android:scaleType="fitXY" android:src="@drawable/round_card" android:tint="@color/preview_line" />
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:paddingTop="8dp" android:paddingBottom="8dp">
+                <LinearLayout android:layout_width="44dp" android:layout_height="wrap_content" android:gravity="center_horizontal" android:orientation="vertical">
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:letterSpacing="0.08" android:maxLines="1" android:text="@string/preview_weekday_sun" android:textColor="@color/preview_muted" android:textSize="10sp" />
+                    <TextView android:layout_width="32dp" android:layout_height="32dp" android:layout_marginTop="2dp" android:fontFamily="serif" android:gravity="center" android:text="25" android:textColor="@color/preview_ink" android:textSize="17sp" />
+                </LinearLayout>
+                <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_marginStart="10dp" android:layout_weight="1" android:orientation="vertical">
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:paddingTop="2dp" android:paddingBottom="2dp">
+                        <ImageView android:layout_width="3dp" android:layout_height="match_parent" android:importantForAccessibility="no" android:scaleType="fitXY" android:src="@drawable/round_bar" android:tint="@color/preview_accent" />
+                        <TextView android:layout_width="48dp" android:layout_height="wrap_content" android:layout_marginStart="8dp" android:maxLines="1" android:text="11:00" android:textColor="@color/preview_accent" android:textSize="12sp" android:textStyle="bold" />
+                        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:ellipsize="end" android:maxLines="1" android:text="@string/preview_event_brunch" android:textColor="@color/preview_ink" android:textSize="13sp" />
+                    </LinearLayout>
+                </LinearLayout>
+            </LinearLayout>
         </LinearLayout>
     </LinearLayout>
-    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="10dp">
-        <ImageView android:layout_width="3dp" android:layout_height="match_parent" android:importantForAccessibility="no" android:src="@drawable/preview_bar" android:scaleType="fitXY" />
-        <LinearLayout android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginStart="10dp" android:orientation="vertical">
-            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="09:30" android:textColor="@color/preview_accent" android:textSize="11sp" android:textStyle="bold" />
-            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/preview_event_one" android:textColor="@color/preview_ink" android:textSize="14sp" />
-        </LinearLayout>
-    </LinearLayout>
-    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="10dp">
-        <ImageView android:layout_width="3dp" android:layout_height="match_parent" android:importantForAccessibility="no" android:src="@drawable/preview_bar" android:scaleType="fitXY" />
-        <LinearLayout android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginStart="10dp" android:orientation="vertical">
-            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="15:00" android:textColor="@color/preview_accent" android:textSize="11sp" android:textStyle="bold" />
-            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/preview_event_two" android:textColor="@color/preview_ink" android:textSize="14sp" />
-        </LinearLayout>
-    </LinearLayout>
-</LinearLayout>
+</FrameLayout>

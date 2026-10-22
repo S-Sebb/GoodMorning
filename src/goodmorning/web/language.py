@@ -170,8 +170,8 @@ def page(source,csrf,return_to='/'):
                     for code,label in (('en','English'),('zh-CN','简体中文')))+
            '</select><input type="hidden" name="csrf" value="'+html.escape(csrf or '',quote=True)+'">'
            '<input type="hidden" name="return_to" value="'+html.escape(return_to,quote=True)+'">'
-           '<noscript><button type="submit">Apply</button></noscript><span id="language-feedback" role="status"></span></form>'
-           '<form id="color-scheme-form"></form>')  # Filled by color_schemes.page.
+           '<noscript><button type="submit">Apply</button></noscript><span id="language-feedback" role="status"></span></form>')
+    appearance='<form id="color-scheme-form"></form>'  # Filled by color_schemes.page.
     # Hosted pages reveal this where the device can show notifications; see app.js.
     notifications=('<form id="notification-form" class="language-toolbar notification-settings" hidden>'
            '<h3 class="color-scheme-heading notification-heading">Notifications</h3><p id="notification-status"></p>'
@@ -197,12 +197,12 @@ def page(source,csrf,return_to='/'):
            '<p class="notification-note">Each device chooses its own notifications in its Settings. Turn one off here if you no longer use it.</p>'
            '<ul id="notification-device-list"></ul><span id="notification-devices-feedback" role="status"></span></section>')
     # Settings holds what belongs to this device; Account what follows the signed-in owner everywhere.
-    # Without an account (sign-in page, local viewer) language and appearance stay with this device.
-    prefs=('<details class="menu" id="prefs-menu"'+(' hidden' if account else '')+'><summary><span aria-hidden="true">⚙</span> '
+    # Without an account (sign-in page, local viewer) language stays with this device too.
+    prefs=('<details class="menu" id="prefs-menu"><summary><span aria-hidden="true">⚙</span> '
            '<span class="menu-label">Settings</span></summary>'
            '<div class="menu-panel"><div class="settings-menu-header"><div><h2>Settings</h2><p>'
            +('Choices for this device only.' if account else 'Make this space yours.')+'</p></div>'+close+'</div>'
-           +(notifications if account else language_form)+'</div></details>')
+           +(appearance+notifications if account else language_form+appearance)+'</div></details>')
     account_menu=('<details class="menu" id="account-menu"><summary><span class="menu-label">Account</span></summary>'
                   '<div class="menu-panel"><div class="settings-menu-header account-menu-header"><div><h2>Account</h2>'
                   '<p>These follow you on every device you sign in on.</p></div>'+close+'</div>'
