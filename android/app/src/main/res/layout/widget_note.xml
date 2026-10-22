@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A sticky note on the home screen, tilted slightly, with earlier notes behind it. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="8dp">
+
+    <!-- The tabs tuck under the front note; hidden, they take no space. -->
+    <include
+        android:id="@+id/tabs"
+        layout="@layout/widget_note_tabs"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="-10dp"
+        android:visibility="gone" />
+
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:rotation="-1.5">
+
+        <include layout="@layout/widget_note_front" />
+    </FrameLayout>
+</LinearLayout>

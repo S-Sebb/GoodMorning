@@ -13,4 +13,14 @@
         <item name="android:windowNoTitle">true</item>
         <item name="android:colorAccent">@color/sun</item>
     </style>
+    <!-- The quick note screen floats over the home screen; its layout draws the dimmed backdrop. -->
+    <style name="NoteScreen" parent="@android:style/Theme.Material.Light.NoActionBar">
+        <item name="android:windowIsTranslucent">true</item>
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:colorAccent">@color/sun</item>
+        <item name="android:windowAnimationStyle">@android:style/Animation.Dialog</item>
+    </style>
 </resources>

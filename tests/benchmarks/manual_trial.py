@@ -98,7 +98,7 @@ def main():
         return
     directory, state, state_file = load(args)
     runtime = directory / "account"
-    source = Path("/tmp/opencode/manual-src")
+    source = Path(args.source or "/tmp/opencode/manual-src")
     lang, selected = args.language, args.model
     if args.send and not state:
         runtime.mkdir(parents=True, mode=0o700, exist_ok=True)

@@ -156,4 +156,38 @@
     <string name="preview_weather_dry_until">Dry until 21:00</string>
     <string name="preview_weather_then_rain">Then rain likely · up to 89%</string>
     <string name="preview_weather_aqi">AQI 23–27 through the day</string>
+    <string name="widget_note_name">Quick note</string>
+    <string name="widget_note_description">Jot things down on a sticky note, then sort them with your secretary when you\'re ready</string>
+    <string name="note_label">Quick note</string>
+    <string name="note_empty">Tap to jot something down</string>
+    <string name="note_hint">Jot something down…</string>
+    <string name="note_kept">Saved as you write. Just leave when you\'re done.</string>
+    <string name="note_new">New note</string>
+    <string name="note_earlier">Earlier notes</string>
+    <string name="note_today">Today</string>
+    <string name="note_yesterday">Yesterday</string>
+    <string name="note_when">%1$s · %2$s</string>
+    <string name="note_name_default">your secretary</string>
+    <string name="note_state_local">Saved on this phone</string>
+    <string name="note_state_unlinked">Saved on this phone · link the app to sort it</string>
+    <string name="note_state_stranded">Not sent: this phone was unlinked</string>
+    <string name="note_state_unsorted">Not sorted yet</string>
+    <string name="note_state_sorting">%1$s is sorting…</string>
+    <string name="note_state_question">%1$s has a question</string>
+    <string name="note_state_sorted">✓ Sorted</string>
+    <string name="note_state_changed">Edited since sorting</string>
+    <string name="note_state_check">Open the chat to check</string>
+    <plurals name="note_sort">
+        <item quantity="one">Sort 1 note with %2$s</item>
+        <item quantity="other">Sort %1$d notes with %2$s</item>
+    </plurals>
+    <plurals name="note_sort_remaining">
+        <item quantity="one">1 more note will go in the next sort.</item>
+        <item quantity="other">%1$d more notes will go in the next sort.</item>
+    </plurals>
+    <string name="note_sorting">Handing your notes to %1$s…</string>
+    <string name="note_sort_failed">Couldn\'t start sorting. Your notes are safe on this phone; try again when you\'re online.</string>
+    <string name="note_not_kept">Couldn\'t save this note on the phone. Copy the text somewhere safe before leaving.</string>
+    <string name="preview_note_text">Ask the landlord about the boiler before Friday</string>
+    <string name="preview_note_older">Oat milk, bin bags</string>
 </resources>

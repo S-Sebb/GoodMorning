@@ -550,6 +550,46 @@ class GatewayTests(GatewayFixture):
         self.assertEqual(self.request('/api/app/unlink',{'id':links[0]['id']})[0],200)
         self.assertEqual(phone('/api/app/sync',headers={'X-GoodMorning-App':token})[0],403)
 
+    def test_phone_quick_notes_are_saved_and_sorted_through_a_secretary_chat(self):
+        def phone(path,body=None,headers=None):
+            cookie,self.cookie=self.cookie,None
+            try:return self.request(path,body,headers={'Origin':'','Sec-Fetch-Site':'',**(headers or {})})
+            finally:self.cookie=cookie
+        pairing=json.loads(phone('/api/app/pair',{'label':'Pixel 7'})[2])
+        self.permanent()
+        self.request('/api/app/link',{'code':pairing['code']})
+        token={'X-GoodMorning-App':json.loads(phone('/api/app/pair',headers={'X-GoodMorning-Pairing':pairing['secret']})[2])['token']}
+        calls=[]
+        batch={'text':'Quick notes to sort\n\n1. Oat milk','notes':[{'id':'a'*32,'text':'Oat milk'}],'remaining':0}
+        def proxy(user,host,path,method,body,headers):
+            calls.append((path,method,body and json.loads(body)))
+            answer={'/api/notes':{'id':'a'*32,'deleted':False} if method=='POST' else {'notes':[],'total':0,'pending':1},
+                    '/api/notes/batch':batch,'/api/notes/sorted':{'chat':'x'}}[path]
+            return 200,{},json.dumps(answer).encode()
+        started=[]
+        self.gateway.chat_message=lambda user,host,path,raw,headers:started.append((path,json.loads(raw))) or (202,{},b'{}')
+        with patch.object(self.gateway,'proxy',proxy):
+            note={'id':'a'*32,'text':'Oat milk','created':1_789_714_800_000}
+            self.assertEqual(phone('/api/app/note',note,headers=token)[0],200)
+            self.assertEqual(phone('/api/app/note',note,headers={'X-GoodMorning-App':'gma_wrong'})[0],403)
+            self.assertEqual(json.loads(phone('/api/app/notes',headers=token)[2])['pending'],1)
+            self.assertEqual(phone('/api/app/notes/sort',{'x':1},headers=token)[0],400)
+            self.assertEqual(started,[])
+            status,_,body=phone('/api/app/notes/sort',{},headers=token)
+            chat=json.loads(body)['chat']
+            self.assertEqual(status,202)
+            self.assertEqual(started,[('/api/chats',{'id':chat,'mode':'secretary','text':batch['text']})])
+            self.assertIn(('/api/notes/sorted','POST',{'chat':chat,'notes':batch['notes']}),calls)
+            batch={'text':None,'notes':[],'remaining':0}
+            self.assertEqual(phone('/api/app/notes/sort',{},headers=token)[0],409)
+            self.assertEqual(len(started),1)
+            # A refused chat leaves the notes unsorted.
+            batch={'text':'Quick notes to sort\n\n1. Bread','notes':[{'id':'b'*32,'text':'Bread'}],'remaining':0}
+            self.gateway.chat_message=lambda *args:(429,{'Content-Type':'application/json'},b'{"error":"busy"}')
+            calls.clear()
+            self.assertEqual(phone('/api/app/notes/sort',{},headers=token)[0],429)
+            self.assertNotIn('/api/notes/sorted',[path for path,*_ in calls])
+
     def test_login_cookie_and_initial_password_gate(self):
         session=self.login()
         self.assertTrue(session['temporary'])

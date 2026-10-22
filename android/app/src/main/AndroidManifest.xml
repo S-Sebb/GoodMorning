@@ -88,6 +88,16 @@
             android:theme="@style/AskDialog"
             android:windowSoftInputMode="adjustResize" />
 
+        <!-- Its own task, so opening a note from a widget never disturbs the website's screen. -->
+        <activity
+            android:name=".NoteActivity"
+            android:excludeFromRecents="true"
+            android:exported="false"
+            android:label="@string/widget_note_name"
+            android:taskAffinity="me.love765.goodmorning.notes"
+            android:theme="@style/NoteScreen"
+            android:windowSoftInputMode="adjustResize|stateVisible" />
+
         <receiver android:name=".Widgets$Today" android:exported="false" android:label="@string/widget_today_name">
             <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
             <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_today" />
@@ -131,6 +141,10 @@
         <receiver android:name=".Widgets$Air" android:exported="false" android:label="@string/widget_air_name">
             <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
             <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_air" />
+        </receiver>
+        <receiver android:name=".Widgets$QuickNote" android:exported="false" android:label="@string/widget_note_name">
+            <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_note" />
         </receiver>
         <receiver android:name=".Reminders" android:exported="false" />
 

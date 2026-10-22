@@ -83,6 +83,7 @@ switches them itself; older versions use the colors of the mode at drawing time.
 | Weather | 4×2 | Temperature, rain and air headlines side by side, from the live forecast | The morning briefing's Weather section (`/gm.html?section=weather`); refresh button |
 | Weather details | 4×5 | The three headlines, each beside its hourly chart | As Weather |
 | Temperature, Rain, Air quality | 4×2 each | One headline above its hourly chart | As Weather |
+| Quick note | 4×4 | The newest quick note as a taped sticky note, up to five earlier notes' first lines behind it (fewer when smaller), its state and a Sort pill | The note or a title: that note; +: a new note; Sort: sorts the notes with the secretary (paid model work) and opens that conversation |
 
 Every widget but Secretary can be resized. Launchers hide a widget whose minimum size exceeds
 their grid, so minimum sizes stay small and the defaults fit the common 4×5
@@ -97,6 +98,30 @@ the headlines from the hours after now, so they move on between syncs;
 widget tints, since the launcher switches day and night colors without
 redrawing. Tiles keep the website's weather colors in both modes. A frame that
 has run out shows the loading or unavailable message until the next sync.
+
+### Quick notes
+
+The Quick note widget, and the launcher shortcut of the same name, open
+`NoteActivity`: the note over the dimmed (Android 12+: blurred) home screen, with
+the keyboard up. There is no Save button. `Notes` keeps every note in
+`notes.bin`, AES-GCM encrypted with its own Android Keystore key, 300 ms after
+typing pauses and whenever the screen closes, so leaving in any way, or the app
+being killed, keeps it. Only + starts a new note; the first line, cut with "…",
+is its title. The paper takes the scheme's warm colour (mixed into near-black on
+night schemes); Pixel style makes it square and upright, with stepped tape; the
+writing screen's label also uses the pixel font, which widgets cannot load.
+
+A note waits on the phone until the server confirms it (`POST /api/app/note`,
+`docs/browser-delivery.md`). Each sync run sends waiting notes and then reads the
+server's list; a `JobScheduler` job that needs a network sends them as soon as
+the phone is online. A note written while linked belongs to that link: after
+unlinking it stays on the phone as "Not sent" and never goes to another account.
+One written unlinked goes to the next link. Unlinking forgets the sent copies,
+which stay on the server.
+
+Notes are never sorted automatically. "Sort N notes with NAME" appears while
+notes are unsorted or edited since sorting; it sends any waiting notes, starts
+the sorting conversation (`POST /api/app/notes/sort`) and opens it in the app.
 
 `Sync` reads `GET /api/app/sync` once per run and caches the answer for the
 widgets. It runs when the app opens, after linking, from a widget's refresh

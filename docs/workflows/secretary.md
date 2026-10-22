@@ -79,6 +79,17 @@ guides only for the requested operation; do not recursively reload the skill.
    Ask to-do or idea only when you genuinely cannot tell. The confirmation says what
    it was saved as (“saved as a to-do”, “saved as an idea”). Saving never starts the
    work; acting on a saved item needs a separate request.
+   **Quick notes.** A message that starts with `Quick notes to sort` (Chinese:
+   `待整理的速记`) lists numbered notes the user jotted on their phone's Quick note
+   widget and asked you to sort. Each note asks you to save it, never to do it now,
+   even when worded as a task. Classify and save every clear note as above; ask about
+   all unclear notes in one native question form and write nothing for them until
+   answered. A note that repeats an item already saved reuses it. A note marked
+   `Edited after you sorted it` (Chinese: `整理后又改过`) replaces its `Before` text:
+   find the item you saved from that text (`task`/`inbox` search on its distinctive
+   words) and update it; save it as new when nothing matches; ask when several
+   could. A note with nothing worth keeping is saved as nothing; say so. Finish with
+   one confirmation naming each note and what it became.
    Never generate gm/gn in a browser chat. For other changes,
    resolve ambiguous scheduling/targets through native questions, repeating until rhythm, start, restart, miss, weekly limit and nightly checks are unambiguous, before writing
    any pending note. Schedules that fit no fixed repeat type go to `custom --add`, never to profile text. Save clear material reports/details first; reuse existing

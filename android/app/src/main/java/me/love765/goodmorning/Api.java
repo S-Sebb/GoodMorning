@@ -167,4 +167,19 @@ final class Api {
         if (chat != null) body.put("chat", chat);
         return request(context, "POST", "/api/app/chat", body, "X-GoodMorning-App", token);
     }
+
+    /** Saves one quick note word for word; empty text deletes it. No model runs. */
+    static JSONObject note(Context context, String token, JSONObject note) throws IOException, JSONException {
+        return request(context, "POST", "/api/app/note", note, "X-GoodMorning-App", token);
+    }
+
+    /** The account's newest quick notes with their sorting state. */
+    static JSONObject notes(Context context, String token) throws IOException, JSONException {
+        return request(context, "GET", "/api/app/notes", null, "X-GoodMorning-App", token);
+    }
+
+    /** Starts a Secretary conversation that sorts the waiting notes; it starts paid model work. */
+    static JSONObject sort(Context context, String token) throws IOException, JSONException {
+        return request(context, "POST", "/api/app/notes/sort", new JSONObject(), "X-GoodMorning-App", token);
+    }
 }

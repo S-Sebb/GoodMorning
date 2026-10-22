@@ -202,6 +202,82 @@ public abstract class Widgets extends AppWidgetProvider {
         }
     }
 
+    /** The newest quick note as a sticky note, with up to five earlier notes peeking out behind it. */
+    public static class QuickNote extends Widgets {
+        private static final int[][] TABS = {
+                {R.id.tab1, R.id.tab1_fill, R.id.tab1_title, R.id.tab1_time}, {R.id.tab2, R.id.tab2_fill, R.id.tab2_title, R.id.tab2_time},
+                {R.id.tab3, R.id.tab3_fill, R.id.tab3_title, R.id.tab3_time}, {R.id.tab4, R.id.tab4_fill, R.id.tab4_title, R.id.tab4_time},
+                {R.id.tab5, R.id.tab5_fill, R.id.tab5_title, R.id.tab5_time}};
+
+        @Override
+        RemoteViews draw(Context context, int id) {
+            boolean pixel = Palette.pixel(context);
+            RemoteViews views = new RemoteViews(context.getPackageName(), pixel ? R.layout.widget_note_pixel : R.layout.widget_note);
+            Palette[] schemes = Palette.of(context);
+            views.setImageViewResource(R.id.note_fill, pixel ? R.drawable.note_square : R.drawable.note_paper);
+            views.setImageViewResource(R.id.note_shadow, pixel ? R.drawable.note_square : R.drawable.note_shadow);
+            views.setImageViewResource(R.id.tape, pixel ? R.drawable.note_tape_pixel : R.drawable.note_tape);
+            if (pixel) {
+                Palette.tint(context, views, schemes, R.id.note_shadow, p -> p.border);
+                for (int shape : new int[] {R.id.add_fill, R.id.chip_fill, R.id.sort_fill}) views.setImageViewResource(shape, R.drawable.note_square);
+            }
+            Palette.tint(context, views, schemes, R.id.note_fill, p -> p.note);
+            Palette.tint(context, views, schemes, R.id.tape, p -> p.tape);
+            views.setInt(R.id.tape, "setImageAlpha", 210);
+            Palette.tint(context, views, schemes, R.id.add_fill, p -> p.ink);
+            Palette.tint(context, views, schemes, R.id.add_icon, p -> p.note);
+            Palette.tint(context, views, schemes, R.id.chip_fill, p -> p.surface);
+            Palette.tint(context, views, schemes, R.id.sort_fill, p -> p.ink);
+            Palette.text(context, views, schemes, R.id.sort_text, p -> p.note);
+            Palette.text(context, views, schemes, R.id.label, p -> p.muted);
+            views.setContentDescription(R.id.add, context.getString(R.string.note_new));
+            views.setOnClickPendingIntent(R.id.add, NoteActivity.fresh(context));
+            portrait(context, views, Sync.cached(context).optJSONObject("secretary"));
+
+            // Each earlier title takes 24dp; the front note keeps room for at least three lines.
+            int height = AppWidgetManager.getInstance(context).getAppWidgetOptions(id).getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_HEIGHT, 280);
+            int fit = Math.max(0, Math.min(TABS.length, (height - 200) / 24));
+            java.util.List<Notes.Note> notes = Notes.visible(context);
+            boolean stacked = fit > 0 && notes.size() > 1;
+            views.setViewVisibility(R.id.tabs, stacked ? View.VISIBLE : View.GONE);
+            views.setViewVisibility(R.id.tape, stacked ? View.GONE : View.VISIBLE);  // It would cover the nearest title.
+            for (int i = 0; i < TABS.length; i++) {
+                int[] tab = TABS[i];
+                Notes.Note earlier = i + 1 < notes.size() && i < fit ? notes.get(i + 1) : null;
+                views.setViewVisibility(tab[0], earlier == null ? View.GONE : View.VISIBLE);
+                if (earlier == null) continue;
+                views.setImageViewResource(tab[1], pixel ? R.drawable.note_square : R.drawable.note_tab);
+                Palette.tint(context, views, schemes, tab[1], i % 2 == 0 ? (p -> p.noteBehind) : (p -> p.noteBack));
+                Palette.text(context, views, schemes, tab[2], p -> p.ink);
+                Palette.text(context, views, schemes, tab[3], p -> p.muted);
+                views.setTextViewText(tab[2], earlier.text.split("\n", 2)[0]);
+                views.setTextViewText(tab[3], Notes.shortWhen(context, earlier.created));
+                views.setOnClickPendingIntent(tab[0], NoteActivity.open(context, earlier.id));
+            }
+            Notes.Note front = notes.isEmpty() ? null : notes.get(0);
+            String label = front == null ? context.getString(R.string.note_label) : Notes.when(context, front.created);
+            views.setTextViewText(R.id.label, label.toUpperCase(Locale.getDefault()));
+            views.setTextViewText(R.id.text, front == null ? context.getString(R.string.note_empty) : front.text);
+            Palette.text(context, views, schemes, R.id.text, front == null ? (p -> p.muted) : (p -> p.ink));
+            views.setInt(R.id.text, "setMaxLines", Math.max(2, (height - fit * 24 - 150) / 22));
+            views.setViewVisibility(R.id.status, front == null ? View.GONE : View.VISIBLE);
+            views.setOnClickPendingIntent(R.id.note, front == null ? NoteActivity.fresh(context) : NoteActivity.open(context, front.id));
+            if (front != null) {
+                views.setTextViewText(R.id.chip_text, Notes.status(context, front));
+                boolean needed = "question".equals(front.state) && front.sent;
+                Palette.text(context, views, schemes, R.id.chip_text, needed ? (p -> p.accent) : (p -> p.muted));
+            }
+            int pending = Notes.pending(context);
+            boolean sort = Sync.linked(context) && pending > 0;
+            views.setViewVisibility(R.id.sort, sort ? View.VISIBLE : View.GONE);
+            if (sort) {
+                views.setTextViewText(R.id.sort_text, context.getResources().getQuantityString(R.plurals.note_sort, pending, pending, Notes.name(context, false)));
+                views.setOnClickPendingIntent(R.id.sort, NoteActivity.sort(context));
+            }
+            return views;
+        }
+    }
+
     abstract RemoteViews draw(Context context, int id);
 
     @Override
@@ -243,7 +319,7 @@ public abstract class Widgets extends AppWidgetProvider {
     static void updateAll(Context context) {
         AppWidgetManager manager = AppWidgetManager.getInstance(context);
         for (Widgets kind : new Widgets[] {new Today(), new Week(), new Chat(), new Portrait(), new Briefing(), new News(),
-                new Weather(), new WeatherFull(), new Temperature(), new Rain(), new Air()}) {
+                new Weather(), new WeatherFull(), new Temperature(), new Rain(), new Air(), new QuickNote()}) {
             int[] ids = manager.getAppWidgetIds(new ComponentName(context, kind.getClass()));
             if (ids.length > 0) kind.onUpdate(context, manager, ids);
         }

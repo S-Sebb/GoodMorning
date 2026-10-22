@@ -155,4 +155,36 @@
     <string name="preview_weather_dry_until">21:00 前无雨</string>
     <string name="preview_weather_then_rain">之后可能下雨 · 最高 89%</string>
     <string name="preview_weather_aqi">全天 AQI 23–27</string>
+    <string name="widget_note_name">速记</string>
+    <string name="widget_note_description">在便利贴上随手记点什么，想整理时再交给秘书</string>
+    <string name="note_label">速记</string>
+    <string name="note_empty">点一下，随手记点什么</string>
+    <string name="note_hint">随手记点什么…</string>
+    <string name="note_kept">边写边存，写完直接离开就行。</string>
+    <string name="note_new">新速记</string>
+    <string name="note_earlier">更早的速记</string>
+    <string name="note_today">今天</string>
+    <string name="note_yesterday">昨天</string>
+    <string name="note_when">%1$s · %2$s</string>
+    <string name="note_name_default">你的秘书</string>
+    <string name="note_state_local">已存在这台手机上</string>
+    <string name="note_state_unlinked">已存在这台手机上 · 关联应用后才能整理</string>
+    <string name="note_state_stranded">没发出去：这台手机已取消关联</string>
+    <string name="note_state_unsorted">还没整理</string>
+    <string name="note_state_sorting">%1$s正在整理…</string>
+    <string name="note_state_question">%1$s有个问题想问你</string>
+    <string name="note_state_sorted">✓ 已整理</string>
+    <string name="note_state_changed">整理后又改过</string>
+    <string name="note_state_check">打开对话看看</string>
+    <plurals name="note_sort">
+        <item quantity="other">把%1$d条速记交给%2$s整理</item>
+    </plurals>
+    <plurals name="note_sort_remaining">
+        <item quantity="other">剩下%1$d条速记会放到下次整理。</item>
+    </plurals>
+    <string name="note_sorting">正在把速记交给%1$s…</string>
+    <string name="note_sort_failed">没能开始整理。速记都还在这台手机上，等联网了再试一次。</string>
+    <string name="note_not_kept">这条速记没能存在手机上。离开前先把文字复制到别处。</string>
+    <string name="preview_note_text">周五前问问房东锅炉的事</string>
+    <string name="preview_note_older">燕麦奶、垃圾袋</string>
 </resources>

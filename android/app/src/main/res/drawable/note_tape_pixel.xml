@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Pixel style: tape with stepped, torn ends. White, so widgets tint it. -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:left="4dp" android:right="4dp"><shape><solid android:color="#FFFFFFFF" /></shape></item>
+    <item android:top="4dp" android:bottom="4dp" android:gravity="start" android:width="4dp"><shape><solid android:color="#FFFFFFFF" /></shape></item>
+    <item android:top="4dp" android:bottom="4dp" android:gravity="end" android:width="4dp"><shape><solid android:color="#FFFFFFFF" /></shape></item>
+</layer-list>

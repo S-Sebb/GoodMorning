@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A sticky note's paper: square top, a softly curled bottom-right corner. White, so widgets tint it. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <solid android:color="#FFFFFFFF" />
+    <corners android:topLeftRadius="3dp" android:topRightRadius="3dp"
+        android:bottomLeftRadius="3dp" android:bottomRightRadius="16dp" />
+</shape>
