@@ -120,7 +120,7 @@ def importance(story):
 
 def rank_stories(stories):
     ranked = [{**story, "ranking": importance(story)} for story in stories]
-    ranked.sort(key=lambda story: (story["date"], story["section"], -story["ranking"]["score"],
+    ranked.sort(key=lambda story: (story.get("period", story["date"]), story["section"], -story["ranking"]["score"],
                 -max(datetime.fromisoformat(source["published"]).timestamp()
                      for source in story["sources"]), story["title"].casefold()))
     return ranked

@@ -50,7 +50,8 @@ class BriefingTrialTests(unittest.TestCase):
     def test_checkpoint_seed_retains_owner_and_next_unresolved_position(self):
         bridge = CheckpointBridge('/synthetic/source', self.runtime, True, 'en')
         app = BrowserApp(self.runtime, bridge, now=lambda:datetime(2026,10,14,12,tzinfo=timezone.utc), preflight=True)
-        job = {'id':'a'*32,'date':'2026-10-14','kind':'gm','session':'ses_trial','state':'running','language':'en'}
+        job = {'id':'a'*32,'date':'2026-10-14','kind':'gm','session':'ses_trial','state':'running','language':'en',
+               'created':datetime(2026,10,14,6,tzinfo=timezone.utc).timestamp()}
         app.jobs['2026-10-14.gm'] = job
         app.save_jobs()
         prepare(self.runtime,job)
@@ -160,7 +161,8 @@ class BriefingTrialTests(unittest.TestCase):
 
     def scoped_job(self, kind='gm'):
         app=BrowserApp(self.runtime,None,now=lambda:datetime(2026,10,14,12,tzinfo=timezone.utc),preflight=True)
-        job={'id':'a'*32,'date':'2026-10-14','kind':kind,'session':'ses_trial','state':'running','language':'en'}
+        job={'id':'a'*32,'date':'2026-10-14','kind':kind,'session':'ses_trial','state':'running','language':'en',
+             'created':datetime(2026,10,14,6,tzinfo=timezone.utc).timestamp()}
         app.jobs['2026-10-14.'+kind]=job;app.save_jobs()
         prepared=prepare(self.runtime,job)
         if prepared['awaiting']:

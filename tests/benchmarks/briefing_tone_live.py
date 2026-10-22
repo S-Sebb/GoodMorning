@@ -325,8 +325,6 @@ def run_case(output, template, language, scenario, instant):
                'secretary_name: Nora\ncalendar_source: custom\n')
     if TONES[tone]:
         profile += 'secretary_tone: '+TONES[tone]+'\n'
-    if scenario == 'morning-empty':
-        profile += 'news_latest: true\n'
     if scenario in ('morning-empty', 'evening-feedback'):
         profile += 'user_name: Sam\n'
     (runtime/'profile.md').write_text(profile)
@@ -418,8 +416,8 @@ def run_case(output, template, language, scenario, instant):
                     result['weather_cards'] = weather[1]
                     result['checks'].append('Weather published from the forward-looking read; frame attached by code')
                 elif scenario == 'morning-empty':
-                    assert [section[0] for section in document['sections']] == ['weather','news','news','schedule']
-                    result['checks'].append('Required unavailable sections retained; empty optional positions skipped; opted-in latest news retained')
+                    assert [section[0] for section in document['sections']] == ['weather','news','schedule']
+                    result['checks'].append('Required unavailable sections retained; empty optional positions skipped')
                     operations = [entry for entry in log if '--help' not in entry['argv'] and '-h' not in entry['argv']
                                   and not (entry['argv'][:1] == ['job'] and entry.get('exit',0) != 0)]
                     assert job_action(operations[0]['argv']) == 'prepare', 'First operation was not job prepare'

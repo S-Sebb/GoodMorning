@@ -24,7 +24,6 @@ knowledge_area: ""
 news_preference: ""
 news_country: ""
 news_additional_countries: ""
-news_latest: ""
 news_sources_path: ""
 calendar_source: ""
 anime_updates: ""
@@ -85,9 +84,6 @@ Never put passwords or keys here. -->
 - For several confirmed countries, save the primary in `news_country` and the
   remaining ISO codes in `news_additional_countries`, comma-separated. Run each
   separately; do not silently omit a country whose feeds need configuration.
-- Ask whether to add separately dated latest/current developments alongside
-  yesterday's digest; set `news_latest: true` only if chosen. Optional skips and
-  older profiles keep the existing completed-day workflow without reinitialization.
 - Agree on custom-only events or a published calendar link (`.ics`).
   Initialize SQLite; do not create `custom_schedule.md`. Imports apply directly.
 - Do not ask about anime during setup. The `anime_*` lines are set only when the

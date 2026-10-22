@@ -1,6 +1,8 @@
 """Browser-owned decisions and exact user feedback, before any model dispatch."""
+import datetime as dt
 import json
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 from .briefing_job import context_path
 from .briefing_stream import bounded_json
@@ -21,6 +23,9 @@ def initialize(runtime, job, previous=None):
     context = prepare(runtime, job['kind'], job['date'], Path(runtime)/'cache', task_limit=200, website_language=selected,
                       replacement='replacement' in job)
     context['website_language']=selected
+    if 'news' in context:
+        # One cutoff per job, so its title and every country's read agree; a regeneration is a new job and collects afresh.
+        context['news']['as_of'] = dt.datetime.fromtimestamp(job['created'], ZoneInfo(context['timezone'])).isoformat(timespec='seconds')
     if feed is not None:
         context['calendar_feed'] = feed
     policy_path = Path(runtime)/'browser-policy.json'

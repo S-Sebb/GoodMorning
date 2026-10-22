@@ -45,15 +45,10 @@ runtime, credential, permission and truthfulness rules still apply.
   citations/dates cannot be fabricated. Pending review is not ready for delivery;
   do not acknowledge it or silently replace a delivered report. Deduplicate events
   and give analysis/discovery its proper label rather than calling it breaking.
-- Standard morning news covers only yesterday in the confirmed timezone. Today's
-  stories become eligible tomorrow; do not add them to a yesterday-only briefing.
-  `news_latest: false` means no same-day fetch or section via `--latest`, even when stories are
-  important or breaking. Keep already collected latest snapshots internal.
-  RSS backfill may cache feed items dated today for tomorrow; it must not display
-  them in the previous-day digest.
-- Only if current/breaking developments were explicitly chosen, use `python scripts/goodmorning.py news --latest` separately
-  from saved yesterday reports and label date/as-of; surface cache limitations only
-  when material to current information. Latest has
-  no delivery ledger and must not be acknowledged as a historical report. A
-  submission/update date is not a newly published article; do not re-date known
-  older stories or mistake every current item for breaking news.
+- Morning news covers the 24 hours before the briefing job, read with
+  `python scripts/goodmorning.py news --latest --as-of TIME`; stories the previous
+  morning briefing showed are removed. Label it with its as-of time; surface cache
+  limitations only when material. Latest has no delivery ledger and must not be
+  acknowledged as a historical report. A submission/update date is not a newly
+  published article; do not re-date known older stories or mistake every current
+  item for breaking news.

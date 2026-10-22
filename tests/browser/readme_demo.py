@@ -101,7 +101,7 @@ def fixture(runtime):
                 ['temperature', '16°C (12–18°C)', 'A cool start, with a softer afternoon. A light layer should do.'],
                 ['precipitation', '65% – Rain likely', 'Bring a small umbrella if you are heading out.'],
                 ['air', '30 – good', 'A comfortable day for a short walk.']]]]],
-            ['news', news, 'Fictional stories and example source links, included only to demonstrate the layout.', 'News — 2026-10-12'],
+            ['news', news, 'Fictional stories and example source links, included only to demonstrate the layout.', 'News — as of 07:12'],
             ['schedule', [morning['blocks']['schedule']], 'Today and the next two days, from your saved appointments.'],
             ['tasks', [morning['blocks']['tasks']], 'Atlas is the main thread today. Keep the comparison focused; the walk is optional.'],
             ['attention', [morning['blocks']['attention']], 'Your calendar added a workshop that overlaps the design review.'],
@@ -201,7 +201,7 @@ def capture(app, output):
 
             open_page('/gm.html')
             expect(page.locator('.briefing-section h2')).to_have_text(
-                ['Weather', 'News · Oct 12 (2026-10-12)', 'Schedule', 'Tasks', 'Reminders'])
+                ['Weather', 'News — as of 07:12', 'Schedule', 'Tasks', 'Reminders'])
             shot('morning')
             page.set_viewport_size({'width': 1440, 'height': 1800})
             for name, selector in [('weather', '.weather'), ('news', '.news'), ('schedule', '.schedule'),

@@ -85,15 +85,16 @@ def parse_args(argv=None):
     p.add_argument("--max-links", type=int, default=1, choices=[1, 2], help="Links per story (default: 1).")
     p.add_argument("--details", action="store_true", help="Include full source metadata in JSON.")
     p.add_argument("--view", choices=("full", "stories", "candidates", "sections"), default="full",
-                   help="Saved --show/--curate projection; stories omits candidate/diagnostic history; "
+                   help="--show/--curate/--latest projection; stories omits candidate/diagnostic history; "
                         "sections lists picks and top candidates for every section at once")
     p.add_argument("--offset", type=int, default=0, help="Candidate page offset for --show --view candidates")
     p.add_argument("--limit", type=int, default=10, help="Candidate page size, 1..30")
     p.add_argument("--audit", action="store_true", help="Include up to 30 ranked candidates and source diagnostics; no article fetches.")
     actions = p.add_mutually_exclusive_group()
-    actions.add_argument("--latest", action="store_true", help="Today's developments as of collection time, separate from yesterday and delivery reports.")
+    actions.add_argument("--latest", action="store_true", help="The 24 hours before --as-of, separate from dated delivery reports.")
     actions.add_argument("--curate", metavar="DATE", help="Apply assistant-reviewed candidate IDs to an undelivered saved report.")
     actions.add_argument("--curate-latest", metavar="PATH", help="Review an exact saved latest candidate JSON without fetching or writing report state.")
+    p.add_argument("--as-of", help="--latest cutoff: ISO time with UTC offset, not in the future (default: now).")
     p.add_argument("--selection-file", help="Runtime-local JSON list of candidate_id/reason choices.")
     actions.add_argument("--verify-sources", action="store_true", help="Fresh national-feed checks only; JSON counts, no report or delivery changes.")
     actions.add_argument("--backfill", action="store_true", help="Save unresolved reports from the last seven days; output a compact manifest.")
@@ -394,15 +395,20 @@ def is_ai(title):
 QUIET_DAY_FLOOR = 2
 
 
+def period(item):
+    """Dated reports group and limit stories per day; a rolling window is one period."""
+    return item.get("period", item["date"])
+
+
 def select_stories(stories, max_items):
-    """Same day/section limit for both renderers; favor breadth over repeated outlets."""
+    """Same period/section limit for both renderers; favor breadth over repeated outlets."""
     selected, counts, outlet_counts = [], {}, {}
     ordered = rank_stories(stories)
     deferred = []
     for story in ordered:
         if story.get("ranking", {}).get("eligible") is False:
             continue
-        key = (story["date"], story["section"])
+        key = (period(story), story["section"])
         if counts.get(key, 0) >= max_items:
             continue
         domain = domain_of(story["sources"][0]["url"])
@@ -414,7 +420,7 @@ def select_stories(stories, max_items):
         counts[key] = counts.get(key, 0) + 1
         outlet_counts[outlet_key] = outlet_counts.get(outlet_key, 0) + 1
     for story in deferred:
-        key = story["date"], story["section"]
+        key = period(story), story["section"]
         if counts.get(key, 0) < max_items:
             selected.append(story)
             counts[key] = counts.get(key, 0) + 1
@@ -423,7 +429,7 @@ def select_stories(stories, max_items):
     filled = set(counts)
     for story in ordered:
         ranking = story["ranking"]
-        key = story["date"], story["section"]
+        key = period(story), story["section"]
         if (counts.get(key, 0) < min(QUIET_DAY_FLOOR, max_items) and not ranking["eligible"] and ranking["score"] > 0
                 and ranking["genre"] == "news" and ranking.get("ai_relevant", True)
                 and key not in filled):
@@ -469,7 +475,7 @@ def group_stories(items):
         words = title_words(item["title"])
 
         def matches(member):
-            if item["date"] != member["date"] or item["section"] != member["section"]:
+            if period(item) != period(member) or item["section"] != member["section"]:
                 return False
             if item["url"] == member["url"] or item["title"].casefold() == member["title"].casefold():
                 return True
@@ -484,7 +490,7 @@ def group_stories(items):
             common = len(words & other)
             return common >= 4 and common / len(words | other) >= 0.55
 
-        partition = groups.setdefault((item["date"], item["section"]), [])
+        partition = groups.setdefault((period(item), item["section"]), [])
         group = next((g for g in partition if all(matches(m) for m in g)), None)
         if group is None:
             partition.append([item])
@@ -504,12 +510,12 @@ def group_stories(items):
                 continue
             seen.add(publisher)
             uniq.append(m)
-        stories.append({"date": uniq[0]["date"], "section": uniq[0]["section"],
+        stories.append({"date": uniq[0]["date"], "period": period(uniq[0]), "section": uniq[0]["section"],
                         "title": uniq[0]["title"],
                         "time": (uniq[0]["published"] or "")[11:16] or "--:--",
                          "date_basis": uniq[0].get("date_basis", "published"),
                          "outlets": len(uniq), "sources": uniq})
-    stories.sort(key=lambda s: (s["date"], s["section"], -s["outlets"],
+    stories.sort(key=lambda s: (period(s), s["section"], -s["outlets"],
                                 s["sources"][0].get("via", "rss") != "rss",
                                 -iso_pubdate(s["sources"][0]["published"]).timestamp(),
                                 s["title"].casefold()))
@@ -579,8 +585,8 @@ def run(argv=None):
     args.cache_dir = str(cache_path(args.cache_dir))
     if not 1 <= args.limit <= 30 or args.offset < 0:
         raise ValueError("invalid news page size/offset")
-    if (args.view != "full" or args.offset) and not (args.show or args.curate or args.curate_latest):
-        raise ValueError("saved views require --show, --curate or --curate-latest")
+    if (args.view != "full" or args.offset) and not (args.show or args.curate or args.curate_latest or args.latest):
+        raise ValueError("views require --show, --curate, --curate-latest or --latest")
     if args.curate_latest:
         if not args.selection_file or not args.expect or not args.session:
             sys.exit("error: --curate-latest needs --selection-file, --expect BATCH_ID and --session")
@@ -591,8 +597,8 @@ def run(argv=None):
             raise ValueError("latest snapshot country/timezone does not match the requested scope")
         if args.since or args.until or args.today or args.ending:
             raise ValueError("latest snapshot review preserves its collected date and cutoff")
-        if value.get("scope") != "latest_today" or value.get("since") != dt.datetime.now(ZoneInfo(value["timezone"])).date().isoformat():
-            sys.exit("error: only a current-day latest candidate snapshot can be reviewed")
+        if value.get("scope") != "latest_24h" or dt.datetime.now(dt.timezone.utc) - dt.datetime.fromisoformat(value["as_of"]) > dt.timedelta(days=1):
+            sys.exit("error: only a latest candidate snapshot from the past 24 hours can be reviewed")
         result = curate(value, runtime_json(args.selection_file, args.secretary_dir), args.expect, args.session)
         if args.view != "full":
             result = report_view({"payload": result, "report_id": None, "status": "stateless",
@@ -627,10 +633,19 @@ def run(argv=None):
     except (ZoneInfoNotFoundError, ValueError):
         sys.exit("error: --timezone must be a valid IANA timezone")
     today = parse_day(args.today, "today") if args.today else dt.datetime.now(timezone).date()
+    if args.as_of and not args.latest:
+        sys.exit("error: --as-of requires --latest")
     if args.latest:
-        if args.since or args.until or today != dt.datetime.now(timezone).date():
-            sys.exit("error: --latest is for the current local day; omit historical dates and --since/--until")
-        args.since = args.until = today.isoformat()
+        if args.since or args.until or args.today:
+            sys.exit("error: --latest covers the 24 hours before its cutoff; omit --today and --since/--until")
+        try:
+            args.as_of = dt.datetime.fromisoformat(args.as_of) if args.as_of else dt.datetime.now(dt.timezone.utc)
+        except ValueError:
+            sys.exit("error: --as-of must be an ISO time")
+        if args.as_of.tzinfo is None or args.as_of > dt.datetime.now(dt.timezone.utc):
+            sys.exit("error: --as-of needs a UTC offset and must not be in the future")
+        cutoff = args.as_of.astimezone(timezone)
+        args.since, args.until = (cutoff - dt.timedelta(days=1)).date().isoformat(), cutoff.date().isoformat()
     yesterday = today - dt.timedelta(days=1)
     since = parse_day(args.since, "since") if args.since else yesterday
     until = parse_day(args.until, "until") if args.until else since
@@ -669,6 +684,9 @@ def run(argv=None):
                    [compact_story(s, args.max_links) for s in result["stories"]]}
         if cfg.get("editorial_review"):
             output = seal(output)
+        if args.view != "full":
+            output = report_view({"payload": output, "report_id": None, "status": "stateless",
+                                  "collected_at": output.get("as_of")}, args.view, args.offset, args.limit)
         print(json.dumps(output, ensure_ascii=False, separators=(",", ":")))
     else:
         if cfg.get("editorial_review"):
@@ -735,7 +753,8 @@ def collect(args, since, until, timezone, cfg, country, today, requested_days=No
     start = dt.datetime.combine(since, dt.time.min, timezone).astimezone(dt.timezone.utc)
     end = dt.datetime.combine(until + dt.timedelta(days=1), dt.time.min, timezone).astimezone(dt.timezone.utc)
     if args.latest:
-        end = min(end, dt.datetime.now(dt.timezone.utc) + dt.timedelta(microseconds=1))
+        end = (args.as_of or dt.datetime.now(dt.timezone.utc)).astimezone(dt.timezone.utc)
+        start = end - dt.timedelta(days=1)
     jobs = []
     provider = args.provider
     if provider in ("all", "rss"):
@@ -829,6 +848,8 @@ def collect(args, since, until, timezone, cfg, country, today, requested_days=No
         # Recompute local dates so changing --timezone does not corrupt attribution.
         for item in archived:
             item["date"] = iso_pubdate(item["published"]).astimezone(timezone).date().isoformat()
+            if args.latest:
+                item["period"] = "latest"
         uniq = {}
         for item in sorted(archived, key=lambda i: i.get("via", "rss") != "rss"):
             uniq.setdefault((item["section"], item["url"]), item)
@@ -852,13 +873,13 @@ def collect(args, since, until, timezone, cfg, country, today, requested_days=No
             result["candidates"] = [compact_story(story, args.max_links) for story in sampled]
             result["candidates_truncated"] = len(sampled) < len(ranked)
         if args.latest:
-            result.update(scope="latest_today", as_of=(end - dt.timedelta(microseconds=1)).astimezone(timezone).isoformat(timespec="seconds"),
+            result.update(scope="latest_24h", as_of=end.astimezone(timezone).isoformat(timespec="seconds"),
                           response_cache_ttl_seconds=300)
         if cfg.get("editorial_review"):
             ranked = rank_stories(groups)
-            pool = [story for day in sorted({row["date"] for row in ranked})
+            pool = [story for key in sorted({period(row) for row in ranked})
                     for section in ("ai", "major", "national")
-                    for story in [row for row in ranked if row["date"] == day and row["section"] == section][:30]]
+                    for story in [row for row in ranked if period(row) == key and row["section"] == section][:30]]
             result.update(candidates=editorial_candidates([compact_story(story, args.max_links) for story in pool]),
                           candidates_truncated=len(pool) < len(ranked), max_items=args.max_items,
                           curation={"required": True, "state": "pending"})

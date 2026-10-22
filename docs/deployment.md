@@ -78,8 +78,8 @@ Pass absolute `--secretary-dir`, weather `--profile`, source/cache paths, and
 calendar `--db` as documented. Create the authorized runtime `tmp/` and set
 `TMPDIR` for calendar imports. Helpers do not automatically read credential files.
 
-Normal morning news covers yesterday only; same-day updates require explicit
-opt-in. News editorial review, delivery acknowledgement and briefing snapshot
+Morning news covers the 24 hours before the briefing job was created. News
+editorial review, delivery acknowledgement and briefing snapshot
 saves are separate operations.
 
 ## Update and rollback

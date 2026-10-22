@@ -4,6 +4,7 @@ from pathlib import Path
 import subprocess
 import sys
 import tempfile
+import time
 
 from playwright.sync_api import expect, sync_playwright
 
@@ -39,7 +40,7 @@ def fixture(root, port=0):
     day=app.today()
     (root/'daily'/(day+'.md')).write_text('# '+day+'\n\n## must-do\n- [x] Finished task\n- [ ] Open task\n')
     for kind,identifier in [('gm','a'*32),('gn','b'*32)]:
-        job={'id':identifier,'date':day,'kind':kind,'session':'ses_original_'+kind,'state':'running'}
+        job={'id':identifier,'date':day,'kind':kind,'session':'ses_original_'+kind,'state':'running','created':time.time()}
         app.jobs[day+'.'+kind]=job;app.save_jobs()
         initialize(root,job)
         if kind=='gn':answer(root,job,{'completed':['none'],'details':'Open task is still partial.'})

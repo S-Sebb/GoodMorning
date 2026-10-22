@@ -94,10 +94,10 @@ presentation/acknowledgement. Primary announcements are not independent evidence
 See `docs/news-pipeline.md` for the exact candidate/revision workflow and coverage
 limitations. Existing delivered reports and briefing snapshots remain intact.
 
-If the user chooses current/breaking updates, set `news_latest: true` and fetch
-`news.py --latest` separately from yesterday's report. It uses a five-minute feed
-cache, is not a live ticker, and needs editorial review too. Never infer publication
-dates from a new social submission or label every recent headline “breaking.”
+Morning briefings read `news.py --latest`: the 24 hours before the briefing job
+was created. It uses a five-minute feed cache and is not a live ticker. Never infer
+publication dates from a new social submission or label every recent headline
+“breaking.”
 
 For agent-managed collection and explicit delivery tracking:
 

@@ -34,7 +34,7 @@ class HelperInputTests(unittest.TestCase):
         env.start()
         self.addCleanup(env.stop)
         (self.root / "profile.md").write_text('city: "London, GB"\ntimezone: "Europe/London"\n'
-            'news_country: "GB"\nsecretary_language: "English"\nnews_latest: "false"\n')
+            'news_country: "GB"\nsecretary_language: "English"\n')
         initialize(self.root)
         self.keys = 0
 

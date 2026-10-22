@@ -170,19 +170,27 @@ class LatestTests(unittest.TestCase):
         self.tmp=tempfile.TemporaryDirectory(dir=TEMP_ROOT)
         self.addCleanup(self.tmp.cleanup)
 
-    def test_latest_is_current_day_only_excludes_future_and_writes_no_report_store(self):
+    def test_latest_is_the_24_hours_before_its_cutoff_and_writes_no_report_store(self):
         cfg={"feeds":[{"name":"Synthetic","url":"https://example.invalid/feed","section":"ai","ai_topic":True}],"ranking_policy":POLICY}
-        raw=[{"title":"AI company releases new reasoning model","url":"https://example.invalid/"+str(day)+str(hour),
-              "published":Clock(2026,10,day,hour,tzinfo=UTC)} for day,hour in ((8,11),(9,11),(9,20))]
+        titles=("OpenAI releases reasoning model","Google DeepMind publishes robotics research","Anthropic launches coding agent",
+                "Meta trains open language model","Mistral ships multimodal assistant")
+        raw=[{"title":title,"url":"https://example.invalid/"+str(day)+str(hour),"published":Clock(2026,10,day,hour,tzinfo=UTC)}
+             for title,(day,hour) in zip(titles,((8,9),(8,11),(8,23),(9,10),(9,11)))]
         output=io.StringIO()
         with patch.object(news.dt,"datetime",Clock),patch.object(news,"load_sources",return_value=cfg),patch.object(news,"fetch_rss",return_value=raw),contextlib.redirect_stdout(output):
-            code=news.main(["--latest","--provider","rss","--timezone","UTC","--cache-dir",self.tmp.name,"--format","json"])
+            code=news.main(["--latest","--as-of","2026-10-09T10:30:00+00:00","--provider","rss","--timezone","UTC",
+                            "--cache-dir",self.tmp.name,"--format","json","--audit"])
         self.assertEqual(code,0)
         data=json.loads(output.getvalue())
-        self.assertEqual(data["since"],"2026-10-09")
-        self.assertEqual(data["scope"],"latest_today")
-        self.assertEqual(len(data["stories"]),1)
+        self.assertEqual((data["since"],data["until"],data["as_of"]),("2026-10-08","2026-10-09","2026-10-09T10:30:00+00:00"))
+        self.assertEqual(data["scope"],"latest_24h")
+        # One period across midnight: 11:00 and 23:00 yesterday and 10:00 today, never before the window or after the cutoff.
+        self.assertEqual(sorted(story["title"] for story in data["candidates"]),sorted(titles[1:4]))
         self.assertFalse((Path(self.tmp.name)/"news_reports.sqlite").exists())
+
+    def test_latest_cutoff_cannot_be_in_the_future(self):
+        with patch.object(news.dt,"datetime",Clock),self.assertRaises(SystemExit),contextlib.redirect_stderr(io.StringIO()):
+            news.main(["--latest","--as-of","2026-10-09T12:30:00+00:00","--no-cache"])
 
     def test_latest_cannot_silently_mix_with_historical_selection(self):
         with self.assertRaises(SystemExit),contextlib.redirect_stderr(io.StringIO()):

@@ -854,9 +854,10 @@ class BrowserApp:
                             # Only this job's verified transient preview; never delete unrelated records.
                             if preview_path.exists() and not preview_path.is_symlink():
                                 preview_path.unlink()
-                            activity = self.job_dir / (identifier + '.activity.json')
-                            if activity.exists() and not activity.is_symlink():
-                                activity.unlink()
+                            for name in ('.activity.json', '.news.json'):
+                                transient = self.job_dir / (identifier + name)
+                                if transient.exists() and not transient.is_symlink():
+                                    transient.unlink()
                         result.update(state='ready', progress=100, label='Your briefing is ready')
                     else:
                         replacement = 'replacement' in job

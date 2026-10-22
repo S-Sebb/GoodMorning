@@ -151,8 +151,8 @@ and deferrals; clear ideas/TODOs do not create daily clarification work.
   authorization. Browser `regenerating: true` grants presentation replacement only,
   not replay of record/project mutations. Save through its owning job, never a
   foreign chat/local `state --mark-* --force` while the browser owns a live job.
-- News work alone reads `docs/news-delivery.md`. Default is yesterday in the
-  confirmed timezone/countries; latest news needs opt-in. Review actual evidence,
+- News work alone reads `docs/news-delivery.md`. Morning news covers the 24
+  hours before the briefing job, per confirmed country. Review actual evidence,
   not scores alone. Keep every selected story/citation and requested country.
   Selected-story views omit old candidate pools/diagnostics, not stories or warnings.
   Never acknowledge before verified visible delivery; partial/unreviewed reports
