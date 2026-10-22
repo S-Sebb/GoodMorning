@@ -1,6 +1,50 @@
 {
   "notes": [
     {
+      "version": "0.71.0",
+      "date": "2026-10-22",
+      "author": "GoodMorning agent",
+      "title_en": "Weather charts and new widgets",
+      "title_zh": "天气有了小时图表，小组件也来啦",
+      "changes": [
+        {
+          "category": "Added",
+          "en": [
+            "The Weather section now shows hourly charts for temperature, rain and air quality, with headlines about the hours ahead and a link to each forecast's source.",
+            "Android app 0.6 adds weather widgets: Weather, Weather details, and single Temperature, Rain and Air quality cards, all from the live forecast.",
+            "Android app 0.6 adds a Quick note widget: jot things on a sticky note that saves itself, then sort them with your secretary when you're ready.",
+            "Android app 0.6 adds a small Secretary widget with just the portrait; a dot shows while a reply is running or needs your answer."
+          ],
+          "zh": [
+            "天气章节现在会画出每小时的气温、降水和空气质量图表，开头还有几句话讲讲接下来几个小时会怎样，每份预报都附上来源链接，想细看就点过去。",
+            "Android 应用 0.6 版加了天气小组件：天气、天气详情，还有单独的气温、降水、空气质量卡片，显示的都是当下的实时预报。",
+            "Android 应用 0.6 版加了速记小组件：想到什么就先写在便利贴上，它会自己保存好，等你有空了再和秘书一起理一理。",
+            "Android 应用 0.6 版还加了一个小小的秘书形象小组件，只放着形象本身；它正在回复，或者在等你回答时，旁边会亮起一个小圆点。"
+          ]
+        },
+        {
+          "category": "Changed",
+          "en": [
+            "In Android app 0.6, the News widget shows each story as its own card, with a short summary and its publishers."
+          ],
+          "zh": [
+            "在 Android 应用 0.6 版里，新闻小组件的每条消息都成了单独的卡片，带着简短摘要和发布方。"
+          ]
+        },
+        {
+          "category": "Fixed",
+          "en": [
+            "Rain chances in the Weather section now count only the hours ahead, so an early shower no longer makes a dry day look rainy.",
+            "In Android app 0.6, widgets and the app's own screens use the language you chose in GoodMorning, not the phone's language."
+          ],
+          "zh": [
+            "天气章节里的降水概率现在只算接下来几个小时，早上下过一阵雨，也不会让一整天看着像要下雨。",
+            "在 Android 应用 0.6 版里，小组件和应用自己的页面都会用你在 GoodMorning 里选的语言，不再跟着手机的语言走。"
+          ]
+        }
+      ]
+    },
+    {
       "version": "0.70.0",
       "date": "2026-10-22",
       "author": "GoodMorning agent",
