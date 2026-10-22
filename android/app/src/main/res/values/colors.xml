@@ -6,6 +6,10 @@
     <color name="sun">#D88B38</color>
     <color name="ink">#2B2620</color>
     <color name="error">#B3261E</color>
+    <!-- The can't-connect screen, after the website's maintenance card. -->
+    <color name="card">#FFFDF7</color>
+    <color name="line">#E3D6C3</color>
+    <color name="muted">#6B5F51</color>
     <!-- Widget picker previews: the website's default Morning Sky (day) and Starry (night) schemes. -->
     <color name="preview_surface">#FFFDF7</color>
     <color name="preview_ink">#293E50</color>

@@ -101,4 +101,11 @@
     <string name="link_copied">Code copied.</string>
     <string name="link_in_app">Link in GoodMorning</string>
     <string name="update_current">You have the newest GoodMorning app.</string>
+    <string name="offline_eyebrow">GoodMorning · Connection</string>
+    <string name="offline_title">Can\'t reach GoodMorning</string>
+    <string name="offline_status">Your phone couldn\'t connect to the GoodMorning website.</string>
+    <string name="offline_body">Check that you\'re online. If your connection works, the website may be briefly down or being updated. Your conversations and records are safe on the server.</string>
+    <string name="offline_retry">Try again</string>
+    <string name="offline_retrying">Connecting…</string>
+    <string name="offline_note">GoodMorning also tries again by itself every 30 seconds while this screen is open.</string>
 </resources>

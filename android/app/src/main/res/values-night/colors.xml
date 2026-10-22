@@ -3,6 +3,9 @@
     <color name="background">#111C32</color>
     <color name="ink">#EEF2FB</color>
     <color name="error">#F2B8B5</color>
+    <color name="card">#17243D</color>
+    <color name="line">#2D3D59</color>
+    <color name="muted">#B0BED6</color>
     <color name="preview_surface">#111C32</color>
     <color name="preview_ink">#EEF2FB</color>
     <color name="preview_muted">#B0BED6</color>

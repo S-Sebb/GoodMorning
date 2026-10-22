@@ -40,7 +40,11 @@ At each launch, when Google Play services and Chrome are both present,
 the splash screen. Chrome answers from its cache after the first check. Only a
 verified site opens in Chrome; otherwise, for example where Google's service is
 unreachable, `WebActivity` shows the server in the app's own WebView, which handles file uploads, back
-navigation, external links in the browser, and edge-to-edge insets. Its user
+navigation, external links in the browser, and edge-to-edge insets. When a page
+cannot load (no connection, or the server is down), it covers WebView's error page
+with a can't-connect screen styled after the maintenance page, with Try again; it
+also retries every 30 seconds while shown and on returning to the app. Chrome's
+full-screen view shows Chrome's own offline page. Its user
 agent includes `GoodMorningApp/<version>`, so the website still reopens the last
 page and keeps notification settings visible. WebView has no Web Push, so on
 these phones, and while Chrome cannot verify the site, the linked app posts

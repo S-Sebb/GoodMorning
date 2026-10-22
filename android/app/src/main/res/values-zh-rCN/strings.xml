@@ -100,4 +100,11 @@
     <string name="link_copied">配对码已复制。</string>
     <string name="link_in_app">在 GoodMorning 里关联</string>
     <string name="update_current">你的 GoodMorning 应用已经是最新版本。</string>
+    <string name="offline_eyebrow">GoodMorning · 连接</string>
+    <string name="offline_title">连不上 GoodMorning</string>
+    <string name="offline_status">你的手机没能连上 GoodMorning 网站。</string>
+    <string name="offline_body">先看看手机有没有联网。网络正常的话，可能是网站暂时打不开，或者正在更新。你的对话和记录都安全地保存在服务器上。</string>
+    <string name="offline_retry">重试</string>
+    <string name="offline_retrying">正在连接…</string>
+    <string name="offline_note">这个页面开着时，GoodMorning 每 30 秒也会自动再试一次。</string>
 </resources>
