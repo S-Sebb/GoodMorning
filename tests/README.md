@@ -73,7 +73,7 @@ restoration.
 ## Benchmarks (opt-in, free)
 
 `tests/benchmarks/` holds size and speed experiments that informed past design
-choices: `briefing_format`, `inbox`, `initialization`, `news`, `state_news`,
+choices: `briefing_format`, `inbox`, `initialization`, `news`,
 `weather`, `workflow` and `projects.mjs`. They are evidence, not release gates.
 `reply_templates.py` and `native_bridge.py` are shared helpers.
 `tests/integration/native_chat_titles.py --binary PATH` checks the native

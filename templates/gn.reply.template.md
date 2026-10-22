@@ -4,7 +4,7 @@ Use native JSON v2 under `docs/briefing-format.md` and `docs/item-taxonomy.md`.
 Keep the evening supportive and factual, not a performance report or pep talk.
 
 Publish Today from actual saved feedback, then Schedule, Tasks, Reminders.
-Browser jobs retain positions/order and skip empty optional ones; local JSON omits them.
+Browser jobs retain positions/order and skip empty optional ones.
 Today distinguishes actual completion, partial effort and blockers without
 exaggeration. Schedule looks toward tomorrow's commitments; Tasks contains agreed
 work, deadline attention and still-open actions. No implicit tomorrow rollover.

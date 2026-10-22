@@ -2,7 +2,7 @@
 """Fetch daily news for GoodMorning /gm.
 
 Default: concurrent RSS + Hacker News, cached for one hour and archived
-locally for backfill. GDELT is opt-in, not on the daily critical path.
+locally. GDELT is opt-in, not on the daily critical path.
 Headlines are source wording, not verified neutral summaries. Outlet count
 does not prove independent reporting. No article bodies or LLM calls.
 
@@ -24,6 +24,7 @@ Config (env only, never hard-code keys):
 import argparse
 import datetime as dt
 import email.utils
+import hashlib
 import html
 import json
 import os
@@ -37,11 +38,9 @@ from concurrent.futures import ThreadPoolExecutor
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from .news_cache import Fetcher, NewsCache, SourceUnavailable
-from .news_reports import ReportStore, context_key, recent_days
-from goodmorning.runtime_files import profile_fields, runtime_lock, secretary_path, cache_path
+from goodmorning.runtime_files import cache_path
 from .news_views import report_view
 from .news_rank import AI_PATTERN, POLICY, rank_stories, source_genre
-from .news_editorial import candidates as editorial_candidates, seal, curate, EditorialError
 
 MAX_WINDOW_DAYS = 7
 DEFAULT_MAX_ITEMS = 4
@@ -79,34 +78,35 @@ def parse_args(argv=None):
     p.add_argument("--no-cache", action="store_true", help="Use memory only; no persistent reads/writes.")
     p.add_argument("--offline", action="store_true", help="Read local archive/cache without network access.")
     p.add_argument("--refresh", action="store_true", help="Revalidate responses before the one-hour TTL.")
-    p.add_argument("--timezone", default=None, help="IANA timezone (managed mode: profile; otherwise UTC).")
+    p.add_argument("--timezone", default="UTC", help="IANA timezone (default: UTC).")
     p.add_argument("--country", help="Country ISO code, confirmed during initialization; adds national news.")
     p.add_argument("--sources", default=SOURCES_FILE, help="Feed config; country feeds can be user-local.")
     p.add_argument("--max-links", type=int, default=1, choices=[1, 2], help="Links per story (default: 1).")
     p.add_argument("--details", action="store_true", help="Include full source metadata in JSON.")
     p.add_argument("--view", choices=("full", "stories", "candidates", "sections"), default="full",
-                   help="--show/--curate/--latest projection; stories omits candidate/diagnostic history; "
+                   help="--latest JSON projection; stories omits candidate/diagnostic history; "
                         "sections lists picks and top candidates for every section at once")
-    p.add_argument("--offset", type=int, default=0, help="Candidate page offset for --show --view candidates")
+    p.add_argument("--offset", type=int, default=0, help="Candidate page offset for --view candidates")
     p.add_argument("--limit", type=int, default=10, help="Candidate page size, 1..30")
     p.add_argument("--audit", action="store_true", help="Include up to 30 ranked candidates and source diagnostics; no article fetches.")
     actions = p.add_mutually_exclusive_group()
-    actions.add_argument("--latest", action="store_true", help="The 24 hours before --as-of, separate from dated delivery reports.")
-    actions.add_argument("--curate", metavar="DATE", help="Apply assistant-reviewed candidate IDs to an undelivered saved report.")
-    actions.add_argument("--curate-latest", metavar="PATH", help="Review an exact saved latest candidate JSON without fetching or writing report state.")
+    actions.add_argument("--latest", action="store_true", help="The 24 hours before --as-of instead of whole dates.")
     p.add_argument("--as-of", help="--latest cutoff: ISO time with UTC offset, not in the future (default: now).")
-    p.add_argument("--selection-file", help="Runtime-local JSON list of candidate_id/reason choices.")
-    actions.add_argument("--verify-sources", action="store_true", help="Fresh national-feed checks only; JSON counts, no report or delivery changes.")
-    actions.add_argument("--backfill", action="store_true", help="Save unresolved reports from the last seven days; output a compact manifest.")
-    actions.add_argument("--status", action="store_true", help="Read seven-day report statuses without fetching.")
-    actions.add_argument("--show", metavar="DATE", help="Read one saved compact report without fetching.")
-    actions.add_argument("--ack", metavar="DATE", help="Acknowledge delivery of an exact collected report.")
-    p.add_argument("--secretary-dir", default=str(secretary_path()))
-    p.add_argument("--today", help="Explicit YYYY-MM-DD for deterministic backfill/tests.")
-    p.add_argument("--ending", help="Managed seven-day window ending on this past date (default yesterday).")
-    p.add_argument("--expect", help="Current report_id from --show; required for --ack.")
-    p.add_argument("--session", help="Delivery session identifier; required for --ack.")
+    actions.add_argument("--verify-sources", action="store_true", help="Fresh national-feed checks only; JSON counts, nothing saved.")
+    p.add_argument("--today", help="Explicit YYYY-MM-DD local date for deterministic tests.")
     return p.parse_args(argv)
+
+
+def context_key(timezone, country, sources):
+    """Stable archive scope for an effective feed configuration."""
+    effective = {"feeds": sources["feeds"],
+                 "national": sources.get("countries", {}).get(country, []),
+                  "domain_lean": sources.get("domain_lean", {})}
+    effective["ranking_policy"] = POLICY
+    if sources.get("editorial_review"):
+        effective["editorial_review"] = True
+    encoded = json.dumps([timezone, country, effective], ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(encoded.encode()).hexdigest()
 
 
 def parse_day(s, name):
@@ -566,68 +566,19 @@ def to_markdown(stories, since, until, max_items, failures, max_links=1, country
 def main(argv=None):
     try:
         return run(argv)
-    except (OSError, UnicodeError, sqlite3.Error, ValueError, OverflowError) as error:
+    except (OSError, UnicodeError, sqlite3.Error, ValueError, OverflowError):
         # Never print provider text, configuration contents, or credentials.
-        arguments = argv if argv is not None else sys.argv[1:]
-        if any(action in arguments for action in ("--backfill", "--status", "--show", "--ack", "--curate", "--curate-latest")):
-            busy = str(error).startswith("runtime_busy:")
-            print(json.dumps({"error": "runtime_busy" if busy else "news_unavailable",
-                              "next": str(error) if isinstance(error, EditorialError) else "retry later" if busy else "preserve files and check news storage/profile/schema"},
-                             separators=(",", ":")))
-        else:
-            print("error: news storage/profile is unavailable or invalid; preserve files and check configuration", file=sys.stderr)
+        print("error: news cache/configuration is unavailable or invalid; preserve files and check configuration", file=sys.stderr)
         return 1
 
 
 def run(argv=None):
     args = parse_args(argv)
-    args.secretary_dir = str(secretary_path(args.secretary_dir))
     args.cache_dir = str(cache_path(args.cache_dir))
     if not 1 <= args.limit <= 30 or args.offset < 0:
         raise ValueError("invalid news page size/offset")
-    if (args.view != "full" or args.offset) and not (args.show or args.curate or args.curate_latest or args.latest):
-        raise ValueError("views require --show, --curate, --curate-latest or --latest")
-    if args.curate_latest:
-        if not args.selection_file or not args.expect or not args.session:
-            sys.exit("error: --curate-latest needs --selection-file, --expect BATCH_ID and --session")
-        value = runtime_json(args.curate_latest, args.secretary_dir)
-        if not isinstance(value, dict):
-            raise ValueError("invalid latest candidate snapshot")
-        if (args.country and args.country.upper() != value.get("country")) or (args.timezone and args.timezone != value.get("timezone")):
-            raise ValueError("latest snapshot country/timezone does not match the requested scope")
-        if args.since or args.until or args.today or args.ending:
-            raise ValueError("latest snapshot review preserves its collected date and cutoff")
-        if value.get("scope") != "latest_24h" or dt.datetime.now(dt.timezone.utc) - dt.datetime.fromisoformat(value["as_of"]) > dt.timedelta(days=1):
-            sys.exit("error: only a latest candidate snapshot from the past 24 hours can be reviewed")
-        result = curate(value, runtime_json(args.selection_file, args.secretary_dir), args.expect, args.session)
-        if args.view != "full":
-            result = report_view({"payload": result, "report_id": None, "status": "stateless",
-                                  "collected_at": value.get("as_of")}, args.view, args.offset, args.limit)
-        print(json.dumps(result, ensure_ascii=False, separators=(",", ":")))
-        return 0
-    if args.selection_file and not args.curate:
-        sys.exit("error: --selection-file requires --curate or --curate-latest")
-    managed = args.backfill or args.status or args.show or args.ack or args.curate
-    if managed:
-        fields = profile_fields(args.secretary_dir)
-        args.timezone = args.timezone or fields.get("timezone")
-        args.country = args.country or fields.get("news_country")
-        if not args.timezone or not args.country:
-            sys.exit("error: managed news requires confirmed timezone and news_country in profile or flags")
-        if not os.path.isdir(args.secretary_dir):
-            sys.exit("error: no secretary directory; confirm setup first")
-        if args.sources == SOURCES_FILE and fields.get("news_sources_path"):
-            args.sources = fields["news_sources_path"]
-        if args.provider not in ("all", "rss") or not 1 <= args.max_items <= 10:
-            sys.exit("error: managed news requires --provider all|rss and --max-items 1..10")
-        if args.since or args.until or args.no_cache or args.details or args.audit:
-            sys.exit("error: managed news uses a seven-day window and compact saved reports; omit --since/--until/--no-cache/--details")
-    else:
-        args.timezone = args.timezone or "UTC"
-        if args.ending:
-            sys.exit("error: --ending requires --backfill or --status")
-        if args.expect or args.session:
-            sys.exit("error: --expect and --session require --ack")
+    if (args.view != "full" or args.offset) and not args.latest:
+        raise ValueError("views require --latest")
     try:
         timezone = ZoneInfo(args.timezone)
     except (ZoneInfoNotFoundError, ValueError):
@@ -672,8 +623,6 @@ def run(argv=None):
     if country and not national_feeds:
         sys.exit("error: country has no configured national feeds; confirm feeds during initialization "
                   "and add them to the 'countries' map in --sources")
-    if managed:
-        return managed_reports(args, timezone, cfg, country, today)
     if args.verify_sources:
         if not country or args.offline:
             sys.exit("error: source verification requires --country and online access")
@@ -682,15 +631,10 @@ def run(argv=None):
     if args.format == "json":
         output = {**result, "stories": result["stories"] if args.details else
                    [compact_story(s, args.max_links) for s in result["stories"]]}
-        if cfg.get("editorial_review"):
-            output = seal(output)
         if args.view != "full":
-            output = report_view({"payload": output, "report_id": None, "status": "stateless",
-                                  "collected_at": output.get("as_of")}, args.view, args.offset, args.limit)
+            output = report_view(output, args.view, args.offset, args.limit)
         print(json.dumps(output, ensure_ascii=False, separators=(",", ":")))
     else:
-        if cfg.get("editorial_review"):
-            print("_Provisional candidate picks: assistant editorial review is required before presenting a final digest._\n")
         if args.latest:
             print(f"# Latest developments as of {result['as_of']} (not necessarily breaking or independently verified)\n")
         print(to_markdown(result["stories"], since, until, args.max_items,
@@ -726,20 +670,7 @@ def verify_sources(args, feeds, country, today, timezone):
         cache.close()
 
 
-def runtime_json(path, directory):
-    """Only explicitly named JSON artifacts inside the selected runtime."""
-    from pathlib import Path
-    target = Path(path).resolve()
-    if target.suffix != ".json" or not target.is_relative_to(Path(directory).resolve()):
-        raise ValueError("editorial artifacts must be JSON inside the selected runtime")
-    with target.open(encoding="utf-8") as stream:
-        text = stream.read(4 * 1024 * 1024 + 1)
-    if len(text) > 4 * 1024 * 1024:
-        raise ValueError("editorial artifact exceeds the size limit")
-    return json.loads(text)
-
-
-def collect(args, since, until, timezone, cfg, country, today, requested_days=None):
+def collect(args, since, until, timezone, cfg, country, today):
     national_feeds = [{**f, "section": "national"} for f in cfg.get("countries", {}).get(country, [])]
     domain_lean = cfg.get("domain_lean", {})
     items, failures, source_status = [], [], []
@@ -766,9 +697,6 @@ def collect(args, since, until, timezone, cfg, country, today, requested_days=No
     if provider in ("all", "hn"):
         query_day = since
         while query_day <= until:
-            if requested_days is not None and query_day.isoformat() not in requested_days:
-                query_day += dt.timedelta(days=1)
-                continue
             day_start = dt.datetime.combine(query_day, dt.time.min, timezone).astimezone(dt.timezone.utc)
             day_end = dt.datetime.combine(query_day + dt.timedelta(days=1), dt.time.min,
                                           timezone).astimezone(dt.timezone.utc)
@@ -876,117 +804,16 @@ def collect(args, since, until, timezone, cfg, country, today, requested_days=No
             result.update(scope="latest_24h", as_of=end.astimezone(timezone).isoformat(timespec="seconds"),
                           response_cache_ttl_seconds=300)
         if cfg.get("editorial_review"):
+            # A wider pool than the heuristic picks, for the assistant's own selection.
             ranked = rank_stories(groups)
             pool = [story for key in sorted({period(row) for row in ranked})
                     for section in ("ai", "major", "national")
                     for story in [row for row in ranked if period(row) == key and row["section"] == section][:30]]
-            result.update(candidates=editorial_candidates([compact_story(story, args.max_links) for story in pool]),
-                          candidates_truncated=len(pool) < len(ranked), max_items=args.max_items,
-                          curation={"required": True, "state": "pending"})
-            result = seal(result)
+            result.update(candidates=[compact_story(story, args.max_links) for story in pool],
+                          candidates_truncated=len(pool) < len(ranked))
         return result
     finally:
         cache.close()
-
-
-def managed_reports(args, timezone, cfg, country, today):
-    from pathlib import Path
-
-    context = context_key(args.timezone, country, cfg)
-    path = Path(args.secretary_dir) / "news_reports.sqlite"
-    if (args.expect or args.session) and not (args.ack or args.curate):
-        sys.exit("error: --expect and --session require --ack")
-    if (args.refresh or args.offline) and not args.backfill:
-        sys.exit("error: --refresh and --offline apply only to collection, not saved-report reads")
-    date = parse_day(args.show or args.ack or args.curate, "report date") if args.show or args.ack or args.curate else None
-    if date and date >= today:
-        sys.exit("error: managed reports must be for a past local date")
-    if args.ack and (not args.expect or not args.session):
-        sys.exit("error: --ack requires --expect REPORT_ID and --session NAME")
-    if args.curate and (not args.expect or not args.session or not args.selection_file):
-        sys.exit("error: --curate requires --expect REPORT_ID, --session and --selection-file")
-    ending = parse_day(args.ending, "ending") if args.ending else today - dt.timedelta(days=1)
-    if ending >= today or (args.ending and (args.show or args.ack)):
-        sys.exit("error: --ending must be a past date and applies only to --backfill or --status")
-    days = recent_days(ending + dt.timedelta(days=1))
-    if not path.exists() and not args.backfill:
-        if args.show or args.ack or args.curate:
-            sys.exit("error: report_missing: collect and read the report first")
-        print(json.dumps({"timezone": args.timezone, "country": country,
-                          "days": [{"date": d, "status": "missing", "fetch": True}
-                                   for d in days]}, separators=(",", ":")))
-        return 0
-    store = ReportStore(args.secretary_dir, create=bool(args.backfill or args.ack or args.curate))
-    try:
-        if args.show or args.ack or args.curate:
-            if args.ack:
-                try:
-                    row = store.acknowledge(context, date.isoformat(), args.expect, args.session)
-                except ValueError as error:
-                    message = str(error)
-                    print(json.dumps({"error": message.split(":", 1)[0], "next": message}, separators=(",", ":")))
-                    return 2
-                output = {"date": row["day"], "status": row["status"],
-                          "report_id": row["report_id"], "session": row["delivered_session"]}
-            elif args.curate:
-                row = store.get(context, date.isoformat())
-                if row is None or row["report_id"] != args.expect:
-                    raise ValueError("report_conflict: read the current collected report")
-                if row["status"] == "delivered":
-                    raise ValueError("already_delivered: preserve the original delivered report")
-                reviewed = curate(row["payload"], runtime_json(args.selection_file, args.secretary_dir),
-                                  row["payload"].get("candidate_batch_id"), args.session)
-                saved = store.save(context, reviewed, offline=True, expect=args.expect)
-                output = report_view(saved, args.view, args.offset, args.limit) if args.view != "full" else {
-                    "date": saved["day"], "status": saved["status"], "report_id": saved["report_id"],
-                    "curation": saved["payload"]["curation"]}
-            else:
-                row = store.get(context, date.isoformat())
-                if row is None:
-                    sys.exit("error: report_missing: collect under the current settings first")
-                output = report_view(row, args.view, args.offset, args.limit) if args.view != "full" else {"report_id": row["report_id"], "status": row["status"],
-                          "collected_at": dt.datetime.fromtimestamp(row["collected_at"], dt.timezone.utc).isoformat(timespec="seconds"),
-                          **row["payload"]}
-            print(json.dumps(output, ensure_ascii=False, separators=(",", ":")))
-            return 0
-        fetch_stats = {"requests": 0, "cache_hits": 0, "revalidated": 0, "stale": 0}
-        source_status = []
-        if args.backfill:
-            # Recheck the plan under the lock; two agents must not fetch the same backlog.
-            with runtime_lock(args.secretary_dir, ".news.lock"):
-                plan = store.plan(context, days, refresh=args.refresh)
-                wanted = [entry["date"] for entry in plan if entry["fetch"]]
-                if wanted:
-                    since, until = dt.date.fromisoformat(min(wanted)), dt.date.fromisoformat(max(wanted))
-                    result = collect(args, since, until, timezone, cfg, country, today, set(wanted))
-                    fetch_stats = result["fetch"]
-                    source_status = result["source_status"]
-                    for day in wanted:
-                        payload = {"date": day, "timezone": args.timezone, "country": country,
-                                   "provider": args.provider, "max_items": args.max_items, "max_links": args.max_links,
-                                    "counts": result["coverage"][day], "notes": result["failures"],
-                                    "selection": {**result["selection"],
-                                        "candidate_counts": {day: result["selection"]["candidate_counts"][day]},
-                                        "selected_counts": {day: result["coverage"][day]}},
-                                    "source_status": source_status,
-                                    "source_status_window": [result["since"], result["until"]],
-                                    "stories": [compact_story(s, args.max_links) for s in result["stories"]
-                                                if s["date"] == day]}
-                        if cfg.get("editorial_review"):
-                            pool = [item for item in result["candidates"] if item["date"] == day]
-                            payload.update(candidates=pool, candidates_truncated=result["candidates_truncated"],
-                                           curation={"required": True, "state": "pending"})
-                            payload = seal(payload)
-                        store.save(context, payload, offline=args.offline, refresh=args.refresh)
-        plan = store.plan(context, days)
-        print(json.dumps({"timezone": args.timezone, "country": country, "days": plan,
-                           "fetch": fetch_stats, "source_status": source_status,
-                          "older_undelivered": store.older_backlog(context, min(days)),
-                          "next": "read needed collected dates with --show; empty sections stay unresolved"},
-                         ensure_ascii=False, separators=(",", ":")))
-        return 0 if all(e["status"] in ("collected", "delivered") for e in plan) or args.status else 1
-    finally:
-        store.close()
 
 
 if __name__ == "__main__":

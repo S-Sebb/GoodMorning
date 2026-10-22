@@ -20,8 +20,8 @@ snapshots. See docs/state-pipeline.md for usage.
 
 Usage:
   python scripts/goodmorning.py state --check [--json]
-  python scripts/goodmorning.py state --mark-gm --session NAME [--answer-file P | --answer-stdin] [--force]
-  python scripts/goodmorning.py state --mark-gn --session NAME [--answer-file P | --answer-stdin] [--force]
+  python scripts/goodmorning.py state --mark-gm|--mark-gn --session NAME --browser-job JOB --answer-file P
+    (called by a browser job's finish, not by agents)
   python scripts/goodmorning.py state --rebuild [--json]
   python scripts/goodmorning.py state --tokens PATH
 
@@ -472,7 +472,6 @@ def cmd_check(secretary_dir: str, today: str, as_json: bool, limit: int = 7, off
             "calendar": state["calendar"],
             "answer_cost_7d": c7, "answer_cost_30d": c30,
             "warnings": state["warnings"],
-            "news": news_overview(secretary_dir, today),
         }, separators=(",", ":"), ensure_ascii=False))
         return 0
     print(f"today: {today}")
@@ -517,7 +516,6 @@ def cmd_check(secretary_dir: str, today: str, as_json: bool, limit: int = 7, off
            "Open snapshots only on demand, never in bulk.")
     if state["warnings"]:
         print("warnings: " + ", ".join(state["warnings"]))
-    print("news: " + json.dumps(news_overview(secretary_dir, today), separators=(",", ":")))
     return 0
 
 
@@ -680,33 +678,6 @@ def cmd_tokens(path: str, as_json: bool = False) -> int:
     print("policy: --check + daily file are the cheap default read; "
           "open this snapshot only on explicit need, never bulk-read.")
     return 0
-
-
-def news_overview(secretary_dir: str, today: str) -> dict:
-    """Counts only; news.py is the authoritative backlog/read/delivery interface."""
-    from goodmorning.news.news_reports import ReportStore, context_key, recent_days
-    from goodmorning.news.news import load_sources, SOURCES_FILE
-
-    fields = profile_fields(secretary_dir)
-    if not fields.get("timezone") or not fields.get("news_country"):
-        return {"status": "not_configured"}
-    if not (Path(secretary_dir) / "news_reports.sqlite").exists():
-        return {"missing": 7, "next": "news.py --backfill"}
-    store = None
-    try:
-        country = fields["news_country"].upper()
-        cfg = load_sources(fields.get("news_sources_path") or SOURCES_FILE)
-        context = context_key(fields["timezone"], country, cfg)
-        store = ReportStore(secretary_dir)
-        plan = store.plan(context, recent_days(dt.date.fromisoformat(today)))
-        return {**{s: sum(e["status"] == s for e in plan)
-                   for s in ("missing", "partial", "collected", "delivered")},
-                "next": "news.py --status"}
-    except (OSError, ValueError, sqlite3.Error):
-        return {"status": "unavailable", "next": "inspect news.py --status"}
-    finally:
-        if store:
-            store.close()
 
 
 def main(argv: list[str] | None = None) -> int:

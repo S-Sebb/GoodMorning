@@ -2,10 +2,9 @@
 
 This is documentation, not a configuration file loaded by every script.
 All examples are general; no personal profile or credentials are supplied.
-Run helpers from the repository or installed skill root. Ask the globally
-installed `goodmorning` skill for secretary setup, or use `/secretary` as a plain
-workflow request. This checkout registers no skills or command wrappers.
-Installing the skill does not initialize personal data.
+Run helpers from the deployed release root. Setup happens in the website's
+Initialize chat; this checkout registers no skills or command wrappers, and
+deploying it does not initialize personal data.
 
 Guided setup follows [the staged initialization workflow](docs/initialization.md):
 reuse confirmed answers, save local records after consent, and verify only selected
@@ -21,11 +20,8 @@ The second question asks what the secretary should call the user, saved as
 `user_name` under the same optional rules. Replies and briefing greetings use it;
 when empty, the secretary greets the user unnamed.
 
-For local use, the third initialization question confirms the secretary's reply language, saved
-as `secretary_language` after storage consent. It applies to all five workflows,
-setup/questions and follow-ups, independently of news-source language/country or
-tone. Allow explicit language/script, bilingual or “follow my message language”
-choices. Existing profiles without it are valid; never silently invent the field. For browser chats, skip the language question: replies follow the website language switch without writing the local field.
+Replies follow the website language switch; initialization never asks for a
+reply language and never writes `secretary_language`.
 
 After confirming setup answers and file formats with the user:
 
@@ -87,41 +83,24 @@ chosen location and sources during setup. Do not save a token in the profile.
 
 ## News
 
-Default feeds use importance-first candidate scoring plus required assistant
-editorial review, not a recency-sorted headline dump. The agent reads collected
-candidates, records its selection reasons, and uses `news.py --curate` before
-presentation/acknowledgement. Primary announcements are not independent evidence.
-See `docs/news-pipeline.md` for the exact candidate/revision workflow and coverage
-limitations. Existing delivered reports and briefing snapshots remain intact.
+Default feeds use importance-first candidate scoring plus assistant editorial
+selection, not a recency-sorted headline dump: the agent chooses from the picks and
+a wider candidate pool. Primary announcements are not independent evidence. See
+`docs/news-pipeline.md` for coverage limitations.
 
 Morning briefings read `news.py --latest`: the 24 hours before the briefing job
 was created. It uses a five-minute feed cache and is not a live ticker. Never infer
 publication dates from a new social submission or label every recent headline
 “breaking.”
 
-For agent-managed collection and explicit delivery tracking:
-
-```bash
-python scripts/goodmorning.py news --backfill
-python scripts/goodmorning.py news --show YYYY-MM-DD
-python scripts/goodmorning.py news --ack YYYY-MM-DD --expect REPORT_ID --session NAME
-```
-
-These commands read the confirmed profile timezone, country, and optional news
-config path. Backfill saves `secretary/news_reports.sqlite` separately from the
-cache and daily Markdown. Present a saved report before acknowledging it; empty
-sections stay unresolved. See `docs/news-pipeline.md` for statuses, retry limits,
-read-only backlog queries, and historical windows. No new file is needed at init;
-the first authorized backfill creates the report store.
-
-For stateless retrieval, pass confirmed profile values explicitly:
+For other reads, pass confirmed profile values explicitly:
 
 ```bash
 python scripts/goodmorning.py news --timezone "$TIMEZONE" --country "$NEWS_COUNTRY"
 ```
 
 Set these shell variables from confirmed values before running the example;
-stateless retrieval does not read the profile or these variables automatically.
+news reads do not read the profile or these variables automatically.
 For non-bundled countries, create a user-local feed config following
 `docs/news-pipeline.md`, verify its feeds, and add `--sources PATH`.
 The default provider is free RSS plus Hacker News. `--provider gdelt` is opt-in;
@@ -129,9 +108,8 @@ The default provider is free RSS plus Hacker News. `--provider gdelt` is opt-in;
 
 Initialization verifies feeds with `news.py --verify-sources --country CODE
 --timezone ZONE --sources PATH`: fresh national feeds only, compact counts,
-no headline archive/report/acknowledgement writes. The bounded setup checker runs
-this for every confirmed country. Additional managed country reports use explicit
-`--country CODE`, with separate namespaces in the same report store.
+no headline archive writes. The bounded setup checker runs this for every
+confirmed country.
 
 ## Calendar
 

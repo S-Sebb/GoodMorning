@@ -8,75 +8,9 @@ python scripts/goodmorning.py news --refresh --max-links 2
 python scripts/goodmorning.py news --format json --details
 ```
 
-## Managed backfill and delivery (recommended for agents)
-
-After confirming the profile's timezone, country, and optional feed config:
-
-```bash
-python scripts/goodmorning.py news --backfill
-python scripts/goodmorning.py news --show YYYY-MM-DD
-python scripts/goodmorning.py news --show YYYY-MM-DD --view candidates --limit 10 --offset 0
-python scripts/goodmorning.py news --show YYYY-MM-DD --view stories
-python scripts/goodmorning.py news --ack YYYY-MM-DD --expect REPORT_ID --session NAME
-python scripts/goodmorning.py news --status
-```
-
-- Managed commands read `timezone`, `news_country`, and optional
-  `news_sources_path` from `secretary/profile.md`; explicit flags override them.
-  Set `--secretary-dir` or `SECRETARY_DIR` for relocated records. Missing timezone
-  or country requires setup; city/region never imply national news country.
-- `--backfill` saves the latest seven completed local days, newest first. It
-  returns one compact JSON manifest, not all headlines. Read needed dates with
-  `--show`, present the report with its warnings, then acknowledge the exact
-  `report_id`. Never acknowledge before presenting it.
-- Status is `missing` (no stories), `partial` (some required sections empty),
-  `collected` (at least one saved story in each AI/world/national section), or
-  `delivered` (explicit session acknowledgement). Populated sections do not prove
-  exhaustive coverage. Empty sections cannot be acknowledged as delivered.
-- Collected/delivered dates are not fetched again automatically. Incomplete dates
-  have a one-hour retry delay and at most three automatic online attempts per
-  configuration/date. Offline reads do not consume that budget. Exhausted gaps
-  stay visible. `--backfill --refresh` overrides these guards explicitly; inspect
-  failures first rather than running a retry loop.
-- `--status` and `--show` are read-only and never fetch. `--ack` writes delivery
-  state only; it never fetches or marks gm/gn. Repeated acknowledgements are
-  idempotent. A stale ID is rejected, not applied to a changed report.
-- Reports live in git-ignored `secretary/news_reports.sqlite`, separate from the
-  expiring HTTP/headline cache. Saved reports survive cache pruning. They contain
-  compact stories, counts, collection settings/time, and notes; no article bodies
-  or credentials.
-- Country, timezone, or effective feed changes get a separate report namespace.
-  Earlier reports are preserved, not reused under a different scope. Item/link
-  counts and provider choice do not hide an existing saved report; `--show`
-  full view exposes its saved settings. `--view stories` keeps every selected story,
-  citations, notes and review state without old candidate/diagnostic context.
-  Candidate views page complete records with `next_offset` and current report ID;
-  follow needed pages before editorial decisions. Refresh explicitly to change settings.
-  Managed providers are `all` or `rss`, with `--max-items 1..10`; keyed AI-only
-  discovery remains a stateless operation.
-- Refreshing changed content clears its delivery flag. Unchanged content keeps
-  its acknowledgement. Normal collection cannot undo an acknowledgement made
-  during that fetch. Warnings and offline/stale notes survive saving and reads;
-  inspect them, not only the status/counts.
-- Historical recovery is explicit: `--status --ending YYYY-MM-DD` or
-  `--backfill --ending YYYY-MM-DD` selects seven days ending on that past date.
-  `older_undelivered` exposes known older counts and an `ending` date for another
-  window. Default runs do not endlessly retry old gaps or claim to know every
-  uncollected day before setup. `--today` overrides the local date for tests or
-  historical cutoffs; it does not reconstruct provider history.
-- Exit 0 means the selected window is collected/delivered (or a read succeeded).
-  Backfill exits 1 with its manifest when gaps remain; operational errors use
-  `error`/`next`. A refused acknowledgement exits 2. Argument/setup validation
-  errors are on stderr. Exit 0 never proves comprehensive news coverage.
-- SQLite protects updates; a stable Linux `.news.lock` prevents concurrent
-  duplicate backfill. `runtime_busy` means retry later, not delete locks.
-  Unknown database versions/corruption are preserved and refused. Backfill
-  writes only reports/cache, never daily Markdown or gm/gn flags.
-
-The original date-range commands remain available for stateless retrieval. They
-require explicit profile values and do not save delivery state. Markdown news
-headings are presence flags, never delivery evidence. Do not bulk-open
-answer snapshots to discover missing news.
+Every read is stateless: nothing is saved besides the expiring cache, and there is
+no delivery acknowledgement. Pass explicit timezone and country from the confirmed
+profile. Markdown news headings are presence flags, never evidence of collection.
 
 ## Country and feed configuration
 
@@ -84,12 +18,11 @@ For initialization, use `--verify-sources --country CODE --timezone ZONE --forma
 json` (and `--sources PATH` for a custom configuration), preferably through the
 elapsed-budget setup checker. This contacts only that country's configured feeds
 with an in-memory fresh response cache, reports per-feed dated-item counts, and
-never writes headlines, reports or delivery state. Inspect warnings/status, not
+never writes headlines. Inspect warnings/status, not
 just exit codes. Feed reachability is not historical coverage or verified truth.
 
 For several confirmed countries, keep `news_country` as primary and store comma-
-separated `news_additional_countries`. Run each explicitly with `--country`; the
-state overview still describes the primary namespace, not all national coverage.
+separated `news_additional_countries`. Run each explicitly with `--country`.
 
 Ask which country's national news the user wants. Never infer it from city,
 region, IP, or weather location. Save its ISO code as `news_country`, confirm
@@ -130,46 +63,17 @@ straight-news stories with a positive score are still picked, marked
 can fill unused slots. The agent must review relevance, genre and source claims;
 original citations remain essential. Political-lean labels do not enter the score.
 
-### Required assistant editorial review
+### Assistant editorial selection
 
-Default configuration also sets `editorial_review: true`. The candidate pool
-contains up to 30 stories per section **per date**, including low-scoring stories
-that a keyword proxy might miss. The secretary—not another hidden model API—reads
-headlines/excerpts and selects substantive, distinct developments according to the
-confirmed owner policy, recording an importance reason for each choice. It can
-promote a genuinely consequential low-scoring candidate; it cannot fabricate a
-source, change a date, or approve opinion as straight news. These are editorial
-judgments about gathered evidence, not independent verification of every claim.
-
-Backfill manifests flag `editorial_review_pending`. Read the needed day's report
-with `--show`, then write a runtime-local JSON choice list:
-
-```json
-[{"candidate_id":"ID_FROM_COLLECTED_POOL","reason":"Why this reported development matters."}]
-```
-
-Apply it using the current report ID and real session identifier:
-
-```bash
-python scripts/goodmorning.py news --curate DATE --country CODE --selection-file RUNTIME/choices.json --expect REPORT_ID --session SESSION --view stories
-```
-
-Pass the selected runtime/source configuration too. Selection is restricted to
-exact collected candidate IDs and section limits; stale/tampered evidence fails.
-Candidate evidence is retained. The save checks the report revision atomically,
-and a delivered report cannot be silently replaced. Pending editorial reports
-cannot be acknowledged, even if all three section counts are populated. Review
-updates are not provider retries and do not consume a fetch attempt.
-`--view stories` on curate returns the saved reviewed stories directly; no extra
-`--show` or provider request is needed before composing the briefing.
-
-For latest news, save the exact `--latest --format json` candidate output inside
-the runtime, then use `--curate-latest FILE --selection-file CHOICES --expect
-CANDIDATE_BATCH_ID --session SESSION --secretary-dir RUNTIME`. This validates the
-snapshot from the past 24 hours and returns reviewed JSON without fetching or touching report
-delivery state. The batch seal covers the actual rendered JSON. Preserve its
-original cutoff and any offline/stale notes; do not pass a replay off as a new
-live fetch. A reviewed shortlist can contain fewer than four stories per section.
+Default configuration also sets `editorial_review: true`: JSON output adds a
+candidate pool of up to 30 stories per section and period (each date, or the whole
+`--latest` window), including low-scoring stories that a keyword proxy might miss.
+The `sections` view lists each section's picks and its strongest other candidates.
+The secretary, not another hidden model API, reads headlines/excerpts and chooses
+substantive, distinct developments. It can promote a genuinely consequential
+low-scoring candidate; it cannot fabricate a source, change a date, or present
+opinion as straight news. These are editorial judgments about gathered evidence,
+not independent verification of every claim.
 
 Compact selected stories include reasons, score, source role and up to 280
 characters of publisher feed excerpt when available. `--details` exposes source
@@ -180,13 +84,8 @@ fetched/recent/topic/window counts and controlled HTTP failures such as `HTTP 40
 historical articles. These counts describe collection, not comprehensive coverage.
 
 Ranking uses the current importance policy, including when the setting is omitted;
-other policies are rejected. The policy participates in saved-report namespaces.
-Changing feeds does not overwrite old reports or acknowledgements; keep an old
-full configuration to inspect its earlier namespace. Do not replace an original
-briefing snapshot just because ranking improved.
-The editorial-review setting also separates report namespaces, preserving the
-earlier delivered reports. `collected` means required sections are populated;
-only reviewed, complete reports are ready for the normal presentation/ack flow.
+other policies are rejected. Do not replace an original briefing snapshot just
+because ranking improved.
 
 ### Latest: the 24 hours before a cutoff
 
@@ -203,7 +102,6 @@ and the `sections` view. Response cache TTL is five minutes;
 outage fallbacks remain disclosed, so this is not a real-time ticker. Known older
 RSS publications rediscovered through HN are excluded rather than re-dated as new.
 Unknown HN submission dates still remain submission dates, not publication proof.
-No report store, daily mark or delivery acknowledgement is written by `--latest`.
 Do not call all fresh headlines “breaking.” Historical `--since/--until` cannot be
 combined with this mode. No Twitter/X account access or ingestion is implemented.
 
@@ -248,8 +146,7 @@ VentureBeat were not promoted to the critical path. Feed health can change.
   world/AI archive scopes remain separate.
 - RSS archive scopes also include their effective feed configuration. Changed
   outlets do not reuse earlier outlets' headlines as proof of fresh coverage.
-  Older unscoped archives are preserved but not silently reused by new collection;
-  previously saved report namespaces and delivery acknowledgements remain intact.
+  Older unscoped archives are preserved but not silently reused by new collection.
 - `--offline` reads the archive without network requests and states that coverage
   was not checked live. `--no-cache` uses memory only. Storage failures are visible.
 - Short-lived feeds cannot reconstruct all missed history. The archive helps
@@ -261,14 +158,7 @@ VentureBeat were not promoted to the critical path. Feed health can change.
 ## Focused verification
 
 ```bash
-python -m unittest discover -s tests -p 'test_news_reports.py' -v
-python tests/benchmarks/state_news.py
+python -m unittest discover -s tests -p 'test_news*.py' -v
 ```
 
-The synthetic seven-day fixture retains all 84 selected stories while its
-manifest is about 93% smaller than printing every saved report. Complete saved
-dates need no repeat collection; the workflow tests verify zero provider calls
-on repeated backfill, status, show, and acknowledgement. This is detail gating,
-not a claim that displaying all reports costs fewer tokens. Tests cover partial
-results, warnings, stale IDs, retry limits, historical windows, changed settings,
-concurrent commands, and the state overview. No live service was tested here.
+Tests use synthetic feeds; no live service is contacted.

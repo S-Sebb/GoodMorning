@@ -5,8 +5,6 @@ Use compact command output, not raw `state.json` or bulk answer snapshots.
 ```bash
 python scripts/goodmorning.py state --check --json
 python scripts/goodmorning.py state --check --json --limit 7 --offset 7
-python scripts/goodmorning.py state --mark-gm --session NAME --answer-file PATH --json
-python scripts/goodmorning.py state --mark-gn --session NAME --answer-stdin --json
 python scripts/goodmorning.py state --rebuild --json
 python scripts/goodmorning.py state --tokens PATH --json
 ```
@@ -21,16 +19,14 @@ Invalid named timezones are errors, not silent fallbacks.
 
 - `--check --json` returns one compact object: today's run/session/answer pointers,
   section flags, missed-day page and total, project page and total, inbox/calendar
-  counts, news overview, warnings, and 7/30-day reply costs.
+  counts, warnings, and 7/30-day reply costs.
 - Missed days are oldest first. Default page size is seven; `--limit 1..30` and
   `--offset` page missed days and project records. Use `next_offset` and
   `projects_next_offset`. Long gaps are counted without constructing every row.
-- News counts use the confirmed profile's default configuration. Use
-  `python scripts/goodmorning.py news --status` for the authoritative backlog or explicit overrides.
-  A Markdown news heading indicates presence, never collection or delivery.
 - Save concise daily records using `templates/daily.template.md`. New browser
   editions live in `daily/YYYY-MM-DD.gm.json` and `.gn.json` (`docs/briefing-format.md`).
-- Mark commands accept either an answer file or stdin, never both. They preserve
+- Briefing saves call `state --mark-gm|--mark-gn` internally from the browser
+  job's `finish`; agents never run them. They accept either an answer file or stdin, never both. They preserve
   daily tasks/feedback. JSON replies expose date, kind, session, answer pointer,
   and size. Inputs cap at 1,048,576 characters. Native JSON input is required.
 - Every save parses/validates the document version before writing. New editions
@@ -39,7 +35,7 @@ Invalid named timezones are errors, not silent fallbacks.
   no Markdown/presentation/HTML copies. Invalid input returns `briefing_invalid`
   and a field path without marking. Unrelated text files are ignored and preserved.
 - Duplicate marks and existing snapshots are refused with exit 2. Inspect the
-  original; use `--force` only for an authorized replacement.
+  original; replacement goes through browser regeneration.
 - Keep `session NAME`, `| answer: path`, and recognized headings intact. Fenced
   examples are ignored; duplicate run lines are errors rather than guesses.
   Inbox counts come from `inbox.sqlite` without loading messages/history into
@@ -81,7 +77,6 @@ Invalid named timezones are errors, not silent fallbacks.
 
 ```bash
 python -m unittest discover -s tests -p 'test_state.py' -v
-python tests/benchmarks/state_news.py
 ```
 
 The synthetic 120-day fixture returns seven of 119 missed days with the full

@@ -15,9 +15,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 from goodmorning.records import daily, workflow
 from goodmorning.news import news
-from goodmorning.news.news_editorial import candidates, seal
 from goodmorning.news.news_views import report_view
-from goodmorning.news.news_reports import ReportStore, context_key
 from goodmorning.records.inbox_store import initialize, InboxStore
 from goodmorning.runtime_files import secretary_path, cache_path, calendar_path
 
@@ -221,7 +219,7 @@ class HelpersTests(unittest.TestCase):
         with patch.dict(os.environ, {"HOME": str(self.root), "SECRETARY_DIR": "~/chosen", "GM_CACHE_DIR": "~/cache"}, clear=True):
             self.assertEqual(secretary_path(), self.root / "chosen")
             self.assertEqual(cache_path(), self.root / "cache")
-            self.assertEqual(news.parse_args([]).secretary_dir, str(self.root / "chosen"))
+            self.assertEqual(news.parse_args([]).cache_dir, str(self.root / "cache"))
 
     def test_configured_calendar_path_is_shared_by_state_and_workflow(self):
         path = self.root / "chosen.sqlite"
@@ -231,52 +229,26 @@ class HelpersTests(unittest.TestCase):
 
 
 class NewsViewTests(unittest.TestCase):
-    def report(self):
+    def payload(self):
         stories = [{"date": "2026-10-09", "section": section, "title": "Important AI event" if section == 'ai' else "Important event", "summary": "Evidence and uncertainty.",
                     "links": [{"source": "Synthetic", "url": "https://example.invalid/" + section}]} for section in ("ai", "major", "national")]
-        pool = candidates(stories * 1)
-        payload = seal({"date": "2026-10-09", "country": "GB", "timezone": "UTC", "counts": {"ai": 1, "major": 1, "national": 1},
-                        "stories": stories, "candidates": pool, "notes": ["Material coverage warning"], "source_status": ["diagnostics" * 200],
-                        "curation": {"required": True, "state": "pending"}, "max_items": 4})
-        return {"payload": payload, "report_id": "current", "status": "collected", "collected_at": 1}
+        return {"since": "2026-10-08", "until": "2026-10-09", "country": "GB", "timezone": "UTC",
+                "stories": stories, "candidates": stories, "failures": ["Material coverage warning"], "source_status": ["diagnostics" * 200]}
 
     def test_stories_view_keeps_all_selected_evidence_and_warnings_not_candidates(self):
-        row = self.report()
-        result = report_view(row)
-        self.assertEqual(result["stories"], row["payload"]["stories"])
-        self.assertEqual(result["notes"], row["payload"]["notes"])
+        payload = self.payload()
+        result = report_view(payload)
+        self.assertEqual(result["stories"], payload["stories"])
+        self.assertEqual(result["failures"], payload["failures"])
         self.assertNotIn("candidates", result)
         self.assertNotIn("source_status", result)
-        self.assertLess(len(json.dumps(result)), len(json.dumps(report_view(row, "full"))))
 
-    def test_candidate_pages_return_complete_evidence_and_current_report_id(self):
-        row = self.report()
-        first = report_view(row, "candidates", limit=2)
-        last = report_view(row, "candidates", offset=first["next_offset"], limit=2)
-        self.assertEqual(first["candidates"] + last["candidates"], row["payload"]["candidates"])
-        self.assertEqual(first["report_id"], "current")
+    def test_candidate_pages_return_complete_evidence(self):
+        payload = self.payload()
+        first = report_view(payload, "candidates", limit=2)
+        last = report_view(payload, "candidates", offset=first["next_offset"], limit=2)
+        self.assertEqual(first["candidates"] + last["candidates"], payload["candidates"])
         self.assertIsNone(last["next_offset"])
-
-    def test_curate_can_return_saved_stories_without_an_extra_show_or_fetch(self):
-        with tempfile.TemporaryDirectory(dir=TEMP_ROOT) as directory:
-            root = Path(directory)
-            cfg = {"feeds": [], "countries": {"GB": [{"name": "Synthetic", "section": "national", "url": "https://example.invalid/rss"}]}}
-            row = self.report()
-            store = ReportStore(directory, create=True)
-            self.addCleanup(store.close)
-            saved = store.save(context_key("UTC", "GB", cfg), row["payload"])
-            selection = root / "selection.json"
-            selection.write_text(json.dumps([{"candidate_id": item["candidate_id"], "reason": "Reviewed consequential evidence."} for item in row["payload"]["candidates"]]))
-            out = io.StringIO()
-            with patch.object(news, "load_sources", return_value=cfg), patch.object(news, "collect", side_effect=AssertionError("provider fetch")), contextlib.redirect_stdout(out):
-                code = news.main(["--secretary-dir", directory, "--timezone", "UTC", "--country", "GB", "--today", DAY,
-                                  "--curate", "2026-10-09", "--selection-file", str(selection), "--expect", saved["report_id"], "--session", "ses-test", "--view", "stories"])
-            result = json.loads(out.getvalue())
-            self.assertEqual(code, 0)
-            self.assertEqual(result["curation"]["state"], "reviewed")
-            self.assertEqual(len(result["stories"]), 3)
-            self.assertNotIn("candidates", result)
-            self.assertEqual(store.get(context_key("UTC", "GB", cfg), "2026-10-09")["status"], "collected")
 
 
 if __name__ == "__main__":

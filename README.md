@@ -253,15 +253,14 @@ GoodMorning is currently **beta**. It runs on **Linux with Python 3.14+** and an
    covers a local, loopback-only viewer; public HTTPS hosting needs the separate
    [security and account setup](docs/website-security.md). Opening this repository
    alone does not install the skill or provision a working account.
-2. **Meet your secretary.** Open Initialize in the browser or ask the installed
-   skill for setup. [Guided initialization](docs/initialization.md) saves your
+2. **Meet your secretary.** Open Initialize in the browser.
+   [Guided initialization](docs/initialization.md) saves your
    confirmed preferences and permissions; optional integrations can remain pending.
    Ask Secretary later to review settings without resetting your records.
 3. **Begin when you are ready.** Prepare a briefing from Morning or Evening,
-   check Schedule, or start a conversation in Secretary. With the installed skill,
-   natural-language requests work too: ask for a morning briefing, an evening
-   review, a to-do capture, or an idea capture. `/gm`, `/gn`, `/secretary`, `/todo`,
-   and `/eureka` are workflow names, not separately installed slash commands.
+   check Schedule, or start a conversation in Secretary, on the website or in the
+   [Android app](docs/android-app.md). GoodMorning is used only through these
+   pages; there are no terminal commands to run.
 
 Weather and news need outbound HTTPS. Ordinary weather, modelled air quality,
 and RSS/Hacker News collection do not require extra API keys. News covers **the

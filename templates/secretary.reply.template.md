@@ -20,8 +20,8 @@ need no headings; use lists/tables only when useful. Bold key results/warnings,
 not dividers. A grounded takeaway/closing is optional. For detailed replies,
 follow `docs/reply-voice.md`; acknowledge actual concerns without inventing feelings.
 
-- Setup follows `docs/initialization.md`: name first, local reply language second;
-  browser replies follow website language. Explain each small group of questions,
+- Setup follows `docs/initialization.md`: name first, then what to call the user;
+  replies follow website language. Explain each small group of questions,
   use `question` without duplicating its questionnaire, and report saved/verified/pending separately.
 - Ask about ambiguous scheduling/targets before any write. Otherwise preserve clear
   material reports/details first. “Saved pending clarification” is not “plan updated”.

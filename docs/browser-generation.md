@@ -46,7 +46,7 @@ Chinese requests state the edition and label the job/runtime in Chinese; the job
   `task --migrate` review and explicit backed-up upgrade consent. Keep saved setup;
   never reset the runtime or loop on generation.
 - False saved `integration_policy` values prohibit live project access, calendar
-  sync, publisher images or news acknowledgement despite imported profile settings.
+  sync or publisher images despite imported profile settings.
   Use authorized copied records only; never auto-approve or infer progress.
 - Conditional reminders use the original request timestamp, including queue arrival,
   not model finish/wake time. Regeneration keeps that trigger; unknown future
@@ -159,7 +159,7 @@ The saved page contains the greeting, findings and closing. A failed collection
 supports reporting unavailable data, not inventing a retry page, button or future
 recovery. Offer only a recovery action present in the actual receipt or website.
 
-Saving/publishing is not news delivery acknowledgement. Publisher images need
+Publisher images need
 separate permission. With saved `publisher_images: true`, the job caches news
 previews before advancing, never on ordinary page reads. Failed previews keep
 placeholders and may retry after one hour; successes deduplicate. `web --fetch-images`

@@ -36,9 +36,9 @@ do not delegate. Missing setup follows the secretary workflow.
   immediately `init` a fresh preview, otherwise resume the receipt's next step.
   Publish only the next section, then `finish`. Reuse saved
   decisions, date and feedback; code owns cumulative JSON and final save.
-- Other gm/gn requests: use `workflow --prepare KIND`, then native v2 JSON under
-  `docs/briefing-format.md` and `state`. Preserve v1 archives and private records;
-  never create Markdown/card/presentation/HTML copies or count previews as complete.
+- Requests arrive only from the website or app, as a `Browser chat` or `Browser job`;
+  briefings run only as browser jobs. Preserve v1 archives and private records; never
+  create Markdown/card/presentation/HTML copies or count previews as complete.
 - New clear TODO/idea: use `workflow --capture todo|eureka`, verify, confirm, stop.
   Details and action verbs are captured content, not discussion or execution consent.
   Ambiguous scheduling/targets require a question before any record or pending note.

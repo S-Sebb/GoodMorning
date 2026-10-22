@@ -58,12 +58,9 @@ Never put passwords or keys here. -->
 - Ask second, alone, what the secretary should call the user. Same optional
   rules; any name or form of address. Save the exact spelling in `user_name`
   after storage consent; when empty, greet the user unnamed.
-- For local use, ask for `secretary_language` third, before location/schedule/
-  tone/news. Save the explicit language/script or bilingual preference;
-  “follow my message language” is a valid confirmed setting. For browser chats,
-  skip this question: replies, questions and titles follow the website language
-  switch and helpers pass `--website-language CODE` without writing the local
-  field.
+- Never ask for `secretary_language`: replies, questions and titles follow the
+  website language switch and helpers pass `--website-language CODE` without
+  writing this field.
 - Use that language for all five workflows, conversation titles, setup, questions and follow-ups. It is
   independent of news-source language, national-news country, timezone and tone.
   Older profiles without this field stay valid; do not invent or force a migration.

@@ -24,12 +24,9 @@ integration access or verification consent.
    and character rules, any name or form of address (“Sam”, “Dr. Lee”, “小王”).
    Allow skipping; never infer it from account names, records or email. After
    storage consent, save the exact spelling in `user_name`.
-4. Browser requests use supplied `Website language`; never ask for reply language
-   or rewrite local `secretary_language`. Pass `--website-language CODE` to setup/workflow.
-   Local setup asks reply language next, alone; offer genuine choices/custom
-   answers, including bilingual/follow-message language. The current conversation
-   language is not consent to save it. Wait for the explicit choice, use it throughout,
-   and save it only after storage consent. Source language/country/persona remain separate.
+4. Requests use the supplied `Website language`; never ask for reply language
+   or rewrite saved `secretary_language`. Pass `--website-language CODE` to setup/workflow.
+   Source language/country/persona remain separate.
 5. For explicit Initialize, review all remaining preferences in small related
    groups, showing saved values and allowing retention. For missing-setup recovery,
    ask only missing settings. Reuse confirmed answers; change only explicitly
@@ -71,10 +68,9 @@ require explicit backed-up upgrade consent before `--migrate --confirm`. Preserv
 history/preferences and flagged legacy reconciliation. A declined upgrade blocks
 generation, not the already saved profile.
 
-`setup --secretary-dir RUNTIME` checks locally without fetching, creating files or
-external access. Local `profile_ready` requires city, timezone, primary news country
-and confirmed reply language. Browser checks add `--website-language en|zh-CN`
-instead of requiring a local language field. Neither check changes preferences or
+`setup --secretary-dir RUNTIME --website-language en|zh-CN` checks without fetching,
+creating files or external access. `profile_ready` requires city, timezone and
+primary news country. The check never changes preferences or
 proves optional settings/provider verification complete. Do not restart setup for
 missing optional context. Save concise confirmed answers/permissions and separate
 saved/verified/pending statuses; a provider failure leaves verification pending.

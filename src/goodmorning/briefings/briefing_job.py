@@ -117,7 +117,7 @@ def next_step(runtime, identifier, session, context, checkpoint):
                                 '--city',context['city'],'--cache-dir',selected['cache']]))
     elif tag == 'news':
         for country in context['news']['countries']:
-            read = ['python','scripts/goodmorning.py','news','--secretary-dir',str(runtime),'--country',country,
+            read = ['python','scripts/goodmorning.py','news','--country',country,
                     '--timezone',context['timezone'],'--cache-dir',selected['cache'],
                     '--latest','--as-of',context['news']['as_of'],'--format','json','--view','sections']
             if context['news'].get('sources'):

@@ -20,8 +20,7 @@ or its gn equivalent. Preserve machine-readable session/pointer parts.
 
 Add `weather`, `news`, `schedule`, `feedback` or `progress` sections only for actual
 authorized content. Do not infer successful retrieval from a heading. Use actual
-news publication/report dates, not the greeting date; delivery belongs to
-`news_reports.sqlite` and requires verified visible presentation before acknowledgement.
+news publication dates, not the greeting date.
 
 ## Existing legacy checklists
 
