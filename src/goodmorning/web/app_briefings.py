@@ -33,7 +33,13 @@ def _rows(block, date):
     if tag in ('tasks', 'flexible'):
         return [_row('item', row[-2], row[-1], MARKS[row[-3]]) for row in items]
     if tag == 'weather':
-        return [_row('item', row[3] if len(row) == 4 else ui.text(native.WEATHER[row[0]][0]), row[2], row[1] or '—') for row in items]
+        rows = []
+        for row in items:
+            # A saved forecast frame gives the same headlines as the page; older briefings keep their values.
+            summary = native.weather_summary(row[0], block[2], ui.text) if len(block) == 3 else None
+            label = row[3] if len(row) == 4 else ui.text(native.WEATHER[row[0]][0])
+            rows.append(_row('item', label, _joined(summary[1], row[2]), summary[0]) if summary else _row('item', label, row[2], row[1] or '—'))
+        return rows
     if tag == 'news':
         return [_row('heading', items)] + [{**_row('story', story[0], story[1]), 'source': _joined(*(ref[0] for ref in story[2]))}
                                            for story in block[2]]

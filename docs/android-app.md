@@ -80,12 +80,23 @@ switches them itself; older versions use the colors of the mode at drawing time.
 | Secretary | 1×1, fixed | The portrait alone, with an accent dot while a reply runs or waits for an answer | The latest conversation |
 | Briefings | 4×5 | Today's morning or evening briefing in full, scrolling, with a Morning/Evening switch | The briefing page; Prepare button (starts generation at once, may start paid model work); refresh button |
 | News | 4×4 | The news sections of today's morning briefing, one card per story: headline, a three-line summary and its publishers | The morning briefing at its first news section (`/gm.html?section=news`); Prepare button while it is missing |
+| Weather | 4×2 | Temperature, rain and air headlines side by side, from the live forecast | The morning briefing's Weather section (`/gm.html?section=weather`); refresh button |
+| Weather details | 4×5 | The three headlines, each beside its hourly chart | As Weather |
+| Temperature, Rain, Air quality | 4×2 each | One headline above its hourly chart | As Weather |
 
 Every widget but Secretary can be resized. Launchers hide a widget whose minimum size exceeds
 their grid, so minimum sizes stay small and the defaults fit the common 4×5
 grid. The Briefings widget shows the morning edition before 17:00 and the
 evening edition from then on; a choice in the widget holds until the clock
 passes the next switch.
+
+The weather widgets read the server's 18-hour forecast frame (06:00–24:00, or
+18:00 to noon after 18:00; `docs/weather-pipeline.md`). `WeatherFrame` works out
+the headlines from the hours after now, so they move on between syncs;
+`WeatherChart` draws each chart as two white layers (accent and muted) that the
+widget tints, since the launcher switches day and night colors without
+redrawing. Tiles keep the website's weather colors in both modes. A frame that
+has run out shows the loading or unavailable message until the next sync.
 
 `Sync` reads `GET /api/app/sync` once per run and caches the answer for the
 widgets. It runs when the app opens, after linking, from a widget's refresh

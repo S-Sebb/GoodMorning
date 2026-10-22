@@ -128,32 +128,34 @@ def frame_clock(frame, offset):
     return '24:00' if (hour, minutes) == (24, 0) and offset == FRAME_HOURS else f'{hour % 24:02d}:{minutes:02d}'
 
 
-def weather_summary(card, frame):
-    """Headline and its second line, judged only from the hours after the briefing was made."""
+def weather_summary(card, frame, say=ui.ui):
+    """Headline and its second line, judged only from the hours after the briefing was made.
+
+    `say` renders interface text: markup for the page, ui.text for plain widget rows."""
     rows = frame['hours'][frame['past']:]
     if card == 'temperature':
         temps = [round(t) for t, _, _ in rows]
-        return f'{max(temps)}°', ui.ui('High · low {low}°', low=max(min(temps), -99))
+        return f'{max(temps)}°', say('High · low {low}°', low=max(min(temps), -99))
     if card == 'precipitation':
         peak = max(p for _, p, _ in rows)
         wet = [p >= WET_HOUR_PROB for _, p, _ in rows]
         snow = frame['snow']
         if not any(wet):
-            return ui.ui('Dry'), ui.ui('Up to {peak}% chance of snow' if snow else 'Up to {peak}% chance of rain', peak=peak)
+            return say('Dry'), say('Up to {peak}% chance of snow' if snow else 'Up to {peak}% chance of rain', peak=peak)
         first = wet.index(True)
         if first:
-            return (ui.ui('Dry until {time}', time=frame_clock(frame, frame['past'] + first)),
-                    ui.ui('Then snow likely · up to {peak}%' if snow else 'Then rain likely · up to {peak}%', peak=peak))
-        main = ui.ui('Snow likely' if snow else 'Rain likely')
+            return (say('Dry until {time}', time=frame_clock(frame, frame['past'] + first)),
+                    say('Then snow likely · up to {peak}%' if snow else 'Then rain likely · up to {peak}%', peak=peak))
+        main = say('Snow likely' if snow else 'Rain likely')
         if False in wet:
-            return main, ui.ui('Easing by {time} · up to {peak}%', time=frame_clock(frame, frame['past'] + wet.index(False)), peak=peak)
-        return main, ui.ui('Through {time} · up to {peak}%', time=frame_clock(frame, FRAME_HOURS), peak=peak)
+            return main, say('Easing by {time} · up to {peak}%', time=frame_clock(frame, frame['past'] + wet.index(False)), peak=peak)
+        return main, say('Through {time} · up to {peak}%', time=frame_clock(frame, FRAME_HOURS), peak=peak)
     if card == 'air' and rows[0][2] is not None:
         values = [a for _, _, a in rows]
         level = next(name for limit, name in AQI_LEVELS if max(values) <= limit)
         late = frame['start'][11:13] == '18'
         span = f'{min(values)}–{max(values)}' if min(values) != max(values) else str(values[0])
-        return ui.ui(level), ui.ui('AQI {span} overnight' if late else 'AQI {span} through the day', span=span)
+        return say(level), say('AQI {span} overnight' if late else 'AQI {span} through the day', span=span)
     return None
 
 

@@ -5,9 +5,10 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@drawable/preview_card"
+    android:backgroundTint="#EDF4F8"
     android:orientation="vertical"
     android:padding="10dp">
-    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="6dp" android:background="@drawable/preview_card" android:backgroundTint="#EDF4F8" android:orientation="vertical" android:padding="10dp">
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="10dp">
         <LinearLayout android:layout_width="wrap_content" android:layout_height="wrap_content" android:gravity="center_vertical">
             <ImageView android:layout_width="14dp" android:layout_height="14dp" android:importantForAccessibility="no" android:src="@drawable/ic_thermometer" android:tint="#316D97" tools:ignore="UseAppTint" />
             <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginStart="6dp" android:letterSpacing="0.14" android:text="@string/weather_temperature" android:textAllCaps="true" android:textColor="#316D97" android:textSize="10sp" android:textStyle="bold" />

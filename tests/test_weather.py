@@ -450,6 +450,22 @@ class WeatherTests(unittest.TestCase):
         self.assertNotIn("frame", json.loads(text))
         self.assertNotIn("hourly", json.loads(text))
 
+    def test_widget_reads_the_account_city_and_returns_only_the_frame(self):
+        runtime = Path(self.tmp.name) / "runtime"
+        runtime.mkdir()
+        def provider(url, **kwargs):
+            data = self.provider(url, **kwargs)
+            if "api.open-meteo.com/v1/forecast" in url:
+                data["hourly"] = hourly()
+                data["daily"].update(sunrise=["2026-10-09T07:30", "2026-10-10T07:32"], sunset=["2026-10-09T18:00", "2026-10-10T17:58"])
+            return data
+        with patch.object(w, "http_get_json", side_effect=provider):
+            self.assertEqual(w.widget(runtime), {"error": "Forecast unavailable"})  # No city saved yet.
+            (runtime / "profile.md").write_text("city: London, GB\n")
+            result = w.widget(runtime)
+        self.assertEqual(set(result), {"city", "frame"})
+        self.assertEqual((result["city"], result["frame"]["start"]), ("London", "2026-10-09T06:00"))
+
     def test_aqi_thresholds_and_missing_model_value(self):
         for value, level in ((50, "good"), (51, "moderate"), (101, "unhealthy for sensitive groups"),
                              (151, "unhealthy"), (201, "very unhealthy"), (301, "hazardous")):

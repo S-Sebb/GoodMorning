@@ -235,7 +235,9 @@ With its token (`X-GoodMorning-App` header) the app can call:
   plain days of schedule from today (`/api/app-schedule` on the account's
   backend), timed events in the next 24 hours for on-phone reminders, a summary
   of the latest secretary conversation, today's two briefings
-  (`/api/app-briefings`), and status notifications newer than `N`. A saved
+  (`/api/app-briefings`), the forecast frame for the account's city
+  (`/api/app-weather`: `{city, frame}`, or `{error}`, read like the briefing's
+  weather with its 30-minute cache), and status notifications newer than `N`. A saved
   briefing comes as plain rows in reading order, without hidden record IDs; an
   unsaved one only as `missing`, `working` (also while queued), `waiting` (a
   question first) or `stopped`. If one part cannot be read, that part is

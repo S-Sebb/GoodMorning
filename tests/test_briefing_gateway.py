@@ -511,7 +511,8 @@ class GatewayTests(GatewayFixture):
         answers={'/api/app-schedule':{'today':'2026-10-21','days':[]},'/api/app-profile':{'name':'Aria','avatar':'f2','image':None},'/api/reminders?hours=24':{'events':[]},
                  '/api/chats':{'chats':[{'id':'a'*32,'mode':'secretary','title':'Plan','unread':True}]},
                  '/api/chats/'+'a'*32:{'state':'idle','messages':[{'role':'assistant','text':'**All** set'}]},
-                 '/api/app-briefings':{'date':'2026-10-21','editions':{'gm':{'state':'missing'},'gn':{'state':'missing'}}}}
+                 '/api/app-briefings':{'date':'2026-10-21','editions':{'gm':{'state':'missing'},'gn':{'state':'missing'}}},
+                 '/api/app-weather':{'city':'London','frame':{'start':'2026-10-21T06:00'}}}
         with patch.object(self.gateway,'proxy',lambda user,host,path,*args:(200,{},json.dumps(answers[path]).encode())):
             status,headers,body=phone('/api/app/sync?after=0',headers={'X-GoodMorning-App':token})
         value=json.loads(body)
@@ -522,6 +523,7 @@ class GatewayTests(GatewayFixture):
         self.assertEqual((value['device'],value['settings']),(waiting_id,app_link.links(self.store,self.id)[0]['settings']))
         self.assertEqual((value['secretary']['name'],value['appearance']['day']),('Aria','morning-sky'))
         self.assertEqual(value['briefings']['editions']['gm'],{'state':'missing'})
+        self.assertEqual(value['weather'],{'city':'London','frame':{'start':'2026-10-21T06:00'}})
         # A request still waiting in the shared queue already counts as being prepared.
         queue={'queue':[{'work':'generate','position':1,'date':'2026-10-21','edition':'gn'}],'depth':1,'active':True}
         with patch.object(self.gateway,'proxy',lambda user,host,path,*args:(200,{},json.dumps(answers[path]).encode())), \

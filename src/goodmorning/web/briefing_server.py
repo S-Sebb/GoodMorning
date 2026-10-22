@@ -1030,6 +1030,9 @@ def serve_live(app, port, *, gateway_key=None, public_origins=()):
                     return self.respond(schedule.compact(app), compress=True)
                 if path == '/api/app-briefings':
                     return self.respond(app_briefings.summary(app), compress=True)
+                if path == '/api/app-weather':
+                    from goodmorning.weather import widget
+                    return self.respond(widget(app.runtime))
                 if path in ('/schedule', '/api/schedule'):
                     mode, offset = schedule.schedule_query(parse_qs(parsed.query, keep_blank_values=True))
                     if path == '/api/schedule':
