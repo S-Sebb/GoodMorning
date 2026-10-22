@@ -71,6 +71,7 @@ html[data-edition="gn"] .chat-page { --special-question: #dfbd85; --special-answ
 .chat-page [data-special] { --special-color: var(--special-question); --special-paper: var(--bubble, var(--surface)); border: 1px solid var(--line); border-color: color-mix(in srgb, var(--special-color) 35%, var(--line)); background: var(--wash); background: color-mix(in srgb, var(--special-color) 8%, var(--special-paper)); box-shadow: inset 3px 0 0 color-mix(in srgb, var(--special-color) 65%, var(--special-paper)); }
 .chat-page [data-special="answer"] { --special-color: var(--special-answer); --special-paper: var(--your-bubble, var(--wash)); box-shadow: inset -3px 0 0 color-mix(in srgb, var(--special-color) 65%, var(--special-paper)); }
 .chat-page [data-special="outreach"] { --special-color: var(--special-outreach); }
+.chat-page [data-special="expired"] { --special-color: var(--muted); }
 .chat-page [data-special="action"] { --special-color: var(--special-updated); width: min(440px, 85%); border-radius: 16px; padding: 12px 16px; }
 .chat-page [data-operation="added"], .chat-page [data-operation="completed"], .chat-page [data-operation="approved"] { --special-color: var(--special-added); }
 .chat-page [data-operation="cancelled"], .chat-page [data-operation="declined"] { --special-color: var(--special-cancelled); }

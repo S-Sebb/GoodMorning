@@ -154,6 +154,31 @@ def answer_text(form, answer, language):
     return '\n'.join(parts) or '—'
 
 
+def question_tool(entry):
+    return entry['form'].get('metadata', {}).get('tool', {}).get('id')
+
+
+def expired_questions(messages, questions, language):
+    """Fill in interrupted questions: the saved form when this page saw it, otherwise a plain note.
+    A question answered here was not interrupted. Also returns the saved questions shown this way."""
+    saved = {question_tool(entry): entry for entry in questions}
+    result, shown = [], set()
+    for entry in messages:
+        tools = entry.pop('_tools', None)
+        if tools is None:
+            result.append(entry)
+            continue
+        known = [saved[tool] for tool in tools if tool in saved]
+        if any('answer' in question for question in known):
+            continue
+        shown.update(question['id'] for question in known)
+        entry['language'] = known[0]['language'] if known else language
+        entry['text'] = '\n\n'.join(question_text(question['form'], question['language']) for question in known) or ui.text(
+            'Your secretary asked you something here.', lang=entry['language'])
+        result.append(entry)
+    return result, shown
+
+
 def question_history(messages, questions, pending):
     """Insert account-local form exchanges at their original transcript positions."""
     anchors = {entry['id'] for entry in messages}
@@ -514,6 +539,7 @@ class Chats:
         opening = [opening_message(item['opening'])] if 'opening' in item else []
         if opening and not item.get('session') and include_messages:
             result['messages'] = opening
+        expired = False
         if item.get('session') and self.chamber:
             try:
                 forms, permissions = self.chamber.pending(item['session'])
@@ -561,8 +587,11 @@ class Chats:
                     visible = {'id': entry['id'], 'role': entry['role'], 'text': text, 'attachments': attachments}
                     if turn:
                         visible['_turn'] = turn['id']
+                    if entry.get('kind') == 'expired':
+                        visible.update(kind='expired', _tools=entry['tools'])
                     messages.append(visible)
                 questions = self.remember_questions(chat, forms, messages) if include_messages else item.get('questions', [])
+                messages, shown = expired_questions(messages, questions, result['language'])
                 answered = {entry['id'] for entry in questions if 'answer' in entry}
                 forms = [form for form in forms if form['id'] not in answered]
                 receipts = item.get('replied_inputs', [])
@@ -579,12 +608,14 @@ class Chats:
                                 aliases.difference_update((other['id'], *(turn['id'] for turn in other['turns'])))
                     changes, unavailable = read_changes(self.runtime, item['session'], aliases=aliases)
                     unavailable = unavailable or len(aliases) != expected_aliases
-                    history = question_history(messages, questions, {form['id'] for form in forms})
+                    history = question_history(messages, [entry for entry in questions if entry['id'] not in shown],
+                                               {form['id'] for form in forms})
                     result.update(messages=opening + action_history(history, changes, item['turns'], item['created']),
                                   action_history_unavailable=unavailable,
                                   history_limited=len(messages) >= 100)
                 if (forms or permissions) and item['state'] not in ('starting', 'uncertain'):
                     result['reservation_required'] = False
+                expired = include_messages and bool(messages) and messages[-1].get('kind') == 'expired'
                 if item['state'] not in ('starting', 'uncertain'):
                     state = transcript['sessionStatus']['type']
                     last_prompt = item['turns'][-1].get('prompt_hash')
@@ -599,7 +630,8 @@ class Chats:
                 self.titles_checked = float('-inf')
             self.title_states[chat] = result['state']
         result['label'] = {'starting': 'Opening your conversation', 'running': 'Your secretary is working',
-                           'waiting': 'Your secretary needs your answer', 'idle': 'Ready for your reply',
+                           'waiting': 'Your secretary needs your answer',
+                           'idle': 'Your secretary’s question expired. Send a message to continue.' if expired else 'Ready for your reply',
                            'uncertain': 'Delivery is uncertain. Ask the administrator to inspect this conversation before sending again.',
                            'unavailable': 'The secretary connection is unavailable. Your conversation is preserved.'}[result['state']]
         result['label']=ui.text(result['label'])

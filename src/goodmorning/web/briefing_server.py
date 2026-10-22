@@ -99,6 +99,13 @@ class Chamber:
                     if role not in ('user', 'assistant'):continue
                     text = entry.get('text', '') if role == 'user' else ''.join(
                         part['text'] for part in entry.get('content', []) if part.get('type') == 'text')
+                    # The engine interrupts a run after an hour without activity, closing a question
+                    # nobody answered. Its input is private tool state, so only the tool IDs remain.
+                    questions = [part['id'] for part in entry.get('content', []) if role == 'assistant'
+                                 and part.get('type') == 'tool' and part.get('name') == 'question']
+                    if questions and (entry.get('error') or {}).get('type') == 'aborted':
+                        messages.append({'id': entry['id'] + ':expired', 'role': 'assistant', 'text': '',
+                                         'kind': 'expired', 'tools': questions})
                     if text.strip():messages.append({'id': entry['id'], 'role': role, 'text': text.strip()})
                 next_cursor = page['cursor'].get('next')
                 if len(messages) >= limit or not next_cursor:break

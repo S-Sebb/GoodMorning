@@ -29,7 +29,10 @@
   const attachBox = $('#quick-chat-attachments');
   const awayLimit = 15 * 60 * 1000;
   const modes = {secretary: 'Secretary', todo: 'To-do', eureka: 'Eureka', initialize: 'Initialize'};
-  const specialLabels = {question: 'Question for you', answer: 'Your answer', permission: 'Your permission', outreach: 'Your secretary reached out'};
+  const specialLabels = {question: 'Question for you', answer: 'Your answer', permission: 'Your permission', outreach: 'Your secretary reached out',
+    expired: 'Question expired'};
+  const footnotes = {outreach: 'Sent on behalf of the GoodMorning team',
+    expired: 'Questions can close after about an hour without an answer. Send a message to continue where you left off.'};
   const actionTargets = {task: 'Task', event: 'Event', draft: 'Event draft', idea: 'Idea', record: 'Record', custom: 'Custom schedule'};
   const actionLabels = {added: '{target} added', updated: '{target} updated', cancelled: '{target} cancelled',
     completed: '{target} completed', approved: '{target} approved', declined: '{target} declined'};
@@ -189,7 +192,7 @@
         catch { content.classList.remove('message-markdown'); content.textContent = item.text; }
       } else content.textContent = item.text;
       bubble.append(content);
-      if (item.kind === 'outreach') bubble.append(make('p', t('Sent on behalf of the GoodMorning team'), 'quick-chat-footnote'));
+      if (footnotes[item.kind]) bubble.append(make('p', t(footnotes[item.kind]), 'quick-chat-footnote'));
       for (const entry of item.attachments || []) {
         const file = make('p', '', 'quick-chat-attachment');
         if (entry.preview || (imageTypes.has(entry.mime) && /^[a-f0-9]{32}$/.test(entry.id))) {
