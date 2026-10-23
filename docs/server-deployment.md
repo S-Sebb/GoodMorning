@@ -38,8 +38,10 @@ uv run --no-project python deploy/release.py
 6. **Switch.** `deploy_native.py switch NAME ENGINE` waits up to 10 minutes for idle: no
    reservation, queue or suspended input, no active sessions, and no pending
    questions or permissions. It then:
-   - snapshots passwords, language settings and the hashes of protected
-     private files;
+   - snapshots passwords, language settings, the hashes of protected
+     private files, and each account's OpenChamber choices as OpenChamber
+     reads them (`settings.json` overlaid with `preferences.json`, which a new
+     engine may rewrite on first start);
    - takes the deployment ticket;
    - stops the gateway and viewers, rechecks idle, and stops the account engines;
    - installs only the unit files, certificate hook and NGINX config that differ
