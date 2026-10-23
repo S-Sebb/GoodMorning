@@ -15,9 +15,9 @@ data and keep content-hashed, cacheable URLs.
 The public website adds a security boundary to the local viewer; it is not an
 OpenChamber UI proxy. It permits login, current-password changes, logout and
 account-owned briefing viewing/generation/questions and secretary chats
-(Initialize alone before setup; Secretary afterward; older To-do and Eureka chats stay replyable).
-No web registration, account
-creation, username edit, forgotten-password shortcut or arbitrary agent API exists.
+(Initialize alone before setup; Secretary afterward; older To-do and Eureka chats stay replyable),
+friends (below) and renaming yourself. No web registration, account
+creation, forgotten-password shortcut or arbitrary agent API exists.
 Secretary chat also accepts private attachments up to 50 MB per file. Uploads
 require a permanent authenticated account, the exact origin and session CSRF token.
 Only opaque upload IDs and filenames are exposed; files stay in the owning
@@ -37,6 +37,31 @@ even before a timezone exists. `/chat?mode=initialize` selects a new Initialize
 draft without dispatching a model or resetting records. Direct generation also
 refuses incomplete setup. Explicit host/origin allowlists and TLS certificates
 must include all configured hosts; never use wildcard origin/cookie permissions.
+
+## Friends and usernames
+
+Friend pages are the only deliberate read across accounts. A request names a
+username and creates nothing until the other person accepts; declining is silent
+to the sender. Friendships, requests and each owner's per-friend sharing choices
+are rows in the encrypted accounts database, keyed by immutable account IDs, and
+removal deletes both directions with their choices. Sharing starts empty. The
+offered sections are schedule, to-dos, stocks, new episodes and game sales.
+
+For `/friends/NAME`, the gateway resolves NAME only among accounts that list the
+viewer as a friend, so a stranger, a pending request and a missing name get the
+same 404 page. It then asks the owner's viewer for the gateway-only `/shared`
+view with exactly the sections that owner switched on for that viewer; browsers
+cannot request `/shared` themselves. The owner's viewer renders saved data only:
+event titles and times without notes, places or calendar sources; to-do titles
+and status without details; and the latest evening stocks, episodes and deals
+rows. Secretary-written text, chats, notes and briefings are never shared.
+Friend requests are rate-limited per account, and an unknown username is
+reported as such; this tells a signed-in user which names exist.
+
+Renaming yourself needs the current password and the same attempt limits as a
+password change. Sessions stay valid, friendships follow the immutable ID, and
+the old name is free for anyone at once. All friend and rename requests need a
+permanent password, the exact origin and the session CSRF token.
 
 ## Notifications
 
@@ -161,7 +186,8 @@ sudo python3 /opt/goodmorning/current/scripts/goodmorning.py admin \
 These read temporary passwords interactively with getpass, never through chat,
 argv or environment dumps. `list`, `disable` and `enable` are SSH-only too. Names
 are normalized ASCII, 3–40 characters; storage uses the immutable random ID, so
-rename/reset never moves or loses records. New accounts are not connected to any
+rename/reset never moves or loses records. Owners can also rename themselves
+under Account; an SSH rename additionally signs out every session. New accounts are not connected to any
 existing user's data: provision a new encrypted volume/UID and isolated backend.
 
 Account creation is only the login step, not a working secretary. `create` and
@@ -245,7 +271,8 @@ account's temporary directory; the host and other users retain separate views.
 
 Unit tests use synthetic accounts with explicitly reduced test-only password cost.
 Production refuses that reduction and unencrypted storage. Before release test:
-three distinct accounts; cross-account file/job/API denial; password recovery and
+three distinct accounts; cross-account file/job/API denial, including friend
+pages for non-friends and unshared sections; password recovery and
 session revocation; encrypted unmount/remount; reboot/service recovery; actual
 public-domain generation and mobile rendering. Passing unit tests alone is not a
 security audit or proof of production readiness. Physical devices, third-party

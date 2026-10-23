@@ -39,6 +39,7 @@ from .bridge_json import read_json
 from .activity import ACTIVITY_PATH, snapshot as activity_snapshot
 from . import app_briefings
 from . import schedule
+from . import shared
 from . import quick_chat
 from .quick_notes import Notes
 
@@ -1047,6 +1048,8 @@ def serve_live(app, port, *, gateway_key=None, public_origins=()):
                     return self.respond(app.notes.listing(app.chat_state), compress=True)
                 if path == '/api/notes/batch':
                     return self.respond(app.notes.batch(app.profile().get('timezone')))
+                if path == '/shared':
+                    return self.respond(shared.page(app, parsed.query), content_type='text/html; charset=utf-8')
                 if path in ('/schedule', '/api/schedule'):
                     mode, offset = schedule.schedule_query(parse_qs(parsed.query, keep_blank_values=True))
                     if path == '/api/schedule':

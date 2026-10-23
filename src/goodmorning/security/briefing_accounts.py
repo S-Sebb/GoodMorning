@@ -28,6 +28,10 @@ class Limited(Denied):
     pass
 
 
+class Refused(ValueError):
+    """A request the website explains to the user in its own words."""
+
+
 def username(value):
     if not isinstance(value, str) or not re.fullmatch(r'[a-zA-Z0-9][a-zA-Z0-9_.-]{2,39}', value):
         raise ValueError('Usernames need 3–40 ASCII letters, digits, dots, underscores or hyphens')
@@ -76,6 +80,15 @@ class Accounts:
                 CREATE TABLE IF NOT EXISTS attempts (
                     key TEXT PRIMARY KEY, started REAL NOT NULL, count INTEGER NOT NULL);
                 CREATE TABLE IF NOT EXISTS metadata (key TEXT PRIMARY KEY, value BLOB NOT NULL);
+                CREATE TABLE IF NOT EXISTS friend_requests (
+                    sender TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                    recipient TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                    created REAL NOT NULL, declined INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (sender, recipient));
+                -- One row per direction: what owner shares with friend.
+                CREATE TABLE IF NOT EXISTS friends (
+                    owner TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                    friend TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                    sections TEXT NOT NULL DEFAULT '[]', created REAL NOT NULL, PRIMARY KEY (owner, friend));
             ''')
             db.execute('INSERT OR IGNORE INTO metadata VALUES (?,?)',('rate_salt', secrets.token_bytes(32)))
             self.rate_salt = db.execute('SELECT value FROM metadata WHERE key=?',('rate_salt',)).fetchone()[0]
@@ -191,6 +204,25 @@ class Accounts:
             db.execute('DELETE FROM sessions WHERE user_id=?',(row['id'],))
             updated = db.execute('SELECT * FROM users WHERE id=?',(row['id'],)).fetchone()
             return self.issue(db,session['host'],updated,remember=bool(session['remembered']))
+
+    def rename(self, session, replacement, current, address):
+        """The owner's own rename. Sessions stay valid: they belong to the immutable ID, not the name."""
+        self.limit([('reset:'+session['user_id'],5),('reset-ip:'+address,15)])
+        try:
+            replacement = username(replacement)
+        except ValueError as error:
+            raise Refused(str(error)) from None
+        with self.db() as db:
+            db.execute('BEGIN IMMEDIATE')
+            row = db.execute('SELECT * FROM users WHERE id=?',(session['user_id'],)).fetchone()
+            if not row or row['revision'] != session['revision'] or not isinstance(current,str) or len(current) > 256 or not hmac.compare_digest(self.derive(current,row['salt']),row['digest']):
+                raise Denied('Current password is incorrect')
+            if replacement == row['name']:
+                raise Refused('That is already your username')
+            if db.execute('SELECT 1 FROM users WHERE name=?',(replacement,)).fetchone():
+                raise Refused('That username is taken. Try another one.')
+            db.execute('UPDATE users SET name=? WHERE id=?',(replacement,row['id']))
+            return replacement
 
     def logout(self, session):
         with self.db() as db:

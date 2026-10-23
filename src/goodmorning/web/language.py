@@ -154,7 +154,7 @@ def page(source,csrf,return_to='/'):
         if '/update.js' not in source:
             source=source.replace('</head>','<link rel="stylesheet" href="/update.css"><script src="/update.js" defer></script></head>')
     config=html.escape(json.dumps({'language':current(),'csrf':csrf}),quote=True)
-    # Top-right utility cluster: two compact menus plus the update pill's fixed
+    # Top-right utility cluster: three compact menus plus the update pill's fixed
     # slot. Native details/summary keeps every control usable without
     # JavaScript; each panel is an absolutely positioned dropdown.
     account=''
@@ -196,6 +196,28 @@ def page(source,csrf,return_to='/'):
            '<h3 class="color-scheme-heading notification-heading">Devices with notifications</h3>'
            '<p class="notification-note">Each device chooses its own notifications in its Settings. Turn one off here if you no longer use it.</p>'
            '<ul id="notification-device-list"></ul><span id="notification-devices-feedback" role="status"></span></section>')
+    # friends.js fills both from /api/friends; until then they stay hidden.
+    username_form=('<form id="username-form" class="language-toolbar username-settings" hidden>'
+            '<h3 class="color-scheme-heading username-heading">Username</h3>'
+            '<p class="notification-note">You sign in with this name, and friends find you by it.</p>'
+            '<label for="username-new">New username</label>'
+            '<input id="username-new" name="username" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false" required maxlength="40">'
+            '<label for="username-password">Current password</label>'
+            '<input id="username-password" name="password" type="password" autocomplete="current-password" required maxlength="256">'
+            '<button type="submit">Change username</button><span id="username-feedback" role="status"></span></form>')
+    friends_menu=('<details class="menu" id="friends-menu"><summary><span class="menu-label">Friends</span>'
+                  '<span id="friends-badge" class="friends-badge" hidden></span></summary>'
+                  '<div class="menu-panel"><div class="settings-menu-header"><div><h2>Friends</h2>'
+                  '<p>Each friend sees only what you switch on for them.</p></div>'+close+'</div>'
+                  '<form id="friend-add" class="language-toolbar"><label for="friend-name">Add a friend</label>'
+                  '<div class="friend-add-row"><input id="friend-name" name="name" placeholder="Their username" autocomplete="off" '
+                  'autocapitalize="none" autocorrect="off" spellcheck="false" required maxlength="40"><button type="submit">Send request</button></div>'
+                  '<span id="friend-feedback" role="status"></span></form>'
+                  '<section id="friend-requests" class="friend-group" hidden><h3>Requests</h3><ul id="friend-incoming" class="friend-items"></ul>'
+                  '<ul id="friend-outgoing" class="friend-items"></ul></section>'
+                  '<section class="friend-group"><h3>Your friends</h3><ul id="friend-list" class="friend-items"></ul>'
+                  '<p id="friend-empty" class="notification-note" hidden>No friends yet. Send a request with their username.</p></section>'
+                  '<noscript><p class="notification-note">Friends need JavaScript.</p></noscript></div></details>') if account else ''
     # Settings holds what belongs to this device; Account what follows the signed-in owner everywhere.
     # Without an account (sign-in page, local viewer) language stays with this device too.
     prefs=('<details class="menu" id="prefs-menu"><summary><span aria-hidden="true">⚙</span> '
@@ -206,8 +228,8 @@ def page(source,csrf,return_to='/'):
     account_menu=('<details class="menu" id="account-menu"><summary><span class="menu-label">Account</span></summary>'
                   '<div class="menu-panel"><div class="settings-menu-header account-menu-header"><div><h2>Account</h2>'
                   '<p>These follow you on every device you sign in on.</p></div>'+close+'</div>'
-                  +language_form+phones+account+'</div></details>') if account else ''
-    controls=('<div class="toolbar-row">'+prefs+account_menu+'<span id="update-slot"></span></div>')
+                  +language_form+username_form+phones+account+'</div></details>') if account else ''
+    controls=('<div class="toolbar-row">'+prefs+friends_menu+account_menu+'<span id="update-slot"></span></div>')
     source=re.sub(r'<html\b[^>]*\blang="[^"]*"',lambda match:re.sub(r'lang="[^"]*"','lang="'+current()+'"',match[0]),source,count=1)
     if 'id="language-form"' not in source:
         source=re.sub(r'(<body\b[^>]*>)',lambda match:match[0]+controls,source,count=1)

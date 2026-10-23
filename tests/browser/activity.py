@@ -272,6 +272,8 @@ def run(artifacts):
                 expect(page.locator('#account-activity a')).to_have_count(1)
                 expect(page.locator('#account-activity a')).to_have_attribute('href', original_url)
                 count = len(owner.pages)
+                # The Account menu opened earlier is tall enough on a phone to cover the activity link.
+                page.evaluate("document.querySelectorAll('details.menu[open]').forEach(menu => { menu.open = false; })")
                 page.locator('#account-activity a').click()
                 expect(page).to_have_url(original_url)
                 expect(page.get_by_role('heading', name='Confirm your location')).to_be_visible()

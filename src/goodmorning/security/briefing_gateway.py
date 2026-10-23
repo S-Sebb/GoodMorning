@@ -18,7 +18,7 @@ from urllib.parse import urlsplit, parse_qs, unquote, urlencode
 from urllib.request import Request, build_opener, HTTPRedirectHandler
 from urllib.error import HTTPError
 
-from .briefing_accounts import Accounts, COOKIE, Denied, Limited, SESSION_SECONDS, REMEMBER_SECONDS, PASSWORD_MIN, PASSWORD_MAX, PASSWORD_RULE
+from .briefing_accounts import Accounts, COOKIE, Denied, Limited, Refused, SESSION_SECONDS, REMEMBER_SECONDS, PASSWORD_MIN, PASSWORD_MAX, PASSWORD_RULE
 from goodmorning.web.briefing_resources import accepts_gzip, Resources, ByteCache, ICON_TYPES, favicon_links
 from goodmorning.web.release import VERSION, release_info
 from goodmorning.paths import WEB_ASSETS
@@ -30,7 +30,7 @@ from goodmorning.web.avatar_images import AVATAR_UPLOAD_ROUTE, MAX_AVATAR_BYTES
 from goodmorning.web.activity import ACTIVITY_PATH, panel as activity_panel
 from goodmorning.web.generation_clock import REQUESTED_AT
 from . import maintenance as deploy_pause
-from . import app_link, app_release, web_push
+from . import app_link, app_release, friends, web_push
 
 ASSETS = WEB_ASSETS
 # Digital Asset Links let the Android app open this origin without browser controls.
@@ -47,6 +47,8 @@ REMINDER_REFRESH = 300  # Seconds between reads of each opted-in account's upcom
 PAGE_ROUTES = re.compile(r'(?:/|/(?:index|gm|gn)\.html|/chat|/schedule|/d/\d{4}-\d{2}-\d{2}/(?:gm|gn)\.html)')
 BACKEND_PENDING = 'Your secretary is not set up yet. Please contact the server administrator to complete account setup.'
 BACKEND_UNAVAILABLE = 'Secretary temporarily unavailable; records are unchanged'
+FRIEND_PAGE = re.compile(r'/friends/([a-z0-9][a-z0-9_.-]{2,39})')
+FRIEND_UNAVAILABLE = '{name}’s page cannot be opened right now. Try again later.'
 
 
 class BackendPending(ValueError):
@@ -111,17 +113,19 @@ class Gateway:
             raise ValueError('Invalid private backend configuration')
         return entry
 
-    def proxy(self, identifier, host, path, method, body, headers):
+    def proxy(self, identifier, host, path, method, body, headers, *, viewer_language=None):
         backend = self.backend(identifier)
         parsed = urlsplit(path)
+        # Only the gateway itself asks for a friend's shared view, after checking the friendship.
         if not ((POST_ROUTES if method=='POST' else GET_ROUTES).fullmatch(parsed.path) or
+                (viewer_language and method == 'GET' and parsed.path == '/shared') or
                 (method in ('GET', 'HEAD') and IMAGE_ROUTE.fullmatch(parsed.path)) or
                 method == 'GET' and re.fullmatch(ACTIVITY_PATH, parsed.path)):
             raise Denied('Not found')
         if parsed.path in ('/','/index.html'):
             path = '/chat' if self.hosts[host] == 'sec' else '/'+self.hosts[host]+'.html'
         forwarded = {'Authorization':'Bearer '+backend['key'],'X-GoodMorning-Origin':'https://'+host,
-                      'X-GoodMorning-Language':self.accounts.website_language(identifier) or ui.current()}
+                      'X-GoodMorning-Language':viewer_language or self.accounts.website_language(identifier) or ui.current()}
         schemes = site_colors.current()  # This device's choice, from select_language.
         forwarded.update({'X-GoodMorning-Style': schemes['style'], 'X-GoodMorning-Day-Scheme': schemes['day'],
                           'X-GoodMorning-Night-Scheme': schemes['night']})
@@ -147,6 +151,16 @@ class Gateway:
             if len(data)>limit:
                 raise ValueError('Secretary response exceeds its limit')
             return response.status,dict(response.headers),data
+
+    def friend_page(self, viewer, host, name, query):
+        """The sections a friend shares with viewer, rendered by the friend's own viewer."""
+        owner, name, shared = friends.shared_with(self.accounts, viewer, name)
+        values = parse_qs(query, keep_blank_values=True)
+        week = values.get('week', ['0'])
+        if set(values) - {'week'} or len(week) != 1 or week[0] not in ('-3', '-2', '-1', '0', '1', '2', '3'):
+            raise Denied('Not found')
+        path = '/shared?' + urlencode({'sections': ','.join(shared), 'week': week[0], 'name': name})
+        return self.proxy(owner, host, path, 'GET', None, {}, viewer_language=ui.current())
 
     def ticket(self):
         with self.accounts.db() as db:
@@ -1075,22 +1089,22 @@ def handler_for(gateway):
             source=account_page(session,title,gateway.hosts[host]).decode()
             return gateway.icons.rewrite(ui.page(source,session['csrf'],urlsplit(self.path).path)).encode()
 
-        def unavailable(self,session=None,host=None,*,pending=False):
-            message = BACKEND_PENDING if pending else BACKEND_UNAVAILABLE
+        def unavailable(self,session=None,host=None,*,pending=False,title=None,message=None,status=503):
+            message = message or (BACKEND_PENDING if pending else BACKEND_UNAVAILABLE)
             path = urlsplit(self.path).path
-            if not session or not session.get('user_id') or not PAGE_ROUTES.fullmatch(path):
-                return self.respond({'error':message},503)
-            title = 'Secretary setup pending' if pending else 'Secretary temporarily unavailable'
+            if not session or not session.get('user_id') or not (PAGE_ROUTES.fullmatch(path) or FRIEND_PAGE.fullmatch(path)):
+                return self.respond({'error':message},status)
+            title = title or ('Secretary setup pending' if pending else 'Secretary temporarily unavailable')
             source = ('<!doctype html><html lang="en"><head><meta charset="utf-8">'
                       '<meta name="viewport" content="width=device-width,initial-scale=1">'+favicon_links(gateway.hosts[host])+
                       '<title>'+title+'</title><link rel="stylesheet" href="/auth.css"></head><body>'
                       '<main class="account-card"><p class="eyebrow">Your personal secretary</p><h1>'+title+'</h1>'
-                      '<p role="status">'+message+'</p><p><a href="'+html.escape(self.path,quote=True)+'">Try again</a></p></main>'
+                      '<p role="status">'+html.escape(message)+'</p><p><a href="'+html.escape(self.path,quote=True)+'">Try again</a></p></main>'
                       '<nav class="account-tools" aria-label="Account"><a href="/password">Change password</a>'
                       '<button id="sign-out" data-csrf="'+session['csrf']+'">Sign out</button></nav>'
-                      '<script src="/auth.js" defer></script></body></html>')
+                      '<script src="/auth.js" defer></script><script src="/friends.js" defer></script></body></html>')
             data = gateway.icons.rewrite(ui.page(source,session['csrf'],path)).encode()
-            return self.respond(data,503,'text/html; charset=utf-8')
+            return self.respond(data,status,'text/html; charset=utf-8')
 
         def maintenance_html(self):
             return self.respond(deploy_pause.html_page(),503,'text/html; charset=utf-8',
@@ -1209,7 +1223,22 @@ def handler_for(gateway):
                     return self.respond({'publicKey':web_push.public_key(gateway.accounts),
                                          'devices':web_push.devices(gateway.accounts,session['user_id']),
                                          'links':app_link.links(gateway.accounts,session['user_id'])})
-                status,headers,data=gateway.proxy(session['user_id'],host,self.path,'GET',None,self.headers)
+                if path=='/api/friends':
+                    return self.respond(friends.overview(gateway.accounts,session['user_id']))
+                friend=FRIEND_PAGE.fullmatch(path)
+                if friend:
+                    try:
+                        status,headers,data=gateway.friend_page(session['user_id'],host,friend[1],urlsplit(self.path).query)
+                    except Denied:
+                        # The same answer whether or not the name exists.
+                        return self.unavailable(session,host,title='Page not available',status=404,
+                                                message='Only friends who accepted your request have a page here.')
+                    except Exception:
+                        status=503
+                    if status!=200:
+                        return self.unavailable(session,host,title='Friend’s page unavailable',message=ui.text(FRIEND_UNAVAILABLE,name=friend[1]))
+                else:
+                    status,headers,data=gateway.proxy(session['user_id'],host,self.path,'GET',None,self.headers)
                 if status >= 500 and PAGE_ROUTES.fullmatch(path):
                     return self.unavailable(session,host)
                 mime=headers.get('Content-Type','application/json')
@@ -1223,7 +1252,7 @@ def handler_for(gateway):
                     # A public, non-authorizing namespace changes with every login.
                     scope=hashlib.sha256(('chat-workspace:'+session['csrf']).encode()).hexdigest()
                     text=re.sub(r'(&quot;workspaceScope&quot;:\s*&quot;)[a-f0-9]{64}(&quot;)',r'\g<1>'+scope+r'\g<2>',text)
-                    controls='<nav class="account-tools" aria-label="Account"><a href="/password">Change password</a><button id="sign-out" data-csrf="'+session['csrf']+'">Sign out</button></nav><script src="/auth.js" defer></script><script src="/app.js" defer></script>'
+                    controls='<nav class="account-tools" aria-label="Account"><a href="/password">Change password</a><button id="sign-out" data-csrf="'+session['csrf']+'">Sign out</button></nav><script src="/auth.js" defer></script><script src="/app.js" defer></script><script src="/friends.js" defer></script>'
                     text=text.replace('</head>','<link rel="manifest" href="/manifest.webmanifest"></head>',1)
                     data=text.replace('</body>',controls+'</body>').encode()
                     data=gateway.icons.rewrite(ui.page(activity_panel(data.decode(),gateway.hosts),session['csrf'],self.path)).encode()
@@ -1362,6 +1391,23 @@ def handler_for(gateway):
                     if 'device' in body:
                         return self.respond({'settings':web_push.settings(gateway.accounts,session['user_id'],body['device'],body['settings'])})
                     return self.respond({'settings':app_link.settings(gateway.accounts,session['user_id'],body['link'],body['settings'])})
+                if path=='/api/account/username':
+                    if set(body)!={'username','password'}:raise ValueError('Invalid username change')
+                    gateway.accounts.rename(session,body['username'],body['password'],self.address())
+                    return self.respond(friends.overview(gateway.accounts,session['user_id']))
+                if path.startswith('/api/friends/'):
+                    user,action=session['user_id'],path.removeprefix('/api/friends/')
+                    expected={'request':{'name'},'accept':{'name','sections'},'decline':{'name'},'cancel':{'name'},
+                              'remove':{'name'},'share':{'name','sections'}}.get(action)
+                    if expected is None:raise Denied('Not found')
+                    if set(body)!=expected or not isinstance(body['name'],str):raise ValueError('Invalid friend request')
+                    result=None
+                    if action=='request':result=friends.request(gateway.accounts,user,body['name'])
+                    elif action in ('accept','decline'):friends.answer(gateway.accounts,user,body['name'],action=='accept',body.get('sections',[]))
+                    elif action=='cancel':friends.cancel(gateway.accounts,user,body['name'])
+                    elif action=='remove':friends.remove(gateway.accounts,user,body['name'])
+                    else:friends.share(gateway.accounts,user,body['name'],body['sections'])
+                    return self.respond({**friends.overview(gateway.accounts,user),'result':result})
                 # Reject incomplete setup before taking a global reservation or queue slot.
                 gateway.backend(session['user_id'])
                 if path=='/api/generate':
@@ -1385,9 +1431,11 @@ def handler_for(gateway):
                 return self.respond({'error':BACKEND_PENDING},503)
             except deploy_pause.MaintenancePaused:
                 return self.maintenance_json()
+            except Refused as error:
+                return self.respond({'error':str(error)},400)
             except (ValueError,KeyError,TypeError):
                 route=urlsplit(self.path).path
-                error='Invalid upload' if UPLOAD_ROUTE.fullmatch(route) else app_link.INVALID_CODE if route=='/api/app/link' else 'Phone request could not be read. Update the app or try again.' if route.startswith('/api/app/') else 'Notification settings could not be saved. Try again.' if route.startswith('/api/push/') else 'Invalid release version' if route=='/api/release/seen' else 'Choose English or Simplified Chinese' if route=='/api/language' else 'Choose one of the offered website models' if route=='/api/model' else 'Choose one of the offered color schemes' if route=='/api/color-schemes' else 'Invalid request. '+PASSWORD_RULE
+                error='Invalid upload' if UPLOAD_ROUTE.fullmatch(route) else app_link.INVALID_CODE if route=='/api/app/link' else 'Phone request could not be read. Update the app or try again.' if route.startswith('/api/app/') else 'Notification settings could not be saved. Try again.' if route.startswith('/api/push/') else 'Invalid release version' if route=='/api/release/seen' else 'That could not be saved. Refresh the page and try again.' if route.startswith('/api/friends/') or route=='/api/account/username' else 'Choose English or Simplified Chinese' if route=='/api/language' else 'Choose one of the offered website models' if route=='/api/model' else 'Choose one of the offered color schemes' if route=='/api/color-schemes' else 'Invalid request. '+PASSWORD_RULE
                 return self.respond({'error':error},400)
             except Exception:
                 return self.respond({'error':'Request could not be confirmed. Refresh before retrying.'},503)
