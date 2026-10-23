@@ -53,7 +53,7 @@ restoration.
 | `chat_theme`, `color_schemes` | Edition colours in account time; whole-site palette switching through the gateway |
 | `day_scenes`, `starry_twinkle` | Scene contrast, background motion, reduced motion |
 | `desk_icons` (`--screenshots DIR`) | Decorative icons, translations, narrow layouts |
-| `friends` | Friend requests, per-friend sharing, friend pages (desktop, phone, Chinese), renaming yourself, removal |
+| `friends` | Friend requests, per-friend sharing, the You · friend switch on Schedule, Morning and Evening (desktop, phone, Chinese, time zones), renaming yourself, removal |
 | `future`, `mobile_sections` | Varied far-future editions; touch section picker |
 | `gateway_assets` (no argument) | Every asset and error page through a real gateway, with all requests intercepted |
 | `generation`, `stream`, `regeneration` | Briefing dispatch round trip; section-by-section publication; confirmed replacement of today's edition |

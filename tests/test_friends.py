@@ -1,16 +1,17 @@
-"""Friendships, per-friend sharing and self-service renames, with synthetic accounts only."""
+"""Friendships, per-friend sharing, friends' versions of pages and self-service renames, with synthetic accounts only."""
+from http.server import BaseHTTPRequestHandler
 import json
 from pathlib import Path
+import secrets
 import sys
 import tempfile
 import unittest
 
-from support import TEMP_ROOT, GatewayFixture
+from support import TEMP_ROOT, GatewayFixture, QuickServer
 from test_weekly_schedule import NOW, canonical_records, make_runtime
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'src'))
 from goodmorning.security import friends
 from goodmorning.security.briefing_accounts import Accounts, Denied, Refused
-from goodmorning.web import language as ui
 from goodmorning.web import shared
 from goodmorning import stocks
 
@@ -30,11 +31,14 @@ class FriendStore(unittest.TestCase):
         self.assertEqual(friends.overview(self.store, self.bob)['incoming'], ['alice'])
         with self.assertRaises(Denied):
             friends.shared_with(self.store, self.alice, 'bob')
-        friends.answer(self.store, self.bob, 'alice', True, ['stocks'])
-        self.assertEqual(self.friends_of(self.bob), {'alice': ['stocks']})
+        friends.answer(self.store, self.bob, 'alice', True)
+        self.assertEqual(self.friends_of(self.bob), {'alice': []})
         self.assertEqual(self.friends_of(self.alice), {'bob': []})
+        self.assertEqual(friends.sharing_with(self.store, self.alice), [])
+        friends.share(self.store, self.bob, 'alice', ['stocks'])
         self.assertEqual(friends.shared_with(self.store, self.alice, 'bob')[1:], ('bob', ['stocks']))
-        self.assertEqual(friends.shared_with(self.store, self.bob, 'alice')[1:], ('alice', []))
+        self.assertEqual(friends.sharing_with(self.store, self.alice), [('bob', ['stocks'])])
+        self.assertEqual(friends.overview(self.store, self.alice)['friends'], [{'name': 'bob', 'sharing': [], 'shared': ['stocks']}])
 
     def test_unknown_self_and_declined_requests(self):
         with self.assertRaises(Refused):
@@ -58,7 +62,7 @@ class FriendStore(unittest.TestCase):
 
     def test_removal_ends_both_directions_and_forgets_sharing(self):
         friends.request(self.store, self.alice, 'bob')
-        friends.answer(self.store, self.bob, 'alice', True, ['schedule'])
+        friends.answer(self.store, self.bob, 'alice', True)
         friends.share(self.store, self.alice, 'bob', ['games', 'todos'])
         self.assertEqual(self.friends_of(self.alice), {'bob': ['todos', 'games']})
         friends.remove(self.store, self.alice, 'bob')
@@ -78,7 +82,8 @@ class FriendStore(unittest.TestCase):
 
     def test_rename_keeps_friendships_and_sessions(self):
         friends.request(self.store, self.alice, 'bob')
-        friends.answer(self.store, self.bob, 'alice', True, ['stocks'])
+        friends.answer(self.store, self.bob, 'alice', True)
+        friends.share(self.store, self.bob, 'alice', ['stocks'])
         with self.store.db() as db:
             token, _ = self.store.issue(db, 'gm.example.test', db.execute('SELECT * FROM users WHERE id=?', (self.bob,)).fetchone())
         session = self.store.session(token, 'gm.example.test')
@@ -97,7 +102,8 @@ class FriendStore(unittest.TestCase):
 
     def test_disabled_accounts_cannot_be_found_or_viewed(self):
         friends.request(self.store, self.alice, 'bob')
-        friends.answer(self.store, self.bob, 'alice', True, ['stocks'])
+        friends.answer(self.store, self.bob, 'alice', True)
+        friends.share(self.store, self.bob, 'alice', ['stocks'])
         self.store.administer('bob', enabled=False)
         with self.assertRaises(Denied):
             friends.shared_with(self.store, self.alice, 'bob')
@@ -108,38 +114,71 @@ class FriendStore(unittest.TestCase):
 
 
 class FriendGateway(GatewayFixture):
+    """alice views bob's versions of her pages; carol is a stranger."""
     def setUp(self):
         super().setUp()
         self.carol = self.store.create('carol', 'temporary-carol-secret1')
-        registry = json.loads((self.root/'backends.json').read_text())
-        registry[self.other] = registry[self.carol] = registry[self.id]
-        (self.root/'backends.json').write_text(json.dumps(registry))
+        self.pages = pages = []
+        class Viewer(BaseHTTPRequestHandler):
+            def do_GET(self):
+                pages.append(self.path)
+                kind = 'json' if self.path == '/api/day' else 'html'
+                self.send_response(200); self.send_header('Content-Type', 'application/json' if kind == 'json' else 'text/html'); self.end_headers()
+                self.wfile.write(b'{"date":"2026-10-13","timezone":"Asia/Shanghai"}' if kind == 'json' else
+                    ('<head></head><body><header class="masthead">Desk</header><div data-config="{&quot;csrf&quot;: &quot;' + 'a' * 43 + '&quot;}"></div>' + self.path + '</body>').encode())
+            def log_message(self, *_): pass
+        viewer = QuickServer(('127.0.0.1', 0), Viewer); self.serve(viewer)
+        (self.root/'backends.json').write_text(json.dumps({user: {'port': viewer.server_port, 'key': self.key} for user in (self.id, self.other, self.carol)}))
         self.permanent()
 
-    def shared_requests(self):
-        return [path for path, _ in self.received if path.startswith('/shared')]
-
-    def test_friend_page_needs_an_accepted_friendship(self):
+    def befriend(self, *sections):
         self.assertEqual(self.request('/api/friends/request', {'name': 'bob'})[0], 200)
-        status, _, page = self.request('/friends/bob')
-        self.assertEqual(status, 404)
-        self.assertEqual(self.request('/friends/nobody')[0], 404)
+        friends.answer(self.store, self.other, 'alice', True)
+        if sections:
+            friends.share(self.store, self.other, 'alice', list(sections))
+
+    def shared_requests(self):
+        return [path for path in self.pages if path.startswith('/shared')]
+
+    def test_switch_lists_friends_who_share_for_that_page(self):
+        self.assertNotIn(b'person-switch', self.request('/schedule')[2])
+        self.befriend()
+        self.assertNotIn(b'person-switch', self.request('/schedule')[2])
+        friends.share(self.store, self.other, 'alice', ['stocks'])
+        self.assertNotIn(b'person-switch', self.request('/schedule')[2])
+        page = self.request('/d/2026-10-12/gn.html')[2]
+        self.assertIn(b'<nav class="person-switch"', page)
+        self.assertIn(b'href="/d/2026-10-12/gn.html?friend=bob"', page)
+        self.assertIn(b'href="/d/2026-10-12/gn.html" aria-current="page"', page)
         self.assertEqual(self.shared_requests(), [])
-        friends.answer(self.store, self.other, 'alice', True, ['stocks', 'schedule'])
-        status, _, page = self.request('/friends/bob?week=-1')
+
+    def test_friend_version_needs_friendship_and_a_shared_section(self):
+        self.assertEqual(self.request('/api/friends/request', {'name': 'bob'})[0], 200)
+        self.assertEqual(self.request('/schedule?friend=bob')[0], 404)
+        self.assertEqual(self.request('/schedule?friend=nobody')[0], 404)
+        friends.answer(self.store, self.other, 'alice', True)
+        self.assertEqual(self.request('/schedule?friend=bob')[0], 404)
+        friends.share(self.store, self.other, 'alice', ['stocks', 'todos'])
+        self.assertEqual(self.request('/schedule?friend=carol')[0], 404)
+        self.assertEqual(self.request('/chat?friend=bob')[0], 404)
+        self.assertEqual(self.shared_requests(), [])
+        status, _, page = self.request('/schedule?view=day&day=1&friend=bob')
         self.assertEqual(status, 200)
-        self.assertEqual(self.shared_requests(), ['/shared?sections=schedule%2Cstocks&week=-1&name=bob'])
-        self.assertIn(b'id="friends-menu"', page)
+        self.assertEqual(self.shared_requests(), ['/shared?page=schedule&sections=todos&name=bob&zone=Asia%2FShanghai&view=day&day=1'])
+        self.assertIn(b'href="/schedule?view=day&amp;day=1&amp;friend=bob" aria-current="page"', page)
         # The friend's backend-wide CSRF never reaches the viewer.
         self.assertNotIn(b'a' * 43, page)
-        self.assertEqual(self.request('/friends/bob?week=9')[0], 404)
-        self.assertEqual(self.request('/friends/carol')[0], 404)
+        self.request('/gn.html?friend=bob')
+        self.request('/d/2026-10-10/gm.html?friend=bob')
+        self.assertEqual(self.shared_requests()[1:], ['/shared?page=gn&sections=stocks&name=bob&zone=Asia%2FShanghai&date=2026-10-13&today=2026-10-13',
+                                                      '/shared?page=gm&sections=todos&name=bob&zone=Asia%2FShanghai&date=2026-10-10&today=2026-10-13'])
+        self.assertEqual(self.request('/gn.html?friend=bob&week=1')[0], 404)
         self.assertEqual(self.request('/api/friends/remove', {'name': 'bob'})[0], 200)
-        self.assertEqual(self.request('/friends/bob')[0], 404)
-        self.assertEqual(len(self.shared_requests()), 1)
+        self.assertEqual(self.request('/gn.html?friend=bob')[0], 404)
+        self.assertEqual(len(self.shared_requests()), 3)
 
     def test_shared_view_is_not_a_browser_route(self):
-        self.assertEqual(self.request('/shared?sections=stocks&week=0&name=alice')[0], 403)
+        self.assertEqual(self.request('/shared?page=gn&sections=stocks&name=alice&zone=UTC&date=2026-10-13&today=2026-10-13')[0], 403)
         self.assertEqual(self.shared_requests(), [])
 
     def test_friend_requests_need_the_session_csrf(self):
@@ -150,6 +189,13 @@ class FriendGateway(GatewayFixture):
         self.assertEqual(status, 400)
         self.assertIn('No account has that username', json.loads(body)['error'])
         self.assertEqual(friends.overview(self.store, self.other)['incoming'], [])
+
+    def test_accept_only_accepts(self):
+        friends.request(self.store, self.other, 'alice')
+        self.assertEqual(self.request('/api/friends/accept', {'name': 'bob', 'sections': ['stocks']})[0], 400)
+        status, _, body = self.request('/api/friends/accept', {'name': 'bob'})
+        self.assertEqual(status, 200)
+        self.assertEqual(json.loads(body)['friends'], [{'name': 'bob', 'sharing': [], 'shared': []}])
 
     def test_sharing_is_chosen_per_friend(self):
         for name, user in (('bob', self.other), ('carol', self.carol)):
@@ -178,34 +224,45 @@ class SharedView(unittest.TestCase):
         self.app = make_runtime(self.root)
         canonical_records(self.root)
 
-    def page(self, sections, week=0):
-        return shared.page(self.app, f'sections={sections}&week={week}&name=bob').decode()
+    def page(self, query):
+        return shared.page(self.app, query).decode()
 
-    def test_schedule_shows_titles_and_times_only(self):
-        page = self.page('schedule')
+    def test_schedule_in_the_viewers_time_zone_without_private_details(self):
+        page = self.page('page=schedule&sections=schedule&name=bob&zone=Asia%2FShanghai')
         self.assertIn('Team check-in', page)
-        self.assertIn('09:30–10:00', page)
+        self.assertIn('16:30–17:00', page)  # 09:30 in London is 16:30 in Shanghai.
+        self.assertIn('Times are in your time zone; bob is in Europe/London.', page)
         self.assertIn('Dentist', page)
         for private in ('Studio 2', 'Bring the outline.', 'Library', 'Town Clinic', 'Bring the referral.', 'Pick up a parcel'):
             self.assertNotIn(private, page)
+        self.assertIn('href="/schedule?week=-1&amp;friend=bob"', page)
+        # An all-day event stays on its own date even where another zone's midnight falls the day before or after.
+        self.assertEqual(page.count('A day away'), 1)
 
-    def test_todos_without_details(self):
-        page = self.page('todos')
+    def test_morning_day_and_todos_without_details(self):
+        page = self.page('page=gm&sections=todos&name=bob&zone=Europe%2FLondon&date=2026-10-13&today=2026-10-13')
         self.assertIn('Pick up a parcel', page)
         self.assertNotIn('Team check-in', page)
+        self.assertNotIn('Times are in your time zone', page)
         for private in ('First baseline compared.', 'Awaiting lab approval.', 'Compare the two baselines.'):
             self.assertNotIn(private, page)
+        self.assertNotIn('id="day-next"', page)  # Never past the viewer's own day.
 
-    def test_latest_evening_stocks(self):
-        self.assertIn('No evening briefing in the last two weeks.', self.page('stocks'))
+    def test_evening_rows_of_that_date(self):
+        query = 'page=gn&sections=stocks&name=bob&zone=Europe%2FLondon&date=2026-10-12&today=2026-10-13'
+        self.assertIn('Nothing saved for this evening.', self.page(query))
+        stocks.save(self.root, '2026-10-11', {'block': ['holdings', [['usAAPL', 'Apple', '2026-10-09', 10, 200.0, 190.0, None, 'USD']]]})
+        self.assertNotIn('Apple', self.page(query))
         stocks.save(self.root, '2026-10-12', {'block': ['holdings', [['usAAPL', 'Apple', '2026-10-09', 10, 200.0, 190.0, None, 'USD']]]})
-        page = self.page('stocks')
-        self.assertIn('Apple', page)
-        self.assertNotIn('Team check-in', page)
+        self.assertIn('Apple', self.page(query))
 
-    def test_nothing_shared_and_invalid_requests(self):
-        self.assertIn('bob is not sharing anything with you yet.', self.page(''))
-        for query in ('sections=chats&week=0&name=bob', 'sections=&week=0&name=../x', 'sections=&week=5&name=bob'):
+    def test_invalid_requests(self):
+        for query in ('page=gn&sections=schedule&name=bob&zone=UTC&date=2026-10-12&today=2026-10-13',
+                      'page=gn&sections=&name=bob&zone=UTC&date=2026-10-12&today=2026-10-13',
+                      'page=gm&sections=todos&name=../x&zone=UTC&date=2026-10-12&today=2026-10-13',
+                      'page=gm&sections=todos&name=bob&zone=Nowhere%2FCity&date=2026-10-12&today=2026-10-13',
+                      'page=schedule&sections=todos&name=bob&zone=UTC&week=5',
+                      'page=chat&sections=todos&name=bob&zone=UTC'):
             with self.assertRaises(ValueError):
                 shared.page(self.app, query)
 

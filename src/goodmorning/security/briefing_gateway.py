@@ -47,8 +47,7 @@ REMINDER_REFRESH = 300  # Seconds between reads of each opted-in account's upcom
 PAGE_ROUTES = re.compile(r'(?:/|/(?:index|gm|gn)\.html|/chat|/schedule|/d/\d{4}-\d{2}-\d{2}/(?:gm|gn)\.html)')
 BACKEND_PENDING = 'Your secretary is not set up yet. Please contact the server administrator to complete account setup.'
 BACKEND_UNAVAILABLE = 'Secretary temporarily unavailable; records are unchanged'
-FRIEND_PAGE = re.compile(r'/friends/([a-z0-9][a-z0-9_.-]{2,39})')
-FRIEND_UNAVAILABLE = '{name}’s page cannot be opened right now. Try again later.'
+FRIEND_UNAVAILABLE = '{name}’s version of this page cannot be opened right now. Try again later.'
 
 
 class BackendPending(ValueError):
@@ -152,15 +151,50 @@ class Gateway:
                 raise ValueError('Secretary response exceeds its limit')
             return response.status,dict(response.headers),data
 
-    def friend_page(self, viewer, host, name, query):
-        """The sections a friend shares with viewer, rendered by the friend's own viewer."""
-        owner, name, shared = friends.shared_with(self.accounts, viewer, name)
-        values = parse_qs(query, keep_blank_values=True)
-        week = values.get('week', ['0'])
-        if set(values) - {'week'} or len(week) != 1 or week[0] not in ('-3', '-2', '-1', '0', '1', '2', '3'):
+    def page_kind(self, host, path):
+        """('schedule'|'gm'|'gn', pinned date or None) for pages with a friend version, else None."""
+        if path == '/schedule':
+            return 'schedule', None
+        if path in ('/', '/index.html') and self.hosts[host] in ('gm', 'gn'):
+            return self.hosts[host], None
+        match = re.fullmatch(r'/(gm|gn)\.html|/d/(\d{4}-\d{2}-\d{2})/(gm|gn)\.html', path)
+        return (match[1] or match[3], match[2]) if match else None
+
+    def friend_view(self, viewer, host, path, query):
+        """A friend's version of this page, rendered by the friend's own viewer from what they share with viewer."""
+        page = self.page_kind(host, path)
+        values = {key: value[0] for key, value in parse_qs(query, keep_blank_values=True).items()}
+        owner, name, shared = friends.shared_with(self.accounts, viewer, values.pop('friend', ''))
+        chosen = [item for item in shared if page and item in friends.PAGE_SECTIONS[page[0]]]
+        if not chosen:
             raise Denied('Not found')
-        path = '/shared?' + urlencode({'sections': ','.join(shared), 'week': week[0], 'name': name})
-        return self.proxy(owner, host, path, 'GET', None, {}, viewer_language=ui.current())
+        # The viewer's own day and time zone: friends' plans are shown in the viewer's local time.
+        status, _, raw = self.proxy(viewer, host, '/api/day', 'GET', None, {})
+        day = json.loads(raw) if status == 200 else {}
+        params = {'page': page[0], 'sections': ','.join(chosen), 'name': name, 'zone': day.get('timezone') or 'UTC'}
+        if page[0] == 'schedule':
+            params.update(values)
+        elif values or not day.get('date'):
+            raise Denied('Not found')
+        else:
+            params.update({'date': page[1] or day['date'], 'today': day['date']})
+        return self.proxy(owner, host, '/shared?' + urlencode(params), 'GET', None, {}, viewer_language=ui.current())
+
+    def person_switch(self, viewer, host, path, query):
+        """You · each friend who shares something this page can show; empty when nobody does."""
+        page = self.page_kind(host, path)
+        people = [name for name, shared in friends.sharing_with(self.accounts, viewer)
+                  if page and set(shared) & set(friends.PAGE_SECTIONS[page[0]])]
+        if not people:
+            return ''
+        values = {key: value[0] for key, value in parse_qs(query, keep_blank_values=True).items()}
+        current = values.pop('friend', None)
+        def item(label, name):
+            target = path + ('?' + urlencode({**values, 'friend': name} if name else values) if name or values else '')
+            selected = ' aria-current="page"' if name == current else ''
+            return '<a href="' + html.escape(target, quote=True) + '"' + selected + (' data-content' if name else '') + '>' + label + '</a>'
+        return ('<nav class="person-switch" aria-label="' + html.escape(ui.text('Whose page'), quote=True) + '">' + item(ui.ui('You'), None)
+                + ''.join(item(html.escape(name), name) for name in people) + '</nav>')
 
     def ticket(self):
         with self.accounts.db() as db:
@@ -1089,17 +1123,17 @@ def handler_for(gateway):
             source=account_page(session,title,gateway.hosts[host]).decode()
             return gateway.icons.rewrite(ui.page(source,session['csrf'],urlsplit(self.path).path)).encode()
 
-        def unavailable(self,session=None,host=None,*,pending=False,title=None,message=None,status=503):
+        def unavailable(self,session=None,host=None,*,pending=False,title=None,message=None,status=503,back=None):
             message = message or (BACKEND_PENDING if pending else BACKEND_UNAVAILABLE)
             path = urlsplit(self.path).path
-            if not session or not session.get('user_id') or not (PAGE_ROUTES.fullmatch(path) or FRIEND_PAGE.fullmatch(path)):
+            if not session or not session.get('user_id') or not PAGE_ROUTES.fullmatch(path):
                 return self.respond({'error':message},status)
             title = title or ('Secretary setup pending' if pending else 'Secretary temporarily unavailable')
             source = ('<!doctype html><html lang="en"><head><meta charset="utf-8">'
                       '<meta name="viewport" content="width=device-width,initial-scale=1">'+favicon_links(gateway.hosts[host])+
                       '<title>'+title+'</title><link rel="stylesheet" href="/auth.css"></head><body>'
                       '<main class="account-card"><p class="eyebrow">Your personal secretary</p><h1>'+title+'</h1>'
-                      '<p role="status">'+html.escape(message)+'</p><p><a href="'+html.escape(self.path,quote=True)+'">Try again</a></p></main>'
+                      '<p role="status">'+html.escape(message)+'</p><p><a href="'+html.escape(back or self.path,quote=True)+'">'+('Back to your page' if back else 'Try again')+'</a></p></main>'
                       '<nav class="account-tools" aria-label="Account"><a href="/password">Change password</a>'
                       '<button id="sign-out" data-csrf="'+session['csrf']+'">Sign out</button></nav>'
                       '<script src="/auth.js" defer></script><script src="/friends.js" defer></script></body></html>')
@@ -1225,18 +1259,22 @@ def handler_for(gateway):
                                          'links':app_link.links(gateway.accounts,session['user_id'])})
                 if path=='/api/friends':
                     return self.respond(friends.overview(gateway.accounts,session['user_id']))
-                friend=FRIEND_PAGE.fullmatch(path)
-                if friend:
+                query=urlsplit(self.path).query
+                friend=parse_qs(query).get('friend',[None])[0]
+                if friend is not None:
+                    values={key:value for key,value in parse_qs(query,keep_blank_values=True).items() if key!='friend'}
+                    own=path+('?'+urlencode(values,doseq=True) if values else '')
                     try:
-                        status,headers,data=gateway.friend_page(session['user_id'],host,friend[1],urlsplit(self.path).query)
+                        status,headers,data=gateway.friend_view(session['user_id'],host,path,query)
                     except Denied:
-                        # The same answer whether or not the name exists.
-                        return self.unavailable(session,host,title='Page not available',status=404,
-                                                message='Only friends who accepted your request have a page here.')
+                        # The same answer whether or not the name exists or shares anything here.
+                        return self.unavailable(session,host,title='Not available',status=404,back=own,
+                                                message='This friend does not share anything for this page with you.')
                     except Exception:
                         status=503
                     if status!=200:
-                        return self.unavailable(session,host,title='Friend’s page unavailable',message=ui.text(FRIEND_UNAVAILABLE,name=friend[1]))
+                        return self.unavailable(session,host,title='Not available right now',back=own,
+                                                message=ui.text(FRIEND_UNAVAILABLE,name=friend[:40]))
                 else:
                     status,headers,data=gateway.proxy(session['user_id'],host,self.path,'GET',None,self.headers)
                 if status >= 500 and PAGE_ROUTES.fullmatch(path):
@@ -1245,19 +1283,25 @@ def handler_for(gateway):
                 if mime.startswith('text/html'):
                     cache_key=(session['user_id'],host,self.path,ui.current(),tuple(site_colors.current().items()),session['csrf'],VERSION,hashlib.sha256(data).digest())
                     with gateway.html_lock:cached=gateway.html_cache.get(cache_key)
-                    if cached is not None:return self.respond(cached,status,mime)
-                    # Replace backend-wide CSRF with the authenticated session's CSRF.
-                    text=data.decode()
-                    text=re.sub(r'(&quot;csrf&quot;:\s*&quot;)[A-Za-z0-9_-]{43}(&quot;)',r'\g<1>'+session['csrf']+r'\g<2>',text)
-                    # A public, non-authorizing namespace changes with every login.
-                    scope=hashlib.sha256(('chat-workspace:'+session['csrf']).encode()).hexdigest()
-                    text=re.sub(r'(&quot;workspaceScope&quot;:\s*&quot;)[a-f0-9]{64}(&quot;)',r'\g<1>'+scope+r'\g<2>',text)
-                    controls='<nav class="account-tools" aria-label="Account"><a href="/password">Change password</a><button id="sign-out" data-csrf="'+session['csrf']+'">Sign out</button></nav><script src="/auth.js" defer></script><script src="/app.js" defer></script><script src="/friends.js" defer></script>'
-                    text=text.replace('</head>','<link rel="manifest" href="/manifest.webmanifest"></head>',1)
-                    data=text.replace('</body>',controls+'</body>').encode()
-                    data=gateway.icons.rewrite(ui.page(activity_panel(data.decode(),gateway.hosts),session['csrf'],self.path)).encode()
-                    if status == 200:
-                        with gateway.html_lock:gateway.html_cache.put(cache_key,data,len(data))
+                    if cached is not None:data=cached
+                    else:
+                        # Replace backend-wide CSRF with the authenticated session's CSRF.
+                        text=data.decode()
+                        text=re.sub(r'(&quot;csrf&quot;:\s*&quot;)[A-Za-z0-9_-]{43}(&quot;)',r'\g<1>'+session['csrf']+r'\g<2>',text)
+                        # A public, non-authorizing namespace changes with every login.
+                        scope=hashlib.sha256(('chat-workspace:'+session['csrf']).encode()).hexdigest()
+                        text=re.sub(r'(&quot;workspaceScope&quot;:\s*&quot;)[a-f0-9]{64}(&quot;)',r'\g<1>'+scope+r'\g<2>',text)
+                        controls='<nav class="account-tools" aria-label="Account"><a href="/password">Change password</a><button id="sign-out" data-csrf="'+session['csrf']+'">Sign out</button></nav><script src="/auth.js" defer></script><script src="/app.js" defer></script><script src="/friends.js" defer></script>'
+                        text=text.replace('</head>','<link rel="manifest" href="/manifest.webmanifest"></head>',1)
+                        data=text.replace('</body>',controls+'</body>').encode()
+                        data=gateway.icons.rewrite(ui.page(activity_panel(data.decode(),gateway.hosts),session['csrf'],self.path)).encode()
+                        if status == 200:
+                            with gateway.html_lock:gateway.html_cache.put(cache_key,data,len(data))
+                if mime.startswith('text/html') and status == 200 and gateway.page_kind(host,path):
+                    # Friends and their sharing change at any time, so the switch is added after caching.
+                    switch=gateway.person_switch(session['user_id'],host,path,urlsplit(self.path).query)
+                    if switch:
+                        data=re.sub(rb'(<header class="masthead">.*?</header>)',lambda match:match[0]+switch.encode(),data,count=1,flags=re.S)
                 # Personal pages/media never enter durable browser or shared proxy caches.
                 static=path.startswith('/assets/')
                 return self.respond(data,status,mime,cache=headers.get('Cache-Control','no-store') if static else 'no-store',etag=headers.get('ETag') if static else None)
@@ -1397,13 +1441,13 @@ def handler_for(gateway):
                     return self.respond(friends.overview(gateway.accounts,session['user_id']))
                 if path.startswith('/api/friends/'):
                     user,action=session['user_id'],path.removeprefix('/api/friends/')
-                    expected={'request':{'name'},'accept':{'name','sections'},'decline':{'name'},'cancel':{'name'},
+                    expected={'request':{'name'},'accept':{'name'},'decline':{'name'},'cancel':{'name'},
                               'remove':{'name'},'share':{'name','sections'}}.get(action)
                     if expected is None:raise Denied('Not found')
                     if set(body)!=expected or not isinstance(body['name'],str):raise ValueError('Invalid friend request')
                     result=None
                     if action=='request':result=friends.request(gateway.accounts,user,body['name'])
-                    elif action in ('accept','decline'):friends.answer(gateway.accounts,user,body['name'],action=='accept',body.get('sections',[]))
+                    elif action in ('accept','decline'):friends.answer(gateway.accounts,user,body['name'],action=='accept')
                     elif action=='cancel':friends.cancel(gateway.accounts,user,body['name'])
                     elif action=='remove':friends.remove(gateway.accounts,user,body['name'])
                     else:friends.share(gateway.accounts,user,body['name'],body['sections'])

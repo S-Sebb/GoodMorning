@@ -1,17 +1,20 @@
 // Friends menu and the username form in Account. Friendship starts with a request the other person
-// accepts; each friend has their own switches for what they can see, all off at first.
+// accepts; each friend has their own switches for what they can see, all off at first. What a friend
+// shares appears on the matching pages through their You · friend switch.
 (() => {
   const menu = document.querySelector('#friends-menu');
   if (!menu) return;
   const t = (key, values) => typeof goodmorningT === 'function' ? goodmorningT(key, values) : key;
   const csrf = JSON.parse(document.querySelector('#language-config').dataset.config).csrf;
   const LABELS = {schedule: 'Schedule', todos: 'To-dos', stocks: 'Stocks', anime: 'New episodes', games: 'Game sales'};
+  // Where each shared section appears as the friend's version of a page.
+  const pagesFor = shared => [...(shared.some(key => ['schedule', 'todos'].includes(key)) ? ['Schedule', 'Morning'] : []),
+    ...(shared.some(key => ['stocks', 'anime', 'games'].includes(key)) ? ['Evening'] : [])];
   const badge = menu.querySelector('#friends-badge');
   const feedback = menu.querySelector('#friend-feedback');
   const nameInput = menu.querySelector('#friend-name');
   const usernameForm = document.querySelector('#username-form');
   let state = null;
-  let accepting = null;  // The incoming request whose switches are showing.
   const open = new Set();  // Friends whose rows are expanded, kept across redraws.
 
   const post = async (path, body) => {
@@ -61,21 +64,12 @@
     incoming.replaceChildren(...state.incoming.map(name => {
       const item = element('li', {class: 'friend-request'},
         element('div', {}, element('strong', {text: name}), element('small', {text: t('wants to be friends')})));
-      if (accepting === name) {
-        let chosen = [];
-        item.append(switches(t('Choose what {name} can see', {name}), [], value => { chosen = value; }),
-          element('div', {class: 'friend-actions'},
-            button('Accept', async () => {
-              apply(await post('/api/friends/accept', {name, sections: chosen}));
-              accepting = null;
-              feedback.textContent = t('You and {name} are friends now.', {name});
-            }, 'primary'),
-            button('Back', async () => { accepting = null; draw(); })));
-      } else {
-        item.append(element('div', {class: 'friend-actions'},
-          button('Accept', async () => { accepting = name; draw(); }, 'primary'),
-          button('Decline', async () => { apply(await post('/api/friends/decline', {name})); feedback.textContent = ''; })));
-      }
+      item.append(element('div', {class: 'friend-actions'},
+        button('Accept', async () => {
+          apply(await post('/api/friends/accept', {name}));
+          feedback.textContent = t('You and {name} are friends now. Neither of you shares anything until you choose to.', {name});
+        }, 'primary'),
+        button('Decline', async () => { apply(await post('/api/friends/decline', {name})); feedback.textContent = ''; })));
       return item;
     }));
     outgoing.replaceChildren(...state.outgoing.map(name => element('li', {class: 'friend-request'},
@@ -83,18 +77,20 @@
       element('div', {class: 'friend-actions'}, button('Cancel', async () => apply(await post('/api/friends/cancel', {name})))))));
     menu.querySelector('#friend-empty').hidden = state.friends.length > 0;
     list.replaceChildren(...state.friends.map(friend => {
-      const sharing = friend.sharing.length ? friend.sharing.map(key => t(LABELS[key])).join(t(', ')) : t('Sharing nothing');
+      const names = keys => keys.map(key => t(LABELS[key])).join(t(', '));
+      const theirs = friend.shared.length ? t('Shares with you: {sections}', {sections: names(friend.shared)}) : t('Shares nothing with you yet');
       const details = element('details', {class: 'friend'},
-        element('summary', {}, element('strong', {text: friend.name}), element('small', {text: sharing})));
+        element('summary', {}, element('strong', {text: friend.name}), element('small', {text: theirs})));
       details.open = open.has(friend.name);
       details.addEventListener('toggle', () => { if (details.open) open.add(friend.name); else open.delete(friend.name); });
       details.append(
-        element('a', {class: 'friend-page', href: '/friends/' + encodeURIComponent(friend.name), text: t('Open {name}’s page', {name: friend.name})}),
+        ...(friend.shared.length ? [element('p', {class: 'notification-note', text: t('To see it, switch to {name} at the top of {pages}.',
+          {name: friend.name, pages: pagesFor(friend.shared).map(page => t(page)).join(t(', '))})})] : []),
         switches(t('What {name} can see', {name: friend.name}), friend.sharing, async (value, box) => {
           box.disabled = true;
           try {
             apply(await post('/api/friends/share', {name: friend.name, sections: value}));
-            feedback.textContent = t('Saved. {name} sees this the next time their page loads.', {name: friend.name});
+            feedback.textContent = t('Saved. {name} sees this the next time they open that page.', {name: friend.name});
           } catch (error) { box.checked = !box.checked; box.disabled = false; feedback.textContent = error.message; }
         }),
         element('div', {class: 'friend-actions'}, button('Remove friend', async () => {

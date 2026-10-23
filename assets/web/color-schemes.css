@@ -159,21 +159,25 @@ html:not([data-edition="gn"])[data-day-scheme]:not([data-day-scheme="classic"]) 
 #friends-menu .friend[open] summary::after { transform: rotate(90deg); }
 #friends-menu .friend summary small { margin-left: auto; text-align: right; }
 #friends-menu .friend[open] { display: grid; gap: 8px; padding-bottom: 6px; }
-#friends-menu .friend-page { color: var(--accent); font-weight: 600; }
 #friends-menu .friend-sharing { display: grid; gap: 0; min-width: 0; margin: 0; padding: 0; border: 0; }
 #friends-menu .friend-sharing legend { margin: 0 0 4px; padding: 0; font-size: 12px; color: var(--muted); }
 #friends-menu .friend-sharing label { display: flex; align-items: center; gap: 8px; min-height: 34px; font-size: .8rem; color: inherit; }
 #friends-menu .friend-sharing input { flex: none; width: 18px; height: 18px; margin: 0; accent-color: var(--accent); }
 #friends-menu #friend-feedback:empty, #account-menu #username-feedback:empty { display: none; }
 #friends-menu #friend-feedback, #account-menu #username-feedback { font-size: .8rem; }
-/* A friend's page: the schedule grid and evening sections, read-only. */
-.shared-page main { max-width: 1180px; margin: 0 auto; }
-.shared-heading { margin: 24px 0 8px; }
-.shared-heading h1 { margin: 2px 0 4px; }
-.shared-eyebrow, .shared-note, .shared-zone, .shared-date, .shared-empty, .shared-none { color: var(--muted); font-size: 13px; margin: 0 0 12px; }
-.shared-eyebrow { text-transform: uppercase; letter-spacing: .12em; font-size: 11px; margin: 0; }
+/* You · friend switch under the masthead of Schedule, Morning and Evening. */
+.person-switch { display: flex; flex-wrap: wrap; gap: 2px; width: fit-content; max-width: calc(100% - 32px); margin: 0 auto 8px; padding: 3px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); font-size: 13px; }
+.person-switch a { display: inline-flex; align-items: center; min-height: 36px; padding: 0 14px; border-radius: 999px; color: var(--muted); text-decoration: none; }
+.person-switch a:hover { color: var(--ink); background: var(--wash); }
+.person-switch a[aria-current] { background: var(--ink); color: var(--bg); }
+.person-switch a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+/* A friend's version of a page: read-only, from what they share. */
+.shared-note, .shared-empty { color: var(--muted); font-size: 13px; margin: 0 0 12px; text-align: center; }
+.shared-sections > .schedule-toolbar { margin-bottom: 20px; }
+.shared-sections .shared-day { grid-template-columns: minmax(0, 1fr); }
+.shared-sections .shared-list .schedule-event:last-child { margin-bottom: 0; }
 .shared-sections .schedule-event { margin-bottom: 14px; }
-.shared-sections .section-body > p:is(.shared-date, .shared-empty) { max-width: none; margin: 0 0 14px; padding: 0; border-radius: 0; background: none; font: 13px/1.6 ui-sans-serif, system-ui, sans-serif; color: var(--muted); }
+.shared-sections .section-body > p.shared-empty { max-width: none; margin: 0 0 14px; padding: 0; border-radius: 0; background: none; font: 13px/1.6 ui-sans-serif, system-ui, sans-serif; color: var(--muted); }
 /* A friend's page cannot load the owner's cached covers; skip the empty frames. */
 .shared-sections :is(.episode-cover, .deal-cover).is-empty { display: none; }
 .shared-sections .section-body .episode-card { grid-template-columns: minmax(0, 1fr); }

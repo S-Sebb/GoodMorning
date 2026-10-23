@@ -11,6 +11,8 @@ import time
 from .briefing_accounts import Denied, Refused, username
 
 SECTIONS = ('schedule', 'todos', 'stocks', 'anime', 'games')
+# Which shared sections each page can show in its friend version.
+PAGE_SECTIONS = {'schedule': ('schedule', 'todos'), 'gm': ('schedule', 'todos'), 'gn': ('stocks', 'anime', 'games')}
 MAX_FRIENDS = 100
 MAX_OUTGOING = 50
 
@@ -39,18 +41,19 @@ def _friend(db, user, name):
     return row['id']
 
 
-def _befriend(db, user, other, shared):
+def _befriend(db, user, other):
     now = time.time()
     db.execute('DELETE FROM friend_requests WHERE (sender=? AND recipient=?) OR (sender=? AND recipient=?)', (user, other, other, user))
-    db.execute('INSERT OR IGNORE INTO friends VALUES (?,?,?,?)', (user, other, json.dumps(shared), now))
+    db.execute('INSERT OR IGNORE INTO friends VALUES (?,?,?,?)', (user, other, '[]', now))
     db.execute('INSERT OR IGNORE INTO friends VALUES (?,?,?,?)', (other, user, '[]', now))
 
 
 def overview(accounts, user):
     with accounts.db() as db:
         me = db.execute('SELECT name FROM users WHERE id=?', (user,)).fetchone()['name']
-        friends = [{'name': row['name'], 'sharing': json.loads(row['sections'])} for row in db.execute(
-            'SELECT u.name, f.sections FROM friends f JOIN users u ON u.id=f.friend WHERE f.owner=? ORDER BY u.name', (user,))]
+        friends = [{'name': row['name'], 'sharing': json.loads(row['sections']), 'shared': json.loads(row['theirs'])} for row in db.execute(
+            '''SELECT u.name, f.sections, back.sections AS theirs FROM friends f JOIN users u ON u.id=f.friend
+               JOIN friends back ON back.owner=f.friend AND back.friend=f.owner WHERE f.owner=? ORDER BY u.name''', (user,))]
         incoming = [row['name'] for row in db.execute(
             'SELECT u.name FROM friend_requests r JOIN users u ON u.id=r.sender WHERE r.recipient=? AND NOT r.declined ORDER BY r.created', (user,))]
         outgoing = [row['name'] for row in db.execute(
@@ -73,7 +76,7 @@ def request(accounts, user, name):
         if db.execute('SELECT COUNT(*) FROM friends WHERE owner=?', (user,)).fetchone()[0] >= MAX_FRIENDS:
             raise Refused('Your friends list is full')
         if db.execute('SELECT 1 FROM friend_requests WHERE sender=? AND recipient=?', (other, user)).fetchone():
-            _befriend(db, user, other, [])
+            _befriend(db, user, other)
             return 'friends'
         if db.execute('SELECT COUNT(*) FROM friend_requests WHERE sender=?', (user,)).fetchone()[0] >= MAX_OUTGOING:
             raise Refused('Too many requests are waiting. Cancel some first.')
@@ -81,9 +84,8 @@ def request(accounts, user, name):
         return 'sent'
 
 
-def answer(accounts, user, name, accept, shared=()):
-    """Accept or silently decline a request someone sent to this user."""
-    shared = sections(list(shared))
+def answer(accounts, user, name, accept):
+    """Accept or silently decline a request someone sent to this user. Accepting shares nothing yet."""
     with accounts.db() as db:
         db.execute('BEGIN IMMEDIATE')
         other = db.execute('SELECT r.sender FROM friend_requests r JOIN users u ON u.id=r.sender WHERE r.recipient=? AND u.name=? AND NOT r.declined',
@@ -95,7 +97,7 @@ def answer(accounts, user, name, accept, shared=()):
             return
         if db.execute('SELECT COUNT(*) FROM friends WHERE owner=?', (user,)).fetchone()[0] >= MAX_FRIENDS:
             raise Refused('Your friends list is full')
-        _befriend(db, user, other['sender'], shared)
+        _befriend(db, user, other['sender'])
 
 
 def cancel(accounts, user, name):
@@ -128,3 +130,11 @@ def shared_with(accounts, viewer, name):
     if not row:
         raise Denied('Not found')
     return row['id'], row['name'], json.loads(row['sections'])
+
+
+def sharing_with(accounts, viewer):
+    """[(name, sections)] for every friend who shares something with viewer, by name."""
+    with accounts.db() as db:
+        rows = db.execute('''SELECT u.name, f.sections FROM friends f JOIN users u ON u.id=f.owner
+            WHERE f.friend=? AND u.enabled=1 AND f.sections!='[]' ORDER BY u.name''', (viewer,)).fetchall()
+    return [(row['name'], json.loads(row['sections'])) for row in rows]

@@ -1,5 +1,6 @@
-"""Friends through the real gateway and isolated synthetic viewers: requests, per-friend sharing, the friend
-page in both languages and phone width, and renaming yourself. Writes screenshots to ARTIFACTS."""
+"""Friends through the real gateway and isolated synthetic viewers: requests, per-friend sharing, the You · friend
+switch on Schedule, Morning and Evening in both languages and phone width, and renaming yourself.
+Writes screenshots to ARTIFACTS."""
 from datetime import datetime, timedelta, timezone
 import json
 from pathlib import Path
@@ -18,34 +19,48 @@ sys.path.insert(0, str(REPO/'src')); sys.path.insert(0, str(REPO/'tests'))
 ZONE = 'Europe/London'
 
 
-def records(runtime):
-    """A week of synthetic plans and yesterday's evening reads for one account."""
+PEOPLE = {
+    'alice': ('Europe/London', '+01:00', ((0, '09:30', '10:00', 'Team check-in', 'Studio 2'), (2, '10:00', '11:30', 'Design review', 'Library')),
+              ((0, '- [ ] Send the slides'), (1, '- [ ] Book the train'))),
+    'bob': ('Asia/Shanghai', '+08:00', ((0, '18:00', '19:00', 'Climbing', 'Rock gym'), (1, '12:00', '13:00', 'Lunch with Mei', 'Noodle bar'),
+                                        (4, '19:30', '22:00', 'Concert', 'Concert hall')),
+            ((0, '- [x] Renew passport'), (1, '- [ ] Buy a birthday card'), (3, '- [ ] Water the plants'))),
+    'carol': ('Europe/London', '+01:00', ((3, '08:00', '09:00', 'Yoga', 'Studio'),), ()),
+}
+
+
+def records(runtime, name):
+    """A week of synthetic plans and recent evening reads, different for each person."""
     from zoneinfo import ZoneInfo
     from goodmorning import anime, games, stocks
     from goodmorning.calendar.calendar_store import CalendarStore
+    zone, offset_text, events, todos = PEOPLE[name]
     today = datetime.now(ZoneInfo(ZONE)).date()
     monday = today - timedelta(days=today.weekday())
-    (runtime/'profile.md').write_text(f'city: London\ntimezone: {ZONE}\nnews_country: GB\nsecretary_language: English\n')
+    (runtime/'profile.md').write_text(f'city: London\ntimezone: {zone}\nnews_country: GB\nsecretary_language: English\n')
     (runtime/'daily').mkdir()
     store = CalendarStore(str(runtime/'calendar.sqlite'))
     try:
-        for offset, start, end, subject, place in ((0, '09:30', '10:00', 'Team check-in', 'Studio 2'), (1, '13:00', '14:00', 'Lunch with Mei', 'Noodle bar'),
-                                                   (2, '10:00', '11:30', 'Design review', 'Library'), (4, '18:30', '21:00', 'Concert', 'Royal Albert Hall')):
+        for offset, start, end, subject, place in events:
             day = (monday + timedelta(days=offset)).isoformat()
-            store.add({'subject': subject, 'start': f'{day}T{start}:00+01:00', 'end': f'{day}T{end}:00+01:00', 'location': place, 'notes': 'Private note'})
-        store.add({'subject': 'Weekend away', 'start': (monday + timedelta(days=5)).isoformat(), 'end': (monday + timedelta(days=7)).isoformat(),
-                   'all_day': True, 'timezone': ZONE})
+            store.add({'subject': subject, 'start': f'{day}T{start}:00{offset_text}', 'end': f'{day}T{end}:00{offset_text}', 'location': place, 'notes': 'Private note'})
+        if name == 'bob':
+            store.add({'subject': 'Weekend away', 'start': (monday + timedelta(days=5)).isoformat(), 'end': (monday + timedelta(days=7)).isoformat(),
+                       'all_day': True, 'timezone': zone})
     finally:
         store.close()
-    for offset, text in ((0, '- [x] Send the slides\n- [ ] Book the train'), (1, '- [ ] Buy a birthday card'), (3, '- [ ] Water the plants')):
+    for offset, text in todos:
         day = (monday + timedelta(days=offset)).isoformat()
         (runtime/'daily'/(day + '.md')).write_text(f'# {day}\n\n## flexible\n{text}\n')
-    yesterday = (today - timedelta(days=1)).isoformat()
-    stocks.save(runtime, yesterday, {'block': ['holdings', [
-        ['usAAPL', 'Apple', yesterday, 12, 231.4, 227.9, 180.0, 'USD', 0, 0, False],
-        ['sh600519', 'Kweichow Moutai', yesterday, 10, 1488.0, 1502.5, 1650.5, 'CNY', 0, 0, False]]]})
-    anime.save(runtime, yesterday, {'block': ['episodes', [['anilist:1', 'Frieren', '葬送的芙莉莲', '7', 'A Small Journey', '', yesterday + 'T23:00', '']]]})
-    games.save(runtime, yesterday, {'block': ['deals', [['steam:1145360', 'Hades', 75, '£4.99', '£19.99', '', '']]]})
+    if name != 'bob':
+        return
+    for day in (today, today - timedelta(days=1)):
+        day = day.isoformat()
+        stocks.save(runtime, day, {'block': ['holdings', [
+            ['usAAPL', 'Apple', day, 12, 231.4, 227.9, 180.0, 'USD', 0, 0, False],
+            ['sh600519', 'Kweichow Moutai', day, 10, 1488.0, 1502.5, 1650.5, 'CNY', 0, 0, False]]]})
+        anime.save(runtime, day, {'block': ['episodes', [['anilist:1', 'Frieren', '葬送的芙莉莲', '7', 'A Small Journey', '', day + 'T23:00', '']]]})
+        games.save(runtime, day, {'block': ['deals', [['steam:1145360', 'Hades', 75, '£4.99', '£19.99', '', '']]]})
 
 
 def fixture(root):
@@ -64,7 +79,7 @@ def fixture(root):
         with store.db() as db:
             db.execute('UPDATE users SET temporary=0 WHERE id=?', (identifier,))
         runtime = root/name; runtime.mkdir(mode=0o700)
-        records(runtime)
+        records(runtime, name)
         with socket.socket() as check:
             check.bind(('127.0.0.1', 0)); port = check.getsockname()[1]
         key = secrets.token_urlsafe(32)
@@ -142,94 +157,115 @@ def run(artifacts):
                 expect(panel.locator('#friend-outgoing li')).to_have_count(2)
                 shot(alice, '01-alice-requests-sent', panel)
 
-                # Someone who is not (yet) a friend sees the same page as for a name that does not exist.
-                carol.goto('https://gm.friends.test/friends/alice')
-                expect(carol.get_by_role('heading', name='Page not available')).to_be_visible()
-
+                # Accept only accepts: nothing is shared yet, so no switch appears anywhere.
                 bob.reload()
                 expect(bob.locator('#friends-badge')).to_have_text('1')
                 shot(bob, '02-bob-badge', bob.locator('.toolbar-row'))
                 panel = friends_menu(bob)
                 panel.locator('#friend-incoming').get_by_role('button', name='Accept').click()
-                panel.get_by_label('Schedule').check()
-                panel.get_by_label('Stocks').check()
-                panel.get_by_label('New episodes').check()
-                shot(bob, '03-bob-accepting', panel)
-                panel.locator('#friend-incoming').get_by_role('button', name='Accept').click()
-                expect(panel.locator('#friend-feedback')).to_have_text('You and alice are friends now.')
+                expect(panel.locator('#friend-feedback')).to_have_text('You and alice are friends now. Neither of you shares anything until you choose to.')
                 expect(bob.locator('#friends-badge')).to_be_hidden()
+                expect(panel.locator('#friend-list summary')).to_contain_text('Shares nothing with you yet')
                 panel.locator('#friend-list summary').click()
-                shot(bob, '04-bob-friend-row', panel)
+                for label in ('Schedule', 'To-dos', 'Stocks', 'New episodes'):
+                    panel.get_by_label(label).check()
+                    expect(panel.locator('#friend-feedback')).to_have_text('Saved. alice sees this the next time they open that page.')
+                    panel.locator('#friend-feedback').evaluate('node => node.textContent = ""')
+                shot(bob, '03-bob-chooses-for-alice', panel)
 
                 carol.reload()
                 friends_menu(carol).locator('#friend-incoming').get_by_role('button', name='Decline').click()
                 expect(friends_menu(carol).locator('#friend-requests')).to_be_hidden()
 
-                alice.reload()
+                alice.goto('https://gm.friends.test/schedule')
                 panel = friends_menu(alice)
-                expect(panel.locator('#friend-list summary')).to_contain_text('bob')
+                expect(panel.locator('#friend-list summary')).to_contain_text('Shares with you: Schedule, To-dos, Stocks, New episodes')
                 expect(panel.locator('#friend-outgoing li')).to_have_text(['carolWaiting for them to acceptCancel'])
                 panel.locator('#friend-list summary').click()
-                panel.get_by_label('To-dos').check()
-                expect(panel.locator('#friend-feedback')).to_have_text('Saved. bob sees this the next time their page loads.')
-                shot(alice, '05-alice-friends', panel)
-                panel.get_by_role('link', name='Open bob’s page').click()
-                expect(alice.get_by_role('heading', name='bob', exact=True)).to_be_visible()
-                expect(alice.locator('.shared-sections')).to_contain_text('Team check-in')
-                expect(alice.locator('.shared-sections')).to_contain_text('Kweichow Moutai')
-                expect(alice.locator('.shared-sections')).to_contain_text('Frieren')
-                for private in ('Studio 2', 'Private note', 'Book the train', 'Hades'):
-                    expect(alice.locator('body')).not_to_contain_text(private)
-                assert not alice.evaluate('document.documentElement.scrollWidth > innerWidth')
-                shot(alice, '06-friend-page-desktop')
-                alice.screenshot(path=str(artifacts/'06-friend-page-desktop-full.png'), full_page=True)
+                expect(panel.locator('#friend-list')).to_contain_text('To see it, switch to bob at the top of Schedule, Morning, Evening.')
+                shot(alice, '04-alice-friends-menu', panel)
+                panel.locator('.settings-close').click()
 
-                bob.reload()
-                panel = friends_menu(bob)
-                panel.locator('#friend-list summary').click()
-                panel.get_by_label('Game sales').check()
-                expect(panel.locator('#friend-feedback')).to_contain_text('Saved.')
-                alice.reload()
-                expect(alice.locator('.shared-sections')).to_contain_text('Hades')
+                # Schedule: alice's own week, then bob's in her time zone, title and time only.
+                switch = alice.locator('nav.person-switch')
+                expect(switch.locator('a')).to_have_text(['You', 'bob'])
+                expect(switch.get_by_role('link', name='You')).to_have_attribute('aria-current', 'page')
+                expect(alice.locator('#schedule-view')).to_contain_text('Team check-in')
+                shot(alice, '05-schedule-you')
+                switch.get_by_role('link', name='bob').click()
+                expect(alice).to_have_url('https://gm.friends.test/schedule?friend=bob')
+                view = alice.locator('#schedule-view')
+                expect(view).to_contain_text('Climbing')
+                from zoneinfo import ZoneInfo
+                today = datetime.now(ZoneInfo(ZONE)).date()
+                climbing = datetime.fromisoformat(f'{today - timedelta(days=today.weekday())}T18:00:00+08:00').astimezone(ZoneInfo(ZONE))
+                expect(view).to_contain_text(f'{climbing:%H:%M}–{climbing + timedelta(hours=1):%H:%M}')  # Shanghai 18:00 in London time.
+                expect(alice.locator('.shared-note')).to_contain_text('Times are in your time zone; bob is in Asia/Shanghai.')
+                for private in ('Rock gym', 'Private note', 'Team check-in'):
+                    expect(alice.locator('main')).not_to_contain_text(private)
+                assert not alice.evaluate('document.documentElement.scrollWidth > innerWidth')
+                shot(alice, '06-schedule-bob')
+                alice.locator('#week-next').click()
+                expect(alice).to_have_url('https://gm.friends.test/schedule?week=1&friend=bob')
+                alice.locator('nav.person-switch').get_by_role('link', name='You').click()
+                expect(alice).to_have_url('https://gm.friends.test/schedule?week=1')
+
+                # Morning and Evening follow the date being viewed.
+                alice.goto('https://gm.friends.test/gm.html')
+                alice.locator('nav.person-switch').get_by_role('link', name='bob').click()
+                expect(alice.locator('.shared-sections')).to_contain_text('To-dos')
+                alice.screenshot(path=str(artifacts/'07-morning-bob.png'), full_page=True)
+                alice.goto('https://gm.friends.test/gn.html')
+                alice.locator('nav.person-switch').get_by_role('link', name='bob').click()
+                sections = alice.locator('.shared-sections')
+                expect(sections).to_contain_text('Kweichow Moutai')
+                expect(sections).to_contain_text('Frieren')
+                expect(sections).not_to_contain_text('Hades')
+                alice.screenshot(path=str(artifacts/'08-evening-bob.png'), full_page=True)
+                alice.locator('#day-previous').click()
+                expect(sections).to_contain_text('Kweichow Moutai')
+                alice.locator('#day-previous').click()
+                expect(alice.locator('.shared-sections')).to_contain_text('Nothing saved for this evening.')
+
+                # carol shares nothing with alice and is not a friend: no switch entry, no view.
+                alice.goto('https://gm.friends.test/gn.html?friend=carol')
+                expect(alice.get_by_role('heading', name='Not available')).to_be_visible()
+                alice.get_by_role('link', name='Back to your page').click()
+                expect(alice).to_have_url('https://gm.friends.test/gn.html')
 
                 phone = person('alice', 390, 844, first=False)
-                phone.goto('https://gm.friends.test/friends/bob')
+                phone.goto('https://gm.friends.test/schedule?friend=bob')
                 assert not phone.evaluate('document.documentElement.scrollWidth > innerWidth')
-                phone.screenshot(path=str(artifacts/'07-friend-page-phone.png'), full_page=True)
-                friends_menu(phone)
-                shot(phone, '08-friends-menu-phone')
+                phone.screenshot(path=str(artifacts/'09-schedule-bob-phone.png'), full_page=True)
 
-                # Website language is per account: alice switches to Chinese.
                 alice.locator('#account-menu > summary').click()
                 alice.locator('#website-language').select_option('zh-CN')
                 expect(alice.locator('html')).to_have_attribute('lang', 'zh-CN')
-                alice.reload()
-                expect(alice.get_by_text('分享给你', exact=True)).to_be_visible()
-                alice.screenshot(path=str(artifacts/'09-friend-page-zh.png'), full_page=True)
-                shot(alice, '10-friends-menu-zh', friends_menu(alice))
+                alice.goto('https://gm.friends.test/gn.html?friend=bob')
+                expect(alice.locator('nav.person-switch a').first).to_have_text('你')
+                alice.screenshot(path=str(artifacts/'10-evening-bob-zh.png'), full_page=True)
+                shot(alice, '11-friends-menu-zh', friends_menu(alice))
 
-                # Renaming: bob becomes robert; alice's link follows the new name.
+                # Renaming: bob becomes robert; alice's switch follows the new name.
                 bob.locator('#account-menu > summary').click()
                 form = bob.locator('#username-form')
                 expect(form.locator('#username-new')).to_have_value('bob')
                 form.locator('#username-new').fill('robert')
                 form.locator('#username-password').fill('a1bob-password')
-                shot(bob, '11-account-username', bob.locator('#account-menu .menu-panel'))
+                shot(bob, '12-account-username', bob.locator('#account-menu .menu-panel'))
                 form.get_by_role('button', name='Change username').click()
                 expect(form.locator('#username-feedback')).to_have_text('Your username is now robert. Use it the next time you sign in.')
-                alice.goto('https://gm.friends.test/friends/bob')
-                expect(alice.locator('main h1')).not_to_have_text('bob')
-                alice.goto('https://gm.friends.test/friends/robert')
-                expect(alice.get_by_role('heading', name='robert', exact=True)).to_be_visible()
+                alice.goto('https://gm.friends.test/schedule')
+                expect(alice.locator('nav.person-switch a')).to_have_text(['你', 'robert'])
 
-                # Removing ends it for both.
+                # Removing ends it for both: the switch disappears.
                 bob.reload()
                 panel = friends_menu(bob)
                 panel.locator('#friend-list summary').click()
                 panel.get_by_role('button', name='Remove friend').click()
                 expect(panel.locator('#friend-empty')).to_be_visible()
                 alice.reload()
-                expect(alice.locator('main h1')).not_to_have_text('robert')
+                expect(alice.locator('nav.person-switch')).to_have_count(0)
                 assert not errors, errors
                 browser.close()
         finally:

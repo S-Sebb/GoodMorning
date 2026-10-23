@@ -40,23 +40,28 @@ must include all configured hosts; never use wildcard origin/cookie permissions.
 
 ## Friends and usernames
 
-Friend pages are the only deliberate read across accounts. A request names a
-username and creates nothing until the other person accepts; declining is silent
-to the sender. Friendships, requests and each owner's per-friend sharing choices
-are rows in the encrypted accounts database, keyed by immutable account IDs, and
-removal deletes both directions with their choices. Sharing starts empty. The
-offered sections are schedule, to-dos, stocks, new episodes and game sales.
+Friends' versions of pages are the only deliberate read across accounts. A
+request names a username and creates nothing until the other person accepts;
+accepting shares nothing, and declining is silent to the sender. Friendships,
+requests and each owner's per-friend sharing choices are rows in the encrypted
+accounts database, keyed by immutable account IDs; removal deletes both
+directions with their choices. The offered sections are schedule, to-dos,
+stocks, new episodes and game sales.
 
-For `/friends/NAME`, the gateway resolves NAME only among accounts that list the
-viewer as a friend, so a stranger, a pending request and a missing name get the
-same 404 page. It then asks the owner's viewer for the gateway-only `/shared`
-view with exactly the sections that owner switched on for that viewer; browsers
-cannot request `/shared` themselves. The owner's viewer renders saved data only:
-event titles and times without notes, places or calendar sources; to-do titles
-and status without details; and the latest evening stocks, episodes and deals
-rows. Secretary-written text, chats, notes and briefings are never shared.
-Friend requests are rate-limited per account, and an unknown username is
-reported as such; this tells a signed-in user which names exist.
+Schedule, Morning and Evening show a You · friend switch listing only friends
+who share a section that page can show. `?friend=NAME` on those pages makes the
+gateway resolve NAME only among accounts that list the viewer as a friend and
+share such a section; anything else, including a missing name, gets the same
+404 page. The gateway then asks the owner's viewer for the gateway-only
+`/shared` view with exactly those sections, the viewer's time zone and day;
+browsers cannot request `/shared` themselves. The owner's viewer renders saved
+data only: event titles and times (all-day events keep their dates) without
+notes, places or calendar sources; to-do titles and status without details;
+and the evening stocks, episodes and deals rows saved for the date being viewed.
+Secretary-written text, chats, notes and briefings are never shared. Friend
+data is display-only: it never enters the viewer's records, briefings, agent or
+browser storage. Friend requests are rate-limited per account, and an unknown
+username is reported as such; this tells a signed-in user which names exist.
 
 Renaming yourself needs the current password and the same attempt limits as a
 password change. Sessions stay valid, friendships follow the immutable ID, and
@@ -271,8 +276,8 @@ account's temporary directory; the host and other users retain separate views.
 
 Unit tests use synthetic accounts with explicitly reduced test-only password cost.
 Production refuses that reduction and unencrypted storage. Before release test:
-three distinct accounts; cross-account file/job/API denial, including friend
-pages for non-friends and unshared sections; password recovery and
+three distinct accounts; cross-account file/job/API denial, including friends'
+versions of pages for non-friends and unshared sections; password recovery and
 session revocation; encrypted unmount/remount; reboot/service recovery; actual
 public-domain generation and mobile rendering. Passing unit tests alone is not a
 security audit or proof of production readiness. Physical devices, third-party
