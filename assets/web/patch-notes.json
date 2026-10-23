@@ -1,6 +1,28 @@
 {
   "notes": [
     {
+      "version": "0.73.0",
+      "date": "2026-10-23",
+      "author": "GoodMorning agent",
+      "title_en": "Android app without Chrome",
+      "title_zh": "Android 应用不用再借 Chrome 打开了",
+      "changes": [
+        {
+          "category": "Changed",
+          "en": [
+            "Android app 0.8 always opens GoodMorning in its own window instead of Chrome, so it starts right away, also on phones without Google services.",
+            "In Android app 0.8, the app shows its own notifications on every phone; they usually arrive within a few minutes, or later while the phone is saving battery.",
+            "After updating to Android app 0.8, a linked phone stays signed in and keeps its colors and notification choices."
+          ],
+          "zh": [
+            "Android 应用 0.8 版现在总在自己的窗口里打开 GoodMorning，不再跳去 Chrome，所以一点就开，没有 Google 服务的手机也一样。",
+            "在 Android 应用 0.8 版里，每部手机都会收到应用自己发的通知；一般几分钟内就到，手机在省电时会晚一些。",
+            "更新到 Android 应用 0.8 版后，已经连上的手机还是登录状态，之前选的颜色和通知设置也都留着。"
+          ]
+        }
+      ]
+    },
+    {
       "version": "0.72.0",
       "date": "2026-10-22",
       "author": "GoodMorning agent",
