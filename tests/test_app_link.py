@@ -93,5 +93,32 @@ class AppLinkTests(unittest.TestCase):
         app_link.verify(self.accounts, phone['token'], False)
         self.assertFalse(app_link.links(self.accounts, self.alice)[0]['notifies'])
 
+    def test_an_app_that_leaves_chrome_retires_its_chrome_subscription_and_keeps_its_choices(self):
+        keys = {'p256dh': web_push.b64(b'\x04' + b'\x01' * 64), 'auth': web_push.b64(b'0123456789abcdef')}
+        def subscribe(name, label, link=None, **chosen):
+            endpoint = 'https://fcm.googleapis.com/fcm/send/' + name
+            with patch.object(web_push, 'subscription', lambda value: {'endpoint': value['endpoint'], **keys}):
+                identifier = web_push.subscribe(self.accounts, self.alice, {'endpoint': endpoint}, label, link)['device']
+            if chosen:
+                web_push.settings(self.accounts, self.alice, identifier, {**web_push.DEFAULTS, **chosen})
+            return endpoint
+        labels = lambda: sorted(item['label'] for item in web_push.devices(self.accounts, self.alice))
+        phone, other, fresh = self.link(), self.link(name='Mate 60'), self.link(name='Mi 14')
+        for each in (phone, other):
+            app_link.verify(self.accounts, each['token'], False)  # Opened in Chrome.
+        tagged = subscribe('phone', 'GoodMorning app on Android', phone['id'], chat=False, lead=5)
+        subscribe('phone', 'GoodMorning app on Android')  # Subscribing again without the link keeps it.
+        subscribe('laptop', 'Firefox on Linux')
+        subscribe('old', 'Android 上的 GoodMorning app')
+        self.assertTrue([item for item in web_push.devices(self.accounts, self.alice) if item['id'] == web_push.device(tagged)][0]['linked'])
+        app_link.verify(self.accounts, fresh['token'], True)  # Never used Chrome: nothing to retire.
+        self.assertEqual(len(labels()), 3)
+        app_link.verify(self.accounts, phone['token'], True)
+        self.assertEqual(labels(), ['Android 上的 GoodMorning app', 'Firefox on Linux'])  # Only the tagged one.
+        chosen = {item['id']: item['settings'] for item in app_link.links(self.accounts, self.alice)}[phone['id']]
+        self.assertEqual((chosen['chat'], chosen['lead']), (False, 5))
+        app_link.verify(self.accounts, other['token'], True)  # Subscribed before tagging: found by its name.
+        self.assertEqual(labels(), ['Firefox on Linux'])
+
 if __name__ == '__main__':
     unittest.main()

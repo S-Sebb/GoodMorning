@@ -701,7 +701,7 @@
   "Devices with notifications": "已开启通知的设备",
   "Each device chooses its own notifications in its Settings. Turn one off here if you no longer use it.": "每台设备都在自己的“设置”里选要哪些通知。哪台不用了，就在这里把它关掉吧。",
   "{name} on {system}": "{system} 上的 {name}",
-  "This phone gets notifications from the GoodMorning app, up to about 15 minutes late.": "这台手机的通知由 GoodMorning 应用送来，可能会晚 15 分钟左右。",
+  "This phone gets notifications from the GoodMorning app. They usually arrive within a few minutes, or later while the phone is saving battery.": "这台手机的通知由 GoodMorning 应用送来。通常几分钟内就到，手机省电时可能会晚一些。",
   "Link this phone in Account → Linked phones to get notifications here.": "在 账号 → 已关联的手机 里关联这台手机，就能在这里收到通知。",
   "{name} (this device)": "{name}（这台设备）",
   "Added {date}": "添加于 {date}",

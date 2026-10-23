@@ -91,7 +91,7 @@ def validated(replacement):
 
 
 def label(value):
-    """The browser and system the page reports, shown in Account; never used for decisions."""
+    """The browser and system the page reports, shown in Account; only `retire` relies on it."""
     if not isinstance(value, str) or not 0 < len(value.strip()) <= 60 or any(ord(c) < 32 for c in value):
         raise ValueError('Invalid device name')
     return ' '.join(value.split())
@@ -100,7 +100,7 @@ def label(value):
 def devices(accounts, user):
     state = account(accounts, user)
     return [{'id': device(entry['endpoint']), 'label': entry.get('label', ''), 'created': entry.get('created'),
-             'settings': choices(state, entry)} for entry in state['subscriptions']]
+             'linked': 'link' in entry, 'settings': choices(state, entry)} for entry in state['subscriptions']]
 
 
 def subscription(value):
@@ -123,8 +123,9 @@ def subscription(value):
     return {'endpoint': endpoint, 'p256dh': keys['p256dh'], 'auth': keys['auth']}
 
 
-def subscribe(accounts, user, value, name):
-    """Adds this browser, keeping its earlier choices when it subscribes again."""
+def subscribe(accounts, user, value, name, link=None):
+    """Adds this browser, keeping its earlier choices when it subscribes again. link names the linked
+    phone whose Android app showed the page, so `retire` can find this subscription later."""
     entry = {**subscription(value), 'label': label(name)}
     with accounts.db() as db:
         db.execute('BEGIN IMMEDIATE')
@@ -138,9 +139,29 @@ def subscribe(accounts, user, value, name):
         state = {'settings': {**DEFAULTS, **value.get('settings', {})}}
         earlier = next((item for item in value.get('subscriptions', []) if item['endpoint'] == entry['endpoint']), {})
         entry.update(settings=choices(state, earlier), created=earlier.get('created', time.time()))
+        if link or 'link' in earlier:
+            entry['link'] = link or earlier['link']
         kept = [item for item in value.get('subscriptions', []) if item['endpoint'] != entry['endpoint']]
         _store(db, 'push:' + user, {**value, 'subscriptions': (kept + [entry])[-MAX_SUBSCRIPTIONS:]})
     return {'device': device(entry['endpoint']), 'settings': entry['settings']}
+
+
+# How app.js names an installed app on Android, in each website language.
+ANDROID_APP_LABELS = ('GoodMorning app on Android', 'Android 上的 GoodMorning app')
+
+
+def retire(db, user, link):
+    """The Android app on this linked phone stopped using Chrome and now posts notifications itself:
+    Chrome's subscription from that app would repeat them. Removes the subscription tagged with the
+    link, or, for ones subscribed before tagging, those named as the app on Android. Returns the
+    choices of a removed subscription, or None."""
+    value = _metadata(db, 'push:' + user, {})
+    tagged = [item for item in value.get('subscriptions', []) if item.get('link') == link]
+    retired = tagged or [item for item in value.get('subscriptions', []) if 'link' not in item and item.get('label') in ANDROID_APP_LABELS]
+    if not retired:
+        return None
+    _store(db, 'push:' + user, {**value, 'subscriptions': [item for item in value['subscriptions'] if item not in retired]})
+    return choices({'settings': {**DEFAULTS, **value.get('settings', {})}}, retired[-1])
 
 
 def unsubscribe(accounts, user, endpoint=None, *, identifier=None):

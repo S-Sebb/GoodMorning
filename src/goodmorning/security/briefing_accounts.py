@@ -171,6 +171,15 @@ class Accounts:
             token, csrf = self.issue(db,host,row,remember=remember)
             return token,csrf,bool(row['temporary'])
 
+    def app_session(self, identifier, host):
+        """A remembered session for a linked phone's app, which its app token already vouches for."""
+        with self.db() as db:
+            db.execute('BEGIN IMMEDIATE')
+            row = db.execute('SELECT * FROM users WHERE id=? AND enabled=1',(identifier,)).fetchone()
+            if not row:
+                raise Denied('Login required')
+            return self.issue(db,host,row,remember=True)
+
     def change_password(self, session, current, replacement, address):
         self.limit([('reset:'+session['user_id'],5),('reset-ip:'+address,15)])
         password(replacement)

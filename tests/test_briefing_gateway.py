@@ -574,6 +574,52 @@ class GatewayTests(GatewayFixture):
         self.assertEqual(self.request('/api/app/unlink',{'id':links[0]['id']})[0],200)
         self.assertEqual(phone('/api/app/sync',headers={'X-GoodMorning-App':token})[0],403)
 
+    def test_app_leaving_chrome_signs_in_keeps_its_colors_and_follows_running_work(self):
+        from goodmorning.security import app_link, web_push
+        def phone(path,body=None,headers=None):
+            cookie,self.cookie=self.cookie,None
+            try:return self.request(path,body,headers={'Origin':'','Sec-Fetch-Site':'',**(headers or {})})
+            finally:self.cookie=cookie
+        self.permanent()
+        pairing=app_link.pair(self.store,'Pixel 7');app_link.confirm(self.store,self.id,pairing['code'])
+        linked=app_link.claim(self.store,pairing['secret']);token={'X-GoodMorning-App':linked['token']}
+        # The app's WebView gets its own remembered sign-in through the phone's token.
+        self.assertEqual(phone('/api/app/signin',{},headers={'X-GoodMorning-App':'gma_wrong'})[0],403)
+        self.assertEqual(phone('/api/app/signin',{'user':self.other},headers=token)[0],400)
+        status,_,body=phone('/api/app/signin',{},headers=token)
+        cookie=json.loads(body)['cookie']
+        self.assertEqual(status,200)
+        self.assertRegex(cookie,'^'+COOKIE+'=[A-Za-z0-9_-]{43}; Path=/; Secure; HttpOnly; SameSite=Strict; Max-Age='+str(REMEMBER_SECONDS)+'$')
+        session=self.store.session(cookie.split(';')[0].split('=',1)[1],'gm.example.test')
+        self.assertEqual((session['user_id'],session['remembered']),(self.id,1))
+        # A new view on the phone takes the colors the phone chose before, rather than replacing them.
+        pixel={'style':'pixel','day':'warm','night':'starry'}
+        app_link.appearance(self.store,self.id,linked['id'],pixel)
+        headers=self.request('/app?link='+linked['id']+'&b=1',headers={'Cookie':cookie.split(';')[0]})[1]
+        self.assertIn('GoodMorningAppearance='+colors.cookie(pixel)+';',headers['Set-Cookie'])
+        self.assertEqual(app_link.links(self.store,self.id)[0]['appearance'],pixel)
+        # A Chrome subscription made in the app names its phone, so the updated app can retire it.
+        keys={'p256dh':json.loads(self.request('/api/push')[2])['publicKey'],'auth':web_push.b64(b'0123456789abcdef')}
+        subscription={'endpoint':'https://fcm.googleapis.com/fcm/send/phone','keys':keys}
+        self.assertEqual(self.request('/api/push/subscribe',{'subscription':subscription,'label':'GoodMorning app on Android'},
+                                      headers={'Cookie':self.cookie+'; GoodMorningLink='+linked['id']})[0],200)
+        self.assertTrue(json.loads(self.request('/api/push')[2])['devices'][0]['linked'])
+        # The summary says while the account's work runs or waits in the queue, so the app checks again soon.
+        answers=lambda user,host,path,*args:(404,{},b'{}')
+        busy=lambda:json.loads(phone('/api/app/sync?after=0',headers=token)[2])['busy']
+        with patch.object(self.gateway,'proxy',answers):
+            self.assertFalse(busy())
+            with self.store.db() as db:
+                db.execute('INSERT INTO metadata VALUES (?,?)',('generation',json.dumps({'user':self.other,'chat':'c'*32})))
+            self.assertFalse(busy())
+            with self.store.db() as db:
+                self.gateway._write_queue(db,[{'user':self.id,'kind':'chat','candidate':{'chat':'d'*32},'body':{}}])
+            self.assertTrue(busy())
+            with self.store.db() as db:
+                self.gateway._write_queue(db,[])
+                db.execute('UPDATE metadata SET value=? WHERE key=?',(json.dumps({'user':self.id,'chat':'c'*32}),'generation'))
+            self.assertTrue(busy())
+
     def test_phone_quick_notes_are_saved_and_sorted_through_a_secretary_chat(self):
         def phone(path,body=None,headers=None):
             cookie,self.cookie=self.cookie,None

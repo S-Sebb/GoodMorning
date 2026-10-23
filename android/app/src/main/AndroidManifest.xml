@@ -7,15 +7,9 @@
     <!-- The daily update check waits for a network and stays scheduled after a restart. -->
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
-    <!-- Event reminders on phones without Web Push are exact alarms; a calendar reminder may use them. -->
+    <!-- Event reminders are exact alarms; a calendar reminder may use them. -->
     <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" android:maxSdkVersion="32" />
-
-    <queries>
-        <!-- Decide between Chrome's full-screen view and the app's own WebView; see Device. -->
-        <package android:name="com.google.android.gms" />
-        <package android:name="com.android.chrome" />
-    </queries>
 
     <application
         android:allowBackup="false"
@@ -24,35 +18,18 @@
         android:supportsRtl="true"
         android:theme="@style/Screen">
 
-        <!-- The site is opened at the chosen server's /app; see Launcher.getLaunchingUrl. -->
+        <!-- The site is opened at the chosen server's /app; see Launcher.launchingUrl. -->
         <activity
             android:name=".Launcher"
             android:exported="true"
             android:theme="@android:style/Theme.Translucent.NoTitleBar">
-            <meta-data android:name="android.support.customtabs.trusted.STATUS_BAR_COLOR"
-                android:resource="@color/background" />
-            <meta-data android:name="android.support.customtabs.trusted.STATUS_BAR_COLOR_DARK"
-                android:resource="@color/background_dark" />
-            <meta-data android:name="android.support.customtabs.trusted.NAVIGATION_BAR_COLOR"
-                android:resource="@color/background" />
-            <meta-data android:name="android.support.customtabs.trusted.NAVIGATION_BAR_COLOR_DARK"
-                android:resource="@color/background_dark" />
-            <meta-data android:name="android.support.customtabs.trusted.SPLASH_IMAGE_DRAWABLE"
-                android:resource="@drawable/splash" />
-            <meta-data android:name="android.support.customtabs.trusted.SPLASH_SCREEN_BACKGROUND_COLOR"
-                android:resource="@color/background" />
-            <meta-data android:name="android.support.customtabs.trusted.SPLASH_SCREEN_FADE_OUT_DURATION"
-                android:value="300" />
-            <meta-data android:name="android.support.customtabs.trusted.FILE_PROVIDER_AUTHORITY"
-                android:value="me.love765.goodmorning.files" />
             <meta-data android:name="android.app.shortcuts"
                 android:resource="@xml/shortcuts" />
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
-            <!-- Chrome delegates notifications only to an app that opens the site's links. Other
-                 servers cannot be listed here, so their notifications stay Chrome's. -->
+            <!-- The default server's links open in the app; other servers cannot be listed here. -->
             <intent-filter android:autoVerify="true">
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
@@ -171,47 +148,9 @@
             </intent-filter>
         </activity>
 
-        <!-- The launcher enables this "Site Settings" shortcut; current Chrome manages every
-             verified origin, older Chrome only the default server below. -->
-        <activity
-            android:name="com.google.androidbrowserhelper.trusted.ManageDataLauncherActivity"
-            android:exported="false">
-            <meta-data android:name="android.support.customtabs.trusted.MANAGE_SPACE_URL"
-                android:value="https://gm.love765.me/" />
-            <intent-filter>
-                <action android:name="android.support.customtabs.action.ACTION_MANAGE_TRUSTED_WEB_ACTIVITY_DATA" />
-                <category android:name="android.intent.category.DEFAULT" />
-            </intent-filter>
-        </activity>
-
         <service
             android:name=".UpdateJob"
             android:exported="false"
             android:permission="android.permission.BIND_JOB_SERVICE" />
-
-        <activity android:name="com.google.androidbrowserhelper.trusted.FocusActivity" />
-        <activity android:name="com.google.androidbrowserhelper.trusted.NotificationPermissionRequestActivity" />
-
-        <provider
-            android:name="androidx.core.content.FileProvider"
-            android:authorities="me.love765.goodmorning.files"
-            android:exported="false"
-            android:grantUriPermissions="true">
-            <meta-data android:name="android.support.FILE_PROVIDER_PATHS"
-                android:resource="@xml/filepaths" />
-        </provider>
-
-        <!-- Lets the website's notifications appear as this app's notifications. -->
-        <service
-            android:name="com.google.androidbrowserhelper.trusted.DelegationService"
-            android:enabled="true"
-            android:exported="true">
-            <meta-data android:name="android.support.customtabs.trusted.SMALL_ICON"
-                android:resource="@drawable/ic_notification" />
-            <intent-filter>
-                <action android:name="android.support.customtabs.trusted.TRUSTED_WEB_ACTIVITY_SERVICE" />
-                <category android:name="android.intent.category.DEFAULT" />
-            </intent-filter>
-        </service>
     </application>
 </manifest>

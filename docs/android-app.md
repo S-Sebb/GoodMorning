@@ -1,10 +1,11 @@
 # Android app
 
-`android/` is a small Trusted Web Activity (TWA) shell: Chrome shows the chosen
-GoodMorning server full screen, without browser controls. The website does all
-the work, so website deployments reach the app immediately. A new APK is needed
-only when the shell changes: its screens, widgets, icon, name, permissions or
-the helper library. The release APK is about 320 KB.
+`android/` is a small shell around the phone's system WebView, which shows the
+chosen GoodMorning server full screen. It uses no Chrome, Google Play services
+or other libraries, so it works the same on phones without Google services, as
+in mainland China. The website does all the work, so website deployments reach
+the app immediately. A new APK is needed only when the shell changes: its
+screens, widgets, icon, name or permissions. The release APK is about 340 KB.
 
 The app is in beta, like the website: versions start at 0.1, and its releases
 are GitHub pre-releases.
@@ -13,46 +14,46 @@ The app:
 
 - asks for the server on first launch, prefilled with `https://gm.love765.me`.
   It accepts only an HTTPS origin whose `/.well-known/assetlinks.json` names
-  `me.love765.goodmorning`. Long-pressing the icon offers "Change server" and
-  Chrome's "Site Settings";
+  `me.love765.goodmorning`. Long-pressing the icon offers "Change server";
 - opens `<server>/app`, which reopens the last page, or chat on the first visit.
   Widgets and notifications open `/app?next=<page>`: the site signs the app in
   only through `/app` (`docs/browser-delivery.md`, Installed app);
-- shows website notifications as its own, through Chrome's notification
-  delegation. Chrome delegates only to an app that opens the site's links, so
-  the app opens `https://gm.love765.me` links (verified App Links), through
+- opens `https://gm.love765.me` links (verified App Links), through
   `/app?next=<page>`. A server chosen with "Change server" cannot be listed in
-  the manifest, so its notifications stay Chrome's;
+  the manifest;
+- posts notifications itself once the phone is linked (below);
 - offers home screen widgets once the phone is linked (below);
 - updates itself from this repository's GitHub releases (below).
 
-## Phones with and without Google services
+## The WebView
 
-Chrome's full-screen view needs Google services. Chrome verifies the site
-through Google's Digital Asset Links service, which is blocked in mainland
-China, and Chrome's Web Push travels through Google's FCM. The app therefore
-uses Chrome itself (`com.android.chrome`), never the phone's default browser:
-other browsers, such as some phone makers' own, may claim to support the
-full-screen view yet open an ordinary tab with an address bar.
+`WebActivity` shows the server in the app's own WebView, which handles file
+uploads, back navigation, external links in the browser, and edge-to-edge insets.
+When a page cannot load (no connection, or the server is down), it covers
+WebView's error page with a can't-connect screen styled after the maintenance
+page, with Try again; it also retries every 30 seconds while shown and on
+returning to the app. Its user agent includes `GoodMorningApp/<version>`, so the
+website reopens the last page and shows notification settings. WebView has no
+Web Push, so the linked app posts notifications itself (below), with the choices
+made in Settings on that phone. The user agent names the phone's link
+(`GoodMorningLink/<id>`), and each summary request says that the app posts
+notifications itself, so Account lists it among the devices with notifications.
+The WebView writes its cookies to disk whenever the app leaves the screen, so a
+remembered sign-in survives closing it.
 
-At each launch, when Google Play services and Chrome are both present,
-`Launcher` asks Chrome to verify the site and waits up to six seconds, showing
-the splash screen. Chrome answers from its cache after the first check. Only a
-verified site opens in Chrome; otherwise, for example where Google's service is
-unreachable, `WebActivity` shows the server in the app's own WebView, which handles file uploads, back
-navigation, external links in the browser, and edge-to-edge insets. When a page
-cannot load (no connection, or the server is down), it covers WebView's error page
-with a can't-connect screen styled after the maintenance page, with Try again; it
-also retries every 30 seconds while shown and on returning to the app. Chrome's
-full-screen view shows Chrome's own offline page. Its user
-agent includes `GoodMorningApp/<version>`, so the website still reopens the last
-page and keeps notification settings visible. WebView has no Web Push, so on
-these phones, and while Chrome cannot verify the site, the linked app posts
-notifications itself (below), with the choices made in Settings on that phone.
-The WebView's user agent names the phone's link (`GoodMorningLink/<id>`), and
-each summary request says whether the app posts notifications itself, so
-Account lists it among the devices with notifications. The WebView writes its cookies to disk whenever
-the app leaves the screen, so a remembered sign-in survives closing it.
+Versions before 0.8 opened the site in Chrome's full-screen view (a Trusted Web
+Activity) when Chrome could verify it through Google, and in the WebView
+otherwise. A phone that last opened in Chrome kept its sign-in, colors and Web
+Push subscription there. After the update:
+
+- a linked phone signs the WebView in once with its app token
+  (`POST /api/app/signin`), unless the WebView already has a sign-in; an
+  unlinked one signs in by hand. A failure from being offline tries again at the
+  next launch;
+- the site gives the WebView the colors saved for the phone's link;
+- the server removes the Chrome subscription and keeps its choices for the
+  phone (`docs/browser-delivery.md`, Notifications);
+- the launcher drops Chrome's "Site Settings" shortcut.
 
 ## Linking and widgets
 
@@ -71,13 +72,10 @@ desk icons, the secretary's portrait and name, and the day and night color
 schemes chosen on this phone (`Palette`, copied from `assets/web/color-schemes.css`),
 switched with the phone's dark mode. On Android 12 and newer the launcher
 switches them itself; older versions use the colors of the mode at drawing time.
-The app opens the site at `/app?link=<id>`, so colors chosen in the app (or in
-Chrome on the same phone) are saved for its link (`docs/browser-delivery.md`,
-Settings and Account) and reach the widgets with the next sync. The app's own
-WebView syncs as it leaves the screen; in Chrome's full-screen view the change
-arrives with the next sync (within 15 minutes, or at once with a refresh button
-or by opening the app). Until the phone chooses colors, widgets use the
-account's earlier choice.
+The app opens the site at `/app?link=<id>`, so colors chosen in the app are
+saved for its link (`docs/browser-delivery.md`, Settings and Account) and reach
+the widgets when the app leaves the screen. Until the phone chooses colors,
+widgets use the account's earlier choice.
 
 The launcher's widget list shows each widget's `widget_preview_*` layout: the
 real layout filled with a sample Thursday, in the default Morning Sky and Starry
@@ -142,25 +140,25 @@ notes are unsorted or edited since sorting; it sends any waiting notes, starts
 the sorting conversation (`POST /api/app/notes/sort`) and opens it in the app.
 
 `Sync` reads `GET /api/app/sync` once per run and caches the answer for the
-widgets. It runs when the app opens, after linking, from a widget's refresh
-button, and every 15 minutes from a `JobScheduler` job that needs a network and
-that Android batches with other work. While a briefing is being prepared, an
-extra job checks again after three minutes, then further apart, until it is
-saved or stops. A part the server cannot read keeps its
+widgets. It runs when the app opens or leaves the screen, after linking, from a
+widget's refresh button, and every 15 minutes from a `JobScheduler` job that
+needs a network and that Android batches with other work. While the account's
+work runs or waits in the queue (`busy`), or a briefing is being prepared, an
+extra job checks again after 30 seconds, then one, two and every four minutes
+until it ends. A message sent from the chat widget starts these checks at once.
+Android's battery saving (Doze) and some phone makers' background limits can
+hold them back until the phone wakes. A part the server cannot read keeps its
 last value. A 403 means the phone was unlinked: the app forgets its token and the
 widgets show the link prompt.
 
-On phones without Google services, the same run also:
+The same run also:
 
 - posts status notifications (briefing ready, needs your answer, reply
-  finished) newer than its last check, so they arrive up to about 15 minutes
-  late. The first check after linking only records where to start;
+  finished) newer than its last check, usually within a few minutes. The first
+  check after linking only records where to start;
 - schedules each timed event in the next 24 hours as an exact alarm at its
   start minus the account's lead time. Reminders fire on time even offline,
   each once; moved or deleted events lose their alarms on the next check.
-
-Phones with Google services get these through Web Push instead, when turned on
-in Settings, so nothing is shown twice.
 
 No `android/` file is deployed to the server; the deployment archive keeps only
 the top-level names in `deploy/deploy_native.py`.
@@ -255,12 +253,7 @@ $ANDROID_HOME/emulator/emulator -avd gmtest -no-window -no-audio -gpu swiftshade
 $ANDROID_HOME/platform-tools/adb install -r app/build/outputs/apk/release/app-release.apk
 ```
 
-The `gmtest` image includes Chrome. To skip Chrome's first-run screens on the
-emulator, write `_ --disable-fre --no-first-run --no-default-browser-check`
-to `/data/local/tmp/chrome-command-line` and run
-`adb shell am set-debug-app --persistent com.android.chrome`. Chrome verifies
-the site through Google's Digital Asset Links service. A server that does not
-serve the app's `assetlinks.json` opens with a browser address bar, and the
-picker refuses it. To test the update flow without publishing a release, point
+The server picker refuses a server that does not serve the app's
+`assetlinks.json`. To test the update flow without publishing a release, point
 a temporary debug build's `RELEASES_URL` at a local feed. That needs a debug-only
 `usesCleartextTraffic` manifest overlay; remove both afterwards.
