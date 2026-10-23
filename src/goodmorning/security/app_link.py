@@ -110,6 +110,11 @@ def verify(accounts, token, notifies=None):
                     stale = not entry['used'] or time.time() - entry['used'] > 3600
                     if stale or (notifies is not None and entry.get('notifies') != notifies):
                         entry['used'] = time.time()
+                        if notifies and entry.get('notifies') is False:
+                            # The app left Chrome; this phone keeps the choices it made there.
+                            retired = web_push.retire(db, key.removeprefix('app-links:'), entry['id'])
+                            if retired:
+                                entry['settings'] = retired
                         if notifies is not None:
                             entry['notifies'] = notifies
                         _store(db, key, links)

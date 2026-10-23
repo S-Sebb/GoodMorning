@@ -24,16 +24,13 @@ import java.nio.charset.StandardCharsets;
 import java.util.HashSet;
 import java.util.Set;
 
-/**
- * Reads the app summary from the server and keeps the widgets, and on phones without Google
- * services also status notifications and event reminders, up to date.
- */
+/** Reads the app summary from the server and keeps the widgets, status notifications and event reminders up to date. */
 final class Sync {
     static final int JOB = 2;
-    /** One extra check a few minutes after a briefing starts, so its widget shows it soon after it is saved. */
+    /** Extra checks while the account's work runs, so its notification and widgets follow soon after it ends. */
     static final int SOON = 3;
     private static final long PERIOD = 15 * 60 * 1000L;
-    private static final long SOON_DELAY = 3 * 60 * 1000L;
+    private static final long[] SOON_DELAYS = {30_000L, 60_000L, 120_000L, 240_000L};
     private static final Object LOCK = new Object();
 
     private Sync() {}
@@ -110,13 +107,12 @@ final class Sync {
                 write(context, data);
                 long newest = Math.max(cursor, 0);
                 for (int i = 0; i < notifications.length(); i++) newest = Math.max(newest, notifications.getJSONObject(i).getLong("seq"));
-                if (!Device.chromeMode(context)) {
-                    // The first summary after linking only sets the starting point; old news stays quiet.
-                    if (cursor >= 0) post(context, notifications, cursor);
-                    Reminders.schedule(context, data);
-                }
+                // The first summary after linking only sets the starting point; old news stays quiet.
+                if (cursor >= 0) post(context, notifications, cursor);
+                Reminders.schedule(context, data);
                 prefs.edit().putLong("cursor", newest).apply();
-                if (preparing(context)) soon(context);
+                if (busy(context)) soon(context, !prefs.contains("soon"));  // New work starts again at 30 seconds.
+                else prefs.edit().remove("soon").apply();
                 portrait(context, token, data.optJSONObject("secretary"));
             } catch (IOException | JSONException unreadable) {
                 return;
@@ -168,9 +164,11 @@ final class Sync {
         Widgets.updateAll(context);
     }
 
-    /** Whether a briefing of today is being prepared, by the last summary. */
-    static boolean preparing(Context context) {
-        JSONObject briefings = cached(context).optJSONObject("briefings");
+    /** Whether the account's work runs, or a briefing of today is being prepared, by the last summary. */
+    static boolean busy(Context context) {
+        JSONObject data = cached(context);
+        if (data.optBoolean("busy")) return true;
+        JSONObject briefings = data.optJSONObject("briefings");
         JSONObject editions = briefings == null ? null : briefings.optJSONObject("editions");
         if (editions == null) return false;
         for (String kind : new String[] {"gm", "gn"}) {
@@ -180,13 +178,18 @@ final class Sync {
         return false;
     }
 
-    /** Checks again in a few minutes; SyncJob repeats it, further apart each time, while preparation lasts. */
-    private static void soon(Context context) {
+    /**
+     * Checks again soon: after 30 seconds, then one, two and every four minutes while the work lasts.
+     * again replaces a waiting check, as when it just ran or new work started; otherwise it is kept.
+     */
+    static void soon(Context context, boolean again) {
         JobScheduler scheduler = context.getSystemService(JobScheduler.class);
-        if (scheduler.getPendingJob(SOON) != null) return;
+        if (!again && scheduler.getPendingJob(SOON) != null) return;
+        SharedPreferences prefs = prefs(context);
+        int step = prefs.getInt("soon", 0);
+        prefs.edit().putInt("soon", step + 1).apply();
         scheduler.schedule(new JobInfo.Builder(SOON, new ComponentName(context, SyncJob.class))
-                .setMinimumLatency(SOON_DELAY)
-                .setBackoffCriteria(SOON_DELAY, JobInfo.BACKOFF_POLICY_LINEAR)
+                .setMinimumLatency(SOON_DELAYS[Math.min(step, SOON_DELAYS.length - 1)])
                 .setRequiredNetworkType(JobInfo.NETWORK_TYPE_ANY)
                 .build());
     }
@@ -218,8 +221,10 @@ final class Sync {
         Widgets.updateAll(context);
     }
 
-    /** Marks the latest conversation as waiting for its reply until the next summary arrives. */
+    /** Marks the latest conversation as waiting for its reply until the next summary arrives, which comes soon. */
     static void markSent(Context context, String chat) {
+        prefs(context).edit().remove("soon").apply();
+        soon(context, true);
         try {
             JSONObject data = cached(context);
             JSONObject summary = data.optJSONObject("chat");

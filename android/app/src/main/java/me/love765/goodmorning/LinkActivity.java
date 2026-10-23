@@ -111,9 +111,9 @@ public class LinkActivity extends Activity {
         if (visible && (starting || waiting)) handler.postDelayed(this::show, REFRESH);
     }
 
-    /** Without Web Push the app posts notifications itself, which needs Android's permission. */
+    /** The app posts notifications itself, which needs Android's permission. */
     private void linked() {
-        if (Build.VERSION.SDK_INT >= 33 && !Device.chromeMode(this)) {
+        if (Build.VERSION.SDK_INT >= 33) {
             requestPermissions(new String[] {Manifest.permission.POST_NOTIFICATIONS}, 1);
         }
     }

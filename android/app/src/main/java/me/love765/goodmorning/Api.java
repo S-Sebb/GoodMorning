@@ -130,10 +130,14 @@ final class Api {
         return request(context, "GET", "/api/app/pair", null, "X-GoodMorning-Pairing", secret);
     }
 
-    /** The summary; the app also says whether it posts notifications itself, as the website lists it then. */
+    /** The summary; the app also says it posts notifications itself, as the website lists it then. */
     static JSONObject sync(Context context, String token, long after) throws IOException, JSONException {
-        return request(context, "GET", "/api/app/sync?after=" + after, null, "X-GoodMorning-App", token,
-                "X-GoodMorning-Notify", Device.chromeMode(context) ? "push" : "app");
+        return request(context, "GET", "/api/app/sync?after=" + after, null, "X-GoodMorning-App", token, "X-GoodMorning-Notify", "app");
+    }
+
+    /** A sign-in cookie for the app's WebView, for a phone whose sign-in stayed in Chrome. */
+    static JSONObject signin(Context context, String token) throws IOException, JSONException {
+        return request(context, "POST", "/api/app/signin", new JSONObject(), "X-GoodMorning-App", token);
     }
 
     /** The account's uploaded portrait, as PNG bytes. */

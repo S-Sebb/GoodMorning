@@ -355,7 +355,7 @@ class Gateway:
         chosen = entry['settings']
         result = {'device': link, 'settings': chosen, 'language': self.accounts.website_language(user) or 'en',
                   'appearance': entry['appearance'] or self.accounts.website_color_schemes(user) or site_colors.DEFAULT,
-                  'notifications': app_link.outbox(self.accounts, user, after, chosen)}
+                  'notifications': app_link.outbox(self.accounts, user, after, chosen), 'busy': self.busy(user)}
         for key, read_part in (('schedule', lambda: read('/api/app-schedule')),
                                ('secretary', lambda: read('/api/app-profile')),
                                ('reminders', lambda: read('/api/reminders?hours=24')['events']),
@@ -367,6 +367,17 @@ class Gateway:
             except Exception:
                 result[key] = None  # The app keeps showing what it had; other parts still update.
         return result
+
+    def busy(self, user):
+        """Whether this account has work running or queued, whose end the app checks for sooner."""
+        with self.accounts.db() as db:
+            row = db.execute("SELECT value FROM metadata WHERE key='generation'").fetchone()
+            return bool(row and json.loads(row[0]).get('user') == user) or any(entry.get('user') == user for entry in self._read_queue(db))
+
+    def app_signin(self, user, host):
+        """Signs the app's own WebView in for a phone that moved there from Chrome, whose sign-in stayed in Chrome."""
+        token, _ = self.accounts.app_session(user, host)
+        return {'cookie': f'{COOKIE}={token}; Path=/; Secure; HttpOnly; SameSite=Strict; Max-Age={REMEMBER_SECONDS}'}
 
     def app_briefings(self, user, read):
         result = read('/api/app-briefings')
@@ -1020,6 +1031,10 @@ def handler_for(gateway):
                 if set(body)!={'label'}:raise ValueError('Invalid phone name')
                 return self.respond(app_link.pair(gateway.accounts,body['label']))
             user=self.app_user()
+            if path=='/api/app/signin':
+                gateway.accounts.limit([('app-signin:'+user,10)])
+                if body:raise ValueError('Invalid sign-in request')
+                return self.respond(gateway.app_signin(user,host))
             self.select_language({'user_id':user})
             gateway.backend(user)
             handler={'/api/app/generate':gateway.app_generate,'/api/app/chat':gateway.app_chat,
@@ -1194,11 +1209,17 @@ def handler_for(gateway):
                 if path=='/app':
                     link=parse_qs(urlsplit(self.path).query).get('link',[''])[0]
                     entry=next((entry for entry in app_link.links(gateway.accounts,session['user_id']) if entry['id']==link),None)
-                    if entry and entry['appearance']!=site_colors.current():
+                    try:
+                        self.cookie('GoodMorningAppearance');chosen=True
+                    except (KeyError,CookieError):chosen=False
+                    colors=None
+                    if entry and not chosen and entry['appearance']:
+                        colors=entry['appearance']  # A new view on this phone, such as the app leaving Chrome, keeps its colors.
+                    elif entry and entry['appearance']!=site_colors.current():
                         # Colors chosen on this phone before the app named its link reach the widgets too.
                         app_link.appearance(gateway.accounts,session['user_id'],link,site_colors.current())
                     if not entry:link=None
-                    return self.respond(b'',302,location=self.app_page(),app_cookie=self.app_build(),link_cookie=link)
+                    return self.respond(b'',302,location=self.app_page(),app_cookie=self.app_build(),link_cookie=link,color_cookie=colors)
                 if path=='/api/queue':
                     return self.respond(gateway.queue_status(session['user_id']))
                 if path=='/api/activity':
@@ -1252,7 +1273,7 @@ def handler_for(gateway):
             try:
                 host=self.host()
                 self.select_language()
-                if urlsplit(self.path).path in ('/api/app/pair','/api/app/chat','/api/app/generate','/api/app/note','/api/app/notes/sort'):
+                if urlsplit(self.path).path in ('/api/app/pair','/api/app/signin','/api/app/chat','/api/app/generate','/api/app/note','/api/app/notes/sort'):
                     return self.app_post(host,urlsplit(self.path).path)
                 if self.headers.get('Origin')!='https://'+host or self.headers.get('Sec-Fetch-Site','same-origin')!='same-origin':
                     raise Denied('Forbidden')
@@ -1350,7 +1371,7 @@ def handler_for(gateway):
                     return self.respond({'links':app_link.links(gateway.accounts,session['user_id'])})
                 if path=='/api/push/subscribe':
                     if set(body)!={'subscription','label'}:raise ValueError('Invalid push subscription')
-                    return self.respond(web_push.subscribe(gateway.accounts,session['user_id'],body['subscription'],body['label']))
+                    return self.respond(web_push.subscribe(gateway.accounts,session['user_id'],body['subscription'],body['label'],self.this_link(session['user_id'])))
                 if path=='/api/push/unsubscribe':
                     # The browser itself names its endpoint; Account turns another device off by its name.
                     if len(body)!=1 or not isinstance(next(iter(body.values()),None),str) or set(body)-{'endpoint','device'}:raise ValueError('Invalid push subscription')

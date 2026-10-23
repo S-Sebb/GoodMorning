@@ -64,7 +64,13 @@ let goodmorningBeforeSignOut;
     const subscription = await current();
     if (!subscription) return null;
     const name = await deviceName(subscription.endpoint);
-    return state.devices.some(item => item.id === name) ? {device: name} : null;
+    const known = state.devices.find(item => item.id === name);
+    // Older Android apps open the site in Chrome. Subscribing again names their linked phone, so the
+    // server can drop this subscription once the updated app posts notifications itself.
+    if (known && !known.linked && goodmorningInApp) {
+      post('/api/push/subscribe', {subscription: subscription.toJSON(), label: known.label}).catch(() => {});
+    }
+    return known ? {device: name} : null;
   }
 
   async function show() {
@@ -77,7 +83,7 @@ let goodmorningBeforeSignOut;
     }
     if (!pushable) {
       device.hidden = true;
-      status.textContent = here ? t('This phone gets notifications from the GoodMorning app, up to about 15 minutes late.')
+      status.textContent = here ? t('This phone gets notifications from the GoodMorning app. They usually arrive within a few minutes, or later while the phone is saving battery.')
         : t('Link this phone in Account → Linked phones to get notifications here.');
     } else {
       device.hidden = Notification.permission === 'denied';

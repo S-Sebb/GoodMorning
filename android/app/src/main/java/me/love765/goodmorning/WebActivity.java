@@ -3,6 +3,7 @@ package me.love765.goodmorning;
 import android.app.Activity;
 import android.content.ActivityNotFoundException;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.graphics.Bitmap;
 import android.graphics.Insets;
 import android.net.Uri;
@@ -23,11 +24,11 @@ import android.widget.Button;
 import android.widget.FrameLayout;
 import android.window.OnBackInvokedDispatcher;
 
-/**
- * GoodMorning in the app's own WebView, for phones without Google services, where Chrome's
- * verified full-screen view is unavailable. Pages of the linked server stay here; other links open
- * in the phone's browser.
- */
+import org.json.JSONException;
+
+import java.io.IOException;
+
+/** GoodMorning in the app's own WebView. Pages of the chosen server stay here; other links open in the phone's browser. */
 public class WebActivity extends Activity {
     private static final int FILES = 1;
     private WebView web;
@@ -118,7 +119,43 @@ public class WebActivity extends Activity {
             getOnBackInvokedDispatcher().registerOnBackInvokedCallback(OnBackInvokedDispatcher.PRIORITY_DEFAULT, this::back);
         }
         if (state != null) web.restoreState(state);
-        else web.loadUrl(target(getIntent()));
+        else load(target(getIntent()));
+    }
+
+    /**
+     * Versions before 0.8 showed the site in Chrome where they could, so the sign-in stayed in Chrome.
+     * A linked phone signs in here once instead; an unlinked one signs in by hand.
+     */
+    private void load(String url) {
+        SharedPreferences app = getSharedPreferences("app", MODE_PRIVATE);
+        String token = Api.token(this);
+        if (!app.getBoolean("verified", false) || token == null) {
+            app.edit().remove("verified").apply();
+            web.loadUrl(url);
+            return;
+        }
+        new Thread(() -> {
+            String cookie = null;
+            try {
+                cookie = Api.signin(this, token).getString("cookie");
+                app.edit().remove("verified").apply();
+            } catch (IOException | JSONException failed) {
+                // Offline, busy or under maintenance: tries again at the next launch.
+                if (failed instanceof Api.Failure && ((Api.Failure) failed).status < 500 && ((Api.Failure) failed).status != 429) {
+                    app.edit().remove("verified").apply();
+                }
+            }
+            String found = cookie;
+            runOnUiThread(() -> {
+                if (isDestroyed()) return;
+                String server = Server.get(this), had = CookieManager.getInstance().getCookie(server);
+                // A sign-in made here earlier, for example while Chrome could not verify the site, stays.
+                if (found != null && (had == null || !("; " + had).contains("; " + found.substring(0, found.indexOf('=') + 1)))) {
+                    CookieManager.getInstance().setCookie(server, found);
+                }
+                web.loadUrl(url);
+            });
+        }).start();
     }
 
     /**

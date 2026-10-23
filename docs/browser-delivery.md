@@ -142,11 +142,12 @@ overflow. Pending input and uncertain delivery still retain the global busy flag
 
 ## Installed app
 
-Private pages link a web app manifest, so Android Chrome can install the site,
-and the Android app opens it in full screen. `/.well-known/assetlinks.json`
-vouches for the app package `me.love765.goodmorning` and its release-key
-fingerprint. Every server running this source serves it, so the app can connect
-to any of them. The app starts at `/app`, and pages it opens for widgets and
+Private pages link a web app manifest, so a browser can install the site. The
+Android app shows it in its own WebView. `/.well-known/assetlinks.json` vouches
+for the app package `me.love765.goodmorning` and its release-key fingerprint:
+the app's server picker accepts only a server that serves it, and Android opens
+the default server's links in the app. Every server running this source serves
+it, so the app can connect to any of them. The app starts at `/app`, and pages it opens for widgets and
 notifications go through `/app?next=<page>`. Inside the installed app, `app.js`
 saves the current page path in the `GoodMorningAppPage` cookie, and `/app`
 redirects to `next` when it is a page route, otherwise to that saved path when it
@@ -155,8 +156,8 @@ cookie holds only a path, never page content. The app also adds `app=<build>`,
 which `/app` keeps in the `GoodMorningApp` cookie so the update pill can offer
 the app's own updates (`docs/android-app.md`, Updates).
 
-Chrome withholds `SameSite=Strict` cookies, the login cookie included, when
-another app opens a page. Without a login cookie, `/app` therefore answers with a
+Browsers withhold `SameSite=Strict` cookies, the login cookie included, when
+another app opens a page, as Chrome did for app versions before 0.8. Without a login cookie, `/app` therefore answers with a
 page that refreshes once to `/app?b=1`: that same-site step sends the cookie, so a
 remembered sign-in survives closing the app. Only a request that still has no
 session after this step goes to `/login`.
@@ -181,7 +182,8 @@ choice in its runtime (`website-color-schemes.json`).
 
 The Android app opens `/app?link=<id>` once linked. If that link belongs to the
 signed-in account, the site sets the HttpOnly `GoodMorningLink` cookie and copies
-this device's appearance to the link; later appearance changes on that device
+this device's appearance to the link, or, when this view has not chosen colors
+yet but the link has, gives the view the link's colors; later appearance changes on that device
 update the link too, and `/api/app/sync` returns it so the phone's widgets match.
 A link that has none yet gets the account's earlier choice.
 
@@ -196,8 +198,9 @@ device keeps its own four switches and reminder lead time (5, 10, 15, 30 or 60
 minutes; 15 by default). Devices that subscribed before choices moved to devices
 start from the account-wide choices saved then.
 
-In the Android app's own WebView (phones without Google services), the app posts
-notifications itself, up to about 15 minutes late. The app names its link in its
+In the Android app, the app posts notifications itself: usually within a few
+minutes, while the account's work runs (`busy` below), or within about 15
+minutes otherwise. The app names its link in its
 user agent (`GoodMorningLink/<id>`, from app 0.2), so Settings there edits that
 linked phone's choices, and the phone's summary returns only those kinds.
 
@@ -220,8 +223,15 @@ That endpoint lists the timed events starting in the next three hours. Each
 device gets each reminder once, at its own lead time. While a GoodMorning window is focused,
 the worker shows only reminders, because the page already shows everything
 else. Notification text uses the account's website language. A tap opens the
-related chat, briefing or day schedule. In the Android app, Chrome shows them
-as the app's own notifications.
+related chat, briefing or day schedule.
+
+Android app versions before 0.8 used Chrome where they could, and subscribed
+Chrome to Web Push there. Such a subscription, made inside the app, records the
+phone's link (from the `GoodMorningLink` cookie; `app.js` subscribes again to add
+it). When that phone's app first reports that it posts notifications itself,
+the gateway removes the subscription so nothing arrives twice, and the phone
+keeps its choices (`web_push.retire`). A subscription made before this tagging
+is recognized by its name, "GoodMorning app on Android".
 
 ## Linked phones and app linking
 
@@ -253,7 +263,8 @@ With its token (`X-GoodMorning-App` header) the app can call:
   of the latest secretary conversation, today's two briefings
   (`/api/app-briefings`), the forecast frame for the account's city
   (`/api/app-weather`: `{city, frame}`, or `{error}`, read like the briefing's
-  weather with its 30-minute cache), and status notifications newer than `N`. A saved
+  weather with its 30-minute cache), status notifications newer than `N`, and
+  `busy`: whether the account's work runs or waits in the queue. A saved
   briefing comes as plain rows in reading order, without hidden record IDs; an
   unsaved one only as `missing`, `working` (also while queued), `waiting` (a
   question first) or `stopped`. If one part cannot be read, that part is
@@ -279,9 +290,14 @@ With its token (`X-GoodMorning-App` header) the app can call:
   marks them with that conversation and the words it received. Returns `{chat,
   remaining}`, or 409 when nothing waits. It starts paid model work.
 
+- `POST /api/app/signin` with `{}`: a remembered website sign-in as a
+  `Set-Cookie` value (`{cookie}`), for the app's WebView. Only a phone that
+  moved there from Chrome asks, once, as its sign-in stayed in Chrome
+  (`docs/android-app.md`). Ten requests per account in 15 minutes.
+
 The status notifications that Web Push sends are also kept, as the latest
-thirty, for accounts with a linked phone. Phones without Google services read
-them in their background check.
+thirty, for accounts with a linked phone. Linked phones read them in their
+background check.
 
 ## Session organization
 
