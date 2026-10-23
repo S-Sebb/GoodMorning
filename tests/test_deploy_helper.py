@@ -54,6 +54,19 @@ class DeployHelperTests(unittest.TestCase):
             with self.subTest(pin=pin), self.assertRaises(release.Stop):
                 release.engine_versions(manifest)
 
+    def test_openchamber_choices_survive_its_split_into_preferences(self):
+        with tempfile.TemporaryDirectory(dir=TEMP_ROOT) as name:
+            directory = Path(name)
+            (directory/'settings.json').write_text('{"defaultModel": "a/b", "lightThemeId": "day", "projects": []}')
+            before = helper.openchamber_choices(directory)
+            # What OpenChamber 2.5.1 writes on its first start.
+            (directory/'settings.json').write_text('{\n  "projects": [],\n  "defaultModel": "a/b",\n  "lightThemeId": "day"\n}')
+            (directory/'preferences.json').write_text('{"version": 1, "fields": {"defaultModel": {"value": "a/b", "updatedAt": 5},'
+                                                       ' "lightThemeId": {"value": "day", "updatedAt": 5}}}')
+            self.assertEqual(helper.openchamber_choices(directory), before)
+            (directory/'preferences.json').write_text('{"version": 1, "fields": {"defaultModel": {"value": "c/d", "updatedAt": 6}}}')
+            self.assertNotEqual(helper.openchamber_choices(directory), before)
+
     def test_engine_unit_mounts_only_root_owned_trees(self):
         unit = (ROOT/'deploy/goodmorning-engine.service').read_text()
         self.assertNotIn('/home/', unit)

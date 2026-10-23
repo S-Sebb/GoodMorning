@@ -62,6 +62,17 @@ def digest(path):
     return hashlib.sha256(Path(path).read_bytes()).hexdigest()
 
 
+def openchamber_choices(directory):
+    """OpenChamber's settings as its server reads them: settings.json overlaid with the values in
+    preferences.json. Newer engines move choices between the two files on first start, so the
+    files' bytes may change while the choices stay the same."""
+    def read(name):
+        path = directory/name
+        return json.loads(path.read_text()) if path.is_file() else {}
+    fields = read('preferences.json').get('fields', {})
+    return {**read('settings.json'), **{key: entry['value'] for key, entry in fields.items() if 'value' in entry}}
+
+
 def release_path(name):
     if not re.fullmatch(r'\d{8}-[a-z0-9]+(?:-[a-z0-9]+)*', name):
         raise ValueError('Release names look like YYYYMMDD-ship-<short hash>')
@@ -342,13 +353,14 @@ print(json.dumps({'profileReady':status['profile_ready'],'nativeEditions':count}
         volume = BASE/identifier
         protected_paths.extend(p for p in (volume/'secretary').rglob('*') if p.is_file() and not p.is_symlink())
         protected_paths.append(volume/'engine.json')
-        protected_paths.extend((volume/'home/.config/openchamber').glob('*settings*.json'))
-        protected_paths.append(volume/'home/.config/openchamber/preferences.json')
     protected = {str(p): digest(p) for p in protected_paths if p.is_file()}
+    choices = {identifier: openchamber_choices(BASE/identifier/'home/.config/openchamber') for identifier in identifiers}
 
     def unchanged():
         return (passwords() == before and languages() == before_languages
                 and all(digest(path) == value for path, value in protected.items())
+                and all(openchamber_choices(BASE/identifier/'home/.config/openchamber') == value
+                        for identifier, value in choices.items())
                 and digest(registry_path) == registry_hash
                 and all(not (BASE/identifier).exists() for identifier in unprovisioned))
 
