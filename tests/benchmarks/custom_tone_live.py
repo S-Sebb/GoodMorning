@@ -19,7 +19,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "src"))
 sys.path.insert(0, str(ROOT / "tests"))
-from benchmarks.native_bridge import NativeBridge
+from benchmarks import trial_engine
+from benchmarks.trial_engine import TrialBridge
 from goodmorning.records.inbox_store import initialize
 from goodmorning.web.briefing_server import BrowserApp
 from goodmorning.web import language, models
@@ -91,7 +92,8 @@ def run_case(output, source, lang, selected, day):
     result = {"case": name, "language": lang, "model": selected,
               "stages": {}, "complete": False, "tone_review": "pending manual transcript review"}
     save(target, result)
-    bridge = NativeBridge(source, runtime)
+    # A failed assertion ends the run; the engine then stops at exit.
+    bridge = TrialBridge(trial_engine.Engine(source, runtime).start())
     app = BrowserApp(runtime, bridge)
     today = day.isoformat()
 
@@ -169,20 +171,24 @@ def run_case(output, source, lang, selected, day):
     save(target, result)
     result["complete"] = True
     save(target, result)
+    bridge.close()
     return result
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--output", required=True)
+    trial_engine.add_arguments(parser)
     parser.add_argument("--language", required=True, choices=("en", "zh-CN"))
     args = parser.parse_args()
-    output = Path(args.output)
+    output = trial_engine.private_output(parser, args.output)
     selected = {"en": "muse-spark", "zh-CN": "deepseek-flash"}[args.language]
     day = date(2026, 10, 13)
     output.mkdir(parents=True, exist_ok=True)
     with matrix_lock(output):
-        result = run_case(output, ROOT, args.language, selected, day)
+        source = output / "source"
+        if not source.exists():
+            trial_engine.copy_release(source, args.source.resolve())
+        result = run_case(output, source, args.language, selected, day)
     print(json.dumps({"case": result["case"], "complete": result["complete"],
                       "stages": list(result["stages"]),
                       "tone_review": result["tone_review"]}, ensure_ascii=False))

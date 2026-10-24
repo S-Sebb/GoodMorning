@@ -20,7 +20,8 @@ from urllib.parse import quote
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT/'src'))
 sys.path.insert(0, str(ROOT/'tests'))
-from benchmarks.native_bridge import NativeBridge
+from benchmarks import trial_engine
+from benchmarks.trial_engine import TrialBridge
 from benchmarks.task_tone_live import context, matrix_lock, records, save, TONES
 from goodmorning.briefings.briefing_job import act, context_path, default_plan
 from goodmorning.calendar.calendar_store import CalendarStore
@@ -96,11 +97,11 @@ raise SystemExit(code)
 '''
 
 
-class CheckpointBridge(NativeBridge):
+class CheckpointBridge(TrialBridge):
     """Seed an interrupted preview before the ordinary, unchanged dispatch prompt."""
-    def __init__(self, source, runtime, seed, language):
-        super().__init__(source, runtime, agent='build')
-        self.seed, self.language = seed, language
+    def __init__(self, engine, seed, language):
+        super().__init__(engine, agent='build')
+        self.runtime, self.seed, self.language = str(engine.runtime), seed, language
         self.seeded = None
 
     def verify_scope(self):
@@ -110,9 +111,9 @@ class CheckpointBridge(NativeBridge):
         checks = []
         for _ in range(10):
             try:
-                agents = self.api('get','/api/agent?location%5Bdirectory%5D='+quote(self.directory,safe='')).get('data',[])
+                agents = self.request('/api/agent?location%5Bdirectory%5D='+quote(self.directory,safe='')).get('data',[])
                 agent = next((entry for entry in agents if entry.get('id') == 'build'), {})
-            except RuntimeError:
+            except OSError:
                 agent = {}
             rules = agent.get('permissions', [])
             actual = {path:external_allowed(rules,path) for path in expected}
@@ -208,7 +209,7 @@ def observe(app, bridge, job, folder, stage, language, selected):
     save(folder/(stage+'.status.json'), status)
     session = app.job(job).get('session')
     if session:
-        info = bridge.api('get', '/api/session/'+session)['data']
+        info = bridge.session(session)
         save(folder/(stage+'.session.json'), {key:info.get(key) for key in ('id','agent','model','cost','outcome')})
         save(folder/(stage+'.messages.json'), bridge.control('session.messages', sessionId=session, limit=120))
         assert info.get('model') == session_payload(selected), 'Model/variant mismatch'
@@ -336,7 +337,7 @@ def run_case(output, template, language, scenario, instant):
         reading = synthetic_weather(instant)
         save(runtime/'trial-weather.json', reading)
         save(folder/'weather-reading.json', reading)
-    bridge = CheckpointBridge(source, runtime, scenario == 'morning-resume', language)
+    bridge = CheckpointBridge(trial_engine.Engine(source, runtime).start(), scenario == 'morning-resume', language)
     app = BrowserApp(runtime, bridge, now=lambda:instant, preflight=True)
     day = app.today()
     baseline = seed_tasks(runtime, language, scenario, day)
@@ -472,6 +473,7 @@ def run_case(output, template, language, scenario, instant):
         result['functional_complete'] = False
         print(language+' '+scenario+': INCOMPLETE — '+result['failure'], flush=True)
     finally:
+        bridge.close()
         save(folder/'result.json', result)
     return result
 
@@ -551,7 +553,7 @@ def run_flexible_case(output, template, language, scenario, instant):
         'live_project_access','calendar_sync','publisher_images','news_acknowledgement')}))
     initialize(runtime)
     CalendarStore(str(runtime/'calendar.sqlite')).close()
-    bridge = CheckpointBridge(source, runtime, False, language)
+    bridge = CheckpointBridge(trial_engine.Engine(source, runtime).start(), False, language)
     app = BrowserApp(runtime, bridge, now=lambda:instant, preflight=True)
     day = app.today()
     kind = 'gm' if scenario == 'morning-vague' else 'gn'
@@ -630,28 +632,22 @@ def run_flexible_case(output, template, language, scenario, instant):
         result['functional_complete'] = False
         print(language+' '+scenario+': INCOMPLETE — '+result['failure'], flush=True)
     finally:
+        bridge.close()
         save(folder/'result.json', result)
     return result
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--output', type=Path, required=True)
+    trial_engine.add_arguments(parser)
     parser.add_argument('--language', choices=('en','zh-CN'), required=True)
     parser.add_argument('--weather', action='store_true', help='Only the morning case with a synthetic weather reading')
     args = parser.parse_args()
-    output = args.output.resolve()
-    if not output.is_relative_to('/tmp/opencode'):
-        parser.error('Synthetic output must stay beneath /tmp/opencode')
+    output = trial_engine.private_output(parser, args.output)
     with matrix_lock(output):
         output.mkdir(mode=0o700)
         source = output/'source'
-        source.mkdir()
-        for name in ('src','scripts','docs','templates','assets','skill-source','.opencode'):
-            shutil.copytree(ROOT/name, source/name, ignore=shutil.ignore_patterns('__pycache__'))
-        for name in ('AGENTS.md','AGENT-PROMPT-GUIDE.md','SERVER-USER-GUIDE.md','SERVER-DATA-GUIDE.md'):
-            shutil.copyfile(ROOT/name,source/name)
-        shutil.copyfile(ROOT/'skill-source/goodmorning.md',source/'goodmorning.md')
+        trial_engine.copy_release(source, args.source.resolve())
         (source/'opencode.json').write_text(json.dumps({'skills':['.'],'permissions':[
             {'action':'webfetch','resource':'*','effect':'deny'},
             {'action':'websearch','resource':'*','effect':'deny'}]}))
