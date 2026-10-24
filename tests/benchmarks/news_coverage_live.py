@@ -20,7 +20,7 @@ from benchmarks.task_tone_live import context, save
 from goodmorning.records.inbox_store import initialize
 from goodmorning.calendar.calendar_store import CalendarStore
 from goodmorning.web.briefing_server import BrowserApp
-from goodmorning.web.models import MODELS, session_payload
+from goodmorning.web.models import MODELS, for_language, session_payload
 
 # The real CLI with command logging only: no provider faults or synthetic weather.
 FAULTS = ("if argv[:1]==['weather']:", "if argv[:1]==['news'] else", "if sys.argv[1:2]==['weather']:", "elif sys.argv[1:2]==['news']:")
@@ -53,8 +53,9 @@ def main():
     parser.add_argument('--output', type=Path, required=True, help='New private directory')
     parser.add_argument('--template', type=Path, required=True, help='Directory with profile.md')
     parser.add_argument('--language', choices=('en', 'zh-CN'), default='en')
-    parser.add_argument('--model', choices=MODELS, default='muse-spark')
+    parser.add_argument('--model', choices=MODELS, help='Defaults to the production model for the language')
     args = parser.parse_args()
+    args.model = args.model or for_language(args.language)
     folder = args.output.resolve()
     folder.mkdir(mode=0o700)
     runtime = folder/'account'

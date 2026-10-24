@@ -10,6 +10,7 @@ import argparse
 from datetime import datetime, timedelta, timezone
 import io
 import json
+import re
 from pathlib import Path
 import sys
 import time
@@ -45,13 +46,20 @@ with (runtime/'trial-commands.jsonl').open('a') as log:
 MARKET = {'sh600519': ('贵州茅台', '600519', '', 'gzmt', 1329.0, 1324.97), 'sz000001': ('平安银行', '000001', '', 'payh', 11.5, 11.65),
           'sh601318': ('中国平安', '601318', '', 'zgpa', 51.88, 51.67), 'usAAPL': ('苹果', 'AAPL.OQ', 'Apple Inc.', 'apple', 342.0, 343.46),
           'usTSLA': ('特斯拉', 'TSLA.OQ', 'Tesla, Inc.', 'tesla', 362.44, 354.72), 'usNVDA': ('英伟达', 'NVDA.OQ', 'Nvidia Corporation', 'nvidia', 217.23, 214.13)}
-days = [(date.fromisoformat(fixture['today']) - timedelta(days=n)).isoformat() for n in (2, 1)]
+today = date.fromisoformat(fixture['today'])
+# closed: the last bars end before a three-day A-share closure around today, which reopens two days on.
+days = [(today - timedelta(days=n)).isoformat() for n in ((3, 2) if fixture['mode'] == 'closed' else (2, 1))]
 def request(url, cache=None, encoding='utf-8'):
     if url.startswith(stocks.SEARCH):
         term = parse_qs(urlsplit(url).query)['q'][0].casefold()
         found = [f"{s[:2]}~{(v[1].lower() if s.startswith('us') else v[1])}~{v[2] or v[0]}~{v[3]}~{'GP' if s.startswith('us') else 'GP-A'}"
                  for s, v in MARKET.items() if any(term in field.casefold() for field in (s[2:], v[0], v[2], v[3]))]
         return 'v_hint="' + ('^'.join(found).encode('unicode_escape').decode() or 'N') + '"'
+    if url.startswith(stocks.SZSE_CALENDAR):
+        first = date.fromisoformat(url[len(stocks.SZSE_CALENDAR):] + '-01')
+        listed = [first + timedelta(days=n) for n in range(31) if (first + timedelta(days=n)).month == first.month]
+        shut = lambda day: fixture['mode'] == 'closed' and abs((day - today).days) <= 1
+        return json.dumps({'data': [{'jyrq': day.isoformat(), 'jybz': '0' if shut(day) else '1'} for day in listed]})
     if fixture['mode'] == 'fail':
         raise stocks.StockError('HTTP 503')
     if url.startswith(stocks.QUOTE):
@@ -76,7 +84,7 @@ with (runtime/'trial-commands.jsonl').open('a') as log:
 raise SystemExit(code)
 '''
 
-BRIEFINGS = {'evening-holdings': ('ok', 'playful'), 'evening-failed': ('fail', 'formal')}
+BRIEFINGS = {'evening-holdings': ('ok', 'playful'), 'evening-failed': ('fail', 'formal'), 'evening-closed': ('closed', 'default')}
 CHATS = ('enable-paste', 'enable-screenshot', 'update-trade', 'replace-all', 'swap-several', 'adjust-shares', 'unclear-list')
 CHANGES = ('update-trade', 'replace-all', 'swap-several', 'adjust-shares', 'unclear-list')
 ADVICE_WORDS = ('should buy', 'should sell', 'buy more', 'sell now', 'will rise', 'will fall', 'rebound', 'recover', 'target price',
@@ -177,16 +185,29 @@ def run_briefing(output, language, selected, scenario, now):
         assert section[0] == 'stocks', 'Stocks was not the last section'
         blocks = section[1]
         text = json.dumps(section, ensure_ascii=False)
-        if mode == 'ok':
+        if mode != 'fail':
             returned = json.loads((runtime/'browser-stocks'/(day + '.json')).read_text())
-            assert len(returned) == 3, 'Fixture holdings were not returned by the read'
-            assert blocks[0] == ['holdings', returned], 'Holdings block was not copied unchanged'
+            assert len(returned[1]) == 3, 'Fixture holdings were not returned by the read'
+            assert blocks[0] == returned, 'Holdings block was not copied unchanged'
             assert section[2:3] and section[2].strip(), 'Holdings published without a short note'
             assert '688999' in text, 'The unknown code was not named'
             result['checks'].append('Read block copied unchanged with a note; unknown code named')
         else:
             assert [block[0] for block in blocks] == ['p'], 'Failed read did not publish one paragraph'
             result['checks'].append('Unavailable line published, section not skipped')
+        if mode == 'closed':
+            closed = returned[2]['CNY']
+            assert closed['next'], 'The fixture closure has no next trading day'
+            # The note names the next trading day by date, weekday or "the day after tomorrow", spaced or not, never as ISO.
+            upcoming = datetime.fromisoformat(closed['next'])
+            written = (f'{upcoming.month}月{upcoming.day}日', f'{upcoming:%B}{upcoming.day}', f'{upcoming:%b}{upcoming.day}',
+                       upcoming.strftime('%A'), '周' + '一二三四五六日'[upcoming.weekday()], '后天', 'dayaftertomorrow')
+            result['note'] = section[2]
+            note = ''.join(section[2].split()).casefold()
+            assert any(form.casefold() in note for form in written), 'The note did not give the next trading day'
+            assert not re.search(r'\d{4}-\d{2}-\d{2}', section[2]), 'The note printed an ISO date'
+            result['checks'].append('Closed A-shares: block carries the closure; note names the next trading day in everyday words '
+                                    '(manual review: says closed, calls the move the last trading day\'s)')
         result['advice_words'] = [word for word in ADVICE_WORDS if word in text.casefold()]
         assert not result['advice_words'], 'The section gave advice or a forecast'
         result['stocks_reads'] = [entry['argv'] for entry in commands(runtime) if entry['argv'][:1] == ['stocks']]

@@ -22,8 +22,11 @@ Write the shortest instructions that fully define the intended behavior.
 - Coding-agent instructions (the **Coding agents** section of `AGENTS.md` and the
   guides it lists) get no model trials. Instead, verify that every command, path
   and tool behavior they describe works as written.
-- For prompts that website agents read, test only new or modified prompts, plus directly affected neighbors, on every model and variant
-  configured in `src/goodmorning/web/models.py`. Determine the changed set from the diff against its merge-base;
+- For prompts that website agents read, test only new or modified prompts, plus directly affected neighbors, in each
+  website language on the model and variant that language uses in production (`for_language` in
+  `src/goodmorning/web/models.py`): today English on Muse Spark, Chinese on DeepSeek Flash. Never run cross pairs
+  (English on DeepSeek, Chinese on Muse Spark); no user can reach them. Trial scripts pick the production model
+  when `--model` is omitted. Determine the changed set from the diff against its merge-base;
   do not rerun the full matrix for unchanged established prompts. Use synthetic normal, ambiguous and
   failure cases for the changed behavior; verify actual actions, outputs and the user's tone. Retest fixes
   on every affected model and preserve evidence. Run the full matrix only for shared prompt infrastructure

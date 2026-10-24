@@ -375,6 +375,19 @@ html[data-edition="gn"] .holdings:lang(zh) { --gain: #f2928a; --loss: #7fd3a0; }
 .holding-change { display: grid; justify-items: end; flex-shrink: 0; text-align: right; }
 .holding-change .holding-amount { font-size: 16px; font-weight: 650; white-space: nowrap; }
 .holding-change .holding-percent { font-size: 13px; white-space: nowrap; }
+/* A market that did not open today: its status leads, the last session shrinks to a recap, holdings fold away. */
+.section-body .holding-status { margin: 6px 0 0; font-size: 15px; color: var(--ink); }
+.holding-recap { margin: 14px 0 0; padding: 12px 0 0; border-top: 1px solid var(--line); }
+.section-body .holding-recap-label { margin: 0; font-size: 12px; letter-spacing: .3px; color: var(--muted); }
+.is-closed .holding-total { margin-top: 4px; }
+.is-closed .holding-total .holding-amount { font-size: 20px; }
+.is-closed .holding-total .holding-percent { font-size: 14px; }
+.section-body .holding-movers { margin: 4px 0 0; font-size: 13px; line-height: 1.6; color: var(--muted); }
+.holding-movers > span { white-space: nowrap; }
+.holding-details { margin: 12px 0 0; }
+.holding-details > summary { cursor: pointer; padding: 10px 4px; font-size: 14px; color: var(--muted); }
+.holding-details[open] > summary { color: var(--ink); }
+.holding-details .holding-list { margin-top: 4px; }
 .holdings .holding-amount, .holdings .holding-percent, .holding-meta, .holding-detail, .holding-since { font-variant-numeric: tabular-nums; }
 .holding-copy h4:lang(zh) { font-family: var(--cn-sans); letter-spacing: 0; }
 .anime .section-body > p:not(.section-takeaway), .games .section-body > p:not(.section-takeaway), .stocks .section-body > p:not(.section-takeaway) { background: var(--wash); border-radius: 12px; padding: 18px 22px; margin: 0; color: var(--muted); font-family: Georgia, serif; font-size: 17px; }
