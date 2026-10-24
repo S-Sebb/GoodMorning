@@ -1,6 +1,6 @@
 ---
 name: goodmorning
-description: Personal secretary for /gm morning briefings, /gn night summaries, /eureka idea capture, /todo task capture, and /secretary setup, project records, and calendar work.
+description: Personal secretary for website /gm morning and /gn evening briefing jobs, and secretary chat for setup, saving to-dos and ideas, project records, and calendar work.
 ---
 
 # GoodMorning
@@ -19,10 +19,8 @@ matching workflow; load specialized guides only for the operation being performe
 
 | Request, including equivalent natural language | Workflow |
 |---|---|
-| `/gm` | `docs/workflows/gm.md` |
-| `/gn` | `docs/workflows/gn.md` |
-| `/todo` | `docs/workflows/todo.md` |
-| `/eureka` | `docs/workflows/eureka.md` |
+| Saving a to-do, including older `/todo` chats | `docs/workflows/todo.md` |
+| Saving an idea, including older `/eureka` chats | `docs/workflows/eureka.md` |
 | `/initialize`, `/secretary`, setup or general secretary work | `docs/workflows/secretary.md` |
 
 Ask if intent is unclear. An explicit change of request follows its workflow in

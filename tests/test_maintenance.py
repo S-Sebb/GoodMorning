@@ -31,7 +31,7 @@ class MaintenanceTests(unittest.TestCase):
         deploy_pause.set_state(self.store, True, reason='deploy test', by='test')
         self.assertTrue(deploy_pause.is_paused(self.store))
         self.assertTrue(self.gateway.paused())
-        self.assertEqual(self.gateway.pause_state()['enabled'], True)
+        self.assertEqual(deploy_pause.get_state(self.store)['enabled'], True)
         deploy_pause.set_state(self.store, False)
         self.assertFalse(self.gateway.paused())
 

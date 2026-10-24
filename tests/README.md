@@ -73,8 +73,9 @@ restoration.
 ## Benchmarks (opt-in, free)
 
 `tests/benchmarks/` holds size and speed experiments that informed past design
-choices: `briefing_format`, `inbox`, `initialization`, `news`,
-`weather`, `workflow` and `projects.mjs`. They are evidence, not release gates.
+choices: `briefing_format` (add `--with tiktoken --with pyyaml`), `inbox`,
+`initialization`, `news`, `weather` and `projects.mjs`. They are evidence, not
+release gates.
 `reply_templates.py` and `native_bridge.py` are shared helpers.
 `tests/integration/native_chat_titles.py --binary PATH` checks the native
 auto-title flow against a loopback-only fake provider.

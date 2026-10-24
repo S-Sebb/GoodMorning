@@ -522,10 +522,6 @@ def group_stories(items):
     return stories
 
 
-def groundnews_link(query):
-    return f"https://ground.news/search?query={urllib.parse.quote(query)}"
-
-
 def story_line_md(story, max_links=1):
     title = re.sub(r"([\\`*_{}\[\]<>])", r"\\\1", story["title"])
     links = ", ".join(f"[{s['source']}]({s['url'].replace('(', '%28').replace(')', '%29')})"

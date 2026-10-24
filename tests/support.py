@@ -29,8 +29,8 @@ Path(TEMP_ROOT).mkdir(parents=True, exist_ok=True)
 
 def returning_viewer(runtime):
     """Unrelated browser suites use an account that already dismissed this release."""
-    from goodmorning.web.release import patch_note
-    (Path(runtime) / 'release-seen.json').write_text(json.dumps({'version': patch_note()['version']}))
+    from goodmorning.web.release import patch_notes
+    (Path(runtime) / 'release-seen.json').write_text(json.dumps({'version': patch_notes()[0]['version']}))
 
 
 class QuickServer(ThreadingHTTPServer):

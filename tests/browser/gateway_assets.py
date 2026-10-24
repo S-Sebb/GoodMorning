@@ -16,7 +16,7 @@ from support import GatewayFixture
 from support import start_server
 from test_weekly_schedule import make_runtime, canonical_records
 from support import FakeChamber
-from goodmorning.web.release import patch_note
+from goodmorning.web.release import patch_notes
 from playwright.sync_api import sync_playwright, expect
 
 
@@ -25,7 +25,7 @@ def main():
     viewer=None
     try:
         fixture.permanent()
-        fixture.store.release_seen(fixture.id,patch_note()['version'])
+        fixture.store.release_seen(fixture.id,patch_notes()[0]['version'])
         with tempfile.TemporaryDirectory(dir=TEMP_ROOT,prefix='assets-gateway-') as directory:
             app=make_runtime(Path(directory));canonical_records(app.runtime);returning_viewer(app.runtime)
             app.chamber=FakeChamber()

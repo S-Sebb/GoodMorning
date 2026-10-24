@@ -11,7 +11,7 @@ class SkillTests(unittest.TestCase):
         entry = (ROOT / 'skill-source/goodmorning.md').read_text()
         self.assertIn('name: goodmorning', entry)
         self.assertEqual(list(ROOT.glob('**/SKILL.md')), [])
-        for kind in ('gm', 'gn', 'eureka', 'todo', 'secretary'):
+        for kind in ('eureka', 'todo', 'secretary'):
             path = 'docs/workflows/' + kind + '.md'
             self.assertIn(path, entry)
             text = (ROOT / path).read_text()

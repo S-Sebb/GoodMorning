@@ -44,19 +44,6 @@ def humanize_iso_date(iso_date):
     return f'{value.strftime("%b")} {value.day}'
 
 
-def heading_html(title):
-    """Display heading with a subtle date badge; keeps full date for screen readers."""
-    from .briefing_web import visible_text
-    base, iso = split_dated_title(visible_text(title))
-    if not iso:
-        return html.escape(visible_text(title))
-    human = humanize_iso_date(iso)
-    return (html.escape(base) + ' <span class="section-date" data-date="' +
-            html.escape(iso, quote=True) + '"><span aria-hidden="true">· ' +
-            html.escape(human) + '</span><span class="visually-hidden"> (' +
-            html.escape(iso) + ')</span></span>')
-
-
 def weather_display(card, metric):
     """Normalize LLM-composed weather values for display; saved data is unchanged."""
     if metric is None:

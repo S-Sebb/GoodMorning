@@ -157,9 +157,6 @@ class Gateway:
         """True while the deploy pause flag is enabled. Reads only."""
         return deploy_pause.is_paused(self.accounts)
 
-    def pause_state(self):
-        return deploy_pause.get_state(self.accounts)
-
     def check_paused(self):
         if self.paused():
             raise deploy_pause.MaintenancePaused(deploy_pause.MESSAGE_EN)

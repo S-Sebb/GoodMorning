@@ -52,7 +52,7 @@ html[data-style="pixel"] :is(.section-number, .check, .chat-special-icon, .chat-
   #chat-history .history-current, .chat-help-mark, #quick-chat-dot, #quick-chat-send, .quick-chat-tool, #quick-chat-text, .today-marker,
   .edition-link, .briefing-section-nav a, .chat-page button, .schedule-navigation a, .week-arrow, .schedule-mode, .schedule-mode *,
   .day-badge, .is-today .schedule-day-number, .activity-desk, .activity-item a, .attachment-chip, .scheme-swatch,
-  .scheme-swatch i, .pixel-style-switch, .pixel-style-switch input, .pixel-style-switch input::before, .settings-close, #close-sections) { border-radius: 0; }
+  .scheme-swatch i, .settings-close, #close-sections) { border-radius: 0; }
 html[data-style="pixel"] .scheme-swatch { box-shadow: 0 0 0 2px var(--px-line); }
 html[data-style="pixel"] .scheme-swatch:not([data-swatch="style-soft"]) :is(i:nth-child(4), i:nth-child(5)) { box-shadow: 0 0 0 1px var(--sw-ink); }
 html[data-style="pixel"] .scheme-card input:checked + .scheme-swatch { box-shadow: 0 0 0 3px var(--surface), 0 0 0 6px var(--accent); }
