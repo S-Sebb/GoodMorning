@@ -60,6 +60,7 @@ Read the matching guide before acting:
 | Writing or changing agent prompts or instructions | `AGENT-PROMPT-GUIDE.md` |
 | Chinese interface text in `assets/web/translations.json` | `docs/chinese-copy.md` |
 | Deploying, only when the owner asks | `docs/server-deployment.md` |
+| Server updates, reboots and maintenance logs | `docs/server-maintenance.md` |
 | Creating a hosted server user | `SERVER-USER-GUIDE.md` |
 | Inspecting, migrating, repairing, restoring or modifying hosted account data | `SERVER-DATA-GUIDE.md` |
 

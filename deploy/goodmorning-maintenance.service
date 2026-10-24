@@ -1,0 +1,17 @@
+[Unit]
+Description=GoodMorning daily server maintenance (docs/server-maintenance.md)
+After=network-online.target goodmorning-gateway.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/opt/goodmorning/python/bin/python -B /opt/goodmorning/current/deploy/maintain.py run
+# Releases the website if the run stopped without doing so; a pending reboot is left alone.
+ExecStopPost=/opt/goodmorning/python/bin/python -B /opt/goodmorning/current/deploy/maintain.py finish
+TimeoutStartSec=60min
+StateDirectory=goodmorning-maintenance
+StateDirectoryMode=0700
+LogsDirectory=goodmorning-maintenance
+LogsDirectoryMode=0750
+LimitCORE=0
+MemorySwapMax=0

@@ -40,7 +40,10 @@ ALLOWED = frozenset({'.gitignore', '.opencode', 'LICENSE', 'README.md', 'AGENTS.
                      'scripts', 'src', 'assets', 'integrations', 'vendor', 'requirements', 'docs',
                      'templates', 'deploy', 'tests'})
 UNITS = ('goodmorning-account@.service', 'goodmorning-viewer@.service',
-         'goodmorning-gateway.service', 'goodmorning-vault@.service', 'goodmorning-engine.service')
+         'goodmorning-gateway.service', 'goodmorning-vault@.service', 'goodmorning-engine.service',
+         'goodmorning-maintenance.service', 'goodmorning-maintenance.timer', 'goodmorning-maintenance-boot.service')
+# Enabled on every switch; see docs/server-maintenance.md.
+MAINTENANCE_UNITS = ('goodmorning-maintenance.timer', 'goodmorning-maintenance-boot.service')
 NGINX = Path('/etc/nginx/conf.d/goodmorning.conf')
 HOOK = Path('/etc/letsencrypt/renewal-hooks/deploy/goodmorning-reload-nginx')
 SCHEMA = {'users': {'id', 'name', 'salt', 'digest', 'revision', 'temporary', 'enabled'},
@@ -121,6 +124,73 @@ def require_no_work(db, own=None):
         raise Busy('Queued requests are waiting')
     if metadata(db, 'generation_waiting') not in (None, []):
         raise Busy('Suspended input is waiting for its owner')
+
+
+def provisioned():
+    """Enabled logins split into those with a private backend and those without one."""
+    with read_db() as db:
+        enabled = [row[0] for row in db.execute('SELECT id FROM users WHERE enabled=1 ORDER BY id')]
+    registry = json.loads((ACCOUNTS/'backends.json').read_text())
+    for identifier in enabled:
+        assert re.fullmatch('[a-f0-9]{32}', identifier)
+    return [i for i in enabled if i in registry], [i for i in enabled if i not in registry]
+
+
+def live_clients(release, identifiers):
+    """Accounts store, gateway, engine configs and session clients from RELEASE's own code.
+    The clients only inspect sessions; they never dispatch."""
+    sys.path.insert(0, str(release/'src'))
+    from goodmorning.security.briefing_accounts import Accounts
+    from goodmorning.security.briefing_gateway import Gateway
+    from goodmorning.security.briefing_runtime import LocalBridge
+    store = Accounts(ACCOUNTS)
+    configs = {identifier: json.loads((BASE/identifier/'engine.json').read_text()) for identifier in identifiers}
+    bridges = {identifier: LocalBridge('http://127.0.0.1:'+str(config['chamberPort']), str(release), config['uiPassword'])
+               for identifier, config in configs.items()}
+    return store, Gateway(store, {HOST: 'gm'}), configs, bridges
+
+
+def check_idle(store, bridges, ticket):
+    """Raise Busy unless the website is paused and no account has running work or pending input."""
+    with store.db() as db:
+        require_paused(db)
+        require_no_work(db, ticket)
+    for identifier, bridge in bridges.items():
+        active = bridge.request('/api/session/active')
+        if active.get('data', active):
+            raise Busy('An account has an active session')
+        sessions = set()
+        for registry_file in ('browser-jobs/jobs.json', 'browser-chats/chats.json'):
+            path = BASE/identifier/'secretary'/registry_file
+            if path.is_file():
+                sessions.update(item['session'] for item in json.loads(path.read_text()).values() if item.get('session'))
+        for session in sessions:
+            if bridge.control('session.status', sessionId=session)['sessionStatus']['type'] != 'idle':
+                raise Busy('A session is busy')
+            if bridge.pending(session) != ([], []):
+                raise Busy('Pending owner input prevents deployment')
+
+
+def wait_idle(idle, timeout):
+    """None once idle() passes, else the last reason it was busy when timeout ran out."""
+    deadline = time.monotonic()+timeout
+    while True:
+        try:
+            idle()
+            return None
+        except Busy as error:
+            if time.monotonic() >= deadline:
+                return str(error)
+            time.sleep(5)
+
+
+def reserve(store, ticket):
+    """Take the single work reservation so nothing new starts; Busy if work holds it."""
+    with store.db() as db:
+        db.execute('BEGIN IMMEDIATE')
+        require_paused(db)
+        require_no_work(db)
+        db.execute('INSERT INTO metadata VALUES (?,?)', ('generation', json.dumps(ticket, separators=(',', ':'))))
 
 
 def stage(archive, name):
@@ -215,10 +285,12 @@ def stage_engine(openchamber, opencode):
 
 
 def install(source, target, backup):
-    """Copy only when different; return whether a rollback copy was taken."""
+    """Copy only when different; return whether the target changed. A new target
+    has no rollback copy, so rollback removes it."""
     if target.is_file() and target.read_bytes() == source.read_bytes():
         return False
-    shutil.copy2(target, backup/target.name)
+    if target.exists():
+        shutil.copy2(target, backup/target.name)
     shutil.copy2(source, target)
     return True
 
@@ -260,17 +332,12 @@ def switch(name, engine=None):
     with read_db() as db:
         require_schema(db)
         require_paused(db)
-        enabled = [row[0] for row in db.execute('SELECT id FROM users WHERE enabled=1 ORDER BY id')]
 
     # An enabled login can exist before its private backend is provisioned.
     # Leave wholly unprovisioned accounts untouched; reject partial provisioning.
     registry_path = ACCOUNTS/'backends.json'
-    registry = json.loads(registry_path.read_text())
     registry_hash = digest(registry_path)
-    identifiers = [identifier for identifier in enabled if identifier in registry]
-    unprovisioned = [identifier for identifier in enabled if identifier not in registry]
-    for identifier in identifiers + unprovisioned:
-        assert re.fullmatch('[a-f0-9]{32}', identifier)
+    identifiers, unprovisioned = provisioned()
     for identifier in unprovisioned:
         assert not (BASE/identifier).exists(), 'Review a partially provisioned private runtime'
         for kind in ('vault', 'account', 'viewer'):
@@ -278,48 +345,16 @@ def switch(name, engine=None):
                                    capture_output=True, text=True, timeout=10).stdout.strip()
             assert state == 'inactive', 'Review an unregistered account service'
 
-    # The incumbent release's clients only inspect sessions; they never dispatch.
-    sys.path.insert(0, str(old/'src'))
-    from goodmorning.security.briefing_accounts import Accounts
-    from goodmorning.security.briefing_gateway import Gateway
-    from goodmorning.security.briefing_runtime import LocalBridge
-    store = Accounts(ACCOUNTS)
-    gateway = Gateway(store, {HOST: 'gm'})
-    configs = {identifier: json.loads((BASE/identifier/'engine.json').read_text()) for identifier in identifiers}
-    bridges = {identifier: LocalBridge('http://127.0.0.1:'+str(config['chamberPort']), str(old), config['uiPassword'])
-               for identifier, config in configs.items()}
-
+    store, gateway, configs, bridges = live_clients(old, identifiers)
     ticket = {'deployment': name}
 
     def idle():
-        with store.db() as db:
-            require_paused(db)
-            require_no_work(db, ticket)
-        for identifier, bridge in bridges.items():
-            active = bridge.request('/api/session/active')
-            if active.get('data', active):
-                raise Busy('An account has an active session')
-            sessions = set()
-            for registry_file in ('browser-jobs/jobs.json', 'browser-chats/chats.json'):
-                path = BASE/identifier/'secretary'/registry_file
-                if path.is_file():
-                    sessions.update(item['session'] for item in json.loads(path.read_text()).values() if item.get('session'))
-            for session in sessions:
-                if bridge.control('session.status', sessionId=session)['sessionStatus']['type'] != 'idle':
-                    raise Busy('A session is busy')
-                if bridge.pending(session) != ([], []):
-                    raise Busy('Pending owner input prevents deployment')
+        check_idle(store, bridges, ticket)
 
-    deadline = time.monotonic()+IDLE_TIMEOUT
-    while True:
-        try:
-            idle()
-            break
-        except Busy as error:
-            if time.monotonic() >= deadline:
-                print(json.dumps({'notIdle': str(error), 'changed': False}))
-                sys.exit(NOT_IDLE)
-            time.sleep(5)
+    busy = wait_idle(idle, IDLE_TIMEOUT)
+    if busy:
+        print(json.dumps({'notIdle': busy, 'changed': False}))
+        sys.exit(NOT_IDLE)
 
     probe = '''import json, sys
 from pathlib import Path
@@ -397,11 +432,7 @@ print(json.dumps({'profileReady':status['profile_ready'],'nativeEditions':count}
     viewers = [f'goodmorning-viewer@{identifier}.service' for identifier in identifiers]
     services = accounts+viewers+['goodmorning-gateway.service']
     try:
-        with store.db() as db:
-            db.execute('BEGIN IMMEDIATE')
-            require_paused(db)
-            require_no_work(db)
-            db.execute('INSERT INTO metadata VALUES (?,?)', ('generation', json.dumps(ticket, separators=(',', ':'))))
+        reserve(store, ticket)
     except Busy as error:
         print(json.dumps({'notIdle': str(error), 'changed': False}))
         sys.exit(NOT_IDLE)
@@ -430,6 +461,8 @@ print(json.dumps({'profileReady':status['profile_ready'],'nativeEditions':count}
             pointer.replace(ENGINE_CURRENT)
             engine_switched = True
         command(['systemctl', 'daemon-reload'])
+        command(['systemctl', 'enable', *MAINTENANCE_UNITS])
+        command(['systemctl', 'start', MAINTENANCE_UNITS[0]])
         # The agents are stopped, so the engine mount is free to move.
         if engine_switched or Path('/etc/systemd/system/goodmorning-engine.service') in installed:
             command(['systemctl', 'restart', 'goodmorning-engine.service'])
@@ -468,7 +501,11 @@ print(json.dumps({'profileReady':status['profile_ready'],'nativeEditions':count}
             else:
                 ENGINE_CURRENT.unlink()
         for target in installed:
-            shutil.copy2(backup/target.name, target)
+            if (backup/target.name).exists():
+                shutil.copy2(backup/target.name, target)
+            else:
+                subprocess.run(['systemctl', 'disable', '--now', target.name], capture_output=True, timeout=30)
+                target.unlink()
         if nginx_changed:
             write_nginx((backup/'nginx-goodmorning.conf').read_bytes())
             command(['nginx', '-t'])
