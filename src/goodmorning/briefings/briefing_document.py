@@ -367,7 +367,14 @@ def block(value, path):
         # [symbol, name, session_date, shares, close, previous_close, cost_or_null, currency,
         #  dividends_counted, dividend_today, shares_may_have_changed], copied from the stocks read.
         # Briefings saved before dividends were counted end at currency.
-        sequence(value, path, 2, 2)
+        # An optional third item, {currency: {"closed": date, "next": date or null}}, marks markets whose due session never happened.
+        sequence(value, path, 2, 3)
+        if len(value) == 3 and (not isinstance(value[2], dict) or not value[2] or any(
+                key not in ('CNY', 'USD') or not isinstance(entry, dict) or set(entry) != {'closed', 'next'}
+                or not isinstance(entry['closed'], str) or not re.fullmatch(r'\d{4}-\d{2}-\d{2}', entry['closed'])
+                or entry['next'] is not None and not (isinstance(entry['next'], str) and re.fullmatch(r'\d{4}-\d{2}-\d{2}', entry['next']))
+                for key, entry in value[2].items())):
+            fail(path, 'closed markets map CNY or USD to {"closed": date, "next": date or null}')
         sequence(value[1], path + '.items', 1, 50)
         for row in value[1]:
             sequence(row, path + '.row', 8, 11)
@@ -755,8 +762,12 @@ def action_day(day, briefing_date):
     return ui.agenda_day(day, briefing_date)
 
 
-def holdings_markup(rows, briefing_date):
-    """Each market's latest closed session: totals first, then every holding's day and total gain/loss."""
+def holdings_markup(rows, briefing_date, closed=None):
+    """Each market's latest closed session: totals first, then every holding's day and total gain/loss.
+
+    closed marks markets whose due session never happened (weekends, holidays); such a market leads with that fact and
+    its next trading day when known, keeps the last session as a short recap, and folds its holdings away."""
+    closed = closed or {}
     def signed(amount, symbol='', suffix=''):
         sign = '+' if amount > 0.005 else '−' if amount < -0.005 else ''
         return f'{sign}{symbol}{abs(amount):,.2f}{suffix}'
@@ -810,10 +821,30 @@ def holdings_markup(rows, briefing_date):
                          f'<p class="holding-detail">{detail}</p>{since}</div><div class="holding-change {trend(move)}">'
                          f'<span class="holding-amount">{signed(move, money)}</span>'
                          f'<span class="holding-percent">{signed((close - previous) / previous * 100, suffix="%")}</span></div></li>')
+        result = (f'<p class="holding-total {trend(change)}"><span class="holding-amount">{signed(change, money)}</span>'
+                  f'<span class="holding-percent">{signed(change / before * 100, suffix="%")}</span></p>')
+        listing = f'<ul class="holding-list">{"".join(items)}</ul>'
+        if currency in closed:
+            moves = sorted(group, key=lambda row: (row[4] - row[5]) / row[5])
+            movers = [ui.ui('{up} up · {down} down', up=sum(row[4] > row[5] for row in group), down=sum(row[4] < row[5] for row in group))]
+            for label, row in (('Top gainer', moves[-1]), ('Top loser', moves[0])):
+                if (row[4] > row[5]) if label == 'Top gainer' else (row[4] < row[5]):
+                    movers.append(f'<span>{ui.ui(label)} <span data-content>{escaped(row[1])}</span> '
+                                  f'<span class="{trend(row[4] - row[5])}">{signed((row[4] - row[5]) / row[5] * 100, suffix="%")}</span></span>')
+            # Exchange dates: for a user far from New York the closed US day is often not the briefing day.
+            day, upcoming = closed[currency]['closed'], closed[currency]['next']
+            status = (ui.ui('Closed today') if day == briefing_date else f'{ui.day_label(day, reference=briefing_date)} · {ui.ui("Closed")}')
+            following = (f'<p class="holding-status">{ui.ui("Next trading day")} {ui.day_label(upcoming, reference=briefing_date)}</p>'
+                         if upcoming else '')
+            markets.append(f'<div class="holding-market is-closed"><div class="holding-summary">'
+                           f'<h3>{ui.ui(market)} · {status}</h3>{following}'
+                           f'<div class="holding-recap"><p class="holding-recap-label">{ui.ui("Last trading day")} · '
+                           f'{ui.day_label(session, reference=briefing_date)}</p>{result}<p class="holding-movers">{" · ".join(movers)}</p></div>'
+                           f'<p class="holding-meta">{meta}</p></div>'
+                           f'<details class="holding-details"><summary>{ui.ui("All {count} holdings", count=len(group))}</summary>{listing}</details></div>')
+            continue
         markets.append(f'<div class="holding-market"><div class="holding-summary"><h3>{ui.ui(market)} · {ui.day_label(session, reference=briefing_date)}</h3>'
-                       f'<p class="holding-total {trend(change)}"><span class="holding-amount">{signed(change, money)}</span>'
-                       f'<span class="holding-percent">{signed(change / before * 100, suffix="%")}</span></p>'
-                       f'<p class="holding-meta">{meta}</p></div><ul class="holding-list">{"".join(items)}</ul></div>')
+                       f'{result}<p class="holding-meta">{meta}</p></div>{listing}</div>')
     return '<div class="holdings">' + ''.join(markets) + '</div>'
 
 
@@ -957,7 +988,7 @@ def render_block(value, images, briefing_date=None):
                          f'<h4 class="deal-name" data-content>{escaped(name)}</h4><p class="deal-line">{prices}</p>{when}</div></li>')
         return '<ul class="deal-list">' + ''.join(cards) + '</ul>'
     if tag == 'holdings':
-        return holdings_markup(value[1], briefing_date)
+        return holdings_markup(value[1], briefing_date, value[2] if len(value) > 2 else None)
     if tag == 'news':
         from .briefing_layout import country_flag
         category = value[1]

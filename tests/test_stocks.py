@@ -1,5 +1,5 @@
 """Stock gain/loss: Tencent reads, closed sessions, the code-owned block and its evening section."""
-from datetime import datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 import json
 import os
 from pathlib import Path
@@ -35,6 +35,12 @@ MARKET = {'sh600519': ('贵州茅台', '600519', '', [('2026-10-16', 1329.0, 9),
 
 
 def fake_tencent(url, cache=None, encoding='utf-8'):
+    if url.startswith(stocks.SZSE_CALENDAR):
+        # Weekdays trade except National Day week; 2027 is not announced yet.
+        first = date.fromisoformat(url[len(stocks.SZSE_CALENDAR):] + '-01')
+        days = [first + timedelta(days=n) for n in range(31) if (first + timedelta(days=n)).month == first.month] if first.year < 2027 else []
+        return json.dumps({'data': [{'jyrq': day.isoformat(), 'jybz': '1' if day.weekday() < 5 and not date(2026, 10, 1) <= day <= date(2026, 10, 7) else '0'}
+                                    for day in days]})
     if url.startswith(stocks.QUOTE):
         lines = []
         for symbol in url[len(stocks.QUOTE):].split(','):
@@ -67,18 +73,63 @@ class StockTests(unittest.TestCase):
 
     def test_each_market_reports_its_latest_closed_session(self):
         result = self.read('sh600519:100:1450, usAAPL:30, sz000001:2000')
-        # Tonight's A-share close; Apple's 19 October bar is still trading, so Friday's session is reported.
+        # Tonight's A-share close; Apple's 19 October bar is still trading, so Friday's session is reported,
+        # and New York's due session (Sunday) never happened.
         self.assertEqual(result['block'], ['holdings', [
             ['sz000001', '平安银行', DAY, 2000, 11.65, 11.5, None, 'CNY', 0.0, 0.0, False],
             ['sh600519', '贵州茅台', DAY, 100, 1324.97, 1329.0, 1450, 'CNY', 0.0, 0.0, False],
-            ['usAAPL', 'Apple Inc.', '2026-10-16', 30, 343.46, 342.0, None, 'USD', 0.0, 0.0, False]]])
+            ['usAAPL', 'Apple Inc.', '2026-10-16', 30, 343.46, 342.0, None, 'USD', 0.0, 0.0, False]],
+            {'USD': {'closed': '2026-10-18', 'next': DAY}}])
         cny, usd = result['markets']
         self.assertEqual((cny['market'], cny['day_change'], cny['up'], cny['down'], cny['total_change']), ('A-shares', -103.0, 1, 1, -12503.0))
         self.assertEqual((usd['session'], usd['day_change']), ('2026-10-16', 43.8))
         self.assertNotIn('total_change', usd)
         self.assertEqual(self.read('usAAPL:30', 'zh-CN')['block'][1][0][1], '苹果')
         later = self.read('usAAPL:30', now=datetime(2026, 10, 19, 20, 30, tzinfo=timezone.utc))
-        self.assertEqual(later['block'][1][0][2:6], [DAY, 30, 344.9, 343.46])
+        self.assertEqual(later['block'], ['holdings', [['usAAPL', 'Apple Inc.', DAY, 30, 344.9, 343.46, None, 'USD', 0.0, 0.0, False]]])
+
+    def test_closed_markets_name_the_next_trading_day_when_the_calendar_knows_it(self):
+        def closed(day, *rows_at, hour=14):
+            rows = [['sh600519', '贵州茅台', last, 100, 1.0, 1.0, None, currency] for currency, last in rows_at]
+            return stocks.closed_markets(rows, datetime.fromisoformat(day).replace(hour=hour, tzinfo=timezone.utc))
+        # Saturday night in Shanghai: A-shares rest until Monday; Friday's New York session just ended and is news.
+        self.assertEqual(closed('2026-10-24', ('CNY', '2026-10-23'), ('USD', '2026-10-23')),
+                         {'CNY': {'closed': '2026-10-24', 'next': '2026-10-26'}})
+        # National Day week, and New Year's Eve before 2027's calendar is announced.
+        self.assertEqual(closed('2026-10-03', ('CNY', '2026-09-30')), {'CNY': {'closed': '2026-10-03', 'next': '2026-10-08'}})
+        self.assertEqual(closed('2027-01-01', ('CNY', '2026-12-31')), {'CNY': {'closed': '2027-01-01', 'next': None}})
+        # Thanksgiving in New York; a listed trading day without a bar is late data, not a closed market.
+        self.assertEqual(closed('2026-11-26', ('USD', '2026-11-25'), hour=22), {'USD': {'closed': '2026-11-26', 'next': '2026-11-27'}})
+        self.assertEqual(closed('2026-10-22', ('CNY', '2026-10-21')), {})
+        with patch.object(stocks, 'request', side_effect=stocks.StockError('HTTP 503')):
+            self.assertEqual(closed('2026-10-24', ('CNY', '2026-10-23')), {'CNY': {'closed': '2026-10-24', 'next': None}})
+
+    def test_us_holidays_follow_the_nyse_rules(self):
+        self.assertEqual(sorted(day.isoformat() for day in stocks.us_holidays(2026)), [
+            '2026-01-01', '2026-01-19', '2026-02-16', '2026-04-03', '2026-05-25', '2026-06-19', '2026-07-03', '2026-09-07', '2026-11-26', '2026-12-25'])
+        # Saturday holidays move to Friday, except a Saturday New Year's Day.
+        self.assertEqual({day.isoformat() for day in stocks.us_holidays(2027)} - {day.isoformat() for day in stocks.us_holidays(2028)},
+                         {'2027-01-01', '2027-01-18', '2027-02-15', '2027-03-26', '2027-05-31', '2027-06-18', '2027-07-05', '2027-09-06', '2027-11-25', '2027-12-24'})
+        self.assertNotIn(date(2027, 12, 31), stocks.us_holidays(2027) | stocks.us_holidays(2028))
+
+    def test_closed_markets_lead_with_their_status_and_fold_their_holdings(self):
+        row = ['sh600519', '贵州茅台', '2026-10-23', 100, 1324.97, 1329.0, 1450, 'CNY', 0.0, 0.0, False]
+        us = ['usAAPL', 'Apple Inc.', '2026-10-23', 30, 344.9, 343.46, None, 'USD', 0.0, 0.0, False]
+        block = ['holdings', [row, us], {'CNY': {'closed': '2026-10-24', 'next': '2026-10-26'}}]
+        native.validate({'v': 2, 'greeting': 'Hi.', 'opening': 'Tonight.', 'sections': [['stocks', [block]]]})
+        html = native.render_block(block, {}, '2026-10-24')
+        self.assertIn('Closed today', html)
+        self.assertEqual(html.count('is-closed'), 1)
+        self.assertIn('Next trading day', html)
+        self.assertIn('Top loser', html)
+        self.assertNotIn('Top gainer', html)
+        self.assertEqual(html.count('<details'), 1)
+        unknown = native.render_block(['holdings', [us], {'USD': {'closed': '2026-10-25', 'next': None}}], {}, '2026-10-26')
+        self.assertIn('data-ui-date="2026-10-25"', unknown)
+        self.assertNotIn('Next trading day', unknown)
+        for bad in ({}, {'HKD': {'closed': '2026-10-24', 'next': None}}, {'CNY': '2026-10-26'}, {'CNY': {'closed': '2026-10-24', 'next': 'Monday'}}):
+            with self.assertRaises(ValueError):
+                native.validate({'v': 2, 'greeting': 'Hi.', 'opening': 'Tonight.', 'sections': [['stocks', [['holdings', [row], bad]]]]})
 
     def test_a_stock_without_that_session_shows_no_move_and_unknown_symbols_are_named(self):
         result = self.read('sz000002:1000, sh600519:100, sh999999:5')
@@ -198,6 +249,10 @@ class EveningSectionTests(unittest.TestCase):
         edited = ['holdings', [block[1][0][:4] + [9999.0] + block[1][0][5:], block[1][1]]]
         with self.assertRaisesRegex(ValueError, 'copied unchanged'):
             self.step('publish', {'position': 4, 'section': ['stocks', [edited], 'Up!']})
+        # New York's Sunday never traded; dropping that fact would present Friday's move as news.
+        self.assertEqual(block[2], {'USD': {'closed': '2026-10-18', 'next': DAY}})
+        with self.assertRaisesRegex(ValueError, 'closed-market'):
+            self.step('publish', {'position': 4, 'section': ['stocks', [block[:2]], 'Up!']})
         self.step('publish', {'position': 4, 'section': ['stocks', [block], 'A-shares dipped a little; Apple rose on Friday.']})
         self.assertEqual(self.step('finish', {})['saved'], True)
 

@@ -7,7 +7,9 @@ The profile lists holdings in `stock_holdings` as comma-separated
 an optional cost per share in the stock's own currency, and the date the user
 stated those shares and cost. The briefing read reports each market's latest
 closed session, so a night briefing in China shows today's A-share close and the
-previous US session, as one code-owned `holdings` block.
+previous US session, as one code-owned `holdings` block. A market whose due session
+never happened (a weekend or holiday) is marked closed, with its next trading day
+from the exchange calendar.
 
 Cash dividends whose ex-date falls after DATE count toward the total gain/loss,
 pre-tax, as brokers do. Bonus or transfer shares are only flagged: the share count
@@ -30,6 +32,7 @@ from goodmorning.runtime_files import atomic_text, cache_path, profile_fields, s
 QUOTE = 'https://qt.gtimg.cn/q='
 KLINE = 'https://web.ifzq.gtimg.cn/appstock/app/fqkline/get?param='
 SEARCH = 'https://smartbox.gtimg.cn/s3/?'
+SZSE_CALENDAR = 'https://www.szse.cn/api/report/exchange/onepersistenthour/monthList?month='
 USER_AGENT = 'GoodMorning/1.0 (https://github.com/S-Sebb/GoodMorning)'
 TTL = 600
 MAX_BYTES = 2_000_000
@@ -155,6 +158,69 @@ def settled(series, currency, now):
     return series
 
 
+def us_holidays(year):
+    """NYSE full-day holidays by their standing rules; one-off closures are announced too late to list."""
+    def nth(month, weekday, n):
+        first = Date(year, month, 1)
+        if n > 0:
+            return first + timedelta(days=(weekday - first.weekday()) % 7 + 7 * (n - 1))
+        last = Date(year, month + 1, 1) - timedelta(days=1)
+        return last - timedelta(days=(last.weekday() - weekday) % 7)
+
+    def observed(day):
+        return day + timedelta(days={5: -1, 6: 1}.get(day.weekday(), 0))
+
+    # Anonymous Gregorian algorithm for Easter Sunday; Good Friday is two days before.
+    a, b, c = year % 19, year // 100, year % 100
+    h = (19 * a + b - b // 4 - (b - (b + 8) // 25 + 1) // 3 + 15) % 30
+    l = (32 + 2 * (b % 4) + 2 * (c // 4) - h - c % 4) % 7
+    m = (a + 11 * h + 22 * l) // 451
+    easter = Date(year, (h + l - 7 * m + 114) // 31, (h + l - 7 * m + 114) % 31 + 1)
+    # A New Year's Day on Saturday is not made up on the Friday before, which closes the previous year.
+    new_year = Date(year, 1, 1)
+    days = {observed(Date(year, month, day)) for month, day in ((6, 19), (7, 4), (12, 25))}
+    days |= {easter - timedelta(days=2), nth(1, 0, 3), nth(2, 0, 3), nth(5, 0, -1), nth(9, 0, 1), nth(11, 3, 4)}
+    return days | ({observed(new_year)} if new_year.weekday() != 5 else set())
+
+
+def calendar(currency, start, cache=None):
+    """{date: trading?} from start for about six weeks, as far as it is known.
+
+    A-shares follow the SZSE calendar, which lists a year once its holidays are announced; a failed or empty month
+    ends what is known."""
+    if currency == 'USD':
+        days = (start + timedelta(days=offset) for offset in range(45))
+        return {day.isoformat(): day.weekday() < 5 and day not in us_holidays(day.year) for day in days}
+    known = {}
+    for month in (start.strftime('%Y-%m'), (start.replace(day=1) + timedelta(days=32)).strftime('%Y-%m')):
+        try:
+            data = json.loads(request(SZSE_CALENDAR + month, cache))['data']
+            listed = {row['jyrq']: row['jybz'] == '1' for row in data}
+        except (StockError, ValueError, KeyError, TypeError):
+            break
+        if not listed:
+            break
+        known.update(listed)
+    return known
+
+
+def closed_markets(rows, now, cache=None):
+    """{currency: {closed, next}} for each market whose latest due session never happened; next is None when unknown."""
+    closed = {}
+    for currency in sorted({row[7] for row in rows}):
+        zone, close = MARKETS[currency]
+        local = now.astimezone(zone)
+        due = local.date() - timedelta(days=local.time() < close)
+        if max(row[2] for row in rows if row[7] == currency) >= due.isoformat():
+            continue
+        days = calendar(currency, due, cache)
+        # A listed trading day without a bar is late data or a suspension, not a closed market.
+        if days.get(due.isoformat()):
+            continue
+        closed[currency] = {'closed': due.isoformat(), 'next': next((day for day, trading in sorted(days.items()) if day > due.isoformat() and trading), None)}
+    return closed
+
+
 def report(runtime, language, cache=None, now=None):
     chosen = holdings(profile_fields(runtime).get('stock_holdings', ''))
     now = now or datetime.now().astimezone()
@@ -192,11 +258,12 @@ def report(runtime, language, cache=None, now=None):
         if row[2] < latest[row[7]]:
             row[5] = row[4]
     rows.sort(key=lambda row: (row[7] != 'CNY', -(row[4] - row[5]) * row[3], row[0]))
-    return {'block': ['holdings', rows] if rows else None, 'markets': summaries(rows, language),
+    closed = closed_markets(rows, now, cache)
+    return {'block': ['holdings', rows] + ([closed] if closed else []) if rows else None, 'markets': summaries(rows, language, closed),
             'not_found': [symbol[2:] for symbol in missing]}
 
 
-def summaries(rows, language='en'):
+def summaries(rows, language='en', closed=None):
     """Per-market totals the note may mention; the rendered section computes the same."""
     from goodmorning.web import language as ui
     markets = []
@@ -212,6 +279,8 @@ def summaries(rows, language='en'):
                   'up': sum(row[4] > row[5] for row in group), 'down': sum(row[4] < row[5] for row in group)}
         if costed:
             market['total_change'] = round(sum((row[4] - row[6] + row[8]) * row[3] for row in costed), 2)
+        if closed and currency in closed:
+            market['closed_on'], market['next_trading_day'] = closed[currency]['closed'], closed[currency]['next']
         markets.append(market)
     return markets
 
@@ -223,19 +292,24 @@ def saved_path(runtime, today):
 
 
 def save(runtime, today, result):
-    """The briefing may show only rows this read returned."""
+    """The briefing may show only the block this read returned."""
     target = saved_path(runtime, today)
     if target.parent.is_symlink() or target.is_symlink():
         raise ValueError('Refusing symlinked stock record')
     target.parent.mkdir(exist_ok=True, mode=0o700)
-    atomic_text(target, json.dumps(result['block'][1] if result['block'] else [], ensure_ascii=False) + '\n')
+    atomic_text(target, json.dumps(result['block'], ensure_ascii=False) + '\n')
+
+
+def saved_block(runtime, today):
+    target = saved_path(runtime, today)
+    if not target.is_file() or target.is_symlink() or target.stat().st_size > 200_000:
+        return None
+    return json.loads(target.read_text(encoding='utf-8'))
 
 
 def saved_rows(runtime, today):
-    target = saved_path(runtime, today)
-    if not target.is_file() or target.is_symlink() or target.stat().st_size > 200_000:
-        return []
-    return json.loads(target.read_text(encoding='utf-8'))
+    block = saved_block(runtime, today)
+    return block[1] if block else []
 
 
 def main(argv=None):
