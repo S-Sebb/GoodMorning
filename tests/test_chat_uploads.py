@@ -158,6 +158,7 @@ class UploadTests(unittest.TestCase):
             self.assertEqual(payload['files'], self.uploads.files([self.file_id]))
             self.assertIn(f"Native session ID: {chats.get(chat)['session']}\n", payload['text'])
             self.assertNotIn(f'Native session ID: {chat}', payload['text'])
+            self.assertEqual(chamber.sessions[chats.get(chat)['session']]['agent'], 'secretary')
             status = chats.status(chat)
             self.assertEqual(status['state'], 'idle')
             self.assertEqual(status['messages'][0]['attachments'][0]['name'], '资料 <img>.txt')

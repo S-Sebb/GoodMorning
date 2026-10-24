@@ -164,6 +164,10 @@ class MockChamber(Chamber):
             session = self.sessions[path.split('/')[3]]
             session['model'] = body['model']
             return {}
+        if path.endswith('/agent'):
+            session = self.sessions[path.split('/')[3]]
+            session['agent'] = body['agent']
+            return {}
         if body is None:
             parsed = urlsplit(path);query = parse_qs(parsed.query)
             limit = int(query['limit'][0])
