@@ -664,7 +664,7 @@ h2:lang(zh), .preview-title:lang(zh) { font-family: var(--cn-sans); letter-spaci
 .checkin-head { display: flex; align-items: center; gap: 12px; }
 .checkin-head h2 { flex: 1; margin: 0; font-family: Georgia, serif; font-size: 24px; font-weight: 400; }
 .checkin-avatar { width: 44px; height: 44px; border-radius: 50%; object-fit: cover; image-rendering: pixelated; background: var(--wash); }
-.checkin-close { width: 40px; height: 40px; border: 0; border-radius: 50%; background: var(--wash); color: var(--ink); font-size: 22px; cursor: pointer; }
+.checkin .checkin-close { display: grid; place-items: center; flex-shrink: 0; width: 40px; height: 40px; min-height: 0; padding: 0; border: 0; border-radius: 50%; background: var(--wash); color: var(--ink); cursor: pointer; }
 .checkin-steps { display: flex; gap: 6px; margin: 16px 0 18px; padding: 0; list-style: none; counter-reset: step; }
 .checkin-steps li { flex: 1; padding-top: 8px; border-top: 3px solid var(--line); color: var(--muted); font-size: 12px; counter-increment: step; }
 .checkin-steps li::before { content: counter(step) " · "; }

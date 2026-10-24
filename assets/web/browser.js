@@ -296,7 +296,8 @@ function nightCheckin(info) {
   function render() {
     const body = [];
     const head = make('header', '', 'checkin-head');
-    const close = make('button', '×', 'checkin-close'); close.type = 'button'; close.setAttribute('aria-label', t('Close'));
+    const close = make('button', '', 'checkin-close'); close.type = 'button'; close.setAttribute('aria-label', t('Close'));
+    close.innerHTML = '<svg viewBox="0 0 20 20" width="18" height="18" fill="none" aria-hidden="true"><path d="m6 6 8 8m0-8-8 8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>';
     close.addEventListener('click', () => dialog.close());
     const avatar = document.querySelector('img[src*="desk-secretary"][src*="profile"]');
     if (avatar) { const image = avatar.cloneNode(); image.className = 'checkin-avatar'; image.alt = ''; head.append(image); }
