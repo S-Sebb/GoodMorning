@@ -15,6 +15,7 @@ class NativeBridge:
         self.directory, self.runtime = str(directory), str(runtime)
         self.agent = agent
         self.sessions = {}
+        self.parent = None
         if Path(self.runtime).is_dir():
             (Path(self.runtime)/'tmp').mkdir(mode=0o700,exist_ok=True)
 
@@ -60,13 +61,22 @@ class NativeBridge:
     def control(self, action, **parameters):
         if action == 'session.create':
             agent = self.agent or parameters.get('agent')
-            result = self.api('post', '/api/session', {'location':{'directory':self.directory},
+            location = {'directory':self.directory}
+            # Trials share the user's OpenCode service. OpenChamber skips "ready"
+            # notifications for subtasks and hides archived sessions, so each
+            # trial runs archived under an archived parent that never runs.
+            if not self.parent:
+                self.parent = self.api('post', '/api/session', {'location':location,
+                    'title':'GoodMorning trial run'})['data']['id']
+                self.api('patch', f'/api/session/{self.parent}', {'archived':True})
+            result = self.api('post', '/api/session', {'location':location, 'parentID':self.parent,
                 **({'agent':agent} if agent else {}),
                 **({'title':parameters['title']} if parameters.get('title') else {})})
             session = result['data']['id']
             self.sessions[session] = {'idle':True}
             if agent and result['data'].get('agent')!=agent:
                 raise ValueError('Requested agent was not confirmed before model work')
+            self.api('patch', f'/api/session/{session}', {'archived':True})
             self.api('put', f'/api/session/{session}/environment', {'variables':{
                 'SECRETARY_DIR':self.runtime, 'OPENCODE_SESSION_ID':session,
                 'GM_CACHE_DIR':str(Path(self.runtime)/'cache'),'TMPDIR':str(Path(self.runtime)/'tmp'),

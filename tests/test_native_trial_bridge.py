@@ -53,24 +53,39 @@ class TrialBridgeTests(unittest.TestCase):
 
     def test_experimental_agent_is_pinned_and_verified_before_environment_or_prompt(self):
         bridge=NativeBridge('/synthetic/source','/synthetic/account',agent='build')
-        with patch.object(bridge,'api',side_effect=[{'data':{'id':'ses_trial','agent':'build'}},{}]) as api:
+        with patch.object(bridge,'api',side_effect=[{'data':{'id':'ses_parent'}},{},
+                                                    {'data':{'id':'ses_trial','agent':'build'}},{},{}]) as api:
             self.assertEqual(bridge.control('session.create')['sessionId'],'ses_trial')
-        self.assertEqual(api.call_args_list[0].args[2]['agent'],'build')
-        self.assertEqual(api.call_args_list[1].args[1],'/api/session/ses_trial/environment')
+        self.assertEqual(api.call_args_list[2].args[2]['agent'],'build')
+        self.assertEqual(api.call_args_list[4].args[1],'/api/session/ses_trial/environment')
 
     def test_unconfirmed_experimental_agent_stops_before_further_api_calls(self):
         bridge=NativeBridge('/synthetic/source','/synthetic/account',agent='build')
-        with patch.object(bridge,'api',return_value={'data':{'id':'ses_trial'}}) as api:
+        with patch.object(bridge,'api',side_effect=[{'data':{'id':'ses_parent'}},{},{'data':{'id':'ses_trial'}}]) as api:
             with self.assertRaisesRegex(ValueError,'before model work'):
                 bridge.control('session.create')
-        self.assertEqual(api.call_count,1)
+        self.assertEqual(api.call_count,3)
+
+    def test_trials_run_archived_under_one_archived_parent(self):
+        responses=iter([{'data':{'id':'ses_parent'}},{},{'data':{'id':'ses_one'}},{},{},
+                        {'data':{'id':'ses_two'}},{},{}])
+        with patch.object(self.bridge,'api',side_effect=lambda *args: next(responses)) as api:
+            self.bridge.control('session.create')
+            self.bridge.control('session.create')
+        calls=[call.args for call in api.call_args_list]
+        creates=[call[2] for call in calls if call[:2]==('post','/api/session')]
+        self.assertNotIn('parentID',creates[0])
+        self.assertEqual([body['parentID'] for body in creates[1:]],['ses_parent','ses_parent'])
+        self.assertEqual([call[1] for call in calls if call[0]=='patch'],
+                         ['/api/session/ses_parent','/api/session/ses_one','/api/session/ses_two'])
+        self.assertTrue(all(call[2]=={'archived':True} for call in calls if call[0]=='patch'))
 
     def test_trial_cache_and_temporary_files_stay_in_the_synthetic_account(self):
         with tempfile.TemporaryDirectory(dir=TEMP_ROOT) as directory:
             bridge=NativeBridge('/synthetic/source',directory)
-            with patch.object(bridge,'api',side_effect=[{'data':{'id':'ses_trial'}},{}]) as api:
+            with patch.object(bridge,'api',side_effect=[{'data':{'id':'ses_parent'}},{},{'data':{'id':'ses_trial'}},{},{}]) as api:
                 bridge.control('session.create')
-            variables=api.call_args_list[1].args[2]['variables']
+            variables=api.call_args_list[4].args[2]['variables']
             self.assertEqual(variables['GM_CACHE_DIR'],str(Path(directory)/'cache'))
             self.assertEqual(variables['TMPDIR'],str(Path(directory)/'tmp'))
             self.assertEqual(variables['CALENDAR_DB_PATH'],str(Path(directory)/'calendar.sqlite'))
