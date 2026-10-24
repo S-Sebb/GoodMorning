@@ -935,11 +935,6 @@ def serve_live(app, port, *, gateway_key=None, public_origins=()):
                 selected=ui.language(json.loads(path.read_text())['language']) if path.is_file() else 'en'
             ui.CURRENT.set(selected)
 
-        def select_model(self):
-            # Account preferences and client/proxy model headers cannot override language.
-            # Preserve legacy settings on disk; existing jobs/turns retain their pins.
-            site_models.CURRENT.set(None)
-
         def select_color_schemes(self):
             if gateway_key:
                 selected = site_colors.validate({'style': self.headers.get('X-GoodMorning-Style', site_colors.DEFAULT['style']),
@@ -1010,7 +1005,6 @@ def serve_live(app, port, *, gateway_key=None, public_origins=()):
             path = parsed.path
             try:
                 self.select_language()
-                self.select_model()
                 self.select_color_schemes()
                 if path=='/api/language':return self.respond({'language':ui.current()})
                 if path=='/api/model':return self.respond({'model':site_models.current()})
@@ -1134,7 +1128,6 @@ def serve_live(app, port, *, gateway_key=None, public_origins=()):
                 return self.respond({'error': 'Forbidden'}, 403)
             try:
                 self.select_language()
-                self.select_model()
                 self.select_color_schemes()
                 avatar_upload = AVATAR_UPLOAD_ROUTE.fullmatch(path)
                 if avatar_upload:

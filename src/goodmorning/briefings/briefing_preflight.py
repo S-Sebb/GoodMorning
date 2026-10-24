@@ -199,16 +199,9 @@ def answer(runtime, job, value):
     target = context_path(runtime, job['id'])
     context = bounded_json(target, 300_000)
     form_keys = {f['key'] for f in (context.get('form') or {}).get('fields', [])}
-    # Optional future-tasks check may be omitted by older callers; treat as empty.
-    # Legacy single-list answers on future-only forms used `completed`; fold it.
-    if isinstance(value, dict):
-        if 'completed_longterm' in form_keys and 'completed_longterm' not in value:
-            if 'completed' in value and 'completed' not in form_keys:
-                _legacy = value['completed']
-                _legacy = [] if _legacy == ['none'] else _legacy
-                value = {'completed_longterm': _legacy, **{k: v for k, v in value.items() if k != 'completed'}}
-            else:
-                value = {**value, 'completed_longterm': []}
+    # The optional future-tasks check may be omitted; treat it as empty.
+    if isinstance(value, dict) and 'completed_longterm' in form_keys and 'completed_longterm' not in value:
+        value = {**value, 'completed_longterm': []}
     if not context.get('awaiting'):
         if context.get('browser_answer') == value:
             return context

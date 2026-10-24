@@ -55,7 +55,6 @@ The old standalone Python paths are removed. Their replacement commands are:
 | `briefing_gateway.py` | `gateway` |
 | `briefing_runtime.py` | `runtime` |
 | `briefing_vault.py` | `vault` |
-| `reply_policy.py` | `reply-policy` |
 
 `weather`, `news`, `state`, `inbox`, `workflow`, and `daily` retain their names.
 Arguments, consent checks, schemas, and private paths are unchanged. The Node.js
