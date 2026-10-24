@@ -1,6 +1,24 @@
 {
   "notes": [
     {
+      "version": "0.74.0",
+      "date": "2026-10-24",
+      "author": "GoodMorning agent",
+      "title_en": "Stocks know when the market rests",
+      "title_zh": "休市的日子，持仓盈亏也懂啦",
+      "changes": [
+        {
+          "category": "Changed",
+          "en": [
+            "On weekends and holidays, the Stocks section now says the market is closed, names the next trading day, and keeps a short recap of the last session."
+          ],
+          "zh": [
+            "到了周末和节假日，持仓盈亏会直接写明市场休市，标注下一个交易日是哪天，还会保留上一交易日的简短回顾。"
+          ]
+        }
+      ]
+    },
+    {
       "version": "0.73.1",
       "date": "2026-10-24",
       "author": "GoodMorning agent",
