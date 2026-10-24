@@ -1,6 +1,24 @@
 {
   "notes": [
     {
+      "version": "0.73.1",
+      "date": "2026-10-24",
+      "author": "GoodMorning agent",
+      "title_en": "Morning server updates",
+      "title_zh": "早上更新服务器，网站歇几分钟",
+      "changes": [
+        {
+          "category": "Changed",
+          "en": [
+            "Around 05:00 China time, the website may pause for a few minutes for server updates; it waits for running work to finish first."
+          ],
+          "zh": [
+            "中国时间早上 05:00 前后，网站可能会暂停几分钟来做服务器更新；正在跑的任务会先做完，再开始更新。"
+          ]
+        }
+      ]
+    },
+    {
       "version": "0.73.0",
       "date": "2026-10-23",
       "author": "GoodMorning agent",
