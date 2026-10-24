@@ -5,7 +5,6 @@ preserve request identities; resume never resends an in-flight model request.
 Tone is reviewed from transcripts, not inferred from keyword/emoji counts.
 """
 import argparse
-import fcntl
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager
 from datetime import datetime, timedelta
@@ -14,8 +13,6 @@ import hashlib
 import fcntl
 import os
 from pathlib import Path
-import shutil
-import subprocess
 import sys
 import time
 import uuid
@@ -25,7 +22,8 @@ from urllib.parse import quote
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT/'src'))
 sys.path.insert(0, str(ROOT/'tests'))
-from benchmarks.native_bridge import NativeBridge
+from benchmarks import trial_engine
+from benchmarks.trial_engine import TrialBridge
 from goodmorning.calendar.calendar_store import CalendarStore
 from goodmorning.records.inbox_store import InboxStore, initialize
 from goodmorning.records.task_store import TaskStore
@@ -105,22 +103,19 @@ def chat_structure_issues(stage, observation):
     return issues
 
 
-def verify_trial_system(source,system):
+def verify_trial_system(bridge,folder,system):
     """Wait only for read-only location configuration; never dispatch or reload."""
     checks=[]
     expected=hashlib.sha256(system.encode()).hexdigest()
     for _ in range(10):
-        inspection=subprocess.run(['opencode','api','get',
-            '/api/agent/build?location%5Bdirectory%5D='+quote(str(source),safe='')],
-            capture_output=True,text=True,timeout=60)
         try:
-            agent=json.loads(inspection.stdout)['data'] if inspection.returncode==0 else {}
-        except (json.JSONDecodeError,KeyError):
+            agent=bridge.request('/api/agent/build?location%5Bdirectory%5D='+quote(bridge.directory,safe=''))['data']
+        except (OSError,KeyError):
             agent={}
         actual=agent.get('system')
-        checks.append({'exit':inspection.returncode,'agent':agent.get('id'),
+        checks.append({'agent':agent.get('id'),
                        'system_sha256':hashlib.sha256(actual.encode()).hexdigest() if isinstance(actual,str) else None})
-        save(source.parent/'base-prompt-preflight.json',{'expected_sha256':expected,'checks':checks})
+        save(folder/'base-prompt-preflight.json',{'expected_sha256':expected,'checks':checks})
         if agent.get('id')=='build' and actual==system:
             return
         time.sleep(.5)
@@ -171,13 +166,13 @@ def run_case(output, source, config, day, extended=True, selected='muse-spark', 
                   'repeat':repeat,'chat':uuid.uuid4().hex,'stages':{},'complete':False,
                   'tone_review':'pending manual transcript review'}
         save(target,result)
-    bridge = NativeBridge(source,runtime,agent='build' if (source/'trial-base-prompt.md').is_file() else None)
+    system = source/'trial-base-prompt.md'
+    bridge = TrialBridge(trial_engine.Engine(source,runtime).start(),agent='build' if system.is_file() else None)
     registry = runtime/'browser-chats/chats.json'
     if registry.exists():
         for item in json.loads(registry.read_text()).values():
             if item.get('session'):
-                bridge.sessions[item['session']]={'idle':False}
-                bridge.wait(item['session'])  # Observe existing work; never redispatch it.
+                bridge.sessions.append(item['session'])  # Observe existing work; never redispatch it.
     app = BrowserApp(runtime,bridge)
     due = (day+timedelta(days=3)).isoformat()
     planned = (day+timedelta(days=1)).isoformat()
@@ -280,6 +275,8 @@ def run_case(output, source, config, day, extended=True, selected='muse-spark', 
         finally:
             inbox.close()
     try:
+        if system.is_file():
+            verify_trial_system(bridge,folder,system.read_text())
         perform('deadline',text(f'Record a to-do: send the Atlas report by {due}.',f'记录一条待办：在 {due} 前发送 Atlas 报告。'),initial)
         perform('workday-followup',text(f'Also work on that report on {planned}.',f'另外，安排在 {planned} 做这份报告。'),planned_check)
         if 'duplicate-request-retry' not in result['stages']:
@@ -351,7 +348,7 @@ def run_case(output, source, config, day, extended=True, selected='muse-spark', 
                 fault={'kind':'storage_unavailable','persistent':True,'next':'The requested task write was refused; the canonical task is unchanged. Stop and report the affected change. Do not retry until the administrator resolves this prerequisite.'})
         result['sessions']=[]
         for session in bridge.sessions:
-            info=bridge.api('get','/api/session/'+session)['data']
+            info=bridge.session(session)
             assert info['model']==models.session_payload(selected), info.get('model')
             result['sessions'].append({key:info.get(key) for key in ('id','agent','model','cost','outcome')})
         result['records']=records(runtime)
@@ -365,13 +362,14 @@ def run_case(output, source, config, day, extended=True, selected='muse-spark', 
                 save(folder/(session+'.messages.json'),transcript)
             except Exception as error:
                 result['transcript_read_error']=str(error)[:500]
+        bridge.close()
         save(target,result)
     return result
 
 
 def main():
     parser=argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--output',type=Path,required=True)
+    trial_engine.add_arguments(parser)
     parser.add_argument('--resume',action='store_true')
     parser.add_argument('--workers',type=int,choices=(1,2),default=2)
     parser.add_argument('--tone-only',action='store_true',help='Fresh six-setting tone retest, one repetition and no extended task sequence')
@@ -380,9 +378,7 @@ def main():
     parser.add_argument('--strict-chat',action='store_true',help='Check reply presence, interval-only clarification and implicit recurrence start; progress remains visible')
     parser.add_argument('--system-file',type=Path,help='Experimental base prompt for build in the copied trial location only; permissions remain unchanged')
     args=parser.parse_args()
-    output=args.output.resolve()
-    if not output.is_relative_to('/tmp/opencode'):
-        parser.error('Private synthetic output must be below /tmp/opencode')
+    output=trial_engine.private_output(parser,args.output)
     try:
         with matrix_lock(output):
             return run_matrix(args,output,parser)
@@ -420,12 +416,7 @@ def run_matrix(args,output,parser):
             parser.error('Resume must keep the original model, variant, language and matrix scope')
         day=datetime.fromisoformat(previous['date']).date()
     else:
-        source.mkdir()
-        for name in ('src','scripts','docs','templates','assets','skill-source','.opencode'):
-            shutil.copytree(ROOT/name,source/name,ignore=shutil.ignore_patterns('__pycache__'))
-        for name in ('AGENTS.md','AGENT-PROMPT-GUIDE.md','SERVER-USER-GUIDE.md','SERVER-DATA-GUIDE.md'):
-            shutil.copyfile(ROOT/name,source/name)
-        shutil.copyfile(ROOT/'skill-source/goodmorning.md',source/'goodmorning.md')
+        trial_engine.copy_release(source,args.source.resolve())
         configuration={'skills':['.']}
         if system is not None:
             configuration['agents']={'build':{'system':system}}
@@ -433,8 +424,6 @@ def run_matrix(args,output,parser):
         (source/'opencode.json').write_text(json.dumps(configuration))
         (source/'scripts/goodmorning.py').write_text(FAULT_CLI)
         day=datetime.now(ZoneInfo('Europe/London')).date()
-    if system is not None:
-        verify_trial_system(source,system)
     languages=(args.language,) if args.language else ('en','zh-CN')
     configs=[(lang,tone,repeat) for repeat in ((1,) if args.tone_only else (1,2)) for lang in languages for tone in TONES]
     model,variant=matrix_model(args.model)

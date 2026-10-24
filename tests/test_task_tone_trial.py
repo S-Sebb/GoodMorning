@@ -5,14 +5,11 @@ import json
 import sys
 import tempfile
 import unittest
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 sys.path.insert(0,str(Path(__file__).resolve().parent))
 from benchmarks import task_tone_live as trial
 from benchmarks.task_tone_live import matrix_lock
-
-# The trial CLI only accepts private output below this root.
-Path('/tmp/opencode').mkdir(exist_ok=True)
 
 
 class MatrixLockTests(unittest.TestCase):
@@ -37,26 +34,40 @@ class MatrixLockTests(unittest.TestCase):
 
 
 class MatrixLanguageTests(unittest.TestCase):
+    def setUp(self):
+        # The trial CLI only accepts private output beneath the checkout's task root.
+        temporary=tempfile.TemporaryDirectory()
+        self.addCleanup(temporary.cleanup)
+        self.root=Path(temporary.name).resolve()
+        task_root=patch('benchmarks.trial_engine.task_root',return_value=self.root)
+        task_root.start()
+        self.addCleanup(task_root.stop)
+
+    def test_output_outside_the_task_root_is_refused(self):
+        arguments=['task_tone_live.py','--output',str(self.root.parent/'elsewhere')]
+        with patch.object(sys,'argv',arguments),patch.object(argparse.ArgumentParser,'error',side_effect=SystemExit) as error:
+            with self.assertRaises(SystemExit):
+                trial.main()
+        self.assertIn('beneath',error.call_args.args[0])
+
     def test_language_filter_reaches_runner_without_model_dispatch(self):
-        with tempfile.TemporaryDirectory(dir='/tmp/opencode') as directory:
-            output=Path(directory)/'matrix'
-            arguments=['task_tone_live.py','--output',str(output),'--model','deepseek-flash','--language','zh-CN']
-            with patch.object(sys,'argv',arguments),patch.object(trial,'run_matrix',return_value=0) as run:
-                self.assertEqual(trial.main(),0)
-            args=run.call_args.args[0]
-            self.assertEqual((args.model,args.language),('deepseek-flash','zh-CN'))
+        arguments=['task_tone_live.py','--output',str(self.root/'matrix'),'--model','deepseek-flash','--language','zh-CN']
+        with patch.object(sys,'argv',arguments),patch.object(trial,'run_matrix',return_value=0) as run:
+            self.assertEqual(trial.main(),0)
+        args=run.call_args.args[0]
+        self.assertEqual((args.model,args.language),('deepseek-flash','zh-CN'))
 
     def test_resume_cannot_change_language(self):
-        with tempfile.TemporaryDirectory(dir='/tmp/opencode') as directory:
-            output=Path(directory)
-            (output/'matrix.json').write_text(json.dumps({
-                'model':'opencode-go/muse-spark-1.3-contributor','variant':'xhigh',
-                'tone_only':False,'language':'en','date':'2026-10-14'}))
-            arguments=['task_tone_live.py','--output',str(output),'--resume','--language','zh-CN']
-            with patch.object(sys,'argv',arguments),patch.object(argparse.ArgumentParser,'error',side_effect=SystemExit) as error:
-                with self.assertRaises(SystemExit):
-                    trial.main()
-            self.assertIn('language',error.call_args.args[0])
+        output=self.root/'matrix'
+        output.mkdir()
+        (output/'matrix.json').write_text(json.dumps({
+            'model':'opencode-go/muse-spark-1.3-contributor','variant':'xhigh',
+            'tone_only':False,'language':'en','date':'2026-10-14'}))
+        arguments=['task_tone_live.py','--output',str(output),'--resume','--language','zh-CN']
+        with patch.object(sys,'argv',arguments),patch.object(argparse.ArgumentParser,'error',side_effect=SystemExit) as error:
+            with self.assertRaises(SystemExit):
+                trial.main()
+        self.assertIn('language',error.call_args.args[0])
 
 
 class ChatStructureTests(unittest.TestCase):
@@ -77,28 +88,25 @@ class ChatStructureTests(unittest.TestCase):
 
 class BasePromptPreflightTests(unittest.TestCase):
     def test_waits_for_exact_location_prompt_without_mutations(self):
-        from types import SimpleNamespace
-        with tempfile.TemporaryDirectory(dir='/tmp/opencode') as directory:
-            source=Path(directory)/'source'
-            replies=[SimpleNamespace(returncode=0,stdout=json.dumps({'data':{'id':'build'}})),
-                     SimpleNamespace(returncode=0,stdout=json.dumps({'data':{'id':'build','system':'Trial prompt'}}))]
-            with patch.object(trial.subprocess,'run',side_effect=replies) as run,patch.object(trial.time,'sleep'):
-                trial.verify_trial_system(source,'Trial prompt')
-            for call in run.call_args_list:
-                command=call.args[0]
-                self.assertEqual(command[:3],['opencode','api','get'])
-                self.assertIn('location%5Bdirectory%5D',command[3])
+        with tempfile.TemporaryDirectory() as directory:
+            bridge=Mock(directory='/synthetic/source')
+            bridge.request.side_effect=[{'data':{'id':'build'}},{'data':{'id':'build','system':'Trial prompt'}}]
+            with patch.object(trial.time,'sleep'):
+                trial.verify_trial_system(bridge,Path(directory),'Trial prompt')
+            for call in bridge.request.call_args_list:
+                self.assertEqual(len(call.args),1)  # GET only: no request body.
+                self.assertTrue(call.args[0].startswith('/api/agent/build?location%5Bdirectory%5D='))
             evidence=json.loads((Path(directory)/'base-prompt-preflight.json').read_text())
             self.assertEqual(len(evidence['checks']),2)
 
     def test_unavailable_prompt_blocks_all_model_work(self):
-        from types import SimpleNamespace
-        with tempfile.TemporaryDirectory(dir='/tmp/opencode') as directory:
-            response=SimpleNamespace(returncode=0,stdout=json.dumps({'data':{'id':'build'}}))
-            with patch.object(trial.subprocess,'run',return_value=response) as run,patch.object(trial.time,'sleep'):
+        with tempfile.TemporaryDirectory() as directory:
+            bridge=Mock(directory='/synthetic/source')
+            bridge.request.return_value={'data':{'id':'build'}}
+            with patch.object(trial.time,'sleep'):
                 with self.assertRaisesRegex(AssertionError,'no model requests dispatched'):
-                    trial.verify_trial_system(Path(directory)/'source','Trial prompt')
-            self.assertEqual(run.call_count,10)
+                    trial.verify_trial_system(bridge,Path(directory),'Trial prompt')
+            self.assertEqual(bridge.request.call_count,10)
 
 
 if __name__=='__main__':

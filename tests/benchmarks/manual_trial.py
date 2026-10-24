@@ -1,9 +1,10 @@
 """Manual secretary trials: I supply the brains, the script supplies the plumbing.
 
-Setup once per worktree state:
-  python3 tests/benchmarks/manual_trial.py --setup --source /tmp/opencode/manual-src
-Per case+model (fresh synthetic runtime, fresh native session, never production):
-  python3 tests/benchmarks/manual_trial.py --dir /tmp/opencode/manual-yuka/A-deepseek --model deepseek-flash --language zh-CN --send "11月初提醒我和若熙确定北京行程"
+Each command runs the case's private engine (its sessions persist in DIR/engine) until it settles.
+Setup once per worktree state (paths beneath /var/tmp/goodmorning-trials/<checkout>/):
+  PY tests/benchmarks/manual_trial.py --setup --source /var/tmp/goodmorning-trials/<checkout>/manual-src
+Per case+model (fresh synthetic runtime, fresh session, never production):
+  PY tests/benchmarks/manual_trial.py --dir /var/tmp/goodmorning-trials/<checkout>/manual-yuka/A-deepseek --model deepseek-flash --language zh-CN --send "11月初提醒我和若熙确定北京行程"
   python3 tests/benchmarks/manual_trial.py --dir ... --reply-form frm_ID '{"q0": "..."}'
   python3 tests/benchmarks/manual_trial.py --dir ... --records
   python3 tests/benchmarks/manual_trial.py --dir ... --messages
@@ -20,7 +21,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "src"))
 sys.path.insert(0, str(ROOT / "tests"))
-from benchmarks.native_bridge import NativeBridge
+from benchmarks import trial_engine
+from benchmarks.trial_engine import TrialBridge
 from goodmorning.records.inbox_store import initialize
 from goodmorning.web.briefing_server import BrowserApp
 from goodmorning.web import language, models
@@ -82,23 +84,16 @@ def main():
     group.add_argument("--records", action="store_true")
     group.add_argument("--messages", action="store_true")
     args = parser.parse_args()
+    source = trial_engine.private_output(parser, args.source or trial_engine.task_root() / "manual-src")
     if args.setup:
-        source = Path(args.source)
         if source.exists():
             shutil.rmtree(source)
-        source.mkdir(parents=True, mode=0o700)
-        for name in ("src", "scripts", "docs", "templates", "assets", "skill-source", ".opencode"):
-            shutil.copytree(ROOT / name, source / name,
-                            ignore=shutil.ignore_patterns("__pycache__"))
-        for name in ("AGENTS.md", "AGENT-PROMPT-GUIDE.md", "SERVER-USER-GUIDE.md", "SERVER-DATA-GUIDE.md"):
-            shutil.copyfile(ROOT / name, source / name)
-        shutil.copyfile(ROOT / "skill-source/goodmorning.md", source / "goodmorning.md")
-        (source / "opencode.json").write_text(json.dumps({"skills": ["."]}))
+        trial_engine.copy_release(source)
         print("source ready:", source)
         return
     directory, state, state_file = load(args)
+    trial_engine.private_output(parser, directory)
     runtime = directory / "account"
-    source = Path(args.source or "/tmp/opencode/manual-src")
     lang, selected = args.language, args.model
     if args.send and not state:
         runtime.mkdir(parents=True, mode=0o700, exist_ok=True)
@@ -112,15 +107,9 @@ def main():
         chat = uuid.uuid4().hex
         state = {"chat": chat, "lang": lang, "model": selected}
         state_file.write_text(json.dumps(state))
-    bridge = NativeBridge(source, runtime)
+    bridge = TrialBridge(trial_engine.Engine(source, runtime).start())
     app = BrowserApp(runtime, bridge)
     chat = state["chat"]
-    try:
-        existing = (app.chats.get(chat) or {}).get("session")
-    except Exception:
-        existing = None
-    if existing and existing not in bridge.sessions:
-        bridge.sessions[existing] = {"idle": True}
     if args.send:
         ask = args.send
         with context(lang, selected):

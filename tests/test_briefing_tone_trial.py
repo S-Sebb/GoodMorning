@@ -5,6 +5,7 @@ import io
 import json
 from pathlib import Path
 import tempfile
+from types import SimpleNamespace
 import unittest
 from unittest.mock import patch
 
@@ -48,7 +49,8 @@ class BriefingTrialTests(unittest.TestCase):
         self.assertTrue(context['awaiting'])
 
     def test_checkpoint_seed_retains_owner_and_next_unresolved_position(self):
-        bridge = CheckpointBridge('/synthetic/source', self.runtime, True, 'en')
+        engine = SimpleNamespace(url='http://127.0.0.1:9', release=Path('/synthetic/source'), runtime=self.runtime, password='x')
+        bridge = CheckpointBridge(engine, True, 'en')
         app = BrowserApp(self.runtime, bridge, now=lambda:datetime(2026,10,14,12,tzinfo=timezone.utc), preflight=True)
         job = {'id':'a'*32,'date':'2026-10-14','kind':'gm','session':'ses_trial','state':'running','language':'en',
                'created':datetime(2026,10,14,6,tzinfo=timezone.utc).timestamp()}
@@ -56,7 +58,7 @@ class BriefingTrialTests(unittest.TestCase):
         app.save_jobs()
         prepare(self.runtime,job)
         prompt='/gm\nBrowser job: '+job['id']+'\nRuntime: '+str(self.runtime)+'\nWebsite language: en'
-        with patch('benchmarks.native_bridge.NativeBridge.control',return_value={'promptDispatched':True}) as dispatch:
+        with patch('benchmarks.trial_engine.TrialBridge.control',return_value={'promptDispatched':True}) as dispatch:
             bridge.control('session.send',sessionId='ses_trial',prompt=prompt)
         self.assertEqual(dispatch.call_args.kwargs['prompt'],prompt)
         receipt=act(self.runtime,job['id'],'ses_trial','prepare')

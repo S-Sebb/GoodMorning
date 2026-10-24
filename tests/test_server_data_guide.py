@@ -16,6 +16,5 @@ class ServerDataGuideTests(unittest.TestCase):
         self.assertIn('`SERVER-DATA-GUIDE.md`', (ROOT/'AGENTS.md').read_text())
 
     def test_isolated_model_trials_keep_the_referenced_guide(self):
-        for name in ('website_live.py','task_tone_live.py','manual_trial.py','briefing_tone_live.py'):
-            with self.subTest(trial=name):
-                self.assertIn('SERVER-DATA-GUIDE.md', (ROOT/'tests/benchmarks'/name).read_text())
+        from benchmarks import trial_engine
+        self.assertIn('SERVER-DATA-GUIDE.md', trial_engine.RELEASE_FILES)

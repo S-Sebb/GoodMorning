@@ -21,7 +21,8 @@ from zoneinfo import ZoneInfo
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / 'src'))
 sys.path.insert(0, str(ROOT / 'tests'))
-from benchmarks.native_bridge import NativeBridge
+from benchmarks import trial_engine
+from benchmarks.trial_engine import TrialBridge
 from goodmorning.records.inbox_store import InboxStore, initialize
 from goodmorning.records.task_store import TaskStore
 from goodmorning.records.custom_store import CustomStore
@@ -439,7 +440,7 @@ def scenarios(today):
     ]
 
 
-def run_scenario(output, lang, selected, today, scenario, rounds, source=ROOT):
+def run_scenario(output, lang, selected, today, scenario, rounds, source):
     name, mode, setup, english, chinese, check = scenario
     folder = output / f'{lang}-{name}'
     target = folder / 'result.json'
@@ -463,7 +464,7 @@ def run_scenario(output, lang, selected, today, scenario, rounds, source=ROOT):
     result = {'scenario': name, 'language': lang, 'model': selected, 'mode': mode, 'message': message,
               'turns': [], 'complete': False, 'passed': None, 'dispatched': True}
     save(target, result)
-    bridge = NativeBridge(source, runtime)
+    bridge = TrialBridge(trial_engine.Engine(source, runtime).start())
     app = BrowserApp(runtime, bridge)
     chat = uuid.uuid4().hex
 
@@ -527,6 +528,7 @@ def run_scenario(output, lang, selected, today, scenario, rounds, source=ROOT):
     except Exception as error:
         result['passed'] = False
         result['failure'] = type(error).__name__ + ': ' + str(error)
+    bridge.close()
     result['records'] = {'tasks': [{k: v for k, v in t.items() if k not in ('detail',)} for t in tasks(runtime)[0]],
                          'drafts': tasks(runtime)[1], 'calendar': calendar_events(runtime)}
     result['complete'] = True
@@ -537,16 +539,18 @@ def run_scenario(output, lang, selected, today, scenario, rounds, source=ROOT):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--output', required=True)
+    trial_engine.add_arguments(parser)
     parser.add_argument('--language', required=True, choices=('en', 'zh-CN'))
     parser.add_argument('--model', choices=tuple(models.MODELS), help='Defaults to the production model for the language')
     parser.add_argument('--only', nargs='*', help='Scenario names to run')
     parser.add_argument('--parallel', type=int, default=4)
     parser.add_argument('--rounds', type=int, default=4, help='Native question rounds answered per scenario')
-    parser.add_argument('--source', type=Path, default=ROOT, help='Release the agent reads, e.g. a main checkout for a baseline')
     args = parser.parse_args()
-    output = Path(args.output)
+    output = trial_engine.private_output(parser, args.output)
     output.mkdir(parents=True, exist_ok=True)
+    source = output / 'source'
+    if not source.exists():
+        trial_engine.copy_release(source, args.source.resolve())
     selected = args.model or models.for_language(args.language)
     today = datetime.now(ZoneInfo(ZONE)).date()
     chosen = [s for s in scenarios(today) if not args.only or s[0] in args.only]
@@ -557,7 +561,7 @@ def main():
         except BlockingIOError:
             raise SystemExit('This output already has an active runner')
         with ThreadPoolExecutor(args.parallel) as pool:
-            results = list(pool.map(lambda s: run_scenario(output, args.language, selected, today, s, args.rounds, args.source.resolve()), chosen))
+            results = list(pool.map(lambda s: run_scenario(output, args.language, selected, today, s, args.rounds, source), chosen))
     summary = {'language': args.language, 'model': selected, 'source': str(args.source.resolve()), 'passed': sum(bool(r.get('passed')) for r in results),
                'total': len(results), 'failed': {r['scenario']: r.get('failure') for r in results if not r.get('passed')}}
     save(output / f'summary-{args.language}.json', summary)

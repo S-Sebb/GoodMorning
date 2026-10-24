@@ -18,7 +18,8 @@ sys.path.insert(0, str(ROOT/'src'))
 sys.path.insert(0, str(ROOT/'tests'))
 from benchmarks.anime_live import account, copy_source
 from benchmarks.briefing_tone_live import CheckpointBridge, commands, link_handoff, observe
-from benchmarks.native_bridge import NativeBridge
+from benchmarks import trial_engine
+from benchmarks.trial_engine import TrialBridge
 from benchmarks.task_tone_live import context, matrix_lock, save
 from goodmorning.runtime_files import profile_fields
 from goodmorning.web.briefing_server import BrowserApp
@@ -104,7 +105,7 @@ def run_briefing(output, language, selected, scenario, now):
                       'game_threshold: "50"\ngame_titles: "292030, 582010"\n', zone)
     fixture(runtime, mode, now)
     source = source_copy(folder, runtime)
-    bridge = CheckpointBridge(source, runtime, False, language)
+    bridge = CheckpointBridge(trial_engine.Engine(source, runtime).start(), False, language)
     app = BrowserApp(runtime, bridge, now=lambda: now, preflight=True)
     day = app.today()
     result = {'scenario':scenario, 'language':language, 'tone':tone, 'model':selected, 'checks':[],
@@ -146,6 +147,7 @@ def run_briefing(output, language, selected, scenario, now):
         result['functional_complete'] = False
         print(f'{language} {selected} {scenario}: INCOMPLETE — {result["failure"]}', flush=True)
     finally:
+        bridge.close()
         save(folder/'result.json', result)
     return result
 
@@ -203,7 +205,7 @@ def run_chat(output, language, selected, scenario, now):
     fixture(runtime, 'deals', now)
     source = source_copy(folder, runtime)
     before = (runtime/'profile.md').read_text()
-    bridge = NativeBridge(source, runtime)
+    bridge = TrialBridge(trial_engine.Engine(source, runtime).start())
     app = BrowserApp(runtime, bridge)
     chat = uuid.uuid4().hex
     # 七折 means paying 70%, i.e. 30% off.
@@ -291,23 +293,23 @@ def run_chat(output, language, selected, scenario, now):
         result['functional_complete'] = False
         print(f'{language} {selected} {scenario}: INCOMPLETE — {result["failure"]}', flush=True)
     finally:
+        bridge.close()
         save(folder/'result.json', result)
     return result
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--output', type=Path, required=True)
+    trial_engine.add_arguments(parser)
     parser.add_argument('--language', choices=('en', 'zh-CN'), required=True)
     parser.add_argument('--model', choices=tuple(models.MODELS), help='Defaults to the production model for the language')
     parser.add_argument('--only', nargs='*', choices=(*BRIEFINGS, *CHATS))
     args = parser.parse_args()
-    output = args.output.resolve()
-    if not output.is_relative_to('/tmp/opencode'):
-        parser.error('Synthetic output must stay beneath /tmp/opencode')
+    output = trial_engine.private_output(parser, args.output)
     selected = args.model or models.for_language(args.language)
     with matrix_lock(output):
         output.mkdir(mode=0o700)
+        trial_engine.copy_release(output/'release', args.source.resolve())
         now = datetime.now(timezone.utc)
         chosen = args.only or (*BRIEFINGS, *CHATS)
         results = [(run_briefing if name in BRIEFINGS else run_chat)(output, args.language, selected, name, now) for name in chosen]

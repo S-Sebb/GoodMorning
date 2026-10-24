@@ -1,8 +1,7 @@
 """Opt-in, paid website-model trial through real chat, Schedule and briefing pages.
 
-Uses a synthetic returning account on loopback and fresh native agent sessions.
-Public login/encryption are covered separately; the native bridge substitutes
-OpenChamber's control envelope only. No mock model, no private production records.
+Uses a synthetic returning account on loopback and a private production-like engine.
+Public login/encryption are covered separately. No mock model, no private production records.
 """
 import argparse
 from datetime import date, datetime, timedelta, timezone
@@ -15,7 +14,8 @@ import sys
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT.parent/'src'))
-from benchmarks.native_bridge import NativeBridge
+from benchmarks import trial_engine
+from benchmarks.trial_engine import TrialBridge
 from support import start_server
 from support import returning_viewer
 from goodmorning.records.inbox_store import initialize, InboxStore
@@ -27,7 +27,7 @@ from goodmorning.web.models import MODELS, session_payload, for_language
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--output', type=Path, required=True, help='New private directory beneath /tmp/opencode')
+    trial_engine.add_arguments(parser)
     parser.add_argument('--blocked-report', action='store_true', help='Submit an explicit Atlas blocker and check canonical reconciliation')
     parser.add_argument('--model', choices=MODELS, default='muse-spark', help='English browser trial uses the automatically routed Muse XHigh model')
     parser.add_argument('--ambiguity', action='store_true', help='Check scheduling clarification before any capture or pending note')
@@ -35,9 +35,7 @@ def main():
     args = parser.parse_args()
     if args.model!=for_language('en'):
         parser.error('This browser trial is English-only and uses automatic Muse routing; use the task/tone matrix for Chinese DeepSeek trials')
-    output = args.output.resolve()
-    if not output.is_relative_to('/tmp/opencode'):
-        parser.error('Synthetic trial output must be inside /tmp/opencode')
+    output = trial_engine.private_output(parser, args.output)
     if not args.resume:
         output.mkdir(mode=0o700)
     source, runtime = output/'source', output/'account'
@@ -52,30 +50,22 @@ def main():
         results['initial_failure']=results.pop('failure',None)
         results['resumed_without_replaying_captures']=True
         for name in ('core-rules.md','item-taxonomy.md','calendar-pipeline.md'):
-            shutil.copyfile(ROOT.parent/'docs'/name,source/'docs'/name)
+            shutil.copyfile(args.source/'docs'/name,source/'docs'/name)
     else:
-        source.mkdir(); runtime.mkdir(mode=0o700)
-        for name in ('src','scripts','docs','templates','assets','skill-source','.opencode'):
-            shutil.copytree(ROOT.parent/name, source/name, ignore=shutil.ignore_patterns('__pycache__'))
-        for name in ('AGENTS.md', 'AGENT-PROMPT-GUIDE.md', 'SERVER-USER-GUIDE.md', 'SERVER-DATA-GUIDE.md'):
-            shutil.copyfile(ROOT.parent/name, source/name)
-        # Native project skills override a developer's installed global copy.
-        # Flat named Markdown keeps the package base at this copied release root.
-        shutil.copyfile(ROOT.parent/'skill-source/goodmorning.md', source/'goodmorning.md')
-        (source/'opencode.json').write_text(json.dumps({'skills':['.']}))
+        trial_engine.copy_release(source, args.source.resolve()); runtime.mkdir(mode=0o700)
         (runtime/'profile.md').write_text('city: London, GB\ntimezone: Europe/London\nnews_country: GB\nsecretary_language: English\nsecretary_name: Nora\nsecretary_tone: warm and concise\ncalendar_source: custom\n')
         (runtime/'browser-policy.json').write_text(json.dumps({key:False for key in ('live_project_access','calendar_sync','publisher_images','news_acknowledgement')}))
         initialize(runtime); CalendarStore(str(runtime/'calendar.sqlite')).close()
         returning_viewer(runtime)
         results = {'model':selected['providerID']+'/'+selected['id'], 'variant':selected['variant'], 'checks':[], 'limitations':[
             'Loopback returning-account trial, not public HTTPS registration or encrypted-container deployment.',
-            'Native V2 bridge substitutes OpenChamber control envelope; model and website routes are real.']}
-    bridge = NativeBridge(source, runtime)
+            'Private production-like OpenChamber engine; model and website routes are real.']}
+    bridge = TrialBridge(trial_engine.Engine(source, runtime).start())
     if args.resume:
         registry=json.loads((runtime/'browser-chats/chats.json').read_text())
         for item in registry.values():
             if item.get('session'):
-                bridge.sessions[item['session']]={'idle':True}
+                bridge.sessions.append(item['session'])
     app = BrowserApp(runtime, bridge, now=lambda:datetime.now(timezone.utc), preflight=True)
     server = start_server(app)
     address = f'http://127.0.0.1:{server.server_port}'
@@ -213,7 +203,7 @@ def main():
     finally:
         results['sessions']=[]
         for session in list(bridge.sessions):
-            info=bridge.api('get',f'/api/session/{session}')['data']
+            info=bridge.session(session)
             results['sessions'].append({k:info.get(k) for k in ('id','model','tokens','cost','outcome')})
             messages=bridge.control('session.messages',sessionId=session,limit=100)
             (output/f'{session}.messages.json').write_text(json.dumps(messages,ensure_ascii=False))
@@ -223,7 +213,7 @@ def main():
         if not results['model_verified'] and 'failure' not in results:
             results['failure']='A trial session did not use the requested model and variant'
         (output/'results.json').write_text(json.dumps(results,ensure_ascii=False,indent=2))
-        server.shutdown(); server.server_close()
+        server.shutdown(); server.server_close(); bridge.close()
     assert results['model_verified'], results.get('failure')
     print(json.dumps(results,ensure_ascii=False))
 

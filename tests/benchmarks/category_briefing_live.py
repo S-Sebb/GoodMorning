@@ -17,6 +17,7 @@ from zoneinfo import ZoneInfo
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(ROOT / 'src'), str(ROOT / 'tests')]
+from benchmarks import trial_engine
 from benchmarks.briefing_tone_live import TRIAL_CLI, CheckpointBridge, trial_config, observe
 from benchmarks.category_week import seed, ZONE
 from benchmarks.task_tone_live import context, matrix_lock, save
@@ -97,7 +98,7 @@ def run(output, template, language, kind, selected=None):
     day = MONDAY + timedelta(days=2 if kind == 'gm' else 4)
     instant = datetime.combine(day, time(7, 30) if kind == 'gm' else time(20, 30), ZoneInfo(ZONE)).astimezone(timezone.utc)
     selected = selected or for_language(language)
-    bridge = CheckpointBridge(source, runtime, False, language)
+    bridge = CheckpointBridge(trial_engine.Engine(source, runtime).start(), False, language)
     app = BrowserApp(runtime, bridge, now=lambda: instant, preflight=True)
     result = {'case': name, 'language': language, 'date': day.isoformat(), 'checks': [], 'problems': []}
     try:
@@ -193,6 +194,7 @@ def run(output, template, language, kind, selected=None):
         result['checks'].append('Edition saved; rows compared with the focus-day rules')
     except Exception as error:
         result['problems'].append(type(error).__name__ + ': ' + str(error)[:800])
+    bridge.close()
     save(folder / 'result.json', result)
     return result, runtime, instant, kind
 
@@ -227,23 +229,16 @@ def screenshots(output, cases):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--output', type=Path, required=True)
+    trial_engine.add_arguments(parser)
     parser.add_argument('--language', choices=('en', 'zh-CN'), required=True)
     from goodmorning.web.models import MODELS
     parser.add_argument('--model', choices=tuple(MODELS), help='Defaults to the production model for the language')
     args = parser.parse_args()
-    output = args.output.resolve()
-    if not output.is_relative_to('/tmp/opencode'):
-        parser.error('Synthetic output must stay beneath /tmp/opencode')
+    output = trial_engine.private_output(parser, args.output)
     with matrix_lock(output):
         output.mkdir(mode=0o700)
         template = output / 'source'
-        template.mkdir()
-        for name in ('src', 'scripts', 'docs', 'templates', 'assets', 'skill-source', '.opencode'):
-            shutil.copytree(ROOT / name, template / name, ignore=shutil.ignore_patterns('__pycache__'))
-        for name in ('AGENTS.md', 'AGENT-PROMPT-GUIDE.md', 'SERVER-USER-GUIDE.md', 'SERVER-DATA-GUIDE.md'):
-            shutil.copyfile(ROOT / name, template / name)
-        shutil.copyfile(ROOT / 'skill-source/goodmorning.md', template / 'goodmorning.md')
+        trial_engine.copy_release(template, args.source.resolve())
         (template / 'scripts/goodmorning.py').write_text(TRIAL_CLI)
         cases = [run(output, template, args.language, kind, args.model) for kind in ('gm', 'gn')]
         screenshots(output, cases)
