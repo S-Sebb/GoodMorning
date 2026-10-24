@@ -7,8 +7,10 @@ import argparse
 from datetime import datetime, timedelta, timezone
 import json
 from pathlib import Path
+import subprocess
 import sys
 import tempfile
+import time
 from urllib.parse import urlsplit
 
 from playwright.sync_api import expect, sync_playwright
@@ -94,13 +96,21 @@ def fixture(runtime):
             'Fictional story: a local library opens a reading room and a weekend workshop programme.',
             [['Demo source', 'https://example.com/demo/uk']]]], 'GB'],
     ]
+    # Hourly forecast from 06:00 London time; the demo clock (10:00) has passed four of its hours.
+    frame = {'start': DAY + 'T06:00', 'past': 4,
+             'hours': [[t, r, a] for t, r, a in zip(
+                 [11, 11, 12, 13, 14, 15, 16, 17, 18, 18, 17, 16, 15, 14, 14, 13, 13, 12],
+                 [5, 5, 5, 10, 10, 15, 20, 30, 45, 65, 70, 60, 40, 25, 15, 10, 5, 5],
+                 [24, 26, 28, 30, 32, 34, 35, 33, 31, 29, 27, 26, 25, 24, 24, 23, 23, 22])],
+             'sun': [['sunrise', 1.3], ['sunset', 12.2]], 'night': [[0, 1.3], [12.2, 18]], 'snow': False,
+             'links': {'forecast': 'https://example.com/demo/forecast', 'air': 'https://example.com/demo/air'}}
     document = {'v': 2, 'lang': 'en', 'greeting': 'Good morning. A little room for today.',
         'opening': 'London · A clear plan, one useful step at a time. Fictional demo, not a live report.',
         'sections': [
             ['weather', [['weather', [
                 ['temperature', '16°C (12–18°C)', 'A cool start, with a softer afternoon. A light layer should do.'],
-                ['precipitation', '65% – Rain likely', 'Bring a small umbrella if you are heading out.'],
-                ['air', '30 – good', 'A comfortable day for a short walk.']]]]],
+                ['precipitation', '65% – Rain likely', 'Dry until mid-afternoon; bring a small umbrella for the way home.'],
+                ['air', '30 – good', 'A comfortable day for a short walk.']], frame]]],
             ['news', news, 'Fictional stories and example source links, included only to demonstrate the layout.', 'News — as of 07:12'],
             ['schedule', [morning['blocks']['schedule']], 'Today and the next two days, from your saved appointments.'],
             ['tasks', [morning['blocks']['tasks']], 'Atlas is the main thread today. Keep the comparison focused; the walk is optional.'],
@@ -108,6 +118,12 @@ def fixture(runtime):
         ], 'closing': 'Less noise. One thing at a time.'}
     validate_sources(runtime, document, DAY, 'gm')
     source_path(runtime, DAY, 'gm').write_text(encode(document))
+    # Earlier days only fill the archive selector; nothing opens them.
+    for back in range(1, 7):
+        day = (NOW - timedelta(days=back)).date().isoformat()
+        for edition in ('gm', 'gn'):
+            source_path(runtime, day, edition).write_text(encode({'v': 2, 'lang': 'en', 'greeting': 'Hello.',
+                'opening': 'An earlier day.', 'sections': [['weather', [['weather', [['temperature', '14°C', 'Fictional archive entry.']]]]]]}))
     inbox = InboxStore(runtime, write=True)
     try:
         tasks = TaskStore(inbox)
@@ -124,7 +140,12 @@ def fixture(runtime):
         'sections': [[tag, [evening['blocks'][tag]], note] for tag, note in (
             ('today', 'The books are collected. The methods have moved forward, but are not finished.'),
             ('schedule', 'The design review is tomorrow. Bring the two layouts; the dentist time is still to be confirmed.'),
-            ('tasks', 'Prepare the review slides tomorrow. Unfinished work stays on its original date.'))],
+            ('tasks', 'Prepare the review slides tomorrow. Unfinished work stays on its original date.'))] + [
+            ['stocks', [['holdings', [
+                ['usAAPL', 'Apple Inc.', DAY, 30, 232.4, 229.9, 180, 'USD', 0.0, 0.0, False],
+                ['usVOO', 'Vanguard S&P 500 ETF', DAY, 12, 548.2, 551.0, None, 'USD', 0.0, 0.0, False],
+                ['sh600519', 'Kweichow Moutai', DAY, 100, 1462.0, 1450.5, 1400, 'CNY', 0.0, 0.0, False]]]],
+             'Fictional holdings and prices. A quiet day, slightly up overall.']],
         'closing': 'That is enough for tonight. Let tomorrow have its own space.'}
     validate_sources(runtime, document, DAY, 'gn')
     source_path(runtime, DAY, 'gn').write_text(encode(document))
@@ -147,10 +168,37 @@ def chat_status():
         ]}
 
 
+LIVE_ASK = 'Water the balcony plants every Tuesday and Saturday. Also, a tiny herb garden might be nice someday.'
+
+
+def live_status(stage, turn):
+    """The simulated conversation behind the chat GIF: sent, working, then answered."""
+    messages = [{'id': 'ask', 'role': 'user', 'text': LIVE_ASK, 'turn': turn}]
+    if stage < 2:
+        return {'mode': 'secretary', 'state': 'running', 'label': 'Your secretary is working',
+                'language': 'en', 'secretary_name': 'Aria', 'forms': [], 'permissions': [], 'messages': messages}
+    return {**chat_status(), 'messages': messages + [
+        {'id': 'reply', 'role': 'assistant', 'text': 'Saved: the plants every **Tuesday and Saturday**. '
+         'The herb garden stays an idea, not a deadline.'},
+        {'id': 'task', 'role': 'assistant', 'kind': 'action', 'text': 'Water the balcony plants · Tue and Sat',
+         'action': {'operation': 'added', 'target': 'task'}},
+        {'id': 'idea', 'role': 'assistant', 'kind': 'action', 'text': 'A tiny herb garden',
+         'action': {'operation': 'added', 'target': 'idea'}}]}
+
+
+def gif(video, output, start, width=960, fps=10):
+    # mpdecimate drops frames that only differ by video noise, so still stretches cost almost nothing.
+    palette = 'split[a][b];[a]palettegen=stats_mode=diff[p];[b][p]paletteuse=dither=bayer:bayer_scale=4:diff_mode=rectangle'
+    subprocess.run(['ffmpeg', '-loglevel', 'error', '-y', '-ss', f'{start:.2f}', '-i', str(video),
+                    '-vf', f'fps={fps},mpdecimate,scale={width}:-1:flags=lanczos,{palette}', '-fps_mode', 'vfr',
+                    str(output)], check=True)
+
+
 def capture(app, output):
     server = start_server(app)
     address = f'http://127.0.0.1:{server.server_address[1]}'
     errors, pictures = [], []
+    live = {'stage': None}  # None: the saved Atlas conversation; 0–2: the chat GIF's new one.
     try:
         with sync_playwright() as playwright:
             browser = playwright.chromium.launch()
@@ -159,12 +207,17 @@ def capture(app, output):
             def route(request):
                 path = urlsplit(request.request.url)
                 assert request.request.url.startswith(address + '/'), request.request.url
-                if path.path == '/api/chats':
-                    request.fulfill(json={**app.chat_settings(), 'chats': [
-                        {'id': CHAT, 'mode': 'secretary', 'title': 'A little room for the Atlas review',
-                         'updated': NOW.isoformat(), 'state': 'idle'}]})
+                if path.path == '/api/chats' and request.request.method == 'POST':
+                    live['stage'] = 1
+                    live['turn'] = request.request.post_data_json['id']
+                    request.fulfill(json={'queued': False})
+                elif path.path == '/api/chats':
+                    chats = [] if live['stage'] == 0 else [{'id': CHAT, 'mode': 'secretary', 'state': 'idle',
+                        'title': 'Balcony plants' if live['stage'] else 'A little room for the Atlas review',
+                        'updated': NOW.isoformat()}]
+                    request.fulfill(json={**app.chat_settings(), 'chats': chats})
                 elif path.path.startswith('/api/chats/'):
-                    request.fulfill(json=chat_status())
+                    request.fulfill(json=chat_status() if live['stage'] is None else live_status(live['stage'], live['turn']))
                 else:
                     request.continue_()
 
@@ -202,35 +255,19 @@ def capture(app, output):
             open_page('/gm.html')
             expect(page.locator('.briefing-section h2')).to_have_text(
                 ['Weather', 'News — as of 07:12', 'Schedule', 'Tasks', 'Reminders'])
-            shot('morning')
             page.set_viewport_size({'width': 1440, 'height': 1800})
-            for name, selector in [('weather', '.weather'), ('news', '.news'), ('schedule', '.schedule'),
-                                   ('priorities', '.tasks'), ('reminders', '.attention')]:
+            for name, selector in [('weather', '.weather'), ('news', '.news'), ('tasks', '.tasks')]:
                 shot(name, page.locator('.briefing-section' + selector))
             page.set_viewport_size({'width': 1440, 'height': 1050})
             open_page('/gn.html')
             expect(page.locator('html')).to_have_attribute('data-night-scheme', 'starry')
             shot('evening')
             page.set_viewport_size({'width': 1440, 'height': 1800})
-            shot('tomorrow', page.locator('.briefing-section.schedule'))
+            shot('stocks', page.locator('.briefing-section.stocks'))
             page.set_viewport_size({'width': 1440, 'height': 1050})
             open_page('/schedule', 'warm')
             expect(page.locator('.schedule-day')).to_have_count(7)
             shot('weekly-schedule', full_page=True)
-            open_page('/chat?id=' + CHAT, 'warm')
-            expect(page.locator('[data-special="action"]')).to_have_count(2)
-            expect(page.locator('[data-special="question"]')).to_have_count(1)
-            page.locator('#chat-scroll').evaluate('element => element.scrollTop = 0')
-            shot('secretary')
-            open_page('/gm.html', 'morning-sky')
-            expect(page.locator('html')).to_have_attribute('data-day-scheme', 'morning-sky')
-            shot('morning-sky')
-            open_page('/gm.html', 'grass-block', style='pixel')
-            expect(page.locator('html')).to_have_attribute('data-style', 'pixel')
-            shot('pixel-grass-block')
-            open_page('/gn.html', night='picnic', style='pixel')
-            expect(page.locator('html')).to_have_attribute('data-night-scheme', 'picnic')
-            shot('pixel-picnic')
             page.set_viewport_size({'width': 390, 'height': 844})
             open_page('/chat?id=' + CHAT, 'warm')
             expect(page.locator('#chat-compose')).to_be_visible()
@@ -239,6 +276,64 @@ def capture(app, output):
             open_page('/gm.html', 'morning-sky')
             expect(page.locator('#mobile-sections')).to_be_visible()
             shot('morning-mobile')
+
+            def record(name, path, act, **colors):
+                """Film one page with motion on; the GIF starts once the page has settled."""
+                size = {'width': 1280, 'height': 800}
+                with tempfile.TemporaryDirectory(dir=TEMP_ROOT, prefix='gm-readme-video-') as folder:
+                    video = browser.new_context(viewport=size, record_video_dir=folder, record_video_size=size)
+                    video.route('**/*', route)
+                    tab = video.new_page()
+                    began = time.monotonic()
+                    tab.clock.set_system_time(NOW)
+                    tab.on('pageerror', lambda error: errors.append(str(error)))
+                    write_colors(app.runtime, {'style': 'soft', 'day': 'first-light', 'night': 'starry', **colors})
+                    tab.goto(address + path)
+                    tab.evaluate('document.fonts.ready')
+                    tab.wait_for_timeout(1000)
+                    start = time.monotonic() - began
+                    act(tab)
+                    video.close()
+                    gif(tab.video.path(), output / f'{name}.gif', start)
+                pictures.append(name + '.gif')
+
+            def tour(tab):
+                tab.mouse.move(0, 0)
+                tab.wait_for_timeout(2000)
+                for selector in ('.weather', '.news', '.tasks', '.attention'):
+                    tab.locator('.briefing-section' + selector).evaluate(
+                        "element => scrollTo({top: element.offsetTop - 90, behavior: 'smooth'})")
+                    tab.wait_for_timeout(2400)
+
+            def conversation(tab):
+                tab.locator('#chat-text').press_sequentially(LIVE_ASK, delay=30)
+                tab.wait_for_timeout(500)
+                tab.locator('#chat-send').click()
+                tab.wait_for_timeout(2500)
+                live['stage'] = 2
+                expect(tab.locator('[data-special="action"]')).to_have_count(2)
+                tab.wait_for_timeout(3500)
+
+            record('morning-tour', '/gm.html', tour)
+            live['stage'] = 0
+            record('secretary-chat', '/chat', conversation, day='warm')
+            live['stage'] = None
+
+            # Still frames, since a reload between schemes would film the page fading in.
+            page.set_viewport_size({'width': 1280, 'height': 800})
+            with tempfile.TemporaryDirectory(dir=TEMP_ROOT, prefix='gm-readme-frames-') as folder:
+                frames = Path(folder)
+                for number, (path, style, day, night) in enumerate((
+                        ('/gm.html', 'soft', 'first-light', 'starry'), ('/gm.html', 'soft', 'morning-sky', 'starry'),
+                        ('/gm.html', 'pixel', 'grass-block', 'starry'), ('/gn.html', 'soft', 'warm', 'starry'),
+                        ('/gn.html', 'soft', 'warm', 'city-lights'), ('/gn.html', 'pixel', 'warm', 'picnic'))):
+                    open_page(path, day, night, style)
+                    page.mouse.move(0, 0)
+                    page.screenshot(path=str(frames / f'{number}.png'))
+                subprocess.run(['ffmpeg', '-loglevel', 'error', '-y', '-framerate', '0.625', '-i', str(frames / '%d.png'),
+                                '-vf', 'scale=960:-1:flags=lanczos,split[a][b];[a]palettegen=stats_mode=single[p];[b][p]paletteuse=new=1',
+                                str(output / 'color-schemes.gif')], check=True)
+            pictures.append('color-schemes.gif')
             assert not errors, errors
             assert not app.chamber.calls and not app.chamber.replies, 'Demo must never dispatch agent work'
             browser.close()
@@ -246,7 +341,7 @@ def capture(app, output):
         server.shutdown()
         server.server_close()
     report = {'synthetic': True, 'modelCalls': 0, 'externalRequests': 0, 'pageErrors': errors,
-              'date': DAY, 'viewports': ['1440×1050', '1440×1800 (section close-ups)', '390×844'],
+              'date': DAY, 'viewports': ['1440×1050', '1440×1800 (section close-ups)', '390×844', '1280×800 (GIFs)'],
               'screenshots': pictures}
     (output / 'result.json').write_text(json.dumps(report, indent=2) + '\n')
     print(json.dumps(report))
