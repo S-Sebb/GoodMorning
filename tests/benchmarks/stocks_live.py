@@ -10,6 +10,7 @@ import argparse
 from datetime import datetime, timedelta, timezone
 import io
 import json
+import re
 from pathlib import Path
 import sys
 import time
@@ -191,19 +192,22 @@ def run_briefing(output, language, selected, scenario, now):
             assert section[2:3] and section[2].strip(), 'Holdings published without a short note'
             assert '688999' in text, 'The unknown code was not named'
             result['checks'].append('Read block copied unchanged with a note; unknown code named')
-        if mode == 'closed':
-            closed = returned[2]['CNY']
-            assert closed['next'], 'The fixture closure has no next trading day'
-            # The note must carry the next trading day, by date, weekday or "the day after tomorrow".
-            upcoming = datetime.fromisoformat(closed['next'])
-            written = (closed['next'], f'{upcoming.month}月{upcoming.day}日', f'{upcoming:%B} {upcoming.day}', f'{upcoming:%b} {upcoming.day}',
-                       upcoming.strftime('%A'), '周' + '一二三四五六日'[upcoming.weekday()], '后天', 'day after tomorrow')
-            result['note'] = section[2]
-            assert any(form.casefold() in section[2].casefold() for form in written), 'The note did not give the next trading day'
-            result['checks'].append('Closed A-shares: block carries the closure; note names the next trading day (manual review: says closed, calls the move the last trading day\'s)')
         else:
             assert [block[0] for block in blocks] == ['p'], 'Failed read did not publish one paragraph'
             result['checks'].append('Unavailable line published, section not skipped')
+        if mode == 'closed':
+            closed = returned[2]['CNY']
+            assert closed['next'], 'The fixture closure has no next trading day'
+            # The note names the next trading day by date, weekday or "the day after tomorrow", spaced or not, never as ISO.
+            upcoming = datetime.fromisoformat(closed['next'])
+            written = (f'{upcoming.month}月{upcoming.day}日', f'{upcoming:%B}{upcoming.day}', f'{upcoming:%b}{upcoming.day}',
+                       upcoming.strftime('%A'), '周' + '一二三四五六日'[upcoming.weekday()], '后天', 'dayaftertomorrow')
+            result['note'] = section[2]
+            note = ''.join(section[2].split()).casefold()
+            assert any(form.casefold() in note for form in written), 'The note did not give the next trading day'
+            assert not re.search(r'\d{4}-\d{2}-\d{2}', section[2]), 'The note printed an ISO date'
+            result['checks'].append('Closed A-shares: block carries the closure; note names the next trading day in everyday words '
+                                    '(manual review: says closed, calls the move the last trading day\'s)')
         result['advice_words'] = [word for word in ADVICE_WORDS if word in text.casefold()]
         assert not result['advice_words'], 'The section gave advice or a forecast'
         result['stocks_reads'] = [entry['argv'] for entry in commands(runtime) if entry['argv'][:1] == ['stocks']]

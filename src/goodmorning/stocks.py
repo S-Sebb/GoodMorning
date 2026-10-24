@@ -266,6 +266,9 @@ def report(runtime, language, cache=None, now=None):
 def summaries(rows, language='en', closed=None):
     """Per-market totals the note may mention; the rendered section computes the same."""
     from goodmorning.web import language as ui
+    token = ui.CURRENT.set(language)
+    # Notes print as written, so their dates arrive the way the page writes dates.
+    shown = lambda day: ui.day_text(day) if day else None
     markets = []
     for currency, label in (('CNY', 'A-shares'), ('USD', 'US stocks')):
         group = [row for row in rows if row[7] == currency]
@@ -274,14 +277,15 @@ def summaries(rows, language='en', closed=None):
         before = sum(row[5] * row[3] for row in group)
         change = sum((row[4] - row[5]) * row[3] for row in group)
         costed = [row for row in group if row[6]]
-        market = {'market': ui.text(label, lang=language), 'currency': currency, 'session': max(row[2] for row in group), 'day_change': round(change, 2),
+        market = {'market': ui.text(label, lang=language), 'currency': currency, 'session': shown(max(row[2] for row in group)), 'day_change': round(change, 2),
                   'day_percent': round(change / before * 100, 2), 'value': round(sum(row[4] * row[3] for row in group), 2),
                   'up': sum(row[4] > row[5] for row in group), 'down': sum(row[4] < row[5] for row in group)}
         if costed:
             market['total_change'] = round(sum((row[4] - row[6] + row[8]) * row[3] for row in costed), 2)
         if closed and currency in closed:
-            market['closed_on'], market['next_trading_day'] = closed[currency]['closed'], closed[currency]['next']
+            market['closed_on'], market['next_trading_day'] = shown(closed[currency]['closed']), shown(closed[currency]['next'])
         markets.append(market)
+    ui.CURRENT.reset(token)
     return markets
 
 

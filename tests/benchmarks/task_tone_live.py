@@ -375,7 +375,7 @@ def main():
     parser.add_argument('--resume',action='store_true')
     parser.add_argument('--workers',type=int,choices=(1,2),default=2)
     parser.add_argument('--tone-only',action='store_true',help='Fresh six-setting tone retest, one repetition and no extended task sequence')
-    parser.add_argument('--model',choices=models.MODELS,default='muse-spark',help='Use the website model and its configured variant; verify native metadata')
+    parser.add_argument('--model',choices=models.MODELS,help='Override the website model; by default each language runs on its production model')
     parser.add_argument('--language',choices=('en','zh-CN'),help='Test only this website language; default tests both')
     parser.add_argument('--strict-chat',action='store_true',help='Check reply presence, interval-only clarification and implicit recurrence start; progress remains visible')
     parser.add_argument('--system-file',type=Path,help='Experimental base prompt for build in the copied trial location only; permissions remain unchanged')
@@ -388,6 +388,14 @@ def main():
             return run_matrix(args,output,parser)
     except ValueError as error:
         parser.error(str(error))
+
+
+def matrix_model(chosen):
+    """(model, variant) recorded for the matrix: the override, or each language's production model."""
+    if not chosen:
+        return 'production model per language',None
+    selected=models.session_payload(chosen)
+    return selected['providerID']+'/'+selected['id'],selected['variant']
 
 
 def run_matrix(args,output,parser):
@@ -404,8 +412,7 @@ def run_matrix(args,output,parser):
     source=output/'source'
     if args.resume:
         previous=json.loads((output/'matrix.json').read_text())
-        requested=models.session_payload(args.model)
-        if (previous['model']!=requested['providerID']+'/'+requested['id'] or previous['variant']!=requested['variant']
+        if (previous['model']!=matrix_model(args.model)[0] or previous['variant']!=matrix_model(args.model)[1]
                 or previous.get('tone_only',False)!=args.tone_only or previous.get('language')!=args.language
                 or previous.get('strict_chat',False)!=args.strict_chat or previous.get('system_sha256')!=system_sha
                 or args.strict_chat and previous.get('progress_policy')!='visible'):
@@ -430,8 +437,8 @@ def run_matrix(args,output,parser):
         verify_trial_system(source,system)
     languages=(args.language,) if args.language else ('en','zh-CN')
     configs=[(lang,tone,repeat) for repeat in ((1,) if args.tone_only else (1,2)) for lang in languages for tone in TONES]
-    selected=models.session_payload(args.model)
-    matrix={'date':day.isoformat(),'model':selected['providerID']+'/'+selected['id'],'variant':selected['variant'],
+    model,variant=matrix_model(args.model)
+    matrix={'date':day.isoformat(),'model':model,'variant':variant,
             'cases':[],'tone_only':args.tone_only,'language':args.language,'strict_chat':args.strict_chat,
             'system_sha256':system_sha,
             'progress_policy':'visible',
@@ -441,7 +448,8 @@ def run_matrix(args,output,parser):
                            'One repetition per setting in tone-only mode; otherwise two, not a statistical reliability guarantee.']}
     save(output/'matrix.json',matrix)
     with ThreadPoolExecutor(max_workers=args.workers) as pool:
-        futures=[pool.submit(run_case,output,source,config,day,not args.tone_only,args.model,args.strict_chat) for config in configs]
+        futures=[pool.submit(run_case,output,source,config,day,not args.tone_only,args.model or models.for_language(config[0]),args.strict_chat)
+                 for config in configs]
         for future in futures:
             result=future.result()
             if system is not None and result.get('sessions'):

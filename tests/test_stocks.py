@@ -82,7 +82,8 @@ class StockTests(unittest.TestCase):
             {'USD': {'closed': '2026-10-18', 'next': DAY}}])
         cny, usd = result['markets']
         self.assertEqual((cny['market'], cny['day_change'], cny['up'], cny['down'], cny['total_change']), ('A-shares', -103.0, 1, 1, -12503.0))
-        self.assertEqual((usd['session'], usd['day_change']), ('2026-10-16', 43.8))
+        self.assertEqual((usd['session'], usd['day_change'], usd['closed_on'], usd['next_trading_day']), ('Fri, Oct 16', 43.8, 'Sun, Oct 18', 'Mon, Oct 19'))
+        self.assertEqual(self.read('usAAPL:30', 'zh-CN')['markets'][0]['session'], '10月16日 周五')
         self.assertNotIn('total_change', usd)
         self.assertEqual(self.read('usAAPL:30', 'zh-CN')['block'][1][0][1], '苹果')
         later = self.read('usAAPL:30', now=datetime(2026, 10, 19, 20, 30, tzinfo=timezone.utc))
