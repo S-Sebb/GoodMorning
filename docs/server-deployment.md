@@ -45,7 +45,8 @@ uv run --no-project python deploy/release.py
    - takes the deployment ticket;
    - stops the gateway and viewers, rechecks idle, and stops the account engines;
    - installs only the unit files, certificate hook and NGINX config that differ
-     from the release's `deploy/`;
+     from the release's `deploy/`, and enables the daily maintenance timer
+     (`docs/server-maintenance.md`);
    - switches `/opt/goodmorning/current` and, for a new engine,
      `/opt/goodmorning/engines/current`, remounts the engine and restarts;
    - verifies that nothing protected changed and that the agents run the new
@@ -123,14 +124,14 @@ dispatches new work.
   script runs, to link the binary that suits this CPU. `/opt/goodmorning/node`
   is a symlink to a root-owned Node.js release (24.21.0); deployments do not
   upgrade it.
+- Updates: the daily maintenance routine installs Ubuntu, Docker, Python patch
+  and SiYuan updates and reboots when needed; see `docs/server-maintenance.md`.
 - Python: `/opt/goodmorning/python` is a symlink to the uv-managed environment
   `/opt/goodmorning/python-3.14`. Its CPython lives in `/opt/goodmorning/uv/python`,
   and the environment holds Pillow and `cryptography` (Web Push). Install both
   before deploying a release that lists them in `requirements/browser.txt`; the
   staged tests fail without them. `/opt/goodmorning/python-3.12` stays for
-  rollback. For a Python patch update, run as root:
-  `UV_PYTHON_INSTALL_DIR=/opt/goodmorning/uv/python uv python upgrade 3.14`; the
-  next deployment restarts services on it. Install packages with
+  rollback. Install packages with
   `uv pip install --python /opt/goodmorning/python-3.14/bin/python --index-url https://pypi.org/simple`;
   the server's default pip index is unreachable.
 - Private data lives under `/srv/goodmorning/live` on encrypted mounts. A
