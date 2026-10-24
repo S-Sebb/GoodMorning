@@ -1,233 +1,157 @@
 <p align="center">
-  <img src="assets/web/icons/gm.svg" width="64" alt="GoodMorning 太阳图标" />
+  <img src="assets/web/icons/gm.svg" width="64" alt="GoodMorning 太阳" />
 </p>
 
 <h1 align="center">GoodMorning</h1>
 
 <p align="center">
-  <strong>从容开启一天，清晰收尾，留一点空间思考。</strong><br />
-  你的专属 AI 秘书，陪你整理一天中的计划、见闻与灵感。
+  自托管的 AI 秘书：一份早报、一次晚间回顾、一份日程，<br />
+  还有一个替你存着待办和灵感的对话。
 </p>
 
 <p align="center">
   <a href="README.md">English</a> · <strong>简体中文</strong>
 </p>
 
-<p align="center">
-  <a href="#与-goodmorning-度过一天">探索</a> ·
-  <a href="#简报一览">界面截图</a> ·
-  <a href="#开始使用">开始使用</a> ·
-  <a href="docs/deployment.md">文档</a> ·
-  <a href="https://github.com/S-Sebb/GoodMorning/issues">反馈</a>
-</p>
+![滚动浏览早报：带逐小时图表的天气、新闻、待办任务和提醒](assets/readme/morning-tour.gif)
 
-![曙光主题的晨间简报，包含山谷背景、伏案的秘书、从云后升起的太阳、每日归档和天气卡片](assets/readme/morning.png)
+## 它能做什么
 
-GoodMorning 将天气、新闻、预约、待办与灵感，整理到一个安静的空间里。
-早晨读一份简报，白天随时查看一周的计划，晚上再如实回顾今天发生的事情。
+你的计划散在日历、笔记应用和旧对话里，每天早上你都要亲手拼回去。
+GoodMorning 把它们收在同一份记录里，再由一个 AI 智能体把这份记录
+变成每天的两份简报：
 
-在两次简报之间，你的秘书可以帮你理清思路、记下待办、在灵感消失前将它留住，
-或替你跑一些小差事。GoodMorning 围绕 **OpenCode 和 OpenChamber** 构建，将个人 AI 工作流程
-与可自行托管的浏览器界面结合起来。**早报、晚报、日程、秘书**四个标签页，
-让一天中需要的信息各有归处；页面上悬浮的**问问**按钮，不用离开当前页面就能和秘书聊上一句。
+- **早报：** 带逐小时图表的天气、过去 24 小时的新闻、今天的约定、
+  今天的待办，以及需要你拿主意的事。
+- **晚报：** 你完成了什么、还有什么没做完，以及明天。可选章节显示
+  持仓盈亏、追番更新和游戏特惠。
+- **日程：** 你的日历和带日期的待办，可以按周或按天看。
+- **秘书：** 一个对话，用来保存待办、灵感、习惯和差事，
+  遇到不清楚的地方会先问你。
 
-## 与 GoodMorning 度过一天
+它只呈现你保存的内容。它不会自己标记完成、挪动日期，也不会凭空造出
+一条待办：没做完的事会留在原处，直到你说一声。
 
-**早晨 · 找到方向。** 天气、新闻、日程、待办、提醒，以熟悉的顺序展开：
-本地天气与空气质量、过去 24 小时内附有来源的新闻、今天的预约、已保存的行动，以及需要你决定的事情。
-待办按工作日期和项目分组，标题清晰具体，必要工作与可选事项也有区分。
-习惯会在该做的那天出现，差事的结果也有单独的卡片。各个版块准备好后会陆续呈现，不必等整份简报生成完毕，就能开始阅读。
+## 告诉你的秘书
 
-**晚上 · 放下一天。** 记录完成的工作、部分进展和遇到的阻碍，再看看明天的预约与已约定的待办，
-措辞会围绕“今晚可以准备什么”。到期的截止日期会轻轻问一句，每个项目也有可选的进展填写框。
-未完成的工作仍然可见，但不会悄悄被移到另一天。任务是否完成由你确认，而不是由 AI 猜测。
+![在秘书对话里输入一句话；回复存下了一条周期任务和一条灵感](assets/readme/secretary-chat.gif)
 
-**日程 · 一周安排，一目了然。** 可以在“周”视图和“日”视图之间切换：周视图上方是预约，
-下方是按日期安排的待办；日视图展示一天中每个日程的完整细节，以及正在进行或即将开始的安排。
-突出显示今天，并可前后浏览三周。截止日期标在到期当天，习惯日也会显示；周期任务、已反馈的进展，
-以及日期已确认但时刻待定的预约，都有自己的位置。保存的变更会自动刷新，无需再次调用 AI；这里展示已有记录，而不是生成新的周计划。
-详见[每周日程指南](docs/weekly-schedule.md)。
+像对人说话那样写就行。一条消息可以装下好几件事，每件都会按对应的
+类型存下来：
 
-**秘书 · 留一点空间思考。** 一段对话就够了：存个待办、记条灵感、交代一件差事、安排这一周，或者改改偏好。
-**我可以问点什么？**指南和快捷开头按钮会告诉你秘书能做什么；快捷开头只会填进输入框，不会自动发送。
-每次回复都会说明存成了待办还是灵感；拿不准你是想记下来还是马上去做时，秘书会先问你。
-文件附件、粘贴图片、Markdown 回复与历史对话，让细节不易丢失；以前的待办和灵感对话也都留在历史里。
+- 带日期、截止时间，或两者都有的**待办**。
+- 像“每周二和周六”这样的**习惯**，可以带例外。
+- **灵感**：在你决定采用之前，它一直只是灵感。
+- 只是**提个醒**的事和**参考备注**，都不用打勾。
+- **差事**，比如“每天早上看看这个价格”，只有结果正是你想听的时候，
+  才会出现在简报里。
 
-**随时都能问。** 早报、晚报和日程页面都有悬浮的快捷聊天。每条需要你拿主意的提醒都有
-“和秘书一起看看”按钮，会带着一句开头打开聊天；在你按下发送之前，什么都不会发出去。
+页面上浮动的提问按钮能在任何页面打开同一个对话。你可以附加文件和图片。
+
+## 早报
+
+![天气卡片，带逐小时气温、降雨和空气质量图表](assets/readme/weather.png)
 
 <table>
   <tr>
-    <td width="50%" valign="top"><img src="assets/readme/evening.png" alt="星空主题的晚间简报，回顾已反馈的进展" /></td>
-    <td width="50%" valign="top"><img src="assets/readme/secretary.png" alt="暖色主题中与秘书 Aria 对话，展示“我可以问点什么？”按钮、已保存的待办与灵感卡片，以及高亮的提问" /></td>
+    <td width="50%" valign="top"><a href="assets/readme/news.png"><img src="assets/readme/news.png" alt="按分类分组的新闻卡片，每条都有摘要和来源链接" /></a></td>
+    <td width="50%" valign="top"><a href="assets/readme/tasks.png"><img src="assets/readme/tasks.png" alt="按日期和项目分组的待办，标出截止时间，可选的事单独放" /></a></td>
   </tr>
   <tr>
-    <td align="center"><em>为一天画上清晰的句号。</em></td>
-    <td align="center"><em>安放计划与灵感的地方。</em></td>
+    <td align="center">过去 24 小时的新闻，附来源，已经看过的会跳过。</td>
+    <td align="center">待办按日期和项目分组，标出截止时间，可选的事单独放。</td>
   </tr>
 </table>
 
-<sub>当前界面，虚构的演示数据。天气、新闻、计划和对话仅为示例，不是个人记录或实时报告；制作截图没有调用 AI 模型或外部集成。</sub>
+章节写到哪里就显示到哪里，所以整份简报还没写完，你就能开始读。
+同步日历（一个公开的 `.ics` 链接）里的变更会自动应用，提醒会把每一条
+各说一次。
 
-## 简报一览
-
-从天气预报到下一步行动，每件事都有自己的位置。
-以下细节截图使用当前布局和虚构数据；点击即可查看原图。
-**待办**按日期和项目整理行动，**提醒**则单独呈现待审核的内容、需要决定的事情和日历变更。
-
-![天气详情，包含气温、降雨概率、空气质量和实用建议](assets/readme/weather.png)
+## 晚报
 
 <table>
   <tr>
-    <td width="50%" valign="top"><a href="assets/readme/news.png"><img src="assets/readme/news.png" alt="附有来源链接的新闻卡片，按 AI 与科研、世界和英国新闻分类" /></a></td>
-    <td width="50%" valign="top"><a href="assets/readme/schedule.png"><img src="assets/readme/schedule.png" alt="接下来的预约，包含时间、地点、准备事项，以及标记为时刻待定的牙医预约" /></a></td>
-  </tr>
-  <tr>
-    <td align="center"><strong>新闻，也有背景。</strong><br /><em>分类、摘要、局限与来源，一目了然。</em></td>
-    <td align="center"><strong>是日程，不只是清单。</strong><br /><em>时间、准备事项，还有如实保留的未知。</em></td>
-  </tr>
-  <tr>
-    <td width="50%" valign="top"><a href="assets/readme/priorities.png"><img src="assets/readme/priorities.png" alt="待办按日期与项目分组，显示 Atlas 项目的共同截止日期及可选的个人事项" /></a></td>
-    <td width="50%" valign="top"><a href="assets/readme/tomorrow.png"><img src="assets/readme/tomorrow.png" alt="星空主题的晚间日程，展示接下来的设计评审与时刻尚未确认的牙医预约" /></a></td>
-  </tr>
-  <tr>
-    <td align="center"><strong>给重点留出空间。</strong><br /><em>按日期与项目分组，不重复堆放细节。</em></td>
-    <td align="center"><strong>让明天更从容。</strong><br /><em>提前看看安排，不悄悄挪动未完成的工作。</em></td>
+    <td width="50%" valign="top"><a href="assets/readme/evening.png"><img src="assets/readme/evening.png" alt="星空配色下的晚报，显示一条待办的部分进展" /></a></td>
+    <td width="50%" valign="top"><a href="assets/readme/stocks.png"><img src="assets/readme/stocks.png" alt="持仓盈亏章节，含 A 股和美股持仓、当日盈亏和总计" /></a></td>
   </tr>
 </table>
 
-**知道什么变了。** 同步的日历会自动更新日程；提醒会说明一次新增、改动或取消了什么，
-并点明它与哪条预约时间重叠。
+晚报写完后，一段简短的回顾会逐条过一遍今天到期的待办，再问有没有
+提前完成的事。只有你的回答会改动待办，猜测不会。
 
-![提醒说明日历新增了规划工作坊，并点明它与设计评审时间重叠](assets/readme/reminders.png)
+## 日程
 
-**这一周，随手可查。** 上方是预约，下方是按日期安排的待办，已反馈的进展也留在视图里。
-每周日程读取已保存的计划，不会请 AI 替你编排时间。
+![周视图，约定在上、带日期的待办在下，其中有一个时间还没确定的看牙预约](assets/readme/weekly-schedule.png)
 
-![暖色主题的每周日程，展示预约、时刻待定的牙医安排、项目待办、部分进展与已完成事项](assets/readme/weekly-schedule.png)
+日程页直接读取你保存的记录：不调用 AI，也不生成计划。时间还不确定的
+约定会照实标出来。
 
-## 添一点风景
+## 外观
 
-还是那个安静的工作空间，窗外可以换一片风景。在**设置 → 外观**中，用图片卡片分别选择三项，
-每台设备各自保存这些选择，关联的手机上的小组件也会跟着变：
+![同一个页面在曙光、晨空、草方块、星空、城市灯光和野餐下的样子](assets/readme/color-schemes.gif)
 
-- **样式**决定组件的模样。**柔和**圆润安静；**像素**带来方正的边框、块状按钮和像素标题，
-  每种配色还有自己的小细节，比如草方块的石头按钮和物品栏一样的一周。正文仍使用易读的字体。
-- **日间配色：**经典、暖色、晨空、曙光、草方块或野餐。
-- **夜间配色：**经典、星空、城市灯光、午夜紫、草方块或野餐。
+选**柔和**或**像素**样式，再分别选日间配色和夜间配色，每台设备各自
+保存。你可以给秘书挑形象、起名字，决定它怎么跟你说话。整个网站都有
+英语和简体中文。
 
-任何样式都能搭配任何配色。云朵与飞鸟、山谷、越往下滚越像往地下挖的草方块山丘、格子野餐布、
-轻轻闪烁的星空，或映着城市灯光的港湾，为页面添一点氛围，图片和字体都无需请求第三方服务。
+## 在手机上
 
 <table>
   <tr>
-    <td width="50%" valign="top"><a href="assets/readme/morning-sky.png"><img src="assets/readme/morning-sky.png" alt="柔和样式的晨空主题，以云朵与飞鸟作为晨间简报背景" /></a></td>
-    <td width="50%" valign="top"><a href="assets/readme/evening.png"><img src="assets/readme/evening.png" alt="柔和样式的星空主题，以深色夜空、点点星光与弯月作为晚间简报背景" /></a></td>
-  </tr>
-  <tr>
-    <td align="center"><strong>晨空 · 柔和。</strong><br /><em>看一朵云，缓一口气。</em></td>
-    <td align="center"><strong>星空 · 柔和。</strong><br /><em>一天结束，留一片安静的夜空。</em></td>
-  </tr>
-  <tr>
-    <td width="50%" valign="top"><a href="assets/readme/pixel-grass-block.png"><img src="assets/readme/pixel-grass-block.png" alt="像素样式的草方块主题，有草方块山丘、橡树、方形太阳、石头按钮和像素标题" /></a></td>
-    <td width="50%" valign="top"><a href="assets/readme/pixel-picnic.png"><img src="assets/readme/pixel-picnic.png" alt="像素样式的野餐夜间主题，有梅子色格子背景、星点、像素弯月和木质边框" /></a></td>
-  </tr>
-  <tr>
-    <td align="center"><strong>草方块 · 像素。</strong><br /><em>方方正正的早晨，读起来依然轻松。</em></td>
-    <td align="center"><strong>野餐 · 像素。</strong><br /><em>星空下，铺一块温暖的野餐布。</em></td>
-  </tr>
-  <tr>
-    <td align="center" valign="top"><a href="assets/readme/morning-mobile.png"><img src="assets/readme/morning-mobile.png" width="240" alt="手机尺寸的晨空主题简报，带紧凑日期导航与版块按钮" /></a></td>
-    <td align="center" valign="top"><a href="assets/readme/secretary-mobile.png"><img src="assets/readme/secretary-mobile.png" width="240" alt="手机尺寸的秘书对话，底部保留消息输入框" /></a></td>
-  </tr>
-  <tr>
-    <td align="center"><em>小屏幕，也能好好读早报。</em></td>
-    <td align="center"><em>聊着聊着，也有地方接着说。</em></td>
+    <td align="center" valign="top"><img src="assets/readme/morning-mobile.png" width="240" alt="手机尺寸屏幕上的早报" /></td>
+    <td align="center" valign="top"><img src="assets/readme/secretary-mobile.png" width="240" alt="手机尺寸屏幕上的秘书对话" /></td>
   </tr>
 </table>
 
-<sub><a href="tests/browser/readme_demo.py">演示截图工具</a>使用隔离的虚构记录、真实的本地查看器与模拟对话，重现这些界面。</sub>
+网站在手机上也能用。[Android 应用](docs/android-app.md)
+（beta，[发布版本](https://github.com/S-Sebb/GoodMorning/releases)）另外提供：
 
-## 计划如实，心里有数
-
-- **预约不是待办。** 需要出席或预留时间的安排归入日程，要完成的行动归入待办；
-  尚未决定要做的事，仍然只是灵感。截止日期不会自动占用某个工作日，日历空白也不代表你有空。
-- **合适的事项类型。** 除了待办和灵感，秘书还能保存不需要打勾的小提醒、记下它看不到的时刻的备注
-  （比如东西快用完时），以及“每天提醒，直到我买到为止”这样打一次勾就停止的跟进。
-  截止日期、生日或预约提前几天提起，可以分别为早报和晚报设定。
-- **差事，给出明确答复。** 可以请秘书替你查点东西，比如每天早上看一次价格。设置时它会先试一次，
-  之后只在结果正是你想知道的情况时告诉你。查询失败时，早报会说明尝试了什么、为什么没成功。
-- **措辞定一次，每天读起来都一样。** 保存事项时，秘书会决定它在早报、晚报和日程页中的写法。
-  你也可以只改其中一处，其他地方保持不变。
-- **记住节奏，而不是堆积欠账。** 可以保存已约定的每周、每隔若干天或指定日期的任务规则，
-  包括已确认的例外与受支持的触发条件。时刻未定的每周课程会显示在每个日期上，时刻确定后一步就能转为日历日程。
-  完成情况按实际发生的日期记录，不会打乱原有周期。
-  这些提醒出现在简报中，并非无人值守的推送通知服务。
-- **提醒有缘由。** 到期的审核、日历变更，以及尚未解决的决定，与普通工作分开呈现。
-  同步的日历变更会自动生效，提醒只说明一次新增、改动、改名或取消了什么，并点明重叠的预约。
-- **简报呈现计划，不替你作主。** 早报聚焦今天，晚报聚焦明天。生成或重新生成简报，不会创建任务、分配日期或标记完成。
-  含糊的日程请求会先澄清再保存，只说“周五前”这样的星期几时，指的是下一个周五；写入项目需要授权。
-
-[事项与时间规则](docs/item-taxonomy.md)详细说明了这些边界。
-
-## 用心设计
-
-- **专属于你，而非千篇一律。** 自定义秘书的名字、语气和头像，也可以告诉它怎么称呼你，
-  简报问候会用上这个称呼。内置秘书有白天和夜晚两个场景、聊天用的半身头像，
-  还会轻轻动起来：眨眨眼、咖啡冒着热气、偶尔落几笔。自定义头像可以分别上传白天、夜晚场景和头像图片。
-- **双语界面。** 网站各处支持英语和简体中文，像素样式下的中文也有清晰的像素字体。
-  切换界面语言不会改写已有记录或之前的回复。
-- **手机上也舒适。** 自适应布局、随输入扩展的消息框、阅读时自动让开的悬浮按钮、点击放大的图片、
-  版块标签、阅读进度与减少动态效果的支持，让阅读和对话始终处在中心。
-- **保留上下文，不堆积杂乱。** 已保存的简报、七日归档选择器、持久保存的待办与灵感，
-  以及历史对话，让有用的信息随手可查。七日范围只是浏览窗口，不是记录删除期限。
-- **进度始终看得见。** 小书桌活动窗口在不同标签页中显示进行中、排队中和等待回答的工作，
-  并带你返回原来的页面。刷新会恢复同一份简报或对话；秘书工作时，也能发送后续消息调整方向。
-  待回答的问题和授权请求会保留，直到你回应。
-- **按语言自动选择模型。** 英文请求使用 Muse Spark 1.3 Contributor XHigh，中文请求使用
-  DeepSeek V4.1 Flash High（付费档），无需模型选择器。运行中的请求保留原模型。
-  **新变化**面板会说明每次更新，已打开的页面不会自行刷新而丢掉未发送的草稿。
-- **属于自己的空间。** 个人记录与公开源码分开存放。在线部署支持带身份验证的 HTTPS、
-  加密存储和彼此独立的智能体账户。私人消息不会保存到浏览器本地存储中。
+- **小组件：** 今天、这一周、简报、新闻、天气、秘书对话，还有一张
+  速记便签，之后可以让秘书帮你归类。
+- **通知**：简报准备好、回复写完、秘书需要你回答，或者有安排即将
+  开始时都能收到。浏览器也能收到。
 
 ## 开始使用
 
-GoodMorning 目前处于 **Beta 测试阶段**，面向 **Linux**，需要 **Python 3.14+** 和
-**OpenCode/OpenChamber 智能体**。
-可选的本地或已配对远程项目访问需要 **Node.js 22.18+**。
-它不是独立的聊天机器人，也不是无人值守的每日自动服务。
+GoodMorning 还在 **beta**。它不是独立的聊天机器人，需要：
 
-1. **先安顿好空间。** 按照[手动部署指南](docs/deployment.md)安装 `goodmorning` 技能。
-   [浏览器指南](docs/browser-delivery.md)介绍仅监听本机回环地址的查看器；
-   公开的 HTTPS 服务还需要单独完成[安全与账户配置](docs/website-security.md)。
-   仅打开这个仓库，不会安装技能，也不会自动准备好可用账户。
-2. **认识你的秘书。** 在浏览器中打开初始化。
-   [引导初始化](docs/initialization.md)会保存你确认的偏好与权限，可选集成可以保留为待验证。
-    以后可以请秘书逐项回顾设置，而不重置已有记录。
-3. **准备好了，再开始。** 在早报或晚报页面发起简报，看看日程，或到秘书页面开始对话——网页和 [Android 应用](docs/android-app.md) 都可以。
-   GoodMorning 只在网页和 Android 应用里使用，没有需要在终端运行的命令。
+- **Linux**，以及 **Python 3.14+**，
+- 一个能访问模型的 **[OpenCode](https://opencode.ai)/OpenChamber** 智能体
+  （英文请求用 Muse Spark，中文请求用 DeepSeek V4.1 Flash），
+- **Node.js 22.18+**，只在可选的项目访问时用。
 
-天气和新闻需要访问外部 HTTPS 服务。常规天气、模型估算的空气质量，以及 RSS/Hacker News
-采集无需额外的 API 密钥。新闻覆盖**简报准备前的 24 小时**，包括 AI、世界新闻和你所选国家的新闻；
-上一份晨间简报已经展示过的，会略过不再重复。内容覆盖与服务可用性可能不完整，附有来源也不等于经过独立事实核查。
+1. 按[部署指南](docs/deployment.md)安装 `goodmorning` 技能。
+   浏览器查看器见[浏览器指南](docs/browser-delivery.md)；
+   公开托管还需要完成[安全设置](docs/website-security.md)。
+2. 在浏览器里打开**初始化**。秘书会问你的偏好、位置和集成，
+   可选项都可以先放着。
+3. 在早报或晚报页面准备一份简报，或者直接开始对话。
 
-自行托管并不意味着你选择的 AI 服务提供商无法看到请求，加密存储也不会对可信的服务器管理员隐藏
-运行中的数据。托管个人信息前，请先阅读[安全与隐私边界](docs/website-security.md)。
+天气、模型估算的空气质量以及新闻都需要访问外部 HTTPS，但不需要
+API 密钥。
 
-想进一步了解，可以查看[网站对话](docs/browser-chat.md)、[每周日程](docs/weekly-schedule.md)、
-[经授权的项目访问](docs/project-access.md)和[源码结构](docs/project-structure.md)。
-部署验证使用隔离的虚构记录，不使用你的个人运行目录。
+## 隐私
 
-欢迎通过 [GitHub Issues](https://github.com/S-Sebb/GoodMorning/issues)
-分享想法、反馈问题，或提出有针对性的改进。
+- 个人记录存放在你自己的运行目录里，不在这份源码树中。
+- 托管部署支持 HTTPS 登录、加密存储和彼此独立的账户。
+- 自托管也挡不住 AI 服务提供商看到请求，加密也不会对服务器的管理员
+  隐藏运行中的数据。详见[安全边界](docs/website-security.md)。
+
+## 更多
+
+[事项类型与时间](docs/item-taxonomy.md) ·
+[日程](docs/weekly-schedule.md) ·
+[网站对话](docs/browser-chat.md) ·
+[项目访问](docs/project-access.md) ·
+[源码结构](docs/project-structure.md) ·
+[问题反馈](https://github.com/S-Sebb/GoodMorning/issues)
+
+截图使用虚构数据，由[演示工具](tests/browser/readme_demo.py)生成，
+没有调用任何模型。
 
 ## 许可证
 
-GoodMorning 使用 [MIT 许可证](LICENSE)。
-随项目提供的[中继代码](vendor/openchamber-relay/LICENSE)和字体
-（[正文字体](assets/web/fonts/OFL.txt)、[像素字体](assets/web/fonts/pixel-fonts-OFL.txt)）保留各自的许可证声明。
+[MIT](LICENSE)。随项目提供的中继代码（[许可证](vendor/openchamber-relay/LICENSE)）
+和字体（[正文字体](assets/web/fonts/OFL.txt)、
+[像素字体](assets/web/fonts/pixel-fonts-OFL.txt)）保留各自的许可证；
 主题图片另有[素材来源说明](docs/theme-asset-credits.md)。
-
----
-
-<p align="center"><em>少一点喧嚣，多一点属于你的时间。</em></p>
