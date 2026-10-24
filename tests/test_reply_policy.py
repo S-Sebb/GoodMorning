@@ -11,7 +11,7 @@ import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
-from goodmorning.reply_policy import boilerplate_categories, main
+from goodmorning.reply_policy import boilerplate_categories
 from goodmorning.records.state import cmd_mark
 from benchmarks.reply_templates import fixtures, render
 
@@ -57,16 +57,6 @@ class ReplyPolicyTests(unittest.TestCase):
             self.assertEqual(json.loads(output.getvalue())["error"], "answer_noncritical_boilerplate")
             self.assertFalse((Path(directory) / "daily/2026-10-09.gm.json").exists())
             self.assertFalse((Path(directory) / "daily/2026-10-09.md").exists())
-
-    def test_explicit_diagnostic_check_does_not_rewrite_the_draft(self):
-        with tempfile.TemporaryDirectory(dir=TEMP_ROOT) as directory:
-            draft = Path(directory) / "diagnostic.md"
-            text = "Weather retrieval returned no warnings."
-            draft.write_text(text)
-            with contextlib.redirect_stdout(io.StringIO()):
-                self.assertEqual(main(["--file", str(draft)]), 2)
-                self.assertEqual(main(["--file", str(draft), "--diagnostic"]), 0)
-            self.assertEqual(draft.read_text(), text)
 
 
 if __name__ == "__main__":

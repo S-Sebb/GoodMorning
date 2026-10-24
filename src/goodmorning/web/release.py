@@ -86,11 +86,12 @@ def patch_notes():
             if not isinstance(commits, list) or any(not isinstance(commit, str) or not re.fullmatch(r'[a-f0-9]{7,40}', commit) for commit in commits):
                 raise ValueError('Bad patch note commits')
             from .language import text
-            # Older open tabs still read plain text; derive it from the same bullet data.
-            summaries = {lang: note_text('\n\n'.join(text(group['category'], lang='zh-CN' if lang == 'zh' else 'en')
-                         + ':\n' + '\n'.join('- ' + item for item in group[lang]) for group in changes)) for lang in ('en', 'zh')}
+            # Each language's whole note, as the panel lists it, must fit the text limit.
+            for lang in ('en', 'zh'):
+                note_text('\n\n'.join(text(group['category'], lang='zh-CN' if lang == 'zh' else 'en')
+                          + ':\n' + '\n'.join('- ' + item for item in group[lang]) for group in changes))
             notes.append({key: entry[key] for key in ('version', 'date', 'author', 'title_en', 'title_zh')}
-                         | {'commits': commits, 'changes': changes} | summaries)
+                         | {'commits': commits, 'changes': changes})
     except (ValueError, KeyError, TypeError, AttributeError, OSError, UnicodeError):
         notes = []
     _note_cache = (signature, notes)

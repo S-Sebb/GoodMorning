@@ -4,9 +4,6 @@ Materiality is an agent decision: preserve information that affects plans, safet
 requested coverage or a needed action. This catches known non-critical narration.
 """
 
-import argparse
-import json
-from pathlib import Path
 import re
 
 PATTERNS = {
@@ -24,17 +21,3 @@ def boilerplate_categories(text):
     normalized = re.sub(r"\s+", " ", re.sub(r"[*_`]", "", text))
     return [name for name, pattern in PATTERNS.items() if re.search(pattern, normalized, re.I)]
 
-
-def main(argv=None):
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--file", required=True, help="Exact drafted reply; never read profiles or provider caches")
-    parser.add_argument("--diagnostic", action="store_true", help="Only when the user explicitly requested technical diagnostics")
-    args = parser.parse_args(argv)
-    text = Path(args.file).read_text(encoding="utf-8")
-    issues = [] if args.diagnostic else boilerplate_categories(text)
-    print(json.dumps({"ok": not issues, "categories": issues}))
-    return 0 if not issues else 2
-
-
-if __name__ == "__main__":
-    raise SystemExit(main())

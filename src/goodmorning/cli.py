@@ -27,7 +27,6 @@ COMMANDS = {
     'gateway': 'security.briefing_gateway',
     'runtime': 'security.briefing_runtime',
     'vault': 'security.briefing_vault',
-    'reply-policy': 'reply_policy',
 }
 
 

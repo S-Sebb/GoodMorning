@@ -43,7 +43,7 @@ class PatchNoteTests(unittest.TestCase):
         self.assertEqual(release.release_info()['notes'], notes)
         self.assertRegex(release.VERSION, r'^[a-f0-9]{64}$')
         for entry in notes:
-            self.assertTrue(all(entry[key].strip() for key in ('en', 'zh', 'title_en', 'title_zh')))
+            self.assertTrue(all(entry[key].strip() for key in ('title_en', 'title_zh')))
             self.assertTrue(entry['changes'])
             for group in entry['changes']:
                 self.assertIn(group['category'], release.NOTE_CATEGORIES)
@@ -94,17 +94,9 @@ class PatchNoteTests(unittest.TestCase):
         path.write_text(json.dumps({'notes': [note('0.11.0', en='New release')]}))
         self.assertEqual(release.patch_note()['changes'][0]['en'], ['New release'])
 
-    def test_legacy_summary_uses_the_same_categories_and_bullets(self):
-        self.write({'notes': [note(changes=[
-            {'category': 'Added', 'en': ['One', 'Two'], 'zh': ['一', '二']},
-            {'category': 'Fixed', 'en': ['Three'], 'zh': ['三']}
-        ])]})
-        latest = release.patch_note()
-        for key, bullets in (('en', [['One', 'Two'], ['Three']]), ('zh', [['一', '二'], ['三']])):
-            blocks = [block.split('\n') for block in latest[key].split('\n\n')]
-            self.assertTrue(all(block[0].endswith(':') for block in blocks), latest[key])
-            self.assertEqual([[line.removeprefix('- ') for line in block[1:]] for block in blocks], bullets)
-            self.assertTrue(all(line.startswith('- ') for block in blocks for line in block[1:]))
+    def test_whole_note_must_fit_the_text_limit(self):
+        self.write({'notes': [note(changes=[{'category': 'Added', 'en': ['x' * 1500] * 2, 'zh': ['一'] * 2}])]})
+        self.assertEqual(release.patch_notes(), [])
 
     def test_acknowledgments_reject_unknown_versions_and_never_go_backward(self):
         self.write({'notes': [note('0.10.0'), note('0.9.0')]})
