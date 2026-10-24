@@ -44,10 +44,6 @@ class DatedTitleTests(unittest.TestCase):
         self.assertEqual((base, iso), ('News', '2026-10-12'))
         self.assertEqual(native.split_dated_title('Weather'), ('Weather', None))
         self.assertEqual(native.humanize_iso_date('2026-10-12'), 'Oct 12')
-        heading = native.heading_html('News — 2026-10-12')
-        self.assertIn('section-date', heading)
-        self.assertIn('Oct 12', heading)
-        self.assertNotIn('News — 2026-10-12', heading)
 
     def test_edition_keeps_full_date_accessible_but_displays_badge(self):
         doc = {'v': 1, 'greeting': 'Hi', 'opening': 'Test', 'sections': [

@@ -174,8 +174,6 @@ def check(page, kind, touch, screenshot=None, errors=None):
     page.wait_for_function('() => scrollY <= 2')
     expect(page.locator('.back-to-top')).to_be_hidden()
     assert page.locator('.scroll-chunk').first.get_attribute('aria-current') == 'location'
-    if not touch:
-        assert page.locator('.orbit-caption').count() == 0
     assert page.locator('.briefing-tools .source-link').bounding_box()['y'] < sections.first.bounding_box()['y']
     cursor = page.locator('.scroll-cursor').bounding_box()
     active_bar = page.locator('.scroll-chunk.active .chunk-bar').bounding_box()

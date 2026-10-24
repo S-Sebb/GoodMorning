@@ -37,7 +37,7 @@ class PatchNoteTests(unittest.TestCase):
         notes = release.patch_notes()
         versions = [release.version_number(entry['version']) for entry in notes]
         self.assertEqual(versions, sorted(set(versions), reverse=True))
-        self.assertEqual(release.patch_note(), notes[0])
+        self.assertEqual(release.release_info()['note'], notes[0])
         self.assertEqual(release.release_info()['release'], notes[0]['version'])
         self.assertEqual(release.release_info()['note'], notes[0])
         self.assertEqual(release.release_info()['notes'], notes)
@@ -62,7 +62,7 @@ class PatchNoteTests(unittest.TestCase):
 
     def test_missing_or_malformed_file_yields_empty_history(self):
         release.PATCH_NOTES = Path(self.temp.name) / 'absent.json'
-        self.assertIsNone(release.patch_note())
+        self.assertIsNone(release.release_info()['note'])
         self.assertEqual(release.patch_notes(), [])
         release.PATCH_NOTES.write_text('{broken')
         self.assertEqual(release.release_info()['notes'], [])
@@ -84,15 +84,15 @@ class PatchNoteTests(unittest.TestCase):
         for payload in bad:
             with self.subTest(payload=payload):
                 self.write(payload)
-                self.assertIsNone(release.patch_note())
+                self.assertIsNone(release.release_info()['note'])
                 self.assertEqual(release.patch_notes(), [])
 
     def test_history_orders_versions_numerically_and_cache_tracks_edits(self):
         path = self.write({'notes': [note('0.10.0'), note('0.9.1', en='Previous')]})
-        self.assertEqual(release.patch_note()['version'], '0.10.0')
+        self.assertEqual(release.release_info()['note']['version'], '0.10.0')
         self.assertEqual(release.patch_notes()[1]['changes'][0]['en'], ['Previous'])
         path.write_text(json.dumps({'notes': [note('0.11.0', en='New release')]}))
-        self.assertEqual(release.patch_note()['changes'][0]['en'], ['New release'])
+        self.assertEqual(release.release_info()['note']['changes'][0]['en'], ['New release'])
 
     def test_whole_note_must_fit_the_text_limit(self):
         self.write({'notes': [note(changes=[{'category': 'Added', 'en': ['x' * 1500] * 2, 'zh': ['一'] * 2}])]})

@@ -23,7 +23,6 @@ NAME = "inbox.sqlite"
 VERSION = 2
 KINDS = ("idea", "todo", "project_update", "event_proposal")
 STATUSES = ("pending", "confirmed", "done")
-ACTIVE = "(status='pending' OR needs_review=1)"
 META = "seq,id,revision,kind,status,project,created_at,updated_at,summary,needs_review"
 
 

@@ -345,9 +345,7 @@ python tests/browser/future.py PRIVATE_ARTIFACT_DIRECTORY
 
 Browser checks require Playwright. They test layout, questions, permission replies,
 pause/resume, archive pinning, rollover and incremental publication, not real-agent
-quality or physical-phone behavior. Historical measurements and pilot limitations
-are preserved in `docs/history/browser-delivery-trials.md`; its obsolete commands
-are evidence, not supported interfaces. The opt-in public security trial also
+quality or physical-phone behavior. The opt-in public security trial also
 restores a stopped synthetic account from an independent ciphertext/key backup.
 Load, physical iOS/Android, machine reboot and real-account disaster recovery need
 separate owner-authorized trials; synthetic restoration does not prove those.

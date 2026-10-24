@@ -43,13 +43,8 @@ destination before replacing files; preserve unknown files and local changes.
 The copied skill has no checkout dependencies. The repository's source is
 inactive; opening the checkout registers no skills or command wrappers.
 OpenCode/OpenChamber discovers the global skill by the `goodmorning` ID.
-`/gm`, `/gn`, `/eureka`, `/todo`, and `/secretary` are plain workflow requests, not custom
-slash commands; natural-language requests work too.
 
 ## Validate
-
-Briefings use browser delivery. The obsolete inline image plugin is not part of
-the deployment; do not install it or request its former card tool.
 
 From the checkout:
 
@@ -66,9 +61,8 @@ Copying or validating the skill does not initialize personal records.
 
 ## Initialization and storage
 
-Ask the `goodmorning` skill for secretary setup. The first question confirms reply
-language; the agent then confirms remaining preferences, file formats and exact
-project/provider scope. Run only owner-authorized verification checks. Failed
+Ask the `goodmorning` skill for secretary setup. The agent confirms preferences,
+file formats and exact project/provider scope. Run only owner-authorized verification checks. Failed
 optional integrations stay pending; they do not authorize code repairs.
 
 Personal records default to `~/.local/share/GoodMorning/secretary/`, or the
@@ -89,35 +83,23 @@ modify the operating system's Python packages. Native rendering needs only the
 standard library; Pillow supports optional publisher images.
 Include `.gitignore` in releases used to run the source-layout tests.
 
-- The package-layout migration requires a clean public release, not an overlay
-  of an old release that would leave obsolete scripts behind. Copy all listed
-  public directories together. See [project structure](project-structure.md).
-  Hosted HTTPS deployments follow the separate [server runbook](server-deployment.md).
+- Copy all listed public directories together, not as an overlay of an old
+  release. See [project structure](project-structure.md). Hosted HTTPS
+  deployments follow the separate [server runbook](server-deployment.md).
   Validate the copied release before switching the release pointer.
-- Update the account, viewer, gateway, and vault service command templates to
-  `scripts/goodmorning.py`. Stop new requests and check account sessions, pending
-  questions, permissions, and the global reservation before restarting idle
-  account engines and viewers. Never restart mounted encrypted vaults merely
-  to update their next-start command. Preserve the previous release and units.
-
 - Workflow upgrades copy the source package, entry points, and public resources
   together with `docs/core-rules.md`, routed workflows and the skill
-  entry. No personal-data migration is required. Verify on disposable records,
-  then use read-only preparation on the selected live runtime. Start a fresh session
-  to load new instructions. Existing missing-calendar reads now require setup.
+  entry. Verify on disposable records, then use read-only preparation on the
+  selected live runtime. Start a fresh session to load new instructions.
 - Back up the private runtime before updates. Use SQLite's backup API for active
   databases, or stop writers before copying SQLite files/journals.
 - Copy changed public skill files only; retain personal records and environment.
-- Inbox storage uses SQLite only. No text migration commands are supported.
-  Keep initialized profiles and personal files unchanged during public-code updates.
+- Inbox storage uses SQLite only. Keep initialized profiles and personal files unchanged during public-code updates.
 - Preserve unknown/newer schemas, corrupt data and stable production locks. Do
   not force migrations, reset databases or replay unknown mutations.
 - Retain the previous public skill files for rollback and revalidate them against
   the runtime schema before resuming writes. Restoring old code does not authorize
   discarding newer user records.
-- When migrating old registrations, verify the self-contained global skill before
-  removing obsolete project skills or command wrappers. Never delete unknown files
-  or an old personal runtime during cleanup.
 
 ## Supported boundaries
 

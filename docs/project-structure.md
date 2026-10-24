@@ -1,10 +1,10 @@
-# Project structure and command migration
+# Project structure
 
 Application code belongs in `src/goodmorning/`, not in the command directory.
 `scripts/goodmorning.py` adds that source directory to Python's import path and
 dispatches one selected command. It works without installation, including when
 the public files are copied into an agent's skill directory. Imports are
-package-qualified; no legacy module aliases or duplicate implementations remain.
+package-qualified.
 
 ## Ownership
 
@@ -24,11 +24,9 @@ package-qualified; no legacy module aliases or duplicate implementations remain.
 | `tests/` | Unit contracts, shared fixtures, `browser/` checks, and `benchmarks/` |
 | `deploy/` | Public service and HTTPS configuration |
 | `android/` | Android app shell, released as an APK and never deployed to the server (`docs/android-app.md`) |
-| `docs/history/` | Historical plans and point-in-time reviews, not active workflow instructions |
 
 Keep personal runtimes, logs, reports, generated screenshots, caches, backups,
-and credentials outside the source tree. Existing ignored private records are
-not moved or removed by this reorganization.
+and credentials outside the source tree.
 
 ## Commands
 
@@ -40,25 +38,6 @@ python scripts/goodmorning.py job --secretary-dir RUNTIME --job JOB prepare
 python scripts/goodmorning.py serve --secretary-dir RUNTIME
 node scripts/projects.mjs --help
 ```
-
-The old standalone Python paths are removed. Their replacement commands are:
-
-| Old helper | Command |
-|---|---|
-| `setup_check.py` | `setup` |
-| `secretary_calendar.py` | `calendar` |
-| `briefing_job.py` | `job` |
-| `briefing_stream.py` | `stream` |
-| `briefing_server.py` | `serve` |
-| `briefing_web.py` | `web` |
-| `briefing_admin.py` | `admin` |
-| `briefing_gateway.py` | `gateway` |
-| `briefing_runtime.py` | `runtime` |
-| `briefing_vault.py` | `vault` |
-
-`weather`, `news`, `state`, `inbox`, `workflow`, and `daily` retain their names.
-Arguments, consent checks, schemas, and private paths are unchanged. The Node.js
-command stays `node scripts/projects.mjs`; only its implementation moves.
 
 Update commands, workflow documents, and service templates together. Verify the
 copied release before switching its pointer. Retain the previous release and

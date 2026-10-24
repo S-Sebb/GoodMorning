@@ -98,11 +98,6 @@ def patch_notes():
     return notes
 
 
-def patch_note():
-    notes = patch_notes()
-    return notes[0] if notes else None
-
-
 def release_info():
     notes = patch_notes()
     return {'version': VERSION, 'release': notes[0]['version'] if notes else None,

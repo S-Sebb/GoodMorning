@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run-state index for GoodMorning (/gm, /gn, /eureka, /todo, /secretary).
+"""Run-state index for GoodMorning briefings and secretary chat.
 
 What it records:
   - Whether gm/gn ran each day, with session names for jump links.
@@ -386,11 +386,6 @@ def rebuild_index(secretary_dir: str, state: dict, today: str | None = None,
     state["timezone"] = tz
     state["warnings"] = sorted(set(warnings))
     return state
-
-
-def missed_days(state: dict, today: str) -> list[dict]:
-    """Days in [first record, today) missing gm or gn, oldest first."""
-    return missed_page(state, today, sys.maxsize, 0)["rows"]
 
 
 def missed_page(state: dict, today: str, limit: int, offset: int) -> dict:
