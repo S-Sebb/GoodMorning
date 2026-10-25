@@ -34,6 +34,6 @@ Write the shortest instructions that fully define the intended behavior.
   behavior mismatches mean validation is incomplete, not a pass.
 - Start trials only with `tests/benchmarks/trial.py` (see `tests/README.md`), which gives each
   synthetic account a private production-like engine. To compare against the merge-base, run its
-  release with `--source` at the same time as the change, and repeat each arm before attributing a
-  difference to the change. Once the results are reviewed and the PR is up, delete the runs with
+  release with `--source` at the same time as the change (for website server code, the merge-base
+  checkout's own `trial.py`), and repeat each arm before attributing a difference to the change. Once the results are reviewed and the PR is up, delete the runs with
   `trial.py clean`.
