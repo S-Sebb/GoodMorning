@@ -428,8 +428,7 @@ class Chats:
                 opening = item.get('opening') if first else None
             if first:
                 # A custom title disables the engine's built-in AI title generation.
-                # The secretary agent (.opencode/agents) is denied reading source code and tests.
-                result = self.chamber.control('session.create', agent='secretary')
+                result = self.chamber.control('session.create')
                 session = result['sessionId']
                 if not re.fullmatch('ses[A-Za-z0-9_]+', session):
                     raise ValueError('Invalid session')
@@ -465,6 +464,10 @@ class Chats:
                     if info['location']['directory'] != self.chamber.directory:
                         raise ValueError('Conversation release update was not confirmed')
                     refresh = True
+            # The secretary agent (.opencode/agents) is denied reading source code and tests.
+            # OpenChamber keeps an agent given to session.create only when that create also
+            # sends a prompt, and the attachment path names none, so set it before every turn.
+            self.chamber.request(f'/api/session/{session}/agent', {'agent': 'secretary'})
             site_models.apply_to_session(self.chamber, session, chosen)
             # Older To-do/Eureka chats continue under the Secretary workflow.
             prompt = (f"/{mode if mode in NEW_MODES else 'secretary'}\nBrowser chat: {chat_id}\nRuntime: {runtime}\n" if first or refresh else '')

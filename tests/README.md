@@ -122,8 +122,12 @@ same time, on the same engine (pinned per task in `engine.json`): export the
 merge-base into `B=/var/tmp/goodmorning-trials/<checkout>/base-src` with
 `mkdir -p $B && git archive $(git merge-base origin/main HEAD) | tar -x -C $B`,
 then start the baseline with `--source $B`. The same harness and fixtures then
-run the other release. Models are not deterministic: repeat each arm under a new
-NAME and compare the repetitions before attributing a difference.
+give the agent the other release (instructions, docs and helper scripts). The
+website server code (chat dispatch, briefing jobs) still comes from the checkout
+running the harness, so for a change there, start the baseline with that
+checkout's own `trial.py` instead, e.g. from the primary checkout on `main`.
+Models are not deterministic: repeat each arm under a new NAME and compare the
+repetitions before attributing a difference.
 
 | Trial | Harness and arguments | Covers |
 |---|---|---|

@@ -286,7 +286,27 @@ class ChatTests(unittest.TestCase):
         creates = [body for action,body in self.chamber.calls if action=='session.create']
         self.assertEqual(len(creates), 2)
         self.assertTrue(all('title' not in body for body in creates))
-        self.assertTrue(all(body.get('agent') == 'secretary' for body in creates))
+
+    def test_every_turn_runs_on_the_secretary_agent(self):
+        # OpenChamber drops session.create's agent when no prompt is sent with it, and
+        # chats created before this fix already run as build: set it before every dispatch.
+        order = []
+        request, control = self.chamber.request, self.chamber.control
+        def agent(path, body=None):
+            if path.endswith('/agent'):
+                order.append(body['agent'])
+            return request(path, body)
+        def send(action, **body):
+            if action == 'session.send':
+                order.append(action)
+            return control(action, **body)
+        self.chamber.request, self.chamber.control = agent, send
+        self.start()
+        session = self.chats.get(self.id)['session']
+        self.chamber.sessions[session]['agent'] = 'build'
+        self.chats.send(self.id, {'id': 'b'*32, 'text': 'Follow up'})
+        self.assertEqual(order, ['secretary', 'session.send'] * 2)
+        self.assertEqual(self.chamber.sessions[session]['agent'], 'secretary')
 
     def test_native_timestamp_placeholder_is_hidden_and_late_title_is_read(self):
         self.start()
