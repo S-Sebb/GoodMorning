@@ -1,6 +1,33 @@
 {
   "notes": [
     {
+      "version": "0.74.1",
+      "date": "2026-10-25",
+      "author": "GoodMorning agent",
+      "title_en": "A tidier check-in and a safer secretary",
+      "title_zh": "晚间回顾的关闭按钮更顺手，秘书也守好自己的权限",
+      "changes": [
+        {
+          "category": "Fixed",
+          "en": [
+            "The close button on the evening check-in is now a centered X that is easy to see and tap."
+          ],
+          "zh": [
+            "晚间回顾的关闭按钮现在是一个居中的小叉，看得清，也一按就中。"
+          ]
+        },
+        {
+          "category": "Security",
+          "en": [
+            "Your secretary now always keeps to its own access limits in every conversation, including ones where you attach files."
+          ],
+          "zh": [
+            "不管是平常的对话，还是你带了附件的对话，秘书现在都会守在自己的权限范围里。"
+          ]
+        }
+      ]
+    },
+    {
       "version": "0.74.0",
       "date": "2026-10-24",
       "author": "GoodMorning agent",
