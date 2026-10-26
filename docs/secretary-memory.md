@@ -21,7 +21,7 @@ records.
 
 - **In chat**, the secretary rewrites the parts it changes before its reply ends
   (`memory --write`), merging and trimming instead of appending. The chat then
-  shows a small “Memory updated” marker that links to About me: the store keeps
+  shows a small “Jotted down a little note about you” marker that links to About me: the store keeps
   the last 30 writing sessions, and `src/goodmorning/web/chat_actions.py` shows
   the marker in that conversation only.
 - **After an evening briefing is saved** (not a regeneration), the finish receipt

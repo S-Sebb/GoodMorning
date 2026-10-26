@@ -19,7 +19,7 @@ from .inbox_store import encode
 
 PARTS = ('life', 'likes', 'lately')
 LENGTH = 2000  # The whole note, about 600 tokens in every conversation.
-CHANGES = 30   # Recent chat sessions that changed the note, for the chat's "Memory updated" marker.
+CHANGES = 30   # Recent chat sessions that changed the note, for the chat's memory marker.
 MESSAGES, MESSAGE = 40, 500  # The newest user messages the evening tidy rereads, and each one's length.
 
 

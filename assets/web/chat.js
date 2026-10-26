@@ -229,10 +229,14 @@ const specialLabels = {question: 'Question for you', answer: 'Your answer', perm
   expired: 'Question expired', skipped: 'Question skipped', undelivered: 'Not sent'};
 const footnotes = {expired: 'This question closed before it could be saved. Send a message to continue where you left off.',
   undelivered: 'This message didn’t reach your secretary, so nothing in it was saved or done.'};
-const actionTargets = {task: 'Task', event: 'Event', draft: 'Event draft', idea: 'Idea', record: 'Record', custom: 'Custom schedule',
-  memory: 'Memory'};
+const actionTargets = {task: 'Task', event: 'Event', draft: 'Event draft', idea: 'Idea', record: 'Record', custom: 'Custom schedule'};
 const actionLabels = {added: '{target} added', updated: '{target} updated', cancelled: '{target} cancelled',
   completed: '{target} completed', approved: '{target} approved', declined: '{target} declined'};
+function actionLabel(target, operation) {
+  // The memory note is personal, not a record: say so in a friendlier way.
+  if (target === 'memory') return chatT('Jotted down a little note about you');
+  return chatT(actionLabels[operation] || '{target} updated', {target: chatT(actionTargets[target] || 'Record')});
+}
 
 // Original rounded line icons: inherit the palette, never fetch external images.
 function specialIcon(kind, action = {}) {
@@ -276,8 +280,7 @@ function specialBadge(kind, action = {}) {
   if (kind === 'action') {
     badge.dataset.target = action.target;
     badge.dataset.operation = action.operation;
-    const target = chatT(actionTargets[action.target] || 'Record');
-    label.textContent = chatT(actionLabels[action.operation] || '{target} updated', {target});
+    label.textContent = actionLabel(action.target, action.operation);
   } else { label.dataset.uiText = specialLabels[kind]; label.textContent = chatT(specialLabels[kind]); }
   if (typeof goodmorningLanguage !== 'undefined') label.lang = goodmorningLanguage;
   badge.append(icon, label);
@@ -1194,8 +1197,7 @@ async function returnToSecretary() {
 }
 document.addEventListener('website:language', () => {
   document.querySelectorAll('.chat-special-label[data-target]').forEach(badge => {
-    const target = chatT(actionTargets[badge.dataset.target] || 'Record');
-    badge.lastElementChild.textContent = chatT(actionLabels[badge.dataset.operation] || '{target} updated', {target});
+    badge.lastElementChild.textContent = actionLabel(badge.dataset.target, badge.dataset.operation);
     if (typeof goodmorningLanguage !== 'undefined') badge.lastElementChild.lang = goodmorningLanguage;
   });
   document.querySelectorAll('.chat-special-label [data-ui-text]').forEach(label => {

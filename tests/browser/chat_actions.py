@@ -57,7 +57,7 @@ def main():
                     expect(page.locator('[data-special="action"]')).to_have_count(10)
                     expect(page.locator('.chat-special-icon svg')).to_have_count(14)
                     # The memory marker only links to the note on About me.
-                    expect(page.get_by_role('link', name='Memory updated')).to_have_attribute('href', '/about-me#about-memory')
+                    expect(page.get_by_role('link', name='Jotted down a little note about you')).to_have_attribute('href', '/about-me#about-memory')
                     expect(page.locator('[data-special="skipped"] .chat-special-label')).to_have_text('Question skipped')
                     expect(page.locator('[data-message="unsafe"] .message-text img')).to_have_count(0)
                     assert page.evaluate('window.executed !== true')
@@ -73,7 +73,7 @@ def main():
                             expect(page.locator('[data-message="add"] .chat-special-label')).to_have_text(
                                 'Event added' if language == 'en' else '已添加事项')
                             expect(page.locator('[data-message="memory"] .chat-special-label')).to_have_text(
-                                'Memory updated' if language == 'en' else '已更新记忆')
+                                'Jotted down a little note about you' if language == 'en' else '记下了一条关于你的小笔记')
                             ratios = page.locator('#chat-messages [data-special]').evaluate_all('''nodes => nodes.flatMap(node => {
                                 const background = getComputedStyle(node).backgroundColor;
                                 return ['.message-text', '.chat-special-label'].map(selector => ({

@@ -1,6 +1,6 @@
 """Opt-in paid trials for secretary memory: the note the secretary keeps in chat, its evening tidy and briefing use.
 
-Chat scenarios check the saved note, records and the chat's "Memory updated" marker; the briefings check that
+Chat scenarios check the saved note, records and the chat's memory marker; the briefings check that
 the note stays out of the opening and sections, that the evening tidy takes in a new chat message, and that
 Sunday's letter is saved. Tone, language, grounding and whether the note reads like a friend's memory (not
 creepy, not a diagnosis) need manual review of the retained transcripts, `memory.json` and the documents.
@@ -96,7 +96,8 @@ def check_chat(scenario, language, runtime, before, result, messages):
     words = ' '.join(after.values()).casefold()
     replies = ' '.join(a for turn in result['turns'] for a in turn['assistant']).casefold()
     marked = any(m.get('kind') == 'action' and m['action']['target'] == 'memory' for m in messages)
-    assert marked == (after != before), 'The Memory updated marker does not match whether the note changed'
+    assert marked == (after != before), 'The memory marker does not match whether the note changed'
+    assert not [p for p in ('keep it in mind', 'keep that in mind', 'keep this in mind', '记在心里') if p in replies], 'The reply promised to keep something in mind'
     if scenario == 'picks-up':
         assert records(runtime) == 1, 'The dog-food to-do was not saved once'
         assert 'mochi' in words, 'The dog was not remembered'
