@@ -141,7 +141,8 @@ class InboxTests(InboxFixture):
         store.mutate("update", {"status": "done", "confirmed_completion": True}, "ses-test", "complete", NOW, ids[0], 1)
         first = store.list(limit=7)
         second = store.list(after=first["next_after"], limit=7)
-        self.assertEqual([x["id"] for x in first["items"] + second["items"]], ids[1:])
+        # Newest first: a fresh capture is never pushed off the first page.
+        self.assertEqual([x["id"] for x in first["items"] + second["items"]], ids[:0:-1])
         self.assertIsNone(second["next_after"])
         self.assertEqual(store.list(project="Demo", kind="todo")["total"], 7)
         self.assertEqual(store.list(status="done")["items"][0]["id"], ids[0])
@@ -157,7 +158,7 @@ class InboxTests(InboxFixture):
         self.assertLess(len(encode(page)), 4096)
         self.assertEqual(len(page["items"]), 1)
         self.assertEqual(page["items"][0]["questions"], ["Q" * 1000, "R" * 1000])
-        self.assertEqual(page["next_after"], 1)
+        self.assertEqual(page["next_after"], 2)
         self.assertNotIn("context", page["items"][0])
         self.assertNotIn("raw", page["items"][0])
 

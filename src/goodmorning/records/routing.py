@@ -514,10 +514,29 @@ def feedback_day(store, day):
     return list(rows.values())
 
 
-def attention(store, today, offset=0, limit=7, calendar_changes=()):
+IDEA_CYCLE = 14  # Days between a clear idea's morning returns.
+IDEA_REST = 7  # Days after capture or the last change before its first return.
+
+
+def idea_returns(entry, today, kind):
+    """A clear idea comes back for one morning each cycle; it never asks for a reply.
+
+    The entry's sequence picks its day in the cycle, so a batch saved together
+    returns on different mornings. A requested review date shows on that day."""
+    if kind != 'gm':
+        return False
+    day = dt.date.fromisoformat(today)
+    if entry['review_after'] == today:
+        return True
+    rested = day >= dt.date.fromisoformat(entry['updated_at'][:10]) + dt.timedelta(days=IDEA_REST)
+    return rested and (day.toordinal() - entry['seq']) % IDEA_CYCLE == 0
+
+
+def attention(store, today, kind, offset=0, limit=7, calendar_changes=()):
     rows = []
     db = store.db
-    for entry in db.execute("SELECT id,revision,kind,summary,questions,needs_review,review_after FROM entries WHERE "
+    from goodmorning.web import language as ui
+    for entry in db.execute("SELECT seq,id,revision,kind,summary,questions,needs_review,review_after,updated_at FROM entries WHERE "
                             + store.inbox.active_sql + ' ORDER BY seq'):
         import json
         questions = json.loads(entry['questions'])
@@ -525,8 +544,12 @@ def attention(store, today, offset=0, limit=7, calendar_changes=()):
             continue
         if entry['kind'] == 'todo' and not questions and not entry['needs_review']:
             continue
-        if not questions and not entry['needs_review'] and not entry['review_after']:
-            continue  # A clear idea is not a recurring clarification obligation.
+        if entry['kind'] == 'idea' and not questions and not entry['needs_review']:
+            if not idea_returns(entry, today, kind):
+                continue
+            questions = [ui.text('A saved idea, back for another look. Nothing needs doing unless it still interests you.')]
+        elif not questions and not entry['needs_review'] and not entry['review_after']:
+            continue
         rows.append({'id': entry['id'], 'revision': entry['revision'], 'title': entry['summary'],
                      'questions': questions, 'needs_review': bool(entry['needs_review']), 'owner': 'attention'})
     represented = {row['id'] for row in rows}
@@ -671,7 +694,7 @@ def prepare(runtime, today, kind, offset=0, limit=7):
             inbox.db.execute('BEGIN')
             agenda = schedule(runtime, today, kind, store, offset, limit)
             result = {'tasks': task_view(store, today, kind, offset, limit, agenda['owned_tasks']),
-                    'attention': attention(store, today, offset, limit, agenda['calendar_changes']),
+                    'attention': attention(store, today, kind, offset, limit, agenda['calendar_changes']),
                     'schedule': {k: v for k, v in agenda.items() if k not in ('calendar_changes', 'owned_tasks')}, 'warnings': []}
             outcomes = reported_day(store, today) if kind == 'gn' else []
             result['today'] = outcomes[offset:offset + limit]
@@ -711,7 +734,7 @@ def validate_sources(runtime, document, today, kind):
         errands = {r['id']: r for r in view['errands']}
         outcomes = {(r['id'], r['occurrence_id']): r for r in reported_day(store, today)}
         events = {r['id']: r for r in agenda['items']}
-        decisions = {r['id']: r for r in attention(store, today, limit=1000000, calendar_changes=agenda['calendar_changes'])['items']}
+        decisions = {r['id']: r for r in attention(store, today, kind, limit=1000000, calendar_changes=agenda['calendar_changes'])['items']}
         for section in document['sections']:
             for block in section[1]:
                 tag = block[0]

@@ -2,7 +2,7 @@
 import copy
 import contextlib
 import io
-from datetime import datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 import json
 import os
 from pathlib import Path
@@ -352,6 +352,30 @@ class TaxonomyTests(unittest.TestCase):
         self.assertEqual(self.view()['attention']['items'], [])
         self.assertEqual(self.view(day='2026-10-20')['attention']['total'], 1)
 
+    def test_clear_ideas_return_one_morning_a_fortnight_spread_apart(self):
+        ideas = [self.capture('Idea %d' % n, 'idea')['id'] for n in range(3)]
+        start = date.fromisoformat(DAY)
+        returns = {identifier: [] for identifier in ideas}
+        for offset in range(49):
+            day = (start + timedelta(days=offset)).isoformat()
+            self.assertEqual(self.view('gn', day)['attention']['items'], [])  # Never an evening question.
+            for row in self.view('gm', day)['attention']['items']:
+                returns[row['id']].append(offset)
+        for days in returns.values():
+            self.assertGreaterEqual(days[0], 7)  # Rests a week after capture.
+            self.assertEqual([b - a for a, b in zip(days, days[1:])], [14, 14])
+        self.assertEqual(len({days[0] for days in returns.values()}), 3)  # A batch does not return together.
+        day = (start + timedelta(days=returns[ideas[0]][0])).isoformat()
+        view = self.view('gm', day)
+        self.assertNotIn('Review the supplied details.', view['blocks']['attention'][1][0][3])
+        routing.validate_sources(self.root, self.document(view['blocks']['attention'], 'attention'), day, 'gm')
+        self.assertEqual(self.inbox.show(ideas[0])['status'], 'pending')  # Coming back adopts nothing.
+
+    def test_requested_idea_review_date_shows_that_morning(self):
+        identifier = self.capture('Maybe a mood line', 'idea', review_after='2026-10-15')['id']
+        self.assertEqual([r['id'] for r in self.view(day='2026-10-15')['attention']['items']], [identifier])
+        self.assertEqual(self.view(day='2026-10-16')['attention']['items'], [])
+
     def test_complete_event_request_is_saved_before_confirmation_but_not_approved(self):
         payload = {'subject': 'Dentist', 'start': '2026-10-15T14:00:00+01:00', 'end': '2026-10-15T15:00:00+01:00', 'location': 'Town Clinic'}
         self.capture('Add dentist Thursday 14:00-15:00 at Town Clinic', 'event_proposal',
@@ -671,6 +695,12 @@ class TaxonomyTests(unittest.TestCase):
             result = workflow.prepare(self.root,'secretary',DAY)
         self.assertTrue(result['ready'])
         self.assertNotIn('items',result)
+
+    def test_secretary_preparation_shows_the_newest_idea_first(self):
+        for n in range(10):
+            self.capture('Older to-do %d' % n, task={'title': 'Older to-do %d' % n})
+        newest = self.capture('A fresh idea', 'idea')['id']
+        self.assertEqual(workflow.prepare(self.root,'secretary',DAY)['inbox']['items'][0]['id'], newest)
 
     def test_legacy_checklists_neither_block_v2_preflight_nor_enter_the_agent_plan(self):
         (self.root/'daily').mkdir(exist_ok=True)
