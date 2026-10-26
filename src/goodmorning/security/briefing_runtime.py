@@ -36,13 +36,13 @@ class LocalBridge(Chamber):
             self.expires=datetime.fromisoformat(expires.replace('Z','+00:00')).timestamp() if expires else time.time()+600
             return self.token
 
-    def request(self,path,body=None):
+    def request(self,path,body=None,method=None):
         from urllib.parse import quote
         for attempt in range(2):
             headers={'Authorization':'Bearer '+self.authenticate(force=attempt==1),
                      'x-opencode-directory':quote(self.directory,safe='')}
             if body is not None:headers['Content-Type']='application/json'
-            request=Request(self.url+path,data=json.dumps(body).encode() if body is not None else None,headers=headers)
+            request=Request(self.url+path,data=json.dumps(body).encode() if body is not None else None,headers=headers,method=method)
             try:
                 with build_opener(NoRedirect).open(request,timeout=20) as response:
                     return read_json(response, attachment_data=path.split('?')[0].endswith(('/prompt', '/message')),

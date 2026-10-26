@@ -117,13 +117,12 @@ def require_paused(db):
 
 
 def require_no_work(db, own=None):
-    """Any reservation but this deployment's own ticket means work is running."""
+    """Any reservation but this deployment's own ticket means work is running. Requests paused on a
+    saved question hold no engine state, so they never block; check_idle still catches open engine input."""
     if metadata(db, 'generation') not in (None, own):
         raise Busy('A reservation is held')
     if metadata(db, 'generation_queue') not in (None, []):
         raise Busy('Queued requests are waiting')
-    if metadata(db, 'generation_waiting') not in (None, []):
-        raise Busy('Suspended input is waiting for its owner')
 
 
 def provisioned():

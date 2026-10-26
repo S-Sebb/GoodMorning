@@ -504,6 +504,7 @@ class JobTests(unittest.TestCase):
         self.assertTrue(self.chamber.sent.wait(2))
 
     def test_recovery_continues_only_a_known_idle_session_once(self):
+        self.chamber.forms=[]
         for job_state in ('uncertain','starting'):
             self.job['state']=job_state;self.app.save_jobs()
             with self.assertRaises(ValueError): self.app.recover(self.identifier,{'id':'b'*32})

@@ -100,6 +100,8 @@ const make = secretaryElement;
 let mode = chatConfig.defaultMode;
 let chat = new URLSearchParams(location.search).get('id');
 let state = null;
+// Only a permission keeps the composer closed; a new message skips a waiting question.
+let permissionsPending = false;
 let sending = false;
 let pendingChatMutations = 0;
 let polling = false;
@@ -220,9 +222,9 @@ window.addEventListener('pageshow', event => {
 });
 const renderedMessages = new WeakMap();
 const specialLabels = {question: 'Question for you', answer: 'Your answer', permission: 'Your permission', outreach: 'Your secretary reached out',
-  expired: 'Question expired'};
+  expired: 'Question expired', skipped: 'Question skipped'};
 const footnotes = {outreach: 'Sent on behalf of the GoodMorning team',
-  expired: 'Questions can close after about an hour without an answer. Send a message to continue where you left off.'};
+  expired: 'This question closed before it could be saved. Send a message to continue where you left off.'};
 const actionTargets = {task: 'Task', event: 'Event', draft: 'Event draft', idea: 'Idea', record: 'Record', custom: 'Custom schedule'};
 const actionLabels = {added: '{target} added', updated: '{target} updated', cancelled: '{target} cancelled',
   completed: '{target} completed', approved: '{target} approved', declined: '{target} declined'};
@@ -240,7 +242,9 @@ function specialIcon(kind, action = {}) {
     outreach: ['M20 11V7a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h7', 'm3 7 9 6 9-6',
       'M18 21s-3.5-2-3.5-4.2a1.8 1.8 0 0 1 3.5-.6 1.8 1.8 0 0 1 3.5.6C21.5 19 18 21 18 21Z'],
     expired: ['M11 19H9l-5 2v-6a4 4 0 0 1-1-3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4v3',
-      'M9 8a3 3 0 0 1 6 0c0 1-.6 1.6-1.3 2', 'M18 21a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z', 'M18 15.5V17l1 1']
+      'M9 8a3 3 0 0 1 6 0c0 1-.6 1.6-1.3 2', 'M18 21a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z', 'M18 15.5V17l1 1'],
+    skipped: ['M11 19H9l-5 2v-6a4 4 0 0 1-1-3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4v3',
+      'M9 8a3 3 0 0 1 6 0c0 1-.6 1.6-1.3 2', 'M14 17h7', 'm18 14 3 3-3 3']
   };
   const bases = {
     event: 'M4 7h16M8 3v4m8-4v4M11 21H6a3 3 0 0 1-3-3V7a3 3 0 0 1 3-3h12a3 3 0 0 1 3 3v4M7 11h2m-2 4h2',
@@ -390,7 +394,7 @@ function composeState() {
   const initializing = !chat && mode === 'initialize';
   const changed = composer.classList.contains('is-initializing') !== initializing;
   composer.classList.toggle('is-initializing', initializing);
-  const blocked = chat && ['waiting', 'uncertain', 'unavailable'].includes(state);
+  const blocked = chat && (['uncertain', 'unavailable'].includes(state) || state === 'waiting' && permissionsPending);
   sendButton.disabled = sending || restoringWorkspace || !chatConfig.connected || blocked;
   textBox.disabled = initializing || sending || blocked;
   fileInput.disabled = attachButton.disabled = initializing || sendButton.disabled;
@@ -966,7 +970,7 @@ async function pollChat() {
     if (version !== revision) return;
     const follow = followNextUpdate || nearLatest();
     const replay = !animateMessages;
-    mode = result.mode; state = result.state;
+    mode = result.mode; state = result.state; permissionsPending = Boolean(result.permissions?.length);
     requestLanguage = result.language;
     if (typeof result.secretary_name === 'string' && result.secretary_name && result.secretary_name !== secretaryName) {
       secretaryName = result.secretary_name;

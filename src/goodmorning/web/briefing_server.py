@@ -26,7 +26,8 @@ from goodmorning.briefings.briefing_document import source_path
 from goodmorning.briefings import briefing_document as native
 from goodmorning.briefings.briefing_stream import DEFAULT_PLANS, load as load_preview, require_final
 from goodmorning.runtime_files import atomic_text, profile_fields, runtime_lock
-from .briefing_chat import AVATAR_FILES, Chats, avatar_id, avatar_widget, page as chat_page, read_avatar, write_avatar
+from .briefing_chat import (AVATAR_FILES, Chats, avatar_id, avatar_widget, close_question, model_answer, page as chat_page,
+                            parked_forms, read_avatar, valid_answer, write_avatar)
 from goodmorning.paths import ROOT
 from . import language as ui
 from . import models as site_models
@@ -79,14 +80,14 @@ class Chamber:
             raise ValueError('OpenChamber must be an explicit loopback HTTP origin')
         self.url, self.directory = url.rstrip('/'), str(directory)
 
-    def request(self, path, body=None):
+    def request(self, path, body=None, method=None):
         headers = {'x-opencode-directory': quote(self.directory, safe='')}
         token = os.environ.get('GM_OPENCHAMBER_TOKEN')
         if token:
             headers['Authorization'] = 'Bearer ' + token
         if body is not None:
             headers['Content-Type'] = 'application/json'
-        request = Request(self.url + path, data=json.dumps(body).encode() if body is not None else None, headers=headers)
+        request = Request(self.url + path, data=json.dumps(body).encode() if body is not None else None, headers=headers, method=method)
         with build_opener(NoRedirect).open(request, timeout=20) as response:
             return read_json(response, attachment_data=urlsplit(path).path.endswith(('/prompt', '/message')),
                              message_data=urlsplit(path).path.endswith('/message'))
@@ -122,6 +123,16 @@ class Chamber:
                 'input': {'directory': self.directory, 'sessionId': session}})
             return {**status, 'messages': list(reversed(messages[:limit]))}
         return self.request('/api/openchamber/control', {'action': action, 'input': {'directory': self.directory, **parameters}})
+
+    def relocate(self, session):
+        """A session keeps its original release location across server updates. Moves only this
+        resumed session to the running release, without replacing its history; True when it moved."""
+        if self.request(f'/api/session/{session}')['data']['location']['directory'] == self.directory:
+            return False
+        self.request(f'/api/session/{session}/move', {'directory': self.directory})
+        if self.request(f'/api/session/{session}')['data']['location']['directory'] != self.directory:
+            raise ValueError('Conversation release update was not confirmed')
+        return True
 
     def pending(self, session):
         return (self.request(f'/api/session/{session}/form').get('data', []),
@@ -712,13 +723,37 @@ class BrowserApp:
                 raise ValueError('This job does not need recovery')
             return {'job':identifier}
 
-    def continue_session(self, job):
+    def park(self, identifier, session, forms):
+        """Saves a briefing session's open questions, then closes them in the engine, as Chats.park
+        does for conversations. The answer later continues the job from its checkpoint."""
+        if not forms:
+            return
+        with self.lock:
+            live = next(job for job in self.jobs.values() if job['id'] == identifier)
+            questions = live.setdefault('questions', [])
+            known = {entry['id'] for entry in questions}
+            questions.extend({'id': form['id'], 'form': form, 'parked': True} for form in forms if form['id'] not in known)
+            self.save_jobs()  # Saved before closing, so a crash in between loses nothing.
+        for form in forms:
+            if close_question(self.chamber, session, form['id']) is False:
+                with self.lock:
+                    questions[:] = [entry for entry in questions if entry['id'] != form['id']]
+                    self.save_jobs()
+
+    def continue_session(self, job, answer=None):
         try:
-            forms, permissions = self.chamber.pending(job['session'])
-            if forms or permissions or self.chamber.control('session.status', sessionId=job['session'])['sessionStatus']['type'] != 'idle':
+            # Closing an answered question ends the engine's run a moment later.
+            for _ in range(50 if answer else 1):
+                forms, permissions = self.chamber.pending(job['session'])
+                idle = not forms and not permissions and self.chamber.control('session.status', sessionId=job['session'])['sessionStatus']['type'] == 'idle'
+                if idle:
+                    break
+                time.sleep(0.2)
+            if not idle:
                 raise ValueError('Session changed before continuation')
+            self.chamber.relocate(job['session'])
             site_models.apply_to_session(self.chamber, job['session'], job.get('model', site_models.DEFAULT))
-            prompt = self.generation_prompt(job)
+            prompt = self.generation_prompt(job) + ('\n\n' + answer if answer else '')
             result = self.chamber.control('session.send', sessionId=job['session'], prompt=prompt)
             if result.get('promptDispatched') is not True:
                 raise ValueError('Continuation was not confirmed')
@@ -880,8 +915,9 @@ class BrowserApp:
         if job.get('session') and self.chamber:
             try:
                 forms, permissions = self.chamber.pending(job['session'])
+                self.park(identifier, job['session'], forms)
+                forms = parked_forms(self.job(identifier).get('questions', []))
                 receipts = job.get('replied_inputs', [])
-                forms = [form for form in forms if 'form:'+form['id'] not in receipts]
                 permissions = [permission for permission in permissions if 'permission:'+permission['id'] not in receipts]
                 state = None if forms or permissions else self.chamber.control('session.status', sessionId=job['session'])['sessionStatus']['type']
             except Exception:
@@ -953,6 +989,25 @@ class BrowserApp:
         if category+':'+request_id in job.get('replied_inputs', []):
             return {'answered': True}
         forms, permissions = self.chamber.pending(job['session'])
+        if category == 'form':
+            self.park(identifier, job['session'], forms)
+            with self.lock:
+                live = self.jobs[job['date']+'.'+job['kind']]
+                if live['id'] != identifier:
+                    raise ValueError('This browser job was replaced; refresh the briefing')
+                question = next((entry for entry in live.get('questions', []) if entry['id'] == request_id and entry.get('parked')), None)
+                if not question:
+                    raise ValueError('This request is no longer pending in this briefing session')
+                if 'answer' in question:
+                    return {'answered': True}
+                if live['state'] in ('starting', 'uncertain'):
+                    raise ValueError('Wait for the briefing to settle before answering')
+                question['answer'] = valid_answer(question['form'], body.get('answer'))
+                live['state'] = 'starting'
+                self.save_jobs()
+            # An answer after the day has passed still finishes this edition under its own date.
+            threading.Thread(target=self.continue_session, args=(live, model_answer(question['form'], question['answer'])), daemon=True).start()
+            return {'answered': True}
         pending = forms if category == 'form' else permissions
         if not any(item['id'] == request_id for item in pending):
             raise ValueError('This request is no longer pending in this briefing session')

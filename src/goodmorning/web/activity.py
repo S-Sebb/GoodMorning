@@ -3,6 +3,7 @@ import html
 import json
 from goodmorning.briefings.briefing_stream import bounded_json
 from goodmorning.briefings.briefing_job import context_path
+from .briefing_chat import parked_forms
 
 
 ACTIVITY_PATH = r'/api/activity/(chat|job)/([a-f0-9]{32})'
@@ -37,7 +38,7 @@ def snapshot(app, kind, identifier):
     try:
         forms, permissions = app.chamber.pending(item['session'])
         receipts = item.get('replied_inputs', [])
-        forms = [form for form in forms if 'form:'+form['id'] not in receipts]
+        forms = [form for form in forms if 'form:'+form['id'] not in receipts] + parked_forms(item.get('questions', []))
         permissions = [permission for permission in permissions if 'permission:'+permission['id'] not in receipts]
         state = app.chamber.control('session.status', sessionId=item['session'])['sessionStatus']['type']
         state = 'waiting' if forms or permissions else 'working' if item['state'] == 'starting' or state == 'busy' else 'idle' if state == 'idle' else 'uncertain'

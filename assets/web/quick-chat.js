@@ -30,16 +30,16 @@
   const awayLimit = 15 * 60 * 1000;
   const modes = {secretary: 'Secretary', todo: 'To-do', eureka: 'Eureka', initialize: 'Initialize'};
   const specialLabels = {question: 'Question for you', answer: 'Your answer', permission: 'Your permission', outreach: 'Your secretary reached out',
-    expired: 'Question expired'};
+    expired: 'Question expired', skipped: 'Question skipped'};
   const footnotes = {outreach: 'Sent on behalf of the GoodMorning team',
-    expired: 'Questions can close after about an hour without an answer. Send a message to continue where you left off.'};
+    expired: 'This question closed before it could be saved. Send a message to continue where you left off.'};
   const actionTargets = {task: 'Task', event: 'Event', draft: 'Event draft', idea: 'Idea', record: 'Record', custom: 'Custom schedule'};
   const actionLabels = {added: '{target} added', updated: '{target} updated', cancelled: '{target} cancelled',
     completed: '{target} completed', approved: '{target} approved', declined: '{target} declined'};
   const imageTypes = new Set(['image/png', 'image/jpeg', 'image/gif', 'image/webp']);
   const titles = new Map();
   let ready = false, connected = false, secretaryName = null;
-  let chat = null, mode = 'secretary', state = null, statusLabel = '';
+  let chat = null, mode = 'secretary', state = null, statusLabel = '', permissionsPending = false;
   let open = false, sending = false, polling = false, revision = 0, timer, titleTimer, titleRetries = 0;
   let messageSignature = '', formSignature = '', follow = true, unread = false;
   // A conversation the secretary opened, waiting to be read (persisted server-side).
@@ -145,7 +145,8 @@
     }
     statusBox.append(make('span', text));
     statusBox.hidden = !text;
-    const blocked = chat && ['waiting', 'uncertain', 'unavailable'].includes(state);
+    // Only a permission keeps the composer closed; a new message skips a waiting question.
+    const blocked = chat && (['uncertain', 'unavailable'].includes(state) || state === 'waiting' && permissionsPending);
     sendButton.disabled = sending || !connected || blocked || (!textBox.value.trim() && !attachments.length);
     textBox.disabled = sending || blocked;
     attachButton.disabled = sending || !connected || blocked;
@@ -250,7 +251,7 @@
       const result = await api(`/api/chats/${current}${full ? '' : '/status'}`);
       if (version !== revision) return;
       const wasActive = ['starting', 'running', 'queued'].includes(state);
-      mode = result.mode; state = result.state; statusLabel = result.label;
+      mode = result.mode; state = result.state; statusLabel = result.label; permissionsPending = Boolean(result.permissions?.length);
       if (typeof result.secretary_name === 'string' && result.secretary_name) secretaryName = result.secretary_name;
       if (result.reservation_required === false) {
         const mine = await pollQueue(current, version);

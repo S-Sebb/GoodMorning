@@ -36,8 +36,9 @@ uv run --no-project python deploy/release.py
    the new one.
 5. **Pause.** It enables the deployment pause.
 6. **Switch.** `deploy_native.py switch NAME ENGINE` waits up to 10 minutes for idle: no
-   reservation, queue or suspended input, no active sessions, and no pending
-   questions or permissions. It then:
+   reservation or queue, no active sessions, and no pending engine questions or
+   permissions. Requests paused on a saved question hold no engine state and do
+   not block. It then:
    - snapshots passwords, language settings, the hashes of protected
      private files, and each account's OpenChamber choices as OpenChamber
      reads them (`settings.json` overlaid with `preferences.json`, which a new

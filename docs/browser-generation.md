@@ -116,6 +116,11 @@ completion or execution; authorized unrelated record changes retain their own sc
 - **Continue existing session** targets a known idle owner with no pending inputs,
   retaining published sections. Uncertain dispatch requires inspection, never
   automatic replay. Recovery is account-local, today-only and reservation-controlled.
+- A question the secretary asks during generation is saved in the job registry and
+  closed in the engine; the job waits without holding the model slot, across restarts
+  and deployments. The answer continues the same session from its checkpoint (moved to
+  the running release, with the generation prompt and the answer), even after the
+  edition's day has passed; the edition keeps its own date.
 - **Regenerate today's briefing** needs explicit confirmation and a new owning job/
   session. It refuses active/pending/uncertain work; superseded jobs cannot publish,
   save or accept replies. Old context/previews, saved JSON/run marker and private

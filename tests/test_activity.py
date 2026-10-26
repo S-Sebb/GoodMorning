@@ -22,6 +22,11 @@ class SnapshotTests(unittest.TestCase):
         self.assertEqual(snapshot(app, 'chat', item['id'])['state'], 'working')
         chamber.busy = False
         self.assertEqual(snapshot(app, 'chat', item['id'])['state'], 'idle')
+        # A saved question keeps waiting after the engine closed it.
+        item['questions'] = [{'id': 'frm_saved', 'form': {'id': 'frm_saved'}, 'parked': True}]
+        self.assertEqual(snapshot(app, 'chat', item['id'])['state'], 'waiting')
+        item['questions'][0]['skipped'] = 'b'*32
+        self.assertEqual(snapshot(app, 'chat', item['id'])['state'], 'idle')
         self.assertEqual(item['state'], 'running')
         self.assertTrue(all(action == 'session.status' for action, _ in chamber.calls))
         with patch.object(chamber, 'pending', side_effect=OSError('Synthetic outage')):

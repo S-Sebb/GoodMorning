@@ -88,11 +88,11 @@ class DeployHelperTests(unittest.TestCase):
         with self.assertRaises(helper.Busy):
             helper.require_no_work(db, own)
         db.execute("DELETE FROM metadata")
-        for key in ('generation_queue', 'generation_waiting'):
-            db.execute('INSERT OR REPLACE INTO metadata VALUES (?, ?)', (key, json.dumps([{'request': 1}])))
-            with self.subTest(key=key), self.assertRaises(helper.Busy):
-                helper.require_no_work(db, own)
-            db.execute("DELETE FROM metadata")
+        db.execute("INSERT INTO metadata VALUES ('generation_waiting', ?)", (json.dumps([{'request': 1}]),))
+        helper.require_no_work(db, own)
+        db.execute("INSERT INTO metadata VALUES ('generation_queue', ?)", (json.dumps([{'request': 1}]),))
+        with self.assertRaises(helper.Busy):
+            helper.require_no_work(db, own)
 
     def test_public_archive_contains_the_release_and_nothing_private(self):
         if not (ROOT/'.git').exists():

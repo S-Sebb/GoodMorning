@@ -5,9 +5,10 @@ from pathlib import Path
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
 from urllib.error import HTTPError
 
-from support import TEMP_ROOT, FakeChamber, HTTPFixture, complete_profile
+from support import TEMP_ROOT, FakeChamber, HTTPFixture, ImmediateThread, complete_profile
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'src'))
 from goodmorning.briefings.briefing_day import briefing_day
 from goodmorning.web.briefing_server import BrowserApp, Chamber, serve_live
@@ -46,6 +47,36 @@ class LiveTests(unittest.TestCase):
         with self.app.lock:
             self.app.jobs['2026-10-10.gm']['state'] = 'running'
         return result['job']
+
+    def answer(self, job):
+        """Approves the permission and answers the saved question; the continued run keeps working."""
+        self.app.reply(job,'permission','per_fixture',{'decision':'once'})
+        with patch('goodmorning.web.briefing_server.threading.Thread', ImmediateThread):
+            self.app.reply(job,'form','frm_test',{'answer':{'progress':['unreported']}})
+        self.chamber.busy=True
+
+    def test_question_is_saved_and_its_answer_continues_the_original_edition(self):
+        job=self.start()
+        self.chamber.permissions=[]
+        self.assertEqual(self.app.status(job)['forms'][0]['id'],'frm_test')
+        # The engine no longer holds the question, and a restart keeps the saved copy.
+        self.assertEqual((self.chamber.forms,self.chamber.busy),([],False))
+        later=datetime(2026,10,12,12,tzinfo=timezone.utc)
+        self.app=BrowserApp(self.root,self.chamber,now=lambda:later)
+        current=self.app.status(job)
+        self.assertEqual((current['state'],current['forms'][0]['id'],current['reservation_required']),('waiting','frm_test',False))
+        with self.assertRaises(ValueError):
+            self.app.reply(job,'form','frm_test',{'answer':{'other':'x'}})
+        with patch('goodmorning.web.briefing_server.threading.Thread', ImmediateThread):
+            self.app.reply(job,'form','frm_test',{'answer':{'progress':['unreported']}})
+            self.app.reply(job,'form','frm_test',{'answer':{'progress':['other']}})
+        prompts=[body['prompt'] for action,body in self.chamber.calls if action=='session.send']
+        self.assertEqual(len(prompts),2)
+        self.assertTrue(prompts[-1].startswith(self.app.generation_prompt(self.app.job(job))))
+        self.assertTrue(prompts[-1].endswith('User has answered your questions: "Reported progress"="unreported". '
+                                             "You can now continue with the user's answers in mind."))
+        # Answered after its day has passed, the edition still finishes under its own date.
+        self.assertEqual((self.app.job(job)['state'],self.app.job(job)['date']),('running','2026-10-10'))
 
     def test_mobile_section_picker_is_inert_markup_and_does_not_change_records(self):
         (self.root/'daily/2026-10-10.gm.json').write_text(GM)
@@ -118,11 +149,11 @@ class LiveTests(unittest.TestCase):
     def test_acknowledged_inputs_never_reappear_or_yield_before_engine_catches_up(self):
         from unittest.mock import patch
         job=self.start()
+        self.chamber.forms=[]
         with patch.object(self.chamber,'request',return_value={}) as reply:
-            self.app.reply(job,'form','frm_test',{'answer':{'progress':['unreported']}})
             self.app.reply(job,'permission','per_fixture',{'decision':'once'})
             self.app.reply(job,'permission','per_fixture',{'decision':'once'})
-        self.assertEqual(reply.call_count,2)
+        self.assertEqual(reply.call_count,1)
         # The synthetic engine still lists its old inputs after acknowledging them.
         current=self.app.status(job)
         self.assertEqual(current['state'],'running')
@@ -245,8 +276,7 @@ class LiveTests(unittest.TestCase):
         job = self.start()
         result = self.app.status(job)
         self.assertEqual(result['state'],'waiting')
-        self.app.reply(job,'form','frm_test',{'answer':{'progress':['unreported']}})
-        self.app.reply(job,'permission','per_fixture',{'decision':'once'})
+        self.answer(job)
         self.assertEqual(self.app.status(job)['state'],'running')
         with self.assertRaises(ValueError): self.app.reply(job,'form','frm_other',{'answer':{}})
         with self.assertRaises(ValueError): self.app.status('1'*32)
@@ -259,8 +289,7 @@ class LiveTests(unittest.TestCase):
     def test_progress_advances_only_with_published_sections(self):
         job=self.start()
         self.assertEqual(self.app.status(job)['progress'],5)
-        self.app.reply(job,'form','frm_test',{'answer':{'progress':['unreported']}})
-        self.app.reply(job,'permission','per_fixture',{'decision':'once'})
+        self.answer(job)
         current=self.app.status(job)
         self.assertEqual((current['state'],current['progress']),('running',5))
         doc=json.loads(GM);doc.pop('closing',None);plan=[[section[0],'Planned'] for section in doc['sections'][:2]];doc['sections']=doc['sections'][:1]
@@ -350,8 +379,8 @@ if __name__=='__main__':
         from support import returning_viewer
         returning_viewer(root)
         class CompletingFixture(FakeChamber):
-            def request(self, path, body):
-                result = super().request(path,body)
+            def request(self, path, body=None, method=None):
+                result = super().request(path,body,method)
                 if not self.forms and not self.permissions:
                     (root/'daily'/(briefing_day('Europe/London')+'.gm.json')).write_text(GM)
                     self.busy=False
