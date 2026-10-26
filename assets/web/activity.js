@@ -10,7 +10,12 @@
   const modes = {secretary: 'Secretary', initialize: 'Initialize', todo: 'To-do', eureka: 'Eureka', gm: 'Morning briefing', gn: 'Evening briefing'};
   const states = {working: 'Your secretary is working', waiting: 'Your secretary needs your answer', queued: 'Your request is queued.',
     uncertain: 'Activity needs checking. Open it before trying again.', unavailable: 'Activity status is unavailable. Open it to check.'};
-  const titles = {working: 'Making a little space for you.', waiting: 'A little question for you.',
+  // One working title is drawn per card, so the one-second refresh does not reshuffle it.
+  const workingTitles = ['Little desk, big bustle.', 'Pens out, sleeves rolled up.', 'Lamp on, pen dancing.',
+    'Sticky notes fluttering about.', 'Scribbling away at the notes.', 'Ink flowing, lamp glowing.',
+    'Humming over the notepad.', 'A happy little paper shuffle.', 'Puttering happily through papers.',
+    'Tucked in with the notepad.'];
+  const titles = {waiting: 'A little question for you.',
     queued: 'Your request is in line.', uncertain: 'Let’s check on this.', unavailable: 'Let’s check on this.'};
   const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
   const animations = new WeakMap();
@@ -78,6 +83,7 @@
       if (created) {
         row = document.createElement('div');
         row.className = 'activity-item'; row.dataset.url = entry.url;
+        row.dataset.workingTitle = workingTitles[Math.floor(Math.random() * workingTitles.length)];
         const body = make('div', '', 'activity-window-body');
         const desk = make('div', '', 'activity-desk');
         desk.setAttribute('aria-hidden', 'true');
@@ -95,7 +101,7 @@
         row.append(body, footer);
       }
       row.dataset.state = entry.state; row.dataset.signature = rowSignature;
-      row.querySelector('.activity-title').textContent = goodmorningT(titles[entry.state]);
+      row.querySelector('.activity-title').textContent = goodmorningT(entry.state === 'working' ? row.dataset.workingTitle : titles[entry.state]);
       row.querySelector('.activity-detail').textContent = goodmorningT(states[entry.state]);
       row.querySelector('.activity-mode-label').textContent = goodmorningT(modes[entry.mode]);
       const link = row.querySelector('a');
