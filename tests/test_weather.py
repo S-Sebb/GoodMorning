@@ -453,6 +453,67 @@ class WeatherTests(unittest.TestCase):
         self.assertEqual(out["rain"], "no")
         self.assertNotIn("umbrella", out["advice"])
 
+    def tomorrow(self, wet=(), code=3, snow=0, temps=None):
+        data = forecast(time=["2026-10-09", "2026-10-10"], weather_code=[0, code], snowfall_sum=[0, snow])
+        data["hourly"] = hourly(wet)
+        if temps:
+            data["hourly"]["temperature_2m"] = temps
+        with patch.object(w, "http_get_json", return_value=data):
+            out = w.fetch_openmeteo("Test", 51.5, -0.12)
+        out.update(latitude=51.5, longitude=-0.12, cache_state="live", day="2026-10-10")
+        out["outlook"] = w.outlook(out, w.forecast_frame(out, None, day="2026-10-10"), "2026-10-10")
+        return out
+
+    def test_tomorrow_card_reads_its_whole_day_not_tonight(self):
+        out = self.tomorrow()  # Tonight's 21:00 rain is not tomorrow's.
+        self.assertEqual(out["outlook"], ["outlook", 10, 14, "cloud", ["dry"], None, None, [["jacket"]]])
+        self.assertEqual(w.brief(out), "Test tomorrow (2026-10-10, 06:00–24:00 Europe/London): 10..14C. Dry all day. "
+                                       "Get ready tonight: jacket or warm sweater. [Open-Meteo]")
+
+    def test_tomorrow_rain_shapes_and_umbrella(self):
+        for wet, sky, bring in (((45, 46, 47), ["from", "rain", "21:00"], ["umbrella-after", "21:00"]),
+                                (range(30, 35), ["until", "rain", "11:00"], ["umbrella"]),
+                                ((37, 38, 39), ["between", "rain", "13:00", "16:00"], ["umbrella"]),
+                                ((31, 40), ["on-off", "rain", "07:00"], ["umbrella"]),
+                                (range(24, 48), ["all", "rain"], ["umbrella"])):
+            card = self.tomorrow(wet)["outlook"]
+            self.assertEqual((card[3], card[4], card[7][-1]), ("rain", sky, bring))
+        self.assertEqual(w.outlook_text(self.tomorrow((45, 46, 47))["outlook"])["bring"],
+                         ["Jacket or warm sweater", "Umbrella if you're out after 21:00"])
+
+    def test_tomorrow_heads_up_comparison_and_clothing(self):
+        cold = [-2 + (h % 24) / 6 for h in range(48)]
+        card = self.tomorrow((30, 31), code=73, snow=1, temps=cold)["outlook"]
+        self.assertEqual(card[3:], ["snow", ["until", "snow", "08:00"], None, "snow", [["winter-coat"], ["boots"]]])
+        self.assertEqual(self.tomorrow(temps=cold)["outlook"][6], "ice")
+        hot = [20 + (h // 24) * 8 + (h % 24) / 3 for h in range(48)]
+        card = self.tomorrow(code=95, temps=hot)["outlook"]  # A storm code without a likely-wet hour is no storm.
+        self.assertEqual(card[3:], ["cloud", ["dry"], "much-warmer", "heat", [["light-clothes"]]])
+        self.assertEqual(self.tomorrow((40,), code=95, temps=hot)["outlook"][6], "storm")
+        cooler = [16 - (h // 24) * 4 + (h % 24) / 4 for h in range(48)]
+        self.assertEqual(self.tomorrow(temps=cooler, wet=(30,))["outlook"][5:], ["cooler", None, [["light-jacket"], ["umbrella"]]])
+        wet_cold = [2 + (h % 24) / 4 for h in range(48)]
+        self.assertEqual(self.tomorrow((30,), temps=wet_cold)["outlook"][7], [["warm-coat"], ["umbrella"], ["waterproof-shoes"]])
+
+    def test_tomorrow_read_carries_only_its_card_and_fails_beyond_the_forecast(self):
+        def provider(url, **kwargs):
+            if "geocoding" in url or "air-quality" in url or "waqi" in url:
+                return self.provider(url)
+            data = forecast(time=["2026-10-09", "2026-10-10"], weather_code=[0, 0], snowfall_sum=[0, 0])
+            data["hourly"] = hourly()
+            return data
+        os.environ["WAQI_TOKEN"] = "test-token"
+        code, text, _ = self.run_cli("--city", "Test", "--day", "2026-10-10", provider=provider)
+        self.assertEqual(code, 0)
+        self.assertIn("tomorrow (2026-10-10, 06:00–24:00 Europe/London): 10..14C. Dry all day.", text)
+        self.assertFalse(any("waqi" in url or "air-quality" in url for url in self.calls))
+        code, text, _ = self.run_cli("--city", "Test", "--day", "2026-10-10", "--json", provider=provider)
+        self.assertTrue({"rain", "advice", "condition", "aqi", "hourly"}.isdisjoint(json.loads(text)))
+        code, _, error = self.run_cli("--city", "Test", "--day", "2026-10-11", provider=provider)
+        self.assertEqual((code, error.strip()), (1, "error: no hourly forecast for 2026-10-11"))
+        with self.assertRaises(SystemExit):
+            self.run_cli("--day", "tomorrow")
+
     def test_missing_hourly_data_keeps_the_daily_judgement(self):
         with patch.object(w, "http_get_json", return_value=forecast(precipitation_probability_max=[80])):
             out = w.fetch_openmeteo("Test", 0, 0)

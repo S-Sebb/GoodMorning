@@ -8,6 +8,7 @@ from urllib.parse import urlsplit
 
 from .briefing_layout import icon, category_icon, news_visual, episode_visual, deal_visual
 from goodmorning.web import language as ui
+from goodmorning.weather import ALERT_TEXT, BRING_TEXT, COMPARE_TEXT, SKY_TEXT, outlook_text
 
 MAX_BYTES = 150_000
 TITLES = {'weather': 'Weather', 'news': 'News', 'schedule': 'Schedule',
@@ -274,8 +275,10 @@ def sources(value, path):
 
 
 def block(value, path):
-    sequence(value, path, 2, 4)
+    sequence(value, path, 1, 8)
     tag = value[0]
+    if tag != 'outlook':
+        sequence(value, path, 2, 4)
     if tag in ('actions', 'events', 'decisions'):
         sequence(value, path, 2, 2)
         sequence(value[1], path + '.items', 1, 200)
@@ -442,6 +445,26 @@ def block(value, path):
                 text(row[3], here + '.label', 200)
         if order != sorted(set(order)):
             fail(path, 'weather order is temperature, precipitation, applicable warning, air; no duplicates')
+    elif tag == 'outlook':
+        # [outlook, low, high, icon, sky, compare, alert, bring]: the evening's card for tomorrow, filled by code from the weather read.
+        if len(value) == 1:
+            fail(path, 'the weather read supplies this card; if the read failed, publish one paragraph saying so instead')
+        sequence(value, path, 8, 8)
+        _, low, high, symbol, sky, compare, alert, bring = value
+        clock = lambda v: isinstance(v, str) and re.fullmatch(r'(0[6-9]|1\d|2[0-4]):00', v)
+        if (type(low) is not int or type(high) is not int or not -99 <= low <= high <= 99
+                or symbol not in ('sun', 'partly', 'cloud', 'rain', 'snow', 'storm')
+                or compare not in (None, *COMPARE_TEXT) or alert not in (None, *ALERT_TEXT)):
+            fail(path, 'invalid outlook card')
+        sequence(sky, path + '.sky', 1, 4)
+        shape = {'dry': 1, 'all': 2, 'until': 3, 'from': 3, 'on-off': 3, 'between': 4}.get(sky[0])
+        if (len(sky) != shape or (shape > 1 and sky[1] not in SKY_TEXT[sky[0]]) or not all(clock(v) for v in sky[2:])):
+            fail(path + '.sky', 'invalid outlook sky')
+        sequence(bring, path + '.bring', 1, 6)
+        for item in bring:
+            sequence(item, path + '.bring', 1, 2)
+            if item[0] not in BRING_TEXT or (len(item) == 2) != (item[0] == 'umbrella-after') or not all(clock(v) for v in item[1:]):
+                fail(path + '.bring', 'invalid outlook item')
     elif tag == 'news':
         sequence(value, path, 3, 4)
         text(value[1], path + '.category', 200)
@@ -455,7 +478,7 @@ def block(value, path):
         if len(value) == 4 and (not isinstance(value[3], str) or not re.fullmatch('[A-Z]{2}', value[3])):
             fail(path, 'country flag requires a two-letter country code')
     else:
-        fail(path, 'unknown block type; use p/list/table/agenda/tasks/weather/news/flexible/episodes/deals/holdings')
+        fail(path, 'unknown block type; use p/list/table/agenda/tasks/weather/news/flexible/episodes/deals/holdings/outlook')
 
 
 def validate(data, partial=False):
@@ -490,6 +513,8 @@ def validate(data, partial=False):
                     fail(path, 'v2 actions/events require source-linked blocks')
                 if value[0] in owner and section[0] not in owner[value[0]]:
                     fail(path, 'source-linked block has the wrong section owner')
+            if value[0] == 'outlook' and (section[0] != 'weather' or len(section[1]) != 1):
+                fail(path, 'the outlook card stands alone in the weather section; put any words in the note')
             if (value[0] == 'episodes') != (section[0] == 'anime') and value[0] != 'p':
                 fail(path, 'episodes blocks belong in the anime section, which holds only episodes and paragraphs')
             if (value[0] == 'deals') != (section[0] == 'games') and value[0] != 'p':
@@ -943,6 +968,16 @@ def render_block(value, images, briefing_date=None):
             chart = weather_chart(card, frame) if frame else ''
             cards.append(f'<div class="weather-tile {style}"><div class="weather-label">{icon(symbol)}<h3>{escaped(custom[0]) if custom else ui.ui(label)}</h3>{source}</div>{metric}<div class="weather-detail"><p>{escaped(detail)}</p></div>{chart}</div>')
         return f'<div class="weather-tiles{" charted" if frame else ""}">' + ''.join(cards) + '</div>'
+    if tag == 'outlook':
+        _, low, high, symbol, *_ = value
+        words = outlook_text(value, ui.ui)
+        compare = f'<p class="outlook-compare">{words["compare"]}</p>' if words['compare'] else ''
+        alert = f'<p class="outlook-alert">{icon("warning")}<span>{words["alert"]}</span></p>' if words['alert'] else ''
+        degrees = lambda v: f'{v:d}°'.replace('-', '−')
+        items = ''.join(f'<li>{item}</li>' for item in words['bring'])
+        return (f'<div class="outlook-card"><div class="outlook-top"><span class="outlook-icon">{icon(symbol)}</span><div>'
+                f'<p class="outlook-range">{degrees(low)}–{degrees(high)}</p><p class="outlook-sky">{words["sky"]}</p>{compare}</div></div>'
+                f'{alert}<div class="outlook-ready"><h4>{ui.ui("Get ready tonight")}</h4><ul>{items}</ul></div></div>')
     if tag == 'episodes':
         cards = []
         for _, title, local, episode, episode_title, episode_local, aired, cover in value[1]:

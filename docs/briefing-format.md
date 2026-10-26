@@ -14,7 +14,7 @@ The filename supplies date/edition; do not repeat internal IDs in visible prose.
 Each section is `[type,blocks,note?,title?]`. Omit trailing optional fields.
 Types: `schedule`, `tasks`, `attention`, `today`, `weather`, `news`. Blocks are
 nonempty. Morning defaults to Weather, News, Schedule, Tasks, Reminders in that fixed order;
-evening defaults to Today, Schedule, Tasks, Reminders. Omit empty optional
+evening defaults to Today, Weather tomorrow, Schedule, Tasks, Reminders. Omit empty optional
 sections. A material failed retrieval is unavailable, not an empty/free day.
 Override section titles for the selected language or a different news window;
 published titles must match the saved browser plan. Notes are grounded takeaways,
@@ -96,6 +96,11 @@ conflict, reread affected records; never infer progress or alter immutable secti
   `frame` is the weather read's hourly forecast; code attaches it when the
   section is published, and the page draws charts and headlines from it. Never
   write or copy it.
+- `["outlook",low,high,icon,sky,compare,alert,bring]`: the evening's Weather
+  tomorrow card, copied from the weather read's `outlook`. Publish the
+  placeholder `[["outlook"]]` alone in that section; code fills it, and the page
+  writes every fact in the website language. The note is one closing line
+  without numbers or times.
 - `["news",category,[[headline,summary,sources],...],country?]`: retain every
   selected story and all citations. Sources are nonempty `[[label,url],...]` with
   absolute HTTP(S) URLs and no credentials. Country is an optional uppercase

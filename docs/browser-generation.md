@@ -93,7 +93,7 @@ python scripts/goodmorning.py job --secretary-dir RUNTIME --job JOB publish <<'J
 JSON
 ```
 
-Order: gm Weather, News (the 24 hours before the job's as-of time), Schedule, Tasks, Reminders; gn Today, Schedule, Tasks, Reminders, then New episodes
+Order: gm Weather, News (the 24 hours before the job's as-of time), Schedule, Tasks, Reminders; gn Today, Weather tomorrow, Schedule, Tasks, Reminders, then New episodes
 when `anime_updates` is on, Game sales when `game_sales` is on and Stocks when
 `stock_report` is on (never skipped). Do not alter the
 default plan. Use code-owned blocks/pages under `docs/item-taxonomy.md`. Project/

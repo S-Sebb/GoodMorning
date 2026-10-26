@@ -12,7 +12,7 @@ for freshness, failure handling, attribution, and the JSON contract.
 
 import argparse
 from concurrent.futures import ThreadPoolExecutor
-from datetime import datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 import hashlib
 import http.client
 import json
@@ -31,6 +31,7 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 TIMEOUT = 8
 RAIN_WMO = {51, 53, 55, 56, 57, 61, 63, 65, 66, 67, 80, 81, 82, 95, 96, 97, 99}
 SNOW_WMO = {71, 73, 75, 77, 85, 86}
+STORM_WMO = {95, 96, 97, 99}
 RAIN_SIGNAL_MIN_PROB = 30
 WEATHER_TTL = 1800
 AQI_TTL = 3600
@@ -39,6 +40,29 @@ GEOCODE_TTL = 30 * 86400
 MAX_RESPONSE_BYTES = 256 * 1024
 FRAME_HOURS = 18
 WET_HOUR_PROB = 50
+# The evening's card for tomorrow. Code decides each fact; these English phrases are
+# also the page's translation keys, so the agent's read and the card say the same thing.
+SKY_TEXT = {
+    "dry": "Dry all day",
+    "all": {"rain": "Rain likely all day", "snow": "Snow likely all day"},
+    "until": {"rain": "Rain likely until about {time}", "snow": "Snow likely until about {time}"},
+    "from": {"rain": "Dry until about {time}, then rain", "snow": "Dry until about {time}, then snow"},
+    "between": {"rain": "Rain likely about {start}–{end}", "snow": "Snow likely about {start}–{end}"},
+    "on-off": {"rain": "Rain on and off from about {time}", "snow": "Snow on and off from about {time}"},
+}
+COMPARE_TEXT = {"warmer": "A bit warmer than today", "much-warmer": "Much warmer than today",
+                "cooler": "A bit cooler than today", "much-cooler": "Much cooler than today"}
+ALERT_TEXT = {"storm": "Thunderstorms possible: take care if you're outdoors.",
+              "snow": "Snow expected: allow extra time for travel.",
+              "ice": "Below freezing at times: watch for icy paths.",
+              "heat": "A hot day: drink plenty of water."}
+BRING_TEXT = {"winter-coat": "Winter coat, hat and gloves", "warm-coat": "Warm coat", "jacket": "Jacket or warm sweater",
+              "light-jacket": "Long sleeves and a light jacket", "short-sleeves": "Short sleeves",
+              "light-clothes": "Light, breathable clothes", "layers": "Layers you can take off", "umbrella": "Umbrella",
+              "umbrella-after": "Umbrella if you're out after {time}", "waterproof-shoes": "Waterproof shoes",
+              "boots": "Boots with grip"}
+CLOTHING = ((5, "winter-coat"), (10, "warm-coat"), (16, "jacket"), (22, "light-jacket"), (28, "short-sleeves"),
+            (math.inf, "light-clothes"))
 
 WMO_TEXT = {
     0: "clear", 1: "mainly clear", 2: "partly cloudy", 3: "overcast",
@@ -380,6 +404,8 @@ def fetch_openmeteo(city, lat, lon, timeout=TIMEOUT):
     if (prob is not None and not 0 <= prob <= 100) or any(v is not None and v < 0 for v in (rain_sum, showers, snow_sum)):
         raise WeatherError("invalid precipitation data")
     snow = day_code in SNOW_WMO or (snow_sum or 0) > 0
+    days = {day: [number(code), number(code) in SNOW_WMO or (number(fall) or 0) > 0] for day, code, fall in
+            zip(daily.get("time") or [], daily.get("weather_code") or [], daily.get("snowfall_sum") or [])}
     # The daily code reflects the worst hour, even trace drizzle; a low probability overrides it.
     signal = day_code in RAIN_WMO or (rain_sum or 0) + (showers or 0) > 0.2
     rain = (signal and (prob is None or prob >= RAIN_SIGNAL_MIN_PROB)
@@ -395,6 +421,7 @@ def fetch_openmeteo(city, lat, lon, timeout=TIMEOUT):
         "temp_max_c": tmax,
         "rain": "unknown" if rain is None else ("yes" if rain else "no"),
         "snow": snow,
+        "days": days,
         "precip_prob_pct": prob,
         "condition": text,
         "daily_condition": WMO_TEXT.get(day_code, "unknown"),
@@ -496,8 +523,10 @@ def validate_coordinates(lat, lon):
         raise WeatherError("provide both --lat (-90..90) and --lon (-180..180)")
 
 
-def forecast_frame(out, aqi, now=None):
+def forecast_frame(out, aqi, now=None, day=None):
     """The 18 hours a briefing charts: 06:00–24:00, or 18:00 to noon for late briefings.
+
+    A later `day` (ISO date) always covers its 06:00–24:00.
 
     `past` counts frame hours already gone when the briefing was made; summaries
     use only the hours after it. None when the provider sent no usable hours.
@@ -507,7 +536,10 @@ def forecast_frame(out, aqi, now=None):
         return None
     zone = ZoneInfo(out["timezone"])
     now = datetime.fromtimestamp(time.time() if now is None else now, zone)
-    start = now.replace(hour=18 if now.hour >= 18 else 6, minute=0, second=0, microsecond=0)
+    if day:
+        start = datetime.fromisoformat(day).replace(hour=6, tzinfo=zone)
+    else:
+        start = now.replace(hour=18 if now.hour >= 18 else 6, minute=0, second=0, microsecond=0)
     try:
         first = hourly["time"].index(start.strftime("%Y-%m-%dT%H:%M"))
     except ValueError:
@@ -544,7 +576,7 @@ def forecast_frame(out, aqi, now=None):
         "hours": [[round(t, 1), round(p), None if a is None else round(a)] for t, p, a in zip(temps, probs, air)],
         "sun": sorted(sun, key=lambda entry: entry[1]),
         "night": [span for span in night if span[1] > span[0]],
-        "snow": bool(out.get("snow")),
+        "snow": (out.get("days") or {}).get(day, [None, False])[1] if day else bool(out.get("snow")),
         "links": {
             "forecast": "https://open-meteo.com/en/docs?" + urllib.parse.urlencode({
                 "latitude": lat, "longitude": lon, "hourly": "temperature_2m,precipitation_probability",
@@ -585,10 +617,73 @@ def apply_frame(out, frame):
         out["condition"] = None
 
 
+def outlook(out, frame, day):
+    """The evening card for a later day: [outlook, low, high, icon, sky, compare, alert, bring], decided by code."""
+    clock = lambda index: f"{6 + index:02d}:00"
+    temps = [t for t, _, _ in frame["hours"]]
+    low, high = round(min(temps)), round(max(temps))
+    code = (out.get("days") or {}).get(day, [None, False])[0]
+    snow = frame["snow"]
+    wet = [p >= WET_HOUR_PROB for _, p, _ in frame["hours"]] + [False]
+    spans = [(i, wet.index(False, i)) for i in range(FRAME_HOURS) if wet[i] and (i == 0 or not wet[i - 1])]
+    kind = "snow" if snow else "rain"
+    if not spans:
+        sky = ["dry"]
+    elif len(spans) > 1:
+        sky = ["on-off", kind, clock(spans[0][0])]
+    elif spans[0] == (0, FRAME_HOURS):
+        sky = ["all", kind]
+    elif spans[0][0] == 0:
+        sky = ["until", kind, clock(spans[0][1])]
+    elif spans[0][1] == FRAME_HOURS:
+        sky = ["from", kind, clock(spans[0][0])]
+    else:
+        sky = ["between", kind, clock(spans[0][0]), clock(spans[0][1])]
+    compare = None
+    hourly, before = out.get("hourly"), (date.fromisoformat(day) - timedelta(days=1)).isoformat() + "T06:00"
+    if hourly and before in hourly["time"]:
+        today = hourly["temp"][hourly["time"].index(before):][:FRAME_HOURS]
+        if len(today) == FRAME_HOURS and None not in today:
+            change = max(temps) - max(today)
+            if abs(change) >= 3:
+                compare = ("much-" if abs(change) >= 6 else "") + ("warmer" if change > 0 else "cooler")
+    # Like a rain code, a storm code with no likely-wet hour is not a storm worth a heads-up.
+    alert = ("storm" if code in STORM_WMO and spans else "snow" if snow else "ice" if min(temps) <= 0
+             else "heat" if max(temps) >= 30 else None)
+    symbol = ("storm" if alert == "storm" else "snow" if snow and spans else "rain" if spans
+              else "sun" if code in (0, 1) else "partly" if code == 2 else "cloud")
+    bring = [[next(item for limit, item in CLOTHING if high < limit)]]
+    if high - low >= 8:
+        bring.append(["layers"])
+    if snow:
+        bring.append(["boots"])
+    elif spans:
+        bring.append(["umbrella-after", sky[2]] if sky[0] == "from" else ["umbrella"])
+        if high < 10:
+            bring.append(["waterproof-shoes"])
+    return ["outlook", low, high, symbol, sky, compare, alert, bring]
+
+
+def outlook_text(card, say=lambda words, **values: words.format(**values)):
+    """The card's phrases; `say` translates them for the page."""
+    _, _, _, _, sky, compare, alert, bring = card
+    shape = SKY_TEXT[sky[0]] if sky[0] == "dry" else SKY_TEXT[sky[0]][sky[1]]
+    times = dict(zip(("start", "end"), sky[2:])) if sky[0] == "between" else {"time": sky[2]} if len(sky) > 2 else {}
+    return {"sky": say(shape, **times), "compare": compare and say(COMPARE_TEXT[compare]),
+            "alert": alert and say(ALERT_TEXT[alert]),
+            "bring": [say(BRING_TEXT[item[0]], **({"time": item[1]} if len(item) > 1 else {})) for item in bring]}
+
+
 def brief(out):
     def fmt(value):
         return "?" if value is None else f"{value:g}"
     stale = " STALE" if out["cache_state"] == "stale" else ""
+    if out.get("outlook"):
+        card, words = out["outlook"], outlook_text(out["outlook"])
+        facts = [words["sky"]] + [words[key] for key in ("compare", "alert") if words[key]]
+        return (f"{out['city']} tomorrow ({out['day']}, 06:00–24:00 {out['timezone']}){stale}: {card[1]}..{card[2]}C. "
+                + ". ".join(fact.rstrip(".") for fact in facts) + ". Get ready tonight: "
+                + ", ".join(words["bring"]).lower() + ". [Open-Meteo]")
     probability = out.get("precip_prob_pct")
     rain = out["rain"] + (f" ({fmt(probability)}% precip)" if probability is not None else "")
     line = (f"{out['city']} {out['date']} {out['time'][11:16]} {out['timezone']}{stale}: "
@@ -657,6 +752,8 @@ def arguments(argv=None):
     ap.add_argument("--secretary-dir", help="Selected runtime; uses its profile.md and cache unless explicitly overridden")
     ap.add_argument("--aqi-source", choices=["auto", "open-meteo", "waqi", "off"], default="auto")
     ap.add_argument("--json", action="store_true")
+    ap.add_argument("--day", type=lambda value: date.fromisoformat(value).isoformat(),
+                    help="The evening card for 06:00–24:00 of a later local day (YYYY-MM-DD); no air quality")
     from .runtime_files import cache_path
     ap.add_argument("--cache-dir")
     ap.add_argument("--refresh", action="store_true", help="Fetch again; retain bounded stale fallback")
@@ -697,12 +794,12 @@ def read(a):
                              stale_limit=365 * 86400)
         lat, lon, city = location["latitude"], location["longitude"], location["city"]
     key = f"{lat},{lon}"
-    jobs = {"weather": lambda: cache.get("weather:" + key,
+    jobs = {"weather": lambda: cache.get("weather:v2:" + key,
             lambda: fetch_openmeteo(city, lat, lon, a.timeout), WEATHER_TTL, STALE_LIMIT, daily=True)}
-    if a.aqi_source in ("auto", "open-meteo"):
+    if a.aqi_source in ("auto", "open-meteo") and not a.day:
         jobs["model"] = lambda: cache.get("aqi:" + key,
             lambda: fetch_aqi_openmeteo(lat, lon, a.timeout), AQI_TTL, STALE_LIMIT, daily=True)
-    if waqi_tok and a.aqi_source in ("auto", "waqi"):
+    if waqi_tok and a.aqi_source in ("auto", "waqi") and not a.day:
         # WAQI forbids redistribution of cached/archive data. Keep station data live-only.
         jobs["station"] = lambda: fetch_aqi_waqi(lat=lat, lon=lon, token=waqi_tok, timeout=a.timeout)
     results, warnings = {}, []
@@ -739,6 +836,13 @@ def read(a):
     else:
         aqi = model or station
     out.update(aqi=aqi, aqi_source=a.aqi_source, warnings=warnings)
+    if a.day:
+        frame = forecast_frame(out, None, day=a.day)
+        if not frame:
+            raise WeatherError(f"no hourly forecast for {a.day}")
+        # Today's condition, rain and advice would contradict tomorrow's card.
+        keep = ("city", "country", "admin1", "latitude", "longitude", "timezone", "provider", "cache_state", "fetched_at", "warnings")
+        return {**{key: out[key] for key in keep if key in out}, "day": a.day, "outlook": outlook(out, frame, a.day)}
     frame = forecast_frame(out, aqi)
     if frame:
         apply_frame(out, frame)

@@ -85,9 +85,10 @@ def prepare(directory, kind, today=None, cache=None, *, task_limit=7, website_la
     result["paths"] = {"runtime": str(directory), "profile": str(Path(directory) / "profile.md"),
                        "cache": str(cache), "calendar_db": calendar,
                        "projects_registry": str(Path(directory) / "projects.json")}
+    if kind in ("gm", "gn"):
+        result["city"] = fields["city"]
     if kind == "gm":
         result["news"] = {"countries": ready["countries"], "sources": fields.get("news_sources_path") or None}
-        result["city"] = fields["city"]
     if kind == "gn":
         result["calendar_source"] = fields.get("calendar_source", "")
         result["anime"] = {"enabled": fields.get("anime_updates", "").casefold() == "true"}

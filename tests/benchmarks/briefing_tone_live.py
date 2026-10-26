@@ -16,6 +16,7 @@ import sys
 import time
 import uuid
 from urllib.parse import quote
+from zoneinfo import ZoneInfo
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT/'src'))
@@ -140,10 +141,11 @@ class CheckpointBridge(TrialBridge):
         return super().control(action, **parameters)
 
 
-def synthetic_weather(instant):
-    """Brief text and JSON from the real weather code for a dry day with past night rain, rain from 21:00 and model drizzle now."""
+def synthetic_weather(instant, later=None):
+    """Brief text and JSON from the real weather code for a dry day with past night rain, rain from 21:00 and model drizzle now.
+
+    A `later` day (tomorrow, for the evening) gets that day's card instead: dry until 21:00, then rain."""
     from unittest.mock import patch
-    from zoneinfo import ZoneInfo
     from goodmorning import weather as w
     local = instant.astimezone(ZoneInfo('Europe/London'))
     day = local.date()
@@ -163,9 +165,13 @@ def synthetic_weather(instant):
         aqi = w.fetch_aqi_openmeteo(51.51, -0.13)
         out.update(latitude=51.51, longitude=-0.13, country='GB', cache_state='live', fetched_at=instant.isoformat(),
                    aqi=aqi, aqi_source='auto', warnings=[])
-        frame = w.forecast_frame(out, aqi)
-        w.apply_frame(out, frame)
-    out.pop('hourly'); aqi.pop('hourly')
+        if later:
+            card = w.outlook(out, w.forecast_frame(out, None, day=later), later)
+            out = {key:out[key] for key in ('city','latitude','longitude','country','timezone','provider','cache_state','fetched_at','warnings')}
+            out.update(day=later, outlook=card)
+        else:
+            w.apply_frame(out, w.forecast_frame(out, aqi))
+            out.pop('hourly'); aqi.pop('hourly')
     return {'brief':w.brief(out), 'json':out}
 
 
@@ -321,7 +327,7 @@ def run_case(output, template, language, scenario, instant):
     (source/'opencode.json').write_text(json.dumps(trial_config(runtime)))
     selected = for_language(language)
     tone = {'morning-empty':'default', 'morning-weather':'default', 'morning-resume':'formal',
-            'evening-feedback':'playful', 'evening-ambiguous':'formal'}[scenario]
+            'evening-feedback':'playful', 'evening-ambiguous':'formal', 'evening-weather':'default'}[scenario]
     profile = ('city: London, GB\ntimezone: Europe/London\nnews_country: GB\n'
                'secretary_name: Nora\ncalendar_source: custom\n')
     if TONES[tone]:
@@ -333,8 +339,9 @@ def run_case(output, template, language, scenario, instant):
         'live_project_access','calendar_sync','publisher_images','news_acknowledgement')}))
     initialize(runtime)
     CalendarStore(str(runtime/'calendar.sqlite')).close()
-    if scenario == 'morning-weather':
-        reading = synthetic_weather(instant)
+    if scenario in ('morning-weather', 'evening-weather'):
+        tomorrow = (instant.astimezone(ZoneInfo('Europe/London')) + timedelta(days=1)).date().isoformat()
+        reading = synthetic_weather(instant, tomorrow if scenario == 'evening-weather' else None)
         save(runtime/'trial-weather.json', reading)
         save(folder/'weather-reading.json', reading)
     bridge = CheckpointBridge(trial_engine.Engine(source, runtime).start(), scenario == 'morning-resume', language)
@@ -365,6 +372,8 @@ def run_case(output, template, language, scenario, instant):
                            'no dates or rollover are changed.') if language == 'en' else (
                            'Atlas 报告被阻塞，正在等待数据集。约定工作日仍为明天，不更改日期，也不顺延。')
                 answer = {'completed':[grocery], 'details':details}
+            elif scenario == 'evening-weather':
+                answer = {'completed':['none'], 'details':'No other updates'}
             else:
                 answer = {'completed':['none'], 'details':'One of the reports is blocked, but I have not specified which one.'
                           if language == 'en' else '有一份报告被阻塞，但我还没有说明是哪一份。'}
@@ -434,6 +443,16 @@ def run_case(output, template, language, scenario, instant):
                     assert not any(entry['argv'][:1] == ['weather'] for entry in log)
                     assert not any(job_action(entry['argv']) == 'init' for entry in log)
                     result['checks'].append('Existing checkpoint resumed without reinit, rewriting or refetching its section')
+            elif scenario == 'evening-weather':
+                assert records(runtime) == baseline, 'Evening without updates changed task records'
+                assert [section[0] for section in document['sections']][:3] == ['today','weather','schedule']
+                section = document['sections'][1]
+                assert section[1] == [reading['json']['outlook']], 'The section is not exactly the code-filled card'
+                assert section[3:] == [default_plan(prepared)[1][1]], 'Weather tomorrow lost its planned title'
+                assert section[2:3] and section[2].strip() and '\n' not in section[2], 'No one-line closing note'
+                assert not re.search(r'\d', section[2]), 'The note repeated numbers or times the card already shows'
+                result['weather_note'] = section[2]
+                result['checks'].append('Weather tomorrow follows Today as the code-filled card with a one-line note')
             else:
                 current = records(runtime)
                 atlas = next(task for task in current if task['id'] == baseline[0]['id'])
@@ -441,7 +460,7 @@ def run_case(output, template, language, scenario, instant):
                 assert atlas['status'] == 'blocked' and atlas['planned_date'] == baseline[0]['planned_date']
                 assert atlas['revision'] == baseline[0]['revision'] + 1, 'Clear blocker report was rewritten after reconciliation'
                 assert groceries['status'] == 'done' and len(current) == len(baseline)
-                assert not any(entry['argv'][:1] in (['weather'], ['news']) for entry in log)
+                assert not any(entry['argv'][:1] == ['news'] for entry in log)
                 result['checks'].append('Exact selected completion and explicit blocker applied without changing future workday')
                 before = (runtime/'inbox.sqlite').read_bytes()
                 feedback = (runtime/'daily'/(day+'.md')).read_text().split('## feedback',1)[1]
@@ -539,6 +558,10 @@ def answer_question(app, job, forms, language):
             else:
                 raise AssertionError('Unsupported synthetic question; inspect it instead of guessing approval')
         app.reply(job, 'form', form['id'], {'answer':values})
+
+
+CASES = ('morning-empty', 'morning-resume', 'evening-feedback', 'evening-ambiguous')
+FLEXIBLE_CASES = ('morning-vague', 'evening-complex')
 
 
 def run_flexible_case(output, template, language, scenario, instant):
@@ -644,7 +667,8 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     trial_engine.add_arguments(parser)
     parser.add_argument('--language', choices=('en','zh-CN'), required=True)
-    parser.add_argument('--weather', action='store_true', help='Only the morning case with a synthetic weather reading')
+    parser.add_argument('--only', nargs='+', choices=CASES + FLEXIBLE_CASES + ('morning-weather', 'evening-weather'),
+                        help='Run only these scenarios; the weather cases run only when named')
     args = parser.parse_args()
     output = trial_engine.private_output(parser, args.output)
     with matrix_lock(output):
@@ -656,13 +680,8 @@ def main():
             {'action':'websearch','resource':'*','effect':'deny'}]}))
         (source/'scripts/goodmorning.py').write_text(TRIAL_CLI)
         instant = datetime.now(timezone.utc)
-        if args.weather:
-            results = [run_case(output, source, args.language, 'morning-weather', instant)]
-        else:
-            results = [run_case(output, source, args.language, scenario, instant) for scenario in (
-                'morning-empty','morning-resume','evening-feedback','evening-ambiguous')]
-            results += [run_flexible_case(output, source, args.language, scenario, instant)
-                        for scenario in ('morning-vague','evening-complex')]
+        results = [(run_flexible_case if scenario in FLEXIBLE_CASES else run_case)(output, source, args.language, scenario, instant)
+                   for scenario in args.only or CASES + FLEXIBLE_CASES]
         save(output/'matrix.json', {'cases':results, 'limitations':[
             'Real native models and browser job/controller helpers; no public HTTPS/encrypted account test.',
             'Provider faults and prepublished checkpoint are synthetic; no real weather/news provider validation.',

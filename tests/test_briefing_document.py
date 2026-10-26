@@ -225,6 +225,31 @@ class DocumentTests(unittest.TestCase):
                 'links': {'forecast': 'https://open-meteo.com/en/docs?latitude=1#api_response',
                           'air': 'https://open-meteo.com/en/docs/air-quality-api?latitude=1#api_response'}}
 
+    def test_evening_outlook_card_is_worded_by_the_page_in_its_language(self):
+        card = ['outlook', -2, 9, 'rain', ['from', 'rain', '21:00'], 'much-cooler', 'ice',
+                [['warm-coat'], ['layers'], ['umbrella-after', '21:00'], ['waterproof-shoes']]]
+        doc = {'v': 2, 'greeting': 'Evening.', 'opening': 'Tomorrow.',
+               'sections': [['weather', [card], 'Hang your coat by the door.', 'Weather tomorrow']]}
+        self.assertEqual(native.parse(native.encode(doc)), doc)
+        from goodmorning.web import language as ui
+        for language, words in (('en', ('−2°–9°', 'Dry until about 21:00, then rain', 'Much cooler than today',
+                                        'watch for icy paths', 'Get ready tonight', 'Umbrella if you&#x27;re out after 21:00')),
+                                ('zh-CN', ('大约 21:00 前无雨，之后可能下雨', '比今天凉不少', '小心路面结冰', '今晚先备好', '21:00 后还出门就带伞'))):
+            token = ui.CURRENT.set(language)
+            try:
+                page = web.edition(doc, DATE, 'gn', {'gn': True})
+            finally:
+                ui.CURRENT.reset(token)
+            for value in words:
+                self.assertIn(value, page)
+            self.assertIn('Hang your coat by the door.', page)
+        for broken, reason in ((['outlook'], 'weather read supplies'), (card[:7] + [[['umbrella-after']]], 'invalid outlook item'),
+                               (card[:4] + [['from', 'rain', '25:00']] + card[5:], 'invalid outlook sky')):
+            with self.assertRaisesRegex(ValueError, reason):
+                native.validate({**doc, 'sections': [['weather', [broken]]]})
+        with self.assertRaisesRegex(ValueError, 'stands alone'):
+            native.validate({**doc, 'sections': [['weather', [card, ['p', 'Also rainy.']]]]})
+
     def test_weather_frame_charts_the_hours_ahead_with_sources(self):
         doc = document()
         weather = doc['sections'][0][1][0]

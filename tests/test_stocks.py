@@ -237,24 +237,25 @@ class EveningSectionTests(unittest.TestCase):
         plan = json.loads((self.root / 'browser-jobs' / ('c' * 32 + '.preview.json')).read_text())['plan']
         self.assertEqual(plan[-1], ['stocks', 'Stocks'])
         self.step('publish', {'position': 0, 'section': ['today', [['p', 'You shared no updates.']]]})
-        self.step('publish', {'position': 1, 'section': ['schedule', [['p', 'No saved appointments tomorrow.']]]})
-        self.step('skip', {'position': 2})
-        result = self.step('skip', {'position': 3})
+        self.step('publish', {'position': 1, 'section': ['weather', [['p', 'Tomorrow’s weather is unavailable.']], '', 'Weather tomorrow']})
+        self.step('publish', {'position': 2, 'section': ['schedule', [['p', 'No saved appointments tomorrow.']]]})
+        self.step('skip', {'position': 3})
+        result = self.step('skip', {'position': 4})
         self.assertEqual(result['next']['section'], ['stocks', 'Stocks'])
         read = result['next']['results'][0]
         self.assertEqual(read['exit'], 0)
         block = read['output']['block']
         self.assertEqual([row[2] for row in block[1]], [DAY, '2026-10-16'])
         with self.assertRaisesRegex(ValueError, 'do not skip'):
-            self.step('skip', {'position': 4})
+            self.step('skip', {'position': 5})
         edited = ['holdings', [block[1][0][:4] + [9999.0] + block[1][0][5:], block[1][1]]]
         with self.assertRaisesRegex(ValueError, 'copied unchanged'):
-            self.step('publish', {'position': 4, 'section': ['stocks', [edited], 'Up!']})
+            self.step('publish', {'position': 5, 'section': ['stocks', [edited], 'Up!']})
         # New York's Sunday never traded; dropping that fact would present Friday's move as news.
         self.assertEqual(block[2], {'USD': {'closed': '2026-10-18', 'next': DAY}})
         with self.assertRaisesRegex(ValueError, 'closed-market'):
-            self.step('publish', {'position': 4, 'section': ['stocks', [block[:2]], 'Up!']})
-        self.step('publish', {'position': 4, 'section': ['stocks', [block], 'A-shares dipped a little; Apple rose on Friday.']})
+            self.step('publish', {'position': 5, 'section': ['stocks', [block[:2]], 'Up!']})
+        self.step('publish', {'position': 5, 'section': ['stocks', [block], 'A-shares dipped a little; Apple rose on Friday.']})
         self.assertEqual(self.step('finish', {})['saved'], True)
 
     def test_section_is_absent_unless_turned_on(self):
