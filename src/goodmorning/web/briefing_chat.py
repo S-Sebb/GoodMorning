@@ -577,11 +577,14 @@ class Chats:
                         if turn:
                             attachments = [dict(attachment) for attachment in turn.get('attachments', [])]
                             for attachment in attachments:
-                                if 'mime' in attachment:
-                                    continue
                                 try:
                                     mime = self.uploads.get(attachment['id']).get('mime')
-                                except (ValueError, OSError):
+                                except ValueError:
+                                    # Expired after 30 days; the chat keeps its name and size.
+                                    attachment.pop('mime', None)
+                                    attachment['removed'] = True
+                                    continue
+                                except OSError:
                                     continue
                                 if mime:
                                     attachment['mime'] = mime
@@ -719,7 +722,7 @@ def page(csrf, ready, connected, secretary_name=None, avatar='f1', avatar_urls=N
                '<li><strong>Change your preferences</strong> <em>“I moved to Leeds”</em></li></ul>'
               '<p>When it’s unclear whether you want something saved or done, your secretary asks first. Saving never starts the work, and changes that need your approval are confirmed first.</p></div>'
               '<p>Returning from another website tab resumes your conversation. After 15 minutes away, settled conversations open as a fresh draft; your history is preserved.</p>'
-              '<p>Write naturally; no commands are needed. Enter sends your message; Shift+Enter adds a new line. Use the paperclip, paste images, or drag files into the composer to attach them. Click an image preview to enlarge it.</p></div>'
+              '<p>Write naturally; no commands are needed. Enter sends your message; Shift+Enter adds a new line. Use the paperclip, paste images, or drag files into the composer to attach them. Click an image preview to enlarge it. Attached files are kept for 30 days, then removed; the chat keeps their names.</p></div>'
              '<div id="chat-scroll" role="region" aria-label="Conversation" tabindex="0">'
              '<div id="chat-empty"><span class="desk-symbol" aria-hidden="true">✦</span>'
             '<h2 id="chat-welcome"></h2><p id="chat-hint"></p>'
@@ -737,7 +740,7 @@ def page(csrf, ready, connected, secretary_name=None, avatar='f1', avatar_urls=N
             '<button type="submit" id="chat-send" disabled><span class="chat-send-label chat-visually-hidden">Send message</span>'
             '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" aria-hidden="true"><path d="m4 5 16 7-16 7 3-7-3-7Zm3 7h13" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button></div>'
             '<input id="chat-files" type="file" multiple hidden><div id="chat-attachments" aria-live="polite"></div>'
-             '<span id="upload-note" class="chat-visually-hidden">Up to 50 MB per file. You can also paste images or drag files into this box.</span>'
+             '<span id="upload-note" class="chat-visually-hidden">Up to 50 MB per file. You can also paste images or drag files into this box. Attached files are kept for 30 days, then removed; the chat keeps their names.</span>'
              '</form><p id="chat-error" role="alert"></p>'
             '<noscript>Enable JavaScript to talk with your secretary. Saved briefings remain readable.</noscript></section></main>'
             '<div id="chat-config" hidden data-config="'+config+'"></div>'

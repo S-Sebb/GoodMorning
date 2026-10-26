@@ -3,12 +3,16 @@ import hashlib
 import json
 import os
 import re
+import shutil
 import threading
+import time
 from urllib.parse import parse_qs, quote
 
 from goodmorning.runtime_files import atomic_text
 
 MAX_UPLOAD_BYTES = 50 * 1024 * 1024
+RETENTION_SECONDS = 30 * 24 * 60 * 60
+EXPIRY_INTERVAL = 60 * 60
 UPLOAD_ROUTE = re.compile(r'/api/chat-uploads/([a-f0-9]{32})')
 IMAGE_ROUTE = re.compile(r'/api/chat-uploads/([a-f0-9]{32})/image')
 
@@ -36,6 +40,16 @@ def upload_name(query):
             or any(ord(char) < 32 or ord(char) == 127 or char in '/\\' for char in name)):
         raise ValueError('Invalid upload name')
     return name
+
+
+def expire_forever(uploads, interval=EXPIRY_INTERVAL):
+    """Run in each account's own backend, so cleanup only ever sees that account's runtime."""
+    while True:
+        try:
+            uploads.expire()
+        except Exception:
+            pass  # Background cleanup must never stop serving; the next run retries.
+        time.sleep(interval)
 
 
 def attachment_ids(body):
@@ -142,3 +156,17 @@ class Uploads:
                 directory.rmdir()
                 raise
             return self.get(identifier)
+
+    def expire(self, now=None):
+        """Delete uploads older than 30 days. Chats keep their names and sizes, and the
+        engine's session history keeps its own copy of each sent file."""
+        cutoff = (time.time() if now is None else now) - RETENTION_SECONDS
+        with self.lock:
+            if self.directory.is_symlink():
+                raise ValueError('Unsafe upload storage')
+            for directory in self.directory.iterdir():
+                # An upload's directory changes last when its metadata lands, so its
+                # mtime is when the upload finished (or, if abandoned, when it began).
+                if (re.fullmatch('[a-f0-9]{32}', directory.name) and not directory.is_symlink()
+                        and directory.is_dir() and directory.lstat().st_mtime < cutoff):
+                    shutil.rmtree(directory)

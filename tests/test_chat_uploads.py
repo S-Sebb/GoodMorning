@@ -3,10 +3,12 @@ from http.server import ThreadingHTTPServer
 import io
 import itertools
 import json
+import os
 from pathlib import Path
 import sys
 import tempfile
 import threading
+import time
 import unittest
 from unittest.mock import patch
 from urllib.error import HTTPError
@@ -15,7 +17,7 @@ from urllib.request import Request
 
 from support import TEMP_ROOT, GatewayFixture, MockChamber, ImmediateThread
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'src'))
-from goodmorning.web.chat_uploads import Uploads, MAX_UPLOAD_BYTES, UploadReader, upload_name
+from goodmorning.web.chat_uploads import Uploads, MAX_UPLOAD_BYTES, RETENTION_SECONDS, UploadReader, upload_name
 from goodmorning.web.briefing_chat import Chats, NEW_MODES
 from goodmorning.web.briefing_server import BrowserApp, serve_live
 from goodmorning.web.bridge_json import read_json
@@ -181,6 +183,41 @@ class UploadTests(unittest.TestCase):
         self.assertEqual(messages[-4]['attachments'][0]['name'], 'second.txt')
         self.assertEqual(messages[-2]['attachments'][0]['name'], '资料 <img>.txt')
         self.assertEqual(Chats(self.root, chamber).status(chat)['state'], 'idle')
+
+    def test_uploads_expire_after_30_days_and_chats_show_them_as_removed(self):
+        image = 'a' * 32
+        self.upload(name='photo.png', data=b'\x89PNG\r\n\x1a\nSynthetic', identifier=image)
+        self.upload(name='fresh.txt', data=b'Fresh', identifier='b' * 32)
+        chats, chamber = self.chats()
+        chat = 'c' * 32
+        chats.start({'id': chat, 'mode': 'secretary', 'text': 'Look', 'attachments': [image, 'b' * 32]})
+        sent = chamber.replies[-1][1]['files']
+        abandoned = self.uploads.directory / ('d' * 32)
+        abandoned.mkdir()  # an upload interrupted before its metadata landed
+        unrelated = self.uploads.directory / 'notes'
+        unrelated.mkdir()
+        outside = self.root / 'outside'
+        outside.mkdir()
+        (outside / 'keep.txt').write_text('Synthetic')
+        link = self.uploads.directory / ('e' * 32)
+        link.symlink_to(outside)
+        old = time.time() - RETENTION_SECONDS - 60
+        for path in (self.uploads.directory / image, abandoned, unrelated):
+            os.utime(path, (old, old))
+        os.utime(link, (old, old), follow_symlinks=False)
+        self.uploads.expire()
+        self.assertEqual(sorted(path.name for path in self.uploads.directory.iterdir()),
+                         ['b' * 32, 'e' * 32, 'notes'])
+        self.assertTrue((outside / 'keep.txt').exists())
+        removed, kept = chats.status(chat)['messages'][0]['attachments']
+        self.assertEqual(removed, {'id': image, 'name': 'photo.png', 'size': 17, 'removed': True})
+        self.assertEqual(kept, {'id': 'b' * 32, 'name': 'fresh.txt', 'size': 5})
+        with self.assertRaises(ValueError):
+            self.uploads.image(image)
+        # The engine stored its own copy when the message was sent; a follow-up still works.
+        chats.send(chat, {'id': 'f' * 32, 'text': 'And now?'})
+        self.assertEqual(chats.status(chat)['state'], 'idle')
+        self.assertEqual(len(sent), 2)
 
     def test_attachment_followup_refreshes_an_old_release_without_losing_files(self):
         self.upload()
