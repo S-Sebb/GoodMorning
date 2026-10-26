@@ -163,9 +163,10 @@ class EveningSectionTests(unittest.TestCase):
         plan = json.loads((self.root / 'browser-jobs' / ('c' * 32 + '.preview.json')).read_text())['plan']
         self.assertEqual(plan[-1], ['games', 'Game sales'])
         self.step('publish', {'position': 0, 'section': ['today', [['p', 'You shared no updates.']]]})
-        self.step('publish', {'position': 1, 'section': ['schedule', [['p', 'No saved appointments tomorrow.']]]})
-        self.step('skip', {'position': 2})
-        result = self.step('skip', {'position': 3})
+        self.step('publish', {'position': 1, 'section': ['weather', [['p', 'Tomorrow’s weather is unavailable.']], '', 'Weather tomorrow']})
+        self.step('publish', {'position': 2, 'section': ['schedule', [['p', 'No saved appointments tomorrow.']]]})
+        self.step('skip', {'position': 3})
+        result = self.step('skip', {'position': 4})
         self.assertEqual(result['next']['section'], ['games', 'Game sales'])
         read = result['next']['results'][0]
         self.assertEqual(read['exit'], 0)
@@ -173,12 +174,12 @@ class EveningSectionTests(unittest.TestCase):
         self.assertEqual([row[2] for row in block[1]], [80, 67])
         self.assertIn('lively', result['next']['guide'])
         with self.assertRaisesRegex(ValueError, 'do not skip'):
-            self.step('skip', {'position': 4})
+            self.step('skip', {'position': 5})
         edited = ['deals', [block[1][0][:3] + ['£1.00'] + block[1][0][4:]]]
         with self.assertRaisesRegex(ValueError, 'copied unchanged'):
-            self.step('publish', {'position': 4, 'section': ['games', [edited], 'Bargains!']})
+            self.step('publish', {'position': 5, 'section': ['games', [edited], 'Bargains!']})
         with patch('goodmorning.briefings.briefing_images.cache_previews', return_value={}) as covers:
-            self.step('publish', {'position': 4, 'section': ['games', [block], 'Two hunts on sale tonight!']})
+            self.step('publish', {'position': 5, 'section': ['games', [block], 'Two hunts on sale tonight!']})
         self.assertTrue(covers.call_args.kwargs['direct'])
         self.assertEqual(self.step('finish', {})['saved'], True)
 

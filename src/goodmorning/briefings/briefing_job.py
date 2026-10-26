@@ -114,7 +114,8 @@ def next_step(runtime, identifier, session, context, checkpoint):
     selected = context['paths']
     if tag == 'weather':
         reads.append(shlex.join(['python','scripts/goodmorning.py','weather','--secretary-dir',str(runtime),
-                                '--city',context['city'],'--cache-dir',selected['cache']]))
+                                '--city',context['city'],'--cache-dir',selected['cache']]
+                                + (['--day',context['tomorrow']] if context['workflow'] == 'gn' else [])))
     elif tag == 'news':
         for country in context['news']['countries']:
             read = ['python','scripts/goodmorning.py','news','--country',country,

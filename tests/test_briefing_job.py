@@ -11,7 +11,7 @@ from unittest.mock import patch
 
 from support import TEMP_ROOT, FakeChamber, complete_profile
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'src'))
-from goodmorning.briefings.briefing_job import act, context_path, decode_input, next_step
+from goodmorning.briefings.briefing_job import act, context_path, decode_input, default_plan, next_step
 from goodmorning.briefings import briefing_guides
 from goodmorning.briefings.briefing_preflight import answer, initialize
 from goodmorning.web.briefing_server import BrowserApp
@@ -94,6 +94,23 @@ class JobTests(unittest.TestCase):
         self.assertEqual(result['next']['section'],['news','News — as of 07:30'])
         self.assertIn('--latest --as-of 2026-10-11T07:30:00+01:00',result['next']['read'][0])
         self.assertNotIn('calendar',str(result['next']))
+
+    def test_evening_forecasts_tomorrow_right_after_today(self):
+        context = {'workflow':'gn','document_version':2,'date':'2026-10-11','tomorrow':'2026-10-12','city':'London, GB',
+                   'timezone':'Europe/London','paths':{'cache':str(self.root/'cache')}}
+        for language, title, words in (('en','Weather tomorrow','TOMORROW'), ('zh-CN','明日天气','【明天】')):
+            context['website_language'] = language
+            plan = default_plan(context)
+            self.assertEqual([tag for tag, _ in plan], ['today','weather','schedule','tasks','attention'])
+            self.assertEqual(plan[1][1], title)
+            action = next_step(self.root, self.identifier, 'ses_fixture', context, {'plan':plan,'outcomes':['ready']})
+            self.assertTrue(action['read'][0].endswith('--day 2026-10-12'))
+            guide = briefing_guides.guide(context, action, plan, runtime=self.root, job=self.identifier, session='ses_fixture')
+            self.assertIn(words, guide)
+        morning = {**context, 'workflow':'gm', 'news':{'countries':[],'as_of':'2026-10-11T07:30:00+01:00'}}
+        action = next_step(self.root, self.identifier, 'ses_fixture', morning, {'plan':[['weather','Weather']],'outcomes':[]})
+        self.assertNotIn('--day', action['read'][0])
+        self.assertNotIn('TOMORROW', briefing_guides.guide(morning, action, [], runtime=self.root, job=self.identifier, session='ses_fixture'))
 
     def test_weather_read_frame_is_attached_by_code_when_publishing(self):
         frame = {'start':'2026-10-11T06:00','past':6,'hours':[[12,5,30]]*18,'sun':[['sunrise',1.2]],'night':[[0,1.2]],'snow':False,

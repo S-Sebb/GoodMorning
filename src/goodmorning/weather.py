@@ -12,7 +12,7 @@ for freshness, failure handling, attribution, and the JSON contract.
 
 import argparse
 from concurrent.futures import ThreadPoolExecutor
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 import hashlib
 import http.client
 import json
@@ -39,6 +39,9 @@ GEOCODE_TTL = 30 * 86400
 MAX_RESPONSE_BYTES = 256 * 1024
 FRAME_HOURS = 18
 WET_HOUR_PROB = 50
+CLOTHING = ((5, "cold all day, wear a winter coat, hat and gloves"), (10, "cold, wear a warm coat"),
+            (16, "cool, wear a jacket or warm sweater"), (22, "mild, wear long sleeves and a light jacket"),
+            (28, "warm, short sleeves are fine"), (math.inf, "hot, wear light breathable clothes and drink water"))
 
 WMO_TEXT = {
     0: "clear", 1: "mainly clear", 2: "partly cloudy", 3: "overcast",
@@ -232,9 +235,14 @@ def find_profile(explicit):
     return str(Path(explicit).expanduser().resolve() if explicit else secretary_path() / "profile.md")
 
 
+def umbrella(rain, rain_from=None):
+    if rain is None:
+        return ["rain forecast unavailable"]
+    return [f"umbrella for after {rain_from}" if rain_from else "take umbrella"] if rain else []
+
+
 def build_advice(temp_c, rain, snow=False, rain_from=None):
-    umbrella = f"umbrella for after {rain_from}" if rain_from else "take umbrella"
-    bits = [umbrella] if rain else (["rain forecast unavailable"] if rain is None else [])
+    bits = umbrella(rain, rain_from)
     if snow:
         bits.append("snow, wear boots")
     elif rain and temp_c is not None and temp_c < 10:
@@ -248,6 +256,19 @@ def build_advice(temp_c, rain, snow=False, rain_from=None):
     elif temp_c > 28:
         bits.append("hot, stay cool")
     return "; ".join(bits) + "." if bits else ""
+
+
+def day_advice(low, high, rain, snow=False, rain_from=None):
+    """What to wear all of a later day: bands by its high, layers when it starts much colder."""
+    bits = umbrella(rain, rain_from)
+    if snow:
+        bits.append("snow, wear boots with grip")
+    elif rain and high < 10:
+        bits.append("wet and cold, wear waterproof shoes")
+    bits.append(next(words for limit, words in CLOTHING if high < limit))
+    if high - low >= 8:
+        bits.append(f"dress in layers for {round(low)}–{round(high)}C")
+    return "; ".join(bits) + "."
 
 
 def aqi_level(us_aqi):
@@ -380,6 +401,8 @@ def fetch_openmeteo(city, lat, lon, timeout=TIMEOUT):
     if (prob is not None and not 0 <= prob <= 100) or any(v is not None and v < 0 for v in (rain_sum, showers, snow_sum)):
         raise WeatherError("invalid precipitation data")
     snow = day_code in SNOW_WMO or (snow_sum or 0) > 0
+    snow_days = [day for day, code, fall in zip(daily.get("time") or [], daily.get("weather_code") or [], daily.get("snowfall_sum") or [])
+                 if number(code) in SNOW_WMO or (number(fall) or 0) > 0]
     # The daily code reflects the worst hour, even trace drizzle; a low probability overrides it.
     signal = day_code in RAIN_WMO or (rain_sum or 0) + (showers or 0) > 0.2
     rain = (signal and (prob is None or prob >= RAIN_SIGNAL_MIN_PROB)
@@ -395,6 +418,7 @@ def fetch_openmeteo(city, lat, lon, timeout=TIMEOUT):
         "temp_max_c": tmax,
         "rain": "unknown" if rain is None else ("yes" if rain else "no"),
         "snow": snow,
+        "snow_days": snow_days,
         "precip_prob_pct": prob,
         "condition": text,
         "daily_condition": WMO_TEXT.get(day_code, "unknown"),
@@ -496,8 +520,10 @@ def validate_coordinates(lat, lon):
         raise WeatherError("provide both --lat (-90..90) and --lon (-180..180)")
 
 
-def forecast_frame(out, aqi, now=None):
+def forecast_frame(out, aqi, now=None, day=None):
     """The 18 hours a briefing charts: 06:00–24:00, or 18:00 to noon for late briefings.
+
+    A later `day` (ISO date) always charts its 06:00–24:00.
 
     `past` counts frame hours already gone when the briefing was made; summaries
     use only the hours after it. None when the provider sent no usable hours.
@@ -507,7 +533,10 @@ def forecast_frame(out, aqi, now=None):
         return None
     zone = ZoneInfo(out["timezone"])
     now = datetime.fromtimestamp(time.time() if now is None else now, zone)
-    start = now.replace(hour=18 if now.hour >= 18 else 6, minute=0, second=0, microsecond=0)
+    if day:
+        start = datetime.fromisoformat(day).replace(hour=6, tzinfo=zone)
+    else:
+        start = now.replace(hour=18 if now.hour >= 18 else 6, minute=0, second=0, microsecond=0)
     try:
         first = hourly["time"].index(start.strftime("%Y-%m-%dT%H:%M"))
     except ValueError:
@@ -544,7 +573,7 @@ def forecast_frame(out, aqi, now=None):
         "hours": [[round(t, 1), round(p), None if a is None else round(a)] for t, p, a in zip(temps, probs, air)],
         "sun": sorted(sun, key=lambda entry: entry[1]),
         "night": [span for span in night if span[1] > span[0]],
-        "snow": bool(out.get("snow")),
+        "snow": day in out.get("snow_days", ()) if day else bool(out.get("snow")),
         "links": {
             "forecast": "https://open-meteo.com/en/docs?" + urllib.parse.urlencode({
                 "latitude": lat, "longitude": lon, "hourly": "temperature_2m,precipitation_probability",
@@ -573,13 +602,19 @@ def frame_ahead(frame):
     }
 
 
-def apply_frame(out, frame):
+def apply_frame(out, frame, day=None):
     """Judge rain and advice from the hours ahead, not hours that already passed."""
     ahead = frame_ahead(frame)
-    rain = ahead["rain_from"] is not None and not out.get("snow")
+    rain = ahead["rain_from"] is not None and not frame["snow"]
     later = ahead["rain_from"] if rain and ahead["rain_from"] != ahead["from"] else None
-    out.update(frame=frame, ahead=ahead, rain="yes" if rain else "no", precip_prob_pct=ahead["rain_peak_pct"],
-               advice=build_advice(out["temp_c"], rain, snow=out.get("snow"), rain_from=later))
+    out.update(frame=frame, ahead=ahead, rain="yes" if rain else "no", precip_prob_pct=ahead["rain_peak_pct"])
+    if day:
+        # Current conditions do not describe a later day; its own hours give the range and clothing.
+        out.update(day=day, snow=frame["snow"], condition=None, temp_c=None,
+                   temp_min_c=ahead["temp_min_c"], temp_max_c=ahead["temp_max_c"],
+                   advice=day_advice(ahead["temp_min_c"], ahead["temp_max_c"], rain, snow=frame["snow"], rain_from=later))
+        return
+    out["advice"] = build_advice(out["temp_c"], rain, snow=out.get("snow"), rain_from=later)
     # The current code can show model drizzle in an hour the frame calls dry; the hours ahead are the one precipitation source.
     if ahead["rain_from"] != ahead["from"] and out["condition"] in PRECIP_TEXT:
         out["condition"] = None
@@ -594,23 +629,34 @@ def brief(out):
     line = (f"{out['city']} {out['date']} {out['time'][11:16]} {out['timezone']}{stale}: "
             f"{out['condition']}, {fmt(out['temp_c'])}C "
             f"({fmt(out['temp_min_c'])}..{fmt(out['temp_max_c'])}C); rain {rain}.")
-    ahead = out.get("ahead")
+    ahead, day = out.get("ahead"), out.get("day")
     if ahead:
+        kind = "snow" if out.get("snow") else "rain"
         if ahead["rain_from"] is None:
             wet = "dry"
         elif ahead["rain_from"] == ahead["from"]:
-            wet = "rain likely now" + (f", easing by {ahead['rain_until']}" if ahead["rain_until"] != ahead["until"] else "")
+            wet = (f"{kind} likely " + (f"from {ahead['from']}" if day else "now")
+                   + (f", easing by {ahead['rain_until']}" if ahead["rain_until"] != ahead["until"] else ""))
         else:
-            wet = f"dry until {ahead['rain_from']}, then rain likely"
-        line = (f"{out['city']} {out['date']} {out['time'][11:16]} {out['timezone']}{stale}: "
-                f"{out['condition'] + ', ' if out['condition'] else ''}{fmt(out['temp_c'])}C; {ahead['from']}–{ahead['until']}: "
-                f"{fmt(ahead['temp_min_c'])}..{fmt(ahead['temp_max_c'])}C, {wet} "
+            wet = f"dry until {ahead['rain_from']}, then {kind} likely"
+        head = (f"forecast for {day} {ahead['from']}–{ahead['until']} {out['timezone']}{stale}:" if day else
+                f"{out['date']} {out['time'][11:16]} {out['timezone']}{stale}: "
+                f"{out['condition'] + ', ' if out['condition'] else ''}{fmt(out['temp_c'])}C; {ahead['from']}–{ahead['until']}:")
+        line = (f"{out['city']} {head} {fmt(ahead['temp_min_c'])}..{fmt(ahead['temp_max_c'])}C, {wet} "
                 f"(rain chance up to {fmt(ahead['rain_peak_pct'])}%).")
     if out["advice"]:
         line += " " + out["advice"]
     lines = [line + " [Open-Meteo]"]
     aqi = out.get("aqi")
-    if aqi and aqi.get("us_aqi") is not None:
+    air = [a for _, _, a in out["frame"]["hours"]] if day else None
+    if air and None not in air:
+        # A later day has no current reading or station; only the model's hourly forecast covers it.
+        advice, span = aqi_advice(max(air)), fmt(max(air)) if min(air) == max(air) else f"{fmt(min(air))}–{fmt(max(air))}"
+        lines.append(f"AQI US forecast {span}, at worst {aqi_level(max(air))} [Open-Meteo/CAMS model]"
+                     + (". " + advice if advice else ""))
+    elif day and out["aqi_source"] != "off":
+        lines.append("AQI forecast unavailable.")
+    elif aqi and aqi.get("us_aqi") is not None:
         is_model = aqi["source"] == "open-meteo/cams-model"
         source = "Open-Meteo/CAMS model" if is_model else "WAQI station"
         stamp = aqi["time"][11:16] if is_model else aqi["time"]
@@ -657,6 +703,8 @@ def arguments(argv=None):
     ap.add_argument("--secretary-dir", help="Selected runtime; uses its profile.md and cache unless explicitly overridden")
     ap.add_argument("--aqi-source", choices=["auto", "open-meteo", "waqi", "off"], default="auto")
     ap.add_argument("--json", action="store_true")
+    ap.add_argument("--day", type=lambda value: date.fromisoformat(value).isoformat(),
+                    help="Forecast 06:00–24:00 of a later local day (YYYY-MM-DD) instead of the hours ahead")
     from .runtime_files import cache_path
     ap.add_argument("--cache-dir")
     ap.add_argument("--refresh", action="store_true", help="Fetch again; retain bounded stale fallback")
@@ -697,12 +745,12 @@ def read(a):
                              stale_limit=365 * 86400)
         lat, lon, city = location["latitude"], location["longitude"], location["city"]
     key = f"{lat},{lon}"
-    jobs = {"weather": lambda: cache.get("weather:" + key,
+    jobs = {"weather": lambda: cache.get("weather:v2:" + key,
             lambda: fetch_openmeteo(city, lat, lon, a.timeout), WEATHER_TTL, STALE_LIMIT, daily=True)}
     if a.aqi_source in ("auto", "open-meteo"):
         jobs["model"] = lambda: cache.get("aqi:" + key,
             lambda: fetch_aqi_openmeteo(lat, lon, a.timeout), AQI_TTL, STALE_LIMIT, daily=True)
-    if waqi_tok and a.aqi_source in ("auto", "waqi"):
+    if waqi_tok and a.aqi_source in ("auto", "waqi") and not a.day:
         # WAQI forbids redistribution of cached/archive data. Keep station data live-only.
         jobs["station"] = lambda: fetch_aqi_waqi(lat=lat, lon=lon, token=waqi_tok, timeout=a.timeout)
     results, warnings = {}, []
@@ -739,9 +787,11 @@ def read(a):
     else:
         aqi = model or station
     out.update(aqi=aqi, aqi_source=a.aqi_source, warnings=warnings)
-    frame = forecast_frame(out, aqi)
+    frame = forecast_frame(out, aqi, day=a.day)
     if frame:
-        apply_frame(out, frame)
+        apply_frame(out, frame, a.day)
+    elif a.day:
+        raise WeatherError(f"no hourly forecast for {a.day}")
     out.pop("hourly", None)
     for value in (aqi, (aqi or {}).get("model")):
         if isinstance(value, dict):

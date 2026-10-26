@@ -9,7 +9,8 @@ from goodmorning.runtime_files import atomic_text, runtime_lock
 
 DEFAULT_PLANS = {
     'gm': [[tag, native.TITLES[tag]] for tag in ('weather', 'news', 'schedule', 'tasks', 'attention')],
-    'gn': [[tag, native.TITLES[tag]] for tag in ('today', 'schedule', 'tasks', 'attention')],
+    'gn': [[tag, 'Weather tomorrow' if tag == 'weather' else native.TITLES[tag]]
+           for tag in ('today', 'weather', 'schedule', 'tasks', 'attention')],
 }
 LEGACY_PLANS = {
     'gm': [[tag, native.TITLES[tag]] for tag in ('weather', 'news', 'schedule', 'must-do', 'nice-to-do', 'reminders')],

@@ -80,6 +80,13 @@ temperature, rain chance and AQI, sunrise/sunset, night spans, source links).
 Browser jobs attach that `frame` to the saved weather block when the section is
 published, so its charts and headlines are code-owned.
 
+`--day YYYY-MM-DD` (the evening's Weather tomorrow) charts that day's 06:00–24:00
+instead, with the same wet-hour rule and that day's own snow flag. It drops the
+current condition and temperature, gives the day's high/low and clothing advice
+by its high (layers when the high and low differ by 8°C or more), and reports
+AQI only from the model's hourly forecast; the live WAQI station is not read.
+Without hourly data for that day it exits 1.
+
 Without hourly data, `rain yes` is a full-local-day umbrella heuristic: at least 50% precipitation
 probability without a snow forecast, or a rain/storm code or more than 0.2 mm
 rain/showers when the probability is at least 30% or missing. A rain code with a
