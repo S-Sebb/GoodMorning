@@ -48,8 +48,9 @@ python scripts/goodmorning.py inbox --secretary-dir RUNTIME --show ID
   review, even on a previously closed entry. Closed history is excluded.
 - Default page: seven items, at most 8,000 output characters. No raw input,
   current context or historical discussion is included. Use filters first.
-  `next_after` is the last sequence in the page: pass `--after NUMBER` with the
-  same filters. No silent item/question truncation. `total` covers the full filter.
+  Items are newest first. `next_after` is the last (oldest) sequence on the page:
+  pass `--after NUMBER` with the same filters for older entries. No silent
+  item/question truncation. `total` covers the full filter.
   `--search` matches a literal substring in summary/current context/original input;
   it does not load historical discussions or perform semantic search. It misses
   task edits; find tasks and drafts by their current wording with `task --search`. Reads use
@@ -120,9 +121,10 @@ python scripts/goodmorning.py inbox --secretary-dir RUNTIME --update ID --expect
 ```
 
 Update accepts `summary`, `context`, `questions`, `project`, `kind`, `status`,
-and `reviewed`; `raw` cannot change. A field is replaced only if supplied. Read
-all outstanding material inputs before setting `reviewed:true`; the revision check
-prevents acknowledging a new follow-up that arrived meanwhile. Replace superseded
+`review_after` (`YYYY-MM-DD`, or `""` to clear) and `reviewed`; `raw` cannot
+change. A field is replaced only if supplied. Read all outstanding material inputs
+before setting `reviewed:true`; the revision check prevents acknowledging a new
+follow-up that arrived meanwhile. Replace superseded
 context, do not append a diary. If 6,000 characters are insufficient, keep a clear
 current summary plus references to relevant history IDs; never discard key facts.
 No need to rebuild all state after each inbox change: `python scripts/goodmorning.py state --check` reads live
