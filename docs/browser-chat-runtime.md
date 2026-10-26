@@ -147,7 +147,14 @@ Failed preparation or recovery preflight returns its durable stopped job so
 recovery remains explicit. Regeneration preflight fails before replacing the
 owner and returns a definite rejection, preserving the earlier edition.
 Unknown dispatches
-still retain their reservation for explicit reconciliation, never blind replay.
+retain their reservation for explicit reconciliation, never blind replay, but no
+request holds the slot longer than 30 minutes (`SLOT_LIMIT`). The limit starts
+when the request takes the slot; an interrupt in the same conversation does not
+restart it. The gateway then lets the waiting line move without stopping or
+resending that work. It notifies the owner that the work is taking longer than
+usual, or that delivery could not be confirmed. Confirmed work stays on the
+owner's desk, and its finish or question is announced as usual for up to a day.
+A deployment's own reservation and an in-flight dispatch never expire.
 
 Native message reads discard private tool states and provider metadata while
 streaming, before applying the visible response-size limit. Queue reconciliation

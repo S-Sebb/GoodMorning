@@ -1088,6 +1088,103 @@ class GatewayTests(GatewayFixture):
                 self.gateway.reconcile_ticket()
             self.assertEqual(self.gateway.ticket(), ticket)
 
+    def stuck_alice(self, backend):
+        """Alice's chat holds the slot while Bob's waits; backend(user) answers status reads."""
+        from goodmorning.security.briefing_gateway import SLOT_LIMIT
+        self.sent, self.posts, self.now = [], [], 1_800_000_000
+        self.gateway.notify = lambda user, kind, message, **options: self.sent.append((user, kind, message))
+        def proxy(user, host, path, method, raw, headers):
+            if method == 'POST':
+                self.posts.append((user, json.loads(raw)['id']))
+                if user == self.id and backend(user) == 'lost':
+                    raise TimeoutError('Reply lost')
+                return 202, {}, b'{"accepted":true}'
+            state = backend(user)
+            if state == 'down':
+                raise ConnectionError('Backend unreachable')
+            return 200, {}, json.dumps({'state': state}).encode()
+        self.gateway.proxy = proxy
+        clock = patch('goodmorning.security.briefing_gateway.time.time', lambda: self.now)
+        clock.start();self.addCleanup(clock.stop)
+        try:
+            self.gateway.chat_message(self.id, 'gm.example.test', '/api/chats', json.dumps({'id':'a'*32,'mode':'secretary','text':'A'}).encode(), {})
+        except TimeoutError:
+            pass
+        self.gateway.chat_message(self.other, 'gm.example.test', '/api/chats', json.dumps({'id':'b'*32,'mode':'secretary','text':'B'}).encode(), {})
+        self.now += SLOT_LIMIT - 1
+        self.gateway.pump_queue()
+        self.assertEqual((self.gateway.ticket()['user'], self.posts), (self.id, [(self.id, 'a'*32)]))
+        self.now += 1
+        self.gateway.pump_queue()
+        self.gateway.pump_queue()
+        # Bob goes ahead once; Alice's work is never sent again.
+        self.assertEqual(self.posts, [(self.id, 'a'*32), (self.other, 'b'*32)])
+        self.assertEqual(self.gateway.ticket()['user'], self.other)
+        with self.store.db() as db:
+            return self.gateway._read_list(db, 'generation_overdue')
+
+    def test_stuck_work_yields_slot_after_limit_and_is_announced_when_it_finishes(self):
+        state = {'alice': 'running'}
+        overdue = self.stuck_alice(lambda user: state['alice'] if user == self.id else 'running')
+        self.assertEqual([entry['ticket']['chat'] for entry in overdue], ['a'*32])
+        (user, kind, message), = self.sent
+        self.assertEqual((user, kind, message['title'], message['tag']), (self.id, 'chat', 'Your secretary is taking longer than usual', 'chat-'+'a'*32))
+        # The desk still shows Alice's work while it runs outside the slot.
+        with patch.object(self.gateway, 'proxy', return_value=(200, {}, b'{"mode":"secretary","state":"working"}')):
+            self.assertEqual(self.gateway.activity(self.id)['activity'], [{'mode':'secretary','state':'working','url':'https://gm.example.test/chat?id='+'a'*32}])
+        state['alice'] = 'idle'
+        self.gateway.pump_queue()
+        self.gateway.pump_queue()
+        self.assertEqual([message['title'] for _, _, message in self.sent][1:], ['Your secretary replied'])
+        with self.store.db() as db:
+            self.assertEqual(self.gateway._read_list(db, 'generation_overdue'), [])
+
+    def test_unreachable_work_yields_with_an_uncertain_notice_and_is_still_watched(self):
+        overdue = self.stuck_alice(lambda user: 'down' if user == self.id else 'running')
+        (_, _, message), = self.sent
+        self.assertEqual(message['title'], 'Your secretary couldn’t confirm your request')
+        self.assertEqual(len(overdue), 1)
+
+    def test_unconfirmed_dispatch_yields_with_an_uncertain_notice_and_is_not_replayed(self):
+        overdue = self.stuck_alice(lambda user: 'lost' if user == self.id else 'running')
+        (_, _, message), = self.sent
+        self.assertEqual(message['title'], 'Your secretary couldn’t confirm your request')
+        self.assertEqual(overdue, [])  # Its status cannot prove what was delivered, so nothing announces a finish.
+
+    def test_same_work_retaking_the_slot_is_no_longer_overdue(self):
+        state = {'alice': 'running'}
+        self.stuck_alice(lambda user: state['alice'] if user == self.id else 'running')
+        self.gateway.clear_ticket(self.gateway.ticket())
+        self.gateway.chat_message(self.id, 'gm.example.test', '/api/chats/'+'a'*32+'/messages', json.dumps({'id':'c'*32,'text':'More'}).encode(), {})
+        self.assertEqual(self.gateway.ticket()['chat'], 'a'*32)
+        with self.store.db() as db:
+            self.assertEqual(self.gateway._read_list(db, 'generation_overdue'), [])
+
+    def test_deployment_and_in_flight_reservations_never_expire(self):
+        from goodmorning.security.briefing_gateway import SLOT_LIMIT
+        start = 1_800_000_000
+        for ticket, inflight in (({'deployment': 'release-1'}, False), (self.preflight_ticket(), True)):
+            encoded = json.dumps(ticket, separators=(',', ':'))
+            with self.store.db() as db:
+                db.execute('INSERT OR REPLACE INTO metadata VALUES (?,?)', ('generation', encoded))
+                db.execute('INSERT OR REPLACE INTO metadata VALUES (?,?)', ('generation_since', str(start)))
+            if inflight:
+                self.gateway.generation_inflight.add(encoded)
+            with patch('goodmorning.security.briefing_gateway.time.time', lambda: start + 10 * SLOT_LIMIT):
+                self.gateway.expire_ticket()
+            self.assertEqual(self.gateway.ticket(), ticket)
+
+    def test_reservation_from_before_slot_limits_starts_its_limit_on_first_check(self):
+        from goodmorning.security.briefing_gateway import SLOT_LIMIT
+        ticket = self.preflight_ticket()
+        with patch('goodmorning.security.briefing_gateway.time.time', lambda: 1_800_000_000), patch.object(self.gateway, 'notify'):
+            self.gateway.expire_ticket()
+            self.assertEqual(self.gateway.ticket(), ticket)
+            with patch('goodmorning.security.briefing_gateway.time.time', lambda: 1_800_000_000 + SLOT_LIMIT), \
+                    patch.object(self.gateway, 'proxy', return_value=(200, {}, b'{"state":"running"}')):
+                self.gateway.expire_ticket()
+        self.assertIsNone(self.gateway.ticket())
+
     def test_reopening_existing_briefing_does_not_join_its_own_queue(self):
         ticket = self.preflight_ticket()
         with patch.object(self.gateway, 'proxy', return_value=(200, {}, json.dumps({'job':ticket['job']}).encode())) as proxy:

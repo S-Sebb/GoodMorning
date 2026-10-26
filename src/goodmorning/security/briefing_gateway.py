@@ -46,6 +46,12 @@ POST_ROUTES = re.compile(r'(?:/api/notes(?:/sorted)?|/api/about-me|/api/avatar(?
 INTERNAL_ROUTES = re.compile(r'/api/briefing-reminders(?:/lines(?:/[a-f0-9]{32})?)?')
 QUEUE_KEY = 'generation_queue'
 WAITING_KEY = 'generation_waiting'
+SINCE_KEY = 'generation_since'
+OVERDUE_KEY = 'generation_overdue'
+# One account's slow, stuck or unconfirmed work holds the shared slot at most this long; it is then
+# watched outside the slot, never stopped or sent again, so the waiting line keeps moving.
+SLOT_LIMIT = 1800
+OVERDUE_WATCH = 86400  # Seconds an overdue request is still checked so its finish can be announced.
 MAX_QUEUE = 20
 QUEUE_FULL = 'The secretary queue is full. Please wait for earlier requests to finish.'
 PUMP_INTERVAL = 5
@@ -76,6 +82,16 @@ def pump_forever(gateway, interval=PUMP_INTERVAL):
             gateway.remind_briefings()
         except Exception:
             pass
+
+
+def same_work(first, second):
+    """Whether two reservations are for one account's same conversation, job or edition."""
+    if first.get('user') != second.get('user'):
+        return False
+    if first.get('chat') or second.get('chat'):
+        return first.get('chat') == second.get('chat')
+    return bool(first.get('job') and first['job'] == second.get('job')
+                or first.get('date') and (first['date'], first.get('kind')) == (second.get('date'), second.get('kind')))
 
 
 class NoRedirect(HTTPRedirectHandler):
@@ -182,6 +198,7 @@ class Gateway:
             queue = self._read_queue(db)
             row = db.execute('SELECT value FROM metadata WHERE key=?', (WAITING_KEY,)).fetchone()
             suspended = json.loads(row[0]) if row else []
+            suspended += [entry['ticket'] for entry in self._read_list(db, OVERDUE_KEY)]
         result = []
         def destination(entry, mode, date=None):
             if entry.get('chat'):
@@ -293,12 +310,9 @@ class Gateway:
                 return  # No matching receipt: retain uncertainty, never assume idle.
         if current and not current.get('dispatching') and (current.get('job') or current.get('chat')):
             try:
-                path = '/api/chats/' + current['chat'] + '/status' if current.get('chat') else '/api/jobs/' + current['job']
-                status, _, data = self.proxy(current['user'], current['host'], path, 'GET', None, {})
-                terminal = ('idle',) if current.get('chat') else ('ready', 'stopped')
-                result = json.loads(data)
-                waiting = result.get('state') == 'waiting' and result.get('reservation_required') is False
-                if status == 200 and waiting:
+                result = self.work_status(current)
+                settled = self.settled(current, result)
+                if settled == 'waiting':
                     with self.accounts.db() as db:
                         db.execute('BEGIN IMMEDIATE')
                         deleted = db.execute('DELETE FROM metadata WHERE key=? AND value=?',
@@ -307,11 +321,92 @@ class Gateway:
                             self.remember_waiting(db, current)
                     if deleted.rowcount:
                         self.announce(current, result)
-                elif status == 200 and result.get('state') in terminal:
+                elif settled == 'done':
                     self.clear_ticket(current)
                     self.announce(current, result)
             except Exception:
-                pass  # Uncertain work keeps its reservation. Never launch work blindly.
+                pass  # Uncertain work keeps its reservation until SLOT_LIMIT. Never launch work blindly.
+
+    def work_status(self, ticket):
+        """The owning backend's status of a dispatched job or chat, or None when it did not answer."""
+        path = '/api/chats/' + ticket['chat'] + '/status' if ticket.get('chat') else '/api/jobs/' + ticket['job']
+        status, _, data = self.proxy(ticket['user'], ticket['host'], path, 'GET', None, {})
+        return json.loads(data) if status == 200 else None
+
+    @staticmethod
+    def settled(ticket, result):
+        """'waiting' when the work needs only its owner's answer, 'done' when it finished, else None."""
+        if result is None:
+            return None
+        if result.get('state') == 'waiting' and result.get('reservation_required') is False:
+            return 'waiting'
+        return 'done' if result.get('state') in (('idle',) if ticket.get('chat') else ('ready', 'stopped')) else None
+
+    def _take_slot(self, db, ticket):
+        """Reserve the shared slot inside the caller's transaction; its SLOT_LIMIT starts now."""
+        db.execute('INSERT OR REPLACE INTO metadata VALUES (?,?)', ('generation', json.dumps(ticket, separators=(',', ':'))))
+        db.execute('INSERT OR REPLACE INTO metadata VALUES (?,?)', (SINCE_KEY, json.dumps(time.time())))
+        # The same work holding the slot again is watched there, not as overdue.
+        overdue = [entry for entry in self._read_list(db, OVERDUE_KEY) if not same_work(entry['ticket'], ticket)]
+        self._write_list(db, OVERDUE_KEY, overdue)
+
+    def expire_ticket(self):
+        """Lets the waiting line move past work that held the slot longer than SLOT_LIMIT. The work
+        itself is never stopped or sent again; its owner learns what happened."""
+        with self.accounts.db() as db:
+            db.execute('BEGIN IMMEDIATE')
+            row = db.execute('SELECT value FROM metadata WHERE key=?', ('generation',)).fetchone()
+            since = db.execute('SELECT value FROM metadata WHERE key=?', (SINCE_KEY,)).fetchone()
+            if not row:
+                return
+            current = json.loads(row[0])
+            if not since:  # Held since before slot limits existed: its limit starts now.
+                db.execute('INSERT INTO metadata VALUES (?,?)', (SINCE_KEY, json.dumps(time.time())))
+                return
+            with self.generation_lock:
+                inflight = row[0] in self.generation_inflight
+            # A deployment's own ticket has no user; an in-flight dispatch settles within its HTTP timeout.
+            if not current.get('user') or inflight or time.time() - json.loads(since[0]) < SLOT_LIMIT:
+                return
+            db.execute('DELETE FROM metadata WHERE key=?', ('generation',))
+        if current.get('lines'):
+            return  # Background reminder lines; built-in lines remind meanwhile.
+        result = None
+        if not current.get('dispatching') and (current.get('job') or current.get('chat')):
+            try:
+                result = self.work_status(current)
+            except Exception:
+                pass
+            with self.accounts.db() as db:
+                db.execute('BEGIN IMMEDIATE')
+                overdue = self._read_list(db, OVERDUE_KEY)
+                overdue.append({'ticket': current, 'since': time.time()})
+                self._write_list(db, OVERDUE_KEY, overdue)
+        self.announce(current, result, overdue=True)
+
+    def check_overdue(self):
+        """Announces overdue work once it finishes or waits for its owner, as if it still held the slot."""
+        with self.accounts.db() as db:
+            overdue = self._read_list(db, OVERDUE_KEY)
+        for entry in overdue:
+            result = None
+            try:
+                result = self.work_status(entry['ticket'])
+            except Exception:
+                pass
+            settled = self.settled(entry['ticket'], result)
+            if not settled and time.time() - entry['since'] < OVERDUE_WATCH:
+                continue
+            with self.accounts.db() as db:
+                db.execute('BEGIN IMMEDIATE')
+                current = self._read_list(db, OVERDUE_KEY)
+                if entry not in current:
+                    continue  # Its work took the slot again meanwhile.
+                self._write_list(db, OVERDUE_KEY, [item for item in current if item != entry])
+                if settled == 'waiting':
+                    self.remember_waiting(db, entry['ticket'])
+            if settled:
+                self.announce(entry['ticket'], result)
 
     def reconcile_lines(self, current):
         """Releases the slot once the secretary's reminder lines are saved or given up on. A request
@@ -349,14 +444,22 @@ class Gateway:
                 logging.getLogger(__name__).warning('Notification failed (%s)', type(error).__name__)
         threading.Thread(target=send, daemon=True).start()
 
-    def announce(self, ticket, result):
-        """A reserved task just finished or needs the account owner."""
+    def announce(self, ticket, result, *, overdue=False):
+        """A reserved task just finished, needs the account owner, or (overdue) passed SLOT_LIMIT."""
         user, chat = ticket['user'], ticket.get('chat')
         lang = self.accounts.website_language(user) or 'en'
         def t(source, **values):
             return ui.text(source, lang=lang, **values)
         day, edition = ticket.get('date'), ticket.get('kind')
         page = '/chat?id=' + chat if chat else (f'/d/{day}/{edition}.html' if edition in ('gm', 'gn') and day else '/')
+        if overdue:
+            # Shares the finish notification's tag, so that one replaces it.
+            tag = 'chat-' + chat if chat else 'briefing-' + str(day) + '-' + str(edition)
+            if result is not None and result.get('state') not in ('uncertain', 'unavailable'):
+                message = {'title': t('Your secretary is taking longer than usual'), 'body': t('Nothing was cancelled or lost. Open it to see how it’s going.')}
+            else:
+                message = {'title': t('Your secretary couldn’t confirm your request'), 'body': t('Open it to check whether it arrived before sending it again.')}
+            return self.notify(user, 'chat' if chat else 'briefing', {**message, 'url': page, 'tag': tag})
         if result.get('state') == 'waiting':
             forms, permissions = result.get('forms') or [], result.get('permissions') or []
             detail = ''
@@ -632,21 +735,29 @@ class Gateway:
         return True
 
     def _read_queue(self, db):
-        row = db.execute('SELECT value FROM metadata WHERE key=?', (QUEUE_KEY,)).fetchone()
+        return self._read_list(db, QUEUE_KEY)
+
+    def _write_queue(self, db, queue):
+        self._write_list(db, QUEUE_KEY, queue)
+
+    @staticmethod
+    def _read_list(db, key):
+        row = db.execute('SELECT value FROM metadata WHERE key=?', (key,)).fetchone()
         if not row:
             return []
         try:
-            queue = json.loads(row[0])
+            value = json.loads(row[0])
         except (TypeError, ValueError):
             return []
-        return queue if isinstance(queue, list) else []
+        return value if isinstance(value, list) else []
 
-    def _write_queue(self, db, queue):
-        if queue:
+    @staticmethod
+    def _write_list(db, key, value):
+        if value:
             db.execute('INSERT INTO metadata VALUES (?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value',
-                       (QUEUE_KEY, json.dumps(queue, separators=(',', ':'))))
+                       (key, json.dumps(value, separators=(',', ':'))))
         else:
-            db.execute('DELETE FROM metadata WHERE key=?', (QUEUE_KEY,))
+            db.execute('DELETE FROM metadata WHERE key=?', (key,))
 
     def _prune_queue(self, queue, now):
         # Accepted work must not vanish merely because another request is slow.
@@ -724,7 +835,7 @@ class Gateway:
                 queue.append(entry)
                 self._write_queue(db, queue)
                 return ('queued', len(queue), len(queue))
-            db.execute('INSERT INTO metadata VALUES (?,?)', ('generation', json.dumps(candidate, separators=(',', ':'))))
+            self._take_slot(db, candidate)
             return ('active_new', None, 0)
 
     def _dispatch_queued(self, entry):
@@ -750,6 +861,8 @@ class Gateway:
     def pump_queue(self):
         """Advance the global waiting line while the active slot is free."""
         self.reconcile_ticket()
+        self.expire_ticket()
+        self.check_overdue()
         if self.paused():
             return
         for _ in range(MAX_QUEUE + 1):
@@ -762,8 +875,7 @@ class Gateway:
                     self._write_queue(db, queue)
                     return
                 head = queue.pop(0)
-                db.execute('INSERT INTO metadata VALUES (?,?)',
-                           ('generation', json.dumps(head['candidate'], separators=(',', ':'))))
+                self._take_slot(db, head['candidate'])
                 self._write_queue(db, queue)
             try:
                 self._dispatch_queued(head)
@@ -1009,7 +1121,7 @@ class Gateway:
                 self._write_queue(db, queue)
                 return self.queued_response('recover', candidate, len(queue), len(queue))
             self._write_queue(db, queue)
-            db.execute('INSERT OR REPLACE INTO metadata VALUES (?,?)', ('generation', json.dumps(candidate, separators=(',',':'))))
+            self._take_slot(db, candidate)
         status, upstream, data = self.proxy(identifier, host, path, 'POST', raw, headers)
         if 400 <= status < 500:
             if previous:
