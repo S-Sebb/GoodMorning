@@ -95,7 +95,7 @@ screens before linking follow the phone.
 
 | Widget | Default size | Shows | Taps |
 |---|---|---|---|
-| Today's schedule | 4×4 | Today's events (time, until, place) and to-dos | Day schedule; refresh button |
+| Today's schedule | 4×4 | Today's events (time, until, place) and to-dos | ○/✓ of a to-do: ticks it done or back (below); elsewhere: day schedule; refresh button |
 | Week schedule | 4×5 | Seven days from today: events and to-do progress | That day's schedule |
 | Secretary chat | 4×3 | Portrait and name, latest conversation title, its reply in a bubble, and a message box | Message box: Ask (dialog, may start paid model work); elsewhere: the conversation |
 | Secretary | 1×1, fixed | The portrait alone, with an accent dot while a reply runs or waits for an answer | The latest conversation |
@@ -119,6 +119,20 @@ the headlines from the hours after now, so they move on between syncs;
 widget tints, since the launcher switches day and night colors without
 redrawing. Tiles keep the website's weather colors in both modes. A frame that
 has run out shows the loading or unavailable message until the next sync.
+
+### Ticking to-dos
+
+In the Today's schedule widget, a tap on a to-do's ○ or ✓ ticks it done or back,
+as on the Schedule page (`docs/weekly-schedule.md`, Ticking to-dos): a one-off
+task is finished as a whole, a recurring task or habit only for today, and ✓
+restores exactly the state before. Only rows the server marks `tickable` (planned
+to-dos and habits) tick; the rest of the row, other rows and events open the day
+schedule. The tap goes to `RowActivity`, which has no window and is not exported,
+so the home screen stays as it is and no other app can tick through it. It sends
+`POST /api/app/schedule/tick` with the app token and nothing is saved on the phone
+first: the mark changes when the server answers, and a sync follows. When the save
+fails (offline, or the to-do changed), the mark stays and a toast says
+"Couldn’t save. Open GoodMorning to try again."
 
 ### Quick notes
 

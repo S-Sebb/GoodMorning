@@ -11,6 +11,9 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.net.Uri;
+import android.os.Handler;
+import android.os.Looper;
+import android.widget.Toast;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -23,6 +26,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.UUID;
 
 /** Reads the app summary from the server and keeps the widgets, status notifications and event reminders up to date. */
 final class Sync {
@@ -207,6 +211,41 @@ final class Sync {
             return;
         }
         run(context);
+    }
+
+    /**
+     * The Today widget's ○/✓: asks the server to tick the to-do done or back, shows its answer at once, then reads
+     * the whole summary. A failure keeps the old mark and says so.
+     */
+    static void tick(Context context, String id, String date, int revision, boolean done) {
+        String token = Api.token(context);
+        if (token != null) {
+            try {
+                JSONObject saved = Api.tick(context, token, new JSONObject().put("id", id).put("date", date)
+                        .put("revision", revision).put("done", done).put("key", UUID.randomUUID().toString()));
+                synchronized (LOCK) {
+                    write(context, ticked(cached(context), saved));
+                }
+                Widgets.updateAll(context);
+            } catch (IOException | JSONException failed) {
+                Context app = Language.apply(context);
+                new Handler(Looper.getMainLooper()).post(() -> Toast.makeText(app, R.string.widget_tick_failed, Toast.LENGTH_LONG).show());
+            }
+        }
+        run(context);  // The rest of the schedule, or after a failure what the server holds now.
+    }
+
+    /** The summary with the server's answer to a tick on today's row; a day that has since passed stays as it is. */
+    static JSONObject ticked(JSONObject data, JSONObject saved) throws JSONException {
+        JSONObject today = data.getJSONObject("schedule").getJSONArray("days").getJSONObject(0);
+        JSONArray tasks = today.getJSONArray("tasks");
+        for (int i = 0; today.optString("date").equals(saved.optString("date")) && i < tasks.length(); i++) {
+            JSONObject task = tasks.getJSONObject(i);
+            if (task.optString("id").equals(saved.optString("id"))) {
+                task.put("done", saved.getBoolean("done")).put("revision", saved.getInt("revision"));
+            }
+        }
+        return data;
     }
 
     private static void briefingState(Context context, String kind, String state) {

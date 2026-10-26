@@ -85,6 +85,12 @@ public class ListService extends RemoteViewsService {
                 Palette.text(context, row, schemes, R.id.mark, p -> p.accent);
                 Palette.text(context, row, schemes, R.id.text, done ? (p -> p.muted) : (p -> p.ink));
                 row.setTextViewText(R.id.mark, done ? "✓" : "○");
+                if (task.optBoolean("tickable")) {
+                    row.setOnClickFillInIntent(R.id.mark, new Intent().putExtra("id", task.optString("id"))
+                            .putExtra("date", day.optString("date")).putExtra("revision", task.optInt("revision")).putExtra("done", !done));
+                    row.setContentDescription(R.id.mark, context.getString(done ? R.string.widget_tick_open : R.string.widget_tick_done,
+                            task.optString("text")));
+                }
                 SpannableString text = new SpannableString(task.optString("text"));
                 if (done) text.setSpan(new StrikethroughSpan(), 0, text.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
                 row.setTextViewText(R.id.text, text);
