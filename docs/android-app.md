@@ -103,9 +103,9 @@ screens before linking follow the phone.
 
 Every widget but Secretary can be resized. Launchers hide a widget whose minimum size exceeds
 their grid, so minimum sizes stay small and the defaults fit the common 4×5
-grid. The Briefings widget shows the morning edition before 17:00 and the
-evening edition from then on; a choice in the widget holds until the clock
-passes the next switch.
+grid. The Briefings widget shows the morning edition from 04:00 and the
+evening edition from 17:00 until 04:00, like the website's briefing day; a
+choice in the widget holds until the clock passes the next switch.
 
 The weather widgets read the server's 18-hour forecast frame (06:00–24:00, or
 18:00 to noon after 18:00; `docs/weather-pipeline.md`). `WeatherFrame` works out
