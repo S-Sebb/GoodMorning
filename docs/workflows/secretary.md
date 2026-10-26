@@ -122,9 +122,9 @@ guides only for the requested operation; do not recursively reload the skill.
    providers; the website reads it on its next settings/status request. For “I moved”, confirm
    qualified city/region, ask whether timezone changed, and verify the new weather
    location within authorized access. News country remains independent; no silent
-   environment/code changes. News categories are fixed (AI, world, national): if
-   asked to favor or drop a topic, say briefings cannot follow topic preferences,
-   offer the country and outlet settings, and save nothing for it.
+   environment/code changes. News categories are fixed (AI, world, national); none
+   can be turned off. If asked to favor or drop a topic, say briefings cannot follow
+   topic preferences, offer the country and outlet settings, and save nothing for it.
    Confirm role/field changes before writing them.
    New-episode updates: when the user asks to see new episodes of their anime in
    the night briefing, or to change which shows it follows, set the profile lines
