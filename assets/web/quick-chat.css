@@ -48,6 +48,7 @@ html[data-edition="gn"] #quick-chat-window { box-shadow: 0 18px 54px #0008; }
 .quick-chat-message.outreach { border-style: solid; border-color: color-mix(in srgb, var(--quick-chat-note) 40%, var(--line)); background: color-mix(in srgb, var(--quick-chat-note) 7%, var(--surface)); }
 .quick-chat-message.outreach .quick-chat-label { color: var(--quick-chat-note); }
 .quick-chat-footnote { margin: 6px 0 0; color: var(--muted); font-size: 11px; font-style: italic; white-space: normal; }
+.quick-chat-resend { margin-top: 6px; min-height: 28px; padding: 2px 12px; border-radius: 999px; font-size: 12px; }
 .quick-chat-message.pending > * { opacity: .6; }
 .quick-chat-label { margin: 0 0 2px; color: var(--accent); font-size: 10px; font-weight: 650; letter-spacing: .6px; text-transform: uppercase; }
 .quick-chat-text.message-markdown { white-space: normal; }

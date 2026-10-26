@@ -13,6 +13,7 @@ const attachButton = document.querySelector('#chat-attach');
 const composer = document.querySelector('#chat-compose');
 const chatScroll = document.querySelector('#chat-scroll');
 const latestButton = document.querySelector('#chat-latest');
+const earlierButton = document.querySelector('#chat-earlier-button');
 const chatLayout = document.querySelector('.chat-layout');
 const conversationPanel = document.querySelector('#conversation');
 const chatViewport = window.visualViewport || {get width() { return innerWidth; }, get height() { return innerHeight; }, offsetTop: 0, scale: 1};
@@ -115,6 +116,9 @@ let animateMessages = false;
 let pendingMessages = [];
 let shownMessages = [];
 let followNextUpdate = true;
+// Long conversations open on their latest messages; readers can load earlier ones a page at a time.
+let historyLimit = 100;
+let shownLimit = 100;
 let statusLabel = '';
 let readError = null;
 let revision = 0;
@@ -222,9 +226,10 @@ window.addEventListener('pageshow', event => {
 });
 const renderedMessages = new WeakMap();
 const specialLabels = {question: 'Question for you', answer: 'Your answer', permission: 'Your permission', outreach: 'Your secretary reached out',
-  expired: 'Question expired', skipped: 'Question skipped'};
+  expired: 'Question expired', skipped: 'Question skipped', undelivered: 'Not sent'};
 const footnotes = {outreach: 'Sent on behalf of the GoodMorning team',
-  expired: 'This question closed before it could be saved. Send a message to continue where you left off.'};
+  expired: 'This question closed before it could be saved. Send a message to continue where you left off.',
+  undelivered: 'This message didn’t reach your secretary, so nothing in it was saved or done.'};
 const actionTargets = {task: 'Task', event: 'Event', draft: 'Event draft', idea: 'Idea', record: 'Record', custom: 'Custom schedule'};
 const actionLabels = {added: '{target} added', updated: '{target} updated', cancelled: '{target} cancelled',
   completed: '{target} completed', approved: '{target} approved', declined: '{target} declined'};
@@ -244,7 +249,8 @@ function specialIcon(kind, action = {}) {
     expired: ['M11 19H9l-5 2v-6a4 4 0 0 1-1-3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4v3',
       'M9 8a3 3 0 0 1 6 0c0 1-.6 1.6-1.3 2', 'M18 21a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z', 'M18 15.5V17l1 1'],
     skipped: ['M11 19H9l-5 2v-6a4 4 0 0 1-1-3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4v3',
-      'M9 8a3 3 0 0 1 6 0c0 1-.6 1.6-1.3 2', 'M14 17h7', 'm18 14 3 3-3 3']
+      'M9 8a3 3 0 0 1 6 0c0 1-.6 1.6-1.3 2', 'M14 17h7', 'm18 14 3 3-3 3'],
+    undelivered: ['M3 10 17 4l-4 9', 'M17 4 9 12l-6-2', 'M9 12v6l3-3', 'M18 22a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z', 'M18 16v2', 'M18 20h.01']
   };
   const bases = {
     event: 'M4 7h16M8 3v4m8-4v4M11 21H6a3 3 0 0 1-3-3V7a3 3 0 0 1 3-3h12a3 3 0 0 1 3 3v4M7 11h2m-2 4h2',
@@ -398,7 +404,7 @@ function composeState() {
   sendButton.disabled = sending || restoringWorkspace || !chatConfig.connected || blocked;
   textBox.disabled = initializing || sending || blocked;
   fileInput.disabled = attachButton.disabled = initializing || sendButton.disabled;
-  document.querySelectorAll('#chat-attachments .attachment-remove').forEach(button => { button.disabled = sendButton.disabled; });
+  document.querySelectorAll('#chat-attachments .attachment-remove, .message-resend').forEach(button => { button.disabled = sendButton.disabled; });
   const sendLabel = chatT(chat ? 'Send reply' : modes[mode][1]);
   sendButton.querySelector('.chat-send-label').textContent = sendLabel;
   sendButton.setAttribute('aria-label', sendLabel);
@@ -611,6 +617,7 @@ function newConversation({resume = null} = {}) {
   markCurrentHistoryLink(null);
   formSignature = ''; messageSignature = ''; animateMessages = false;
   pendingMessages = []; shownMessages = [];
+  historyLimit = shownLimit = 100; showEarlier(false);
   followNextUpdate = true;
   document.querySelector('#chat-messages').replaceChildren();
   document.querySelector('#chat-questions').replaceChildren();
@@ -664,6 +671,7 @@ function openConversation(id, {push = true} = {}) {
   markCurrentHistoryLink(id);
   formSignature = ''; messageSignature = ''; animateMessages = false;
   pendingMessages = []; shownMessages = [];
+  historyLimit = shownLimit = 100; showEarlier(false);
   followNextUpdate = true;
   document.querySelector('#chat-messages').replaceChildren();
   document.querySelector('#chat-questions').replaceChildren();
@@ -847,6 +855,12 @@ function showMessages(messages) {
         note.dataset.uiText = footnotes[item.kind];
         bubble.append(note);
       }
+      if (item.kind === 'undelivered') {
+        const resend = make('button', chatT('Send again'), 'message-resend');
+        resend.type = 'button'; resend.dataset.uiText = 'Send again'; resend.disabled = sendButton.disabled;
+        resend.addEventListener('click', () => sendAgain(item));
+        bubble.append(resend);
+      }
       if (item.role === 'assistant' && item.kind !== 'action') {
         const portrait = make('span', '', 'chat-portrait reply-portrait');
         portrait.setAttribute('aria-hidden', 'true');
@@ -964,11 +978,15 @@ async function pollChat() {
   clearTimeout(timer);
   if (!chat || document.hidden || polling) return;
   polling = true;
-  const current = chat; const version = revision;
+  const current = chat; const version = revision; const limit = historyLimit;
   try {
-    const result = await chatAPI('/api/chats/' + current);
+    const result = await chatAPI('/api/chats/' + current + (limit > 100 ? '?limit=' + limit : ''));
     if (version !== revision) return;
     const follow = followNextUpdate || nearLatest();
+    // Earlier messages appear above without animating or moving what the reader is looking at.
+    const earlier = limit > shownLimit;
+    if (earlier) animateMessages = false;
+    const fromBottom = chatScroll.scrollHeight - chatScroll.scrollTop;
     const replay = !animateMessages;
     mode = result.mode; state = result.state; permissionsPending = Boolean(result.permissions?.length);
     requestLanguage = result.language;
@@ -979,6 +997,9 @@ async function pollChat() {
     statusLabel = result.label;
     document.querySelector('#chat-status').classList.remove('is-queued');
     const messagesChanged = result.messages ? showMessages(result.messages) : false;
+    shownLimit = limit;
+    showEarlier(Boolean(result.history_limited));
+    if (earlier) { chatScroll.scrollTop = chatScroll.scrollHeight - fromBottom; animateMessages = true; }
     // Reading a secretary-opened conversation clears its "New" badge everywhere.
     if (result.unread) chatAPI(`/api/chats/${current}/seen`, {}).then(() => historyList()).catch(() => {});
     const notice = document.querySelector('#chat-action-notice');
@@ -1041,7 +1062,55 @@ async function pollChat() {
     polling = false;
     if (version !== revision && chat) timer = setTimeout(pollChat, 0);
   }
-  if (version === revision && chat && !['idle','uncertain'].includes(state)) timer = setTimeout(pollChat, 2500);
+  // Uncertain delivery settles on the server, so keep checking until it does.
+  if (version === revision && chat && (state !== 'idle' || limit !== historyLimit))
+    timer = setTimeout(pollChat, limit !== historyLimit ? 0 : 2500);
+}
+
+function showEarlier(limited) {
+  const more = limited && historyLimit < 1000;
+  earlierButton.hidden = !more;
+  earlierButton.disabled = historyLimit !== shownLimit;
+  document.querySelector('#chat-earlier-note').hidden = !limited || more;
+  document.querySelector('#chat-earlier').hidden = !limited;
+}
+earlierButton.addEventListener('click', () => {
+  historyLimit = Math.min(1000, shownLimit + 100);
+  earlierButton.disabled = true;
+  if (!polling) pollChat();
+});
+
+async function sendAgain(item) {
+  if (sendButton.disabled || !chat) return;
+  const current = chat; const version = revision;
+  const request = crypto.randomUUID().replaceAll('-', '');
+  // Uploads removed after 30 days cannot be sent again.
+  const attachments = item.attachments.filter(entry => !entry.removed);
+  const body = {id: request, text: item.text};
+  if (attachments.length) body.attachments = attachments.map(entry => entry.id);
+  const previous = shownMessages;
+  sending = true; animateMessages = true; errorBox.textContent = ''; composeState();
+  // The new message replaces the one that was not sent.
+  pendingMessages.push({turn: request, text: item.text, attachments});
+  showMessages(previous.filter(entry => entry.id !== item.id)); scrollToLatest(true);
+  try {
+    const result = await chatAPI(`/api/chats/${current}/messages`, body);
+    if (version !== revision) return;
+    followNextUpdate = true;
+    if (result.queued) { state = 'queued'; showQueued(result.position, result.depth); }
+    else { state = 'starting'; clearQueued(); }
+  } catch (error) {
+    if (version !== revision) return;
+    pendingMessages = pendingMessages.filter(entry => entry.turn !== request);
+    showMessages(previous);
+    errorBox.textContent = error.status === 429 ? chatT(error.message) : error.message;
+    if (error.uncertain) state = 'uncertain';
+  } finally {
+    if (version === revision) {
+      sending = false; composeState();
+      (state === 'queued' ? pollQueue() : pollChat());
+    }
+  }
 }
 
 document.querySelector('#chat-compose').addEventListener('submit', async event => {

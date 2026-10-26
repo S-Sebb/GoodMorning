@@ -42,8 +42,8 @@ moving the conversation's reading position. On phones the chat panel fills the
 dynamic browser viewport; New conversation sits in the conversation-topic header.
 Unreadable API responses produce a translated connection notice, never a raw JSON
 parser error. Only the read-only history listing retries once; queue reads,
-uploads, messages and answers never replay automatically. Uncertain delivery
-preserves the draft and requires a delivery check before another send.
+uploads, messages and answers never replay automatically. A send whose response
+was lost preserves the draft while the page rechecks the conversation.
 The account's English/Simplified Chinese setting is shared by Morning, Night and
 Secretary and across devices. Login cookies remain host-only. Unauthenticated
 pages share only a non-secret browser language preference. Active requests retain
@@ -114,7 +114,21 @@ the current core, browser-chat and matching workflow rules instead of relying
 on earlier copies. Keep the same session, history, records and permissions.
 History reads never move sessions, and a failed or uncertain move never dispatches
 the message or triggers a blind retry.
-Interrupted dispatch stays uncertain and requires inspection, never blind replay.
+Interrupted dispatch (a failed engine request or a restart mid-send) is
+uncertain, and the conversation settles it on its next status read, never by
+replay. If the engine's transcript has acknowledged the prompt (identical prompts
+each need their own acknowledgment), the conversation continues. If the prompt
+was provably never sent (no session yet, or the failure came before the prompt
+was built), or the engine is idle and still has not seen it two minutes after
+the failure, the message is marked **Not sent**: it stays at the end of the
+conversation with a note that nothing in it was saved or done and a **Send
+again** button, which sends the same text and attachments (except uploads already
+removed) as a new message. Sending anything else also replaces it. An answer to a
+saved question that was not sent reopens that question and asks the user to
+answer it again. A first message that was not sent opens
+the conversation again with the next one. While the check runs, the status says
+so, sending waits, and the page keeps polling; no administrator is needed.
+An engine that is retrying a provider error counts as working.
 Sending a follow-up while the secretary is working steers the same session:
 the composer stays enabled during starting, running and queued states, and the
 new message interrupts the current run instead of waiting behind it. A follow-up
@@ -258,8 +272,11 @@ clears restoration explicitly. No visual reset cancels an agent or deletes histo
 The page shows visible user/assistant text and user-facing question forms, never
 reasoning or internal tool output.
 Assistant Markdown is rendered into an allowlisted DOM without agent HTML or
-unsafe links. Bounded recent history is displayed; complete
-transcripts remain in the account's encrypted agent storage. Browser storage is
+unsafe links. A conversation opens on its latest 100 visible messages. When
+earlier ones exist, **Show earlier messages** at the top loads 100 more at a
+time, up to 1,000, without moving the reading position; beyond that a note says
+the earliest messages are too far back to show. Complete transcripts remain in
+the account's encrypted agent storage. Browser storage is
 not used for private messages. New conversation starts a new draft;
 previous conversations remain accessible. It does not cancel an active agent.
 
