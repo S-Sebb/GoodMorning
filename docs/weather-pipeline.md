@@ -73,7 +73,9 @@ With the provider's hourly forecast, rain, the umbrella advice and the brief's
 high/low cover only the hours ahead in an 18-hour frame: 06:00–24:00, or 18:00
 to noon the next day for runs after 18:00 local. An hour with at least 50%
 precipitation probability is wet; a snow day is not rain. Advice names a later
-start ("umbrella for after 21:00"). JSON adds `ahead` and `frame` (hourly
+start ("umbrella for after 21:00"). When the current hour is dry, a current
+drizzle, rain, shower or snow condition is dropped (`condition` null), so the
+brief never pairs "light drizzle" with "dry until 09:00". JSON adds `ahead` and `frame` (hourly
 temperature, rain chance and AQI, sunrise/sunset, night spans, source links).
 Browser jobs attach that `frame` to the saved weather block when the section is
 published, so its charts and headlines are code-owned.

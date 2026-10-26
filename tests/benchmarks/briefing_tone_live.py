@@ -141,7 +141,7 @@ class CheckpointBridge(TrialBridge):
 
 
 def synthetic_weather(instant):
-    """Brief text and JSON from the real weather code for a dry day with past night rain and rain from 21:00."""
+    """Brief text and JSON from the real weather code for a dry day with past night rain, rain from 21:00 and model drizzle now."""
     from unittest.mock import patch
     from zoneinfo import ZoneInfo
     from goodmorning import weather as w
@@ -150,7 +150,7 @@ def synthetic_weather(instant):
     times = [f'{day + timedelta(days=h // 24)}T{h % 24:02d}:00' for h in range(48)]
     forecast = {'timezone':'Europe/London', 'hourly':{'time':times, 'temperature_2m':[9 + (h % 24) / 4 for h in range(48)],
                 'precipitation_probability':[100 if h % 24 in (3, 4) else 70 + h % 24 if h % 24 >= 21 else 5 for h in range(48)]},
-                'current':{'time':local.strftime('%Y-%m-%dT%H:00'), 'temperature_2m':12, 'weather_code':3},
+                'current':{'time':local.strftime('%Y-%m-%dT%H:00'), 'temperature_2m':12, 'weather_code':51},
                 'daily':{'time':[str(day), str(day + timedelta(days=1))], 'temperature_2m_min':[9, 9], 'temperature_2m_max':[14.8, 14.8],
                          'precipitation_probability_max':[100, 100], 'weather_code':[61, 61], 'rain_sum':[3, 3], 'showers_sum':[1, 1],
                          'snowfall_sum':[0, 0], 'sunrise':[f'{day}T07:36', f'{day + timedelta(days=1)}T07:38'],
@@ -414,6 +414,9 @@ def run_case(output, template, language, scenario, instant):
                     assert {'temperature','precipitation','air'} <= set(cards), 'Weather cards missing'
                     rain = ' '.join(str(value) for value in cards['precipitation'][1:3])
                     assert '100%' not in rain, 'Precipitation repeated the whole-day 100% the read no longer reports'
+                    warm = str(cards['temperature'][2]).casefold()
+                    assert not any(word in warm for word in ('rain', 'drizzle', 'umbrella', 'shower', '雨', '伞')), \
+                        'Temperature detail reported precipitation'
                     result['weather_cards'] = weather[1]
                     result['checks'].append('Weather published from the forward-looking read; frame attached by code')
                 elif scenario == 'morning-empty':
