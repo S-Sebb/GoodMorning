@@ -107,6 +107,8 @@ def verify(accounts, token, notifies=None):
             links = json.loads(raw)
             for entry in links:
                 if secrets.compare_digest(entry['hash'], digest):
+                    if not db.execute('SELECT 1 FROM users WHERE id=? AND enabled=1', (key.removeprefix('app-links:'),)).fetchone():
+                        return None
                     stale = not entry['used'] or time.time() - entry['used'] > 3600
                     if stale or (notifies is not None and entry.get('notifies') != notifies):
                         entry['used'] = time.time()

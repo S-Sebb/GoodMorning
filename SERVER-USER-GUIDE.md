@@ -74,5 +74,7 @@ Verify these paths on the target server. Replace `USERNAME` and `ACCOUNT_ID` bel
 - Recreate a login, reset its password, or reinitialize its vault to fix a backend outage.
 
 Report only the username, account ID, entry URL, readiness result, and blockers.
-Use SSH-only `admin reset USERNAME` for password recovery. Detailed security and
+Use SSH-only `admin reset USERNAME` for password recovery. A reset, rename,
+disable or enable signs the account out everywhere and unlinks all its phones;
+the user links them again under Account → Linked phones. Detailed security and
 service requirements: [docs/website-security.md](docs/website-security.md).

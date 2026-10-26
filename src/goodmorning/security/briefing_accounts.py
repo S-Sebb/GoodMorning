@@ -180,6 +180,14 @@ class Accounts:
                 raise Denied('Login required')
             return self.issue(db,host,row,remember=True)
 
+    def unlink_phones(self, db, identifier):
+        """Revokes every app token, the phone outbox and confirmed but unclaimed codes. Lives here rather than
+        in app_link, whose Web Push imports SSH admin commands must not need."""
+        db.execute('DELETE FROM metadata WHERE key IN (?,?)',('app-links:'+identifier,'app-outbox:'+identifier))
+        for key,raw in db.execute("SELECT key,value FROM metadata WHERE key LIKE 'app-pair:%'").fetchall():
+            if json.loads(raw).get('user')==identifier:
+                db.execute('DELETE FROM metadata WHERE key=?',(key,))
+
     def change_password(self, session, current, replacement, address):
         self.limit([('reset:'+session['user_id'],5),('reset-ip:'+address,15)])
         password(replacement)
@@ -198,6 +206,7 @@ class Accounts:
             db.execute('UPDATE users SET salt=?,digest=?,revision=revision+1,temporary=0 WHERE id=?',
                        (salt,self.derive(replacement,salt),row['id']))
             db.execute('DELETE FROM sessions WHERE user_id=?',(row['id'],))
+            self.unlink_phones(db,row['id'])
             updated = db.execute('SELECT * FROM users WHERE id=?',(row['id'],)).fetchone()
             return self.issue(db,session['host'],updated,remember=bool(session['remembered']))
 
@@ -287,4 +296,5 @@ class Accounts:
                 db.execute('UPDATE users SET enabled=? WHERE id=?',(int(enabled),row['id']))
             db.execute('UPDATE users SET revision=revision+1 WHERE id=?',(row['id'],))
             db.execute('DELETE FROM sessions WHERE user_id=?',(row['id'],))
+            self.unlink_phones(db,row['id'])
             return row['id']

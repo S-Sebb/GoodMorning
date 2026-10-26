@@ -66,6 +66,11 @@ so they skip the Origin and CSRF checks. Pairing requests, claims, code entries
 and failed tokens are rate-limited per address or account. The token travels in
 a header, never in a URL.
 
+Every app request also requires the account to be enabled. A password change,
+an SSH reset, rename, disable or enable unlinks every phone of the account and
+drops codes the owner confirmed but no phone claimed, so re-enabling an account
+never revives old links; each phone must be linked again.
+
 ## Encryption and trust
 
 Use gocryptfs for encrypted filenames and authenticated content encryption, not
@@ -161,8 +166,8 @@ stores token hashes, not cookies. Ordinary sessions expire after 30 minutes idle
 or 12 hours absolute. The unchecked-by-default remember option lasts at most 60
 days without idle expiry; it remembers a revocable login token, never password
 text. Current-password replacement preserves that choice while revoking all old
-tokens. SSH resets/admin changes also revoke tokens; logout revokes the current
-token. Login rotates the
+tokens. SSH resets/admin changes also revoke tokens; both also unlink every
+phone (see [App tokens](#app-tokens)). Logout revokes the current token. Login rotates the
 anonymous cookie. Every mutation also requires the exact HTTPS Origin and the
 authenticated session's CSRF token. CSP blocks external scripts and framing.
 
