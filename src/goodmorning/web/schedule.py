@@ -8,6 +8,7 @@ from zoneinfo import ZoneInfo
 
 from goodmorning.calendar.calendar_store import CalendarStore, endpoints
 from goodmorning.calendar.calendar_safety import safe_value
+from goodmorning.briefings.briefing_day import briefing_day
 from goodmorning.records.daily import inspect, read_record, record_path
 from goodmorning.records.routing import converted_draft_ids
 from . import language as ui
@@ -43,7 +44,7 @@ def schedule_query(query):
 def saved_day(runtime, zone, now, offset):
     if type(offset) is not int or not -DAY_RANGE <= offset <= DAY_RANGE:
         raise ValueError('Schedule outside the seven-week window')
-    today = now.astimezone(ZoneInfo(zone)).date()
+    today = date.fromisoformat(briefing_day(zone, now))
     target = today + timedelta(days=offset)
     week = (target - timedelta(days=target.weekday()) - (today - timedelta(days=today.weekday()))).days // 7
     data = saved_week(runtime, zone, now, week)
@@ -54,7 +55,7 @@ def saved_week(runtime, zone, now, offset):
     if type(offset) is not int or not -3 <= offset <= 3:
         raise ValueError('Schedule outside the seven-week window')
     local = now.astimezone(ZoneInfo(zone))
-    today = local.date()
+    today = date.fromisoformat(briefing_day(zone, now))
     monday = today - timedelta(days=today.weekday()) + timedelta(weeks=offset)
     days = [{'date': (monday + timedelta(days=i)).isoformat(), 'events': [], 'tasks': [],
              'plan_error': False} for i in range(7)]
@@ -311,7 +312,8 @@ def day_event(event, day, zone, now):
             if begins.date() != ends.date():
                 end_label = ui.text('{date} at {time}', date=ends.date().isoformat(), time=end_label)
             until = ui.ui('Until {time}', time=end_label)
-            state = '' if day != local.date().isoformat() else 'past' if ends <= local else 'now' if begins <= local else 'next'
+            # Before 04:00 the briefing day's events show as ended and the calendar day's as live.
+            state = '' if day not in (local.date().isoformat(), briefing_day(zone, now)) else 'past' if ends <= local else 'now' if begins <= local else 'next'
         place, notes = event.get('location') or event.get('online'), event.get('notes')
         source = '' if event['source'] == 'custom' else '<p class="event-source">' + ui.ui('Calendar') + ' · <span data-content>' + html.escape(event['source']) + '</span></p>'
         title = event['subject']

@@ -1,6 +1,7 @@
 """Deterministic preparation/amendments/views; no personal records or providers."""
 
 import contextlib
+import datetime as dt
 import io
 import json
 import os
@@ -9,6 +10,7 @@ import sys
 import tempfile
 import unittest
 from unittest.mock import patch
+from zoneinfo import ZoneInfo
 
 from support import TEMP_ROOT
 ROOT = Path(__file__).resolve().parents[1]
@@ -95,15 +97,26 @@ class HelpersTests(unittest.TestCase):
         self.assertEqual(result["missing_fields"][0], "secretary_language")
         self.assertFalse(missing.exists())
 
-    def test_task_capture_date_is_calendar_date_not_previous_briefing_day(self):
+    def test_chat_and_capture_share_the_04_00_day_and_flag_the_hours_after_midnight(self):
+        class Clock(dt.datetime):
+            @classmethod
+            def now(cls, tz=None):
+                return cls.at.astimezone(tz)
         before=set(self.root.iterdir())
-        with patch.object(workflow,'today_str',return_value='2026-10-13'), \
-             patch.object(workflow,'stamp',return_value='2026-10-14T02:00:00+01:00'), \
+        with patch.object(workflow.dt,'datetime',Clock), \
              patch.object(workflow,'rebuild_index',side_effect=AssertionError('unrelated scan')):
-            result=workflow.prepare(self.root,'todo',website_language='en')
-        self.assertEqual(result['date'],'2026-10-13')
-        self.assertEqual(result['capture_date'],'2026-10-14')
-        self.assertEqual(result['timezone'],'Europe/London')
+            Clock.at=dt.datetime(2026,10,31,1,30,tzinfo=ZoneInfo('Europe/London'))  # Saturday night, before 04:00
+            for kind in ('secretary','todo','eureka'):
+                result=workflow.prepare(self.root,kind,website_language='en')
+                self.assertEqual((result['date'],result['after_midnight']),('2026-10-30','2026-10-31'))
+                self.assertNotIn('capture_date',result)
+            self.assertEqual(result['timezone'],'Europe/London')
+            self.assertEqual(workflow.prepare(self.root,'secretary',website_language='en')['tomorrow'],'2026-10-31')
+            Clock.at=dt.datetime(2026,10,31,4,0,tzinfo=ZoneInfo('Europe/London'))
+            for kind in ('secretary','todo'):
+                result=workflow.prepare(self.root,kind,website_language='en')
+                self.assertEqual(result['date'],'2026-10-31')
+                self.assertNotIn('after_midnight',result)
         self.assertEqual(set(self.root.iterdir()),before)
 
     def test_duplicate_preparation_uses_json_pointer_without_task_history_or_content_reads(self):

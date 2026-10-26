@@ -25,7 +25,7 @@ secretary workflow in this conversation; capture wording alone does not grant co
    recurrence, use the confirmed local capture date as the default start and the
    saved timezone. Ask for start only if another effective date is indicated.
    If local date/timezone is not yet confirmed, `workflow --prepare todo` reads it
-   without writing: use `capture_date` (calendar date), not the briefing-day `date`.
+   without writing: use its `date` (see `after_midnight` in core rules).
    Pass `--website-language CODE` in browser chat. For “every few
    days”, ask only the interval, then apply that answer with the default start.
    A time window without a frequency (“11月初”, “early November”) is ambiguous

@@ -21,7 +21,6 @@ import org.json.JSONObject;
 import java.io.File;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.TextStyle;
 
@@ -32,6 +31,8 @@ public abstract class Widgets extends AppWidgetProvider {
     private static final String GENERATE = "me.love765.goodmorning.GENERATE";
     /** Before this hour the briefings widget opens on the morning edition, from it on the evening one. */
     private static final int EVENING = 17;
+    /** Hours before this still belong to the previous day's evening, as on the website. */
+    private static final int ROLLOVER = 4;
 
     /** Today's events and to-dos. */
     public static class Today extends Widgets {
@@ -332,16 +333,19 @@ public abstract class Widgets extends AppWidgetProvider {
     static String edition(Context context, int id) {
         SharedPreferences prefs = choices(context);
         String chosen = prefs.getString("edition" + id, null);
-        boolean evening = LocalTime.now().getHour() >= EVENING;
-        return chosen != null && prefs.getString("period" + id, "").equals(period()) ? chosen : evening ? "gn" : "gm";
+        String period = period(LocalDateTime.now());
+        return chosen != null && prefs.getString("period" + id, "").equals(period) ? chosen : period.endsWith("pm") ? "gn" : "gm";
     }
 
     private static void choose(Context context, int id, String edition) {
-        choices(context).edit().putString("edition" + id, "gn".equals(edition) ? "gn" : "gm").putString("period" + id, period()).apply();
+        choices(context).edit().putString("edition" + id, "gn".equals(edition) ? "gn" : "gm").putString("period" + id, period(LocalDateTime.now())).apply();
     }
 
-    private static String period() {
-        return LocalDate.now() + (LocalTime.now().getHour() >= EVENING ? "pm" : "am");
+    /** The briefing day and its half: from 17:00 until 04:00 the next morning is that day's "pm". */
+    static String period(LocalDateTime now) {
+        int hour = now.getHour();
+        LocalDate day = hour < ROLLOVER ? now.toLocalDate().minusDays(1) : now.toLocalDate();
+        return day + (hour >= EVENING || hour < ROLLOVER ? "pm" : "am");
     }
 
     /** A broadcast to this widget's provider; the data keeps each widget's and edition's intents apart. */

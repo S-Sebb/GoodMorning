@@ -7,6 +7,7 @@ import json
 from pathlib import Path
 import sqlite3
 import sys
+from zoneinfo import ZoneInfo
 
 from .daily import show as daily_show
 from .inbox_store import InboxStore, encode, stamp
@@ -14,6 +15,7 @@ from goodmorning.runtime_files import secretary_path, cache_path, profile_fields
 from goodmorning.setup_check import profile_status
 from .state import load_state, rebuild_index, parse_daily, missed_page, today_str
 from goodmorning.briefings.briefing_document import source_path
+from goodmorning.briefings.briefing_day import briefing_day
 
 PERSONAL = ("secretary_name", "user_name", "secretary_language", "secretary_tone", "special_needs", "occupations", "expertise_fields",
             "work_days", "work_hours", "sleep_time", "industry", "knowledge_area", "project_scope")
@@ -25,17 +27,20 @@ def prepare(directory, kind, today=None, cache=None, *, task_limit=7, website_la
     if website_language is not None:fields={**fields,'secretary_language':ready['secretary_language']}
     if not ready["profile_ready"]:
         return {"workflow": kind, **ready, "next": "resume secretary setup; do not initialize or fetch automatically"}
-    date = today_str(today, fields["timezone"])
+    local = dt.datetime.now(ZoneInfo(fields["timezone"]))
+    date = today_str(today, fields["timezone"]) if today else briefing_day(fields["timezone"], local)
     day = dt.date.fromisoformat(date)
     result = {"workflow": kind, "ready": True, "date": date, "timezone": fields["timezone"],
               "profile": {key: fields[key] for key in PERSONAL if fields.get(key)}}
+    if not today and kind in ("secretary", "todo", "eureka") and local.date() != day:
+        # Before 04:00 the user's day is still `date`; a plain "today" could mean either.
+        result["after_midnight"] = local.date().isoformat()
     english = fields["secretary_language"].strip().casefold() == "english"
     if kind in ("gm", "gn"):
         result["title"] = {"gm": "GoodMorning", "gn": "GoodNight"}[kind] + " " + date if english else None
     elif kind == "secretary":
         result["title"] = None
     if kind in ("todo", "eureka"):
-        result["capture_date"] = dt.datetime.fromisoformat(stamp(directory)).date().isoformat()
         result["profile"] = {key: fields[key] for key in ("secretary_name", "user_name", "secretary_language", "secretary_tone") if fields.get(key)}
         return result
     result.update(yesterday=(day - dt.timedelta(days=1)).isoformat(), tomorrow=(day + dt.timedelta(days=1)).isoformat())
