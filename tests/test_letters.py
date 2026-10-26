@@ -113,9 +113,10 @@ class LetterTests(unittest.TestCase):
     def reach_letter(self, identifier='c' * 32):
         self.step('init', {'greeting': 'Evening.', 'opening': 'Tonight’s review.'}, identifier)
         self.step('publish', {'position': 0, 'section': ['today', [['p', 'You shared no updates.']]]}, identifier)
-        self.step('publish', {'position': 1, 'section': ['schedule', [['p', 'One appointment tomorrow.']]]}, identifier)
-        self.step('skip', {'position': 2}, identifier)
-        return self.step('skip', {'position': 3}, identifier)
+        self.step('publish', {'position': 1, 'section': ['weather', [['p', 'Tomorrow’s weather is unavailable.']], '', 'Weather tomorrow']}, identifier)
+        self.step('publish', {'position': 2, 'section': ['schedule', [['p', 'One appointment tomorrow.']]]}, identifier)
+        self.step('skip', {'position': 3}, identifier)
+        return self.step('skip', {'position': 4}, identifier)
 
     def test_the_week_comes_from_saved_records_only(self):
         self.assertEqual(letters.facts(self.root, WEEK, 'en'), {
@@ -132,21 +133,21 @@ class LetterTests(unittest.TestCase):
         self.job()
         result = self.reach_letter()
         self.assertEqual(result['next']['section'], ['letter', 'Weekly letter'])
-        self.assertEqual(result['next']['input'], {'position': 4, 'letter': {'opening': '…', 'signoff': '…'}})
+        self.assertEqual(result['next']['input'], {'position': 5, 'letter': {'opening': '…', 'signoff': '…'}})
         read = result['next']['results'][0]
         self.assertEqual((read['exit'], read['output']['saved'], read['output']['letter']['habits'][0]), (0, False, ['Stretching', 4, 3]))
         self.assertIn('Never mention unfinished work', result['next']['writing'])
         with self.assertRaisesRegex(ValueError, 'do not skip'):
-            self.step('skip', {'position': 4})
+            self.step('skip', {'position': 5})
         with self.assertRaisesRegex(ValueError, 'write the letter'):
-            self.step('publish', {'position': 4})
+            self.step('publish', {'position': 5})
         with self.assertRaisesRegex(ValueError, 'opening'):
-            self.step('publish', {'position': 4, 'letter': {'opening': 'Hi'}})
-        self.step('publish', {'position': 4, 'letter': WORDS})
+            self.step('publish', {'position': 5, 'letter': {'opening': 'Hi'}})
+        self.step('publish', {'position': 5, 'letter': WORDS})
         saved = letters.load(self.root, WEEK)
         self.assertEqual((saved['opening'], saved['lang'], letters.counts(saved)), (WORDS['opening'], 'en', [5, 2, 1]))
         # An identical retry reuses the published notice.
-        self.assertTrue(self.step('publish', {'position': 4, 'letter': WORDS})['reused'])
+        self.assertTrue(self.step('publish', {'position': 5, 'letter': WORDS})['reused'])
 
         # This job stops before saving the briefing; the next job for the same Sunday keeps the first letter,
         # even after records change.
@@ -159,9 +160,9 @@ class LetterTests(unittest.TestCase):
         again = 'd' * 32
         self.job(again)
         result = self.reach_letter(again)
-        self.assertEqual(result['next']['input'], {'position': 4})
+        self.assertEqual(result['next']['input'], {'position': 5})
         self.assertEqual(result['next']['results'][0]['output'], {'week': WEEK, 'saved': True, 'counts': [5, 2, 1]})
-        self.step('publish', {'position': 4, 'letter': {'opening': 'Rewritten.', 'signoff': 'Bye.'}}, again)
+        self.step('publish', {'position': 5, 'letter': {'opening': 'Rewritten.', 'signoff': 'Bye.'}}, again)
         self.assertEqual((self.root / 'letters' / f'{WEEK}.json').read_text(), before)
         self.assertTrue(self.step('finish', {}, again)['saved'])
         document = json.loads((self.root / 'daily' / f'{SUNDAY}.gn.json').read_text())
@@ -174,7 +175,7 @@ class LetterTests(unittest.TestCase):
         self.job()
         self.reach_letter()
         with patch.object(letters, 'facts', side_effect=ValueError('setup_required')):
-            self.step('publish', {'position': 4})
+            self.step('publish', {'position': 5})
         preview = json.loads((self.root / 'browser-jobs' / ('c' * 32 + '.preview.json')).read_text())
         self.assertEqual(preview['document']['sections'][-1], ['letter', [['letter', WEEK, None]]])
         self.assertIsNone(letters.load(self.root, WEEK))

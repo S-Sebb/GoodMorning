@@ -489,7 +489,7 @@ def act(runtime, identifier, session, action, payload=None):
             expected = default_plan(context)
             if context.get('document_version') == 2 and checkpoint is None:
                 if 'plan' in payload and payload['plan'] != expected:
-                    raise ValueError('Briefing plan order is fixed; use the default plan unchanged (gm Weather, News, Schedule, Tasks, Reminders; gn Today, Schedule, Tasks, Reminders, then New episodes, Game sales and Stocks when on, and the Weekly letter on Sundays)')
+                    raise ValueError('Briefing plan order is fixed; use the default plan unchanged (gm Weather, News, Schedule, Tasks, Reminders; gn Today, Weather tomorrow, Schedule, Tasks, Reminders, then New episodes, Game sales and Stocks when on, and the Weekly letter on Sundays)')
                 plan = expected
             else:
                 plan = payload.get('plan', expected)
