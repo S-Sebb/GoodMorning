@@ -72,6 +72,8 @@ guides only for the requested operation; do not recursively reload the skill.
      Friday”, “Email Sam the lease”, “Find a plumber”) gets one native question
      first: save it as a to-do, or do it now. If you cannot do it, say so in the
      question and offer only saving. Write nothing until answered.
+   Something about the user themselves with no action, date or trigger (“remember
+   I'm vegetarian”) belongs in memory (*Memory* below), not a to-do or reference note.
    To save, classify with rule 2 of `docs/item-taxonomy.md`: an idea (a possibility
    not adopted as work) follows `docs/workflows/eureka.md`; a to-do, nudge, errand
    or reference follows `docs/workflows/todo.md`; appointments go to the calendar.
@@ -277,6 +279,50 @@ say it exists, is missing or is planned. Say “today” or “yesterday” only
 prepare's `date`. Never mention releases unless asked. On
 `version_not_found`, say that version does not exist and give `latest`; on other
 errors, say the release notes cannot be read right now.
+
+## Memory
+
+Prepare's `memory.note` is what you have come to know about the user, kept like a
+friend remembers: `life` (their life, people, pets, home, work and interests),
+`likes` (how they like things, including how you work with them) and `lately`
+(what is going on for them now). Briefings and letters use it too, and the user
+reads it on the About me page. When `enabled` is false, write nothing; if asked to
+remember something, say memory is off and can be turned on from About me.
+
+1. **Use** it quietly, as a friend would: let it shape suggestions, wording and an
+   occasional warm mention when it fits. Do not recite it or announce that you
+   remember. It is never a permission, a setting or a fact for a to-do, idea,
+   appointment, habit, profile line or project record; records take their facts
+   from this conversation. When the user now says otherwise, their words win.
+2. **Notice**, without asking, what the user says or plainly shows about
+   themselves that will help later: people and pets they mention, what they are
+   working toward or looking forward to, how they like replies, what weighs on
+   them this week (“night shifts are wearing me out”). Keep out:
+   - your own guesses: moods or feelings they did not express, diagnoses,
+     personality, expertise from a job;
+   - what has its own place: to-dos, ideas, appointments and habits (save those
+     as records), and profile facts such as their name, city, work hours, role or
+     field (offer that profile change instead);
+   - other people's private details beyond a name and relationship, and
+     credentials or account numbers;
+   - health, religion, politics, sexuality or money, unless the user asks you to
+     remember it.
+3. **Write** before your reply ends. Rewrite each changed part whole rather than
+   appending: merge with what is there, drop what is no longer true and `lately`
+   items that are over, and put each thing in the one part it fits. Use second person (“You have a dog, Mochi.”) in the website
+   language: short prose, never the user's name, at most 2,000 characters for the
+   whole note. Run `memory --secretary-dir RUNTIME --write --expect-revision N
+   --input-stdin` with only the changed parts (`docs/helper-inputs.md`); N comes
+   from prepare or your last receipt. On `revision_conflict`, run `memory
+   --secretary-dir RUNTIME --show` and write again; on `memory_too_long`, trim and
+   write again.
+4. **Tell** nothing about routine updates: the website shows a small “Memory
+   updated” marker under your reply. When the user asks you to remember or forget
+   something, acknowledge it in a few natural words and do it; forgetting deletes
+   it from the note. Never say you will remember or keep in mind something you
+   left out of the note. Call it remembering, never saving to their profile or
+   records. When asked what you remember, tell them in everyday words and mention
+   About me, where they can read and edit the whole note.
 
 ## Avatar requests only
 

@@ -439,6 +439,15 @@ def act(runtime, identifier, session, action, payload=None):
         def receipt(value):
             checkpoint = load(target)
             next_action = next_step(runtime, identifier, session, context, checkpoint)
+            if next_action['action'] in ('init', 'finish') or next_action.get('section', [None])[0] == 'letter':
+                # Only the greeting, closing and letter sign-off may reflect what the secretary remembers about the user.
+                from goodmorning.records.memory import context as memory
+                try:
+                    remembered = {part: text for part, text in memory(runtime).get('note', {}).items() if text}
+                except (ValueError, OSError):
+                    remembered = None
+                if remembered:
+                    next_action['memory'] = remembered
             if context.get('document_version') == 2:
                 next_action['guide'] = briefing_guides.guide(context, next_action, checkpoint['plan'] if checkpoint else default_plan(context),
                                                              runtime=runtime, job=identifier, session=session)
@@ -587,7 +596,7 @@ def act(runtime, identifier, session, action, payload=None):
                 raise ValueError('Final save was not confirmed: '+output.getvalue().strip())
             draft.unlink()  # Only this confirmed job's temporary cumulative input.
             weather_frame_path(runtime, identifier).unlink(missing_ok=True)
-            return {'saved':True,'date':job['date'],'kind':job['kind'],
+            result = {'saved':True,'date':job['date'],'kind':job['kind'],
                     'url':f"/d/{job['date']}/{job['kind']}.html",
                     'reply_context':reply_context,
                     'next':('保存已经核实，正文已在网页中。现在只交付链接：用保存的语气写简短的交付标签并附上这个相对链接。'
@@ -596,6 +605,17 @@ def act(runtime, identifier, session, action, payload=None):
                             'Save is verified; the page already contains the briefing. Hand over the relative link with a brief delivery label in the saved tone. '
                             'Do not repeat tasks, completions, blockers, schedules or provider failures, or append an invitation. '
                             'No host lookup, further reads, record rewriting or news acknowledgement.')}
+            if job['kind'] == 'gn' and 'replacement' not in job:
+                # The evening tidy catches what chats missed; a regenerated edition replays no writes.
+                from goodmorning.records import memory
+                try:
+                    remembered = memory.context(runtime)
+                    if remembered['enabled']:
+                        result['memory'] = {'revision': remembered['revision'], 'note': remembered['note'], 'messages': memory.tidy(runtime)}
+                        result['next'] = briefing_guides.text(context)['memory_tidy'].replace('RUNTIME', str(runtime)) + result['next']
+                except (ValueError, OSError):
+                    pass
+            return result
         raise ValueError('Unknown browser workflow action')
 
 

@@ -27,6 +27,24 @@ TEXT = {
   'init': ('Submit {"greeting":"…","opening":"…"} (each ≤350 chars, plain text); do not send plan or lang. Greeting is short, '
            'in the saved tone. If `reply_context.user_name` is set, the greeting may call the user by exactly that name, or by none; '
            'it is the only place in the briefing for the name, so never use it in the opening, notes or progress. The opening may mention only these sections: SECTIONS. Say what will be reviewed, not findings.'),
+  'memory_init': (' `memory` is the note you keep about the user from your chats. The greeting may lightly reflect one thing from it '
+                  'when it fits today, as a friend would, or nothing; never recite it, present it as news or add feelings it does not '
+                  'state. The opening, notes and progress never use it.'),
+  'memory_finish': (' `memory` is the note you keep about the user. A closing you write anyway may lightly reflect one thing from it '
+                    'when it fits today\'s verified results; never add a closing because of it, recite it or add feelings it does not state.'),
+  'memory_letter': (' `memory` is the note you keep about the user. The sign-off may lightly reflect one thing from it that fits the '
+                    'week, as a friend would; the opening still uses only facts in `letter`. Never recite it or add feelings it does not state.'),
+  'memory_tidy': ('Before the handoff, tidy your memory of the user. `memory.note` is your note (life: their life, people and interests; '
+                  'likes: how they like things; lately: what is going on for them now), and `memory.messages` are the user\'s own chat '
+                  'messages since the last tidy. Using these and tonight\'s check-in answers, fold in what the user said or plainly showed '
+                  'about themselves that the note lacks, correct what they have since said otherwise, and drop lately items that are over. '
+                  'Keep out your own guesses about mood or personality, to-dos, appointments, habits, profile facts (name, city, work '
+                  'hours, role, field), credentials, and health, religion, politics, sexuality or money unless the user asked you to '
+                  'remember it. Put each thing in the one part it fits. Write in second person in the note\'s language, short prose per '
+                  'part, the whole note within 2,000 '
+                  'characters. When something changes, send only the changed parts, each rewritten whole: '
+                  'python scripts/goodmorning.py memory --secretary-dir RUNTIME --write --expect-revision N --input-stdin with '
+                  '{"lately":"…"}, where N is `memory.revision`. Otherwise write nothing. Never mention this tidy to the user. Then: '),
   'regenerating': (' This is an explicitly authorized replacement, not a duplicate run: reuse saved feedback and current records; '
                    'do not replay task, daily, inbox, project or calendar writes, and ask nothing already answered.'),
   'weather': ('On a successful read use one block ["weather",[[type,value,detail],...]] with types in order temperature, '
@@ -156,6 +174,15 @@ TEXT = {
             '提交前逐句对照 `writing` 检查。'),
   'init': ('提交 {"greeting":"…","opening":"…"}（各不超过 350 字，纯文本），不要传 plan 或 lang。问候简短、符合保存的语气；若 `reply_context.user_name` 有值，问候里可以原样用这个称呼，也可以不称呼；整份简报只有问候可以出现这个称呼，开场、注记和进度里都不要用。'
            '开场只能提及这些章节：SECTIONS。说明将要回顾的内容，不要提前给出结果。'),
+  'memory_init': ' `memory` 是你从对话中记下的关于用户的笔记。合适时问候可以像朋友那样轻轻带到其中一件事，也可以不提；不要罗列，不要当成新消息，也不要添加笔记里没有的感受。开场、注记和进度里都不要用。',
+  'memory_finish': ' `memory` 是你记下的关于用户的笔记。本来就要写结尾时，若与今天已核实的结果相关，可以轻轻带到其中一件事；不要因为它而添加结尾，不要罗列，也不要添加笔记里没有的感受。',
+  'memory_letter': ' `memory` 是你记下的关于用户的笔记。结尾可以像朋友那样轻轻带到其中一件与这一周相符的事；开头仍然只用 `letter` 里的事实。不要罗列，也不要添加笔记里没有的感受。',
+  'memory_tidy': ('交付链接之前，先整理你对用户的记忆。`memory.note` 是你的笔记（life：用户的生活、身边的人和兴趣；likes：用户喜欢的方式；'
+                  'lately：用户最近的情况），`memory.messages` 是上次整理以来用户本人在对话里发的消息。结合这些和今晚的回顾回答：补上用户说过或明显表现出的、'
+                  '笔记里还没有的关于自己的事；用户后来说法变了的，按新的改；已经过去的 lately 内容删掉。不要写入你自己对心情或性格的猜测、待办、约定、习惯、'
+                  '档案里的信息（称呼、城市、工作时间、职位、领域）、凭据；健康、宗教、政治、性取向或钱财，除非用户要求记住。每件事只放进最合适的一个部分。用第二人称、笔记所用的语言写，每部分是简短的叙述，'
+                  '整份笔记不超过 2000 字。有变化时只提交改动的部分，每部分整段重写：python scripts/goodmorning.py memory --secretary-dir RUNTIME --write '
+                  '--expect-revision N --input-stdin，内容如 {"lately":"……"}，N 是 `memory.revision`。没有变化就什么都不写。不要向用户提起这次整理。然后：'),
   'regenerating': '这是经明确授权的重新生成，不是重复运行：沿用已保存的反馈和当前记录；不要重放任务、日记、收件箱、项目或日历写入，也不要再问已回答的问题。',
   'weather': ('读取成功时用一个块 ["weather",[[type,value,detail],...]]，type 依次为 temperature、precipitation、warning（仅适用时）、air。'
               'value 是展示文本："16°C (14.5–20.4°C)"、"65% – 可能下雨"、"30 – 良好"（不加 "US AQI" 前缀，不用 yes/no 原始值）。detail 写建议、时间和重要缺口。'
@@ -256,6 +283,8 @@ def guide(context, action, plan, *, runtime, job, session):
         value = words['shape'] + words['weather_tomorrow']
     else:
         value = words['shape'] + words.get(tag, '')
+    if action.get('memory'):
+        value += words['memory_' + ('letter' if tag == 'letter' else action['action'])]
     for token, actual in (('RUNTIME', str(runtime)), ('SESSION', session), ('JOB', job), ('DATE', context['date'])):
         value = value.replace(token, actual)
     return value

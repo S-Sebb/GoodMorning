@@ -82,10 +82,12 @@ html[data-edition="gn"] .chat-page { --special-question: #dfbd85; --special-answ
 .chat-page [data-operation="added"], .chat-page [data-operation="completed"], .chat-page [data-operation="approved"] { --special-color: var(--special-added); }
 .chat-page [data-operation="cancelled"], .chat-page [data-operation="declined"] { --special-color: var(--special-cancelled); }
 .chat-special-label { display: flex; align-items: center; gap: 9px; margin: 0 0 8px; color: var(--special-color); color: color-mix(in srgb, var(--special-color) 85%, var(--ink)); font-size: 12px; font-weight: 650; line-height: 1.45; }
+.chat-special-label a { color: inherit; text-underline-offset: 3px; }
 .chat-special-icon { display: inline-grid; place-items: center; flex: 0 0 30px; width: 30px; height: 30px; border-radius: 11px; background: var(--wash); background: color-mix(in srgb, var(--special-color) 12%, var(--special-paper)); }
 .chat-special-icon svg { width: 21px; height: 21px; }
 .chat-page [data-special="action"] .message-text { font-size: 13px; line-height: 1.6; }
 .chat-page [data-special="action"] .message-text:empty { display: none; }
+.chat-page [data-special="action"]:has(.message-text:empty) .chat-special-label { margin-bottom: 0; }
 #chat-questions [data-special] { border-radius: 18px; padding: 14px 16px; font-size: 14px; }
 #chat-questions [data-special] h2 { margin: 4px 0 6px; font-family: inherit; font-size: 16px; font-weight: 600; line-height: 1.45; letter-spacing: normal; }
 /* Compact questions so a whole form fits the chat window. */

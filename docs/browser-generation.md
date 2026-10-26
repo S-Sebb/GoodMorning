@@ -85,6 +85,16 @@ write agent-owned cumulative drafts. Check exits and `error`/`next` after every 
    New v2 editions copy no tasks to daily checklists. Already-published v1 previews
    may finish under their saved contract, never as new canonical plans.
 
+The init and finish receipts, and Sunday's letter read, carry `memory`, the note
+the secretary keeps about the user (`docs/workflows/secretary.md`, *Memory*), when
+memory is on and the note has text. Only the greeting, an optional closing and the
+letter's sign-off may lightly reflect it; sections, notes and progress never use
+it, and it never adds a closing on its own. After an evening save (not a
+regeneration) with memory on, the finish receipt also carries the note and the
+user's chat messages since the last tidy: the agent folds in what is missing,
+drops `lately` items that are over, writes with `memory --write` and only then
+hands over the link.
+
 Example (replace `RUNTIME`/`JOB` with supplied values; use the same flags throughout):
 
 ```sh

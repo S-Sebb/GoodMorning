@@ -229,7 +229,8 @@ const specialLabels = {question: 'Question for you', answer: 'Your answer', perm
   expired: 'Question expired', skipped: 'Question skipped', undelivered: 'Not sent'};
 const footnotes = {expired: 'This question closed before it could be saved. Send a message to continue where you left off.',
   undelivered: 'This message didn’t reach your secretary, so nothing in it was saved or done.'};
-const actionTargets = {task: 'Task', event: 'Event', draft: 'Event draft', idea: 'Idea', record: 'Record', custom: 'Custom schedule'};
+const actionTargets = {task: 'Task', event: 'Event', draft: 'Event draft', idea: 'Idea', record: 'Record', custom: 'Custom schedule',
+  memory: 'Memory'};
 const actionLabels = {added: '{target} added', updated: '{target} updated', cancelled: '{target} cancelled',
   completed: '{target} completed', approved: '{target} approved', declined: '{target} declined'};
 
@@ -256,7 +257,8 @@ function specialIcon(kind, action = {}) {
     draft: 'M4 7h16M8 3v4m8-4v4M11 21H6a3 3 0 0 1-3-3V7a3 3 0 0 1 3-3h12a3 3 0 0 1 3 3v4M8 12h.01',
     idea: 'M9 18H8v-2c-3-2-4-7-1-10s7-3 10 0c2 2 2 4 1 6M9 21h2M8 3 7 2m13 2 1-1',
     task: 'M11 21H6a3 3 0 0 1-3-3V6a3 3 0 0 1 3-3h12a3 3 0 0 1 3 3v5M7 8l1 1 2-2m3 1h4M7 13h3',
-    record: 'M11 21H6a3 3 0 0 1-3-3V6a3 3 0 0 1 3-3h12a3 3 0 0 1 3 3v5M7 8h10M7 13h3'
+    record: 'M11 21H6a3 3 0 0 1-3-3V6a3 3 0 0 1 3-3h12a3 3 0 0 1 3 3v5M7 8h10M7 13h3',
+    memory: 'M11 21H6a3 3 0 0 1-3-3V6a3 3 0 0 1 3-3h12a3 3 0 0 1 3 3v5M8 3v18'
   };
   const marks = {added: 'M18 14v8m-4-4h8', updated: 'm14 19 6-6 2 2-6 6-3 1 1-3Z',
     cancelled: 'M14 18h8', completed: 'm14 18 3 3 5-6', approved: 'm14 18 3 3 5-6', declined: 'm15 15 6 6m0-6-6 6'};
@@ -269,7 +271,8 @@ function specialIcon(kind, action = {}) {
 function specialBadge(kind, action = {}) {
   const badge = make('div', '', 'chat-special-label');
   const icon = make('span', '', 'chat-special-icon'); icon.append(specialIcon(kind, action));
-  const label = make('span');
+  // The note itself stays on About me; the marker only links there.
+  const label = action.target === 'memory' ? Object.assign(make('a'), {href: '/about-me#about-memory'}) : make('span');
   if (kind === 'action') {
     badge.dataset.target = action.target;
     badge.dataset.operation = action.operation;

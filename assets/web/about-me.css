@@ -17,6 +17,7 @@
 #about-extras { --about-icon: url("icons/desk-evening.svg"); }
 #about-calendar { --about-icon: url("icons/desk-schedule.svg"); }
 #about-projects { --about-icon: url("icons/desk-done.svg"); }
+#about-memory { --about-icon: url("icons/desk-letters.svg"); }
 .about-why { margin: 0 0 6px 44px; font-size: .85rem; color: var(--muted); }
 .about-section dl { margin: 0 0 0 44px; }
 .about-row { display: grid; grid-template-columns: minmax(140px, 220px) minmax(0, 1fr) auto; gap: 4px 14px; align-items: center; min-height: 48px; padding: 6px 0; border-top: 1px solid var(--line); }
@@ -28,8 +29,9 @@
 .about-empty { color: var(--muted); font-style: italic; }
 .about-empty:lang(zh) { font-style: normal; }
 .about-content { display: flex; align-items: center; gap: 10px; }
-.about-content input { flex: 1; min-width: 0; min-height: 40px; padding: .35rem .6rem; font: inherit; border: 1px solid var(--line); border-radius: .6rem; background: var(--bg); color: var(--ink); }
-.about-content input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.about-content input, .about-content textarea { flex: 1; min-width: 0; min-height: 40px; padding: .35rem .6rem; font: inherit; border: 1px solid var(--line); border-radius: .6rem; background: var(--bg); color: var(--ink); }
+.about-content textarea { resize: vertical; line-height: 1.5; }
+.about-content input:focus-visible, .about-content textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 .about-action { display: flex; justify-content: flex-end; gap: 6px; }
 .about-action button, .about-chat { display: inline-flex; align-items: center; min-height: 36px; padding: 0 12px; font: inherit; font-size: .8rem; white-space: nowrap; border: 1px solid var(--line); border-radius: 999px; background: var(--bg); color: var(--ink); text-decoration: none; cursor: pointer; }
 .about-action .about-save { border-color: var(--accent); background: var(--accent); color: var(--surface); }
@@ -45,6 +47,7 @@
 .about-switch:disabled { opacity: .6; cursor: progress; }
 .about-me [hidden] { display: none; }
 .about-note { margin: 8px 0 4px 44px; font-size: .8rem; color: var(--muted); }
+#about-memory .about-value[data-content] { font-weight: 400; white-space: pre-line; }
 .about-feedback { grid-column: 1 / -1; font-size: .8rem; color: var(--accent); }
 .about-feedback.is-error { color: #b3261e; }
 html[data-edition="gn"] .about-feedback.is-error { color: #ffb4ab; }

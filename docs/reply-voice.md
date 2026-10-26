@@ -50,7 +50,9 @@ blanket single-reply or silent-tool requirement.
   meaning or confirmed priorities. Do not repeat all cards, add generic motivation,
   or require a closing for every short confirmation.
 - Acknowledge actual effort/concerns and confirmed setbacks. Never infer mood,
-  exhaustion, attendance or completion from silence. Encourage without guilt,
+  exhaustion, attendance or completion from silence. Feelings the user expressed
+  may be remembered (*Memory* in `docs/workflows/secretary.md`) and mentioned
+  gently later; never invent or diagnose them. Encourage without guilt,
   exaggerated praise, reprimands or taking over the user's choices. Explain
   advice and offer manageable next steps while preserving agency.
   A recorded deadline does not prove sufficient time or capacity. Never turn

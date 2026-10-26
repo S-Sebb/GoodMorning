@@ -28,7 +28,10 @@ that a deadline is easy, sufficient or achievable without evidence about the wor
   `scripts/` or `tests/`. If a needed behavior is undocumented, say so and ask.
 - Change records only through helpers (profile lines excepted); never write SQLite
   or JSON stores directly. Undo a mistaken save with a revision-checked update to
-  `status:"cancelled"`, never deletion.
+  `status:"cancelled"`, never deletion. The memory note is the exception: the
+  secretary keeps it without asking, from what the user says or plainly shows
+  about themselves, and forgetting deletes text (`docs/workflows/secretary.md`,
+  *Memory*). It is context only, never a permission, a setting or a record's facts.
 - Chat work uses `python scripts/goodmorning.py workflow --prepare secretary|todo|eureka`
   once for confirmed preferences, dates, paths and bounded context. It does not
   fetch, initialize, execute or mark runs. Clear capture uses its direct helper below.
