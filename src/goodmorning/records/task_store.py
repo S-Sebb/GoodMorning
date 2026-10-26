@@ -612,13 +612,32 @@ class TaskStore:
                             ('feedback:' + day, 'feedback', now, session, encode({'selected': selections, 'details': details}), key, digest, encode(result)))
             return result
 
+    def offer_tidy(self, offered, day, session, now):
+        """Record the items tonight's tidy-up shows: shown counts as asked, even if the check-in is never saved."""
+        date(day)
+        ids = [item['id'] for item in offered]
+        digest = hashlib.sha256(encode([ids, day]).encode()).hexdigest()
+        with self.inbox.transaction():
+            self.db.execute('INSERT INTO task_events(item_id,action,at,session,snapshot,request_key,fingerprint,receipt) VALUES (?,?,?,?,?,?,?,?) '
+                            'ON CONFLICT(request_key) DO NOTHING',
+                            ('tidy:' + day, 'tidy-offer', now, session, encode({'offered': ids}), 'tidy-offer:' + day, digest, encode({})))
+
+    def tidy_changed(self, offered, answers, key):
+        """Answered items changed elsewhere since the tidy-up was shown: the newer change wins, so their answer is skipped."""
+        return [item['id'] for item in offered if answers.get(item['id']) in ('snooze', 'done', 'drop')
+                and not self.db.execute('SELECT 1 FROM task_events WHERE request_key=?', (key + ':' + item['id'],)).fetchone()
+                and self.show(item['id'])['revision'] != item['revision']]
+
     def tidy(self, offered, answers, day, session, key, now):
         """One evening tidy-up: apply each chosen answer, then record what was asked, even when every item was skipped.
 
-        "later" changes nothing; the record alone spaces out the next tidy-up."""
+        "keep" and "later" change nothing; the record alone keeps them out of later tidy-ups."""
         date(day)
+        changed = self.tidy_changed(offered, answers, key)
         for item in offered:
             choice, item_key = answers.get(item['id'], ''), key + ':' + item['id']
+            if item['id'] in changed:
+                continue
             if choice == 'snooze':
                 later = (dt.date.fromisoformat(day) + dt.timedelta(days=7)).isoformat()
                 self.mutate(item['id'], item['revision'], {'defer_until': later}, session, item_key, now)
@@ -635,7 +654,7 @@ class TaskStore:
                 if previous['fingerprint'] != digest:
                     raise ValueError('request_conflict: tidy-up input changed')
                 return {**json.loads(previous['receipt']), 'replayed': True}
-            result = {'saved': True, 'answers': answers}
+            result = {'saved': True, 'answers': answers, 'changed': changed}
             self.db.execute('INSERT INTO task_events(item_id,action,at,session,snapshot,request_key,fingerprint,receipt) VALUES (?,?,?,?,?,?,?,?)',
                             ('tidy:' + day, 'tidy', now, session, encode({'answers': answers}), key, digest, encode(result)))
             return result

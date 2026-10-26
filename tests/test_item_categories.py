@@ -498,7 +498,7 @@ class CategoryTests(unittest.TestCase):
         self.assertEqual({o['label'] for o in fields['completed']['options']}, {'None of these today.', 'Pay the bill', 'Stretch'})
         self.assertEqual(fields['tidy_' + dentist]['description'],
                          ui.text('Planned for {date}', date=ui.day_text('2026-11-04', reference=night)))
-        self.assertEqual([o['value'] for o in fields['tidy_' + garage]['options']], ['snooze', 'done', 'drop', 'later'])
+        self.assertEqual([o['value'] for o in fields['tidy_' + garage]['options']], ['snooze', 'done', 'drop', 'keep', 'later'])
         with self.assertRaisesRegex(ValueError, 'tidy-up answers'):
             answer(self.root, job, {'completed': ['none'], 'details': 'No other updates', 'tidy_' + garage: 'delete'})
         with patch('goodmorning.records.inbox_store.stamp', return_value=night + 'T21:00:00+00:00'):
@@ -512,12 +512,40 @@ class CategoryTests(unittest.TestCase):
 
         self.assertEqual(routing.stale_tasks(self.tasks, '2026-11-19'), [])  # At most once a week.
         self.assertNotIn('Book the dentist', self.items('gm', '2026-11-19'))  # Snoozed off the morning list.
-        self.assertEqual([r['id'] for r in routing.stale_tasks(self.tasks, '2026-11-20')], [plants, bill, bank])
-        plants_row = routing.stale_tasks(self.tasks, '2026-11-20')[:1]
-        self.tasks.tidy(plants_row, {plants: 'later'}, '2026-11-20', 'ses_test', 'tidy-later', NOW)
-        self.assertEqual(self.tasks.show(plants)['revision'], plants_row[0]['revision'])  # "Not sure yet" changes nothing.
+        rows = routing.stale_tasks(self.tasks, '2026-11-20')
+        self.assertEqual([r['id'] for r in rows], [plants, bill, bank])
+        self.tasks.tidy(rows, {plants: 'later', bill: 'keep'}, '2026-11-20', 'ses_test', 'tidy-later', NOW)
+        # "Not sure yet", "Keep it" and no answer change nothing.
+        self.assertEqual([self.tasks.show(r['id'])['revision'] for r in rows], [r['revision'] for r in rows])
         self.assertEqual(routing.stale_tasks(self.tasks, '2026-11-26'), [])
-        self.assertEqual([r['id'] for r in routing.stale_tasks(self.tasks, '2026-11-27')], [plants, bill, bank])  # Asked again.
+        self.assertEqual(routing.stale_tasks(self.tasks, '2026-11-27'), [])  # Everything still stale was asked about recently.
+        # Four weeks on, they can be asked about again; the kept bill never is.
+        self.assertEqual([r['id'] for r in routing.stale_tasks(self.tasks, '2026-12-18')], [plants, bank, dentist])
+
+    def test_a_tidy_up_shown_but_never_saved_still_counts_as_asked(self):
+        garage = self.capture(title='Tidy the garage')
+        job = {'id': 'e'*32, 'date': '2026-11-13', 'kind': 'gn', 'state': 'preflight'}
+        self.assertIn('tidy_' + garage, {f['key'] for f in preflight(self.root, job)['form']['fields']})
+        self.tasks.mutate(garage, self.tasks.show(garage)['revision'], {'title': 'Tidy the garage and shed'}, 'ses_chat', 'edit', NOW)
+        # Preparing the same night again asks about the same items, as they are now.
+        self.assertEqual([(r['id'], r['revision']) for r in preflight(self.root, {**job, 'preflight_revision': 1})['tidy']],
+                         [(garage, self.tasks.show(garage)['revision'])])
+        self.assertEqual(routing.stale_tasks(self.tasks, '2026-11-14'), [])
+        self.assertEqual(routing.stale_tasks(self.tasks, '2026-12-10'), [])
+        self.assertEqual([r['id'] for r in routing.stale_tasks(self.tasks, '2026-12-11')], [garage])
+
+    def test_tidy_up_answers_skip_items_changed_after_they_were_shown(self):
+        night = '2026-11-13'
+        garage = self.capture(title='Tidy the garage')
+        attic = self.capture(title='Clear the attic')
+        job = {'id': 'f'*32, 'date': night, 'kind': 'gn', 'state': 'preflight'}
+        preflight(self.root, job)
+        self.tasks.mutate(garage, self.tasks.show(garage)['revision'], {'title': 'Tidy the garage and shed'}, 'ses_chat', 'edit', NOW)
+        with patch('goodmorning.records.inbox_store.stamp', return_value=night + 'T21:00:00+00:00'):
+            result = answer(self.root, job, {'details': 'No other updates', 'tidy_' + garage: 'done', 'tidy_' + attic: 'done'})
+        self.assertEqual(result['feedback']['completed'], ['Clear the attic'])
+        self.assertEqual((self.tasks.show(garage)['status'], self.tasks.show(attic)['status']), ('open', 'done'))
+        self.assertIn('Changed since this check-in started, so left as is: Tidy the garage', (self.root/'daily'/(night + '.md')).read_text())
 
 if __name__ == '__main__':
     unittest.main()

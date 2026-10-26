@@ -1,5 +1,6 @@
 """Deterministic edition views. Dates and action identity never come from headings."""
 import datetime as dt
+import json
 import re
 from pathlib import Path
 import sqlite3
@@ -353,6 +354,7 @@ def task_view(store, today, kind='gm', offset=0, limit=7, owned=()):
 
 TIDY_DAYS = {'still-open': 7, 'deadline': 7, 'other': 30}  # Days without any change before a morning row counts as stale.
 TIDY_EVERY = 7
+TIDY_REST = 28  # Days before an item asked about, and not kept, can be asked about again.
 TIDY_LIMIT = 3
 
 
@@ -360,19 +362,38 @@ def stale_tasks(store, today):
     """Morning rows untouched for a while, oldest first: the weekly evening tidy-up asks about these.
 
     Age counts from the row's own day (workday, deadline, or creation for undated
-    work), a later start day or any update."""
+    work), a later start day or any update. Items asked about recently or kept
+    ("keep it, stop asking") are left out; a night that already offered a tidy-up
+    offers the same items again."""
     day = dt.date.fromisoformat(today)
-    asked = store.db.execute("SELECT MAX(item_id) FROM task_events WHERE action='tidy'").fetchone()[0]
-    if asked and asked[5:] > (day - dt.timedelta(days=TIDY_EVERY)).isoformat():
+    last, asked, kept, tonight = '', {}, set(), None
+    for item_id, action, snapshot in store.db.execute(
+            "SELECT item_id,action,snapshot FROM task_events WHERE action IN ('tidy','tidy-offer') ORDER BY seq"):
+        night, data = item_id[5:], json.loads(snapshot)
+        ids = data['offered'] if action == 'tidy-offer' else list(data['answers'])
+        if action == 'tidy-offer' and night == today:
+            tonight = set(ids)
+        last = max(last, night)
+        for identifier in ids:
+            asked[identifier] = max(asked.get(identifier, ''), night)
+        if action == 'tidy':
+            kept |= {identifier for identifier, choice in data['answers'].items() if choice == 'keep'}
+    if tonight is None and last > (day - dt.timedelta(days=TIDY_EVERY)).isoformat():
         return []
+    rested = (day - dt.timedelta(days=TIDY_REST)).isoformat()
     rows = []
     for row in task_view(store, today, 'gm', limit=10_000)['items']:
         if row['group'] not in TIDY_DAYS or row['category'] in UNCHECKED:
             continue
+        if tonight is not None:
+            if row['id'] not in tonight:
+                continue
+        elif row['id'] in kept or asked.get(row['id'], '') > rested:
+            continue
         task = store.show(row['id'])
         base = {'still-open': task['planned_date'], 'deadline': task['due_date'], 'other': task['created_at'][:10]}[row['group']]
         since = max(base, task['defer_until'], task['updated_at'][:10])
-        if (day - dt.date.fromisoformat(since)).days >= TIDY_DAYS[row['group']]:
+        if tonight is not None or (day - dt.date.fromisoformat(since)).days >= TIDY_DAYS[row['group']]:
             rows.append({'id': task['id'], 'revision': task['revision'], 'title': task['title'],
                          'project': task['project'], 'group': row['group'], 'date': base, 'since': since})
     return sorted(rows, key=lambda r: (r['since'], r['id']))[:TIDY_LIMIT]
