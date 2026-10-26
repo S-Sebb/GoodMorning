@@ -146,6 +146,7 @@ API 密钥。
 [事项类型与时间](docs/item-taxonomy.md) ·
 [日程](docs/weekly-schedule.md) ·
 [每周来信](docs/weekly-letters.md) ·
+[晚间整理](docs/evening-tidy-up.md) ·
 [网站对话](docs/browser-chat.md) ·
 [项目访问](docs/project-access.md) ·
 [源码结构](docs/project-structure.md) ·

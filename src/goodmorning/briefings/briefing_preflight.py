@@ -188,6 +188,14 @@ def initialize(runtime, job, previous=None):
                            'options':[{'value':'No updates today','label':'Nothing extra to add today.'}],
                            'description':'There aren’t any saved tasks to tick off for this review. You can still share what you worked on or any progress you made.'})
     context['awaiting'] = bool(fields)
+    if any(field.get('tidy') for field in fields):
+        from goodmorning.records.inbox_store import InboxStore, stamp
+        from goodmorning.records.task_store import TaskStore
+        inbox = InboxStore(runtime, write=True)
+        try:
+            TaskStore(inbox).offer_tidy(context['tidy'], job['date'], 'browser:' + job['id'], stamp(runtime))
+        finally:
+            inbox.close()
     for field in fields:
         if field.get('tidy'):
             continue  # Already worded; its title is the task's own.
@@ -209,13 +217,15 @@ TIDY_NOTES = {'still-open': 'Planned for {date}', 'deadline': 'Was due {date}', 
 
 def tidy_fields(context, day, lang):
     """One optional choice per stale task; leaving it unanswered changes nothing."""
+    from goodmorning.records.routing import TIDY_REST
     token = ui.CURRENT.set(lang)
     try:
-        hidden = ui.day_text((dt.date.fromisoformat(day) + dt.timedelta(days=7)).isoformat(), reference=day)
-        choices = [('snooze', 'Not this week', ui.text('Hidden from your morning list until {date}.', date=hidden)),
+        later = lambda days: ui.day_text((dt.date.fromisoformat(day) + dt.timedelta(days=days)).isoformat(), reference=day)
+        choices = [('snooze', 'Not this week', ui.text('Hidden from your morning list until {date}.', date=later(7))),
                    ('done', 'It’s done', ui.text('Recorded as done today.')),
                    ('drop', 'No longer needed', ui.text('Removed from your list, but kept in your history.')),
-                   ('later', 'Not sure yet', ui.text('Nothing changes. I may ask again.'))]
+                   ('keep', 'Keep it, stop asking', ui.text('It stays on your list as it is. I won’t ask about it again.')),
+                   ('later', 'Not sure yet', ui.text('Nothing changes. I won’t ask again before {date}.', date=later(TIDY_REST)))]
         return [{'key': 'tidy_' + item['id'], 'title': item['title'], 'type': 'string', 'required': False, 'tidy': True,
                  'description': ui.text(TIDY_NOTES[item['group']], date=ui.day_text(item['date'], reference=day)),
                  'options': [{'value': value, 'label': ui.text(label), 'description': hint} for value, label, hint in choices]}
@@ -234,7 +244,7 @@ def answer(runtime, job, value):
     tidy_keys = {'tidy_' + item['id'] for item in context.get('tidy', [])} & form_keys
     if isinstance(value, dict):
         value = {**{key: '' for key in tidy_keys}, **value}  # Unanswered tidy-up items stay as they are.
-        if any(value[key] not in ('', 'snooze', 'done', 'drop', 'later') for key in tidy_keys):
+        if any(value[key] not in ('', 'snooze', 'done', 'drop', 'keep', 'later') for key in tidy_keys):
             raise ValueError('Choose one of the tidy-up answers or leave it blank.')
     if not context.get('awaiting'):
         if context.get('browser_answer') == value:
@@ -313,12 +323,23 @@ def answer(runtime, job, value):
         complete = today_complete + chosen_long
         offered = [item for item in context.get('tidy', []) if 'tidy_' + item['id'] in keys]
         tidy = {item['id']: value['tidy_' + item['id']] for item in offered}
-        finished = [known[x]['text'] for x in complete] + [item['title'] for item in offered if tidy[item['id']] == 'done']
+        changed = []
+        if offered:
+            from goodmorning.records.inbox_store import InboxStore
+            from goodmorning.records.task_store import TaskStore
+            inbox = InboxStore(runtime)
+            try:
+                changed = TaskStore(inbox).tidy_changed(offered, tidy, 'browser-tidy:' + job['id'])
+            finally:
+                inbox.close()
+        applied = {item['id']: '' if item['id'] in changed else tidy[item['id']] for item in offered}
+        finished = [known[x]['text'] for x in complete] + [item['title'] for item in offered if applied[item['id']] == 'done']
         feedback = ['Completed: '+title for title in finished] or (['No listed tasks were fully completed.'] if 'completed' in keys or 'completed_longterm' in keys else [])
         feedback.extend(progress)
         hidden = (dt.date.fromisoformat(job['date']) + dt.timedelta(days=7)).isoformat()
-        feedback.extend(('Hidden from the morning list until ' + hidden + ': ' if tidy[item['id']] == 'snooze' else 'Let go (cancelled): ')
-                        + item['title'] for item in offered if tidy[item['id']] in ('snooze', 'drop'))
+        feedback.extend(('Hidden from the morning list until ' + hidden + ': ' if applied[item['id']] == 'snooze' else 'Let go (cancelled): ')
+                        + item['title'] for item in offered if applied[item['id']] in ('snooze', 'drop'))
+        feedback.extend('Changed since this check-in started, so left as is: ' + item['title'] for item in offered if item['id'] in changed)
         feedback.append('Other updates: '+details)
         # Store the exact explicit input before applying it, making uncertain retries recoverable.
         previous = context.get('browser_answer')

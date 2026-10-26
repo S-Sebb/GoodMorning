@@ -152,6 +152,7 @@ Weather, modelled air quality and news need outbound HTTPS but no API keys.
 [Item types and timing](docs/item-taxonomy.md) ·
 [Schedule](docs/weekly-schedule.md) ·
 [Weekly letters](docs/weekly-letters.md) ·
+[Evening tidy-up](docs/evening-tidy-up.md) ·
 [Browser chat](docs/browser-chat.md) ·
 [Project access](docs/project-access.md) ·
 [Source layout](docs/project-structure.md) ·

@@ -84,11 +84,11 @@ def main():
             copy = ({'title':'Let’s look back on today','empty':'How did today go?','not_done':'Not done',
                      'early':'Anything finished early?','other':'Other tasks','next':'Next','close':'Close',
                      'continue':'Continue check-in','save':'Save and write my briefing','open':'stays open',
-                     'tidy':'A quick tidy-up (optional)','drop':'No longer needed','did':'It’s done'} if language=='en' else
+                     'tidy':'A quick tidy-up (optional)','drop':'No longer needed','did':'It’s done','keep':'Keep it, stop asking'} if language=='en' else
                     {'title':'一起回顾一下今天','empty':'今天过得怎么样？','not_done':'未完成',
                      'early':'有提前完成的吗？','other':'其他任务','next':'接下来','close':'关闭',
                      'continue':'继续回顾','save':'保存并写简报','open':'先留着',
-                     'tidy':'顺手整理一下（可选）','drop':'不需要了','did':'已经做完了'})
+                     'tidy':'顺手整理一下（可选）','drop':'不需要了','did':'已经做完了','keep':'留着，不用再问了'})
             for width in (390,1440):
                 # Each viewport answers its own fresh job.
                 with tempfile.TemporaryDirectory(dir='/tmp/opencode',prefix='gm-night-preflight-') as directory:
@@ -128,7 +128,8 @@ def main():
                             expect(dialog.get_by_text(copy['tidy'],exact=True)).to_be_visible()
                             expect(dialog.locator('.checkin-group h4')).to_have_text(['Tidy the garage','Book the dentist'])
                             garage=dialog.locator('.checkin-group').nth(0); dentist=dialog.locator('.checkin-group').nth(1)
-                            expect(garage.get_by_role('radio')).to_have_count(4)
+                            expect(garage.get_by_role('radio')).to_have_count(5)
+                            expect(garage.locator('label',has_text=copy['keep'])).to_be_visible()
                             garage.locator('label',has_text=copy['drop']).click()
                             dentist.locator('label',has_text=copy['did']).click()
                             expect(garage.get_by_role('radio').nth(2)).to_be_checked()
