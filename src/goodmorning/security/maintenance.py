@@ -102,7 +102,7 @@ def html_page():
             b'a{color:#315e50}.tiny{font-size:.85rem;color:#56746a}</style></head><body><main class="card">'
             b'<div class="emoji" aria-hidden="true">\xf0\x9f\x8c\xb7 \xf0\x9f\x8d\xb5</div>'
             b'<p class="eyebrow">GoodMorning maintenance</p>'
-            b'<h1>We are tidying up, back soon</h1>'
+            b'<h1>I\'m tidying up, back soon</h1>'
             b'<p role="status">The website is being maintained for a quick update. '
             b'Please come back later. Your saved work is safe. Thank you for waiting!</p>'
             b'<p class="tiny">Tip: give it a few minutes, then <a href="/">try again</a>.</p>'

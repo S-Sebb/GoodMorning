@@ -53,7 +53,7 @@ def check_quick_chat(browser, address, artifacts):
     bubble = page.locator('.quick-chat-message.outreach')
     expect(bubble).to_be_visible()
     expect(bubble.locator('.quick-chat-label')).to_have_text('Your secretary reached out')
-    expect(bubble.locator('.quick-chat-footnote')).to_have_text('Sent on behalf of the GoodMorning team')
+    expect(bubble.locator('.quick-chat-footnote')).to_have_count(0)
     expect(bubble.locator('strong')).to_have_text('gentle reminder every two days')  # Markdown, not raw asterisks.
     expect(page.locator('#quick-chat-open')).to_have_attribute('href', '/chat?id=' + chat)
     page.evaluate("Promise.all(document.querySelector('#quick-chat-window').getAnimations().map(a => a.finished))")
@@ -90,7 +90,7 @@ def check_chat_page(browser, address, artifacts):
     bubble = page.locator('.chat-message[data-special="outreach"]')
     expect(bubble).to_be_visible()
     expect(bubble.locator('.chat-special-label')).to_contain_text('Your secretary reached out')
-    expect(bubble.locator('.message-footnote')).to_have_text('Sent on behalf of the GoodMorning team')
+    expect(bubble.locator('.message-footnote')).to_have_count(0)
     expect(bubble.locator('.message-author')).to_have_text('Mira')
     expect(bubble.locator('li')).to_have_count(2)
     expect(page.locator('#chat-text')).to_be_enabled()
@@ -119,9 +119,7 @@ def check_layouts(browser, address, artifacts):
                 page.screenshot(path=str(artifacts / f'pill-{edition}-{width}-{selected}.png'))
                 launcher.click()
                 page.evaluate("Promise.all(document.querySelector('#quick-chat-window').getAnimations().map(a => a.finished))")
-                bubble = page.locator('.quick-chat-message.outreach')
-                expect(bubble.locator('.quick-chat-footnote')).to_have_text('这是 GoodMorning 团队请你的秘书转达的' if selected == 'zh-CN'
-                                                                         else 'Sent on behalf of the GoodMorning team')
+                expect(page.locator('.quick-chat-message.outreach .quick-chat-footnote')).to_have_count(0)
                 panel = page.locator('#quick-chat-window').bounding_box()
                 assert panel['x'] >= 0 and panel['x'] + panel['width'] <= width, panel
                 page.screenshot(path=str(artifacts / f'panel-{edition}-{width}-{selected}.png'))

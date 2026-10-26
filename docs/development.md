@@ -103,6 +103,9 @@ unchanged:
   steps). If nothing in the release is user-visible, ask the owner whether to
   ship it silently. Never name files, functions, model IDs or internal terms such
   as preflight, packing, queue receipts or reservations.
+- **voice**: the secretary's, never a team's. Do not write "we", "us" or "the
+  GoodMorning team" (zh: 我们, 团队); an apology is the secretary's own ("I'm
+  sorry…", "抱歉…").
 - **zh**: one bullet for each English bullet, in the same order. Adapt, do not
   translate literally: follow the translation rule in `AGENTS.md` and
   `docs/chinese-copy.md`. Plain text only, no HTML or Markdown. Each title and
