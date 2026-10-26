@@ -9,8 +9,8 @@ stated those shares and cost. The briefing read reports each market's latest
 closed session, so a night briefing in China shows today's A-share close and the
 previous US session, as one code-owned `holdings` block. A market whose due session
 never happened (a weekend or holiday) is marked closed, with its next trading day
-from the exchange calendar. The block ends with the main A-share and US indices'
-latest closed sessions, so the day can be read against the market.
+from the exchange calendar. The block ends with the main indices of each market the
+user holds, at their latest closed session, so the day can be read against the market.
 
 Cash dividends whose ex-date falls after DATE count toward the total gain/loss,
 pre-tax, as brokers do. Bonus or transfer shares are only flagged: the share count
@@ -264,19 +264,21 @@ def report(runtime, language, cache=None, now=None):
             row[5] = row[4]
     rows.sort(key=lambda row: (row[7] != 'CNY', -(row[4] - row[5]) * row[3], row[0]))
     closed = closed_markets(rows, now, cache)
-    overview = indices(now, cache) if rows else []
+    overview = indices({row[7] for row in rows}, now, cache) if rows else []
     extras = [closed or None, overview] if overview else [closed] if closed else []
     return {'block': ['holdings', rows] + extras if rows else None, 'markets': summaries(rows, language, closed, overview),
             'not_found': [symbol[2:] for symbol in missing]}
 
 
-def indices(now, cache=None):
-    """[code, session_date, close, previous_close] for each index's latest closed session; none when any read fails.
+def indices(currencies, now, cache=None):
+    """[code, session_date, close, previous_close]: each held market's indices at their latest closed session; none when any read fails.
 
     The overview only adds to the holdings, so a failure leaves them alone."""
     rows = []
     try:
         for code, (_, currency) in INDICES.items():
+            if currency not in currencies:
+                continue
             series = settled(bars(code, None, cache), currency, now)
             rows.append([code, series[-1][0], series[-1][1], series[-2][1]])
     except (StockError, ValueError, KeyError, TypeError, IndexError):

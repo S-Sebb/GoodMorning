@@ -97,18 +97,20 @@ class StockTests(unittest.TestCase):
         self.assertEqual(self.read('usAAPL:30', 'zh-CN')['block'][1][0][1], '苹果')
         later = self.read('usAAPL:30', now=datetime(2026, 10, 19, 20, 30, tzinfo=timezone.utc))
         self.assertEqual(later['block'][:3], ['holdings', [['usAAPL', 'Apple Inc.', DAY, 30, 344.9, 343.46, None, 'USD', 0.0, 0.0, False]], None])
-        self.assertEqual(later['block'][3][3], ['us.INX', DAY, 7700.0, 7676.0])
+        self.assertEqual(later['block'][3][0], ['us.INX', DAY, 7700.0, 7676.0])
 
     def test_each_market_compares_with_its_benchmark_on_the_same_session(self):
         cny, usd = self.read('sh600519:100, usAAPL:30')['markets']
         self.assertEqual((cny['benchmark'], usd['benchmark']), ({'index': 'CSI 300', 'day_percent': -0.5}, {'index': 'S&P 500', 'day_percent': 1.0}))
         self.assertEqual(self.read('usAAPL:30', 'zh-CN')['markets'][0]['benchmark']['index'], ui.text('S&P 500', lang='zh-CN'))
+        # Only the markets the user holds get indices.
+        self.assertEqual([row[0] for row in self.read('sh600519:100, sz000001:2000')['block'][3]], ['sh000001', 'sh000300', 'sz399006'])
         # A suspended holding reports an older session than its index; the comparison would mix days.
         self.assertNotIn('benchmark', self.read('sz000002:1000')['markets'][0])
 
     def test_a_failed_index_read_keeps_the_holdings(self):
         def failing(url, cache=None, encoding='utf-8'):
-            if url.startswith(stocks.KLINE + 'us.DJI'):
+            if url.startswith(stocks.KLINE + 'sh000300'):
                 raise stocks.StockError('HTTP 503')
             return fake_tencent(url, cache, encoding)
         with patch.object(stocks, 'request', failing):
@@ -207,17 +209,21 @@ class StockTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 native.validate({'v': 2, 'greeting': 'Hi.', 'opening': 'Tonight.', 'sections': [['stocks', [['holdings', [bad]]]]]})
 
-    def test_market_overview_leads_the_section_and_validates(self):
-        rows = self.read('sh600519:100')['block'][1]
+    def test_each_market_shows_its_indices_under_its_totals_and_validates(self):
+        rows = self.read('sh600519:100, usAAPL:30')['block'][1]
         document = {'v': 2, 'greeting': 'Hi.', 'opening': 'Tonight.', 'sections': [['stocks', [['holdings', rows, None, OVERVIEW]]]]}
         native.validate(document)
         html = native.render_block(['holdings', rows, None, OVERVIEW], {}, DAY)
-        self.assertLess(html.index('Market today'), html.index('SSE Composite'))
-        self.assertLess(html.index('Dow Jones'), html.index('贵州茅台'))
-        self.assertIn('3,618.00', html)
-        self.assertIn('+18.00 (+0.50%)', html)
-        self.assertIn('−260.00 (−1.00%)', html)
-        self.assertEqual(html.count('class="market-index"'), 6)
+        self.assertLess(html.index('A-shares'), html.index('SSE Composite'))
+        self.assertLess(html.index('ChiNext'), html.index('贵州茅台'))
+        self.assertLess(html.index('贵州茅台'), html.index('US stocks'))
+        self.assertLess(html.index('US stocks'), html.index('S&amp;P 500'))
+        self.assertIn('3,618.00</span> <span class="is-up">+0.50%', html)
+        self.assertIn('−1.00%', html)
+        self.assertEqual(html.count('holding-index-name'), 6)
+        # Apple's Friday session matches the US indices; an index from another session is left out rather than compared.
+        stale = [OVERVIEW[0][:1] + ['2026-10-16'] + OVERVIEW[0][2:]] + OVERVIEW[1:3]
+        self.assertEqual(native.render_block(['holdings', rows[:1], None, stale], {}, DAY).count('holding-index-name'), 2)
         for bad in ([None, OVERVIEW[:1] * 2], [None, [['sh600519', DAY, 1.0, 1.0]]], [None, [OVERVIEW[0][:3]]],
                     [None, [OVERVIEW[0][:2] + [0, 1.0]]], [None, []], [{}, OVERVIEW], [None]):
             with self.assertRaises(ValueError):
