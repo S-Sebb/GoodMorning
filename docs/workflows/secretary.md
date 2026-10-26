@@ -270,9 +270,11 @@ reasons, plans or future releases it does not state. Reply in the saved tone:
 4. with `older_not_shown`, say older changes were left out; end by pointing to the
    What's new button at the top of the page (Chinese: 新变化) for the full list.
 An item naming an Android app version arrives with that app update; say so.
-For `--search`, answer the question: what changed and when. If no match fits,
-say the release notes do not mention it and offer the latest changes; never
-guess that it exists or is planned. Never mention releases unless asked. On
+For `--search`, answer the question with only the matches about it, what changed
+and when; skip the rest without mentioning them or the search. If none fits, say
+only that the release notes do not mention it and offer the latest changes; never
+say it exists, is missing or is planned. Say “today” or “yesterday” only by
+prepare's `date`. Never mention releases unless asked. On
 `version_not_found`, say that version does not exist and give `latest`; on other
 errors, say the release notes cannot be read right now.
 
