@@ -193,7 +193,10 @@ def check_motion(browser, address):
     page.wait_for_function('() => avatarFrames.some(opacity => opacity > 0.4 && opacity < 1)')
     page.wait_for_function("() => document.querySelector('.avatar-display').getAttribute('aria-busy') === 'false'")
     # The main portrait plays the gently animated scene; picker previews stay still.
-    page.wait_for_function(f"() => document.querySelector('.avatar-image').currentSrc.includes('{'-m2' if next_avatar == 'm2' else ''}-day-animated.png')")
+    # /chat follows the account's local hour, so expect the day or night scene it chose.
+    day = page.evaluate('document.documentElement.dataset.edition') == 'gm'
+    animated = ('-m2' if next_avatar == 'm2' else '') + ('-day' if day else '') + '-animated.png'
+    page.wait_for_function(f"() => document.querySelector('.avatar-image').currentSrc.endsWith('/desk-secretary{animated}')")
     assert page.locator('.avatar-image').evaluate('node => node.complete && node.naturalWidth > 0')
     assert not any('-animated' in src for src in page.locator('.avatar-preview img').evaluate_all('nodes => nodes.map(node => node.currentSrc)'))
     page.close()
