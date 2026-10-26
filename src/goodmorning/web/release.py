@@ -1,5 +1,6 @@
 """Public beta release history and a separate deployment fingerprint."""
-from datetime import date
+import argparse
+from datetime import date, timedelta
 import hashlib
 import json
 import re
@@ -110,3 +111,112 @@ def acknowledge_version(value, seen=None):
     if value not in {note['version'] for note in patch_notes()}:
         raise ValueError('Unknown release version')
     return seen if seen is not None and version_number(seen) > number else value
+
+
+# Panel-only categories from early releases; the secretary summarizes what users see.
+HIDDEN_CATEGORIES = ('Documentation', 'Tests')
+WHATS_NEW_DAYS = 7
+WHATS_NEW_BULLETS = 120
+SEARCH_LIMIT = 20
+
+
+def _bound(value, upper=False):
+    """`0.75.1` is one version; `0.75` is the whole 0.75 series."""
+    if not isinstance(value, str) or not re.fullmatch(r'0\.(?:0|[1-9][0-9]*)(?:\.(?:0|[1-9][0-9]*))?', value):
+        raise ValueError('invalid_version: use 0.minor or 0.minor.patch, such as 0.75 or 0.75.0')
+    numbers = tuple(map(int, value.split('.')))
+    if not any(note['version'] == value or note['version'].startswith(value + '.') for note in patch_notes()):
+        raise ValueError(f'version_not_found: no release {value}')
+    return numbers if len(numbers) == 3 else (0, numbers[1], float('inf') if upper else 0)
+
+
+def _summary(note, lang):
+    entry = {'version': note['version'], 'date': note['date'], 'title': note['title_' + lang]}
+    for group in note['changes']:
+        if group['category'] not in HIDDEN_CATEGORIES:
+            entry[group['category'].lower()] = group[lang]
+    return entry
+
+
+def whats_new(language='en', today=None, *, version=None, after=None, start=None, end=None, last=None, since=None, search=None):
+    """Bounded, newest-first release notes in one website language; no other source of release facts."""
+    notes = patch_notes()
+    if not notes:
+        raise ValueError('notes_unavailable: the release notes could not be read')
+    lang = 'zh' if language == 'zh-CN' else 'en'
+    result = {'latest': {'version': notes[0]['version'], 'date': notes[0]['date']}}
+    if search is not None:
+        words = search.casefold().split()
+        if not words:
+            raise ValueError('invalid_search: give one or two distinctive words')
+        found = [(sum(word in (english + '\n' + chinese).casefold() for word in words),
+                  {'version': note['version'], 'date': note['date'], 'category': group['category'].lower(),
+                   'text': chinese if lang == 'zh' else english})
+                 for note in notes for group in note['changes'] if group['category'] not in HIDDEN_CATEGORIES
+                 for english, chinese in zip(group['en'], group['zh'])]
+        # Notes word things freely ("a letter about your week"), so rank by words matched, then newest first.
+        matches = [match for score, match in sorted(found, key=lambda pair: -pair[0]) if score]
+        return result | {'search': search, 'matched_total': len(matches), 'matches': matches[:SEARCH_LIMIT]}
+    numbered = [(version_number(note['version']), note) for note in notes]
+    if version is not None or after is not None or start is not None or end is not None:
+        result['scope'] = {key: value for key, value in (('version', version), ('after', after), ('from', start), ('to', end)) if value is not None}
+        if version is not None:
+            start = end = version
+        low = _bound(after, upper=True) if after is not None else _bound(start) if start is not None else (0, 0, 0)
+        high = _bound(end, upper=True) if end is not None else (0, float('inf'), 0)
+        chosen = [n for k, n in numbered if (low < k if after is not None else low <= k) and k <= high]
+    elif last is not None:
+        if not 1 <= last <= 20:
+            raise ValueError('invalid_last: ask for 1 to 20 releases')
+        chosen, result['scope'] = notes[:last], {'last': last}
+    else:
+        window = since is None
+        if window:
+            since = (date.fromisoformat(today) - timedelta(days=WHATS_NEW_DAYS - 1)).isoformat()
+        if not re.fullmatch(r'\d{4}-\d{2}-\d{2}', since):
+            raise ValueError('invalid_date: use YYYY-MM-DD')
+        chosen, result['scope'] = [note for note in notes if note['date'] >= since], {'since': since}
+        if window and not chosen:
+            # A quiet week still answers "what's new" with the latest release, marked as older.
+            chosen, result['fallback'] = notes[:1], 'latest_release'
+    releases, bullets = [], 0
+    for note in chosen:
+        entry = _summary(note, lang)
+        size = sum(len(value) for key, value in entry.items() if isinstance(value, list))
+        if releases and bullets + size > WHATS_NEW_BULLETS:
+            break
+        releases.append(entry)
+        bullets += size
+    if len(releases) < len(chosen):
+        result['older_not_shown'] = len(chosen) - len(releases)
+    return result | {'releases': releases}
+
+
+def main(argv=None):
+    parser = argparse.ArgumentParser(description="What's new: bounded release notes in the website language; read-only.")
+    parser.add_argument('--secretary-dir')
+    parser.add_argument('--website-language', choices=('en', 'zh-CN'), default='en')
+    scope = parser.add_mutually_exclusive_group()
+    scope.add_argument('--version', help='One release (0.75.0) or a series (0.75)')
+    scope.add_argument('--after', help='Releases newer than this version or series')
+    scope.add_argument('--from', dest='start', help='Releases from this version or series on')
+    parser.add_argument('--to', dest='end', help='With --after or --from, or alone: up to this version or series')
+    scope.add_argument('--last', type=int, help='The newest N releases, 1-20')
+    scope.add_argument('--since', help='Releases dated on or after YYYY-MM-DD')
+    scope.add_argument('--search', help='Changes mentioning these words in English or Chinese, best matches first')
+    args = parser.parse_args(argv)
+    try:
+        if args.end is not None and (args.version or args.last is not None or args.since or args.search is not None):
+            raise ValueError('invalid_scope: --to combines only with --after or --from')
+        from goodmorning.runtime_files import profile_fields, secretary_path
+        from goodmorning.briefings.briefing_day import briefing_day
+        # "Recent" counts in the user's day, which ends at 04:00 like everything else.
+        today = briefing_day(profile_fields(secretary_path(args.secretary_dir)).get('timezone', ''))
+        result = whats_new(args.website_language, today, version=args.version, after=args.after, start=args.start,
+                           end=args.end, last=args.last, since=args.since, search=args.search)
+    except ValueError as error:
+        message = str(error)
+        print(json.dumps({'error': message.split(':', 1)[0], 'next': message}, ensure_ascii=False))
+        return 1
+    print(json.dumps(result, ensure_ascii=False, separators=(',', ':')))
+    return 0

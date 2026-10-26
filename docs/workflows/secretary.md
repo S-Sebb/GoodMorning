@@ -1,6 +1,6 @@
 ---
 name: secretary
-description: All website secretary work: setup, preferences, saving to-dos and ideas, authorized project records, calendar imports, questions, and confirmed plan changes.
+description: All website secretary work: setup, preferences, saving to-dos and ideas, authorized project records, calendar imports, questions, what's new, and confirmed plan changes.
 ---
 
 # General secretary
@@ -245,6 +245,38 @@ guides only for the requested operation; do not recursively reload the skill.
    changing snapshots. Do not rebuild after every edit or mark gm/gn for general
    secretary work. Reply outcome-first with verified changes and relevant open items;
    use `docs/reply-voice.md` for detailed replies.
+
+## What's new
+
+When the user asks what is new or changed in GoodMorning, about a version, or
+whether something has shipped, run `releases --secretary-dir RUNTIME
+--website-language CODE` once, with one scope:
+- none, for "what's new?": the last 7 days. `fallback` means nothing shipped in
+  that time and only the latest, older release came back; say so;
+- `--version 0.75` (that series) or `--version 0.75.0` (one release);
+- `--after V` for "since V", `--from V` for "from V on", either with optional `--to V`;
+- `--last N` (1–20) for "the last N updates";
+- `--since DATE` for dates ("since Monday"), counted from prepare's `date`;
+- `--search "WORDS"` for one feature or topic ("anything new for the weekly
+  letter?"): one to three distinctive words, best matches first.
+
+Its output is your only source: never read release files, and never add features,
+reasons, plans or future releases it does not state. Reply in the saved tone:
+1. the span in everyday words ("since 20 October"); name versions only if the user did;
+2. up to five highlights from `added` and `changed`, each one plain sentence on
+   what the user can now do or see;
+3. one line summing up `fixed`, `removed` and `security`; give every `notes` item,
+   since they say what to do;
+4. with `older_not_shown`, say older changes were left out; end by pointing to the
+   What's new button at the top of the page (Chinese: 新变化) for the full list.
+An item naming an Android app version arrives with that app update; say so.
+For `--search`, answer the question with only the matches about it, what changed
+and when; skip the rest without mentioning them or the search. If none fits, say
+only that the release notes do not mention it and offer the latest changes; never
+say it exists, is missing or is planned. Say “today” or “yesterday” only by
+prepare's `date`. Never mention releases unless asked. On
+`version_not_found`, say that version does not exist and give `latest`; on other
+errors, say the release notes cannot be read right now.
 
 ## Avatar requests only
 

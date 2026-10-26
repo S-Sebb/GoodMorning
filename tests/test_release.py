@@ -1,4 +1,6 @@
 """Versioned bilingual history, account dismissals and isolated local persistence."""
+from contextlib import redirect_stdout
+import io
 import json
 from pathlib import Path
 import re
@@ -126,6 +128,62 @@ class PatchNoteTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             app.release_seen('0.19.0')
         self.assertEqual(target.read_text(), '{"version": "0.1.0"}')
+
+    def test_whats_new_defaults_to_the_last_week_in_the_website_language(self):
+        self.write({'notes': [note('0.3.1', date='2026-10-20', en='Fresh fix', zh='新修复'),
+                              note('0.3.0', date='2026-10-14', en='Week-old', zh='一周前',
+                                   changes=[{'category': 'Added', 'en': ['Week-old'], 'zh': ['一周前']},
+                                            {'category': 'Tests', 'en': ['Internal'], 'zh': ['内部']}]),
+                              note('0.2.0', date='2026-10-13')]})
+        recent = release.whats_new('zh-CN', '2026-10-20')
+        self.assertEqual(recent['scope'], {'since': '2026-10-14'})
+        self.assertEqual(recent['releases'], [
+            {'version': '0.3.1', 'date': '2026-10-20', 'title': '测试版本', 'added': ['新修复']},
+            {'version': '0.3.0', 'date': '2026-10-14', 'title': '测试版本', 'added': ['一周前']}])
+        quiet = release.whats_new('en', '2026-10-30')
+        self.assertEqual((quiet['fallback'], [r['version'] for r in quiet['releases']]), ('latest_release', ['0.3.1']))
+        self.assertEqual(release.whats_new('en', '2026-10-30', since='2026-10-25')['releases'], [])
+
+    def test_whats_new_scopes_by_version_series_range_and_count(self):
+        self.write({'notes': [note(v) for v in ('0.12.0', '0.11.1', '0.11.0', '0.10.0', '0.9.0')]})
+        versions = lambda **scope: [r['version'] for r in release.whats_new('en', '2026-10-12', **scope)['releases']]
+        self.assertEqual(versions(version='0.11'), ['0.11.1', '0.11.0'])
+        self.assertEqual(versions(version='0.11.0'), ['0.11.0'])
+        self.assertEqual(versions(after='0.10'), ['0.12.0', '0.11.1', '0.11.0'])
+        self.assertEqual(versions(after='0.11.0', end='0.11'), ['0.11.1'])
+        self.assertEqual(versions(start='0.10.0', end='0.11.0'), ['0.11.0', '0.10.0'])
+        self.assertEqual(versions(last=2), ['0.12.0', '0.11.1'])
+        for scope in ({'version': '0.13'}, {'after': '1.0'}, {'last': 21}, {'since': 'Monday'}):
+            with self.assertRaises(ValueError):
+                release.whats_new('en', '2026-10-12', **scope)
+
+    def test_whats_new_bounds_output_and_reports_what_was_left_out(self):
+        self.write({'notes': [note(f'0.{n}.0', changes=[{'category': 'Fixed', 'en': ['x'] * 50, 'zh': ['修'] * 50}])
+                              for n in range(5, 0, -1)]})
+        result = release.whats_new('en', '2026-10-12', last=5)
+        self.assertEqual((len(result['releases']), result['older_not_shown']), (2, 3))
+
+    def test_whats_new_search_ranks_by_words_matched_in_either_language(self):
+        self.write({'notes': [note('0.3.0', en='Weekly schedule browsing', zh='每周日程'),
+                              note('0.2.0', en='A weekly letter about your week', zh='每周来信'),
+                              note('0.1.0', en='Unrelated', zh='无关')]})
+        found = release.whats_new('zh-CN', search='Weekly LETTER')
+        self.assertEqual([(m['version'], m['text']) for m in found['matches']], [('0.2.0', '每周来信'), ('0.3.0', '每周日程')])
+        self.assertEqual(release.whats_new('en', search='来信')['matches'][0]['text'], 'A weekly letter about your week')
+        self.assertEqual(release.whats_new('en', search='garden')['matched_total'], 0)
+
+    def test_whats_new_command_uses_the_profile_day_and_reports_errors(self):
+        root = Path(self.temp.name)
+        (root / 'profile.md').write_text('timezone: Pacific/Kiritimati\n')
+        self.write({'notes': [note('0.2.0')]})
+        out = io.StringIO()
+        with redirect_stdout(out):
+            self.assertEqual(release.main(['--secretary-dir', str(root), '--version', '0.2']), 0)
+        self.assertEqual(json.loads(out.getvalue())['releases'][0]['version'], '0.2.0')
+        out = io.StringIO()
+        with redirect_stdout(out):
+            self.assertEqual(release.main(['--secretary-dir', str(root), '--version', '0.3']), 1)
+        self.assertEqual(json.loads(out.getvalue())['error'], 'version_not_found')
 
 
 class ReleaseAccountTests(unittest.TestCase):
