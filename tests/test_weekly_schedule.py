@@ -184,14 +184,28 @@ class ScheduleTests(unittest.TestCase):
         self.assertNotIn('Dentist',snapshot(self.app,0)['view'])
         self.assertIn('Dentist',snapshot(self.app,1)['view'])
 
-    def test_current_week_uses_actual_midnight_not_briefing_cutoff(self):
-        self.app.now = lambda: datetime(2026, 10, 11, 23, 30, tzinfo=timezone.utc)
+    def test_current_day_changes_at_04_00_like_briefings(self):
+        self.app.now = lambda: datetime(2026, 10, 11, 23, 30, tzinfo=timezone.utc)  # Monday 00:30 in London
         data = self.data()
-        self.assertEqual(data['today'], '2026-10-12')
-        self.assertEqual(data['start'], '2026-10-12')
-        self.assertEqual(self.app.today(), '2026-10-11')
+        self.assertEqual((data['today'], data['start']), ('2026-10-11', '2026-10-05'))
+        self.assertEqual(data['today'], self.app.today())
+        self.assertEqual(compact(self.app)['today'], '2026-10-11')
+        self.assertIn('Sunday, October 11', snapshot(self.app, 0, 'day')['view'])
+        self.app.now = lambda: datetime(2026, 10, 12, 3, tzinfo=timezone.utc)
+        data = self.data()
+        self.assertEqual((data['today'], data['start']), ('2026-10-12', '2026-10-12'))
         self.assertEqual(len(data['days']), 7)
         self.assertEqual(data['days'][-1]['date'], '2026-10-18')
+
+    def test_before_04_00_the_calendar_day_still_shows_live_event_states(self):
+        store = CalendarStore(str(self.root / 'calendar.sqlite'))
+        store.add({'subject': 'Late call', 'start': '2026-10-14T00:15:00+01:00', 'end': '2026-10-14T01:00:00+01:00'})
+        store.close()
+        self.app.now = lambda: datetime(2026, 10, 13, 23, 30, tzinfo=timezone.utc)  # Wednesday 00:30 in London
+        tuesday, wednesday = snapshot(self.app, 0, 'day')['view'], snapshot(self.app, 1, 'day')['view']
+        self.assertIn('Tuesday, October 13', tuesday)
+        self.assertIn('focus-event is-past', tuesday)
+        self.assertIn('focus-event is-now', wednesday)
 
     def test_week_window_and_strict_query_validation(self):
         self.assertEqual(self.data(-3)['start'], '2026-09-21')

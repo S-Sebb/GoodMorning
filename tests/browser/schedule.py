@@ -137,7 +137,10 @@ def check(app, url, shots, canonical=False):
             page.evaluate('new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))')
             page.evaluate('Promise.all(document.getAnimations().map(animation => animation.finished.catch(() => {})))')
             page.screenshot(path=str(shots / 'schedule-mobile-night.png'), full_page=True)
-        app.now = lambda: datetime(2026, 10, 18, 23, 30, tzinfo=timezone.utc)
+        app.now = lambda: datetime(2026, 10, 18, 23, 30, tzinfo=timezone.utc)  # Monday 00:30 is still Sunday's night.
+        page.locator('#schedule-refresh').click()
+        expect(page.locator('.schedule-day.is-today')).to_have_attribute('id', 'day-2026-10-18')
+        app.now = lambda: datetime(2026, 10, 19, 3, tzinfo=timezone.utc)
         page.locator('#schedule-refresh').click()
         expect(page.locator('.schedule-day.is-today')).to_have_attribute('id', 'day-2026-10-19')
         # A refresh failure retains the existing readable week.

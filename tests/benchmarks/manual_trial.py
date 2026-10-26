@@ -77,6 +77,7 @@ def main():
     parser.add_argument("--dir")
     parser.add_argument("--model", default="deepseek-flash")
     parser.add_argument("--language", default="zh-CN", choices=("en", "zh-CN"))
+    parser.add_argument("--timezone", default="Asia/Shanghai", help="profile timezone of a new case, e.g. one now between 00:00 and 04:00")
     group = parser.add_mutually_exclusive_group()
     group.add_argument("--send")
     group.add_argument("--status", action="store_true")
@@ -98,7 +99,7 @@ def main():
     if args.send and not state:
         runtime.mkdir(parents=True, mode=0o700, exist_ok=True)
         (runtime / "profile.md").write_text(
-            "city: Shanghai, CN\ntimezone: Asia/Shanghai\nnews_country: CN\n"
+            f"city: Shanghai, CN\ntimezone: {args.timezone}\nnews_country: CN\n"
             "secretary_language: Chinese\nsecretary_name: Nora\ncalendar_source: custom\n")
         (runtime / "browser-policy.json").write_text(json.dumps(
             {key: False for key in ("live_project_access", "calendar_sync",

@@ -74,6 +74,10 @@ that a deadline is easy, sufficient or achievable without evidence about the wor
    from the confirmed local date, today included, never a past day: said on a
    Saturday, "by Friday" is six days ahead and "on Saturday" is today. It is clear,
    not a reason to ask; ask only when other words conflict with it ("next Friday").
+   The user's day ends at 04:00, not midnight: relative dates count from prepare's
+   `date`. Before 04:00, prepare also returns `after_midnight` (the calendar date);
+   there "tomorrow" is `tomorrow`, but a plain "today", or a weekday naming `date`,
+   could mean either day, so ask which.
 2. **Scope and consent:** quote exact proposed changes/targets and obtain explicit
    permission not already granted. Reuse consent for its exact scope; silence,
    dismissal, cancellation and tool failure are not consent. Prefer `question`,

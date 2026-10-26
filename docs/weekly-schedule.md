@@ -6,8 +6,9 @@ does not require a connected agent or a new morning/evening briefing.
 
 ## Display
 
-- Monday–Sunday, with the account's actual local calendar date highlighted.
-  Unlike briefings, the date changes at midnight, not 04:00.
+- Monday–Sunday, with the account's current local day highlighted. Like
+  briefings and chat, the day changes at 04:00, not midnight. Before 04:00, events
+  on both that day and the calendar date show whether they ended.
 - Previous/next navigation covers this week and three weeks on either side.
   `This week` returns to the current week. Both the page and API enforce the range.
 - Desktop uses one softly framed calendar sheet with seven day columns, a compact
@@ -91,7 +92,7 @@ credential redaction and HTML escaping apply to all displayed content.
   when saved records were checked, explicitly **not** a provider-sync timestamp.
 - Each check recomputes the local date, permitted weeks and day/night palette.
   Week navigation is relative to the current week, so the current-week view
-  follows the new week on Monday. A browsed relative offset follows that shift
+  follows the new week at 04:00 on Monday. A browsed relative offset follows that shift
   too. Missing or unreadable records are never presented as confirmed free time;
   a failed source is marked without hiding the other source's readable plans.
 
