@@ -406,6 +406,36 @@ class TaskStore:
                 item['category'] = category(item)
             yield item
 
+    def search(self, text, offset=0, limit=7):
+        """Live tasks and event drafts whose current wording contains every word of TEXT, any case."""
+        from .inbox_store import check_text
+        terms = check_text(text, 280, 'search', False).casefold().split()
+        def strings(value):
+            if isinstance(value, dict):
+                for nested in value.values():
+                    yield from strings(nested)
+            elif isinstance(value, str):
+                yield value
+        matches = []
+        for draft in (False, True):
+            for item in self.all(draft):
+                if (item.get('state', 'needs-details') in ('converted', 'withdrawn') if draft
+                        else item.get('status', 'open') in ('done', 'cancelled')):
+                    continue
+                wording = '\n'.join([*(item.get(k, '') for k in ('title', 'detail', 'trigger', 'location')),
+                                     *strings(item.get('display'))]).casefold()
+                if all(term in wording for term in terms):
+                    detail = item.get('detail', '')
+                    matches.append({'id': item['id'], 'draft': draft, 'revision': item['revision'],
+                                    'source_entry_id': item['source_entry_id'], 'title': item['title'],
+                                    'detail': detail if len(detail) <= 240 else detail[:239] + '…',
+                                    'detail_chars': len(detail),
+                                    **({'state': item.get('state', 'needs-details'), 'date': item.get('date', '')} if draft
+                                       else {'status': item.get('status', 'open'), 'category': item['category']})})
+        end = offset + limit
+        return {'items': matches[offset:end], 'total': len(matches),
+                'next_offset': end if end < len(matches) else None}
+
     def occurrence(self, task, day):
         date(day)
         identifier = occurrence_id(task['id'], day)

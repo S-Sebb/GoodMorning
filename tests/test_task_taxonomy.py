@@ -263,6 +263,29 @@ class TaxonomyTests(unittest.TestCase):
         marked = [(day['date'], task['marker'], task['occurrence_id']) for day in week['days'] for task in day['tasks']]
         self.assertEqual(marked, [('2026-10-16', 'due', '')])
 
+    def test_search_matches_current_wording_of_live_tasks_and_drafts(self):
+        identifier = self.capture('call dentist', task={'title': 'Call the dentist'})['task_id']
+        self.tasks.mutate(identifier, 1, {'title': 'Book a cleaning', 'display': {
+            'en': {'morning': {'title': 'Book a cleaning', 'detail': ''}, 'schedule': 'Cleaning'},
+            'zh': {'morning': {'title': '预约洗牙', 'detail': ''}, 'schedule': '洗牙'}}}, 'ses_test', 'reword', NOW)
+        done = self.capture('Book flights', task={'title': 'Book flights'})['task_id']
+        self.tasks.mutate(done, 1, {'status': 'done', 'confirmed_completion': True}, 'ses_test', 'finish', NOW)
+        draft = self.capture('Dentist Thursday', 'event_proposal',
+                             draft={'title': 'Dentist', 'location': 'Town Clinic'})['draft_id']
+        self.assertEqual(self.inbox.list(search='cleaning')['total'], 0)
+        found = self.tasks.search('CLEANING book')
+        self.assertEqual([(i['id'], i['revision'], i['draft']) for i in found['items']], [(identifier, 2, False)])
+        self.assertEqual(self.tasks.search('洗牙')['total'], 1)
+        self.assertEqual(self.tasks.search('call dentist')['total'], 0)
+        self.assertEqual(self.tasks.search('book')['total'], 1)
+        self.assertEqual([i['id'] for i in self.tasks.search('town clinic')['items']], [draft])
+        page = self.tasks.search('o', limit=1)
+        self.assertEqual((page['total'], page['next_offset']), (2, 1))
+        self.assertIsNone(self.tasks.search('o', offset=1, limit=1)['next_offset'])
+        with contextlib.redirect_stdout(io.StringIO()) as out:
+            task_cli.main(['--secretary-dir', str(self.root), '--search', 'x', '--limit', '31'])
+        self.assertIn('at most 30', out.getvalue())
+
     def test_planned_tasks_keep_identity_after_rewording_and_have_one_owner(self):
         capture = self.capture(task={'title': 'Atlas: prepare review', 'planned_date': DAY})
         identifier = capture['task_id']

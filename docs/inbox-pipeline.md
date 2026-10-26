@@ -51,7 +51,8 @@ python scripts/goodmorning.py inbox --secretary-dir RUNTIME --show ID
   `next_after` is the last sequence in the page: pass `--after NUMBER` with the
   same filters. No silent item/question truncation. `total` covers the full filter.
   `--search` matches a literal substring in summary/current context/original input;
-  it does not load historical discussions or perform semantic search. Reads use
+  it does not load historical discussions or perform semantic search. It misses
+  task edits; find tasks and drafts by their current wording with `task --search`. Reads use
   one SQLite snapshot, so each page's count and records agree.
 - For `/gm`, `/gn` and `/secretary`, retrieve active pages needed for the request.
   Do not silently omit unresolved reminders because more pages exist. Show only

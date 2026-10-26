@@ -12,7 +12,13 @@ Follow `docs/item-taxonomy.md`; every write's JSON fields are in
 and a minimal open task. Capture verbs do not grant execution consent.
 
 `task --show ID` returns canonical fields/revision; `--draft` selects an event
-draft. `task --update ID --expect-revision REV` changes explicit fields;
+draft. `task --search "WORDS"` finds live tasks and event drafts whose current
+title, detail, trigger, location or page wording contains every word, ignoring
+case; it skips done/cancelled tasks and converted/withdrawn drafts. Each item
+gives `id`, `draft`, `revision`, `title`, a detail preview of at most 240
+characters, and its status. Pages hold seven items (`--limit` up to 30); continue
+with `--offset` from `next_offset`. `inbox --search` sees only a capture's
+original wording, not later task edits. `task --update ID --expect-revision REV` changes explicit fields;
 `task --report ID --date DATE --expect-revision REV` records occurrence status.
 Writes use actual `--session`, stable `--request-key`, and JSON stdin or
 `--input-json`; done needs `confirmed_completion:true`. `task --briefing gm|gn
