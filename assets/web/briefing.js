@@ -13,6 +13,11 @@ const sectionButton = document.querySelector('#mobile-sections');
 const sectionDialog = document.querySelector('#mobile-section-dialog');
 const sectionList = document.querySelector('#mobile-section-list');
 const mobile = matchMedia('(max-width: 700px)');
+// Han characters set about twice as wide as Latin ones.
+document.querySelectorAll('.hero-copy h1').forEach(title => {
+  const length = [...title.textContent.trim()].reduce((sum, char) => sum + (char.codePointAt(0) >= 0x2E80 ? 2 : 1), 0);
+  title.style.setProperty('--title-length', length);
+});
 if (sectionButton) {
   sectionButton.addEventListener('click', () => {
     sectionDialog.showModal();

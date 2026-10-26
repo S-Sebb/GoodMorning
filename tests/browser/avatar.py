@@ -209,6 +209,33 @@ def check_motion(browser, address):
     page.close()
 
 
+def check_title_scale(browser, address, root, day):
+    """Longer greetings shrink gradually and take fewer lines than at full size."""
+    greetings = ['Good morning, Seb!', 'Good morning, Seb! Ready to make this Monday yours?',
+                 "Good morning, Seb! Ready to make this Monday yours? Let's get you set for a brilliant day ahead.",
+                 '早上好，Seb！准备好让这个星期一属于你了吗？我们一起为美好的一天做好准备吧。']
+    source = root / 'daily' / f'{day}.gm.json'
+    for width in (1440, 390):
+        page = browser.new_page(viewport={'width': width, 'height': 900}, reduced_motion='reduce')
+        sizes = []
+        for greeting in greetings:
+            source.write_text(encode({'v': 1, 'lang': 'en', 'greeting': greeting, 'opening': 'Your day.',
+                                      'sections': [['notes', [['p', 'Body.']]]]}))
+            page.goto(address + '/gm.html')
+            title = page.locator('.letter-copy > h1')
+            sizes.append(title.evaluate('node => parseFloat(getComputedStyle(node).fontSize)'))
+            if greeting == greetings[2]:
+                lines = title.evaluate('node => Math.round(node.getBoundingClientRect().height / parseFloat(getComputedStyle(node).lineHeight))')
+                title.evaluate("node => node.style.removeProperty('--title-length')")
+                full = title.evaluate('node => Math.round(node.getBoundingClientRect().height / parseFloat(getComputedStyle(node).lineHeight))')
+                assert lines < full, (width, lines, full)
+        assert sizes[0] > sizes[1] > sizes[2] >= sizes[0] * .75 - .1, (width, sizes)
+        assert sizes[3] < sizes[1], (width, sizes)
+        assert not page.evaluate('document.documentElement.scrollWidth > innerWidth')
+        page.close()
+    source.unlink()
+
+
 def check_layout_alignment(browser, address, artifacts):
     results = []
     for width in (320, 390, 768, 1024, 1440, 1920):
@@ -279,6 +306,7 @@ def main():
                 browser = playwright.chromium.launch()
                 alignment_checks = check_layout_alignment(browser, address, artifacts)
                 check_motion(browser, address)
+                check_title_scale(browser, address, root, day)
                 (root / 'website-avatar.json').write_text('{"avatar":"f1"}\n')
                 for width in (1440, 768, 390, 320):
                     page = browser.new_page(viewport={'width': width, 'height': 900}, reduced_motion='reduce')

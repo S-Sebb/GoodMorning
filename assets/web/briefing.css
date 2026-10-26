@@ -75,8 +75,9 @@ h1 { font: normal clamp(48px, 6.5vw, 92px)/1.05 Georgia, serif; margin: 18px 0; 
 .letter-copy { min-width: 0; }
 .letter-copy > .eyebrow { margin: 0; }
 .letter-copy > .subtitle { margin-bottom: 0; }
-.briefing-letter h1 { font-size: clamp(34px, 3.3vw, 46px); line-height: 1.12; letter-spacing: -1px; margin: 12px 0 14px; max-width: 22ch; text-wrap: balance; }
-.briefing-letter h1.long-title { font-size: clamp(28px, 2.5vw, 36px); max-width: 28ch; }
+/* briefing.js sets --title-length; longer greetings shrink gradually to 75%
+   and widen to keep the same measure, so they also take fewer lines. */
+.briefing-letter h1 { --title-scale: clamp(.75, 1.24 - var(--title-length, 0) * .006, 1); font-size: calc(clamp(34px, 3.3vw, 46px) * var(--title-scale)); line-height: 1.12; letter-spacing: -1px; margin: 12px 0 14px; max-width: calc(22ch / var(--title-scale)); text-wrap: balance; }
 .briefing-letter .letter-copy > .subtitle { margin: 0; font-size: 17px; line-height: 1.6; }
 /* The secretary says the opening line in a speech bubble pointing at the portrait. */
 .briefing-letter .letter-copy > .subtitle { position: relative; width: fit-content; max-width: 56ch; padding: 12px 18px; border-radius: 16px; background: var(--surface); box-shadow: 0 3px 14px #0000000f; }
@@ -642,8 +643,7 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
   .briefing-letter .letter-copy { display: contents; }
   .briefing-letter .briefing-avatar { grid-column: 1; grid-row: 1 / 3; align-self: start; }
   .letter-copy > .eyebrow { grid-column: 2; grid-row: 1; align-self: end; padding-right: 64px; font-size: 9px; letter-spacing: 1.1px; }
-  .briefing-letter h1 { grid-column: 2; grid-row: 2; align-self: start; padding-right: 30px; font-size: 26px; letter-spacing: -.5px; margin: 6px 0 0; }
-  .briefing-letter h1.long-title { font-size: 21px; }
+  .briefing-letter h1 { grid-column: 2; grid-row: 2; align-self: start; padding-right: 30px; font-size: calc(26px * var(--title-scale)); letter-spacing: -.5px; margin: 6px 0 0; }
   .briefing-letter .letter-copy > .subtitle { grid-column: 1 / -1; grid-row: 3; margin-top: 18px; padding: 10px 14px; font-size: 15px; line-height: 1.55; }
   .briefing-letter .letter-copy > .subtitle::before { left: 46px; top: -8px; border: 8px solid transparent; border-top: 0; border-bottom-color: var(--surface); }
   .briefing-letter .orbit { display: block; width: 64px; position: absolute; right: 0; top: 14px; }
@@ -656,7 +656,7 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
   .briefing-section-nav a .data-icon { width: 16px; height: 16px; }
 }
 @media (max-width: 480px) { .edition-switch .edition-link { flex: 1; flex-direction: column; gap: 3px; padding: 6px; font-size: 11px; } .edition-link::after { inset: 0; } }
-@media (max-width: 350px) { .briefing-letter .masthead, .chat-page .masthead { display: block; } .briefing-letter .edition-switch, .chat-page .edition-switch { margin-top: 6px; justify-content: flex-start; } .briefing-letter .hero-copy { grid-template-columns: 84px minmax(0, 1fr); gap: 12px; } .briefing-letter h1 { font-size: 24px; } .briefing-letter h1.long-title { font-size: 19px; } }
+@media (max-width: 350px) { .briefing-letter .masthead, .chat-page .masthead { display: block; } .briefing-letter .edition-switch, .chat-page .edition-switch { margin-top: 6px; justify-content: flex-start; } .briefing-letter .hero-copy { grid-template-columns: 84px minmax(0, 1fr); gap: 12px; } .briefing-letter h1 { font-size: calc(24px * var(--title-scale)); } }
 @media print { .scroll-map, .edition-switch, .menu-panel, .orbit, .briefing-avatar, .reading-progress, footer, .skip-link, .back-to-top, .decision-ask { display: none; } body { background: white; color: black; } main, .masthead { padding: 0; } .hero { padding: 24px 0; } .briefing-letter .hero-copy { display: block; } .hero-copy > *, .briefing-section.arriving { animation: none; } .briefing-section { border: 0; padding: 0; break-inside: avoid; } .section-body { color: black; } }
 .account-tools { display: grid; gap: .25rem; max-width: 1440px; width: 100%; margin: 0 auto; padding: .65rem max(24px,env(safe-area-inset-right)); font-size: .85rem; }
 .account-tools a { color: var(--ink); text-decoration: none; padding: .6rem .7rem; border-radius: .6rem; }

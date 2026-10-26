@@ -78,15 +78,6 @@ class BrowserBriefingTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             web.build(self.runtime, '2026-10-10')
 
-    def test_long_greetings_get_a_smaller_title(self):
-        for greeting, long in (('Good morning', False),
-                               ("Good morning! Ready to make this Monday yours? Let's get you set for a brilliant day.", True),
-                               ('早上好！今天天气不错，我们一起看看日程和要做的事。', False),
-                               ('早上好！准备好让这个星期一属于你了吗？我们一起为美好的一天做好万全准备吧。', True)):
-            document = {**json.loads(GM), 'greeting': greeting}
-            page = web.edition(document, '2026-10-10', 'gm', {'gm': True})
-            self.assertEqual('<h1 class="long-title"' in page, long, greeting)
-
     def test_scroll_map_uses_safe_section_previews(self):
         page = web.edition(json.loads(GM), '2026-10-10', 'gm', {'gm': True})
         self.assertEqual(page.count('class="scroll-chunk"'), 4)
