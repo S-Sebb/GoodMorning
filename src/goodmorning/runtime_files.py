@@ -71,6 +71,50 @@ def normalize_user_name(value):
     return normalize_secretary_name(value, "user_name")
 
 
+PROFILE_TEXT_MAX = 300
+
+
+def normalize_profile_text(value, field):
+    """A free-text profile value on one line; "" clears it. Raises ValueError like the name rules."""
+    text = str(value).strip().strip("\"' ")
+    if len(text) > PROFILE_TEXT_MAX:
+        raise ValueError(f"invalid {field}: use at most {PROFILE_TEXT_MAX} characters")
+    if any(ord(ch) < 32 or ord(ch) == 127 for ch in text):
+        raise ValueError(f"invalid {field}: no control characters or newlines")
+    return text
+
+
+def set_profile_fields(directory, values):
+    """Replace only these `key: "value"` lines of an existing profile, then read them back.
+
+    Names follow their own rules; other values must fit on one line. A key the
+    profile lacks (older profiles) goes after its last field line.
+    """
+    names = {"secretary_name": normalize_secretary_name, "user_name": normalize_user_name}
+    for key in values:
+        if not re.fullmatch(r"[a-z_]+", key):
+            raise ValueError(f"invalid profile field: {str(key)[:40]}")
+    values = {key: names[key](value) if key in names else normalize_profile_text(value, key)
+              for key, value in values.items()}
+    path = Path(directory) / "profile.md"
+    if path.is_symlink():
+        raise ValueError("unsafe profile")
+    with runtime_lock(directory, ".profile.lock"):
+        text = path.read_text(encoding="utf-8")
+        for key, value in values.items():
+            line = f'{key}: "{value}"'
+            text, found = re.subn(rf"^{key}[ \t]*:[^\r\n]*$", lambda _: line, text, flags=re.M | re.I)
+            if not found:
+                last = list(re.finditer(r"^[a-z_]+[ \t]*:[^\r\n]*$", text, re.M | re.I))
+                end = last[-1].end() if last else len(text.rstrip("\n"))
+                text = text[:end] + ("\n" if end else "") + line + text[end:]
+        atomic_text(path, text)
+    saved = profile_fields(directory)
+    if any(saved.get(key) != value for key, value in values.items()):
+        raise ValueError("profile_unconfirmed: the saved profile does not match; read it before retrying")
+    return values
+
+
 def atomic_text(path, text):
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)

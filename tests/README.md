@@ -38,6 +38,7 @@ restoration.
 
 | Suite | Covers |
 |---|---|
+| `about_me` | About me through the gateway: Account menu entry, in-place edits and switches saved to the profile, chat-only fields, quick-chat starters, both languages, phone and desktop, a second account before setup |
 | `activity` | Activity reminders across tabs, owner isolation, outage, motion, both languages |
 | `auth`, `auth_scroll` | Login form toggles; mobile auth layout under touch scrolling and viewport changes |
 | `avatar` | Shared briefing avatars, day and night scenes, animated portraits under reduced motion, custom uploads and layout alignment |

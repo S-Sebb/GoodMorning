@@ -42,6 +42,7 @@ from . import app_briefings
 from .briefing_reminders import ReminderLines, Unknown
 from . import schedule
 from . import letters
+from . import about_me
 from . import quick_chat
 from .quick_notes import Notes
 
@@ -1101,6 +1102,8 @@ def serve_live(app, port, *, gateway_key=None, public_origins=()):
                     if path == '/api/schedule':
                         return self.respond(schedule.snapshot(app, offset, mode), compress=True)
                     return self.respond(schedule.page(app, offset, mode), content_type='text/html; charset=utf-8')
+                if path == '/about-me':
+                    return self.respond(about_me.page(app), content_type='text/html; charset=utf-8')
                 letter = re.fullmatch(r'/letters(?:/(\d{4}-\d{2}-\d{2}))?', path)
                 if letter:
                     return self.respond(letters.page(app, letter[1]), content_type='text/html; charset=utf-8')
@@ -1241,7 +1244,7 @@ def serve_live(app, port, *, gateway_key=None, public_origins=()):
                     atomic_text(app.runtime/'website-language.json',json.dumps({'language':selected})+'\n')
                     ui.CURRENT.set(selected)
                     target=body.get('return_to','/')
-                    if not re.fullmatch(r'/(?:|chat|schedule|(?:gm|gn)\.html|d/\d{4}-\d{2}-\d{2}/(?:gm|gn)\.html)',target):target='/'
+                    if not re.fullmatch(r'/(?:|chat|schedule|about-me|(?:gm|gn)\.html|d/\d{4}-\d{2}-\d{2}/(?:gm|gn)\.html)',target):target='/'
                     return self.respond({'language':selected},303 if form else 200,location=target if form else None)
                 if path=='/api/model':
                     return self.respond({'error':'Model selection is automatic from the website language.'},405)
@@ -1250,7 +1253,7 @@ def serve_live(app, port, *, gateway_key=None, public_origins=()):
                     site_colors.write(app.runtime, selected)
                     site_colors.CURRENT.set(selected)
                     target=body.get('return_to','/')
-                    if not re.fullmatch(r'/(?:|chat|schedule|(?:gm|gn)\.html|d/\d{4}-\d{2}-\d{2}/(?:gm|gn)\.html)',target):target='/'
+                    if not re.fullmatch(r'/(?:|chat|schedule|about-me|(?:gm|gn)\.html|d/\d{4}-\d{2}-\d{2}/(?:gm|gn)\.html)',target):target='/'
                     return self.respond(selected,303 if form else 200,location=target if form else None)
                 if path == '/api/generate':
                     requested_at = self.headers.get('X-GoodMorning-Requested-At') if gateway_key else None
@@ -1271,6 +1274,11 @@ def serve_live(app, port, *, gateway_key=None, public_origins=()):
                     return self.respond(app.notes.save(body))
                 if path == '/api/notes/sorted':
                     return self.respond(app.notes.mark(body))
+                if path == '/api/about-me':
+                    try:
+                        return self.respond(about_me.save(app, body))
+                    except about_me.Invalid as error:
+                        return self.respond({'error': str(error)}, 400)
                 if path == '/api/avatar':
                     if set(body) != {'avatar'}:
                         raise ValueError('Choose a secretary avatar')

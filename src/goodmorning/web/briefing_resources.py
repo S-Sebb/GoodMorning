@@ -79,6 +79,7 @@ class Resources:
                  'fonts/lora-italic.woff2': 'font/woff2', 'briefing.css': 'text/css', 'pixel.css': 'text/css',
                   'briefing.js': 'text/javascript', 'browser.js': 'text/javascript',
                   'scroll-rails.js': 'text/javascript', 'scroll-rails.css': 'text/css', 'letters.js': 'text/javascript',
+                  'about-me.js': 'text/javascript', 'about-me.css': 'text/css',
                    'questions.js': 'text/javascript', 'chat.js': 'text/javascript', 'chat.css': 'text/css', 'language.js':'text/javascript',
                    'network.js':'text/javascript', 'auth.js':'text/javascript','auth.css':'text/css',
                    'activity.js':'text/javascript','activity.css':'text/css',
