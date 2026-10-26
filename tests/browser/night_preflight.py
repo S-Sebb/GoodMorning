@@ -115,6 +115,10 @@ def main():
                             garage.locator('label',has_text=copy['drop']).click()
                             dentist.locator('label',has_text=copy['did']).click()
                             expect(garage.get_by_role('radio').nth(2)).to_be_checked()
+                            # Tidy-up choices also survive a reload.
+                            page.reload()
+                            expect(garage.get_by_role('radio').nth(2)).to_be_checked()
+                            expect(dentist.get_by_role('radio').nth(1)).to_be_checked()
                             if artifacts:
                                 page.screenshot(path=str(artifacts/f'{language}-tidy-step-{width}.png'))
                             dialog.get_by_role('button',name=copy['next']).click()
@@ -140,7 +144,14 @@ def main():
                             page.get_by_role('button',name=copy['continue']).click()
                             expect(atlas.get_by_role('checkbox',name='Review results',exact=True)).to_be_checked()
                             expect(paper.get_by_role('checkbox',name='Review results',exact=True)).to_be_checked()
+                            # A reload reopens the check-in on the same step with every answer.
+                            page.reload()
+                            expect(atlas.get_by_role('checkbox',name='Review results',exact=True)).to_be_checked()
+                            expect(paper.get_by_role('checkbox',name='Review results',exact=True)).to_be_checked()
                             dialog.get_by_role('button',name=copy['next']).click()
+                            dialog.get_by_role('textbox').fill('Halfway through the slides.')
+                            page.reload()
+                            expect(dialog.get_by_role('textbox')).to_have_value('Halfway through the slides.')
                             expect(dialog.locator('.checkin-summary')).to_contain_text('Planned errand · '+copy['open'])
                         assert not page.evaluate('document.documentElement.scrollWidth>innerWidth')
                         if artifacts:
@@ -149,6 +160,7 @@ def main():
                             dialog.get_by_role('button',name=copy['save']).click()
                         assert receipt.value.ok
                         expect(page.locator('dialog.checkin')).to_have_count(0)
+                        assert not page.evaluate("Object.keys(localStorage).some(key => key.startsWith('goodmorningCheckin:'))")
                         assert not errors, errors
                         jobs=json.loads((root/'browser-jobs/jobs.json').read_text())
                         job=next(j for j in jobs.values() if j['kind']=='gn')
@@ -160,6 +172,7 @@ def main():
                             assert sorted(tidy.values())==['done','drop'], tidy
                         if scenario=='tasks':
                             assert context['browser_answer']['completed']==['none']
+                            assert context['browser_answer']['details']=='Halfway through the slides.'
                             selected=[t for t in context['feedback_tasks'] if t['done']]
                             assert len({t['task_id'] for t in selected})==2
                         page.close()
@@ -167,7 +180,7 @@ def main():
                         process.terminate();process.communicate(timeout=5)
         browser.close()
     print(json.dumps({'opens_as_dialog':'pass','due_step':'pass','project_groups':'pass','unassigned_group':'last',
-                      'answers_kept_after_poll_and_close':True,'not_done_stays_open':'pass','languages':['en','zh-CN'],
+                      'answers_kept_after_poll_and_close':True,'answers_kept_after_reload':True,'saved_answers_cleared':True,'not_done_stays_open':'pass','languages':['en','zh-CN'],
                       'archive_gap_question':'absent','adaptive_empty_state':'pass','feedback_save':'pass','tidy_up':'pass','viewports':2,'model_calls':0}))
 
 

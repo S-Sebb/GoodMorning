@@ -244,6 +244,16 @@ function questionForm(info) {
 const checkinStates = new Map();
 const checkinOpened = new Set();
 const checkinDialogs = new Map();
+// Answers also stay on this device, so a reload or a visit elsewhere does not lose them.
+// Saving clears them; abandoned ones expire after three days.
+const checkinPrefix = 'goodmorningCheckin:';
+function savedCheckin(key) { try { return JSON.parse(localStorage.getItem(key)); } catch { return null; } }
+function storeCheckin(id, state) {
+  try { localStorage.setItem(checkinPrefix + id, JSON.stringify({ ...state, early: [...state.early], at: Date.now() })); } catch { /* Answers still last until the page closes. */ }
+}
+try {
+  for (const key of Object.keys(localStorage)) if (key.startsWith(checkinPrefix) && !(savedCheckin(key)?.at > Date.now() - 3 * 864e5)) localStorage.removeItem(key);
+} catch { /* Storage is unavailable. */ }
 // A refreshed task list or a queued reply replaces the form; its dialog must go too.
 function pruneCheckins(keep) {
   for (const [id, dialog] of checkinDialogs) if (!keep.includes(id)) { dialog.remove(); checkinDialogs.delete(id); }
@@ -255,8 +265,12 @@ function nightCheckin(info) {
   const dueItems = due ? due.options.filter(option => option.value !== 'none') : [];
   const tidyItems = info.fields.filter(item => item.tidy);
   const steps = [dueItems.length && 'due', early && 'early', tidyItems.length && 'tidy', 'details'].filter(Boolean);
-  if (!checkinStates.has(info.id)) checkinStates.set(info.id, { step: 0, index: 0, verdicts: {}, early: new Set(), tidy: {}, text: '' });
+  if (!checkinStates.has(info.id)) {
+    const saved = savedCheckin(checkinPrefix + info.id) || {};
+    checkinStates.set(info.id, { step: saved.step || 0, index: saved.index || 0, verdicts: saved.verdicts || {}, early: new Set(saved.early), tidy: saved.tidy || {}, text: saved.text || '' });
+  }
   const state = checkinStates.get(info.id);
+  const remember = () => storeCheckin(info.id, state);
 
   const launcher = make('section', '', 'agent-form checkin-launcher');
   const open = make('button', '', 'checkin-primary'); open.type = 'button';
@@ -277,6 +291,7 @@ function nightCheckin(info) {
 
   function answer(done) {
     state.verdicts[dueItems[state.index].value] = done;
+    remember();
     const next = dueItems.findIndex(option => !(option.value in state.verdicts));
     dialog.querySelector('.checkin-card')?.classList.add(done ? 'is-done' : 'is-not-done');
     setTimeout(() => { if (next < 0) { state.step++; state.index = 0; } else state.index = next; render(); }, 260);
@@ -296,6 +311,7 @@ function nightCheckin(info) {
   function back() { return state.step ? button(t('Back'), () => { state.step--; state.index = 0; render(); }) : make('span'); }
 
   function render() {
+    remember();
     const body = [];
     const head = make('header', '', 'checkin-head');
     const close = make('button', '', 'checkin-close'); close.type = 'button'; close.setAttribute('aria-label', t('Close'));
@@ -348,7 +364,7 @@ function nightCheckin(info) {
         if (!groups.has(name)) { const group = make('section', '', 'checkin-group'); group.append(make('h4', name)); groups.set(name, group); board.append(group); }
         const item = make('label', '', 'checkin-item');
         const box = make('input'); box.type = 'checkbox'; box.checked = state.early.has(option.value);
-        box.addEventListener('change', () => { box.checked ? state.early.add(option.value) : state.early.delete(option.value); count.textContent = earlyCount(); });
+        box.addEventListener('change', () => { box.checked ? state.early.add(option.value) : state.early.delete(option.value); remember(); count.textContent = earlyCount(); });
         const text = make('span', option.label); if (option.description) text.append(make('small', option.description));
         item.append(box, text); groups.get(name).append(item);
       }
@@ -366,7 +382,7 @@ function nightCheckin(info) {
         for (const option of item.options) {
           const choice = make('label', '', 'checkin-item');
           const radio = make('input'); radio.type = 'radio'; radio.name = item.key; radio.checked = state.tidy[item.key] === option.value;
-          radio.addEventListener('change', () => { state.tidy[item.key] = option.value; });
+          radio.addEventListener('change', () => { state.tidy[item.key] = option.value; remember(); });
           const text = make('span', option.label); if (option.description) text.append(make('small', option.description));
           choice.append(radio, text); group.append(choice);
         }
@@ -378,7 +394,7 @@ function nightCheckin(info) {
       if (details.description) body.push(make('p', details.description, 'checkin-lead'));
       const text = make('textarea'); text.value = state.text; text.placeholder = details.placeholder || '';
       text.setAttribute('aria-label', details.title);
-      text.addEventListener('input', () => { state.text = text.value; });
+      text.addEventListener('input', () => { state.text = text.value; remember(); });
       body.push(text);
       const total = done.length + earlyDone.length + tidyDone.length;
       if (steps.length > 1) {
@@ -402,6 +418,7 @@ function nightCheckin(info) {
         save.disabled = true;
         try {
           const result = await replyToAgent('form', info.id, { answer });
+          try { localStorage.removeItem(checkinPrefix + info.id); } catch { /* Expiry removes it later. */ }
           launcher.remove();
           // A queued reply is not saved yet; the page's queue status says so instead.
           if (result.queued) { pruneCheckins([]); refreshAnswers(); return; }
