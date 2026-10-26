@@ -781,7 +781,9 @@
   "1 task planned across the week": "下周计划了 1 项任务",
   "{count} tasks planned across the week": "下周计划了 {count} 项任务",
   "Some of next week’s plans couldn’t be read when this letter was written.": "写这封信的时候，下周有些安排没能读到。",
-  "All letters": "全部来信",
+  "Your letters": "你的来信",
+  "No. {count}": "第 {count} 封",
+  "This week’s letter is a short one.": "这周的信写得短一些。",
   "Looking back on your week": "正在回顾这一周",
   "Writing your weekly letter": "正在写这周的来信"
 }

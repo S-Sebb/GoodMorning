@@ -125,13 +125,15 @@ TEXT = {
              'builds and saves every list; you write only its opening and sign-off. If the read succeeded and `saved` is false, submit '
              '{"position":N,"letter":{"opening":"…","signoff":"…"}}: opening 2–3 sentences (≤600 chars), sign-off one short line (≤200 chars), '
              'plain text in the saved tone, warm and personal. Use only facts in `letter`: name up to three finished items, habits or ideas, '
-             'working their titles into natural sentences, and at most one thing from next week (`next`). A habit row is [title, times this '
-             'week, weeks in a row]; mention weeks in a row only when it is 2 or more. Do not rate or compare the week (busy, productive, '
-             "quiet). If `finished`, `habits` and `ideas` are all empty, say kindly that this week's letter is a short one, without naming "
-             'what is missing or judging the week; you may still mention one thing from `next`. The letter is its own page, so it may call the '
-             'user once by exactly `reply_context.user_name`, or by no name. If `saved` is true, the letter is already written and stays as it '
-             'is: submit {"position":N}. If the read failed, submit {"position":N}; the briefing then says the letter could not be written '
-             'this time (no cause, no retry promise). Never skip this section.'),
+             'working their titles into natural sentences, and at most one thing from next week (`next`). Ideas were only saved: never write '
+             'them as done. Never guess feelings, effort, how long something was on their mind or how their body feels. A habit row is [title, '
+             'times this week, weeks in a row]; mention weeks in a row only when it is 2 or more. Do not rate or compare the week (busy, '
+             "productive, quiet). When the read returns `opening`, the week's lists are empty and code wrote the opening: submit "
+             '{"position":N,"letter":{"signoff":"…"}}, a sign-off that does not name what is missing or judge the week; it may mention one '
+             'thing from `next`. The letter is its own page, so it may call the user once by exactly `reply_context.user_name`, or by no name. If '
+             '`saved` is true, the letter is already written and stays as it is: submit {"position":N}. If the read failed, submit '
+             '{"position":N}; the briefing then says the letter could not be written this time (no cause, no retry promise). Never skip this '
+             'section.'),
   'today_regenerating': ('REGENERATION: make no task writes and ask nothing; reuse saved feedback. Copy the read\'s block (none when it is null) and '
                          'mention every reported outcome.'),
   'finish': ('Submit {} or {"closing":"…"} following `writing`. After a verified save, reply only with one short delivery line in '
@@ -216,8 +218,8 @@ TEXT = {
              '读取失败时发布一个 ["p","……"] 块，只说明这次没能查到股票价格（不写原因，不承诺补充）。不得跳过本章节。'),
   'letter': ('这是用户本周（周一到周日，见 `results`）的每周来信，会保存在“来信”页面，留作日后翻看的回忆。所有清单由代码生成并保存，你只写开头和结尾。'
              '读取成功且 `saved` 为 false 时，提交 {"position":N,"letter":{"opening":"…","signoff":"…"}}：开头 2–3 句（不超过 600 字），结尾一句简短的话'
-             '（不超过 200 字），纯文本，用保存的语气，温暖、亲切。只使用 `letter` 里的事实：最多点名三项完成的事、习惯或灵感（把标题自然地写进句子里），下周（`next`）最多提一件事。'
-             '习惯行是 [标题, 本周次数, 连续周数]；连续周数为 2 或以上时才提。不要评价或比较这一周（忙碌、高效、清闲）。`finished`、`habits` 和 `ideas` 都为空时，温和地说这周的信比较短，不要说缺了什么，也不要评价这一周；仍可以提一件下周的事。'
+             '（不超过 200 字），纯文本，用保存的语气，温暖、亲切。只使用 `letter` 里的事实：最多点名三项完成的事、习惯或灵感（把标题自然地写进句子里），下周（`next`）最多提一件事。灵感只是记下的念头，不要写成已经做了；不要揣测用户的感受、辛苦程度、惦记了多久或身体状态。'
+             '习惯行是 [标题, 本周次数, 连续周数]；连续周数为 2 或以上时才提。不要评价或比较这一周（忙碌、高效、清闲）。读取结果带有 `opening` 时，本周的清单都是空的，开头已由代码写好：提交 {"position":N,"letter":{"signoff":"…"}}，结尾不要说缺了什么，也不要评价这一周；可以提一件下周的事。'
              '来信是单独的页面，可以用 `reply_context.user_name` 的原样称呼用户一次，也可以不称呼。`saved` 为 true 时，这封信已经写好并保持原样：提交 {"position":N}。'
              '读取失败时提交 {"position":N}，简报会说明这次没能写成来信（不写原因，不承诺补写）。不得跳过本章节。'),
   'today_regenerating': '重新生成：不写入任务、不提问；沿用已保存的反馈。复制读取返回的块（为 null 时没有），提到用户报告的每项结果。',

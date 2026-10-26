@@ -1,8 +1,9 @@
 """Weekly letters: a Monday–Sunday look back, written with Sunday's evening briefing and kept as a memory book.
 
 Code collects every list from saved records: confirmed completions, habit completions, captured
-ideas and next week's saved plans. The secretary adds only an opening and a sign-off. A saved
-letter is a memory: it never changes, even when the records it came from change later.
+ideas and next week's saved plans. The secretary adds only an opening and a sign-off; when the week
+has nothing finished, no habits and no ideas, code writes the opening so a quiet week is never judged.
+A saved letter is a memory: it never changes, even when the records it came from change later.
 """
 import argparse
 from datetime import date as Date, datetime, time, timedelta
@@ -16,6 +17,7 @@ from goodmorning.runtime_files import atomic_text, profile_fields, runtime_lock,
 
 MAX_BYTES = 200_000
 LIMITS = {'opening': 600, 'signoff': 200}
+SHORT = 'This week’s letter is a short one.'
 
 
 def week_of(day):
@@ -147,6 +149,10 @@ def facts(runtime, week, lang):
             'next': next_week(runtime, zone, end, lang)}
 
 
+def short(lists):
+    return not (lists['finished'] or lists['habits'] or lists['ideas'])
+
+
 def counts(letter):
     """Things finished, habits kept going and ideas saved: the briefing card's summary."""
     return [sum(count for _, items in letter['finished'] for _, count in items), len(letter['habits']), len(letter['ideas'])]
@@ -174,15 +180,21 @@ def load(runtime, week):
 
 def save(runtime, week, words, lang):
     """Write the week's letter once from current records; an existing letter is kept and returned."""
-    if not isinstance(words, dict) or set(words) != set(LIMITS):
-        raise ValueError('Write the letter as {"opening":"…","signoff":"…"}')
+    from goodmorning.web import language as ui
     folder = directory(runtime)
     folder.mkdir(mode=0o700, exist_ok=True)
     with runtime_lock(folder, '.letters.lock'):
         saved = load(runtime, week)
         if saved:
             return saved
-        letter = check({'v': 1, 'week': week, 'lang': lang, **words, **facts(runtime, week, lang)})
+        lists = facts(runtime, week, lang)
+        if short(lists):
+            if not isinstance(words, dict) or set(words) != {'signoff'}:
+                raise ValueError('This week\'s letter is a short one and code writes its opening: write only {"signoff":"…"}')
+            words = {'opening': ui.text(SHORT, lang=lang), **words}
+        elif not isinstance(words, dict) or set(words) != set(LIMITS):
+            raise ValueError('Write the letter as {"opening":"…","signoff":"…"}')
+        letter = check({'v': 1, 'week': week, 'lang': lang, **words, **lists})
         source = json.dumps(letter, ensure_ascii=False, separators=(',', ':')) + '\n'
         if len(source.encode()) > MAX_BYTES:
             raise ValueError('Letter exceeds size limit')
@@ -207,8 +219,14 @@ def main():
     try:
         runtime = secretary_path(args.secretary_dir)
         saved = load(runtime, args.week)
-        result = {'week': args.week, 'saved': True, 'counts': counts(saved)} if saved else {
-            'week': args.week, 'saved': False, 'letter': facts(runtime, args.week, args.website_language)}
+        if saved:
+            result = {'week': args.week, 'saved': True, 'counts': counts(saved)}
+        else:
+            lists = facts(runtime, args.week, args.website_language)
+            result = {'week': args.week, 'saved': False, 'letter': lists}
+            if short(lists):
+                from goodmorning.web import language as ui
+                result['opening'] = ui.text(SHORT, lang=args.website_language)
     except (ValueError, OSError, KeyError, sqlite3.Error) as error:
         print(json.dumps({'error': 'letter_unavailable', 'next': str(error)[:300]}, ensure_ascii=False))
         return 1

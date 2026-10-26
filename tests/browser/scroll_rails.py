@@ -227,11 +227,12 @@ def main():
         for kind in ('gm', 'gn'):
             (root / 'daily' / f'{day}.{kind}.json').write_text(document)
         (root / 'letters').mkdir(mode=0o700)
-        for weeks in range(1, 13):  # Enough saved letters to scroll the Letters tab.
+        for weeks in range(1, 4):  # The Letters tab opens the newest; its ideas make the page scroll.
             monday = date(2026, 10, 19) - timedelta(weeks=weeks)
             (root / 'letters' / f'{monday}.json').write_text(json.dumps({
                 'v': 1, 'week': str(monday), 'lang': 'en', 'opening': 'Synthetic letter.', 'signoff': 'See you.', 'finished': [],
-                'habits': [], 'ideas': [], 'next': {'events': [], 'deadlines': [], 'planned': 0, 'complete': True}}))
+                'habits': [], 'ideas': [f'Synthetic idea {index}' for index in range(1, 25)],
+                'next': {'events': [], 'deadlines': [], 'planned': 0, 'complete': True}}))
         server = subprocess.Popen([sys.executable, str(REPO / 'tests/test_briefing_chat.py'), '--serve-fixture', directory],
                                   stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
         try:

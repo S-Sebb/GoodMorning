@@ -69,8 +69,8 @@ TITLES = {
               'read': '读书', 'run': '跑步', 'meeting': '组会', 'day': '出去玩一天', 'dentist': '看牙医'}}
 # Never in a letter: last week's work, a quiet habit, unlisted plans, and guilt or rating.
 FORBIDDEN = {'en': ('figures', 'running', 'slides', 'missed', 'broke', 'behind', 'unfinished', 'still open', 'productive', 'busy week', 'quiet week',
-                    'lazy', 'should have'),
-             'zh-CN': ('图表', '跑步', '幻灯片', '没完成', '未完成', '中断', '断了', '落下', '拖延', '高效', '忙碌', '清闲', '偷懒', '应该')}
+                    'lazy', 'should have', 'little to', 'not much'),
+             'zh-CN': ('图表', '跑步', '幻灯片', '没完成', '未完成', '中断', '断了', '落下', '拖延', '高效', '忙碌', '清闲', '偷懒', '应该', '不多', '没什么', '惦记')}
 
 
 def stamp(day, hour=10):
@@ -152,7 +152,7 @@ def run_briefing(output, language, selected, scenario):
     if kind == 'fail':
         (runtime/'letters-fail').touch()
     if kind == 'saved':  # Written by an earlier preparation of this Sunday.
-        letters.save(runtime, WEEK, {'opening': 'Saved opening.', 'signoff': 'Saved sign-off.'}, language)
+        letters.save(runtime, WEEK, {'signoff': 'Saved sign-off.'}, language)  # A quiet week: code writes the opening.
     before = letters.letter_path(runtime, WEEK).read_bytes() if kind == 'saved' else None
     source = source_copy(folder, runtime)
     bridge = CheckpointBridge(trial_engine.Engine(source, runtime).start(), False, language)
@@ -215,7 +215,7 @@ def run_chat(output, language, selected, scenario):
     folder.mkdir(mode=0o700)
     tone = {'turn-off': 'playful', 'turn-on': 'formal'}[scenario]
     runtime = account(folder, language, tone, 'weekly_letter: "false"\n' if scenario == 'turn-on' else '', ZONE)
-    letters.save(runtime, '2026-10-12', {'opening': 'An earlier letter.', 'signoff': 'See you.'}, language)
+    letters.save(runtime, '2026-10-12', {'signoff': 'See you.'}, language)
     kept = letters.letter_path(runtime, '2026-10-12').read_bytes()
     source = source_copy(folder, runtime)
     before = (runtime/'profile.md').read_text()

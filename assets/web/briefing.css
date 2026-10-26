@@ -729,32 +729,100 @@ h2:lang(zh), .preview-title:lang(zh) { font-family: var(--cn-sans); letter-spaci
 @media (max-width: 600px) { .checkin { width: 100vw; max-width: 100vw; margin: auto 0 0; border-radius: 22px 22px 0 0; padding: 18px 16px max(18px, env(safe-area-inset-bottom)); max-height: 92dvh; } .checkin-footer { bottom: max(-18px, calc(-1 * env(safe-area-inset-bottom))); margin: 18px -16px -18px; padding: 12px 16px max(18px, env(safe-area-inset-bottom)); } .checkin-board { grid-template-columns: 1fr; } .checkin-card h3 { font-size: 19px; } }
 @media (hover: none) { .checkin kbd { display: none; } }
 @media (prefers-reduced-motion: reduce) { .checkin[open], .checkin-burst { animation: none; } .checkin-card { transition: none; } }
-/* Weekly letters: the briefing notice, the Letters shelf and one letter, read like a page in a book. */
-.letter-card p { margin: 0 0 8px; }
+/* Weekly letters: the briefing notice, and the Letters tab's wheel of weeks beside a letter written on warm paper. */
+.letter-card { display: grid; grid-template-columns: 64px minmax(0, 1fr); column-gap: 18px; align-items: center; }
+.letter-card::before { content: ""; grid-row: 1 / span 3; align-self: start; width: 64px; height: 64px; border-radius: 18px; background: url("icons/desk-letters.svg") center / 40px no-repeat, #f6d5cd; box-shadow: 0 4px 12px #0000001f; transform: rotate(-4deg); }
+.letter-card > * { grid-column: 2; }
+.letter-card p { margin: 0 0 6px; }
 .letter-counts { color: var(--muted); font-size: 14px; }
-.letter-open { display: inline-flex; align-items: center; min-height: 44px; margin-top: 8px; padding: 0 20px; border-radius: 999px; background: var(--ink); color: var(--bg); font-weight: 600; text-decoration: none; }
+.letter-open { justify-self: start; display: inline-flex; align-items: center; min-height: 44px; margin-top: 8px; padding: 0 20px; border-radius: 999px; background: var(--ink); color: var(--bg); font-weight: 600; text-decoration: none; }
 .letter-open:hover { color: var(--bg); opacity: .9; }
-.letter-card.is-unavailable { color: var(--muted); }
-.letters-page main { max-width: 760px; margin: 0 auto; padding: 24px max(24px, env(safe-area-inset-right)) 64px max(24px, env(safe-area-inset-left)); }
-.letters-page h1 { margin: 0 0 8px; font: normal clamp(30px, 4vw, 44px)/1.2 Georgia, serif; letter-spacing: -.8px; }
-.letters-intro, .letters-note { color: var(--muted); }
-.letters-list { list-style: none; margin: 28px 0 0; padding: 0; display: grid; gap: 12px; }
-.letters-list a { display: block; padding: 18px 22px; border: 1px solid var(--line); border-radius: 16px; background: var(--surface); text-decoration: none; }
-.letters-list a:hover { border-color: var(--accent); }
-.letters-week { display: block; font: normal 20px/1.4 Georgia, serif; }
-.letters-list .letter-counts { margin: 4px 0 0; }
-.weekly-letter { padding: 36px 40px; border: 1px solid var(--line); border-radius: 20px; background: var(--surface); }
-.letters-back { display: inline-flex; align-items: center; min-height: 44px; color: var(--muted); font-size: 13px; }
-.letters-back::before { content: "‹"; margin-right: 6px; }
-.weekly-letter .eyebrow { margin: 12px 0 4px; }
-.letter-opening p, .letter-signoff p { font: italic 18px/1.7 "Lora Commentary", Georgia, serif; }
-.letter-opening p:lang(zh-CN), .letter-signoff p:lang(zh-CN) { font-style: normal; font-family: inherit; }
-.letter-signoff { margin-top: 32px; }
-.weekly-letter section { margin-top: 28px; padding-top: 20px; border-top: 1px solid var(--line); }
-.weekly-letter h2 { margin: 0 0 8px; font: normal 22px/1.3 Georgia, serif; }
-.weekly-letter h3 { margin: 12px 0 2px; font-size: 13px; color: var(--muted); font-weight: 600; }
-.weekly-letter ul { margin: 0; padding-left: 20px; }
-.letter-total { margin-left: 6px; color: var(--muted); font: 600 14px ui-sans-serif, system-ui, sans-serif; }
-.letter-times, .letter-detail, .letter-when { color: var(--muted); font-size: 14px; }
-.letter-day { font-weight: 600; }
-@media (max-width: 700px) { .weekly-letter { padding: 22px 20px; border-radius: 14px; } }
+.letter-card.is-unavailable { display: block; color: var(--muted); }
+.letter-card.is-unavailable::before { content: none; }
+.letters-page main { max-width: 1080px; margin: 0 auto; padding: 20px max(24px, env(safe-area-inset-right)) 72px max(24px, env(safe-area-inset-left)); }
+.letters-note { margin: 0 0 18px; text-align: center; color: var(--muted); }
+.letters-empty { max-width: 560px; margin: 32px auto; padding: 44px 32px; text-align: center; border: 1px solid var(--line); border-radius: 28px; background: var(--surface); }
+.letters-empty::before { content: ""; display: block; width: 96px; height: 96px; margin: 0 auto 14px; background: url("icons/desk-letters.svg") center / contain no-repeat; }
+.letters-empty h1 { margin: 0 0 10px; font: normal clamp(30px, 4vw, 40px)/1.2 Georgia, serif; letter-spacing: -.6px; }
+.letters-intro { color: var(--muted); }
+.letters-desk { display: grid; grid-template-columns: 200px minmax(0, 1fr); gap: 40px; align-items: start; }
+.letter-wheel { position: sticky; top: 24px; }
+.letter-wheel::before { content: ""; position: absolute; left: 6px; right: 6px; top: 50%; height: 66px; transform: translateY(-50%); border-block: 1px dashed var(--line); pointer-events: none; }
+.letter-wheel ol { position: relative; display: flex; flex-direction: column; gap: 4px; height: 360px; margin: 0; padding: 147px 6px; list-style: none; overflow-y: auto; scroll-snap-type: y mandatory; scrollbar-width: none; perspective: 520px; -webkit-mask-image: linear-gradient(transparent, #000 32%, #000 68%, transparent); mask-image: linear-gradient(transparent, #000 32%, #000 68%, transparent); }
+.letter-wheel ol::-webkit-scrollbar { display: none; }
+.letter-wheel li { scroll-snap-align: center; }
+.letter-wheel a { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 62px; padding: 0 10px; border: 1px solid transparent; border-radius: 18px; color: var(--muted); text-decoration: none; transform-origin: center; backface-visibility: hidden; transition: color .2s ease, background-color .2s ease, border-color .2s ease; }
+.letter-wheel a:hover { color: var(--ink); }
+.letter-wheel a[aria-current] { color: var(--ink); background: var(--surface); border-color: var(--line); box-shadow: 0 6px 18px #0000001a; }
+.wheel-range { font: normal 18px/1.3 Georgia, serif; white-space: nowrap; }
+.wheel-range:lang(zh) { font-family: var(--cn-sans); font-size: 16px; }
+.wheel-note { margin-top: 2px; color: var(--accent); font-size: 11px; font-weight: 600; }
+.weekly-letter { position: relative; min-width: 0; padding: 54px 52px 40px; overflow: hidden; border: 1px solid var(--line); border-radius: 28px; background: radial-gradient(130% 55% at 100% 0%, color-mix(in srgb, var(--warm) 16%, transparent), transparent 70%), var(--surface); box-shadow: 0 18px 48px #0000001c; }
+/* An airmail edge along the top of the paper. */
+.weekly-letter::before { content: ""; position: absolute; inset: 0 0 auto; height: 8px; background: repeating-linear-gradient(135deg, #e5aaa0 0 14px, transparent 14px 22px, #9cc3d5 22px 36px, transparent 36px 44px); }
+.weekly-letter.is-arriving { animation: letter-arrive .45s var(--ease) both; }
+@keyframes letter-arrive { from { opacity: 0; transform: translateY(12px); } }
+.letter-stamp { position: absolute; top: 30px; right: 30px; display: flex; align-items: flex-end; justify-content: center; width: 72px; height: 86px; margin: 0; padding-bottom: 9px; box-sizing: border-box; border-radius: 3px; outline: 4px dotted var(--surface); outline-offset: -2px; background: url("icons/desk-letters.svg") center 14px / 40px no-repeat, #f7e6ad; box-shadow: 0 4px 12px #00000014; transform: rotate(5deg); }
+.letter-stamp span { color: #2f2a22; font: 600 11px/1 ui-sans-serif, system-ui, sans-serif; letter-spacing: .04em; white-space: nowrap; }
+.letter-kicker { margin: 0; color: var(--accent); font: italic 16px/1.4 "Lora Commentary", Georgia, serif; }
+.letter-kicker:lang(zh) { font: 600 14px/1.4 var(--cn-sans); letter-spacing: .1em; }
+.weekly-letter h1 { margin: 6px 0 20px; padding-right: 100px; font: normal clamp(34px, 4.4vw, 48px)/1.15 Georgia, serif; letter-spacing: -1px; }
+.letter-opening p, .letter-signoff > p:first-child { margin: 0; font: italic 19px/1.75 "Lora Commentary", Georgia, serif; }
+.letter-opening p:lang(zh-CN), .letter-signoff > p:lang(zh-CN) { font-style: normal; font-family: var(--cn-sans); font-size: 17px; line-height: 1.9; }
+.weekly-letter section { margin-top: 30px; padding-top: 24px; border-top: 2px dashed var(--line); }
+.weekly-letter h2 { display: flex; align-items: center; gap: 12px; margin: 0 0 14px; font: normal 22px/1.3 Georgia, serif; letter-spacing: -.3px; }
+.letter-sticker { flex: 0 0 40px; height: 40px; border-radius: 50%; background: var(--wash) center / 26px no-repeat; }
+.letter-sticker-done { background-image: url("icons/desk-done.svg"); }
+.letter-sticker-habit { background-image: url("icons/desk-habit.svg"); }
+.letter-sticker-idea { background-image: url("icons/desk-idea.svg"); }
+.letter-sticker-next { background-image: url("icons/desk-schedule.svg"); }
+.letter-total { padding: 2px 10px; border-radius: 999px; background: var(--wash); color: var(--accent); font: 600 13px/1.5 ui-sans-serif, system-ui, sans-serif; letter-spacing: 0; }
+.letter-project { display: inline-block; margin: 12px 0 6px; padding: 3px 12px; border-radius: 999px; background: color-mix(in srgb, var(--accent) 14%, transparent); color: var(--accent); font-size: 13px; font-weight: 600; }
+.weekly-letter ul { margin: 0; padding: 0; list-style: none; }
+.letter-done li { position: relative; padding: 6px 0 6px 34px; }
+.letter-done li::before { content: "✓"; position: absolute; left: 0; top: 7px; width: 24px; height: 24px; border-radius: 50%; background: color-mix(in srgb, var(--accent) 18%, transparent); color: var(--accent); font: 700 13px/24px ui-sans-serif, system-ui, sans-serif; text-align: center; }
+.letter-times { display: inline-block; margin-left: 4px; padding: 0 8px; border-radius: 999px; background: var(--wash); color: var(--muted); font-size: 12px; font-weight: 600; }
+.letter-habits { display: grid; gap: 10px; }
+.letter-habits li { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; padding: 12px 16px; border-radius: 16px; background: var(--wash); }
+.letter-habit { font-weight: 600; }
+.letter-streak { display: inline-flex; align-items: center; gap: 8px; margin-left: auto; color: var(--accent); font-size: 13px; font-weight: 600; }
+.letter-dots { display: inline-flex; gap: 4px; }
+.letter-dots i { width: 9px; height: 9px; border-radius: 50%; background: var(--warm); }
+.letter-ideas { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 18px; padding-top: 8px !important; }
+/* Pastel notes keep dark ink in every palette. */
+.letter-ideas li { position: relative; padding: 22px 18px 18px; border-radius: 4px 4px 18px 4px; background: #f7e6ad; color: #2f2a22; box-shadow: 0 6px 14px #0000001f; line-height: 1.55; transform: rotate(-1.2deg); }
+.letter-ideas li:nth-child(3n+2) { background: #f6d5cd; transform: rotate(1deg); }
+.letter-ideas li:nth-child(3n) { background: #d5eadb; transform: rotate(-.4deg); }
+/* A strip of tape holds each note to the page. */
+.letter-ideas li::before { content: ""; position: absolute; top: -8px; left: 50%; width: 54px; height: 16px; transform: translateX(-50%) rotate(-3deg); background: #ffffff8c; border: 1px solid #0000000f; }
+.letter-next { display: grid; gap: 10px; }
+.letter-next li { display: flex; align-items: center; gap: 14px; }
+.letter-date { display: flex; flex: 0 0 52px; flex-direction: column; align-items: center; height: 56px; overflow: hidden; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); box-shadow: 0 3px 8px #0000000f; font: normal 21px/1 Georgia, serif; }
+.letter-date small { display: block; width: 100%; margin-bottom: 7px; padding: 3px 0; background: #e5aaa0; color: #3b2420; font: 600 10px/1.4 ui-sans-serif, system-ui, sans-serif; letter-spacing: .04em; text-align: center; }
+.letter-plan { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; min-width: 0; }
+.letter-when { padding: 2px 10px; border-radius: 999px; background: var(--wash); color: var(--muted); font-size: 12px; font-weight: 600; }
+.letter-when.is-due { background: color-mix(in srgb, #e5aaa0 38%, transparent); color: var(--ink); }
+.letter-detail { color: var(--muted); font-size: 14px; }
+.weekly-letter section > p.letter-detail { margin: 14px 0 0; }
+.letter-signoff { margin-top: 34px; padding-top: 24px; border-top: 2px dashed var(--line); }
+.letter-from { display: flex; align-items: center; justify-content: flex-end; gap: 12px; margin: 16px 0 0; color: var(--muted); font: italic 17px/1.4 "Lora Commentary", Georgia, serif; }
+.letter-from:lang(zh) { font: 15px/1.4 var(--cn-sans); }
+.letter-from img { width: 46px; height: 46px; border-radius: 50%; object-fit: cover; box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--warm); }
+@media (prefers-reduced-motion: reduce) { .weekly-letter.is-arriving { animation: none; } }
+@media (max-width: 860px) {
+  .letters-desk { grid-template-columns: minmax(0, 1fr); gap: 14px; }
+  .letter-wheel { position: relative; top: 0; }
+  .letter-wheel::before { inset: 4px auto 4px 50%; width: 138px; height: auto; transform: translateX(-50%); border-block: 0; border-inline: 1px dashed var(--line); }
+  .letter-wheel ol { flex-direction: row; height: auto; padding: 6px calc(50% - 66px); overflow-x: auto; overflow-y: hidden; scroll-snap-type: x mandatory; -webkit-mask-image: linear-gradient(90deg, transparent, #000 14%, #000 86%, transparent); mask-image: linear-gradient(90deg, transparent, #000 14%, #000 86%, transparent); }
+  .letter-wheel a { min-width: 132px; min-height: 58px; box-sizing: border-box; }
+}
+@media (max-width: 700px) {
+  .letters-page main { padding-top: 8px; }
+  .weekly-letter { padding: 42px 20px 28px; border-radius: 22px; }
+  .letter-stamp { top: 24px; right: 16px; width: 56px; height: 68px; padding-bottom: 7px; background-size: 30px; background-position: center 10px; }
+  .letter-stamp span { font-size: 10px; }
+  .weekly-letter h1 { padding-right: 68px; font-size: 30px; }
+  .letter-opening p, .letter-signoff > p:first-child { font-size: 17px; }
+  .letter-ideas { grid-template-columns: minmax(0, 1fr); }
+  .letter-streak { margin-left: 0; }
+}

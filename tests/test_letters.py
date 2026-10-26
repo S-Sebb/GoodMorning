@@ -1,5 +1,7 @@
 """Weekly letters: the code-built week, Sunday's evening section that saves it once, and the Letters pages."""
+from contextlib import redirect_stdout
 from datetime import datetime, timezone
+import io
 import json
 import os
 from pathlib import Path
@@ -187,27 +189,40 @@ class LetterTests(unittest.TestCase):
         (self.root / 'profile.md').write_text((self.root / 'profile.md').read_text() + 'weekly_letter: "false"\n')
         self.assertNotIn('letter', plan('b' * 32))
 
-    def test_letters_pages_list_and_read_saved_letters(self):
+    def test_a_short_week_gets_its_opening_from_code(self):
+        quiet = '2026-09-28'  # Before any saved record.
+        output = io.StringIO()
+        with patch.object(sys, 'argv', ['letter', '--secretary-dir', str(self.root), '--week', quiet]), redirect_stdout(output):
+            letters.main()
+        self.assertEqual(json.loads(output.getvalue())['opening'], 'This week’s letter is a short one.')
+        with self.assertRaisesRegex(ValueError, 'write only'):
+            letters.save(self.root, quiet, WORDS, 'zh-CN')
+        saved = letters.save(self.root, quiet, {'signoff': '下周见。'}, 'zh-CN')
+        self.assertEqual((saved['opening'], saved['signoff'], letters.counts(saved)), ('这周的信写得短一些。', '下周见。', [0, 0, 0]))
+
+    def test_the_letters_page_opens_the_newest_letter_with_a_wheel_of_weeks(self):
         app = BrowserApp(self.root, now=lambda: NIGHT)
-        shelf = pages.page(app).decode()
-        self.assertIn('No letters yet', shelf)
+        self.assertIn('No letters yet', pages.page(app).decode())
+        letters.save(self.root, '2026-10-12', {'opening': 'An earlier week.', 'signoff': 'Bye.'}, 'en')
         letters.save(self.root, WEEK, WORDS, 'en')
-        shelf = pages.page(app).decode()
-        self.assertIn('href="/letters/2026-10-19"', shelf)
-        self.assertIn('aria-current="page">', shelf)
-        letter = visible(pages.page(app, WEEK).decode())
-        for text in (WORDS['opening'], 'Thesis', 'Draft chapter 2 outline', 'Water the plants ×3', 'Stretching 4 times this week · 3 weeks in a row',
-                     'Reading 1 time this week', 'Try a weekly review with Mia', '10:00 Group meeting', 'All day Day out',
-                     'Due Submit abstract', '4 tasks planned across the week', WORDS['signoff']):
+        newest = pages.page(app).decode()
+        self.assertIn('<a href="/letters/2026-10-19" aria-current="page"><span class="wheel-range">Oct 19 – 25</span>', newest)
+        self.assertIn('<a href="/letters/2026-10-12"><span class="wheel-range">Oct 12 – 18</span>', newest)
+        letter = visible(newest)
+        for text in ('No. 2', 'Latest', WORDS['opening'], 'Thesis', 'Draft chapter 2 outline', 'Water the plants ×3',
+                     'Stretching 4 times this week 3 weeks in a row', 'Reading 1 time this week', 'Try a weekly review with Mia',
+                     '10:00 Group meeting', 'All day Day out', 'Due Submit abstract', '4 tasks planned across the week', WORDS['signoff']):
             self.assertIn(text, letter)
         self.assertNotIn('Running', letter)
+        earlier = visible(pages.page(app, '2026-10-12').decode())
+        self.assertIn('No. 1', earlier)
+        self.assertIn('An earlier week.', earlier)
         with self.assertRaises(ValueError):
-            pages.page(app, '2026-10-12')
+            pages.page(app, '2026-10-05')
         (self.root / 'profile.md').write_text((self.root / 'profile.md').read_text() + 'weekly_letter: "false"\n')
         self.assertIn('Weekly letters are turned off', pages.page(app).decode())
         for path in ('/letters', '/letters/2026-10-19'):
             self.assertTrue(GET_ROUTES.fullmatch(path) and PAGE_ROUTES.fullmatch(path))
-
 
 if __name__ == '__main__':
     unittest.main()
