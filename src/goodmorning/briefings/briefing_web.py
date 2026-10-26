@@ -156,11 +156,14 @@ def edition(document, date, kind, available, images=None, preview_plan=None, ui_
             switches.append(f'<a class="edition-link{selected}" href="{other}.html"{current}>{label}</a>')
         else:
             switches.append(f'<span class="edition-unavailable" aria-label="{label} briefing not available yet"><span>{label}</span><small>Not yet</small></span>')
+    # Han characters set about twice as wide as Latin ones.
+    title_width = sum(2 if ord(char) >= 0x2E80 else 1 for char in document['greeting'])
     template = (ASSETS / "edition.html").read_text(encoding="utf-8")
     values = {"KIND": kind, "DATE": date, "EDITION": KINDS[kind], "ARTICLELABEL":ui.text(KINDS[kind]+' briefing'), "SWITCHES": ''.join(switches),
               "NAV": ''.join(nav), "SECTIONS": ''.join(sections), "INTRO": '',
               "HASH": hashlib.sha256(json.dumps(document, ensure_ascii=False, separators=(',', ':')).encode()).hexdigest()[:12],
               "TITLE": ui.ui(document['greeting']) if ui_intro else native.escaped(document['greeting']), "SUBTITLE": ui.ui(document['opening']) if ui_intro else native.escaped(document['opening']),
+              "TITLECLASS": ' class="long-title"' if title_width > 70 else '',
               "LANG": ui.current() if ui_intro else document.get('lang', 'en'),
               "CLOSING": '<p class="briefing-closing">' + native.escaped(document['closing']) + '</p>' if document.get('closing') else '',
               "SOURCE": kind + '.json', "SOURCELABEL": 'View saved data',
