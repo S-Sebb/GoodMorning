@@ -393,6 +393,7 @@
   "Back to top": "返回顶部",
   "Back to top ↑": "返回顶部 ↑",
   "Prepared for you by your secretary": "由你的秘书为你准备",
+  "Prepared for you by {name}": "由{name}为你准备",
   "Enable JavaScript to prepare a briefing. Saved editions can still be read.": "请启用 JavaScript 以准备简报，已保存的简报仍可阅读。",
   "Briefing preparation stages": "简报准备进度",
   "Unfinished preview · sections appear here as they are prepared. Nothing is saved yet.": "未完成的预览：各章节会陆续出现，简报尚未保存。",

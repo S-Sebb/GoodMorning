@@ -19,7 +19,7 @@ from urllib.parse import urlsplit, quote, parse_qs, urlencode
 from urllib.request import Request, build_opener, HTTPRedirectHandler
 
 from goodmorning.briefings.briefing_day import briefing_day
-from goodmorning.briefings.briefing_web import ASSETS, KINDS, build, celestial, edition, preview_shell, section_markup, navigation
+from goodmorning.briefings.briefing_web import ASSETS, KINDS, build, celestial, edition, preview_shell, secretary_name, section_markup, navigation
 from .briefing_resources import ByteCache, Resources, accepts_gzip, favicon_links
 from goodmorning.briefings.briefing_images import checked_image, small_preview, cached_previews
 from goodmorning.briefings.briefing_document import source_path
@@ -370,7 +370,7 @@ class BrowserApp:
         manifest = self.runtime / 'browser-images' / date / 'manifest.json'
         if manifest.is_symlink() or manifest.parent.is_symlink():
             raise ValueError('Unsafe image manifest')
-        signature += (self.file_signature(manifest),)
+        signature += (self.file_signature(manifest), secretary_name(self.runtime))  # The byline names the secretary.
         with self.lock:
             key = date, kind, ui.current()
             cached = self.cache.get(key)
@@ -435,7 +435,7 @@ class BrowserApp:
         if confirmed:
             manifest = self.runtime / 'browser-images' / date / 'manifest.json'
             if manifest.parent.is_symlink():raise ValueError('Unsafe image manifest')
-            page_signature = self.file_signature(path), self.file_signature(manifest), week, VERSION, avatar, json.dumps(self.avatar_sources(), sort_keys=True), current_job and (current_job['id'], current_job['state'])
+            page_signature = self.file_signature(path), self.file_signature(manifest), week, VERSION, avatar, json.dumps(self.avatar_sources(), sort_keys=True), secretary_name(self.runtime), current_job and (current_job['id'], current_job['state'])
             with self.lock:
                 cached = self.pages.get(page_key)
                 if cached and cached[0] == page_signature:return cached[1]
@@ -464,7 +464,7 @@ class BrowserApp:
             if (current and self.chamber) or date + '.' + kind in self.jobs:
                 controls = re.search(r'<div id="generation".*?</noscript>', text)[0]
                 document = {'v': 1, 'greeting': heading, 'opening': detail, 'sections': []}
-                text = edition(document, date, kind, KINDS, preview_plan=DEFAULT_PLANS[kind],ui_intro=True)
+                text = edition(document, date, kind, KINDS, preview_plan=DEFAULT_PLANS[kind],ui_intro=True, secretary=secretary_name(self.runtime))
                 text = text.replace('<main id="content">', '<main id="content">' + week)
                 text = re.sub(r'<nav class="edition-switch"[^>]*>.*?</nav>', '<nav class="edition-switch" aria-label="Edition">' + switches + '</nav>', text)
                 text = re.sub(r'<div class="briefing-tools">.*?</div>', '<section class="generation-desk">' + button + controls + '<p class="preview-notice">Unfinished preview · sections appear here as they are prepared. Nothing is saved yet.</p></section>', text)
