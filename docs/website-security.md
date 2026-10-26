@@ -107,8 +107,9 @@ Users can take their time; forms and account-local activity links survive reload
 Replies reacquire the slot through the FIFO queue before reaching the original
 session. Queued answers remain encrypted and do not expire while waiting for
 other work. An in-flight reply retains its reservation until dispatch is confirmed;
-unknown dispatches stay blocked for SSH reconciliation rather than launching
-duplicates. A five-second background check also advances work without browser
+unknown dispatches are never replayed. Stuck or unconfirmed work releases the
+slot after 30 minutes, without being stopped or resent, so one account cannot
+block the others; see `docs/browser-chat-runtime.md`. A five-second background check also advances work without browser
 traffic. This is a bounded single-agent pilot, not a tested multi-agent load
 capacity claim.
 
