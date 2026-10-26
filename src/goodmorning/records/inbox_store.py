@@ -217,9 +217,10 @@ class InboxStore:
             params.extend([literal] * 3)
         where = " AND ".join(conditions) or "1"
         total = self.db.execute("SELECT COUNT(*) FROM entries WHERE " + where, params).fetchone()[0]
+        # Newest first, so a fresh capture is on the first page; `after` continues past that entry.
         rows = self.db.execute(f"SELECT {self.meta_sql},questions,length(context) context_chars,length(raw) raw_chars "
-                               f"FROM entries WHERE {where} AND seq>? ORDER BY seq LIMIT ?",
-                               [*params, after, limit + 1]).fetchall()
+                               f"FROM entries WHERE {where} AND (?=0 OR seq<?) ORDER BY seq DESC LIMIT ?",
+                               [*params, after, after, limit + 1]).fetchall()
         items, size = [], 256
         for row in rows[:limit]:
             item = dict(row)
