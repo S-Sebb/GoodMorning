@@ -337,13 +337,13 @@ if (asked) {
 }
 const days = document.querySelector('.briefing-letter .week-picker');
 if (days && innerWidth <= 700) days.scrollLeft = days.scrollWidth;
-// An offline copy (sw.js) names its date unless it was saved on this device's today.
+// An offline copy (sw.js) names its date unless its edition is the account's current day, which ends at
+// 04:00 in the account's timezone (briefing_day.py), wherever this device and its clock happen to be.
 const offlineNotice = document.querySelector('.offline-notice');
 if (offlineNotice) {
-  const now = new Date();
-  const today = [now.getFullYear(), now.getMonth() + 1, now.getDate()].map(part => String(part).padStart(2, '0')).join('-');
-  if (offlineNotice.dataset.day === today) {
-    offlineNotice.querySelector('.offline-earlier').hidden = true;
-    offlineNotice.querySelector('.offline-today').hidden = false;
-  }
+  const now = Object.fromEntries(new Intl.DateTimeFormat('en', {timeZone: offlineNotice.dataset.zone, year: 'numeric',
+    month: 'numeric', day: 'numeric', hour: 'numeric', hourCycle: 'h23'}).formatToParts(new Date()).map(part => [part.type, Number(part.value)]));
+  const today = new Date(Date.UTC(now.year, now.month - 1, now.day - (now.hour < 4))).toISOString().slice(0, 10);
+  const shown = ('unreachable' in offlineNotice.dataset ? 'unreachable' : 'offline') + (offlineNotice.dataset.day === today ? '-today' : '-earlier');
+  for (const line of offlineNotice.querySelectorAll('span')) line.hidden = line.className !== shown;
 }

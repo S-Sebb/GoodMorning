@@ -174,15 +174,20 @@ none. While the newest edition awaits its check after regeneration the backend
 answers 503 and the device keeps its copy; with nothing saved that week it
 answers 404 and the device drops it.
 
-Page loads go to the network first. Only when that fails does the worker answer
-with a copy: the requested edition on briefing pages, otherwise the morning
-before 17:00 and the evening after, or whichever it has. The copy starts with
-"You’re offline · showing the version from HH:MM", the time the edition was saved
-in the account's timezone, with the date when it is not from the device's today,
-and a Try again link that reloads the page. Edition links switch between the two
-copies. With no copy the load fails as before, and the Android app shows its
-can't-connect screen. Online, other requests are untouched; offline, the copies'
-own files come from the cache.
+Page loads go to the network first. Only when that fails, or the server answers
+502, 503 or 504 (NGINX while the gateway is stopped, a deployment pause, an
+unavailable secretary), does the worker answer with a copy: the requested edition
+on briefing pages, otherwise the morning from 04:00 until 17:00 in the account's
+timezone and the evening otherwise, or whichever it has. Each copy names that
+timezone and its edition's day. The copy starts with "You’re offline · showing
+the version from HH:MM", or "GoodMorning can’t be reached right now · …" when the
+server answered, giving the time the edition was saved in the account's timezone.
+The date is added unless the edition is the account's current briefing day (the
+04:00 rollover in the account's timezone; the device's timezone and date play no
+part). A Try again link reloads the page. Edition links switch between the two
+copies. With no copy the failure shows as before: the error page, or the Android
+app's can't-connect screen. Online, other requests are untouched; when the page
+loads fail, the copies' own files come from the cache too.
 
 The copies belong to one account. The gateway tags them with an opaque owner tag
 (`X-GoodMorning-Owner`, a hash of the account ID), and the worker keeps them in a

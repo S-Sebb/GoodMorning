@@ -94,12 +94,15 @@ class LiveTests(unittest.TestCase):
             self.app.offline_page('gm')  # Nothing saved this week: devices drop their copy.
         older = self.root/'daily/2026-10-08.gm.json'
         older.write_text(GM)
-        os.utime(older, (0, datetime(2026,10,8,6,5,tzinfo=timezone.utc).timestamp()))
+        # Saved after midnight, before the account's day ends at 04:00: still that day's edition.
+        os.utime(older, (0, datetime(2026,10,9,0,5,tzinfo=timezone.utc).timestamp()))
         page = self.app.offline_page('gm').decode()
         self.assertIn('data-edition="gm"', page)
         self.assertIn('2026-10-08 / Morning edition', page)
-        self.assertIn('data-day="2026-10-08"', page)
-        self.assertIn('07:05', page)  # The saved time in the account's timezone (London, BST).
+        self.assertIn('data-day="2026-10-08" data-zone="Europe/London"', page)
+        self.assertIn('01:05', page)  # The saved time in the account's timezone (London, BST).
+        for line in ('offline-today', 'offline-earlier', 'unreachable-today', 'unreachable-earlier'):
+            self.assertIn(f'class="{line}"', page)
         self.assertNotIn(self.app.csrf, page)
         for control in ('csrf', '<form', 'id="sign-out"', 'id="generate"', 'quick-chat', 'week-picker', 'srcset='):
             self.assertNotIn(control, page)

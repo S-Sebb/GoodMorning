@@ -524,10 +524,14 @@ class BrowserApp:
         text = text.replace('href="fonts/', 'href="/fonts/').replace('href="icons/', 'href="/icons/').replace('href="index.html"', f'href="/{kind}.html"')
         # The device keeps only each image's plain source, so no other size is asked for offline.
         text = re.sub(r'\s(?:srcset|sizes)="[^"]*"', '', text.replace('src="media/', 'src="/media/'))
-        # briefing.js drops the date when the copy is from the device's today.
-        notice = (f'<p class="offline-notice" role="status" data-day="{saved.date().isoformat()}">'
-                  '<span class="offline-earlier">' + ui.ui('You’re offline · showing the version from {date}, {time}.', date=ui.day_text(saved.date().isoformat()), time=time_text) + '</span>'
-                  '<span class="offline-today" hidden>' + ui.ui('You’re offline · showing the version from {time}.', time=time_text) + '</span> '
+        # briefing.js drops the date only while the edition is the account's current day in its timezone, and
+        # sw.js marks a copy shown because the server failed rather than the connection (unreachable).
+        date_text = ui.day_text(saved.date().isoformat())
+        notice = (f'<p class="offline-notice" role="status" data-day="{date}" data-zone="{html.escape(self.zone, quote=True)}">'
+                  '<span class="offline-earlier">' + ui.ui('You’re offline · showing the version from {date}, {time}.', date=date_text, time=time_text) + '</span>'
+                  '<span class="offline-today" hidden>' + ui.ui('You’re offline · showing the version from {time}.', time=time_text) + '</span>'
+                  '<span class="unreachable-earlier" hidden>' + ui.ui('GoodMorning can’t be reached right now · showing the version from {date}, {time}.', date=date_text, time=time_text) + '</span>'
+                  '<span class="unreachable-today" hidden>' + ui.ui('GoodMorning can’t be reached right now · showing the version from {time}.', time=time_text) + '</span> '
                   '<a href="">' + ui.ui('Try again') + '</a></p>')
         text = text.replace('<main id="content">', '<main id="content">' + notice, 1)
         text = text.replace('</head>', '<link rel="stylesheet" href="/color-schemes.css"><link rel="stylesheet" href="/pixel.css"></head>', 1)

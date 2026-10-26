@@ -3,6 +3,7 @@ morning and evening copies, shows them without a connection, keeps no token, and
 and when another account signs in. No model is contacted."""
 import json
 import os
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 import re
 import subprocess
@@ -39,14 +40,16 @@ def main():
                     settings = json.loads(line); break
                 if not line: raise RuntimeError('Synthetic gateway fixture did not start.')
             errors, copies = [], []
-            network = {'up': True}
+            network = {'up': True, 'status': None}
             with sync_playwright() as playwright:
                 browser = playwright.chromium.launch()
-                def context(width):
-                    result = browser.new_context(viewport={'width': width, 'height': 900}, reduced_motion='reduce')
+                def context(width, zone='Europe/London'):
+                    result = browser.new_context(viewport={'width': width, 'height': 900}, reduced_motion='reduce', timezone_id=zone)
                     def forward(route):
                         if not network['up']:
                             return route.abort('internetdisconnected')
+                        if network['status']:  # NGINX's maintenance page while the gateway is stopped.
+                            return route.fulfill(status=network['status'], content_type='text/html', body='<h1>Back in a minute</h1>')
                         parsed = urlsplit(route.request.url)
                         headers = {**route.request.all_headers(), 'Host': parsed.hostname,
                             'X-Forwarded-Proto': 'https', 'X-Real-IP': '192.0.2.1'}
@@ -160,6 +163,77 @@ def main():
                 page.goto(HOST + '/gm.html')
                 expect(page.locator('.offline-notice a')).to_have_text('重试')
 
+                network['up'] = True
+                page.goto(HOST + '/gm.html')
+                page.locator('#account-menu > summary').click()
+                with page.expect_response('**/api/language'):
+                    page.locator('#website-language').select_option('en')
+                page.goto(HOST + '/gm.html')
+                kept(page, 2)
+
+                # A stopped gateway behind NGINX answers 502 or 504: the copy, saying the server, not the connection, failed.
+                for status in (502, 504):
+                    network['status'] = status
+                    page.goto(HOST + '/gn.html')
+                    expect(page.locator('html')).to_have_attribute('data-edition', 'gn')
+                    expect(page.locator('.offline-notice .unreachable-today')).to_have_text(
+                        re.compile(r'^GoodMorning can’t be reached right now · showing the version from \d\d:\d\d\.$'))
+                    expect(page.locator('.offline-notice .offline-today')).to_be_hidden()
+                    assert page.evaluate("getComputedStyle(document.querySelector('.offline-notice')).borderTopStyle") == 'solid'
+                page.screenshot(path=str(artifacts/'unreachable-gn-390.png'), full_page=True)
+                network['status'] = None
+
+                # The account's day in its own timezone, ending at 04:00, decides whether the copy is current,
+                # wherever the device's clock and timezone are (London is UTC+0 or UTC+1).
+                day = date.fromisoformat(settings['date'])
+                for device_zone, moment, current in (
+                        ('Pacific/Kiritimati', f'{day}T12:00:00+01:00', True),  # The device's date is already tomorrow.
+                        ('America/Los_Angeles', f'{day + timedelta(days=1)}T01:30:00+00:00', True),  # London's night.
+                        ('America/Los_Angeles', f'{day + timedelta(days=1)}T05:30:00+01:00', False)):  # London's next day.
+                    device = context(390, device_zone)
+                    device.add_cookies(phone.cookies())  # The same session: sign-ins are rate limited.
+                    travel = device.new_page()
+                    travel.on('pageerror', lambda error: errors.append(str(error)))
+                    travel.clock.set_fixed_time(moment)
+                    travel.goto(HOST + '/gm.html')
+                    kept(travel, 2)
+                    network['up'] = False
+                    travel.goto(HOST + '/gm.html')
+                    expect(travel.locator('.offline-notice .offline-today')).to_be_visible(visible=current)
+                    expect(travel.locator('.offline-notice .offline-earlier')).to_be_visible(visible=not current)
+                    network['up'] = True
+                    device.close()
+
+                # Other pages open the morning from 04:00 until 17:00 in the account's timezone, then the evening.
+                runtime = Path(settings['runtimes']['alice'])
+                profile = (runtime/'profile.md').read_text()
+                editions = {kind: (runtime/'daily'/f'{day}.{kind}.json').read_bytes() for kind in ('gm', 'gn')}
+                written = []
+                for local, kind in ((2, 'gn'), (10, 'gm'), (20, 'gn')):
+                    offset = (local - datetime.now(timezone.utc).hour + 12) % 24 - 12  # A whole-hour zone where it is now that hour.
+                    zone = f'Etc/GMT{-offset:+d}'  # Etc/GMT names count west as positive.
+                    zone_day = (datetime.now(timezone.utc) + timedelta(hours=offset - 4)).date()
+                    (runtime/'profile.md').write_text(profile.replace('Europe/London', zone))
+                    for edition, data in editions.items():
+                        written.append(runtime/'daily'/f'{zone_day}.{edition}.json')
+                        written[-1].write_bytes(data)
+                    page.goto(HOST + '/gm.html')
+                    deadline = time.monotonic() + 15
+                    while sum(f'data-zone="{zone}"' in text for files in page.evaluate(CACHED).values() for text in files.values()) < 2:
+                        assert time.monotonic() < deadline, 'The copies never named ' + zone
+                        time.sleep(.2)
+                    network['up'] = False
+                    page.goto(HOST + '/chat')
+                    expect(page.locator('html')).to_have_attribute('data-edition', kind)
+                    network['up'] = True
+                (runtime/'profile.md').write_text(profile)
+                for path in written:
+                    if not path.name.startswith(str(day)): path.unlink(missing_ok=True)
+                page.goto(HOST + '/gm.html')
+                kept(page, 2)
+                network['up'] = False
+                page.goto(HOST + '/gm.html')
+
                 # Back online, Try again opens the live page; signing out forgets the copies.
                 network['up'] = True
                 page.locator('.offline-notice a').click()
@@ -210,7 +284,8 @@ def main():
                 browser.close()
             assert not errors, errors
             report = {'copiesKept': True, 'noTokensKept': True, 'offlineNotice': ['en', 'zh-CN'], 'bothEditions': True,
-                      'anyPageOffline': True, 'unchangedCopiesNotDownloaded': True, 'forgottenAtSignOut': True,
+                      'anyPageOffline': True, 'serverFailure': [502, 504], 'accountDay': True, 'accountHour': True,
+                      'unchangedCopiesNotDownloaded': True, 'forgottenAtSignOut': True,
                       'forgottenForAnotherAccount': True, 'checkinAnswersForgotten': True, 'widths': [390, 1440]}
             (artifacts/'result.json').write_text(json.dumps(report, indent=2)); print(json.dumps(report))
         finally:
