@@ -12,8 +12,16 @@ document.querySelectorAll('[data-password-target]').forEach(button => {
     button.setAttribute('aria-label', authT(button.getAttribute('data-ui-aria-label')));
   });
 });
+// Evening check-in answers kept for reloads (browser.js) leave the device with the account.
+function forgetCheckins() {
+  try {
+    for (const key of Object.keys(localStorage)) if (key.startsWith('goodmorningCheckin:')) localStorage.removeItem(key);
+  } catch { /* No storage here: nothing was kept. */ }
+}
 const form = document.querySelector('#account-form');
 if (form) form.querySelector('button[type="submit"]').disabled = false;
+// The sign-in page means nobody is signed in here, however the last session ended.
+if (form?.dataset.action === 'login') forgetCheckins();
 if (form) form.addEventListener('submit', async event => {
   event.preventDefault();
   const error = document.querySelector('#account-error');
@@ -43,6 +51,7 @@ if (form) form.addEventListener('submit', async event => {
     const result = await goodmorningJSON(response);
     if (!response.ok) throw new Error(result.error || authT('Sign-in unavailable.'));
     form.reset();
+    forgetCheckins();  // A new sign-in or password change starts a new session.
     // The installed app resumes its own last page instead of the website's home.
     const app = result.next === '/' && (matchMedia('(display-mode: standalone)').matches || navigator.userAgent.includes('GoodMorningApp/'));
     location.replace(app ? '/app' : result.next);
@@ -58,6 +67,7 @@ if (logout) logout.addEventListener('click', async () => {
   try {
     // This device stops receiving the account's notifications (app.js).
     if (typeof goodmorningBeforeSignOut === 'function') await goodmorningBeforeSignOut();
+    forgetCheckins();  // Even if the server cannot be told: the person is leaving this device.
     const response = await fetch('/api/auth/logout', {
       method:'POST',headers:{'Content-Type':'application/json','X-Briefing-CSRF':logout.dataset.csrf},
       body:'{}',cache:'no-store',credentials:'same-origin'

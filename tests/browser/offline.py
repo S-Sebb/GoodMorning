@@ -21,6 +21,10 @@ CACHED = """async () => { const result = {};
     for (const name of await caches.keys()) { const cache = await caches.open(name); result[name] = {};
         for (const request of await cache.keys()) result[name][new URL(request.url).pathname] = await (await cache.match(request)).text(); }
     return result; }"""
+# A synthetic unsaved evening check-in note in this sign-in's namespace (browser.js).
+CHECKIN = """scope => { scope = scope || JSON.parse(document.querySelector('#browser-config').dataset.config).workspaceScope;
+    localStorage.setItem('goodmorningCheckin:' + scope + ':synthetic', JSON.stringify({text: 'Private note', at: Date.now()})); return scope; }"""
+CHECKINS = "Object.keys(localStorage).filter(key => key.startsWith('goodmorningCheckin:'))"
 
 
 def main():
@@ -56,6 +60,7 @@ def main():
 
                 def sign_in(page, name, temporary=True):
                     page.goto(HOST + '/login')
+                    assert page.evaluate(CHECKINS) == []  # However the last session ended.
                     page.locator('input[name=username]').fill(name)
                     page.locator('#password-password').fill('a1' + name + ('-temporary' if temporary else '-permanent'))
                     page.locator('#account-form button[type=submit]').click()
@@ -68,9 +73,11 @@ def main():
                         expect(page.locator('input[name=current]')).to_have_value('a1' + name + '-temporary')
                         page.locator('input[name=replacement]').fill('a1' + name + '-permanent')
                         page.locator('input[name=repeat]').fill('a1' + name + '-permanent')
+                        page.evaluate(CHECKIN, 'a' * 64)
                         with page.expect_response('**/api/auth/password'):
                             page.locator('#account-form button[type=submit]').click()
                     expect(page).not_to_have_url(re.compile(r'/(login|password)$'))
+                    assert page.evaluate(CHECKINS) == []  # A password change starts without earlier answers.
 
                 def kept(page, count):
                     # The worker refreshes its copies after each page load; wait until it holds exactly these.
@@ -157,11 +164,15 @@ def main():
                 network['up'] = True
                 page.locator('.offline-notice a').click()
                 expect(page.locator('#language-config')).to_have_count(1)
+                scope = page.evaluate(CHECKIN, None)
+                page.reload()
+                assert page.evaluate(CHECKINS) == ['goodmorningCheckin:' + scope + ':synthetic']
                 page.locator('#account-menu > summary').click()
                 page.locator('#website-language').select_option('en')
                 page.locator('#sign-out').click()
                 expect(page).to_have_url(HOST + '/login')
                 kept(page, 0)
+                assert page.evaluate(CHECKINS) == []
                 network['up'] = False
                 unreachable(page)
                 network['up'] = True
@@ -170,6 +181,12 @@ def main():
                 sign_in(page, 'alice', temporary=False)
                 page.goto(HOST + '/gn.html')
                 kept(page, 2)
+                alice = page.evaluate(CHECKIN, None)
+                assert alice != scope  # Every sign-in gets its own namespace.
+                # Answers an earlier sign-in wrote later, e.g. from a tab left open, are removed by this one's briefing page.
+                page.evaluate(CHECKIN, scope)
+                page.reload()
+                assert page.evaluate(CHECKINS) == ['goodmorningCheckin:' + alice + ':synthetic']
                 phone.clear_cookies()
                 sign_in(page, 'bob')
                 page.goto(HOST + '/gm.html')
@@ -194,7 +211,7 @@ def main():
             assert not errors, errors
             report = {'copiesKept': True, 'noTokensKept': True, 'offlineNotice': ['en', 'zh-CN'], 'bothEditions': True,
                       'anyPageOffline': True, 'unchangedCopiesNotDownloaded': True, 'forgottenAtSignOut': True,
-                      'forgottenForAnotherAccount': True, 'widths': [390, 1440]}
+                      'forgottenForAnotherAccount': True, 'checkinAnswersForgotten': True, 'widths': [390, 1440]}
             (artifacts/'result.json').write_text(json.dumps(report, indent=2)); print(json.dumps(report))
         finally:
             process.terminate(); process.communicate(timeout=5)

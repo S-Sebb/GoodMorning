@@ -245,14 +245,18 @@ const checkinStates = new Map();
 const checkinOpened = new Set();
 const checkinDialogs = new Map();
 // Answers also stay on this device, so a reload or a visit elsewhere does not lose them.
-// Saving clears them; abandoned ones expire after three days.
+// Saving clears them; abandoned ones expire after three days. They belong to this sign-in:
+// answers from any other sign-in are removed here, and auth.js removes them all when the account leaves.
 const checkinPrefix = 'goodmorningCheckin:';
+const checkinScope = checkinPrefix + config.workspaceScope + ':';
 function savedCheckin(key) { try { return JSON.parse(localStorage.getItem(key)); } catch { return null; } }
 function storeCheckin(id, state) {
-  try { localStorage.setItem(checkinPrefix + id, JSON.stringify({ ...state, early: [...state.early], at: Date.now() })); } catch { /* Answers still last until the page closes. */ }
+  try { localStorage.setItem(checkinScope + id, JSON.stringify({ ...state, early: [...state.early], at: Date.now() })); } catch { /* Answers still last until the page closes. */ }
 }
 try {
-  for (const key of Object.keys(localStorage)) if (key.startsWith(checkinPrefix) && !(savedCheckin(key)?.at > Date.now() - 3 * 864e5)) localStorage.removeItem(key);
+  for (const key of Object.keys(localStorage)) {
+    if (key.startsWith(checkinPrefix) && !(key.startsWith(checkinScope) && savedCheckin(key)?.at > Date.now() - 3 * 864e5)) localStorage.removeItem(key);
+  }
 } catch { /* Storage is unavailable. */ }
 // A refreshed task list or a queued reply replaces the form; its dialog must go too.
 function pruneCheckins(keep) {
@@ -266,7 +270,7 @@ function nightCheckin(info) {
   const tidyItems = info.fields.filter(item => item.tidy);
   const steps = [dueItems.length && 'due', early && 'early', tidyItems.length && 'tidy', 'details'].filter(Boolean);
   if (!checkinStates.has(info.id)) {
-    const saved = savedCheckin(checkinPrefix + info.id) || {};
+    const saved = savedCheckin(checkinScope + info.id) || {};
     checkinStates.set(info.id, { step: saved.step || 0, index: saved.index || 0, verdicts: saved.verdicts || {}, early: new Set(saved.early), tidy: saved.tidy || {}, text: saved.text || '' });
   }
   const state = checkinStates.get(info.id);
@@ -418,7 +422,7 @@ function nightCheckin(info) {
         save.disabled = true;
         try {
           const result = await replyToAgent('form', info.id, { answer });
-          try { localStorage.removeItem(checkinPrefix + info.id); } catch { /* Expiry removes it later. */ }
+          try { localStorage.removeItem(checkinScope + info.id); } catch { /* Expiry removes it later. */ }
           launcher.remove();
           // A queued reply is not saved yet; the page's queue status says so instead.
           if (result.queued) { pruneCheckins([]); refreshAnswers(); return; }
