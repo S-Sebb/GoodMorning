@@ -47,6 +47,9 @@ with (runtime/'trial-commands.jsonl').open('a') as log:
 MARKET = {'sh600519': ('贵州茅台', '600519', '', 'gzmt', 1329.0, 1324.97), 'sz000001': ('平安银行', '000001', '', 'payh', 11.5, 11.65),
           'sh601318': ('中国平安', '601318', '', 'zgpa', 51.88, 51.67), 'usAAPL': ('苹果', 'AAPL.OQ', 'Apple Inc.', 'apple', 342.0, 343.46),
           'usTSLA': ('特斯拉', 'TSLA.OQ', 'Tesla, Inc.', 'tesla', 362.44, 354.72), 'usNVDA': ('英伟达', 'NVDA.OQ', 'Nvidia Corporation', 'nvidia', 217.23, 214.13)}
+# Index code: (previous close, close); A-shares beat the CSI 300, US holdings trail the S&P 500.
+INDEX = {'sh000001': (3600.0, 3610.0), 'sh000300': (4000.0, 3960.0), 'sz399006': (2600.0, 2587.0),
+         'us.INX': (7600.0, 7676.0), 'us.IXIC': (26000.0, 26390.0), 'us.DJI': (52000.0, 52260.0)}
 today = date.fromisoformat(fixture['today'])
 # closed: the last bars end before a three-day A-share closure around today, which reopens two days on.
 days = [(today - timedelta(days=n)).isoformat() for n in ((3, 2) if fixture['mode'] == 'closed' else (2, 1))]
@@ -72,6 +75,8 @@ def request(url, cache=None, encoding='utf-8'):
                 lines.append(f'v_{symbol}="' + '~'.join(fields) + '";')
         return chr(10).join(lines)
     code = url[len(stocks.KLINE):].split(',')[0]
+    if code in INDEX:
+        return json.dumps({'data': {code: {'day': [[day, '0', str(close), '0', '0', '1000'] for day, close in zip(days, INDEX[code])]}}})
     symbol = next(s for s, v in MARKET.items() if (s[:2] + v[1] if s.startswith('us') else s) == code)
     bars = [[day, '0', str(price), '0', '0', '1000'] for day, price in zip(days, MARKET[symbol][4:6])]
     return json.dumps({'data': {code: {'qfqday': bars}}})
@@ -189,10 +194,13 @@ def run_briefing(output, language, selected, scenario, now):
         if mode != 'fail':
             returned = json.loads((runtime/'browser-stocks'/(day + '.json')).read_text())
             assert len(returned[1]) == 3, 'Fixture holdings were not returned by the read'
+            assert len(returned) == 4 and len(returned[3]) == 6, 'The market overview was not returned by the read'
             assert blocks[0] == returned, 'Holdings block was not copied unchanged'
             assert section[2:3] and section[2].strip(), 'Holdings published without a short note'
             assert '688999' in text, 'The unknown code was not named'
-            result['checks'].append('Read block copied unchanged with a note; unknown code named')
+            result['note'] = section[2]
+            result['checks'].append('Read block copied unchanged with its market overview and a note; unknown code named '
+                                    '(manual review: any benchmark comparison matches `markets` and stays factual)')
         else:
             assert [block[0] for block in blocks] == ['p'], 'Failed read did not publish one paragraph'
             result['checks'].append('Unavailable line published, section not skipped')

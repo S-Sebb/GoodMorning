@@ -361,32 +361,40 @@ html[data-edition="gn"] .weather-tile.air { --tile-accent: #aed4b7; --tile-bg: #
 .section-body .deal-ends { margin: 8px 0 0; display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); white-space: nowrap; }
 .deal-ends .data-icon { width: 14px; height: 14px; }
 /* Stocks: one summary per market, then a compact row per holding. Chinese pages show gains in red, as Chinese brokers do. */
-.holdings { --gain: #2f8f5b; --loss: #c2463d; display: grid; grid-template-columns: minmax(0, 1fr); gap: 24px; }
+.holdings { --gain: #2f8f5b; --loss: #c2463d; display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; }
 html[data-edition="gn"] .holdings { --gain: #7fd3a0; --loss: #f2928a; }
 .holdings:lang(zh) { --gain: #c2463d; --loss: #2f8f5b; }
 html[data-edition="gn"] .holdings:lang(zh) { --gain: #f2928a; --loss: #7fd3a0; }
 .holdings .is-up { color: var(--gain); }
 .holdings .is-down { color: var(--loss); }
-.holding-summary { padding: 18px 20px; border-radius: 14px; background: var(--wash); }
+.holding-summary { padding: 14px 18px; border-radius: 14px; background: var(--wash); }
 .holding-summary h3 { margin: 0; }
-.section-body .holding-total { margin: 8px 0 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; }
-.holding-total .holding-amount { font-size: 28px; font-weight: 650; letter-spacing: -.4px; }
+.section-body .holding-total { margin: 4px 0 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; }
+.holding-total .holding-amount { font-size: 24px; font-weight: 650; letter-spacing: -.4px; }
 .holding-total .holding-percent { font-size: 16px; font-weight: 600; }
-.section-body .holding-meta { margin: 6px 0 0; font-size: 13px; color: var(--muted); }
-.section-body .holding-list { margin: 12px 0 0; padding: 0; list-style: none; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); overflow: hidden; }
-.section-body .holding-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; padding: 14px 18px; }
+.section-body .holding-meta { margin: 4px 0 0; font-size: 13px; color: var(--muted); }
+/* The market's main indices: one slim strip under its totals. */
+.section-body .holding-indices { margin: 10px 0 0; padding: 8px 0 0; border-top: 1px solid var(--line); list-style: none; display: flex; flex-wrap: wrap; gap: 4px 20px; font-size: 13px; font-variant-numeric: tabular-nums; }
+.section-body .holding-indices li { padding: 0; border: 0; white-space: nowrap; }
+.holding-index-name { color: var(--muted); }
+.holding-index-level { margin: 0 2px; }
+.holding-indices .is-up, .holding-indices .is-down { font-weight: 600; }
+.section-body .holding-list { margin: 8px 0 0; padding: 0; list-style: none; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); overflow: hidden; }
+.section-body .holding-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; padding: 10px 16px; }
+.holding-title { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 8px; }
+.holding-code { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
 .holding-copy { min-width: 0; }
 .holding-copy h4.holding-name { margin: 0; font: 600 16px/1.4 ui-sans-serif, system-ui, sans-serif; overflow-wrap: anywhere; }
-.section-body .holding-detail, .section-body .holding-since { margin: 4px 0 0; font-size: 12px; line-height: 1.5; color: var(--muted); }
-.holding-detail > *, .holding-since > span, .holding-meta > span { white-space: nowrap; }
+.section-body .holding-detail { margin: 2px 0 0; display: flex; flex-wrap: wrap; gap: 0 10px; font-size: 12px; line-height: 1.5; color: var(--muted); }
+.holding-detail > *, .holding-meta > span { white-space: nowrap; }
 .section-body .holding-note { margin: 6px 0 0; padding: 4px 10px; border-radius: 8px; background: var(--wash); font-size: 12px; line-height: 1.5; color: var(--ink); }
 .holding-paused { padding: 1px 7px; border-radius: 999px; background: var(--wash); color: var(--ink); white-space: nowrap; }
 .holding-change { display: grid; justify-items: end; flex-shrink: 0; text-align: right; }
 .holding-change .holding-amount { font-size: 16px; font-weight: 650; white-space: nowrap; }
 .holding-change .holding-percent { font-size: 13px; white-space: nowrap; }
 /* A market that did not open today: its status leads, the last session shrinks to a recap, holdings fold away. */
-.section-body .holding-status { margin: 6px 0 0; font-size: 15px; color: var(--ink); }
-.holding-recap { margin: 14px 0 0; padding: 12px 0 0; border-top: 1px solid var(--line); }
+.section-body .holding-status { margin: 2px 0 0; font-size: 15px; color: var(--ink); }
+.holding-recap { margin: 10px 0 0; padding: 8px 0 0; border-top: 1px solid var(--line); }
 .section-body .holding-recap-label { margin: 0; font-size: 12px; letter-spacing: .3px; color: var(--muted); }
 .is-closed .holding-total { margin-top: 4px; }
 .is-closed .holding-total .holding-amount { font-size: 20px; }
@@ -397,7 +405,7 @@ html[data-edition="gn"] .holdings:lang(zh) { --gain: #f2928a; --loss: #7fd3a0; }
 .holding-details > summary { cursor: pointer; padding: 10px 4px; font-size: 14px; color: var(--muted); }
 .holding-details[open] > summary { color: var(--ink); }
 .holding-details .holding-list { margin-top: 4px; }
-.holdings .holding-amount, .holdings .holding-percent, .holding-meta, .holding-detail, .holding-since { font-variant-numeric: tabular-nums; }
+.holdings .holding-amount, .holdings .holding-percent, .holding-meta, .holding-detail { font-variant-numeric: tabular-nums; }
 .holding-copy h4:lang(zh) { font-family: var(--cn-sans); letter-spacing: 0; }
 .anime .section-body > p:not(.section-takeaway), .games .section-body > p:not(.section-takeaway), .stocks .section-body > p:not(.section-takeaway) { background: var(--wash); border-radius: 12px; padding: 18px 22px; margin: 0; color: var(--muted); font-family: Georgia, serif; font-size: 17px; }
 .news .section-body > p { background: var(--wash); border-radius: 12px; padding: 18px 22px; margin-top: 28px; color: var(--muted); font-family: Georgia, serif; font-size: 17px; }

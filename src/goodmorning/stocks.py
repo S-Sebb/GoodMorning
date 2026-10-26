@@ -9,7 +9,8 @@ stated those shares and cost. The briefing read reports each market's latest
 closed session, so a night briefing in China shows today's A-share close and the
 previous US session, as one code-owned `holdings` block. A market whose due session
 never happened (a weekend or holiday) is marked closed, with its next trading day
-from the exchange calendar.
+from the exchange calendar. The block ends with the main indices of each market the
+user holds, at their latest closed session, so the day can be read against the market.
 
 Cash dividends whose ex-date falls after DATE count toward the total gain/loss,
 pre-tax, as brokers do. Bonus or transfer shares are only flagged: the share count
@@ -40,6 +41,10 @@ MAX_HOLDINGS = 50
 SYMBOL = r'(?:sh|sz|bj)\d{6}|us[A-Z][A-Z0-9.-]{0,9}'
 # Each market's zone and the time its daily bar is final.
 MARKETS = {'CNY': (ZoneInfo('Asia/Shanghai'), Time(15, 10)), 'USD': (ZoneInfo('America/New_York'), Time(16, 10))}
+# The market overview, in display order: {provider code: (name, currency)}. Holdings compare with each market's broad benchmark.
+INDICES = {'sh000001': ('SSE Composite', 'CNY'), 'sh000300': ('CSI 300', 'CNY'), 'sz399006': ('ChiNext', 'CNY'),
+           'us.INX': ('S&P 500', 'USD'), 'us.IXIC': ('Nasdaq', 'USD'), 'us.DJI': ('Dow Jones', 'USD')}
+BENCHMARKS = {'CNY': 'sh000300', 'USD': 'us.INX'}
 
 
 class StockError(Exception):
@@ -259,12 +264,30 @@ def report(runtime, language, cache=None, now=None):
             row[5] = row[4]
     rows.sort(key=lambda row: (row[7] != 'CNY', -(row[4] - row[5]) * row[3], row[0]))
     closed = closed_markets(rows, now, cache)
-    return {'block': ['holdings', rows] + ([closed] if closed else []) if rows else None, 'markets': summaries(rows, language, closed),
+    overview = indices({row[7] for row in rows}, now, cache) if rows else []
+    extras = [closed or None, overview] if overview else [closed] if closed else []
+    return {'block': ['holdings', rows] + extras if rows else None, 'markets': summaries(rows, language, closed, overview),
             'not_found': [symbol[2:] for symbol in missing]}
 
 
-def summaries(rows, language='en', closed=None):
-    """Per-market totals the note may mention; the rendered section computes the same."""
+def indices(currencies, now, cache=None):
+    """[code, session_date, close, previous_close]: each held market's indices at their latest closed session; none when any read fails.
+
+    The overview only adds to the holdings, so a failure leaves them alone."""
+    rows = []
+    try:
+        for code, (_, currency) in INDICES.items():
+            if currency not in currencies:
+                continue
+            series = settled(bars(code, None, cache), currency, now)
+            rows.append([code, series[-1][0], series[-1][1], series[-2][1]])
+    except (StockError, ValueError, KeyError, TypeError, IndexError):
+        return []
+    return rows
+
+
+def summaries(rows, language='en', closed=None, overview=()):
+    """Per-market totals the note may mention, with the market's benchmark index on the same session; the rendered section computes the same."""
     from goodmorning.web import language as ui
     token = ui.CURRENT.set(language)
     # Notes print as written, so their dates arrive the way the page writes dates.
@@ -284,6 +307,10 @@ def summaries(rows, language='en', closed=None):
             market['total_change'] = round(sum((row[4] - row[6] + row[8]) * row[3] for row in costed), 2)
         if closed and currency in closed:
             market['closed_on'], market['next_trading_day'] = shown(closed[currency]['closed']), shown(closed[currency]['next'])
+        benchmark = next((index for index in overview if index[0] == BENCHMARKS[currency]), None)
+        if benchmark and benchmark[1] == max(row[2] for row in group):
+            market['benchmark'] = {'index': ui.text(INDICES[benchmark[0]][0], lang=language),
+                                   'day_percent': round((benchmark[2] - benchmark[3]) / benchmark[3] * 100, 2)}
         markets.append(market)
     ui.CURRENT.reset(token)
     return markets

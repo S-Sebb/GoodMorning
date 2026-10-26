@@ -362,9 +362,9 @@ def read_rows(runtime, job, tag, section):
         if isinstance(value, list) and value[:1] == [kind] and len(value) > 1 and isinstance(value[1], list):
             if any(row not in returned for row in value[1]):
                 raise ValueError(f'{label} rows must be copied unchanged from the {tag} read; copy its block and publish again')
-            # Closed-market facts travel after the rows and must survive the copy too.
+            # Closed-market facts and the market overview travel after the rows and must survive the copy too.
             if tag == 'stocks' and value[2:] != (saved_block(runtime, job['date']) or [])[2:]:
-                raise ValueError('Copy the stocks block whole, including the closed-market item after its rows, and publish again')
+                raise ValueError('Copy the stocks block whole, including the closed-market and market overview items after its rows, and publish again')
 
 
 def cover_previews(runtime, job, checkpoint):

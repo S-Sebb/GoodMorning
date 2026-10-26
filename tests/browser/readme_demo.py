@@ -144,7 +144,9 @@ def fixture(runtime):
             ['stocks', [['holdings', [
                 ['usAAPL', 'Apple Inc.', DAY, 30, 232.4, 229.9, 180, 'USD', 0.0, 0.0, False],
                 ['usVOO', 'Vanguard S&P 500 ETF', DAY, 12, 548.2, 551.0, None, 'USD', 0.0, 0.0, False],
-                ['sh600519', 'Kweichow Moutai', DAY, 100, 1462.0, 1450.5, 1400, 'CNY', 0.0, 0.0, False]]]],
+                ['sh600519', 'Kweichow Moutai', DAY, 100, 1462.0, 1450.5, 1400, 'CNY', 0.0, 0.0, False]], None, [
+                ['sh000001', DAY, 3712.4, 3698.1], ['sh000300', DAY, 4118.6, 4110.2], ['sz399006', DAY, 2651.3, 2662.8],
+                ['us.INX', DAY, 7688.5, 7702.9], ['us.IXIC', DAY, 26180.2, 26242.7], ['us.DJI', DAY, 52410.6, 52388.0]]]],
              'Fictional holdings and prices. A quiet day, slightly up overall.']],
         'closing': 'That is enough for tonight. Let tomorrow have its own space.'}
     validate_sources(runtime, document, DAY, 'gn')

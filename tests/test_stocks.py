@@ -33,6 +33,13 @@ MARKET = {'sh600519': ('贵州茅台', '600519', '', [('2026-10-16', 1329.0, 9),
           'usMSFT': ('微软', 'MSFT.OQ', 'Microsoft Corporation', [('2026-10-15', 520.0, 9, {'FHcontent': '每股分配0.83美元', 'cqr': '2026-10-15'}),
                                                                ('2026-10-16', 529.05, 9)])}
 
+# Index code: daily closes; New York's 19 October bar is still trading at NIGHT.
+INDEX = {'sh000001': [('2026-10-16', 3600.0), (DAY, 3618.0)], 'sh000300': [('2026-10-16', 4000.0), (DAY, 3980.0)],
+         'sz399006': [('2026-10-16', 2600.0), (DAY, 2626.0)], 'us.INX': [('2026-10-15', 7600.0), ('2026-10-16', 7676.0), (DAY, 7700.0)],
+         'us.IXIC': [('2026-10-15', 26000.0), ('2026-10-16', 25740.0), (DAY, 25800.0)], 'us.DJI': [('2026-10-15', 52000.0), ('2026-10-16', 52052.0), (DAY, 52100.0)]}
+OVERVIEW = [['sh000001', DAY, 3618.0, 3600.0], ['sh000300', DAY, 3980.0, 4000.0], ['sz399006', DAY, 2626.0, 2600.0],
+            ['us.INX', '2026-10-16', 7676.0, 7600.0], ['us.IXIC', '2026-10-16', 25740.0, 26000.0], ['us.DJI', '2026-10-16', 52052.0, 52000.0]]
+
 
 def fake_tencent(url, cache=None, encoding='utf-8'):
     if url.startswith(stocks.SZSE_CALENDAR):
@@ -52,6 +59,8 @@ def fake_tencent(url, cache=None, encoding='utf-8'):
         return '\n'.join(lines)
     if url.startswith(stocks.KLINE):
         code = url[len(stocks.KLINE):].split(',')[0]
+        if code in INDEX:
+            return json.dumps({'data': {code: {'day': [[day, '0', str(close), '0', '0', '9'] for day, close in INDEX[code]]}}})
         symbol = next(key for key, value in MARKET.items() if (key[:2] + value[1] if key.startswith('us') else key) == code)
         return json.dumps({'data': {code: {'qfqday': [[day, '0', str(close), '0', '0', str(volume), *event] for day, close, volume, *event in MARKET[symbol][3]]}}})
     if '601628' in url:
@@ -79,7 +88,7 @@ class StockTests(unittest.TestCase):
             ['sz000001', '平安银行', DAY, 2000, 11.65, 11.5, None, 'CNY', 0.0, 0.0, False],
             ['sh600519', '贵州茅台', DAY, 100, 1324.97, 1329.0, 1450, 'CNY', 0.0, 0.0, False],
             ['usAAPL', 'Apple Inc.', '2026-10-16', 30, 343.46, 342.0, None, 'USD', 0.0, 0.0, False]],
-            {'USD': {'closed': '2026-10-18', 'next': DAY}}])
+            {'USD': {'closed': '2026-10-18', 'next': DAY}}, OVERVIEW])
         cny, usd = result['markets']
         self.assertEqual((cny['market'], cny['day_change'], cny['up'], cny['down'], cny['total_change']), ('A-shares', -103.0, 1, 1, -12503.0))
         self.assertEqual((usd['session'], usd['day_change'], usd['closed_on'], usd['next_trading_day']), ('Fri, Oct 16', 43.8, 'Sun, Oct 18', 'Mon, Oct 19'))
@@ -87,7 +96,27 @@ class StockTests(unittest.TestCase):
         self.assertNotIn('total_change', usd)
         self.assertEqual(self.read('usAAPL:30', 'zh-CN')['block'][1][0][1], '苹果')
         later = self.read('usAAPL:30', now=datetime(2026, 10, 19, 20, 30, tzinfo=timezone.utc))
-        self.assertEqual(later['block'], ['holdings', [['usAAPL', 'Apple Inc.', DAY, 30, 344.9, 343.46, None, 'USD', 0.0, 0.0, False]]])
+        self.assertEqual(later['block'][:3], ['holdings', [['usAAPL', 'Apple Inc.', DAY, 30, 344.9, 343.46, None, 'USD', 0.0, 0.0, False]], None])
+        self.assertEqual(later['block'][3][0], ['us.INX', DAY, 7700.0, 7676.0])
+
+    def test_each_market_compares_with_its_benchmark_on_the_same_session(self):
+        cny, usd = self.read('sh600519:100, usAAPL:30')['markets']
+        self.assertEqual((cny['benchmark'], usd['benchmark']), ({'index': 'CSI 300', 'day_percent': -0.5}, {'index': 'S&P 500', 'day_percent': 1.0}))
+        self.assertEqual(self.read('usAAPL:30', 'zh-CN')['markets'][0]['benchmark']['index'], ui.text('S&P 500', lang='zh-CN'))
+        # Only the markets the user holds get indices.
+        self.assertEqual([row[0] for row in self.read('sh600519:100, sz000001:2000')['block'][3]], ['sh000001', 'sh000300', 'sz399006'])
+        # A suspended holding reports an older session than its index; the comparison would mix days.
+        self.assertNotIn('benchmark', self.read('sz000002:1000')['markets'][0])
+
+    def test_a_failed_index_read_keeps_the_holdings(self):
+        def failing(url, cache=None, encoding='utf-8'):
+            if url.startswith(stocks.KLINE + 'sh000300'):
+                raise stocks.StockError('HTTP 503')
+            return fake_tencent(url, cache, encoding)
+        with patch.object(stocks, 'request', failing):
+            result = self.read('sh600519:100')
+        self.assertEqual(len(result['block']), 2)
+        self.assertNotIn('benchmark', result['markets'][0])
 
     def test_closed_markets_name_the_next_trading_day_when_the_calendar_knows_it(self):
         def closed(day, *rows_at, hour=14):
@@ -180,6 +209,26 @@ class StockTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 native.validate({'v': 2, 'greeting': 'Hi.', 'opening': 'Tonight.', 'sections': [['stocks', [['holdings', [bad]]]]]})
 
+    def test_each_market_shows_its_indices_under_its_totals_and_validates(self):
+        rows = self.read('sh600519:100, usAAPL:30')['block'][1]
+        document = {'v': 2, 'greeting': 'Hi.', 'opening': 'Tonight.', 'sections': [['stocks', [['holdings', rows, None, OVERVIEW]]]]}
+        native.validate(document)
+        html = native.render_block(['holdings', rows, None, OVERVIEW], {}, DAY)
+        self.assertLess(html.index('A-shares'), html.index('SSE Composite'))
+        self.assertLess(html.index('ChiNext'), html.index('贵州茅台'))
+        self.assertLess(html.index('贵州茅台'), html.index('US stocks'))
+        self.assertLess(html.index('US stocks'), html.index('S&amp;P 500'))
+        self.assertIn('3,618.00</span> <span class="is-up">+0.50%', html)
+        self.assertIn('−1.00%', html)
+        self.assertEqual(html.count('holding-index-name'), 6)
+        # Apple's Friday session matches the US indices; an index from another session is left out rather than compared.
+        stale = [OVERVIEW[0][:1] + ['2026-10-16'] + OVERVIEW[0][2:]] + OVERVIEW[1:3]
+        self.assertEqual(native.render_block(['holdings', rows[:1], None, stale], {}, DAY).count('holding-index-name'), 2)
+        for bad in ([None, OVERVIEW[:1] * 2], [None, [['sh600519', DAY, 1.0, 1.0]]], [None, [OVERVIEW[0][:3]]],
+                    [None, [OVERVIEW[0][:2] + [0, 1.0]]], [None, []], [{}, OVERVIEW], [None]):
+            with self.assertRaises(ValueError):
+                native.validate({**document, 'sections': [['stocks', [['holdings', rows, *bad]]]]})
+
     def test_search_keeps_stocks_and_funds_but_not_indexes(self):
         self.assertEqual(stocks.search('x'), [{'symbol': 'sh600519', 'name': '贵州茅台'}, {'symbol': 'usBRK.B', 'name': 'Berkshire'}])
 
@@ -255,6 +304,8 @@ class EveningSectionTests(unittest.TestCase):
         self.assertEqual(block[2], {'USD': {'closed': '2026-10-18', 'next': DAY}})
         with self.assertRaisesRegex(ValueError, 'closed-market'):
             self.step('publish', {'position': 5, 'section': ['stocks', [block[:2]], 'Up!']})
+        with self.assertRaisesRegex(ValueError, 'market overview'):
+            self.step('publish', {'position': 5, 'section': ['stocks', [block[:3]], 'Up!']})
         self.step('publish', {'position': 5, 'section': ['stocks', [block], 'A-shares dipped a little; Apple rose on Friday.']})
         self.assertEqual(self.step('finish', {})['saved'], True)
 
