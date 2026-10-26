@@ -430,6 +430,18 @@ class WeatherTests(unittest.TestCase):
         out.update(cache_state="live", aqi=None, aqi_source="off", warnings=[])
         self.assertIn("10:00–24:00: 10.5..13.8C, dry until 21:00, then rain likely (rain chance up to 80%)", w.brief(out))
 
+    def test_current_drizzle_in_a_dry_hour_follows_the_frame(self):
+        out, frame = self.frame_output()
+        out["condition"] = "light drizzle"
+        w.apply_frame(out, frame)
+        self.assertIsNone(out["condition"])
+        out.update(cache_state="live", aqi=None, aqi_source="off", warnings=[])
+        self.assertIn("Europe/London: 12C; 10:00–24:00:", w.brief(out))
+        out["condition"] = "light drizzle"
+        frame["past"] = 15  # 21:00 is wet, so drizzle now agrees with the frame.
+        w.apply_frame(out, frame)
+        self.assertEqual(out["condition"], "light drizzle")
+
     def test_late_frame_runs_to_noon_and_dry_hours_mean_no_umbrella(self):
         out, frame = self.frame_output(datetime(2026, 10, 9, 22, tzinfo=timezone.utc).timestamp())
         self.assertEqual((frame["start"], frame["past"]), ("2026-10-09T18:00", 5))

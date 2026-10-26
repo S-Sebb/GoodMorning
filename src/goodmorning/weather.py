@@ -51,6 +51,7 @@ WMO_TEXT = {
     85: "snow showers", 86: "snow showers",
     95: "thunderstorm", 96: "storm with hail", 97: "heavy thunderstorm", 99: "storm with hail",
 }
+PRECIP_TEXT = {WMO_TEXT[code] for code in RAIN_WMO | SNOW_WMO}
 
 
 class WeatherError(Exception):
@@ -579,6 +580,9 @@ def apply_frame(out, frame):
     later = ahead["rain_from"] if rain and ahead["rain_from"] != ahead["from"] else None
     out.update(frame=frame, ahead=ahead, rain="yes" if rain else "no", precip_prob_pct=ahead["rain_peak_pct"],
                advice=build_advice(out["temp_c"], rain, snow=out.get("snow"), rain_from=later))
+    # The current code can show model drizzle in an hour the frame calls dry; the hours ahead are the one precipitation source.
+    if ahead["rain_from"] != ahead["from"] and out["condition"] in PRECIP_TEXT:
+        out["condition"] = None
 
 
 def brief(out):
@@ -599,7 +603,7 @@ def brief(out):
         else:
             wet = f"dry until {ahead['rain_from']}, then rain likely"
         line = (f"{out['city']} {out['date']} {out['time'][11:16]} {out['timezone']}{stale}: "
-                f"{out['condition']}, {fmt(out['temp_c'])}C; {ahead['from']}–{ahead['until']}: "
+                f"{out['condition'] + ', ' if out['condition'] else ''}{fmt(out['temp_c'])}C; {ahead['from']}–{ahead['until']}: "
                 f"{fmt(ahead['temp_min_c'])}..{fmt(ahead['temp_max_c'])}C, {wet} "
                 f"(rain chance up to {fmt(ahead['rain_peak_pct'])}%).")
     if out["advice"]:

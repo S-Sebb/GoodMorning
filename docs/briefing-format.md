@@ -84,6 +84,8 @@ conflict, reread affected records; never infer progress or alter immutable secti
 - `["weather",[[type,value,detail,label?],...],frame?]`: temperature, precipitation,
   applicable warning, then air, with no duplicates. Value is text or null when
   unavailable. Detail retains health advice, actual timestamps and material gaps.
+  Rain, snow and umbrella advice belong only in the precipitation detail; the
+  temperature detail covers temperature and what to wear.
   Unknown AQI is not good air; an unknown warning is not proof of no warning.
   Format values for display, never raw provider tokens:
   temperature uses °C with an en-dash range, e.g. `16°C (14.5–20.4°C)`;

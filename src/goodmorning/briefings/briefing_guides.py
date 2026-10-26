@@ -31,7 +31,8 @@ TEXT = {
                    'do not replay task, daily, inbox, project or calendar writes, and ask nothing already answered.'),
   'weather': ('On a successful read use one block ["weather",[[type,value,detail],...]] with types in order temperature, '
               'precipitation, warning (only if one applies), air. Values are display text: "16°C (14.5–20.4°C)", "65% – Rain likely", '
-              '"30 – Good" (no "US AQI" prefix, no raw yes/no). Detail holds advice, timestamps and material gaps; unknown AQI is not '
+              '"30 – Good" (no "US AQI" prefix, no raw yes/no). Detail holds advice, timestamps and material gaps. Rain, snow and umbrella '
+              'advice go only in the precipitation detail; the temperature detail covers temperature and what to wear. Unknown AQI is not '
               'good air and an unknown warning is not "no warning". If the read fails, publish one ["p","…"] block saying only that this '
               'edition could not obtain the weather (no cause, no retry promise); never skip this section.'),
   'news': ('Each country\'s read in `results` lists every section\'s selected stories and more candidates from the 24 hours before '
@@ -137,7 +138,8 @@ TEXT = {
            '开场只能提及这些章节：SECTIONS。说明将要回顾的内容，不要提前给出结果。'),
   'regenerating': '这是经明确授权的重新生成，不是重复运行：沿用已保存的反馈和当前记录；不要重放任务、日记、收件箱、项目或日历写入，也不要再问已回答的问题。',
   'weather': ('读取成功时用一个块 ["weather",[[type,value,detail],...]]，type 依次为 temperature、precipitation、warning（仅适用时）、air。'
-              'value 是展示文本："16°C (14.5–20.4°C)"、"65% – 可能下雨"、"30 – 良好"（不加 "US AQI" 前缀，不用 yes/no 原始值）。detail 写建议、时间和重要缺口；'
+              'value 是展示文本："16°C (14.5–20.4°C)"、"65% – 可能下雨"、"30 – 良好"（不加 "US AQI" 前缀，不用 yes/no 原始值）。detail 写建议、时间和重要缺口。'
+              '雨、雪和带伞建议只写在 precipitation 的 detail 里；temperature 的 detail 只写气温和穿衣。'
               'AQI 未知不等于空气好，预警未知不等于没有预警。读取失败时发布一个 ["p","……"] 块，只说明本期无法获取天气（不写原因，不承诺补充）；不得跳过本章节。'),
   'news': ('`results` 中每个国家的读取结果都会按板块列出本章节截止时间前 24 小时内的已选报道和更多候选，上一期晨间简报已展示的报道已被去除。'
            '只要读取结果在该板块有报道，就分别发布 AI、国际和每个国家的国内新闻块'
