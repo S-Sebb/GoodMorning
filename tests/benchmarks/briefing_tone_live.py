@@ -563,7 +563,7 @@ def answer_question(app, job, forms, language):
 
 
 CASES = ('morning-empty', 'morning-resume', 'evening-feedback', 'evening-ambiguous')
-FLEXIBLE = ('morning-vague', 'evening-complex')
+FLEXIBLE_CASES = ('morning-vague', 'evening-complex')
 
 
 def run_flexible_case(output, template, language, scenario, instant):
@@ -669,7 +669,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     trial_engine.add_arguments(parser)
     parser.add_argument('--language', choices=('en','zh-CN'), required=True)
-    parser.add_argument('--only', nargs='+', choices=CASES + FLEXIBLE + ('morning-weather', 'evening-weather'),
+    parser.add_argument('--only', nargs='+', choices=CASES + FLEXIBLE_CASES + ('morning-weather', 'evening-weather'),
                         help='Run only these scenarios; the weather cases run only when named')
     args = parser.parse_args()
     output = trial_engine.private_output(parser, args.output)
@@ -682,8 +682,8 @@ def main():
             {'action':'websearch','resource':'*','effect':'deny'}]}))
         (source/'scripts/goodmorning.py').write_text(TRIAL_CLI)
         instant = datetime.now(timezone.utc)
-        results = [(run_flexible_case if scenario in FLEXIBLE else run_case)(output, source, args.language, scenario, instant)
-                   for scenario in args.only or CASES + FLEXIBLE]
+        results = [(run_flexible_case if scenario in FLEXIBLE_CASES else run_case)(output, source, args.language, scenario, instant)
+                   for scenario in args.only or CASES + FLEXIBLE_CASES]
         save(output/'matrix.json', {'cases':results, 'limitations':[
             'Real native models and browser job/controller helpers; no public HTTPS/encrypted account test.',
             'Provider faults and prepublished checkpoint are synthetic; no real weather/news provider validation.',
