@@ -49,6 +49,9 @@ integration access or verification consent.
    and comma-separated `news_additional_countries`. Ask if primary intent is unclear.
    Keep separate country namespaces. Confirm a full local feed configuration that
    preserves bundled feeds/adds selected outlets; never substitute feeds after failure.
+   News categories are fixed (AI, world, national). If the user asks to favor or
+   drop a topic, say plainly that briefings cannot follow topic preferences, offer
+   the country and outlet settings, and save nothing for it.
 8. Present one exact file-format/storage/access summary, including runtime,
    authorized remote reads/writes and selected checks. Reuse existing consent only
    for its exact scope. Check-only registry access uses empty write targets and
