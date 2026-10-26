@@ -498,7 +498,7 @@ class CategoryTests(unittest.TestCase):
         self.assertEqual({o['label'] for o in fields['completed']['options']}, {'None of these today.', 'Pay the bill', 'Stretch'})
         self.assertEqual(fields['tidy_' + dentist]['description'],
                          ui.text('Planned for {date}', date=ui.day_text('2026-11-04', reference=night)))
-        self.assertEqual([o['value'] for o in fields['tidy_' + garage]['options']], ['keep', 'snooze', 'done', 'drop', 'later'])
+        self.assertEqual([o['value'] for o in fields['tidy_' + garage]['options']], ['snooze', 'done', 'drop', 'later'])
         with self.assertRaisesRegex(ValueError, 'tidy-up answers'):
             answer(self.root, job, {'completed': ['none'], 'details': 'No other updates', 'tidy_' + garage: 'delete'})
         with patch('goodmorning.records.inbox_store.stamp', return_value=night + 'T21:00:00+00:00'):
@@ -514,12 +514,10 @@ class CategoryTests(unittest.TestCase):
         self.assertNotIn('Book the dentist', self.items('gm', '2026-11-19'))  # Snoozed off the morning list.
         self.assertEqual([r['id'] for r in routing.stale_tasks(self.tasks, '2026-11-20')], [plants, bill, bank])
         plants_row = routing.stale_tasks(self.tasks, '2026-11-20')[:1]
-        self.tasks.tidy(plants_row, {plants: 'keep'}, '2026-11-20', 'ses_test', 'tidy-keep', NOW)
-        self.assertEqual(self.tasks.show(plants)['revision'], plants_row[0]['revision'])  # "Keep" changes nothing.
-        self.assertEqual([r['id'] for r in routing.stale_tasks(self.tasks, '2026-11-27')], [bill, bank, dentist])
-        with patch.object(routing, 'TIDY_LIMIT', 10):
-            self.assertNotIn(plants, [r['id'] for r in routing.stale_tasks(self.tasks, '2026-12-19')])
-            self.assertIn(plants, [r['id'] for r in routing.stale_tasks(self.tasks, '2026-12-20')])  # A month after "keep".
+        self.tasks.tidy(plants_row, {plants: 'later'}, '2026-11-20', 'ses_test', 'tidy-later', NOW)
+        self.assertEqual(self.tasks.show(plants)['revision'], plants_row[0]['revision'])  # "Not sure yet" changes nothing.
+        self.assertEqual(routing.stale_tasks(self.tasks, '2026-11-26'), [])
+        self.assertEqual([r['id'] for r in routing.stale_tasks(self.tasks, '2026-11-27')], [plants, bill, bank])  # Asked again.
 
 if __name__ == '__main__':
     unittest.main()

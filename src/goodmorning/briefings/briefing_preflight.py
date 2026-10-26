@@ -212,11 +212,10 @@ def tidy_fields(context, day, lang):
     token = ui.CURRENT.set(lang)
     try:
         hidden = ui.day_text((dt.date.fromisoformat(day) + dt.timedelta(days=7)).isoformat(), reference=day)
-        choices = [('keep', 'Keep it on my list', ui.text('It stays as it is; I won’t ask about it again for a month.')),
-                   ('snooze', 'Hide it for a week', ui.text('It’s off your morning list until {date}.', date=hidden)),
-                   ('done', 'I already did it', ui.text('Marked as done today.')),
-                   ('drop', 'Let it go', ui.text('Taken off your list. It’s kept in your history, not deleted.')),
-                   ('later', 'Decide later', ui.text('Nothing changes for now.'))]
+        choices = [('snooze', 'Not this week', ui.text('Hidden from your morning list until {date}.', date=hidden)),
+                   ('done', 'It’s done', ui.text('Recorded as done today.')),
+                   ('drop', 'No longer needed', ui.text('Removed from your list, but kept in your history.')),
+                   ('later', 'Not sure yet', ui.text('Nothing changes. I may ask again.'))]
         return [{'key': 'tidy_' + item['id'], 'title': item['title'], 'type': 'string', 'required': False, 'tidy': True,
                  'description': ui.text(TIDY_NOTES[item['group']], date=ui.day_text(item['date'], reference=day)),
                  'options': [{'value': value, 'label': ui.text(label), 'description': hint} for value, label, hint in choices]}
@@ -235,7 +234,7 @@ def answer(runtime, job, value):
     tidy_keys = {'tidy_' + item['id'] for item in context.get('tidy', [])} & form_keys
     if isinstance(value, dict):
         value = {**{key: '' for key in tidy_keys}, **value}  # Unanswered tidy-up items stay as they are.
-        if any(value[key] not in ('', 'keep', 'snooze', 'done', 'drop', 'later') for key in tidy_keys):
+        if any(value[key] not in ('', 'snooze', 'done', 'drop', 'later') for key in tidy_keys):
             raise ValueError('Choose one of the tidy-up answers or leave it blank.')
     if not context.get('awaiting'):
         if context.get('browser_answer') == value:

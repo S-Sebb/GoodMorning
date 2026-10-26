@@ -585,7 +585,7 @@ class TaskStore:
     def tidy(self, offered, answers, day, session, key, now):
         """One evening tidy-up: apply each chosen answer, then record what was asked, even when every item was skipped.
 
-        "keep" and "later" change nothing; the record alone spaces out the next tidy-up."""
+        "later" changes nothing; the record alone spaces out the next tidy-up."""
         date(day)
         for item in offered:
             choice, item_key = answers.get(item['id'], ''), key + ':' + item['id']
