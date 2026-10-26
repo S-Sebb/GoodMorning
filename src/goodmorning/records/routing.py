@@ -678,6 +678,7 @@ def schedule(runtime, today, kind, store=None, offset=0, limit=7):
     finally:
         if calendar:
             calendar.close()
+    result['items'].extend(holiday_items(runtime, start_day.isoformat()))
     if store:
         result['items'].extend(row for row in confirmed_drafts(store, start_day.isoformat(), end_day.isoformat(), converted)
                                if not (kind == 'gn' and notice_days(row, kind, 1) == 0))
@@ -701,12 +702,29 @@ def schedule(runtime, today, kind, store=None, offset=0, limit=7):
     result['owned_tasks'] = [(row['id'], row['occurrence_id']) for event in result['items'] for row in event.get('linked_actions', [])]
     if result.get('timezone'):
         result['items'].sort(key=lambda r: (event_cells(r, result['timezone'])[0],
-                                           2 if r.get('draft') else 0 if r.get('all_day') else 1,
+                                           -1 if r.get('holiday') else 2 if r.get('draft') else 0 if r.get('all_day') else 1,
                                            event_cells(r, result['timezone'])[1]))
     result['total'] = len(result['items'])
     result['next_offset'] = offset + limit if limit is not None and offset + limit < result['total'] else None
     result['items'] = result['items'][offset:offset + limit] if limit is not None else result['items']
     return result
+
+
+def holiday_items(runtime, day):
+    """The focus day's public holidays and make-up workdays: computed cards with stable IDs, not calendar events."""
+    import hashlib
+    from goodmorning.calendar import public_holidays
+    from goodmorning.runtime_files import profile_fields
+    from goodmorning.web import language as ui
+    try:
+        codes = public_holidays.regions(profile_fields(runtime).get('holiday_countries'))
+    except ValueError:
+        return []  # A bad optional setting shows no holidays; the setup check reports it.
+    end = (dt.date.fromisoformat(day) + dt.timedelta(days=1)).isoformat()
+    listed = public_holidays.days(codes, day, end, ui.current()).get(day, [])
+    return [{'id': 'hd_' + hashlib.sha256(f"{','.join(entry['regions'])}:{day}:{entry['kind']}".encode()).hexdigest()[:16],
+             'revision': 1, 'holiday': entry['kind'], 'date': day, 'subject': entry['title'], 'all_day': True, 'category': 'holiday'}
+            for entry in public_holidays.shown(listed, codes, ui.current())]
 
 
 def prepare(runtime, today, kind, offset=0, limit=7):
@@ -846,6 +864,8 @@ def event_cells(event, timezone, place='morning'):
     from zoneinfo import ZoneInfo
     from goodmorning.web import language as ui
     from .display import wording
+    if event.get('holiday'):
+        return [event['date'], ui.text('Public holiday' if event['holiday'] == 'holiday' else 'Workday'), event['subject'], '', '']
     stored = wording(event, 'draft' if event.get('draft') else 'event', place, ui.current())
     if event.get('draft'):
         return [event['date'], ui.text('TBC'), stored['title'] if stored else event['title'], event['location'],

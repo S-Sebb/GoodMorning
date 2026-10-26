@@ -48,6 +48,13 @@
 .about-me [hidden] { display: none; }
 .about-note { margin: 8px 0 4px 44px; font-size: .8rem; color: var(--muted); }
 #about-memory .about-value[data-content] { font-weight: 400; white-space: pre-line; }
+.about-row:has(.about-holidays) :is(.about-content, .about-action) { grid-column: 1 / -1; }
+.about-row:has(.about-holidays) .about-action { justify-content: flex-start; }
+.about-holidays { flex: 1; display: flex; flex-wrap: wrap; gap: 6px 14px; padding: 4px 0; }
+.about-holidays fieldset { display: flex; flex-wrap: wrap; gap: 4px 14px; flex-basis: 100%; margin: 0; padding: 6px 0 0; border: 0; border-top: 1px dashed var(--line); }
+.about-holidays legend { float: left; width: 100%; padding: 0; font-size: .8rem; color: var(--muted); }
+.about-holidays label { display: inline-flex; align-items: center; gap: 6px; min-height: 32px; }
+.about-holidays input { flex: none; width: 18px; height: 18px; min-height: 0; margin: 0; padding: 0; accent-color: var(--accent); }
 .about-feedback { grid-column: 1 / -1; font-size: .8rem; color: var(--accent); }
 .about-feedback.is-error { color: #b3261e; }
 html[data-edition="gn"] .about-feedback.is-error { color: #ffb4ab; }

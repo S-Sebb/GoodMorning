@@ -17,6 +17,7 @@ import sys
 import time
 from zoneinfo import ZoneInfo
 
+from .calendar.public_holidays import regions as holiday_countries
 from .runtime_files import profile_fields, secretary_path, normalize_secretary_name, normalize_user_name
 from .news.news import load_sources, SOURCES_FILE
 from .paths import ROOT
@@ -38,9 +39,14 @@ def profile_status(runtime, fields, website_language=None):
         raise ValueError("invalid countries")
     secretary_name = normalize_secretary_name(fields.get("secretary_name", ""))
     user_name = normalize_user_name(fields.get("user_name", ""))
+    try:  # Optional: a bad line shows no holidays but never blocks setup.
+        holidays = holiday_countries(fields.get("holiday_countries")) or ("declined" if fields.get("holiday_countries") else None)
+    except ValueError:
+        holidays = "invalid"
     return {"profile_ready": not missing, "missing_fields": missing, "countries": countries,
             "secretary_language": fields.get("secretary_language") or None,
             "secretary_name": secretary_name or None, "user_name": user_name or None,
+            "holiday_countries": holidays,
             "language_status": "website" if website_language is not None else "confirmed" if fields.get("secretary_language") else "missing"}
 
 

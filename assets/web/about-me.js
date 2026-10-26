@@ -9,9 +9,20 @@
   const secretary = page.dataset.secretary;
   const named = (text, unnamed) => secretary ? text.replace('{name}', secretary) : unnamed;
 
+  // Public-holiday regions, with names in both website languages.
+  const holidayRegions = JSON.parse(page.querySelector('[data-holiday-regions]')?.dataset.holidayRegions || '[]');
+  const holidayName = code => {
+    const region = holidayRegions.find(entry => entry.code === code);
+    const pick = pair => pair[document.documentElement.lang.startsWith('zh') ? 1 : 0];
+    return region.region ? pick(region.country) + ' — ' + pick(region.region) : pick(region.country);
+  };
+
   // Country codes read as names in the website language.
   function names() {
     const language = document.documentElement.lang;
+    page.querySelectorAll('[data-holidays]').forEach(node => {
+      node.textContent = node.dataset.holidays.split(',').map(holidayName).join(language.startsWith('zh') ? '、' : ', ');
+    });
     let regions;
     try { regions = new Intl.DisplayNames([language], {type: 'region'}); } catch { return; }
     const list = new Intl.ListFormat([language], {type: 'conjunction'});
@@ -62,6 +73,59 @@
     content.replaceChildren(node);
   }
 
+  // Holidays are picked from the listed regions: China and the US whole, the others by nation, state or province.
+  function editHolidays(row) {
+    const content = row.querySelector('.about-content');
+    const action = row.querySelector('.about-action');
+    const editButton = action.querySelector('.about-edit');
+    const before = [...content.childNodes];
+    const chosen = new Set((content.querySelector('[data-holidays]')?.dataset.holidays || '').split(','));
+    const picker = document.createElement('div');
+    picker.className = 'about-holidays';
+    picker.setAttribute('role', 'group');
+    picker.setAttribute('aria-labelledby', 'about-label-' + row.dataset.field);
+    const box = entry => {
+      const label = document.createElement('label');
+      const input = Object.assign(document.createElement('input'), {type: 'checkbox', value: entry.code, checked: chosen.has(entry.code)});
+      label.append(input, holidayName(entry.code).split(' — ').pop());
+      return label;
+    };
+    const countries = new Map();
+    holidayRegions.forEach(entry => countries.set(entry.country[0], [...(countries.get(entry.country[0]) || []), entry]));
+    countries.forEach(entries => {
+      if (entries.length === 1) return picker.append(box(entries[0]));
+      const group = document.createElement('fieldset');
+      const legend = document.createElement('legend');
+      legend.textContent = entries[0].country[document.documentElement.lang.startsWith('zh') ? 1 : 0];
+      group.append(legend, ...entries.map(box));
+      picker.append(group);
+    });
+    const button = (label, kind) => Object.assign(document.createElement('button'), {type: 'button', className: kind, textContent: t(label)});
+    const saveButton = button('Save', 'about-save'), cancelButton = button('Cancel', 'about-cancel');
+    const finish = nodes => {
+      content.replaceChildren(...nodes);
+      action.replaceChildren(editButton);
+      editButton.focus({preventScroll: true});
+    };
+    saveButton.addEventListener('click', async () => {
+      const inputs = [...picker.querySelectorAll('input'), saveButton, cancelButton];
+      inputs.forEach(input => { input.disabled = true; });
+      const saved = await save(row, [...picker.querySelectorAll('input:checked')].map(input => input.value).join(', '));
+      if (saved === null) return inputs.forEach(input => { input.disabled = false; });
+      const node = document.createElement('span');
+      node.className = 'about-value';
+      if (saved === 'none') { node.dataset.uiText = 'No public holidays'; node.textContent = t(node.dataset.uiText); }
+      else { node.dataset.holidays = saved.split(', ').join(','); }
+      finish([node]);
+      names();
+    });
+    cancelButton.addEventListener('click', () => finish(before));
+    row.querySelector('.about-feedback')?.remove();
+    content.replaceChildren(picker);
+    action.replaceChildren(saveButton, cancelButton);
+    picker.querySelector('input').focus();
+  }
+
   function edit(row) {
     const content = row.querySelector('.about-content');
     const action = row.querySelector('.about-action');
@@ -108,7 +172,10 @@
   if (page.hasAttribute('data-readonly')) return;
   page.querySelectorAll('.about-edit').forEach(button => {
     button.hidden = false;
-    button.addEventListener('click', () => edit(button.closest('.about-row')));
+    button.addEventListener('click', () => {
+      const row = button.closest('.about-row');
+      (row.dataset.field === 'holiday_countries' ? editHolidays : edit)(row);
+    });
   });
   // Forgetting deletes the note for good, so it asks first.
   const forget = page.querySelector('#about-memory [data-field="forget"]');

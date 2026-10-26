@@ -287,7 +287,7 @@ def block(value, path):
         width = {'actions': 7, 'events': 7, 'decisions': 4}[tag]
         for row in value[1]:
             sequence(row, path + '.row', width, width)
-            pattern = {'actions': r'(?:task|cu)_[0-9a-f]{16}', 'events': r'(?:[0-9a-f]{16}|draft_[0-9a-f]{16}(?:@\d{4}-\d{2}-\d{2})?)', 'decisions': r'(?:[0-9a-f]{16}|(?:ib|draft)_[0-9a-f]{16})'}[tag]
+            pattern = {'actions': r'(?:task|cu)_[0-9a-f]{16}', 'events': r'(?:[0-9a-f]{16}|draft_[0-9a-f]{16}(?:@\d{4}-\d{2}-\d{2})?|hd_[0-9a-f]{16})', 'decisions': r'(?:[0-9a-f]{16}|(?:ib|draft)_[0-9a-f]{16})'}[tag]
             if not isinstance(row[0], str) or not re.fullmatch(pattern, row[0]) or type(row[1]) is not int or row[1] < 1:
                 fail(path, 'source-linked rows need a durable ID and positive revision')
             for cell in row[2:]:

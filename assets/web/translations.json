@@ -935,5 +935,11 @@
   "Saved! {name} will remember this.": "存好啦！{name}会记住的。",
   "Saved! Your secretary will remember this.": "存好啦！秘书会记住的。",
   "Ask your secretary to set this up first.": "这个还没设置过，先让秘书帮你开通吧。",
-  "Hi! I don’t know much about you yet. Once we finish setting up in chat, what I remember will show up here.": "嗨！我对你还不太了解呢。等我们在聊天里把初始化做完，我记住的东西就会出现在这儿啦。"
+  "Hi! I don’t know much about you yet. Once we finish setting up in chat, what I remember will show up here.": "嗨！我对你还不太了解呢。等我们在聊天里把初始化做完，我记住的东西就会出现在这儿啦。",
+  "Your public holiday choice could not be read, so no holidays are shown.": "没能读出你选的公共假期，所以暂时没有显示假期。",
+  "Public holidays": "公共假期",
+  "Not listed yet for {year}: {regions}": "{year} 年暂未收录：{regions}",
+  "Public holiday": "公共假期",
+  "Workday": "上班日",
+  "No public holidays": "不显示公共假期"
 }

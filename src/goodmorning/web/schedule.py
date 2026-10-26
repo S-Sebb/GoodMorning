@@ -10,11 +10,13 @@ import re
 import sqlite3
 from zoneinfo import ZoneInfo
 
+from goodmorning.calendar import public_holidays
 from goodmorning.calendar.calendar_store import CalendarStore, endpoints
 from goodmorning.calendar.calendar_safety import safe_value
 from goodmorning.briefings.briefing_day import briefing_day
 from goodmorning.records.daily import inspect, read_record, record_path
 from goodmorning.records.routing import converted_draft_ids
+from goodmorning.runtime_files import profile_fields
 from . import language as ui
 from . import quick_chat
 from .briefing_resources import favicon_links
@@ -131,8 +133,21 @@ def saved_week(runtime, zone, now, offset):
         finally:
             if inbox:
                 inbox.close()
+    try:
+        codes = public_holidays.regions(profile_fields(runtime).get('holiday_countries'))
+    except ValueError:
+        codes = []
+        warnings.append('Your public holiday choice could not be read, so no holidays are shown.')
+    listed = public_holidays.days(codes, days[0]['date'], (monday + timedelta(days=7)).isoformat(), ui.current())
+    for day in days:
+        day['holidays'] = [{'kind': entry['kind'], 'title': entry['title']}
+                           for entry in public_holidays.shown(listed.get(day['date'], []), codes, ui.current())]
+    unlisted = {}
+    for code, year in public_holidays.unlisted(codes, days[0]['date'], days[-1]['date']):
+        unlisted.setdefault(year, []).append(public_holidays.choice(code, ui.current()))
     return {'today': today.isoformat(), 'start': monday.isoformat(), 'offset': offset,
-            'timezone': zone, 'days': days, 'warnings': warnings, 'calendar_error': calendar_error}
+            'timezone': zone, 'days': days, 'warnings': warnings, 'calendar_error': calendar_error,
+            'unlisted_holidays': [[year, ', '.join(names)] for year, names in sorted(unlisted.items())]}
 
 
 def worded(item, kind):
@@ -251,8 +266,16 @@ def tools(data, checked, heading, events, tasks, done):
             '<dt>' + ui.ui('Events') + '</dt><dd>' + str(events) + '</dd>'
             '<dt>' + ui.ui('To-dos') + '</dt><dd>' + str(tasks) + ' · ' + ui.ui('{done} completed', done=done) + '</dd>'
             '<dt>' + ui.ui('Time zone') + '</dt><dd data-content>' + html.escape(data['timezone']) + '</dd>'
+            + ''.join('<dt>' + ui.ui('Public holidays') + '</dt><dd>' + ui.ui('Not listed yet for {year}: {regions}', year=year, regions=names) + '</dd>'
+                      for year, names in data['unlisted_holidays']) +
             '<dt>' + ui.ui('Saved records') + '</dt><dd id="schedule-status">' + ui.ui('Checked at {time}', time=checked) + '</dd></dl>')
     return '<span class="schedule-tools">' + refresh + info + '</div></details></span>'
+
+
+def holidays(day):
+    """Public holidays and make-up workdays head their day; they are not saved events."""
+    return ''.join('<p class="schedule-holiday is-' + entry['kind'] + '" data-content>' + html.escape(entry['title']) + '</p>'
+                   for entry in day['holidays'])
 
 
 def notices(data):
@@ -286,7 +309,7 @@ def view(data, checked):
                      + date_part(day['date'], 'weekday') + '<strong>' + date_part(day['date'], 'day') + '</strong></a>')
         columns += ('<section id="day-' + day['date'] + '" class="schedule-day' + (' is-today' if today else '') + '" aria-labelledby="heading-' + day['date'] + '">'
                     '<header class="schedule-day-heading"><h3 id="heading-' + day['date'] + '"><span class="schedule-weekday">' + date_part(day['date'], 'weekday')
-                    + '</span><span class="schedule-day-number">' + date_part(day['date'], 'day') + '</span></h3>' + marker + '</header>'
+                    + '</span><span class="schedule-day-number">' + date_part(day['date'], 'day') + '</span></h3>' + marker + holidays(day) + '</header>'
                     '<div class="schedule-calendar"><h4>' + ui.ui('Events') + '</h4>')
         if day['events']:
             columns += ''.join(event_card(event, day['date'], data['timezone']) for event in day['events'])
@@ -361,7 +384,8 @@ def day_view(data, checked, now):
     if upcoming:
         counts.append('<span class="day-next">' + ui.ui('Next') + ' · ' + upcoming['start'] + ' <span data-content>' + html.escape(upcoming['title']) + '</span></span>')
     controls = ('<div class="schedule-toolbar"><div class="schedule-date"><h1 id="week-heading">' + date_part(day['date'], 'full') + '</h1>'
-                '<p class="schedule-range">' + relative + '<span class="range-dot"> · </span>' + '<span class="range-dot"> · </span>'.join(counts) + '</p></div>'
+                '<p class="schedule-range">' + relative + '<span class="range-dot"> · </span>' + '<span class="range-dot"> · </span>'.join(counts) + '</p>'
+                + holidays(day) + '</div>'
                 '<nav class="schedule-navigation" aria-label="Day navigation">' + mode_switch('day', data['week'])
                 + step_link('day-previous', '/schedule?view=day&day=' + str(offset - 1), 'Previous day', '‹', offset > -DAY_RANGE)
                 + '<a id="day-current" class="current-week" data-schedule-nav href="/schedule?view=day">' + ui.ui('Today') + '</a>'
