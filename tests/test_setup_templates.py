@@ -101,6 +101,13 @@ class SetupTemplateTests(unittest.TestCase):
         self.assertEqual(fields["occupations"], "student; teaching assistant")
         self.assertEqual(fields["expertise_fields"], "statistics; scientific computing")
 
+    def test_every_profile_template_field_has_a_reader(self):
+        # Setup can ask for any template field; one that no code reads has no effect.
+        template = (ROOT / "templates/profile.template.md").read_text()
+        source = "".join(path.read_text() for path in (ROOT / "src").rglob("*.py"))
+        for field in re.findall(r'^([a-z_]+): ""$', template, re.M):
+            self.assertIn(field, source)
+
     def test_profile_remains_readable_without_optional_context(self):
         (self.directory / "profile.md").write_text('city: "London, GB"\nregion: "global"\ntimezone: "UTC"\n')
         fields = profile_fields(self.directory)
