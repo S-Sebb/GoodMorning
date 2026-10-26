@@ -121,7 +121,22 @@ reading): the service worker keeps the latest morning and evening edition in the
 browser's cache storage, tagged with an opaque per-account owner tag. Copies carry
 no session, CSRF or request token, and are deleted at sign-out and as soon as the
 site answers for nobody or another account. A device that is offline cannot check
-its session, so a copy stays readable there until that happens. Credentials never enter
+its session, so a copy stays readable there until that happens.
+
+Unsaved evening check-in answers, including the free-text note, are the one
+private text in `localStorage` (`goodmorningCheckin:<scope>:<form>`), so a reload
+or a visit to another page keeps them. `<scope>` is the public, non-authorizing
+namespace the gateway derives from each sign-in's CSRF token; it changes with
+every sign-in and password change. Briefing pages delete answers from any other
+scope, answers older than three days and answers once saved. `auth.js` deletes
+all of them when Sign out is pressed (even if the server cannot be reached), on
+every load of the sign-in page and after each sign-in or password change. A
+session that ends without the device taking part (it expires, or a password
+change elsewhere signs it out) leaves its answers in the browser profile until
+GoodMorning next opens there online; that load reaches the sign-in page and deletes
+them. No other sign-in can read them in the meantime.
+
+Credentials never enter
 URLs, browser storage, command arguments or report output. Services use no core
 dumps and `MemorySwapMax=0` on cgroup v2: otherwise decrypted memory may enter
 unencrypted swap. Apply the same controls to per-account engines and NGINX workers.

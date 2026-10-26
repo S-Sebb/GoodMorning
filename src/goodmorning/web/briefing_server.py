@@ -477,7 +477,9 @@ class BrowserApp:
         text=text.replace('<p id="generation-status" role="status"></p>','<p id="generation-status" role="status"></p><p id="generation-elapsed"></p><p id="request-language-note" role="status"></p>')
         missing = not confirmed
         config = json.dumps({'date': date, 'kind': kind, 'pinned': pinned, 'csrf': self.csrf if missing or can_restart else None, 'missing': missing,
-                             'job': current_job['id'] if current_job else None}).replace('<', '\\u003c')
+                             'job': current_job['id'] if current_job else None,
+                             # Namespaces the evening check-in answers this device keeps; the gateway changes it with every sign-in.
+                             'workspaceScope': hashlib.sha256(('chat-workspace:' + self.csrf).encode()).hexdigest()}).replace('<', '\\u003c')
         # Inert JSON in a data attribute; no inline scripts or unsafe HTML.
         marker = '<div id="browser-config" hidden data-config="' + html.escape(config, quote=True) + '"></div><script src="/questions.js" defer></script><script src="/browser.js" defer></script>'
         text = re.sub(r'(<nav class="edition-switch"[^>]*>.*?)(</nav>)', r'\1<a class="edition-link" href="/schedule">Schedule</a><a class="edition-link" href="/letters">Letters</a><a class="edition-link" href="/chat">Secretary</a>\2', text, count=1)

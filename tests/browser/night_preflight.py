@@ -1,6 +1,7 @@
 """Evening check-in dialog, its completion choices and the empty state; synthetic data, no models."""
 import json
 from pathlib import Path
+import re
 import subprocess
 import sys
 import tempfile
@@ -67,6 +68,12 @@ def fixture(root, scenario):
     serve_live(app,0)
 
 
+def another_sign_in(route):
+    response = route.fetch()
+    body = re.sub(r'(&quot;workspaceScope&quot;:\s*&quot;)[a-f0-9]{64}', r'\g<1>' + 'f' * 64, response.text())
+    route.fulfill(response=response, body=body)
+
+
 def main():
     artifacts = Path(sys.argv[1]) if len(sys.argv)>1 else None
     if artifacts:
@@ -105,6 +112,16 @@ def main():
                             expect(dialog.get_by_text(copy['empty'],exact=True)).to_be_visible()
                             expect(dialog.locator('.checkin-steps')).to_have_count(0)
                             expect(dialog.locator('input[type=checkbox]')).to_have_count(0)
+                            note = dialog.get_by_role('textbox')
+                            note.fill('A private note.')
+                            page.reload()
+                            expect(note).to_have_value('A private note.')
+                            # Another sign-in on this browser gets another namespace: it never sees the note, which is removed.
+                            page.route('**/gn.html', another_sign_in)
+                            page.reload()
+                            expect(note).to_have_value('')
+                            assert 'A private note.' not in page.evaluate('JSON.stringify(localStorage)')
+                            page.unroute('**/gn.html')
                         elif scenario == 'tidy':
                             expect(dialog.locator('.checkin-steps li')).to_have_count(3)
                             dialog.locator('.checkin-verdict .checkin-primary').click()
@@ -180,7 +197,7 @@ def main():
                         process.terminate();process.communicate(timeout=5)
         browser.close()
     print(json.dumps({'opens_as_dialog':'pass','due_step':'pass','project_groups':'pass','unassigned_group':'last',
-                      'answers_kept_after_poll_and_close':True,'answers_kept_after_reload':True,'saved_answers_cleared':True,'not_done_stays_open':'pass','languages':['en','zh-CN'],
+                      'answers_kept_after_poll_and_close':True,'answers_kept_after_reload':True,'hidden_from_another_sign_in':True,'saved_answers_cleared':True,'not_done_stays_open':'pass','languages':['en','zh-CN'],
                       'archive_gap_question':'absent','adaptive_empty_state':'pass','feedback_save':'pass','tidy_up':'pass','viewports':2,'model_calls':0}))
 
 
