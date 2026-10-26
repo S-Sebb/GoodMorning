@@ -1,6 +1,7 @@
-"""Opt-in paid trials for weekly letters: Sunday's evening section and turning letters off or on in chat.
+"""Opt-in paid trials for weekly letters: Sunday's evening section, a missed week's letter, and turning letters off or on in chat.
 
-Real models write a synthetic Sunday evening briefing whose last section saves the week's letter.
+Real models write a synthetic Sunday evening briefing whose last section saves the week's letter, or
+Monday's evening briefing after a skipped Sunday, whose last section saves last week's letter.
 Assertions check the saved letter, the briefing card and profile lines; tone, language and grounding
 need manual review of the retained letters and transcripts.
 """
@@ -55,9 +56,11 @@ raise SystemExit(code)
 ZONE = 'Asia/Shanghai'
 WEEK, SUNDAY = '2026-10-19', '2026-10-25'
 NOW = datetime(2026, 10, 25, 13, tzinfo=timezone.utc)  # Sunday 21:00 in Shanghai.
+MISSED = datetime(2026, 10, 26, 13, tzinfo=timezone.utc)  # Monday 21:00, after a Sunday without a briefing.
 # scenario: (week fixture, tone, user name)
 BRIEFINGS = {'evening-full': ('full', 'playful', 'Mia'), 'evening-quiet': ('quiet', 'default', ''),
-             'evening-failed': ('fail', 'formal', ''), 'evening-saved': ('saved', 'default', '')}
+             'evening-failed': ('fail', 'formal', ''), 'evening-saved': ('saved', 'default', ''),
+             'evening-missed': ('missed', 'playful', '')}
 CHATS = ('turn-off', 'turn-on')
 TITLES = {
     'en': {'outline': 'Draft chapter 2 outline', 'figures': 'Send figures to Dr. Lee', 'photo': 'Renew passport photo', 'plants': 'Water the plants',
@@ -148,20 +151,23 @@ def run_briefing(output, language, selected, scenario):
     folder.mkdir(mode=0o700)
     kind, tone, name = BRIEFINGS[scenario]
     runtime = account(folder, language, tone, f'user_name: "{name}"\n' if name else '', ZONE)
-    week(runtime, language, kind == 'full')
+    week(runtime, language, kind in ('full', 'missed'))
+    if kind == 'missed':  # The account was in use last week.
+        (runtime/'daily').mkdir(exist_ok=True)
+        (runtime/'daily'/'2026-10-21.md').write_text('# 2026-10-21\n')
     if kind == 'fail':
         (runtime/'letters-fail').touch()
     if kind == 'saved':  # Written by an earlier preparation of this Sunday.
-        letters.save(runtime, WEEK, {'signoff': 'Saved sign-off.'}, language)  # A quiet week: code writes the opening.
+        letters.save(runtime, WEEK, {'signoff': 'Saved sign-off.'}, language, SUNDAY)  # A quiet week: code writes the opening.
     before = letters.letter_path(runtime, WEEK).read_bytes() if kind == 'saved' else None
     source = source_copy(folder, runtime)
     bridge = CheckpointBridge(trial_engine.Engine(source, runtime).start(), False, language)
-    app = BrowserApp(runtime, bridge, now=lambda: NOW, preflight=True)
+    app = BrowserApp(runtime, bridge, now=lambda: MISSED if kind == 'missed' else NOW, preflight=True)
     day = app.today()
     result = {'scenario': scenario, 'language': language, 'tone': tone, 'model': selected, 'checks': [],
               'review': 'pending manual language/tone/grounding review of letter.json and the transcript'}
     try:
-        assert day == SUNDAY, 'The synthetic evening is not Sunday ' + SUNDAY
+        assert day == ('2026-10-26' if kind == 'missed' else SUNDAY), 'The synthetic evening is not the expected day'
         bridge.verify_scope()
         save(folder/'start-intent.json', {'date': day, 'kind': 'gn'})
         with context(language, selected):
@@ -188,8 +194,9 @@ def run_briefing(output, language, selected, scenario):
                 assert letters.letter_path(runtime, WEEK).read_bytes() == before, 'The saved letter changed'
                 result['checks'].append('Saved letter kept unchanged; card reused it')
             else:
-                assert letters.counts(saved) == ([5, 2, 1] if kind == 'full' else [0, 0, 0]), 'Unexpected week counts'
+                assert letters.counts(saved) == ([0, 0, 0] if kind == 'quiet' else [5, 2, 1]), 'Unexpected week counts'
                 assert saved['lang'] == language, 'Letter saved in another language'
+                assert ('open' in saved) == (kind != 'missed'), 'Only a letter written before its week ended stays open'
                 words = (saved['opening'] + ' ' + saved['signoff']).casefold()
                 result['letter'] = {'opening': saved['opening'], 'signoff': saved['signoff']}
                 result['forbidden'] = [word for word in FORBIDDEN[language] if word in words]
@@ -215,7 +222,7 @@ def run_chat(output, language, selected, scenario):
     folder.mkdir(mode=0o700)
     tone = {'turn-off': 'playful', 'turn-on': 'formal'}[scenario]
     runtime = account(folder, language, tone, 'weekly_letter: "false"\n' if scenario == 'turn-on' else '', ZONE)
-    letters.save(runtime, '2026-10-12', {'signoff': 'See you.'}, language)
+    letters.save(runtime, '2026-10-12', {'signoff': 'See you.'}, language, SUNDAY)
     kept = letters.letter_path(runtime, '2026-10-12').read_bytes()
     source = source_copy(folder, runtime)
     before = (runtime/'profile.md').read_text()
@@ -292,7 +299,7 @@ def main():
         chosen = args.only or (*BRIEFINGS, *CHATS)
         results = [(run_briefing if name in BRIEFINGS else run_chat)(output, args.language, selected, name) for name in chosen]
         save(output/'matrix.json', {'model': selected, 'language': args.language, 'cases': results, 'limitations': [
-            'A fixed synthetic Sunday in Shanghai; no public deployment.',
+            'A fixed synthetic Sunday (and Monday after a skipped Sunday) in Shanghai; no public deployment.',
             'One sample per scenario and model; prose needs manual review.']})
         if not all(result.get('functional_complete') for result in results):
             raise SystemExit(1)

@@ -1,8 +1,9 @@
 """The Letters tab: the newest weekly letter, with a wheel of past weeks to look back on. Read-only."""
 from datetime import date as Date, datetime, timedelta, timezone
 import html
-from zoneinfo import ZoneInfo
+import sqlite3
 
+from goodmorning.briefings.briefing_day import briefing_day
 from goodmorning.records import letters
 from goodmorning.runtime_files import normalize_secretary_name, profile_fields
 from . import language as ui
@@ -95,8 +96,12 @@ def reading(letter, number, today, signature):
 def page(app, week=None):
     zone = app.profile().get('timezone')
     now = app.now() if app.now else datetime.now(timezone.utc)
-    today = now.astimezone(ZoneInfo(zone or 'UTC')).date().isoformat()
+    today = briefing_day(zone or 'UTC', now)
     theme = clock_theme(zone, now)['theme']
+    try:
+        letters.catch_up(app.runtime, today, ui.current())
+    except (ValueError, OSError, KeyError, sqlite3.Error):
+        pass  # Saved letters still open; the next visit or briefing retries.
     saved = letters.weeks(app.runtime)
     week = week or (saved[0] if saved else None)
     if week and week not in saved:

@@ -95,8 +95,9 @@ JSON
 
 Order: gm Weather, News (the 24 hours before the job's as-of time), Schedule, Tasks, Reminders; gn Today, Weather tomorrow, Schedule, Tasks, Reminders, then New episodes
 when `anime_updates` is on, Game sales when `game_sales` is on and Stocks when
-`stock_report` is on, and the Weekly letter on Sundays unless `weekly_letter` is
-`"false"` (never skipped; `docs/weekly-letters.md`). Do not alter the
+`stock_report` is on. Either edition ends with the Weekly letter when one is due:
+Sunday's evening, or the first briefing after a week ended without its letter
+(never skipped; `docs/weekly-letters.md`). Do not alter the
 default plan. Use code-owned blocks/pages under `docs/item-taxonomy.md`. Project/
 personal and optional/required are task labels, not new sections. Read all selected
 news/citations before publishing. Presentation grants no task creation, scheduling,

@@ -1040,9 +1040,13 @@ def render_block(value, images, briefing_date=None):
                          f'<h4 class="deal-name" data-content>{escaped(name)}</h4><p class="deal-line">{prices}</p>{when}</div></li>')
         return '<ul class="deal-list">' + ''.join(cards) + '</ul>'
     if tag == 'letter':
+        from goodmorning.records.letters import week_of
+        last = briefing_date and value[1] != week_of(briefing_date)  # A missed week, carried by a later briefing.
         if value[2] is None:
-            return '<p class="letter-card is-unavailable">' + ui.ui('This week’s letter couldn’t be written this time.') + '</p>'
-        return ('<div class="letter-card"><p>' + ui.ui('This week’s letter is in your book.') + '</p>' + letter_counts(value[2])
+            return ('<p class="letter-card is-unavailable">'
+                    + ui.ui('Last week’s letter couldn’t be written this time.' if last else 'This week’s letter couldn’t be written this time.') + '</p>')
+        return ('<div class="letter-card"><p>' + ui.ui('Last week’s letter is in your book.' if last else 'This week’s letter is in your book.')
+                + '</p>' + letter_counts(value[2])
                 + f'<a class="letter-open" href="/letters/{value[1]}">' + ui.ui('Open letter') + '</a></div>')
     if tag == 'holdings':
         return holdings_markup(value[1], briefing_date, value[2] if len(value) > 2 else None, value[3] if len(value) > 3 else ())
