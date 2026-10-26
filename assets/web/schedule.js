@@ -1,4 +1,5 @@
-// Refresh saved records only. Never dispatch AI, import providers, or mutate plans.
+// Refresh saved records. The one write is ticking a to-do done or back; never dispatch AI,
+// import providers, or change calendar events.
 const scheduleConfig = JSON.parse(document.querySelector('#schedule-config').dataset.config);
 const scheduleView = document.querySelector('#schedule-view');
 let scheduleQuery = location.search;
@@ -6,6 +7,7 @@ let scheduleRevision = scheduleConfig.revision;
 let scheduleController = null;
 let scheduleTimer = null;
 let scheduleChecked = scheduleConfig.checked;
+let scheduleNoticeTimer = null;
 
 function scheduleStatus() {
   const status = document.querySelector('#schedule-status');
@@ -19,6 +21,13 @@ function scheduleStatus() {
     node.textContent = part === 'day' ? String(day.getUTCDate())
       : new Intl.DateTimeFormat(goodmorningLanguage, {...options, timeZone: 'UTC'}).format(day);
   });
+}
+
+// A failed tap floats where the Undo notice appears, since the inline spot can be off-screen.
+function scheduleError(message, floating = false) {
+  const error = document.querySelector('#schedule-error');
+  error.textContent = message ? goodmorningT(message) : '';
+  error.classList.toggle('is-floating', floating);
 }
 
 function rememberScheduleView(mode) {
@@ -45,6 +54,7 @@ async function refreshSchedule(query = scheduleQuery, navigate = false) {
       // This is escaped, typed server markup, not agent-authored HTML.
       fragment.innerHTML = result.view;
       scheduleView.replaceChildren(fragment.content);
+      enableTicks();
       expanded.forEach(id => { const node = document.getElementById(id); if (node) node.open = true; });
       if (focused) document.getElementById(focused)?.focus({preventScroll: true});
       scheduleRevision = result.revision;
@@ -56,9 +66,9 @@ async function refreshSchedule(query = scheduleQuery, navigate = false) {
     if (navigate) history.pushState({}, '', '/schedule' + query);
     scheduleChecked = result.checked;
     scheduleStatus();
-    document.querySelector('#schedule-error').textContent = '';
+    scheduleError('');
   } catch (error) {
-    if (error.name !== 'AbortError') document.querySelector('#schedule-error').textContent = goodmorningT('Saved plans could not be refreshed. Your last view is kept.');
+    if (error.name !== 'AbortError') scheduleError('Saved plans could not be refreshed. Your last view is kept.');
   } finally {
     if (controller === scheduleController) {
       scheduleController = null;
@@ -68,8 +78,69 @@ async function refreshSchedule(query = scheduleQuery, navigate = false) {
   }
 }
 
+function enableTicks() {
+  scheduleView.querySelectorAll('button.task-tick').forEach(button => { button.disabled = false; });
+}
+
+async function saveTick(tick) {
+  try {
+    const response = await fetch('/api/schedule/tick', {method: 'POST', credentials: 'same-origin', cache: 'no-store',
+      headers: {'Content-Type': 'application/json', 'X-Briefing-CSRF': languageConfig.csrf},
+      body: JSON.stringify({...tick, key: crypto.randomUUID()})});
+    const result = await goodmorningJSON(response);
+    if (response.ok) return result;
+    scheduleError(response.status === 409
+      ? 'Couldn’t save — this task changed since the page loaded. Refresh and try again.'
+      : 'Couldn’t save. Check your connection and try again.', true);
+  } catch {
+    scheduleError('Couldn’t save. Check your connection and try again.', true);
+  }
+  // An older Undo would sit next to this failure; the error alone says what happened.
+  clearTimeout(scheduleNoticeTimer);
+  document.querySelector('#schedule-notice').replaceChildren();
+  return null;
+}
+
+function tickNotice(title, saved) {
+  const notice = document.querySelector('#schedule-notice');
+  const message = document.createElement('span');
+  message.textContent = goodmorningT(saved.done ? 'Marked “{task}” done.' : 'Marked “{task}” not done.', {task: title});
+  const undo = document.createElement('button');
+  undo.type = 'button';
+  undo.textContent = goodmorningT('Undo');
+  undo.addEventListener('click', async () => {
+    if (undo.dataset.pending) return;
+    undo.dataset.pending = 'true';
+    const reverted = await saveTick({id: saved.id, date: saved.date, revision: saved.revision, done: !saved.done});
+    if (reverted) { tickNotice(title, reverted); refreshSchedule(); }
+  });
+  clearTimeout(scheduleNoticeTimer);
+  notice.replaceChildren(message, undo);
+  // Stay while the Undo button has keyboard focus.
+  const hide = () => notice.contains(document.activeElement) ? scheduleNoticeTimer = setTimeout(hide, 2000) : notice.replaceChildren();
+  scheduleNoticeTimer = setTimeout(hide, 6000);
+}
+
+async function tickRow(button) {
+  if (button.dataset.pending) return;
+  button.dataset.pending = 'true';
+  const row = button.closest('.schedule-task');
+  const before = {className: row.className, mark: button.textContent};
+  const done = button.dataset.tickDone !== 'true';
+  row.className = 'schedule-task is-' + (done ? 'done' : 'open');
+  button.textContent = done ? '✓' : '○';
+  const saved = await saveTick({id: button.dataset.tickId, date: button.dataset.tickDate, revision: Number(button.dataset.tickRevision), done});
+  delete button.dataset.pending;
+  if (!saved) { row.className = before.className; button.textContent = before.mark; return; }
+  scheduleError('');
+  tickNotice(row.querySelector('.task-title').textContent, saved);
+  refreshSchedule();
+}
+
 scheduleView.addEventListener('click', event => {
   if (event.target.closest('#schedule-refresh')) { refreshSchedule(); return; }
+  const tick = event.target.closest('button.task-tick');
+  if (tick) { tickRow(tick); return; }
   const link = event.target.closest('a[data-schedule-nav]');
   if (!link || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
   event.preventDefault();
@@ -91,5 +162,6 @@ document.addEventListener('visibilitychange', () => {
 });
 document.addEventListener('website:language', scheduleStatus);
 if (scheduleConfig.ready) rememberScheduleView(scheduleConfig.mode);
+enableTicks();
 scheduleStatus();
 refreshSchedule();

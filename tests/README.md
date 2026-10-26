@@ -63,7 +63,7 @@ restoration.
 | `notifications` | Notification settings through the gateway: defaults, saving across reloads and devices, failed turn-on leaves no subscription, both languages, phone and desktop |
 | `offline` | Latest morning and evening briefings without a connection: copies kept after page loads, notice in both languages, any page, no tokens kept, unchanged copies not downloaded again, forgotten at sign-out and for another account; unsaved check-in answers forgotten at sign-out, sign-in and password change, and across sign-ins |
 | `night_preflight` | Evening check-in dialog: due-today answers, early finishes by project, the weekly tidy-up, reopening and reloading, hidden from another sign-in, and the empty state |
-| `schedule` (`--canonical`) | Schedule tab with v2 tasks, statuses and TBC items; refresh, Chinese, mobile, source failures, no JavaScript |
+| `schedule` (`--canonical`) | Schedule tab with v2 tasks, statuses and TBC items; refresh, Chinese, mobile, source failures, no JavaScript; with `--canonical`, ticking, Undo, conflicts and failed saves |
 | `scroll_rails` | Phone scroll rails on all five tabs, drag, keyboard control, drafts |
 | `taxonomy` (`--screenshots DIR`) | v2 renderer at desktop and phone widths, English and Chinese |
 | `update` | Patch-note discovery, history, dismissals, safe updates |

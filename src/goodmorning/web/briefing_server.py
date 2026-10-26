@@ -1323,6 +1323,13 @@ def serve_live(app, port, *, gateway_key=None, public_origins=()):
                 recovery = re.fullmatch(r'/api/jobs/([a-f0-9]{32})/recover', path)
                 if recovery:
                     return self.respond(app.recover(recovery[1], body), 202)
+                if path == '/api/schedule/tick':
+                    try:
+                        return self.respond(schedule.tick(app, body))
+                    except ValueError as error:
+                        if str(error).startswith(('write_conflict', 'unknown_occurrence', 'not_found')):
+                            return self.respond({'error': 'Couldn’t save — this task changed since the page loaded. Refresh and try again.'}, 409)
+                        raise
                 if path == '/api/chats':
                     return self.respond(app.chats.start(body), 202)
                 if path == '/api/briefing-reminders/lines':

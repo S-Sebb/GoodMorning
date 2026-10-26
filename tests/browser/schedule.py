@@ -204,6 +204,99 @@ def check(app, url, shots, canonical=False):
         browser.close()
 
 
+def check_ticks(app, url, shots):
+    """Tap a to-do done, undo, tap again later, and keep the old mark on a conflict."""
+    from playwright.sync_api import expect, sync_playwright
+    with sync_playwright() as playwright:
+        browser = playwright.chromium.launch()
+        context = browser.new_context(viewport={'width': 1440, 'height': 1050},
+                                      **({'record_video_dir': str(shots), 'record_video_size': {'width': 1440, 'height': 1050}} if shots else {}))
+        page = context.new_page()
+        errors = []
+        page.on('pageerror', lambda error: errors.append(str(error)))
+        page.clock.install()
+        page.goto(url + '/schedule')
+        parcel = page.get_by_role('button', name='Mark “Pick up a parcel” done', exact=True)
+        expect(parcel).to_be_enabled()
+        # Future days and deadline markers have no tap target.
+        expect(page.locator('#day-2026-10-15 button.task-tick, #day-2026-10-16 button.task-tick')).to_have_count(0)
+        parcel.click()
+        notice = page.locator('#schedule-notice')
+        expect(notice).to_contain_text('Marked “Pick up a parcel” done.')
+        expect(page.get_by_role('button', name='Mark “Pick up a parcel” not done', exact=True)).to_be_visible()
+        if shots:
+            page.screenshot(path=str(shots / 'tick-1-done-with-undo.png'))
+        notice.get_by_role('button', name='Undo', exact=True).click()
+        expect(notice).to_contain_text('Marked “Pick up a parcel” not done.')
+        expect(page.get_by_role('button', name='Mark “Pick up a parcel” done', exact=True)).to_be_visible()
+        if shots:
+            page.screenshot(path=str(shots / 'tick-2-undone.png'))
+        page.clock.fast_forward(6500)
+        expect(notice).to_be_empty()
+        # Partial work ticked done, then ticked back after the notice has gone: Partial and its note return.
+        methods = page.locator('.schedule-task').filter(has_text='Draft the methods')
+        expect(methods).to_have_class(re.compile('is-partial'))
+        methods.get_by_role('button').click()
+        expect(methods).to_have_class(re.compile('is-done'))
+        if shots:
+            page.screenshot(path=str(shots / 'tick-3-partial-ticked-done.png'))
+        page.clock.fast_forward(6500)
+        expect(notice).to_be_empty()
+        methods.get_by_role('button', name='Mark “Draft the methods” not done', exact=True).click()
+        expect(methods).to_have_class(re.compile('is-partial'))
+        expect(methods).to_contain_text('First baseline compared.')
+        if shots:
+            page.screenshot(path=str(shots / 'tick-4-ticked-back-to-partial.png'))
+        # The day view ticks the same way.
+        page.get_by_role('link', name='Day', exact=True).click()
+        expect(page.locator('.schedule-focus')).to_have_count(1)
+        page.get_by_role('button', name='Mark “Pick up a parcel” done', exact=True).click()
+        expect(notice).to_contain_text('Marked “Pick up a parcel” done.')
+        if shots:
+            page.screenshot(path=str(shots / 'tick-day-view.png'))
+        notice.get_by_role('button', name='Undo', exact=True).click()
+        expect(page.get_by_role('button', name='Mark “Pick up a parcel” done', exact=True)).to_be_visible()
+        page.get_by_role('link', name='Week', exact=True).click()
+        expect(page.locator('.schedule-day')).to_have_count(7)
+        # Saved elsewhere since the page loaded: the save is refused and the row keeps its mark.
+        inbox = InboxStore(app.runtime, write=True)
+        try:
+            store = TaskStore(inbox)
+            blocked = next(t for t in store.all() if t['title'] == 'Request the dataset')
+            store.mutate(blocked['id'], blocked['revision'], {'detail': 'Ask the lab manager.'}, 'ses_synthetic', 'elsewhere', app.now().isoformat())
+        finally:
+            inbox.close()
+        dataset = page.locator('.schedule-task').filter(has_text='Request the dataset')
+        dataset.get_by_role('button').click()
+        expect(page.locator('#schedule-error')).to_have_text('Couldn’t save — this task changed since the page loaded. Refresh and try again.')
+        expect(page.locator('#schedule-error')).to_be_in_viewport()
+        expect(dataset).to_have_class(re.compile('is-blocked'))
+        expect(dataset.get_by_role('button')).to_have_text('○')
+        expect(notice).to_be_empty()
+        if shots:
+            page.screenshot(path=str(shots / 'tick-5-conflict.png'))
+        page.route('**/api/schedule/tick', lambda route: route.abort())
+        page.locator('#schedule-refresh').click()
+        expect(page.locator('#schedule-error')).to_be_empty()
+        parcel.click()
+        expect(page.locator('#schedule-error')).to_have_text('Couldn’t save. Check your connection and try again.')
+        expect(parcel).to_have_text('○')
+        page.unroute('**/api/schedule/tick')
+        page.locator('#prefs-menu summary').click()
+        page.locator('#website-language').select_option('zh-CN')
+        expect(page.get_by_role('button', name='标记“Pick up a parcel”为完成', exact=True)).to_be_visible()
+        assert not errors, errors
+        context.close()
+        browser.close()
+        # Without JavaScript the marks stay visible but cannot be used.
+        browser = playwright.chromium.launch()
+        page = browser.new_page(java_script_enabled=False)
+        page.goto(url + '/schedule')
+        expect(page.locator('button.task-tick').first).to_be_disabled()
+        expect(page.locator('button.task-tick:enabled')).to_have_count(0)
+        browser.close()
+
+
 def check_day(url):
     from playwright.sync_api import expect, sync_playwright
     with sync_playwright() as playwright:
@@ -276,11 +369,22 @@ def main():
         if args.preview:
             serve_live(app, args.port)
         else:
+            if args.canonical:
+                with tempfile.TemporaryDirectory(dir=TEMP_ROOT) as ticks:
+                    tick_app = make_runtime(Path(ticks))
+                    canonical_records(tick_app.runtime)
+                    returning_viewer(tick_app.runtime)
+                    server = start_server(tick_app)
+                    try:
+                        check_ticks(tick_app, f'http://127.0.0.1:{server.server_port}', args.screenshots)
+                    finally:
+                        server.shutdown()
             server = start_server(app)
             try:
                 check_day(f'http://127.0.0.1:{server.server_port}')
                 check(app, f'http://127.0.0.1:{server.server_port}', args.screenshots, args.canonical)
-                print('Schedule browser checks passed (day view, desktop, mobile, Chinese, refresh, bounds, no JavaScript).')
+                print('Schedule browser checks passed (day view, desktop, mobile, Chinese, refresh, bounds, no JavaScript'
+                      + (', ticking' if args.canonical else '') + ').')
             finally:
                 server.shutdown()
 

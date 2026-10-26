@@ -378,3 +378,42 @@ class CustomStore:
                             (rule_id, "report", now, session, encode({"day": day, "input": payload}), key, digest, encode(result)))
             self.db.commit()
             return result
+
+    def tick(self, rule_id, expected, day, done, session, key, now):
+        """One Schedule tap. Done reports that day; not done withdraws its completion. Done right
+        after a withdrawal restores the withdrawn detail, so the opposite tap undoes exactly."""
+        if done:
+            last = self.db.execute("SELECT snapshot,receipt FROM custom_events WHERE item_id=? AND action='withdraw' "
+                                   "ORDER BY seq DESC LIMIT 1", (rule_id,)).fetchone()
+            withdrawn = json.loads(last["snapshot"]) if last and json.loads(last["receipt"])["revision"] == expected else {}
+            detail = withdrawn.get("detail", "") if withdrawn.get("day") == day else ""
+            return self.report(rule_id, expected, {"status": "done", "confirmed_completion": True, "detail": detail},
+                               session, key, now, day)
+        from .inbox_store import check_text
+        check_text(session, 200, "session", False)
+        check_text(key, 240, "request key", False)
+        _date(day)
+        digest = hashlib.sha256(encode(["withdraw", rule_id, expected, day, session]).encode()).hexdigest()
+        with runtime_lock(self.directory, ".custom.lock"):
+            previous = self.db.execute(
+                "SELECT fingerprint,receipt FROM custom_events WHERE request_key=?", (key,)).fetchone()
+            if previous:
+                if previous["fingerprint"] != digest:
+                    raise ValueError("request_conflict: key belongs to different input")
+                return {**json.loads(previous["receipt"]), "replayed": True}
+            current = self.show(rule_id)
+            if expected != current["revision"]:
+                raise ValueError("write_conflict: custom rule changed; reread and reconcile")
+            if current["status"] in ("done", "cancelled"):
+                raise ValueError("write_conflict: closed custom rule keeps its completions")
+            row = self.db.execute("SELECT * FROM custom_completions WHERE rule_id=? AND date=? AND status='done'",
+                                  (rule_id, day)).fetchone()
+            if row is None:
+                raise ValueError("write_conflict: no completion saved for that day")
+            self.db.execute("DELETE FROM custom_completions WHERE id=?", (row["id"],))
+            self.db.execute("UPDATE custom_rules SET revision=revision+1,updated_at=? WHERE id=?", (now, rule_id))
+            result = {"saved": True, "id": rule_id, "revision": expected + 1, "occurrence_id": row["id"]}
+            self.db.execute("INSERT INTO custom_events VALUES (NULL,?,?,?,?,?,?,?,?)",
+                            (rule_id, "withdraw", now, session, encode({"day": day, "detail": row["detail"]}), key, digest, encode(result)))
+            self.db.commit()
+            return result
