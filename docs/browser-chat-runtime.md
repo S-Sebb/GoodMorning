@@ -91,12 +91,15 @@ bouncing dot; tapping it opens that conversation. Opening it anywhere marks it
 read for the account (stored with the conversation, not in browser storage).
 
 Workflow changes reuse the same conversation under `docs/browser-chat.md`.
-Native scheduling questions create a durable waiting indicator; pending permissions
-remain explicit one-time approvals/rejections. The engine interrupts a run after
-about an hour without activity, which closes a question nobody answered. Its place
-in the conversation then shows a muted "Question expired" card (the question
-itself if the page saw it while it waited, otherwise a plain note; the native
-question input is private tool state), and the status asks for a new message. Briefings stay on their own pages.
+Native questions are saved, then closed in the engine, so a waiting question holds
+no engine run and survives idle timeouts, restarts and deployments. It waits until
+the user answers or skips it. An answer is delivered as a new turn of the same
+session, in the engine's own answer wording. A new message instead marks the
+question as skipped (a muted "Question skipped" card) and goes through. Pending
+permissions remain explicit one-time approvals/rejections and still block new
+messages. A question the engine closed before any read saved it (for example in an
+older conversation) shows a muted "Question expired" card with a plain note, and the
+status asks for a new message. Briefings stay on their own pages.
 
 ## Mechanical contract
 
@@ -115,8 +118,8 @@ Interrupted dispatch stays uncertain and requires inspection, never blind replay
 Sending a follow-up while the secretary is working steers the same session:
 the composer stays enabled during starting, running and queued states, and the
 new message interrupts the current run instead of waiting behind it. A follow-up
-sent while a question or permission is pending is still rejected; answer the
-pending form first. The gateway reuses the working conversation's reservation
+sent while a permission is pending is still rejected; decide on it first. A
+follow-up sent while a question waits skips that question. The gateway reuses the working conversation's reservation
 for its own interrupt and keeps other conversations in the waiting line.
 Uploaded bytes and metadata stay in `browser-uploads/` inside the selected private
 runtime, not in public source or the gateway's temporary directory. The gateway
@@ -164,9 +167,12 @@ an idle engine alone never proves an interrupted dispatch finished. Large or
 unrenderable transcripts therefore cannot keep completed work in the global slot.
 
 Question forms and their accepted answers are also saved in the account's
-`browser-chats/chats.json` registry. After submission, the question and selected
+`browser-chats/chats.json` registry. The copy is saved before the engine's question
+is closed, so a crash in between loses nothing. If someone answered it in
+OpenChamber first, that answer stands. After submission, the question and selected
 option labels or typed answer appear as highlighted conversation bubbles in their
-original order. Failed submissions are not displayed as accepted answers. These
+original order. An answer is saved with its turn before dispatch, so a repeated or
+second answer is never sent twice. Invalid answers are rejected and not displayed. These
 exchanges survive refresh and backend restarts; previously discarded exchanges
 are not reconstructed.
 

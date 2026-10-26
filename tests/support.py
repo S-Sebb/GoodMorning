@@ -61,6 +61,7 @@ def start_server(app):
 
 class FakeChamber:
     directory = str(TESTS.parent)
+    relocate = Chamber.relocate
 
     def __init__(self):
         self.calls = []
@@ -92,10 +93,13 @@ class FakeChamber:
         assert session == 'ses_fixture'
         return self.forms, self.permissions
 
-    def request(self, path, body):
+    def request(self, path, body=None, method=None):
         self.calls.append((path, body))
+        if path == '/api/session/ses_fixture':
+            return {'data': {'location': {'directory': self.directory}}}
         if '/form/' in path:
-            self.forms = []
+            # Closing a question ends the engine's run.
+            self.forms, self.busy = [], False
         if '/permission/' in path:
             self.permissions = []
         return {}
@@ -122,9 +126,11 @@ class MockChamber(Chamber):
             if self.fail:
                 raise OSError('Synthetic dispatch interruption')
             self.add(session, 'user', body['prompt'])
-            if body['prompt'].startswith('/initialize'):
+            if re.search('User has answered your questions: "(City|城市)"=', body['prompt']):
+                session['permissions'] = [{'id': 'permission_setup', 'action': 'Save confirmed synthetic profile', 'resources': ['Synthetic profile only']}]
+            elif body['prompt'].startswith('/initialize'):
                 self.add(session, 'assistant', 'Confirm your location; replies follow the website language.')
-                session['forms'] = [{'id': 'form_city', 'title': 'Confirm your location', 'fields': [
+                session['forms'] = [{'id': 'form_city', 'title': 'Confirm your location', 'metadata': {'tool': {'id': 'prt_city'}}, 'fields': [
                     {'key': 'city', 'title': 'City', 'type': 'string', 'required': True,
                      'options': [{'value': 'London', 'label': 'London'}], 'custom': True}]}]
             else:
@@ -141,7 +147,16 @@ class MockChamber(Chamber):
         entry = self.sessions[session]
         return entry['forms'], entry['permissions']
 
-    def request(self, path, body=None):
+    def request(self, path, body=None, method=None):
+        if method == 'DELETE':
+            # The engine fails the question tool and ends its run, as when a question is dismissed.
+            session = self.sessions[path.split('/')[3]]
+            form = next(form for form in session['forms'] if form['id'] == path.split('/')[5])
+            session['forms'] = [entry for entry in session['forms'] if entry is not form]
+            tool = form.get('metadata', {}).get('tool', {}).get('id', 'prt_' + form['id'])
+            session['messages'].append({'id': 'message_' + str(len(session['messages'])), 'role': 'assistant', 'text': '',
+                'native': {'error': {'type': 'aborted'}, 'content': [{'type': 'tool', 'id': tool, 'name': 'question'}]}})
+            return {}
         if path.endswith('/move'):
             self.replies.append((path, body))
             self.sessions[path.split('/')[3]]['directory'] = body['directory']
@@ -190,16 +205,12 @@ class MockChamber(Chamber):
         self.replies.append((path, body))
         session_id = path.split('/')[3]
         session = self.sessions[session_id]
-        if '/form/' in path:
-            session['forms'] = []
-            session['permissions'] = [{'id': 'permission_setup', 'action': 'Save confirmed synthetic profile', 'resources': ['Synthetic profile only']}]
+        session['permissions'] = []
+        if body['decision'] == 'once':
+            (self.runtime / 'profile.md').write_text('city: London\ntimezone: Europe/London\nnews_country: GB\n')
+            self.add(session, 'assistant', 'Synthetic setup saved. Provider verification was not performed.')
         else:
-            session['permissions'] = []
-            if body['decision'] == 'once':
-                (self.runtime / 'profile.md').write_text('city: London\ntimezone: Europe/London\nnews_country: GB\n')
-                self.add(session, 'assistant', 'Synthetic setup saved. Provider verification was not performed.')
-            else:
-                self.add(session, 'assistant', 'Nothing saved.')
+            self.add(session, 'assistant', 'Nothing saved.')
         return {}
 
 

@@ -117,6 +117,7 @@ class StreamTests(unittest.TestCase):
 
     def test_partial_is_readable_while_waiting_and_stopped_not_ready(self):
         self.initialize(); self.append(self.weather)
+        self.chamber.forms = []  # A saved question would keep waiting after the engine stops.
         self.assertEqual(self.app.status(self.identifier)['state'], 'waiting')
         self.assertIn('14°C', self.app.preview(self.identifier)['changes'][0]['html'])
         self.chamber.idle()

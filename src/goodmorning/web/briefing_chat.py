@@ -5,6 +5,7 @@ import json
 import re
 import threading
 import time
+from urllib.error import HTTPError
 from urllib.parse import urlencode
 
 from goodmorning.runtime_files import atomic_text
@@ -154,13 +155,60 @@ def answer_text(form, answer, language):
     return '\n'.join(parts) or '—'
 
 
+def model_answer(form, answer):
+    """The engine's own wording for a question tool result, so a later answer reads as one."""
+    parts = []
+    for field in form['fields']:
+        value = answer.get(field['key'])
+        values = [] if value is None else value if isinstance(value, list) else [value]
+        text = ', '.join(('Yes' if entry else 'No') if isinstance(entry, bool) else str(entry) for entry in values)
+        parts.append(json.dumps(field.get('description') or field.get('title') or field['key'], ensure_ascii=False)
+                     + '=' + json.dumps(text or 'Unanswered', ensure_ascii=False))
+    return ('User has answered your questions: ' + ', '.join(parts)
+            + ". You can now continue with the user's answers in mind.")
+
+
+def valid_answer(form, answer):
+    fields = {field['key'] for field in form['fields']}
+    if (not isinstance(answer, dict) or not answer or set(answer) - fields
+            or any(not isinstance(value, (str, bool, int, float)) and not (isinstance(value, list) and all(isinstance(entry, str) for entry in value))
+                   for value in answer.values())
+            or len(json.dumps(answer, ensure_ascii=False)) > 8000):
+        raise ValueError('Invalid answer')
+    return answer
+
+
+def parked_forms(questions):
+    """Saved questions still waiting for the user."""
+    return [entry['form'] for entry in questions if entry.get('parked') and 'answer' not in entry and 'skipped' not in entry]
+
+
+def close_question(chamber, session, form):
+    """Closes an engine question whose copy is already saved. Returns False only when someone answered it
+    in the engine first (for example in OpenChamber), and None when it is still open; the next read retries."""
+    try:
+        chamber.request(f'/api/session/{session}/form/{form}', method='DELETE')
+        return True
+    except HTTPError:
+        try:
+            state = chamber.request(f'/api/session/{session}/form/{form}')['data']['state']['status']
+        except HTTPError as error:
+            return True if error.code == 404 else None
+        except Exception:
+            return None
+        return None if state == 'pending' else state != 'answered'
+    except Exception:
+        return None
+
+
 def question_tool(entry):
     return entry['form'].get('metadata', {}).get('tool', {}).get('id')
 
 
 def expired_questions(messages, questions, language):
-    """Fill in interrupted questions: the saved form when this page saw it, otherwise a plain note.
-    A question answered here was not interrupted. Also returns the saved questions shown this way."""
+    """Fill in questions the engine closed. A saved question appears where it was asked once it is
+    answered or skipped; while it waits, only its form shows. An older unsaved question shows as expired:
+    the form when this page saw it, otherwise a plain note. Also returns the saved questions shown here."""
     saved = {question_tool(entry): entry for entry in questions}
     result, shown = [], set()
     for entry in messages:
@@ -169,6 +217,14 @@ def expired_questions(messages, questions, language):
             result.append(entry)
             continue
         known = [saved[tool] for tool in tools if tool in saved]
+        parked = [question for question in known if question.get('parked')]
+        if parked:
+            shown.update(question['id'] for question in parked)
+            result.extend({'id': 'question:' + question['id'], 'role': 'assistant',
+                           'kind': 'question' if 'answer' in question else 'skipped', 'language': question['language'],
+                           'text': question_text(question['form'], question['language'])}
+                          for question in parked if 'answer' in question or 'skipped' in question)
+            continue
         if any('answer' in question for question in known):
             continue
         shown.update(question['id'] for question in known)
@@ -306,19 +362,29 @@ class Chats:
                      **({'created': item['created']} if isinstance(item.get('created'), (int, float)) else {})}
                     for item in items]
 
-    def remember_questions(self, chat, forms, messages):
+    def park(self, chat, session, forms):
+        """Saves each open engine question, then closes it there. The engine holds a waiting question
+        only in memory; the saved copy outlives restarts, and the answer later continues as a new turn."""
+        if not forms:
+            return
         with self.lock:
             item = self.items[chat]
             questions = item.setdefault('questions', [])
-            known = {entry['id'] for entry in questions}
-            additions = [{'id': form['id'], 'form': form, 'after': messages[-1]['id'] if messages else None,
-                          'language': item['turns'][-1].get('language', 'en')}
+            known = {entry['id']: entry for entry in questions}
+            additions = [{'id': form['id'], 'form': form, 'after': None, 'language': chat_language(item, latest=True)}
                          for form in forms if form['id'] not in known]
             if additions:
                 self.capacity(additions)
                 questions.extend(additions)
-                self.save()
-            return list(questions)
+            for entry in questions:
+                if entry['id'] in {form['id'] for form in forms}:
+                    entry['parked'] = True
+            self.save()  # Saved before closing, so a crash in between loses nothing.
+        for form in forms:
+            if close_question(self.chamber, session, form['id']) is False:
+                with self.lock:
+                    next(entry for entry in self.items[chat]['questions'] if entry['id'] == form['id']).pop('parked', None)
+                    self.save()
 
     def start(self, body):
         if set(body) not in ({'id', 'mode', 'text'}, {'id', 'mode', 'text', 'attachments'}) or body['mode'] not in NEW_MODES:
@@ -391,9 +457,12 @@ class Chats:
                 if old['text'] != text or old.get('attachments', []) != attachments:
                     raise ValueError('Request ID already belongs to another message')
                 return {'chat': chat}
-            state = self.status(chat)['state']
+            status = self.status(chat)
+            state = status['state']
             if state == 'waiting':
-                raise ValueError('Answer the pending question first')
+                if status['permissions']:
+                    raise ValueError('Answer the pending question first')
+                state = 'idle'  # A new message skips the saved questions; the engine already closed them.
             if state in ('uncertain', 'unavailable'):
                 raise ValueError('Delivery is uncertain. Ask the administrator to inspect this conversation before sending again.')
             if state not in ('idle', 'running', 'starting'):
@@ -404,6 +473,9 @@ class Chats:
             # A secretary-opened conversation has no session until the user's first reply.
             first = 'opening' in item and not item['turns']
             item['turns'].append({'id': request, 'text': text, 'attachments': attachments,'language':ui.current(),'model':site_models.current(), 'created': time.time()})
+            for entry in item.get('questions', []):
+                if entry.get('parked') and 'answer' not in entry:
+                    entry.setdefault('skipped', request)
             item['state'] = 'starting'
             item.pop('unread', None)
             self.save()
@@ -454,16 +526,7 @@ class Chats:
                     time.sleep(0.1)
                 if not session:
                     raise ValueError('Wait for the secretary or answer the pending question')
-                # A session keeps its original release location across server updates.
-                # Move only this resumed conversation, without replacing its history.
-                info = self.chamber.request(f'/api/session/{session}')['data']
-                if info['location']['directory'] != self.chamber.directory:
-                    self.chamber.request(f'/api/session/{session}/move',
-                                         {'directory': self.chamber.directory})
-                    info = self.chamber.request(f'/api/session/{session}')['data']
-                    if info['location']['directory'] != self.chamber.directory:
-                        raise ValueError('Conversation release update was not confirmed')
-                    refresh = True
+                refresh = self.chamber.relocate(session)
             # The secretary agent (.opencode/agents) is denied reading source code and tests.
             # OpenChamber keeps an agent given to session.create only when that create also
             # sends a prompt, and the attachment path names none, so set it before every turn.
@@ -546,6 +609,9 @@ class Chats:
         if item.get('session') and self.chamber:
             try:
                 forms, permissions = self.chamber.pending(item['session'])
+                self.park(chat, item['session'], forms)
+                with self.lock:
+                    questions = [dict(entry) for entry in self.items[chat].get('questions', [])]
                 if include_messages:
                     transcript = self.chamber.control('session.messages', sessionId=item['session'], limit=100)
                 else:
@@ -591,17 +657,18 @@ class Chats:
                             text = turn['text'] or ('' if attachments else ui.text('Start {mode}',lang=turn.get('language','en'),
                                 mode=ui.text(MODES[item['mode']],lang=turn.get('language','en')).lower()))
                     visible = {'id': entry['id'], 'role': entry['role'], 'text': text, 'attachments': attachments}
+                    question = next((saved for saved in questions if saved['id'] == turn.get('answer')), None) if turn else None
+                    if question:
+                        visible.update(kind='answer', language=question['language'],
+                                       text=answer_text(question['form'], question['answer'], question['language']))
                     if turn:
                         visible['_turn'] = turn['id']
                     if entry.get('kind') == 'expired':
                         visible.update(kind='expired', _tools=entry['tools'])
                     messages.append(visible)
-                questions = self.remember_questions(chat, forms, messages) if include_messages else item.get('questions', [])
                 messages, shown = expired_questions(messages, questions, result['language'])
-                answered = {entry['id'] for entry in questions if 'answer' in entry}
-                forms = [form for form in forms if form['id'] not in answered]
+                forms = parked_forms(questions)
                 receipts = item.get('replied_inputs', [])
-                forms = [form for form in forms if 'form:'+form['id'] not in receipts]
                 permissions = [permission for permission in permissions if 'permission:'+permission['id'] not in receipts]
                 result.update(forms=forms, permissions=permissions)
                 if include_messages:
@@ -614,7 +681,8 @@ class Chats:
                                 aliases.difference_update((other['id'], *(turn['id'] for turn in other['turns'])))
                     changes, unavailable = read_changes(self.runtime, item['session'], aliases=aliases)
                     unavailable = unavailable or len(aliases) != expected_aliases
-                    history = question_history(messages, [entry for entry in questions if entry['id'] not in shown],
+                    # Saved questions show at their own place in the transcript, and their answers as turns.
+                    history = question_history(messages, [entry for entry in questions if entry['id'] not in shown and not entry.get('parked')],
                                                {form['id'] for form in forms})
                     result.update(messages=opening + action_history(history, changes, item['turns'], item['created']),
                                   action_history_unavailable=unavailable,
@@ -651,25 +719,42 @@ class Chats:
             if category+':'+request in item.get('replied_inputs', []):
                 return {'answered': True}
             forms, permissions = self.chamber.pending(item['session'])
-            if not any(entry['id'] == request for entry in (forms if category == 'form' else permissions)):
+            if category == 'form':
+                return self.answer(chat, item['session'], forms, request, body)
+            if not any(entry['id'] == request for entry in permissions):
                 raise ValueError('This request is no longer pending in this conversation')
-            if category == 'form':
-                if not isinstance(body.get('answer'), dict):
-                    raise ValueError('Invalid answer')
-                body = {'answer': body['answer']}
-                transcript = self.chamber.control('session.messages', sessionId=item['session'], limit=100)['messages']
-                questions = self.remember_questions(chat, forms, transcript)
-                question = next(entry for entry in questions if entry['id'] == request)
-                self.capacity(body)
-            else:
-                if body.get('decision') not in ('once', 'reject'):
-                    raise ValueError('Only one-time approval or rejection is allowed')
-                body = {'decision': body['decision']}
-            self.chamber.request(f'/api/session/{item["session"]}/{category}/{request}/reply', body)
-            item.setdefault('replied_inputs', []).append(category+':'+request)
-            if category == 'form':
-                question.update(answer=body['answer'], answer_after=transcript[-1]['id'] if transcript else None)
+            if body.get('decision') not in ('once', 'reject'):
+                raise ValueError('Only one-time approval or rejection is allowed')
+            self.chamber.request(f'/api/session/{item["session"]}/permission/{request}/reply', {'decision': body['decision']})
+            self.items[chat].setdefault('replied_inputs', []).append('permission:'+request)
             self.save()
+        return {'answered': True}
+
+    def answer(self, chat, session, forms, request, body):
+        """Delivers an answer to a saved question as a new turn of the same session. The answer and its
+        turn are saved together before dispatch, so a retried or second answer never sends twice."""
+        self.park(chat, session, forms)  # An answer can arrive before any read saved the question.
+        with self.lock:
+            item = self.items[chat]
+            question = next((entry for entry in item.get('questions', []) if entry['id'] == request and entry.get('parked')), None)
+            if question is None or 'skipped' in question:
+                raise ValueError('This request is no longer pending in this conversation')
+            if 'answer' in question:
+                return {'answered': True}
+            if item['state'] in ('starting', 'uncertain'):
+                raise ValueError('Wait for the secretary or answer the pending question')
+            answer = valid_answer(question['form'], body.get('answer'))
+            if len(item['turns']) >= 200:
+                raise ValueError('Start a new conversation to keep context bounded')
+            text = model_answer(question['form'], answer)
+            self.capacity({'answer': answer, 'text': text})
+            turn = hashlib.sha256(('answer:' + chat + ':' + request).encode()).hexdigest()[:32]
+            item['turns'].append({'id': turn, 'text': text, 'answer': request, 'attachments': [], 'language': ui.current(),
+                                  'model': site_models.current(), 'created': time.time()})
+            question['answer'] = answer
+            item['state'] = 'starting'
+            self.save()
+            threading.Thread(target=self.dispatch, args=(chat, turn, text, False), daemon=True).start()
         return {'answered': True}
 
 

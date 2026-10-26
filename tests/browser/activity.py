@@ -21,7 +21,9 @@ def fixture(root):
             return (root/'activity-state').read_text() if (root/'activity-state').exists() else 'waiting'
 
         def pending(self, session):
-            return super().pending(session) if self.stage() == 'waiting' else ([], [])
+            # A saved question waits until answered, so the stages toggle an engine-held permission.
+            permission = {'id': 'permission_setup', 'action': 'Save confirmed synthetic profile', 'resources': ['Synthetic profile only']}
+            return ([], [permission]) if self.stage() == 'waiting' else ([], [])
 
         def control(self, action, **body):
             if action == 'session.status':
@@ -103,7 +105,7 @@ def run(artifacts):
                 with source.expect_response('**/api/activity', timeout=1000):
                     source.get_by_role('button', name='Start initialization', exact=True).click()
                 submit_refresh = round((time.monotonic()-started)*1000)
-                expect(source.get_by_role('heading', name='Confirm your location')).to_be_visible()
+                expect(source.locator('#chat-questions')).to_contain_text('Save confirmed synthetic profile')
                 profile.write_text(saved_profile)
                 original_url = source.url
                 pages = []
@@ -274,7 +276,7 @@ def run(artifacts):
                 count = len(owner.pages)
                 page.locator('#account-activity a').click()
                 expect(page).to_have_url(original_url)
-                expect(page.get_by_role('heading', name='Confirm your location')).to_be_visible()
+                expect(page.locator('#chat-questions')).to_contain_text('Save confirmed synthetic profile')
                 assert len(owner.pages) == count
                 (root/'activity-state').write_text('idle')
                 for page in pages:

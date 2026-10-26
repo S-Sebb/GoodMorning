@@ -146,8 +146,9 @@ def check_waiting(browser, address, artifacts):
     errors = watch(page)
     form = {'id': 'frm_quick', 'title': 'Which afternoon works?', 'fields': [{'key': 'day', 'title': 'Day', 'type': 'multiselect',
             'required': True, 'minItems': 1, 'maxItems': 1, 'options': [{'value': 'thu', 'label': 'Thursday'}, {'value': 'fri', 'label': 'Friday'}]}]}
+    pending = {'forms': [form], 'permissions': []}
     page.route(f'**/api/chats/{WAITING}**', lambda route: route.fulfill(json={'chat': WAITING, 'mode': 'todo', 'state': 'waiting',
-        'language': 'en', 'label': 'Your secretary needs your answer', 'forms': [form], 'permissions': [],
+        'language': 'en', 'label': 'Your secretary needs your answer', **pending,
         'messages': [{'id': 'm1', 'role': 'user', 'text': 'Book the dentist'},
                      {'id': 'm2', 'role': 'assistant', 'kind': 'action', 'action': {'target': 'task', 'operation': 'added'}, 'text': 'Dentist'}]}))
     page.goto(address + '/schedule')
@@ -162,11 +163,16 @@ def check_waiting(browser, address, artifacts):
     expect(page.locator('#quick-chat-questions')).to_contain_text('Which afternoon works?')
     expect(page.locator('#quick-chat-messages')).to_contain_text('Task added')
     expect(page.locator('#quick-chat-mode')).to_contain_text('To-do')
-    expect(page.locator('#quick-chat-text')).to_be_disabled()
+    # A new message skips a waiting question; only a permission keeps the composer closed.
+    expect(page.locator('#quick-chat-text')).to_be_enabled()
     expect(page.locator('#quick-chat-dot')).to_be_hidden()
     for edition in ('gm', 'gn'):
         page.evaluate('edition => { document.documentElement.dataset.edition = edition; }', edition)
         page.locator('#quick-chat-window').screenshot(path=str(artifacts / f'quick-chat-waiting-{edition}.png'))
+    pending.update(forms=[], permissions=[{'id': 'per_quick', 'action': 'Save the dentist task', 'resources': ['Synthetic task']}])
+    page.reload()
+    expect(page.locator('#quick-chat-questions')).to_contain_text('Save the dentist task')
+    expect(page.locator('#quick-chat-text')).to_be_disabled()
     assert not errors, errors
     page.close()
 

@@ -1279,8 +1279,10 @@ class GatewayTests(GatewayFixture):
                 queue=self.gateway._read_queue(db);queue[0]['enqueued']=1;self.gateway._write_queue(db,queue)
             self.gateway.clear_ticket(active)
             self.gateway.pump_queue()
-            self.assertEqual(chamber.replies[0][0],'/api/session/'+original_session+'/form/form_city/reply')
-            self.assertEqual(chamber.replies[0][1],{'answer':{'city':'London'}})
+            # The saved question's answer continues the same session as a new turn.
+            sent=[body for action,body in chamber.calls if action=='session.send'][-1]
+            self.assertEqual(sent['sessionId'],original_session)
+            self.assertIn('User has answered your questions: "City"="London".',sent['prompt'])
             self.assertEqual(len(chamber.sessions),1)
             self.assertIsNone(self.gateway.ticket())  # The next permission also yields.
             permission='/api/chats/'+('a'*32)+'/permission/permission_setup/reply'
@@ -1288,7 +1290,7 @@ class GatewayTests(GatewayFixture):
             self.gateway.pump_queue()
             self.assertEqual(chats.status('a'*32)['state'],'idle')
             self.assertIsNone(self.gateway.ticket())
-            self.assertEqual(len(chamber.replies),2)
+            self.assertEqual(len(chamber.replies),1)
 
     def test_uncertain_chat_reservation_is_preserved_on_invalid_duplicate(self):
         self.permanent()
