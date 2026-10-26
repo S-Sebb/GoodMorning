@@ -5,6 +5,9 @@
   if (!page) return;
   const t = (key, values) => typeof goodmorningT === 'function' ? goodmorningT(key, values) : key;
   const csrf = JSON.parse(document.querySelector('#language-config').dataset.config).csrf;
+  // The secretary's saved name, or "your secretary" before there is one.
+  const secretary = page.dataset.secretary;
+  const named = (text, unnamed) => secretary ? text.replace('{name}', secretary) : unnamed;
 
   // Country codes read as names in the website language.
   function names() {
@@ -43,7 +46,7 @@
       feedback(row, t('Couldn’t confirm the save. Refresh the page to see what’s saved.'), true);
       return null;
     }
-    feedback(row, t('Saved. Your secretary will use this from now on.'));
+    feedback(row, t(named('Saved! {name} will remember this.', 'Saved! Your secretary will remember this.')));
     return result.value;
   }
 
@@ -51,7 +54,11 @@
     const content = row.querySelector('.about-content');
     const node = document.createElement('span');
     if (value) { node.className = 'about-value'; node.dataset.content = ''; node.textContent = value; }
-    else { node.className = 'about-empty'; node.dataset.uiText = 'Not set yet'; node.textContent = t('Not set yet'); }
+    else {
+      node.className = 'about-empty';
+      node.dataset.uiText = named('{name} doesn’t know yet', 'Your secretary doesn’t know yet');
+      node.textContent = t(node.dataset.uiText);
+    }
     content.replaceChildren(node);
   }
 
@@ -72,6 +79,8 @@
     const submit = async () => {
       input.disabled = saveButton.disabled = cancelButton.disabled = true;
       const saved = await save(row, input.value);
+      // A new secretary name appears all over the page, so it reloads with it.
+      if (saved !== null && row.dataset.field === 'secretary_name' && saved !== before) return location.reload();
       if (saved !== null) return finish(saved);
       input.disabled = saveButton.disabled = cancelButton.disabled = false;
       input.focus();

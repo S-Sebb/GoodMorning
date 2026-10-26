@@ -100,6 +100,12 @@ class AboutMeTests(unittest.TestCase):
         for secret in ('private-key', 'samwatches', '/home/sam', 'read'):
             self.assertNotIn(secret, re.sub(r'<[^>]+>', ' ', page.split('<main', 1)[1]))
         self.assertEqual(page.count('class="about-switch"'), 2)  # Episodes and the weekly letter; games and stocks were never set up.
+        self.assertIn('Ask Mochi to change this', page)
+        set_profile_fields(self.root, {'secretary_name': ''})
+        page = self.app_page()
+        self.assertIn('Your secretary’s notes about you', page)
+        self.assertIn('Ask your secretary to change this', page)
+        self.assertIn('Your secretary doesn’t know yet', page)
 
     def app_page(self):
         class Resources:

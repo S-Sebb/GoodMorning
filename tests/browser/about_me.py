@@ -79,7 +79,7 @@ def main():
                 phone.screenshot(path=str(artifacts/'account-390.png'))
                 link.click()
                 expect(phone).to_have_url('https://sec.language.test/about-me')
-                expect(phone.get_by_role('heading', name='About me', exact=True)).to_be_visible()
+                expect(phone.get_by_role('heading', name='Mochi’s notes about you', exact=True)).to_be_visible()
                 expect(phone.locator('[data-countries]')).to_have_text('United Kingdom and Japan')
                 expect(phone.locator('[data-field="anime_updates"] .about-details')).to_contain_text('Your watching list and 2 more shows')
                 assert 'alicewatches' not in phone.locator('main').inner_text()
@@ -89,9 +89,9 @@ def main():
                 before = profile.read_text()
                 row = phone.locator('[data-field="user_name"]')
                 row.get_by_role('button', name='Edit').click()
-                row.get_by_role('textbox', name='What your secretary calls you').fill('Ally')
+                row.get_by_role('textbox', name='What Mochi calls you').fill('Ally')
                 row.get_by_role('button', name='Save').click()
-                expect(row.locator('.about-feedback')).to_have_text('Saved. Your secretary will use this from now on.')
+                expect(row.locator('.about-feedback')).to_have_text('Saved! Mochi will remember this.')
                 expect(row.locator('.about-value')).to_have_text('Ally')
                 assert profile.read_text() == before.replace('user_name: ""', 'user_name: "Ally"')
                 row = phone.locator('[data-field="work_days"]')
@@ -122,7 +122,7 @@ def main():
                 expect(phone.locator('#about-day .about-row').first.locator('.about-edit')).to_have_count(0)  # City changes in chat.
                 phone.screenshot(path=str(artifacts/'about-390.png'), full_page=True)
 
-                # Change in chat opens the quick chat with an unsent starter line.
+                # Ask Mochi to change this opens the quick chat with an unsent starter line.
                 phone.locator('#about-day .about-chat').first.click()
                 expect(phone.locator('#quick-chat-text')).to_have_value('I’d like to change my city.')
                 phone.locator('#quick-chat-text').fill('')
@@ -132,11 +132,11 @@ def main():
                 phone.locator('#account-menu > summary').click()
                 phone.locator('#website-language').select_option('zh-CN')
                 expect(phone.locator('html')).to_have_attribute('lang', 'zh-CN')
-                expect(phone.get_by_role('heading', name='关于我', exact=True)).to_be_visible()
+                expect(phone.get_by_role('heading', name='Mochi记得的你', exact=True)).to_be_visible()
                 expect(phone.locator('[data-countries]')).to_have_text('英国和日本')
                 phone.locator('#account-menu > summary').click()
                 phone.reload()
-                expect(phone.locator('.about-intro p')).to_have_text('秘书对你的了解都在这里。它会照这些安排你的每一天，写你的简报。')
+                expect(phone.locator('.about-greeting')).to_contain_text('嗨，Ally！')
                 no_overflow(phone)
                 phone.screenshot(path=str(artifacts/'about-390-zh.png'), full_page=True)
 
@@ -147,6 +147,7 @@ def main():
                 main_text = desktop.locator('main').inner_text()
                 assert 'Ally' not in main_text and 'Mochi' not in main_text, main_text
                 expect(desktop.locator('main')).to_have_attribute('data-readonly', '')
+                expect(desktop.locator('.about-greeting')).to_contain_text('I don’t know much about you yet')
                 expect(desktop.locator('.about-edit:visible, .about-switch:visible')).to_have_count(0)  # Bob has no profile yet.
                 assert not (Path(settings['runtimes']['bob'])/'profile.md').exists()
                 no_overflow(desktop)
@@ -162,6 +163,14 @@ def main():
                 expect(alice.locator('[data-field="user_name"] .about-value')).to_have_text('Ally')
                 no_overflow(alice)
                 alice.screenshot(path=str(artifacts/'about-1440-zh.png'), full_page=True)
+                # A new secretary name reloads the page so every line uses it.
+                row = alice.locator('[data-field="secretary_name"]')
+                row.locator('.about-edit').click()
+                row.get_by_role('textbox').fill('Pip')
+                row.get_by_role('textbox').press('Enter')
+                expect(alice.get_by_role('heading', name='Pip记得的你', exact=True)).to_be_visible()
+                expect(alice.locator('.about-chat').first).to_contain_text('让Pip来改')
+                alice.wait_for_load_state('networkidle')
                 assert not errors, errors
                 browser.close()
             report = {'ok': True, 'artifacts': str(artifacts)}
