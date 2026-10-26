@@ -285,8 +285,8 @@ function nightCheckin(info) {
     const done = dueItems.filter(option => state.verdicts[option.value]);
     const notDone = dueItems.filter(option => state.verdicts[option.value] === false);
     const earlyDone = early ? early.options.filter(option => state.early.has(option.value)) : [];
-    done.push(...tidyItems.filter(item => state.tidy[item.key] === 'done').map(item => ({ label: item.title })));
-    return { done, notDone, earlyDone };
+    const tidyDone = tidyItems.filter(item => state.tidy[item.key] === 'done');
+    return { done, notDone, earlyDone, tidyDone };
   }
   function footer(...buttons) { const row = make('div', '', 'checkin-footer'); row.append(...buttons); return row; }
   function button(text, action, primary) {
@@ -314,7 +314,7 @@ function nightCheckin(info) {
     body.push(head);
     if (steps.length > 1) body.push(stepper);
     const step = steps[state.step];
-    const { done, notDone, earlyDone } = wins();
+    const { done, notDone, earlyDone, tidyDone } = wins();
     if (step === 'due') {
       const option = dueItems[state.index];
       body.push(make('p', dueItems.length === 1 ? t('One thing was planned for today. Did you get it done?')
@@ -380,13 +380,14 @@ function nightCheckin(info) {
       text.setAttribute('aria-label', details.title);
       text.addEventListener('input', () => { state.text = text.value; });
       body.push(text);
-      const total = done.length + earlyDone.length;
+      const total = done.length + earlyDone.length + tidyDone.length;
       if (steps.length > 1) {
         const summary = make('div', '', 'checkin-summary');
         summary.append(make('p', total ? t('{count} done today', { count: total }) : t('A quiet day. Thanks for checking in.'), 'checkin-total'));
         const list = make('ul');
         for (const option of done) list.append(make('li', '✓ ' + option.label, 'is-done'));
         for (const option of earlyDone) list.append(make('li', '★ ' + option.label, 'is-early'));
+        for (const item of tidyDone) list.append(make('li', '✓ ' + item.title, 'is-done'));
         for (const option of notDone) list.append(make('li', '– ' + option.label + ' · ' + t('stays open'), 'is-not-done'));
         summary.append(list); body.push(summary);
       }

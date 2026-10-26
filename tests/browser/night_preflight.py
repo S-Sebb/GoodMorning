@@ -60,6 +60,8 @@ def fixture(root, scenario):
             inbox.mutate('add', {'kind':'todo','raw':'Tidy the garage'},'ses_fixture','garage',then)
             inbox.mutate('add', {'kind':'todo','raw':'Book the dentist','task':{'title':'Book the dentist','planned_date':planned}},
                          'ses_fixture','dentist',then)
+            inbox.mutate('add', {'kind':'todo','raw':'Planned errand','task':{'title':'Planned errand','planned_date':app.today()}},
+                         'ses_fixture','planned',stamp(root))
         finally:
             inbox.close()
     serve_live(app,0)
@@ -104,7 +106,8 @@ def main():
                             expect(dialog.locator('.checkin-steps')).to_have_count(0)
                             expect(dialog.locator('input[type=checkbox]')).to_have_count(0)
                         elif scenario == 'tidy':
-                            expect(dialog.locator('.checkin-steps li')).to_have_count(2)
+                            expect(dialog.locator('.checkin-steps li')).to_have_count(3)
+                            dialog.locator('.checkin-verdict .checkin-primary').click()
                             expect(dialog.get_by_text(copy['tidy'],exact=True)).to_be_visible()
                             expect(dialog.locator('.checkin-group h4')).to_have_text(['Tidy the garage','Book the dentist'])
                             garage=dialog.locator('.checkin-group').nth(0); dentist=dialog.locator('.checkin-group').nth(1)
@@ -115,6 +118,7 @@ def main():
                             if artifacts:
                                 page.screenshot(path=str(artifacts/f'{language}-tidy-step-{width}.png'))
                             dialog.get_by_role('button',name=copy['next']).click()
+                            expect(dialog.locator('.checkin-summary')).to_contain_text('✓ Planned errand')
                             expect(dialog.locator('.checkin-summary')).to_contain_text('✓ Book the dentist')
                         else:
                             expect(dialog.locator('.checkin-steps li')).to_have_count(3)
@@ -150,7 +154,7 @@ def main():
                         job=next(j for j in jobs.values() if j['kind']=='gn')
                         context=json.loads((root/'browser-jobs'/(job['id']+'.context.json')).read_text())
                         assert context['feedback']['saved']
-                        assert context['feedback']['completed']==({'tasks':['Review results','Review results'],'tidy':['Book the dentist']}.get(scenario,[]))
+                        assert context['feedback']['completed']==({'tasks':['Review results','Review results'],'tidy':['Planned errand','Book the dentist']}.get(scenario,[]))
                         if scenario=='tidy':
                             tidy={key:value for key,value in context['browser_answer'].items() if key.startswith('tidy_')}
                             assert sorted(tidy.values())==['done','drop'], tidy
