@@ -14,7 +14,8 @@ MAX_BYTES = 150_000
 TITLES = {'weather': 'Weather', 'news': 'News', 'schedule': 'Schedule',
           'must-do': 'Project steps', 'nice-to-do': 'Optional project steps', 'reminders': 'Reminders',
           'today': 'Today', 'still-open': 'Still open', 'tomorrow': 'Tomorrow', 'notes': 'Notes',
-          'tasks': 'Tasks', 'attention': 'Reminders', 'anime': 'New episodes', 'games': 'Game sales', 'stocks': 'Stocks'}
+          'tasks': 'Tasks', 'attention': 'Reminders', 'anime': 'New episodes', 'games': 'Game sales', 'stocks': 'Stocks',
+          'letter': 'Weekly letter'}
 WEATHER = {'temperature': ('Temperature', 'thermometer', 'temperature cool'),
            'precipitation': ('Precipitation', 'rain', 'precipitation'),
            'warning': ('Extreme warning', 'warning', 'other'), 'air': ('AQI', 'leaf', 'air')}
@@ -353,6 +354,12 @@ def block(value, path):
             if row[6] and (not isinstance(row[6], str) or not row[6].startswith('https://')):
                 fail(path, 'cover images require an HTTPS URL')
             text(row[6], path + '.cover', 2000, empty=True)
+    elif tag == 'letter':
+        # [week, [finished, habits, ideas] or null when the letter could not be written]; code builds it.
+        sequence(value, path, 3, 3)
+        if not isinstance(value[1], str) or not re.fullmatch(r'\d{4}-\d{2}-\d{2}', value[1]) or value[2] is not None and (
+                not isinstance(value[2], list) or len(value[2]) != 3 or any(type(count) is not int or count < 0 for count in value[2])):
+            fail(path, 'letter blocks are code-owned; publish the letter position as its guide says')
     elif tag == 'holdings':
         # [symbol, name, session_date, shares, close, previous_close, cost_or_null, currency,
         #  dividends_counted, dividend_today, shares_may_have_changed], copied from the stocks read.
@@ -478,7 +485,7 @@ def block(value, path):
         if len(value) == 4 and (not isinstance(value[3], str) or not re.fullmatch('[A-Z]{2}', value[3])):
             fail(path, 'country flag requires a two-letter country code')
     else:
-        fail(path, 'unknown block type; use p/list/table/agenda/tasks/weather/news/flexible/episodes/deals/holdings/outlook')
+        fail(path, 'unknown block type; use p/list/table/agenda/tasks/weather/news/flexible/episodes/deals/holdings/outlook/letter')
 
 
 def validate(data, partial=False):
@@ -521,6 +528,8 @@ def validate(data, partial=False):
                 fail(path, 'deals blocks belong in the games section, which holds only deals and paragraphs')
             if (value[0] == 'holdings') != (section[0] == 'stocks') and value[0] != 'p':
                 fail(path, 'holdings blocks belong in the stocks section, which holds only holdings and paragraphs')
+            if (value[0] == 'letter') != (section[0] == 'letter') or section[0] == 'letter' and len(section[1]) != 1:
+                fail(path, 'the weekly letter section holds exactly one letter block')
             if value[0] == 'flexible':
                 if section[0] not in ('schedule', 'tomorrow'):
                     fail(path, 'flexible schedules belong in schedule or tomorrow, not reminders/notes')
@@ -860,6 +869,13 @@ def holdings_markup(rows, briefing_date, closed=None):
     return '<div class="holdings">' + ''.join(markets) + '</div>'
 
 
+def letter_counts(counts):
+    """Things finished, habits kept going and new ideas, leaving out the ones with none."""
+    parts = [ui.ui(single if count == 1 else many, count=count) for count, single, many in zip(counts, (
+        '1 thing finished', '1 habit kept going', '1 new idea'), ('{count} things finished', '{count} habits kept going', '{count} new ideas')) if count]
+    return '<p class="letter-counts">' + ' · '.join(parts) + '</p>' if parts else ''
+
+
 def render_block(value, images, briefing_date=None):
     tag = value[0]
     if tag == 'actions':
@@ -1009,6 +1025,11 @@ def render_block(value, images, briefing_date=None):
             cards.append(f'<li class="deal-card">{deal_visual(cover, name, images)}<div class="deal-copy">'
                          f'<h4 class="deal-name" data-content>{escaped(name)}</h4><p class="deal-line">{prices}</p>{when}</div></li>')
         return '<ul class="deal-list">' + ''.join(cards) + '</ul>'
+    if tag == 'letter':
+        if value[2] is None:
+            return '<p class="letter-card is-unavailable">' + ui.ui('This week’s letter couldn’t be written this time.') + '</p>'
+        return ('<div class="letter-card"><p>' + ui.ui('This week’s letter is in your book.') + '</p>' + letter_counts(value[2])
+                + f'<a class="letter-open" href="/letters/{value[1]}">' + ui.ui('Open letter') + '</a></div>')
     if tag == 'holdings':
         return holdings_markup(value[1], briefing_date, value[2] if len(value) > 2 else None)
     if tag == 'news':

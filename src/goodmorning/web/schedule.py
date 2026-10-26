@@ -454,7 +454,7 @@ def page(app, offset, mode='week'):
               '<link rel="stylesheet" href="/scroll-rails.css"><script src="/scroll-rails.js" defer></script></head><body class="schedule-page">'
               '<a class="skip-link" href="#schedule-view">Skip to schedule</a><header class="masthead"><a class="wordmark" href="/gm.html">GoodMorning<span>A personal secretary just for you</span></a>'
               '<nav class="edition-switch" aria-label="Your desk"><a class="edition-link" href="/gm.html">Morning</a><a class="edition-link" href="/gn.html">Evening</a>'
-              '<a class="edition-link selected" href="/schedule" aria-current="page">Schedule</a><a class="edition-link" href="/chat">Secretary</a></nav></header>'
+              '<a class="edition-link selected" href="/schedule" aria-current="page">Schedule</a><a class="edition-link" href="/letters">Letters</a><a class="edition-link" href="/chat">Secretary</a></nav></header>'
               '<main><div id="schedule-view">' + content + '</div><p id="schedule-error" role="alert"></p>'
               '<noscript>Navigation and saved plans work without JavaScript. Reload to see updates.</noscript></main>'
               '<div id="schedule-config" hidden data-config="' + config + '"></div><script src="/schedule.js" defer></script></body></html>')

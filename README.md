@@ -26,6 +26,9 @@ record, and an AI agent turns that record into two briefings a day:
 - **Evening:** what you finished, what's still open, and tomorrow. Optional
   sections show stocks, new episodes of your shows, and game sales.
 - **Schedule:** your calendar and dated to-dos in a week or day view.
+- **Letters:** on Sunday evenings, a short letter about your week: what you
+  finished, habits you kept going, ideas you saved and next week's plans, kept
+  to look back on.
 - **Secretary:** a chat that saves to-dos, ideas, habits and errands, and asks
   when something is unclear.
 
@@ -147,6 +150,7 @@ Weather, modelled air quality and news need outbound HTTPS but no API keys.
 
 [Item types and timing](docs/item-taxonomy.md) ·
 [Schedule](docs/weekly-schedule.md) ·
+[Weekly letters](docs/weekly-letters.md) ·
 [Browser chat](docs/browser-chat.md) ·
 [Project access](docs/project-access.md) ·
 [Source layout](docs/project-structure.md) ·

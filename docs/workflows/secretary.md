@@ -229,6 +229,13 @@ guides only for the requested operation; do not recursively reload the skill.
    bring a note in the night briefing asking them to restate their shares (you do
    not ask them yourself). Promise no alerts, forecasts or advice. Name
    stocks by name and code, never profile fields or symbol prefixes.
+   Weekly letter: on unless `weekly_letter` is `"false"`. When the user asks to
+   stop or resume it, set `weekly_letter: "false"` or `"true"`; saved letters stay
+   either way. Confirm in everyday words: preparing Sunday's evening briefing also
+   writes a letter about that week (what they finished, habits, ideas they saved
+   and next week's plans) and keeps it on the Letters page (“来信” in
+   Chinese); the briefing ends with a short notice. Promise no other
+   notifications.
 5. Project writes follow `docs/project-access.md`: exact authorized target, full
    contents/current hash, scoped confirmation, preserved unrelated work and updated
    `last_update`. Calendar changes/imports follow `docs/calendar-pipeline.md`:

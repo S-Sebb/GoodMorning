@@ -52,6 +52,7 @@ a:focus-visible { outline: 2px solid var(--accent); outline-offset: 5px; }
 .edition-link[href$="gm.html"] { --desk-icon: url("icons/desk-morning.svg"); }
 .edition-link[href$="gn.html"] { --desk-icon: url("icons/desk-evening.svg"); }
 .edition-link[href="/schedule"] { --desk-icon: url("icons/desk-schedule.svg"); }
+.edition-link[href="/letters"] { --desk-icon: url("icons/desk-letters.svg"); }
 .edition-link[href="/chat"] { --desk-icon: url("icons/desk-secretary.svg"); }
 .edition-link.selected { background: var(--ink); color: var(--bg); }
 .edition-unavailable { display: flex; align-items: center; gap: 7px; padding: 8px 14px; color: var(--muted); font-size: 13px; }
@@ -473,6 +474,8 @@ footer { max-width: 1440px; margin: 48px auto 0; padding: 26px max(80px, calc(en
 @media (hover: hover) and (pointer: fine) { .edition-link:hover { transform: translateY(-2px); box-shadow: 0 5px 16px #0001; } .edition-link:not(.selected):hover { background: var(--wash); } }
 @media (max-width: 1000px) { .briefing-section { padding: 26px; } .hero { grid-template-columns: 1fr 220px; } .orbit { width: 220px; } }
 @media (max-width: 1100px) and (min-width: 701px) { .briefing-letter .hero { grid-template-columns: minmax(0, 1fr) 140px; gap: 20px; } .briefing-letter .hero-copy { grid-template-columns: 168px minmax(0, 1fr); gap: 28px; } .briefing-letter .orbit { width: 140px; } .briefing-letter .orbit .sky-scene { height: 100px; } .briefing-letter .orbit .sun { width: 140px; height: 100px; } }
+/* Five desk tabs share the masthead with the wordmark on tablet widths. */
+@media (min-width: 701px) and (max-width: 1000px) { .edition-switch { gap: 4px; } .edition-link { padding: 8px 10px; gap: 5px; } .edition-switch .edition-link::before { flex-basis: 20px; width: 20px; height: 20px; } }
 @media (max-width: 700px) { .masthead { padding: max(22px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) 22px max(16px, env(safe-area-inset-left)); align-items: flex-start; flex-wrap: wrap; gap: 16px; } .wordmark { font-size: 24px; } .edition-switch { justify-content: flex-end; gap: 4px; margin-left: auto; } .edition-link { padding: 10px 12px; min-height: 44px; } .pending { width: 100%; text-align: right; font-size: 10px; } main { padding: 0 max(56px, calc(env(safe-area-inset-right) + 52px)) 0 max(16px, env(safe-area-inset-left)); } .hero { grid-template-columns: 1fr; padding: 34px 0 12px; } h1 { font-size: clamp(38px, 10vw, 60px); letter-spacing: -2px; overflow-wrap: anywhere; } .orbit { display: none; } .subtitle { font-size: 18px; } .intro { padding-bottom: 20px; } .weather .section-body { display: block; } .briefing-section { padding: 20px; border-radius: 12px; } .briefing-section > header { gap: 12px; } h2 { font-size: 25px; overflow-wrap: anywhere; } .section-body { font-size: 14px; } .section-body table { min-width: 620px; } .scroll-map { right: max(4px, env(safe-area-inset-right)); } .nav-preview { padding: 20px; } footer { margin-top: 28px; padding-left: max(16px, env(safe-area-inset-left)); padding-right: max(56px, calc(env(safe-area-inset-right) + 52px)); } }
 @media (max-height: 500px) { .scroll-map { height: calc(100vh - 32px); } .nav-preview { padding: 16px; } .preview-title { font-size: 21px; margin: 8px 0; } .preview-excerpt { -webkit-line-clamp: 3; } .preview-footer { margin-top: 12px; padding-top: 10px; } }
 @supports (height: 1dvh) { .scroll-map { height: clamp(280px, 62dvh, 440px); max-height: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 112px); } @media (max-height: 500px) { .scroll-map { height: calc(100dvh - 112px); } } }
@@ -726,3 +729,32 @@ h2:lang(zh), .preview-title:lang(zh) { font-family: var(--cn-sans); letter-spaci
 @media (max-width: 600px) { .checkin { width: 100vw; max-width: 100vw; margin: auto 0 0; border-radius: 22px 22px 0 0; padding: 18px 16px max(18px, env(safe-area-inset-bottom)); max-height: 92dvh; } .checkin-footer { bottom: max(-18px, calc(-1 * env(safe-area-inset-bottom))); margin: 18px -16px -18px; padding: 12px 16px max(18px, env(safe-area-inset-bottom)); } .checkin-board { grid-template-columns: 1fr; } .checkin-card h3 { font-size: 19px; } }
 @media (hover: none) { .checkin kbd { display: none; } }
 @media (prefers-reduced-motion: reduce) { .checkin[open], .checkin-burst { animation: none; } .checkin-card { transition: none; } }
+/* Weekly letters: the briefing notice, the Letters shelf and one letter, read like a page in a book. */
+.letter-card p { margin: 0 0 8px; }
+.letter-counts { color: var(--muted); font-size: 14px; }
+.letter-open { display: inline-flex; align-items: center; min-height: 44px; margin-top: 8px; padding: 0 20px; border-radius: 999px; background: var(--ink); color: var(--bg); font-weight: 600; text-decoration: none; }
+.letter-open:hover { color: var(--bg); opacity: .9; }
+.letter-card.is-unavailable { color: var(--muted); }
+.letters-page main { max-width: 760px; margin: 0 auto; padding: 24px max(24px, env(safe-area-inset-right)) 64px max(24px, env(safe-area-inset-left)); }
+.letters-page h1 { margin: 0 0 8px; font: normal clamp(30px, 4vw, 44px)/1.2 Georgia, serif; letter-spacing: -.8px; }
+.letters-intro, .letters-note { color: var(--muted); }
+.letters-list { list-style: none; margin: 28px 0 0; padding: 0; display: grid; gap: 12px; }
+.letters-list a { display: block; padding: 18px 22px; border: 1px solid var(--line); border-radius: 16px; background: var(--surface); text-decoration: none; }
+.letters-list a:hover { border-color: var(--accent); }
+.letters-week { display: block; font: normal 20px/1.4 Georgia, serif; }
+.letters-list .letter-counts { margin: 4px 0 0; }
+.weekly-letter { padding: 36px 40px; border: 1px solid var(--line); border-radius: 20px; background: var(--surface); }
+.letters-back { display: inline-flex; align-items: center; min-height: 44px; color: var(--muted); font-size: 13px; }
+.letters-back::before { content: "‹"; margin-right: 6px; }
+.weekly-letter .eyebrow { margin: 12px 0 4px; }
+.letter-opening p, .letter-signoff p { font: italic 18px/1.7 "Lora Commentary", Georgia, serif; }
+.letter-opening p:lang(zh-CN), .letter-signoff p:lang(zh-CN) { font-style: normal; font-family: inherit; }
+.letter-signoff { margin-top: 32px; }
+.weekly-letter section { margin-top: 28px; padding-top: 20px; border-top: 1px solid var(--line); }
+.weekly-letter h2 { margin: 0 0 8px; font: normal 22px/1.3 Georgia, serif; }
+.weekly-letter h3 { margin: 12px 0 2px; font-size: 13px; color: var(--muted); font-weight: 600; }
+.weekly-letter ul { margin: 0; padding-left: 20px; }
+.letter-total { margin-left: 6px; color: var(--muted); font: 600 14px ui-sans-serif, system-ui, sans-serif; }
+.letter-times, .letter-detail, .letter-when { color: var(--muted); font-size: 14px; }
+.letter-day { font-weight: 600; }
+@media (max-width: 700px) { .weekly-letter { padding: 22px 20px; border-radius: 14px; } }

@@ -121,6 +121,17 @@ TEXT = {
              'not null (never guess one), and call its result the last trading day\'s (`session`), not today\'s. If `not_found` lists codes, add one ["p","…"] block naming those codes and saying their prices could not be found. If the read '
              'failed, publish one ["p","…"] block saying only that stock prices could not be checked this time (no cause, no retry '
              'promise). Never skip this section.'),
+  'letter': ("The user's weekly letter for the Monday–Sunday week in `results`, kept on their Letters page as a memory to look back on. Code "
+             'builds and saves every list; you write only its opening and sign-off. If the read succeeded and `saved` is false, submit '
+             '{"position":N,"letter":{"opening":"…","signoff":"…"}}: opening 2–3 sentences (≤600 chars), sign-off one short line (≤200 chars), '
+             'plain text in the saved tone, warm and personal. Use only facts in `letter`: name up to three finished items, habits or ideas, '
+             'working their titles into natural sentences, and at most one thing from next week (`next`). A habit row is [title, times this '
+             'week, weeks in a row]; mention weeks in a row only when it is 2 or more. Do not rate or compare the week (busy, productive, '
+             "quiet). If `finished`, `habits` and `ideas` are all empty, say kindly that this week's letter is a short one, without naming "
+             'what is missing or judging the week; you may still mention one thing from `next`. The letter is its own page, so it may call the '
+             'user once by exactly `reply_context.user_name`, or by no name. If `saved` is true, the letter is already written and stays as it '
+             'is: submit {"position":N}. If the read failed, submit {"position":N}; the briefing then says the letter could not be written '
+             'this time (no cause, no retry promise). Never skip this section.'),
   'today_regenerating': ('REGENERATION: make no task writes and ask nothing; reuse saved feedback. Copy the read\'s block (none when it is null) and '
                          'mention every reported outcome.'),
   'finish': ('Submit {} or {"closing":"…"} following `writing`. After a verified save, reply only with one short delivery line in '
@@ -203,6 +214,12 @@ TEXT = {
              '（金额带 ¥ 或 $，再加百分比）；亏损时语气体贴，不要制造紧张。带 `closed_on` 的市场那天没有开盘（周末或节假日）：先说明休市，`next_trading_day` 不为 null 时说出下个交易日'
              '（为 null 时不要猜），并把它的结果说成上个交易日（`session`）的表现，而不是今天的。`not_found` 列出代码时，再加一个 ["p","……"] 块点名这些代码，说明没能查到它们的价格。'
              '读取失败时发布一个 ["p","……"] 块，只说明这次没能查到股票价格（不写原因，不承诺补充）。不得跳过本章节。'),
+  'letter': ('这是用户本周（周一到周日，见 `results`）的每周来信，会保存在“来信”页面，留作日后翻看的回忆。所有清单由代码生成并保存，你只写开头和结尾。'
+             '读取成功且 `saved` 为 false 时，提交 {"position":N,"letter":{"opening":"…","signoff":"…"}}：开头 2–3 句（不超过 600 字），结尾一句简短的话'
+             '（不超过 200 字），纯文本，用保存的语气，温暖、亲切。只使用 `letter` 里的事实：最多点名三项完成的事、习惯或灵感（把标题自然地写进句子里），下周（`next`）最多提一件事。'
+             '习惯行是 [标题, 本周次数, 连续周数]；连续周数为 2 或以上时才提。不要评价或比较这一周（忙碌、高效、清闲）。`finished`、`habits` 和 `ideas` 都为空时，温和地说这周的信比较短，不要说缺了什么，也不要评价这一周；仍可以提一件下周的事。'
+             '来信是单独的页面，可以用 `reply_context.user_name` 的原样称呼用户一次，也可以不称呼。`saved` 为 true 时，这封信已经写好并保持原样：提交 {"position":N}。'
+             '读取失败时提交 {"position":N}，简报会说明这次没能写成来信（不写原因，不承诺补写）。不得跳过本章节。'),
   'today_regenerating': '重新生成：不写入任务、不提问；沿用已保存的反馈。复制读取返回的块（为 null 时没有），提到用户报告的每项结果。',
   'finish': '提交 {} 或 {"closing":"…"}，遵循 `writing`。保存核实后，只用保存的语气写一句简短的交付语，并附上返回的相对 url 作为 Markdown 链接。',
  },
@@ -228,6 +245,8 @@ def guide(context, action, plan, *, runtime, job, session):
             value += words['regenerating']
     elif action['action'] == 'finish':
         value = words['finish']
+    elif tag == 'letter':
+        value = words['letter']
     elif tag == 'today' and context.get('regenerating'):
         value = words['shape'] + words['today_regenerating']
     elif tag == 'weather' and context['workflow'] == 'gn':

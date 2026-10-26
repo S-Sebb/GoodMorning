@@ -129,7 +129,7 @@
 @media (max-width: 600px) {
   .schedule-page .masthead { align-items: start; flex-direction: column; gap: 14px; padding-top: 14px; padding-bottom: 10px; }
   .schedule-page .edition-switch { flex-wrap: nowrap; gap: 2px; width: 100%; justify-content: space-between; }
-  .schedule-page .edition-link { padding: 8px 10px; }
+  .schedule-page .edition-link { padding: 8px 6px; }
   .schedule-toolbar { align-items: start; flex-direction: column; gap: 18px; padding: 24px 0 20px; }
   .schedule-navigation { width: 100%; gap: 4px; }
   .schedule-navigation { flex-wrap: wrap; }

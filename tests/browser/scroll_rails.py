@@ -1,4 +1,5 @@
 """Phone drag rails, nested touch ownership and briefing reuse; synthetic data only."""
+from datetime import date, timedelta
 import json
 from pathlib import Path
 import subprocess
@@ -198,7 +199,7 @@ def check_briefing(browser, address, artifacts):
     page.goto(address + '/d/' + briefing_day('Europe/London') + '/gn.html')
     expect(page.get_by_role('scrollbar')).to_have_count(1)
     expect(page.locator('.scroll-rail-label')).to_have_count(0)
-    for path, name in (('/gm.html', 'morning'), ('/gn.html', 'evening'), ('/schedule', 'schedule')):
+    for path, name in (('/gm.html', 'morning'), ('/gn.html', 'evening'), ('/schedule', 'schedule'), ('/letters', 'letters')):
         page.goto(address + path)
         page.evaluate('document.fonts.ready')
         expect(page.get_by_role('scrollbar')).to_have_count(1)
@@ -225,6 +226,12 @@ def main():
                           f'Synthetic section {index + 1}'] for index in range(6)]})
         for kind in ('gm', 'gn'):
             (root / 'daily' / f'{day}.{kind}.json').write_text(document)
+        (root / 'letters').mkdir(mode=0o700)
+        for weeks in range(1, 13):  # Enough saved letters to scroll the Letters tab.
+            monday = date(2026, 10, 19) - timedelta(weeks=weeks)
+            (root / 'letters' / f'{monday}.json').write_text(json.dumps({
+                'v': 1, 'week': str(monday), 'lang': 'en', 'opening': 'Synthetic letter.', 'signoff': 'See you.', 'finished': [],
+                'habits': [], 'ideas': [], 'next': {'events': [], 'deadlines': [], 'planned': 0, 'complete': True}}))
         server = subprocess.Popen([sys.executable, str(REPO / 'tests/test_briefing_chat.py'), '--serve-fixture', directory],
                                   stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
         try:
@@ -240,7 +247,7 @@ def main():
         finally:
             server.terminate()
             server.communicate(timeout=5)
-    report = {'modelCalls': 0, 'checks': checks, 'allFourTabs': True, 'visibleLabels': False, 'thumbWidth': 5, 'savedRecordsUnchanged': True}
+    report = {'modelCalls': 0, 'checks': checks, 'allFiveTabs': True, 'visibleLabels': False, 'thumbWidth': 5, 'savedRecordsUnchanged': True}
     (artifacts / 'result.json').write_text(json.dumps(report, indent=2))
     print(json.dumps(report))
 
