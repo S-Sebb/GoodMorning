@@ -2,6 +2,7 @@
 import argparse
 from contextlib import redirect_stderr, redirect_stdout
 from copy import deepcopy
+from datetime import date as Date
 import io
 import json
 import os
@@ -14,6 +15,7 @@ import sys
 from . import briefing_document as native
 from . import briefing_guides
 from .briefing_stream import DEFAULT_PLANS, LEGACY_PLANS, bounded_json, load, paths, publish, require_final
+from goodmorning.records import letters
 from goodmorning.runtime_files import atomic_text, runtime_lock, secretary_path
 from goodmorning.web import language as ui
 
@@ -89,6 +91,9 @@ def default_plan(context):
         plan.append(['games', ui.text(native.TITLES['games'], lang=selected)])
     if context['workflow'] == 'gn' and context.get('document_version') == 2 and context.get('stocks', {}).get('enabled'):
         plan.append(['stocks', ui.text(native.TITLES['stocks'], lang=selected)])
+    if (context['workflow'] == 'gn' and context.get('document_version') == 2 and context.get('weekly_letter', {}).get('enabled')
+            and Date.fromisoformat(context['date']).weekday() == 6):
+        plan.append(['letter', ui.text(native.TITLES['letter'], lang=selected)])
     return plan
 
 
@@ -136,6 +141,9 @@ def next_step(runtime, identifier, session, context, checkpoint):
         reads.append(shlex.join(['python','scripts/goodmorning.py',tag,'--secretary-dir',str(runtime),'--date',context['date'],
                                  '--timezone',context['timezone'],'--website-language',context.get('website_language','en'),
                                  '--cache-dir',selected['cache']]))
+    elif tag == 'letter':
+        reads.append(shlex.join(['python','scripts/goodmorning.py','letter','--secretary-dir',str(runtime),'--week',letters.week_of(context['date']),
+                                 '--website-language',context.get('website_language','en')]))
     elif context.get('document_version') == 2 and tag in ('schedule', 'tasks', 'attention', 'today'):
         read_command = ['python', 'scripts/goodmorning.py', 'task', '--secretary-dir', str(runtime),
                                 '--briefing', context['workflow'], '--date', context['date'],
@@ -155,7 +163,10 @@ def next_step(runtime, identifier, session, context, checkpoint):
                         'No timed appointments does not mean a free day.')
     action = {'action':'publish','command':shlex.join(command + ['publish']), 'position':position,
               'section':[tag,title], 'read':reads}
-    if context.get('document_version') == 2:
+    if tag == 'letter':
+        action['input'] = ({'position':position} if letters.load(runtime, letters.week_of(context['date']))
+                           else {'position':position, 'letter':{'opening':'…', 'signoff':'…'}})
+    elif context.get('document_version') == 2:
         action['input'] = {'position':position, 'section':[tag,'BLOCKS','NOTE',title]}
     else:
         action['instruction'] = instruction
@@ -205,6 +216,23 @@ def with_weather_frame(runtime, identifier, section):
             section[1][index] = [*block, frame]
             break
     return section
+
+
+def letter_section(runtime, job, context, payload):
+    """The briefing's notice for this week's letter, saving the letter first so the notice never promises a missing one."""
+    if set(payload) - {'position', 'letter'}:
+        raise ValueError('Publish the weekly letter as {"position":N,"letter":{"opening":"…","signoff":"…"}}, or {"position":N} as its guide says')
+    week = letters.week_of(job['date'])
+    letter = letters.load(runtime, week)
+    if letter is None:
+        try:
+            letters.facts(runtime, week, context.get('website_language', 'en'))
+        except (ValueError, OSError, KeyError, sqlite3.Error):
+            return ['letter', [['letter', week, None]]]  # Records could not be read: no letter this week.
+        if 'letter' not in payload:
+            raise ValueError('This week\'s records were read: write the letter as {"position":N,"letter":{"opening":"…","signoff":"…"}}')
+        letter = letters.save(runtime, week, payload['letter'], context.get('website_language', 'en'))
+    return ['letter', [['letter', week, letters.counts(letter)]]]
 
 
 def read_count(runtime, job, tag, results):
@@ -376,6 +404,9 @@ def writing_rule(context, next_action):
                     'Copy returned code-owned blocks. The morning schedule covers today plus any later cards the read returns (advance notices the user asked for; call them coming up); do not add other upcoming appointments. Use the returned empty-schedule paragraph without recalculating dates/weekdays or widening the range. No saved appointments does not establish free time, absence of preparation or absence of conflicts. Add a short note in the saved tone summarizing the day in plain words (empty: no appointments saved; non-empty: count and earliest time plus most useful preparation); do not mention windows, glances, TBC, timed focus, or code blocks; do not repeat every card.')
         return ('复制返回的代码生成块；晚间日程覆盖明天，以及读取结果中返回的更晚日期卡片（用户要求提前提醒的事项，称为“即将到来”）；不要自行加入其他更远日期的约定；空日程使用返回的明日段落，不自行改写日期、星期或扩大范围。没有已保存的约定不能证明空闲、没有准备工作或没有冲突。用保存的语气加一句简短注记，用通俗说法总结当天（空：仅说明当天没有已保存的约定，不说空闲；非空：数量和最早时间加最有用的准备），不要出现窗口、三天一览、TBC、timed 焦点、代码块等内部说法，不要重复每张卡片。' if chinese else
                 'Copy returned code-owned blocks. The evening schedule covers tomorrow plus any later cards the read returns (advance notices the user asked for; call them coming up); do not add other later appointments. Use the returned empty-schedule paragraph without recalculating dates/weekdays or widening the range. No saved appointments does not establish free time, absence of preparation or absence of conflicts. Add a short note in the saved tone summarizing the day in plain words (empty: no appointments saved; non-empty: count and earliest time plus most useful preparation); do not mention windows, glances, TBC, timed focus, or code blocks; do not repeat every card.')
+    if tag == 'letter':
+        return ('开头和结尾只能提到读取结果里有的事：完成的事项、习惯、灵感和下周的安排。不要提到没完成的事、中断的习惯或空着的部分；不要编造进展、感受、空闲时间或精力，也不要承诺之后会做什么。' if chinese else
+                'The opening and sign-off may mention only what the read returned: finished items, habits, ideas and next week\'s plans. Never mention unfinished work, broken or missing streaks or empty parts; never invent progress, feelings, free time or energy, or promise anything later.')
     if tag == 'stocks':
         return ('只写读取结果里有的股票和涨跌；不预测走势、不给买卖建议，也不承诺之后提醒。' if chinese else
                 'Mention only stocks and moves the read returned. No forecasts, no buy or sell advice, no promise of later alerts.')
@@ -458,7 +489,7 @@ def act(runtime, identifier, session, action, payload=None):
             expected = default_plan(context)
             if context.get('document_version') == 2 and checkpoint is None:
                 if 'plan' in payload and payload['plan'] != expected:
-                    raise ValueError('Briefing plan order is fixed; use the default plan unchanged (gm Weather, News, Schedule, Tasks, Reminders; gn Today, Schedule, Tasks, Reminders, then New episodes, Game sales and Stocks when on)')
+                    raise ValueError('Briefing plan order is fixed; use the default plan unchanged (gm Weather, News, Schedule, Tasks, Reminders; gn Today, Weather tomorrow, Schedule, Tasks, Reminders, then New episodes, Game sales and Stocks when on, and the Weekly letter on Sundays)')
                 plan = expected
             else:
                 plan = payload.get('plan', expected)
@@ -472,6 +503,9 @@ def act(runtime, identifier, session, action, payload=None):
         document = deepcopy(checkpoint['document'])
         position = len(checkpoint['outcomes'])
         if action in ('publish', 'skip'):
+            if (action == 'publish' and isinstance(payload, dict) and type(payload.get('position')) is int
+                    and 0 <= payload['position'] <= min(position, len(checkpoint['plan']) - 1) and checkpoint['plan'][payload['position']][0] == 'letter'):
+                payload = {'position':payload['position'], 'section':letter_section(runtime, job, context, payload)}
             if not isinstance(payload, dict) or set(payload) != ({'position','section'} if action == 'publish' else {'position'}):
                 raise ValueError('Supply the section position and, for publish, one section')
             requested = payload['position']
@@ -492,7 +526,7 @@ def act(runtime, identifier, session, action, payload=None):
             if requested != position or position == len(checkpoint['plan']):
                 raise ValueError('Publish only the next unresolved section')
             if action == 'skip':
-                if checkpoint['plan'][position][0] in ('weather','news','schedule','today','tomorrow','anime','games','stocks'):
+                if checkpoint['plan'][position][0] in ('weather','news','schedule','today','tomorrow','anime','games','stocks','letter'):
                     raise ValueError('Publish material unavailability; do not skip a required section')
                 return receipt(publish(runtime, identifier, skip=True, position=position))
             if checkpoint['plan'][position][0] == 'news' and isinstance(payload['section'], list) and payload['section'][:1] == ['news']:

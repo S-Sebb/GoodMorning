@@ -199,7 +199,8 @@ class EveningSectionTests(unittest.TestCase):
         request.start(); self.addCleanup(request.stop)
         (self.root / 'profile.md').write_text(
             'city: Shanghai, CN\ntimezone: Asia/Shanghai\nnews_country: CN\nsecretary_language: English\n'
-            'anime_updates: "true"\nanime_source: "anilist"\nanime_account: ""\nanime_titles: "235"\n')
+            'anime_updates: "true"\nanime_source: "anilist"\nanime_account: ""\nanime_titles: "235"\n'
+            'weekly_letter: "false"\n')  # DAY is a Sunday; this section ends the evening without the letter.
         initialize(self.root)
         (self.root / 'daily').mkdir()
 

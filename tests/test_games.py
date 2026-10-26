@@ -141,7 +141,8 @@ class EveningSectionTests(unittest.TestCase):
         request.start(); self.addCleanup(request.stop)
         (self.root / 'profile.md').write_text(
             'city: London, GB\ntimezone: Europe/London\nnews_country: GB\nsecretary_language: English\n'
-            'game_sales: "true"\ngame_country: "GB"\ngame_account: ""\ngame_threshold: "50"\ngame_titles: "292030, 582010"\n')
+            'game_sales: "true"\ngame_country: "GB"\ngame_account: ""\ngame_threshold: "50"\ngame_titles: "292030, 582010"\n'
+            'weekly_letter: "false"\n')  # DAY is a Sunday; this section ends the evening without the letter.
         initialize(self.root)
         (self.root / 'daily').mkdir()
 

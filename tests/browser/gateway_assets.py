@@ -60,9 +60,9 @@ def main():
                         context=browser.new_context(viewport={'width':width,'height':950})
                         context.route('**/*',forward)
                         page=context.new_page();page.on('pageerror',lambda e:browser_errors.append(str(e)))
-                        for path in ('/gm.html','/gn.html','/schedule','/chat'):
+                        for path in ('/gm.html','/gn.html','/schedule','/letters','/chat'):
                             page.goto(origin+path);page.evaluate('document.fonts.ready')
-                            links=page.locator('.edition-switch .edition-link');expect(links).to_have_count(4)
+                            links=page.locator('.edition-switch .edition-link');expect(links).to_have_count(5)
                             for link in links.all():
                                 value=link.evaluate('el => getComputedStyle(el,"::before").backgroundImage')
                                 assert '/assets/' in value

@@ -36,6 +36,7 @@ game_threshold: ""
 game_titles: ""
 stock_report: ""
 stock_holdings: ""
+weekly_letter: ""
 
 ## Project roots
 

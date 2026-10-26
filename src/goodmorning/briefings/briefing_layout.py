@@ -26,6 +26,7 @@ ICONS = {
     "chart": '<path d="M3 3v18h18"/><path d="m7 15 4-4 3 3 6-7"/>',
     "tag": '<path d="M3 12V4h8l10 10-8 8Z"/><circle cx="7.5" cy="8.5" r="1.5"/>',
     "tv": '<rect x="3" y="7" width="18" height="13" rx="2.5"/><path d="m8 3 4 4 4-4M10 11.5v5l4-2.5Z"/>',
+    "letter": '<rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="m3.5 7 8.5 6 8.5-6"/>',
 }
 
 

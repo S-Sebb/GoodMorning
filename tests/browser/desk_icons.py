@@ -27,14 +27,14 @@ def check(app, url, shots):
             expect(page.locator('html')).to_have_attribute('lang', language)
             for theme, hour in (('gm', 12), ('gn', 21)):
                 app.now = lambda hour=hour: datetime(2026, 10, 13, hour, tzinfo=timezone.utc)
-                for route in ('/gm.html', '/gn.html', '/schedule', '/chat'):
+                for route in ('/gm.html', '/gn.html', '/schedule', '/letters', '/chat'):
                     for width in (1440, 820, 390, 320):
                         page.set_viewport_size({'width': width, 'height': 900})
                         page.goto(url + route)
                         page.evaluate('document.fonts.ready')
                         links = page.locator('.edition-switch .edition-link')
-                        expect(links).to_have_count(4)
-                        labels = ['Morning', 'Evening', 'Schedule', 'Secretary'] if language == 'en' else ['早报', '晚报', '日程', '秘书']
+                        expect(links).to_have_count(5)
+                        labels = ['Morning', 'Evening', 'Schedule', 'Letters', 'Secretary'] if language == 'en' else ['早报', '晚报', '日程', '来信', '秘书']
                         for link, label in zip(links.all(), labels):
                             expect(link).to_have_accessible_name(label)
                             icon = link.evaluate('el => { const s = getComputedStyle(el, "::before"); return {image: s.backgroundImage, width: parseFloat(s.width), height: parseFloat(s.height)}; }')

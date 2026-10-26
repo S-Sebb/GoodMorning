@@ -41,6 +41,7 @@ from .activity import ACTIVITY_PATH, snapshot as activity_snapshot
 from . import app_briefings
 from .briefing_reminders import ReminderLines, Unknown
 from . import schedule
+from . import letters
 from . import quick_chat
 from .quick_notes import Notes
 
@@ -51,7 +52,8 @@ DESK_ART = '<svg viewBox="0 0 64 64" width="64" height="64" fill="none" aria-hid
 COLLECTING = {'weather': 'Checking the weather forecast', 'news': 'Collecting the news',
               'schedule': 'Looking through your calendar', 'tasks': 'Gathering your tasks',
               'attention': 'Checking your reminders', 'today': 'Looking over today’s updates',
-              'anime': 'Checking for new episodes', 'games': 'Checking game sales', 'stocks': 'Checking your stocks'}
+              'anime': 'Checking for new episodes', 'games': 'Checking game sales', 'stocks': 'Checking your stocks',
+              'letter': 'Looking back on your week'}
 WRITING = {'weather': ('Writing up the weather',) * 3,
            'news': ('Choosing from 1 story', 'Choosing from {count} stories', 'Writing up the news'),
            'schedule': ('Arranging 1 appointment', 'Arranging {count} appointments', 'Writing up your schedule'),
@@ -60,7 +62,8 @@ WRITING = {'weather': ('Writing up the weather',) * 3,
            'today': ('Reviewing 1 update from today', 'Reviewing {count} updates from today', 'Reviewing your day'),
            'anime': ('Writing up 1 new episode', 'Writing up {count} new episodes', 'Writing up new episodes'),
            'games': ('Writing up 1 game deal', 'Writing up {count} game deals', 'Writing up game sales'),
-           'stocks': ('Summing up 1 holding', 'Summing up {count} holdings', 'Summing up your stocks')}
+           'stocks': ('Summing up 1 holding', 'Summing up {count} holdings', 'Summing up your stocks'),
+           'letter': ('Writing your weekly letter',) * 3}
 
 
 class NoRedirect(HTTPRedirectHandler):
@@ -315,7 +318,7 @@ class BrowserApp:
         return self.resources.rewrite(ui.page(chat_page(self.csrf, settings['defaultMode'] == 'secretary', settings['connected'], settings.get('secretary_name'), settings['avatar'], {item['id']: {key: value for key, value in item.items() if key != 'id'} for item in settings['avatars']}, settings['timezone'], settings['theme']),self.csrf,'/chat')).encode()
 
     def initialization_page(self, kind):
-        switches = ''.join(f'<a class="edition-link{" selected" if other == kind else ""}" href="/{other}.html">{label}</a>' for other, label in KINDS.items()) + '<a class="edition-link" href="/schedule">Schedule</a>'
+        switches = ''.join(f'<a class="edition-link{" selected" if other == kind else ""}" href="/{other}.html">{label}</a>' for other, label in KINDS.items()) + '<a class="edition-link" href="/schedule">Schedule</a><a class="edition-link" href="/letters">Letters</a>'
         text = f'<!doctype html><html lang="en" data-edition="{kind}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><title>Initialize your secretary — GoodMorning</title><link rel="stylesheet" href="/briefing.css"></head><body><header class="masthead"><a class="wordmark" href="/{kind}.html">GoodMorning<span>A personal secretary just for you</span></a><nav class="edition-switch" aria-label="Edition">{switches}<a class="edition-link" href="/chat">Secretary</a></nav></header><main><section class="waiting-room"><div class="waiting-art">{celestial(kind)}</div><p class="eyebrow">{KINDS[kind]} edition</p><h1>Let’s make this yours.</h1><p class="subtitle">Complete your secretary’s setup before preparing a briefing. Your saved records stay unchanged.</p><a id="initialize" class="initialize-button" href="/chat?mode=initialize">Initialize my secretary</a></section></main></body></html>'
         text = self.briefing_layout(text, kind=kind)
         return self.resources.rewrite(ui.page(text.replace('</head>', favicon_links(kind) + '</head>'),self.csrf,'/'+kind+'.html')).encode()
@@ -476,7 +479,7 @@ class BrowserApp:
                              'job': current_job['id'] if current_job else None}).replace('<', '\\u003c')
         # Inert JSON in a data attribute; no inline scripts or unsafe HTML.
         marker = '<div id="browser-config" hidden data-config="' + html.escape(config, quote=True) + '"></div><script src="/questions.js" defer></script><script src="/browser.js" defer></script>'
-        text = re.sub(r'(<nav class="edition-switch"[^>]*>.*?)(</nav>)', r'\1<a class="edition-link" href="/schedule">Schedule</a><a class="edition-link" href="/chat">Secretary</a>\2', text, count=1)
+        text = re.sub(r'(<nav class="edition-switch"[^>]*>.*?)(</nav>)', r'\1<a class="edition-link" href="/schedule">Schedule</a><a class="edition-link" href="/letters">Letters</a><a class="edition-link" href="/chat">Secretary</a>\2', text, count=1)
         text = text.replace('href="icons/', 'href="/icons/')
         if '<link rel="icon"' not in text:
             text = text.replace('</head>', favicon_links(kind) + '</head>')
@@ -1098,6 +1101,9 @@ def serve_live(app, port, *, gateway_key=None, public_origins=()):
                     if path == '/api/schedule':
                         return self.respond(schedule.snapshot(app, offset, mode), compress=True)
                     return self.respond(schedule.page(app, offset, mode), content_type='text/html; charset=utf-8')
+                letter = re.fullmatch(r'/letters(?:/(\d{4}-\d{2}-\d{2}))?', path)
+                if letter:
+                    return self.respond(letters.page(app, letter[1]), content_type='text/html; charset=utf-8')
                 if path == '/api/queue':
                     # Standalone viewers have no shared gateway waiting line.
                     return self.respond({'queue':[], 'depth':0})

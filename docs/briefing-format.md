@@ -12,7 +12,8 @@ Markdown/HTML; no fences, duplicate keys, comments, trailing commas or NaN.
 The filename supplies date/edition; do not repeat internal IDs in visible prose.
 
 Each section is `[type,blocks,note?,title?]`. Omit trailing optional fields.
-Types: `schedule`, `tasks`, `attention`, `today`, `weather`, `news`. Blocks are
+Types: `schedule`, `tasks`, `attention`, `today`, `weather`, `news`, plus the
+optional evening sections and Sunday's `letter`. Blocks are
 nonempty. Morning defaults to Weather, News, Schedule, Tasks, Reminders in that fixed order;
 evening defaults to Today, Weather tomorrow, Schedule, Tasks, Reminders. Omit empty optional
 sections. A material failed retrieval is unavailable, not an empty/free day.
@@ -101,6 +102,10 @@ conflict, reread affected records; never infer progress or alter immutable secti
   placeholder `[["outlook"]]` alone in that section; code fills it, and the page
   writes every fact in the website language. The note is one closing line
   without numbers or times.
+- `["letter",week,counts]`: only, and alone, in Sunday's `letter` section; code
+  builds it when the weekly letter is published (`docs/weekly-letters.md`).
+  `counts` is `[finished, habits, ideas]`, or null when the letter could not be
+  written. Never write or copy it.
 - `["news",category,[[headline,summary,sources],...],country?]`: retain every
   selected story and all citations. Sources are nonempty `[[label,url],...]` with
   absolute HTTP(S) URLs and no credentials. Country is an optional uppercase

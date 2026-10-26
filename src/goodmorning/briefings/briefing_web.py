@@ -89,7 +89,8 @@ def navigation(number, title, body, kind, ui_title=False):
 def section_markup(number, heading, content, layout, pending=False):
     symbol = {'weather': 'sun', 'news': 'news', 'schedule': 'calendar',
               'must-do': 'check', 'nice-to-do': 'list', 'reminders': 'bell', 'tomorrow': 'calendar',
-              'today': 'sun', 'still-open': 'list', 'tasks': 'check', 'attention': 'bell', 'anime': 'tv', 'games': 'tag', 'stocks': 'chart'}.get(layout, 'list')
+              'today': 'sun', 'still-open': 'list', 'tasks': 'check', 'attention': 'bell', 'anime': 'tv', 'games': 'tag', 'stocks': 'chart',
+              'letter': 'letter'}.get(layout, 'list')
     busy = ' data-pending="true" aria-busy="true"' if pending else ''
     return f'<section id="section-{number}" class="briefing-section {layout}"{busy}><header><span class="section-number">{number:02d}</span><h2>{heading}</h2><span class="section-symbol">{icon(symbol)}</span></header><div class="section-body">{content}</div></section>'
 
@@ -114,6 +115,8 @@ LOADER_SCENES = {
     'games': '<g class="a1"><path class="wash" d="M30 14h26l12 10-12 10H30Z"/><circle cx="60" cy="24" r="2"/><path d="M36 21h12M36 27h8"/></g>'
              '<path class="a2" d="M22 8v6M19 11h6"/><path class="a3" d="M76 34v6M73 37h6"/>',
     'stocks': '<path d="M22 40h54M22 8v32"/><path class="a1 ink" d="M24 34l10-6 8 4 10-12 8 4 12-12"/><circle class="a2 fill" cx="72" cy="12" r="2.5"/>',
+    'letter': '<rect class="wash" x="28" y="12" width="40" height="28" rx="3"/><path class="a1" d="m29 14 19 13 19-13"/>'
+              '<path class="a2 ink" d="M38 34h20"/>',
 }
 LOADER_LAYOUTS = {'tomorrow': 'schedule', 'reminders': 'attention', 'notes': 'attention'}
 

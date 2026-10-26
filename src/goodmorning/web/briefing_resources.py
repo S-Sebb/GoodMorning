@@ -8,7 +8,7 @@ ICON_TYPES = {f'icons/{kind}.{extension}': mime
               for kind in ('gm', 'gn', 'secretary')
               for extension, mime in (('svg', 'image/svg+xml'), ('png', 'image/png'))}
 DESK_ICON_TYPES = {f'icons/desk-{name}.svg': 'image/svg+xml'
-                  for name in ('morning', 'evening', 'schedule', 'secretary', 'idea', 'appearance', 'language', 'notifications', 'phone')}
+                  for name in ('morning', 'evening', 'schedule', 'letters', 'done', 'habit', 'secretary', 'idea', 'appearance', 'language', 'notifications', 'phone')}
 PIXEL_FONTS = {f'fonts/{name}.woff2': 'font/woff2' for name in ('pixelify-sans', 'silkscreen', 'jersey-10', 'fusion-pixel-zh')}
 PIXEL_SCENES = {f'{name}.svg': 'image/svg+xml'
                 for name in ('grass-block-day', 'grass-block-night', 'grass-block-stone-day', 'grass-block-stone-night',
@@ -78,7 +78,7 @@ class Resources:
         types = types if types is not None else {**DESK_ICON_TYPES, **PIXEL_FONTS, **PIXEL_SCENES,
                  'fonts/lora-italic.woff2': 'font/woff2', 'briefing.css': 'text/css', 'pixel.css': 'text/css',
                   'briefing.js': 'text/javascript', 'browser.js': 'text/javascript',
-                  'scroll-rails.js': 'text/javascript', 'scroll-rails.css': 'text/css',
+                  'scroll-rails.js': 'text/javascript', 'scroll-rails.css': 'text/css', 'letters.js': 'text/javascript',
                    'questions.js': 'text/javascript', 'chat.js': 'text/javascript', 'chat.css': 'text/css', 'language.js':'text/javascript',
                    'network.js':'text/javascript', 'auth.js':'text/javascript','auth.css':'text/css',
                    'activity.js':'text/javascript','activity.css':'text/css',
