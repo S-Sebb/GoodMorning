@@ -9,6 +9,7 @@ from urllib.parse import urlsplit
 from .briefing_layout import icon, category_icon, news_visual, episode_visual, deal_visual
 from goodmorning.web import language as ui
 from goodmorning.weather import ALERT_TEXT, BRING_TEXT, COMPARE_TEXT, SKY_TEXT, outlook_text
+from goodmorning.stocks import INDICES
 
 MAX_BYTES = 150_000
 TITLES = {'weather': 'Weather', 'news': 'News', 'schedule': 'Schedule',
@@ -364,9 +365,17 @@ def block(value, path):
         # [symbol, name, session_date, shares, close, previous_close, cost_or_null, currency,
         #  dividends_counted, dividend_today, shares_may_have_changed], copied from the stocks read.
         # Briefings saved before dividends were counted end at currency.
-        # An optional third item, {currency: {"closed": date, "next": date or null}}, marks markets whose due session never happened.
-        sequence(value, path, 2, 3)
-        if len(value) == 3 and (not isinstance(value[2], dict) or not value[2] or any(
+        # An optional third item, {currency: {"closed": date, "next": date or null}}, marks markets whose due session never happened;
+        # it is null when an optional fourth item, the index overview as [code, session_date, close, previous_close] rows, follows.
+        sequence(value, path, 2, 4)
+        if len(value) == 4:
+            sequence(value[3], path + '.indices', 1, len(INDICES))
+            if len({row[0] if isinstance(row, list) and row else None for row in value[3]}) != len(value[3]) or any(
+                    not isinstance(row, list) or len(row) != 4 or row[0] not in INDICES
+                    or not isinstance(row[1], str) or not re.fullmatch(r'\d{4}-\d{2}-\d{2}', row[1])
+                    or any(type(cell) not in (int, float) or not 0 < cell < 1e9 for cell in row[2:]) for row in value[3]):
+                fail(path, 'index rows need a known index, a session date and two positive closes, each index once')
+        if len(value) > 2 and not (len(value) == 4 and value[2] is None) and (not isinstance(value[2], dict) or not value[2] or any(
                 key not in ('CNY', 'USD') or not isinstance(entry, dict) or set(entry) != {'closed', 'next'}
                 or not isinstance(entry['closed'], str) or not re.fullmatch(r'\d{4}-\d{2}-\d{2}', entry['closed'])
                 or entry['next'] is not None and not (isinstance(entry['next'], str) and re.fullmatch(r'\d{4}-\d{2}-\d{2}', entry['next']))
@@ -783,8 +792,8 @@ def action_day(day, briefing_date):
     return ui.agenda_day(day, briefing_date)
 
 
-def holdings_markup(rows, briefing_date, closed=None):
-    """Each market's latest closed session: totals first, then every holding's day and total gain/loss.
+def holdings_markup(rows, briefing_date, closed=None, indices=()):
+    """The market overview, then each market's latest closed session: totals first, then every holding's day and total gain/loss.
 
     closed marks markets whose due session never happened (weekends, holidays); such a market leads with that fact and
     its next trading day when known, keeps the last session as a short recap, and folds its holdings away."""
@@ -804,7 +813,17 @@ def holdings_markup(rows, briefing_date, closed=None):
     def count(amount):
         return f'{amount:,}' if type(amount) is int else f'{amount:,.4f}'.rstrip('0').rstrip('.')
 
-    markets = []
+    overview = []
+    for currency, market in (('CNY', 'A-shares'), ('USD', 'US stocks')):
+        tiles = [f'<li class="market-index"><span class="market-index-name">{ui.ui(INDICES[code][0])}</span>'
+                 f'<span class="market-index-level">{close:,.2f}</span><span class="market-index-change {trend(close - previous)}">'
+                 f'{signed(close - previous)} ({signed((close - previous) / previous * 100, suffix="%")})</span></li>'
+                 for code, _, close, previous in indices if INDICES[code][1] == currency]
+        if tiles:
+            session = max(row[1] for row in indices if INDICES[row[0]][1] == currency)
+            overview.append(f'<div class="market-group"><h4>{ui.ui(market)} · {ui.day_label(session, reference=briefing_date)}</h4>'
+                            f'<ul class="market-indices">{"".join(tiles)}</ul></div>')
+    markets = [f'<div class="market-overview"><h3>{ui.ui("Market today")}</h3>{"".join(overview)}</div>'] if overview else []
     for currency, market in (('CNY', 'A-shares'), ('USD', 'US stocks')):
         group = [row + [0, 0, False][len(row) - 8:] for row in rows if row[7] == currency]
         if not group:
@@ -1031,7 +1050,7 @@ def render_block(value, images, briefing_date=None):
         return ('<div class="letter-card"><p>' + ui.ui('This week’s letter is in your book.') + '</p>' + letter_counts(value[2])
                 + f'<a class="letter-open" href="/letters/{value[1]}">' + ui.ui('Open letter') + '</a></div>')
     if tag == 'holdings':
-        return holdings_markup(value[1], briefing_date, value[2] if len(value) > 2 else None)
+        return holdings_markup(value[1], briefing_date, value[2] if len(value) > 2 else None, value[3] if len(value) > 3 else ())
     if tag == 'news':
         from .briefing_layout import country_flag
         category = value[1]

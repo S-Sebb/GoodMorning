@@ -115,9 +115,10 @@ TEXT = {
             'sales could not be checked this time (no cause, no retry promise). Never skip this section.'),
   'stocks': ('The day\'s gain or loss on the user\'s saved stock holdings, for each market\'s latest closed session (A-shares today; US '
              'stocks usually the previous night). If the read succeeded and its `block` is not null, publish that block exactly as returned '
-             '(rows, names, shares and prices are code-owned; never translate, reorder, round or add rows). NOTE: one short line in the saved '
+             '(rows, names, shares, prices and the index overview are code-owned; never translate, reorder, round or add rows). NOTE: one short line in the saved '
              'tone with each market\'s day result from `markets`, named by its `market` label (amount with ¥ or $, and percent); kind about a loss, never '
-             'alarming. A market with `closed_on` did not trade that day (weekend or holiday): say so first, give `next_trading_day` when it is '
+             'alarming. When a market has `benchmark`, you may add how its percent compared with that index\'s `day_percent`, by name, as a fact '
+             'only. A market with `closed_on` did not trade that day (weekend or holiday): say so first, give `next_trading_day` when it is '
              'not null (never guess one), and call its result the last trading day\'s (`session`), not today\'s. If `not_found` lists codes, add one ["p","…"] block naming those codes and saying their prices could not be found. If the read '
              'failed, publish one ["p","…"] block saying only that stock prices could not be checked this time (no cause, no retry '
              'promise). Never skip this section.'),
@@ -212,8 +213,8 @@ TEXT = {
             '用保存的语气写一句简短、活泼的话，说明今晚关注的游戏都没有达到设定折扣，注记为 ""。读取失败时发布一个 ["p","……"] 块，只说明这次没能查到游戏特惠'
             '（不写原因，不承诺补充）。不得跳过本章节。'),
   'stocks': ('这是用户保存的持仓在各市场最近一个已收盘交易日的当日盈亏（A 股是今天，美股通常是前一晚）。读取成功且 `block` 不为 null 时，原样发布该块'
-             '（行、名称、股数和价格都由代码生成；不要翻译、调整顺序、取整或增加行）。注记：用保存的语气写一句简短的话，依据 `markets` 说出各市场当日结果，市场用 `market` 的名称'
-             '（金额带 ¥ 或 $，再加百分比）；亏损时语气体贴，不要制造紧张。带 `closed_on` 的市场那天没有开盘（周末或节假日）：先说明休市，`next_trading_day` 不为 null 时说出下个交易日'
+             '（行、名称、股数、价格和大盘指数都由代码生成；不要翻译、调整顺序、取整或增加行）。注记：用保存的语气写一句简短的话，依据 `markets` 说出各市场当日结果，市场用 `market` 的名称'
+             '（金额带 ¥ 或 $，再加百分比）；亏损时语气体贴，不要制造紧张。市场带 `benchmark` 时，可以按名称说出它的百分比与该指数 `day_percent` 相比如何，只陈述事实。带 `closed_on` 的市场那天没有开盘（周末或节假日）：先说明休市，`next_trading_day` 不为 null 时说出下个交易日'
              '（为 null 时不要猜），并把它的结果说成上个交易日（`session`）的表现，而不是今天的。`not_found` 列出代码时，再加一个 ["p","……"] 块点名这些代码，说明没能查到它们的价格。'
              '读取失败时发布一个 ["p","……"] 块，只说明这次没能查到股票价格（不写原因，不承诺补充）。不得跳过本章节。'),
   'letter': ('这是用户本周（周一到周日，见 `results`）的每周来信，会保存在“来信”页面，留作日后翻看的回忆。所有清单由代码生成并保存，你只写开头和结尾。'

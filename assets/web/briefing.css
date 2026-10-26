@@ -368,6 +368,16 @@ html[data-edition="gn"] .holdings:lang(zh) { --gain: #f2928a; --loss: #7fd3a0; }
 .holdings .is-up { color: var(--gain); }
 .holdings .is-down { color: var(--loss); }
 .holding-summary { padding: 18px 20px; border-radius: 14px; background: var(--wash); }
+/* Market today: each market's main indices as small tiles above the holdings. */
+.market-overview h3 { margin: 0; }
+.section-body .market-group h4 { margin: 12px 0 0; font: 500 13px/1.4 ui-sans-serif, system-ui, sans-serif; color: var(--muted); }
+.section-body .market-indices { margin: 6px 0 0; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; }
+.section-body .market-index { display: grid; gap: 2px; padding: 10px 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); font-variant-numeric: tabular-nums; }
+.market-index-name { font-size: 13px; color: var(--muted); }
+.market-index-level { font-size: 18px; font-weight: 650; }
+.market-index-change { font-size: 13px; font-weight: 600; white-space: nowrap; }
+/* Phones: one compact row per index, name on the left, level and change on the right. */
+@media (max-width: 700px) { .section-body .market-indices { grid-template-columns: minmax(0, 1fr); gap: 6px; } .section-body .market-index { grid-template-columns: minmax(0, 1fr) auto; gap: 0 12px; align-items: baseline; padding: 8px 12px; } .market-index-name { grid-row: span 2; align-self: center; } .market-index-level { font-size: 16px; text-align: right; } .market-index-change { text-align: right; } }
 .holding-summary h3 { margin: 0; }
 .section-body .holding-total { margin: 8px 0 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; }
 .holding-total .holding-amount { font-size: 28px; font-weight: 650; letter-spacing: -.4px; }
