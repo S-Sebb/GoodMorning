@@ -490,6 +490,104 @@ class GatewayTests(GatewayFixture):
         self.assertEqual(reads,['/api/reminders','/api/reminders'])
         self.assertEqual(sent,[('events','Dentist',early),('events','Dentist',laptop)])
 
+    def reminder_backend(self, state, posted, statuses=None):
+        def proxy(user, host, path, method, body, headers, *, internal=False):
+            self.assertTrue(internal)
+            if path == '/api/briefing-reminders':
+                return 200, {}, json.dumps(state).encode()
+            if method == 'POST':
+                posted.append((user, json.loads(body)))
+                if statuses is not None:
+                    statuses[json.loads(body)['id']] = 'running'
+                return 202, {}, json.dumps({'lines': json.loads(body)['id']}).encode()
+            found = (statuses or {}).get(path.rsplit('/', 1)[1])
+            return (200, {}, json.dumps({'state': found}).encode()) if found else (404, {}, b'{}')
+        return proxy
+
+    def test_briefing_reminders_follow_each_devices_times_once_while_the_edition_is_missing(self):
+        from datetime import datetime
+        from zoneinfo import ZoneInfo
+        from goodmorning.security import app_link, web_push
+        sent = []
+        self.gateway.notify = lambda user, kind, message, **target: sent.append((kind, message['body'], message['url'], target))
+        keys = {'p256dh': web_push.public_key(self.store), 'auth': web_push.b64(b'0123456789abcdef')}
+        laptop = web_push.subscribe(self.store, self.id, {'endpoint': 'https://fcm.googleapis.com/x', 'keys': keys}, 'Firefox on Linux')['device']
+        late = web_push.subscribe(self.store, self.id, {'endpoint': 'https://fcm.googleapis.com/y', 'keys': keys}, 'Chrome on Android')['device']
+        quiet = web_push.subscribe(self.store, self.id, {'endpoint': 'https://fcm.googleapis.com/z', 'keys': keys}, 'Edge on Windows')['device']
+        web_push.settings(self.store, self.id, late, {**web_push.DEFAULTS, 'gm_time': '08:00', 'gn_time': '01:30'})
+        web_push.settings(self.store, self.id, quiet, {**web_push.DEFAULTS, 'gm': False, 'gn': False})
+        pairing = app_link.pair(self.store, 'Pixel 7'); app_link.confirm(self.store, self.id, pairing['code'])
+        phone = app_link.claim(self.store, pairing['secret'])
+        app_link.verify(self.store, phone['token'], True)  # This phone posts notifications itself.
+        lines = {'gm': ['Morning one', 'Morning two', 'Morning three'], 'gn': ['Evening one', 'Evening two', 'Evening three']}
+        state = {'date': '2026-10-26', 'timezone': 'Europe/London', 'editions': {'gm': 'missing', 'gn': 'missing'}, 'lines': lines, 'write': False}
+        at = lambda day, clock: datetime.fromisoformat(day + 'T' + clock).replace(tzinfo=ZoneInfo('Europe/London')).timestamp()
+        posted = []
+        with patch.object(self.gateway, 'proxy', self.reminder_backend(state, posted)):
+            self.gateway.remind_briefings(at('2026-10-26', '06:59'))
+            self.assertEqual(sent, [])
+            for _ in range(2):
+                self.gateway.remind_briefings(at('2026-10-26', '07:03'))
+            morning = 'Morning ' + ('one', 'two', 'three')[datetime(2026, 10, 26).toordinal() % 3]
+            self.assertEqual(sent, [('gm', morning, '/d/2026-10-26/gm.html', {'only': laptop}),
+                                    ('gm', morning, '/d/2026-10-26/gm.html', {'phone': phone['id']})])
+            sent.clear()
+            state['editions']['gm'] = 'working'
+            self.gateway.remind_briefings(at('2026-10-26', '08:01'))  # Being prepared: no reminder for the later device.
+            state['editions']['gm'] = 'missing'
+            self.gateway.remind_briefings(at('2026-10-26', '08:10'))
+            self.assertEqual(sent, [])  # Checked once at its time; never sent later.
+            with self.store.db() as db:
+                db.execute('INSERT INTO metadata VALUES (?,?)', ('generation', json.dumps({'user': self.id, 'host': 'gm.example.test', 'date': '2026-10-26', 'kind': 'gn'})))
+            self.gateway.remind_briefings(at('2026-10-26', '21:00'))  # Queued for generation already.
+            with self.store.db() as db:
+                db.execute("DELETE FROM metadata WHERE key='generation'")
+            self.assertEqual(sent, [])
+            self.gateway.remind_briefings(at('2026-10-27', '01:40'))  # Before the 04:00 rollover: still the 26th's evening.
+            self.assertEqual([(kind, url, target) for kind, _, url, target in sent], [('gn', '/d/2026-10-26/gn.html', {'only': late})])
+            sent.clear()
+            self.gateway.remind_briefings(at('2026-10-27', '08:30'))  # Missed by more than an hour: skipped.
+            self.assertEqual(sent, [])
+        self.assertEqual(posted, [])
+
+    def test_secretary_writes_reminder_lines_through_the_shared_line(self):
+        from goodmorning.security import web_push
+        keys = {'p256dh': web_push.public_key(self.store), 'auth': web_push.b64(b'0123456789abcdef')}
+        web_push.subscribe(self.store, self.id, {'endpoint': 'https://fcm.googleapis.com/x', 'keys': keys}, 'Firefox on Linux')
+        state = {'date': '2026-10-26', 'timezone': 'Europe/London', 'editions': {'gm': 'ready', 'gn': 'ready'}, 'lines': {}, 'write': True}
+        posted, statuses = [], {}
+        other = {'user': self.other, 'host': 'gm.example.test', 'chat': 'c' * 32}
+        with self.store.db() as db:
+            db.execute('INSERT INTO metadata VALUES (?,?)', ('generation', json.dumps(other, separators=(',', ':'))))
+        with patch.object(self.gateway, 'proxy', self.reminder_backend(state, posted, statuses)):
+            self.gateway.remind_briefings(1_800_000_000)
+            self.assertEqual(posted, [])  # Waits behind other model work, and the owner never sees it waiting.
+            self.assertEqual(self.gateway.queue_status(self.id)['queue'], [])
+            self.gateway.remind_briefings(1_800_000_000 + 600)
+            self.assertEqual(self.gateway.queue_status(self.other)['depth'], 1)  # Asked once.
+            with self.store.db() as db:
+                db.execute("DELETE FROM metadata WHERE key='generation'")
+            self.gateway.pump_queue()
+            (user, body), = posted
+            self.gateway.reconcile_ticket()
+            self.assertEqual(self.gateway.ticket(), {'user': self.id, 'host': 'gm.example.test', 'lines': body['id']})
+            statuses[body['id']] = 'ready'
+            self.gateway.reconcile_ticket()
+            self.assertIsNone(self.gateway.ticket())
+            # A request the backend never received cannot be running.
+            with self.store.db() as db:
+                db.execute('INSERT INTO metadata VALUES (?,?)', ('generation', json.dumps({'user': self.id, 'host': 'gm.example.test', 'lines': 'd' * 32, 'dispatching': True}, separators=(',', ':'))))
+            self.gateway.reconcile_ticket()
+            self.assertIsNone(self.gateway.ticket())
+        self.assertEqual(user, self.id)
+
+    def test_browsers_cannot_reach_the_gateways_own_reminder_routes(self):
+        self.permanent()
+        self.assertEqual(self.request('/api/briefing-reminders')[0], 403)
+        self.assertEqual(self.request('/api/briefing-reminders/lines', {'id': 'a' * 32})[0], 403)
+        self.assertEqual(self.request('/api/briefing-reminders/lines/' + 'a' * 32)[0], 403)
+        self.assertFalse(any(path.startswith('/api/briefing-reminders') for path, _ in self.received))
+
     def test_phone_pairing_sync_and_chat_through_the_gateway(self):
         from goodmorning.security import app_link
         def phone(path,body=None,headers=None,method=None):

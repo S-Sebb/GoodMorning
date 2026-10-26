@@ -3,7 +3,7 @@ self.addEventListener('push', event => {
   const message = event.data.json();
   event.waitUntil((async () => {
     // Status updates are already on screen while GoodMorning is in front; reminders always show.
-    if (message.kind !== 'events') {
+    if (!['events', 'gm', 'gn'].includes(message.kind)) {
       const windows = await clients.matchAll({type: 'window', includeUncontrolled: true});
       if (windows.some(window => window.focused && window.visibilityState === 'visible')) return;
     }

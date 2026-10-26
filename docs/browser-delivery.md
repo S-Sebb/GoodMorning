@@ -194,8 +194,8 @@ turning it on asks for permission, registers `/sw.js` and subscribes that browse
 under a name such as "Firefox on Linux". Turning it off, or signing out,
 unsubscribes it and unregisters the worker. The worker has no fetch handler, so
 page loads never start it; it runs only to show a notification or open one. Each
-device keeps its own four switches and reminder lead time (5, 10, 15, 30 or 60
-minutes; 15 by default). Devices that subscribed before choices moved to devices
+device keeps its own switches, event reminder lead time (5, 10, 15, 30 or 60
+minutes; 15 by default) and briefing reminder times (07:00 and 21:00 by default). Devices that subscribed before choices moved to devices
 start from the account-wide choices saved then.
 
 In the Android app, the app posts notifications itself: usually within a few
@@ -215,13 +215,30 @@ server; pages see only a short name derived from them.
 | My secretary needs my answer | A briefing or chat waits for a question or permission; the text shows the first question or the requested action |
 | A chat reply is finished | A chat turn becomes idle; the text is the start of the reply |
 | An event is about to start | A timed calendar event starts within the lead time; all-day and unconfirmed (TBC) events are skipped |
+| Remind me to prepare a briefing: Morning / Evening briefing | At the device's time, today's edition is not prepared, queued or being prepared |
 
 The gateway notices the first three in its five-second reservation check
 (`reconcile_ticket`); each transition is announced once. For reminders, it reads
 `/api/reminders` from each opted-in account's own backend every five minutes.
 That endpoint lists the timed events starting in the next three hours. Each
-device gets each reminder once, at its own lead time. While a GoodMorning window is focused,
-the worker shows only reminders, because the page already shows everything
+device gets each reminder once, at its own lead time.
+
+Briefing reminders read `/api/briefing-reminders` (today's briefing day, which
+editions exist, and the reminder lines) from the account's backend every five
+minutes, and once more just before sending. Each device gets each edition's
+reminder at most once per briefing day, within an hour of its time; a time
+before 04:00 belongs to the night after that day. The gateway only reaches these
+routes itself: browsers get 403. The text is one of three lines per edition the
+secretary writes in the saved tone and website language
+(`web/briefing_reminders.py`, kept in the runtime's `reminder-lines.json`),
+rotated by day. A changed tone, user name or website language asks for new lines
+through the shared model line, like any other model work; until they are saved,
+or for six hours after a failed attempt, built-in lines remind instead. The
+reminder shares the ready notification's tag, so a briefing prepared later
+replaces it.
+
+While a GoodMorning window is focused,
+the worker shows only event and briefing reminders, because the page already shows everything
 else. Notification text uses the account's website language. A tap opens the
 related chat, briefing or day schedule.
 

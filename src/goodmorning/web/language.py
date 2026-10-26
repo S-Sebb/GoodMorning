@@ -182,7 +182,12 @@ def page(source,csrf,return_to='/'):
                ('chat','A chat reply is finished'),('events','An event is about to start')))+
            '</fieldset><label for="notification-lead">Remind me before events</label><select id="notification-lead" name="lead">'
            +''.join(f'<option value="{minutes}">{minutes} minutes</option>' for minutes in (5,10,15,30,60))+
-           '</select><p class="notification-note">These choices apply to this device only.</p></div>'
+           '</select><fieldset id="briefing-reminders"><legend>Remind me to prepare a briefing</legend>'
+           +''.join(f'<div class="briefing-reminder"><label><input type="checkbox" name="{kind}"> {label}</label>'
+                    f'<input type="time" name="{kind}_time" aria-label="{label} reminder time" required></div>'
+                    for kind,label in (('gm','Morning briefing'),('gn','Evening briefing')))+
+           '<p class="notification-note">Sent at that time only if the briefing isn’t prepared yet.</p></fieldset>'
+           '<p class="notification-note">These choices apply to this device only.</p></div>'
            '<span id="notification-feedback" role="status"></span></form>')
     phones=('<form id="app-link-form" class="language-toolbar app-link-settings" hidden>'
            '<h3 class="color-scheme-heading app-link-heading">Linked phones</h3>'

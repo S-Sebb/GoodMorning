@@ -14,6 +14,8 @@ import secrets
 import socketserver
 import threading
 import time
+from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
 from urllib.parse import urlsplit, parse_qs, unquote, urlencode
 from urllib.request import Request, build_opener, HTTPRedirectHandler
 from urllib.error import HTTPError
@@ -29,6 +31,8 @@ from goodmorning.web.chat_uploads import MAX_UPLOAD_BYTES, UPLOAD_ROUTE, IMAGE_R
 from goodmorning.web.avatar_images import AVATAR_UPLOAD_ROUTE, MAX_AVATAR_BYTES
 from goodmorning.web.activity import ACTIVITY_PATH, panel as activity_panel
 from goodmorning.web.generation_clock import REQUESTED_AT
+from goodmorning.web.briefing_reminders import line as reminder_line
+from goodmorning.briefings.briefing_day import briefing_day
 from . import maintenance as deploy_pause
 from . import app_link, app_release, web_push
 
@@ -38,12 +42,15 @@ ASSET_LINKS = (ASSETS / 'assetlinks.json').read_bytes()
 POLICY = "default-src 'none'; style-src 'self'; script-src 'self'; img-src 'self'; font-src 'self'; connect-src 'self'; manifest-src 'self'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'"
 GET_ROUTES = re.compile(r'(?:/|/(?:index|gm|gn)\.html|/chat|/schedule|/api/schedule|/api/avatar(?:/image/[a-f0-9]{64}\.png)?|/api/chats(?:/[a-f0-9]{32}(?:/status)?)?|/api/day|/api/reminders|/api/app-schedule|/api/app-briefings|/api/app-weather|/api/app-profile|/api/notes(?:/batch)?|/api/edition/\d{4}-\d{2}-\d{2}/(?:gm|gn)|/api/jobs/[a-f0-9]{32}(?:/preview)?|/d/\d{4}-\d{2}-\d{2}/(?:gm|gn)\.(?:html|json)|/media/(?:thumb-v1/)?[a-f0-9]{64}\.webp|/d/\d{4}-\d{2}-\d{2}/media/[a-f0-9]+\.webp|/(?:assets/[a-f0-9]{64}/)?desk-secretary(?:-f2|-m1|-m2)?(?:-profile|(?:-day)?(?:-animated)?)\.png|/(?:assets/[a-f0-9]{64}/)?(?:briefing\.css|briefing\.js|browser\.js|schedule\.js|schedule\.css|questions\.js|chat\.js|chat\.css|avatar\.js|avatar\.css|fonts/(?:lora-italic\.woff2|OFL\.txt)))')
 POST_ROUTES = re.compile(r'(?:/api/notes(?:/sorted)?|/api/avatar(?:/upload/(?:day|night|profile))?|/api/(?:generate|regenerate)|/api/chat-uploads/[a-f0-9]{32}|/api/chats|/api/chats/[a-f0-9]{32}/(?:messages|seen|(?:form|permission)/[A-Za-z0-9_]+/reply)|/api/jobs/[a-f0-9]{32}/(?:recover|(?:form|permission)/[A-Za-z0-9_]+/reply))')
+# Only the gateway's own background work reaches these; browsers never can.
+INTERNAL_ROUTES = re.compile(r'/api/briefing-reminders(?:/lines(?:/[a-f0-9]{32})?)?')
 QUEUE_KEY = 'generation_queue'
 WAITING_KEY = 'generation_waiting'
 MAX_QUEUE = 20
 QUEUE_FULL = 'The secretary queue is full. Please wait for earlier requests to finish.'
 PUMP_INTERVAL = 5
-REMINDER_REFRESH = 300  # Seconds between reads of each opted-in account's upcoming events.
+REMINDER_REFRESH = 300  # Seconds between reads of each opted-in account's upcoming events or briefings.
+BRIEFING_WINDOW = 3600  # A briefing reminder missed by longer (server down, time just moved earlier) is skipped.
 PAGE_ROUTES = re.compile(r'(?:/|/(?:index|gm|gn)\.html|/chat|/schedule|/d/\d{4}-\d{2}-\d{2}/(?:gm|gn)\.html)')
 BACKEND_PENDING = 'Your secretary is not set up yet. Please contact the server administrator to complete account setup.'
 BACKEND_UNAVAILABLE = 'Secretary temporarily unavailable; records are unchanged'
@@ -63,6 +70,10 @@ def pump_forever(gateway, interval=PUMP_INTERVAL):
             pass  # Background maintenance must never stop serving.
         try:
             gateway.remind()
+        except Exception:
+            pass
+        try:
+            gateway.remind_briefings()
         except Exception:
             pass
 
@@ -85,6 +96,7 @@ class Gateway:
         self.icons = Resources(ASSETS)
         self.html_cache = ByteCache(8 * 1024 * 1024, 32)
         self.reminders = {}  # account -> (last read, upcoming events)
+        self.briefing_checks = {}  # account -> (last read, today's editions and reminder lines)
         self.html_lock = threading.RLock()
         labels=[host.split('.')[::-1] for host in hosts]
         shared=[]
@@ -111,10 +123,11 @@ class Gateway:
             raise ValueError('Invalid private backend configuration')
         return entry
 
-    def proxy(self, identifier, host, path, method, body, headers):
+    def proxy(self, identifier, host, path, method, body, headers, *, internal=False):
         backend = self.backend(identifier)
         parsed = urlsplit(path)
         if not ((POST_ROUTES if method=='POST' else GET_ROUTES).fullmatch(parsed.path) or
+                internal and INTERNAL_ROUTES.fullmatch(parsed.path) or
                 (method in ('GET', 'HEAD') and IMAGE_ROUTE.fullmatch(parsed.path)) or
                 method == 'GET' and re.fullmatch(ACTIVITY_PATH, parsed.path)):
             raise Denied('Not found')
@@ -191,7 +204,7 @@ class Gateway:
                 if value['state'] != 'idle':
                     result.append({'mode': value['mode'], 'state': value['state'], 'url': destination(ticket, value['mode'], value.get('date'))})
         for entry in queue:
-            if not self._valid_queue_entry(entry) or entry['user'] != identifier or entry['host'] not in self.hosts:
+            if not self._valid_queue_entry(entry) or entry['user'] != identifier or entry['host'] not in self.hosts or entry['kind'] == 'lines':
                 continue
             candidate = entry['candidate']
             if candidate.get('chat'):
@@ -249,6 +262,8 @@ class Gateway:
 
     def reconcile_ticket(self):
         current = self.ticket()
+        if current and current.get('lines'):
+            return self.reconcile_lines(current)
         # A failed preflight or lost HTTP response can leave intent without a
         # job ID. Recover the receipt through a read, never replay the POST.
         if (current and not current.get('job') and not current.get('chat')
@@ -298,14 +313,38 @@ class Gateway:
             except Exception:
                 pass  # Uncertain work keeps its reservation. Never launch work blindly.
 
-    def notify(self, user, kind, message, *, ttl=3600, urgency='normal', only=None):
-        """Sends without blocking the caller; delivery problems never affect the work itself."""
+    def reconcile_lines(self, current):
+        """Releases the slot once the secretary's reminder lines are saved or given up on. A request
+        the backend never received cannot be running, so its reservation goes too."""
+        encoded = json.dumps(current, separators=(',', ':'))
+        try:
+            with self.generation_lock:
+                if encoded in self.generation_inflight:
+                    return
+            status, _, data = self.proxy(current['user'], current['host'], '/api/briefing-reminders/lines/' + current['lines'],
+                                         'GET', None, {}, internal=True)
+            if status == 404:
+                return self.clear_ticket(current)
+            if status != 200:
+                return
+            if current.get('dispatching'):
+                self.confirm_dispatch(current)
+                current = {key: value for key, value in current.items() if key != 'dispatching'}
+            if json.loads(data)['state'] in ('ready', 'stopped'):
+                self.clear_ticket(current)
+        except Exception:
+            pass  # Uncertain work keeps its reservation.
+
+    def notify(self, user, kind, message, *, ttl=3600, urgency='normal', only=None, phone=None):
+        """Sends without blocking the caller; delivery problems never affect the work itself. only names
+        one browser and phone one linked phone; without either, every device that chose this kind gets it."""
         def send():
             try:
-                if kind != 'events':  # Linked phones schedule their own event reminders.
-                    app_link.record(self.accounts, user, kind, message)
-                web_push.send(self.accounts, user, message, kind=kind, ttl=ttl, urgency=urgency, only=only,
-                              subject='https://' + next(iter(self.hosts)))
+                if phone or kind != 'events' and not only:  # Linked phones schedule their own event reminders.
+                    app_link.record(self.accounts, user, kind, message, only=phone)
+                if not phone:
+                    web_push.send(self.accounts, user, message, kind=kind, ttl=ttl, urgency=urgency, only=only,
+                                  subject='https://' + next(iter(self.hosts)))
             except Exception as error:
                 logging.getLogger(__name__).warning('Notification failed (%s)', type(error).__name__)
         threading.Thread(target=send, daemon=True).start()
@@ -352,7 +391,7 @@ class Gateway:
         chosen = entry['settings']
         result = {'device': link, 'settings': chosen, 'language': self.accounts.website_language(user) or 'en',
                   'appearance': entry['appearance'] or self.accounts.website_color_schemes(user) or site_colors.DEFAULT,
-                  'notifications': app_link.outbox(self.accounts, user, after, chosen), 'busy': self.busy(user)}
+                  'notifications': app_link.outbox(self.accounts, user, after, chosen, link), 'busy': self.busy(user)}
         for key, read_part in (('schedule', lambda: read('/api/app-schedule')),
                                ('secretary', lambda: read('/api/app-profile')),
                                ('reminders', lambda: read('/api/reminders?hours=24')['events']),
@@ -485,9 +524,98 @@ class Gateway:
                         self.notify(user, 'events', {'title': event['subject'], 'body': body, 'url': '/schedule?view=day', 'tag': 'event-' + event['key']},
                                     ttl=max(60, int(event['starts'] - now)), urgency='high', only=device)
 
+    def briefing_targets(self):
+        """Each account's browsers and notifying linked phones with a briefing reminder on, and their choices."""
+        with self.accounts.db() as db:
+            users = {key.split(':', 1)[1] for (key,) in db.execute("SELECT key FROM metadata WHERE key LIKE 'push:%' OR key LIKE 'app-links:%'")}
+        targets = {}
+        for user in users:
+            state = web_push.account(self.accounts, user)
+            found = [({'only': web_push.device(entry['endpoint'])}, web_push.choices(state, entry)) for entry in state['subscriptions']]
+            found += [({'phone': entry['id']}, entry['settings']) for entry in app_link.links(self.accounts, user) if entry['notifies']]
+            found = [(target, chosen) for target, chosen in found if chosen['gm'] or chosen['gn']]
+            if found:
+                targets[user] = found
+        return targets
+
+    def reminder_state(self, user):
+        status, _, raw = self.proxy(user, next(iter(self.hosts)), '/api/briefing-reminders', 'GET', None, {}, internal=True)
+        if status != 200:
+            raise ValueError('Backend read failed')
+        return json.loads(raw)
+
+    def write_lines(self, user):
+        """Asks the secretary for reminder lines in the saved tone, through the shared line like any model work."""
+        with self.accounts.db() as db:
+            row = db.execute('SELECT value FROM metadata WHERE key=?', ('generation',)).fetchone()
+            waiting = [json.loads(row[0])] if row else []
+            waiting += [entry['candidate'] for entry in self._read_queue(db) if entry.get('kind') == 'lines']
+        if any(item.get('lines') and item.get('user') == user for item in waiting):
+            return
+        host, identifier = next(iter(self.hosts)), secrets.token_hex(16)
+        entry = {'kind': 'lines', 'candidate': {'user': user, 'host': host, 'lines': identifier, 'dispatching': True},
+                 'user': user, 'host': host, 'path': '/api/briefing-reminders/lines', 'body': {'id': identifier},
+                 'language': self.accounts.website_language(user) or 'en', 'enqueued': time.time()}
+        action, _, _ = self._reserve_or_queue('lines', entry['candidate'], entry['path'], entry['body'], entry['language'], entry['enqueued'])
+        if action == 'active_new':
+            self._dispatch_queued(entry)
+
+    def remind_briefings(self, now=None):
+        """Morning and evening reminders, at each device's own time, while that edition of today's
+        briefing is not prepared, queued or being prepared; once a day per device."""
+        now = time.time() if now is None else now
+        for user, targets in self.briefing_targets().items():
+            try:
+                checked, state = self.briefing_checks.get(user, (0, None))
+                if now - checked >= REMINDER_REFRESH:
+                    self.briefing_checks[user] = (now, state)  # A failed read waits for the next refresh too.
+                    state = self.reminder_state(user)
+                    self.briefing_checks[user] = (now, state)
+                    try:
+                        if state['write']:
+                            self.write_lines(user)
+                    except Exception:
+                        pass  # Built-in lines remind meanwhile; the next refresh asks again.
+                local = datetime.fromtimestamp(now, ZoneInfo(state['timezone']))
+                day = briefing_day(state['timezone'], local)
+                due = []
+                for target, chosen in targets:
+                    for kind in ('gm', 'gn'):
+                        hour, minute = map(int, chosen[kind + '_time'].split(':'))
+                        # Times before the 04:00 rollover belong to the night after the briefing day.
+                        at = datetime.fromisoformat(day).replace(hour=hour, minute=minute, tzinfo=local.tzinfo) + timedelta(days=hour < 4)
+                        if chosen[kind] and 0 <= (local - at).total_seconds() < BRIEFING_WINDOW:
+                            due.append((target, kind))
+                due = [(target, kind) for target, kind in due
+                       if not web_push.reminded(self.accounts, user, kind + '-' + day + '@' + next(iter(target.values())))]
+                if not due:
+                    continue
+                if now - self.briefing_checks[user][0] >= 30:  # The editions as they are now, not minutes ago.
+                    self.briefing_checks[user] = (now, state)
+                    state = self.reminder_state(user)
+                    self.briefing_checks[user] = (now, state)
+                if state['date'] != day:
+                    continue
+                queued = {item.get('edition') for item in self.queue_status(user)['queue'] if item['work'] == 'generate' and item.get('date') == day}
+                active = self.ticket() or {}
+                if active.get('user') == user and active.get('date') == day:
+                    queued.add(active.get('kind'))
+                lang = self.accounts.website_language(user) or 'en'
+                for target, kind in due:
+                    if not web_push.remembered(self.accounts, user, kind + '-' + day + '@' + next(iter(target.values()))):
+                        continue
+                    if state['editions'][kind] != 'missing' or kind in queued:
+                        continue
+                    title = ui.text("Your morning briefing isn't prepared yet" if kind == 'gm' else "Your evening briefing isn't prepared yet", lang=lang)
+                    # The ready notification shares this tag, so it replaces the reminder.
+                    self.notify(user, kind, {'title': title, 'body': reminder_line(state['lines'], kind, day),
+                                             'url': f'/d/{day}/{kind}.html', 'tag': 'briefing-' + day + '-' + kind}, **target)
+            except Exception:
+                continue  # One account's backend never stops another's reminders.
+
     @staticmethod
     def _valid_queue_entry(entry):
-        if not isinstance(entry, dict) or entry.get('kind') not in ('chat', 'generate', 'regenerate', 'recover', 'reply'):
+        if not isinstance(entry, dict) or entry.get('kind') not in ('chat', 'generate', 'regenerate', 'recover', 'reply', 'lines'):
             return False
         candidate = entry.get('candidate')
         if not isinstance(candidate, dict) or not isinstance(entry.get('user'), str) or not isinstance(entry.get('host'), str):
@@ -546,6 +674,21 @@ class Gateway:
             with self.generation_lock:
                 self.generation_inflight.discard(encoded)
 
+    def dispatch_lines(self, candidate, path, raw):
+        encoded = json.dumps(candidate, separators=(',', ':'))
+        with self.generation_lock:
+            self.generation_inflight.add(encoded)  # Until the backend answers, a 404 cannot prove it never started.
+        try:
+            status, _, _ = self.proxy(candidate['user'], candidate['host'], path, 'POST', raw, {}, internal=True)
+        finally:
+            with self.generation_lock:
+                self.generation_inflight.discard(encoded)
+        if 400 <= status < 500:
+            self.clear_ticket(candidate)
+        elif status < 300:
+            self.confirm_dispatch(candidate)
+        return status
+
     def _reserve_or_queue(self, kind, candidate, path, body, language, enqueued=None):
         """Atomically take the active slot or join the bounded global waiting line."""
         self.check_paused()
@@ -592,6 +735,8 @@ class Gateway:
             candidate = entry['candidate']
             if entry['kind'] in ('generate', 'regenerate'):
                 return self.dispatch_generation(candidate, entry['path'], raw, {})[0]
+            if entry['kind'] == 'lines':
+                return self.dispatch_lines(candidate, entry['path'], raw)
             status, upstream, data = self.proxy(entry['user'], entry['host'], entry['path'], 'POST', raw, {})
             if 400 <= status < 500:
                 self.clear_ticket(candidate)
@@ -641,7 +786,7 @@ class Gateway:
             row = db.execute('SELECT value FROM metadata WHERE key=?', ('generation',)).fetchone()
             waiting = []
             for index, entry in enumerate(queue):
-                if entry.get('user') != identifier:
+                if entry.get('user') != identifier or entry['kind'] == 'lines':  # Background work the user never asked for.
                     continue
                 item = {'work': entry['kind'], 'position': index + 1}
                 if entry['kind'] == 'chat':

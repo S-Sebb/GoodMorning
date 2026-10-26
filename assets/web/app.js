@@ -23,7 +23,8 @@ let goodmorningBeforeSignOut;
   const choices = form.querySelector('#notification-choices');
   const feedback = form.querySelector('#notification-feedback');
   const lead = form.querySelector('#notification-lead');
-  const kinds = ['briefing', 'waiting', 'chat', 'events'];
+  const kinds = ['briefing', 'waiting', 'chat', 'events', 'gm', 'gn'];
+  const times = ['gm_time', 'gn_time'];
   let state = {devices: [], links: []};
   let here = null;  // {device: id} or {link: id} while this device gets notifications.
 
@@ -79,7 +80,9 @@ let goodmorningBeforeSignOut;
     if (here) {
       const chosen = settingsOf(here);
       kinds.forEach(name => { form.elements[name].checked = chosen[name]; });
+      times.forEach(name => { form.elements[name].value = chosen[name]; });
       lead.value = String(chosen.lead);
+      timesFollowSwitches();
     }
     if (!pushable) {
       device.hidden = true;
@@ -161,9 +164,15 @@ let goodmorningBeforeSignOut;
     finally { device.disabled = false; await load().catch(() => {}); await show(); }
   });
 
+  // A reminder that is off keeps its time for when it is turned back on.
+  const timesFollowSwitches = () => times.forEach(name => { form.elements[name].disabled = !form.elements[name.replace('_time', '')].checked; });
+
   form.addEventListener('change', async () => {
     if (!here) return;
+    timesFollowSwitches();
+    if (times.some(name => !form.elements[name].value)) return;  // Wait until the time is complete.
     const settings = Object.fromEntries(kinds.map(name => [name, form.elements[name].checked]));
+    times.forEach(name => { settings[name] = form.elements[name].value; });
     settings.lead = Number(lead.value);
     feedback.textContent = '';
     try { await post('/api/push/settings', {...here, settings}); feedback.textContent = t('Notification settings saved.'); await load(); showOthers(); }

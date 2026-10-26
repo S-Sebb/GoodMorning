@@ -67,21 +67,33 @@ class AppLinkTests(unittest.TestCase):
         message = {'title': 'Ready', 'body': 'Tap', 'url': '/', 'tag': 't'}
         everything = web_push.DEFAULTS
         app_link.record(self.accounts, self.alice, 'chat', message)
-        self.assertEqual(app_link.outbox(self.accounts, self.alice, 0, everything), [])  # No phone linked yet.
+        self.assertEqual(app_link.outbox(self.accounts, self.alice, 0, everything, 'x'), [])  # No phone linked yet.
         phone = self.link()
+        mine = phone['id']
         for _ in range(app_link.OUTBOX + 5):
             app_link.record(self.accounts, self.alice, 'chat', message)
         app_link.record(self.accounts, self.alice, 'briefing', message)
-        recent = app_link.outbox(self.accounts, self.alice, 0, everything)
+        recent = app_link.outbox(self.accounts, self.alice, 0, everything, mine)
         self.assertEqual(len(recent), app_link.OUTBOX)
         self.assertEqual((recent[-1]['seq'], recent[-1]['kind']), (app_link.OUTBOX + 6, 'briefing'))
-        self.assertEqual(app_link.outbox(self.accounts, self.alice, recent[-1]['seq'], everything), [])
-        self.assertEqual(app_link.outbox(self.accounts, self.bob, 0, everything), [])
+        self.assertEqual(app_link.outbox(self.accounts, self.alice, recent[-1]['seq'], everything, mine), [])
+        self.assertEqual(app_link.outbox(self.accounts, self.bob, 0, everything, mine), [])
         quiet = app_link.settings(self.accounts, self.alice, phone['id'], {**everything, 'chat': False})
-        self.assertEqual({item['kind'] for item in app_link.outbox(self.accounts, self.alice, 0, quiet)}, {'briefing'})
+        self.assertEqual({item['kind'] for item in app_link.outbox(self.accounts, self.alice, 0, quiet, mine)}, {'briefing'})
         self.assertEqual(app_link.links(self.accounts, self.alice)[0]['settings'], quiet)
         with self.assertRaises(ValueError):
             app_link.settings(self.accounts, self.bob, phone['id'], everything)  # Not Bob's phone.
+
+    def test_a_reminder_for_one_phone_reaches_only_that_phone(self):
+        message = {'title': 'Not prepared yet', 'body': 'Tap', 'url': '/', 'tag': 't'}
+        first, second = self.link()['id'], self.link()['id']
+        app_link.record(self.accounts, self.alice, 'gm', message, only=first)
+        app_link.record(self.accounts, self.alice, 'briefing', message)
+        mine = app_link.outbox(self.accounts, self.alice, 0, web_push.DEFAULTS, first)
+        self.assertEqual([item['kind'] for item in mine], ['gm', 'briefing'])
+        self.assertNotIn('only', mine[0])
+        self.assertEqual([item['kind'] for item in app_link.outbox(self.accounts, self.alice, 0, web_push.DEFAULTS, second)], ['briefing'])
+        self.assertEqual(app_link.outbox(self.accounts, self.alice, 0, {**web_push.DEFAULTS, 'gm': False}, first)[0]['kind'], 'briefing')
 
     def test_the_app_reports_whether_it_posts_notifications_itself(self):
         phone = self.link()
