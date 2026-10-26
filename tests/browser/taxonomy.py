@@ -49,6 +49,9 @@ def main():
                         items = prepare(runtime, DAY, kind)
                         document = {'v': 2, 'lang': lang, 'greeting': 'Synthetic briefing.', 'opening': 'Source-linked records.',
                                     'sections': [[tag, [items['blocks'][tag]]] for tag in ('schedule', 'tasks', 'attention') if items['blocks'][tag][1]]}
+                        if kind == 'gm':
+                            document['sections'].insert(0, ['celebration', [['celebration', [['birthday'], ['years', 2, '2024-10-13'], ['tasks', 1000, 1003]],
+                                                                             'Wishing you a sparkly day full of little joys!', 'Mochi']]])
                         markup = edition(document, DAY, kind, {'gm': True, 'gn': True})
                         for width in (1440, 390, 320):
                             page = browser.new_page(viewport={'width': width, 'height': 900}, reduced_motion='reduce')
@@ -71,12 +74,17 @@ def main():
                             expect(page.get_by_text('Maybe build a dashboard', exact=True)).to_have_count(0)
                             # The evening shows only deadlines due tomorrow, so Friday's report waits.
                             expect(page.locator('.task-card')).to_have_count(2 if kind == 'gm' else 1)
+                            if kind == 'gm':
+                                expect(page.get_by_role('heading', name=ui.text('Something to celebrate'), exact=True)).to_be_visible()
+                                expect(page.locator('.celebration-list h4')).to_have_text([ui.text('Happy birthday! 🎂'),
+                                    ui.text('Happy GoodMorning anniversary! 🎉'), ui.text('{count} tasks done! ✨', count='1,000')])
+                                expect(page.get_by_text('— Mochi', exact=True)).to_be_visible()
                             page.evaluate('document.fonts.ready')
                             assert not page.evaluate('document.documentElement.scrollWidth > innerWidth'), (kind, lang, width)
                             assert 'task_' not in page.get_by_role('article').inner_text()
                             assert not errors, errors
-                            if args.screenshots and lang == 'en' and kind == 'gm' and width in (1440, 390):
-                                page.screenshot(path=str(args.screenshots/f'gm-{width}.png'), full_page=True)
+                            if args.screenshots and kind == 'gm' and width in (1440, 390):
+                                page.screenshot(path=str(args.screenshots/f'gm-{lang}-{width}.png'), full_page=True)
                             page.close()
                 finally:
                     ui.CURRENT.reset(token)

@@ -90,7 +90,7 @@ def section_markup(number, heading, content, layout, pending=False):
     symbol = {'weather': 'sun', 'news': 'news', 'schedule': 'calendar',
               'must-do': 'check', 'nice-to-do': 'list', 'reminders': 'bell', 'tomorrow': 'calendar',
               'today': 'sun', 'still-open': 'list', 'tasks': 'check', 'attention': 'bell', 'anime': 'tv', 'games': 'tag', 'stocks': 'chart',
-              'letter': 'letter'}.get(layout, 'list')
+              'letter': 'letter', 'celebration': 'gift'}.get(layout, 'list')
     busy = ' data-pending="true" aria-busy="true"' if pending else ''
     return f'<section id="section-{number}" class="briefing-section {layout}"{busy}><header><span class="section-number">{number:02d}</span><h2>{heading}</h2><span class="section-symbol">{icon(symbol)}</span></header><div class="section-body">{content}</div></section>'
 

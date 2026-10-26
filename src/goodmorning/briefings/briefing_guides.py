@@ -153,6 +153,13 @@ TEXT = {
              '`saved` is true, the letter is already written and stays as it is: submit {"position":N}. If the read failed, submit '
              '{"position":N}; the briefing then says the letter could not be written this time (no cause, no retry promise). Never skip this '
              'section.'),
+  'celebration': ('A celebration card opens today\'s briefing. `celebrations` lists what it celebrates, worded as the card shows it '
+                  '(headline and line); code draws the card and signs it with your name. You write only a short wish to go with it: submit '
+                  '{"position":N,"celebration":{"wish":"…"}}, one or two sentences (≤200 chars), plain text, said by you, the secretary, to the '
+                  'user ("I", never "we" or the GoodMorning team), in the saved tone (cheerful and cute by default). Celebrate only what '
+                  '`celebrations` lists, without repeating its numbers or dates. Add no other facts, plans, advice or promises, and never guess '
+                  'the user\'s age, feelings or how they will spend the day. Do not describe the card or the briefing, or say how long you have '
+                  'been with the user. Do not call the user by name. Never skip this section.'),
   'today_regenerating': ('REGENERATION: make no task writes and ask nothing; reuse saved feedback. Copy the read\'s block (none when it is null) and '
                          'mention every reported outcome.'),
   'finish': ('Submit {} or {"closing":"…"} following `writing`. After a verified save, reply only with one short delivery line in '
@@ -250,6 +257,10 @@ TEXT = {
              '习惯行是 [标题, 本周次数, 连续周数]；连续周数为 2 或以上时才提。不要评价或比较这一周（忙碌、高效、清闲）。读取结果带有 `opening` 时，本周的清单都是空的，开头已由代码写好：提交 {"position":N,"letter":{"signoff":"…"}}，结尾不要说缺了什么，也不要评价这一周；可以提一件下周的事。'
              '来信是单独的页面，可以用 `reply_context.user_name` 的原样称呼用户一次，也可以不称呼。`saved` 为 true 时，这封信已经写好并保持原样：提交 {"position":N}。'
              '读取失败时提交 {"position":N}，简报会说明这次没能写成来信（不写原因，不承诺补写）。不得跳过本章节。'),
+  'celebration': ('今天的简报以一张庆祝卡片开头。`celebrations` 列出要庆祝的事，headline 和 line 就是卡片上显示的文字；卡片由代码绘制，并署上你的名字。'
+                  '你只写一句配在卡片上的祝福：提交 {"position":N,"celebration":{"wish":"…"}}，一到两句（不超过 200 字），纯文本，由你这位秘书以“我”的口吻对用户说，'
+                  '不用“我们”，也不以 GoodMorning 团队的身份说话；遵循保存的语气（默认欢快、可爱）。只祝贺 `celebrations` 里列出的事，不要重复其中的数字或日期；'
+                  '不要添加其他事实、计划、建议或承诺，不要猜测用户的年龄、心情或这一天会怎么过；不要描述卡片或简报本身，也不要说陪伴了用户多久。不要称呼用户的名字。不要跳过这个章节。'),
   'today_regenerating': '重新生成：不写入任务、不提问；沿用已保存的反馈。复制读取返回的块（为 null 时没有），提到用户报告的每项结果。',
   'finish': '提交 {} 或 {"closing":"…"}，遵循 `writing`。保存核实后，只用保存的语气写一句简短的交付语，并附上返回的相对 url 作为 Markdown 链接。',
  },
@@ -275,8 +286,8 @@ def guide(context, action, plan, *, runtime, job, session):
             value += words['regenerating']
     elif action['action'] == 'finish':
         value = words['finish']
-    elif tag == 'letter':
-        value = words['letter']
+    elif tag in ('letter', 'celebration'):
+        value = words[tag]
     elif tag == 'today' and context.get('regenerating'):
         value = words['shape'] + words['today_regenerating']
     elif tag == 'weather' and context['workflow'] == 'gn':

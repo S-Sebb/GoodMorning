@@ -13,7 +13,8 @@ The filename supplies date/edition; do not repeat internal IDs in visible prose.
 
 Each section is `[type,blocks,note?,title?]`. Omit trailing optional fields.
 Types: `schedule`, `tasks`, `attention`, `today`, `weather`, `news`, plus the
-optional evening sections and the weekly `letter`. Blocks are
+optional evening sections, the weekly `letter` and a celebration day's
+`celebration` (first, before the defaults). Blocks are
 nonempty. Morning defaults to Weather, News, Schedule, Tasks, Reminders in that fixed order;
 evening defaults to Today, Weather tomorrow, Schedule, Tasks, Reminders. Omit empty optional
 sections. A material failed retrieval is unavailable, not an empty/free day.
@@ -106,6 +107,11 @@ conflict, reread affected records; never infer progress or alter immutable secti
   builds it when the weekly letter is published (`docs/weekly-letters.md`).
   `counts` is `[finished, habits, ideas]`, or null when the letter could not be
   written. Never write or copy it.
+- `["celebration",items,wish,secretary_name]`: only, and alone, in the
+  `celebration` section; code builds it when the celebration position is
+  published (`docs/celebrations.md`). Items are `["birthday"]`,
+  `["days",100,FIRST_DAY]`, `["years",N,FIRST_DAY]` or `["tasks",MILESTONE,TOTAL]`;
+  the page words them. Never write or copy it.
 - `["news",category,[[headline,summary,sources],...],country?]`: retain every
   selected story and all citations. Sources are nonempty `[[label,url],...]` with
   absolute HTTP(S) URLs and no credentials. Country is an optional uppercase

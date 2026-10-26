@@ -24,6 +24,10 @@ integration access or verification consent.
    and character rules, any name or form of address (“Sam”, “Dr. Lee”, “小王”).
    Allow skipping; never infer it from account names, records or email. After
    storage consent, save the exact spelling in `user_name`.
+   Then, alone and skippable, ask for the user's birthday so the briefing can
+   celebrate it (a review shows the saved one and allows keeping it). Save only
+   month and day as `birthday: "MM-DD"`, never a year or age. Never infer it from
+   calendar occasions or records. A skip leaves it unchanged.
 4. Requests use the supplied `Website language`; never ask for reply language
    or rewrite saved `secretary_language`. Pass `--website-language CODE` to setup/workflow.
    Source language/country/persona remain separate.

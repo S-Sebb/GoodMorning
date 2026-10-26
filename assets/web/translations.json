@@ -941,5 +941,14 @@
   "Not listed yet for {year}: {regions}": "{year} 年暂未收录：{regions}",
   "Public holiday": "公共假期",
   "Workday": "上班日",
-  "No public holidays": "不显示公共假期"
+  "No public holidays": "不显示公共假期",
+  "Something to celebrate": "值得庆祝",
+  "Happy birthday! 🎂": "生日快乐呀！🎂",
+  "100 days of GoodMorning! 🌱": "GoodMorning 100 天啦！🌱",
+  "Happy GoodMorning anniversary! 🎉": "GoodMorning 周年快乐！🎉",
+  "{count} tasks done! ✨": "{count} 件待办搞定！✨",
+  "Your very first briefing was on {date}, 100 days ago today.": "你的第一份简报是 {date}，到今天正好 100 天。",
+  "Your very first briefing was on {date}, one year ago today.": "你的第一份简报是 {date}，到今天正好一年。",
+  "Your very first briefing was on {date}, {count} years ago today.": "你的第一份简报是 {date}，到今天已经 {count} 年了。",
+  "You’ve ticked off {count} tasks in GoodMorning so far.": "你已经在 GoodMorning 里勾掉了 {count} 件待办。"
 }

@@ -147,6 +147,7 @@ API 密钥。
 [日程](docs/weekly-schedule.md) ·
 [每周来信](docs/weekly-letters.md) ·
 [晚间整理](docs/evening-tidy-up.md) ·
+[值得庆祝](docs/celebrations.md) ·
 [网站对话](docs/browser-chat.md) ·
 [项目访问](docs/project-access.md) ·
 [源码结构](docs/project-structure.md) ·

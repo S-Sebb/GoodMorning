@@ -14,7 +14,7 @@ import sys
 from . import briefing_document as native
 from . import briefing_guides
 from .briefing_stream import DEFAULT_PLANS, LEGACY_PLANS, bounded_json, load, paths, publish, require_final
-from goodmorning.records import letters
+from goodmorning.records import celebrations, letters
 from goodmorning.runtime_files import atomic_text, runtime_lock, secretary_path
 from goodmorning.web import language as ui
 
@@ -71,7 +71,7 @@ def require_section(runtime, identifier, session, kind, date, section):
     if position == len(checkpoint['plan']):
         raise ValueError('browser_sections_resolved: finish the job; no further section reads')
     expected = checkpoint['plan'][position][0]
-    reconcile = kind == 'gn' and position == 0 and section == 'tasks' and not context.get('regenerating')
+    reconcile = kind == 'gn' and expected == 'today' and section == 'tasks' and not context.get('regenerating')
     if section != expected and not reconcile:
         raise ValueError(f'browser_section_not_ready: publish {expected} before reading {section}; this is not a provider failure')
     return context.get('website_language','en')
@@ -92,6 +92,8 @@ def default_plan(context):
         plan.append(['stocks', ui.text(native.TITLES['stocks'], lang=selected)])
     if context.get('document_version') == 2 and context.get('weekly_letter', {}).get('week'):
         plan.append(['letter', ui.text(native.TITLES['letter'], lang=selected)])
+    if context.get('document_version') == 2 and context.get('celebrations'):
+        plan.insert(0, ['celebration', ui.text(native.TITLES['celebration'], lang=selected)])
     return plan
 
 
@@ -164,6 +166,11 @@ def next_step(runtime, identifier, session, context, checkpoint):
     if tag == 'letter':
         action['input'] = ({'position':position} if letters.load(runtime, context['weekly_letter']['week'])
                            else {'position':position, 'letter':{'opening':'…', 'signoff':'…'}})
+    elif tag == 'celebration':
+        lang = context.get('website_language', 'en')
+        action['celebrations'] = [dict(zip(('headline', 'line'), celebrations.words(item, lambda words, **values: ui.text(words, lang=lang, **values), lang)))
+                                  for item in context['celebrations']]
+        action['input'] = {'position':position, 'celebration':{'wish':'…'}}
     elif context.get('document_version') == 2:
         action['input'] = {'position':position, 'section':[tag,'BLOCKS','NOTE',title]}
     else:
@@ -231,6 +238,17 @@ def letter_section(runtime, job, context, payload):
             raise ValueError('This week\'s records were read: write the letter as {"position":N,"letter":{"opening":"…","signoff":"…"}}')
         letter = letters.save(runtime, week, payload['letter'], context.get('website_language', 'en'), job['date'])
     return ['letter', [['letter', week, letters.counts(letter)]]]
+
+
+def celebration_section(runtime, job, context, payload):
+    """Today's celebration card: code's facts, the secretary's wish and name. Milestones are remembered as shown."""
+    if set(payload) != {'position', 'celebration'} or not isinstance(payload['celebration'], dict) or set(payload['celebration']) != {'wish'}:
+        raise ValueError('Publish the celebration as {"position":N,"celebration":{"wish":"…"}}')
+    section = ['celebration', [['celebration', context['celebrations'], payload['celebration']['wish'],
+                                context.get('profile', {}).get('secretary_name', '')]]]
+    native.block(section[1][0], 'celebration')
+    celebrations.remember(runtime, job['date'], context['celebrations'])
+    return section
 
 
 def read_count(runtime, job, tag, results):
@@ -405,6 +423,9 @@ def writing_rule(context, next_action):
     if tag == 'letter':
         return ('开头和结尾只能提到读取结果里有的事：完成的事项、习惯、灵感和下周的安排。不要提到没完成的事、中断的习惯或空着的部分；不要编造进展、感受、空闲时间或精力，也不要承诺之后会做什么。' if chinese else
                 'The opening and sign-off may mention only what the read returned: finished items, habits, ideas and next week\'s plans. Never mention unfinished work, broken or missing streaks or empty parts; never invent progress, feelings, free time or energy, or promise anything later.')
+    if tag == 'celebration':
+        return ('祝福只针对 `celebrations` 列出的事；不写年龄、心情、计划、建议或承诺，不重复卡片上的数字或日期，不用“我们”。' if chinese else
+                'The wish celebrates only what `celebrations` lists. No ages, feelings, plans, advice or promises, no numbers or dates from the card, never "we".')
     if tag == 'stocks':
         return ('只写读取结果里有的股票和涨跌；不预测走势、不给买卖建议，也不承诺之后提醒。' if chinese else
                 'Mention only stocks and moves the read returned. No forecasts, no buy or sell advice, no promise of later alerts.')
@@ -513,6 +534,9 @@ def act(runtime, identifier, session, action, payload=None):
             if (action == 'publish' and isinstance(payload, dict) and type(payload.get('position')) is int
                     and 0 <= payload['position'] <= min(position, len(checkpoint['plan']) - 1) and checkpoint['plan'][payload['position']][0] == 'letter'):
                 payload = {'position':payload['position'], 'section':letter_section(runtime, job, context, payload)}
+            elif (action == 'publish' and isinstance(payload, dict) and type(payload.get('position')) is int
+                    and 0 <= payload['position'] <= min(position, len(checkpoint['plan']) - 1) and checkpoint['plan'][payload['position']][0] == 'celebration'):
+                payload = {'position':payload['position'], 'section':celebration_section(runtime, job, context, payload)}
             if not isinstance(payload, dict) or set(payload) != ({'position','section'} if action == 'publish' else {'position'}):
                 raise ValueError('Supply the section position and, for publish, one section')
             requested = payload['position']
@@ -533,7 +557,7 @@ def act(runtime, identifier, session, action, payload=None):
             if requested != position or position == len(checkpoint['plan']):
                 raise ValueError('Publish only the next unresolved section')
             if action == 'skip':
-                if checkpoint['plan'][position][0] in ('weather','news','schedule','today','tomorrow','anime','games','stocks','letter'):
+                if checkpoint['plan'][position][0] in ('weather','news','schedule','today','tomorrow','anime','games','stocks','letter','celebration'):
                     raise ValueError('Publish material unavailability; do not skip a required section')
                 return receipt(publish(runtime, identifier, skip=True, position=position))
             if checkpoint['plan'][position][0] == 'news' and isinstance(payload['section'], list) and payload['section'][:1] == ['news']:
