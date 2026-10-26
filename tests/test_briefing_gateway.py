@@ -697,6 +697,12 @@ class GatewayTests(GatewayFixture):
         self.assertEqual((user,path,new['mode'],new['text']),(self.id,'/api/chats','secretary','Plan my day'))
         self.assertEqual((follow_path,follow['text']),('/api/chats/'+'b'*32+'/messages','More'))
         self.assertRegex(new['id'],'^[a-f0-9]{32}$')
+        def enabled(value):
+            with self.store.db() as db:db.execute('UPDATE users SET enabled=? WHERE id=?',(value,self.id))
+        enabled(0)
+        self.assertEqual(phone('/api/app/sync',headers={'X-GoodMorning-App':token})[0],403)
+        self.assertEqual(phone('/api/app/chat',{'text':'x'},headers={'X-GoodMorning-App':token})[0],403)
+        enabled(1)
         links=json.loads(self.request('/api/app/links')[2])['links']
         self.assertEqual(self.request('/api/app/unlink',{'id':links[0]['id']})[0],200)
         self.assertEqual(phone('/api/app/sync',headers={'X-GoodMorning-App':token})[0],403)

@@ -132,5 +132,41 @@ class AppLinkTests(unittest.TestCase):
         app_link.verify(self.accounts, other['token'], True)  # Subscribed before tagging: found by its name.
         self.assertEqual(labels(), ['Firefox on Linux'])
 
+    def test_a_disabled_accounts_phones_are_refused_and_reenabling_does_not_revive_them(self):
+        phone, other = self.link(), self.link(self.bob)
+        with self.accounts.db() as db:  # Disabled without unlinking, as before phones were revoked.
+            db.execute('UPDATE users SET enabled=0 WHERE id=?', (self.alice,))
+        self.assertIsNone(app_link.verify(self.accounts, phone['token']))
+        self.assertEqual(app_link.verify(self.accounts, other['token']), (self.bob, other['id']))
+        self.accounts.administer('alice', enabled=True)
+        self.assertIsNone(app_link.verify(self.accounts, phone['token']))
+        self.assertEqual(app_link.links(self.accounts, self.alice), [])
+        phone = self.link()
+        self.accounts.administer('alice', enabled=False)
+        self.accounts.administer('alice', enabled=True)
+        self.assertIsNone(app_link.verify(self.accounts, phone['token']))
+        self.assertEqual(app_link.verify(self.accounts, other['token']), (self.bob, other['id']))
+
+    def test_password_changes_and_resets_unlink_every_phone_and_waiting_code(self):
+        host = 'gm.example.test'
+        anonymous, _ = self.accounts.anonymous(host)
+        token, _, _ = self.accounts.login('alice', 'temporary-alice-secret1', host, '192.0.2.1', self.accounts.session(anonymous, host))
+        first, second, other = self.link(), self.link(name='Tablet'), self.link(self.bob)
+        waiting = app_link.pair(self.accounts, 'Late phone')
+        app_link.confirm(self.accounts, self.alice, waiting['code'])
+        app_link.record(self.accounts, self.alice, 'chat', {'title': 'Ready', 'body': 'Tap', 'url': '/', 'tag': 't'})
+        self.accounts.change_password(self.accounts.session(token, host), 'temporary-alice-secret1', 'permanent-alice-secret1', '192.0.2.1')
+        for phone in (first, second):
+            self.assertIsNone(app_link.verify(self.accounts, phone['token']))
+        with self.assertRaises(ValueError):
+            app_link.claim(self.accounts, waiting['secret'])
+        self.assertEqual(app_link.links(self.accounts, self.alice), [])
+        third = self.link()
+        app_link.record(self.accounts, self.alice, 'chat', {'title': 'Ready', 'body': 'Tap', 'url': '/', 'tag': 't'})
+        self.assertEqual([entry['seq'] for entry in app_link.outbox(self.accounts, self.alice, 0, web_push.DEFAULTS, third['id'])], [1])
+        self.accounts.administer('alice', temporary='reset-alice-secret1')
+        self.assertIsNone(app_link.verify(self.accounts, third['token']))
+        self.assertEqual(app_link.verify(self.accounts, other['token']), (self.bob, other['id']))
+
 if __name__ == '__main__':
     unittest.main()
