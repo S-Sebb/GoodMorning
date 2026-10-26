@@ -144,7 +144,7 @@ class CheckpointBridge(TrialBridge):
 def synthetic_weather(instant, later=None):
     """Brief text and JSON from the real weather code for a dry day with past night rain, rain from 21:00 and model drizzle now.
 
-    A `later` day (tomorrow, for the evening) gets that day's 06:00–24:00 reading: dry until 21:00, then rain."""
+    A `later` day (tomorrow, for the evening) gets that day's card instead: dry until 21:00, then rain."""
     from unittest.mock import patch
     from goodmorning import weather as w
     local = instant.astimezone(ZoneInfo('Europe/London'))
@@ -165,9 +165,13 @@ def synthetic_weather(instant, later=None):
         aqi = w.fetch_aqi_openmeteo(51.51, -0.13)
         out.update(latitude=51.51, longitude=-0.13, country='GB', cache_state='live', fetched_at=instant.isoformat(),
                    aqi=aqi, aqi_source='auto', warnings=[])
-        frame = w.forecast_frame(out, aqi, day=later)
-        w.apply_frame(out, frame, later)
-    out.pop('hourly'); aqi.pop('hourly')
+        if later:
+            card = w.outlook(out, w.forecast_frame(out, None, day=later), later)
+            out = {key:out[key] for key in ('city','latitude','longitude','country','timezone','provider','cache_state','fetched_at','warnings')}
+            out.update(day=later, outlook=card)
+        else:
+            w.apply_frame(out, w.forecast_frame(out, aqi))
+            out.pop('hourly'); aqi.pop('hourly')
     return {'brief':w.brief(out), 'json':out}
 
 
@@ -443,18 +447,12 @@ def run_case(output, template, language, scenario, instant):
                 assert records(runtime) == baseline, 'Evening without updates changed task records'
                 assert [section[0] for section in document['sections']][:3] == ['today','weather','schedule']
                 section = document['sections'][1]
+                assert section[1] == [reading['json']['outlook']], 'The section is not exactly the code-filled card'
                 assert section[3:] == [default_plan(prepared)[1][1]], 'Weather tomorrow lost its planned title'
-                weather = next(block for block in section[1] if block[0] == 'weather')
-                assert len(weather) == 3 and weather[2] == reading['json']['frame'], 'Code did not attach the read frame'
-                assert weather[2]['start'][:10] == tomorrow and weather[2]['past'] == 0, 'Frame is not tomorrow\'s whole day'
-                cards = {row[0]:row for row in weather[1]}
-                assert {'temperature','precipitation','air'} <= set(cards), 'Weather cards missing'
-                warm = str(cards['temperature'][2]).casefold()
-                assert not any(word in warm for word in ('rain', 'drizzle', 'umbrella', 'shower', '雨', '伞')), \
-                    'Temperature detail reported precipitation'
-                assert '21:00' in str(cards['precipitation'][2]), 'Precipitation detail lost when the umbrella is needed'
-                result['weather_cards'] = weather[1]
-                result['checks'].append('Weather tomorrow follows Today with the read\'s frame, clothing and umbrella time')
+                assert section[2:3] and section[2].strip() and '\n' not in section[2], 'No one-line closing note'
+                assert not re.search(r'\d', section[2]), 'The note repeated numbers or times the card already shows'
+                result['weather_note'] = section[2]
+                result['checks'].append('Weather tomorrow follows Today as the code-filled card with a one-line note')
             else:
                 current = records(runtime)
                 atlas = next(task for task in current if task['id'] == baseline[0]['id'])

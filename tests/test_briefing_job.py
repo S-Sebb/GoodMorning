@@ -11,7 +11,8 @@ from unittest.mock import patch
 
 from support import TEMP_ROOT, FakeChamber, complete_profile
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'src'))
-from goodmorning.briefings.briefing_job import act, context_path, decode_input, default_plan, next_step
+from goodmorning.briefings.briefing_job import (act, context_path, decode_input, default_plan, next_step,
+                                                save_weather_frame, with_weather_frame)
 from goodmorning.briefings import briefing_guides
 from goodmorning.briefings.briefing_preflight import answer, initialize
 from goodmorning.web.briefing_server import BrowserApp
@@ -98,7 +99,7 @@ class JobTests(unittest.TestCase):
     def test_evening_forecasts_tomorrow_right_after_today(self):
         context = {'workflow':'gn','document_version':2,'date':'2026-10-11','tomorrow':'2026-10-12','city':'London, GB',
                    'timezone':'Europe/London','paths':{'cache':str(self.root/'cache')}}
-        for language, title, words in (('en','Weather tomorrow','TOMORROW'), ('zh-CN','明日天气','【明天】')):
+        for language, title in (('en','Weather tomorrow'), ('zh-CN','明日天气')):
             context['website_language'] = language
             plan = default_plan(context)
             self.assertEqual([tag for tag, _ in plan], ['today','weather','schedule','tasks','attention'])
@@ -106,11 +107,11 @@ class JobTests(unittest.TestCase):
             action = next_step(self.root, self.identifier, 'ses_fixture', context, {'plan':plan,'outcomes':['ready']})
             self.assertTrue(action['read'][0].endswith('--day 2026-10-12'))
             guide = briefing_guides.guide(context, action, plan, runtime=self.root, job=self.identifier, session='ses_fixture')
-            self.assertIn(words, guide)
+            self.assertIn('[["outlook"]]', guide)
         morning = {**context, 'workflow':'gm', 'news':{'countries':[],'as_of':'2026-10-11T07:30:00+01:00'}}
         action = next_step(self.root, self.identifier, 'ses_fixture', morning, {'plan':[['weather','Weather']],'outcomes':[]})
         self.assertNotIn('--day', action['read'][0])
-        self.assertNotIn('TOMORROW', briefing_guides.guide(morning, action, [], runtime=self.root, job=self.identifier, session='ses_fixture'))
+        self.assertNotIn('outlook', briefing_guides.guide(morning, action, [], runtime=self.root, job=self.identifier, session='ses_fixture'))
 
     def test_weather_read_frame_is_attached_by_code_when_publishing(self):
         frame = {'start':'2026-10-11T06:00','past':6,'hours':[[12,5,30]]*18,'sun':[['sunrise',1.2]],'night':[[0,1.2]],'snow':False,
@@ -129,6 +130,20 @@ class JobTests(unittest.TestCase):
         self.assertEqual(saved[1][0][2], frame)
         # A retried publish of the agent's own section is recognised as the same one.
         self.assertTrue(act(self.root,self.identifier,'ses_fixture','publish',{'position':0,'section':section})['reused'])
+
+    def test_evening_outlook_placeholder_is_filled_by_code(self):
+        card = ['outlook', 10, 14, 'cloud', ['dry'], None, None, [['jacket']]]
+        def reads(commands):
+            return [{'command':command,'exit':0,'output':{'outlook':card} if command.endswith('--json') else 'Dry.'} for command in commands]
+        with patch('goodmorning.briefings.briefing_job.run_reads', side_effect=reads):
+            save_weather_frame(self.root, self.identifier, 'weather --day 2026-10-12', [{'exit':0}])
+        section = ['weather',[['outlook']],'Sleep well.','Weather tomorrow']
+        self.assertEqual(with_weather_frame(self.root, self.identifier, section), ['weather',[card],'Sleep well.','Weather tomorrow'])
+        self.assertEqual(with_weather_frame(self.root, self.identifier, ['weather',[['weather',[['temperature','1°C','Cold.']]]]])[1][0],
+                         ['weather',[['temperature','1°C','Cold.']]])  # A card never becomes a morning frame.
+        with patch('goodmorning.briefings.briefing_job.run_reads', side_effect=reads):
+            save_weather_frame(self.root, self.identifier, 'weather --day 2026-10-12', [{'exit':1}])
+        self.assertEqual(with_weather_frame(self.root, self.identifier, section), section)
 
     def test_bad_json_and_block_shape_preserve_preview_and_explain_repairs(self):
         self.init()

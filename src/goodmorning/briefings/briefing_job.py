@@ -176,12 +176,12 @@ def weather_frame_path(runtime, identifier):
 
 
 def save_weather_frame(runtime, identifier, command, results):
-    """Keep the hourly frame the agent's weather read used; publishing attaches it, so charts never come from the model."""
+    """Keep the hourly frame (or the evening's card) the weather read used; publishing attaches it, so they never come from the model."""
     path = weather_frame_path(runtime, identifier)
     frame = None
     if results and results[0]['exit'] == 0:
         output = run_reads([command + ' --json'])[0]['output']
-        frame = output.get('frame') if isinstance(output, dict) else None
+        frame = (output.get('outlook') or output.get('frame')) if isinstance(output, dict) else None
     if frame:
         atomic_text(path, json.dumps(frame, separators=(',', ':')))
     else:
@@ -189,14 +189,18 @@ def save_weather_frame(runtime, identifier, command, results):
 
 
 def with_weather_frame(runtime, identifier, section):
-    """The section as saved: its first weather block carries the read's frame."""
+    """The section as saved: its first weather block carries the read's frame, or code fills the evening's ["outlook"] card."""
     try:
         frame = json.loads(weather_frame_path(runtime, identifier).read_text())
     except (OSError, ValueError):
         return section
     blocks = section[1] if isinstance(section, list) and len(section) > 1 and isinstance(section[1], list) else []
     for index, block in enumerate(blocks):
-        if isinstance(block, list) and block[:1] == ['weather'] and len(block) == 2:
+        if block == ['outlook'] and isinstance(frame, list):
+            section = deepcopy(section)
+            section[1][index] = frame
+            break
+        if isinstance(block, list) and block[:1] == ['weather'] and len(block) == 2 and isinstance(frame, dict):
             section = deepcopy(section)
             section[1][index] = [*block, frame]
             break

@@ -80,12 +80,17 @@ temperature, rain chance and AQI, sunrise/sunset, night spans, source links).
 Browser jobs attach that `frame` to the saved weather block when the section is
 published, so its charts and headlines are code-owned.
 
-`--day YYYY-MM-DD` (the evening's Weather tomorrow) charts that day's 06:00–24:00
-instead, with the same wet-hour rule and that day's own snow flag. It drops the
-current condition and temperature, gives the day's high/low and clothing advice
-by its high (layers when the high and low differ by 8°C or more), and reports
-AQI only from the model's hourly forecast; the live WAQI station is not read.
-Without hourly data for that day it exits 1.
+`--day YYYY-MM-DD` (the evening's Weather tomorrow) reads that day's 06:00–24:00
+instead, with the same wet-hour rule and that day's own snow flag, and no air
+quality. JSON adds `outlook`, the card the page shows:
+`["outlook",low,high,icon,sky,compare,alert,bring]`. `sky` is the rain or snow
+shape (dry, all day, until, from, between, on and off) with whole-hour times;
+`compare` is warmer or cooler than today's 06:00–24:00 high, only from a 3°C
+difference ("much" from 6°C); `alert` is at most one heads-up (storm with wet
+hours, snow, freezing, a 30°C high); `bring` is clothing by the rounded high,
+layers for an 8°C swing, then an umbrella (after a time when rain starts later)
+and waterproof shoes, or boots for snow. Without hourly data for that day it
+exits 1.
 
 Without hourly data, `rain yes` is a full-local-day umbrella heuristic: at least 50% precipitation
 probability without a snow forecast, or a rain/storm code or more than 0.2 mm

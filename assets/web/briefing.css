@@ -239,6 +239,20 @@ html[data-edition="gn"] .weather-tile.cool { --tile-accent: #a2cde9; --tile-bg: 
 html[data-edition="gn"] .weather-tile.warm { --tile-accent: #ecc891; --tile-bg: #383126; }
 html[data-edition="gn"] .weather-tile.precipitation { --tile-accent: #c8b9ea; --tile-bg: #2b2b43; }
 html[data-edition="gn"] .weather-tile.air { --tile-accent: #aed4b7; --tile-bg: #23392f; }
+.outlook-card { background: var(--wash); border: 1px solid var(--line); border-radius: 14px; padding: 22px 24px; display: grid; gap: 16px; max-width: 640px; }
+.outlook-top { display: flex; align-items: center; gap: 18px; }
+.outlook-icon { color: var(--accent); }
+.outlook-icon .data-icon { width: 44px; height: 44px; stroke-width: 1.3; }
+.outlook-top p { margin: 0; }
+.outlook-range { font-size: clamp(30px, 3.4vw, 40px); font-weight: 500; letter-spacing: -1px; line-height: 1.15; }
+.outlook-top .outlook-sky { font-size: 16px; margin-top: 4px; }
+.outlook-top .outlook-compare { color: var(--muted); font-size: 14px; margin-top: 2px; }
+.outlook-alert { display: flex; align-items: center; gap: 10px; margin: 0; padding: 10px 14px; border-radius: 10px; background: var(--surface); font-size: 14px; }
+.outlook-alert .data-icon { width: 18px; height: 18px; color: var(--accent); }
+.outlook-ready { border-top: 1px solid var(--line); padding-top: 14px; }
+.outlook-ready h4 { margin: 0 0 10px; color: var(--accent); font-size: 11px; letter-spacing: 1.4px; text-transform: uppercase; }
+.outlook-ready ul { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.outlook-ready li { padding: 6px 13px; border-radius: 999px; background: var(--surface); border: 1px solid var(--line); font-size: 14px; }
 .weather-label { display: flex; align-items: center; gap: 10px; color: var(--tile-accent); }
 .weather-label h3 { margin: 0; color: inherit; font-size: 11px; letter-spacing: 1.4px; }
 .weather-tile .weather-value { color: var(--tile-accent); font-size: clamp(34px, 3.7vw, 48px); font-weight: 500; line-height: 1.2; letter-spacing: -2px; margin: 22px 0 16px; }
