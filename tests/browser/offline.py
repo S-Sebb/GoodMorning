@@ -105,10 +105,10 @@ def main():
                 csrf = json.loads(page.locator('#language-config').get_attribute('data-config'))['csrf']
                 cached = kept(page, 2)
                 [(name, files)] = cached.items()
-                # Only the two copies and the files they name, none carrying the session's token.
-                assert all(path.startswith(('/offline/', '/assets/')) for path in files), sorted(files)
+                # Only the two copies and the files they and their stylesheets name, none carrying the session's token.
+                assert not any(path.startswith(('/api/', '/login', '/logout', '/password')) for path in files), sorted(files)
+                assert any(path.endswith('/desk-morning.svg') for path in files), sorted(files)
                 assert not any(csrf in text or 'csrf' in text.lower() for text in files.values())
-                assert '/api/' not in ''.join(files)
 
                 # Another page load checks the copies without downloading them again.
                 page.goto(HOST + '/chat')

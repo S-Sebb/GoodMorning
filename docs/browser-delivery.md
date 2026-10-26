@@ -168,7 +168,7 @@ Signed-in pages register `/sw.js` (`app.js`), in browsers and in the Android
 app's WebView. After each page load the worker refreshes two read-only copies,
 `/offline/gm.html` and `/offline/gn.html`: the latest saved morning and evening
 edition of the seven-day window, with the stylesheets, scripts, icons and images
-they name. An unchanged copy costs a 304 (the gateway's ETag). A copy has no
+they name and the fonts and pictures those stylesheets name. An unchanged copy costs a 304 (the gateway's ETag). A copy has no
 request token, form, chat, week picker or account control, and the gateway adds
 none. While the newest edition awaits its check after regeneration the backend
 answers 503 and the device keeps its copy; with nothing saved that week it

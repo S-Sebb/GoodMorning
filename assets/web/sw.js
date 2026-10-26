@@ -65,18 +65,28 @@ async function refresh() {
   if (cache) await keepFiles(cache);
 }
 
-// Keeps exactly the stylesheets, scripts, icons and images the copies name.
+// Keeps exactly the stylesheets, scripts, icons and images the copies name, and the fonts and pictures
+// those stylesheets name.
 async function keepFiles(cache) {
   const files = new Set();
+  const add = async () => { for (const file of files) if (!await cache.match(file, {ignoreVary: true})) await cache.add(file).catch(() => {}); };
   for (const path of COPIES) {
     const copy = await cache.match(path, {ignoreVary: true});
     if (copy) for (const [, file] of (await copy.text()).matchAll(/<(?:link|script|img)\b[^>]*?\s(?:href|src)="(\/[^"/][^"]*)"/g)) files.add(file);
+  }
+  await add();
+  for (const file of [...files]) {
+    const sheet = new URL(file, self.location.origin).pathname.endsWith('.css') && await cache.match(file, {ignoreVary: true});
+    if (sheet) for (const [, name] of (await sheet.text()).matchAll(/url\(["']?([^"')]+)/g)) {
+      const url = new URL(name, self.location.origin + file);
+      if (url.origin === self.location.origin) files.add(url.pathname + url.search);
+    }
   }
   for (const request of await cache.keys()) {
     const url = new URL(request.url);
     if (!COPIES.includes(url.pathname) && !files.has(url.pathname + url.search)) await cache.delete(request);
   }
-  for (const file of files) if (!await cache.match(file, {ignoreVary: true})) await cache.add(file).catch(() => {});
+  await add();
 }
 
 self.addEventListener('push', event => {
