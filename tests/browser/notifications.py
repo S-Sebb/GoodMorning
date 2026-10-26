@@ -152,20 +152,35 @@ def main():
                 assert subscribed.value.status == 200, subscribed.value.json()
                 expect(desktop.locator('#notification-status')).to_have_text('Notifications are on for this device.')
                 expect(desktop.locator('#notification-choices')).to_be_visible()
-                for name in ('briefing', 'waiting', 'chat', 'events'):
+                for name in ('briefing', 'waiting', 'chat', 'events', 'gm', 'gn'):
                     expect(desktop.locator(f'#notification-form input[name={name}]')).to_be_checked()
                 expect(desktop.locator('#notification-lead')).to_have_value('15')
-                expect(desktop.locator('.notification-note').first).to_have_text('These choices apply to this device only.')
+                expect(desktop.locator('#notification-form input[name=gm_time]')).to_have_value('07:00')
+                expect(desktop.locator('#notification-form input[name=gn_time]')).to_have_value('21:00')
+                expect(desktop.locator('#notification-choices > .notification-note')).to_have_text('These choices apply to this device only.')
+                desktop.locator('#notification-choices').screenshot(path=str(artifacts/'reminders-1440.png'))
                 with desktop.expect_response('**/api/push/settings') as saved:
                     desktop.locator('#notification-form input[name=chat]').uncheck()
                 assert saved.value.status == 200
                 with desktop.expect_response('**/api/push/settings') as saved:
                     desktop.locator('#notification-lead').select_option('30')
                 assert saved.value.status == 200
+                # A reminder turned off keeps its time; another time saves as soon as it is complete.
+                with desktop.expect_response('**/api/push/settings') as saved:
+                    desktop.locator('#notification-form input[name=gm]').uncheck()
+                assert saved.value.status == 200
+                expect(desktop.locator('#notification-form input[name=gm_time]')).to_be_disabled()
+                with desktop.expect_response('**/api/push/settings') as saved:
+                    desktop.locator('#notification-form input[name=gn_time]').fill('22:30')
+                assert saved.value.status == 200 and saved.value.json()['settings']['gn_time'] == '22:30'
                 desktop.reload()
                 menu(desktop, 'prefs')
                 expect(desktop.locator('#notification-form input[name=chat]')).not_to_be_checked()
                 expect(desktop.locator('#notification-lead')).to_have_value('30')
+                expect(desktop.locator('#notification-form input[name=gm]')).not_to_be_checked()
+                expect(desktop.locator('#notification-form input[name=gm_time]')).to_have_value('07:00')
+                expect(desktop.locator('#notification-form input[name=gm_time]')).to_be_disabled()
+                expect(desktop.locator('#notification-form input[name=gn_time]')).to_have_value('22:30')
                 # Saved choices filled in after loading are not unsent text: the update button refreshes without asking.
                 dialogs = []
                 desktop.on('dialog', lambda dialog: (dialogs.append(dialog.message), dialog.dismiss()))
@@ -193,7 +208,7 @@ def main():
                 expect(desktop.locator('#notification-status')).to_have_text('Notifications are off for this device.')
                 browser.close()
             assert errors == [], errors
-            print(json.dumps({'modelCalls': 0, 'pushServiceContacted': False, 'choicesPerDevice': True, 'accountTurnsOtherDevicesOff': True,
+            print(json.dumps({'modelCalls': 0, 'pushServiceContacted': False, 'choicesPerDevice': True, 'briefingReminderTimes': True, 'accountTurnsOtherDevicesOff': True,
                               'failedTurnOnLeavesNoWorker': True, 'linkCodeFormatted': True, 'linkCodePrefilled': True,
                               'workerHasNoFetchHandler': True, 'bilingual': True, 'widths': [390, 1440], 'pageErrors': 0}))
         finally:

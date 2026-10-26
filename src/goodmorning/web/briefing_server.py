@@ -38,6 +38,7 @@ from .avatar_images import MAX_AVATAR_BYTES, AVATAR_UPLOAD_ROUTE, find_image, im
 from .bridge_json import read_json
 from .activity import ACTIVITY_PATH, snapshot as activity_snapshot
 from . import app_briefings
+from .briefing_reminders import ReminderLines, Unknown
 from . import schedule
 from . import quick_chat
 from .quick_notes import Notes
@@ -137,6 +138,7 @@ class BrowserApp:
         self.thumbnails = ByteCache(2 * 1024 * 1024, 128)
         self.resources = Resources(ASSETS)
         self.chats = Chats(self.runtime, chamber)
+        self.reminders = ReminderLines(self.runtime, chamber)
         self.notes = Notes(self.runtime)
         self.job_dir = self.runtime / 'browser-jobs'
         if self.job_dir.is_symlink():
@@ -207,6 +209,17 @@ class BrowserApp:
         avatar = self.avatar()
         urls = image_urls(self.runtime) if avatar == 'custom' else None
         return {'name': name, 'avatar': avatar, 'image': urls and (urls['profile'] or urls['day'])}
+
+    def reminder_state(self):
+        """Today's editions as reminders see them, and the lines to remind with in the website language."""
+        date = self.today()
+        editions = {}
+        for kind in KINDS:
+            job = self.jobs.get(date + '.' + kind)
+            state = self.status(job['id'])['state'] if job else 'missing'
+            saved = self.source(date, kind).is_file() and (state in ('ready', 'missing') or not self.preflight)
+            editions[kind] = 'ready' if saved else 'missing' if state in ('ready', 'missing') else state
+        return {'date': date, 'timezone': self.zone, 'editions': editions, **self.reminders.current(ui.current())}
 
     def chat_state(self, chat):
         """A sort conversation's state; one still waiting in the gateway's line is not here yet."""
@@ -1028,6 +1041,14 @@ def serve_live(app, port, *, gateway_key=None, public_origins=()):
                     if hours not in (['3'], ['24']):
                         return self.respond({'error': 'Invalid reminder window'}, 400)
                     return self.respond(schedule.upcoming(app, int(hours[0])))
+                if path == '/api/briefing-reminders':
+                    return self.respond(app.reminder_state())
+                lines = re.fullmatch(r'/api/briefing-reminders/lines/([a-f0-9]{32})', path)
+                if lines:
+                    try:
+                        return self.respond(app.reminders.status(lines[1]))
+                    except Unknown:
+                        return self.respond({'error': 'Not found'}, 404)
                 if path == '/api/app-profile':
                     return self.respond(app.app_profile())
                 if path == '/api/app-schedule':
@@ -1201,6 +1222,8 @@ def serve_live(app, port, *, gateway_key=None, public_origins=()):
                     return self.respond(app.recover(recovery[1], body), 202)
                 if path == '/api/chats':
                     return self.respond(app.chats.start(body), 202)
+                if path == '/api/briefing-reminders/lines':
+                    return self.respond(app.reminders.start(body), 202)
                 if path == '/api/notes':
                     return self.respond(app.notes.save(body))
                 if path == '/api/notes/sorted':

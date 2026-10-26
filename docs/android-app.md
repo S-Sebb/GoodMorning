@@ -154,7 +154,7 @@ widgets show the link prompt.
 The same run also:
 
 - posts status notifications (briefing ready, needs your answer, reply
-  finished) newer than its last check, usually within a few minutes. The first
+  finished, briefing not prepared yet) newer than its last check, usually within a few minutes. The first
   check after linking only records where to start;
 - schedules each timed event in the next 24 hours as an exact alarm at its
   start minus the account's lead time. Reminders fire on time even offline,

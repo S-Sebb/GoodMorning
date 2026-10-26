@@ -137,6 +137,14 @@ html:not([data-edition="gn"])[data-day-scheme]:not([data-day-scheme="classic"]) 
 :is(#prefs-menu, #account-menu) #notification-kinds legend { margin: 0 0 4px; padding: 0; font-size: 12px; }
 :is(#prefs-menu, #account-menu) #notification-kinds label { display: flex; align-items: center; gap: 8px; min-height: 36px; font-size: .8rem; color: inherit; }
 :is(#prefs-menu, #account-menu) #notification-kinds input { flex: none; width: 18px; height: 18px; margin: 0; accent-color: var(--accent); }
+:is(#prefs-menu, #account-menu) #briefing-reminders { display: grid; gap: 2px; min-width: 0; margin: 10px 0 6px; padding: 0; border: 0; }
+:is(#prefs-menu, #account-menu) #briefing-reminders legend { margin: 0 0 4px; padding: 0; font-size: 12px; }
+:is(#prefs-menu, #account-menu) .briefing-reminder { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 40px; }
+:is(#prefs-menu, #account-menu) .briefing-reminder label { display: flex; align-items: center; gap: 8px; font-size: .8rem; color: inherit; }
+:is(#prefs-menu, #account-menu) .briefing-reminder input[type="checkbox"] { flex: none; width: 18px; height: 18px; margin: 0; accent-color: var(--accent); }
+:is(#prefs-menu, #account-menu) .briefing-reminder input[type="time"] { width: auto; min-height: 36px; padding: .2rem .5rem; font: inherit; font-size: .8rem; border: 1px solid var(--line); border-radius: .6rem; background: var(--bg); color: var(--ink); }
+:is(#prefs-menu, #account-menu) .briefing-reminder input[type="time"]:disabled { opacity: .5; }
+:is(#prefs-menu, #account-menu) #briefing-reminders .notification-note { margin-top: 2px; }
 :is(#prefs-menu, #account-menu) #notification-status, :is(#prefs-menu, #account-menu) .notification-note { margin: 0; font-size: .75rem; color: var(--muted); }
 #website-style > legend { --settings-icon: url("icons/desk-idea.svg"); }
 #day-color-scheme > legend { --settings-icon: url("icons/desk-morning.svg"); }

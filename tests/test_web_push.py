@@ -102,7 +102,8 @@ class WebPushTests(unittest.TestCase):
         self.assertNotIn(ENDPOINT, json.dumps(web_push.devices(self.accounts, self.alice)))  # Endpoints stay private.
         # Subscribing again keeps the device's choices.
         self.assertEqual(web_push.subscribe(self.accounts, self.alice, subscription, 'Firefox on Linux')['settings'], chosen)
-        for bad in ({**chosen, 'lead': 7}, {**chosen, 'lead': True}, {**chosen, 'chat': 'no'}, {**chosen, 'extra': True}, {'chat': False}):
+        for bad in ({**chosen, 'lead': 7}, {**chosen, 'lead': True}, {**chosen, 'chat': 'no'}, {**chosen, 'extra': True}, {'chat': False},
+                    {**chosen, 'gm_time': '7:00'}, {**chosen, 'gn_time': '24:00'}, {**chosen, 'gm_time': '07:60'}, {**chosen, 'gm_time': None}):
             with self.subTest(bad=bad), self.assertRaises(ValueError):
                 web_push.settings(self.accounts, self.alice, laptop['device'], bad)
         with self.assertRaises(ValueError):
@@ -121,6 +122,16 @@ class WebPushTests(unittest.TestCase):
                 {'settings': older, 'subscriptions': [web_push.subscription(subscription)]})))
         self.assertEqual(web_push.devices(self.accounts, self.alice)[0]['settings'], older)
         self.assertEqual(web_push.subscribe(self.accounts, self.alice, {**subscription, 'endpoint': ENDPOINT + '-new'}, 'Edge on Windows')['settings'], older)
+
+    def test_devices_saved_before_briefing_reminders_get_them_at_the_default_times(self):
+        _, subscription = browser()
+        older = {key: value for key, value in web_push.DEFAULTS.items() if not key.startswith(('gm', 'gn'))}
+        with self.accounts.db() as db:
+            db.execute('INSERT INTO metadata VALUES (?,?)', ('push:' + self.alice, json.dumps(
+                {'subscriptions': [{**web_push.subscription(subscription), 'settings': {**older, 'chat': False}}]})))
+        chosen = web_push.devices(self.accounts, self.alice)[0]['settings']
+        self.assertEqual({key: chosen[key] for key in ('gm', 'gm_time', 'gn', 'gn_time', 'chat')},
+                         {'gm': True, 'gm_time': '07:00', 'gn': True, 'gn_time': '21:00', 'chat': False})
 
     def test_a_shared_device_belongs_to_the_account_that_subscribed_last(self):
         _, subscription = browser()

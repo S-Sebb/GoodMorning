@@ -165,9 +165,9 @@ def unlink(accounts, user, identifier):
         _store(db, 'app-links:' + user, kept)
 
 
-def record(accounts, user, kind, message):
+def record(accounts, user, kind, message, only=None):
     """Keeps recent status notifications for linked phones that cannot receive Web Push; each phone
-    reads only the kinds it chose."""
+    reads only the kinds it chose, and only the named phone reads one meant for it alone."""
     with accounts.db() as db:
         db.execute('BEGIN IMMEDIATE')
         if not _metadata(db, 'app-links:' + user, []):
@@ -175,9 +175,12 @@ def record(accounts, user, kind, message):
         outbox = _metadata(db, 'app-outbox:' + user, [])
         sequence = (outbox[-1]['seq'] if outbox else 0) + 1
         entry = {'seq': sequence, 'kind': kind, 'at': time.time(), **{key: message[key] for key in ('title', 'body', 'url', 'tag')}}
+        if only:
+            entry['only'] = only
         _store(db, 'app-outbox:' + user, (outbox + [entry])[-OUTBOX:])
 
 
-def outbox(accounts, user, after, chosen):
+def outbox(accounts, user, after, chosen, link):
     with accounts.db() as db:
-        return [entry for entry in _metadata(db, 'app-outbox:' + user, []) if entry['seq'] > after and chosen.get(entry['kind'])]
+        return [{key: value for key, value in entry.items() if key != 'only'} for entry in _metadata(db, 'app-outbox:' + user, [])
+                if entry['seq'] > after and chosen.get(entry['kind']) and entry.get('only') in (None, link)]

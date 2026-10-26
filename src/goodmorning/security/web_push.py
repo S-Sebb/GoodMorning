@@ -9,6 +9,7 @@ import hashlib
 import hmac
 import json
 import os
+import re
 import struct
 import time
 from urllib.error import HTTPError, URLError
@@ -20,9 +21,11 @@ from cryptography.hazmat.primitives.asymmetric import ec
 from cryptography.hazmat.primitives.asymmetric.utils import decode_dss_signature
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
-KINDS = ('briefing', 'waiting', 'chat', 'events')
+# gm and gn remind the user of a morning or evening briefing not prepared yet, at their own times.
+KINDS = ('briefing', 'waiting', 'chat', 'events', 'gm', 'gn')
 LEADS = (5, 10, 15, 30, 60)
-DEFAULTS = {'briefing': True, 'waiting': True, 'chat': True, 'events': True, 'lead': 15}
+DEFAULTS = {'briefing': True, 'waiting': True, 'chat': True, 'events': True, 'lead': 15,
+            'gm': True, 'gm_time': '07:00', 'gn': True, 'gn_time': '21:00'}
 MAX_SUBSCRIPTIONS = 10
 # Only browser push services, so a subscription can never make the server contact other hosts.
 PUSH_HOSTS = ('fcm.googleapis.com', 'push.services.mozilla.com', 'web.push.apple.com', 'notify.windows.com')
@@ -85,7 +88,9 @@ def choices(state, entry):
 def validated(replacement):
     if not isinstance(replacement, dict) or set(replacement) != set(DEFAULTS) \
             or any(type(replacement[kind]) is not bool for kind in KINDS) \
-            or type(replacement['lead']) is not int or replacement['lead'] not in LEADS:
+            or type(replacement['lead']) is not int or replacement['lead'] not in LEADS \
+            or any(not isinstance(replacement[key], str) or not re.fullmatch(r'(?:[01]\d|2[0-3]):[0-5]\d', replacement[key])
+                   for key in ('gm_time', 'gn_time')):
         raise ValueError('Invalid notification settings')
     return replacement
 
@@ -186,6 +191,12 @@ def settings(accounts, user, identifier, replacement):
         _store(db, 'push:' + user, {**value, 'subscriptions': [
             {**item, 'settings': replacement} if device(item['endpoint']) == identifier else item for item in entries]})
     return replacement
+
+
+def reminded(accounts, user, key):
+    """Whether this reminder was already sent; records nothing."""
+    with accounts.db() as db:
+        return key in _metadata(db, 'push-reminded:' + user, [])
 
 
 def remembered(accounts, user, key):

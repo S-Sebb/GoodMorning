@@ -112,7 +112,8 @@ The website works on phones. The [Android app](docs/android-app.md)
 - **Widgets:** today, the week, briefings, news, weather, the secretary chat,
   and a quick-note sticky that your secretary can sort later.
 - **Notifications** when a briefing is ready, a reply is finished, your
-  secretary needs an answer, or an event is about to start. Browsers can get
+  secretary needs an answer, or an event is about to start, plus a morning and
+  evening reminder at your chosen times if that briefing isn't prepared yet. Browsers can get
   these too.
 
 ## Getting started
