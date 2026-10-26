@@ -582,6 +582,34 @@ class TaskStore:
                             ('feedback:' + day, 'feedback', now, session, encode({'selected': selections, 'details': details}), key, digest, encode(result)))
             return result
 
+    def tidy(self, offered, answers, day, session, key, now):
+        """One evening tidy-up: apply each chosen answer, then record what was asked, even when every item was skipped.
+
+        "keep" and "later" change nothing; the record alone spaces out the next tidy-up."""
+        date(day)
+        for item in offered:
+            choice, item_key = answers.get(item['id'], ''), key + ':' + item['id']
+            if choice == 'snooze':
+                later = (dt.date.fromisoformat(day) + dt.timedelta(days=7)).isoformat()
+                self.mutate(item['id'], item['revision'], {'defer_until': later}, session, item_key, now)
+            elif choice == 'drop':
+                self.mutate(item['id'], item['revision'], {'status': 'cancelled'}, session, item_key, now)
+            elif choice == 'done':
+                self.mutate(item['id'], item['revision'], {'status': 'done', 'confirmed_completion': True},
+                            session, item_key, now, day=day, actual=True)
+        answers = {item['id']: answers.get(item['id'], '') for item in offered}
+        digest = hashlib.sha256(encode([answers, day, session]).encode()).hexdigest()
+        with self.inbox.transaction():
+            previous = self.db.execute('SELECT fingerprint,receipt FROM task_events WHERE request_key=?', (key,)).fetchone()
+            if previous:
+                if previous['fingerprint'] != digest:
+                    raise ValueError('request_conflict: tidy-up input changed')
+                return {**json.loads(previous['receipt']), 'replayed': True}
+            result = {'saved': True, 'answers': answers}
+            self.db.execute('INSERT INTO task_events(item_id,action,at,session,snapshot,request_key,fingerprint,receipt) VALUES (?,?,?,?,?,?,?,?)',
+                            ('tidy:' + day, 'tidy', now, session, encode({'answers': answers}), key, digest, encode(result)))
+            return result
+
     def mutate(self, identifier, expected, payload, session, key, now, *, day=None, draft=False, actual=False):
         if not isinstance(payload, dict) or not payload:
             raise ValueError('invalid_input: nonempty update required')

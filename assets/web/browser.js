@@ -253,8 +253,9 @@ function nightCheckin(info) {
   const field = key => info.fields.find(item => item.key === key);
   const due = field('completed'), early = field('completed_longterm'), details = field('details');
   const dueItems = due ? due.options.filter(option => option.value !== 'none') : [];
-  const steps = [dueItems.length && 'due', early && 'early', 'details'].filter(Boolean);
-  if (!checkinStates.has(info.id)) checkinStates.set(info.id, { step: 0, index: 0, verdicts: {}, early: new Set(), text: '' });
+  const tidyItems = info.fields.filter(item => item.tidy);
+  const steps = [dueItems.length && 'due', early && 'early', tidyItems.length && 'tidy', 'details'].filter(Boolean);
+  if (!checkinStates.has(info.id)) checkinStates.set(info.id, { step: 0, index: 0, verdicts: {}, early: new Set(), tidy: {}, text: '' });
   const state = checkinStates.get(info.id);
 
   const launcher = make('section', '', 'agent-form checkin-launcher');
@@ -284,6 +285,7 @@ function nightCheckin(info) {
     const done = dueItems.filter(option => state.verdicts[option.value]);
     const notDone = dueItems.filter(option => state.verdicts[option.value] === false);
     const earlyDone = early ? early.options.filter(option => state.early.has(option.value)) : [];
+    done.push(...tidyItems.filter(item => state.tidy[item.key] === 'done').map(item => ({ label: item.title })));
     return { done, notDone, earlyDone };
   }
   function footer(...buttons) { const row = make('div', '', 'checkin-footer'); row.append(...buttons); return row; }
@@ -303,7 +305,7 @@ function nightCheckin(info) {
     if (avatar) { const image = avatar.cloneNode(); image.className = 'checkin-avatar'; image.alt = ''; head.append(image); }
     head.append(make('h2', info.title), close);
     const stepper = make('ol', '', 'checkin-steps');
-    const names = { due: t('Due today'), early: t('Finished early?'), details: t('Anything else') };
+    const names = { due: t('Due today'), early: t('Finished early?'), tidy: t('Tidy-up'), details: t('Anything else') };
     steps.forEach((name, index) => {
       const item = make('li', names[name]);
       if (index === state.step) item.setAttribute('aria-current', 'step'); else if (index < state.step) item.className = 'is-past';
@@ -353,6 +355,24 @@ function nightCheckin(info) {
       const earlyCount = () => state.early.size ? t('{count} finished early', { count: state.early.size }) : t('Nothing finished early. That’s fine.');
       const count = make('span', earlyCount(), 'checkin-count');
       body.push(board, footer(back(), count, button(t('Next'), () => { state.step++; render(); }, true)));
+    } else if (step === 'tidy') {
+      body.push(make('h3', t('A quick tidy-up (optional)'), 'checkin-title'),
+        make('p', t('These have been open a while. Choose what to do with each, or skip—nothing changes unless you pick.'), 'checkin-lead'));
+      const board = make('div', '', 'checkin-board');
+      for (const item of tidyItems) {
+        const group = make('section', '', 'checkin-group checkin-tidy');
+        group.append(make('h4', item.title));
+        if (item.description) group.append(make('p', item.description, 'checkin-meta'));
+        for (const option of item.options) {
+          const choice = make('label', '', 'checkin-item');
+          const radio = make('input'); radio.type = 'radio'; radio.name = item.key; radio.checked = state.tidy[item.key] === option.value;
+          radio.addEventListener('change', () => { state.tidy[item.key] = option.value; });
+          const text = make('span', option.label); if (option.description) text.append(make('small', option.description));
+          choice.append(radio, text); group.append(choice);
+        }
+        board.append(group);
+      }
+      body.push(board, footer(back(), button(t('Next'), () => { state.step++; render(); }, true)));
     } else {
       body.push(make('h3', details.title, 'checkin-title'));
       if (details.description) body.push(make('p', details.description, 'checkin-lead'));
@@ -377,6 +397,7 @@ function nightCheckin(info) {
         answer.details = state.text.trim() || details.options[0].value;
         if (due) answer.completed = done.length ? done.map(option => option.value) : ['none'];
         if (early) answer.completed_longterm = earlyDone.map(option => option.value);
+        for (const item of tidyItems) answer[item.key] = state.tidy[item.key] || '';
         save.disabled = true;
         try {
           const result = await replyToAgent('form', info.id, { answer });
