@@ -70,6 +70,9 @@ def initialize(runtime, job, previous=None):
                         custom_store.close()
                 except (ValueError, OSError):
                     pass
+                if job['kind'] == 'gn':
+                    from goodmorning.records.routing import stale_tasks
+                    context['tidy'] = stale_tasks(TaskStore(inbox), job['date'])
         finally:
             inbox.close()
     fields = []
@@ -80,7 +83,9 @@ def initialize(runtime, job, previous=None):
     if previous and previous.get('feedback', {}).get('saved') is True:
         context['feedback'] = previous['feedback']
     if job['kind'] == 'gn' and not context.get('feedback'):
-        open_tasks = [t for t in context.get('feedback_tasks', context['daily']['tasks']) if not t['done']]
+        # A stale task is asked about once, in the tidy-up, whose "I already did it" also completes it.
+        tidied = {t['id'] for t in context.get('tidy', [])}
+        open_tasks = [t for t in context.get('feedback_tasks', context['daily']['tasks']) if not t['done'] and t.get('task_id') not in tidied]
         # Split night checks: due-today vs longer-term early wins. Today comes
         # from planned occurrences (no synthetic flag); longer-term comes from
         # still-open morning tasks reported early (synthetic today flag).
@@ -170,18 +175,22 @@ def initialize(runtime, job, previous=None):
                      'options':[
                          {'value':t['id'],'label':t['text'],'group':t.get('project') or ui.text('Other tasks',lang=selected),
                           **({'description':_notes[t['id']]} if t['id'] in _notes else {})} for t in longterm_tasks]})
+            fields.extend(tidy_fields(context, job['date'], selected))
             fields.append(
                 {'key':'details','title':'Anything else you’d like to share?','type':'string','required':True,
                  'custom':True,'customFirst':True,'placeholder':'Share any progress or updates…',
                  'options':[{'value':'No other updates','label':'Nothing else to add.'}],
                  'description':'Partial progress, something that got in the way, a change of plan, or extra work you got done.'})
         else:
+            fields.extend(tidy_fields(context, job['date'], selected))
             fields.append({'key':'details','title':'How did today go?','type':'string','required':True,
                            'custom':True,'customFirst':True,'placeholder':'Share any progress or updates…',
                            'options':[{'value':'No updates today','label':'Nothing extra to add today.'}],
                            'description':'There aren’t any saved tasks to tick off for this review. You can still share what you worked on or any progress you made.'})
     context['awaiting'] = bool(fields)
     for field in fields:
+        if field.get('tidy'):
+            continue  # Already worded; its title is the task's own.
         for key in ('title','description','placeholder'):
             if key in field:
                 field[key]=ui.text(field[key],lang=selected)
@@ -195,6 +204,26 @@ def initialize(runtime, job, previous=None):
     return context
 
 
+TIDY_NOTES = {'still-open': 'Planned for {date}', 'deadline': 'Was due {date}', 'other': 'Open since {date}'}
+
+
+def tidy_fields(context, day, lang):
+    """One optional choice per stale task; leaving it unanswered changes nothing."""
+    token = ui.CURRENT.set(lang)
+    try:
+        hidden = ui.day_text((dt.date.fromisoformat(day) + dt.timedelta(days=7)).isoformat(), reference=day)
+        choices = [('snooze', 'Not this week', ui.text('Hidden from your morning list until {date}.', date=hidden)),
+                   ('done', 'It’s done', ui.text('Recorded as done today.')),
+                   ('drop', 'No longer needed', ui.text('Removed from your list, but kept in your history.')),
+                   ('later', 'Not sure yet', ui.text('Nothing changes. I may ask again.'))]
+        return [{'key': 'tidy_' + item['id'], 'title': item['title'], 'type': 'string', 'required': False, 'tidy': True,
+                 'description': ui.text(TIDY_NOTES[item['group']], date=ui.day_text(item['date'], reference=day)),
+                 'options': [{'value': value, 'label': ui.text(label), 'description': hint} for value, label, hint in choices]}
+                for item in context.get('tidy', [])]
+    finally:
+        ui.CURRENT.reset(token)
+
+
 def answer(runtime, job, value):
     target = context_path(runtime, job['id'])
     context = bounded_json(target, 300_000)
@@ -202,6 +231,11 @@ def answer(runtime, job, value):
     # The optional future-tasks check may be omitted; treat it as empty.
     if isinstance(value, dict) and 'completed_longterm' in form_keys and 'completed_longterm' not in value:
         value = {**value, 'completed_longterm': []}
+    tidy_keys = {'tidy_' + item['id'] for item in context.get('tidy', [])} & form_keys
+    if isinstance(value, dict):
+        value = {**{key: '' for key in tidy_keys}, **value}  # Unanswered tidy-up items stay as they are.
+        if any(value[key] not in ('', 'snooze', 'done', 'drop', 'later') for key in tidy_keys):
+            raise ValueError('Choose one of the tidy-up answers or leave it blank.')
     if not context.get('awaiting'):
         if context.get('browser_answer') == value:
             return context
@@ -277,8 +311,14 @@ def answer(runtime, job, value):
                     progress.append('Progress on '+field['project']+': '+one_line(note))
         today_complete = [] if chosen == ['none'] else chosen
         complete = today_complete + chosen_long
-        feedback = ['Completed: '+known[x]['text'] for x in complete] or (['No listed tasks were fully completed.'] if 'completed' in keys or 'completed_longterm' in keys else [])
+        offered = [item for item in context.get('tidy', []) if 'tidy_' + item['id'] in keys]
+        tidy = {item['id']: value['tidy_' + item['id']] for item in offered}
+        finished = [known[x]['text'] for x in complete] + [item['title'] for item in offered if tidy[item['id']] == 'done']
+        feedback = ['Completed: '+title for title in finished] or (['No listed tasks were fully completed.'] if 'completed' in keys or 'completed_longterm' in keys else [])
         feedback.extend(progress)
+        hidden = (dt.date.fromisoformat(job['date']) + dt.timedelta(days=7)).isoformat()
+        feedback.extend(('Hidden from the morning list until ' + hidden + ': ' if tidy[item['id']] == 'snooze' else 'Let go (cancelled): ')
+                        + item['title'] for item in offered if tidy[item['id']] in ('snooze', 'drop'))
         feedback.append('Other updates: '+details)
         # Store the exact explicit input before applying it, making uncertain retries recoverable.
         previous = context.get('browser_answer')
@@ -315,12 +355,19 @@ def answer(runtime, job, value):
                                 stamp(runtime), job['date'])
                         finally:
                             custom_store.close()
+                    if offered:
+                        inbox = InboxStore(runtime, write=True)
+                        try:
+                            TaskStore(inbox).tidy(offered, tidy, job['date'], 'browser:' + job['id'],
+                                                  'browser-tidy:' + job['id'], stamp(runtime))
+                        finally:
+                            inbox.close()
                 receipt = amend(runtime, job['date'], expected, amendment, locked=True)
             elif previous == value and current == context.get('feedback_result_sha256'):
                 receipt = {'sha256':current}  # Previous atomic amendment committed before its receipt.
             else:
                 raise ValueError('The daily plan changed; reconcile feedback before continuing')
-        context['feedback'] = {'completed':[known[x]['text'] for x in complete],'details':details,'saved':True,
+        context['feedback'] = {'completed':finished,'details':details,'saved':True,
                                **({'progress':progress} if progress else {})}
         context['daily']['sha256'] = receipt['sha256']
         for task in context.get('feedback_tasks', context['daily']['tasks']):

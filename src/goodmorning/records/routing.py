@@ -351,6 +351,33 @@ def task_view(store, today, kind='gm', offset=0, limit=7, owned=()):
             'next_offset': offset + limit if offset + limit < len(rows) else None, 'errands': errands}
 
 
+TIDY_DAYS = {'still-open': 7, 'deadline': 7, 'other': 30}  # Days without any change before a morning row counts as stale.
+TIDY_EVERY = 7
+TIDY_LIMIT = 3
+
+
+def stale_tasks(store, today):
+    """Morning rows untouched for a while, oldest first: the weekly evening tidy-up asks about these.
+
+    Age counts from the row's own day (workday, deadline, or creation for undated
+    work), a later start day or any update."""
+    day = dt.date.fromisoformat(today)
+    asked = store.db.execute("SELECT MAX(item_id) FROM task_events WHERE action='tidy'").fetchone()[0]
+    if asked and asked[5:] > (day - dt.timedelta(days=TIDY_EVERY)).isoformat():
+        return []
+    rows = []
+    for row in task_view(store, today, 'gm', limit=10_000)['items']:
+        if row['group'] not in TIDY_DAYS or row['category'] in UNCHECKED:
+            continue
+        task = store.show(row['id'])
+        base = {'still-open': task['planned_date'], 'deadline': task['due_date'], 'other': task['created_at'][:10]}[row['group']]
+        since = max(base, task['defer_until'], task['updated_at'][:10])
+        if (day - dt.date.fromisoformat(since)).days >= TIDY_DAYS[row['group']]:
+            rows.append({'id': task['id'], 'revision': task['revision'], 'title': task['title'],
+                         'project': task['project'], 'group': row['group'], 'date': base, 'since': since})
+    return sorted(rows, key=lambda r: (r['since'], r['id']))[:TIDY_LIMIT]
+
+
 def errand_memory(directory, today, days=60):
     """The latest earlier morning's result for each errand, read from saved briefings; the morning never edits records."""
     from goodmorning.briefings.briefing_document import validate

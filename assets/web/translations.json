@@ -702,5 +702,20 @@
   "Edited after you sorted it": "整理后又改过",
   "Now: {text}": "现在：{text}",
   "Before: {text}": "原来：{text}",
-  "There are no notes to sort.": "没有需要整理的速记。"
+  "There are no notes to sort.": "没有需要整理的速记。",
+  "Tidy-up": "整理一下",
+  "A quick tidy-up (optional)": "顺手整理一下（可选）",
+  "These have been open a while. Choose what to do with each, or skip—nothing changes unless you pick.": "这几件事搁了一阵子。每件选一个处理方式，或者跳过——不选的话，什么都不会变。",
+  "Planned for {date}": "原计划 {date}",
+  "Was due {date}": "本该 {date} 截止",
+  "Open since {date}": "添加于 {date}",
+  "Choose one of the tidy-up answers or leave it blank.": "选一个处理方式，或者留空。",
+  "Not this week": "这周先放一放",
+  "Hidden from your morning list until {date}.": "在{date}之前，都不会出现在早报里。",
+  "It’s done": "已经做完了",
+  "Recorded as done today.": "会记成今天完成。",
+  "No longer needed": "不需要了",
+  "Removed from your list, but kept in your history.": "会从列表里移出，但会留在历史记录里。",
+  "Not sure yet": "还没想好",
+  "Nothing changes. I may ask again.": "不会改动任何东西，以后可能还会再问你。"
 }

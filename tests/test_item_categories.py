@@ -478,5 +478,46 @@ class CategoryTests(unittest.TestCase):
         self.assertEqual(self.tasks.show(step)['status'], 'done')
         self.assertEqual(self.tasks.show(later)['status'], 'open')
 
+    def test_weekly_evening_tidy_up_asks_about_the_oldest_stale_items_and_applies_only_answers(self):
+        night = '2026-11-13'  # Everything below was saved on 13 October.
+        garage = self.capture(title='Tidy the garage')
+        dentist = self.capture(title='Book the dentist', planned_date='2026-11-04')
+        passport = self.capture(title='Renew passport', due_date='2026-11-05')
+        plants = self.capture(title='Water plants', planned_date='2026-11-06')
+        bank = self.capture(title='Call the bank', planned_date='2026-11-10')  # Only three days past its day.
+        bill = self.capture(title='Pay the bill', due_date='2026-11-07')  # Six days overdue.
+        self.capture(title='Bring water', kind='nudge')
+        self.capture(title='Stretch', timezone=ZONE, repeat={'interval_days': 1, 'start': DAY})
+        stale = routing.stale_tasks(self.tasks, night)
+        self.assertEqual([r['id'] for r in stale], [garage, dentist, passport])  # Oldest first, at most three.
+
+        job = {'id': 'd'*32, 'date': night, 'kind': 'gn', 'state': 'preflight'}
+        fields = {f['key']: f for f in preflight(self.root, job)['form']['fields']}
+        self.assertEqual(set(fields), {'completed', 'details', 'tidy_' + garage, 'tidy_' + dentist, 'tidy_' + passport})
+        # Asked about once: the overdue passport left the finish list, the less stale bill did not.
+        self.assertEqual({o['label'] for o in fields['completed']['options']}, {'None of these today.', 'Pay the bill', 'Stretch'})
+        self.assertEqual(fields['tidy_' + dentist]['description'],
+                         ui.text('Planned for {date}', date=ui.day_text('2026-11-04', reference=night)))
+        self.assertEqual([o['value'] for o in fields['tidy_' + garage]['options']], ['snooze', 'done', 'drop', 'later'])
+        with self.assertRaisesRegex(ValueError, 'tidy-up answers'):
+            answer(self.root, job, {'completed': ['none'], 'details': 'No other updates', 'tidy_' + garage: 'delete'})
+        with patch('goodmorning.records.inbox_store.stamp', return_value=night + 'T21:00:00+00:00'):
+            result = answer(self.root, job, {'completed': ['none'], 'details': 'No other updates', 'tidy_' + garage: 'drop',
+                                             'tidy_' + dentist: 'snooze', 'tidy_' + passport: 'done'})
+        self.assertEqual(result['feedback']['completed'], ['Renew passport'])
+        self.assertEqual(self.tasks.show(garage)['status'], 'cancelled')
+        self.assertEqual((self.tasks.show(dentist)['status'], self.tasks.show(dentist)['defer_until']), ('open', '2026-11-20'))
+        self.assertEqual(self.tasks.show(passport)['status'], 'done')
+        self.assertEqual(self.tasks.show(bill)['status'], 'open')
+
+        self.assertEqual(routing.stale_tasks(self.tasks, '2026-11-19'), [])  # At most once a week.
+        self.assertNotIn('Book the dentist', self.items('gm', '2026-11-19'))  # Snoozed off the morning list.
+        self.assertEqual([r['id'] for r in routing.stale_tasks(self.tasks, '2026-11-20')], [plants, bill, bank])
+        plants_row = routing.stale_tasks(self.tasks, '2026-11-20')[:1]
+        self.tasks.tidy(plants_row, {plants: 'later'}, '2026-11-20', 'ses_test', 'tidy-later', NOW)
+        self.assertEqual(self.tasks.show(plants)['revision'], plants_row[0]['revision'])  # "Not sure yet" changes nothing.
+        self.assertEqual(routing.stale_tasks(self.tasks, '2026-11-26'), [])
+        self.assertEqual([r['id'] for r in routing.stale_tasks(self.tasks, '2026-11-27')], [plants, bill, bank])  # Asked again.
+
 if __name__ == '__main__':
     unittest.main()

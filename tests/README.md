@@ -60,7 +60,7 @@ restoration.
 | `initialization`, `setup_pending` | Localized initialize start; readable gateway failures on all layouts |
 | `language` | Bilingual flow through the real gateway |
 | `notifications` | Notification settings through the gateway: defaults, saving across reloads and devices, failed turn-on leaves no worker, both languages, phone and desktop |
-| `night_preflight` | Evening check-in dialog: due-today answers, early finishes by project, reopening, and the empty state |
+| `night_preflight` | Evening check-in dialog: due-today answers, early finishes by project, the weekly tidy-up, reopening, and the empty state |
 | `schedule` (`--canonical`) | Schedule tab with v2 tasks, statuses and TBC items; refresh, Chinese, mobile, source failures, no JavaScript |
 | `scroll_rails` | Phone scroll rails on all four tabs, drag, keyboard control, drafts |
 | `taxonomy` (`--screenshots DIR`) | v2 renderer at desktop and phone widths, English and Chinese |

@@ -688,6 +688,8 @@ h2:lang(zh), .preview-title:lang(zh) { font-family: var(--cn-sans); letter-spaci
 .checkin-board { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 10px; }
 .checkin-group { padding: 10px; border-radius: 14px; background: var(--wash); }
 .checkin-group h4 { margin: 0 0 4px 6px; color: var(--muted); font-size: 12px; letter-spacing: .06em; text-transform: uppercase; overflow-wrap: anywhere; }
+.checkin-tidy h4 { color: var(--ink); font-size: 16px; letter-spacing: 0; text-transform: none; }
+.checkin-tidy .checkin-meta { margin: 0 0 4px 6px; font-size: 13px; }
 .checkin-item { display: flex; gap: 10px; align-items: flex-start; padding: 8px 6px; border-radius: 10px; font-size: 14px; line-height: 1.4; cursor: pointer; }
 .checkin-item:hover { background: var(--surface); }
 .checkin-item input { margin-top: 3px; accent-color: var(--accent); width: 18px; height: 18px; flex: none; }
