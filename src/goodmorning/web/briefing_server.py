@@ -34,7 +34,7 @@ from . import color_schemes as site_colors
 from .release import VERSION, release_info, acknowledge_version
 from .session_inventory import job_session_title
 from .chat_theme import clock_theme
-from .chat_uploads import MAX_UPLOAD_BYTES, UPLOAD_ROUTE, IMAGE_ROUTE, upload_name
+from .chat_uploads import MAX_UPLOAD_BYTES, UPLOAD_ROUTE, IMAGE_ROUTE, upload_name, expire_forever
 from .avatar_images import MAX_AVATAR_BYTES, AVATAR_UPLOAD_ROUTE, find_image, image_urls, save_image
 from .bridge_json import read_json
 from .activity import ACTIVITY_PATH, snapshot as activity_snapshot
@@ -1310,6 +1310,7 @@ def serve_live(app, port, *, gateway_key=None, public_origins=()):
             pass
 
     server = ThreadingHTTPServer(('127.0.0.1', port), Handler)
+    threading.Thread(target=expire_forever, args=(app.chats.uploads,), daemon=True).start()
     print(f'Private live viewer: http://127.0.0.1:{server.server_port}', flush=True)
     try:
         server.serve_forever()

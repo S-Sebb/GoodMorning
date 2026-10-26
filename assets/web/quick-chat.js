@@ -195,7 +195,8 @@
       if (footnotes[item.kind]) bubble.append(make('p', t(footnotes[item.kind]), 'quick-chat-footnote'));
       for (const entry of item.attachments || []) {
         const file = make('p', '', 'quick-chat-attachment');
-        if (entry.preview || (imageTypes.has(entry.mime) && /^[a-f0-9]{32}$/.test(entry.id))) {
+        if (entry.removed) file.textContent = '📎 ' + t('{name} · removed after 30 days', {name: entry.name});
+        else if (entry.preview || (imageTypes.has(entry.mime) && /^[a-f0-9]{32}$/.test(entry.id))) {
           const image = make('img'); image.alt = entry.name; image.src = entry.preview || `/api/chat-uploads/${entry.id}/image`;
           file.append(image);
         } else file.textContent = '📎 ' + entry.name;

@@ -49,13 +49,30 @@ is `/opt/goodmorning/python/bin/python`; local use needs Pillow.
 - Total storage includes both the preview file and the engine's inline image.
   Smaller inspection images reduce future payload growth, not old stored records.
 
+## Upload retention
+
+Chat uploads are deleted 30 days after upload, including uploads that were never
+sent. Each account's backend checks its own `browser-uploads/` when it starts and
+then hourly; it cannot reach another account's runtime. An upload's age is its
+directory's modification time, which last changes when its metadata is saved.
+
+- Old chats keep each file's name and size and show “*name* · removed after 30
+  days” in its place. The guide and the attach button's screen-reader note say
+  that files are kept for 30 days.
+- The engine copies each sent file into its session history (base64) when the
+  message is sent, so old conversations still continue after the original is
+  gone. That copy is not removed: deleting originals frees their disk space but
+  does not erase the content from engine history.
+- The first run after deploying this deletes every existing upload older than
+  30 days, as the owner authorized.
+
 ## Retention boundary
 
-There is no automatic deletion, archival, spend cap, model change or context-policy
-change in these optimizations. Profiles, tasks, calendar records, saved briefings,
-uploaded originals and full old engine histories remain protected. Existing
-maintenance commands require their own owner authorization; do not run pruning
-or archival merely because the size report is large.
+Apart from upload retention, there is no automatic deletion, archival, spend cap,
+model change or context-policy change in these optimizations. Profiles, tasks,
+calendar records, saved briefings and full old engine histories remain protected.
+Existing maintenance commands require their own owner authorization; do not run
+pruning or archival merely because the size report is large.
 
 Native context compaction can shorten future model input while retaining original
 messages on disk. Moving chats out of the browser's active registry also does not

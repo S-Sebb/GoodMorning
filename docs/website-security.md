@@ -21,7 +21,7 @@ creation, username edit, forgotten-password shortcut or arbitrary agent API exis
 Secretary chat also accepts private attachments up to 50 MB per file. Uploads
 require a permanent authenticated account, the exact origin and session CSRF token.
 Only opaque upload IDs and filenames are exposed; files stay in the owning
-account's encrypted runtime. The gateway streams bytes without disk buffering,
+account's encrypted runtime for 30 days, and that account's own backend deletes them. The gateway streams bytes without disk buffering,
 and all ordinary JSON requests retain their 20,000-byte limit. NGINX's 50m ceiling
 allows the binary upload route; it does not expand the other application limits.
 The authenticated `/api/activity` summary includes only the caller's active,

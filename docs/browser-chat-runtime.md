@@ -122,8 +122,8 @@ Uploaded bytes and metadata stay in `browser-uploads/` inside the selected priva
 runtime, not in public source or the gateway's temporary directory. The gateway
 streams only authenticated, CSRF-checked uploads to the account's own backend.
 Chat requests reference opaque account-local upload IDs, never client-chosen
-filesystem paths or remote URLs. Attachments remain available after restarts;
-failed or rejected sends can leave uploaded files for administrator archival.
+filesystem paths or remote URLs. Attachments remain available after restarts
+for 30 days; see [Upload retention](storage-efficiency.md#upload-retention).
 Authenticated Morning, Night and Secretary pages show the account's active work
 in a small bottom-right Little desk window, which can minimize to a compact pill.
 It moves above the back-to-top control when that control is visible.
