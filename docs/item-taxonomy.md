@@ -271,8 +271,13 @@ heading. Use `scripts/goodmorning.py` with the selected absolute runtime.
     feedback, and SQLite owns live task state. No task table represents a section.
 12. Clear ideas are not nightly questions. Surface actual saved questions,
     unreviewed material or a due `review_after`; respect future review dates and
-    existing answers. Ask only unresolved material facts/consent needed for the
-    requested work. A review can remain pending without blocking other sections.
+    existing answers. A clear idea returns only to morning Reminders and never asks
+    for a reply: every morning once its `review_after` arrives, until that date is
+    cleared (`""`) or moved; otherwise one morning every 14 days, starting at least
+    7 days after it was saved or last changed. When the user has looked at a due
+    idea or picks a new date, clear or move its `review_after`. Ask only unresolved
+    material facts/consent needed for the requested work. A review can remain
+    pending without blocking other sections.
 
 All task/draft operations use `inbox.sqlite` tables `tasks`, `task_occurrences`,
 `task_events`, `event_drafts`; ideas/reports remain in `entries`/`events`.

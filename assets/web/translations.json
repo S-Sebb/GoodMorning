@@ -42,6 +42,7 @@
   "No place listed now (was {place})": "现在没写地点了（原来是 {place}）",
   "Overlaps {events}": "与这些日程时间重叠：{events}",
   "A saved idea, back for another look. Nothing needs doing unless it still interests you.": "你之前存下的想法，又回来让你再看一眼；不用做什么，除非你还有兴趣。",
+  "You asked to look at this idea again. It stays here until you review it or pick a new date.": "你之前说想再看一眼这个想法；它会一直留在这里，等你看过它，或者给它换个新的日期。",
   "Priority: {priority}": "优先级：{priority}",
   "TBC": "时间待确认",
   "All day through {date}": "全天，至 {date}",

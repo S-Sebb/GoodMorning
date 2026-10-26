@@ -518,18 +518,22 @@ IDEA_CYCLE = 14  # Days between a clear idea's morning returns.
 IDEA_REST = 7  # Days after capture or the last change before its first return.
 
 
-def idea_returns(entry, today, kind):
-    """A clear idea comes back for one morning each cycle; it never asks for a reply.
+def idea_return(entry, today, kind):
+    """The Reminders line for a clear idea back this morning, or None; it never asks for a reply.
 
-    The entry's sequence picks its day in the cycle, so a batch saved together
-    returns on different mornings. A requested review date shows on that day."""
+    A review date that has arrived keeps the idea there every morning until the
+    date is cleared or moved, so a skipped morning loses nothing. Otherwise the
+    idea comes back for one morning each cycle, and the entry's sequence picks
+    its day, so a batch saved together returns on different mornings."""
     if kind != 'gm':
-        return False
+        return None
+    if entry['review_after'] and entry['review_after'] <= today:
+        return 'You asked to look at this idea again. It stays here until you review it or pick a new date.'
     day = dt.date.fromisoformat(today)
-    if entry['review_after'] == today:
-        return True
     rested = day >= dt.date.fromisoformat(entry['updated_at'][:10]) + dt.timedelta(days=IDEA_REST)
-    return rested and (day.toordinal() - entry['seq']) % IDEA_CYCLE == 0
+    if rested and (day.toordinal() - entry['seq']) % IDEA_CYCLE == 0:
+        return 'A saved idea, back for another look. Nothing needs doing unless it still interests you.'
+    return None
 
 
 def attention(store, today, kind, offset=0, limit=7, calendar_changes=()):
@@ -545,9 +549,10 @@ def attention(store, today, kind, offset=0, limit=7, calendar_changes=()):
         if entry['kind'] == 'todo' and not questions and not entry['needs_review']:
             continue
         if entry['kind'] == 'idea' and not questions and not entry['needs_review']:
-            if not idea_returns(entry, today, kind):
+            line = idea_return(entry, today, kind)
+            if not line:
                 continue
-            questions = [ui.text('A saved idea, back for another look. Nothing needs doing unless it still interests you.')]
+            questions = [ui.text(line)]
         elif not questions and not entry['needs_review'] and not entry['review_after']:
             continue
         rows.append({'id': entry['id'], 'revision': entry['revision'], 'title': entry['summary'],
