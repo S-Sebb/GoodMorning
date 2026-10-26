@@ -10,7 +10,16 @@
   const modes = {secretary: 'Secretary', initialize: 'Initialize', todo: 'To-do', eureka: 'Eureka', gm: 'Morning briefing', gn: 'Evening briefing'};
   const states = {working: 'Your secretary is working', waiting: 'Your secretary needs your answer', queued: 'Your request is queued.',
     uncertain: 'Activity needs checking. Open it before trying again.', unavailable: 'Activity status is unavailable. Open it to check.'};
-  const titles = {working: 'Making a little space for you.', waiting: 'A little question for you.',
+  // Each card keeps its working title across the one-second refresh and draws a new one every 30 seconds.
+  const workingTitles = ['Little desk, big bustle.', 'Pens out, sleeves rolled up.', 'Lamp on, pen dancing.',
+    'Sticky notes fluttering about.', 'Scribbling away at the notes.', 'Scribbling between coffee sips.',
+    'Busy hands, cozy desk.', 'Doodling stars in the margins.', 'Circling the important bits.',
+    'Fresh page, pen sprinting.'];
+  const pickWorkingTitle = (current) => {
+    const options = workingTitles.filter(title => title !== current);
+    return options[Math.floor(Math.random() * options.length)];
+  };
+  const titles = {waiting: 'A little question for you.',
     queued: 'Your request is in line.', uncertain: 'Let’s check on this.', unavailable: 'Let’s check on this.'};
   const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
   const animations = new WeakMap();
@@ -78,6 +87,7 @@
       if (created) {
         row = document.createElement('div');
         row.className = 'activity-item'; row.dataset.url = entry.url;
+        row.dataset.workingTitle = pickWorkingTitle();
         const body = make('div', '', 'activity-window-body');
         const desk = make('div', '', 'activity-desk');
         desk.setAttribute('aria-hidden', 'true');
@@ -95,7 +105,7 @@
         row.append(body, footer);
       }
       row.dataset.state = entry.state; row.dataset.signature = rowSignature;
-      row.querySelector('.activity-title').textContent = goodmorningT(titles[entry.state]);
+      row.querySelector('.activity-title').textContent = goodmorningT(entry.state === 'working' ? row.dataset.workingTitle : titles[entry.state]);
       row.querySelector('.activity-detail').textContent = goodmorningT(states[entry.state]);
       row.querySelector('.activity-mode-label').textContent = goodmorningT(modes[entry.mode]);
       const link = row.querySelector('a');
@@ -152,6 +162,12 @@
   document.addEventListener('activity:refresh', sync);
   document.addEventListener('visibilitychange', sync);
   window.addEventListener('focus', sync);
+  setInterval(() => items.querySelectorAll('.activity-item[data-state="working"]').forEach(row => {
+    row.dataset.workingTitle = pickWorkingTitle(row.dataset.workingTitle);
+    const title = row.querySelector('.activity-title');
+    title.textContent = goodmorningT(row.dataset.workingTitle);
+    animate(title, [{opacity: 0}, {opacity: 1}], 240);
+  }), 30000);
   collapse(collapsed);
   sync();
 })();
