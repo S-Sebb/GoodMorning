@@ -201,6 +201,8 @@ def page(source,csrf,return_to='/'):
            '<h3 class="color-scheme-heading notification-heading">Devices with notifications</h3>'
            '<p class="notification-note">Each device chooses its own notifications in its Settings. Turn one off here if you no longer use it.</p>'
            '<ul id="notification-device-list"></ul><span id="notification-devices-feedback" role="status"></span></section>')
+    about=('<a id="about-me-link" href="/about-me"><span class="color-scheme-heading about-me-heading">About me</span>'
+           '<span class="notification-note">What your secretary knows about you</span></a>')
     # Settings holds what belongs to this device; Account what follows the signed-in owner everywhere.
     # Without an account (sign-in page, local viewer) language stays with this device too.
     prefs=('<details class="menu" id="prefs-menu"><summary><span aria-hidden="true">⚙</span> '
@@ -211,7 +213,7 @@ def page(source,csrf,return_to='/'):
     account_menu=('<details class="menu" id="account-menu"><summary><span class="menu-label">Account</span></summary>'
                   '<div class="menu-panel"><div class="settings-menu-header account-menu-header"><div><h2>Account</h2>'
                   '<p>These follow you on every device you sign in on.</p></div>'+close+'</div>'
-                  +language_form+phones+account+'</div></details>') if account else ''
+                  +about+language_form+phones+account+'</div></details>') if account else ''
     controls=('<div class="toolbar-row">'+prefs+account_menu+'<span id="update-slot"></span></div>')
     if 'id="language-form"' not in source:
         source=re.sub(r'(<body\b[^>]*>)',lambda match:match[0]+controls,source,count=1)

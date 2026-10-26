@@ -97,8 +97,9 @@ plan. Appointments with an unknown time are marked as such.
 
 Choose a **Soft** or **Pixel** style, a day color scheme and a night color
 scheme, separately on each device. Pick a secretary avatar and name, and how
-it should talk to you. The whole site is available in English and Simplified
-Chinese.
+it should talk to you. **About me** in the Account menu shows what your
+secretary knows about you: change simple details there, the rest in chat.
+The whole site is available in English and Simplified Chinese.
 
 ## On your phone
 
