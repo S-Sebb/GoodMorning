@@ -30,6 +30,7 @@ def main(argv=None):
     parser.add_argument('--browser-job', help='Bind a browser section read to its owning job and next position')
     for name in ('show', 'update', 'report', 'adopt', 'convert'):
         actions.add_argument('--' + name)
+    actions.add_argument('--search', metavar='TEXT', help='Live tasks and event drafts whose current wording contains every word')
     parser.add_argument('--draft', action='store_true')
     parser.add_argument('--date')
     parser.add_argument('--actual', action='store_true', help='Confirmed completion on its actual date, even outside the planned recurrence')
@@ -100,6 +101,10 @@ def main(argv=None):
             store = TaskStore(inbox)
             if args.show:
                 result = store.show(args.show, args.draft)
+            elif args.search is not None:
+                if args.limit > 30:
+                    raise ValueError('invalid_input: search pages hold at most 30 items')
+                result = store.search(args.search, args.offset, args.limit)
             else:
                 payload = decode_input(args)
                 now = stamp(runtime)

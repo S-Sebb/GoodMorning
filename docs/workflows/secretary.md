@@ -85,9 +85,11 @@ guides only for the requested operation; do not recursively reload the skill.
    all unclear notes in one native question form and write nothing for them until
    answered. A note that repeats an item already saved reuses it. A note marked
    `Edited after you sorted it` (Chinese: `整理后又改过`) replaces its `Before` text:
-   find the item you saved from that text (`task`/`inbox` search on its distinctive
-   words) and update it; save it as new when nothing matches; ask when several
-   could. A note with nothing worth keeping is saved as nothing; say so. Finish with
+   find the item you saved from that text and update it. Search with one or two
+   distinctive words from `Before`: `task --search "WORDS"` for to-dos and event
+   drafts, `inbox --list --kind idea --search "WORDS"` for ideas. Update the one
+   match; save the note as new when nothing matches; ask when several could. A note
+   with nothing worth keeping is saved as nothing; say so. Finish with
    one confirmation naming each note and what it became.
    Never generate gm/gn in a browser chat. For other changes,
    resolve ambiguous scheduling/targets through native questions, repeating until rhythm, start, restart, miss, weekly limit and nightly checks are unambiguous, before writing
