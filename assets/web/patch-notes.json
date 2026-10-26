@@ -1,6 +1,58 @@
 {
   "notes": [
     {
+      "version": "0.75.0",
+      "date": "2026-10-26",
+      "author": "GoodMorning agent",
+      "title_en": "Weekly letters, tomorrow's weather and offline briefings",
+      "title_zh": "每周来信、明日天气，简报离线也能看",
+      "changes": [
+        {
+          "category": "Added",
+          "en": [
+            "Sunday's evening briefing now writes a letter about your week, kept on the new Letters tab to look back on.",
+            "The evening briefing has a Weather tomorrow card: tomorrow's range, when rain comes, and what to get ready tonight.",
+            "Your latest morning and evening briefings now open without a connection, with a note saying when they were saved.",
+            "Once a week, the evening check-in can ask about a few long-open tasks: hide one for a week, mark it done, or let it go.",
+            "Each device can remind you at times you choose when a morning or evening briefing hasn't been prepared yet.",
+            "Saved ideas now come back in the morning Reminders once every two weeks for another look."
+          ],
+          "zh": [
+            "周日晚报现在会顺带写好一封讲这一周的信，收在新加的「来信」页里，想回头翻翻随时都能看。",
+            "晚报里多了一张「明日天气」卡片：明天的最高和最低气温、雨什么时候来，还有今晚该先备好什么。",
+            "最近一份早报和晚报现在没网也能打开，上面会写明是什么时候保存的版本。",
+            "每周一次，晚间回顾会挑几件搁了很久的待办问问你：可以把它藏一个星期，标记成做完了，或者就此放下不再提。",
+            "每台设备都能自己选时间，在早报或晚报还没准备好时提醒你一声。",
+            "存下的灵感现在每两周会在早上的「提醒」里回来一次，让你再看一眼。"
+          ]
+        },
+        {
+          "category": "Changed",
+          "en": [
+            "The day now ends at 04:00 everywhere: late-night chats, saved to-dos, the Schedule page and phone widgets match your briefings."
+          ],
+          "zh": [
+            "现在各处都以 04:00 作为一天的结束：半夜的聊天、存下的待办、日程页和手机小组件，都和简报算在同一天里。"
+          ]
+        },
+        {
+          "category": "Fixed",
+          "en": [
+            "Evening check-in answers now stay after a reload or leaving the page, until you save them.",
+            "The Temperature card no longer mentions rain; rain is only on the Precipitation card, matching the hourly forecast.",
+            "When you edit a quick note you already sorted, the secretary now updates the saved item instead of adding a copy.",
+            "The secretary no longer promises to favor news topics; it explains the categories are fixed and offers country and outlet settings."
+          ],
+          "zh": [
+            "晚间回顾里填的答案，现在刷新页面或者离开再回来都还在，直到你保存为止。",
+            "气温卡片不再提下雨的事了，降水只放在降水卡片上，和每小时的预报对得上。",
+            "你改一条已经整理好的速记时，秘书现在会直接更新存好的那条，不会再另外存一份。",
+            "秘书不会再答应给你偏爱的新闻话题了；它会说明新闻类别是固定的，并告诉你可以设置国家和媒体来源。"
+          ]
+        }
+      ]
+    },
+    {
       "version": "0.74.1",
       "date": "2026-10-25",
       "author": "GoodMorning agent",
