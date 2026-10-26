@@ -5,8 +5,11 @@ if (goodmorningInApp) {
   document.cookie = 'GoodMorningAppPage=' + encodeURIComponent(location.pathname) + '; Path=/; Secure; SameSite=Strict; Max-Age=31536000';
 }
 
+// The service worker keeps this account's latest briefings for reading offline, also in the app's WebView.
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => {});
+
 // Notifications belong to each device: a browser through Web Push, a phone without it through the
-// linked GoodMorning app. The service worker is registered only while this browser has them on.
+// linked GoodMorning app.
 let goodmorningBeforeSignOut;
 (() => {
   const form = document.querySelector('#notification-form');
@@ -152,8 +155,6 @@ let goodmorningBeforeSignOut;
       await post('/api/push/unsubscribe', {endpoint: subscription.endpoint});
       await subscription.unsubscribe();
     }
-    const registration = await navigator.serviceWorker.getRegistration('/');
-    if (registration) await registration.unregister();
   }
 
   device.addEventListener('click', async () => {

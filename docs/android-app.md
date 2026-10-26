@@ -32,7 +32,12 @@ uploads, back navigation, external links in the browser, and edge-to-edge insets
 When a page cannot load (no connection, or the server is down), it covers
 WebView's error page with a can't-connect screen styled after the maintenance
 page, with Try again; it also retries every 30 seconds while shown and on
-returning to the app. Its user agent includes `GoodMorningApp/<version>`, so the
+returning to the app. Once the WebView has opened the signed-in site, its service
+worker keeps the latest morning and evening briefings, and without a connection
+the WebView shows those with an offline notice instead
+(`docs/browser-delivery.md`, Offline reading). The can't-connect screen then
+appears only when no copy is kept yet. This needs no app change: widgets keep
+using `Sync`'s cache. Its user agent includes `GoodMorningApp/<version>`, so the
 website reopens the last page and shows notification settings. WebView has no
 Web Push, so the linked app posts notifications itself (below), with the choices
 made in Settings on that phone. The user agent names the phone's link

@@ -332,3 +332,13 @@ if (asked) {
 }
 const days = document.querySelector('.briefing-letter .week-picker');
 if (days && innerWidth <= 700) days.scrollLeft = days.scrollWidth;
+// An offline copy (sw.js) names its date unless it was saved on this device's today.
+const offlineNotice = document.querySelector('.offline-notice');
+if (offlineNotice) {
+  const now = new Date();
+  const today = [now.getFullYear(), now.getMonth() + 1, now.getDate()].map(part => String(part).padStart(2, '0')).join('-');
+  if (offlineNotice.dataset.day === today) {
+    offlineNotice.querySelector('.offline-earlier').hidden = true;
+    offlineNotice.querySelector('.offline-today').hidden = false;
+  }
+}

@@ -115,7 +115,13 @@ work queue. Authentication, request-size checks and NGINX login rate limits are
 unchanged; no mutation is replayed automatically on overload.
 
 Disable access/body logs and disk proxy buffering. Private responses/media use
-`no-store`; only public fingerprinted assets cache durably. Credentials never enter
+`no-store`; only public fingerprinted assets cache durably. The one deliberate
+exception is the offline briefing copy (`docs/browser-delivery.md`, Offline
+reading): the service worker keeps the latest morning and evening edition in the
+browser's cache storage, tagged with an opaque per-account owner tag. Copies carry
+no session, CSRF or request token, and are deleted at sign-out and as soon as the
+site answers for nobody or another account. A device that is offline cannot check
+its session, so a copy stays readable there until that happens. Credentials never enter
 URLs, browser storage, command arguments or report output. Services use no core
 dumps and `MemorySwapMax=0` on cgroup v2: otherwise decrypted memory may enter
 unencrypted swap. Apply the same controls to per-account engines and NGINX workers.

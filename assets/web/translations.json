@@ -750,5 +750,7 @@
   "No longer needed": "不需要了",
   "Removed from your list, but kept in your history.": "会从列表里移出，但会留在历史记录里。",
   "Not sure yet": "还没想好",
-  "Nothing changes. I may ask again.": "不会改动任何东西，以后可能还会再问你。"
+  "Nothing changes. I may ask again.": "不会改动任何东西，以后可能还会再问你。",
+  "You’re offline · showing the version from {time}.": "你现在离线了 · 显示的是 {time} 保存的版本。",
+  "You’re offline · showing the version from {date}, {time}.": "你现在离线了 · 显示的是 {date} {time} 保存的版本。"
 }

@@ -82,14 +82,12 @@ def main():
                 expect(settings_menu.locator('#color-scheme-form')).to_be_visible()
                 page.screenshot(path=str(artifacts/'settings-390.png'), full_page=True)
 
-                # This browser has no push service: turning on fails clearly and leaves nothing registered.
+                # This browser has no push service: turning on fails clearly and leaves no subscription.
                 page.locator('#notification-device').click()
                 expect(page.locator('#notification-feedback')).to_have_text('Notifications could not be turned on for this device. Try again later.')
                 expect(page.locator('#notification-device')).to_have_text('Turn on for this device')
-                assert page.evaluate("navigator.serviceWorker.getRegistration('/').then(value => value === undefined)")
+                assert page.evaluate("navigator.serviceWorker.getRegistration('/').then(async value => !value || !await value.pushManager.getSubscription())")
                 assert ('POST', '/api/push/subscribe') not in push
-                worker = page.evaluate("fetch('/sw.js').then(response => response.text())")
-                assert "addEventListener('push'" in worker and "addEventListener('fetch'" not in worker
 
                 account = menu(page, 'account')
                 assert account.locator('#color-scheme-form').count() == 0

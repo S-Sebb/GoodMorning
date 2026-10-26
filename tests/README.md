@@ -59,7 +59,8 @@ restoration.
 | `image_refresh` | Late cached images refresh a news preview without rewriting its text |
 | `initialization`, `setup_pending` | Localized initialize start; readable gateway failures on all layouts |
 | `language` | Bilingual flow through the real gateway |
-| `notifications` | Notification settings through the gateway: defaults, saving across reloads and devices, failed turn-on leaves no worker, both languages, phone and desktop |
+| `notifications` | Notification settings through the gateway: defaults, saving across reloads and devices, failed turn-on leaves no subscription, both languages, phone and desktop |
+| `offline` | Latest morning and evening briefings without a connection: copies kept after page loads, notice in both languages, any page, no tokens kept, unchanged copies not downloaded again, forgotten at sign-out and for another account |
 | `night_preflight` | Evening check-in dialog: due-today answers, early finishes by project, the weekly tidy-up, reopening, and the empty state |
 | `schedule` (`--canonical`) | Schedule tab with v2 tasks, statuses and TBC items; refresh, Chinese, mobile, source failures, no JavaScript |
 | `scroll_rails` | Phone scroll rails on all four tabs, drag, keyboard control, drafts |
