@@ -51,6 +51,35 @@ class GatewayTests(GatewayFixture):
         self.assertEqual(self.received,[])
         self.assertEqual(self.request('/api/chats')[0],401)
 
+    def test_offline_copy_has_no_session_token_and_names_its_account(self):
+        status,headers,_=self.request('/offline/gm.html')
+        self.assertEqual((status,headers['Location']),(302,'/login'))
+        self.assertNotIn('X-GoodMorning-Owner',headers)
+        self.permanent()
+        status,headers,body=self.request('/offline/gm.html')
+        self.assertEqual(status,200)
+        self.assertEqual(self.received[-1][0],'/offline/gm.html')
+        self.assertNotIn(self.csrf.encode(),body)
+        for control in (b'id="sign-out"',b'id="language-form"',b'rel="manifest"',b'/app.js'):self.assertNotIn(control,body)
+        self.assertEqual(headers['Cache-Control'],'no-store')
+        owner=headers['X-GoodMorning-Owner']
+        # An unchanged copy is not sent again, and the browser's own condition never reaches the backend.
+        status,headers,body=self.request('/offline/gm.html',headers={'If-None-Match':headers['ETag']})
+        self.assertEqual((status,body,headers['X-GoodMorning-Owner']),(304,b'',owner))
+        self.assertNotIn('if-none-match',{key.lower() for key in self.received[-1][1]})
+        registry=json.loads((self.root/'backends.json').read_text())
+        registry[self.other]=registry[self.id]
+        (self.root/'backends.json').write_text(json.dumps(registry))
+        token,_=self.store.anonymous('gm.example.test');pre=self.store.session(token,'gm.example.test')
+        token,_,_=self.store.login('bob','temporary-bob-secret1','gm.example.test','192.0.2.2',pre)
+        status,headers,_=self.request('/offline/gn.html',headers={'Cookie':COOKIE+'='+token})
+        self.assertEqual((status,headers['Location']),(302,'/password'))  # Not before the temporary password is replaced.
+        token,_=self.store.change_password(self.store.session(token,'gm.example.test'),'temporary-bob-secret1','permanent-bob-secret1','192.0.2.2')
+        self.cookie=COOKIE+'='+token
+        status,headers,_=self.request('/offline/gn.html')
+        self.assertEqual(status,200)
+        self.assertNotEqual(headers['X-GoodMorning-Owner'],owner)
+
     def test_generation_clock_is_trusted_and_client_headers_are_not_forwarded(self):
         header={'X-GoodMorning-Requested-At':'123'}
         self.gateway.proxy(self.id,'gm.example.test','/api/generate','POST',b'{}',header)

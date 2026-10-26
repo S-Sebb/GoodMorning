@@ -62,7 +62,13 @@ if (logout) logout.addEventListener('click', async () => {
       method:'POST',headers:{'Content-Type':'application/json','X-Briefing-CSRF':logout.dataset.csrf},
       body:'{}',cache:'no-store',credentials:'same-origin'
     });
-    if (response.ok) location.replace('/login');
+    if (response.ok) {
+      // This account's offline briefings leave the device with it (sw.js).
+      try {
+        for (const name of await caches.keys()) if (name.startsWith('offline-')) await caches.delete(name);
+      } catch { /* No cache storage here: nothing was kept. */ }
+      location.replace('/login');
+    }
     else logout.disabled = false;
   } catch { logout.disabled = false; }
 });

@@ -88,12 +88,18 @@ def form(csrf, return_to):
             '<noscript><button type="submit">Apply</button></noscript><span id="color-scheme-feedback" role="status"></span></form>')
 
 
-def page(source, csrf, return_to):
+def mark(source):
+    """This device's choice on the page's <html> element, where the stylesheets read it."""
     selected = current()
     def attributes(match):
         tag = re.sub(r'\sdata-(?:style|day-scheme|night-scheme)="[^"]*"', '', match[0])
         return tag[:-1]+f' data-style="{selected["style"]}" data-day-scheme="{selected["day"]}" data-night-scheme="{selected["night"]}">'
-    source = re.sub(r'<html\b[^>]*>', attributes, source, count=1)
+    return re.sub(r'<html\b[^>]*>', attributes, source, count=1)
+
+
+def page(source, csrf, return_to):
+    selected = current()
+    source = mark(source)
     if 'id="color-scheme-form"' not in source:
         source = source.replace('</form></div></details>', '</form>'+form(csrf, return_to)+'</div></details>', 1)
     else:

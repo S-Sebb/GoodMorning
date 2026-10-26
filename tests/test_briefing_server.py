@@ -56,6 +56,33 @@ class LiveTests(unittest.TestCase):
         self.assertIn('class="briefing-section-nav"',page)
         self.assertEqual({path:path.read_bytes() for path in before},before)
 
+    def test_offline_copy_is_the_latest_saved_edition_without_tokens_or_controls(self):
+        import os, re
+        from unittest.mock import patch
+        with self.assertRaises(ValueError):
+            self.app.offline_page('gm')  # Nothing saved this week: devices drop their copy.
+        older = self.root/'daily/2026-10-08.gm.json'
+        older.write_text(GM)
+        os.utime(older, (0, datetime(2026,10,8,6,5,tzinfo=timezone.utc).timestamp()))
+        page = self.app.offline_page('gm').decode()
+        self.assertIn('data-edition="gm"', page)
+        self.assertIn('2026-10-08 / Morning edition', page)
+        self.assertIn('data-day="2026-10-08"', page)
+        self.assertIn('07:05', page)  # The saved time in the account's timezone (London, BST).
+        self.assertNotIn(self.app.csrf, page)
+        for control in ('csrf', '<form', 'id="sign-out"', 'id="generate"', 'quick-chat', 'week-picker', 'srcset='):
+            self.assertNotIn(control, page)
+        # Every file it names is a shared fingerprinted asset or a briefing link the device opens offline.
+        for path in re.findall(r'(?:href|src)="(/[^"]*)"', page):
+            self.assertTrue(path.startswith('/assets/') or path in ('/gm.html', '/gn.html'), path)
+        (self.root/'daily/2026-10-10.gm.json').write_text(GM)
+        self.assertTrue('2026-10-10 / Morning edition' in self.app.offline_page('gm').decode())
+        # While a regenerated edition awaits its check, devices keep the copy they have.
+        self.app.preflight = True
+        self.app.jobs['2026-10-10.gm'] = {'id': 'a'*32, 'date': '2026-10-10', 'kind': 'gm', 'state': 'running'}
+        with patch.object(self.app, 'status', return_value={'state': 'running'}):
+            self.assertIsNone(self.app.offline_page('gm'))
+
     def test_new_conversation_action_follows_the_preserved_history(self):
         page=self.app.chat_page().decode()
         self.assertLess(page.index('id="conversation-history"'),page.index('id="new-conversation"'))

@@ -162,6 +162,36 @@ page that refreshes once to `/app?b=1`: that same-site step sends the cookie, so
 remembered sign-in survives closing the app. Only a request that still has no
 session after this step goes to `/login`.
 
+## Offline reading
+
+Signed-in pages register `/sw.js` (`app.js`), in browsers and in the Android
+app's WebView. After each page load the worker refreshes two read-only copies,
+`/offline/gm.html` and `/offline/gn.html`: the latest saved morning and evening
+edition of the seven-day window, with the stylesheets, scripts, icons and images
+they name and the fonts and pictures those stylesheets name. An unchanged copy costs a 304 (the gateway's ETag). A copy has no
+request token, form, chat, week picker or account control, and the gateway adds
+none. While the newest edition awaits its check after regeneration the backend
+answers 503 and the device keeps its copy; with nothing saved that week it
+answers 404 and the device drops it.
+
+Page loads go to the network first. Only when that fails does the worker answer
+with a copy: the requested edition on briefing pages, otherwise the morning
+before 17:00 and the evening after, or whichever it has. The copy starts with
+"You’re offline · showing the version from HH:MM", the time the edition was saved
+in the account's timezone, with the date when it is not from the device's today,
+and a Try again link that reloads the page. Edition links switch between the two
+copies. With no copy the load fails as before, and the Android app shows its
+can't-connect screen. Online, other requests are untouched; offline, the copies'
+own files come from the cache.
+
+The copies belong to one account. The gateway tags them with an opaque owner tag
+(`X-GoodMorning-Owner`, a hash of the account ID), and the worker keeps them in a
+cache named after it. Signing out deletes that cache (`auth.js`). The worker
+deletes it too when a refresh is redirected to sign-in or the password page, is
+refused, or answers for another account, so a session that ended without
+signing out is forgotten the next time the device is online. Until then the copy
+stays readable offline. Nothing from `/api/` or the sign-in pages is kept.
+
 ## Settings and Account
 
 Signed in, the two top menus split by scope. **Settings** holds what belongs to
@@ -190,10 +220,9 @@ A link that has none yet gets the account's earlier choice.
 ## Notifications
 
 Settings → Notifications belongs to the device it is shown on. In a browser,
-turning it on asks for permission, registers `/sw.js` and subscribes that browser
-under a name such as "Firefox on Linux". Turning it off, or signing out,
-unsubscribes it and unregisters the worker. The worker has no fetch handler, so
-page loads never start it; it runs only to show a notification or open one. Each
+turning it on asks for permission and subscribes that browser, through the
+service worker (`/sw.js`, see Offline reading), under a name such as "Firefox on
+Linux". Turning it off, or signing out, unsubscribes it. Each
 device keeps its own switches, event reminder lead time (5, 10, 15, 30 or 60
 minutes; 15 by default) and briefing reminder times (07:00 and 21:00 by default). Devices that subscribed before choices moved to devices
 start from the account-wide choices saved then.

@@ -213,7 +213,6 @@ def page(source,csrf,return_to='/'):
                   '<p>These follow you on every device you sign in on.</p></div>'+close+'</div>'
                   +language_form+phones+account+'</div></details>') if account else ''
     controls=('<div class="toolbar-row">'+prefs+account_menu+'<span id="update-slot"></span></div>')
-    source=re.sub(r'<html\b[^>]*\blang="[^"]*"',lambda match:re.sub(r'lang="[^"]*"','lang="'+current()+'"',match[0]),source,count=1)
     if 'id="language-form"' not in source:
         source=re.sub(r'(<body\b[^>]*>)',lambda match:match[0]+controls,source,count=1)
     elif account and 'id="account-menu"' not in source:
@@ -227,6 +226,11 @@ def page(source,csrf,return_to='/'):
     else:
         source=source.replace('</head>','<script src="/language.js" defer></script></head>')
         source=source.replace('</body>',marker+'</body>')
-    source=color_schemes.page(source,csrf,return_to)
+    return translate(color_schemes.page(source,csrf,return_to))
+
+
+def translate(source):
+    """Interface text in the current language; saved content (data-content) stays as written."""
+    source=re.sub(r'<html\b[^>]*\blang="[^"]*"',lambda match:re.sub(r'lang="[^"]*"','lang="'+current()+'"',match[0]),source,count=1)
     parser=InterfaceHTML();parser.feed(source);parser.close()
     return ''.join(parser.parts)

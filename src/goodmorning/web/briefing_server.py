@@ -3,7 +3,7 @@ import argparse
 from contextlib import ExitStack
 import gzip
 import hashlib
-from datetime import date as Date, timedelta
+from datetime import date as Date, datetime, timedelta
 import html
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
@@ -14,6 +14,7 @@ import re
 import secrets
 import threading
 import time
+from zoneinfo import ZoneInfo
 from urllib.parse import urlsplit, quote, parse_qs, urlencode
 from urllib.request import Request, build_opener, HTTPRedirectHandler
 
@@ -484,6 +485,36 @@ class BrowserApp:
         if confirmed:
             with self.lock:self.pages.put(page_key, (page_signature, output), len(output))
         return output
+
+    def offline_page(self, kind):
+        """The latest saved edition as the read-only copy a device keeps for reading offline (sw.js).
+
+        It has no request token, form or account control, so keeping it on a device keeps no secret.
+        None while the newest saved edition awaits its check, so devices keep the copy they have."""
+        date = next((day for day in self.dates() if self.source(day, kind).is_file()), None)
+        if date is None:
+            raise ValueError('No saved edition')
+        job = self.jobs.get(date + '.' + kind)
+        if self.preflight and job and self.status(job['id'])['state'] != 'ready':
+            return None
+        saved = datetime.fromtimestamp(self.source(date, kind).stat().st_mtime, ZoneInfo(self.zone))
+        time_text = f'{saved:%H:%M}'
+        text = self.files(date, kind)[f'{kind}.html'].decode()
+        switches = ''.join(f'<a class="edition-link{" selected" if other == kind else ""}" href="/{other}.html">{label}</a>' for other, label in KINDS.items())
+        text = re.sub(r'<nav class="edition-switch"[^>]*>.*?</nav>', '<nav class="edition-switch" aria-label="Edition">' + switches + '</nav>', text)
+        text = re.sub(r'<div class="briefing-tools">.*?</div>', '', text, count=1, flags=re.S)
+        text = text.replace('href="briefing.css"', 'href="/briefing.css"').replace('src="briefing.js"', 'src="/briefing.js"')
+        text = text.replace('href="fonts/', 'href="/fonts/').replace('href="icons/', 'href="/icons/').replace('href="index.html"', f'href="/{kind}.html"')
+        # The device keeps only each image's plain source, so no other size is asked for offline.
+        text = re.sub(r'\s(?:srcset|sizes)="[^"]*"', '', text.replace('src="media/', 'src="/media/'))
+        # briefing.js drops the date when the copy is from the device's today.
+        notice = (f'<p class="offline-notice" role="status" data-day="{saved.date().isoformat()}">'
+                  '<span class="offline-earlier">' + ui.ui('You’re offline · showing the version from {date}, {time}.', date=ui.day_text(saved.date().isoformat()), time=time_text) + '</span>'
+                  '<span class="offline-today" hidden>' + ui.ui('You’re offline · showing the version from {time}.', time=time_text) + '</span> '
+                  '<a href="">' + ui.ui('Try again') + '</a></p>')
+        text = text.replace('<main id="content">', '<main id="content">' + notice, 1)
+        text = text.replace('</head>', '<link rel="stylesheet" href="/color-schemes.css"><link rel="stylesheet" href="/pixel.css"></head>', 1)
+        return self.resources.rewrite(ui.translate(site_colors.mark(text))).encode()
 
     def start(self, date, kind, requested_at=None):
         if self.chat_settings()['defaultMode'] == 'initialize':
@@ -1104,6 +1135,12 @@ def serve_live(app, port, *, gateway_key=None, public_origins=()):
                     day = app.today()
                     page = app.page(day, kind, False)
                     return self.respond(page, content_type='text/html; charset=utf-8', compress=b'&quot;csrf&quot;: null' in page)
+                offline = re.fullmatch(r'/offline/(gm|gn)\.html', path)
+                if offline:
+                    page = app.offline_page(offline[1])
+                    if page is None:
+                        return self.respond({'error': 'This briefing is being checked; try again shortly.'}, 503)
+                    return self.respond(page, content_type='text/html; charset=utf-8')
                 edition = re.fullmatch(r'/d/(\d{4}-\d{2}-\d{2})/(gm|gn)\.(html|json)', path)
                 if edition:
                     date, kind, suffix = edition.groups()

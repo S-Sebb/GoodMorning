@@ -524,6 +524,8 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
 .generation-desk #generation-status.is-queued { display: inline-block; padding: 6px 14px; border: 1px solid var(--line); border-radius: 999px; background: var(--wash); font-size: 12px; }
 .generation-desk #agent-questions { grid-column: 1 / -1; }
 .preview-notice { font-size: 12px; color: var(--muted); margin-top: 18px; }
+.offline-notice { margin: 24px 0 0; padding: 12px 16px; border: 1px solid var(--line); border-radius: 12px; background: var(--wash); font-size: 14px; }
+.offline-notice a { margin-left: 4px; font-weight: 600; }
 .briefing-section[hidden], .section-entry[hidden], .scroll-segment[hidden], .scroll-map[hidden] { display: none; }
 .section-loading { min-height: 148px; padding: 8px 0; }
 .section-loading-label { font-size: 13px; color: var(--muted); }
