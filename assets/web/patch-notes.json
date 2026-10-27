@@ -1,6 +1,98 @@
 {
   "notes": [
     {
+      "version": "0.76.0",
+      "date": "2026-10-27",
+      "author": "GoodMorning agent",
+      "title_en": "About me, a secretary who remembers, and public holidays",
+      "title_zh": "「关于我」、会记住你的秘书，还有公共假期",
+      "changes": [
+        {
+          "category": "Added",
+          "en": [
+            "About me, in the Account menu, shows and edits what your secretary knows about you.",
+            "Your secretary keeps a short note about you from your chats; edit or forget it on About me.",
+            "Public holidays and China's make-up workdays show on Schedule and in briefings once you pick countries.",
+            "Birthdays, festivals, anniversaries and task milestones get a Something to celebrate card in the morning.",
+            "Tick today's to-dos and habits done on the Schedule page, with Undo.",
+            "Android app 0.10: tick to-dos done, or undo, from the Today widget.",
+            "Evening Stocks shows the main indices for markets you hold, in a more compact layout.",
+            "Ask your secretary \"What's new?\" for a short summary of recent updates.",
+            "Long chats can show earlier messages."
+          ],
+          "zh": [
+            "「账户」菜单里的「关于我」，能看到并修改秘书对你的了解。",
+            "秘书会从聊天里留一小段关于你的笔记，在「关于我」能改，也能让它忘掉。",
+            "选好国家以后，「日程」和简报里会显示公共假期，中国的调休上班日也算。",
+            "生日、节日、和 GoodMorning 的纪念日，还有任务里程碑，早上都会有一张「值得庆祝」卡片。",
+            "今天的待办和习惯，都能在「日程」页面勾成完成，勾错了还能撤销。",
+            "安卓 App 0.10：在「今天」小组件上就能把待办勾成完成，也能撤销。",
+            "晚报的「持仓盈亏」板块会显示你持仓市场的主要指数，排版也紧凑了些。",
+            "在聊天里问一句“最近有什么新变化”，就能拿到一份简短的更新摘要。",
+            "聊天很长时，可以点「显示更早的消息」往前看。"
+          ]
+        },
+        {
+          "category": "Changed",
+          "en": [
+            "Your secretary's questions wait until you answer, even through updates; a new chat message skips one.",
+            "Missed Sunday's evening briefing? The next briefing brings last week's letter.",
+            "The weekly tidy-up rests each task for 28 days and adds \"Keep it, stop asking\".",
+            "An idea due for review stays in morning Reminders until you review or reschedule it.",
+            "Long briefing greetings shrink gradually, and the working card shows rotating cute titles.",
+            "Website text now speaks as your secretary."
+          ],
+          "zh": [
+            "秘书的提问会一直等你回答，更新也不会弄丢；发一条新消息就会跳过这一问。",
+            "错过周日的晚报也没关系，下一份简报会带上上周的来信。",
+            "每周整理不会在 28 天内再问同一个任务，还多了一个回答：「留着，不用再问了」。",
+            "灵感到了回顾日期，会一直留在早报的「提醒」里，直到你回顾它或者另选日期。",
+            "简报开头的问候语太长时，字会一点点变小；秘书干活时，卡片上的可爱标题会轮着换。",
+            "网站上的文字现在用秘书的口吻说话。"
+          ]
+        },
+        {
+          "category": "Fixed",
+          "en": [
+            "A chat message that didn't arrive is marked Not sent, with Send again.",
+            "Offline briefings show the right edition after midnight, label old copies and open while the server is down.",
+            "Evening check-ins save even when a tidy-up task changed in chat.",
+            "One slow request no longer holds up other accounts for more than 30 minutes."
+          ],
+          "zh": [
+            "聊天消息没送到时，会标成「未发送」，旁边有「重新发送」。",
+            "离线简报过了午夜也能挑对版本，旧的一份会标出来，服务器不可用时也能打开。",
+            "整理任务在聊天里被改过，晚间回顾也照样能保存。",
+            "一个很慢的请求，不会再拖住其他账户的秘书超过 30 分钟。"
+          ]
+        },
+        {
+          "category": "Security",
+          "en": [
+            "Signing out or changing your password clears check-in answers on the device.",
+            "Changing your password unlinks all your phones."
+          ],
+          "zh": [
+            "退出登录或者改密码，设备上留着的晚间回顾回答会清掉。",
+            "改密码会把所有手机都解除关联。"
+          ]
+        },
+        {
+          "category": "Notes",
+          "en": [
+            "Chat attachments are removed after 30 days; chats keep their names.",
+            "After a password change, link your phones again under Account → Linked phones.",
+            "Memory is on by default; switch it off or forget everything on About me."
+          ],
+          "zh": [
+            "聊天附件会在 30 天后删掉，聊天记录里还留着名字。",
+            "改完密码后，去「账户」→「已关联的手机」重新关联手机。",
+            "记忆默认开着，可以在「关于我」关掉，也能让它全部忘掉。"
+          ]
+        }
+      ]
+    },
+    {
       "version": "0.75.0",
       "date": "2026-10-26",
       "author": "GoodMorning agent",
