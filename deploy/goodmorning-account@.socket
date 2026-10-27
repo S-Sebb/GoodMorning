@@ -1,0 +1,12 @@
+# Install with a per-instance drop-in setting ListenStream=127.0.0.1:<chamberPort from engine.json>.
+# The first connection starts the account's engine.
+[Unit]
+Description=GoodMorning on-demand agent %i
+BindsTo=goodmorning-vault@%i.service
+After=goodmorning-vault@%i.service
+
+[Socket]
+Accept=no
+
+[Install]
+WantedBy=sockets.target

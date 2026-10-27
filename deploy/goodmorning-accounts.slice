@@ -1,0 +1,11 @@
+# Caps every account engine and viewer together, leaving the gateway, NGINX, SiYuan and the system
+# room on a 4 GB server; the kernel reclaims or kills inside this slice before the host stalls.
+[Unit]
+Description=GoodMorning account services
+
+[Slice]
+MemoryHigh=2G
+MemoryMax=2304M
+MemorySwapMax=0
+ManagedOOMMemoryPressure=kill
+ManagedOOMMemoryPressureLimit=60%

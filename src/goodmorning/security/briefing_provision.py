@@ -106,13 +106,19 @@ def runtime(volume, owner, defaults, used):
     return config
 
 
-def services(identifier, user):
+def drop_in(unit, name, text):
+    folder = UNITS/(unit+'.d')
+    folder.mkdir(mode=0o755, exist_ok=True)
+    (folder/name).write_text(text)
+
+
+def services(identifier, user, port):
+    """The engine starts on its socket's first connection, so only the socket and viewer are enabled."""
+    drop_in(f'goodmorning-account@{identifier}.socket', 'listen.conf', f'[Socket]\nListenStream=127.0.0.1:{port}\n')
     for unit, extra in (('account', 'SupplementaryGroups=goodmorning-engine\n'), ('viewer', '')):
-        folder = UNITS/f'goodmorning-{unit}@{identifier}.service.d'
-        folder.mkdir(mode=0o755, exist_ok=True)
-        (folder/'identity.conf').write_text(f'[Service]\nUser={user}\nGroup={user}\n{extra}')
+        drop_in(f'goodmorning-{unit}@{identifier}.service', 'identity.conf', f'[Service]\nUser={user}\nGroup={user}\n{extra}')
     systemctl('daemon-reload')
-    systemctl('enable', '--now', f'goodmorning-account@{identifier}.service', f'goodmorning-viewer@{identifier}.service')
+    systemctl('enable', '--now', f'goodmorning-account@{identifier}.socket', f'goodmorning-viewer@{identifier}.service')
 
 
 def offered(bridge):
@@ -162,7 +168,7 @@ def provision(store, name, host, *, root=Path('/srv/goodmorning')):
     used = used_ports(root/'live', json.loads(path.read_text()))
     config = runtime(root/'live'/identifier, (account.pw_uid, account.pw_gid), defaults, used)
     print(f'Runtime: Linux user {user}, engine port {config["chamberPort"]}, viewer port {config["viewerPort"]}')
-    services(identifier, user)
+    services(identifier, user, config['chamberPort'])
     connect(config, defaults)
     entry = {'port': config['viewerPort'], 'key': config['gatewayKey']}
     registry = json.loads(path.read_text())

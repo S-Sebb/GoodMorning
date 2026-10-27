@@ -31,8 +31,8 @@ not the account-creation procedure. Do not rerun provisioning to repair record o
    - initialize and mount the account's encrypted vault and create its Linux user;
    - write `engine.json` with free loopback ports and fresh keys, and the OpenCode
      default model;
-   - install the `User`/`Group` drop-ins, then enable and start the vault, engine and
-     viewer services;
+   - install the `User`/`Group` and engine-port drop-ins, then enable and start the
+     vault, the engine socket and the viewer; the engine itself starts on demand;
    - register the server-default provider credential if the engine does not yet offer
      every website model, then wait until it does;
    - add the account to `backends.json`, keeping every other entry;

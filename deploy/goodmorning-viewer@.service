@@ -1,11 +1,12 @@
 [Unit]
 Description=GoodMorning isolated briefing backend %i
-Requires=goodmorning-account@%i.service
-After=goodmorning-account@%i.service
+Requires=goodmorning-account@%i.socket
+After=goodmorning-account@%i.socket
 BindsTo=goodmorning-vault@%i.service
 
 [Service]
 Type=simple
+Slice=goodmorning-accounts.slice
 ExecStart=/opt/goodmorning/python/bin/python /opt/goodmorning/current/scripts/goodmorning.py runtime --volume /srv/goodmorning/live/%i viewer
 Restart=on-failure
 RestartSec=5

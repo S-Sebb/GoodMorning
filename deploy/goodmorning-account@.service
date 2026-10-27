@@ -1,12 +1,14 @@
+# Started on demand by goodmorning-account@.socket; exits after ten idle minutes.
 # Install with a per-instance drop-in setting User/Group to the account's Linux UID.
 [Unit]
 Description=GoodMorning isolated agent %i
-Requires=goodmorning-engine.service goodmorning-vault@%i.service
-After=goodmorning-engine.service goodmorning-vault@%i.service
+Requires=goodmorning-engine.service goodmorning-vault@%i.service goodmorning-account@%i.socket
+After=goodmorning-engine.service goodmorning-vault@%i.service goodmorning-account@%i.socket
 BindsTo=goodmorning-vault@%i.service
 
 [Service]
 Type=simple
+Slice=goodmorning-accounts.slice
 # Optional server-wide provider identifiers (MAL_CLIENT_ID); briefing_runtime forwards only named keys.
 EnvironmentFile=-/etc/goodmorning/providers.env
 ExecStart=/opt/goodmorning/python/bin/python /opt/goodmorning/current/scripts/goodmorning.py runtime --volume /srv/goodmorning/live/%i engine
@@ -31,6 +33,3 @@ ProtectControlGroups=true
 ReadWritePaths=/srv/goodmorning/live/%i
 StandardOutput=null
 StandardError=append:/srv/goodmorning/live/%i/tmp/engine-service.log
-
-[Install]
-WantedBy=multi-user.target

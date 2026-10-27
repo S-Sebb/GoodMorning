@@ -99,6 +99,8 @@ class ProvisionTests(unittest.TestCase):
         drop_in = (self.units/f'goodmorning-account@{identifier}.service.d/identity.conf').read_text()
         self.assertIn('User=gm_synthetic', drop_in)
         self.assertIn('SupplementaryGroups=goodmorning-engine', drop_in)
+        listen = (self.units/f'goodmorning-account@{identifier}.socket.d/listen.conf').read_text()
+        self.assertIn(f'ListenStream=127.0.0.1:{config["chamberPort"]}', listen)
         registry = json.loads((self.store.directory/'backends.json').read_text())
         self.assertEqual(registry['a'*32], self.other)
         self.assertEqual(registry[identifier], {'port':config['viewerPort'],'key':config['gatewayKey']})
