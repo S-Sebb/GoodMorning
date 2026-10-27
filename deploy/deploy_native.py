@@ -5,6 +5,8 @@ engine OPENCODE             Install and check an engine tree while the website s
 switch NAME [ENGINE]        With the website paused, wait for idle, then make a staged
                             release (and engine) live. Keeps previous releases,
                             credentials and private files.
+ready NAME TICKET           Used by switch: start every engine and check idle with
+                            release NAME's own session clients.
 
 Exit status 3 means switch changed nothing because the website never became idle.
 """
@@ -28,6 +30,8 @@ ACCOUNTS = BASE/'accounts'
 CURRENT = Path('/opt/goodmorning/current')
 RELEASES = Path('/opt/goodmorning/releases')
 PYTHON = '/opt/goodmorning/python/bin/python'
+# Resolved now: during a rollback /opt/goodmorning/current changes under a running helper.
+HELPER = Path(__file__).resolve()
 NODE = '/opt/goodmorning/engine/bin/node'
 NODE_HOME = Path('/opt/goodmorning/node')
 ENGINES = Path('/opt/goodmorning/engines')
@@ -393,10 +397,9 @@ print(json.dumps({'profileReady':status['profile_ready'],'nativeEditions':count}
         deadline = time.monotonic()+75
         while True:
             try:
-                for identifier, bridge in bridges.items():
-                    bridge.directory = str(release)
-                    bridge.request('/api/session/active')
-                    config = configs[identifier]
+                # The clients built above speak the previous release's engine protocol.
+                command([PYTHON, '-B', str(HELPER), 'ready', name, json.dumps(ticket)], timeout=120)
+                for config in configs.values():
                     request = Request('http://127.0.0.1:'+str(config['viewerPort'])+'/chat', headers={
                         'Authorization': 'Bearer '+config['gatewayKey'], 'X-GoodMorning-Origin': 'https://'+HOST})
                     with urlopen(request, timeout=5) as response:
@@ -472,7 +475,6 @@ print(json.dumps({'profileReady':status['profile_ready'],'nativeEditions':count}
             command(['systemctl', 'reload', 'nginx'])
         command(['systemctl', 'start', *services])
         wait_ready()
-        idle()
         assert unchanged(), 'Protected records, passwords or preferences changed'
         for unit in services:
             command(['systemctl', 'is-active', '--quiet', unit])
@@ -534,6 +536,15 @@ print(json.dumps({'profileReady':status['profile_ready'],'nativeEditions':count}
     print(json.dumps(report))
 
 
+def ready(name, ticket):
+    """Probe every engine and check idle in a fresh process, so the clients come from release NAME's code."""
+    identifiers, _ = provisioned()
+    store, _, _, bridges = live_clients(release_path(name), identifiers)
+    for bridge in bridges.values():
+        bridge.request('/api/session/active')
+    check_idle(store, bridges, json.loads(ticket))
+
+
 def main(argv):
     assert os.geteuid() == 0, 'Run as root'
     sys.dont_write_bytecode = True
@@ -541,6 +552,8 @@ def main(argv):
         stage(Path(argv[1]), argv[2])
     elif argv[:1] == ['engine'] and len(argv) == 2:
         stage_engine(argv[1])
+    elif argv[:1] == ['ready'] and len(argv) == 3:
+        ready(*argv[1:])
     elif argv[:1] == ['switch'] and len(argv) in (2, 3):
         try:
             switch(*argv[1:])
