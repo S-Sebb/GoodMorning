@@ -1,13 +1,15 @@
 """Rebuild the bundled public-holiday data from the python-holidays library.
 
-Maintainers only; the website reads the JSON it writes with the standard library:
+Maintainers and the weekly Holiday data workflow only; the website reads the JSON it
+writes with the standard library:
 
     uv run --no-project --with holidays==0.107 python src/goodmorning/calendar/public_holidays_build.py
 
-China's days off and make-up workdays exist only once the State Council publishes
-them, usually in November for the next year; list a year in CHINA_YEARS only after
-checking the library against that announcement. Chinese names stay in the file's
-`names`; the script reports any it lacks and keeps the old file unchanged.
+It prints in plain words what changed against the previous file. China's days off and
+make-up workdays exist only once the State Council publishes them, usually in November
+for the next year; the library lists a year's make-up workdays only then, so China lists
+only those years. Chinese names stay in the file's `names`; a new name without Chinese
+wording is written without it and reported, so the name test fails until it is worded.
 """
 from datetime import date, datetime, timedelta
 import json
@@ -18,8 +20,8 @@ import sys
 import holidays
 
 OUTPUT = Path(__file__).with_name('public_holidays.json')
-YEARS = (2026, 2027)
-CHINA_YEARS = (2026,)
+# This year and next; earlier years stay listed.
+YEARS = tuple(range(2026, date.today().year + 2))
 COUNTRIES = {'CN': 'China', 'US': 'United States', 'GB': 'United Kingdom', 'AU': 'Australia', 'CA': 'Canada'}
 REGIONS = {'GB': ('ENG', 'WLS', 'SCT', 'NIR'), 'AU': ('ACT', 'NSW', 'NT', 'QLD', 'SA', 'TAS', 'VIC', 'WA'),
            'CA': ('AB', 'BC', 'MB', 'NB', 'NL', 'NS', 'NT', 'NU', 'ON', 'PE', 'QC', 'SK', 'YT')}
@@ -30,9 +32,14 @@ CHINA_RUNS = {"New Year's Day": 'New Year', 'Chinese New Year (Spring Festival)'
               'Mid-Autumn Festival': 'Mid-Autumn Festival', 'National Day': 'National Day'}
 
 
-def china():
+def china_years():
+    workdays = holidays.country_holidays('CN', years=YEARS).weekend_workdays
+    return [year for year in YEARS if any(day.year == year for day in workdays)]
+
+
+def china(years):
     days, workdays = {}, {}
-    for year in CHINA_YEARS:
+    for year in years:
         listed = holidays.country_holidays('CN', years=year, language='en_US')
         festival = {day: CHINA_RUNS[name] for day, name in listed.items() if name in CHINA_RUNS}
         for day, name in listed.items():
@@ -72,11 +79,33 @@ def listed(country, region=None):
     return dict(sorted(days.items()))
 
 
+def changes(previous, data):
+    """Plain-words lines on the regions and years a rebuild adds, changes or drops."""
+    places = {}
+    for code, region in data['regions'].items():
+        old = previous.get('regions', {}).get(code, {'years': [], 'days': {}, 'workdays': {}})
+        place = region['label'] if region['label'] == region['country'] else f"{region['label']} ({region['country']})"
+        dated = lambda listing, year: {day: name for day, name in listing.items() if day.startswith(str(year))}
+        for year in sorted({*old['years'], *region['years']}):
+            if year not in old['years']:
+                workdays = len(dated(region['workdays'], year))
+                what = f'Adds {year} for {{}}' + (f', with its {workdays} make-up workdays (调休上班)' if workdays else '')
+            elif year not in region['years']:
+                what = f'Drops {year} for {{}}'
+            elif any(dated(old[key], year) != dated(region[key], year) for key in ('days', 'workdays')):
+                what = f'Changes dates in {year} for {{}}'
+            else:
+                continue
+            places.setdefault(what, []).append(place)
+    return ['- ' + what.format(', '.join(names)) + '.' for what, names in places.items()]
+
+
 def main():
     previous = json.loads(OUTPUT.read_text()) if OUTPUT.exists() else {'names': {}}
     regions = {}
-    days, workdays = china()
-    regions['CN'] = {'country': 'China', 'label': 'China', 'years': list(CHINA_YEARS), 'days': days, 'workdays': workdays}
+    cn_years = china_years()
+    days, workdays = china(cn_years)
+    regions['CN'] = {'country': 'China', 'label': 'China', 'years': cn_years, 'days': days, 'workdays': workdays}
     regions['US'] = {'country': 'United States', 'label': 'United States', 'years': list(YEARS), 'days': listed('US'), 'workdays': {}}
     for country, codes in REGIONS.items():
         aliases = {}
@@ -87,17 +116,21 @@ def main():
                                             'days': listed(country, code), 'workdays': {}}
     used = {value for region in regions.values() for value in (region['country'], region['label'],
             *region['days'].values(), *region['workdays'].values())}
-    chinese = dict(holidays.country_holidays('CN', language='zh_CN', years=CHINA_YEARS[0]).items())
-    english = dict(holidays.country_holidays('CN', language='en_US', years=CHINA_YEARS[0]).items())
+    chinese = dict(holidays.country_holidays('CN', language='zh_CN', years=YEARS[0]).items())
+    english = dict(holidays.country_holidays('CN', language='en_US', years=YEARS[0]).items())
     names = {**{english[day]: chinese[day] for day in english if english[day] in CHINA_RUNS}, **previous['names']}
     names = {name: names[name] for name in sorted(used) if name in names}
-    missing = sorted(used - set(names))
-    if missing:
-        print(json.dumps(missing, ensure_ascii=False, indent=2))
-        raise SystemExit(f'{len(missing)} names need Chinese wording in {OUTPUT.name}; nothing was written')
+    if (regions, names) == (previous.get('regions'), previous['names']):
+        print('No changes.')  # A new library release alone does not rewrite the file.
+        return
     data = {'source': f'python-holidays {holidays.__version__}', 'regions': regions, 'names': names}
     OUTPUT.write_text(json.dumps(data, ensure_ascii=False, indent=1) + '\n')
-    print(f'{OUTPUT.name}: {len(regions)} regions, {len(names)} names')
+    lines = changes(previous, data)
+    missing = sorted(used - set(names))
+    if missing:
+        lines.append('- Needs Chinese wording before merging: ' + ', '.join(f'"{name}"' for name in missing) + '.')
+    was = '' if data['source'] == previous.get('source') else f" (was {previous.get('source', 'nothing')})"
+    print('\n'.join([f"Built from {data['source']}{was}.", *lines]))
 
 
 if __name__ == '__main__':
