@@ -269,7 +269,7 @@ def run(output, language, selected, arm, scenario, index):
                 break  # Done, or a stall: the persona answers only questions.
             form = status['forms'][0]
             if scenario == 'side-question' and not side_asked and any(
-                    'city' in topics(form, field) for field in form['fields']):
+                    topics(form, field)[:1] == ['city'] for field in form['fields']):
                 side_asked, turn['sent'] = True, said['side']
                 with context(language, selected):
                     app.chats.send(chat, {'id': uuid.uuid4().hex, 'text': said['side']})
