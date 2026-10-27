@@ -28,24 +28,23 @@ uv run --no-project python deploy/release.py
    `/opt/goodmorning/releases/<NAME>`, verifies every file hash, runs the full
    Python and Node suites on the server's Python, and checks the account
    database schema read-only.
-4. **Stage the engine, still live.** It takes the latest `@openchamber/web` from
-   registry.npmjs.org and the `@opencode/cli` version that OpenChamber pins for
-   `@opencode/client`. `deploy_native.py engine OPENCHAMBER OPENCODE` installs
-   them into `/opt/goodmorning/engines/<OPENCHAMBER>-<OPENCODE>` unless that tree
-   exists, checks both versions, and deletes every tree except the live one and
-   the new one.
+4. **Stage the engine, still live.** It takes the `@opencode/cli` version pinned in
+   `deploy/engine.json`, the version paid trials ran on. `deploy_native.py engine
+   OPENCODE` installs it from registry.npmjs.org into
+   `/opt/goodmorning/engines/opencode-<OPENCODE>` unless that tree exists, checks
+   its version, and deletes every tree except the live one and the new one.
    Before changing the OpenCode pin, rerun the parked-question wire reproduction and confirm private reasoning never becomes visible content.
 5. **Pause.** It enables the deployment pause.
 6. **Switch.** `deploy_native.py switch NAME ENGINE` waits up to 10 minutes for idle: no
    reservation or queue, no active sessions, and no pending engine questions or
    permissions. Requests paused on a saved question hold no engine state and do
    not block. It then:
-   - snapshots passwords, language settings, the hashes of protected
-     private files, and each account's OpenChamber choices as OpenChamber
-     reads them (`settings.json` overlaid with `preferences.json`, which a new
-     engine may rewrite on first start);
+   - snapshots passwords, language settings and the hashes of protected
+     private files;
    - takes the deployment ticket;
-   - stops the gateway and viewers, rechecks idle, and stops the account engines;
+   - stops the gateway and viewers, rechecks idle, and stops the account engines
+     and their sockets; writes each account's engine-socket port drop-in from its
+     `engine.json` and disables any engine still enabled to start at boot;
    - installs only the unit files, certificate hook and NGINX config that differ
      from the release's `deploy/`, and enables the daily maintenance timer
      (`docs/server-maintenance.md`);
@@ -116,8 +115,12 @@ dispatches new work.
   Never print authentication details.
 - Releases: `/opt/goodmorning/releases/<NAME>`; `/opt/goodmorning/current` points
   to exactly one. Releases are never overwritten or deleted.
-- Engine: agents run OpenChamber and OpenCode from `/opt/goodmorning/engine`,
-  read-only bind mounts made by `goodmorning-engine.service` from
+- Engine: each account's `goodmorning-account@ID.socket` holds its loopback engine
+  port; the first connection starts `goodmorning-account@ID.service`, which runs
+  `opencode serve` behind a relay and stops after ten idle minutes with no running
+  session (a waiting question counts as running). Engines and viewers share
+  `goodmorning-accounts.slice`, whose memory cap keeps the host responsive.
+  Agents run OpenCode from `/opt/goodmorning/engine`, read-only bind mounts made by `goodmorning-engine.service` from
   `/opt/goodmorning/engines/current/lib/node_modules` and
   `/opt/goodmorning/node/bin/node`. Every deployment upgrades the engine (see
   Deploy); never install it by hand or into a user's home. Trees are root-owned,

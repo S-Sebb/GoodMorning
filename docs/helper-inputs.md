@@ -69,7 +69,8 @@ Never send `source`; code adds it.
 `task --add` takes the TODO capture fields above. `task --capture-draft` saves an
 unknown-time appointment: `raw`, optional `summary`/`context`/`project`, and
 `draft` with `title`, `date`, `timezone`, `location`, `detail`, `confirmed_day`,
-`state` (`tentative`, `needs-details`, `ready-for-confirmation`), `event`,
+`state` (`tentative`, `needs-details`, `ready-for-confirmation`; a confirmed day is
+`needs-details`, the default), `event`,
 `repeat` (`{"weekdays":[…],"start":DATE,"until"?,"exclude"?}`, start equal to
 `date`, confirmed day only), `notice` (`morning`/`evening`), `extra`, `display`.
 

@@ -41,8 +41,7 @@ Result: one verified pending idea. Read `docs/core-rules.md` and
 5. On an explicit discussion request, reuse the entry and prior answers. Ask only
    unresolved goal/project/constraint/next-action questions, then quote the clarified
    meaning for confirmation. Stop unless organization is separately requested.
-6. For authorized organization, follow the secretary workflow and project-access
-   rules. Read relevant records/instructions, preserve unrelated work and update
+6. For authorized organization, follow the secretary workflow. Read relevant records/instructions, preserve unrelated work and update
    `last_update`. Task adoption uses `task --adopt` with explicit action fields;
    it links stable task IDs without another capture or permission to execute them.
    Set the idea `confirmed` with revision-checked `inbox --update ID` only after

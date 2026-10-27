@@ -455,7 +455,7 @@ def run_scenario(output, lang, selected, today, scenario, rounds, source):
     (runtime / 'profile.md').write_text('city: London, GB\ntimezone: Europe/London\nnews_country: GB\n'
                                         'secretary_language: English\nsecretary_name: Nora\ncalendar_source: custom\n')
     (runtime / 'browser-policy.json').write_text(json.dumps({k: False for k in (
-        'live_project_access', 'calendar_sync', 'publisher_images', 'news_acknowledgement')}))
+        'calendar_sync', 'publisher_images', 'news_acknowledgement')}))
     initialize(runtime)
     CalendarStore(str(runtime / 'calendar.sqlite')).close()
     facts = setup(runtime) if setup else {}

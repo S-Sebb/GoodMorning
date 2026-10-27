@@ -337,7 +337,7 @@ def run_case(output, template, language, scenario, instant):
         profile += 'user_name: Sam\n'
     (runtime/'profile.md').write_text(profile)
     (runtime/'browser-policy.json').write_text(json.dumps({key:False for key in (
-        'live_project_access','calendar_sync','publisher_images','news_acknowledgement')}))
+        'calendar_sync','publisher_images','news_acknowledgement')}))
     initialize(runtime)
     CalendarStore(str(runtime/'calendar.sqlite')).close()
     if scenario in ('morning-weather', 'evening-weather'):
@@ -577,7 +577,7 @@ def run_flexible_case(output, template, language, scenario, instant):
     (runtime/'profile.md').write_text('city: London, GB\ntimezone: Europe/London\nnews_country: GB\n'
                                       'secretary_name: Nora\ncalendar_source: custom\nsecretary_tone: '+TONES['playful']+'\n')
     (runtime/'browser-policy.json').write_text(json.dumps({key:False for key in (
-        'live_project_access','calendar_sync','publisher_images','news_acknowledgement')}))
+        'calendar_sync','publisher_images','news_acknowledgement')}))
     initialize(runtime)
     CalendarStore(str(runtime/'calendar.sqlite')).close()
     bridge = CheckpointBridge(trial_engine.Engine(source, runtime).start(), False, language)

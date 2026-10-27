@@ -1,8 +1,6 @@
 """Manual skill-copy contracts; no personal data or network."""
 
 import ast
-import hashlib
-import json
 from pathlib import Path
 import re
 import shutil
@@ -62,12 +60,6 @@ class DeploymentTests(unittest.TestCase):
         for path in paths:
             with self.subTest(path=path.name):
                 ast.parse(path.read_text(), filename=str(path), feature_version=(3, 9))
-
-    def test_bundled_vendor_hashes_and_license_are_intact(self):
-        directory = ROOT / 'vendor/openchamber-relay'
-        manifest = json.loads((directory / 'manifest.json').read_text())
-        for name, expected in manifest['sha256'].items():
-            self.assertEqual(hashlib.sha256((directory / name).read_bytes()).hexdigest(), expected)
 
     def test_runtime_ignore_rule_does_not_hide_the_inactive_skill_source(self):
         rules = (ROOT / '.gitignore').read_text().splitlines()

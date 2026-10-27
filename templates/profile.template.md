@@ -43,8 +43,8 @@ weekly_letter: ""
 ## Project roots
 
 <!-- Add one user-confirmed project per line:
-- Name | absolute folder path | local or remote | agreed read/write-back scope
-Remote access requires a chosen connection method and authorization first.
+- Name | folder path
+The secretary keeps notes about these projects; it cannot open the folders.
 Never put passwords or keys here. -->
 
 ## Setup rules

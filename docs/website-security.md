@@ -13,7 +13,7 @@ so private HTML is never compressed. Shared translation assets contain no privat
 data and keep content-hashed, cacheable URLs.
 
 The public website adds a security boundary to the local viewer; it is not an
-OpenChamber UI proxy. It permits login, current-password changes, logout and
+engine UI proxy. It permits login, current-password changes, logout and
 account-owned briefing viewing/generation/questions and secretary chats
 (Initialize alone before setup; Secretary afterward; older To-do and Eureka chats stay replyable).
 No web registration, account
@@ -80,7 +80,7 @@ Use gocryptfs for encrypted filenames and authenticated content encryption, not
 custom cryptography. Keep account SQLite/session/rate counters in a root-only
 encrypted `accounts` volume. Give each immutable account ID a separate encrypted
 volume and Linux UID. Its secretary records, caches, temporary inputs, agent HOME,
-OpenCode database/WAL/transcripts, OpenChamber state/logs and runtime files all
+OpenCode database/WAL/transcripts, logs and runtime files all
 belong there. Readable mounts are 0700; unmounted fallback directories are root-only
 and empty. Never put personal data in the shared read-only source/engine package.
 Production account operations fail closed when the encrypted mount is absent.
@@ -95,10 +95,12 @@ where they already were; this does not retroactively encrypt or delete them.
 Use HTTPS/TLS 1.2+ publicly. The gateway listens only on a root:www-data Unix
 socket; NGINX overwrites trusted host/proxy/IP headers. Backends remain loopback-only
 and require an independent random gateway key and allowlisted HTTPS origin.
-Each agent has its own authenticated OpenChamber/OpenCode runtime. Never reuse a
-shared agent UID/HOME/database across accounts or expose its UI/API publicly.
-`scripts/goodmorning.py runtime` launches per-account engines and renews only rejected/expired
-bridge authentication, not uncertain model requests. Shared installed binaries are
+Each agent has its own password-protected `opencode serve` runtime. Never reuse a
+shared agent UID/HOME/database across accounts or expose its API publicly.
+`scripts/goodmorning.py runtime` supervises per-account engines: systemd holds each
+engine's loopback socket, the first connection starts it, and it stops after ten
+idle minutes with no running session. Requests are never retried, so an uncertain
+model request is never sent twice. Shared installed binaries are
 read-only bind mounts, with a reader-group ACL on public libraries only. No extra
 engine downloads or library copies per account. The example engine service points
 to this host's installation; adapt and verify paths on another host.
@@ -214,7 +216,9 @@ route by website language (English: Muse Spark Contributor XHigh; Chinese:
 DeepSeek V4.1 Flash High, paid tier). The provisioning default does not override this routing;
 saved legacy model preferences remain intact but no longer select new requests.
 
-Before handing over an account, finish this SSH-only checklist:
+Before handing over an account, run the SSH-only `admin provision USERNAME` from the
+[server user guide](../SERVER-USER-GUIDE.md). It performs this checklist; any manual
+repair must keep it:
 
 1. Initialize its new encrypted vault once, assign a dedicated Linux UID, and
    create private engine/viewer configuration with fresh gateway and bridge keys.
@@ -227,10 +231,10 @@ Before handing over an account, finish this SSH-only checklist:
    for separate AI credentials or copy provider configuration from another user.
    Never clone another account's HOME, database, profile, conversations, relay
    identity, authentication cookies or settings files.
-3. Install account/viewer identity drop-ins and enable its vault, engine and
-   viewer services. Verify their encrypted mount, non-root identity and independent
+3. Install account/viewer identity and engine-socket port drop-ins and enable its
+   vault, engine socket and viewer. Verify their encrypted mount, non-root identity and independent
    loopback ports; register only that immutable account ID's viewer port and key.
-4. Run the read-only readiness gate and require exit status 0:
+4. Run the read-only readiness gate and require exit status 0 (`provision` ends with it):
 
    ```sh
    sudo /opt/goodmorning/python/bin/python -B /opt/goodmorning/current/scripts/goodmorning.py admin \

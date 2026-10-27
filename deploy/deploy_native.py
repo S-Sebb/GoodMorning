@@ -1,7 +1,7 @@
 """Guarded GoodMorning release helper, run as root on the server.
 
 stage ARCHIVE NAME          Unpack, verify and test a release while the website stays live.
-engine OPENCHAMBER OPENCODE  Install and check an engine tree while the website stays live.
+engine OPENCODE             Install and check an engine tree while the website stays live.
 switch NAME [ENGINE]        With the website paused, wait for idle, then make a staged
                             release (and engine) live. Keeps previous releases,
                             credentials and private files.
@@ -39,7 +39,7 @@ ALLOWED = frozenset({'.gitignore', '.opencode', 'LICENSE', 'README.md', 'AGENTS.
                      'SERVER-USER-GUIDE.md', 'SERVER-DATA-GUIDE.md', 'config.example.md', 'skill-source',
                      'scripts', 'src', 'assets', 'integrations', 'vendor', 'requirements', 'docs',
                      'templates', 'deploy', 'tests'})
-UNITS = ('goodmorning-account@.service', 'goodmorning-viewer@.service',
+UNITS = ('goodmorning-accounts.slice', 'goodmorning-account@.socket', 'goodmorning-account@.service', 'goodmorning-viewer@.service',
          'goodmorning-gateway.service', 'goodmorning-vault@.service', 'goodmorning-engine.service',
          'goodmorning-maintenance.service', 'goodmorning-maintenance.timer', 'goodmorning-maintenance-boot.service')
 # Enabled on every switch; see docs/server-maintenance.md.
@@ -63,17 +63,6 @@ def command(args, timeout=90, **kwargs):
 
 def digest(path):
     return hashlib.sha256(Path(path).read_bytes()).hexdigest()
-
-
-def openchamber_choices(directory):
-    """OpenChamber's settings as its server reads them: settings.json overlaid with the values in
-    preferences.json. Newer engines move choices between the two files on first start, so the
-    files' bytes may change while the choices stay the same."""
-    def read(name):
-        path = directory/name
-        return json.loads(path.read_text()) if path.is_file() else {}
-    fields = read('preferences.json').get('fields', {})
-    return {**read('settings.json'), **{key: entry['value'] for key, entry in fields.items() if 'value' in entry}}
 
 
 def release_path(name):
@@ -149,12 +138,19 @@ def live_clients(release, identifiers):
     return store, Gateway(store, {HOST: 'gm'}), configs, bridges
 
 
+def active_unit(unit):
+    return subprocess.run(['systemctl', 'is-active', '--quiet', unit], timeout=10).returncode == 0
+
+
 def check_idle(store, bridges, ticket):
     """Raise Busy unless the website is paused and no account has running work or pending input."""
     with store.db() as db:
         require_paused(db)
         require_no_work(db, ticket)
     for identifier, bridge in bridges.items():
+        # A stopped engine has no running session or open question; asking would start it.
+        if not active_unit(f'goodmorning-account@{identifier}.service'):
+            continue
         active = bridge.request('/api/session/active')
         if active.get('data', active):
             raise Busy('An account has an active session')
@@ -211,14 +207,13 @@ def stage(archive, name):
     for name_, value in files.items():
         assert digest(release/name_) == value, 'Extracted file differs from the archive'
         (release/name_).chmod(0o644)
-    assert {p.name for p in (release/'scripts').iterdir()} == {'goodmorning.py', 'projects.mjs'}
+    assert {p.name for p in (release/'scripts').iterdir()} == {'goodmorning.py'}
     env = dict(os.environ, PYTHONDONTWRITEBYTECODE='1')
     python = subprocess.run([PYTHON, '-B', '-m', 'unittest', 'discover', '-s', 'tests', '-p', 'test_*.py', '-q'],
                             cwd=release, env=env, capture_output=True, text=True, timeout=900)
     if python.returncode:
         raise RuntimeError('Release tests failed: '+python.stderr[-5000:])
-    node = command([NODE, '--test', '--test-reporter=tap', str(release/'tests/test_projects.mjs'),
-                    str(release/'tests/test_parked_reasoning.mjs')], cwd=release)
+    node = command([NODE, '--test', '--test-reporter=tap', str(release/'tests/test_parked_reasoning.mjs')], cwd=release)
     with read_db() as db:
         require_schema(db)
     result = {'archive': archive_hash, 'files': files,
@@ -231,26 +226,24 @@ def stage(archive, name):
 
 
 def engine_path(name):
-    if not re.fullmatch(r'\d+\.\d+\.\d+-\d+\.\d+\.\d+', name):
-        raise ValueError('Engine names look like <openchamber>-<opencode> versions, such as 2.4.0-2.0.32')
+    if not re.fullmatch(r'opencode-\d+\.\d+\.\d+', name):
+        raise ValueError('Engine names look like opencode-<version>, such as opencode-2.1.4')
     return ENGINES/name
 
 
-def engine_versions(modules):
-    """The OpenChamber and OpenCode versions an engine tree really contains."""
-    chamber = json.loads((modules/'@openchamber/web/package.json').read_text())['version']
-    cli = command([str(modules/'@opencode/cli/bin/opencode.exe'), '--version']).stdout.strip().removeprefix('opencode v')
-    return chamber, cli
+def engine_version(modules):
+    """The OpenCode version an engine tree really contains."""
+    return command([str(modules/'@opencode/cli/bin/opencode.exe'), '--version']).stdout.strip().removeprefix('opencode v')
 
 
-def stage_engine(openchamber, opencode):
+def stage_engine(opencode):
     """Safe while live: installs one new engine tree beside the live one.
 
     npm runs as nobody, and only @opencode/cli's install script runs: it links
     the binary that suits this CPU. Root owns the result. Keeps only the live
     tree and the new one; an older tree is never the rollback target.
     """
-    name = f'{openchamber}-{opencode}'
+    name = 'opencode-'+opencode
     target = engine_path(name)
     modules = target/'lib/node_modules'
     live = ENGINE_CURRENT.resolve() if ENGINE_CURRENT.exists() else None
@@ -264,12 +257,11 @@ def stage_engine(openchamber, opencode):
             env = {'PATH': str(NODE_HOME/'bin')+':/usr/bin:/bin', 'HOME': str(temporary/'.cache'),
                    'npm_config_cache': str(temporary/'.cache'), 'npm_config_update_notifier': 'false'}
             command([str(NODE_HOME/'bin/npm'), 'install', '--global', '--prefix', str(temporary), '--registry', REGISTRY,
-                     '--allow-scripts=@opencode/cli', '--no-audit', '--no-fund', f'@openchamber/web@{openchamber}',
+                     '--allow-scripts=@opencode/cli', '--no-audit', '--no-fund',
                      f'@opencode/cli@{opencode}'], timeout=900, env=env, cwd=temporary, user='nobody', group='nogroup')
             shutil.rmtree(temporary/'.cache')
             command(['chown', '-R', 'root:root', str(temporary)])
-            assert engine_versions(temporary/'lib/node_modules') == (openchamber, opencode), 'Installed engine versions differ'
-            command([str(NODE_HOME/'bin/node'), str(temporary/'lib/node_modules/@openchamber/web/bin/cli.js'), '--version'])
+            assert engine_version(temporary/'lib/node_modules') == opencode, 'Installed engine version differs'
             # Agents reach the tree only through the read-only mount of this directory.
             shutil.chown(temporary/'lib/node_modules', 'root', 'goodmorning-engine')
             (temporary/'lib/node_modules').chmod(0o750)
@@ -277,7 +269,7 @@ def stage_engine(openchamber, opencode):
         except Exception:
             shutil.rmtree(temporary, ignore_errors=True)
             raise
-    assert engine_versions(modules) == (openchamber, opencode), 'Engine tree changed after staging'
+    assert engine_version(modules) == opencode, 'Engine tree changed after staging'
     for path in ENGINES.iterdir():
         if path.is_dir() and not path.is_symlink() and not path.name.startswith('.') and path not in (target, live):
             shutil.rmtree(path)
@@ -327,7 +319,8 @@ def switch(name, engine=None):
     old_engine = ENGINE_CURRENT.resolve() if ENGINE_CURRENT.exists() else None
     new_engine = engine_path(engine) if engine else old_engine
     assert new_engine and (new_engine/'lib/node_modules').is_dir() and (NODE_HOME/'bin/node').is_file(), 'Stage the engine first'
-    expected_engine = tuple(new_engine.name.split('-'))
+    # Older trees are named <other>-<opencode>; both forms end in the OpenCode version.
+    expected_engine = new_engine.name.rpartition('-')[2]
 
     with read_db() as db:
         require_schema(db)
@@ -389,13 +382,10 @@ print(json.dumps({'profileReady':status['profile_ready'],'nativeEditions':count}
         protected_paths.extend(p for p in (volume/'secretary').rglob('*') if p.is_file() and not p.is_symlink())
         protected_paths.append(volume/'engine.json')
     protected = {str(p): digest(p) for p in protected_paths if p.is_file()}
-    choices = {identifier: openchamber_choices(BASE/identifier/'home/.config/openchamber') for identifier in identifiers}
 
     def unchanged():
         return (passwords() == before and languages() == before_languages
                 and all(digest(path) == value for path, value in protected.items())
-                and all(openchamber_choices(BASE/identifier/'home/.config/openchamber') == value
-                        for identifier, value in choices.items())
                 and digest(registry_path) == registry_hash
                 and all(not (BASE/identifier).exists() for identifier in unprovisioned))
 
@@ -404,7 +394,7 @@ print(json.dumps({'profileReady':status['profile_ready'],'nativeEditions':count}
         while True:
             try:
                 for identifier, bridge in bridges.items():
-                    bridge.token, bridge.directory = None, str(release)
+                    bridge.directory = str(release)
                     bridge.request('/api/session/active')
                     config = configs[identifier]
                     request = Request('http://127.0.0.1:'+str(config['viewerPort'])+'/chat', headers={
@@ -429,8 +419,9 @@ print(json.dumps({'profileReady':status['profile_ready'],'nativeEditions':count}
     candidate_nginx = (release/'deploy/nginx-goodmorning.conf').read_bytes()
     assert NGINX.is_file() and not NGINX.is_symlink() and HOOK.is_file() and not HOOK.is_symlink()
     accounts = [f'goodmorning-account@{identifier}.service' for identifier in identifiers]
+    sockets = [f'goodmorning-account@{identifier}.socket' for identifier in identifiers]
     viewers = [f'goodmorning-viewer@{identifier}.service' for identifier in identifiers]
-    services = accounts+viewers+['goodmorning-gateway.service']
+    services = sockets+viewers+['goodmorning-gateway.service']
     try:
         reserve(store, ticket)
     except Busy as error:
@@ -442,7 +433,13 @@ print(json.dumps({'profileReady':status['profile_ready'],'nativeEditions':count}
         command(['systemctl', 'stop', 'goodmorning-gateway.service', *viewers])
         idle()
         assert unchanged()
-        command(['systemctl', 'stop', *accounts])
+        command(['systemctl', 'stop', *(sockets if Path('/etc/systemd/system/goodmorning-account@.socket').exists() else []), *accounts])
+        # Engines used to start at boot; now their sockets start them on demand.
+        command(['systemctl', 'disable', *accounts])
+        for identifier in identifiers:
+            listen = Path('/etc/systemd/system')/f'goodmorning-account@{identifier}.socket.d'
+            listen.mkdir(mode=0o755, exist_ok=True)
+            (listen/'listen.conf').write_text(f'[Socket]\nListenStream=127.0.0.1:{configs[identifier]["chamberPort"]}\n')
         for unit in UNITS:
             if install(release/'deploy'/unit, Path('/etc/systemd/system')/unit, backup):
                 installed.append(Path('/etc/systemd/system')/unit)
@@ -461,12 +458,12 @@ print(json.dumps({'profileReady':status['profile_ready'],'nativeEditions':count}
             pointer.replace(ENGINE_CURRENT)
             engine_switched = True
         command(['systemctl', 'daemon-reload'])
-        command(['systemctl', 'enable', *MAINTENANCE_UNITS])
+        command(['systemctl', 'enable', *MAINTENANCE_UNITS, *sockets])
         command(['systemctl', 'start', MAINTENANCE_UNITS[0]])
         # The agents are stopped, so the engine mount is free to move.
         if engine_switched or Path('/etc/systemd/system/goodmorning-engine.service') in installed:
             command(['systemctl', 'restart', 'goodmorning-engine.service'])
-        assert engine_versions(ENGINE_MOUNT) == expected_engine, 'Agents must use the new engine'
+        assert engine_version(ENGINE_MOUNT) == expected_engine, 'Agents must use the new engine'
         if NGINX.read_bytes() != candidate_nginx:
             shutil.copy2(NGINX, backup/'nginx-goodmorning.conf')
             write_nginx(candidate_nginx)
@@ -489,6 +486,7 @@ print(json.dumps({'profileReady':status['profile_ready'],'nativeEditions':count}
             require_paused(db)
     except Exception:
         command(['systemctl', 'stop', 'goodmorning-gateway.service', *viewers, *accounts])
+        subprocess.run(['systemctl', 'disable', '--now', *sockets], capture_output=True, timeout=60)
         if switched:
             pointer = CURRENT.with_name('current-native-rollback')
             pointer.symlink_to(old)
@@ -513,7 +511,13 @@ print(json.dumps({'profileReady':status['profile_ready'],'nativeEditions':count}
         command(['systemctl', 'daemon-reload'])
         if engine_switched or Path('/etc/systemd/system/goodmorning-engine.service') in installed:
             command(['systemctl', 'restart', 'goodmorning-engine.service'])
-        command(['systemctl', 'start', *services])
+        if Path('/etc/systemd/system/goodmorning-account@.socket').exists():
+            command(['systemctl', 'enable', *sockets])
+            command(['systemctl', 'start', *services])
+        else:
+            # The restored units start engines at boot again.
+            command(['systemctl', 'enable', *accounts])
+            command(['systemctl', 'start', *accounts, *viewers, 'goodmorning-gateway.service'])
         gateway.clear_ticket(ticket)
         raise
     report = {'release': str(release), 'previousReleasePreserved': str(old), 'verifiedPublicFiles': len(staged['files']),
@@ -535,8 +539,8 @@ def main(argv):
     sys.dont_write_bytecode = True
     if argv[:1] == ['stage'] and len(argv) == 3:
         stage(Path(argv[1]), argv[2])
-    elif argv[:1] == ['engine'] and len(argv) == 3:
-        stage_engine(argv[1], argv[2])
+    elif argv[:1] == ['engine'] and len(argv) == 2:
+        stage_engine(argv[1])
     elif argv[:1] == ['switch'] and len(argv) in (2, 3):
         try:
             switch(*argv[1:])

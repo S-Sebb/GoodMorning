@@ -1,4 +1,4 @@
-"""Browser generation round-trip against the isolated mock OpenChamber fixture."""
+"""Browser generation round-trip against the isolated mock engine fixture."""
 import json
 import re
 from pathlib import Path

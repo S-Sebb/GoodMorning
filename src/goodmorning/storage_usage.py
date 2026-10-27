@@ -54,8 +54,7 @@ def inventory(runtime, cache=None):
     roots = {'records': runtime, 'previews': runtime / 'avatar-previews', 'uploads': runtime / 'browser-uploads'}
     if hosted:
         volume = runtime.parent
-        roots.update(engine=volume / 'home/.local/share/opencode',
-                     chamber=volume / 'home/.config/openchamber', temporary=volume / 'tmp')
+        roots.update(engine=volume / 'home/.local/share/opencode', temporary=volume / 'tmp')
         cache = Path(cache) if cache is not None else volume / 'cache'
     elif (runtime / 'tmp').exists():
         roots['temporary'] = runtime / 'tmp'

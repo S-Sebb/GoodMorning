@@ -4,7 +4,7 @@ Run from the primary checkout on an up-to-date main:
     uv run --no-project python deploy/release.py
 
 Order: preflight, public archive, stage and test on the server while live,
-stage the latest OpenChamber/OpenCode engine while live, pause, switch (waits
+stage the OpenCode engine pinned in deploy/engine.json while live, pause, switch (waits
 for idle), paused checks, resume, public login check, tag.
 The website is paused only for the switch and the paused checks.
 """
@@ -16,7 +16,6 @@ import importlib.util
 import io
 import json
 from pathlib import Path
-import re
 import subprocess
 import sys
 import tarfile
@@ -91,19 +90,6 @@ def paused_checks(version):
     assert release == version, f'Live release reports {release}, expected {version}'
 
 
-def engine_versions(manifest):
-    """Latest OpenChamber, and the OpenCode release it is built against."""
-    opencode = manifest['dependencies']['@opencode/client']
-    if not re.fullmatch(r'\d+\.\d+\.\d+', opencode):
-        raise Stop(f'OpenChamber {manifest["version"]} does not pin one OpenCode version ({opencode}).')
-    return manifest['version'], opencode
-
-
-def latest_engine():
-    with urlopen(helper.REGISTRY+'/@openchamber%2fweb/latest', timeout=30) as response:
-        return engine_versions(json.load(response))
-
-
 def preflight():
     if run('git', 'branch', '--show-current') != 'main' or run('git', 'status', '--porcelain'):
         raise Stop('Use a clean primary checkout on main.')
@@ -145,9 +131,10 @@ def main():
     helper_command = f'{SERVER_PYTHON} {stage_dir}/deploy_native.py'
     print('Staging and testing on the server; the website stays live...', flush=True)
     staged = json.loads(server(f'{helper_command} stage {stage_dir}/{name}.tar.gz {name}', timeout=1500).splitlines()[-1])
-    openchamber, opencode = latest_engine()
-    print(f'Staging OpenChamber {openchamber} with OpenCode {opencode}; the website stays live...', flush=True)
-    engine = json.loads(server(f'{helper_command} engine {openchamber} {opencode}', timeout=1200).splitlines()[-1])['engine']
+    # Only the version that passed trials ships; bump deploy/engine.json in a reviewed change.
+    opencode = json.loads((ROOT/'deploy/engine.json').read_text())['opencode']
+    print(f'Staging OpenCode {opencode}; the website stays live...', flush=True)
+    engine = json.loads(server(f'{helper_command} engine {opencode}', timeout=1200).splitlines()[-1])['engine']
 
     server(f'{ADMIN} pause --reason "deploy {name}" --by "GoodMorning agent"')
     paused = time.monotonic()

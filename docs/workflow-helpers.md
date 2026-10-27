@@ -35,8 +35,8 @@ python scripts/goodmorning.py workflow --secretary-dir RUNTIME --prepare secreta
 ```
 
 This returns relevant confirmed preferences (including optional `secretary_name` for self-reference and website labels, and `user_name` for addressing the user), local date/adjacent dates, resolved
-paths, bounded daily tasks and active inbox summaries. No provider or remote
-project access, setup writes, snapshot reads, briefing marks or index rebuild/save.
+paths, bounded daily tasks and active inbox summaries. No provider access,
+setup writes, snapshot reads, briefing marks or index rebuild/save.
 Briefings never prepare here: browser jobs use `job prepare` with their pinned
 current date and never reconstruct archive gaps. Continue task/inbox pages only as
 needed. For capture with supplied raw input, skip preparation and use the fast path.

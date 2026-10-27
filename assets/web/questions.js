@@ -75,7 +75,7 @@ function secretaryQuestion(info, send, refreshed, language) {
       if (Number.isFinite(field.maximum)) input.max = field.maximum;
       group.append(input); inputs.push(input);
     } else {
-      group.append(make('p', questionT('This question needs administrator help in OpenChamber. Your answers remain unchanged.')));
+      group.append(make('p', questionT('This question needs your administrator’s help. Your answers remain unchanged.')));
       unsupported = true;
     }
     controls.set(field.key, { field, group, inputs, custom });

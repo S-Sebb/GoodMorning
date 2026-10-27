@@ -40,32 +40,24 @@ class DeployHelperTests(unittest.TestCase):
                 helper.release_path(bad)
 
     def test_engine_names_cannot_escape_the_engine_directory(self):
-        self.assertEqual(helper.engine_path('2.4.0-2.0.32'), helper.ENGINES/'2.4.0-2.0.32')
-        for bad in ('current', '../2.4.0-2.0.32', '2.4.0', '2.4.0-latest', '2.4.0-2.0.32/..', '.staging-2.4.0-2.0.32'):
+        self.assertEqual(helper.engine_path('opencode-2.1.4'), helper.ENGINES/'opencode-2.1.4')
+        for bad in ('current', '../opencode-2.1.4', '2.1.4', '2.5.2-2.1.4', 'opencode-latest', 'opencode-2.1.4/..',
+                    '.staging-opencode-2.1.4'):
             with self.subTest(name=bad), self.assertRaises(ValueError):
                 helper.engine_path(bad)
 
-    def test_deploys_pair_latest_openchamber_with_its_pinned_opencode(self):
-        release = load('release')
-        manifest = {'version': '2.4.0', 'dependencies': {'@opencode/client': '2.0.32', 'zod': '^4.3.6'}}
-        self.assertEqual(release.engine_versions(manifest), ('2.4.0', '2.0.32'))
-        for pin in ('^2.0.32', '2.0.x', 'latest'):
-            manifest['dependencies']['@opencode/client'] = pin
-            with self.subTest(pin=pin), self.assertRaises(release.Stop):
-                release.engine_versions(manifest)
-
-    def test_openchamber_choices_survive_its_split_into_preferences(self):
-        with tempfile.TemporaryDirectory(dir=TEMP_ROOT) as name:
-            directory = Path(name)
-            (directory/'settings.json').write_text('{"defaultModel": "a/b", "lightThemeId": "day", "projects": []}')
-            before = helper.openchamber_choices(directory)
-            # What OpenChamber 2.5.1 writes on its first start.
-            (directory/'settings.json').write_text('{\n  "projects": [],\n  "defaultModel": "a/b",\n  "lightThemeId": "day"\n}')
-            (directory/'preferences.json').write_text('{"version": 1, "fields": {"defaultModel": {"value": "a/b", "updatedAt": 5},'
-                                                       ' "lightThemeId": {"value": "day", "updatedAt": 5}}}')
-            self.assertEqual(helper.openchamber_choices(directory), before)
-            (directory/'preferences.json').write_text('{"version": 1, "fields": {"defaultModel": {"value": "c/d", "updatedAt": 6}}}')
-            self.assertNotEqual(helper.openchamber_choices(directory), before)
+    def test_engines_start_on_demand_inside_the_capped_accounts_slice(self):
+        account = (ROOT/'deploy/goodmorning-account@.service').read_text()
+        self.assertNotIn('[Install]', account)
+        self.assertIn('Requires=goodmorning-engine.service goodmorning-vault@%i.service goodmorning-account@%i.socket', account)
+        self.assertIn('Requires=goodmorning-account@%i.socket', (ROOT/'deploy/goodmorning-viewer@.service').read_text())
+        for name in ('goodmorning-account@.service', 'goodmorning-viewer@.service'):
+            self.assertIn('Slice=goodmorning-accounts.slice', (ROOT/'deploy'/name).read_text())
+        self.assertIn('MemoryMax=', (ROOT/'deploy/goodmorning-accounts.slice').read_text())
+        self.assertIn('WantedBy=sockets.target', (ROOT/'deploy/goodmorning-account@.socket').read_text())
+        # The slice and socket must be installed before the units that use them.
+        self.assertLess(helper.UNITS.index('goodmorning-accounts.slice'), helper.UNITS.index('goodmorning-account@.service'))
+        self.assertLess(helper.UNITS.index('goodmorning-account@.socket'), helper.UNITS.index('goodmorning-account@.service'))
 
     def test_engine_unit_mounts_only_root_owned_trees(self):
         unit = (ROOT/'deploy/goodmorning-engine.service').read_text()

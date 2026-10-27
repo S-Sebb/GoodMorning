@@ -45,8 +45,8 @@ Chinese requests state the edition and label the job/runtime in Chinese; the job
 - `migration_required`: stop generation and use Secretary for read-only
   `task --migrate` review and explicit backed-up upgrade consent. Keep saved setup;
   never reset the runtime or loop on generation.
-- False saved `integration_policy` values prohibit live project access, calendar
-  sync or publisher images despite imported profile settings.
+- False saved `integration_policy` values prohibit calendar sync or publisher
+  images despite imported profile settings.
   Use authorized copied records only; never auto-approve or infer progress.
 - Conditional reminders use the original request timestamp, including queue arrival,
   not model finish/wake time. Regeneration keeps that trigger; unknown future

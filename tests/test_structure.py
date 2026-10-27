@@ -20,10 +20,9 @@ from support import TEMP_ROOT
 
 
 class StructureTests(unittest.TestCase):
-    def test_only_two_public_command_entry_points_remain(self):
-        # Exact: removed installer/packaging helpers (install_skill.py, package_release.py) stay gone.
-        self.assertEqual({p.name for p in (ROOT / 'scripts').iterdir() if p.is_file()},
-                         {'goodmorning.py', 'projects.mjs'})
+    def test_only_one_public_command_entry_point_remains(self):
+        # Exact: removed helpers (install_skill.py, package_release.py, projects.mjs) stay gone.
+        self.assertEqual({p.name for p in (ROOT / 'scripts').iterdir() if p.is_file()}, {'goodmorning.py'})
         self.assertEqual(PUBLIC_ROOT, ROOT)
         self.assertTrue((WEB_ASSETS / 'edition.html').is_file())
 

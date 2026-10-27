@@ -61,7 +61,7 @@ python scripts/goodmorning.py setup --secretary-dir secretary
 After consent for the listed checks only:
 
 ```bash
-python scripts/goodmorning.py setup --secretary-dir secretary --verify weather news projects --budget 20
+python scripts/goodmorning.py setup --secretary-dir secretary --verify weather news --budget 20
 ```
 
 Checks run in parallel with a shared 20-second elapsed budget. Select a subset
@@ -146,17 +146,3 @@ launching environment. Never commit secrets or copy them into these examples.
 Open the relevant usage guide only when needed: `docs/weather-pipeline.md`,
 `docs/news-pipeline.md`, `docs/calendar-pipeline.md`, or `docs/state-pipeline.md`.
 
-## Project registry
-
-After confirming aliases, host IDs, workspace paths, exact write targets, and
-coordination-lock consent for any write-enabled targets, create `secretary/projects.json` using
-`templates/projects.registry.example.json`. Use `host: "local"` for local paths;
-remote host references come from existing OpenChamber desktop pairing. Do not
-copy credentials or infer shared storage from matching labels or path strings.
-Read-only access uses `write_targets: []` and `allow_exec: false`; it needs no
-write-lock artifact consent and must not silently broaden to write access.
-
-The project CLI accepts `--registry` / `GM_PROJECT_REGISTRY` and `--settings` /
-`GM_OPENCHAMBER_SETTINGS`. Pairing settings default to
-`~/.config/openchamber/settings.json` and are read privately, never displayed.
-Node.js 22.18+ and Python 3.14+ on Linux are required. See `docs/project-access.md`.

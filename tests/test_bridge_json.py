@@ -59,12 +59,11 @@ class BridgeMessageTests(unittest.TestCase):
         for bridge in (Chamber('http://127.0.0.1:1234', '/synthetic'),
                        LocalBridge('http://127.0.0.1:1234', '/synthetic', 'synthetic-password')):
             if isinstance(bridge, LocalBridge):
-                bridge.authenticate = Mock(return_value='synthetic-token')
                 target = 'goodmorning.security.briefing_runtime.build_opener'
             else:
                 target = 'goodmorning.web.briefing_server.build_opener'
             with patch(target) as opener:
-                opener.return_value.open.side_effect = [io.BytesIO(raw), io.BytesIO(b'{"sessionStatus":{"type":"idle"}}')]
+                opener.return_value.open.side_effect = [io.BytesIO(raw), io.BytesIO(b'{"data":{}}')]
                 result = bridge.control('session.messages', sessionId='ses_test', limit=100)
             self.assertEqual([entry['text'] for entry in result['messages']], ['Prompt', 'Visible answer'])
             self.assertEqual(result['sessionStatus']['type'], 'idle')
@@ -79,7 +78,7 @@ class BridgeMessageTests(unittest.TestCase):
             {'id': 'u', 'type': 'user', 'text': 'Remind me'}], 'cursor': {'next': None}}
         chamber = Chamber('http://127.0.0.1:1234', '/synthetic')
         with patch('goodmorning.web.briefing_server.build_opener') as opener:
-            opener.return_value.open.side_effect = [io.BytesIO(json.dumps(value).encode()), io.BytesIO(b'{"sessionStatus":{"type":"idle"}}')]
+            opener.return_value.open.side_effect = [io.BytesIO(json.dumps(value).encode()), io.BytesIO(b'{"data":{}}')]
             result = chamber.control('session.messages', sessionId='ses_test', limit=100)
         self.assertEqual(result['messages'], [
             {'id': 'u', 'role': 'user', 'text': 'Remind me'},

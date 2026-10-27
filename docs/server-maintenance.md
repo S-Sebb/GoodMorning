@@ -21,7 +21,8 @@ through a PR and a deployment, never by hand on the server.
    the last 3 backups and rollback images.
 6. Reboots only if Ubuntu asks for one, a newer kernel is installed, a service
    uses replaced libraries, or Python changed. After the boot,
-   `goodmorning-maintenance-boot.service` waits for the account services,
+   `goodmorning-maintenance-boot.service` waits for the account sockets and viewers
+   (engines start on demand, so it never wakes them),
    releases the reservation, resumes the website and checks the public login page.
    Otherwise the run releases and resumes at once.
 
@@ -56,6 +57,18 @@ paused: wait until the run finishes.
   Only with the owner's agreement, since it may reboot the server.
 - A rollback to a release older than this routine leaves its units installed but
   failing daily until the next deployment; disable the timer if that matters.
+
+## Host settings
+
+Set by hand on 2026-10-28 after a memory outage; keep them unless the owner agrees.
+
+- Memory: zram swap only (`zram-tools`, zstd, half of RAM, priority 100; no swap file)
+  with `/etc/sysctl.d/90-goodmorning-zram.conf` (swappiness 100, page-cluster 0).
+  `systemd-oomd` kills inside `goodmorning-accounts.slice` under pressure before the
+  host stalls. SiYuan's compose file caps it at 512 MB with no swap.
+- SSH: key login only (`/etc/ssh/sshd_config.d/00-goodmorning-hardening.conf`: no
+  passwords or keyboard-interactive, no root login, 3 tries). fail2ban bans repeated
+  failures (`/etc/fail2ban/jail.d/goodmorning-sshd.local`).
 
 ## Not covered
 

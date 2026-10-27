@@ -31,8 +31,8 @@ def fixture(root):
             return super().control(action, **body)
 
         def request(self, path, body=None):
-            if path == '/api/openchamber/control':
-                return {'sessionStatus': {'type': 'idle' if self.stage() == 'idle' else 'busy'}}
+            if path == '/api/session/active':
+                return {'data': {} if self.stage() == 'idle' else {key: {'type': 'running'} for key in self.sessions}}
             return super().request(path, body)
     support.MockChamber = ActivityChamber
     language_fixture(root, hosts={'gm.language.test': 'gm'})

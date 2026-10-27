@@ -13,7 +13,7 @@ Chromium once with `PY -m playwright install chromium`.
 | Gate | Command | Runs in |
 |---|---|---|
 | Unit and system tests | `PY -m unittest discover -s tests -p 'test_*.py' -q` | every PR (CI), deploy |
-| Project-access helper and parked-reasoning projection | `node --test tests/test_projects.mjs tests/test_parked_reasoning.mjs` | every PR (CI), deploy |
+| Parked-reasoning projection | `node --test tests/test_parked_reasoning.mjs` | every PR (CI), deploy |
 
 `test_public_assets.py` also runs `test_network.mjs` when Node is available.
 Shared fixtures (`FakeChamber`, `MockChamber`, the gateway and live-viewer HTTP
@@ -76,7 +76,7 @@ restoration.
 
 `tests/benchmarks/` holds size and speed experiments that informed past design
 choices: `briefing_format` (add `--with tiktoken --with pyyaml`), `inbox`,
-`initialization`, `news`, `weather` and `projects.mjs`. They are evidence, not
+`initialization`, `news` and `weather`. They are evidence, not
 release gates.
 `reply_templates.py` and `trial_engine.py` are shared helpers.
 `tests/integration/native_chat_titles.py --binary PATH` checks the native
@@ -85,8 +85,8 @@ auto-title flow against a loopback-only fake provider.
 ## Paid live-model trials (opt-in)
 
 Required for prompt changes as set out in `AGENT-PROMPT-GUIDE.md`. Each synthetic
-account gets a private engine started like a hosted account's: the latest OpenChamber
-with the OpenCode and Node it pins (cached in `~/.cache/goodmorning/trial-engines`),
+account gets a private engine started like a hosted account's: the OpenCode and Node
+versions pinned in `deploy/engine.json` (cached in `~/.cache/goodmorning/trial-engines`),
 a fresh HOME and database, a copied public release as working directory, and the
 production `LocalBridge`. Trial sessions therefore never reach your OpenCode
 service, sidebar or notifications, and agents load only the release's own
@@ -99,7 +99,7 @@ review of the retained transcripts. Trials do not cover public HTTPS, encrypted
 deployment, real providers or load. Locally the agent's shell still runs as you,
 so permission rules, not Unix users, keep it inside its account.
 
-Start every trial with `trial.py`, which runs it detached, so OpenChamber restarts
+Start every trial with `trial.py`, which runs it detached, so engine restarts
 and the agent's shell ending do not stop it:
 
 ```

@@ -83,8 +83,7 @@ def prepare(directory, kind, today=None, cache=None, *, task_limit=7, website_la
         calendar = None
         result["calendar_configuration"] = {"error": "invalid_or_unavailable", "next": "inspect calendar configuration; profile setup is still saved"}
     result["paths"] = {"runtime": str(directory), "profile": str(Path(directory) / "profile.md"),
-                       "cache": str(cache), "calendar_db": calendar,
-                       "projects_registry": str(Path(directory) / "projects.json")}
+                       "cache": str(cache), "calendar_db": calendar}
     if kind in ("gm", "gn"):
         result["city"] = fields["city"]
     if kind == "gm":

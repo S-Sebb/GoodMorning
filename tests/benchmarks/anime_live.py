@@ -137,7 +137,7 @@ def account(folder, language, tone, anime_lines, zone):
         profile += 'secretary_tone: ' + TONES[tone] + '\n'
     (runtime/'profile.md').write_text(profile + anime_lines)
     (runtime/'browser-policy.json').write_text(json.dumps({key:False for key in (
-        'live_project_access', 'calendar_sync', 'publisher_images', 'news_acknowledgement')}))
+        'calendar_sync', 'publisher_images', 'news_acknowledgement')}))
     initialize(runtime)
     CalendarStore(str(runtime/'calendar.sqlite')).close()
     return runtime

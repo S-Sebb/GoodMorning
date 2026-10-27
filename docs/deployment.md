@@ -1,19 +1,17 @@
 # Manual deployment
 
-GoodMorning is an OpenCode/OpenChamber skill with standard-library CLI helpers,
+GoodMorning is an OpenCode skill with standard-library CLI helpers,
 not a standalone autonomous daemon. An agent or the user copies its public files
 into `~/.agents/skills/goodmorning/`. No installer or package builder is needed.
 
 ## Requirements
 
 - Linux; Python 3.14+ with IANA timezone data. CI tests Python 3.14.
-- Node.js 22.18+ for local/paired-remote project access. No npm install is needed.
-- An OpenCode/OpenChamber client that discovers `~/.agents/skills` and supports
+- Node.js 22.18+ only to run the Node tests. No npm install is needed.
+- An OpenCode client that discovers `~/.agents/skills` and supports
   the question tool; ordinary conversation is the documented fallback.
 - Outbound HTTPS for weather/news. No key is required for normal weather/model
   AQI or RSS/HN. Optional WAQI/NewsAPI credentials stay in the launching environment.
-- Existing owner-authorized OpenChamber pairing for remote projects. Never copy
-  pairing credentials into the skill.
 
 ## Copy the skill files
 
@@ -34,15 +32,14 @@ Create `~/.agents/skills/goodmorning/` and copy these files from the checkout:
 | `templates/` | `templates/` |
 
 The entry file is ready to copy unchanged; only its filename changes. Preserve
-the directory layout, including `vendor/openchamber-relay/` and its
-license/manifest. Exclude generated `__pycache__/` directories and `.pyc` files.
+the directory layout. Exclude generated `__pycache__/` directories and `.pyc` files.
 Do not copy personal profiles, SQLite data, ideas, snapshots, caches, credentials,
 sandbox fixtures, `.git`, tests, or the entire checkout. Inspect an existing
 destination before replacing files; preserve unknown files and local changes.
 
 The copied skill has no checkout dependencies. The repository's source is
 inactive; opening the checkout registers no skills or command wrappers.
-OpenCode/OpenChamber discovers the global skill by the `goodmorning` ID.
+OpenCode discovers the global skill by the `goodmorning` ID.
 
 ## Validate
 
@@ -50,7 +47,7 @@ From the checkout:
 
 ```bash
 python -m unittest discover -s tests -p 'test_*.py' -q
-node --test tests/test_projects.mjs
+node --test tests/test_parked_reasoning.mjs
 ```
 
 The tests copy the documented files into a disposable skill directory and check
@@ -122,5 +119,5 @@ starting language; new requests receive the latest language explicitly.
 - Open-Meteo's free tier is for non-commercial use. Check provider/feed terms for
   the intended deployment. GoodMorning uses the root MIT license; retain it and
   the supplied upstream vendor license/manifest and font license notices.
-- Real-host pairing repair, optional WAQI verification and deployment-specific
+- Optional WAQI verification and deployment-specific
   permissions remain owner steps.

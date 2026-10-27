@@ -189,7 +189,7 @@ def parked_forms(questions):
 
 def close_question(chamber, session, form):
     """Closes an engine question whose copy is already saved. Returns False only when someone answered it
-    in the engine first (for example in OpenChamber), and None when it is still open; the next read retries."""
+    in the engine first, and None when it is still open; the next read retries."""
     try:
         chamber.request(f'/api/session/{session}/form/{form}', method='DELETE')
         return True
@@ -681,8 +681,8 @@ class Chats:
                     raise ValueError('Wait for the secretary or answer the pending question')
                 refresh = self.chamber.relocate(session)
             # The secretary agent (.opencode/agents) is denied reading source code and tests.
-            # OpenChamber keeps an agent given to session.create only when that create also
-            # sends a prompt, and the attachment path names none, so set it before every turn.
+            # A session keeps the agent last set on it, and chats created before this agent
+            # existed run as build, so set it before every turn.
             self.chamber.request(f'/api/session/{session}/agent', {'agent': 'secretary'})
             site_models.apply_to_session(self.chamber, session, chosen)
             # Older To-do/Eureka chats continue under the Secretary workflow.
@@ -721,8 +721,7 @@ class Chats:
                 turn['prompt_hash'] = hashlib.sha256(prompt.encode()).hexdigest()
                 self.save()
             if attachments:
-                # OpenChamber's composer uses this native V2 prompt API. Control's
-                # text-only session.send drops files, so it cannot carry attachments.
+                # session.send carries text only; files need the prompt API's `files` field.
                 result = self.chamber.request(f'/api/session/{session}/prompt',
                     {'text': prompt, 'files': self.uploads.files([entry['id'] for entry in attachments])})
                 receipt = result.get('data', {})

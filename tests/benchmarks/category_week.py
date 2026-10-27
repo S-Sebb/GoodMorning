@@ -32,7 +32,7 @@ def seed(runtime, monday, language='en'):
     runtime.mkdir(parents=True, exist_ok=True, mode=0o700)
     (runtime / 'profile.md').write_text(PROFILE)
     (runtime / 'browser-policy.json').write_text(json.dumps({k: False for k in (
-        'live_project_access', 'calendar_sync', 'publisher_images', 'news_acknowledgement')}))
+        'calendar_sync', 'publisher_images', 'news_acknowledgement')}))
     initialize(runtime)
     zone = ZoneInfo(ZONE)
     stamp = datetime.combine(monday - timedelta(days=3), time(12), zone).isoformat()

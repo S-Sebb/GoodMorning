@@ -15,14 +15,12 @@ Only fixed public assets are available without authentication.
 
 ```sh
 python scripts/goodmorning.py serve \
-  --secretary-dir /home/YOU/.local/share/GoodMorning/secretary \
-  --openchamber-url http://127.0.0.1:YOUR_OPENCHAMBER_PORT --port 8765
+  --secretary-dir /home/YOU/.local/share/GoodMorning/secretary --port 8765
 ```
 
-The OpenChamber origin is explicit and machine-specific. Omit it for read-only
-browsing. `GM_OPENCHAMBER_TOKEN`, when required, stays server-side. The bridge
-never copies browser cookies or pairing credentials. Local serving is loopback
-only; public HTTPS deployment requires `docs/website-security.md`.
+The local viewer is for read-only browsing of saved records; generation and chat
+run only on the hosted website, where each account has its own engine. Local
+serving is loopback only; public HTTPS deployment requires `docs/website-security.md`.
 
 `/gm.html` and `/gn.html` select the current briefing day. The day changes at
 04:00 in the saved timezone, including daylight-saving changes. A seven-day
@@ -38,7 +36,7 @@ in visible text, without changing saved data or citation destinations.
 ## Explicit generation and chat
 
 Today's missing edition offers a preparation button. It creates a dedicated
-OpenChamber session using automatic website-language routing: English uses
+OpenCode session using automatic website-language routing: English uses
 Muse Spark 1.3 Contributor XHigh; Chinese uses DeepSeek V4.1 Flash High (paid tier).
 There is no manual model selector. The model is pinned per briefing job and per
 chat turn before any prompt is sent. Duplicate clicks reuse
@@ -139,8 +137,7 @@ Tabs opened before this feature was installed need one manual refresh first.
 
 Chat history reads bounded native V2 pages of at most 200 raw records, retaining
 the latest 100 visible messages (more on request, up to 1,000) and reporting
-whether earlier ones exist. This avoids OpenChamber 2.2's fourfold prefetch
-overflow. Pending input and uncertain delivery still retain the global busy flag.
+whether earlier ones exist, so a long chat never loads its whole history. Pending input and uncertain delivery still retain the global busy flag.
 
 ## Installed app
 
@@ -358,7 +355,7 @@ background check.
 
 ## Session organization
 
-Each website conversation and each briefing owns exactly one OpenChamber
+Each website conversation and each briefing owns exactly one OpenCode
 session. Follow-up messages reuse that session; only a new conversation or a
 new briefing date creates another one. Briefing sessions are titled
 `GoodMorning · <briefing> · <date>`. Chat sessions start without a custom title,
@@ -394,7 +391,7 @@ Use isolated synthetic runtimes. These commands make no model calls:
 
 ```sh
 python -m unittest discover -s tests -q
-node --test tests/test_projects.mjs
+node --test tests/test_parked_reasoning.mjs
 python tests/browser/generation.py PRIVATE_ARTIFACT_DIRECTORY
 python tests/browser/stream.py PRIVATE_ARTIFACT_DIRECTORY
 python tests/browser/future.py PRIVATE_ARTIFACT_DIRECTORY

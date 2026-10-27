@@ -367,6 +367,11 @@ class TaxonomyTests(unittest.TestCase):
         self.assertFalse(view['schedule']['items'][0].get('all_day', False))
         self.assertEqual(view['blocks']['schedule'][1][0][0], receipt['draft_id'])
 
+    def test_confirmed_day_cannot_be_saved_as_a_hidden_tentative_draft(self):
+        with self.assertRaisesRegex(ValueError, 'uses state needs-details'):
+            self.capture('Dentist Thursday; time unknown', 'event_proposal', draft={
+                'title': 'Dentist', 'date': '2026-10-15', 'timezone': 'Europe/London', 'confirmed_day': True, 'state': 'tentative'})
+
     def test_tentative_proposal_does_not_reserve_schedule_and_clear_ideas_are_quiet(self):
         self.capture('Maybe meet Sam next week', 'event_proposal', draft={'title': 'Meet Sam', 'state': 'tentative'})
         self.capture('Maybe build a dashboard', 'idea')

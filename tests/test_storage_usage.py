@@ -33,19 +33,17 @@ class StorageUsageTests(unittest.TestCase):
         self.add('secretary/avatar-previews/a.webp', 30)
         self.add('secretary/browser-uploads/a/metadata.json', 40)
         self.add('home/.local/share/opencode/engine.db', 50)
-        self.add('home/.config/openchamber/settings.json', 60)
         self.add('tmp/native.so', 70)
         self.add('tmp/native.node', 80)
         self.add('cache/cache.sqlite', 90)
         with patch.object(Path, 'read_bytes', side_effect=AssertionError('No content reads')), \
              patch.object(Path, 'read_text', side_effect=AssertionError('No content reads')):
             result = inventory(self.runtime)
-        self.assertEqual(result['logical_bytes'], 440)
+        self.assertEqual(result['logical_bytes'], 380)
         self.assertEqual(result['groups']['records']['logical_bytes'], 20)
         self.assertEqual(result['groups']['temporary']['library_bytes'], 150)
         self.assertTrue(result['complete'])
         self.assertTrue(result['read_only'])
-        self.assertNotIn('settings.json', json.dumps(result))
 
     def test_selected_overlapping_cache_is_not_counted_twice(self):
         self.add('secretary/profile.md', 10)
@@ -53,7 +51,7 @@ class StorageUsageTests(unittest.TestCase):
         self.assertEqual(inventory(self.runtime, self.runtime / 'avatar-previews')['logical_bytes'], 30)
         self.assertEqual(inventory(self.runtime, self.runtime)['logical_bytes'], 30)
         self.add('home/.local/share/opencode/engine.db', 40)
-        self.add('home/.config/openchamber/settings.json', 50)
+        self.add('home/.config/opencode/opencode.json', 50)
         self.add('home/another-file', 60)
         self.assertEqual(inventory(self.runtime, self.volume / 'home')['logical_bytes'], 180)
 

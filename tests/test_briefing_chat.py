@@ -344,8 +344,7 @@ class ChatTests(unittest.TestCase):
         self.assertTrue(all('title' not in body for body in creates))
 
     def test_every_turn_runs_on_the_secretary_agent(self):
-        # OpenChamber drops session.create's agent when no prompt is sent with it, and
-        # chats created before this fix already run as build: set it before every dispatch.
+        # Chats created before the secretary agent existed run as build: set it before every dispatch.
         order = []
         request, control = self.chamber.request, self.chamber.control
         def agent(path, body=None):
@@ -708,9 +707,11 @@ class ChatTests(unittest.TestCase):
     def test_engine_retry_is_still_working(self):
         self.start()
         request = self.chamber.request
+        session = self.chats.get(self.id)['session']
         def retrying(path, body=None):
-            if path == '/api/openchamber/control':
-                return {'sessionStatus': {'type': 'retry'}}
+            # A run retrying its provider stays in the engine's running sessions.
+            if path == '/api/session/active':
+                return {'data': {session: {'type': 'running'}}}
             return request(path, body)
         self.chamber.sessions[self.chats.get(self.id)['session']]['messages'].pop()
         self.chamber.sessions[self.chats.get(self.id)['session']]['messages'].pop()
@@ -789,7 +790,7 @@ class ChatTests(unittest.TestCase):
             {'data':[{'id':'idle','type':'idle'} for _ in range(200)], 'cursor':{'next':'opaque /+'}},
             {'data':[{'id':'a','type':'assistant','content':[{'type':'text','text':'Answer'}]},
                      {'id':'u','type':'user','text':'Prompt'}], 'cursor':{'next':None}},
-            {'sessionStatus':{'type':'idle'}}])
+            {'data':{}}])
         result=chamber.control('session.messages',sessionId='ses_test',limit=100)
         self.assertEqual([entry['text'] for entry in result['messages']],['Prompt','Answer'])
         self.assertIn('limit=200', chamber.request.call_args_list[0].args[0])

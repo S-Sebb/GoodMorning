@@ -32,6 +32,8 @@ def initialize(runtime, job, previous=None):
     policy = bounded_json(policy_path,2000) if policy_path.exists() else {}
     if not isinstance(policy,dict) or set(policy)-{'live_project_access','calendar_sync','publisher_images','news_acknowledgement'} or any(type(v) is not bool for v in policy.values()):
         raise ValueError('Invalid browser integration policy')
+    # Older accounts may still store the retired project-access switch; it grants nothing now.
+    policy.pop('live_project_access', None)
     context['integration_policy'] = policy
     if not context.get('ready') or context.get('duplicate'):
         raise ValueError('Configured profile and a new edition are required')

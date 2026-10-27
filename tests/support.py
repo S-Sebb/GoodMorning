@@ -160,6 +160,9 @@ class MockChamber(Chamber):
             session['messages'].append({'id': 'message_' + str(len(session['messages'])), 'role': 'assistant', 'text': '',
                 'native': {'error': {'type': 'aborted'}, 'content': [{'type': 'tool', 'id': tool, 'name': 'question'}]}})
             return {}
+        if path == '/api/session/active':
+            return {'data': {key: {'type': 'running'} for key, value in self.sessions.items()
+                             if value.get('forms') or value.get('permissions')}}
         if path.endswith('/move'):
             self.replies.append((path, body))
             self.sessions[path.split('/')[3]]['directory'] = body['directory']
@@ -175,9 +178,6 @@ class MockChamber(Chamber):
             self.add(session, 'user', body['text'])
             self.add(session, 'assistant', 'Synthetic attachment reply')
             return {'data': {'id': 'inbox_synthetic'}}
-        if path == '/api/openchamber/control':
-            session = self.sessions[body['input']['sessionId']]
-            return {'sessionStatus': {'type': 'busy' if session['forms'] or session['permissions'] else 'idle'}}
         if path.endswith('/model'):
             session = self.sessions[path.split('/')[3]]
             session['model'] = body['model']
