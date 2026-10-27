@@ -94,8 +94,13 @@ def prepare(directory, kind, today=None, cache=None, *, task_limit=7, website_la
         result["anime"] = {"enabled": fields.get("anime_updates", "").casefold() == "true"}
         result["games"] = {"enabled": fields.get("game_sales", "").casefold() == "true"}
         result["stocks"] = {"enabled": fields.get("stock_report", "").casefold() == "true"}
-        result["weekly_letter"] = {"enabled": fields.get("weekly_letter", "").casefold() != "false"}
-    if kind in ('gm', 'gn'):
+    if kind in ("gm", "gn"):
+        from . import letters
+        try:
+            letters.catch_up(directory, date, website_language or "en")
+        except (ValueError, OSError, KeyError, sqlite3.Error):
+            pass  # Retried by the next briefing or Letters page visit; never blocks this briefing.
+        result["weekly_letter"] = {"week": letters.due(directory, date, kind) if letters.enabled(directory) else None}
         from .routing import prepare as item_prepare
         from goodmorning.web import language as ui
         token = ui.CURRENT.set(website_language) if website_language else None

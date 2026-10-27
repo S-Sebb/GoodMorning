@@ -2,7 +2,6 @@
 import argparse
 from contextlib import redirect_stderr, redirect_stdout
 from copy import deepcopy
-from datetime import date as Date
 import io
 import json
 import os
@@ -91,8 +90,7 @@ def default_plan(context):
         plan.append(['games', ui.text(native.TITLES['games'], lang=selected)])
     if context['workflow'] == 'gn' and context.get('document_version') == 2 and context.get('stocks', {}).get('enabled'):
         plan.append(['stocks', ui.text(native.TITLES['stocks'], lang=selected)])
-    if (context['workflow'] == 'gn' and context.get('document_version') == 2 and context.get('weekly_letter', {}).get('enabled')
-            and Date.fromisoformat(context['date']).weekday() == 6):
+    if context.get('document_version') == 2 and context.get('weekly_letter', {}).get('week'):
         plan.append(['letter', ui.text(native.TITLES['letter'], lang=selected)])
     return plan
 
@@ -142,7 +140,7 @@ def next_step(runtime, identifier, session, context, checkpoint):
                                  '--timezone',context['timezone'],'--website-language',context.get('website_language','en'),
                                  '--cache-dir',selected['cache']]))
     elif tag == 'letter':
-        reads.append(shlex.join(['python','scripts/goodmorning.py','letter','--secretary-dir',str(runtime),'--week',letters.week_of(context['date']),
+        reads.append(shlex.join(['python','scripts/goodmorning.py','letter','--secretary-dir',str(runtime),'--week',context['weekly_letter']['week'],
                                  '--website-language',context.get('website_language','en')]))
     elif context.get('document_version') == 2 and tag in ('schedule', 'tasks', 'attention', 'today'):
         read_command = ['python', 'scripts/goodmorning.py', 'task', '--secretary-dir', str(runtime),
@@ -164,7 +162,7 @@ def next_step(runtime, identifier, session, context, checkpoint):
     action = {'action':'publish','command':shlex.join(command + ['publish']), 'position':position,
               'section':[tag,title], 'read':reads}
     if tag == 'letter':
-        action['input'] = ({'position':position} if letters.load(runtime, letters.week_of(context['date']))
+        action['input'] = ({'position':position} if letters.load(runtime, context['weekly_letter']['week'])
                            else {'position':position, 'letter':{'opening':'…', 'signoff':'…'}})
     elif context.get('document_version') == 2:
         action['input'] = {'position':position, 'section':[tag,'BLOCKS','NOTE',title]}
@@ -219,10 +217,10 @@ def with_weather_frame(runtime, identifier, section):
 
 
 def letter_section(runtime, job, context, payload):
-    """The briefing's notice for this week's letter, saving the letter first so the notice never promises a missing one."""
+    """The briefing's notice for the letter it carries, saving the letter first so the notice never promises a missing one."""
     if set(payload) - {'position', 'letter'}:
         raise ValueError('Publish the weekly letter as {"position":N,"letter":{"opening":"…","signoff":"…"}}, or {"position":N} as its guide says')
-    week = letters.week_of(job['date'])
+    week = context['weekly_letter']['week']
     letter = letters.load(runtime, week)
     if letter is None:
         try:
@@ -231,7 +229,7 @@ def letter_section(runtime, job, context, payload):
             return ['letter', [['letter', week, None]]]  # Records could not be read: no letter this week.
         if 'letter' not in payload:
             raise ValueError('This week\'s records were read: write the letter as {"position":N,"letter":{"opening":"…","signoff":"…"}}')
-        letter = letters.save(runtime, week, payload['letter'], context.get('website_language', 'en'))
+        letter = letters.save(runtime, week, payload['letter'], context.get('website_language', 'en'), job['date'])
     return ['letter', [['letter', week, letters.counts(letter)]]]
 
 
@@ -489,7 +487,7 @@ def act(runtime, identifier, session, action, payload=None):
             expected = default_plan(context)
             if context.get('document_version') == 2 and checkpoint is None:
                 if 'plan' in payload and payload['plan'] != expected:
-                    raise ValueError('Briefing plan order is fixed; use the default plan unchanged (gm Weather, News, Schedule, Tasks, Reminders; gn Today, Weather tomorrow, Schedule, Tasks, Reminders, then New episodes, Game sales and Stocks when on, and the Weekly letter on Sundays)')
+                    raise ValueError('Briefing plan order is fixed; use the default plan unchanged (gm Weather, News, Schedule, Tasks, Reminders; gn Today, Weather tomorrow, Schedule, Tasks, Reminders, then New episodes, Game sales and Stocks when on; either ends with the Weekly letter when one is due)')
                 plan = expected
             else:
                 plan = payload.get('plan', expected)

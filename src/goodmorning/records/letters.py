@@ -1,9 +1,11 @@
-"""Weekly letters: a Monday–Sunday look back, written with Sunday's evening briefing and kept as a memory book.
+"""Weekly letters: a Monday–Sunday look back (04:00 days), written with Sunday's evening briefing and kept as a memory book.
 
 Code collects every list from saved records: confirmed completions, habit completions, captured
 ideas and next week's saved plans. The secretary adds only an opening and a sign-off; when the week
 has nothing finished, no habits and no ideas, code writes the opening so a quiet week is never judged.
-A saved letter is a memory: it never changes, even when the records it came from change later.
+A week that ends without a letter gets one with the next briefing; older missed weeks get one written by code.
+A letter written before its week ends is completed from records once the week is over; after that it never
+changes, even when the records it came from change later.
 """
 import argparse
 from datetime import date as Date, datetime, time, timedelta
@@ -13,17 +15,25 @@ import re
 import sqlite3
 from zoneinfo import ZoneInfo
 
+from goodmorning.briefings.briefing_day import briefing_day
 from goodmorning.runtime_files import atomic_text, profile_fields, runtime_lock, secretary_path
 
 MAX_BYTES = 200_000
 LIMITS = {'opening': 600, 'signoff': 200}
 SHORT = 'This week’s letter is a short one.'
+# Words for a missed week's letter that no briefing carried.
+OPENING, SIGNOFF = 'Here’s a look back at this week.', 'Until the next letter.'
 
 
 def week_of(day):
     """The Monday that starts the week holding this ISO date."""
     value = Date.fromisoformat(day)
     return (value - timedelta(days=value.weekday())).isoformat()
+
+
+def ended(week, today):
+    """Whether the week is over on this 04:00 day."""
+    return today >= (Date.fromisoformat(week) + timedelta(days=7)).isoformat()
 
 
 def directory(runtime):
@@ -63,7 +73,7 @@ def finished(inbox, zone, start, end, lang):
                                         "AND json_extract(snapshot,'$.input.status')='done' ORDER BY seq"):
         task = tasks.get(task_id)
         if (task and task['status'] == 'done' and not task['repeat'] and task_id not in dated and task_id not in done
-                and start <= datetime.fromisoformat(at).astimezone(zone).date().isoformat() <= end):
+                and start <= briefing_day(zone, datetime.fromisoformat(at)) <= end):
             done[task_id] = 1
     groups = {}
     for task_id, count in done.items():
@@ -95,9 +105,12 @@ def habits(runtime, start, end):
         custom.close()
 
 
-def ideas(inbox, start, end):
-    return [summary or raw for summary, raw in inbox.db.execute(
-        "SELECT summary,raw FROM entries WHERE kind='idea' AND substr(created_at,1,10) BETWEEN ? AND ? ORDER BY seq", (start, end))]
+def ideas(inbox, zone, start, end):
+    # created_at is local wall time, so an idea saved before 04:00 on the next Monday is on the calendar day after `end`.
+    after = (Date.fromisoformat(end) + timedelta(days=1)).isoformat()
+    return [summary or raw for summary, raw, at in inbox.db.execute(
+        "SELECT summary,raw,created_at FROM entries WHERE kind='idea' AND substr(created_at,1,10) BETWEEN ? AND ? ORDER BY seq",
+        (start, after)) if start <= briefing_day(zone, datetime.fromisoformat(at)) <= end]
 
 
 def next_week(runtime, zone, sunday, lang):
@@ -142,7 +155,7 @@ def facts(runtime, week, lang):
     inbox = InboxStore(runtime)
     try:
         inbox.db.execute('BEGIN')
-        done, saved = finished(inbox, ZoneInfo(zone), week, end, lang), ideas(inbox, week, end)
+        done, saved = finished(inbox, zone, week, end, lang), ideas(inbox, zone, week, end)
     finally:
         inbox.close()
     return {'finished': done, 'habits': habits(runtime, week, end), 'ideas': saved,
@@ -160,7 +173,8 @@ def counts(letter):
 
 def check(letter):
     from goodmorning.briefings.briefing_document import text
-    if not isinstance(letter, dict) or set(letter) != {'v', 'week', 'lang', 'opening', 'signoff', 'finished', 'habits', 'ideas', 'next'}:
+    # `open` marks a letter written before its week ended; `catch_up` removes it once the week is over.
+    if not isinstance(letter, dict) or set(letter) - {'open'} != {'v', 'week', 'lang', 'opening', 'signoff', 'finished', 'habits', 'ideas', 'next'}:
         raise ValueError('Invalid letter')
     for key, limit in LIMITS.items():
         text(letter[key], key, limit)
@@ -178,12 +192,24 @@ def load(runtime, week):
     return check(json.loads(raw))
 
 
-def save(runtime, week, words, lang):
-    """Write the week's letter once from current records; an existing letter is kept and returned."""
-    from goodmorning.web import language as ui
+def write(runtime, letter):
+    source = json.dumps(check(letter), ensure_ascii=False, separators=(',', ':')) + '\n'
+    if len(source.encode()) > MAX_BYTES:
+        raise ValueError('Letter exceeds size limit')
+    atomic_text(letter_path(runtime, letter['week']), source)
+    return letter
+
+
+def letters_lock(runtime):
     folder = directory(runtime)
     folder.mkdir(mode=0o700, exist_ok=True)
-    with runtime_lock(folder, '.letters.lock'):
+    return runtime_lock(folder, '.letters.lock')
+
+
+def save(runtime, week, words, lang, today):
+    """Write the week's letter once from current records; an existing letter is kept and returned."""
+    from goodmorning.web import language as ui
+    with letters_lock(runtime):
         saved = load(runtime, week)
         if saved:
             return saved
@@ -194,12 +220,60 @@ def save(runtime, week, words, lang):
             words = {'opening': ui.text(SHORT, lang=lang), **words}
         elif not isinstance(words, dict) or set(words) != set(LIMITS):
             raise ValueError('Write the letter as {"opening":"…","signoff":"…"}')
-        letter = check({'v': 1, 'week': week, 'lang': lang, **words, **lists})
-        source = json.dumps(letter, ensure_ascii=False, separators=(',', ':')) + '\n'
-        if len(source.encode()) > MAX_BYTES:
-            raise ValueError('Letter exceeds size limit')
-        atomic_text(letter_path(runtime, week), source)
-        return letter
+        return write(runtime, {'v': 1, 'week': week, 'lang': lang, **words, **lists, **({} if ended(week, today) else {'open': True})})
+
+
+def last_off(runtime):
+    """The latest week letters were seen turned off; those weeks are not missed."""
+    path = directory(runtime) / '.off'
+    return path.read_text().strip() if path.is_file() else ''
+
+
+def due(runtime, day, edition):
+    """The week a briefing on this day carries a letter for: Sunday evening's own week, else last week if it ended without one."""
+    if edition == 'gn' and Date.fromisoformat(day).weekday() == 6:
+        return week_of(day)
+    week = (Date.fromisoformat(week_of(day)) - timedelta(weeks=1)).isoformat()
+    sunday = (Date.fromisoformat(week) + timedelta(days=6)).isoformat()
+    # A week before the account's first briefing record was never theirs to miss.
+    used = any(path.name[:10] <= sunday for path in (Path(runtime) / 'daily').glob('????-??-??.*'))
+    return week if used and week > last_off(runtime) and not letter_path(runtime, week).exists() else None
+
+
+def catch_up(runtime, today, lang):
+    """Complete letters whose week has ended, and have code write missed weeks older than last week.
+
+    Last week waits for the next briefing (`due`). Missed weeks count from the first saved letter on,
+    skipping weeks when letters were off."""
+    from goodmorning.web import language as ui
+    saved, last = weeks(runtime), (Date.fromisoformat(week_of(today)) - timedelta(weeks=1)).isoformat()
+    if not enabled(runtime):
+        if week_of(today) > last_off(runtime):
+            with letters_lock(runtime):
+                atomic_text(directory(runtime) / '.off', week_of(today) + '\n')
+        return
+    if not saved:
+        return
+    off = last_off(runtime)
+    week, missed = max(saved[-1], (Date.fromisoformat(off) + timedelta(weeks=1)).isoformat() if off else ''), []
+    while week < last:
+        if week not in saved:
+            missed.append(week)
+        week = (Date.fromisoformat(week) + timedelta(weeks=1)).isoformat()
+    unfinished = [week for week in saved if ended(week, today) and load(runtime, week).get('open')]
+    if not (missed or unfinished):
+        return
+    with letters_lock(runtime):
+        for week in unfinished:
+            letter = load(runtime, week)
+            del letter['open']
+            write(runtime, {**letter, **facts(runtime, week, letter['lang'])})
+        for week in missed:
+            if letter_path(runtime, week).exists():
+                continue
+            lists = facts(runtime, week, lang)
+            write(runtime, {'v': 1, 'week': week, 'lang': lang, 'opening': ui.text(SHORT if short(lists) else OPENING, lang=lang),
+                            'signoff': ui.text(SIGNOFF, lang=lang), **lists})
 
 
 def weeks(runtime):

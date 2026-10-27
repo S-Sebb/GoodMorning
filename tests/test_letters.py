@@ -1,4 +1,4 @@
-"""Weekly letters: the code-built week, Sunday's evening section that saves it once, and the Letters pages."""
+"""Weekly letters: the code-built week, Sunday's evening section that saves it once, missed weeks, and the Letters pages."""
 from contextlib import redirect_stdout
 from datetime import datetime, timezone
 import io
@@ -14,7 +14,7 @@ from unittest.mock import patch
 from support import TEMP_ROOT, offline_provider_reads
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'src'))
 from goodmorning.briefings import briefing_document as native
-from goodmorning.briefings.briefing_job import act
+from goodmorning.briefings.briefing_job import act, default_plan
 from goodmorning.briefings.briefing_preflight import answer, initialize as preflight
 from goodmorning.calendar.calendar_store import CalendarStore
 from goodmorning.records import letters
@@ -25,7 +25,7 @@ from goodmorning.security.briefing_gateway import GET_ROUTES, PAGE_ROUTES
 from goodmorning.web.briefing_server import BrowserApp
 from goodmorning.web import letters as pages
 
-WEEK, SUNDAY = '2026-10-19', '2026-10-25'
+WEEK, SUNDAY, MONDAY = '2026-10-19', '2026-10-25', '2026-10-26'
 NIGHT = datetime(2026, 10, 25, 13, tzinfo=timezone.utc)  # 21:00 in Shanghai
 ZONE = 'Asia/Shanghai'
 WORDS = {'opening': 'You wrapped up the chapter 2 outline and kept stretching going three weeks running.',
@@ -38,6 +38,14 @@ def visible(markup):
 
 def stamp(day, hour=10):
     return f'{day}T{hour:02d}:00:00+08:00'
+
+
+def idea(root, raw, at):
+    inbox = InboxStore(root, write=True)
+    try:
+        inbox.mutate('add', {'kind': 'idea', 'raw': raw}, 'ses_synthetic', raw, at)
+    finally:
+        inbox.close()
 
 
 def records(root):
@@ -98,13 +106,13 @@ class LetterTests(unittest.TestCase):
         (self.root / 'daily').mkdir()
         records(self.root)
 
-    def job(self, identifier='c' * 32, day=SUNDAY):
+    def job(self, identifier='c' * 32, day=SUNDAY, kind='gn'):
         app = BrowserApp(self.root, now=lambda: NIGHT, preflight=True)
-        job = {'id': identifier, 'date': day, 'kind': 'gn', 'state': 'preflight', 'session': 'ses_test'}
-        app.jobs[day + '.gn'] = job; app.save_jobs()
+        job = {'id': identifier, 'date': day, 'kind': kind, 'state': 'preflight', 'session': 'ses_test'}
+        app.jobs[day + '.' + kind] = job; app.save_jobs()
         fields = preflight(self.root, job)['form']['fields']
         answer(self.root, job, {field['key']: {'completed': ['none'], 'details': 'No updates today'}.get(field['key'], []) for field in fields})
-        job['state'] = 'running'; app.jobs[day + '.gn'] = job; app.save_jobs()
+        job['state'] = 'running'; app.jobs[day + '.' + kind] = job; app.save_jobs()
         return identifier
 
     def step(self, action, payload=None, identifier='c' * 32):
@@ -128,6 +136,13 @@ class LetterTests(unittest.TestCase):
             'ideas': ['Try a weekly review with Mia'],
             'next': {'events': [['2026-10-26', '10:00', 'Group meeting'], ['2026-10-30', '', 'Day out']],
                      'deadlines': [['2026-10-28', 'Submit abstract']], 'planned': 4, 'complete': True}})
+
+    def test_the_week_runs_on_04_00_days(self):
+        idea(self.root, 'Saturday night, after midnight', '2026-10-19T02:00:00+08:00')  # Still Sunday the 18th.
+        idea(self.root, 'Sunday night, after midnight', '2026-10-26T03:30:00+08:00')  # Still Sunday the 25th.
+        idea(self.root, 'Monday morning', '2026-10-26T04:00:00+08:00')
+        self.assertEqual(letters.facts(self.root, WEEK, 'en')['ideas'], ['Try a weekly review with Mia', 'Sunday night, after midnight'])
+        self.assertEqual(letters.facts(self.root, '2026-10-12', 'en')['ideas'], ['An idea from last week', 'Saturday night, after midnight'])
 
     def test_sunday_evening_saves_the_letter_once_then_shows_its_notice(self):
         self.job()
@@ -167,9 +182,22 @@ class LetterTests(unittest.TestCase):
         self.assertTrue(self.step('finish', {}, again)['saved'])
         document = json.loads((self.root / 'daily' / f'{SUNDAY}.gn.json').read_text())
         self.assertEqual(document['sections'][-1], ['letter', [['letter', WEEK, [5, 2, 1]]]])
-        card = native.render_block(document['sections'][-1][1][0], {})
+        card = native.render_block(document['sections'][-1][1][0], {}, SUNDAY)
         self.assertIn('href="/letters/2026-10-19"', card)
         self.assertIn('5 things finished · 2 habits kept going · 1 new idea', visible(card))
+
+        # The week is not over yet: later records join the letter once it ends at 04:00 on Monday.
+        idea(self.root, 'An idea after midnight', '2026-10-26T01:30:00+08:00')
+        letters.catch_up(self.root, SUNDAY, 'en')
+        self.assertEqual((self.root / 'letters' / f'{WEEK}.json').read_text(), before)
+        letters.catch_up(self.root, MONDAY, 'en')
+        complete = letters.load(self.root, WEEK)
+        self.assertEqual(complete['ideas'], ['Try a weekly review with Mia', 'A late idea', 'An idea after midnight'])
+        self.assertEqual((complete['opening'], complete['signoff'], 'open' in complete), (WORDS['opening'], WORDS['signoff'], False))
+        # Then it is a memory and never changes again.
+        idea(self.root, 'Too late', '2026-10-25T23:00:00+08:00')
+        letters.catch_up(self.root, '2026-10-27', 'en')
+        self.assertEqual(letters.load(self.root, WEEK), complete)
 
     def test_unreadable_records_say_so_instead_of_promising_a_letter(self):
         self.job()
@@ -181,7 +209,7 @@ class LetterTests(unittest.TestCase):
         self.assertIsNone(letters.load(self.root, WEEK))
         self.assertIn('couldn’t be written', native.render_block(['letter', WEEK, None], {}))
 
-    def test_only_sunday_evenings_carry_it_and_the_user_can_turn_it_off(self):
+    def test_other_days_carry_no_letter_for_a_new_account_and_the_user_can_turn_it_off(self):
         def plan(identifier, day=SUNDAY):
             self.job(identifier, day)
             self.step('init', {'greeting': 'Evening.', 'opening': 'Tonight’s review.'}, identifier)
@@ -190,6 +218,51 @@ class LetterTests(unittest.TestCase):
         (self.root / 'profile.md').write_text((self.root / 'profile.md').read_text() + 'weekly_letter: "false"\n')
         self.assertNotIn('letter', plan('b' * 32))
 
+    def test_a_skipped_sunday_sends_last_weeks_letter_with_the_next_briefing(self):
+        (self.root / 'daily' / '2026-10-21.md').write_text('# 2026-10-21\n')  # The account was in use that week.
+        self.assertIsNone(letters.due(self.root, SUNDAY, 'gm'))  # The week before was not in use yet.
+        self.job(day=MONDAY)
+        self.step('init', {'greeting': 'Evening.', 'opening': 'Tonight’s review.'})
+        self.step('publish', {'position': 0, 'section': ['today', [['p', 'You shared no updates.']]]})
+        self.step('publish', {'position': 1, 'section': ['weather', [['p', 'Tomorrow’s weather is unavailable.']], '', 'Weather tomorrow']})
+        self.step('publish', {'position': 2, 'section': ['schedule', [['p', 'One appointment tomorrow.']]]})
+        self.step('skip', {'position': 3})
+        result = self.step('skip', {'position': 4})
+        self.assertEqual(result['next']['section'], ['letter', 'Weekly letter'])
+        self.assertEqual(result['next']['results'][0]['output']['week'], WEEK)
+        self.step('publish', {'position': 5, 'letter': WORDS})
+        # Written after its week ended, the letter is complete at once.
+        self.assertNotIn('open', letters.load(self.root, WEEK))
+        card = visible(native.render_block(['letter', WEEK, [5, 2, 1]], {}, MONDAY))
+        self.assertIn('Last week’s letter is in your book.', card)
+        self.assertIn('Last week’s letter couldn’t be written this time.', visible(native.render_block(['letter', WEEK, None], {}, MONDAY)))
+        # Once written, later briefings that week carry none; a morning plan ends with it when one is due.
+        self.assertIsNone(letters.due(self.root, '2026-10-27', 'gm'))
+        context = {'workflow': 'gm', 'document_version': 2, 'news': {'as_of': '2026-10-27T07:00:00+08:00'}, 'weekly_letter': {'week': WEEK}}
+        self.assertEqual(default_plan(context)[-1][0], 'letter')
+
+    def test_older_missed_weeks_get_a_letter_from_code_except_while_letters_were_off(self):
+        letters.save(self.root, '2026-09-28', {'signoff': 'See you.'}, 'en', '2026-10-04')
+        letters.catch_up(self.root, '2026-10-27', 'en')
+        # From the first letter on, every week has one; last week waits for the next briefing.
+        self.assertEqual(letters.weeks(self.root), ['2026-10-12', '2026-10-05', '2026-09-28'])
+        written = letters.load(self.root, '2026-10-12')
+        self.assertEqual((written['opening'], written['signoff'], written['ideas']),
+                         ('Here’s a look back at this week.', 'Until the next letter.', ['An idea from last week']))
+        self.assertEqual(letters.load(self.root, '2026-10-05')['habits'], [['Stretching', 1, 1], ['Reading', 1, 1]])
+
+        # Weeks while letters were off are not missed.
+        for week in ('2026-10-12', '2026-10-05'):
+            (self.root / 'letters' / f'{week}.json').unlink()
+        profile = (self.root / 'profile.md').read_text()
+        (self.root / 'profile.md').write_text(profile + 'weekly_letter: "false"\n')
+        letters.catch_up(self.root, '2026-10-14', 'en')
+        (self.root / 'profile.md').write_text(profile)
+        (self.root / 'daily' / '2026-10-21.md').write_text('# 2026-10-21\n')
+        letters.catch_up(self.root, '2026-11-03', 'en')
+        self.assertEqual(letters.weeks(self.root), ['2026-10-19', '2026-09-28'])
+        self.assertEqual(letters.due(self.root, '2026-11-03', 'gm'), '2026-10-26')
+
     def test_a_short_week_gets_its_opening_from_code(self):
         quiet = '2026-09-28'  # Before any saved record.
         output = io.StringIO()
@@ -197,15 +270,15 @@ class LetterTests(unittest.TestCase):
             letters.main()
         self.assertEqual(json.loads(output.getvalue())['opening'], 'This week’s letter is a short one.')
         with self.assertRaisesRegex(ValueError, 'write only'):
-            letters.save(self.root, quiet, WORDS, 'zh-CN')
-        saved = letters.save(self.root, quiet, {'signoff': '下周见。'}, 'zh-CN')
+            letters.save(self.root, quiet, WORDS, 'zh-CN', SUNDAY)
+        saved = letters.save(self.root, quiet, {'signoff': '下周见。'}, 'zh-CN', SUNDAY)
         self.assertEqual((saved['opening'], saved['signoff'], letters.counts(saved)), ('这周的信写得短一些。', '下周见。', [0, 0, 0]))
 
     def test_the_letters_page_opens_the_newest_letter_with_a_wheel_of_weeks(self):
         app = BrowserApp(self.root, now=lambda: NIGHT)
         self.assertIn('No letters yet', pages.page(app).decode())
-        letters.save(self.root, '2026-10-12', {'opening': 'An earlier week.', 'signoff': 'Bye.'}, 'en')
-        letters.save(self.root, WEEK, WORDS, 'en')
+        letters.save(self.root, '2026-10-12', {'opening': 'An earlier week.', 'signoff': 'Bye.'}, 'en', SUNDAY)
+        letters.save(self.root, WEEK, WORDS, 'en', SUNDAY)
         newest = pages.page(app).decode()
         self.assertIn('<a href="/letters/2026-10-19" aria-current="page"><span class="wheel-range">Oct 19 – 25</span>', newest)
         self.assertIn('<a href="/letters/2026-10-12"><span class="wheel-range">Oct 12 – 18</span>', newest)
