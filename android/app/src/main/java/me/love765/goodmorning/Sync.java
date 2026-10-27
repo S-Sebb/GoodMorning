@@ -11,9 +11,6 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.net.Uri;
-import android.os.Handler;
-import android.os.Looper;
-import android.widget.Toast;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -214,25 +211,23 @@ final class Sync {
     }
 
     /**
-     * The Today widget's ○/✓: asks the server to tick the to-do done or back, shows its answer at once, then reads
-     * the whole summary. A failure keeps the old mark and says so.
+     * The Today widget's ○/✓: asks the server to tick the to-do done or back and shows its answer at once.
+     * Returns false when it could not save, so the old mark stays.
      */
-    static void tick(Context context, String id, String date, int revision, boolean done) {
+    static boolean tick(Context context, String id, String date, int revision, boolean done) {
         String token = Api.token(context);
-        if (token != null) {
-            try {
-                JSONObject saved = Api.tick(context, token, new JSONObject().put("id", id).put("date", date)
-                        .put("revision", revision).put("done", done).put("key", UUID.randomUUID().toString()));
-                synchronized (LOCK) {
-                    write(context, ticked(cached(context), saved));
-                }
-                Widgets.updateAll(context);
-            } catch (IOException | JSONException failed) {
-                Context app = Language.apply(context);
-                new Handler(Looper.getMainLooper()).post(() -> Toast.makeText(app, R.string.widget_tick_failed, Toast.LENGTH_LONG).show());
+        if (token == null) return true;  // Unlinked meanwhile: the next sync shows the link prompt.
+        try {
+            JSONObject saved = Api.tick(context, token, new JSONObject().put("id", id).put("date", date)
+                    .put("revision", revision).put("done", done).put("key", UUID.randomUUID().toString()));
+            synchronized (LOCK) {
+                write(context, ticked(cached(context), saved));
             }
+        } catch (IOException | JSONException failed) {
+            return false;
         }
-        run(context);  // The rest of the schedule, or after a failure what the server holds now.
+        Widgets.updateAll(context);
+        return true;
     }
 
     /** The summary with the server's answer to a tick on today's row; a day that has since passed stays as it is. */

@@ -132,7 +132,8 @@ so the home screen stays as it is and no other app can tick through it. It sends
 `POST /api/app/schedule/tick` with the app token and nothing is saved on the phone
 first: the mark changes when the server answers, and a sync follows. When the save
 fails (offline, or the to-do changed), the mark stays and a toast says
-"Couldn’t save. Open GoodMorning to try again."
+"Couldn’t save. Open GoodMorning to try again." Android 13 and newer hide that toast
+while the app's notifications are off; the mark still stays unchanged.
 
 ### Quick notes
 
