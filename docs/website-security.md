@@ -49,7 +49,10 @@ the text. Subscriptions are accepted only for HTTPS endpoints on Google,
 Mozilla, Apple and Microsoft push services, so a request can never make the
 gateway contact another host. An account keeps at most ten devices. A device
 belongs to the account that subscribed it last; signing out unsubscribes it.
-Push services' 404 or 410 answers remove the subscription. The `/api/push`
+A password change and every SSH reset, rename, disable or enable remove all the
+account's subscriptions but keep its notification settings, so a browser signed
+in before stops getting notifications until it turns them on again. Push
+services' 404 or 410 answers remove the subscription. The `/api/push`
 routes require a permanent password, the exact origin and the session CSRF
 token. Sending runs in background threads and never affects the work it
 reports.
@@ -168,7 +171,8 @@ or 12 hours absolute. The unchecked-by-default remember option lasts at most 60
 days without idle expiry; it remembers a revocable login token, never password
 text. Current-password replacement preserves that choice while revoking all old
 tokens. SSH resets/admin changes also revoke tokens; both also unlink every
-phone (see [App tokens](#app-tokens)). Logout revokes the current token. Login rotates the
+phone (see [App tokens](#app-tokens)) and remove every browser's notification
+subscription (see [Notifications](#notifications)). Logout revokes the current token. Login rotates the
 anonymous cookie. Every mutation also requires the exact HTTPS Origin and the
 authenticated session's CSRF token. CSP blocks external scripts and framing.
 

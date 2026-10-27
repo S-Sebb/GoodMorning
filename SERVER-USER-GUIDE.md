@@ -75,6 +75,7 @@ Verify these paths on the target server. Replace `USERNAME` and `ACCOUNT_ID` bel
 
 Report only the username, account ID, entry URL, readiness result, and blockers.
 Use SSH-only `admin reset USERNAME` for password recovery. A reset, rename,
-disable or enable signs the account out everywhere and unlinks all its phones;
-the user links them again under Account → Linked phones. Detailed security and
+disable or enable signs the account out everywhere, unlinks all its phones and
+turns off browser notifications; the user links phones again under Account →
+Linked phones and turns notifications on again on each browser. Detailed security and
 service requirements: [docs/website-security.md](docs/website-security.md).
