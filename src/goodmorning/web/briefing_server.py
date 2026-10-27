@@ -14,6 +14,7 @@ import secrets
 import threading
 import time
 from zoneinfo import ZoneInfo
+from urllib.error import HTTPError
 from urllib.parse import urlsplit, quote, parse_qs, urlencode
 from urllib.request import Request, build_opener, HTTPRedirectHandler
 
@@ -144,8 +145,14 @@ class Chamber:
         return True
 
     def pending(self, session):
-        return (self.request(f'/api/session/{session}/form').get('data', []),
-                self.request(f'/api/session/{session}/permission').get('data', []))
+        try:
+            return (self.request(f'/api/session/{session}/form').get('data', []),
+                    self.request(f'/api/session/{session}/permission').get('data', []))
+        except HTTPError as error:
+            # A session from a pruned release has no loadable instance, so no question can be waiting.
+            if error.code != 404:
+                raise
+            return [], []
 
 
 class BrowserApp:
