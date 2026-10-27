@@ -114,9 +114,9 @@ dispatches new work.
 - `TCSFrontEnd`: SSH alias for the server (batch SSH, passwordless sudo).
   Never print authentication details.
 - Releases: `/opt/goodmorning/releases/<NAME>`; `/opt/goodmorning/current` points
-  to exactly one. Releases are never overwritten. Keep the live release and the five
-  before it for rollback; older ones, and their deploy records in
-  `/srv/goodmorning/live/accounts`, may be deleted while the website is live.
+  to exactly one. Releases are never overwritten. Keep the five newest deployed releases,
+  including the live one, for rollback; older ones, unused staged ones and their
+  deploy records in `/srv/goodmorning/live/accounts` may be deleted while the website is live.
 - Engine: each account's `goodmorning-account@ID.socket` holds its loopback engine
   port; the first connection starts `goodmorning-account@ID.service`, which runs
   `opencode serve` behind a relay and stops after ten idle minutes with no running
