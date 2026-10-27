@@ -147,7 +147,9 @@ TEXT = {
              'working their titles into natural sentences, and at most one thing from next week (`next`). Ideas were only saved: never write '
              'them as done. Never guess feelings, effort, how long something was on their mind or how their body feels. A habit row is [title, '
              'times this week, weeks in a row]; mention weeks in a row only when it is 2 or more. Do not rate or compare the week (busy, '
-             "productive, quiet). When the read returns `opening`, the week's lists are empty and code wrote the opening: submit "
+             "productive, quiet). The sign-off is a kind word or wish for the user: a plan from `next` stays the user's own, and it "
+             "never says what you, or you and the user together, will do later. When the read returns `opening`, the week's lists are "
+             'empty and code wrote the opening: submit '
              '{"position":N,"letter":{"signoff":"…"}}, a sign-off that does not name what is missing or judge the week; it may mention one '
              'thing from `next`. The letter is its own page, so it may call the user once by exactly `reply_context.user_name`, or by no name. If '
              '`saved` is true, the letter is already written and stays as it is: submit {"position":N}. If the read failed, submit '
@@ -254,7 +256,7 @@ TEXT = {
   'letter': ('这是用户本周（周一到周日，见 `results`）的每周来信，会保存在“来信”页面，留作日后翻看的回忆。所有清单由代码生成并保存，你只写开头和结尾。'
              '读取成功且 `saved` 为 false 时，提交 {"position":N,"letter":{"opening":"…","signoff":"…"}}：开头 2–3 句（不超过 600 字），结尾一句简短的话'
              '（不超过 200 字），纯文本，用保存的语气，温暖、亲切。只使用 `letter` 里的事实：最多点名三项完成的事、习惯或灵感（把标题自然地写进句子里），下周（`next`）最多提一件事。灵感只是记下的念头，不要写成已经做了；不要揣测用户的感受、辛苦程度、惦记了多久或身体状态。'
-             '习惯行是 [标题, 本周次数, 连续周数]；连续周数为 2 或以上时才提。不要评价或比较这一周（忙碌、高效、清闲）。读取结果带有 `opening` 时，本周的清单都是空的，开头已由代码写好：提交 {"position":N,"letter":{"signoff":"…"}}，结尾不要说缺了什么，也不要评价这一周；可以提一件下周的事。'
+             '习惯行是 [标题, 本周次数, 连续周数]；连续周数为 2 或以上时才提。不要评价或比较这一周（忙碌、高效、清闲）。结尾是给用户的一句暖心话或祝福：提到 `next` 里的安排时，那是用户自己的安排；不要说你或你们之后会做什么。读取结果带有 `opening` 时，本周的清单都是空的，开头已由代码写好：提交 {"position":N,"letter":{"signoff":"…"}}，结尾不要说缺了什么，也不要评价这一周；可以提一件下周的事。'
              '来信是单独的页面，可以用 `reply_context.user_name` 的原样称呼用户一次，也可以不称呼。`saved` 为 true 时，这封信已经写好并保持原样：提交 {"position":N}。'
              '读取失败时提交 {"position":N}，简报会说明这次没能写成来信（不写原因，不承诺补写）。不得跳过本章节。'),
   'celebration': ('今天的简报以一张庆祝卡片开头。`celebrations` 列出要庆祝的事，headline 和 line 就是卡片上显示的文字；卡片由代码绘制，并署上你的名字。'
