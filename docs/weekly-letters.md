@@ -19,13 +19,15 @@ or the briefing is regenerated. The briefing card keeps the counts it showed.
 ## Contents
 
 Code (`src/goodmorning/records/letters.py`) builds every list from saved
-records. The secretary writes only a short opening and a one-line sign-off from
-those lists, in the job's website language and saved tone. The sign-off is a
-kind word or wish: a plan from next week stays the user's own, never something
-the secretary, or the two of them together, will do later. When a week has
-nothing finished, no habits and no ideas, code writes the opening (“This week’s
-letter is a short one.”) so a quiet week is never judged, and the secretary
-writes only the sign-off.
+records. The secretary writes only a short opening and a sign-off from those
+lists, in the job's website language and saved tone. The opening may add one
+thing from next week; the sign-off is about two short sentences: a brief
+summary of what was finished, kept and saved, then a warm wish. It never
+mentions next week. A plan from next week stays the user's own: the letter
+never says what the secretary, or the two of them together, will do later. When
+a week has nothing finished, no habits and no ideas, code writes the opening
+(“This week’s letter is a short one.”) so a quiet week is never judged, and the
+secretary writes only the sign-off: a warm wish that names nothing.
 
 - **What you finished:** task occurrences confirmed done that week, plus one-off
   tasks whose done confirmation falls in the week (account timezone, 04:00 days). Grouped by

@@ -32,8 +32,9 @@ TEXT = {
                   'state. The opening, notes and progress never use it.'),
   'memory_finish': (' `memory` is the note you keep about the user. A closing you write anyway may lightly reflect one thing from it '
                     'when it fits today\'s verified results; never add a closing because of it, recite it or add feelings it does not state.'),
-  'memory_letter': (' `memory` is the note you keep about the user. The sign-off may lightly reflect one thing from it that fits the '
-                    'week, as a friend would; the opening still uses only facts in `letter`. Never recite it or add feelings it does not state.'),
+  'memory_letter': (' `memory` is the note you keep about the user. The sign-off\'s wish may lightly reflect one thing from it, as a '
+                    'friend would, never anything about next week; the opening and the week\'s summary still use only facts in `letter`, and a '
+                    'short week\'s sign-off still names nothing. Never recite it or add feelings it does not state.'),
   'memory_tidy': ('Before the handoff, tidy your memory of the user. `memory.note` is your note (life: their life, people and interests; '
                   'likes: how they like things; lately: what is going on for them now), and `memory.messages` are the user\'s own chat '
                   'messages since the last tidy. Using these and tonight\'s check-in answers, fold in what the user said or plainly showed '
@@ -141,20 +142,22 @@ TEXT = {
              'failed, publish one ["p","…"] block saying only that stock prices could not be checked this time (no cause, no retry '
              'promise). Never skip this section.'),
   'letter': ("The user's weekly letter for the Monday–Sunday week in `results`, kept on their Letters page as a memory to look back on. Code "
-             'builds and saves every list; you write only its opening and sign-off. If the read succeeded and `saved` is false, submit '
-             '{"position":N,"letter":{"opening":"…","signoff":"…"}}: opening 2–3 sentences (≤600 chars), sign-off one short line (≤200 chars), '
-             'plain text in the saved tone, warm and personal. Use only facts in `letter`: name up to three finished items, habits or ideas, '
-             'working their titles into natural sentences, and at most one thing from next week (`next`). Ideas were only saved: never write '
-             'them as done. Never guess feelings, effort, how long something was on their mind or how their body feels. A habit row is [title, '
-             'times this week, weeks in a row]; mention weeks in a row only when it is 2 or more. Do not rate or compare the week (busy, '
-             "productive, quiet). The sign-off is a kind word or wish for the user: a plan from `next` stays the user's own, and it "
-             "never says what you, or you and the user together, will do later. When the read returns `opening`, the week's lists are "
-             'empty and code wrote the opening: submit '
-             '{"position":N,"letter":{"signoff":"…"}}, a sign-off that does not name what is missing or judge the week; it may mention one '
-             'thing from `next`. The letter is its own page, so it may call the user once by exactly `reply_context.user_name`, or by no name. If '
-             '`saved` is true, the letter is already written and stays as it is: submit {"position":N}. If the read failed, submit '
-             '{"position":N}; the briefing then says the letter could not be written this time (no cause, no retry promise). Never skip this '
-             'section.'),
+             'builds and saves every list; you write only its opening and sign-off, plain text in the saved tone, warm and personal, '
+             'using only facts in `letter`. If the read succeeded and `saved` is false, submit {"position":N,"letter":{"opening":"…","signoff":"…"}}. '
+             'Opening: 2–3 sentences (≤600 chars) naming up to three finished items, habits or ideas, with their titles worked into natural '
+             'sentences; it may add at most one thing from next week (`next`). Sign-off: about two short sentences (≤300 chars): first a '
+             'brief, factual summary of the week drawn only from `finished`, `habits` and `ideas`, in plain words that group things (by '
+             'project or kind) instead of relisting titles or repeating the opening (e.g. "A new recipe, two garden jobs and your morning '
+             'walks filled this week."); then a warm wish or cute saying of your own to end the letter. The sign-off never mentions next week: no item, event, deadline, date or time from `next`. Ideas were only saved: '
+             'never write them as done. Never guess feelings, effort, how long something was on their mind or how their body feels. A habit '
+             'row is [title, times this week, weeks in a row]; mention weeks in a row only when it is 2 or more. Do not rate or compare the '
+             "week (busy, productive, quiet). Nowhere in the letter say what you, or you and the user together, will do later: the "
+             "opening's next-week thing is the user's own plan. When the read returns `opening`, the week's lists are empty and code wrote the opening: submit "
+             '{"position":N,"letter":{"signoff":"…"}}, only a warm wish or cute saying (one or two short sentences, ≤300 chars) that names '
+             'nothing and does not judge the week. The letter is its own page, so it may call the user once by exactly '
+             '`reply_context.user_name`, or by no name. If `saved` is true, the letter is already written and stays as it is: submit '
+             '{"position":N}. If the read failed, submit {"position":N}; the briefing then says the letter could not be written this time '
+             '(no cause, no retry promise). Never skip this section.'),
   'celebration': ('A celebration card opens today\'s briefing. `celebrations` lists what it celebrates, worded as the card shows it '
                   '(headline and line); code draws the card and signs it with your name. You write only a short wish to go with it: submit '
                   '{"position":N,"celebration":{"wish":"…"}}, one or two sentences (≤200 chars), plain text, said by you, the secretary, to the '
@@ -185,7 +188,7 @@ TEXT = {
            '开场只能提及这些章节：SECTIONS。说明将要回顾的内容，不要提前给出结果。'),
   'memory_init': ' `memory` 是你从对话中记下的关于用户的笔记。合适时问候可以像朋友那样轻轻带到其中一件事，也可以不提；不要罗列，不要当成新消息，也不要添加笔记里没有的感受。开场、注记和进度里都不要用。',
   'memory_finish': ' `memory` 是你记下的关于用户的笔记。本来就要写结尾时，若与今天已核实的结果相关，可以轻轻带到其中一件事；不要因为它而添加结尾，不要罗列，也不要添加笔记里没有的感受。',
-  'memory_letter': ' `memory` 是你记下的关于用户的笔记。结尾可以像朋友那样轻轻带到其中一件与这一周相符的事；开头仍然只用 `letter` 里的事实。不要罗列，也不要添加笔记里没有的感受。',
+  'memory_letter': ' `memory` 是你记下的关于用户的笔记。结尾的祝福可以像朋友那样轻轻带到其中一件事，但不要提下周的事；开头和这一周的小结仍然只用 `letter` 里的事实，清单为空的那一周，结尾仍然不点名任何事。不要罗列，也不要添加笔记里没有的感受。',
   'memory_tidy': ('交付链接之前，先整理你对用户的记忆。`memory.note` 是你的笔记（life：用户的生活、身边的人和兴趣；likes：用户喜欢的方式；'
                   'lately：用户最近的情况），`memory.messages` 是上次整理以来用户本人在对话里发的消息。结合这些和今晚的回顾回答：补上用户说过或明显表现出的、'
                   '笔记里还没有的关于自己的事；用户后来说法变了的，按新的改；已经过去的 lately 内容删掉。不要写入你自己对心情或性格的猜测、待办、约定、习惯、'
@@ -253,10 +256,14 @@ TEXT = {
              '（金额带 ¥ 或 $，再加百分比）；亏损时语气体贴，不要制造紧张。市场带 `benchmark` 时，可以按名称说出它的百分比与该指数 `day_percent` 相比如何，只陈述事实。带 `closed_on` 的市场那天没有开盘（周末或节假日）：先说明休市，`next_trading_day` 不为 null 时说出下个交易日'
              '（为 null 时不要猜），并把它的结果说成上个交易日（`session`）的表现，而不是今天的。`not_found` 列出代码时，再加一个 ["p","……"] 块点名这些代码，说明没能查到它们的价格。'
              '读取失败时发布一个 ["p","……"] 块，只说明这次没能查到股票价格（不写原因，不承诺补充）。不得跳过本章节。'),
-  'letter': ('这是用户本周（周一到周日，见 `results`）的每周来信，会保存在“来信”页面，留作日后翻看的回忆。所有清单由代码生成并保存，你只写开头和结尾。'
-             '读取成功且 `saved` 为 false 时，提交 {"position":N,"letter":{"opening":"…","signoff":"…"}}：开头 2–3 句（不超过 600 字），结尾一句简短的话'
-             '（不超过 200 字），纯文本，用保存的语气，温暖、亲切。只使用 `letter` 里的事实：最多点名三项完成的事、习惯或灵感（把标题自然地写进句子里），下周（`next`）最多提一件事。灵感只是记下的念头，不要写成已经做了；不要揣测用户的感受、辛苦程度、惦记了多久或身体状态。'
-             '习惯行是 [标题, 本周次数, 连续周数]；连续周数为 2 或以上时才提。不要评价或比较这一周（忙碌、高效、清闲）。结尾是给用户的一句暖心话或祝福：提到 `next` 里的安排时，那是用户自己的安排；不要说你或你们之后会做什么。读取结果带有 `opening` 时，本周的清单都是空的，开头已由代码写好：提交 {"position":N,"letter":{"signoff":"…"}}，结尾不要说缺了什么，也不要评价这一周；可以提一件下周的事。'
+  'letter': ('这是用户本周（周一到周日，见 `results`）的每周来信，会保存在“来信”页面，留作日后翻看的回忆。所有清单由代码生成并保存，你只写开头和结尾：'
+             '纯文本，用保存的语气，温暖、亲切，只使用 `letter` 里的事实。读取成功且 `saved` 为 false 时，提交 {"position":N,"letter":{"opening":"…","signoff":"…"}}。'
+             '开头 2–3 句（不超过 600 字）：最多点名三项完成的事、习惯或灵感，把标题自然地写进句子里；下周（`next`）最多可以再提一件事。'
+             '结尾两句左右的短句（不超过 300 字）：先只根据 `finished`、`habits` 和 `ideas` 简短、如实地小结这一周，用平实的话按项目或类别归纳，不要逐条重列标题，也不要重复开头'
+             '（例如“这周试了一道新菜，花园里的两件活儿做完了，晨走也一直在坚持。”）；再用一句你自己想的温暖祝福或可爱的话收尾。'
+             '结尾不提下周：不写 `next` 里的任何事项、约定、截止日期、日期或时间。灵感只是记下的念头，不要写成已经做了；不要揣测用户的感受、辛苦程度、惦记了多久或身体状态。'
+             '习惯行是 [标题, 本周次数, 连续周数]；连续周数为 2 或以上时才提。不要评价或比较这一周（忙碌、高效、清闲）。整封信都不要说你或你们之后会做什么：开头提到的下周安排是用户自己的安排。读取结果带有 `opening` 时，本周的清单都是空的，'
+             '开头已由代码写好：提交 {"position":N,"letter":{"signoff":"…"}}，结尾只写一两句温暖的祝福或可爱的话（不超过 300 字），不点名任何事，也不评价这一周。'
              '来信是单独的页面，可以用 `reply_context.user_name` 的原样称呼用户一次，也可以不称呼。`saved` 为 true 时，这封信已经写好并保持原样：提交 {"position":N}。'
              '读取失败时提交 {"position":N}，简报会说明这次没能写成来信（不写原因，不承诺补写）。不得跳过本章节。'),
   'celebration': ('今天的简报以一张庆祝卡片开头。`celebrations` 列出要庆祝的事，headline 和 line 就是卡片上显示的文字；卡片由代码绘制，并署上你的名字。'
