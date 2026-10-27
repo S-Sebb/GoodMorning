@@ -63,7 +63,7 @@ or failed previews never imply a completed run or task.
 `/chat` is separate: Initialize before setup, then Secretary for everything,
 including to-dos and ideas. Initialize reviews all saved preferences without
 resetting records. Drafts and previous conversations remain available; refresh resumes the selected chat.
-No private text is placed in persistent browser storage. See `docs/browser-chat.md`.
+Chat places no private text in persistent browser storage. See `docs/browser-chat.md`.
 
 ## Images, resources and storage
 
@@ -131,8 +131,9 @@ available update. It becomes a checkmark when the page is current and still
 opens history. The dialog has a version sidebar, an Update button for stale
 pages, and a Dismiss button. Dismissing keeps the arrow available. Reading old
 notes does not install old code. Update never reloads automatically, pauses
-while a mutation is being sent and asks before discarding unsent drafts. No
-draft is persisted in browser storage. Public auth/update assets are
+while a mutation is being sent and asks before discarding unsent drafts. Of those
+drafts, only evening check-in answers are kept in browser storage; see
+`docs/website-security.md`. Public auth/update assets are
 fingerprinted, immutable and precompressed; their unversioned aliases revalidate.
 Tabs opened before this feature was installed need one manual refresh first.
 
