@@ -123,7 +123,7 @@ class BriefingMemoryTests(unittest.TestCase):
         self.assertNotIn('`memory`', section['guide'])
         letter = briefing_guides.guide({'date': DAY, 'workflow': 'gn'}, {'action': 'publish', 'section': ['letter'], 'memory': MOCHI},
                                        [], runtime=self.root, job='c' * 32, session='ses_test')
-        self.assertIn('The sign-off may lightly reflect one thing', letter)
+        self.assertIn('The sign-off\'s wish may lightly reflect one thing', letter)
         memory.change(self.root, 1, enabled=False)
         self.assertNotIn('memory', self.step('prepare')['next'], 'memory turned off leaves briefings without it')
 

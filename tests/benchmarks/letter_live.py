@@ -201,6 +201,11 @@ def run_briefing(output, language, selected, scenario):
                 result['letter'] = {'opening': saved['opening'], 'signoff': saved['signoff']}
                 result['forbidden'] = [word for word in FORBIDDEN[language] if word in words]
                 assert not result['forbidden'], 'The letter mentioned something it must not'
+                # Next week belongs only in the opening: no event or deadline title, nor an event's time, in the sign-off.
+                upcoming = [title for *_, title in saved['next']['events'] + saved['next']['deadlines']] + \
+                    [clock for _, clock, _ in saved['next']['events'] if clock]
+                result['signoff_next'] = [word for word in upcoming if word.casefold() in saved['signoff'].casefold()]
+                assert not result['signoff_next'], 'The sign-off mentioned next week'
                 result['checks'].append('Letter saved from the week with only allowed mentions')
         result['letter_reads'] = [entry for entry in commands(runtime) if entry['argv'][:1] == ['letter']]
         assert link_handoff(folder, 'original', f'/d/{day}/gn.html'), 'Final reply was not a briefing-link handoff'

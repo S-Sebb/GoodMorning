@@ -19,7 +19,7 @@ from goodmorning.briefings.briefing_day import briefing_day
 from goodmorning.runtime_files import atomic_text, profile_fields, runtime_lock, secretary_path
 
 MAX_BYTES = 200_000
-LIMITS = {'opening': 600, 'signoff': 200}
+LIMITS = {'opening': 600, 'signoff': 300}
 SHORT = 'This week’s letter is a short one.'
 # Words for a missed week's letter that no briefing carried.
 OPENING, SIGNOFF = 'Here’s a look back at this week.', 'Until the next letter.'

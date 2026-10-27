@@ -271,6 +271,8 @@ class LetterTests(unittest.TestCase):
         self.assertEqual(json.loads(output.getvalue())['opening'], 'This week’s letter is a short one.')
         with self.assertRaisesRegex(ValueError, 'write only'):
             letters.save(self.root, quiet, WORDS, 'zh-CN', SUNDAY)
+        with self.assertRaisesRegex(ValueError, 'at most 300 characters'):  # A sign-off is about two short sentences.
+            letters.save(self.root, quiet, {'signoff': '好' * 301}, 'zh-CN', SUNDAY)
         saved = letters.save(self.root, quiet, {'signoff': '下周见。'}, 'zh-CN', SUNDAY)
         self.assertEqual((saved['opening'], saved['signoff'], letters.counts(saved)), ('这周的信写得短一些。', '下周见。', [0, 0, 0]))
 
