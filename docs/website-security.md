@@ -13,7 +13,7 @@ so private HTML is never compressed. Shared translation assets contain no privat
 data and keep content-hashed, cacheable URLs.
 
 The public website adds a security boundary to the local viewer; it is not an
-OpenChamber UI proxy. It permits login, current-password changes, logout and
+engine UI proxy. It permits login, current-password changes, logout and
 account-owned briefing viewing/generation/questions and secretary chats
 (Initialize alone before setup; Secretary afterward; older To-do and Eureka chats stay replyable).
 No web registration, account
@@ -80,7 +80,7 @@ Use gocryptfs for encrypted filenames and authenticated content encryption, not
 custom cryptography. Keep account SQLite/session/rate counters in a root-only
 encrypted `accounts` volume. Give each immutable account ID a separate encrypted
 volume and Linux UID. Its secretary records, caches, temporary inputs, agent HOME,
-OpenCode database/WAL/transcripts, OpenChamber state/logs and runtime files all
+OpenCode database/WAL/transcripts, logs and runtime files all
 belong there. Readable mounts are 0700; unmounted fallback directories are root-only
 and empty. Never put personal data in the shared read-only source/engine package.
 Production account operations fail closed when the encrypted mount is absent.

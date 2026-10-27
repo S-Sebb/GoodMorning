@@ -1,6 +1,6 @@
-"""Organized OpenChamber session bookkeeping for website chats and briefings.
+"""Organized OpenCode session bookkeeping for website chats and briefings.
 
-Every GoodMorning conversation or briefing owns exactly one OpenChamber
+Every GoodMorning conversation or briefing owns exactly one OpenCode
 session. Follow-up messages reuse that session; a new conversation, briefing
 date or explicitly regenerated briefing creates another one. Briefing titles carry
 a fixed ``GoodMorning ·`` prefix; chat titles come from native AI auto-titling.

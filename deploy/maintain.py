@@ -258,16 +258,15 @@ def run():
             save(report)
 
 
-def wait_ready(identifiers, bridges):
-    units = ['goodmorning-gateway.service']+[f'goodmorning-{kind}@{i}.service'
-                                             for i in identifiers for kind in ('account', 'viewer')]
+def wait_ready(identifiers):
+    # Engines start on their socket's first connection, so probing them would wake every account at once.
+    units = ['goodmorning-gateway.service']+[unit for i in identifiers for unit in
+                                             (f'goodmorning-account@{i}.socket', f'goodmorning-viewer@{i}.service')]
     deadline = time.monotonic()+READY_TIMEOUT
     while True:
         try:
             for unit in units:
                 native.command(['systemctl', 'is-active', '--quiet', unit], timeout=10)
-            for bridge in bridges.values():
-                bridge.request('/api/session/active')
             return
         except Exception:
             if time.monotonic() >= deadline:
@@ -284,11 +283,11 @@ def finish():
         return 0  # The reboot is on its way; the boot unit finishes.
     path = Path(hold['report'])
     report = json.loads(path.read_text()) if path.is_file() else {'date': hold['ticket']['maintenance'], 'steps': []}
-    identifiers, store, gateway, bridges, pause = clients()
+    identifiers, store, gateway, _, pause = clients()
     report['rebooted'] = hold['reboot']
     # Resume even if an account is not ready: the pause would block every account, not only the broken one.
     ready = step(report, 'services ready after reboot' if hold['reboot'] else 'services ready',
-                 lambda: wait_ready(identifiers, bridges))
+                 lambda: wait_ready(identifiers))
     gateway.clear_ticket(hold['ticket'])
     resume(store, pause)
     HOLD.unlink()

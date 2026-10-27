@@ -94,10 +94,8 @@ integration access or verification consent.
    topic preferences, offer the country and outlet settings, and save nothing for it.
    Then, alone, ask which public holidays to show, under “Public holidays” in
    `docs/workflows/secretary.md` step 4. Never copy them from location or news.
-8. Present one exact file-format/storage/access summary, including runtime,
-   authorized remote reads/writes and selected checks. Reuse existing consent only
-   for its exact scope. Check-only registry access uses empty write targets and
-   disabled execution; do not request write-lock consent for read-only checks.
+8. Present one exact file-format/storage/access summary, including runtime and
+   selected checks. Reuse existing consent only for its exact scope.
 
 ## Save checkpoint
 
@@ -131,7 +129,7 @@ Run selected checks once with a shared elapsed budget:
 python scripts/goodmorning.py setup --secretary-dir RUNTIME --verify SELECTED_CHECKS --budget 20
 ```
 
-Replace `SELECTED_CHECKS` with only approved names: `weather`, `news`, `projects`. Browser calls also pass website language. The shared 20-second budget
+Replace `SELECTED_CHECKS` with only approved names: `weather`, `news`. Browser calls also pass website language. The shared 20-second budget
 covers DNS, reads and worker shutdown; unfinished checks remain pending. Inspect
 statuses/counts/warnings, not exit codes alone; no private output dumps.
 
@@ -140,8 +138,6 @@ statuses/counts/warnings, not exit codes alone; no private output dumps.
 - News: fresh national-feed `--verify-sources` only, no archive/cache fallback or
   headline/report/delivery writes. Inspect each country's dated counts. Reachability
   does not prove historical coverage, every story's language or editorial truth.
-- Projects: already authorized registry only; no probes/writes. Detailed reads are
-  separate scoped work; batch them. Pairing repair belongs to the owner.
 
 Do not fetch omitted checks, retry failures, refresh caches, change outlets, expand
 access or adopt a sandbox prototype automatically. State actionable pending items

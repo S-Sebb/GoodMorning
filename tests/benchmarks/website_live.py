@@ -54,12 +54,12 @@ def main():
     else:
         trial_engine.copy_release(source, args.source.resolve()); runtime.mkdir(mode=0o700)
         (runtime/'profile.md').write_text('city: London, GB\ntimezone: Europe/London\nnews_country: GB\nsecretary_language: English\nsecretary_name: Nora\nsecretary_tone: warm and concise\ncalendar_source: custom\n')
-        (runtime/'browser-policy.json').write_text(json.dumps({key:False for key in ('live_project_access','calendar_sync','publisher_images','news_acknowledgement')}))
+        (runtime/'browser-policy.json').write_text(json.dumps({key:False for key in ('calendar_sync','publisher_images','news_acknowledgement')}))
         initialize(runtime); CalendarStore(str(runtime/'calendar.sqlite')).close()
         returning_viewer(runtime)
         results = {'model':selected['providerID']+'/'+selected['id'], 'variant':selected['variant'], 'checks':[], 'limitations':[
             'Loopback returning-account trial, not public HTTPS registration or encrypted-container deployment.',
-            'Private production-like OpenChamber engine; model and website routes are real.']}
+            'Private production-like OpenCode engine; model and website routes are real.']}
     bridge = TrialBridge(trial_engine.Engine(source, runtime).start())
     if args.resume:
         registry=json.loads((runtime/'browser-chats/chats.json').read_text())
@@ -149,17 +149,18 @@ def main():
             page.set_viewport_size({'width':1440,'height':1000})
             page.goto(address+'/gn.html')
             page.get_by_role('button', name='Prepare my evening briefing', exact=True).click()
-            expect(page.locator('.agent-form')).to_be_visible()
-            form=page.locator('.agent-form')
-            if form.get_by_text('Continue today',exact=True).count():
-                form.get_by_text('Continue today',exact=True).click()
-            form.get_by_text('None of these today.',exact=True).click()
+            # The check-in opens by itself; mark every due task not done and skip the optional steps.
+            dialog=page.get_by_role('dialog')
+            expect(dialog).to_be_visible()
+            save=dialog.get_by_role('button',name='Save and write my briefing')
+            while not save.is_visible():
+                # A verdict redraws the dialog only after a short delay; wait for it before looking again.
+                step=dialog.get_by_role('button',name=re.compile('^(Not done|Next)')).first.element_handle()
+                step.click()
+                step.wait_for_element_state('hidden')
             if args.blocked_report:
-                details=form.locator('textarea, input[type="text"]').last
-                details.fill('The Atlas report is blocked awaiting the dataset. Groceries were not done. No new dates or rollover are agreed.')
-            else:
-                form.get_by_text('Nothing else to add.',exact=True).click()
-            form.get_by_role('button',name='Send answer',exact=True).click()
+                dialog.get_by_role('textbox').fill('The Atlas report is blocked awaiting the dataset. Groceries were not done. No new dates or rollover are agreed.')
+            save.click()
             # Regenerate is also offered on unfinished previews. Only the final
             # ready reload removes generation controls and proves a saved edition.
             expect(page.locator('#generation-status')).to_have_count(0)

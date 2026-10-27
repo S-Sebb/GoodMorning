@@ -120,9 +120,8 @@ GoodMorning 把它们收在同一份记录里，再由一个 AI 智能体把这�
 GoodMorning 还在 **beta**。它不是独立的聊天机器人，需要：
 
 - **Linux**，以及 **Python 3.14+**，
-- 一个能访问模型的 **[OpenCode](https://opencode.ai)/OpenChamber** 智能体
-  （英文请求用 Muse Spark，中文请求用 DeepSeek V4.1 Flash），
-- **Node.js 22.18+**，只在可选的项目访问时用。
+- 一个能访问模型的 **[OpenCode](https://opencode.ai)** 智能体
+  （英文请求用 Muse Spark，中文请求用 DeepSeek V4.1 Flash）。
 
 1. 按[部署指南](docs/deployment.md)安装 `goodmorning` 技能。
    浏览器查看器见[浏览器指南](docs/browser-delivery.md)；
@@ -149,7 +148,6 @@ API 密钥。
 [晚间整理](docs/evening-tidy-up.md) ·
 [值得庆祝](docs/celebrations.md) ·
 [网站对话](docs/browser-chat.md) ·
-[项目访问](docs/project-access.md) ·
 [源码结构](docs/project-structure.md) ·
 [问题反馈](https://github.com/S-Sebb/GoodMorning/issues)
 
@@ -158,7 +156,6 @@ API 密钥。
 
 ## 许可证
 
-[MIT](LICENSE)。随项目提供的中继代码（[许可证](vendor/openchamber-relay/LICENSE)）
-和字体（[正文字体](assets/web/fonts/OFL.txt)、
+[MIT](LICENSE)。随项目提供的字体（[正文字体](assets/web/fonts/OFL.txt)、
 [像素字体](assets/web/fonts/pixel-fonts-OFL.txt)）保留各自的许可证；
 主题图片另有[素材来源说明](docs/theme-asset-credits.md)。

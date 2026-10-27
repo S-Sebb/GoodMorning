@@ -13,7 +13,7 @@ python scripts/goodmorning.py sessions --secretary-dir RUNTIME --storage
 ```
 
 Use `--cache-dir CACHE` for a separate local cache. Hosted account layouts also
-report engine data, OpenChamber state and private temporary files. Counts are
+report engine data and private temporary files. Counts are
 disjoint: uploads and avatar previews are not counted again as records. Repeated
 samples reveal growth; nothing is initialized, archived or deleted. The command
 uses file metadata only, omits filenames and never contacts an engine or model.

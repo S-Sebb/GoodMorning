@@ -28,7 +28,7 @@ def current():
 
 
 def session_payload(value):
-    """The OpenChamber session model body for a website model choice."""
+    """The OpenCode session model body for a website model choice."""
     entry = MODELS[model(value)]
     return {'providerID': entry['providerID'], 'id': entry['id'], 'variant': entry['variant']}
 

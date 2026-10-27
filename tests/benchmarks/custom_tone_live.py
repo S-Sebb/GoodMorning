@@ -86,7 +86,7 @@ def run_case(output, source, lang, selected, day):
             "city: London, GB\ntimezone: Europe/London\nnews_country: GB\n"
             "secretary_language: English\nsecretary_name: Nora\ncalendar_source: custom\n")
         (runtime / "browser-policy.json").write_text(json.dumps(
-            {key: False for key in ("live_project_access", "calendar_sync",
+            {key: False for key in ("calendar_sync",
                                     "publisher_images", "news_acknowledgement")}))
         initialize(runtime)
     result = {"case": name, "language": lang, "model": selected,

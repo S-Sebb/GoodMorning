@@ -56,8 +56,7 @@ preference changes in Secretary chats and setup outside the website.
 6. Verify only explicitly authorized providers once with `setup --secretary-dir RUNTIME
    --verify SELECTED_CHECKS --budget 20`. Inspect statuses/counts/warnings, not exit
    codes alone. Preserve saved setup and pending failures; retry only after owner
-   action/authorization. Follow project registry/lock rules. Unsupported/locked
-   sources need owner action,
+   action/authorization. Unsupported/locked sources need owner action,
    not code development or repair loops; execution remains disabled.
 7. Report saved, verified and pending items separately. Offer to resume the original
     request; if setup alone was requested, stop rather than launching another workflow.
@@ -267,9 +266,7 @@ preference changes in Secretary chats and setup outside the website.
    and next week's plans) and keeps it on the Letters page (“来信” in
    Chinese); the briefing ends with a short notice. Promise no other
    notifications.
-5. Project writes follow `docs/project-access.md`: exact authorized target, full
-   contents/current hash, scoped confirmation, preserved unrelated work and updated
-   `last_update`. Calendar changes/imports follow `docs/calendar-pipeline.md`:
+5. Calendar changes/imports follow `docs/calendar-pipeline.md`:
    confirm exact details and use the event's current revision. Imports apply
    directly; briefings report what changed.
 6. Amend daily history through `daily --date DATE --amend --expect HASH` without

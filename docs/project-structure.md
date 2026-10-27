@@ -17,9 +17,9 @@ package-qualified.
 | `src/goodmorning/news/` | Collection, editorial selection, reports, and bundled source configuration |
 | `src/goodmorning/calendar/` | Calendar storage, recurrence, and confirmed changes |
 | `assets/web/` | Browser assets; no generated pages or private user data |
-| `integrations/projects/` | Node.js project adapter and its internal Python helper |
+| `integrations/opencode/` | OpenCode plugins the website engine loads |
 | `vendor/` | Unmodified third-party source and notices |
-| `scripts/` | Two small command entry points only |
+| `scripts/` | One small command entry point only |
 | `requirements/` | Optional dependency lists |
 | `tests/` | Unit contracts, shared fixtures, `browser/` checks, and `benchmarks/` |
 | `deploy/` | Public service and HTTPS configuration |
@@ -36,7 +36,6 @@ Use `python scripts/goodmorning.py --help` to list commands and append
 ```sh
 python scripts/goodmorning.py job --secretary-dir RUNTIME --job JOB prepare
 python scripts/goodmorning.py serve --secretary-dir RUNTIME
-node scripts/projects.mjs --help
 ```
 
 Update commands, workflow documents, and service templates together. Verify the

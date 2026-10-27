@@ -344,8 +344,7 @@ class ChatTests(unittest.TestCase):
         self.assertTrue(all('title' not in body for body in creates))
 
     def test_every_turn_runs_on_the_secretary_agent(self):
-        # OpenChamber drops session.create's agent when no prompt is sent with it, and
-        # chats created before this fix already run as build: set it before every dispatch.
+        # Chats created before the secretary agent existed run as build: set it before every dispatch.
         order = []
         request, control = self.chamber.request, self.chamber.control
         def agent(path, body=None):

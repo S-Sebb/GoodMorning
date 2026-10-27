@@ -159,7 +159,7 @@ def run_case(output, source, config, day, extended=True, selected='muse-spark', 
         if TONES[tone]:
             profile += 'secretary_tone: '+TONES[tone]+'\n'
         (runtime/'profile.md').write_text(profile)
-        (runtime/'browser-policy.json').write_text(json.dumps({key:False for key in ('live_project_access','calendar_sync','publisher_images','news_acknowledgement')}))
+        (runtime/'browser-policy.json').write_text(json.dumps({key:False for key in ('calendar_sync','publisher_images','news_acknowledgement')}))
         initialize(runtime)
         CalendarStore(str(runtime/'calendar.sqlite')).close()
         result = {'case':name,'language':lang,'tone':TONES[tone] or 'default warm and helpful',

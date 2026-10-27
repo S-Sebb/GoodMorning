@@ -469,7 +469,7 @@ async function poll() {
       regenerate.hidden = false;
       regenerate.disabled = !state.regeneratable || !!queuedRegeneration;
       regenerate.title = state.regeneratable ? '' : browserT(state.state === 'uncertain'
-        ? 'Inspect uncertain dispatches in OpenChamber before regenerating'
+        ? 'A request may still be running. Ask your administrator to check it before regenerating.'
         : 'Finish or stop the existing session and resolve pending inputs before regenerating');
     }
     if (state.reservation_required === false) {

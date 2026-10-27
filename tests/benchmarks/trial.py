@@ -8,7 +8,7 @@
   trial.py clean [NAME]                        deletes one run, or every run of this checkout
 
 Runs live in /var/tmp/goodmorning-trials/<checkout>/NAME and never use the developer's OpenCode
-service. They survive OpenChamber restarts and the agent's shell ending; after a reboot their
+service. They survive engine restarts and the agent's shell ending; after a reboot their
 files remain and status reports them stopped.
 """
 import argparse
@@ -70,7 +70,7 @@ def start(name, harness, arguments):
     environment = dict(os.environ)
     environment.pop('VIRTUAL_ENV', None)  # The launching uv environment may disappear before the detached run starts.
     with paths['log'].open('ab') as log:
-        # Its own session: OpenChamber restarts and the agent's shell ending do not stop it.
+        # Its own session: engine restarts and the agent's shell ending do not stop it.
         process = subprocess.Popen(['sh', '-c', '"$@"; echo $? > "$0"', str(paths['exit']), *command], cwd=ROOT,
                                    stdin=subprocess.DEVNULL, stdout=log, stderr=log, start_new_session=True, env=environment)
     paths['run'].write_text(json.dumps({'pid':process.pid, 'boot':boot(), 'command':command, 'started':time.time()}))

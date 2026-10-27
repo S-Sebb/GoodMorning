@@ -116,7 +116,7 @@ def account(folder, scenario, language):
     runtime = folder/'account'
     runtime.mkdir(mode=0o700)
     (runtime/'browser-policy.json').write_text(json.dumps({key: False for key in (
-        'live_project_access', 'calendar_sync', 'publisher_images', 'news_acknowledgement')}))
+        'calendar_sync', 'publisher_images', 'news_acknowledgement')}))
     if scenario in ('new', 'reload', 'side-question'):
         return runtime
     expected, said = EXPECTED[language], PERSONA[language]

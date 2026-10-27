@@ -179,7 +179,7 @@ def main():
                       'storage_change_percent':round((storage['compact-json']/storage['markdown+presentation']-1)*100,2),
                       'median_compile_ms_per_edition':timings,
                       'native_contract_input_tokens_o200k':len(tiktoken.get_encoding('o200k_base').encode((ROOT/'docs/briefing-format.md').read_text())),
-                      'scope':'Equivalent synthetic content; tokenizers are proxies, not the user’s OpenChamber default model. Authoring counts exclude instructions, tool envelopes and minification commands. Local parse/validate/render only, no filesystem/network/cache. No LLM authoring error rate or paid generations measured.'}))
+                      'scope':'Equivalent synthetic content; tokenizers are proxies, not the user’s default model. Authoring counts exclude instructions, tool envelopes and minification commands. Local parse/validate/render only, no filesystem/network/cache. No LLM authoring error rate or paid generations measured.'}))
 
 
 if __name__=='__main__':main()

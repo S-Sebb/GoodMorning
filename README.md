@@ -125,9 +125,8 @@ The website works on phones. The [Android app](docs/android-app.md)
 GoodMorning is in **beta**. It is not a standalone chatbot: it needs
 
 - **Linux** with **Python 3.14+**,
-- an **[OpenCode](https://opencode.ai)/OpenChamber** agent with model access
-  (English requests use Muse Spark, Chinese requests DeepSeek V4.1 Flash),
-- **Node.js 22.18+** only for optional project access.
+- an **[OpenCode](https://opencode.ai)** agent with model access
+  (English requests use Muse Spark, Chinese requests DeepSeek V4.1 Flash).
 
 1. Install the `goodmorning` skill with the [deployment guide](docs/deployment.md).
    For the browser viewer, see the [browser guide](docs/browser-delivery.md);
@@ -155,7 +154,6 @@ Weather, modelled air quality and news need outbound HTTPS but no API keys.
 [Evening tidy-up](docs/evening-tidy-up.md) ·
 [Celebrations](docs/celebrations.md) ·
 [Browser chat](docs/browser-chat.md) ·
-[Project access](docs/project-access.md) ·
 [Source layout](docs/project-structure.md) ·
 [Issues](https://github.com/S-Sebb/GoodMorning/issues)
 
@@ -164,6 +162,6 @@ without any model calls.
 
 ## License
 
-[MIT](LICENSE). Bundled [relay code](vendor/openchamber-relay/LICENSE) and fonts
+[MIT](LICENSE). Bundled fonts
 ([text](assets/web/fonts/OFL.txt), [pixel](assets/web/fonts/pixel-fonts-OFL.txt))
 keep their own licenses; theme imagery has [asset credits](docs/theme-asset-credits.md).

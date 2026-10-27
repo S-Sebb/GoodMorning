@@ -125,12 +125,6 @@ def verify(runtime, fields, countries, selected, budget):
             if fields.get("news_sources_path"):
                 command += ["--sources", fields["news_sources_path"]]
             commands["news:" + country] = command
-    if "projects" in selected:
-        registry = runtime / "projects.json"
-        if registry.is_file():
-            commands["projects"] = ["node", "scripts/projects.mjs", "status", "--all", "--registry", str(registry), "--timeout", "5"]
-        else:
-            checks["projects"] = {"status": "pending", "reason": "no_authorized_registry"}
     env = dict(os.environ, PYTHONDONTWRITEBYTECODE="1", SECRETARY_DIR=str(runtime),
                CALENDAR_DB_PATH=str(runtime / "calendar.sqlite"), GM_CACHE_DIR=str(cache))
     checks.update(run_checks(commands, budget, env))
@@ -141,7 +135,7 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--secretary-dir")
     parser.add_argument('--website-language',choices=('en','zh-CN'),help='Use the selected website language without changing local preferences')
-    parser.add_argument("--verify", nargs="+", choices=("weather", "news", "projects"), default=[])
+    parser.add_argument("--verify", nargs="+", choices=("weather", "news"), default=[])
     parser.add_argument("--budget", type=float, default=20, help="Total elapsed budget for all selected checks (default 20 seconds)")
     parser.add_argument("action", nargs="?", choices=("next", "ask", "answer"),
                         help="A website Initialize chat's next setup step (docs/initialization.md)")

@@ -207,14 +207,13 @@ def stage(archive, name):
     for name_, value in files.items():
         assert digest(release/name_) == value, 'Extracted file differs from the archive'
         (release/name_).chmod(0o644)
-    assert {p.name for p in (release/'scripts').iterdir()} == {'goodmorning.py', 'projects.mjs'}
+    assert {p.name for p in (release/'scripts').iterdir()} == {'goodmorning.py'}
     env = dict(os.environ, PYTHONDONTWRITEBYTECODE='1')
     python = subprocess.run([PYTHON, '-B', '-m', 'unittest', 'discover', '-s', 'tests', '-p', 'test_*.py', '-q'],
                             cwd=release, env=env, capture_output=True, text=True, timeout=900)
     if python.returncode:
         raise RuntimeError('Release tests failed: '+python.stderr[-5000:])
-    node = command([NODE, '--test', '--test-reporter=tap', str(release/'tests/test_projects.mjs'),
-                    str(release/'tests/test_parked_reasoning.mjs')], cwd=release)
+    node = command([NODE, '--test', '--test-reporter=tap', str(release/'tests/test_parked_reasoning.mjs')], cwd=release)
     with read_db() as db:
         require_schema(db)
     result = {'archive': archive_hash, 'files': files,
@@ -320,7 +319,7 @@ def switch(name, engine=None):
     old_engine = ENGINE_CURRENT.resolve() if ENGINE_CURRENT.exists() else None
     new_engine = engine_path(engine) if engine else old_engine
     assert new_engine and (new_engine/'lib/node_modules').is_dir() and (NODE_HOME/'bin/node').is_file(), 'Stage the engine first'
-    # Older trees are named <openchamber>-<opencode>; both forms end in the OpenCode version.
+    # Older trees are named <other>-<opencode>; both forms end in the OpenCode version.
     expected_engine = new_engine.name.rpartition('-')[2]
 
     with read_db() as db:

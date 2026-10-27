@@ -8,7 +8,6 @@ import html
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
 import logging
-import os
 from pathlib import Path
 import re
 import secrets
@@ -28,7 +27,6 @@ from goodmorning.briefings.briefing_stream import DEFAULT_PLANS, load as load_pr
 from goodmorning.runtime_files import atomic_text, profile_fields, runtime_lock
 from .briefing_chat import (AVATAR_FILES, Chats, avatar_id, avatar_widget, close_question, model_answer, page as chat_page,
                             parked_forms, read_avatar, valid_answer, write_avatar)
-from goodmorning.paths import ROOT
 from . import language as ui
 from . import models as site_models
 from . import color_schemes as site_colors
@@ -82,9 +80,6 @@ class Chamber:
 
     def request(self, path, body=None, method=None):
         headers = {'x-opencode-directory': quote(self.directory, safe='')}
-        token = os.environ.get('GM_OPENCHAMBER_TOKEN')
-        if token:
-            headers['Authorization'] = 'Bearer ' + token
         if body is not None:
             headers['Content-Type'] = 'application/json'
         request = Request(self.url + path, data=json.dumps(body).encode() if body is not None else None, headers=headers, method=method)
@@ -99,7 +94,7 @@ class Chamber:
     def control(self, action, **parameters):
         """The four session actions GoodMorning uses, on OpenCode's native API.
 
-        The return shapes match OpenChamber's control actions, which these replace."""
+        Each returns the small shape its callers read."""
         if action == 'session.create':
             title = parameters.get('title')
             created = self.request('/api/session', {'location': {'directory': self.directory}, **({'title': title} if title else {})})
@@ -472,7 +467,7 @@ class BrowserApp:
                 offset = (Date.fromisoformat(date) - Date.fromisoformat(self.today())).days
                 button = f'<a class="initialize-button" href="/schedule?view=day&amp;day={offset}">Open this day in Schedule</a>'
             if current and not self.chamber:
-                detail = 'Generation is not connected. Start this viewer with an OpenChamber connection.'
+                detail = 'Generation is not connected. Ask your administrator to connect it.'
             switches = ''.join(f'<a class="edition-link{" selected" if other == kind else ""}" href="{f"/d/{date}/{other}.html" if pinned else f"/{other}.html"}">{label}</a>' for other, label in KINDS.items())
             text = f'<!doctype html><html lang="en" data-edition="{kind}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><title>{KINDS[kind]} briefing — GoodMorning</title><link rel="stylesheet" href="/briefing.css"></head><body><header class="masthead"><a class="wordmark" href="/{kind}.html">GoodMorning<span>A personal secretary just for you</span></a><nav class="edition-switch" aria-label="Edition">{switches}</nav></header><main>{week}<section class="waiting-room"><div class="waiting-art">{celestial(kind)}</div><p class="eyebrow">{KINDS[kind]} edition</p><h1>{heading}</h1><p class="subtitle">{detail}</p>{button}<div id="generation" hidden><div class="desk-animation" aria-hidden="true">✦<span>▱</span>✦</div><progress id="generation-progress" max="100" value="5" aria-label="Briefing preparation stages"></progress><p id="generation-status" role="status"></p><div id="agent-questions"></div></div><p id="generation-error" role="alert"></p><noscript>Enable JavaScript to prepare a briefing. Saved editions can still be read.</noscript></section></main></body></html>'
             if (current and self.chamber) or date + '.' + kind in self.jobs:
@@ -650,7 +645,7 @@ class BrowserApp:
                 raise ValueError('Prepare a briefing before regenerating it')
             if previous:
                 if previous['state'] in ('starting', 'uncertain'):
-                    raise ValueError('Inspect uncertain dispatches in OpenChamber before regenerating')
+                    raise ValueError('A request may still be running. Ask your administrator to check it before regenerating.')
                 locks.enter_context(runtime_lock(self.job_dir, previous['id'] + '.workflow.lock'))
                 locks.enter_context(runtime_lock(self.job_dir, previous['id'] + '.preview.lock'))
             session = previous.get('session') if previous else baseline['run']['session']
@@ -703,7 +698,7 @@ class BrowserApp:
             status = self.status(identifier)
             live = self.jobs[job['date']+'.'+job['kind']]
             if job['state'] in ('starting', 'uncertain', 'complete'):
-                raise ValueError('Inspect uncertain dispatches in OpenChamber; never replay them')
+                raise ValueError('A request may still be running. Ask your administrator to check it; it won’t be sent again.')
             if not job.get('session') and job['state'] in ('preflight', 'stopped'):
                 from goodmorning.briefings.briefing_job import context_path
                 from goodmorning.briefings.briefing_preflight import answer, initialize
@@ -910,7 +905,7 @@ class BrowserApp:
                 return 'invalid'
             return 'ready'
 
-        invalid = 'The saved edition is not readable. Inspect its format in OpenChamber; your records are unchanged.'
+        invalid = 'The saved edition is not readable. Your records are unchanged; ask your administrator to check its format.'
         mismatch = 'This edition was updated outside its briefing job and cannot be verified. Regenerate to replace it; your records are unchanged.'
         preview_path = self.job_dir / (identifier + '.preview.json')
         if saved and job['state'] == 'complete':
@@ -949,7 +944,7 @@ class BrowserApp:
                 permissions = [permission for permission in permissions if 'permission:'+permission['id'] not in receipts]
                 state = None if forms or permissions else self.chamber.control('session.status', sessionId=job['session'])['sessionStatus']['type']
             except Exception:
-                result.update(state='uncertain', label='The secretary connection is unavailable. Completed preview sections remain readable; check the session in OpenChamber.')
+                result.update(state='uncertain', label='The secretary connection is unavailable. Completed preview sections remain readable; ask your administrator to check the conversation.')
                 return result
             result.update(forms=forms, permissions=permissions)
             if forms or permissions:
@@ -976,11 +971,11 @@ class BrowserApp:
                     else:
                         replacement = 'replacement' in job
                         result.update(state='stopped', label='Regeneration stopped before the new briefing was saved. Your previous briefing is preserved.' if replacement
-                                      else mismatch if reason == 'foreign' else invalid if saved else 'Preparation stopped before an edition was saved. Open the session in OpenChamber to continue.')
+                                      else mismatch if reason == 'foreign' else invalid if saved else 'Preparation stopped before an edition was saved. Continue the conversation, or ask your administrator for help.')
         elif job.get('session'):
-            result.update(state='uncertain', label='The secretary is not connected. Completed preview sections remain readable; check the session in OpenChamber.')
+            result.update(state='uncertain', label='The secretary is not connected. Completed preview sections remain readable; ask your administrator to check the conversation.')
         if result['state'] == 'uncertain':
-            result['label'] = 'The connection was interrupted. Check OpenChamber before retrying; a session may already be running.'
+            result['label'] = 'The connection was interrupted and a request may still be running. Ask your administrator before retrying.'
         if self.preflight and job['date'] == self.today() and result['state'] == 'stopped' and job['state'] not in ('starting', 'uncertain', 'complete'):
             result['recovery'] = 'Continue existing session' if job.get('session') else 'Prepare again'
             result['recovery_action']='resume' if job.get('session') else 'restart'
@@ -1412,14 +1407,11 @@ def serve_live(app, port, *, gateway_key=None, public_origins=()):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--secretary-dir', type=Path, required=True)
-    parser.add_argument('--openchamber-url', help='Explicit loopback OpenChamber origin; omitted means browsing only')
     parser.add_argument('--port', type=int, default=8765)
     parser.add_argument('--gateway-key-file', type=Path)
     parser.add_argument('--public-origin', action='append', default=[])
     args = parser.parse_args()
     runtime = args.secretary_dir.expanduser().resolve()
-    directory = ROOT
-    chamber = Chamber(args.openchamber_url, directory) if args.openchamber_url else None
     # One bridge per runtime, including across processes: double clicks/restarts
     # must not create independent sessions for the same edition.
     import fcntl
@@ -1440,7 +1432,7 @@ def main():
             raise ValueError('Invalid gateway key')
         if any(not re.fullmatch(r'https://[a-z0-9.-]+',origin) for origin in args.public_origin):
             raise ValueError('Public origins must be explicit HTTPS hostnames')
-        serve_live(BrowserApp(runtime, chamber, preflight=True), args.port,
+        serve_live(BrowserApp(runtime, None, preflight=True), args.port,
                    gateway_key=key, public_origins=tuple(args.public_origin))
 
 

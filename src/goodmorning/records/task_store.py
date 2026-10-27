@@ -132,6 +132,9 @@ def validate(data, *, draft=False):
             raise ValueError('invalid_input: unknown event draft state')
         if out.get('confirmed_day') and not (out.get('date') and out.get('timezone')):
             raise ValueError('invalid_input: confirmed appointment day needs date and timezone')
+        # Schedule shows only needs-details drafts as TBC; a tentative one would vanish.
+        if out.get('confirmed_day') and out.get('state') == 'tentative':
+            raise ValueError('invalid_input: a confirmed appointment day uses state needs-details; tentative means the day is not agreed')
         if 'event' in out:
             from goodmorning.calendar.calendar_store import normalize
             out['event'] = normalize(out['event'])
