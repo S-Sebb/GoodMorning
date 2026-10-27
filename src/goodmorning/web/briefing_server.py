@@ -720,9 +720,10 @@ class BrowserApp:
                 forms, permissions = self.chamber.pending(job['session'])
                 if forms or permissions or self.chamber.control('session.status', sessionId=job['session'])['sessionStatus']['type'] != 'idle':
                     raise ValueError('The existing session must be idle with no pending inputs')
+                previous = live['state']
                 live.update(state='starting', recovery_request=body['id'])
                 self.save_jobs()  # Record intent before sending to the existing session.
-                threading.Thread(target=self.continue_session, args=(live,), daemon=True).start()
+                threading.Thread(target=self.continue_session, args=(live, previous), daemon=True).start()
             else:
                 raise ValueError('This job does not need recovery')
             return {'job':identifier}
@@ -744,10 +745,10 @@ class BrowserApp:
                     questions[:] = [entry for entry in questions if entry['id'] != form['id']]
                     self.save_jobs()
 
-    def continue_session(self, job, answer=None):
+    def continue_session(self, job, previous, question=None):
         try:
-            # Closing an answered question ends the engine's run a moment later.
-            for _ in range(50 if answer else 1):
+            # The engine ends a run once its closed question is the last open input in that step.
+            for _ in range(50 if question else 1):
                 forms, permissions = self.chamber.pending(job['session'])
                 idle = not forms and not permissions and self.chamber.control('session.status', sessionId=job['session'])['sessionStatus']['type'] == 'idle'
                 if idle:
@@ -757,7 +758,16 @@ class BrowserApp:
                 raise ValueError('Session changed before continuation')
             self.chamber.relocate(job['session'])
             site_models.apply_to_session(self.chamber, job['session'], job.get('model', site_models.DEFAULT))
-            prompt = self.generation_prompt(job) + ('\n\n' + answer if answer else '')
+            prompt = self.generation_prompt(job) + ('\n\n' + model_answer(question['form'], question['answer']) if question else '')
+        except Exception:
+            # Nothing was sent, so this is not an uncertain dispatch: the question waits for the user again.
+            with self.lock:
+                job['state'] = previous
+                if question:
+                    del question['answer']
+                self.save_jobs()
+            return
+        try:
             result = self.chamber.control('session.send', sessionId=job['session'], prompt=prompt)
             if result.get('promptDispatched') is not True:
                 raise ValueError('Continuation was not confirmed')
@@ -1007,10 +1017,10 @@ class BrowserApp:
                 if live['state'] in ('starting', 'uncertain'):
                     raise ValueError('Wait for the briefing to settle before answering')
                 question['answer'] = valid_answer(question['form'], body.get('answer'))
-                live['state'] = 'starting'
+                previous, live['state'] = live['state'], 'starting'
                 self.save_jobs()
             # An answer after the day has passed still finishes this edition under its own date.
-            threading.Thread(target=self.continue_session, args=(live, model_answer(question['form'], question['answer'])), daemon=True).start()
+            threading.Thread(target=self.continue_session, args=(live, previous, question), daemon=True).start()
             return {'answered': True}
         pending = forms if category == 'form' else permissions
         if not any(item['id'] == request_id for item in pending):
