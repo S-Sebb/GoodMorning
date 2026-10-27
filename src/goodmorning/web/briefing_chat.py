@@ -22,7 +22,6 @@ MODES = {'initialize': 'Initialize', 'secretary': 'Secretary', 'todo': 'To-do', 
 # Secretary now saves to-dos and ideas itself; older To-do/Eureka chats stay readable and replyable.
 NEW_MODES = ('initialize', 'secretary')
 OUTREACH_TITLE = 'A note from your secretary'
-SETUP_START = 'Start the initialization process with me.'  # The Initialize button's message (chat.js).
 # An engine stores an accepted prompt at once; wait this long before calling an unseen one not sent.
 DELIVERY_GRACE = 120
 
@@ -273,7 +272,7 @@ def chat_language(item, latest=False):
 
 def is_setup_start(turn):
     """The Initialize button's own message (or none) asks for nothing beyond setup itself."""
-    return not turn['attachments'] and turn['text'] in ('', ui.text(SETUP_START, lang=turn.get('language', 'en')))
+    return not turn['attachments'] and turn['text'] in ('', ui.text(setup_flow.START, lang=turn.get('language', 'en')))
 
 
 def opening_message(opening):

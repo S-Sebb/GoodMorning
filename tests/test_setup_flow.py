@@ -31,7 +31,8 @@ class SetupFlowTests(unittest.TestCase):
 
     def said(self, *texts, language='en', answers=()):
         turns = [{'id': str(index), 'text': text, 'language': language} for index, text in enumerate(texts)]
-        questions = [{'id': 'q' + str(index), 'answer': answer} for index, answer in enumerate(answers)]
+        questions = [{'id': 'q' + str(index), 'answer': answer, 'form': {'setup': 'consent' if 'consent' in answer else None}}
+                     for index, answer in enumerate(answers)]
         (self.root / 'browser-chats' / 'chats.json').write_text(json.dumps(
             {CHAT: {'id': CHAT, 'mode': 'initialize', 'session': SESSION, 'turns': turns, 'questions': questions}}))
 
@@ -128,6 +129,12 @@ class SetupFlowTests(unittest.TestCase):
         # Keeping or skipping needs a meaningful quote too.
         self.assertEqual(self.answer('birthday', quote='是')[1]['error'], 'unquoted')
         self.assertEqual(self.answer('birthday', quote='是的')[1]['setup']['step'], 'location')
+        # Code's own words never stand in for the user's: the Initialize button, consent, keep and skip choices.
+        self.said('请和我一起开始初始化流程。', language='zh-CN', answers=[{'consent': 'agree'}, {'city': 'keep'}, {'user_name': 'skip'}])
+        self.assertEqual(setup_flow.user_words(self.root, CHAT), [])
+        for quote in ('请和我一起开始初始化流程', 'keep', 'agree'):
+            with self.subTest(quote=quote):
+                self.assertEqual(self.answer('location', quote=quote)[1]['error'], 'unquoted')
 
     def test_values_follow_each_settings_rules(self):
         self.ready()

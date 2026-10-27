@@ -41,6 +41,7 @@ NEWS = ('US', 'GB', 'CN', 'CA', 'AU')  # Bundled outlets; others are set up late
 COUNTRIES = {'US': 'United States', 'GB': 'United Kingdom', 'CN': 'China', 'CA': 'Canada', 'AU': 'Australia'}
 # Code-applied choices; anything else is the user's own words for the secretary to interpret.
 KEEP, SKIP, KEEP_ALL = 'keep', 'skip', 'keep_all'
+START = 'Start the initialization process with me.'  # The Initialize button's message (chat.js).
 CONSENT = 'setup-consent.json'
 CHECK_FIELDS = ('city', 'timezone', 'news_country', 'news_additional_countries')
 LABELS = {'secretary_name': ('Your secretary’s name', 'A name for me',
@@ -312,13 +313,17 @@ def normalized(text):
 
 
 def user_words(runtime, chat):
-    """What this chat's user wrote or picked: their messages and question answers, never the secretary's."""
+    """What this chat's user wrote or picked: their messages and question answers, never the secretary's. The
+    Initialize button's message, consent and keep or skip choices belong to code and quote nothing."""
     registry = Path(runtime) / 'browser-chats' / 'chats.json'
     item = json.loads(registry.read_text(encoding='utf-8')).get(chat, {}) if registry.exists() else {}
-    words = [turn.get('text', '') for turn in item.get('turns', []) if not turn.get('answer')]
+    starts = {ui.text(START, lang=lang) for lang in ('en', 'zh-CN')}
+    words = [turn.get('text', '') for turn in item.get('turns', []) if not turn.get('answer') and turn.get('text') not in starts]
     for question in item.get('questions', []):
+        if question.get('form', {}).get('setup') == 'consent':
+            continue
         for value in question.get('answer', {}).values():
-            words.extend(value if isinstance(value, list) else [value])
+            words.extend(entry for entry in (value if isinstance(value, list) else [value]) if entry not in (KEEP, SKIP, KEEP_ALL))
     return [normalized(word) for word in words if isinstance(word, str) and word.strip()]
 
 
