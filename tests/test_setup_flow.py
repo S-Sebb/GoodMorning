@@ -10,11 +10,11 @@ from unittest.mock import patch
 
 from support import TEMP_ROOT
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'src'))
-from goodmorning import setup_flow
+from goodmorning import setup_flow, weather
 from goodmorning.runtime_files import profile_fields, set_profile_fields
 
 CHAT, SESSION = 'a' * 32, 'ses_setup'
-READY = {'city': 'Edinburgh, UK', 'region': 'global', 'timezone': 'Europe/London', 'news_country': 'GB',
+READY = {'city': 'Edinburgh, Scotland, GB', 'region': 'global', 'timezone': 'Europe/London', 'news_country': 'GB',
          'secretary_name': 'Pip', 'holiday_countries': 'GB-SCT'}
 
 
@@ -25,6 +25,9 @@ class SetupFlowTests(unittest.TestCase):
         self.root = Path(temp.name)
         (self.root / 'browser-chats').mkdir()
         self.said('Call yourself Pip. I am Sam, born 03-14, and I live in Edinburgh, UK.')
+        places = patch.object(weather, 'openmeteo_geocode', return_value={})
+        self.geocode = places.start()
+        self.addCleanup(places.stop)
 
     def said(self, *texts, language='en', answers=()):
         turns = [{'id': str(index), 'text': text, 'language': language} for index, text in enumerate(texts)]
@@ -70,9 +73,16 @@ class SetupFlowTests(unittest.TestCase):
         self.assertEqual(result['setup']['step'], 'birthday')
         self.assertEqual(result['saved'], {'birthday': '03-14'})
         self.answer('birthday', quote='born 03-14')
-        _, result = self.answer('location', {'city': 'Edinburgh, UK', 'region': 'global', 'timezone': 'Europe/London'},
-                                {'city': 'Edinburgh, UK'})
+        location = {'city': 'Edinburgh, Scotland, GB', 'region': 'global', 'timezone': 'Europe/London'}
+        # A city the weather service cannot place is never saved; an unreachable service does not block setup.
+        self.geocode.side_effect = weather.PlaceError('city is ambiguous; specify country/region or verified coordinates')
+        _, result = self.answer('location', location, {'city': 'Edinburgh, UK'})
+        self.assertEqual(result['error'], 'city_unresolved')
+        self.assertEqual(profile_fields(self.root)['city'], '')
+        self.geocode.side_effect = weather.WeatherError('network unavailable or timed out')
+        _, result = self.answer('location', location, {'city': 'Edinburgh, UK'})
         self.assertEqual(result['setup']['step'], 'rhythm')
+        self.geocode.assert_called_with('Edinburgh, Scotland, GB', 10)
         for step in ('rhythm', 'about'):
             self.answer(step, quote='I am Sam')
         self.answer('news', {'news_country': 'gb'}, {'news_country': 'UK'})

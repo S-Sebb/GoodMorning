@@ -97,6 +97,8 @@ OPENER_FLAGS = re.compile(r'instruction|\bdocs?\b|\.md\b|AGENTS|workflow|contrac
                           r'文档|指令|说明|读取|加载|规则|流程|回执', re.I)
 CJK = re.compile('[一-鿿]')
 PLAYFUL = {'en': 'playful', 'zh-CN': '活泼'}
+# A saved city names the place in the user's script or in English.
+PLACES = {'Edinburgh': ('Edinburgh',), '杭州': ('杭州', 'Hangzhou'), 'Glasgow, UK': ('Glasgow',), '苏州': ('苏州', 'Suzhou')}
 
 
 def source_copy(folder, runtime):
@@ -120,7 +122,7 @@ def account(folder, scenario, language):
     expected, said = EXPECTED[language], PERSONA[language]
     saved = {**{key: expected[key] for key in ('secretary_name', 'user_name', 'birthday', 'timezone', 'region',
                                                 'news_country', 'holiday_countries')},
-             'city': 'Edinburgh, UK' if language == 'en' else '杭州，中国',
+             'city': 'Edinburgh, Scotland, GB' if language == 'en' else '杭州, 浙江, CN',
              **{key: said[key] for key in ('work_days', 'work_hours', 'sleep_time', 'secretary_tone', 'occupations', 'expertise_fields')}}
     if scenario == 'recovery':
         del saved['news_country'], saved['holiday_countries']
@@ -288,6 +290,7 @@ def run(output, language, selected, arm, scenario, index):
         result['opener_wrong_language'] = bool(result['opener']) and (language == 'zh-CN') != bool(CJK.search(result['opener']))
         result['profile'] = {key: fields.get(key, '') for key in (*EXPECTED['en'], *MENTIONED['en'], 'secretary_tone', 'special_needs')}
         result['setup'] = state = setup_state(runtime, chat)
+        result['weather_check'] = ((state or {}).get('checks') or {}).get('weather')
         result['stalled'] = bool(status['state'] == 'idle' and scenario != 'secretary-tone' and (
             state['phase'] != 'done' if state else not fields.get('news_country')))
         commands = [json.loads(line) for line in (runtime/'trial-commands.jsonl').read_text().splitlines()] \
@@ -337,7 +340,7 @@ def checks(scenario, language, fields, before, runtime, result):
         failed.append('stalled before setup finished')
     for key, value in expected.items():
         if key == 'city':
-            if value.split(',')[0] not in fields.get('city', ''):
+            if not any(name in fields.get('city', '') for name in PLACES[value]):
                 failed.append(f'city is {fields.get("city")!r}')
         elif fields.get(key, '') != value:
             failed.append(f'{key} is {fields.get(key, "")!r}, not {value!r}')

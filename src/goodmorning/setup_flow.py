@@ -16,7 +16,7 @@ import shutil
 import time
 from zoneinfo import ZoneInfo
 
-from . import setup_guides
+from . import setup_guides, weather
 from .calendar import public_holidays
 from .paths import ROOT
 from .records.celebrations import birthday
@@ -346,10 +346,24 @@ def save(runtime, state, step, values):
     missing = [key for key in REQUIRED.get(step, ()) if not merged.get(key)]
     if missing:
         raise SetupError('required: ' + ', '.join(missing) + ' is needed for this step; ask for it')
+    if 'city' in changes:
+        place(changes['city'])
     if changes:
         set_profile_fields(runtime, changes)
         state['changed'] = list(dict.fromkeys(state['changed'] + list(changes)))
     return changes
+
+
+def place(city):
+    """A new city must name one place for the weather service; an unreachable service leaves it to the final check."""
+    try:
+        weather.openmeteo_geocode(city, 10)
+    except weather.PlaceError as error:
+        raise SetupError(f'city_unresolved: the weather service cannot place "{city}" ({error}). Save it as "City, '
+                         'Province or State, CC" with the two-letter country code (Hangzhou, Zhejiang, CN); if you cannot '
+                         'tell which place the user means, run `ask` for this step with `clarify`') from None
+    except weather.WeatherError:
+        pass
 
 
 def finish_step(state, step, keep_all=False):
