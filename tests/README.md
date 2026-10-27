@@ -85,8 +85,8 @@ auto-title flow against a loopback-only fake provider.
 ## Paid live-model trials (opt-in)
 
 Required for prompt changes as set out in `AGENT-PROMPT-GUIDE.md`. Each synthetic
-account gets a private engine started like a hosted account's: the latest OpenChamber
-with the OpenCode and Node it pins (cached in `~/.cache/goodmorning/trial-engines`),
+account gets a private engine started like a hosted account's: the OpenCode and Node
+versions pinned in `deploy/engine.json` (cached in `~/.cache/goodmorning/trial-engines`),
 a fresh HOME and database, a copied public release as working directory, and the
 production `LocalBridge`. Trial sessions therefore never reach your OpenCode
 service, sidebar or notifications, and agents load only the release's own

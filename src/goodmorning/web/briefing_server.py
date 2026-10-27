@@ -1,4 +1,4 @@
-"""Private live seven-day viewer and narrowly scoped OpenChamber generation bridge."""
+"""Private live seven-day viewer and narrowly scoped OpenCode generation bridge."""
 import argparse
 from contextlib import ExitStack
 import gzip
@@ -77,7 +77,7 @@ class Chamber:
     def __init__(self, url, directory):
         parsed = urlsplit(url)
         if parsed.scheme != 'http' or parsed.hostname != '127.0.0.1' or parsed.path not in ('', '/') or parsed.username or parsed.query or parsed.fragment:
-            raise ValueError('OpenChamber must be an explicit loopback HTTP origin')
+            raise ValueError('The engine must be an explicit loopback HTTP origin')
         self.url, self.directory = url.rstrip('/'), str(directory)
 
     def request(self, path, body=None, method=None):
@@ -92,37 +92,51 @@ class Chamber:
             return read_json(response, attachment_data=urlsplit(path).path.endswith(('/prompt', '/message')),
                              message_data=urlsplit(path).path.endswith('/message'))
 
+    def status(self, session):
+        """Native `/api/session/active` lists only running sessions, parked questions included."""
+        return {'sessionStatus': {'type': 'busy' if session in self.request('/api/session/active')['data'] else 'idle'}}
+
     def control(self, action, **parameters):
-        if action == 'session.messages':
-            # OpenChamber 2.2 multiplies this limit by four, exceeding V2's 200.
-            # Read bounded native pages instead; keep the requested visible-message window.
-            session = parameters['sessionId']
-            limit = parameters.get('limit', 100)
-            messages, cursor = [], None
-            for _ in range(max(10, limit // 10)):
-                query = {'limit': 200, **({'cursor': cursor} if cursor else {'order': 'desc'})}
-                page = self.request(f'/api/session/{session}/message?' + urlencode(query))
-                for entry in page['data']:
-                    role = entry.get('type')
-                    if role not in ('user', 'assistant'):continue
-                    text = entry.get('text', '') if role == 'user' else ''.join(
-                        part['text'] for part in entry.get('content', []) if part.get('type') == 'text')
-                    # The engine interrupts a run after an hour without activity, closing a question
-                    # nobody answered. Its input is private tool state, so only the tool IDs remain.
-                    questions = [part['id'] for part in entry.get('content', []) if role == 'assistant'
-                                 and part.get('type') == 'tool' and part.get('name') == 'question']
-                    if questions and (entry.get('error') or {}).get('type') == 'aborted':
-                        messages.append({'id': entry['id'] + ':expired', 'role': 'assistant', 'text': '',
-                                         'kind': 'expired', 'tools': questions})
-                    if text.strip():messages.append({'id': entry['id'], 'role': role, 'text': text.strip()})
-                next_cursor = page['cursor'].get('next')
-                if len(messages) >= limit or not next_cursor:break
-                if next_cursor == cursor:raise ValueError('Repeated message cursor')
-                cursor = next_cursor
-            status = self.request('/api/openchamber/control', {'action': 'session.status',
-                'input': {'directory': self.directory, 'sessionId': session}})
-            return {**status, 'messages': list(reversed(messages[:limit])), 'more': len(messages) > limit or bool(next_cursor)}
-        return self.request('/api/openchamber/control', {'action': action, 'input': {'directory': self.directory, **parameters}})
+        """The four session actions GoodMorning uses, on OpenCode's native API.
+
+        The return shapes match OpenChamber's control actions, which these replace."""
+        if action == 'session.create':
+            title = parameters.get('title')
+            created = self.request('/api/session', {'location': {'directory': self.directory}, **({'title': title} if title else {})})
+            return {'sessionId': created['data']['id']}
+        if action == 'session.send':
+            # A session keeps the model and agent last set on it.
+            sent = self.request(f"/api/session/{parameters['sessionId']}/prompt", {'text': parameters['prompt']})
+            receipt = sent.get('data', {})
+            return {'promptDispatched': isinstance(receipt.get('id'), str) and bool(receipt['id'])}
+        if action == 'session.status':
+            return self.status(parameters['sessionId'])
+        if action != 'session.messages':
+            raise ValueError('Unsupported engine action')
+        session = parameters['sessionId']
+        limit = parameters.get('limit', 100)
+        messages, cursor = [], None
+        for _ in range(max(10, limit // 10)):
+            query = {'limit': 200, **({'cursor': cursor} if cursor else {'order': 'desc'})}
+            page = self.request(f'/api/session/{session}/message?' + urlencode(query))
+            for entry in page['data']:
+                role = entry.get('type')
+                if role not in ('user', 'assistant'):continue
+                text = entry.get('text', '') if role == 'user' else ''.join(
+                    part['text'] for part in entry.get('content', []) if part.get('type') == 'text')
+                # The engine interrupts a run after an hour without activity, closing a question
+                # nobody answered. Its input is private tool state, so only the tool IDs remain.
+                questions = [part['id'] for part in entry.get('content', []) if role == 'assistant'
+                             and part.get('type') == 'tool' and part.get('name') == 'question']
+                if questions and (entry.get('error') or {}).get('type') == 'aborted':
+                    messages.append({'id': entry['id'] + ':expired', 'role': 'assistant', 'text': '',
+                                     'kind': 'expired', 'tools': questions})
+                if text.strip():messages.append({'id': entry['id'], 'role': role, 'text': text.strip()})
+            next_cursor = page['cursor'].get('next')
+            if len(messages) >= limit or not next_cursor:break
+            if next_cursor == cursor:raise ValueError('Repeated message cursor')
+            cursor = next_cursor
+        return {**self.status(session), 'messages': list(reversed(messages[:limit])), 'more': len(messages) > limit or bool(next_cursor)}
 
     def relocate(self, session):
         """A session keeps its original release location across server updates. Moves only this

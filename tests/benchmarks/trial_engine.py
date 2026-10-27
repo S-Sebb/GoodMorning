@@ -1,6 +1,6 @@
 """Private, production-like engines for paid website-model trials.
 
-Each synthetic account gets its own OpenChamber and OpenCode, started the way a hosted
+Each synthetic account gets its own OpenCode server, started the way a hosted
 account's engine is (`goodmorning.security.briefing_runtime`): a fresh HOME and database, the
 copied release as working directory, and the production `LocalBridge` client. Trial sessions
 never reach the developer's OpenCode service, sidebar or notifications, and agents load only
@@ -71,21 +71,13 @@ def copy_release(destination, source=ROOT):
 
 
 def engine_versions():
-    """Latest OpenChamber and the OpenCode it pins, chosen once per task so every run compares alike."""
-    pinned = task_root()/'engine.json'
-    if not pinned.exists():
-        with urlopen(REGISTRY+'/@openchamber%2fweb/latest', timeout=30) as response:
-            manifest = json.load(response)
-        pinned.parent.mkdir(parents=True, exist_ok=True)
-        pinned.write_text(json.dumps({'openchamber':manifest['version'],
-                                      'opencode':manifest['dependencies']['@opencode/client'],
-                                      'node':manifest['engines']['node']}))
-    return json.loads(pinned.read_text())
+    """The OpenCode and Node versions production pins in `deploy/engine.json`."""
+    return json.loads((ROOT/'deploy/engine.json').read_text())
 
 
 def engine_tree():
     versions = engine_versions()
-    tree = ENGINES/(versions['openchamber']+'-'+versions['opencode'])
+    tree = ENGINES/('opencode-'+versions['opencode'])
     ENGINES.mkdir(parents=True, exist_ok=True)
     with (ENGINES/'.install.lock').open('a') as lock:
         fcntl.flock(lock, fcntl.LOCK_EX)
@@ -93,10 +85,8 @@ def engine_tree():
             temporary = ENGINES/('.'+tree.name+'.partial')
             shutil.rmtree(temporary, ignore_errors=True)
             npm = ['npm', '--global', '--prefix', str(temporary), '--registry', REGISTRY, '--no-audit', '--no-fund']
-            major = versions['node'].lstrip('>=^~').split('.')[0]
             # Only the OpenCode binary and Node runtime packages run install scripts.
-            subprocess.run(npm+['install', '--ignore-scripts', '@openchamber/web@'+versions['openchamber'],
-                                '@opencode/cli@'+versions['opencode'], 'node@'+major],
+            subprocess.run(npm+['install', '--ignore-scripts', '@opencode/cli@'+versions['opencode'], 'node@'+versions['node']],
                            check=True, capture_output=True, timeout=900)
             subprocess.run(npm+['rebuild', '@opencode/cli', 'node'], check=True, capture_output=True, timeout=900)
             temporary.rename(tree)
@@ -145,7 +135,7 @@ atexit.register(stop_all)
 
 
 class Engine:
-    """One synthetic account's OpenChamber and OpenCode on a fresh loopback port.
+    """One synthetic account's OpenCode server on a fresh loopback port.
 
     Its HOME and database live in `engine/` beside the account's runtime folder."""
     def __init__(self, release, runtime):
@@ -162,9 +152,9 @@ class Engine:
                 'XDG_CACHE_HOME':str(home/'.cache'), 'XDG_STATE_HOME':str(home/'.local/state'),
                 'XDG_RUNTIME_DIR':str(self.folder/'run'), 'TMPDIR':str(self.runtime/'tmp'),
                 'SECRETARY_DIR':str(self.runtime), 'GM_CACHE_DIR':str(self.runtime/'cache'),
-                'PYTHONDONTWRITEBYTECODE':'1', 'OPENCODE_BINARY':str(tree/'bin/opencode'),
+                'PYTHONDONTWRITEBYTECODE':'1',
                 'OPENCODE_CONFIG':str(self.release/'integrations/opencode/opencode.json'),
-                'OPENCHAMBER_UI_PASSWORD':self.password, 'OPENCHAMBER_DATA_DIR':str(home/'.config/openchamber')}
+                'OPENCODE_SERVER_PASSWORD':self.password}
 
     def start(self):
         tree = engine_tree()
@@ -179,8 +169,7 @@ class Engine:
         env = self.environment(tree)
         handle_signals()
         with (self.folder/'engine.log').open('ab') as log:
-            self.process = subprocess.Popen([str(tree/'bin/node'), str(tree/'lib/node_modules/@openchamber/web/bin/cli.js'),
-                                             'serve', '--foreground', '--api-only', '--host', '127.0.0.1',
+            self.process = subprocess.Popen([str(tree/'bin/opencode'), 'serve', '--hostname', '127.0.0.1',
                                              '--port', self.url.rsplit(':', 1)[1]],
                                             cwd=self.release, env=env, stdin=subprocess.DEVNULL, stdout=log, stderr=log,
                                             start_new_session=True, preexec_fn=die_with_parent)
@@ -240,14 +229,11 @@ class TrialBridge(LocalBridge):
         self.engine.stop()
 
     def control(self, action, **parameters):
-        if action == 'session.create' and self.agent:
-            parameters['agent'] = self.agent
         result = super().control(action, **parameters)
         if action == 'session.create':
             session = result['sessionId']
             self.sessions.append(session)
-            # OpenChamber records a created session's agent only at its first prompt; set it now
-            # so the pin is confirmed before any model work.
+            # Pin the agent and confirm it before any model work.
             if self.agent:
                 self.request(f'/api/session/{session}/agent', {'agent':self.agent})
                 if self.session(session).get('agent') != self.agent:

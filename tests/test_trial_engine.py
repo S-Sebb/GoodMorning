@@ -61,7 +61,7 @@ class TrialEngineTests(unittest.TestCase):
         self.assertNotIn('OPENCODE_API_KEY', environment)
         case = self.root/'case'
         for name in ('HOME', 'XDG_CONFIG_HOME', 'XDG_DATA_HOME', 'XDG_CACHE_HOME', 'XDG_STATE_HOME', 'XDG_RUNTIME_DIR',
-                     'TMPDIR', 'SECRETARY_DIR', 'GM_CACHE_DIR', 'OPENCHAMBER_DATA_DIR'):
+                     'TMPDIR', 'SECRETARY_DIR', 'GM_CACHE_DIR'):
             with self.subTest(name=name):
                 self.assertTrue(Path(environment[name]).is_relative_to(case))
         self.assertEqual(environment['SECRETARY_DIR'], str(case/'account'))
@@ -77,7 +77,7 @@ class TrialEngineTests(unittest.TestCase):
                 patch.object(bridge, 'request', return_value={'data':{'agent':'secretary'}}) as request:
             with self.assertRaisesRegex(ValueError, 'not confirmed'):
                 bridge.control('session.create', agent='secretary')
-        control.assert_called_once_with('session.create', agent='build')
+        control.assert_called_once_with('session.create', agent='secretary')
         self.assertEqual(request.call_args_list[0].args, ('/api/session/ses_trial/agent', {'agent':'build'}))
         self.assertEqual(bridge.sessions, ['ses_trial'])
 

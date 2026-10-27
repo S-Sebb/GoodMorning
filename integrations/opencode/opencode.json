@@ -1,3 +1,3 @@
 {
-  "plugins": ["./parked-reasoning"]
+  "plugins": ["-opencode.browser", "./parked-reasoning", "./session-title"]
 }
