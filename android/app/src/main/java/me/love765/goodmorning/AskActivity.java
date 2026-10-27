@@ -4,7 +4,6 @@ import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
 import android.content.res.ColorStateList;
-import android.content.res.Configuration;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Color;
@@ -102,9 +101,7 @@ public class AskActivity extends Activity {
 
     /** The website's look in the account's day or night scheme, as in the chat widget. */
     private void style() {
-        Palette[] schemes = Palette.of(this);
-        boolean night = (getResources().getConfiguration().uiMode & Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES;
-        Palette p = schemes[night ? 1 : 0];
+        Palette p = Palette.now(this);
         float density = getResources().getDisplayMetrics().density;
         findViewById(R.id.card).setBackground(rounded(p.paper, p.border, 24 * density, density));
         findViewById(R.id.text).setBackground(rounded(p.surface, p.border, 16 * density, density));

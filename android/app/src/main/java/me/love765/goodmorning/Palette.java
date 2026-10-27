@@ -1,20 +1,19 @@
 package me.love765.goodmorning;
 
 import android.content.Context;
-import android.content.res.Configuration;
 import android.graphics.Color;
-import android.os.Build;
 import android.widget.RemoteViews;
 
 import org.json.JSONObject;
 
+import java.time.LocalTime;
 import java.util.HashMap;
 import java.util.Map;
 
 /**
  * The website's color schemes (assets/web/color-schemes.css), so widgets match the day and night
- * look chosen on this phone (the account's earlier choice until the phone chooses its own). Widgets follow the phone's dark mode: the day scheme in light mode,
- * the night scheme in dark mode.
+ * look chosen on this phone (the account's earlier choice until the phone chooses its own). Like the website,
+ * they follow the clock rather than the phone's dark mode: the day scheme from 06:00, the night scheme from 18:00.
  */
 final class Palette {
     final int surface, ink, muted, accent, line, wash, paper, bubble, bubbleLine, border, warm;
@@ -81,36 +80,38 @@ final class Palette {
         return appearance != null && "pixel".equals(appearance.optString("style"));
     }
 
-    /** The day or night scheme the phone shows now. */
-    static Palette now(Context context) {
-        boolean night = (context.getResources().getConfiguration().uiMode & Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES;
-        return of(context)[night ? 1 : 0];
+    /** The hours of the day scheme, as in src/goodmorning/web/chat_theme.py. */
+    static final int DAY_STARTS = 6, NIGHT_STARTS = 18;
+
+    static boolean night() {
+        int hour = LocalTime.now().getHour();
+        return hour < DAY_STARTS || hour >= NIGHT_STARTS;
     }
 
-    /** A color picked from the day or night scheme, switched by the launcher on Android 12+. */
+    /** The day or night scheme for the time now. */
+    static Palette now(Context context) {
+        return of(context)[night() ? 1 : 0];
+    }
+
+    /** A color picked from the day or night scheme. */
     interface Pick {
         int from(Palette palette);
     }
 
-    static void color(Context context, RemoteViews views, Palette[] schemes, int id, String method, Pick pick) {
-        pair(context, views, id, method, pick.from(schemes[0]), pick.from(schemes[1]));
+    static void color(RemoteViews views, Palette[] schemes, int id, String method, Pick pick) {
+        pair(views, id, method, pick.from(schemes[0]), pick.from(schemes[1]));
     }
 
-    /** A fixed day and night color, switched by the launcher on Android 12+. */
-    static void pair(Context context, RemoteViews views, int id, String method, int day, int night) {
-        if (Build.VERSION.SDK_INT >= 31) {
-            views.setColorInt(id, method, day, night);
-        } else {
-            boolean dark = (context.getResources().getConfiguration().uiMode & Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES;
-            views.setInt(id, method, dark ? night : day);
-        }
+    /** A fixed day and night color; widgets are redrawn when the scheme switches. */
+    static void pair(RemoteViews views, int id, String method, int day, int night) {
+        views.setInt(id, method, night() ? night : day);
     }
 
-    static void text(Context context, RemoteViews views, Palette[] schemes, int id, Pick pick) {
-        color(context, views, schemes, id, "setTextColor", pick);
+    static void text(RemoteViews views, Palette[] schemes, int id, Pick pick) {
+        color(views, schemes, id, "setTextColor", pick);
     }
 
-    static void tint(Context context, RemoteViews views, Palette[] schemes, int id, Pick pick) {
-        color(context, views, schemes, id, "setColorFilter", pick);
+    static void tint(RemoteViews views, Palette[] schemes, int id, Pick pick) {
+        color(views, schemes, id, "setColorFilter", pick);
     }
 }

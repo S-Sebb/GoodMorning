@@ -66,10 +66,10 @@ public class ListService extends RemoteViewsService {
             for (int i = 0; i < events.length(); i++) {
                 JSONObject event = events.optJSONObject(i);
                 RemoteViews row = view(R.layout.row_event, page);
-                Palette.tint(context, row, schemes, R.id.bar, event.optBoolean("tbc") ? (p -> p.line) : (p -> p.accent));
-                Palette.text(context, row, schemes, R.id.time, p -> p.accent);
-                Palette.text(context, row, schemes, R.id.text, p -> p.ink);
-                Palette.text(context, row, schemes, R.id.detail, p -> p.muted);
+                Palette.tint(row, schemes, R.id.bar, event.optBoolean("tbc") ? (p -> p.line) : (p -> p.accent));
+                Palette.text(row, schemes, R.id.time, p -> p.accent);
+                Palette.text(row, schemes, R.id.text, p -> p.ink);
+                Palette.text(row, schemes, R.id.detail, p -> p.muted);
                 row.setTextViewText(R.id.time, time(event));
                 row.setTextViewText(R.id.text, event.optString("subject"));
                 String detail = detail(event);
@@ -82,8 +82,8 @@ public class ListService extends RemoteViewsService {
                 JSONObject task = tasks.optJSONObject(i);
                 boolean done = task.optBoolean("done");
                 RemoteViews row = view(R.layout.row_todo, page);
-                Palette.text(context, row, schemes, R.id.mark, p -> p.accent);
-                Palette.text(context, row, schemes, R.id.text, done ? (p -> p.muted) : (p -> p.ink));
+                Palette.text(row, schemes, R.id.mark, p -> p.accent);
+                Palette.text(row, schemes, R.id.text, done ? (p -> p.muted) : (p -> p.ink));
                 row.setTextViewText(R.id.mark, done ? "✓" : "○");
                 if (task.optBoolean("tickable")) {
                     row.setOnClickFillInIntent(R.id.mark, new Intent().putExtra("id", task.optString("id"))
@@ -103,12 +103,12 @@ public class ListService extends RemoteViewsService {
             RemoteViews row = view(R.layout.row_day, page);
             String date = day.optString("date");
             row.setViewVisibility(R.id.divider, offset == 0 ? View.GONE : View.VISIBLE);
-            Palette.tint(context, row, schemes, R.id.divider, p -> p.line);
+            Palette.tint(row, schemes, R.id.divider, p -> p.line);
             // Today's date sits in a filled circle, as in the website's week header.
-            Palette.tint(context, row, schemes, R.id.circle, offset == 0 ? (p -> p.ink) : (p -> p.surface));
-            Palette.text(context, row, schemes, R.id.number, offset == 0 ? (p -> p.surface) : (p -> p.ink));
-            Palette.text(context, row, schemes, R.id.weekday, offset == 0 ? (p -> p.ink) : (p -> p.muted));
-            Palette.text(context, row, schemes, R.id.note, p -> p.muted);
+            Palette.tint(row, schemes, R.id.circle, offset == 0 ? (p -> p.ink) : (p -> p.surface));
+            Palette.text(row, schemes, R.id.number, offset == 0 ? (p -> p.surface) : (p -> p.ink));
+            Palette.text(row, schemes, R.id.weekday, offset == 0 ? (p -> p.ink) : (p -> p.muted));
+            Palette.text(row, schemes, R.id.note, p -> p.muted);
             row.setTextViewText(R.id.weekday, Widgets.day(context, date, "EEE").toUpperCase(Language.of(context)));
             row.setTextViewText(R.id.number, String.valueOf(Integer.parseInt(date.substring(8))));
             JSONArray events = day.optJSONArray("events");
@@ -118,9 +118,9 @@ public class ListService extends RemoteViewsService {
                 JSONObject event = events.optJSONObject(i);
                 row.setViewVisibility(slot[0], event == null ? View.GONE : View.VISIBLE);
                 if (event == null) continue;
-                Palette.tint(context, row, schemes, slot[1], event.optBoolean("tbc") ? (p -> p.line) : (p -> p.accent));
-                Palette.text(context, row, schemes, slot[2], p -> p.accent);
-                Palette.text(context, row, schemes, slot[3], p -> p.ink);
+                Palette.tint(row, schemes, slot[1], event.optBoolean("tbc") ? (p -> p.line) : (p -> p.accent));
+                Palette.text(row, schemes, slot[2], p -> p.accent);
+                Palette.text(row, schemes, slot[3], p -> p.ink);
                 row.setTextViewText(slot[2], time(event));
                 row.setTextViewText(slot[3], event.optString("subject"));
             }
@@ -160,15 +160,15 @@ public class ListService extends RemoteViewsService {
                     if ("heading".equals(style)) {
                         RemoteViews row = view(R.layout.row_category, page);
                         row.setTextViewText(R.id.text, item.optString("title").toUpperCase(Language.of(context)));
-                        Palette.text(context, row, schemes, R.id.text, p -> p.accent);
-                        Palette.tint(context, row, schemes, R.id.rule, p -> p.line);
+                        Palette.text(row, schemes, R.id.text, p -> p.accent);
+                        Palette.tint(row, schemes, R.id.rule, p -> p.line);
                         rows.add(row);
                     } else if ("story".equals(style)) {
                         RemoteViews row = view(R.layout.row_story, page);
-                        Palette.tint(context, row, schemes, R.id.card_fill, p -> p.wash);
-                        Palette.text(context, row, schemes, R.id.title, p -> p.ink);
-                        Palette.text(context, row, schemes, R.id.text, p -> p.muted);
-                        Palette.text(context, row, schemes, R.id.source, p -> p.accent);
+                        Palette.tint(row, schemes, R.id.card_fill, p -> p.wash);
+                        Palette.text(row, schemes, R.id.title, p -> p.ink);
+                        Palette.text(row, schemes, R.id.text, p -> p.muted);
+                        Palette.text(row, schemes, R.id.source, p -> p.accent);
                         shown(row, R.id.title, item.optString("title"));
                         shown(row, R.id.text, item.optString("text"));
                         String source = item.optString("source");
@@ -178,9 +178,9 @@ public class ListService extends RemoteViewsService {
                         paragraph(item.optString("text"), page);
                     } else {
                         RemoteViews row = view(R.layout.row_item, page);
-                        Palette.text(context, row, schemes, R.id.side, p -> p.accent);
-                        Palette.text(context, row, schemes, R.id.title, p -> p.ink);
-                        Palette.text(context, row, schemes, R.id.text, p -> p.muted);
+                        Palette.text(row, schemes, R.id.side, p -> p.accent);
+                        Palette.text(row, schemes, R.id.title, p -> p.ink);
+                        Palette.text(row, schemes, R.id.text, p -> p.muted);
                         shown(row, R.id.side, item.optString("side"));
                         shown(row, R.id.title, item.optString("title"));
                         shown(row, R.id.text, item.optString("text"));
@@ -193,8 +193,8 @@ public class ListService extends RemoteViewsService {
 
         private void heading(String title, String note, String page) {
             RemoteViews row = view(R.layout.row_heading, page);
-            Palette.text(context, row, schemes, R.id.title, p -> p.ink);
-            Palette.text(context, row, schemes, R.id.text, p -> p.muted);
+            Palette.text(row, schemes, R.id.title, p -> p.ink);
+            Palette.text(row, schemes, R.id.text, p -> p.muted);
             shown(row, R.id.title, title);
             shown(row, R.id.text, note);
             rows.add(row);
@@ -202,7 +202,7 @@ public class ListService extends RemoteViewsService {
 
         private void paragraph(String text, String page) {
             RemoteViews row = view(R.layout.row_text, page);
-            Palette.text(context, row, schemes, R.id.row, p -> p.ink);
+            Palette.text(row, schemes, R.id.row, p -> p.ink);
             row.setTextViewText(R.id.row, text);
             rows.add(row);
         }
@@ -216,7 +216,7 @@ public class ListService extends RemoteViewsService {
             RemoteViews row = view(R.layout.row_section, page);
             row.setImageViewResource(R.id.icon, icon);
             row.setTextViewText(R.id.text, context.getString(label));
-            Palette.text(context, row, schemes, R.id.text, p -> p.muted);
+            Palette.text(row, schemes, R.id.text, p -> p.muted);
             return row;
         }
 

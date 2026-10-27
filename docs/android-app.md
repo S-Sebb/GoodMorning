@@ -75,8 +75,10 @@ unlinking in Settings makes the app forget it on its next check.
 Widgets follow the website's look: serif headings, small uppercase labels, the
 desk icons, the secretary's portrait and name, and the day and night color
 schemes chosen on this phone (`Palette`, copied from `assets/web/color-schemes.css`),
-switched with the phone's dark mode. On Android 12 and newer the launcher
-switches them itself; older versions use the colors of the mode at drawing time.
+switched by the phone's clock like the website: the day scheme from 06:00, the
+night scheme from 18:00, whatever the phone's dark mode. An alarm redraws the
+widgets at each switch, within ten minutes and once the screen is on. The Ask
+and Quick note screens a widget opens use the same scheme.
 The app opens the site at `/app?link=<id>`, so colors chosen in the app are
 saved for its link (`docs/browser-delivery.md`, Settings and Account) and reach
 the widgets when the app leaves the screen. Until the phone chooses colors,
@@ -116,8 +118,7 @@ The weather widgets read the server's 18-hour forecast frame (06:00–24:00, or
 18:00 to noon after 18:00; `docs/weather-pipeline.md`). `WeatherFrame` works out
 the headlines from the hours after now, so they move on between syncs;
 `WeatherChart` draws each chart as two white layers (accent and muted) that the
-widget tints, since the launcher switches day and night colors without
-redrawing. Tiles keep the website's weather colors in both modes. A frame that
+widget tints with the current scheme. Tiles keep the website's weather colors in both modes. A frame that
 has run out shows the loading or unavailable message until the next sync.
 
 ### Ticking to-dos

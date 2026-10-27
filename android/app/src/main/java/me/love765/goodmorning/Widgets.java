@@ -1,5 +1,6 @@
 package me.love765.goodmorning;
 
+import android.app.AlarmManager;
 import android.app.PendingIntent;
 import android.appwidget.AppWidgetManager;
 import android.appwidget.AppWidgetProvider;
@@ -21,6 +22,7 @@ import org.json.JSONObject;
 import java.io.File;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.time.format.TextStyle;
 
@@ -29,6 +31,7 @@ public abstract class Widgets extends AppWidgetProvider {
     private static final String REFRESH = "me.love765.goodmorning.REFRESH";
     private static final String EDITION = "me.love765.goodmorning.EDITION";
     private static final String GENERATE = "me.love765.goodmorning.GENERATE";
+    private static final String SCHEME = "me.love765.goodmorning.SCHEME";
     /** Before this hour the briefings widget opens on the morning edition, from it on the evening one. */
     private static final int EVENING = 17;
     /** Hours before this still belong to the previous day's evening, as on the website. */
@@ -65,19 +68,19 @@ public abstract class Widgets extends AppWidgetProvider {
             views.setViewVisibility(R.id.title, compact ? View.GONE : View.VISIBLE);
             Palette[] schemes = Palette.of(context);
             card(context, views, schemes, p -> p.border, p -> p.paper);
-            Palette.tint(context, views, schemes, R.id.portrait_ring, p -> p.wash);
-            Palette.tint(context, views, schemes, R.id.bubble_border, p -> p.bubbleLine);
-            Palette.tint(context, views, schemes, R.id.bubble_fill, p -> p.bubble);
-            Palette.tint(context, views, schemes, R.id.field_border, p -> p.border);
-            Palette.tint(context, views, schemes, R.id.field_fill, p -> p.surface);
-            Palette.tint(context, views, schemes, R.id.send_circle, p -> p.ink);
-            Palette.tint(context, views, schemes, R.id.send_icon, p -> p.surface);
-            Palette.text(context, views, schemes, R.id.label, p -> p.muted);
-            Palette.text(context, views, schemes, R.id.name, p -> p.ink);
-            Palette.text(context, views, schemes, R.id.title, p -> p.ink);
-            Palette.text(context, views, schemes, R.id.state, p -> p.accent);
-            Palette.text(context, views, schemes, R.id.reply, p -> p.ink);
-            Palette.text(context, views, schemes, R.id.placeholder, p -> p.muted);
+            Palette.tint(views, schemes, R.id.portrait_ring, p -> p.wash);
+            Palette.tint(views, schemes, R.id.bubble_border, p -> p.bubbleLine);
+            Palette.tint(views, schemes, R.id.bubble_fill, p -> p.bubble);
+            Palette.tint(views, schemes, R.id.field_border, p -> p.border);
+            Palette.tint(views, schemes, R.id.field_fill, p -> p.surface);
+            Palette.tint(views, schemes, R.id.send_circle, p -> p.ink);
+            Palette.tint(views, schemes, R.id.send_icon, p -> p.surface);
+            Palette.text(views, schemes, R.id.label, p -> p.muted);
+            Palette.text(views, schemes, R.id.name, p -> p.ink);
+            Palette.text(views, schemes, R.id.title, p -> p.ink);
+            Palette.text(views, schemes, R.id.state, p -> p.accent);
+            Palette.text(views, schemes, R.id.reply, p -> p.ink);
+            Palette.text(views, schemes, R.id.placeholder, p -> p.muted);
 
             JSONObject data = Sync.cached(context);
             JSONObject secretary = data.optJSONObject("secretary");
@@ -116,9 +119,9 @@ public abstract class Widgets extends AppWidgetProvider {
         RemoteViews draw(Context context, int id) {
             RemoteViews views = new RemoteViews(context.getPackageName(), R.layout.widget_portrait);
             Palette[] schemes = Palette.of(context);
-            Palette.tint(context, views, schemes, R.id.portrait_ring, p -> p.wash);
-            Palette.tint(context, views, schemes, R.id.dot_ring, p -> p.surface);
-            Palette.tint(context, views, schemes, R.id.dot_fill, p -> p.accent);
+            Palette.tint(views, schemes, R.id.portrait_ring, p -> p.wash);
+            Palette.tint(views, schemes, R.id.dot_ring, p -> p.surface);
+            Palette.tint(views, schemes, R.id.dot_fill, p -> p.accent);
 
             JSONObject data = Sync.cached(context);
             JSONObject secretary = data.optJSONObject("secretary");
@@ -218,18 +221,18 @@ public abstract class Widgets extends AppWidgetProvider {
             views.setImageViewResource(R.id.note_shadow, pixel ? R.drawable.note_square : R.drawable.note_shadow);
             views.setImageViewResource(R.id.tape, pixel ? R.drawable.note_tape_pixel : R.drawable.note_tape);
             if (pixel) {
-                Palette.tint(context, views, schemes, R.id.note_shadow, p -> p.border);
+                Palette.tint(views, schemes, R.id.note_shadow, p -> p.border);
                 for (int shape : new int[] {R.id.add_fill, R.id.chip_fill, R.id.sort_fill}) views.setImageViewResource(shape, R.drawable.note_square);
             }
-            Palette.tint(context, views, schemes, R.id.note_fill, p -> p.note);
-            Palette.tint(context, views, schemes, R.id.tape, p -> p.tape);
+            Palette.tint(views, schemes, R.id.note_fill, p -> p.note);
+            Palette.tint(views, schemes, R.id.tape, p -> p.tape);
             views.setInt(R.id.tape, "setImageAlpha", 210);
-            Palette.tint(context, views, schemes, R.id.add_fill, p -> p.ink);
-            Palette.tint(context, views, schemes, R.id.add_icon, p -> p.note);
-            Palette.tint(context, views, schemes, R.id.chip_fill, p -> p.surface);
-            Palette.tint(context, views, schemes, R.id.sort_fill, p -> p.ink);
-            Palette.text(context, views, schemes, R.id.sort_text, p -> p.note);
-            Palette.text(context, views, schemes, R.id.label, p -> p.muted);
+            Palette.tint(views, schemes, R.id.add_fill, p -> p.ink);
+            Palette.tint(views, schemes, R.id.add_icon, p -> p.note);
+            Palette.tint(views, schemes, R.id.chip_fill, p -> p.surface);
+            Palette.tint(views, schemes, R.id.sort_fill, p -> p.ink);
+            Palette.text(views, schemes, R.id.sort_text, p -> p.note);
+            Palette.text(views, schemes, R.id.label, p -> p.muted);
             views.setContentDescription(R.id.add, context.getString(R.string.note_new));
             views.setOnClickPendingIntent(R.id.add, NoteActivity.fresh(context));
             portrait(context, views, Sync.cached(context).optJSONObject("secretary"));
@@ -247,9 +250,9 @@ public abstract class Widgets extends AppWidgetProvider {
                 views.setViewVisibility(tab[0], earlier == null ? View.GONE : View.VISIBLE);
                 if (earlier == null) continue;
                 views.setImageViewResource(tab[1], pixel ? R.drawable.note_square : R.drawable.note_tab);
-                Palette.tint(context, views, schemes, tab[1], i % 2 == 0 ? (p -> p.noteBehind) : (p -> p.noteBack));
-                Palette.text(context, views, schemes, tab[2], p -> p.ink);
-                Palette.text(context, views, schemes, tab[3], p -> p.muted);
+                Palette.tint(views, schemes, tab[1], i % 2 == 0 ? (p -> p.noteBehind) : (p -> p.noteBack));
+                Palette.text(views, schemes, tab[2], p -> p.ink);
+                Palette.text(views, schemes, tab[3], p -> p.muted);
                 views.setTextViewText(tab[2], earlier.text.split("\n", 2)[0]);
                 views.setTextViewText(tab[3], Notes.shortWhen(context, earlier.created));
                 views.setOnClickPendingIntent(tab[0], NoteActivity.open(context, earlier.id));
@@ -258,14 +261,14 @@ public abstract class Widgets extends AppWidgetProvider {
             String label = front == null ? context.getString(R.string.note_label) : Notes.when(context, front.created);
             views.setTextViewText(R.id.label, label.toUpperCase(Language.of(context)));
             views.setTextViewText(R.id.text, front == null ? context.getString(R.string.note_empty) : front.text);
-            Palette.text(context, views, schemes, R.id.text, front == null ? (p -> p.muted) : (p -> p.ink));
+            Palette.text(views, schemes, R.id.text, front == null ? (p -> p.muted) : (p -> p.ink));
             views.setInt(R.id.text, "setMaxLines", Math.max(2, (height - fit * 24 - 150) / 22));
             views.setViewVisibility(R.id.status, front == null ? View.GONE : View.VISIBLE);
             views.setOnClickPendingIntent(R.id.note, front == null ? NoteActivity.fresh(context) : NoteActivity.open(context, front.id));
             if (front != null) {
                 views.setTextViewText(R.id.chip_text, Notes.status(context, front));
                 boolean needed = "question".equals(front.state) && front.sent;
-                Palette.text(context, views, schemes, R.id.chip_text, needed ? (p -> p.accent) : (p -> p.muted));
+                Palette.text(views, schemes, R.id.chip_text, needed ? (p -> p.accent) : (p -> p.muted));
             }
             int pending = Notes.pending(context);
             boolean sort = Sync.linked(context) && pending > 0;
@@ -284,6 +287,7 @@ public abstract class Widgets extends AppWidgetProvider {
     public void onUpdate(Context context, AppWidgetManager manager, int[] ids) {
         for (int id : ids) manager.updateAppWidget(id, draw(Language.apply(context), id));
         manager.notifyAppWidgetViewDataChanged(ids, R.id.list);
+        schemeSwitch(context);
     }
 
     @Override
@@ -301,6 +305,10 @@ public abstract class Widgets extends AppWidgetProvider {
             AppWidgetManager manager = AppWidgetManager.getInstance(context);
             manager.updateAppWidget(id, draw(Language.apply(context), id));
             manager.notifyAppWidgetViewDataChanged(id, R.id.list);
+            return;
+        }
+        if (SCHEME.equals(action)) {
+            updateAll(context);
             return;
         }
         if (!REFRESH.equals(action) && !GENERATE.equals(action)) return;
@@ -323,6 +331,23 @@ public abstract class Widgets extends AppWidgetProvider {
             int[] ids = manager.getAppWidgetIds(new ComponentName(context, kind.getClass()));
             if (ids.length > 0) kind.onUpdate(context, manager, ids);
         }
+    }
+
+    /**
+     * Redraws the widgets at the next switch between the day and night schemes, within the ten minutes
+     * Android allows an inexact alarm. It does not wake the phone: while the screen is off it waits until
+     * the widgets can be seen again.
+     */
+    private static void schemeSwitch(Context context) {
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime at = now.toLocalDate().atTime(Palette.DAY_STARTS, 0);
+        if (!at.isAfter(now)) at = now.toLocalDate().atTime(Palette.NIGHT_STARTS, 0);
+        if (!at.isAfter(now)) at = now.toLocalDate().plusDays(1).atTime(Palette.DAY_STARTS, 0);
+        // Any provider can redraw them all.
+        PendingIntent intent = PendingIntent.getBroadcast(context, 0, new Intent(context, Today.class).setAction(SCHEME),
+                PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
+        context.getSystemService(AlarmManager.class).setWindow(AlarmManager.RTC,
+                at.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli(), 10 * 60_000, intent);
     }
 
     private static SharedPreferences choices(Context context) {
@@ -362,8 +387,8 @@ public abstract class Widgets extends AppWidgetProvider {
 
     /** The rounded card with its 1dp border, both in this phone's colors. */
     static void card(Context context, RemoteViews views, Palette[] schemes, Palette.Pick border, Palette.Pick fill) {
-        Palette.tint(context, views, schemes, R.id.card_border, border);
-        Palette.tint(context, views, schemes, R.id.card_fill, fill);
+        Palette.tint(views, schemes, R.id.card_border, border);
+        Palette.tint(views, schemes, R.id.card_fill, fill);
     }
 
     /** The account's portrait: a built-in secretary, or the uploaded one once the app has it. */
@@ -392,12 +417,12 @@ public abstract class Widgets extends AppWidgetProvider {
         RemoteViews views = new RemoteViews(context.getPackageName(), today ? R.layout.widget_today : R.layout.widget_week);
         Palette[] schemes = Palette.of(context);
         card(context, views, schemes, p -> p.line, p -> p.surface);
-        Palette.tint(context, views, schemes, R.id.rule, p -> p.line);
-        Palette.tint(context, views, schemes, R.id.refresh, p -> p.muted);
-        Palette.text(context, views, schemes, R.id.label, p -> p.muted);
-        Palette.text(context, views, schemes, R.id.title, p -> p.ink);
-        Palette.text(context, views, schemes, R.id.empty, p -> p.muted);
-        Palette.text(context, views, schemes, R.id.link, p -> p.ink);
+        Palette.tint(views, schemes, R.id.rule, p -> p.line);
+        Palette.tint(views, schemes, R.id.refresh, p -> p.muted);
+        Palette.text(views, schemes, R.id.label, p -> p.muted);
+        Palette.text(views, schemes, R.id.title, p -> p.ink);
+        Palette.text(views, schemes, R.id.empty, p -> p.muted);
+        Palette.text(views, schemes, R.id.link, p -> p.ink);
         views.setContentDescription(R.id.refresh, context.getString(R.string.widget_refresh));
 
         JSONObject schedule = Sync.cached(context).optJSONObject("schedule");
@@ -443,14 +468,14 @@ public abstract class Widgets extends AppWidgetProvider {
         RemoteViews views = new RemoteViews(context.getPackageName(), R.layout.widget_briefing);
         Palette[] schemes = Palette.of(context);
         card(context, views, schemes, p -> p.line, p -> p.surface);
-        Palette.tint(context, views, schemes, R.id.rule, p -> p.line);
-        Palette.tint(context, views, schemes, R.id.refresh, p -> p.muted);
-        Palette.tint(context, views, schemes, R.id.icon, p -> p.accent);
-        Palette.text(context, views, schemes, R.id.label, p -> p.muted);
-        Palette.text(context, views, schemes, R.id.title, p -> p.ink);
-        Palette.text(context, views, schemes, R.id.empty_text, p -> p.muted);
-        Palette.tint(context, views, schemes, R.id.generate_fill, p -> p.ink);
-        Palette.text(context, views, schemes, R.id.generate_text, p -> p.surface);
+        Palette.tint(views, schemes, R.id.rule, p -> p.line);
+        Palette.tint(views, schemes, R.id.refresh, p -> p.muted);
+        Palette.tint(views, schemes, R.id.icon, p -> p.accent);
+        Palette.text(views, schemes, R.id.label, p -> p.muted);
+        Palette.text(views, schemes, R.id.title, p -> p.ink);
+        Palette.text(views, schemes, R.id.empty_text, p -> p.muted);
+        Palette.tint(views, schemes, R.id.generate_fill, p -> p.ink);
+        Palette.text(views, schemes, R.id.generate_text, p -> p.surface);
         views.setContentDescription(R.id.refresh, context.getString(R.string.widget_refresh));
         views.setImageViewResource(R.id.icon, news ? R.drawable.ic_news : morning ? R.drawable.ic_morning : R.drawable.ic_evening);
         views.setTextViewText(R.id.label, context.getString(news ? R.string.news_label : morning ? R.string.briefing_label_gm : R.string.briefing_label_gn)
@@ -465,8 +490,8 @@ public abstract class Widgets extends AppWidgetProvider {
             boolean chosen = option.equals(kind);
             int fill = "gm".equals(option) ? R.id.pick_gm_fill : R.id.pick_gn_fill;
             int text = "gm".equals(option) ? R.id.pick_gm_text : R.id.pick_gn_text;
-            Palette.tint(context, views, schemes, fill, chosen ? (p -> p.ink) : (p -> p.wash));
-            Palette.text(context, views, schemes, text, chosen ? (p -> p.surface) : (p -> p.ink));
+            Palette.tint(views, schemes, fill, chosen ? (p -> p.ink) : (p -> p.wash));
+            Palette.text(views, schemes, text, chosen ? (p -> p.surface) : (p -> p.ink));
             views.setTextViewText(text, context.getString("gm".equals(option) ? R.string.briefing_morning : R.string.briefing_evening));
             views.setOnClickPendingIntent("gm".equals(option) ? R.id.pick_gm : R.id.pick_gn, action(context, EDITION, id, option));
         }
@@ -526,11 +551,11 @@ public abstract class Widgets extends AppWidgetProvider {
         RemoteViews views = new RemoteViews(context.getPackageName(), R.layout.widget_weather);
         Palette[] schemes = Palette.of(context);
         card(context, views, schemes, p -> p.line, p -> p.surface);
-        Palette.tint(context, views, schemes, R.id.icon, p -> p.accent);
-        Palette.tint(context, views, schemes, R.id.refresh, p -> p.muted);
-        Palette.text(context, views, schemes, R.id.label, p -> p.muted);
-        Palette.text(context, views, schemes, R.id.title, p -> p.ink);
-        Palette.text(context, views, schemes, R.id.message, p -> p.muted);
+        Palette.tint(views, schemes, R.id.icon, p -> p.accent);
+        Palette.tint(views, schemes, R.id.refresh, p -> p.muted);
+        Palette.text(views, schemes, R.id.label, p -> p.muted);
+        Palette.text(views, schemes, R.id.title, p -> p.ink);
+        Palette.text(views, schemes, R.id.message, p -> p.muted);
         views.setContentDescription(R.id.refresh, context.getString(R.string.widget_refresh));
         views.setViewVisibility(R.id.header, only == null ? View.VISIBLE : View.GONE);
         views.setViewVisibility(R.id.label, charts ? View.VISIBLE : View.GONE);  // The compact widget keeps one header line.
@@ -570,14 +595,14 @@ public abstract class Widgets extends AppWidgetProvider {
             int[] colors = tileColors(kind);
             if (only != null) {
                 // A single topic is the whole card, in its tile color.
-                Palette.pair(context, views, R.id.card_fill, "setColorFilter", colors[1], colors[3]);
+                Palette.pair(views, R.id.card_fill, "setColorFilter", colors[1], colors[3]);
                 tile.setViewVisibility(R.id.tile_fill, View.GONE);
             }
-            Palette.pair(context, tile, R.id.tile_fill, "setColorFilter", colors[1], colors[3]);
+            Palette.pair(tile, R.id.tile_fill, "setColorFilter", colors[1], colors[3]);
             tile.setViewVisibility(R.id.tile_label, charts ? View.VISIBLE : View.GONE);  // Columns rely on their icons.
-            Palette.pair(context, tile, R.id.tile_icon, "setColorFilter", colors[0], colors[2]);
+            Palette.pair(tile, R.id.tile_icon, "setColorFilter", colors[0], colors[2]);
             for (int text : new int[] {R.id.tile_label, R.id.tile_main, R.id.tile_sub}) {
-                Palette.pair(context, tile, text, "setTextColor", colors[0], colors[2]);
+                Palette.pair(tile, text, "setTextColor", colors[0], colors[2]);
             }
             tile.setImageViewResource(R.id.tile_icon, kind == WeatherChart.Kind.TEMPERATURE ? R.drawable.ic_thermometer
                     : kind == WeatherChart.Kind.RAIN ? R.drawable.ic_rain : R.drawable.ic_leaf);
@@ -593,8 +618,8 @@ public abstract class Widgets extends AppWidgetProvider {
                             .draw(Math.round(chartWidth * density), Math.round(chart * density));
                     tile.setImageViewBitmap(R.id.chart_accent, layers[0]);
                     tile.setImageViewBitmap(R.id.chart_muted, layers[1]);
-                    Palette.pair(context, tile, R.id.chart_accent, "setColorFilter", colors[0], colors[2]);
-                    Palette.color(context, tile, schemes, R.id.chart_muted, "setColorFilter", p -> p.muted);
+                    Palette.pair(tile, R.id.chart_accent, "setColorFilter", colors[0], colors[2]);
+                    Palette.color(tile, schemes, R.id.chart_muted, "setColorFilter", p -> p.muted);
                 }
             }
             views.addView(charts ? R.id.tiles : R.id.columns, tile);
