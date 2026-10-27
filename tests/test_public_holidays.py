@@ -44,8 +44,10 @@ class DataTests(unittest.TestCase):
         self.assertEqual(workday['name'], 'National Day make-up workday')
 
     def test_china_shows_nothing_for_an_unannounced_year(self):
-        self.assertEqual(public_holidays.days(['CN'], '2027-01-01', '2028-01-01', 'en'), {})
-        self.assertEqual(public_holidays.unlisted(['CN', 'GB-SCT'], '2026-12-28', '2027-01-03'), [('CN', 2027)])
+        year = max(public_holidays.REGIONS['CN']['years']) + 1  # The weekly refresh adds each year once announced.
+        self.assertEqual(public_holidays.days(['CN'], f'{year}-01-01', f'{year + 1}-01-01', 'en'), {})
+        self.assertEqual(public_holidays.unlisted(['CN'], f'{year - 1}-12-28', f'{year}-01-03'), [('CN', year)])
+        self.assertEqual(public_holidays.unlisted(['GB-SCT'], '2026-12-28', '2027-01-03'), [])
 
     def test_regions_differ_and_every_name_has_chinese_wording(self):
         self.assertIn('2026-11-30', public_holidays.days(['GB-SCT'], '2026-11-01', '2026-12-01', 'en'))

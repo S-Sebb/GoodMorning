@@ -197,13 +197,26 @@ page and briefings work out those public holidays, and China's make-up workdays,
 from `src/goodmorning/calendar/public_holidays.json` whenever they show a day.
 Nothing is written to the calendar, and holidays cannot be edited or cancelled.
 
-The file is built by `src/goodmorning/calendar/public_holidays_build.py` from a pinned
-python-holidays release and covers this year and next. Refresh it each year,
-and as soon as the State Council publishes China's next schedule (usually in
-November): check the library against the announcement, add the year to
-`CHINA_YEARS`, rebuild, and have the subagent required by `AGENTS.md` word any
-new names in Chinese. Until then, China's year shows no holidays, and the
-Schedule details menu says it is not listed yet.
+The file is built by `src/goodmorning/calendar/public_holidays_build.py` from
+python-holidays; its `source` names the release. It covers every year from 2026
+through next year. China lists a year only once the State Council's schedule is
+in the library (usually in November): the library lists a year's make-up
+workdays only after the announcement. Until then, China's year shows no
+holidays, and the Schedule details menu says it is not listed yet.
+
+The weekly Holiday data workflow (`.github/workflows/holiday-data.yml`, also run
+by hand from the Actions tab) rebuilds the file from the newest release. When
+the data changes, for example when China or every region gains a year or dates
+are corrected, it opens or updates the one pull request from the
+`holiday-data-refresh` branch. The pull request says which regions and years
+changed, mentions the owner and approves its own Validate run, which waits for
+approval on every pull request the workflow opens. A newer library alone changes
+nothing. A holiday name without Chinese wording fails the name test; a coding
+agent adds it with the subagent required by `AGENTS.md`. The owner checks
+China's dates against the announcement and merges and deploys as usual. To
+rebuild locally:
+
+    uv run --no-project --with holidays python src/goodmorning/calendar/public_holidays_build.py
 
 ## Storage and safety
 
