@@ -142,7 +142,7 @@ class CheckpointBridge(TrialBridge):
 
 
 def synthetic_weather(instant, later=None):
-    """Brief text and JSON from the real weather code for a dry day with past night rain, rain from 21:00 and model drizzle now.
+    """Brief text and JSON from the real weather code: past night rain, drizzle now easing within three hours, rain from 21:00.
 
     A `later` day (tomorrow, for the evening) gets that day's card instead: dry until 21:00, then rain."""
     from unittest.mock import patch
@@ -151,7 +151,8 @@ def synthetic_weather(instant, later=None):
     day = local.date()
     times = [f'{day + timedelta(days=h // 24)}T{h % 24:02d}:00' for h in range(48)]
     forecast = {'timezone':'Europe/London', 'hourly':{'time':times, 'temperature_2m':[9 + (h % 24) / 4 for h in range(48)],
-                'precipitation_probability':[100 if h % 24 in (3, 4) else 70 + h % 24 if h % 24 >= 21 else 5 for h in range(48)]},
+                'precipitation_probability':[100 if h % 24 in (3, 4) else 70 + h % 24 if h % 24 >= 21
+                                              else 60 if 0 <= h - local.hour < 3 and h < 24 else 5 for h in range(48)]},
                 'current':{'time':local.strftime('%Y-%m-%dT%H:00'), 'temperature_2m':12, 'weather_code':51},
                 'daily':{'time':[str(day), str(day + timedelta(days=1))], 'temperature_2m_min':[9, 9], 'temperature_2m_max':[14.8, 14.8],
                          'precipitation_probability_max':[100, 100], 'weather_code':[61, 61], 'rain_sum':[3, 3], 'showers_sum':[1, 1],

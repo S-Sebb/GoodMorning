@@ -691,14 +691,18 @@ def brief(out):
             f"({fmt(out['temp_min_c'])}..{fmt(out['temp_max_c'])}C); rain {rain}.")
     ahead = out.get("ahead")
     if ahead:
+        # Precipitation now belongs with the rain clause; beside the temperature, writers copy it onto the temperature card.
+        precip = out["condition"] in PRECIP_TEXT
+        sky = "" if precip or not out["condition"] else out["condition"] + ", "
         if ahead["rain_from"] is None:
             wet = "dry"
         elif ahead["rain_from"] == ahead["from"]:
-            wet = "rain likely now" + (f", easing by {ahead['rain_until']}" if ahead["rain_until"] != ahead["until"] else "")
+            wet = ("rain likely now" + (f", {out['condition']}" if precip else "")
+                   + (f", easing by {ahead['rain_until']}" if ahead["rain_until"] != ahead["until"] else ""))
         else:
             wet = f"dry until {ahead['rain_from']}, then rain likely"
         line = (f"{out['city']} {out['date']} {out['time'][11:16]} {out['timezone']}{stale}: "
-                f"{out['condition'] + ', ' if out['condition'] else ''}{fmt(out['temp_c'])}C; {ahead['from']}–{ahead['until']}: "
+                f"{sky}{fmt(out['temp_c'])}C; {ahead['from']}–{ahead['until']}: "
                 f"{fmt(ahead['temp_min_c'])}..{fmt(ahead['temp_max_c'])}C, {wet} "
                 f"(rain chance up to {fmt(ahead['rain_peak_pct'])}%).")
     if out["advice"]:
