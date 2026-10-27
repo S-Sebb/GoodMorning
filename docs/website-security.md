@@ -214,7 +214,9 @@ route by website language (English: Muse Spark Contributor XHigh; Chinese:
 DeepSeek V4.1 Flash High, paid tier). The provisioning default does not override this routing;
 saved legacy model preferences remain intact but no longer select new requests.
 
-Before handing over an account, finish this SSH-only checklist:
+Before handing over an account, run the SSH-only `admin provision USERNAME` from the
+[server user guide](../SERVER-USER-GUIDE.md). It performs this checklist; any manual
+repair must keep it:
 
 1. Initialize its new encrypted vault once, assign a dedicated Linux UID, and
    create private engine/viewer configuration with fresh gateway and bridge keys.
@@ -230,7 +232,7 @@ Before handing over an account, finish this SSH-only checklist:
 3. Install account/viewer identity drop-ins and enable its vault, engine and
    viewer services. Verify their encrypted mount, non-root identity and independent
    loopback ports; register only that immutable account ID's viewer port and key.
-4. Run the read-only readiness gate and require exit status 0:
+4. Run the read-only readiness gate and require exit status 0 (`provision` ends with it):
 
    ```sh
    sudo /opt/goodmorning/python/bin/python -B /opt/goodmorning/current/scripts/goodmorning.py admin \

@@ -10,60 +10,45 @@ not the account-creation procedure. Do not rerun provisioning to repair record o
 - Server: SSH alias `TCSFrontEnd` (batch SSH, passwordless sudo)
 - Python: `/opt/goodmorning/python/bin/python`
 - CLI: `/opt/goodmorning/current/scripts/goodmorning.py`
-- Source: `/opt/goodmorning/current/src`
 - Encrypted accounts mount: `/srv/goodmorning/live/accounts`
 - New account volume: `/srv/goodmorning/live/ACCOUNT_ID`
 
-Verify these paths on the target server. Replace `USERNAME` and `ACCOUNT_ID` below.
+## Provision
 
-## Required steps, in order
+1. **Check prerequisites.** The deployed release must include `admin provision`
+   (`/opt/goodmorning/current/src/goodmorning/security/briefing_provision.py` exists).
+   If it does not, stop and ask the owner to deploy first; never provision by hand.
 
-1. **Check prerequisites.** Require the encrypted accounts mount. Load
-   `server_defaults(Accounts(account_mount))` from
-   `goodmorning.security.briefing_admin`; stop if unavailable. If the username
-   already exists, resume its provisioning using its immutable ID; do not recreate it.
-
-2. **Create the login.** Generate 24 random ASCII letters/digits with Python
-   `secrets`, ensuring at least one letter and one digit. Do not ask the owner
-   for an initial password or AI credentials. In a private Python process, call
-   `Accounts.create(USERNAME, password)`, retain the returned `ACCOUNT_ID`, and call
-   `Accounts.website_model(ACCOUNT_ID, defaults['model'])`. Save the password only
-   to a new root-owned, mode-0600 handover file inside the encrypted accounts mount.
-
-3. **Create its vault and Linux user.** For a new ID only, run the CLI's
-   `vault --root /srv/goodmorning init ACCOUNT_ID`, enable/start
-   `goodmorning-vault@ACCOUNT_ID.service`, then run
-   `vault --root /srv/goodmorning user ACCOUNT_ID`. Retain the returned Linux user.
-   Never initialize an existing vault. Keep private directories mode 0700.
-
-4. **Configure its services.** Write account-owned, mode-0600 `engine.json` in
-   its volume with unused loopback `chamberPort` and `viewerPort`, plus independent
-   `secrets.token_urlsafe(48)` values for `uiPassword` and `gatewayKey`.
-   Create fresh `home/.config/opencode/opencode.json` with the provider/model from
-   `goodmorning.web.models.MODELS[defaults['model']]`; GoodMorning applies its
-   variant per session. Use the `deploy/` service templates unchanged except for
-   per-instance `User`/`Group` drop-ins on both `goodmorning-account@ACCOUNT_ID`
-   and `goodmorning-viewer@ACCOUNT_ID`, using the Linux user from step 3.
-   Run `systemctl daemon-reload`, then enable/start both services.
-
-5. **Connect and register.** Use `goodmorning.security.briefing_runtime.LocalBridge`
-   with this account's engine port, deployed source directory, and `uiPassword`.
-   Resolve the provider's integration through `/api/integration`, then call
-   `POST /api/credential` with `integrationID`, `value: defaults['credential']`,
-   and `activate: true`. Verify provider connection and offered models through
-   bounded read-only checks; never replay an uncertain credential write.
-   Atomically add `ACCOUNT_ID: {"port": viewerPort, "key": gatewayKey}` to the
-   accounts mount's `backends.json`, preserving other entries and root ownership/mode 0600.
-
-6. **Verify before handover.** Require exit status 0 from:
+2. **Run one command per username**, one at a time:
    ```sh
-   sudo /opt/goodmorning/python/bin/python -B /opt/goodmorning/current/scripts/goodmorning.py admin \
-     --account-mount /srv/goodmorning/live/accounts check-backend USERNAME --gm-host gm.love765.me
+   ssh TCSFrontEnd 'sudo /opt/goodmorning/python/bin/python -B /opt/goodmorning/current/scripts/goodmorning.py admin \
+     --account-mount /srv/goodmorning/live/accounts provision USERNAME --gm-host gm.love765.me'
    ```
-   Confirm the encrypted mount, dedicated service UID, independent ports, and
-   provider/model availability. This gate does not call a paid model.
-   Deliver the temporary password through an approved private channel; the user
-   must change it before access, then complete Initialize themselves.
+   It runs these steps, skipping each one that is already done:
+   - create the login with a random 24-character temporary password and the
+     server-default model, writing the password only to a root-owned, mode-0600
+     `USERNAME-initial-password-TIMESTAMP.txt` in the accounts mount;
+   - initialize and mount the account's encrypted vault and create its Linux user;
+   - write `engine.json` with free loopback ports and fresh keys, and the OpenCode
+     default model;
+   - install the `User`/`Group` drop-ins, then enable and start the vault, engine and
+     viewer services;
+   - register the server-default provider credential if the engine does not yet offer
+     every website model, then wait until it does;
+   - add the account to `backends.json`, keeping every other entry;
+   - run the read-only `check-backend` readiness gate. It sends no model request.
+
+   Output contains usernames, IDs, file names, Linux users and ports, never
+   passwords or keys.
+
+3. **Require exit status 0.** On failure, read the error, fix the cause (for example
+   a stopped service), then rerun the same command. A rerun reuses the existing
+   account ID, vault, ports, keys and password; it never resets them. If the
+   failure is not understood after one rerun, stop and report it.
+
+4. **Hand over.** Tell the owner the handover file's path. The owner sends the
+   temporary password through an approved private channel; the user must change
+   it at first login, then complete Initialize themselves.
 
 ## Never
 
@@ -72,9 +57,10 @@ Verify these paths on the target server. Replace `USERNAME` and `ACCOUNT_ID` bel
 - Copy another user's HOME, profile, database, conversations, credentials, or permissions.
 - Weaken encryption, authentication, service isolation, or origin/CSRF checks.
 - Recreate a login, reset its password, or reinitialize its vault to fix a backend outage.
+- Create accounts with `admin create` or hand-written steps instead of `provision`.
 
-Report only the username, account ID, entry URL, readiness result, and blockers.
-Use SSH-only `admin reset USERNAME` for password recovery. A reset, rename,
+Report only the username, account ID, entry URL (`https://gm.love765.me`), readiness
+result, handover file path and blockers. Use SSH-only `admin reset USERNAME` for password recovery. A reset, rename,
 disable or enable signs the account out everywhere, unlinks all its phones and
 turns off browser notifications; the user links phones again under Account →
 Linked phones and turns notifications on again on each browser. Detailed security and

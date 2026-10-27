@@ -92,7 +92,7 @@ def send_message(store,name,host,text,title=None,chat=None):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--account-mount',type=Path,required=True)
-    parser.add_argument('action',choices=('create','rename','reset','disable','enable','list','check','check-backend','pause','resume','pause-status','message'))
+    parser.add_argument('action',choices=('create','rename','reset','disable','enable','list','check','check-backend','pause','resume','pause-status','message','provision'))
     parser.add_argument('username',nargs='?')
     parser.add_argument('--new-name')
     parser.add_argument('--reason')
@@ -130,6 +130,9 @@ def main():
         parser.error('Username is required')
     if args.action == 'check-backend':
         return backend_status(store,args.username,args.gm_host)
+    if args.action == 'provision':
+        from .briefing_provision import provision
+        return provision(store,args.username,args.gm_host,root=args.account_mount.parent.parent)
     if args.action == 'message':
         if not args.message_file:
             parser.error('--message-file is required')
