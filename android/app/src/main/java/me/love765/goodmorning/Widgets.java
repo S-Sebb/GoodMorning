@@ -429,8 +429,8 @@ public abstract class Widgets extends AppWidgetProvider {
         views.setEmptyView(R.id.list, R.id.empty);
         String page = today ? "/schedule?view=day" : "/schedule";
         views.setOnClickPendingIntent(R.id.title, Sync.open(context, page, 3000 + id));
-        // Rows fill in their own page; the template must stay mutable for that.
-        Intent template = new Intent(context, Launcher.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        // Rows fill in their own page, and Today's to-dos their tick; the template must stay mutable for that.
+        Intent template = new Intent(context, today ? RowActivity.class : Launcher.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
         views.setPendingIntentTemplate(R.id.list, PendingIntent.getActivity(context, 4000 + id, template,
                 PendingIntent.FLAG_MUTABLE | PendingIntent.FLAG_UPDATE_CURRENT));
         Intent refresh = new Intent(context, getClass()).setAction(REFRESH);

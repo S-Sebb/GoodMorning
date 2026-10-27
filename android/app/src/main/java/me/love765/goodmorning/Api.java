@@ -172,6 +172,11 @@ final class Api {
         return request(context, "POST", "/api/app/chat", body, "X-GoodMorning-App", token);
     }
 
+    /** Ticks one of today's to-dos done or back, like the evening check-in's Done; no model runs. */
+    static JSONObject tick(Context context, String token, JSONObject tick) throws IOException, JSONException {
+        return request(context, "POST", "/api/app/schedule/tick", tick, "X-GoodMorning-App", token);
+    }
+
     /** Saves one quick note word for word; empty text deletes it. No model runs. */
     static JSONObject note(Context context, String token, JSONObject note) throws IOException, JSONException {
         return request(context, "POST", "/api/app/note", note, "X-GoodMorning-App", token);

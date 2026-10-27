@@ -68,6 +68,9 @@
     <string name="widget_week_range">%1$s – %2$s</string>
     <string name="widget_more">+%1$d more</string>
     <string name="section_todos">To-dos</string>
+    <string name="widget_tick_done">Mark “%1$s” done</string>
+    <string name="widget_tick_open">Mark “%1$s” not done</string>
+    <string name="widget_tick_failed">Couldn’t save. Open GoodMorning to try again.</string>
     <string name="chat_label">Secretary</string>
     <string name="chat_name_default">Your secretary</string>
     <string name="chat_placeholder">Message %1$s…</string>

@@ -65,6 +65,15 @@
             android:theme="@style/AskDialog"
             android:windowSoftInputMode="adjustResize" />
 
+        <!-- Its own task and no window, so a tick from the Today widget leaves the home screen as it is. -->
+        <activity
+            android:name=".RowActivity"
+            android:excludeFromRecents="true"
+            android:exported="false"
+            android:noHistory="true"
+            android:taskAffinity=""
+            android:theme="@android:style/Theme.NoDisplay" />
+
         <!-- Its own task, so opening a note from a widget never disturbs the website's screen. -->
         <activity
             android:name=".NoteActivity"

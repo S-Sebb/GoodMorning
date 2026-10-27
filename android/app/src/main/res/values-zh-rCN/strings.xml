@@ -67,6 +67,9 @@
     <string name="widget_week_range">%1$s – %2$s</string>
     <string name="widget_more">还有 %1$d 项</string>
     <string name="section_todos">待办</string>
+    <string name="widget_tick_done">标记“%1$s”为完成</string>
+    <string name="widget_tick_open">标记“%1$s”为未完成</string>
+    <string name="widget_tick_failed">没能保存，打开 GoodMorning 再试一次吧。</string>
     <string name="chat_label">秘书</string>
     <string name="chat_name_default">你的秘书</string>
     <string name="chat_placeholder">给 %1$s 发消息…</string>
