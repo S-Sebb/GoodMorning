@@ -31,8 +31,7 @@
   const modes = {secretary: 'Secretary', todo: 'To-do', eureka: 'Eureka', initialize: 'Initialize'};
   const specialLabels = {question: 'Question for you', answer: 'Your answer', permission: 'Your permission', outreach: 'Your secretary reached out',
     expired: 'Question expired', skipped: 'Question skipped', undelivered: 'Not sent'};
-  const footnotes = {outreach: 'Sent on behalf of the GoodMorning team',
-    expired: 'This question closed before it could be saved. Send a message to continue where you left off.',
+  const footnotes = {expired: 'This question closed before it could be saved. Send a message to continue where you left off.',
     undelivered: 'This message didn’t reach your secretary, so nothing in it was saved or done.'};
   const actionTargets = {task: 'Task', event: 'Event', draft: 'Event draft', idea: 'Idea', record: 'Record', custom: 'Custom schedule'};
   const actionLabels = {added: '{target} added', updated: '{target} updated', cancelled: '{target} cancelled',

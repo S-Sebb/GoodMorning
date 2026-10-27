@@ -68,6 +68,11 @@ class BrowserBriefingTests(unittest.TestCase):
         self.assertIn('fonts/lora-italic.woff2', files)
         self.assertIn('fonts/OFL.txt', files)
 
+    def test_byline_names_the_secretary(self):
+        self.assertIn('<footer><span>Prepared for you by your secretary</span>', web.build(self.runtime, '2026-10-10')['gm.html'].decode())
+        (self.runtime / 'profile.md').write_text('secretary_name: Mira & Co\n')
+        self.assertIn('<footer><span>Prepared for you by Mira &amp; Co</span>', web.build(self.runtime, '2026-10-10')['gm.html'].decode())
+
     def test_refuses_invalid_missing_or_symlinked_inputs(self):
         for date in ('2026-10-9', '../../profile', '2026-02-30', '2026-10-11'):
             with self.subTest(date=date), self.assertRaises(ValueError):

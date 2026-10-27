@@ -15,7 +15,7 @@
     <string name="update_install">Update</string>
     <string name="update_later">Later</string>
     <string name="update_downloading">Downloading the update…</string>
-    <string name="update_failed">The update didn\'t finish, so you\'re still on the current version. We\'ll offer it again later.</string>
+    <string name="update_failed">The update didn\'t finish, so you\'re still on the current version. The app will offer it again later.</string>
     <string name="update_continue">Continue</string>
     <string name="update_permission">Android needs your OK once before GoodMorning can install its own updates. On the next screen, turn on \"Allow from this source\", then come back.</string>
     <string name="update_channel">App updates</string>

@@ -14,7 +14,7 @@ from .briefing_images import cache_previews, cached_previews
 from . import briefing_document as native
 from goodmorning.news.news_cache import feed_images
 from goodmorning.paths import WEB_ASSETS
-from goodmorning.runtime_files import cache_path
+from goodmorning.runtime_files import cache_path, normalize_secretary_name, profile_fields
 from goodmorning.web.briefing_resources import ICON_TYPES, favicon_links
 from goodmorning.web import language as ui
 
@@ -135,7 +135,11 @@ def preview_shell(plan, kind, ui_titles=False):
     return sections, nav
 
 
-def edition(document, date, kind, available, images=None, preview_plan=None, ui_intro=False):
+def secretary_name(runtime):
+    return normalize_secretary_name(profile_fields(runtime).get('secretary_name', '')) or None
+
+
+def edition(document, date, kind, available, images=None, preview_plan=None, ui_intro=False, secretary=None):
     native.validate(document, partial=preview_plan is not None)
     nav, sections = [], []
     for number, section in enumerate(document['sections'], 1):
@@ -164,6 +168,7 @@ def edition(document, date, kind, available, images=None, preview_plan=None, ui_
               "LANG": ui.current() if ui_intro else document.get('lang', 'en'),
               "CLOSING": '<p class="briefing-closing">' + native.escaped(document['closing']) + '</p>' if document.get('closing') else '',
               "SOURCE": kind + '.json', "SOURCELABEL": 'View saved data',
+              "BYLINE": native.escaped(f'Prepared for you by {secretary}' if secretary else 'Prepared for you by your secretary'),
               "CELESTIAL": celestial(kind), "ICONS": favicon_links(kind, '')}
     output=re.sub(r"\{\{([A-Z]+)\}\}", lambda match: values[match[1]], template)
     return output.replace('data-content lang=','data-ui-language lang=') if ui_intro else output
@@ -193,8 +198,9 @@ def build(runtime, date, fetch_images=False, include_assets=True, kind=None):
         cache_previews(urls, cache, runtime / 'browser-images' / 'objects', hints)
     images, image_files = cached_previews(cache, urls + covers, responsive=not include_assets)
     files = dict(image_files)
+    secretary = secretary_name(runtime)
     for kind, document in documents.items():
-        files[f'{kind}.html'] = edition(document, date, kind, documents, images).encode()
+        files[f'{kind}.html'] = edition(document, date, kind, documents, images, secretary=secretary).encode()
         files[kind + '.json'] = sources[kind]
     if include_assets:
         for name in ('briefing.css', 'briefing.js', 'fonts/lora-italic.woff2', 'fonts/OFL.txt', *ICON_TYPES):
