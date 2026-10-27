@@ -92,6 +92,16 @@ class AboutMeTests(unittest.TestCase):
             about_me.save(self.app, {'field': 'holiday_countries', 'value': 'GB'})
         self.assertEqual(profile_fields(self.root)['holiday_countries'], 'none')
 
+    def test_the_birthday_is_a_real_month_and_day(self):
+        self.assertIn('Mochi doesn’t know yet', self.app_page().split('data-field="birthday"')[1][:400])
+        self.assertEqual(about_me.save(self.app, {'field': 'birthday', 'value': '02-29'}), {'field': 'birthday', 'value': '02-29'})
+        self.assertIn('data-birthday="02-29">February 29<', self.app_page())
+        for wrong in ('02-30', '1994-05-03', 'May 3'):
+            with self.assertRaises(about_me.Invalid):
+                about_me.save(self.app, {'field': 'birthday', 'value': wrong})
+        self.assertEqual(about_me.save(self.app, {'field': 'birthday', 'value': ''})['value'], '')
+        self.assertEqual(profile_fields(self.root).get('birthday', ''), '')
+
     def test_extras_switch_back_on_only_after_chat_set_them_up(self):
         self.assertEqual(about_me.save(self.app, {'field': 'anime_updates', 'value': 'true'})['value'], 'true')
         self.assertEqual(about_me.save(self.app, {'field': 'weekly_letter', 'value': 'false'})['value'], 'false')

@@ -17,9 +17,16 @@
     return region.region ? pick(region.country) + ' — ' + pick(region.region) : pick(region.country);
   };
 
+  // A month and day, such as "February 13", in the website language.
+  const monthDay = (text, options = {month: 'long', day: 'numeric'}) => {
+    const [month, day] = text.split('-').map(Number);
+    return new Intl.DateTimeFormat([document.documentElement.lang], {...options, timeZone: 'UTC'}).format(Date.UTC(2000, month - 1, day));
+  };
+
   // Country codes read as names in the website language.
   function names() {
     const language = document.documentElement.lang;
+    page.querySelectorAll('[data-birthday]').forEach(node => { node.textContent = monthDay(node.dataset.birthday); });
     page.querySelectorAll('[data-holidays]').forEach(node => {
       node.textContent = node.dataset.holidays.split(',').map(holidayName).join(language.startsWith('zh') ? '、' : ', ');
     });
@@ -126,6 +133,59 @@
     picker.querySelector('input').focus();
   }
 
+  // A birthday is a month and day, never a year; the empty choice clears it.
+  function editBirthday(row) {
+    const content = row.querySelector('.about-content');
+    const action = row.querySelector('.about-action');
+    const editButton = action.querySelector('.about-edit');
+    const before = [...content.childNodes];
+    const [month, day] = (content.querySelector('[data-birthday]')?.dataset.birthday || '-').split('-');
+    const list = (values, label, chosen) => {
+      const select = document.createElement('select');
+      select.append(new Option('—', ''), ...values.map(([text, value]) => new Option(text, value, false, value === chosen)));
+      select.setAttribute('aria-label', label);
+      return select;
+    };
+    const pad = number => String(number).padStart(2, '0');
+    const months = list([...Array(12)].map((_, index) => [monthDay(pad(index + 1) + '-01', {month: 'long'}), pad(index + 1)]), t('Month'), month);
+    let days;
+    // 2000 is a leap year, so 29 February can be picked.
+    const fill = () => {
+      const count = months.value ? new Date(Date.UTC(2000, Number(months.value), 0)).getUTCDate() : 31;
+      const chosen = days?.value || day;
+      const next = list([...Array(count)].map((_, index) => [String(index + 1), pad(index + 1)]), t('Day'), chosen);
+      if (days) days.replaceWith(next);
+      days = next;
+    };
+    fill();
+    months.addEventListener('change', fill);
+    const button = (label, kind) => Object.assign(document.createElement('button'), {type: 'button', className: kind, textContent: t(label)});
+    const saveButton = button('Save', 'about-save'), cancelButton = button('Cancel', 'about-cancel');
+    const finish = nodes => {
+      content.replaceChildren(...nodes);
+      action.replaceChildren(editButton);
+      editButton.focus({preventScroll: true});
+    };
+    saveButton.addEventListener('click', async () => {
+      const controls = [months, days, saveButton, cancelButton];
+      controls.forEach(control => { control.disabled = true; });
+      const saved = await save(row, months.value && days.value ? months.value + '-' + days.value : '');
+      if (saved === null) return controls.forEach(control => { control.disabled = false; });
+      if (!saved) { show(row, ''); action.replaceChildren(editButton); return editButton.focus({preventScroll: true}); }
+      const node = Object.assign(document.createElement('span'), {className: 'about-value'});
+      node.dataset.birthday = saved;
+      node.textContent = monthDay(saved);
+      finish([node]);
+    });
+    cancelButton.addEventListener('click', () => finish(before));
+    row.querySelector('.about-feedback')?.remove();
+    const picker = Object.assign(document.createElement('div'), {className: 'about-birthday'});
+    picker.append(months, days);
+    content.replaceChildren(picker);
+    action.replaceChildren(saveButton, cancelButton);
+    months.focus();
+  }
+
   function edit(row) {
     const content = row.querySelector('.about-content');
     const action = row.querySelector('.about-action');
@@ -174,7 +234,7 @@
     button.hidden = false;
     button.addEventListener('click', () => {
       const row = button.closest('.about-row');
-      (row.dataset.field === 'holiday_countries' ? editHolidays : edit)(row);
+      ({holiday_countries: editHolidays, birthday: editBirthday}[row.dataset.field] || edit)(row);
     });
   });
   // Forgetting deletes the note for good, so it asks first.

@@ -16,7 +16,7 @@ TITLES = {'weather': 'Weather', 'news': 'News', 'schedule': 'Schedule',
           'must-do': 'Project steps', 'nice-to-do': 'Optional project steps', 'reminders': 'Reminders',
           'today': 'Today', 'still-open': 'Still open', 'tomorrow': 'Tomorrow', 'notes': 'Notes',
           'tasks': 'Tasks', 'attention': 'Reminders', 'anime': 'New episodes', 'games': 'Game sales', 'stocks': 'Stocks',
-          'letter': 'Weekly letter'}
+          'letter': 'Weekly letter', 'celebration': 'Something to celebrate'}
 WEATHER = {'temperature': ('Temperature', 'thermometer', 'temperature cool'),
            'precipitation': ('Precipitation', 'rain', 'precipitation'),
            'warning': ('Extreme warning', 'warning', 'other'), 'air': ('AQI', 'leaf', 'air')}
@@ -361,6 +361,24 @@ def block(value, path):
         if not isinstance(value[1], str) or not re.fullmatch(r'\d{4}-\d{2}-\d{2}', value[1]) or value[2] is not None and (
                 not isinstance(value[2], list) or len(value[2]) != 3 or any(type(count) is not int or count < 0 for count in value[2])):
             fail(path, 'letter blocks are code-owned; publish the letter position as its guide says')
+    elif tag == 'celebration':
+        # [[["birthday"] | ["holiday",key,[country]] | ["days",100,first] | ["years",n,first] | ["tasks",count,total], ...],
+        #  wish, secretary name]; code builds it.
+        from goodmorning.records.celebrations import FESTIVALS
+        from goodmorning.calendar.public_holidays import REGIONS
+        sequence(value, path, 4, 4)
+        sequence(value[1], path + '.items', 1, 5)
+        for item in value[1]:
+            counted = isinstance(item, list) and len(item) == 3 and type(item[1]) is int and item[1] > 0
+            festival = (isinstance(item, list) and len(item) == 3 and item[0] == 'holiday' and item[1] in FESTIVALS
+                        and isinstance(item[2], list) and 0 < len(item[2]) <= 5
+                        and all(name in {region['country'] for region in REGIONS.values()} for name in item[2]))
+            if not (item == ['birthday'] or festival or counted and (
+                    item[0] in ('days', 'years') and isinstance(item[2], str) and re.fullmatch(r'\d{4}-\d{2}-\d{2}', item[2])
+                    or item[0] == 'tasks' and type(item[2]) is int and item[2] >= item[1])):
+                fail(path, 'celebration blocks are code-owned; publish the celebration position as its guide says')
+        text(value[2], path + '.wish', 200)
+        text(value[3], path + '.signer', 30, empty=True)
     elif tag == 'holdings':
         # [symbol, name, session_date, shares, close, previous_close, cost_or_null, currency,
         #  dividends_counted, dividend_today, shares_may_have_changed], copied from the stocks read.
@@ -494,7 +512,7 @@ def block(value, path):
         if len(value) == 4 and (not isinstance(value[3], str) or not re.fullmatch('[A-Z]{2}', value[3])):
             fail(path, 'country flag requires a two-letter country code')
     else:
-        fail(path, 'unknown block type; use p/list/table/agenda/tasks/weather/news/flexible/episodes/deals/holdings/outlook/letter')
+        fail(path, 'unknown block type; use p/list/table/agenda/tasks/weather/news/flexible/episodes/deals/holdings/outlook/letter/celebration')
 
 
 def validate(data, partial=False):
@@ -539,6 +557,8 @@ def validate(data, partial=False):
                 fail(path, 'holdings blocks belong in the stocks section, which holds only holdings and paragraphs')
             if (value[0] == 'letter') != (section[0] == 'letter') or section[0] == 'letter' and len(section[1]) != 1:
                 fail(path, 'the weekly letter section holds exactly one letter block')
+            if (value[0] == 'celebration') != (section[0] == 'celebration') or section[0] == 'celebration' and len(section[1]) != 1:
+                fail(path, 'the celebration section holds exactly one celebration block')
             if value[0] == 'flexible':
                 if section[0] not in ('schedule', 'tomorrow'):
                     fail(path, 'flexible schedules belong in schedule or tomorrow, not reminders/notes')
@@ -1048,6 +1068,13 @@ def render_block(value, images, briefing_date=None):
         return ('<div class="letter-card"><p>' + ui.ui('Last week’s letter is in your book.' if last else 'This week’s letter is in your book.')
                 + '</p>' + letter_counts(value[2])
                 + f'<a class="letter-open" href="/letters/{value[1]}">' + ui.ui('Open letter') + '</a></div>')
+    if tag == 'celebration':
+        from goodmorning.records.celebrations import words
+        rows = ''.join(f'<li><h4>{headline}</h4>' + (f'<p>{line}</p>' if line else '') + '</li>'
+                       for headline, line in (words(item, ui.ui, ui.current()) for item in value[1]))
+        signer = f'<p class="celebration-signer" data-content>— {escaped(value[3])}</p>' if value[3] else ''
+        return (f'<div class="celebration-card"><ul class="celebration-list">{rows}</ul>'
+                f'<p class="celebration-wish" data-content>{escaped(value[2])}</p>{signer}</div>')
     if tag == 'holdings':
         return holdings_markup(value[1], briefing_date, value[2] if len(value) > 2 else None, value[3] if len(value) > 3 else ())
     if tag == 'news':

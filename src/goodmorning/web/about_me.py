@@ -5,7 +5,7 @@ later feature adds its own section (or a row in an existing one) without a copy
 of the data. Simple text fields and the evening extras' switches save through
 `set_profile_fields`; anything that needs a provider or feed check stays in chat.
 """
-from datetime import datetime, timezone
+from datetime import date as Date, datetime, timezone
 import html
 import json
 import re
@@ -13,7 +13,7 @@ import re
 from goodmorning import anime, games, stocks
 from goodmorning.briefings.briefing_day import briefing_day
 from goodmorning.calendar import public_holidays
-from goodmorning.records import letters, memory as memories
+from goodmorning.records import celebrations, letters, memory as memories
 from goodmorning.runtime_files import (PROFILE_TEXT_MAX as LONG, SECRETARY_NAME_MAX as SHORT, calendar_config,
                                        normalize_secretary_name, profile_fields, set_profile_fields)
 from . import language as ui
@@ -113,8 +113,25 @@ def count(singular, plural, number):
     return ui.ui(singular if number == 1 else plural, count=number)
 
 
+def birthday(fields):
+    """The user's birthday as a month and day; the script picks it from month and day lists."""
+    saved = fields.get('birthday', '')
+    try:
+        known = celebrations.birthday(saved)
+    except ValueError:
+        known = ''  # Shown as saved, so the user can fix it.
+    if known:
+        month, day = map(int, known.split('-'))
+        shown = f'{month}月{day}日' if ui.current() == 'zh-CN' else f'{Date(2000, month, 1):%B} {day}'
+        content = f'<span class="about-value" data-birthday="{known}">{shown}</span>'
+    else:
+        content = value(fields, saved)
+    return row(ui.ui('Birthday'), content, '<button class="about-edit" type="button" hidden>' + ui.ui('Edit') + '</button>', 'birthday')
+
+
 def names(app, fields):
-    return section('names', ui.ui('What you call each other'), [text_row(fields, 'secretary_name'), text_row(fields, 'user_name')])
+    return section('names', ui.ui('What you call each other'),
+                   [text_row(fields, 'secretary_name'), text_row(fields, 'user_name'), birthday(fields)])
 
 
 def day(app, fields):
@@ -319,6 +336,11 @@ def save(app, body):
             raise ValueError('Invalid switch')
         if text == 'true' and key not in extras_state(app.runtime, profile_fields(app.runtime)):
             raise Invalid('Ask your secretary to set this up first.')
+    elif key == 'birthday':
+        try:
+            text = celebrations.birthday(text)
+        except ValueError:
+            raise Invalid('Pick a real month and day.') from None
     elif key == 'holiday_countries':
         text = ', '.join(public_holidays.regions(text)) or 'none'  # Nothing chosen saves "none", as declining in chat does.
     elif key not in TEXT:

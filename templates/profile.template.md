@@ -7,6 +7,7 @@ Quoted empty strings prevent an empty field from absorbing the next line. -->
 
 secretary_name: ""
 user_name: ""
+birthday: ""
 secretary_language: ""
 city: ""
 region: ""
@@ -59,6 +60,10 @@ Never put passwords or keys here. -->
 - Ask second, alone, what the secretary should call the user. Same optional
   rules; any name or form of address. Save the exact spelling in `user_name`
   after storage consent; when empty, greet the user unnamed.
+- Ask third, alone and skippable, for the user's birthday so the briefing can
+  celebrate it. Save only month and day as `birthday: "MM-DD"` (“13 February”
+  is `"02-13"`); never store a year or age, even when given. Older profiles
+  without this field stay valid; never infer it from calendar occasions.
 - Never ask for `secretary_language`: replies, questions and titles follow the
   website language switch and helpers pass `--website-language CODE` without
   writing this field.

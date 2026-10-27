@@ -107,7 +107,8 @@ Order: gm Weather, News (the 24 hours before the job's as-of time), Schedule, Ta
 when `anime_updates` is on, Game sales when `game_sales` is on and Stocks when
 `stock_report` is on. Either edition ends with the Weekly letter when one is due:
 Sunday's evening, or the first briefing after a week ended without its letter
-(never skipped; `docs/weekly-letters.md`). Do not alter the
+(never skipped; `docs/weekly-letters.md`). On a celebration day either edition
+starts with Something to celebrate (never skipped; `docs/celebrations.md`). Do not alter the
 default plan. Use code-owned blocks/pages under `docs/item-taxonomy.md`. Project/
 personal and optional/required are task labels, not new sections. Read all selected
 news/citations before publishing. Presentation grants no task creation, scheduling,

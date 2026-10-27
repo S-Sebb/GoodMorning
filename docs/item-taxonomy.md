@@ -17,6 +17,8 @@ heading. Use `scripts/goodmorning.py` with the selected absolute runtime.
    2. **Occasion**, a date to remember: an all-day calendar event. Birthdays and
       anniversaries use `repeat:{"yearly":true,"start":DATE}`. Describe it to the
       user by its date ("every 6 January"), never by the exclusive end date.
+      The user's own birthday is the profile's `birthday`, not an occasion
+      (`docs/workflows/secretary.md`).
    3. **Idea**, a possibility not adopted as work (idea capture, `docs/workflows/eureka.md`).
    4. **Nudge**, a heads-up with nothing to tick off ("bring gym clothes on
       training days", "check the price"): task `kind:"nudge"`. Its trigger is a

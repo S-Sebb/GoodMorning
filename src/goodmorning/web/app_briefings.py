@@ -55,6 +55,9 @@ def _rows(block, date):
         return [_row('item', row[2] or row[1], row[5] or row[4], '#' + row[3]) for row in items]
     if tag == 'deals':
         return [_row('item', row[1], _joined(row[3], row[4]), f'-{row[2]}%') for row in items]
+    if tag == 'celebration':
+        from goodmorning.records.celebrations import words
+        return [_row('item', *words(item, ui.text, ui.current())) for item in items] + [_row('text', text=block[2])]
     if tag == 'holdings':
         return [_row('item', row[1], f'{row[4]:g} {row[7]}', f'{(row[4] - row[5]) / row[5] * 100:+.1f}%') for row in items]
     return []

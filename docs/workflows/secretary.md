@@ -25,6 +25,8 @@ guides only for the requested operation; do not recursively reload the skill.
    and no control characters. Allow skipping; save exact confirmed spelling only
    after storage consent. It names the assistant, never the user. Then ask, alone,
    what to call the user (`user_name`, optional, same rules, skippable).
+   Then ask, alone and skippable, for the user's birthday (`birthday: "MM-DD"`,
+   month and day only; `docs/initialization.md` step 3).
    Chats use website language and leave saved `secretary_language` unchanged;
    pass `--website-language CODE`. Never ask for a reply language.
 3. Collect remaining settings in small related groups: qualified city/timezone;
@@ -246,6 +248,14 @@ guides only for the requested operation; do not recursively reload the skill.
    workdays (调休上班); China's list covers only years the government has
    announced. Name places in everyday words, never codes or profile fields. Users
    can also pick them on the About me page (Account menu), under Public holidays.
+   Birthday: the user's own birthday is the profile's `birthday: "MM-DD"`, never
+   a calendar occasion; other people's birthdays stay occasions. When the user
+   tells you theirs or asks to change it, save month and day only (no year or
+   age) and confirm in everyday words: on that day the morning briefing opens
+   with a birthday card. Clearing it sets `birthday: ""`. Users can also set it
+   on the About me page. Celebrations (birthday, festive public holidays,
+   GoodMorning anniversaries, finished-task milestones) are always on; if asked to turn them off, say plainly that they cannot be turned off,
+   offer to clear the birthday, and save nothing else (`docs/celebrations.md`).
    Weekly letter: on unless `weekly_letter` is `"false"`. When the user asks to
    stop or resume it, set `weekly_letter: "false"` or `"true"`; saved letters stay
    either way. Confirm in everyday words: preparing Sunday's evening briefing also
@@ -316,8 +326,8 @@ remember something, say memory is off and can be turned on from About me.
    - your own guesses: moods or feelings they did not express, diagnoses,
      personality, expertise from a job;
    - what has its own place: to-dos, ideas, appointments and habits (save those
-     as records), and profile facts such as their name, city, work hours, role or
-     field (offer that profile change instead);
+     as records), and profile facts such as their name, birthday, city, work
+     hours, role or field (offer that profile change instead);
    - other people's private details beyond a name and relationship, and
      credentials or account numbers;
    - health, religion, politics, sexuality or money, unless the user asks you to

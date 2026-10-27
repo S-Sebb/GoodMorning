@@ -17,7 +17,7 @@ from .state import load_state, rebuild_index, parse_daily, missed_page, today_st
 from goodmorning.briefings.briefing_document import source_path
 from goodmorning.briefings.briefing_day import briefing_day
 
-PERSONAL = ("secretary_name", "user_name", "secretary_language", "secretary_tone", "special_needs", "occupations", "expertise_fields",
+PERSONAL = ("secretary_name", "user_name", "birthday", "secretary_language", "secretary_tone", "special_needs", "occupations", "expertise_fields",
             "work_days", "work_hours", "sleep_time", "industry", "knowledge_area", "project_scope")
 
 
@@ -101,6 +101,9 @@ def prepare(directory, kind, today=None, cache=None, *, task_limit=7, website_la
         except (ValueError, OSError, KeyError, sqlite3.Error):
             pass  # Retried by the next briefing or Letters page visit; never blocks this briefing.
         result["weekly_letter"] = {"week": letters.due(directory, date, kind) if letters.enabled(directory) else None}
+    if kind in ('gm', 'gn'):
+        from .celebrations import found
+        result['celebrations'] = found(directory, date, kind)
         from .routing import prepare as item_prepare
         from goodmorning.web import language as ui
         token = ui.CURRENT.set(website_language) if website_language else None
