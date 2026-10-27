@@ -125,6 +125,12 @@ def prepare(directory, kind, today=None, cache=None, *, task_limit=7, website_la
             result['custom'] = {'items': rows, 'total': len(rows)}
         except (ValueError, OSError, sqlite3.Error):
             result['custom'] = {'items': [], 'total': 0}
+    if kind == 'secretary':
+        from .memory import context as memory
+        try:
+            result['memory'] = memory(directory)
+        except (ValueError, OSError):
+            result['memory'] = {'error': 'memory_unavailable', 'next': 'write no memory in this conversation'}
     return result
 
 

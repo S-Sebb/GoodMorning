@@ -3,6 +3,7 @@ from datetime import datetime
 import sqlite3
 
 from goodmorning.runtime_files import calendar_path
+from goodmorning.records import memory
 from goodmorning.records.inbox_store import InboxStore
 from goodmorning.calendar.calendar_store import CalendarStore
 
@@ -111,6 +112,12 @@ def read_changes(runtime, session, *, aliases=()):
             finally:
                 connection.close()
     except (ValueError, OSError, sqlite3.Error):
+        unavailable = True
+    try:
+        # Only that the note changed: its text stays on About me.
+        changes.extend(change('memory', {**entry, 'operation': 'updated', 'target': 'memory', 'title': ''})
+                       for entry in memory.load(runtime)['changes'] if entry['session'] in owners)
+    except (ValueError, OSError):
         unavailable = True
     # Audit timestamps include offsets; string order is not chronological across zones.
     try:

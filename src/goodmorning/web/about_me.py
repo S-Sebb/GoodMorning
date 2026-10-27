@@ -10,7 +10,8 @@ import html
 import re
 
 from goodmorning import anime, games, stocks
-from goodmorning.records import letters
+from goodmorning.briefings.briefing_day import briefing_day
+from goodmorning.records import letters, memory as memories
 from goodmorning.runtime_files import (PROFILE_TEXT_MAX as LONG, SECRETARY_NAME_MAX as SHORT, calendar_config,
                                        normalize_secretary_name, profile_fields, set_profile_fields)
 from . import language as ui
@@ -32,6 +33,16 @@ UNNAMED = {'{name}’s notes about you': 'Your secretary’s notes about you',
            'Ask {name} to change this': 'Ask your secretary to change this',
            'So {name} knows when to plan and when to let you rest.': 'So your secretary knows when to plan and when to let you rest.',
            'Helps {name} pick news and ideas that matter to you.': 'Helps your secretary pick news and ideas that matter to you.',
+           'Nothing yet. Chat with {name} and this note will grow from there.':
+               'Nothing yet. Chat with your secretary and this note will grow from there.',
+           'What {name} picks up as you chat, the way a friend remembers.':
+               'What your secretary picks up as you chat, the way a friend remembers.',
+           '{name} writes this note while you chat and tidies it after evening briefings. It makes chats, briefings and letters '
+           'feel personal, and is never used as a setting or a permission. Edit anything here, or ask in chat to forget something; '
+           'forgotten text is deleted for good. When switched off, nothing is learned or used.':
+               'Your secretary writes this note while you chat and tidies it after evening briefings. It makes chats, briefings and '
+               'letters feel personal, and is never used as a setting or a permission. Edit anything here, or ask in chat to forget '
+               'something; forgotten text is deleted for good. When switched off, nothing is learned or used.',
            'Switching one off keeps its settings, so you can turn it back on anytime. To start a new one, ask {name}.':
                'Switching one off keeps its settings, so you can turn it back on anytime. To start a new one, ask your secretary.'}
 SOURCES = {'anilist': 'AniList', 'bangumi': 'Bangumi', 'myanimelist': 'MyAnimeList'}
@@ -208,7 +219,62 @@ def projects(app, fields):
                    [row(ui.ui('Linked projects'), value(fields, ', '.join(found)), chat(app, fields, 'I’d like to change my projects.'))])
 
 
-SECTIONS = [names, day, talk, work, news, extras, calendar, projects]
+PARTS = {'life': 'Your life', 'likes': 'How you like things', 'lately': 'Lately'}
+
+
+def note_row(key, label, text):
+    content = (f'<span class="about-value" data-content>{html.escape(text)}</span>' if text else
+               '<span class="about-empty">' + ui.ui('Nothing yet') + '</span>')
+    return (f'<div class="about-row" data-field="{key}" data-empty="Nothing yet"><dt id="about-label-{key}">' + ui.ui(label)
+            + f'</dt><dd class="about-content">{content}</dd><dd class="about-action"><button class="about-edit" type="button" '
+            f'data-limit="{memories.LENGTH}" data-multiline hidden>' + ui.ui('Edit') + '</button></dd></div>')
+
+
+def remembered(app, fields):
+    """The note the secretary keeps about the user, part by part; each part can be edited, or all of it forgotten."""
+    data = memories.load(app.runtime)
+    status = ('<span class="about-value">' + ui.ui('Last updated {date}', date=ui.day_text(
+                 data['updated'], reference=briefing_day(fields.get('timezone', '')))) + '</span>' if any(data['note'].values()) else
+              '<span class="about-empty">' + say(fields, 'Nothing yet. Chat with {name} and this note will grow from there.') + '</span>')
+    rows = [row(ui.ui('Remember things about me'), switch('memory', data['enabled']), key='memory'),
+            *(note_row('memory:' + part, label, data['note'][part]) for part, label in PARTS.items()),
+            row(ui.ui('The whole note'), status,
+                '<button class="about-forget-all" type="button" hidden>' + ui.ui('Forget everything') + '</button>', 'forget')]
+    return section('memory', ui.ui('From your chats'), rows, say(fields, 'What {name} picks up as you chat, the way a friend remembers.'),
+                   say(fields, '{name} writes this note while you chat and tidies it after evening briefings. It makes chats, briefings '
+                               'and letters feel personal, and is never used as a setting or a permission. Edit anything here, or ask in '
+                               'chat to forget something; forgotten text is deleted for good. When switched off, nothing is learned or used.'))
+
+
+def remember(app, key, text):
+    """Switch memory on or off, forget the whole note, or rewrite one part of it."""
+    revision = memories.load(app.runtime)['revision']
+    try:
+        if key == 'memory':
+            if text not in ('true', 'false'):
+                raise ValueError('Invalid switch')
+            memories.change(app.runtime, revision, enabled=text == 'true')
+        elif key == 'forget':
+            if text != 'all':
+                raise ValueError('Invalid change')
+            memories.change(app.runtime, revision, note=dict.fromkeys(memories.PARTS, ''))
+        elif key.removeprefix('memory:') in memories.PARTS:
+            memories.change(app.runtime, revision, note={key.removeprefix('memory:'): text})
+            text = memories.load(app.runtime)['note'][key.removeprefix('memory:')]
+        else:
+            raise ValueError('This can only be changed in chat')
+    except ValueError as error:
+        reason = {'memory_off': 'Turn memory on to edit it.',
+                  'revision_conflict': 'Your secretary just changed this. Refresh the page to see the latest.',
+                  'memory_too_long': f'The whole note fits {memories.LENGTH:,} characters. Shorten it a little.',
+                  'invalid_input': 'Use plain text.'}.get(str(error).split(':', 1)[0])
+        if reason:
+            raise Invalid(reason) from None
+        raise
+    return {'field': key, 'value': text}
+
+
+SECTIONS = [names, day, talk, work, remembered, news, extras, calendar, projects]
 
 
 def save(app, body):
@@ -218,6 +284,8 @@ def save(app, body):
     key, text = body['field'], body['value']
     if not (app.runtime / 'profile.md').is_file():
         raise ValueError('No profile to change yet')
+    if key in ('memory', 'forget') or key.startswith('memory:'):
+        return remember(app, key, text)
     if key in ('anime_updates', 'game_sales', 'stock_report', 'weekly_letter'):
         if text not in ('true', 'false'):
             raise ValueError('Invalid switch')

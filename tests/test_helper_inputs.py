@@ -14,7 +14,7 @@ from unittest.mock import patch
 from support import TEMP_ROOT
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
-from goodmorning.records import custom, inbox, task, workflow
+from goodmorning.records import custom, inbox, memory, task, workflow
 from goodmorning.records.inbox_store import initialize, stamp
 
 EXAMPLE = re.compile(r"^ *```json ([^\n]+)\n(.*?)^ *```", re.M | re.S)
@@ -73,6 +73,13 @@ class HelperInputTests(unittest.TestCase):
             created = self.run_helper(custom.main, ["--add"], {"title": "Stretch", "timezone": "Europe/London",
                 "policy": {"base": "weekdays", "weekdays": [0], "start": today, "anchor": "fixed", "miss_policy": "fixed"}})
             return self.run_helper(custom.main, ["--report", created["id"], "--expect-revision", "1", "--date", today], payload)
+        if operation[0] == "memory":
+            # Memory writes are revision-checked instead of keyed by session and request.
+            with patch("sys.stdin", io.StringIO(json.dumps(payload))), contextlib.redirect_stdout(io.StringIO()) as out:
+                memory.main([operation[1], "--expect-revision", str(memory.context(self.root)["revision"]), "--input-stdin"])
+            receipt = json.loads(out.getvalue())
+            self.assertTrue(receipt.get("saved"), receipt)
+            return receipt
         self.fail("No runner for documented example: " + command)
 
     def test_every_documented_example_saves(self):

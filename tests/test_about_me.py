@@ -99,7 +99,8 @@ class AboutMeTests(unittest.TestCase):
             self.assertIn(text, page)
         for secret in ('private-key', 'samwatches', '/home/sam', 'read'):
             self.assertNotIn(secret, re.sub(r'<[^>]+>', ' ', page.split('<main', 1)[1]))
-        self.assertEqual(page.count('class="about-switch"'), 2)  # Episodes and the weekly letter; games and stocks were never set up.
+        extras = page[page.index('id="about-extras"'):page.index('id="about-calendar"')]
+        self.assertEqual(extras.count('class="about-switch"'), 2)  # Episodes and the weekly letter; games and stocks were never set up.
         self.assertIn('Ask Mochi to change this', page)
         set_profile_fields(self.root, {'secretary_name': ''})
         page = self.app_page()

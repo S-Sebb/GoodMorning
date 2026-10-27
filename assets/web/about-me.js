@@ -1,4 +1,4 @@
-// About me: edit a profile line in place, or switch an evening extra on or off.
+// About me: edit a profile line or a part of the memory note in place, or switch a setting on or off.
 // Without scripts the page is read-only; every change is one request that the server checks.
 (() => {
   const page = document.querySelector('.about-me');
@@ -30,11 +30,11 @@
     box.classList.toggle('is-error', Boolean(failed));
   }
 
-  async function save(row, value) {
+  async function save(row, value, field = row.dataset.field, done = named('Saved! {name} will remember this.', 'Saved! Your secretary will remember this.')) {
     let response, result;
     try {
       response = await fetch('/api/about-me', {method: 'POST', credentials: 'same-origin', cache: 'no-store',
-        headers: {'Content-Type': 'application/json', 'X-Briefing-CSRF': csrf}, body: JSON.stringify({field: row.dataset.field, value})});
+        headers: {'Content-Type': 'application/json', 'X-Briefing-CSRF': csrf}, body: JSON.stringify({field, value})});
       if (response.status === 401) { location.replace('/login'); return null; }
       result = await goodmorningJSON(response);
     } catch {
@@ -42,11 +42,11 @@
       return null;
     }
     if (response.status === 400 && result.error) { feedback(row, t('Not saved. {reason}', {reason: result.error}), true); return null; }
-    if (!response.ok || result.field !== row.dataset.field) {
+    if (!response.ok || result.field !== field) {
       feedback(row, t('Couldn’t confirm the save. Refresh the page to see what’s saved.'), true);
       return null;
     }
-    feedback(row, t(named('Saved! {name} will remember this.', 'Saved! Your secretary will remember this.')));
+    feedback(row, t(done));
     return result.value;
   }
 
@@ -56,7 +56,7 @@
     if (value) { node.className = 'about-value'; node.dataset.content = ''; node.textContent = value; }
     else {
       node.className = 'about-empty';
-      node.dataset.uiText = named('{name} doesn’t know yet', 'Your secretary doesn’t know yet');
+      node.dataset.uiText = row.dataset.empty || named('{name} doesn’t know yet', 'Your secretary doesn’t know yet');
       node.textContent = t(node.dataset.uiText);
     }
     content.replaceChildren(node);
@@ -66,14 +66,18 @@
     const content = row.querySelector('.about-content');
     const action = row.querySelector('.about-action');
     const editButton = action.querySelector('.about-edit');
+    const actions = [...action.children];
     const before = content.querySelector('.about-value')?.textContent || '';
-    const input = Object.assign(document.createElement('input'), {type: 'text', value: before, maxLength: Number(editButton.dataset.limit)});
+    // The memory note is prose, so its parts edit in a text area.
+    const multiline = 'multiline' in editButton.dataset;
+    const input = Object.assign(document.createElement(multiline ? 'textarea' : 'input'), {value: before, maxLength: Number(editButton.dataset.limit)});
+    if (multiline) input.rows = 4; else input.type = 'text';
     input.setAttribute('aria-labelledby', 'about-label-' + row.dataset.field);
     const button = (label, kind) => Object.assign(document.createElement('button'), {type: 'button', className: kind, textContent: t(label)});
     const saveButton = button('Save', 'about-save'), cancelButton = button('Cancel', 'about-cancel');
     const finish = value => {
       show(row, value);
-      action.replaceChildren(editButton);
+      action.replaceChildren(...actions);
       editButton.focus({preventScroll: true});
     };
     const submit = async () => {
@@ -88,7 +92,7 @@
     saveButton.addEventListener('click', submit);
     cancelButton.addEventListener('click', () => finish(before));
     input.addEventListener('keydown', event => {
-      if (event.key === 'Enter') { event.preventDefault(); submit(); }
+      if (event.key === 'Enter' && (!multiline || event.ctrlKey || event.metaKey)) { event.preventDefault(); submit(); }
       if (event.key === 'Escape') { event.preventDefault(); finish(before); }
     });
     row.querySelector('.about-feedback')?.remove();
@@ -106,6 +110,26 @@
     button.hidden = false;
     button.addEventListener('click', () => edit(button.closest('.about-row')));
   });
+  // Forgetting deletes the note for good, so it asks first.
+  const forget = page.querySelector('#about-memory [data-field="forget"]');
+  const forgetAll = forget?.querySelector('.about-forget-all');
+  if (forgetAll) {
+    forgetAll.hidden = !page.querySelector('#about-memory .about-value[data-content]');
+    forgetAll.addEventListener('click', async () => {
+      if (!confirm(t('Forget everything your secretary remembers about you? The whole note will be deleted for good.'))) return;
+      forgetAll.disabled = true;
+      const saved = await save(forget, 'all', 'forget', 'Forgotten.');
+      forgetAll.disabled = false;
+      if (saved === null) return;
+      page.querySelectorAll('#about-memory [data-field^="memory:"]').forEach(row => show(row, ''));
+      const empty = Object.assign(document.createElement('span'), {className: 'about-empty'});
+      empty.dataset.uiText = named('Nothing yet. Chat with {name} and this note will grow from there.',
+        'Nothing yet. Chat with your secretary and this note will grow from there.');
+      empty.textContent = t(empty.dataset.uiText);
+      forget.querySelector('.about-content').replaceChildren(empty);
+      forgetAll.hidden = true;
+    });
+  }
   page.querySelectorAll('.about-switch').forEach(control => {
     control.hidden = false;
     control.addEventListener('click', async () => {

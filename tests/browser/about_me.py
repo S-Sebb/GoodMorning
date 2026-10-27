@@ -1,5 +1,6 @@
 """About me through the real gateway with synthetic accounts: the Account menu entry, in-place edits saved to
-the profile, switches, chat-only fields, both languages, phone and desktop, and another account's isolation."""
+the profile, switches, chat-only fields, the secretary's memory note, both languages, phone and desktop, and another
+account's isolation."""
 import json
 from pathlib import Path
 import subprocess
@@ -10,6 +11,8 @@ from urllib.parse import urlsplit
 from playwright.sync_api import sync_playwright, expect
 
 REPO = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(REPO/'src'))
+from goodmorning.records import memory
 EXTRA = '''secretary_name: "Mochi"
 user_name: ""
 work_days: "Monday to Friday"
@@ -34,6 +37,10 @@ def main():
                 if not line: raise RuntimeError('Synthetic gateway fixture did not start.')
             profile = Path(settings['runtimes']['alice'])/'profile.md'
             profile.write_text(profile.read_text() + EXTRA)
+            runtime = profile.parent
+            memory.change(runtime, 0, note={'life': 'You have a dog, Mochi, and head home early to walk him.',
+                                            'likes': 'You’d rather not have meetings before 10.',
+                                            'lately': 'Training for the Shanghai marathon in March.'})
             errors = []
             with sync_playwright() as playwright:
                 browser = playwright.chromium.launch()
@@ -122,6 +129,32 @@ def main():
                 expect(phone.locator('#about-day .about-row').first.locator('.about-edit')).to_have_count(0)  # City changes in chat.
                 phone.screenshot(path=str(artifacts/'about-390.png'), full_page=True)
 
+                # The memory note is edited part by part in place; a text area keeps line breaks.
+                memories = phone.locator('#about-memory')
+                expect(memories.locator('[data-field^="memory:"] .about-value')).to_have_text(
+                    ['You have a dog, Mochi, and head home early to walk him.', 'You’d rather not have meetings before 10.',
+                     'Training for the Shanghai marathon in March.'])
+                row = memories.locator('[data-field="memory:life"]')
+                row.get_by_role('button', name='Edit').click()
+                row.get_by_role('textbox').fill('You have two dogs, Mochi and Bean.\nYou walk them after work.')
+                row.get_by_role('textbox').press('Enter')  # A new line, not a save.
+                row.get_by_role('button', name='Save').click()
+                expect(row.locator('.about-value')).to_have_text('You have two dogs, Mochi and Bean.\nYou walk them after work.')
+                lately = memories.locator('[data-field="memory:lately"]')
+                lately.get_by_role('button', name='Edit').click()
+                lately.get_by_role('textbox').fill('')
+                lately.get_by_role('button', name='Save').click()
+                expect(lately.locator('.about-empty')).to_have_text('Nothing yet')
+                assert memory.load(runtime)['note']['lately'] == ''
+                switch = phone.get_by_role('switch', name='Remember things about me')
+                switch.click()
+                expect(switch).to_have_attribute('aria-checked', 'false')
+                assert not memory.load(runtime)['enabled']
+                switch.click()
+                expect(switch).to_have_attribute('aria-checked', 'true')
+                no_overflow(phone)
+                memories.screenshot(path=str(artifacts/'memory-390.png'))
+
                 # Ask Mochi to change this opens the quick chat with an unsent starter line.
                 phone.locator('#about-day .about-chat').first.click()
                 expect(phone.locator('#quick-chat-text')).to_have_value('I’d like to change my city.')
@@ -145,7 +178,7 @@ def main():
                 sign_in(desktop, 'bob')
                 desktop.goto('https://sec.language.test/about-me')
                 main_text = desktop.locator('main').inner_text()
-                assert 'Ally' not in main_text and 'Mochi' not in main_text, main_text
+                assert 'Ally' not in main_text and 'Mochi' not in main_text and 'marathon' not in main_text, main_text
                 expect(desktop.locator('main')).to_have_attribute('data-readonly', '')
                 expect(desktop.locator('.about-greeting')).to_contain_text('I don’t know much about you yet')
                 expect(desktop.locator('.about-edit:visible, .about-switch:visible')).to_have_count(0)  # Bob has no profile yet.
@@ -171,6 +204,17 @@ def main():
                 expect(alice.get_by_role('heading', name='Pip记得的你', exact=True)).to_be_visible()
                 expect(alice.locator('.about-chat').first).to_contain_text('让Pip来改')
                 alice.wait_for_load_state('networkidle')
+                alice.locator('#about-memory').screenshot(path=str(artifacts/'memory-1440-zh.png'))
+                alice.once('dialog', lambda dialog: dialog.dismiss())
+                alice.get_by_role('button', name='全部忘记').click()
+                expect(alice.locator('#about-memory [data-field="memory:likes"] .about-value')).to_have_count(1)
+                alice.once('dialog', lambda dialog: dialog.accept())
+                alice.get_by_role('button', name='全部忘记').click()
+                expect(alice.locator('#about-memory [data-field^="memory:"] .about-empty')).to_have_text(['还没写'] * 3)
+                expect(alice.locator('#about-memory [data-field="forget"] .about-empty')).to_have_text('还没写。和Pip多聊聊，这份记忆就会慢慢长起来。')
+                expect(alice.get_by_role('button', name='全部忘记')).to_be_hidden()
+                assert not any(memory.load(runtime)['note'].values())
+                assert 'Mochi' not in (runtime/'memory.json').read_text()
                 assert not errors, errors
                 browser.close()
             report = {'ok': True, 'artifacts': str(artifacts)}

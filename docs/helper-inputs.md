@@ -144,6 +144,19 @@ on its actual day: `{"status":"done","confirmed_completion":true}` with optional
 {"status":"done","confirmed_completion":true}
 ```
 
+## Memory: `memory --write`
+
+The note the secretary keeps about the user (`docs/workflows/secretary.md`,
+*Memory*): any of `life`, `likes` and `lately`, each plain prose (line breaks
+allowed). Send only the parts that change, each rewritten whole; `""` empties a
+part. The whole note holds at most 2,000 characters. Instead of a request key,
+every write passes `--expect-revision N`; each receipt returns the next revision,
+and an unchanged note returns `"saved": false`.
+
+```json memory --write
+{"life":"You have a dog, Mochi, and head home early after work to walk him.","lately":"Night shifts all this week."}
+```
+
 ## Other inputs
 
 - `task --adopt ENTRY` and `task --convert ID`: `docs/item-taxonomy.md` rules 6–7.

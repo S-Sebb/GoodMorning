@@ -11,6 +11,7 @@ COMMANDS = {
     'stocks': 'stocks',
     'letter': 'records.letters',
     'releases': 'web.release',
+    'memory': 'records.memory',
     'news': 'news.news',
     'calendar': 'calendar.secretary_calendar',
     'state': 'records.state',
