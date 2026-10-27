@@ -24,7 +24,9 @@ language, so the secretary reads no docs for it.
    as it is**. A blank start posts the first question without a model run.
 3. The secretary words each question (`ask`, a title only; code builds the form)
    and saves free-text answers (`answer`) with the user's own words quoted for
-   each value. Region and timezone are worked out from the city. Code saves each
+   each value. Region and timezone are worked out from the city; a new city must
+   name one place for the weather service (a city it cannot place is refused, an
+   unreachable service is left to the final check). Code saves each
    confirmed step at once, only real changes, and refuses values that break a
    setting's rules, belong to no remaining step, lack a quote, or were changed on
    About me after the question was asked. Keep, skip and picked countries or

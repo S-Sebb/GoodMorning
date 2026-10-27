@@ -994,7 +994,7 @@
   "Other countries (optional)": "其他国家（选填）",
   "Skip for now": "先跳过",
   "They show on your Schedule and briefings on their day, and for China the make-up workdays too. Pick as many as you like.": "到了那些日子，它们会出现在你的日程和简报里；中国的调休上班日也会显示。想勾几个都行。",
-  "To be your secretary, GoodMorning keeps what you tell me in your account’s private storage: your profile (names, birthday, city, weekly routine, news and holiday choices), your schedule, inbox and daily notes, and your briefings. At the end of setup I check your weather and news once; that sends your city to the weather service. You can change any answer later on About me. If you don’t agree, nothing is saved.": "为了当好你的秘书，GoodMorning 会把你说给我听的内容存在你账号的私人存储里：你的个人资料（称呼、生日、城市、每周作息、新闻和节假日选择）、你的日程、收件箱和每日笔记，还有你的简报。设置到最后，我会查一次你的天气和新闻，这会把你所在的城市发给天气服务。之后你想改哪一项，都可以在关于我页面改。如果你不同意，就什么都不会保存。",
+  "To be your secretary, GoodMorning keeps what you tell me in your account’s private storage: your profile (names, birthday, city, weekly routine, news and holiday choices), your schedule, inbox and daily notes, and your briefings. When you tell me your city, I look it up with the weather service, and at the end of setup I check your weather and news once. You can change any answer later on About me. If you don’t agree, nothing is saved.": "为了当好你的秘书，GoodMorning 会把你说给我听的内容存在你账号的私人存储里：你的个人资料（称呼、生日、城市、每周作息、新闻和节假日选择）、你的日程、收件箱和每日笔记，还有你的简报。你告诉我你的城市时，我会用天气服务查一下，把城市发给它；设置到最后，我会再查一次你的天气和新闻。之后你想改哪一项，都可以在关于我页面改。如果你不同意，就什么都不会保存。",
   "Up to 30 characters. Skip it and I’ll just be “your secretary”.": "最多 30 个字。跳过的话，我就只当“你的秘书”。",
   "What I should call you": "我该怎么称呼你",
   "What does your usual week look like?": "你平常的一周是什么样？",

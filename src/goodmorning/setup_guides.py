@@ -7,8 +7,8 @@ carry the rules for the current step only, in the website language.
 # The consent question's text and the closing note; Chinese lives in assets/web/translations.json.
 CONSENT = ('To be your secretary, GoodMorning keeps what you tell me in your account’s private storage: your profile '
            '(names, birthday, city, weekly routine, news and holiday choices), your schedule, inbox and daily notes, '
-           'and your briefings. At the end of setup I check your weather and news once; that sends your city to the '
-           'weather service. You can change any answer later on About me. If you don’t agree, nothing is saved.')
+           'and your briefings. When you tell me your city, I look it up with the weather service, and at the end of '
+           'setup I check your weather and news once. You can change any answer later on About me. If you don’t agree, nothing is saved.')
 DECLINED = ('No problem — I haven’t saved anything. I can only set things up once you agree to GoodMorning keeping '
             'your information. Whenever you’re ready, send me a message here or start Initialize again.')
 MORE = ('One more thing: I can also follow news outlets from other countries, check on your projects, add a '
