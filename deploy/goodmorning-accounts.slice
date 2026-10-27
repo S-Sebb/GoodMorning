@@ -1,11 +1,10 @@
 # Caps every account engine and viewer together, leaving the gateway, NGINX, SiYuan and the system
-# room on a 4 GB server; the kernel reclaims or kills inside this slice before the host stalls.
+# room on a 4 GB server. At the cap the kernel kills only the largest process in this slice.
+# No MemoryHigh or systemd-oomd here: MemoryHigh only stalls the growing engine, and on
+# systemd 255 oomd's per-unit kill failed and fell back to killing every unit in the slice.
 [Unit]
 Description=GoodMorning account services
 
 [Slice]
-MemoryHigh=2G
 MemoryMax=2304M
 MemorySwapMax=0
-ManagedOOMMemoryPressure=kill
-ManagedOOMMemoryPressureLimit=60%

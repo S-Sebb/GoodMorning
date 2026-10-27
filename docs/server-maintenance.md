@@ -64,8 +64,8 @@ Set by hand on 2026-10-28 after a memory outage; keep them unless the owner agre
 
 - Memory: zram swap only (`zram-tools`, zstd, half of RAM, priority 100; no swap file)
   with `/etc/sysctl.d/90-goodmorning-zram.conf` (swappiness 100, page-cluster 0).
-  `systemd-oomd` kills inside `goodmorning-accounts.slice` under pressure before the
-  host stalls. SiYuan's compose file caps it at 512 MB with no swap.
+  `goodmorning-accounts.slice` has a hard cap, at which the kernel kills only its largest
+  process; systemd-oomd runs but is not used for it. SiYuan's compose file caps it at 512 MB with no swap.
 - SSH: key login only (`/etc/ssh/sshd_config.d/00-goodmorning-hardening.conf`: no
   passwords or keyboard-interactive, no root login, 3 tries). fail2ban bans repeated
   failures (`/etc/fail2ban/jail.d/goodmorning-sshd.local`).

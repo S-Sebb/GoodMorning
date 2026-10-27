@@ -17,7 +17,6 @@ RestartSec=5
 UMask=0077
 LimitCORE=0
 MemorySwapMax=0
-MemoryHigh=1G
 MemoryMax=1536M
 NoNewPrivileges=true
 ProtectSystem=strict
