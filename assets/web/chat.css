@@ -72,6 +72,12 @@ html[data-edition="gn"] .chat-page { --special-question: #dfbd85; --special-answ
 .chat-page [data-special="answer"] { --special-color: var(--special-answer); --special-paper: var(--your-bubble, var(--wash)); box-shadow: inset -3px 0 0 color-mix(in srgb, var(--special-color) 65%, var(--special-paper)); }
 .chat-page [data-special="outreach"] { --special-color: var(--special-outreach); }
 .chat-page [data-special="expired"], .chat-page [data-special="skipped"] { --special-color: var(--muted); }
+.chat-page [data-special="undelivered"] { --special-color: var(--special-cancelled); --special-paper: var(--your-bubble, var(--wash)); box-shadow: inset -3px 0 0 color-mix(in srgb, var(--special-color) 65%, var(--special-paper)); }
+.chat-message .message-resend { margin-top: 10px; min-height: 36px; padding: 4px 14px; border-radius: 999px; font-size: 13px; }
+#chat-earlier { display: flex; justify-content: center; margin: 0 0 16px; }
+#chat-earlier[hidden], #chat-earlier [hidden] { display: none; }
+#chat-earlier-button { min-height: 34px; padding: 5px 16px; border-radius: 999px; font-size: 12px; }
+#chat-earlier-note { margin: 0; color: var(--muted); font-size: 12px; }
 .chat-page [data-special="action"] { --special-color: var(--special-updated); width: min(440px, 85%); border-radius: 16px; padding: 12px 16px; }
 .chat-page [data-operation="added"], .chat-page [data-operation="completed"], .chat-page [data-operation="approved"] { --special-color: var(--special-added); }
 .chat-page [data-operation="cancelled"], .chat-page [data-operation="declined"] { --special-color: var(--special-cancelled); }

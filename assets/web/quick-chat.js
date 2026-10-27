@@ -30,9 +30,10 @@
   const awayLimit = 15 * 60 * 1000;
   const modes = {secretary: 'Secretary', todo: 'To-do', eureka: 'Eureka', initialize: 'Initialize'};
   const specialLabels = {question: 'Question for you', answer: 'Your answer', permission: 'Your permission', outreach: 'Your secretary reached out',
-    expired: 'Question expired', skipped: 'Question skipped'};
+    expired: 'Question expired', skipped: 'Question skipped', undelivered: 'Not sent'};
   const footnotes = {outreach: 'Sent on behalf of the GoodMorning team',
-    expired: 'This question closed before it could be saved. Send a message to continue where you left off.'};
+    expired: 'This question closed before it could be saved. Send a message to continue where you left off.',
+    undelivered: 'This message didn’t reach your secretary, so nothing in it was saved or done.'};
   const actionTargets = {task: 'Task', event: 'Event', draft: 'Event draft', idea: 'Idea', record: 'Record', custom: 'Custom schedule'};
   const actionLabels = {added: '{target} added', updated: '{target} updated', cancelled: '{target} cancelled',
     completed: '{target} completed', approved: '{target} approved', declined: '{target} declined'};
@@ -151,6 +152,7 @@
     textBox.disabled = sending || blocked;
     attachButton.disabled = sending || !connected || blocked;
     attachBox.querySelectorAll('button').forEach(button => { button.disabled = sending; });
+    log.querySelectorAll('.quick-chat-resend').forEach(button => { button.disabled = sending || !connected || state !== 'idle'; });
     sendButton.setAttribute('aria-label', t(chat ? 'Send reply' : 'Send message'));
     showDot();
   }
@@ -194,6 +196,12 @@
       } else content.textContent = item.text;
       bubble.append(content);
       if (footnotes[item.kind]) bubble.append(make('p', t(footnotes[item.kind]), 'quick-chat-footnote'));
+      if (item.kind === 'undelivered') {
+        const resend = make('button', t('Send again'), 'quick-chat-resend');
+        resend.type = 'button'; resend.disabled = sending || !connected || state !== 'idle';
+        resend.addEventListener('click', () => sendAgain(item));
+        bubble.append(resend);
+      }
       for (const entry of item.attachments || []) {
         const file = make('p', '', 'quick-chat-attachment');
         if (entry.removed) file.textContent = '📎 ' + t('{name} · removed after 30 days', {name: entry.name});
@@ -280,7 +288,8 @@
       polling = false;
       if (version === revision) {
         showStatus();
-        if (chat && !['idle', 'uncertain', 'unavailable'].includes(state) && (open || state !== 'waiting')) timer = setTimeout(poll, 2500);
+        // Uncertain delivery settles on the server, so keep checking until it does.
+        if (chat && !['idle', 'unavailable'].includes(state) && (open || state !== 'waiting')) timer = setTimeout(poll, 2500);
       } else if (chat) timer = setTimeout(poll, 0);
     }
   }
@@ -511,6 +520,35 @@
       }
     }
   });
+
+  async function sendAgain(item) {
+    if (sending || !chat || state !== 'idle') return;
+    const current = chat, version = revision, request = crypto.randomUUID().replaceAll('-', '');
+    // Uploads removed after 30 days cannot be sent again.
+    const attachments = item.attachments.filter(entry => !entry.removed);
+    const body = {id: request, text: item.text};
+    if (attachments.length) body.attachments = attachments.map(entry => entry.id);
+    const previous = shownMessages;
+    sending = true; errorBox.textContent = ''; showStatus();
+    // The new message replaces the one that was not sent.
+    pendingMessages.push({turn: request, text: item.text, attachments});
+    showMessages(previous.filter(entry => entry.id !== item.id)); scrollToLatest();
+    try {
+      const result = await api(`/api/chats/${current}/messages`, body);
+      if (version !== revision) return;
+      state = result?.queued ? 'queued' : 'starting';
+      statusLabel = result?.queued ? queueText(result.position, result.depth) : '';
+      follow = true;
+    } catch (error) {
+      if (version !== revision) return;
+      pendingMessages = pendingMessages.filter(entry => entry.turn !== request);
+      showMessages(previous);
+      errorBox.textContent = error.status === 429 ? t(error.message) : error.message;
+      if (error.uncertain) state = 'uncertain';
+    } finally {
+      if (version === revision) { sending = false; showStatus(); poll(); }
+    }
+  }
 
   // Keep the sheet above a phone keyboard without resizing the page beneath it.
   const viewport = window.visualViewport;

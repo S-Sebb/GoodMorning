@@ -4,6 +4,7 @@ import re
 from pathlib import Path
 import sys
 import tempfile
+import time
 import unittest
 from unittest.mock import patch
 
@@ -474,6 +475,25 @@ class ChatTests(unittest.TestCase):
         self.assertFalse(any(entry.get('kind') == 'answer' for entry in status['messages']))
         self.assertNotIn('answer', self.chats.get(self.id)['questions'][0])
 
+    def test_unsent_answer_reopens_its_question(self):
+        self.start('initialize', '')
+        self.chats.status(self.id)
+        session = self.chamber.sessions[self.chats.get(self.id)['session']]
+        session['permissions'] = []
+        self.chamber.fail = True
+        self.chats.reply(self.id, 'form', 'form_city', {'answer': {'city': 'London'}})
+        self.assertEqual(self.chats.status(self.id, include_messages=False)['state'], 'uncertain')
+        self.chats.items[self.id]['uncertain_since'] = 0
+        status = self.chats.status(self.id)
+        self.assertEqual((status['state'], status['forms'][0]['id']), ('waiting', 'form_city'))
+        self.assertEqual(status['label'], 'Your answer didn’t reach your secretary. Please answer again.')
+        self.assertFalse(any(entry.get('kind') in ('answer', 'undelivered') for entry in status['messages']))
+        self.chamber.fail = False
+        self.chats.reply(self.id, 'form', 'form_city', {'answer': {'city': 'Paris'}})
+        status = self.chats.status(self.id)
+        self.assertEqual(status['forms'], [])
+        self.assertEqual(status['messages'][-2:][1]['text'], 'City: Paris')
+
     def test_saved_questions_keep_their_request_language(self):
         from goodmorning.web import language as ui
         token = ui.CURRENT.set('zh-CN')
@@ -517,6 +537,19 @@ class ChatTests(unittest.TestCase):
         self.assertFalse(any(entry.get('kind') for entry in status['messages']))
         self.assertEqual(len(self.chats.get(self.id)['questions']), 1)
 
+    def test_long_conversation_loads_earlier_messages_on_request(self):
+        self.start()
+        session = self.chamber.sessions[self.chats.get(self.id)['session']]
+        for index in range(150):
+            self.chamber.add(session, 'assistant', f'Later reply {index}')
+        status = self.chats.status(self.id)
+        self.assertEqual((len(status['messages']), status['history_limited']), (100, True))
+        status = self.chats.status(self.id, limit=200)
+        self.assertEqual((len(status['messages']), status['history_limited']), (152, False))
+        self.assertEqual(status['messages'][0]['text'], 'Hello')
+        for limit in (99, 1001, '200'):
+            with self.assertRaises(ValueError): self.chats.status(self.id, limit=limit)
+
     def test_restart_preserves_conversation_without_replaying(self):
         self.start()
         count = len(self.chamber.calls)
@@ -534,11 +567,108 @@ class ChatTests(unittest.TestCase):
         with self.assertRaises(ValueError): restored.send(self.id, {'id': 'b' * 32, 'text': 'Again'})
         self.assertEqual(sum(action == 'session.send' for action, _ in self.chamber.calls), 1)
 
-    def test_interrupted_start_is_uncertain_after_restart(self):
+    def test_uncertain_delivery_seen_by_the_engine_continues_without_replay(self):
+        self.start()
+        self.chats.send(self.id, {'id': 'b' * 32, 'text': 'Yes'})
+        # The prompt arrived, but its receipt was lost before the restart.
+        self.chats.items[self.id].update(state='starting')
+        self.chats.save()
+        restored = Chats(self.root, self.chamber)
+        sends = sum(action == 'session.send' for action, _ in self.chamber.calls)
+        status = restored.status(self.id, include_messages=False)
+        self.assertEqual(status['state'], 'idle')
+        self.assertEqual(restored.get(self.id)['state'], 'running')
+        self.assertNotIn('uncertain_since', restored.get(self.id))
+        self.assertEqual(sum(action == 'session.send' for action, _ in self.chamber.calls), sends)
+        self.assertFalse(any(entry.get('kind') == 'undelivered' for entry in restored.status(self.id)['messages']))
+
+    def test_identical_replies_each_need_their_own_acknowledgment(self):
+        self.start()
+        self.chats.send(self.id, {'id': 'b' * 32, 'text': 'Yes'})
+        self.chamber.fail = True
+        self.chats.send(self.id, {'id': 'c' * 32, 'text': 'Yes'})
+        self.chats.items[self.id]['uncertain_since'] = 0
+        status = self.chats.status(self.id)
+        self.assertEqual(status['state'], 'idle')
+        self.assertEqual([(entry['role'], entry.get('kind'), entry['text']) for entry in status['messages'][-2:]],
+                         [('assistant', None, 'Synthetic reply. Your text stays text: <img src=x onerror=alert(1)>'),
+                          ('user', 'undelivered', 'Yes')])
+
+    def test_undelivered_message_waits_for_the_engine_then_can_be_sent_again(self):
+        self.start()
+        self.chamber.fail = True
+        self.chats.send(self.id, {'id': 'b' * 32, 'text': 'Save the dentist call'})
+        status = self.chats.status(self.id)
+        self.assertEqual(status['state'], 'uncertain')
+        self.assertIn('Checking whether your last message reached your secretary', status['label'])
+        with self.assertRaisesRegex(ValueError, 'Try again in a moment'):
+            self.chats.send(self.id, {'id': 'c' * 32, 'text': 'Again'})
+        # A busy engine may still be accepting the prompt.
+        self.chats.items[self.id]['uncertain_since'] = 0
+        session = self.chamber.sessions[self.chats.get(self.id)['session']]
+        session['permissions'] = [{'id': 'permission_busy'}]
+        with patch.object(self.chamber, 'pending', return_value=([], [])):
+            self.assertEqual(self.chats.status(self.id)['state'], 'uncertain')
+        session['permissions'] = []
+        status = self.chats.status(self.id)
+        self.assertEqual(status['state'], 'idle')
+        self.assertEqual(status['label'], 'Your last message wasn’t sent. Send it again or write a new one.')
+        self.assertEqual(status['messages'][-1], {'id': 'undelivered:' + 'b' * 32, 'role': 'user', 'kind': 'undelivered',
+                                                  'text': 'Save the dentist call', 'attachments': [], 'turn': 'b' * 32})
+        self.assertEqual(self.chats.status(self.id, include_messages=False)['state'], 'idle')
+        sends = sum(action == 'session.send' for action, _ in self.chamber.calls)
+        self.chamber.fail = False
+        self.chats.send(self.id, {'id': 'd' * 32, 'text': 'Save the dentist call'})
+        self.assertEqual(sum(action == 'session.send' for action, _ in self.chamber.calls), sends + 1)
+        status = self.chats.status(self.id)
+        self.assertEqual(status['state'], 'idle')
+        self.assertFalse(any(entry.get('kind') == 'undelivered' for entry in status['messages']))
+        self.assertEqual([entry['text'] for entry in status['messages'] if entry['role'] == 'user'],
+                         ['Hello', 'Save the dentist call'])
+
+    def test_unsent_first_message_opens_the_conversation_when_sent_again(self):
+        control, request = self.chamber.control, self.chamber.request
+        def no_session(action, **body):
+            if action == 'session.create':
+                raise OSError('Synthetic engine outage')
+            return control(action, **body)
+        def no_agent(path, body=None):
+            if path.endswith('/agent'):
+                raise OSError('Synthetic engine outage')
+            return request(path, body)
+        for failure, chat in (('control', 'b' * 32), ('request', 'c' * 32)):
+            with self.subTest(failure=failure):
+                with patch.object(self.chamber, failure, side_effect=no_session if failure == 'control' else no_agent):
+                    self.start(text='Plan my week', chat=chat)
+                # The prompt was never sent, so there is nothing to wait for.
+                status = self.chats.status(chat)
+                self.assertEqual(status['state'], 'idle')
+                self.assertEqual([entry['kind'] for entry in status['messages']], ['undelivered'])
+                self.chats.send(chat, {'id': 'd' * 32, 'text': 'Plan my week'})
+                prompt = [body['prompt'] for action, body in self.chamber.calls if action == 'session.send'][-1]
+                self.assertTrue(prompt.startswith('/secretary\nBrowser chat: ' + chat))
+                status = self.chats.status(chat)
+                self.assertEqual(status['state'], 'idle')
+                self.assertEqual([entry['text'] for entry in status['messages'] if entry['role'] == 'user'], ['Plan my week'])
+
+    def test_engine_retry_is_still_working(self):
+        self.start()
+        request = self.chamber.request
+        def retrying(path, body=None):
+            if path == '/api/openchamber/control':
+                return {'sessionStatus': {'type': 'retry'}}
+            return request(path, body)
+        self.chamber.sessions[self.chats.get(self.id)['session']]['messages'].pop()
+        self.chamber.sessions[self.chats.get(self.id)['session']]['messages'].pop()
+        with patch.object(self.chamber, 'request', side_effect=retrying):
+            self.assertEqual(self.chats.status(self.id)['state'], 'running')
+
+    def test_interrupted_start_without_a_session_settles_without_engine_calls(self):
         self.chats.items[self.id] = {'id': self.id, 'mode': 'secretary', 'state': 'starting', 'title': 'Hello', 'turns': []}
         self.chats.save()
         restored = Chats(self.root, self.chamber)
-        self.assertEqual(restored.status(self.id)['state'], 'uncertain')
+        self.assertEqual(restored.get(self.id)['state'], 'uncertain')
+        self.assertEqual(restored.status(self.id)['state'], 'idle')
         self.assertEqual(self.chamber.calls, [])
 
     def test_missing_account_chat_cannot_be_read(self):
@@ -579,7 +709,8 @@ class ChatTests(unittest.TestCase):
         self.assertEqual(status['state'], 'waiting')
         self.assertFalse(status['reservation_required'])
         self.assertTrue(Chats(self.root, self.chamber).get(self.id)['questions'][0]['parked'])
-        self.chats.items[self.id]['state'] = 'uncertain'
+        self.chats.items[self.id].update(state='uncertain', uncertain_since=time.time())
+        self.chamber.sessions[self.chats.get(self.id)['session']]['messages'].clear()
         self.assertEqual(self.chats.status(self.id, include_messages=False)['state'], 'uncertain')
         with self.assertRaises(ValueError):
             self.chats.status('b' * 32, include_messages=False)

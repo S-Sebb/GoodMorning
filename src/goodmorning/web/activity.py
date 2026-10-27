@@ -41,7 +41,7 @@ def snapshot(app, kind, identifier):
         forms = [form for form in forms if 'form:'+form['id'] not in receipts] + parked_forms(item.get('questions', []))
         permissions = [permission for permission in permissions if 'permission:'+permission['id'] not in receipts]
         state = app.chamber.control('session.status', sessionId=item['session'])['sessionStatus']['type']
-        state = 'waiting' if forms or permissions else 'working' if item['state'] == 'starting' or state == 'busy' else 'idle' if state == 'idle' else 'uncertain'
+        state = 'waiting' if forms or permissions else 'working' if item['state'] == 'starting' or state in ('busy', 'retry') else 'idle' if state == 'idle' else 'uncertain'
     except Exception:
         state = 'unavailable'
     return summary(state)

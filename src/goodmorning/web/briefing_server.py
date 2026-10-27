@@ -95,11 +95,11 @@ class Chamber:
     def control(self, action, **parameters):
         if action == 'session.messages':
             # OpenChamber 2.2 multiplies this limit by four, exceeding V2's 200.
-            # Read bounded native pages instead; keep the 100 visible-message window.
+            # Read bounded native pages instead; keep the requested visible-message window.
             session = parameters['sessionId']
             limit = parameters.get('limit', 100)
             messages, cursor = [], None
-            for _ in range(10):
+            for _ in range(max(10, limit // 10)):
                 query = {'limit': 200, **({'cursor': cursor} if cursor else {'order': 'desc'})}
                 page = self.request(f'/api/session/{session}/message?' + urlencode(query))
                 for entry in page['data']:
@@ -121,7 +121,7 @@ class Chamber:
                 cursor = next_cursor
             status = self.request('/api/openchamber/control', {'action': 'session.status',
                 'input': {'directory': self.directory, 'sessionId': session}})
-            return {**status, 'messages': list(reversed(messages[:limit]))}
+            return {**status, 'messages': list(reversed(messages[:limit])), 'more': len(messages) > limit or bool(next_cursor)}
         return self.request('/api/openchamber/control', {'action': action, 'input': {'directory': self.directory, **parameters}})
 
     def relocate(self, session):
@@ -1184,7 +1184,8 @@ def serve_live(app, port, *, gateway_key=None, public_origins=()):
                     return self.respond(app.chats.status(chat_status[1], include_messages=False), compress=True)
                 chat = re.fullmatch(r'/api/chats/([a-f0-9]{32})', path)
                 if chat:
-                    return self.respond(app.chats.status(chat[1]), compress=True)
+                    limit = int(parse_qs(parsed.query).get('limit', ['100'])[0])
+                    return self.respond(app.chats.status(chat[1], limit=limit), compress=True)
                 job = re.fullmatch(r'/api/jobs/([0-9a-f]{32})', path)
                 if job:
                     return self.respond(app.status(job[1]), compress=True)

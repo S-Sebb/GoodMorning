@@ -137,7 +137,8 @@ fingerprinted, immutable and precompressed; their unversioned aliases revalidate
 Tabs opened before this feature was installed need one manual refresh first.
 
 Chat history reads bounded native V2 pages of at most 200 raw records, retaining
-the latest 100 visible messages. This avoids OpenChamber 2.2's fourfold prefetch
+the latest 100 visible messages (more on request, up to 1,000) and reporting
+whether earlier ones exist. This avoids OpenChamber 2.2's fourfold prefetch
 overflow. Pending input and uncertain delivery still retain the global busy flag.
 
 ## Installed app

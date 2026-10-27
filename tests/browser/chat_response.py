@@ -54,11 +54,72 @@ def main():
                     assert len(posts)==1,'An uncertain send was replayed'
                     page.locator('.conversation-panel').screenshot(path=str(artifacts/f'friendly-error-{width}.png'))
                     page.close()
+                    settled(browser,address,width,artifacts)
                 browser.close()
         finally:
             server.terminate();server.communicate(timeout=5)
     print(json.dumps({'modelCalls':0,'transientHistoryResponseRecovered':True,'persistentFailureReadable':True,
-                     'noticeClearsAfterRecovery':True,'draftPreserved':True,'uncertainSendNeverReplayed':True}))
+                     'noticeClearsAfterRecovery':True,'draftPreserved':True,'uncertainSendNeverReplayed':True,
+                     'unsentMessageSentAgainOnce':True,'earlierMessagesLoadInPlace':True}))
+
+
+def settled(browser,address,width,artifacts):
+    """A delivery check settles by itself; an unsent message is sent again once, by choice.
+    Earlier messages load above the reading position."""
+    chat='a'*32
+    page=browser.new_page(viewport={'width':width,'height':900},reduced_motion='reduce')
+    history=[{'id':f'm{index}','role':'assistant' if index%2 else 'user','text':f'Synthetic message {index}','attachments':[]} for index in range(150)]
+    unsent={'id':'undelivered:'+'b'*32,'role':'user','kind':'undelivered','text':'Synthetic unsent reminder',
+            'attachments':[],'turn':'b'*32}
+    phase={'value':'checking'};reads=[];posts=[]
+    def status(route):
+        limit=int(route.request.url.partition('limit=')[2] or 100)
+        reads.append(limit)
+        state,label,messages={'checking':('uncertain','Checking whether your last message reached your secretary…',history[-100:]),
+            'unsent':('idle','Your last message wasn’t sent. Send it again or write a new one.',history[-100:]+[unsent]),
+            'resent':('idle','Ready for your reply',history[-limit:]+[{**unsent,'id':'m-new','kind':None,'turn':posts[-1]['id'] if posts else None}])}[phase['value']]
+        route.fulfill(json={'chat':chat,'mode':'secretary','state':state,'label':label,'forms':[],'permissions':[],
+                            'messages':messages,'history_limited':limit<len(history)})
+    def send(route):
+        posts.append(json.loads(route.request.post_data));phase['value']='resent'
+        route.fulfill(status=202,json={'chat':chat})
+    page.route('**/api/chats',lambda route:route.fulfill(json={'defaultMode':'secretary','connected':True,'chats':[]}))
+    page.route(f'**/api/chats/{chat}?*',status);page.route(f'**/api/chats/{chat}',status)
+    page.route(f'**/api/chats/{chat}/messages',send)
+    page.goto(address+'/chat?id='+chat)
+    expect(page.locator('#chat-status')).to_contain_text('Checking whether your last message')
+    expect(page.locator('#chat-send')).to_be_disabled()
+    checks=len(reads)
+    phase['value']='unsent'
+    bubble=page.locator('[data-special="undelivered"]')
+    expect(bubble).to_contain_text('Synthetic unsent reminder',timeout=8000)
+    assert len(reads)>checks,'The page stopped checking an uncertain delivery'
+    expect(bubble).to_contain_text('Not sent')
+    expect(bubble).to_contain_text('nothing in it was saved or done')
+    expect(page.locator('#chat-send')).to_be_enabled()
+    page.locator('#chat-scroll').evaluate('node=>node.scrollTop=node.scrollHeight')
+    page.locator('.conversation-panel').screenshot(path=str(artifacts/f'not-sent-{width}.png'))
+    bubble.get_by_role('button',name='Send again').click()
+    expect(page.locator('[data-special="undelivered"]')).to_have_count(0)
+    expect(page.locator('#chat-messages')).to_contain_text('Synthetic unsent reminder')
+    assert len(posts)==1 and posts[0]['text']=='Synthetic unsent reminder' and posts[0]['id']!='b'*32,posts
+    # Earlier messages load above without moving what the reader is looking at.
+    earlier=page.get_by_role('button',name='Show earlier messages')
+    expect(page.locator('#chat-status')).to_contain_text('Ready for your reply')
+    page.wait_for_timeout(300)
+    page.locator('#chat-scroll').evaluate('node=>node.scrollTop=0')
+    expect(earlier).to_be_visible()
+    anchor=page.locator('[data-message="m50"]')
+    before=anchor.evaluate('node=>node.getBoundingClientRect().top')
+    earlier.click()
+    expect(page.locator('[data-message="m0"]')).to_be_attached()
+    after=anchor.evaluate('node=>node.getBoundingClientRect().top')
+    assert abs(after-before)<2,(before,after)
+    assert 200 in reads,reads
+    expect(earlier).to_be_hidden()
+    expect(page.locator('#chat-earlier')).to_be_hidden()
+    assert len(posts)==1,'Loading history sent a message'
+    page.close()
 
 
 if __name__=='__main__':main()

@@ -20,6 +20,8 @@ MODES = {'initialize': 'Initialize', 'secretary': 'Secretary', 'todo': 'To-do', 
 # Secretary now saves to-dos and ideas itself; older To-do/Eureka chats stay readable and replyable.
 NEW_MODES = ('initialize', 'secretary')
 OUTREACH_TITLE = 'A note from your secretary'
+# An engine stores an accepted prompt at once; wait this long before calling an unseen one not sent.
+DELIVERY_GRACE = 120
 
 AVATARS = (('f1', 'desk-secretary.png', 'Classic'),
            ('f2', 'desk-secretary-f2.png', 'Female 2'),
@@ -235,7 +237,7 @@ def expired_questions(messages, questions, language):
     return result, shown
 
 
-def question_history(messages, questions, pending):
+def question_history(messages, questions, pending, complete):
     """Insert account-local form exchanges at their original transcript positions."""
     anchors = {entry['id'] for entry in messages}
     additions = {}
@@ -250,7 +252,7 @@ def question_history(messages, questions, pending):
                 'kind': 'answer', 'language': language, 'text': answer_text(entry['form'], entry['answer'], language)}))
         for anchor, exchange in exchanges:
             # Do not move old exchanges into the newer, bounded transcript window.
-            if anchor in anchors or anchor is None and len(messages) < 100:
+            if anchor in anchors or anchor is None and complete:
                 additions.setdefault(anchor, []).append(exchange)
     result = list(additions.get(None, []))
     for entry in messages:
@@ -289,7 +291,7 @@ class Chats:
         self.items = json.loads(self.path.read_text()) if self.path.exists() else {}
         for item in self.items.values():
             if item['state'] == 'starting':
-                item['state'] = 'uncertain'
+                item.update(state='uncertain', uncertain_since=time.time())
         if self.items:
             self.save()
 
@@ -463,15 +465,19 @@ class Chats:
                 if status['permissions']:
                     raise ValueError('Answer the pending question first')
                 state = 'idle'  # A new message skips the saved questions; the engine already closed them.
-            if state in ('uncertain', 'unavailable'):
-                raise ValueError('Delivery is uncertain. Ask the administrator to inspect this conversation before sending again.')
+            if state == 'uncertain':
+                raise ValueError('Checking whether your last message reached your secretary. Try again in a moment.')
+            if state == 'unavailable':
+                raise ValueError('The secretary connection is unavailable. Your conversation is preserved. Try again in a moment.')
             if state not in ('idle', 'running', 'starting'):
                 raise ValueError('Wait for the secretary or answer the pending question')
             if len(item['turns']) >= 200:
                 raise ValueError('Start a new conversation to keep context bounded')
             self.capacity({'text': text, 'attachments': attachments})
-            # A secretary-opened conversation has no session until the user's first reply.
-            first = 'opening' in item and not item['turns']
+            # A secretary-opened conversation has no session until the user's first reply. After a
+            # first message that never reached the engine, the next one opens the conversation
+            # again. A first message still being opened ('starting') is awaited instead.
+            first = item['state'] == 'idle' and all(turn.get('undelivered') for turn in item['turns'])
             item['turns'].append({'id': request, 'text': text, 'attachments': attachments,'language':ui.current(),'model':site_models.current(), 'created': time.time()})
             for entry in item.get('questions', []):
                 if entry.get('parked') and 'answer' not in entry:
@@ -590,11 +596,62 @@ class Chats:
                 if item['turns'] and item['turns'][-1]['id'] != turn_id:
                     self.save()
                     return
-                item['state'] = 'uncertain'
+                item.update(state='uncertain', uncertain_since=time.time())
                 self.save()
 
-    def status(self, chat, *, include_messages=True):
+    def settle(self, chat):
+        """Resolve uncertain delivery from the engine's own transcript, never by replaying it.
+        An acknowledged prompt continues; one the engine never received is marked not sent,
+        and an answer that never arrived reopens its saved question."""
+        with self.lock:
+            item = self.items[chat]
+            turn = item['turns'][-1] if item['turns'] else None
+            session = item.get('session')
+            prompt = turn and turn.get('prompt_hash')
+            # Identical prompts (two plain "Yes" replies) each need their own acknowledgment.
+            needed = sum(entry.get('prompt_hash') == prompt and not entry.get('undelivered') for entry in item['turns'])
+            waited = time.time() - item.get('uncertain_since', 0)
+        # The prompt hash is saved before sending and the session before the prompt is built.
+        delivered = False
+        if session and prompt:
+            if not self.chamber:
+                return
+            page = self.chamber.request(f'/api/session/{session}/message?type=user&limit=200&order=desc')
+            delivered = sum(entry.get('type') == 'user' and isinstance(entry.get('text'), str)
+                            and hashlib.sha256(entry['text'].strip().encode()).hexdigest() == prompt
+                            for entry in page['data']) >= needed
+            if not delivered:
+                status = self.chamber.control('session.status', sessionId=session)['sessionStatus']['type']
+                if status != 'idle' or waited < DELIVERY_GRACE:
+                    return
+        with self.lock:
+            item = self.items[chat]
+            if item['state'] != 'uncertain' or (item['turns'][-1] if item['turns'] else None) is not turn:
+                return
+            item.pop('uncertain_since', None)
+            if delivered:
+                item['state'] = 'running'
+            else:
+                item['state'] = 'idle'
+                question = next((entry for entry in item.get('questions', []) if turn and entry['id'] == turn.get('answer')), None)
+                if question:
+                    item['turns'].remove(turn)
+                    question.pop('answer')
+                    question['unsent'] = True
+                elif turn:
+                    turn['undelivered'] = True
+            self.save()
+
+    def status(self, chat, *, include_messages=True, limit=100):
+        if not isinstance(limit, int) or not 100 <= limit <= 1000:
+            raise ValueError('Invalid history request')
+        if self.get(chat)['state'] == 'uncertain':
+            try:
+                self.settle(chat)
+            except Exception:
+                pass  # Still uncertain; the next status read checks again.
         item = self.get(chat)
+        sent = [turn for turn in item['turns'] if not turn.get('undelivered')]
         try:
             from goodmorning.runtime_files import profile_fields, normalize_secretary_name
             secretary_name = normalize_secretary_name(profile_fields(self.runtime).get("secretary_name", "")) or None
@@ -603,8 +660,13 @@ class Chats:
         result = {'chat': chat, 'mode': item['mode'], 'state': item['state'], 'forms': [], 'permissions': [],'language':chat_language(item, latest=True),
                   'secretary_name': secretary_name, **({'unread': True} if item.get('unread') else {})}
         opening = [opening_message(item['opening'])] if 'opening' in item else []
-        if opening and not item.get('session') and include_messages:
-            result['messages'] = opening
+        undelivered = item['turns'][-1] if item['turns'] and item['turns'][-1].get('undelivered') else None
+        if undelivered and include_messages:
+            undelivered = {'id': 'undelivered:' + undelivered['id'], 'role': 'user', 'kind': 'undelivered',
+                           'text': self.turn_text(item, undelivered), 'attachments': self.turn_attachments(undelivered),
+                           'turn': undelivered['id']}
+        if not item.get('session') and include_messages:
+            result['messages'] = opening + ([undelivered] if undelivered else [])
         expired = False
         if item.get('session') and self.chamber:
             try:
@@ -613,7 +675,7 @@ class Chats:
                 with self.lock:
                     questions = [dict(entry) for entry in self.items[chat].get('questions', [])]
                 if include_messages:
-                    transcript = self.chamber.control('session.messages', sessionId=item['session'], limit=100)
+                    transcript = self.chamber.control('session.messages', sessionId=item['session'], limit=limit)
                 else:
                     # Queue reconciliation must not depend on a renderable transcript.
                     # Confirm the latest user turn was accepted before releasing idle work.
@@ -623,7 +685,7 @@ class Chats:
                         {**entry, 'role': 'user'} for entry in page['data'] if entry.get('type') == 'user']}
                 messages = []
                 originals, matched_turns = {}, {}
-                for turn in item['turns']:
+                for turn in sent:
                     originals.setdefault(turn.get('prompt_hash'), []).append(turn)
                 # Match from the newest end of the bounded window. Repeated text
                 # (for example, two "Yes" replies) still belongs to distinct turns.
@@ -641,21 +703,8 @@ class Chats:
                     if entry['role'] == 'user':
                         turn = matched_turns.get(entry['id'])
                         if turn:
-                            attachments = [dict(attachment) for attachment in turn.get('attachments', [])]
-                            for attachment in attachments:
-                                try:
-                                    mime = self.uploads.get(attachment['id']).get('mime')
-                                except ValueError:
-                                    # Expired after 30 days; the chat keeps its name and size.
-                                    attachment.pop('mime', None)
-                                    attachment['removed'] = True
-                                    continue
-                                except OSError:
-                                    continue
-                                if mime:
-                                    attachment['mime'] = mime
-                            text = turn['text'] or ('' if attachments else ui.text('Start {mode}',lang=turn.get('language','en'),
-                                mode=ui.text(MODES[item['mode']],lang=turn.get('language','en')).lower()))
+                            attachments = self.turn_attachments(turn)
+                            text = self.turn_text(item, turn)
                     visible = {'id': entry['id'], 'role': entry['role'], 'text': text, 'attachments': attachments}
                     question = next((saved for saved in questions if saved['id'] == turn.get('answer')), None) if turn else None
                     if question:
@@ -683,20 +732,22 @@ class Chats:
                     unavailable = unavailable or len(aliases) != expected_aliases
                     # Saved questions show at their own place in the transcript, and their answers as turns.
                     history = question_history(messages, [entry for entry in questions if entry['id'] not in shown and not entry.get('parked')],
-                                               {form['id'] for form in forms})
-                    result.update(messages=opening + action_history(history, changes, item['turns'], item['created']),
+                                               {form['id'] for form in forms}, not transcript['more'])
+                    result.update(messages=opening + action_history(history, changes, sent, item['created'])
+                                  + ([undelivered] if undelivered else []),
                                   action_history_unavailable=unavailable,
-                                  history_limited=len(messages) >= 100)
+                                  history_limited=transcript['more'])
                 if (forms or permissions) and item['state'] not in ('starting', 'uncertain'):
                     result['reservation_required'] = False
                 expired = include_messages and bool(messages) and messages[-1].get('kind') == 'expired'
                 if item['state'] not in ('starting', 'uncertain'):
                     state = transcript['sessionStatus']['type']
-                    last_prompt = item['turns'][-1].get('prompt_hash')
-                    seen = any(entry.get('role') == 'user' and isinstance(entry.get('text'), str)
+                    # A chat whose only message was never sent has no turn to wait for.
+                    last_prompt = sent[-1].get('prompt_hash') if sent else None
+                    seen = not sent or any(entry.get('role') == 'user' and isinstance(entry.get('text'), str)
                                and hashlib.sha256(entry['text'].strip().encode()).hexdigest() == last_prompt
                                for entry in transcript['messages'])
-                    result['state'] = 'waiting' if forms or permissions else 'idle' if state == 'idle' and seen else 'running' if state in ('busy', 'idle') else 'uncertain'
+                    result['state'] = 'waiting' if forms or permissions else 'idle' if state == 'idle' and seen else 'running' if state in ('busy', 'idle', 'retry') else 'uncertain'
             except Exception:
                 result['state'] = 'unavailable'
         with self.lock:
@@ -704,12 +755,35 @@ class Chats:
                 self.titles_checked = float('-inf')
             self.title_states[chat] = result['state']
         result['label'] = {'starting': 'Opening your conversation', 'running': 'Your secretary is working',
-                           'waiting': 'Your secretary needs your answer',
-                           'idle': 'Your secretary’s question expired. Send a message to continue.' if expired else 'Ready for your reply',
-                           'uncertain': 'Delivery is uncertain. Ask the administrator to inspect this conversation before sending again.',
+                           'waiting': 'Your answer didn’t reach your secretary. Please answer again.' if any(
+                               entry.get('unsent') and 'answer' not in entry and 'skipped' not in entry for entry in item.get('questions', [])) else 'Your secretary needs your answer',
+                           'idle': 'Your secretary’s question expired. Send a message to continue.' if expired
+                                   else 'Your last message wasn’t sent. Send it again or write a new one.' if undelivered else 'Ready for your reply',
+                           'uncertain': 'Checking whether your last message reached your secretary…',
                            'unavailable': 'The secretary connection is unavailable. Your conversation is preserved.'}[result['state']]
         result['label']=ui.text(result['label'])
         return result
+
+    def turn_text(self, item, turn):
+        language = turn.get('language', 'en')
+        return turn['text'] or ('' if turn.get('attachments') else ui.text(
+            'Start {mode}', lang=language, mode=ui.text(MODES[item['mode']], lang=language).lower()))
+
+    def turn_attachments(self, turn):
+        attachments = [dict(attachment) for attachment in turn.get('attachments', [])]
+        for attachment in attachments:
+            try:
+                mime = self.uploads.get(attachment['id']).get('mime')
+            except ValueError:
+                # Expired after 30 days; the chat keeps its name and size.
+                attachment.pop('mime', None)
+                attachment['removed'] = True
+                continue
+            except OSError:
+                continue
+            if mime:
+                attachment['mime'] = mime
+        return attachments
 
     def reply(self, chat, category, request, body):
         with self.lock:
@@ -752,6 +826,7 @@ class Chats:
             item['turns'].append({'id': turn, 'text': text, 'answer': request, 'attachments': [], 'language': ui.current(),
                                   'model': site_models.current(), 'created': time.time()})
             question['answer'] = answer
+            question.pop('unsent', None)
             item['state'] = 'starting'
             self.save()
             threading.Thread(target=self.dispatch, args=(chat, turn, text, False), daemon=True).start()
@@ -814,6 +889,8 @@ def page(csrf, ready, connected, secretary_name=None, avatar='f1', avatar_urls=N
             '<div id="chat-starters"' + ('' if ready else ' hidden') + ' aria-label="Conversation starters">'
              '<button type="button" data-starter>Remind me to…</button><button type="button" data-starter>I had an idea…</button>'
              '<button type="button" data-starter>What’s on this week?</button></div></div>'
+            '<div id="chat-earlier" hidden><button type="button" id="chat-earlier-button">Show earlier messages</button>'
+            '<p id="chat-earlier-note" hidden>Your earliest messages are too far back to show here.</p></div>'
             '<div id="chat-messages" role="log" aria-label="Conversation messages" aria-live="polite" aria-relevant="additions text"></div>'
               '<p id="chat-action-notice" role="status" hidden data-ui-text="Saved changes are temporarily unavailable. Your conversation is preserved."></p>'
               '<div id="chat-questions"></div><p id="chat-status" role="status"></p><p id="request-language-note" role="status"></p></div>'
