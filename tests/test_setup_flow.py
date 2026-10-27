@@ -85,7 +85,7 @@ class SetupFlowTests(unittest.TestCase):
         self.geocode.assert_called_with('Edinburgh, Scotland, GB', 10)
         for step in ('rhythm', 'about'):
             self.answer(step, quote='I am Sam')
-        self.answer('news', {'news_country': 'gb'}, {'news_country': 'UK'})
+        self.answer('news', {'news_country': 'gb'}, {'news_country': 'Edinburgh, UK'})
         with patch.object(setup_flow, 'verify', return_value={'weather': {'status': 'verified', 'result': {'aqi': 1}}}) as verify:
             _, result = self.answer('holidays', {'holiday_countries': 'gb-sct'}, {'holiday_countries': 'Edinburgh'})
         verify.assert_called_once()
@@ -109,6 +109,25 @@ class SetupFlowTests(unittest.TestCase):
         # A form answer counts as the user's words.
         self.said('Hello', answers=[{'secretary_name': 'Nova'}])
         self.assertEqual(self.answer('secretary_name', {'secretary_name': 'Nova'}, {'secretary_name': 'nova'})[0], 0)
+
+    def test_a_quote_is_a_meaningful_part_or_a_whole_message(self):
+        self.ready()
+        self.said('Call yourself Pip. I am Sam, born 03-14.', '是的，生日是三月十四', language='zh-CN', answers=[{'user_name': '满'}])
+        words = setup_flow.user_words(self.root, CHAT)
+        for quote in ('a', 'Pi', '是', '3', ''):
+            with self.subTest(quote=quote):
+                self.assertFalse(setup_flow.quoted(words, quote), 'a trivial fragment matches almost any chat')
+        for quote in ('Pip', 'born 03-14', '三月', '生日是三月十四', '满'):
+            with self.subTest(quote=quote):
+                self.assertTrue(setup_flow.quoted(words, quote))
+        # A one-character Chinese name typed alone is the user's whole answer.
+        state = setup_flow.load(self.root, CHAT)
+        state['done'] = ['secretary_name']
+        setup_flow.store(self.root, CHAT, state)
+        self.assertEqual(self.answer('user_name', {'user_name': '满'}, {'user_name': '满'})[1]['changed'], {'user_name': '满'})
+        # Keeping or skipping needs a meaningful quote too.
+        self.assertEqual(self.answer('birthday', quote='是')[1]['error'], 'unquoted')
+        self.assertEqual(self.answer('birthday', quote='是的')[1]['setup']['step'], 'location')
 
     def test_values_follow_each_settings_rules(self):
         self.ready()

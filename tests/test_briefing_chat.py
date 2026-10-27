@@ -141,6 +141,26 @@ class ChatTests(unittest.TestCase):
         self.assertEqual(status['messages'][0]['text'], 'Start initialize')
         self.assertNotIn(str(self.root), json.dumps(status['messages']))
 
+    def test_messages_held_before_consent_reach_the_secretary_together_in_order(self):
+        (self.root / 'setup-consent.json').unlink()
+        self.start('secretary', 'First, add milk to my list')
+        self.chats.send(self.id, {'id': 'c' * 32, 'text': 'Then remind me at 6'})
+        consent, = self.chats.status(self.id)['forms']
+        self.assertEqual([entry['id'] for entry in self.chats.status(self.id)['messages'] if entry['role'] == 'user'],
+                         ['held:' + self.id, 'held:' + 'c' * 32])
+        self.assertEqual(self.chamber.calls, [])
+        self.chats.reply(self.id, 'form', consent['id'], {'answer': {'consent': 'agree'}})
+        prompts = [body['prompt'] for action, body in self.chamber.calls if action == 'session.send']
+        self.assertEqual(len(prompts), 1)
+        self.assertTrue(prompts[0].endswith('First, add milk to my list\n\nThen remind me at 6'))
+        item = self.chats.items[self.id]
+        self.assertFalse(any(turn.get('local') for turn in item['turns']))
+        self.assertEqual([turn['id'] for turn in item['turns']], ['c' * 32])
+        # Retried sends of either held message are already delivered.
+        self.assertEqual(self.start('secretary', 'First, add milk to my list'), {'chat': self.id})
+        self.assertEqual(self.chats.send(self.id, {'id': 'c' * 32, 'text': 'Then remind me at 6'}), {'chat': self.id})
+        self.assertEqual(len([1 for action, _ in self.chamber.calls if action == 'session.send']), 1)
+
     def test_blank_setup_start_asks_its_first_question_without_a_model(self):
         self.start('initialize', '')
         status = self.chats.status(self.id)

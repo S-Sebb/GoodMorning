@@ -451,11 +451,19 @@ class Chats:
             return
         setup_flow.agree(self.runtime, item['id'])
         held = [turn for turn in item['turns'] if turn.get('local')]
-        request = next((turn for turn in held if not is_setup_start(turn)), None)
-        if request is None and item['mode'] == 'initialize':
+        requests = [turn for turn in held if not is_setup_start(turn)]
+        if not requests and item['mode'] == 'initialize':
             self.open_setup(item)
             return
-        request = request or held[-1]
+        requests = requests or held[-1:]
+        request = requests[-1]
+        if len(requests) > 1:
+            # Everything sent while consent was pending reaches the secretary as one turn, in order. The newest
+            # turn carries it and keeps the earlier IDs, so a retried send stays idempotent.
+            request.update(text='\n\n'.join(turn['text'] for turn in requests if turn['text']),
+                           attachments=[entry for turn in requests for entry in turn.get('attachments', [])],
+                           joined=[turn['id'] for turn in requests[:-1]])
+            item['turns'] = [turn for turn in item['turns'] if turn['id'] not in request['joined']]
         request.pop('local')
         request.pop('after', None)
         item['state'] = 'starting'
@@ -527,7 +535,9 @@ class Chats:
         with self.lock:
             if chat in self.items:
                 item = self.items[chat]
-                if not item['turns'] or item['mode'] != body['mode'] or item['turns'][0]['text'] != text or item['turns'][0].get('attachments', []) != attachments:
+                first = item['turns'][0] if item['turns'] else None
+                if not first or item['mode'] != body['mode'] or chat not in first.get('joined', ()) and (
+                        first['text'] != text or first.get('attachments', []) != attachments):
                     raise ValueError('Request ID already belongs to another conversation')
                 return {'chat': chat}
             if not self.chamber:
@@ -589,9 +599,9 @@ class Chats:
         with self.lock:
             self.get(chat)
             item = self.items[chat]
-            old = next((turn for turn in item['turns'] if turn['id'] == request), None)
+            old = next((turn for turn in item['turns'] if request in (turn['id'], *turn.get('joined', ()))), None)
             if old:
-                if old['text'] != text or old.get('attachments', []) != attachments:
+                if not old.get('joined') and (old['text'] != text or old.get('attachments', []) != attachments):
                     raise ValueError('Request ID already belongs to another message')
                 return {'chat': chat}
             status = self.status(chat)

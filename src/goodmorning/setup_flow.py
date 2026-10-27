@@ -323,8 +323,13 @@ def user_words(runtime, chat):
 
 
 def quoted(words, quote):
+    """A quote is a whole message or answer, however short, or a meaningful part of one: at least two CJK or
+    three other characters, so a stray "a" or "是" never stands in for the user's words."""
     quote = normalized(quote) if isinstance(quote, str) else ''
-    return bool(quote) and len(quote) <= 500 and any(quote in word for word in words)
+    if not quote or len(quote) > 500:
+        return False
+    meaningful = len(quote) >= 3 or len(re.findall(r'[\u3400-\u9fff\uf900-\ufaff]', quote)) >= 2
+    return quote in words or meaningful and any(quote in word for word in words)
 
 
 def save(runtime, state, step, values):
@@ -542,12 +547,14 @@ def answer(runtime, chat, payload):
             if key in DERIVED and ('city' in values or key in quotes and quoted(words, quotes[key])):
                 continue
             if not quoted(words, quotes.get(key)):
-                raise SetupError(f'unquoted: {key} needs `quotes.{key}` with the user\'s own words from this chat; '
-                                 'never fill a value the user did not give')
+                raise SetupError(f'unquoted: {key} needs `quotes.{key}` with the user\'s own words from this chat: their '
+                                 'whole message or answer, or a part of at least 3 characters (2 Chinese); never fill a '
+                                 'value the user did not give')
             if key in ('secretary_name', 'user_name') and normalized(values[key]) not in normalized(quotes[key]):
                 raise SetupError(f'unquoted: {key} is saved exactly as the user spelled it, so its quote contains it')
         if not values and not quoted(words, payload.get('quote')):
-            raise SetupError('unquoted: keeping or skipping needs `quote` with the user\'s own words')
+            raise SetupError('unquoted: keeping or skipping needs `quote` with the user\'s own words: their whole message '
+                             'or answer, or a part of at least 3 characters (2 Chinese)')
         keep_all = payload.get('keep_all') is True
         if keep_all and (state['mode'] != 'review' or values):
             raise SetupError('invalid_keep_all: only a review keeps everything, with no values')
