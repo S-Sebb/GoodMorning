@@ -34,6 +34,8 @@ guides only for the requested operation; do not recursively reload the skill.
    do not make them readiness requirements. Confirm primary ISO `news_country` and
    comma-separated `news_additional_countries` independently of city. US/GB/CA/AU/CN
    are bundled; other outlets require a confirmed full local feed configuration.
+   Then ask, alone, which public holidays to show (Public holidays in step 4 of
+   Normal work); a review shows the saved choice and allows keeping it.
 4. Present one exact storage/access summary before new permissions: Markdown
    profile/projects/daily history, native JSON briefings, SQLite inbox/calendar/news
    reports and JSON configuration/index. Reuse consent for its exact scope. No
@@ -231,6 +233,19 @@ guides only for the requested operation; do not recursively reload the skill.
    bring a note in the night briefing asking them to restate their shares (you do
    not ask them yourself). Promise no alerts, forecasts or advice. Name
    stocks by name and code, never profile fields or symbol prefixes.
+   Public holidays: when the user asks to show, change or stop public holidays, or
+   replies to a `Secretary opening` about them, set `holiday_countries`. Run
+   `holidays --list --website-language CODE` and ask with the native question tool,
+   offering the saved city's country and news countries first. Holidays follow only
+   this answer, never the city or news countries. Several are fine. The UK,
+   Australia and Canada need a nation, state or province because their holidays
+   differ; ask which when the user names only the country. Run `holidays --check
+   "CODES"` and save its `save` value exactly; a user who wants none (or skips the
+   setup question) saves `"none"`. Confirm in everyday words: the Schedule page and
+   briefings show those holidays on their day, and for China also the make-up
+   workdays (调休上班); China's list covers only years the government has
+   announced. Name places in everyday words, never codes or profile fields. Users
+   can also pick them on the About me page (Account menu), under Public holidays.
    Weekly letter: on unless `weekly_letter` is `"false"`. When the user asks to
    stop or resume it, set `weekly_letter: "false"` or `"true"`; saved letters stay
    either way. Confirm in everyday words: preparing Sunday's evening briefing also

@@ -189,6 +189,22 @@ occurrences per sync. Never flatten a rule into one event. Provider login/sync
 is not implemented. Reads show the saved schedule, not a promise of live
 freshness. No external calendar is written back by these commands.
 
+## Public holidays
+
+The profile's `holiday_countries` lists region codes (`CN`, `US`, `GB-SCT`,
+`AU-NSW`, `CA-ON`; `holidays --list` shows them all), or `none`. The Schedule
+page and briefings work out those public holidays, and China's make-up workdays,
+from `src/goodmorning/calendar/public_holidays.json` whenever they show a day.
+Nothing is written to the calendar, and holidays cannot be edited or cancelled.
+
+The file is built by `src/goodmorning/calendar/public_holidays_build.py` from a pinned
+python-holidays release and covers this year and next. Refresh it each year,
+and as soon as the State Council publishes China's next schedule (usually in
+November): check the library against the announcement, add the year to
+`CHINA_YEARS`, rebuild, and have the subagent required by `AGENTS.md` word any
+new names in Chinese. Until then, China's year shows no holidays, and the
+Schedule details menu says it is not listed yet.
+
 ## Storage and safety
 
 Calendar storage uses SQLite only. Markdown schedule files and migration commands

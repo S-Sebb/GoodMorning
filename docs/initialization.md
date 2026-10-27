@@ -52,6 +52,8 @@ integration access or verification consent.
    News categories are fixed (AI, world, national); none can be turned off. If the
    user asks to favor or drop a topic, say plainly that briefings cannot follow
    topic preferences, offer the country and outlet settings, and save nothing for it.
+   Then, alone, ask which public holidays to show, under “Public holidays” in
+   `docs/workflows/secretary.md` step 4. Never copy them from location or news.
 8. Present one exact file-format/storage/access summary, including runtime,
    authorized remote reads/writes and selected checks. Reuse existing consent only
    for its exact scope. Check-only registry access uses empty write targets and

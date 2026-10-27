@@ -28,6 +28,11 @@ does not require a connected agent or a new morning/evening briefing.
   An overnight/multi-day event appears on every day it overlaps; an exclusive
   midnight end does not add another day. The weekly appointment count counts
   each event once.
+- Public holidays from the profile's `holiday_countries` head their day, softly
+  highlighted; China's make-up workdays show with a plain dashed outline. They
+  are worked out from bundled data on every check, never saved as events, and do
+  not count as events. When followed regions have no list yet for a shown year
+  (China before its announcement), the details menu says so.
 - Untimed work stays separate. Canonical agreed workdays and recurrence appear
   with project/optional labels and explicit partial/blocked/completed status.
   Legacy daily checklists remain a pre-migration fallback only. Confirmed

@@ -81,6 +81,17 @@ class AboutMeTests(unittest.TestCase):
         fields = profile_fields(self.root)
         self.assertEqual((fields['city'], fields['timezone'], fields['anime_titles']), ('Shanghai, CN', 'Asia/Shanghai', '1, 2'))
 
+    def test_public_holidays_are_picked_from_listed_regions(self):
+        self.assertIn('Mochi doesn’t know yet', self.app_page().split('data-field="holiday_countries"')[1][:400])
+        self.assertEqual(about_me.save(self.app, {'field': 'holiday_countries', 'value': 'gb-sct, CN'}),
+                         {'field': 'holiday_countries', 'value': 'GB-SCT, CN'})
+        self.assertIn('data-holidays="GB-SCT,CN">United Kingdom — Scotland, China<', self.app_page())
+        self.assertEqual(about_me.save(self.app, {'field': 'holiday_countries', 'value': ''})['value'], 'none')
+        self.assertIn('No public holidays', self.app_page())
+        with self.assertRaises(ValueError):
+            about_me.save(self.app, {'field': 'holiday_countries', 'value': 'GB'})
+        self.assertEqual(profile_fields(self.root)['holiday_countries'], 'none')
+
     def test_extras_switch_back_on_only_after_chat_set_them_up(self):
         self.assertEqual(about_me.save(self.app, {'field': 'anime_updates', 'value': 'true'})['value'], 'true')
         self.assertEqual(about_me.save(self.app, {'field': 'weekly_letter', 'value': 'false'})['value'], 'false')

@@ -7,10 +7,12 @@ of the data. Simple text fields and the evening extras' switches save through
 """
 from datetime import datetime, timezone
 import html
+import json
 import re
 
 from goodmorning import anime, games, stocks
 from goodmorning.briefings.briefing_day import briefing_day
+from goodmorning.calendar import public_holidays
 from goodmorning.records import letters, memory as memories
 from goodmorning.runtime_files import (PROFILE_TEXT_MAX as LONG, SECRETARY_NAME_MAX as SHORT, calendar_config,
                                        normalize_secretary_name, profile_fields, set_profile_fields)
@@ -197,10 +199,36 @@ def extras(app, fields):
                    say(fields, 'Switching one off keeps its settings, so you can turn it back on anytime. To start a new one, ask {name}.'))
 
 
+def holiday_regions():
+    """Every region the picker offers, with its country and region names in both website languages."""
+    return [{'code': code, 'country': [region['country'], public_holidays.named(region['country'], 'zh-CN')],
+             **({} if region['label'] == region['country'] else {'region': [region['label'], public_holidays.named(region['label'], 'zh-CN')]})}
+            for code, region in public_holidays.REGIONS.items()]
+
+
+def holidays(fields):
+    """The followed holiday regions; the script names them in the website language and offers the picker."""
+    saved = fields.get('holiday_countries', '')
+    try:
+        codes = public_holidays.regions(saved)
+    except ValueError:
+        codes, saved = [], ''  # Unreadable: shown as unknown, and the picker replaces it.
+    if codes:
+        content = (f'<span class="about-value" data-holidays="{",".join(codes)}">'
+                   + html.escape(', '.join(public_holidays.choice(code, ui.current()) for code in codes)) + '</span>')
+    else:
+        content = '<span class="about-value">' + ui.ui('No public holidays') + '</span>' if saved else value(fields, '')
+    regions = html.escape(json.dumps(holiday_regions(), ensure_ascii=False, separators=(',', ':')), quote=True)
+    return row(ui.ui('Public holidays'), content,
+               f'<button class="about-edit" type="button" data-holiday-regions="{regions}" hidden>' + ui.ui('Edit') + '</button>',
+               'holiday_countries')
+
+
 def calendar(app, fields):
     linked = bool(calendar_config(app.runtime).get('ics_url'))
     content = '<span class="about-value">' + ui.ui('Connected') + '</span>' if linked else value(fields, '')
-    return section('calendar', ui.ui('Your calendar'), [row(ui.ui('Linked calendar'), content, chat(app, fields, 'I’d like to change my linked calendar.'))])
+    return section('calendar', ui.ui('Your calendar'), [row(ui.ui('Linked calendar'), content, chat(app, fields, 'I’d like to change my linked calendar.')),
+                                                        holidays(fields)])
 
 
 def project_names(runtime):
@@ -291,6 +319,8 @@ def save(app, body):
             raise ValueError('Invalid switch')
         if text == 'true' and key not in extras_state(app.runtime, profile_fields(app.runtime)):
             raise Invalid('Ask your secretary to set this up first.')
+    elif key == 'holiday_countries':
+        text = ', '.join(public_holidays.regions(text)) or 'none'  # Nothing chosen saves "none", as declining in chat does.
     elif key not in TEXT:
         raise ValueError('This can only be changed in chat')
     try:
