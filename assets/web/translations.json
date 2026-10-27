@@ -782,6 +782,8 @@
   "Nothing changes. I won’t ask again before {date}.": "不会改动任何东西，{date}之前不会再问你。",
   "You’re offline · showing the version from {time}.": "你现在离线了 · 显示的是 {time} 保存的版本。",
   "You’re offline · showing the version from {date}, {time}.": "你现在离线了 · 显示的是 {date} {time} 保存的版本。",
+  "GoodMorning can’t be reached right now · showing the version from {time}.": "现在连不上 GoodMorning · 显示的是 {time} 保存的版本。",
+  "GoodMorning can’t be reached right now · showing the version from {date}, {time}.": "现在连不上 GoodMorning · 显示的是 {date} {time} 保存的版本。",
   "Letters": "来信",
   "Weekly letters": "每周来信",
   "Weekly letters — GoodMorning": "每周来信 — GoodMorning",

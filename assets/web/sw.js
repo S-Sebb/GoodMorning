@@ -14,14 +14,21 @@ self.addEventListener('fetch', event => {
   if (request.method !== 'GET' || new URL(request.url).origin !== self.location.origin) return;
   if (request.mode === 'navigate') {
     event.respondWith(fetch(request).then(response => {
+      if (failed(response)) return offline(request, response);
       event.waitUntil(update());
       return response;
     }, () => offline(request)));
   } else if (['style', 'script', 'font', 'image'].includes(request.destination)) {
     // Online, everything comes from the network as before; offline, the copies' own files come from the cache.
-    event.respondWith(fetch(request).catch(async () => await (await kept())?.match(request, {ignoreVary: true}) || Response.error()));
+    const keptFile = async otherwise => await (await kept())?.match(request, {ignoreVary: true}) || otherwise;
+    event.respondWith(fetch(request).then(response => failed(response) ? keptFile(response) : response, () => keptFile(Response.error())));
   }
 });
+
+// NGINX in front of a stopped gateway, a deployment pause or an unavailable secretary: the server, not the connection.
+function failed(response) {
+  return [502, 503, 504].includes(response.status);
+}
 
 function update() {
   refreshing = refreshing || refresh().catch(() => {}).finally(() => { refreshing = null; });
@@ -37,15 +44,22 @@ async function forget(except) {
   for (const name of await caches.keys()) if (name.startsWith(PREFIX) && name !== except) await caches.delete(name);
 }
 
-// Briefing pages open their own edition; any other page opens the morning before 17:00, then the evening.
-async function offline(request) {
+// Briefing pages open their own edition; any other page opens the morning from 04:00 until 17:00 in the account's
+// timezone, which the copies name (briefing_server.py), then the evening, or whichever is kept. A copy shown instead of
+// the server's error page says the server failed (briefing.js); with no copy that error page stays.
+async function offline(request, failure) {
   const cache = await kept();
-  const wanted = (new URL(request.url).pathname.match(/(gm|gn)\.html$/) || [])[1] || (new Date().getHours() < 17 ? 'gm' : 'gn');
-  for (const path of wanted === 'gm' ? COPIES : [...COPIES].reverse()) {
-    const copy = cache && await cache.match(path, {ignoreVary: true});
-    if (copy) return copy;
-  }
-  return Response.error();
+  const copies = cache ? await Promise.all(COPIES.map(path => cache.match(path, {ignoreVary: true}))) : [];
+  if (!copies.some(Boolean)) return failure || Response.error();
+  const texts = await Promise.all(copies.map(copy => copy?.text()));
+  const zone = texts.join('').match(/data-zone="([^"]+)"/)?.[1];
+  const hour = Number(new Intl.DateTimeFormat('en', {timeZone: zone, hour: 'numeric', hourCycle: 'h23'}).format());
+  const wanted = (new URL(request.url).pathname.match(/(gm|gn)\.html$/) || [])[1] || (hour >= 4 && hour < 17 ? 'gm' : 'gn');
+  const shown = (wanted === 'gm' ? [0, 1] : [1, 0]).find(index => copies[index]);
+  const headers = new Headers(copies[shown].headers);
+  headers.delete('Content-Length');
+  const text = texts[shown];
+  return new Response(failure ? text.replace('class="offline-notice"', 'class="offline-notice" data-unreachable') : text, {headers});
 }
 
 async function refresh() {
