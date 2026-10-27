@@ -4,52 +4,9 @@
   "CN": {
    "country": "China",
    "label": "China",
-   "years": [
-    2026
-   ],
-   "days": {
-    "2026-01-01": "New Year's Day",
-    "2026-01-02": "New Year holiday",
-    "2026-01-03": "New Year holiday",
-    "2026-02-15": "Spring Festival holiday",
-    "2026-02-16": "Chinese New Year's Eve",
-    "2026-02-17": "Chinese New Year (Spring Festival)",
-    "2026-02-18": "Chinese New Year (Spring Festival)",
-    "2026-02-19": "Chinese New Year (Spring Festival)",
-    "2026-02-20": "Spring Festival holiday",
-    "2026-02-21": "Spring Festival holiday",
-    "2026-02-22": "Spring Festival holiday",
-    "2026-02-23": "Spring Festival holiday",
-    "2026-04-04": "Qingming Festival holiday",
-    "2026-04-05": "Tomb-Sweeping Day",
-    "2026-04-06": "Qingming Festival holiday",
-    "2026-05-01": "Labor Day",
-    "2026-05-02": "Labor Day",
-    "2026-05-03": "Labor Day holiday",
-    "2026-05-04": "Labor Day holiday",
-    "2026-05-05": "Labor Day holiday",
-    "2026-06-19": "Dragon Boat Festival",
-    "2026-06-20": "Dragon Boat Festival holiday",
-    "2026-06-21": "Dragon Boat Festival holiday",
-    "2026-09-25": "Mid-Autumn Festival",
-    "2026-09-26": "Mid-Autumn Festival holiday",
-    "2026-09-27": "Mid-Autumn Festival holiday",
-    "2026-10-01": "National Day",
-    "2026-10-02": "National Day",
-    "2026-10-03": "National Day",
-    "2026-10-04": "National Day holiday",
-    "2026-10-05": "National Day holiday",
-    "2026-10-06": "National Day holiday",
-    "2026-10-07": "National Day holiday"
-   },
-   "workdays": {
-    "2026-01-04": "New Year make-up workday",
-    "2026-02-14": "Spring Festival make-up workday",
-    "2026-02-28": "Spring Festival make-up workday",
-    "2026-05-09": "Labor Day make-up workday",
-    "2026-09-20": "National Day make-up workday",
-    "2026-10-10": "National Day make-up workday"
-   }
+   "years": [],
+   "days": {},
+   "workdays": {}
   },
   "US": {
    "country": "United States",
