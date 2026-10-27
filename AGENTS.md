@@ -35,7 +35,9 @@ copies, or delete or overwrite private records and saved preferences.
 
 For website prompts marked `Browser chat`, read `docs/core-rules.md`,
 `docs/browser-chat.md`, then `docs/workflows/secretary.md`, which routes saving
-to-dos and ideas to their capture steps. `/initialize` reviews all existing
+to-dos and ideas to their capture steps. A `/initialize` prompt with a
+`Setup step:` receipt reads no docs: the receipt's `contract` and each later
+receipt's `next` give the setup rules one step at a time. It reviews all existing
 preferences without resetting records. Chat supports only initialize and
 secretary (older `/todo` and `/eureka` chats continue as secretary); briefings
 remain on their own pages.

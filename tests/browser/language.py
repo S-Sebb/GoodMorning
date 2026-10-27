@@ -222,7 +222,13 @@ def run(artifacts):
                 avatar(new,'m1')
                 page.evaluate("window.dispatchEvent(new Event('focus'))")
                 expect(page.locator('.avatar-display')).to_have_attribute('data-avatar','m2')
-                new.get_by_role('button',name='开始初始化').click();expect(new.get_by_role('heading',name='确认所在地')).to_be_visible()
+                new.get_by_role('button',name='开始初始化').click()
+                # Storage consent first, then setup's first question from code, both in Chinese.
+                expect(new.get_by_role('heading',name='开始之前：GoodMorning 怎么保管你的信息')).to_be_visible()
+                new.get_by_role('radio',name='我同意').check();new.get_by_role('button',name='提交回答').click()
+                expect(new.get_by_role('heading',name='你想叫我什么？')).to_be_visible()
+                new.get_by_role('radio',name='先跳过').check();new.get_by_role('button',name='提交回答').click()
+                expect(new.get_by_role('heading',name='确认所在地')).to_be_visible()
                 new.get_by_placeholder('或填写你自己的回答').fill('London, GB')
                 switch(new,'en');expect(new.get_by_placeholder('Or write your own answer')).to_have_value('London, GB')
                 expect(new.locator('#request-language-note')).to_contain_text('Simplified Chinese')
@@ -232,7 +238,8 @@ def run(artifacts):
                 for name, selected in (('alice','m2'),('bob','m1')):
                     stored=json.loads((Path(settings['runtimes'][name])/'website-avatar.json').read_text())
                     assert stored=={'avatar':selected}
-                assert 'secretary_language' not in (Path(settings['runtimes']['bob'])/'profile.md').read_text()
+                from goodmorning.runtime_files import profile_fields
+                assert not profile_fields(settings['runtimes']['bob']).get('secretary_language')  # Never a reply-language answer.
                 switch(new,'zh-CN');new.get_by_role('button',name='新建对话').click()
                 expect(new.locator('#chat-topic-mode')).to_have_text('秘书')
                 expect(new.locator('#chat-welcome')).not_to_be_empty();expect(new.get_by_role('button',name='这周有什么安排？',exact=True)).to_be_visible();no_overflow(new)

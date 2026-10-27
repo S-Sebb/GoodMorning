@@ -15,6 +15,10 @@ guides only for the requested operation; do not recursively reload the skill.
 
 ## Setup or preference review
 
+A website Initialize chat follows its `Setup step:` receipts instead of this
+section (`docs/initialization.md`, Website setup is code-led). This section covers
+preference changes in Secretary chats and setup outside the website.
+
 1. Follow `docs/initialization.md`, `config.example.md` and profile/project templates.
    Reuse confirmed answers and records. Explicit Initialize reviews all existing
    preferences; missing-setup recovery asks only missing settings. Neither resets data.

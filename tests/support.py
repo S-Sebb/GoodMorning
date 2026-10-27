@@ -131,7 +131,7 @@ class MockChamber(Chamber):
             self.add(session, 'user', body['prompt'])
             if re.search('User has answered your questions: "(City|城市)"=', body['prompt']):
                 session['permissions'] = [{'id': 'permission_setup', 'action': 'Save confirmed synthetic profile', 'resources': ['Synthetic profile only']}]
-            elif body['prompt'].startswith('/initialize'):
+            elif body['prompt'].startswith('/initialize') or body['prompt'].endswith('Ask my city'):
                 self.add(session, 'assistant', 'Confirm your location; replies follow the website language.')
                 session['forms'] = [{'id': 'form_city', 'title': 'Confirm your location', 'metadata': {'tool': {'id': 'prt_city'}}, 'fields': [
                     {'key': 'city', 'title': 'City', 'type': 'string', 'required': True,

@@ -3,11 +3,13 @@ import hashlib
 import html
 import json
 import re
+import secrets
 import threading
 import time
 from urllib.error import HTTPError
 from urllib.parse import urlencode
 
+from goodmorning import setup_flow, setup_guides
 from goodmorning.runtime_files import atomic_text
 from .briefing_resources import favicon_links
 from . import language as ui
@@ -268,6 +270,11 @@ def chat_language(item, latest=False):
     return item.get('opening', {}).get('language', 'en' if not latest else None)
 
 
+def is_setup_start(turn):
+    """The Initialize button's own message (or none) asks for nothing beyond setup itself."""
+    return not turn['attachments'] and turn['text'] in ('', ui.text(setup_flow.START, lang=turn.get('language', 'en')))
+
+
 def opening_message(opening):
     return {'id': opening['id'], 'role': 'assistant', 'text': opening['text'], 'attachments': [],
             'kind': 'outreach', 'language': opening['language']}
@@ -388,6 +395,137 @@ class Chats:
                     next(entry for entry in self.items[chat]['questions'] if entry['id'] == form['id']).pop('parked', None)
                     self.save()
 
+    def post(self, item, form, anchor):
+        """Saves a code-authored question like a parked engine question; it replaces any earlier unanswered one.
+        Callers hold the lock and save."""
+        questions = item.setdefault('questions', [])
+        for entry in questions:
+            if entry.get('code') and 'answer' not in entry:
+                entry.setdefault('skipped', form['id'])
+        questions.append({'id': form['id'], 'form': form, 'code': True, 'parked': True, 'after': anchor,
+                          'created': time.time(), 'language': chat_language(item, latest=True)})
+        if form['setup'] != 'consent':
+            setup_flow.posted(self.runtime, item['id'], form)
+
+    def note(self, item, text, anchor):
+        item.setdefault('notes', []).append({'id': 'note-' + secrets.token_hex(8), 'text': text, 'after': anchor,
+                                             'created': time.time(), 'language': chat_language(item, latest=True)})
+
+    def anchor(self, item, messages=None):
+        """The transcript message a code-authored entry follows; None before the conversation has one."""
+        if not item.get('session'):
+            return None
+        if messages is None:
+            messages = self.chamber.control('session.messages', sessionId=item['session'], limit=100)['messages']
+        return next((entry['id'] for entry in reversed(messages)
+                     if entry.get('role') in ('user', 'assistant') and isinstance(entry.get('text'), str)), None)
+
+    def hold(self, item):
+        """Keeps the newest turn on the page instead of sending it. Before storage consent every conversation
+        asks for it first; a blank Initialize start opens with setup's first question. Callers hold the lock."""
+        turn = item['turns'][-1]
+        if not setup_flow.consented(self.runtime):
+            anchor = self.anchor(item)
+            turn.update(local=True, after=anchor)
+            with setup_flow.speaking(turn['language']):
+                self.post(item, setup_flow.consent_form(), anchor)
+            return True
+        if item['mode'] == 'initialize' and len(item['turns']) == 1 and is_setup_start(turn):
+            return self.open_setup(item)
+        return False
+
+    def open_setup(self, item):
+        """Asks setup's first question in code wording; the secretary joins when the user answers."""
+        item['turns'][-1]['local'] = True
+        setup_flow.begin(self.runtime, item['id'])
+        with setup_flow.speaking(chat_language(item, latest=True)):
+            self.post(item, setup_flow.fallback(self.runtime, item['id'], record=False), None)
+        return True
+
+    def consent(self, item, question, answer):
+        """Applies the storage consent answer. Agreeing continues the held request; declining saves nothing."""
+        question.update(answer=answer, local_answer=True, answered=time.time())
+        if answer.get('consent') != 'agree':
+            self.note(item, ui.text(setup_guides.DECLINED, lang=question['language']), question['after'])
+            return
+        setup_flow.agree(self.runtime, item['id'])
+        held = [turn for turn in item['turns'] if turn.get('local')]
+        requests = [turn for turn in held if not is_setup_start(turn)]
+        if not requests and item['mode'] == 'initialize':
+            self.open_setup(item)
+            return
+        requests = requests or held[-1:]
+        request = requests[-1]
+        if len(requests) > 1:
+            # Everything sent while consent was pending reaches the secretary as one turn, in order. The newest
+            # turn carries it and keeps the earlier IDs, so a retried send stays idempotent.
+            request.update(text='\n\n'.join(turn['text'] for turn in requests if turn['text']),
+                           attachments=[entry for turn in requests for entry in turn.get('attachments', [])],
+                           joined=[turn['id'] for turn in requests[:-1]])
+            item['turns'] = [turn for turn in item['turns'] if turn['id'] not in request['joined']]
+        request.pop('local')
+        request.pop('after', None)
+        item['state'] = 'starting'
+        threading.Thread(target=self.dispatch, args=(item['id'], request['id'], request['text'], not item.get('session')),
+                         daemon=True).start()
+
+    def local_history(self, item, messages, complete):
+        """Places what never reached the engine: held messages, code-authored questions once answered or replaced,
+        their answers kept here, and notes. Each follows the transcript message it came after."""
+        entries = []
+        for turn in item['turns']:
+            if turn.get('local'):
+                entries.append((turn.get('after'), turn.get('created', item['created']), {
+                    'id': 'held:' + turn['id'], 'role': 'user', 'text': self.turn_text(item, turn),
+                    'attachments': self.turn_attachments(turn), 'turn': turn['id']}))
+        for entry in item.get('questions', []):
+            if not entry.get('code') or 'answer' not in entry and 'skipped' not in entry:
+                continue
+            language = entry['language']
+            entries.append((entry['after'], entry['created'], {
+                'id': 'question:' + entry['id'], 'role': 'assistant', 'kind': 'question' if 'answer' in entry else 'skipped',
+                'language': language, 'text': question_text(entry['form'], language)}))
+            if entry.get('local_answer'):
+                entries.append((entry['after'], entry['answered'], {
+                    'id': 'answer:' + entry['id'], 'role': 'user', 'kind': 'answer', 'language': language,
+                    'text': answer_text(entry['form'], entry['answer'], language)}))
+        for entry in item.get('notes', []):
+            entries.append((entry['after'], entry['created'], {'id': entry['id'], 'role': 'assistant', 'kind': 'note',
+                                                               'language': entry['language'], 'text': entry['text']}))
+        anchors = {entry['id'] for entry in messages}
+        additions = {}
+        for anchor, _, entry in sorted(entries, key=lambda entry: entry[1]):
+            if anchor in anchors or anchor is None and complete:
+                additions.setdefault(anchor, []).append(entry)
+        result = list(additions.get(None, []))
+        for entry in messages:
+            result.append(entry)
+            result.extend(additions.get(entry['id'], []))
+        return result
+
+    def setup_tick(self, chat, item, messages):
+        """After the secretary's turn ends in an Initialize chat: show the question it asked through setup,
+        otherwise ask the current step in code wording; once setup is done, add the more-features note.
+        `messages` is the transcript when already read."""
+        state = setup_flow.load(self.runtime, chat) if item['mode'] == 'initialize' else None
+        if state is None or state['phase'] == 'done' and state.get('hinted'):
+            return
+        anchor = self.anchor(item, messages)
+        with setup_flow.speaking(chat_language(item, latest=True)):
+            form = state.get('pending') or setup_flow.fallback(self.runtime, chat)
+            hint = None if form else setup_flow.hint(self.runtime, chat)
+        if not form and not hint:
+            return
+        with self.lock:
+            item = self.items[chat]
+            if parked_forms(item.get('questions', [])) or item['state'] in ('starting', 'uncertain'):
+                return
+            if form:
+                self.post(item, form, anchor)
+            else:
+                self.note(item, hint, anchor)
+            self.save()
+
     def start(self, body):
         if set(body) not in ({'id', 'mode', 'text'}, {'id', 'mode', 'text', 'attachments'}) or body['mode'] not in NEW_MODES:
             raise ValueError('Start a Secretary conversation')
@@ -396,7 +534,9 @@ class Chats:
         with self.lock:
             if chat in self.items:
                 item = self.items[chat]
-                if not item['turns'] or item['mode'] != body['mode'] or item['turns'][0]['text'] != text or item['turns'][0].get('attachments', []) != attachments:
+                first = item['turns'][0] if item['turns'] else None
+                if not first or item['mode'] != body['mode'] or chat not in first.get('joined', ()) and (
+                        first['text'] != text or first.get('attachments', []) != attachments):
                     raise ValueError('Request ID already belongs to another conversation')
                 return {'chat': chat}
             if not self.chamber:
@@ -409,6 +549,10 @@ class Chats:
                     'state': 'starting', 'turns': [{'id': chat, 'text': text, 'attachments': attachments,'language':ui.current(),'model':site_models.current()}],
                     'created': time.time()}
             self.items[chat] = item
+            if self.hold(item):
+                item['state'] = 'idle'
+                self.save()
+                return {'chat': chat}
             self.save()  # Save intent before any model request; never blindly replay.
             threading.Thread(target=self.dispatch, args=(chat, chat, text, True), daemon=True).start()
         return {'chat': chat}
@@ -454,9 +598,9 @@ class Chats:
         with self.lock:
             self.get(chat)
             item = self.items[chat]
-            old = next((turn for turn in item['turns'] if turn['id'] == request), None)
+            old = next((turn for turn in item['turns'] if request in (turn['id'], *turn.get('joined', ()))), None)
             if old:
-                if old['text'] != text or old.get('attachments', []) != attachments:
+                if not old.get('joined') and (old['text'] != text or old.get('attachments', []) != attachments):
                     raise ValueError('Request ID already belongs to another message')
                 return {'chat': chat}
             status = self.status(chat)
@@ -477,13 +621,16 @@ class Chats:
             # A secretary-opened conversation has no session until the user's first reply. After a
             # first message that never reached the engine, the next one opens the conversation
             # again. A first message still being opened ('starting') is awaited instead.
-            first = item['state'] == 'idle' and all(turn.get('undelivered') for turn in item['turns'])
+            first = item['state'] == 'idle' and all(turn.get('undelivered') or turn.get('local') for turn in item['turns'])
             item['turns'].append({'id': request, 'text': text, 'attachments': attachments,'language':ui.current(),'model':site_models.current(), 'created': time.time()})
             for entry in item.get('questions', []):
                 if entry.get('parked') and 'answer' not in entry:
                     entry.setdefault('skipped', request)
-            item['state'] = 'starting'
             item.pop('unread', None)
+            if self.hold(item):
+                self.save()
+                return {'chat': chat}
+            item['state'] = 'starting'
             self.save()
             threading.Thread(target=self.dispatch, args=(item['id'], request, text, first), daemon=True).start()
         return {'chat': chat}
@@ -555,6 +702,10 @@ class Chats:
             if opening:
                 prompt += f"Secretary opening: {json.dumps(opening['text'],ensure_ascii=False)}\n"
             prompt += f"\n{text}"
+            if mode == 'initialize':
+                setup_flow.begin(runtime, chat_id)
+                step = setup_flow.receipt(runtime, chat_id, session, selected, contract=first or refresh)
+                prompt += "\n\nSetup step: " + json.dumps(step, ensure_ascii=False, separators=(",", ":"))
             if attachments:
                 # Distinguish file-only turns with identical text when matching
                 # acknowledged messages and restoring their attachment labels.
@@ -651,7 +802,7 @@ class Chats:
             except Exception:
                 pass  # Still uncertain; the next status read checks again.
         item = self.get(chat)
-        sent = [turn for turn in item['turns'] if not turn.get('undelivered')]
+        sent = [turn for turn in item['turns'] if not turn.get('undelivered') and not turn.get('local')]
         try:
             from goodmorning.runtime_files import profile_fields, normalize_secretary_name
             secretary_name = normalize_secretary_name(profile_fields(self.runtime).get("secretary_name", "")) or None
@@ -665,8 +816,13 @@ class Chats:
             undelivered = {'id': 'undelivered:' + undelivered['id'], 'role': 'user', 'kind': 'undelivered',
                            'text': self.turn_text(item, undelivered), 'attachments': self.turn_attachments(undelivered),
                            'turn': undelivered['id']}
-        if not item.get('session') and include_messages:
-            result['messages'] = opening + ([undelivered] if undelivered else [])
+        if not item.get('session'):
+            # Code-authored questions (storage consent, setup's first step) wait here before any session.
+            result['forms'] = parked_forms(item.get('questions', []))
+            if result['forms'] and item['state'] not in ('starting', 'uncertain'):
+                result.update(state='waiting', reservation_required=False)
+            if include_messages:
+                result['messages'] = opening + self.local_history(item, [], True) + ([undelivered] if undelivered else [])
         expired = False
         if item.get('session') and self.chamber:
             try:
@@ -683,6 +839,16 @@ class Chats:
                     page = self.chamber.request(f'/api/session/{item["session"]}/message?type=user&limit=1&order=desc')
                     transcript = {**status, 'messages': [
                         {**entry, 'role': 'user'} for entry in page['data'] if entry.get('type') == 'user']}
+                # A chat whose only message was never sent has no turn to wait for.
+                last_prompt = sent[-1].get('prompt_hash') if sent else None
+                seen = not sent or any(entry.get('role') == 'user' and isinstance(entry.get('text'), str)
+                           and hashlib.sha256(entry['text'].strip().encode()).hexdigest() == last_prompt
+                           for entry in transcript['messages'])
+                if (transcript['sessionStatus']['type'] == 'idle' and seen and not parked_forms(questions)
+                        and not permissions and item['state'] not in ('starting', 'uncertain')):
+                    self.setup_tick(chat, item, transcript['messages'] if include_messages else None)
+                    item = self.get(chat)
+                    questions = [dict(entry) for entry in item.get('questions', [])]
                 messages = []
                 originals, matched_turns = {}, {}
                 for turn in sent:
@@ -733,6 +899,7 @@ class Chats:
                     # Saved questions show at their own place in the transcript, and their answers as turns.
                     history = question_history(messages, [entry for entry in questions if entry['id'] not in shown and not entry.get('parked')],
                                                {form['id'] for form in forms}, not transcript['more'])
+                    history = self.local_history(item, history, not transcript['more'])
                     result.update(messages=opening + action_history(history, changes, sent, item['created'])
                                   + ([undelivered] if undelivered else []),
                                   action_history_unavailable=unavailable,
@@ -742,11 +909,6 @@ class Chats:
                 expired = include_messages and bool(messages) and messages[-1].get('kind') == 'expired'
                 if item['state'] not in ('starting', 'uncertain'):
                     state = transcript['sessionStatus']['type']
-                    # A chat whose only message was never sent has no turn to wait for.
-                    last_prompt = sent[-1].get('prompt_hash') if sent else None
-                    seen = not sent or any(entry.get('role') == 'user' and isinstance(entry.get('text'), str)
-                               and hashlib.sha256(entry['text'].strip().encode()).hexdigest() == last_prompt
-                               for entry in transcript['messages'])
                     result['state'] = 'waiting' if forms or permissions else 'idle' if state == 'idle' and seen else 'running' if state in ('busy', 'idle', 'retry') else 'uncertain'
             except Exception:
                 result['state'] = 'unavailable'
@@ -788,6 +950,8 @@ class Chats:
     def reply(self, chat, category, request, body):
         with self.lock:
             item = self.get(chat)
+            if category == 'form' and any(entry['id'] == request and entry.get('code') for entry in item.get('questions', [])):
+                return self.answer(chat, item.get('session'), [], request, body)
             if not item.get('session') or category not in ('form', 'permission') or not self.chamber:
                 raise ValueError('Invalid reply target')
             if category+':'+request in item.get('replied_inputs', []):
@@ -807,7 +971,8 @@ class Chats:
     def answer(self, chat, session, forms, request, body):
         """Delivers an answer to a saved question as a new turn of the same session. The answer and its
         turn are saved together before dispatch, so a retried or second answer never sends twice."""
-        self.park(chat, session, forms)  # An answer can arrive before any read saved the question.
+        if session:
+            self.park(chat, session, forms)  # An answer can arrive before any read saved the question.
         with self.lock:
             item = self.items[chat]
             question = next((entry for entry in item.get('questions', []) if entry['id'] == request and entry.get('parked')), None)
@@ -818,6 +983,10 @@ class Chats:
             if item['state'] in ('starting', 'uncertain'):
                 raise ValueError('Wait for the secretary or answer the pending question')
             answer = valid_answer(question['form'], body.get('answer'))
+            if question['form'].get('setup') == 'consent':
+                self.consent(item, question, answer)
+                self.save()
+                return {'answered': True}
             if len(item['turns']) >= 200:
                 raise ValueError('Start a new conversation to keep context bounded')
             text = model_answer(question['form'], answer)
@@ -829,7 +998,11 @@ class Chats:
             question.pop('unsent', None)
             item['state'] = 'starting'
             self.save()
-            threading.Thread(target=self.dispatch, args=(chat, turn, text, False), daemon=True).start()
+            # Choices such as keep, skip or picked countries are saved here; the secretary words the next question.
+            if question.get('code') and setup_flow.apply_form(self.runtime, chat, question, answer):
+                item['turns'][-1]['text'] = text = text + ' Setup already saved these answers.'
+                self.save()
+            threading.Thread(target=self.dispatch, args=(chat, turn, text, not session), daemon=True).start()
         return {'answered': True}
 
 

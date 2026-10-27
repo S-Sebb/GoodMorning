@@ -1268,7 +1268,7 @@ class GatewayTests(GatewayFixture):
 
     def test_native_question_waits_indefinitely_and_reply_resumes_original_session(self):
         from goodmorning.web.briefing_chat import Chats
-        runtime=self.root/'synthetic-waiting-chat';runtime.mkdir()
+        runtime=self.root/'synthetic-waiting-chat';runtime.mkdir();(runtime/'setup-consent.json').write_text('{}')
         chamber=MockChamber(runtime);chats=Chats(runtime,chamber)
         def proxy(user, host, path, method, raw, headers):
             if user == self.other:
@@ -1283,7 +1283,7 @@ class GatewayTests(GatewayFixture):
             return 202, {}, json.dumps(value).encode()
         with patch.object(self.gateway,'proxy',side_effect=proxy), patch('goodmorning.web.briefing_chat.threading.Thread',ImmediateThread):
             self.gateway.chat_message(self.id,'gm.example.test','/api/chats',
-                json.dumps({'id':'a'*32,'mode':'initialize','text':''}).encode(),{})
+                json.dumps({'id':'a'*32,'mode':'secretary','text':'Ask my city'}).encode(),{})
             original_session=chats.get('a'*32)['session']
             self.gateway.pump_queue()
             self.assertIsNone(self.gateway.ticket())

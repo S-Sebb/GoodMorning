@@ -49,6 +49,9 @@ Never put passwords or keys here. -->
 
 ## Setup rules
 
+Website Initialize chats ask only their code-led steps (`docs/initialization.md`);
+these rules guide preference changes in Secretary chats and setup elsewhere.
+
 - Ask for `secretary_name` as the first initialization question, before any
   location, schedule, tone or news question. It is an optional short display
   name (1-30 characters, at least one letter or number, no control characters

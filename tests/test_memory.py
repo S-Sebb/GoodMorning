@@ -67,6 +67,19 @@ class MemoryTests(unittest.TestCase):
         self.assertEqual([(entry['text'], entry['action']) for entry in changes], [('', {'operation': 'updated', 'target': 'memory'})])
         self.assertEqual(read_changes(self.root, 'ses_b'), ([], False))
 
+    def test_setup_chats_write_no_memory_and_chinese_chats_write_chinese(self):
+        (self.root / 'browser-chats').mkdir()
+        chats = {'a': {'mode': 'initialize', 'session': 'ses_a', 'turns': [{'language': 'en'}]},
+                 'b': {'mode': 'secretary', 'session': 'ses_b', 'turns': [{'language': 'zh-CN'}]}}
+        (self.root / 'browser-chats' / 'chats.json').write_text(json.dumps(chats))
+        with self.assertRaisesRegex(ValueError, 'memory_setup'):
+            memory.change(self.root, 0, note=MOCHI, session='ses_a')
+        with self.assertRaisesRegex(ValueError, 'memory_language'):
+            memory.change(self.root, 0, note=MOCHI, session='ses_b')
+        self.assertTrue(memory.change(self.root, 0, note={'life': '你养了一只狗，叫 Mochi。'}, session='ses_b')['saved'])
+        self.assertTrue(memory.change(self.root, 1, note=MOCHI)['saved'])  # The About me page keeps the user's own words.
+        self.assertEqual(memory.load(self.root)['revision'], 2)
+
     def test_secretary_preparation_carries_the_note(self):
         memory.change(self.root, 0, note=MOCHI)
         prepared = workflow.prepare(self.root, 'secretary', today=DAY)['memory']
@@ -75,9 +88,11 @@ class MemoryTests(unittest.TestCase):
 
     def test_the_tidy_rereads_only_new_user_messages(self):
         now = time.time()
-        chats = {'a': {'created': now - 7200, 'turns': [{'id': 'a', 'text': 'Mochi chewed my shoes'},
-                                                        {'id': 't2', 'text': 'x' * 900, 'created': now - 3600}]},
-                 'b': {'created': now - 3 * 86400, 'turns': [{'id': 'b', 'text': 'Old news'}, {'id': 't3', 'text': '', 'created': now - 60}]}}
+        chats = {'a': {'mode': 'secretary', 'created': now - 7200, 'turns': [
+                     {'id': 'a', 'text': 'Mochi chewed my shoes'}, {'id': 't2', 'text': 'x' * 900, 'created': now - 3600},
+                     {'id': 't5', 'text': 'Held before consent', 'local': True, 'created': now - 60}]},
+                 'b': {'mode': 'secretary', 'created': now - 3 * 86400, 'turns': [{'id': 'b', 'text': 'Old news'}, {'id': 't3', 'text': '', 'created': now - 60}]},
+                 'c': {'mode': 'initialize', 'created': now - 60, 'turns': [{'id': 'c', 'text': 'I live in Edinburgh'}]}}
         (self.root / 'browser-chats').mkdir()
         (self.root / 'browser-chats' / 'chats.json').write_text(json.dumps(chats))
         found = memory.tidy(self.root)
@@ -131,7 +146,7 @@ class BriefingMemoryTests(unittest.TestCase):
         self.start(version=1)
         memory.change(self.root, 0, note=MOCHI)
         (self.root / 'browser-chats' / 'chats.json').write_text(json.dumps(
-            {'a': {'created': time.time() - 60, 'turns': [{'id': 'a', 'text': 'Night shifts all week, ugh'}]}}))
+            {'a': {'mode': 'secretary', 'created': time.time() - 60, 'turns': [{'id': 'a', 'text': 'Night shifts all week, ugh'}]}}))
         self.step('init', {'greeting': 'Evening.', 'opening': 'Tonight’s review.', 'plan': [['must-do', 'Project steps']]})
         self.step('publish', {'position': 0, 'section': ['must-do', [['p', 'Nothing open.']]]})
         saved = self.step('finish', {})

@@ -14,6 +14,7 @@ from unittest.mock import patch
 from support import TEMP_ROOT
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
+from goodmorning import setup_flow
 from goodmorning.records import custom, inbox, memory, task, workflow
 from goodmorning.records.inbox_store import initialize, stamp
 
@@ -79,6 +80,18 @@ class HelperInputTests(unittest.TestCase):
                 memory.main([operation[1], "--expect-revision", str(memory.context(self.root)["revision"]), "--input-stdin"])
             receipt = json.loads(out.getvalue())
             self.assertTrue(receipt.get("saved"), receipt)
+            return receipt
+        if operation[0] == "setup":
+            chat = ("d" if operation[1] == "answer" else "e") * 32  # Each example starts its own setup.
+            (self.root / "browser-chats").mkdir(exist_ok=True)
+            (self.root / "browser-chats" / "chats.json").write_text(json.dumps({chat: {
+                "id": chat, "mode": "initialize", "session": "ses_doc", "turns": [{"text": "Please call yourself Pip", "language": "en"}]}}))
+            setup_flow.agree(self.root, chat)
+            setup_flow.begin(self.root, chat)
+            with contextlib.redirect_stdout(io.StringIO()) as out:
+                code = setup_flow.command(self.root, "ses_doc", operation[1], json.dumps(payload))
+            receipt = json.loads(out.getvalue())
+            self.assertEqual(code, 0, receipt)
             return receipt
         self.fail("No runner for documented example: " + command)
 

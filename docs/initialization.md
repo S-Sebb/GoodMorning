@@ -4,6 +4,42 @@ Result: confirmed preferences/permissions, saved local records, and separate
 verified/pending provider statuses. Initialization never authorizes integration
 development, extra access, retries or code changes.
 
+## Website setup is code-led
+
+A website Initialize chat runs `setup_flow` (`setup --secretary-dir RUNTIME
+--session SESSION next|ask|answer`); its receipts carry the rules in the website
+language, so the secretary reads no docs for it.
+
+1. Storage consent comes first, as code's own question before any other question
+   or model run. A saved profile or `setup-consent.json` counts as consent for the
+   base scope. Agreeing creates only missing base storage (profile from the
+   template, `projects/`, `daily/`, inbox and calendar databases) and records the
+   consent; declining saves nothing and says how to come back. While consent is
+   missing, every chat message waits on the page and never reaches a model.
+2. Steps, in order: `secretary_name`, `user_name`, `birthday`, `location` (city,
+   region, timezone), `rhythm` (work days, hours, bedtime, tone), `about` (roles,
+   fields, needs; industry, project scope and knowledge area only when stated),
+   `news` (US/GB/CN/CA/AU), `holidays`. A review (ready profile) walks the same
+   steps with **Keep** options; its first question also offers **Keep everything
+   as it is**. A blank start posts the first question without a model run.
+3. The secretary words each question (`ask`, a title only; code builds the form)
+   and saves free-text answers (`answer`) with the user's own words quoted for
+   each value. Region and timezone are worked out from the city; a new city must
+   name one place for the weather service (a city it cannot place is refused, an
+   unreachable service is left to the final check). Code saves each
+   confirmed step at once, only real changes, and refuses values that break a
+   setting's rules, belong to no remaining step, lack a quote, or were changed on
+   About me after the question was asked. Keep, skip and picked countries or
+   holiday regions are saved by code without the secretary.
+4. When a turn ends without the current step's question, code asks it in its own
+   wording. After the last step, code checks weather and news once (new setups,
+   or when the place or news changed), rebuilds the state index, the secretary
+   summarizes, and a closing note names what setup leaves to a Secretary chat or
+   About me: other countries' outlets, projects, calendar links and stocks.
+5. Setup chats write no memory, and the evening memory tidy skips them.
+
+The rest of this guide applies to setup outside the website.
+
 ## Conversation, in order
 
 If a review request already confirms keeping all saved settings and skipping blank

@@ -105,6 +105,9 @@ def run(artifacts):
                 with source.expect_response('**/api/activity', timeout=1000):
                     source.get_by_role('button', name='Start initialization', exact=True).click()
                 submit_refresh = round((time.monotonic()-started)*1000)
+                # Setup's first question comes from code; skipping it starts the secretary's session.
+                source.get_by_role('radio', name='Skip for now', exact=True).check()
+                source.get_by_role('button', name='Send answer', exact=True).click()
                 expect(source.locator('#chat-questions')).to_contain_text('Save confirmed synthetic profile')
                 profile.write_text(saved_profile)
                 original_url = source.url
@@ -278,10 +281,12 @@ def run(artifacts):
                 expect(page).to_have_url(original_url)
                 expect(page.locator('#chat-questions')).to_contain_text('Save confirmed synthetic profile')
                 assert len(owner.pages) == count
+                # A viewed setup chat that goes idle without a question gets setup's own next question.
                 (root/'activity-state').write_text('idle')
+                expect(page.locator('#chat-questions')).to_contain_text('What should I call you?')
                 for page in pages:
                     page.bring_to_front(); page.evaluate('window.dispatchEvent(new Event("focus"))')
-                    expect(page.locator('#account-activity')).to_be_hidden()
+                    expect(page.locator('#account-activity')).to_contain_text('Your secretary needs your answer')
                     assert page.evaluate(r'''() => localStorage.length === 0 && Object.keys(sessionStorage).every(key => {
                         if (!/^goodmorning\.chat\.workspace\.[a-f0-9]{64}$/.test(key)) return false;
                         const value = JSON.parse(sessionStorage.getItem(key));

@@ -65,6 +65,16 @@ def main():
                             start.click()
                         assert sent.value.post_data_json['mode'] == 'initialize'
                         assert sent.value.post_data_json['text'] == message
+                        questions = page.locator('#chat-questions')
+                        if (width, language) == (1440, 'en'):
+                            # Storage consent comes first, once per account, before any model run.
+                            expect(page.get_by_role('heading', name='Before we begin: how GoodMorning keeps your information')).to_be_visible()
+                            questions.get_by_role('radio', name='I agree').check()
+                            questions.locator('button[type="submit"]').click()
+                        # Setup's first question comes from code; skipping it brings in the secretary.
+                        expect(page.get_by_role('heading', name='What would you like to call me?' if language == 'en' else '你想叫我什么？')).to_be_visible()
+                        questions.locator('input[type="radio"]').first.check()
+                        questions.locator('button[type="submit"]').click()
                         expect(page.get_by_role('heading', name='Confirm your location')).to_be_visible()
                         expect(page.get_by_role('log')).to_contain_text(message)
                         expect(text).to_be_visible()
@@ -106,6 +116,10 @@ def main():
                 page = browser.new_page(viewport={'width': 1440, 'height': 1000}, reduced_motion='reduce')
                 page.goto(address + '/chat')
                 page.get_by_role('button', name='Start initialization', exact=True).click()
+                expect(page.get_by_role('heading', name='What would you like to call me?')).to_be_visible()
+                page.locator('#chat-questions input[type="radio"]').first.check()
+                page.locator('#chat-questions button[type="submit"]').click()
+                expect(page.get_by_role('heading', name='Confirm your location')).to_be_visible()
                 page.locator('#chat-questions input[type="radio"]').first.check()
                 page.locator('#chat-questions button[type="submit"]').click()
                 page.get_by_role('button', name='Allow once', exact=True).click()

@@ -82,6 +82,10 @@ class WeatherError(Exception):
     """A safe, URL-free error suitable for user-facing output."""
 
 
+class PlaceError(WeatherError):
+    """The geocoder answered, but the city names no single place."""
+
+
 def http_get_json(url, headers=None, timeout=TIMEOUT):
     req = urllib.request.Request(url, headers=headers or {"User-Agent": "GoodMorning/1.0"})
     for attempt in range(2):
@@ -327,7 +331,7 @@ def _geocode_languages(city):
 def openmeteo_geocode(city, timeout=TIMEOUT):
     parts = [part.strip() for part in city.split(",")]
     if not parts[0] or any(not part for part in parts):
-        raise WeatherError("city must have nonempty location components")
+        raise PlaceError("city must have nonempty location components")
     saw_filtered_empty = False
     saw_ambiguous = False
     for lang in _geocode_languages(city):
@@ -365,12 +369,12 @@ def openmeteo_geocode(city, timeout=TIMEOUT):
         except (KeyError, TypeError, IndexError, AttributeError):
             raise WeatherError("invalid geocoding response") from None
     if saw_ambiguous:
-        raise WeatherError("city is ambiguous; specify country/region or verified coordinates")
+        raise PlaceError("city is ambiguous; specify country/region or verified coordinates")
     if saw_filtered_empty:
-        raise WeatherError("no city matches the confirmed country/region; use verified coordinates")
+        raise PlaceError("no city matches the confirmed country/region; use verified coordinates")
     if re.search(r"[^\x00-\x7f]", city):
-        raise WeatherError("city not found; try English/Pinyin like 'Shanghai, CN' or use --lat/--lon")
-    raise WeatherError("city not found; use a qualified city or --lat/--lon")
+        raise PlaceError("city not found; try English/Pinyin like 'Shanghai, CN' or use --lat/--lon")
+    raise PlaceError("city not found; use a qualified city or --lat/--lon")
 
 
 def fetch_openmeteo(city, lat, lon, timeout=TIMEOUT):

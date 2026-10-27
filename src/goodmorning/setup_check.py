@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Compact setup preflight; fetching requires explicit --verify selections.
 
-Never initializes profile, calendar, state, reports, or delivery flags. Optional
-weather verification may write its cache only under the selected runtime.
+The preflight never initializes profile, calendar, state, reports, or delivery flags.
+Optional weather verification may write its cache only under the selected runtime.
+The next/ask/answer actions run a website Initialize chat's steps instead (`setup_flow`).
 """
 
 import argparse
@@ -97,13 +98,60 @@ def run_checks(commands, budget, env=None):
         return dict(pool.map(check, commands.items()))
 
 
+def verify(runtime, fields, countries, selected, budget):
+    """Run the selected provider checks once under one shared elapsed budget."""
+    commands, checks = {}, {}
+    py = sys.executable
+    cache = runtime / "cache"
+    if "weather" in selected:
+        if fields.get("city"):
+            commands["weather"] = [py, "scripts/goodmorning.py", "weather", "--profile", str(runtime / "profile.md"),
+                "--city", fields["city"], "--cache-dir", str(cache), "--aqi-source", "open-meteo", "--timeout", "3", "--json"]
+        else:
+            checks["weather"] = {"status": "pending", "reason": "missing_city"}
+    if "news" in selected:
+        if not countries or not fields.get("timezone"):
+            checks["news"] = {"status": "pending", "reason": "missing_country_or_timezone"}
+        try:
+            sources = load_sources(fields.get("news_sources_path") or SOURCES_FILE)
+        except (OSError, ValueError, TypeError):
+            sources = None
+        for country in countries if fields.get("timezone") else []:
+            if sources is None or not sources.get("countries", {}).get(country):
+                checks["news:" + country] = {"status": "pending", "reason": "missing_or_invalid_country_feed_configuration"}
+                continue
+            command = [py, "scripts/goodmorning.py", "news", "--verify-sources", "--country", country,
+                "--timezone", fields["timezone"], "--no-cache", "--timeout", "3", "--format", "json"]
+            if fields.get("news_sources_path"):
+                command += ["--sources", fields["news_sources_path"]]
+            commands["news:" + country] = command
+    if "projects" in selected:
+        registry = runtime / "projects.json"
+        if registry.is_file():
+            commands["projects"] = ["node", "scripts/projects.mjs", "status", "--all", "--registry", str(registry), "--timeout", "5"]
+        else:
+            checks["projects"] = {"status": "pending", "reason": "no_authorized_registry"}
+    env = dict(os.environ, PYTHONDONTWRITEBYTECODE="1", SECRETARY_DIR=str(runtime),
+               CALENDAR_DB_PATH=str(runtime / "calendar.sqlite"), GM_CACHE_DIR=str(cache))
+    checks.update(run_checks(commands, budget, env))
+    return checks
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--secretary-dir")
     parser.add_argument('--website-language',choices=('en','zh-CN'),help='Use the selected website language without changing local preferences')
     parser.add_argument("--verify", nargs="+", choices=("weather", "news", "projects"), default=[])
     parser.add_argument("--budget", type=float, default=20, help="Total elapsed budget for all selected checks (default 20 seconds)")
+    parser.add_argument("action", nargs="?", choices=("next", "ask", "answer"),
+                        help="A website Initialize chat's next setup step (docs/initialization.md)")
+    parser.add_argument("--session", default=os.environ.get("OPENCODE_SESSION_ID"))
+    parser.add_argument("--input-stdin", action="store_true")
     args = parser.parse_args(argv)
+    if args.action:
+        from .setup_flow import command
+        return command(secretary_path(args.secretary_dir), args.session, args.action,
+                       sys.stdin.read(20001) if args.input_stdin else None)
     if not math.isfinite(args.budget) or not 0 < args.budget <= 120:
         parser.error("--budget must be finite and in (0, 120]")
     runtime = secretary_path(args.secretary_dir)
@@ -111,40 +159,7 @@ def main(argv=None):
         fields = profile_fields(runtime)
         local = profile_status(runtime, fields, args.website_language)
         missing, countries = local["missing_fields"], local["countries"]
-        commands, checks = {}, {}
-        py = sys.executable
-        cache = runtime / "cache"
-        if "weather" in args.verify:
-            if fields.get("city"):
-                commands["weather"] = [py, "scripts/goodmorning.py", "weather", "--profile", str(runtime / "profile.md"),
-                    "--city", fields["city"], "--cache-dir", str(cache), "--aqi-source", "open-meteo", "--timeout", "3", "--json"]
-            else:
-                checks["weather"] = {"status": "pending", "reason": "missing_city"}
-        if "news" in args.verify:
-            if not countries or not fields.get("timezone"):
-                checks["news"] = {"status": "pending", "reason": "missing_country_or_timezone"}
-            try:
-                sources = load_sources(fields.get("news_sources_path") or SOURCES_FILE)
-            except (OSError, ValueError, TypeError):
-                sources = None
-            for country in countries if fields.get("timezone") else []:
-                if sources is None or not sources.get("countries", {}).get(country):
-                    checks["news:" + country] = {"status": "pending", "reason": "missing_or_invalid_country_feed_configuration"}
-                    continue
-                command = [py, "scripts/goodmorning.py", "news", "--verify-sources", "--country", country,
-                    "--timezone", fields["timezone"], "--no-cache", "--timeout", "3", "--format", "json"]
-                if fields.get("news_sources_path"):
-                    command += ["--sources", fields["news_sources_path"]]
-                commands["news:" + country] = command
-        if "projects" in args.verify:
-            registry = runtime / "projects.json"
-            if registry.is_file():
-                commands["projects"] = ["node", "scripts/projects.mjs", "status", "--all", "--registry", str(registry), "--timeout", "5"]
-            else:
-                checks["projects"] = {"status": "pending", "reason": "no_authorized_registry"}
-        env = dict(os.environ, PYTHONDONTWRITEBYTECODE="1", SECRETARY_DIR=str(runtime),
-                   CALENDAR_DB_PATH=str(runtime / "calendar.sqlite"), GM_CACHE_DIR=str(cache))
-        checks.update(run_checks(commands, args.budget, env))
+        checks = verify(runtime, fields, countries, args.verify, args.budget)
         result = {**local, "checks": checks, "budget_seconds": args.budget,
                   "verification_complete": bool(checks) and all(row["status"] == "verified" for row in checks.values())}
         print(json.dumps(result, separators=(",", ":")))
