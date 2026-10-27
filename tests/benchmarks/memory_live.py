@@ -97,7 +97,9 @@ def check_chat(scenario, language, runtime, before, result, messages):
     replies = ' '.join(a for turn in result['turns'] for a in turn['assistant']).casefold()
     marked = any(m.get('kind') == 'action' and m['action']['target'] == 'memory' for m in messages)
     assert marked == (after != before), 'The memory marker does not match whether the note changed'
-    assert not [p for p in ('keep it in mind', 'keep that in mind', 'keep this in mind', '记在心里') if p in replies], 'The reply promised to keep something in mind'
+    # Keywords only flag the common wordings; review replies for other promises of later recall or use.
+    promises = ('keep it in mind', 'keep that in mind', 'keep this in mind', '记在心里', '我会记得', '我会记住', '我记着', '我会留意')
+    assert not [p for p in promises if p in replies], 'The reply promised to remember something later'
     if scenario == 'picks-up':
         assert records(runtime) == 1, 'The dog-food to-do was not saved once'
         assert 'mochi' in words, 'The dog was not remembered'
@@ -111,7 +113,7 @@ def check_chat(scenario, language, runtime, before, result, messages):
     elif scenario == 'sensitive':
         assert not [word for word in SENSITIVE if word in words], 'A sensitive topic was remembered unasked: ' + repr(after)
     elif scenario == 'forget':
-        assert not ('vegetarian' in words and 'no longer' not in words) and '吃素。' not in words, 'Vegetarian is still remembered'
+        assert not ('vegetarian' in words and 'no longer' not in words) and '吃素。' not in words.replace('不再吃素', ''), 'Vegetarian is still remembered'
         assert 'mochi' in words, 'An unrelated part of the note was lost'
     elif scenario == 'use':
         assert records(runtime) == 0, 'A suggestion saved a record'
