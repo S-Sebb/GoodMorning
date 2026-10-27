@@ -134,7 +134,7 @@ def account(folder, scenario, language):
 
 def topics(form, field):
     """The persona's topics a field asks about; a code-built form's key names its one topic."""
-    if field['key'] in PERSONA['en'] or field['key'] in ('city', 'news_additional_countries'):
+    if field['key'] in PERSONA['en'] or field['key'] in ('city', 'news_additional_countries', 'special_needs'):
         return [field['key']]
     text = ' '.join([field.get('title', ''), field.get('description', ''), field['key'],
                      *(option.get('label', '') for option in field.get('options') or [])]).casefold()
