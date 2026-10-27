@@ -170,6 +170,19 @@ def main():
                 row.get_by_role('button', name='Cancel').click()
                 expect(row.locator('.about-value')).to_have_text('China, United Kingdom — Scotland')
 
+                # A birthday is a month and day from two lists; 29 February is there, 31 April is not.
+                row = phone.locator('[data-field="birthday"]')
+                row.get_by_role('button', name='Edit').click()
+                row.get_by_role('combobox', name='Month').select_option('04')
+                expect(row.get_by_role('combobox', name='Day').locator('option')).to_have_count(31)  # 30 days and the empty choice.
+                row.get_by_role('combobox', name='Month').select_option('02')
+                row.get_by_role('combobox', name='Day').select_option('29')
+                no_overflow(phone)
+                phone.screenshot(path=str(artifacts/'birthday-picker-390.png'), full_page=True)
+                row.get_by_role('button', name='Save').click()
+                expect(row.locator('.about-value')).to_have_text('February 29')
+                assert 'birthday: "02-29"' in profile.read_text()
+
                 # Ask Mochi to change this opens the quick chat with an unsent starter line.
                 phone.locator('#about-day .about-chat').first.click()
                 expect(phone.locator('#quick-chat-text')).to_have_value('I’d like to change my city.')
@@ -183,6 +196,7 @@ def main():
                 expect(phone.get_by_role('heading', name='Mochi记得的你', exact=True)).to_be_visible()
                 expect(phone.locator('[data-countries]')).to_have_text('英国和日本')
                 expect(phone.locator('[data-holidays]')).to_have_text('中国、英国 — 苏格兰')
+                expect(phone.locator('[data-birthday]')).to_have_text('2月29日')
                 phone.locator('#account-menu > summary').click()
                 phone.reload()
                 expect(phone.locator('.about-greeting')).to_contain_text('嗨，Ally！')

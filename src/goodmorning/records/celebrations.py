@@ -1,4 +1,4 @@
-"""Celebrations: the user's birthday, GoodMorning anniversaries and finished-task milestones.
+"""Celebrations: the user's birthday, festive public holidays, GoodMorning anniversaries and finished-task milestones.
 
 Code finds each celebration from saved records when a briefing job is prepared; the briefing's
 first section shows them on one card, worded by code, with a short wish from the secretary.
@@ -7,12 +7,13 @@ that day. A milestone shows once: the day it first showed is kept in celebration
 regenerated briefing that day shows it again and later briefings never repeat it.
 """
 import calendar
-from datetime import date as Date
+from datetime import date as Date, timedelta
 import json
 from pathlib import Path
 import re
 import sqlite3
 
+from goodmorning.calendar import public_holidays
 from goodmorning.runtime_files import atomic_text, profile_fields, runtime_lock
 
 HEADLINES = {'birthday': 'Happy birthday! 🎂', 'days': '100 days of GoodMorning! 🌱',
@@ -20,7 +21,12 @@ HEADLINES = {'birthday': 'Happy birthday! 🎂', 'days': '100 days of GoodMornin
 LINES = {'days': 'Your very first briefing was on {date}, 100 days ago today.',
          'year': 'Your very first briefing was on {date}, one year ago today.',
          'years': 'Your very first briefing was on {date}, {count} years ago today.',
-         'tasks': 'You’ve ticked off {count} tasks in GoodMorning so far.'}
+         'tasks': 'You’ve ticked off {count} tasks in GoodMorning so far.',
+         'holiday': 'Today is a public holiday in {country}.'}
+# Festive public holidays by their `public_holidays` key; other holidays, such as memorial days, get no card.
+FESTIVALS = {"New Year's Day": 'Happy New Year! 🎊', 'Chinese New Year (Spring Festival)': 'Happy Spring Festival! 🧧',
+             'Dragon Boat Festival': 'Happy Dragon Boat Festival! 🐉', 'Mid-Autumn Festival': 'Happy Mid-Autumn Festival! 🌕',
+             'National Day': 'Happy National Day! 🎉', 'Labor Day': 'Happy Labor Day! 🌼', 'Christmas Day': 'Merry Christmas! 🎄'}
 
 
 def birthday(text):
@@ -44,6 +50,28 @@ def yearly(day, month_day):
     return f'{day:%m-%d}' == month_day
 
 
+def festivals(fields, day):
+    """[["holiday", key, [country]]] for festive holidays starting today in the followed regions.
+
+    A festival with several days off under one name (China's National Day) is greeted on its first day only.
+    """
+    try:
+        codes = public_holidays.regions(fields.get('holiday_countries'))
+    except ValueError:
+        return []  # An unreadable choice shows no holidays anywhere.
+    before = (Date.fromisoformat(day) - timedelta(days=1)).isoformat()
+    listed = public_holidays.days(codes, before, (Date.fromisoformat(day) + timedelta(days=1)).isoformat(), 'en')
+    started = {(entry['key'], entry['region']) for entry in listed.get(before, ())}
+    countries = {}
+    for entry in listed.get(day, ()):
+        if entry['kind'] == 'holiday' and entry['key'] in FESTIVALS and (entry['key'], entry['region']) not in started:
+            country = public_holidays.REGIONS[entry['region']]['country']
+            countries.setdefault(entry['key'], [])
+            if country not in countries[entry['key']]:
+                countries[entry['key']].append(country)
+    return [['holiday', key, names] for key, names in countries.items()]
+
+
 def first_briefing(runtime):
     """The day of the earliest saved briefing, or None before the first one."""
     days = [path.name[:10] for path in (Path(runtime) / 'daily').glob('????-??-??.g[mn].*')
@@ -53,7 +81,6 @@ def first_briefing(runtime):
 
 def tasks_done(runtime, zone):
     """Every task the user confirmed done, counted as the weekly letter counts them."""
-    from zoneinfo import ZoneInfo
     from .inbox_store import InboxStore
     from .letters import finished
     if not (Path(runtime) / 'inbox.sqlite').exists():
@@ -61,7 +88,7 @@ def tasks_done(runtime, zone):
     inbox = InboxStore(runtime)
     try:
         inbox.db.execute('BEGIN')
-        groups = finished(inbox, ZoneInfo(zone), '0001-01-01', '9999-12-31', 'en')
+        groups = finished(inbox, zone, '0001-01-01', '9999-12-31', 'en')
     finally:
         inbox.close()
     return sum(count for _, items in groups for _, count in items)
@@ -86,7 +113,8 @@ def shown(runtime):
 
 
 def found(runtime, day, kind):
-    """Today's celebrations, in card order: [["birthday"]], ["days",100,first], ["years",n,first], ["tasks",count,total]."""
+    """Today's celebrations, in card order: ["birthday"], ["holiday",key,[country]], ["days",100,first], ["years",n,first],
+    ["tasks",count,total]."""
     from goodmorning.briefings.briefing_document import source_path
     if kind == 'gn' and source_path(runtime, day, 'gm').exists():
         return []  # The morning briefing already celebrated today.
@@ -96,6 +124,7 @@ def found(runtime, day, kind):
             result.append(['birthday'])
     except ValueError:
         pass  # An unreadable birthday shows no card; the secretary fixes it when asked.
+    result += festivals(fields, day)
     first = first_briefing(runtime)
     if first and first < day:
         start = Date.fromisoformat(first)
@@ -133,11 +162,20 @@ def long_date(day, lang):
     return f'{value.year}年{value.month}月{value.day}日' if lang == 'zh-CN' else f'{value:%B} {value.day}, {value.year}'
 
 
+def countries(names, lang):
+    if lang == 'zh-CN':
+        return '、'.join(public_holidays.named(name, lang) for name in names)
+    names = ['the ' + name if name.startswith('United ') else name for name in names]
+    return ' and '.join(filter(None, [', '.join(names[:-1]), names[-1]]))
+
+
 def words(item, say, lang):
     """The card's headline and factual line for one celebration; `say` translates them."""
     kind = item[0]
     if kind == 'birthday':
         return say(HEADLINES[kind]), ''
+    if kind == 'holiday':
+        return say(FESTIVALS[item[1]]), say(LINES['holiday'], country=countries(item[2], lang))
     if kind == 'days':
         return say(HEADLINES[kind]), say(LINES['days'], date=long_date(item[2], lang))
     if kind == 'years':

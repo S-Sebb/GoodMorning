@@ -110,7 +110,7 @@ conflict, reread affected records; never infer progress or alter immutable secti
 - `["celebration",items,wish,secretary_name]`: only, and alone, in the
   `celebration` section; code builds it when the celebration position is
   published (`docs/celebrations.md`). Items are `["birthday"]`,
-  `["days",100,FIRST_DAY]`, `["years",N,FIRST_DAY]` or `["tasks",MILESTONE,TOTAL]`;
+  `["holiday",KEY,[COUNTRY,...]]`, `["days",100,FIRST_DAY]`, `["years",N,FIRST_DAY]` or `["tasks",MILESTONE,TOTAL]`;
   the page words them. Never write or copy it.
 - `["news",category,[[headline,summary,sources],...],country?]`: retain every
   selected story and all citations. Sources are nonempty `[[label,url],...]` with

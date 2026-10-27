@@ -362,12 +362,18 @@ def block(value, path):
                 not isinstance(value[2], list) or len(value[2]) != 3 or any(type(count) is not int or count < 0 for count in value[2])):
             fail(path, 'letter blocks are code-owned; publish the letter position as its guide says')
     elif tag == 'celebration':
-        # [[["birthday"] | ["days",100,first] | ["years",n,first] | ["tasks",count,total], ...], wish, secretary name]; code builds it.
+        # [[["birthday"] | ["holiday",key,[country]] | ["days",100,first] | ["years",n,first] | ["tasks",count,total], ...],
+        #  wish, secretary name]; code builds it.
+        from goodmorning.records.celebrations import FESTIVALS
+        from goodmorning.calendar.public_holidays import REGIONS
         sequence(value, path, 4, 4)
         sequence(value[1], path + '.items', 1, 5)
         for item in value[1]:
             counted = isinstance(item, list) and len(item) == 3 and type(item[1]) is int and item[1] > 0
-            if not (item == ['birthday'] or counted and (
+            festival = (isinstance(item, list) and len(item) == 3 and item[0] == 'holiday' and item[1] in FESTIVALS
+                        and isinstance(item[2], list) and 0 < len(item[2]) <= 5
+                        and all(name in {region['country'] for region in REGIONS.values()} for name in item[2]))
+            if not (item == ['birthday'] or festival or counted and (
                     item[0] in ('days', 'years') and isinstance(item[2], str) and re.fullmatch(r'\d{4}-\d{2}-\d{2}', item[2])
                     or item[0] == 'tasks' and type(item[2]) is int and item[2] >= item[1])):
                 fail(path, 'celebration blocks are code-owned; publish the celebration position as its guide says')

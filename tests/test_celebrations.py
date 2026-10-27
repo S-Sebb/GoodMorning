@@ -1,4 +1,4 @@
-"""Celebrations: birthdays, GoodMorning anniversaries and task milestones, found by code and shown on one card."""
+"""Celebrations: birthdays, festivals, GoodMorning anniversaries and task milestones, found by code and shown on one card."""
 from datetime import date as Date, datetime, timezone
 import json
 import os
@@ -84,6 +84,26 @@ class CelebrationTests(unittest.TestCase):
         self.assertEqual(celebrations.found(self.root, DAY, 'gn'), [['days', 100, '2026-07-18']])
         self.saved(DAY)
         self.assertEqual(celebrations.found(self.root, DAY, 'gn'), [])
+
+    def test_festivals_greet_on_their_first_day_in_the_followed_regions(self):
+        self.profile('birthday: "10-01"\nholiday_countries: "CN, GB-SCT"\n')
+        self.assertEqual(celebrations.found(self.root, '2026-10-01', 'gm'), [['birthday'], ['holiday', 'National Day', ['China']]])
+        self.assertEqual(celebrations.found(self.root, '2026-10-02', 'gm'), [])  # Still National Day, already greeted.
+        self.assertEqual(celebrations.found(self.root, '2026-04-05', 'gm'), [])  # Tomb-Sweeping Day is not festive.
+        self.assertEqual(celebrations.found(self.root, '2026-12-25', 'gm'), [['holiday', 'Christmas Day', ['United Kingdom']]])
+        self.profile('holiday_countries: "GB"\n')  # Unreadable: no holidays anywhere.
+        self.assertEqual(celebrations.found(self.root, '2026-12-25', 'gm'), [])
+        item = ['holiday', 'Christmas Day', ['United Kingdom', 'China']]
+        self.assertEqual(celebrations.words(item, ui.text, 'en'), ('Merry Christmas! 🎄', 'Today is a public holiday in the United Kingdom and China.'))
+        token = ui.CURRENT.set('zh-CN')
+        try:
+            self.assertEqual(celebrations.words(item, ui.text, 'zh-CN'), ('圣诞快乐！🎄', '今天是英国、中国的公共假期。'))
+        finally:
+            ui.CURRENT.reset(token)
+        native.block(['celebration', [item], 'Merry, merry!', ''], 'celebration')
+        for wrong in (['holiday', 'Tomb-Sweeping Day', ['China']], ['holiday', 'Christmas Day', ['Atlantis']]):
+            with self.assertRaises(ValueError):
+                native.block(['celebration', [wrong], 'Hi', ''], 'celebration')
 
     def test_a_milestone_shows_once_and_counts_only_confirmed_tasks(self):
         self.assertEqual(celebrations.tasks_done(self.root, 'Asia/Shanghai'), 7)  # As the weekly letter counts them.

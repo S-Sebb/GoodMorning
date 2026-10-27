@@ -9,8 +9,17 @@ briefing job is prepared, and the page words every fact in the website language.
 
 - **Birthday:** the profile's optional `birthday: "MM-DD"` (month and day only;
   no year or age). On non-leap years, 29 February is celebrated on 28 February.
-  An empty or unreadable value shows nothing. Other people's birthdays stay
-  calendar occasions (`docs/item-taxonomy.md`).
+  An empty or unreadable value shows nothing. Setup asks for it (optional),
+  and the user can set or clear it in chat or on the About me page, under What
+  you call each other. Other people's birthdays stay calendar occasions
+  (`docs/item-taxonomy.md`).
+- **Festivals:** a festive public holiday in the regions the user follows
+  (`holiday_countries`, `docs/calendar-pipeline.md`): New Year's Day, Spring
+  Festival, Dragon Boat Festival, Mid-Autumn Festival, National Day, Labor Day
+  and Christmas Day, keyed by the holiday's `key` in `FESTIVALS`. Other public
+  holidays, make-up workdays and the rest of a break get no card; a festival
+  with several days off under one name (National Day) is greeted on its first
+  day. The line names the countries that have it off.
 - **GoodMorning anniversaries:** 100 days after the first saved briefing, then
   every year on its date. The first briefing is the earliest
   `daily/DATE.gm|gn.json|md` edition, so no start date is stored.
@@ -30,8 +39,8 @@ Schedule page or as a notification.
 
 ## Wording
 
-Code writes each headline and factual line (“100 days of GoodMorning! 🌱” /
-“Your very first briefing was on July 18, 2026, 100 days ago today.”) and never
+Code writes each headline and factual line (“Happy Mid-Autumn Festival! 🌕” /
+“Today is a public holiday in China.”) and never
 uses the user's name. The secretary writes one short wish in the saved tone,
 speaking as itself (“I”, never “we” or the GoodMorning team); code signs it with
 `secretary_name` when one is saved.

@@ -1,4 +1,4 @@
-"""Opt-in paid trials for celebrations: the briefing card's wish and the user's birthday in chat.
+"""Opt-in paid trials for celebrations: the briefing card's wish, a festival, and the user's birthday in chat.
 
 Real models write synthetic briefings on a celebration day; code words the card and the model
 writes only the wish. News and weather are unavailable providers. Assertions check the card,
@@ -30,15 +30,18 @@ from goodmorning.runtime_files import profile_fields
 from goodmorning.web.briefing_server import BrowserApp
 from goodmorning.web import models
 
-ZONE, DAY = 'Asia/Shanghai', '2026-10-26'
-MORNING = datetime(2026, 10, 25, 23, tzinfo=timezone.utc)  # Monday 07:00 in Shanghai.
+ZONE = 'Asia/Shanghai'
+MORNING = datetime(2026, 10, 25, 23, tzinfo=timezone.utc)  # Monday 26 October, 07:00 in Shanghai.
 EVENING = datetime(2026, 10, 26, 13, tzinfo=timezone.utc)  # Monday 21:00.
-# scenario: (edition, tone, user name, birthday, first saved briefing, finished tasks, expected card items)
+FESTIVAL = datetime(2026, 9, 24, 23, tzinfo=timezone.utc)  # Mid-Autumn Festival, Friday 25 September, 07:00.
+# scenario: (edition, now, tone, user name, extra profile lines, first saved briefing, finished tasks, expected card items)
 BRIEFINGS = {
-    'morning-playful': ('gm', 'playful', 'Mia', '10-26', '2026-07-18', 100,
+    'morning-playful': ('gm', MORNING, 'playful', 'Mia', 'birthday: "10-26"\n', '2026-07-18', 100,
                         [['birthday'], ['days', 100, '2026-07-18'], ['tasks', 100, 100]]),
-    'morning-formal': ('gm', 'formal', '', '', '2025-10-26', 0, [['years', 1, '2025-10-26']]),
-    'evening-default': ('gn', 'default', '', '10-26', '2026-10-20', 0, [['birthday']]),
+    'morning-formal': ('gm', MORNING, 'formal', '', '', '2025-10-26', 0, [['years', 1, '2025-10-26']]),
+    'evening-default': ('gn', EVENING, 'default', '', 'birthday: "10-26"\n', '2026-10-20', 0, [['birthday']]),
+    'morning-festival': ('gm', FESTIVAL, 'default', '', 'holiday_countries: "CN"\n', '2026-08-01', 0,
+                         [['holiday', 'Mid-Autumn Festival', ['China']]]),
 }
 CHATS = {
     'birthday-save': ('playful', '', {'en': 'By the way, my birthday is February 13!', 'zh-CN': '对了，我的生日是2月13日！'}),
@@ -86,18 +89,16 @@ def events(runtime):
 def run_briefing(output, language, selected, scenario):
     folder = output/scenario
     folder.mkdir(mode=0o700)
-    kind, tone, name, birthday, first, finished, expected = BRIEFINGS[scenario]
-    lines = (f'user_name: "{name}"\n' if name else '') + (f'birthday: "{birthday}"\n' if birthday else '')
-    runtime = account(folder, language, tone, lines, ZONE)
+    kind, now, tone, name, extra, first, finished, expected = BRIEFINGS[scenario]
+    runtime = account(folder, language, tone, (f'user_name: "{name}"\n' if name else '') + extra, ZONE)
     records(runtime, first, finished)
     source = source_copy(folder, runtime)
     bridge = CheckpointBridge(trial_engine.Engine(source, runtime).start(), False, language)
-    app = BrowserApp(runtime, bridge, now=lambda: MORNING if kind == 'gm' else EVENING, preflight=True)
+    app = BrowserApp(runtime, bridge, now=lambda: now, preflight=True)
     day = app.today()
     result = {'scenario': scenario, 'language': language, 'tone': tone, 'model': selected, 'checks': [],
               'review': 'pending manual language/tone review of the wish and the transcript'}
     try:
-        assert day == DAY, 'The synthetic day is not ' + DAY
         bridge.verify_scope()
         save(folder/'start-intent.json', {'date': day, 'kind': kind})
         with context(language, selected):
@@ -122,7 +123,7 @@ def run_briefing(output, language, selected, scenario):
         assert not name or name.casefold() not in wish.casefold(), 'The wish calls the user by name'
         result['checks'].append('Wish in the secretary\'s own voice, without numbers or the user\'s name')
         if finished:
-            assert celebrations.shown(runtime) == {'tasks': {'100': DAY}}, 'The milestone was not recorded as shown'
+            assert celebrations.shown(runtime) == {'tasks': {'100': day}}, 'The milestone was not recorded as shown'
             result['checks'].append('Milestone recorded as shown')
         assert link_handoff(folder, 'original', f'/d/{day}/{kind}.html'), 'Final reply was not a briefing-link handoff'
         result['checks'].append('Short saved-briefing link handoff')
@@ -214,7 +215,7 @@ def main():
         chosen = args.only or (*BRIEFINGS, *CHATS)
         results = [(run_briefing if name in BRIEFINGS else run_chat)(output, args.language, selected, name) for name in chosen]
         save(output/'matrix.json', {'model': selected, 'language': args.language, 'cases': results, 'limitations': [
-            'A fixed synthetic Monday in Shanghai with unavailable news and weather; no public deployment.',
+            'Fixed synthetic days in Shanghai with unavailable news and weather; no public deployment.',
             'The setup birthday question is not covered.',
             'One sample per scenario and model; prose needs manual review.']})
         if not all(result.get('functional_complete') for result in results):

@@ -950,5 +950,16 @@
   "Your very first briefing was on {date}, 100 days ago today.": "你的第一份简报是 {date}，到今天正好 100 天。",
   "Your very first briefing was on {date}, one year ago today.": "你的第一份简报是 {date}，到今天正好一年。",
   "Your very first briefing was on {date}, {count} years ago today.": "你的第一份简报是 {date}，到今天已经 {count} 年了。",
-  "You’ve ticked off {count} tasks in GoodMorning so far.": "你已经在 GoodMorning 里勾掉了 {count} 件待办。"
+  "You’ve ticked off {count} tasks in GoodMorning so far.": "你已经在 GoodMorning 里勾掉了 {count} 件待办。",
+  "Happy New Year! 🎊": "新年快乐！🎊",
+  "Happy Spring Festival! 🧧": "春节快乐！🧧",
+  "Happy Dragon Boat Festival! 🐉": "端午安康！🐉",
+  "Happy Mid-Autumn Festival! 🌕": "中秋快乐！🌕",
+  "Happy National Day! 🎉": "国庆快乐！🎉",
+  "Happy Labor Day! 🌼": "劳动节快乐！🌼",
+  "Merry Christmas! 🎄": "圣诞快乐！🎄",
+  "Today is a public holiday in {country}.": "今天是{country}的公共假期。",
+  "Birthday": "生日",
+  "Month": "月份",
+  "Pick a real month and day.": "请选一个真实存在的月和日。"
 }

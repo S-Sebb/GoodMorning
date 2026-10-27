@@ -50,7 +50,8 @@ def main():
                         document = {'v': 2, 'lang': lang, 'greeting': 'Synthetic briefing.', 'opening': 'Source-linked records.',
                                     'sections': [[tag, [items['blocks'][tag]]] for tag in ('schedule', 'tasks', 'attention') if items['blocks'][tag][1]]}
                         if kind == 'gm':
-                            document['sections'].insert(0, ['celebration', [['celebration', [['birthday'], ['years', 2, '2024-10-13'], ['tasks', 1000, 1003]],
+                            document['sections'].insert(0, ['celebration', [['celebration', [['birthday'], ['holiday', 'Christmas Day', ['United Kingdom', 'China']],
+                                                                              ['years', 2, '2024-10-13'], ['tasks', 1000, 1003]],
                                                                              'Wishing you a sparkly day full of little joys!', 'Mochi']]])
                         markup = edition(document, DAY, kind, {'gm': True, 'gn': True})
                         for width in (1440, 390, 320):
@@ -76,7 +77,7 @@ def main():
                             expect(page.locator('.task-card')).to_have_count(2 if kind == 'gm' else 1)
                             if kind == 'gm':
                                 expect(page.get_by_role('heading', name=ui.text('Something to celebrate'), exact=True)).to_be_visible()
-                                expect(page.locator('.celebration-list h4')).to_have_text([ui.text('Happy birthday! 🎂'),
+                                expect(page.locator('.celebration-list h4')).to_have_text([ui.text('Happy birthday! 🎂'), ui.text('Merry Christmas! 🎄'),
                                     ui.text('Happy GoodMorning anniversary! 🎉'), ui.text('{count} tasks done! ✨', count='1,000')])
                                 expect(page.get_by_text('— Mochi', exact=True)).to_be_visible()
                             page.evaluate('document.fonts.ready')

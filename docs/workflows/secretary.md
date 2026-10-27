@@ -252,9 +252,9 @@ guides only for the requested operation; do not recursively reload the skill.
    a calendar occasion; other people's birthdays stay occasions. When the user
    tells you theirs or asks to change it, save month and day only (no year or
    age) and confirm in everyday words: on that day the morning briefing opens
-   with a birthday card. Clearing it sets `birthday: ""`. Celebrations
-   (birthday, GoodMorning anniversaries, finished-task milestones) are always
-   on; if asked to turn them off, say plainly that they cannot be turned off,
+   with a birthday card. Clearing it sets `birthday: ""`. Users can also set it
+   on the About me page. Celebrations (birthday, festive public holidays,
+   GoodMorning anniversaries, finished-task milestones) are always on; if asked to turn them off, say plainly that they cannot be turned off,
    offer to clear the birthday, and save nothing else (`docs/celebrations.md`).
    Weekly letter: on unless `weekly_letter` is `"false"`. When the user asks to
    stop or resume it, set `weekly_letter: "false"` or `"true"`; saved letters stay
@@ -326,8 +326,8 @@ remember something, say memory is off and can be turned on from About me.
    - your own guesses: moods or feelings they did not express, diagnoses,
      personality, expertise from a job;
    - what has its own place: to-dos, ideas, appointments and habits (save those
-     as records), and profile facts such as their name, city, work hours, role or
-     field (offer that profile change instead);
+     as records), and profile facts such as their name, birthday, city, work
+     hours, role or field (offer that profile change instead);
    - other people's private details beyond a name and relationship, and
      credentials or account numbers;
    - health, religion, politics, sexuality or money, unless the user asks you to

@@ -31,6 +31,9 @@
 .about-content { display: flex; align-items: center; gap: 10px; }
 .about-content input, .about-content textarea { flex: 1; min-width: 0; min-height: 40px; padding: .35rem .6rem; font: inherit; border: 1px solid var(--line); border-radius: .6rem; background: var(--bg); color: var(--ink); }
 .about-content textarea { resize: vertical; line-height: 1.5; }
+.about-birthday { display: flex; gap: 8px; flex-wrap: wrap; }
+.about-birthday select { min-height: 40px; padding: .35rem .6rem; font: inherit; border: 1px solid var(--line); border-radius: .6rem; background: var(--bg); color: var(--ink); }
+.about-birthday select:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 .about-content input:focus-visible, .about-content textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 .about-action { display: flex; justify-content: flex-end; gap: 6px; }
 .about-action button, .about-chat { display: inline-flex; align-items: center; min-height: 36px; padding: 0 12px; font: inherit; font-size: .8rem; white-space: nowrap; border: 1px solid var(--line); border-radius: 999px; background: var(--bg); color: var(--ink); text-decoration: none; cursor: pointer; }
@@ -48,8 +51,8 @@
 .about-me [hidden] { display: none; }
 .about-note { margin: 8px 0 4px 44px; font-size: .8rem; color: var(--muted); }
 #about-memory .about-value[data-content] { font-weight: 400; white-space: pre-line; }
-.about-row:has(.about-holidays) :is(.about-content, .about-action) { grid-column: 1 / -1; }
-.about-row:has(.about-holidays) .about-action { justify-content: flex-start; }
+.about-row:is(:has(.about-holidays), :has(.about-birthday)) :is(.about-content, .about-action) { grid-column: 1 / -1; }
+.about-row:is(:has(.about-holidays), :has(.about-birthday)) .about-action { justify-content: flex-start; }
 .about-holidays { flex: 1; display: flex; flex-wrap: wrap; gap: 6px 14px; padding: 4px 0; }
 .about-holidays fieldset { display: flex; flex-wrap: wrap; gap: 4px 14px; flex-basis: 100%; margin: 0; padding: 6px 0 0; border: 0; border-top: 1px dashed var(--line); }
 .about-holidays legend { float: left; width: 100%; padding: 0; font-size: .8rem; color: var(--muted); }
