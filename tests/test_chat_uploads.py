@@ -68,6 +68,7 @@ class UploadTests(unittest.TestCase):
         temporary = tempfile.TemporaryDirectory(dir=TEMP_ROOT)
         self.addCleanup(temporary.cleanup)
         self.root = Path(temporary.name)
+        (self.root / 'setup-consent.json').write_text('{}')
         self.uploads = Uploads(self.root)
         self.file_id = 'f' * 32
         patcher = patch('goodmorning.web.briefing_chat.threading.Thread', ImmediateThread)
@@ -162,13 +163,14 @@ class UploadTests(unittest.TestCase):
             self.assertNotIn(f'Native session ID: {chat}', payload['text'])
             self.assertEqual(chamber.sessions[chats.get(chat)['session']]['agent'], 'secretary')
             status = chats.status(chat)
-            self.assertEqual(status['state'], 'idle')
+            # A setup turn that ends without a question gets setup's own question.
+            self.assertEqual(status['state'], 'waiting' if mode == 'initialize' else 'idle')
             self.assertEqual(status['messages'][0]['attachments'][0]['name'], '资料 <img>.txt')
             self.assertNotIn(str(self.root), json.dumps(status))
             self.assertEqual(len(chamber.replies), index + 1)
             with self.assertRaises(ValueError):
                 chats.start({**body, 'attachments': []})
-        chat = '0' * 32
+        chat = format(NEW_MODES.index('secretary'), '032x')
         body = {'id': 'a' * 32, 'text': 'Please review', 'attachments': [self.file_id]}
         chats.send(chat, body); chats.send(chat, body)
         self.assertEqual(len(chamber.replies), len(NEW_MODES) + 1)
@@ -263,6 +265,7 @@ class UploadHTTPTests(unittest.TestCase):
         self.fixture = GatewayFixture(); self.fixture.setUp()
         self.addCleanup(self.fixture.doCleanups)
         self.runtime = self.fixture.root / 'secretary'; self.runtime.mkdir()
+        (self.runtime / 'setup-consent.json').write_text('{}')
         self.chamber = MockChamber(self.runtime)
         self.app = BrowserApp(self.runtime, self.chamber)
         ready = threading.Event()

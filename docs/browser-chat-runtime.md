@@ -298,6 +298,17 @@ the account's encrypted agent storage. Browser storage is
 not used for private messages. New conversation starts a new draft;
 previous conversations remain accessible. It does not cancel an active agent.
 
+Storage consent comes before any model run. Until the account agrees (a saved
+profile counts), every new conversation or message is kept on the page and the
+chat shows code's consent question; declining saves nothing and leaves a note on
+how to agree later. In Initialize, code also posts setup's questions itself: the
+first question of a blank start, a step the secretary's turn ended without asking,
+and the question the secretary worded with `setup ask`, all saved like parked
+questions. Choice answers are saved by code; typed answers continue the session
+as a new turn. Once setup is done, one closing note lists what to set up later in
+Secretary or About me. Code-authored questions and notes appear after the
+transcript message they followed.
+
 The default mode is Initialize while `setup_check.profile_status` reports missing
 required preferences, then Secretary once setup is saved. Optional provider
 verification can remain pending; it does not erase setup or force a restart.

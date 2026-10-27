@@ -36,7 +36,8 @@ that a deadline is easy, sufficient or achievable without evidence about the wor
   once for confirmed preferences, dates, paths and bounded context. It does not
   fetch, initialize, execute or mark runs. Clear capture uses its direct helper below.
   Briefings run only as browser jobs through `job prepare`.
-- Missing setup follows `docs/workflows/secretary.md`: secretary name first; how
+- Website Initialize chats follow their `Setup step:` receipts, not this bullet.
+  Missing setup follows `docs/workflows/secretary.md`: secretary name first; how
   to call the user second; remaining missing answers in small groups.
   Reuse confirmed answers, allow optional skips and never infer preferences/permissions.
   Optional provider failures leave setup saved; installation grants no setup/access/write consent.

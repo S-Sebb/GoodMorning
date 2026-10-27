@@ -19,6 +19,7 @@ class ChatTests(unittest.TestCase):
         self.temp = tempfile.TemporaryDirectory(dir=TEMP_ROOT)
         self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name)
+        (self.root / 'setup-consent.json').write_text('{}')  # Storage consent is covered in test_setup_flow.
         self.chamber = MockChamber(self.root)
         self.chats = Chats(self.root, self.chamber)
         patcher = patch('goodmorning.web.briefing_chat.threading.Thread', ImmediateThread)
@@ -114,12 +115,45 @@ class ChatTests(unittest.TestCase):
         self.assertIn(b'id="chat-starters" hidden', page)
         self.assertFalse((self.root / 'profile.md').exists())
         with self.assertRaises(ValueError): app.today()
+        (self.root / 'setup-consent.json').unlink()
         self.start('initialize', '')
         status = self.chats.status(self.id)
-        self.assertEqual(status['state'], 'waiting')
+        consent, = status['forms']
+        self.assertEqual((status['state'], status['reservation_required'], consent['setup']), ('waiting', False, 'consent'))
+        self.assertEqual([entry['text'] for entry in status['messages']], ['Start initialize'])
+        self.assertEqual(self.chamber.calls, [])  # Nothing reaches a model before consent.
+        self.chats.reply(self.id, 'form', consent['id'], {'answer': {'consent': 'decline'}})
+        status = self.chats.status(self.id)
+        self.assertEqual((status['state'], status['forms']), ('idle', []))
+        self.assertEqual([entry.get('kind') for entry in status['messages']], [None, 'question', 'answer', 'note'])
+        self.assertIn('haven’t saved anything', status['messages'][-1]['text'])
+        self.assertFalse(any((self.root / name).exists() for name in ('profile.md', 'setup-consent.json', 'calendar.sqlite', 'inbox.sqlite')))
+        self.chats.send(self.id, {'id': 'c' * 32, 'text': 'Set me up after all'})
+        consent, = self.chats.status(self.id)['forms']
+        self.assertEqual(self.chamber.calls, [])
+        self.chats.reply(self.id, 'form', consent['id'], {'answer': {'consent': 'agree'}})
+        self.assertTrue((self.root / 'profile.md').exists() and (self.root / 'setup-consent.json').exists())
+        prompt = next(body['prompt'] for action, body in self.chamber.calls if action == 'session.send')
+        self.assertTrue(prompt.startswith('/initialize\n'))
+        self.assertIn('Set me up after all\n\nSetup step: {"setup":{"mode":"new","step":"secretary_name"', prompt)
+        status = self.chats.status(self.id)
         self.assertEqual(status['forms'][0]['id'], 'form_city')
         self.assertEqual(status['messages'][0]['text'], 'Start initialize')
         self.assertNotIn(str(self.root), json.dumps(status['messages']))
+
+    def test_blank_setup_start_asks_its_first_question_without_a_model(self):
+        self.start('initialize', '')
+        status = self.chats.status(self.id)
+        question, = status['forms']
+        self.assertEqual((question['setup'], question['title']), ('secretary_name', 'What would you like to call me?'))
+        self.assertEqual(self.chamber.calls, [])
+        self.chats.reply(self.id, 'form', question['id'], {'answer': {'secretary_name': 'skip'}})
+        prompt = next(body['prompt'] for action, body in self.chamber.calls if action == 'session.send')
+        self.assertTrue(prompt.startswith('/initialize\n'))
+        self.assertIn('Setup already saved these answers.', prompt)
+        self.assertIn('"step":"user_name"', prompt)
+        self.assertIn('"contract"', prompt)
+        self.assertEqual([entry.get('kind') for entry in self.chats.status(self.id)['messages']][:3], [None, 'question', 'answer'])
 
     def test_secretary_name_is_remembered_in_settings_page_and_status(self):
         app = BrowserApp(self.root, self.chamber)
@@ -378,7 +412,7 @@ class ChatTests(unittest.TestCase):
         self.assertEqual(self.chats.status(self.id)['label'], ready)
 
     def test_questions_and_permissions_are_bound_to_owning_conversation(self):
-        self.start('initialize', '')
+        self.start('secretary', 'Ask my city')
         with self.assertRaises(ValueError): self.chats.reply(self.id, 'form', 'foreign', {'answer': {}})
         self.chats.reply(self.id, 'form', 'form_city', {'answer': {'city': 'London'}})
         with self.assertRaises(ValueError): self.chats.reply(self.id, 'permission', 'permission_setup', {'decision': 'always'})
@@ -387,7 +421,7 @@ class ChatTests(unittest.TestCase):
         self.assertEqual(self.chamber.replies[-1][1], {'decision': 'once'})
 
     def test_question_is_saved_closed_and_answered_as_a_new_turn(self):
-        self.start('initialize', '')
+        self.start('secretary', 'Ask my city')
         session = self.chamber.sessions[self.chats.get(self.id)['session']]
         self.assertEqual(self.chats.status(self.id)['forms'][0]['id'], 'form_city')
         # The engine no longer holds the question, so nothing waits on it there.
@@ -410,7 +444,7 @@ class ChatTests(unittest.TestCase):
         with self.assertRaises(ValueError): restored.send(self.id, {'id': 'b' * 32, 'text': 'Skip'})
 
     def test_new_message_skips_a_saved_question(self):
-        self.start('initialize', '')
+        self.start('secretary', 'Ask my city')
         self.chats.status(self.id)
         self.chats.send(self.id, {'id': 'b' * 32, 'text': 'Later, please'})
         status = self.chats.status(self.id)
@@ -421,7 +455,7 @@ class ChatTests(unittest.TestCase):
             self.chats.reply(self.id, 'form', 'form_city', {'answer': {'city': 'London'}})
 
     def test_questions_and_selected_answers_survive_refresh_and_restart_in_order(self):
-        self.start('initialize', '')
+        self.start('secretary', 'Ask my city')
         before = self.chats.status(self.id)
         self.chats.status(self.id)
         self.assertEqual(len(self.chats.get(self.id)['questions']), 1)
@@ -430,7 +464,7 @@ class ChatTests(unittest.TestCase):
         self.chamber.add(session, 'assistant', 'Take your time choosing.')
         self.chats.reply(self.id, 'form', 'form_city', {'answer': {'city': 'London'}})
         self.chats.reply(self.id, 'permission', 'permission_setup', {'decision': 'reject'})
-        expected = ['Start initialize', 'Confirm your location; replies follow the website language.',
+        expected = ['Ask my city', 'Confirm your location; replies follow the website language.',
                     'Confirm your location\nCity\n• London', 'Take your time choosing.', 'City: London', 'Nothing saved.']
         self.assertEqual([entry['text'] for entry in self.chats.status(self.id)['messages']], expected)
         restored = Chats(self.root, self.chamber)
@@ -466,7 +500,7 @@ class ChatTests(unittest.TestCase):
                       '"Count"="3", "Enabled"="No"', prompt)
 
     def test_failed_answer_is_not_displayed_as_accepted(self):
-        self.start('initialize', '')
+        self.start('initialize', 'Set me up')
         for answer in ({'town': 'London'}, {'city': {'nested': 'value'}}, {}):
             with self.assertRaises(ValueError):
                 self.chats.reply(self.id, 'form', 'form_city', {'answer': answer})
@@ -476,7 +510,7 @@ class ChatTests(unittest.TestCase):
         self.assertNotIn('answer', self.chats.get(self.id)['questions'][0])
 
     def test_unsent_answer_reopens_its_question(self):
-        self.start('initialize', '')
+        self.start('initialize', 'Set me up')
         self.chats.status(self.id)
         session = self.chamber.sessions[self.chats.get(self.id)['session']]
         session['permissions'] = []
@@ -498,7 +532,7 @@ class ChatTests(unittest.TestCase):
         from goodmorning.web import language as ui
         token = ui.CURRENT.set('zh-CN')
         try:
-            self.start('initialize', '')
+            self.start('initialize', 'Set me up')
             session = self.chamber.sessions[self.chats.get(self.id)['session']]
             session['forms'] = [{'id': 'confirm', 'metadata': {'tool': {'id': 'prt_confirm'}}, 'fields': [{'key': 'enabled', 'type': 'boolean'}]}]
             self.chats.status(self.id)
@@ -513,7 +547,7 @@ class ChatTests(unittest.TestCase):
         self.assertEqual(status['messages'][-2]['language'], 'zh-CN')
 
     def test_question_history_stays_in_its_own_account(self):
-        self.start('initialize', '')
+        self.start('initialize', 'Set me up')
         self.chats.reply(self.id, 'form', 'form_city', {'answer': {'city': 'Private synthetic city'}})
         other = self.root / 'other'; other.mkdir()
         isolated = Chats(other, self.chamber)
@@ -526,7 +560,7 @@ class ChatTests(unittest.TestCase):
         self.assertEqual(self.chats.get(self.id)['questions'][0]['answer']['city'], 'Private synthetic city')
 
     def test_old_question_exchanges_do_not_move_to_new_transcript_window(self):
-        self.start('initialize', '')
+        self.start('initialize', 'Set me up')
         self.chats.reply(self.id, 'form', 'form_city', {'answer': {'city': 'London'}})
         session = self.chamber.sessions[self.chats.get(self.id)['session']]
         for index in range(120):
@@ -704,7 +738,7 @@ class ChatTests(unittest.TestCase):
             self.assertEqual(self.chats.status(self.id, include_messages=False)['state'], 'running')
 
     def test_queue_status_keeps_pending_and_uncertain_work_and_saves_questions(self):
-        self.start('initialize', '')
+        self.start('initialize', 'Set me up')
         status = self.chats.status(self.id, include_messages=False)
         self.assertEqual(status['state'], 'waiting')
         self.assertFalse(status['reservation_required'])

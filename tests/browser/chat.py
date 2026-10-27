@@ -433,6 +433,13 @@ def check_images(browser, address, artifacts):
     return checks
 
 
+def skip_first_setup_question(page):
+    """Setup's first question comes from code; skipping it hands the chat to the (mock) secretary."""
+    expect(page.get_by_role('heading', name='What would you like to call me?')).to_be_visible()
+    page.get_by_role('radio', name='Skip for now', exact=True).check()
+    page.get_by_role('button', name='Send answer', exact=True).click()
+
+
 def check_question_history(browser, address, artifacts):
     checks = []
     for width, answer in ((1440, 'London'), (390, 'My typed city <img>')):
@@ -441,6 +448,7 @@ def check_question_history(browser, address, artifacts):
         page.on('pageerror', lambda error: errors.append(str(error)))
         page.goto(address + '/chat?mode=initialize')
         page.get_by_role('button', name='Start initialization', exact=True).click()
+        skip_first_setup_question(page)
         expect(page.get_by_role('heading', name='Confirm your location')).to_be_visible()
         if answer == 'London':
             page.get_by_role('radio', name='London', exact=True).check()
@@ -450,14 +458,17 @@ def check_question_history(browser, address, artifacts):
         expect(page.get_by_role('heading', name='Permission needed')).to_be_visible()
         page.get_by_role('button', name='Decline', exact=True).click()
         expect(page.get_by_role('button', name='Send reply', exact=True)).to_be_enabled()
-        expect(page.locator('.chat-message.question')).to_contain_text('Confirm your location')
-        expect(page.locator('.chat-message.answer')).to_contain_text('City: ' + answer)
+        # The code-asked setup question and its skip stay in history before the secretary's question.
+        expect(page.locator('.chat-message.question').last).to_contain_text('Confirm your location')
+        expect(page.locator('.chat-message.answer').last).to_contain_text('City: ' + answer)
         page.reload()
-        expect(page.locator('.chat-message.question')).to_have_count(1)
-        expect(page.locator('.chat-message.answer')).to_have_count(1)
-        expect(page.locator('.chat-message.answer')).to_contain_text('City: ' + answer)
+        expect(page.locator('.chat-message.question')).to_have_count(2)
+        expect(page.locator('.chat-message.answer')).to_have_count(2)
+        expect(page.locator('.chat-message.answer').last).to_contain_text('City: ' + answer)
         assert page.get_by_role('log').locator('.message-text img, .message-attachments img').count() == 0
-        assert page.locator('#chat-questions .agent-form').count() == 0
+        # The idle setup chat's only open form is setup's own next question.
+        expect(page.locator('#chat-questions .agent-form')).to_have_count(1)
+        expect(page.get_by_role('heading', name='What should I call you?')).to_be_visible()
         roles = page.locator('.chat-message').evaluate_all('nodes => nodes.map(node => node.className)')
         assert 'question' in roles[-3] and 'answer' in roles[-2], roles
         page.screenshot(path=str(artifacts / f'question-history-{width}.png'), full_page=True)
@@ -475,6 +486,7 @@ def check_waiting_reply_queue(browser, address, artifacts):
     try:
         page.goto(address+'/chat?mode=initialize')
         page.get_by_role('button',name='Start initialization',exact=True).click()
+        skip_first_setup_question(page)
         expect(page.get_by_role('heading',name='Confirm your location')).to_be_visible()
         expect(page.locator('#chat-status')).to_contain_text('Take your time.')
         page.reload()
@@ -501,7 +513,7 @@ def check_waiting_reply_queue(browser, address, artifacts):
         expect(page.get_by_role('heading',name='Permission needed')).to_be_visible()
         page.get_by_role('button',name='Decline',exact=True).click()
         expect(page.get_by_role('button',name='Send reply',exact=True)).to_be_enabled()
-        expect(page.locator('.chat-message.answer')).to_contain_text('City: London')
+        expect(page.locator('.chat-message.answer').last).to_contain_text('City: London')
         page.screenshot(path=str(artifacts/'queued-answer-resumed-mobile.png'),full_page=True)
         assert not errors,errors
     finally:
@@ -660,6 +672,7 @@ def main():
                 # Setup questions and the readiness transition use a new profile;
                 # composer/layout checks above deliberately use a ready profile.
                 profile.unlink()
+                (root / 'setup-consent.json').write_text('{}')  # Agreed to storage; setup not finished.
                 question_checks = check_question_history(browser, address, artifacts)
                 check_waiting_reply_queue(browser, address, artifacts)
                 scroll_checks = check_scroll(browser, address, artifacts)
@@ -686,6 +699,7 @@ def main():
                     if width == 1440:
                         page.screenshot(path=str(artifacts / 'initialization-desktop.png'), full_page=True)
                         page.get_by_role('button', name='Start initialization', exact=True).click()
+                        skip_first_setup_question(page)
                         expect(page.get_by_role('heading', name='Confirm your location')).to_be_visible()
                         page.get_by_placeholder('Or write your own answer').fill('London, please')
                         with page.expect_response('**/api/chats/*'):

@@ -31,6 +31,7 @@ class ActionTests(unittest.TestCase):
         env = patch.dict(os.environ, {}, clear=True)
         env.start(); self.addCleanup(env.stop)
         initialize(self.root)
+        (self.root / 'setup-consent.json').write_text('{}')
         self.inbox = InboxStore(self.root, write=True)
         self.addCleanup(self.inbox.close)
         self.calendar = CalendarStore(str(self.root / 'calendar.sqlite'))

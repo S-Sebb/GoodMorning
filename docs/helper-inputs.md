@@ -157,6 +157,24 @@ and an unchanged note returns `"saved": false`.
 {"life":"You have a dog, Mochi, and head home early after work to walk him.","lately":"Night shifts all this week."}
 ```
 
+## Website setup: `setup ask` and `setup answer`
+
+Only a website Initialize chat's own session runs these (`docs/initialization.md`).
+Each names the current step from the last receipt. `ask` takes a one-line `title`
+(code builds the form; optional `clarify` lists 2–8 candidate answers for an
+unclear one). `answer` takes `values` and, for each value, the user's own words
+from this chat in `quotes`; region and timezone sent with a city need none.
+Keeping or skipping sends `"values":{}` with one `quote`; a review may send
+`"keep_all":true` instead.
+
+```json setup answer
+{"step":"secretary_name","values":{"secretary_name":"Pip"},"quotes":{"secretary_name":"call yourself Pip"}}
+```
+
+```json setup ask
+{"step":"secretary_name","title":"What would you like to call me?"}
+```
+
 ## Other inputs
 
 - `task --adopt ENTRY` and `task --convert ID`: `docs/item-taxonomy.md` rules 6–7.

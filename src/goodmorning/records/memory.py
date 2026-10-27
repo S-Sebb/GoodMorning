@@ -55,8 +55,27 @@ def checked(note):
     return {part: text.strip() for part, text in note.items()}
 
 
+def conversations(runtime):
+    chats = Path(runtime) / 'browser-chats' / 'chats.json'
+    if chats.is_symlink():
+        raise ValueError('unsafe_path: conversations must belong to this runtime')
+    return json.loads(chats.read_text(encoding='utf-8')).values() if chats.exists() else []
+
+
+def remembered(item, turn):
+    """Setup answers are settings, not memories, and a message held for storage consent never reached the secretary."""
+    return bool(turn.get('text')) and item['mode'] != 'initialize' and not turn.get('local')
+
+
+def chinese(text):
+    return any('\u4e00' <= c <= '\u9fff' for c in text)
+
+
 def change(runtime, revision, *, note=None, enabled=None, session=None):
     """Rewrite parts of the note or switch memory on or off, checked against the revision."""
+    item = next((item for item in conversations(runtime) if session and item.get('session') == session), None)
+    if note is not None and item and item['mode'] == 'initialize':
+        raise ValueError('memory_setup: setup chats keep no memories; setup saves its answers itself, so write nothing')
     with runtime_lock(runtime, 'memory.lock'):
         data = load(runtime)
         if revision != data['revision']:
@@ -67,6 +86,9 @@ def change(runtime, revision, *, note=None, enabled=None, session=None):
             if not data['enabled']:
                 raise ValueError('memory_off: the user turned memory off on the About me page; write nothing')
             merged = data['note'] | checked(note)
+            if item and item['turns'] and item['turns'][-1].get('language') == 'zh-CN' and any(
+                    text and text != data['note'][part] and not chinese(text) for part, text in merged.items()):
+                raise ValueError('memory_language: write each changed part in Simplified Chinese, the website language; nothing was saved')
             size = sum(len(text) for text in merged.values())
             if size > LENGTH:
                 raise ValueError(f'memory_too_long: the note would be {size} characters; merge and trim it to {LENGTH} and write again')
@@ -91,16 +113,13 @@ def tidy(runtime):
         zone = ZoneInfo(zone or 'UTC')
     except (ValueError, KeyError):
         zone = timezone.utc
-    chats = Path(runtime) / 'browser-chats' / 'chats.json'
-    if chats.is_symlink():
-        raise ValueError('unsafe_path: conversations must belong to this runtime')
-    items = json.loads(chats.read_text(encoding='utf-8')).values() if chats.exists() else []
+    items = conversations(runtime)
     with runtime_lock(runtime, 'memory.lock'):
         data = load(runtime)
         now = time.time()
         since = data.get('tidied', now - 86400)
         found = sorted((turn.get('created', item['created']), turn['text']) for item in items for turn in item['turns']
-                       if turn.get('text') and since < turn.get('created', item['created']) <= now)[-MESSAGES:]
+                       if remembered(item, turn) and since < turn.get('created', item['created']) <= now)[-MESSAGES:]
         data['tidied'] = now
         atomic_text(path(runtime), encode(data))
     return [{'at': datetime.fromtimestamp(at, zone).strftime('%a %H:%M'), 'text': text[:MESSAGE]} for at, text in found]

@@ -45,11 +45,12 @@ interface/transport mechanics and is needed only for that implementation work.
    date, boolean, number and choice/custom fields; never answer your own questions.
    Other conversational questions may use ordinary replies. Permissions remain
    explicit one-time approvals/rejections; never request secrets/protected links.
-3. For **Initialize**, follow `docs/workflows/secretary.md` and `docs/initialization.md`:
-   optional secretary name first; no separate reply-language question. Review all
-   other existing preferences in small groups, offer retention and reuse answers.
-   Save only confirmed changes; preserve records and access. This is personal setup,
-   not server registration/password recovery or permission for integration repairs.
+3. For **Initialize**, follow the request's `Setup step:` receipt (`docs/initialization.md`):
+   code owns storage consent, the step order, each value's rules and every save;
+   you word each question with `setup ask` and save answers with `setup answer`.
+   No separate reply-language question, consent question or memory write. This is
+   personal setup, not server registration/password recovery or permission for
+   integration repairs.
 4. For **Secretary**, decide between saving and doing under its workflow's
    *Save or do* rule, then perform only requested authorized reads/changes.
    Saving grants no execution consent.
