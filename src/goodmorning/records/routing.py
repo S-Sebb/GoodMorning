@@ -457,9 +457,10 @@ def calendar_day_extras(store, day, today):
         return rows  # No habits saved yet.
     try:
         for rule in custom.all():
-            if day < today and custom.db.execute("SELECT 1 FROM custom_completions WHERE rule_id=? AND date=? AND status='done'",
-                                                 (rule['id'], day)).fetchone():
-                rows.append({**habit_row(rule, day, 'done'), 'marker': 'flexible'})
+            if day <= today and custom.db.execute("SELECT 1 FROM custom_completions WHERE rule_id=? AND date=? AND status='done'",
+                                                  (rule['id'], day)).fetchone():
+                rows = [row for row in rows if row['id'] != rule['id']]  # A done day shows once, as done.
+                rows.append({**habit_row(rule, day, 'done'), 'marker': 'flexible', 'closed': rule['status'] != 'open'})
     finally:
         custom.close()
     return rows

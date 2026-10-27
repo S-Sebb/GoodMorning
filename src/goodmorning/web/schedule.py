@@ -1,8 +1,12 @@
-"""Read-only account-local events, confirmed TBC appointments and planned task occurrences."""
+"""Account-local events, confirmed TBC appointments and planned task occurrences.
+
+Everything is read-only except one action: ticking a to-do or habit done (or back) on today
+or an earlier day, through the task and habit stores. Calendar events are never changed."""
 from datetime import date, datetime, time, timedelta, timezone
 import hashlib
 import html
 import json
+import re
 import sqlite3
 from zoneinfo import ZoneInfo
 
@@ -113,8 +117,10 @@ def saved_week(runtime, zone, now, offset):
                 for day in days:
                     day['plan_error'] = False  # Legacy history is not a canonical source failure.
                     rows = planned_day(store, day['date']) + calendar_day_extras(store, day['date'], today.isoformat())
-                    day['tasks'] = [worded(dict(r, id=r['occurrence_id'] or r['id'] + ':due', text=r['title'], done=r['status'] == 'done',
-                        section='nice-to-do' if r['optional'] else 'flexible'), 'task')
+                    day['tasks'] = [worded(dict(r, id=r['occurrence_id'] or r['id'] + ':due', task_id=r['id'], text=r['title'], done=r['status'] == 'done',
+                        section='nice-to-do' if r['optional'] else 'flexible',
+                        # Deadline markers, future days and stopped habits stay read-only.
+                        tickable=day['date'] <= today.isoformat() and r.get('marker') != 'due' and not r.get('closed')), 'task')
                         for r in safe_value(rows)]
                     day['events'].extend(draft for draft in drafts if draft['date'] == day['date'])
         except (ValueError, OSError, sqlite3.Error, KeyError, TypeError):
@@ -194,9 +200,16 @@ def task_card(task, day=None):
     if detail:
         metadata.append('<small class="task-detail" data-content>' + html.escape(detail) + '</small>')
     label = {'done': 'Done', 'partial': 'Partial', 'blocked': 'Blocked'}.get(state, 'Not completed')
-    return ('<li class="schedule-task is-' + state + '"><span class="task-state" aria-label="'
-            + html.escape(ui.text(label), quote=True) + '">' + ('✓' if task['done'] else '○') + '</span>'
-            '<div><span class="task-title" data-content>' + html.escape(task['text']) + '</span>' + ''.join(metadata) + '</div></li>')
+    mark = '✓' if task['done'] else '○'
+    if task.get('tickable'):
+        # Enabled by schedule.js; without JavaScript the mark stays read-only.
+        action = ('Mark “{task}” not done' if task['done'] else 'Mark “{task}” done').format(task=task['text'])
+        mark = ('<button id="tick-' + day + '-' + html.escape(task['task_id'], quote=True) + '" class="task-state task-tick" type="button" disabled aria-label="' + html.escape(action, quote=True) + '"'
+                ' data-tick-id="' + html.escape(task['task_id'], quote=True) + '" data-tick-date="' + day + '"'
+                ' data-tick-revision="' + str(task['revision']) + '" data-tick-done="' + str(bool(task['done'])).lower() + '">' + mark + '</button>')
+    else:
+        mark = '<span class="task-state" aria-label="' + html.escape(ui.text(label), quote=True) + '">' + mark + '</span>'
+    return ('<li class="schedule-task is-' + state + '">' + mark + '<div><span class="task-title" data-content>' + html.escape(task['text']) + '</span>' + ''.join(metadata) + '</div></li>')
 
 
 def date_part(day, part):
@@ -390,9 +403,47 @@ def compact(app):
                            'end': ends.strftime('%H:%M') if timed and ends.date().isoformat() == day['date'] else '',
                            'location': event.get('location') or event.get('online') or ''})
         result.append({'date': day['date'], 'events': events,
-                       'tasks': [{'text': task['text'], 'done': bool(task['done'])} for task in day['tasks']]})
+                       'tasks': [{'text': task['text'], 'done': bool(task['done']), 'tickable': bool(task.get('tickable')),
+                                  **({'id': task['task_id'], 'revision': task['revision']} if task.get('tickable') else {})}
+                                 for task in day['tasks']]})
     return {'today': today, 'timezone': zone, 'days': result,
             'warnings': list(dict.fromkeys(weeks[0]['warnings'] + weeks[1]['warnings']))}
+
+
+def tick(app, body):
+    """One tap on a Schedule to-do or habit, on today or an earlier day: done, or back again.
+
+    The key is the caller's own random retry key; a retry with the same key and input
+    returns the first receipt instead of saving twice."""
+    if (not isinstance(body, dict) or set(body) != {'id', 'date', 'revision', 'done', 'key'} or not isinstance(body['id'], str)
+            or not isinstance(body['date'], str) or type(body['revision']) is not int or type(body['done']) is not bool
+            or not isinstance(body['key'], str) or not re.fullmatch(r'[A-Za-z0-9_-]{16,64}', body['key'])):
+        raise ValueError('Invalid schedule tap')
+    zone = app.profile().get('timezone')
+    if not zone:
+        raise ValueError('Initialize your profile timezone first')
+    now = (app.now() if app.now else datetime.now(timezone.utc)).astimezone(ZoneInfo(zone))
+    day = body['date']
+    if date.fromisoformat(day).isoformat() != day or day > briefing_day(zone, now):
+        raise ValueError('invalid_date: only today and earlier days can be ticked')
+    arguments = (body['id'], body['revision'], day, body['done'], 'schedule', 'schedule-tap:' + body['key'],
+                 now.isoformat(timespec='seconds'))
+    if body['id'].startswith('cu_'):
+        from goodmorning.records.custom_store import CustomStore
+        store = CustomStore(app.runtime, write=True)
+        try:
+            receipt = store.tick(*arguments)
+        finally:
+            store.close()
+    else:
+        from goodmorning.records.inbox_store import InboxStore
+        from goodmorning.records.task_store import TaskStore
+        inbox = InboxStore(app.runtime, write=True)
+        try:
+            receipt = TaskStore(inbox).tick(*arguments)
+        finally:
+            inbox.close()
+    return {'saved': True, 'id': body['id'], 'date': day, 'done': body['done'], 'revision': receipt['revision']}
 
 
 def upcoming(app, hours=3):
@@ -455,7 +506,7 @@ def page(app, offset, mode='week'):
               '<a class="skip-link" href="#schedule-view">Skip to schedule</a><header class="masthead"><a class="wordmark" href="/gm.html">GoodMorning<span>A personal secretary just for you</span></a>'
               '<nav class="edition-switch" aria-label="Your desk"><a class="edition-link" href="/gm.html">Morning</a><a class="edition-link" href="/gn.html">Evening</a>'
               '<a class="edition-link selected" href="/schedule" aria-current="page">Schedule</a><a class="edition-link" href="/letters">Letters</a><a class="edition-link" href="/chat">Secretary</a></nav></header>'
-              '<main><div id="schedule-view">' + content + '</div><p id="schedule-error" role="alert"></p>'
+              '<main><div id="schedule-view">' + content + '</div><p id="schedule-error" role="alert"></p><div id="schedule-notice" class="schedule-notice" role="status"></div>'
               '<noscript>Navigation and saved plans work without JavaScript. Reload to see updates.</noscript></main>'
               '<div id="schedule-config" hidden data-config="' + config + '"></div><script src="/schedule.js" defer></script></body></html>')
     return app.resources.rewrite(ui.page(quick_chat.widget(source, app.csrf), app.csrf, '/schedule')).encode()

@@ -753,6 +753,28 @@ class GatewayTests(GatewayFixture):
                 db.execute('UPDATE metadata SET value=? WHERE key=?',(json.dumps({'user':self.id,'chat':'c'*32}),'generation'))
             self.assertTrue(busy())
 
+    def test_phone_and_browser_ticks_reach_the_schedule_tick_route(self):
+        def phone(path,body=None,headers=None):
+            cookie,self.cookie=self.cookie,None
+            try:return self.request(path,body,headers={'Origin':'','Sec-Fetch-Site':'',**(headers or {})})
+            finally:self.cookie=cookie
+        pairing=json.loads(phone('/api/app/pair',{'label':'Pixel 7'})[2])
+        self.permanent()
+        self.request('/api/app/link',{'code':pairing['code']})
+        token={'X-GoodMorning-App':json.loads(phone('/api/app/pair',headers={'X-GoodMorning-Pairing':pairing['secret']})[2])['token']}
+        calls=[]
+        def proxy(user,host,path,method,body,headers):
+            calls.append((user,path,method,json.loads(body)))
+            return 409,{'Content-Type':'application/json'},b'{"error":"changed"}'
+        tap={'id':'task_0123456789abcdef','date':'2026-10-13','revision':2,'done':True,'key':'phone-key-00000001'}
+        with patch.object(self.gateway,'proxy',proxy):
+            self.assertEqual(phone('/api/app/schedule/tick',tap,headers={'X-GoodMorning-App':'gma_wrong'})[0],403)
+            self.assertEqual(calls,[])
+            self.assertEqual(phone('/api/app/schedule/tick',tap,headers=token)[0],409)
+            self.assertEqual(calls,[(self.id,'/api/schedule/tick','POST',tap)])
+            self.assertEqual(self.request('/api/schedule/tick',tap)[0],409)
+            self.assertEqual(calls[-1],(self.id,'/api/schedule/tick','POST',tap))
+
     def test_phone_quick_notes_are_saved_and_sorted_through_a_secretary_chat(self):
         def phone(path,body=None,headers=None):
             cookie,self.cookie=self.cookie,None

@@ -41,7 +41,7 @@ ASSETS = WEB_ASSETS
 ASSET_LINKS = (ASSETS / 'assetlinks.json').read_bytes()
 POLICY = "default-src 'none'; style-src 'self'; script-src 'self'; img-src 'self'; font-src 'self'; connect-src 'self'; manifest-src 'self'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'"
 GET_ROUTES = re.compile(r'(?:/|/(?:index|gm|gn)\.html|/offline/(?:gm|gn)\.html|/chat|/schedule|/about-me|/api/schedule|/letters(?:/\d{4}-\d{2}-\d{2})?|/api/avatar(?:/image/[a-f0-9]{64}\.png)?|/api/chats(?:/[a-f0-9]{32}(?:/status)?)?|/api/day|/api/reminders|/api/app-schedule|/api/app-briefings|/api/app-weather|/api/app-profile|/api/notes(?:/batch)?|/api/edition/\d{4}-\d{2}-\d{2}/(?:gm|gn)|/api/jobs/[a-f0-9]{32}(?:/preview)?|/d/\d{4}-\d{2}-\d{2}/(?:gm|gn)\.(?:html|json)|/media/(?:thumb-v1/)?[a-f0-9]{64}\.webp|/d/\d{4}-\d{2}-\d{2}/media/[a-f0-9]+\.webp|/(?:assets/[a-f0-9]{64}/)?desk-secretary(?:-f2|-m1|-m2)?(?:-profile|(?:-day)?(?:-animated)?)\.png|/(?:assets/[a-f0-9]{64}/)?(?:briefing\.css|briefing\.js|browser\.js|schedule\.js|schedule\.css|questions\.js|chat\.js|chat\.css|avatar\.js|avatar\.css|fonts/(?:lora-italic\.woff2|OFL\.txt)))')
-POST_ROUTES = re.compile(r'(?:/api/notes(?:/sorted)?|/api/about-me|/api/avatar(?:/upload/(?:day|night|profile))?|/api/(?:generate|regenerate)|/api/chat-uploads/[a-f0-9]{32}|/api/chats|/api/chats/[a-f0-9]{32}/(?:messages|seen|(?:form|permission)/[A-Za-z0-9_]+/reply)|/api/jobs/[a-f0-9]{32}/(?:recover|(?:form|permission)/[A-Za-z0-9_]+/reply))')
+POST_ROUTES = re.compile(r'(?:/api/notes(?:/sorted)?|/api/schedule/tick|/api/about-me|/api/avatar(?:/upload/(?:day|night|profile))?|/api/(?:generate|regenerate)|/api/chat-uploads/[a-f0-9]{32}|/api/chats|/api/chats/[a-f0-9]{32}/(?:messages|seen|(?:form|permission)/[A-Za-z0-9_]+/reply)|/api/jobs/[a-f0-9]{32}/(?:recover|(?:form|permission)/[A-Za-z0-9_]+/reply))')
 # Only the gateway's own background work reaches these; browsers never can.
 INTERNAL_ROUTES = re.compile(r'/api/briefing-reminders(?:/lines(?:/[a-f0-9]{32})?)?')
 QUEUE_KEY = 'generation_queue'
@@ -564,6 +564,10 @@ class Gateway:
     def app_note(self, user, body):
         """Saves one quick note word for word; no model runs."""
         return self.proxy(user, next(iter(self.hosts)), '/api/notes', 'POST', json.dumps(body).encode(), {})
+
+    def app_tick(self, user, body):
+        """The Today widget's tick: the same save as a tap on the Schedule page."""
+        return self.proxy(user, next(iter(self.hosts)), '/api/schedule/tick', 'POST', json.dumps(body).encode(), {})
 
     def app_sort(self, user, body):
         """Sort with the secretary: a new Secretary conversation through the usual queue, with the
@@ -1294,7 +1298,8 @@ def handler_for(gateway):
             self.select_language({'user_id':user})
             gateway.backend(user)
             handler={'/api/app/generate':gateway.app_generate,'/api/app/chat':gateway.app_chat,
-                     '/api/app/note':gateway.app_note,'/api/app/notes/sort':gateway.app_sort}[path]
+                     '/api/app/note':gateway.app_note,'/api/app/notes/sort':gateway.app_sort,
+                     '/api/app/schedule/tick':gateway.app_tick}[path]
             status,headers,data=handler(user,body)
             return self.respond(data,status,headers.get('Content-Type','application/json'))
 
@@ -1539,7 +1544,7 @@ def handler_for(gateway):
             try:
                 host=self.host()
                 self.select_language()
-                if urlsplit(self.path).path in ('/api/app/pair','/api/app/signin','/api/app/chat','/api/app/generate','/api/app/note','/api/app/notes/sort'):
+                if urlsplit(self.path).path in ('/api/app/pair','/api/app/signin','/api/app/chat','/api/app/generate','/api/app/note','/api/app/notes/sort','/api/app/schedule/tick'):
                     return self.app_post(host,urlsplit(self.path).path)
                 if self.headers.get('Origin')!='https://'+host or self.headers.get('Sec-Fetch-Site','same-origin')!='same-origin':
                     raise Denied('Forbidden')

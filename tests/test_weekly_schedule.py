@@ -15,7 +15,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'src'))
 from goodmorning.calendar.calendar_store import CalendarStore
 from goodmorning.web import language as ui
 from goodmorning.web.briefing_server import BrowserApp
-from goodmorning.web.schedule import compact, saved_week, schedule_query, snapshot, upcoming, week_offset
+from goodmorning.web.schedule import compact, saved_week, schedule_query, snapshot, tick, upcoming, week_offset
+from goodmorning.records.custom_store import CustomStore
 from goodmorning.records.inbox_store import InboxStore, initialize
 from goodmorning.records.task_store import TaskStore
 
@@ -417,6 +418,147 @@ class ScheduleTests(unittest.TestCase):
             self.assertEqual(get(self.app.resources.urls[name])[0], 200)
         (self.root / 'profile.md').write_text('')
         self.assertIn(b'Initialize my secretary', get('/schedule')[2])
+
+
+class TapToTickTests(unittest.TestCase):
+    """A Schedule tap is the check-in's Done, and the opposite tap restores exactly what it replaced."""
+
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory(dir=TEMP_ROOT)
+        self.addCleanup(self.temp.cleanup)
+        self.root = Path(self.temp.name)
+        self.app = make_runtime(self.root)
+        canonical_records(self.root)
+        self.keys = iter(range(10_000))
+
+    def rows(self, app=None):
+        now = (app or self.app).now()
+        return {(task['text'], day['date']): task for offset in (-1, 0, 1)
+                for day in saved_week(self.root, 'Europe/London', now, offset)['days'] for task in day['tasks']}
+
+    def tap(self, name, day, done, revision=None, app=None, key=None):
+        row = self.rows(app)[name, day]
+        return tick(app or self.app, {'id': row['task_id'], 'date': day, 'revision': row['revision'] if revision is None else revision,
+                                      'done': done, 'key': key or 'tap-key-%012d' % next(self.keys)})
+
+    def stored(self, name):
+        inbox = InboxStore(self.root)
+        try:
+            store = TaskStore(inbox)
+            task = next(t for t in store.all() if t['title'] == name)
+            return task['status'], [dict(r) for r in inbox.db.execute('SELECT date,status,detail FROM task_occurrences WHERE task_id=?', (task['id'],))]
+        finally:
+            inbox.close()
+
+    def test_one_off_task_finishes_and_undo_restores_partial_with_its_note(self):
+        before = self.stored('Draft the methods')
+        receipt = self.tap('Draft the methods', '2026-10-13', True)
+        self.assertEqual(self.stored('Draft the methods'), ('done', [{'date': '2026-10-13', 'status': 'done', 'detail': ''}]))
+        self.assertEqual(self.rows()['Draft the methods', '2026-10-13']['status'], 'done')
+        tick(self.app, {'id': receipt['id'], 'date': '2026-10-13', 'revision': receipt['revision'], 'done': False, 'key': 'undo-key-0000000001'})
+        self.assertEqual(self.stored('Draft the methods'), before)
+        row = self.rows()['Draft the methods', '2026-10-13']
+        self.assertEqual((row['status'], row['report_detail']), ('partial', 'First baseline compared.'))
+        # Ticking again later reverses the undo just as exactly.
+        self.tap('Draft the methods', '2026-10-13', True)
+        self.tap('Draft the methods', '2026-10-13', False)
+        self.assertEqual(self.stored('Draft the methods'), before)
+
+    def test_recurring_task_ticks_only_that_day_and_done_elsewhere_reopens(self):
+        saturday = BrowserApp(self.root, now=lambda: datetime(2026, 10, 24, 12, tzinfo=timezone.utc))
+        self.tap('Wash towels', '2026-10-17', True, app=saturday)
+        status, occurrences = self.stored('Wash towels')
+        self.assertEqual((status, occurrences), ('open', [{'date': '2026-10-17', 'status': 'done', 'detail': ''}]))
+        self.assertFalse(self.rows(saturday)['Wash towels', '2026-10-24']['done'])
+        # Completed by the secretary, not by a tap: not done simply reopens it.
+        self.assertEqual(self.stored('Review the outline')[0], 'done')
+        self.tap('Review the outline', '2026-10-12', False)
+        self.assertEqual(self.stored('Review the outline'), ('open', []))
+
+    def test_future_days_deadline_markers_stale_pages_and_retries(self):
+        rows = self.rows()
+        self.assertTrue(rows['Pick up a parcel', '2026-10-13']['tickable'])
+        self.assertFalse(rows['Try the new figure layout', '2026-10-15']['tickable'])
+        self.assertFalse(rows['Deadline only, not a workday', '2026-10-16']['tickable'])
+        with self.assertRaisesRegex(ValueError, 'invalid_date'):
+            self.tap('Try the new figure layout', '2026-10-15', True)
+        # Before 04:00 local time the page still shows the previous day as today.
+        night = BrowserApp(self.root, now=lambda: datetime(2026, 10, 15, 1, tzinfo=timezone.utc))
+        self.assertFalse(self.rows(night)['Try the new figure layout', '2026-10-15']['tickable'])
+        with self.assertRaisesRegex(ValueError, 'invalid_date'):
+            self.tap('Try the new figure layout', '2026-10-15', True, app=night)
+        today = BrowserApp(self.root, now=lambda: datetime(2026, 10, 16, 12, tzinfo=timezone.utc))
+        with self.assertRaisesRegex(ValueError, 'unknown_occurrence'):
+            self.tap('Deadline only, not a workday', '2026-10-16', True, app=today)
+        first = self.tap('Pick up a parcel', '2026-10-13', True, key='retry-key-00000001')
+        self.assertEqual(self.tap('Pick up a parcel', '2026-10-13', True, revision=1, key='retry-key-00000001'), first)
+        with self.assertRaisesRegex(ValueError, 'write_conflict'):
+            self.tap('Pick up a parcel', '2026-10-13', False, revision=1)
+        for bad in ({'done': 'yes'}, {'revision': '2'}, {'key': 'short'}, {'extra': 1}):
+            row = self.rows()['Pick up a parcel', '2026-10-13']
+            with self.assertRaises(ValueError):
+                tick(self.app, {'id': row['task_id'], 'date': '2026-10-13', 'revision': row['revision'], 'done': False,
+                                'key': 'valid-key-00000001', **bad})
+
+    def test_habit_tick_stays_visible_today_and_undo_restores_its_detail(self):
+        store = CustomStore(self.root, write=True)
+        try:
+            habit = store.add({'title': 'Go gym', 'detail': '', 'timezone': 'Europe/London',
+                               'policy': {'base': 'interval_days', 'interval_days': 2, 'start': '2026-10-12',
+                                          'anchor': 'last_completion', 'miss_policy': 'chase'}}, 'ses_synthetic', 'gym', NOW.isoformat())
+            store.report(habit['id'], 1, {'status': 'done', 'confirmed_completion': True, 'detail': 'Legs day.'},
+                         'ses_synthetic', 'gym-12', NOW.isoformat(), '2026-10-12')
+        finally:
+            store.close()
+        self.assertTrue(self.rows()['Go gym', '2026-10-12']['tickable'])
+        self.assertNotIn(('Go gym', '2026-10-13'), self.rows())  # Two-day gap after Monday.
+        receipt = self.tap('Go gym', '2026-10-12', False)
+        self.assertNotIn(('Go gym', '2026-10-12'), self.rows())
+        tick(self.app, {'id': receipt['id'], 'date': '2026-10-12', 'revision': receipt['revision'], 'done': True, 'key': 'undo-key-0000000002'})
+        store = CustomStore(self.root)
+        try:
+            self.assertEqual([(c['date'], c['detail']) for c in store.show(habit['id'])['completions']], [('2026-10-12', 'Legs day.')])
+        finally:
+            store.close()
+        wednesday = BrowserApp(self.root, now=lambda: datetime(2026, 10, 14, 12, tzinfo=timezone.utc))
+        self.tap('Go gym', '2026-10-14', True, app=wednesday)
+        row = self.rows(wednesday)['Go gym', '2026-10-14']
+        self.assertEqual((row['status'], row['tickable']), ('done', True))
+
+    def test_page_offers_disabled_tap_targets_and_widget_rows_carry_tick_fields(self):
+        markup = snapshot(self.app, 0)['view']
+        self.assertRegex(markup, r'<button id="tick-2026-10-13-task_\w+" class="task-state task-tick" type="button" disabled '
+                                 r'aria-label="Mark “Pick up a parcel” done"')
+        self.assertIn('aria-label="Mark “Review the outline” not done"', markup)
+        self.assertNotIn('data-tick-date="2026-10-15"', markup)
+        today = compact(self.app)['days'][0]['tasks']
+        parcel = next(task for task in today if task['text'] == 'Pick up a parcel')
+        self.assertEqual(set(parcel), {'text', 'done', 'tickable', 'id', 'revision'})
+        later = compact(self.app)['days'][2]['tasks']
+        self.assertEqual(later, [{'text': 'Try the new figure layout', 'done': False, 'tickable': False}])
+
+    def test_http_tap_needs_csrf_and_reports_conflicts(self):
+        server = start_server(self.app)
+        self.addCleanup(server.server_close); self.addCleanup(server.shutdown)
+        origin = f'http://127.0.0.1:{server.server_port}'
+        row = self.rows()['Pick up a parcel', '2026-10-13']
+        def post(body, csrf=self.app.csrf):
+            try:
+                response = urlopen(Request(origin + '/api/schedule/tick', data=json.dumps(body).encode(),
+                                           headers={'Origin': origin, 'X-Briefing-CSRF': csrf, 'Content-Type': 'application/json'}), timeout=3)
+            except HTTPError as error:
+                response = error
+            with response:
+                return response.status, json.loads(response.read())
+        body = {'id': row['task_id'], 'date': '2026-10-13', 'revision': row['revision'], 'done': True, 'key': 'http-key-000000001'}
+        self.assertEqual(post(body, 'wrong')[0], 403)
+        self.assertEqual(self.stored('Pick up a parcel')[0], 'open')
+        status, result = post(body)
+        self.assertEqual((status, result['done'], result['revision']), (200, True, row['revision'] + 1))
+        status, result = post({**body, 'done': False, 'key': 'http-key-000000002'})
+        self.assertEqual(status, 409)
+        self.assertIn('changed since the page loaded', result['error'])
+        self.assertEqual(post({**body, 'date': '2026-10-15', 'key': 'http-key-000000003'})[0], 400)
 
 
 if __name__ == '__main__':

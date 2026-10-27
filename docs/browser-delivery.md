@@ -321,6 +321,10 @@ With its token (`X-GoodMorning-App` header) the app can call:
 - `POST /api/app/generate` with `{kind}` (`gm` or `gn`): prepares today's
   morning or evening briefing through the normal queue, like the website's
   button. It may start paid model work.
+- `POST /api/app/schedule/tick` with `{id, date, revision, done, key}`: ticks a
+  to-do or habit done, or back, exactly like a tap on the Schedule page. No
+  model runs. The full contract is in `docs/weekly-schedule.md`
+  ([Ticking to-dos](weekly-schedule.md#ticking-to-dos)).
 - `POST /api/app/note` with `{id, text, created}`: saves one quick note word for
   word in the account's `quick-notes.sqlite` (`src/goodmorning/web/quick_notes.py`).
   The phone names the note (32 hex characters), so a retried save never makes a

@@ -600,13 +600,7 @@ class TaskStore:
                     occ = {'id': occurrence_id(task['id'], day), 'revision': 0, 'status': task['status']}
                 if selection['id'] != occ['id'] or occ['status'] == 'cancelled':
                     raise ValueError('unknown_occurrence: complete only exact planned occurrences')
-                self.db.execute('INSERT INTO task_occurrences VALUES (?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET '
-                                'revision=excluded.revision,status=excluded.status,detail=excluded.detail',
-                                (occ['id'], task['id'], day, occ['revision'] + 1, 'done', ''))
-                data = {k: v for k, v in task.items() if k in FIELDS}
-                if not task['repeat']:
-                    data['status'] = 'done'
-                self.db.execute('UPDATE tasks SET revision=revision+1,updated_at=?,data=? WHERE id=?', (now, encode(data), task['id']))
+                self.done(task, occ, day, now)
             result = {'saved': True, 'completed': [s['id'] for s in selections]}
             self.db.execute('INSERT INTO task_events(item_id,action,at,session,snapshot,request_key,fingerprint,receipt) VALUES (?,?,?,?,?,?,?,?)',
                             ('feedback:' + day, 'feedback', now, session, encode({'selected': selections, 'details': details}), key, digest, encode(result)))
@@ -657,6 +651,70 @@ class TaskStore:
             result = {'saved': True, 'answers': answers, 'changed': changed}
             self.db.execute('INSERT INTO task_events(item_id,action,at,session,snapshot,request_key,fingerprint,receipt) VALUES (?,?,?,?,?,?,?,?)',
                             ('tidy:' + day, 'tidy', now, session, encode({'answers': answers}), key, digest, encode(result)))
+            return result
+
+    def done(self, task, occ, day, now):
+        """The check-in's Done: that day's occurrence, and a one-off task as a whole."""
+        self.db.execute('INSERT INTO task_occurrences VALUES (?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET '
+                        'revision=excluded.revision,status=excluded.status,detail=excluded.detail',
+                        (occ['id'], task['id'], day, occ['revision'] + 1, 'done', ''))
+        data = {k: v for k, v in task.items() if k in FIELDS}
+        if not task['repeat']:
+            data['status'] = 'done'
+        self.db.execute('UPDATE tasks SET revision=revision+1,updated_at=?,data=? WHERE id=?', (now, encode(data), task['id']))
+
+    def tick(self, identifier, expected, day, done, session, key, now):
+        """One Schedule tap. Done means the check-in's Done. When the task is unchanged since the
+        previous tap, the opposite tap restores exactly what that tap replaced; otherwise not
+        done reopens the day (and a one-off task)."""
+        checked(session, 200, False); checked(key, 240, False); date(day)
+        digest = hashlib.sha256(encode([identifier, expected, day, done, session]).encode()).hexdigest()
+        with self.inbox.transaction():
+            previous = self.db.execute('SELECT fingerprint,receipt FROM task_events WHERE request_key=?', (key,)).fetchone()
+            if previous:
+                if previous['fingerprint'] != digest:
+                    raise ValueError('request_conflict: request key belongs to different input')
+                return {**json.loads(previous['receipt']), 'replayed': True}
+            if self.db.execute('SELECT 1 FROM events WHERE request_key=?', (key,)).fetchone():
+                raise ValueError('request_conflict: request key belongs to a capture')
+            task = self.show(identifier)
+            if task['revision'] != expected:
+                raise ValueError('write_conflict: task changed; refresh the schedule')
+            if task['category'] in UNCHECKED:
+                raise ValueError('invalid_input: nudges, errands and reference notes are never ticked off')
+            occ = self.occurrence(task, day)
+            if occ['status'] == 'cancelled' or (occ['status'] == 'done') == done:
+                raise ValueError('write_conflict: the day already has that state; refresh the schedule')
+            last = self.db.execute("SELECT snapshot,receipt FROM task_events WHERE item_id=? AND action='tick' "
+                                   'ORDER BY seq DESC LIMIT 1', (identifier,)).fetchone()
+            undo = json.loads(last['snapshot']) if last and json.loads(last['receipt'])['revision'] == expected else None
+            if undo and (undo['done'] == done or task['repeat'] and undo['day'] != day):
+                undo = None
+            target = undo['day'] if undo else day
+            row = self.db.execute('SELECT * FROM task_occurrences WHERE task_id=? AND date=?', (identifier, target)).fetchone()
+            before = {'day': target, 'done': done, 'status': task['status'], 'occurrence': dict(row) if row else None}
+            data = {k: v for k, v in task.items() if k in FIELDS}
+            if undo:
+                saved = undo['occurrence']
+                if saved:
+                    self.db.execute('INSERT INTO task_occurrences VALUES (?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET '
+                                    'revision=excluded.revision,status=excluded.status,detail=excluded.detail',
+                                    (saved['id'], identifier, target, (row['revision'] if row else 0) + 1, saved['status'], saved['detail']))
+                else:
+                    self.db.execute('DELETE FROM task_occurrences WHERE task_id=? AND date=?', (identifier, target))
+                data['status'] = undo['status']
+                self.db.execute('UPDATE tasks SET revision=revision+1,updated_at=?,data=? WHERE id=?', (now, encode(data), identifier))
+            elif done:
+                self.done(task, occ, day, now)
+            else:
+                if row:
+                    self.db.execute("UPDATE task_occurrences SET revision=revision+1,status='open',detail='' WHERE id=?", (row['id'],))
+                if not task['repeat'] and task['status'] == 'done':
+                    data['status'] = 'open'
+                self.db.execute('UPDATE tasks SET revision=revision+1,updated_at=?,data=? WHERE id=?', (now, encode(data), identifier))
+            result = {'saved': True, 'id': identifier, 'revision': expected + 1, 'occurrence_id': occ['id'], 'done': done}
+            self.db.execute('INSERT INTO task_events(item_id,action,at,session,snapshot,request_key,fingerprint,receipt) VALUES (?,?,?,?,?,?,?,?)',
+                            (identifier, 'tick', now, session, encode(before), key, digest, encode(result)))
             return result
 
     def mutate(self, identifier, expected, payload, session, key, now, *, day=None, draft=False, actual=False):
