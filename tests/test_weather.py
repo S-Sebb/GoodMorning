@@ -441,6 +441,7 @@ class WeatherTests(unittest.TestCase):
         frame["past"] = 15  # 21:00 is wet, so drizzle now agrees with the frame.
         w.apply_frame(out, frame)
         self.assertEqual(out["condition"], "light drizzle")
+        self.assertIn("Europe/London: 12C; 21:00–24:00: 13.2..13.8C, rain likely now, light drizzle (rain", w.brief(out))
 
     def test_late_frame_runs_to_noon_and_dry_hours_mean_no_umbrella(self):
         out, frame = self.frame_output(datetime(2026, 10, 9, 22, tzinfo=timezone.utc).timestamp())
