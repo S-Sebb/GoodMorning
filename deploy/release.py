@@ -7,6 +7,9 @@ Order: preflight, public archive, stage and test on the server while live,
 stage the OpenCode engine pinned in deploy/engine.json while live, pause, switch (waits
 for idle), paused checks, resume, public login check, tag.
 The website is paused only for the switch and the paused checks.
+
+With --already-paused (the owner paused the site for an incident) it deploys into that
+pause, skips pausing, resuming and the public login check, and leaves the site paused.
 """
 import argparse
 from datetime import date
@@ -90,7 +93,7 @@ def paused_checks(version):
     assert release == version, f'Live release reports {release}, expected {version}'
 
 
-def preflight():
+def preflight(already_paused):
     if run('git', 'branch', '--show-current') != 'main' or run('git', 'status', '--porcelain'):
         raise Stop('Use a clean primary checkout on main.')
     run('git', 'fetch', '--quiet', 'origin')
@@ -105,7 +108,10 @@ def preflight():
     notes = patch_notes()
     if not notes:
         raise Stop('Patch notes are invalid.')
-    if 'Website is live' not in server(ADMIN+' pause-status'):
+    live = 'Website is live' in server(ADMIN+' pause-status')
+    if already_paused and live:
+        raise Stop('The website is live; deploy without --already-paused.')
+    if not already_paused and not live:
         raise Stop('The website is already paused: another deployment or incident is in progress. Ask the owner.')
     return commit, notes[0]['version']
 
@@ -113,9 +119,11 @@ def preflight():
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument('--skip-browser', action='store_true', help='skip the public Chromium login check')
+    parser.add_argument('--already-paused', action='store_true',
+                        help='deploy into a pause the owner set for an incident, and leave the site paused')
     args = parser.parse_args()
     started = time.monotonic()
-    commit, version = preflight()
+    commit, version = preflight(args.already_paused)
     name = f'{date.today():%Y%m%d}-ship-{commit[:7]}'
     stage_dir = f'/tmp/opencode/{name}'
     print(f'Deploying {version} as {name}', flush=True)
@@ -136,11 +144,14 @@ def main():
     print(f'Staging OpenCode {opencode}; the website stays live...', flush=True)
     engine = json.loads(server(f'{helper_command} engine {opencode}', timeout=1200).splitlines()[-1])['engine']
 
-    server(f'{ADMIN} pause --reason "deploy {name}" --by "GoodMorning agent"')
+    if not args.already_paused:
+        server(f'{ADMIN} pause --reason "deploy {name}" --by "GoodMorning agent"')
     paused = time.monotonic()
     print('Website paused; switching once idle...', flush=True)
     result = ssh(f'{helper_command} switch {name} {engine}', timeout=helper.IDLE_TIMEOUT+600)
     if result.returncode == helper.NOT_IDLE:
+        if args.already_paused:
+            raise Stop('Work did not finish within the idle timeout. Nothing changed; the website stays paused.')
         server(ADMIN+' resume')
         raise Stop('Work did not finish within the idle timeout. Nothing changed; the website was resumed.')
     if result.returncode:
@@ -152,12 +163,13 @@ def main():
     except (AssertionError, OSError, ValueError) as error:
         raise Stop(f'Paused check failed: {error}. The new release is live but the website stays paused; '
                    'inspect, then resume or roll back.') from error
-    server(ADMIN+' resume')
+    if not args.already_paused:
+        server(ADMIN+' resume')
+        if 'Website is live' not in server(ADMIN+' pause-status'):
+            raise Stop('Resume was not confirmed.')
     downtime = time.monotonic()-paused
-    if 'Website is live' not in server(ADMIN+' pause-status'):
-        raise Stop('Resume was not confirmed.')
 
-    if not args.skip_browser:
+    if not args.skip_browser and not args.already_paused:
         with tempfile.TemporaryDirectory() as artifacts:
             login = subprocess.run([*UV_BROWSER, 'tests/browser/login.py', '--artifacts', artifacts],
                                    cwd=ROOT, text=True, capture_output=True, timeout=900)
@@ -171,7 +183,8 @@ def main():
                       'stagedTests': {'python': staged['pythonTests'], 'node': staged['nodeTests']},
                       'switch': {key: report[key] for key in ('protectedPrivateFiles', 'idleAccountsRestarted',
                                                                'engine', 'previousEngine', 'updatedFiles', 'switchSeconds')},
-                      'publicLoginCheck': not args.skip_browser, 'pausedSeconds': round(downtime),
+                      'publicLoginCheck': not (args.skip_browser or args.already_paused), 'resumed': not args.already_paused,
+                      'pausedSeconds': round(downtime),
                       'totalSeconds': round(time.monotonic()-started)}, ensure_ascii=False))
 
 
