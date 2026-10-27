@@ -26,15 +26,17 @@ def fixture(root):
                     {'key': 'detail', 'title': 'Your preference', 'type': 'string', 'required': True}]}]
             return forms, permissions
 
-        def request(self, path, body):
-            if '/frm_later/' in path:
-                (root / 'ask').unlink()
-                return {}
-            return super().request(path, body)
+        def request(self, path, body=None, method=None):
+            if path.endswith('/frm_later') and method == 'DELETE':
+                (root / 'ask').unlink(missing_ok=True)
+            return super().request(path, body, method)
 
         def control(self, action, **kwargs):
-            if action == 'session.status':
-                self.busy = not (root / 'stop').exists()
+            if action == 'session.send':
+                self.busy = True  # The continued run streams the remaining sections.
+            # While the stop file exists, the agent has stopped and its session is idle.
+            if action == 'session.status' and (root / 'stop').exists():
+                return {'sessionStatus': {'type': 'idle'}}
             return super().control(action, **kwargs)
     serve_live(BrowserApp(root, StreamChamber()), 0)
 

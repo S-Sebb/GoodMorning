@@ -78,6 +78,20 @@ class LiveTests(unittest.TestCase):
         # Answered after its day has passed, the edition still finishes under its own date.
         self.assertEqual((self.app.job(job)['state'],self.app.job(job)['date']),('running','2026-10-10'))
 
+    def test_answer_that_cannot_continue_yet_waits_for_the_user_again(self):
+        job=self.start()
+        self.app.status(job)  # The question is closed, but the open permission keeps its run going.
+        with patch('goodmorning.web.briefing_server.threading.Thread', ImmediateThread), patch('goodmorning.web.briefing_server.time.sleep'):
+            self.app.reply(job,'form','frm_test',{'answer':{'progress':['unreported']}})
+        sends=lambda:sum(action=='session.send' for action,_ in self.chamber.calls)
+        # Nothing was sent, so the job is not stranded as an uncertain dispatch.
+        current=self.app.status(job)
+        self.assertEqual((sends(),self.app.job(job)['state'],current['state'],current['forms'][0]['id']),(1,'running','waiting','frm_test'))
+        self.app.reply(job,'permission','per_fixture',{'decision':'once'})
+        with patch('goodmorning.web.briefing_server.threading.Thread', ImmediateThread):
+            self.app.reply(job,'form','frm_test',{'answer':{'progress':['unreported']}})
+        self.assertEqual((sends(),self.app.job(job)['state'],self.app.status(job)['forms']),(2,'running',[]))
+
     def test_mobile_section_picker_is_inert_markup_and_does_not_change_records(self):
         (self.root/'daily/2026-10-10.gm.json').write_text(GM)
         before={path:path.read_bytes() for path in self.root.rglob('*') if path.is_file()}

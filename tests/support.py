@@ -66,7 +66,7 @@ class FakeChamber:
     def __init__(self):
         self.calls = []
         self.sent = threading.Event()
-        self.busy = True
+        self.busy, self.dismissed = True, False
         self.forms = [{'id': 'frm_test', 'sessionID': 'ses_fixture', 'title': 'How did today go?',
                        'fields': [{'key': 'progress', 'title': 'Reported progress', 'type': 'multiselect',
                                    'required': True, 'minItems': 1, 'maxItems': 1, 'custom': True,
@@ -79,6 +79,7 @@ class FakeChamber:
             return {'sessionId': 'ses_fixture'}
         if action == 'session.send':
             self.sent.set()
+            self.dismissed = False  # A new run.
             return {'promptDispatched': True}
         if action == 'session.status':
             return {'sessionStatus': {'type': 'busy' if self.busy else 'idle'}}
@@ -97,11 +98,13 @@ class FakeChamber:
         self.calls.append((path, body))
         if path == '/api/session/ses_fixture':
             return {'data': {'location': {'directory': self.directory}}}
-        if '/form/' in path:
-            # Closing a question ends the engine's run.
-            self.forms, self.busy = [], False
+        # As OpenCode does: a closed question ends the run once nothing else in its step waits for the user.
+        if method == 'DELETE' and '/form/' in path:
+            self.forms, self.dismissed = [], True
         if '/permission/' in path:
             self.permissions = []
+        if self.dismissed and not self.forms and not self.permissions:
+            self.busy = False
         return {}
 
 
