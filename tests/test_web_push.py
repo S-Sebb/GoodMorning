@@ -166,6 +166,34 @@ class WebPushTests(unittest.TestCase):
         self.assertEqual((request.get_header('Ttl'), request.get_header('Content-encoding')), ('60', 'aes128gcm'))
         self.assertEqual(laptop['device'], web_push.device(ENDPOINT))
 
+    def test_password_changes_and_admin_actions_remove_the_accounts_browser_subscriptions(self):
+        _, subscription = browser()
+        older = {**web_push.DEFAULTS, 'waiting': False}
+        with self.accounts.db() as db:
+            db.execute('INSERT INTO metadata VALUES (?,?)', ('push:' + self.alice, json.dumps({'settings': older})))
+        def subscribe():
+            web_push.subscribe(self.accounts, self.alice, subscription, 'Firefox on Linux')
+            web_push.subscribe(self.accounts, self.alice, {**subscription, 'endpoint': ENDPOINT + '-tablet'}, 'Chrome on Android')
+        subscribe()
+        web_push.subscribe(self.accounts, self.bob, {**subscription, 'endpoint': ENDPOINT + '-bob'}, 'Edge on Windows')
+        host = 'gm.example.test'
+        anonymous, _ = self.accounts.anonymous(host)
+        token, _, _ = self.accounts.login('alice', 'temporary-alice-secret1', host, '192.0.2.1', self.accounts.session(anonymous, host))
+        self.accounts.change_password(self.accounts.session(token, host), 'temporary-alice-secret1', 'permanent-alice-secret1', '192.0.2.1')
+        self.assertEqual(web_push.devices(self.accounts, self.alice), [])
+        with patch.object(web_push, 'post', lambda request: self.fail(request.full_url)):
+            self.assertEqual(web_push.send(self.accounts, self.alice, {'title': 'Ready'}, kind='chat', ttl=60, subject='x'), 0)
+        self.assertEqual(web_push.account(self.accounts, self.alice)['settings'], older)
+        for name, action in (('alice', {'temporary': 'reset-alice-secret1'}), ('alice', {'new_name': 'alicia'}),
+                             ('alicia', {'enabled': False}), ('alicia', {'enabled': True})):
+            with self.subTest(action=action):
+                subscribe()
+                self.accounts.administer(name, **action)
+                self.assertEqual(web_push.devices(self.accounts, self.alice), [])
+        self.assertEqual([item['label'] for item in web_push.devices(self.accounts, self.bob)], ['Edge on Windows'])
+        subscribe()  # Turning notifications on again works as before.
+        self.assertEqual([item['settings'] for item in web_push.devices(self.accounts, self.alice)], [older, older])
+
     def test_reminders_are_sent_once(self):
         self.assertTrue(web_push.remembered(self.accounts, self.alice, 'event@1'))
         self.assertFalse(web_push.remembered(self.accounts, self.alice, 'event@1'))
