@@ -67,10 +67,12 @@ def start(name, harness, arguments):
     paths['exit'].unlink(missing_ok=True)
     command = ['uv', 'run', '--no-project', '--with-requirements', 'requirements/browser.txt', '--with', 'playwright',
                'python', str(script), '--output', str(paths['output']), *arguments]
+    environment = dict(os.environ)
+    environment.pop('VIRTUAL_ENV', None)  # The launching uv environment may disappear before the detached run starts.
     with paths['log'].open('ab') as log:
         # Its own session: OpenChamber restarts and the agent's shell ending do not stop it.
         process = subprocess.Popen(['sh', '-c', '"$@"; echo $? > "$0"', str(paths['exit']), *command], cwd=ROOT,
-                                   stdin=subprocess.DEVNULL, stdout=log, stderr=log, start_new_session=True)
+                                   stdin=subprocess.DEVNULL, stdout=log, stderr=log, start_new_session=True, env=environment)
     paths['run'].write_text(json.dumps({'pid':process.pid, 'boot':boot(), 'command':command, 'started':time.time()}))
     print(f'{name}: started; log {paths["log"]}')
 

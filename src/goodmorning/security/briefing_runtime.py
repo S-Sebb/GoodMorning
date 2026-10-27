@@ -76,7 +76,8 @@ def main():
          'XDG_CACHE_HOME':str(home/'.cache'),'XDG_STATE_HOME':str(home/'.local/state'),
          'XDG_RUNTIME_DIR':str(volume/'run'),'TMPDIR':str(volume/'tmp'),
          'SECRETARY_DIR':str(volume/'secretary'),'GM_CACHE_DIR':str(volume/'cache'),
-         'PYTHONDONTWRITEBYTECODE':'1','OPENCODE_BINARY':'/opt/goodmorning/engine/bin/opencode',**providers}
+         'PYTHONDONTWRITEBYTECODE':'1','OPENCODE_BINARY':'/opt/goodmorning/engine/bin/opencode',
+         'OPENCODE_CONFIG':str(source/'integrations/opencode/opencode.json'),**providers}
     os.environ.clear();os.environ.update(env)
     os.chdir(source)
     if args.action=='engine':

@@ -3,6 +3,25 @@
 Agent execution follows `docs/browser-chat.md`. This file documents interface,
 transport and persistence behavior; it is not a required workflow read.
 
+Hosted engines and isolated trial engines set `OPENCODE_CONFIG` to the release's
+`integrations/opencode/opencode.json`. That file contains only the parked-reasoning
+plugin entry. OpenCode 2.1.4 loads it after global account configuration and before
+project configuration; plugin operations accumulate across those documents. It
+does not replace the account's config directory, agents, providers, permissions or
+plugins. `OPENCODE_CONFIG_DIR` would replace that directory and is not used.
+The hosted release is root-owned, and the account service's `ProtectSystem=strict`
+allows writes only inside its encrypted volume, so the plugin is read-only there.
+
+OpenCode 2.1.4 and 2.2.0 project errored or interrupted assistant reasoning as text
+in the next model request. Parking a native question produces such an aborted
+message. The plugin changes only this outgoing projection on `opencode-go`:
+same-model reasoning uses the model's declared `reasoningField` when available;
+otherwise it is omitted. Real text, tool calls, tool results and stored session
+history remain intact. The same hooks protect chat and briefing requests,
+including auxiliary title, generation and compaction requests. This does not
+change the provider's default coding prompt or address independently generated
+instruction-loading openers.
+
 The separate `/chat` page shows only Initialize while the profile is incomplete.
 After setup, it shows only Secretary, which saves to-dos and ideas, plans and
 reviews in one conversation; there is no mode switch. Existing initialization,

@@ -34,6 +34,7 @@ uv run --no-project python deploy/release.py
    them into `/opt/goodmorning/engines/<OPENCHAMBER>-<OPENCODE>` unless that tree
    exists, checks both versions, and deletes every tree except the live one and
    the new one.
+   Before changing the OpenCode pin, rerun the parked-question wire reproduction and confirm private reasoning never becomes visible content.
 5. **Pause.** It enables the deployment pause.
 6. **Switch.** `deploy_native.py switch NAME ENGINE` waits up to 10 minutes for idle: no
    reservation or queue, no active sessions, and no pending engine questions or

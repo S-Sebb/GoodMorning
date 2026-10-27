@@ -25,4 +25,4 @@ jobs:
       - run: uv run --no-project --with-requirements requirements/browser.txt python -m unittest discover -s tests -p 'test_*.py' -q
         env:
           GM_TEST_TMPDIR: ${{ runner.temp }}/goodmorning-tests
-      - run: node --test tests/test_projects.mjs
+      - run: node --test tests/test_projects.mjs tests/test_parked_reasoning.mjs
