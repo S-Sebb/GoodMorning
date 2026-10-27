@@ -18,7 +18,8 @@ uv run --no-project python deploy/release.py
 1. **Preflight.** The checkout is clean, `HEAD` equals `origin/main`, CI
    `contracts` passed on that commit, the patch notes are valid, and the website
    is live. A website that is already paused means another deployment or
-   incident is in progress: stop and ask the owner.
+   incident is in progress: stop and ask the owner (see **Deploy during an
+   incident pause** below).
 2. **Build.** It builds the public archive of `HEAD`, using only regular files
    under the top-level names in `ALLOWED` in `deploy/deploy_native.py`. The
    release is named `YYYYMMDD-ship-<short hash>`.
@@ -60,6 +61,15 @@ uv run --no-project python deploy/release.py
 
 It prints a JSON summary including `pausedSeconds`. Report that summary to the
 owner.
+
+## Deploy during an incident pause
+
+Only when the owner paused the website for an incident and asks for a deployment
+before reopening: `uv run --no-project python deploy/release.py --already-paused`.
+It requires the pause, runs the same steps without pausing, resuming or the public
+login check, tags the release, and leaves the website paused. If work is still
+running, it stops without changes and stays paused. To reopen, with the owner's
+agreement: `admin resume`, then `tests/browser/login.py`.
 
 ## When it stops
 
