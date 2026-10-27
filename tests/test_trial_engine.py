@@ -1,5 +1,7 @@
 """Private trial engines stay isolated from the developer's own OpenCode; no engine or model runs."""
 import argparse
+from contextlib import redirect_stdout
+import io
 import os
 from pathlib import Path
 import signal
@@ -9,7 +11,7 @@ import unittest
 from unittest.mock import Mock, patch
 
 from support import TEMP_ROOT
-from benchmarks import trial_engine
+from benchmarks import trial, trial_engine
 from benchmarks.trial_engine import Engine, TrialBridge
 
 
@@ -28,6 +30,28 @@ class TrialEngineTests(unittest.TestCase):
                 with self.subTest(path=path), self.assertRaises(SystemExit):
                     trial_engine.private_output(parser, path)
 
+    def test_release_copy_includes_the_setup_configuration_contract(self):
+        source = self.root/'release'
+        source.mkdir()
+        for name in trial_engine.RELEASE_DIRECTORIES:
+            (source/name).mkdir()
+        for name in trial_engine.RELEASE_FILES:
+            (source/name).write_text('Public release document\n')
+        (source/'skill-source/goodmorning.md').write_text('Secretary skill\n')
+        (source/'config.example.md').write_text('Synthetic setup configuration\n')
+        target = self.root/'copy'
+        trial_engine.copy_release(target, source)
+        self.assertEqual((target/'config.example.md').read_text(), 'Synthetic setup configuration\n')
+
+    def test_detached_runner_does_not_inherit_the_launchers_temporary_environment(self):
+        with patch.object(trial, 'task_root', return_value=self.root/'runs'), \
+                patch.object(trial.subprocess, 'Popen', return_value=SimpleNamespace(pid=4242)) as launch, \
+                patch.dict(os.environ, {'VIRTUAL_ENV': '/temporary/uv-environment'}), \
+                redirect_stdout(io.StringIO()):
+            trial.start('setup', 'holidays_live', ['--language', 'zh-CN'])
+            self.assertNotIn('VIRTUAL_ENV', launch.call_args.kwargs['env'])
+            self.assertEqual(os.environ['VIRTUAL_ENV'], '/temporary/uv-environment')
+
     def test_engine_gets_only_its_own_account_paths(self):
         engine = Engine(self.root/'source', self.root/'case/account')
         engine.password = 'synthetic'
@@ -43,6 +67,8 @@ class TrialEngineTests(unittest.TestCase):
         self.assertEqual(environment['SECRETARY_DIR'], str(case/'account'))
         self.assertEqual(environment['TMPDIR'], str(case/'account/tmp'))
         self.assertEqual(environment['HOME'], str(case/'engine/home'))
+        self.assertEqual(environment['OPENCODE_CONFIG'], str(self.root/'source/integrations/opencode/opencode.json'))
+        self.assertNotIn('OPENCODE_CONFIG_DIR', environment)
 
     def test_pinned_agent_is_confirmed_before_any_prompt(self):
         engine = SimpleNamespace(url='http://127.0.0.1:9', release=self.root/'source', runtime=self.root/'account', password='x')

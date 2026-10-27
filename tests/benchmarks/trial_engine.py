@@ -35,8 +35,8 @@ TRIALS = Path('/var/tmp/goodmorning-trials')
 ENGINES = Path.home()/'.cache/goodmorning/trial-engines'
 REGISTRY = 'https://registry.npmjs.org'
 PROVIDER = 'opencode-go'
-RELEASE_DIRECTORIES = ('src', 'scripts', 'docs', 'templates', 'assets', 'skill-source', '.opencode')
-RELEASE_FILES = ('AGENTS.md', 'AGENT-PROMPT-GUIDE.md', 'SERVER-USER-GUIDE.md', 'SERVER-DATA-GUIDE.md')
+RELEASE_DIRECTORIES = ('src', 'scripts', 'docs', 'templates', 'assets', 'skill-source', '.opencode', 'integrations')
+RELEASE_FILES = ('AGENTS.md', 'AGENT-PROMPT-GUIDE.md', 'SERVER-USER-GUIDE.md', 'SERVER-DATA-GUIDE.md', 'config.example.md')
 LIVE = set()
 
 
@@ -163,6 +163,7 @@ class Engine:
                 'XDG_RUNTIME_DIR':str(self.folder/'run'), 'TMPDIR':str(self.runtime/'tmp'),
                 'SECRETARY_DIR':str(self.runtime), 'GM_CACHE_DIR':str(self.runtime/'cache'),
                 'PYTHONDONTWRITEBYTECODE':'1', 'OPENCODE_BINARY':str(tree/'bin/opencode'),
+                'OPENCODE_CONFIG':str(self.release/'integrations/opencode/opencode.json'),
                 'OPENCHAMBER_UI_PASSWORD':self.password, 'OPENCHAMBER_DATA_DIR':str(home/'.config/openchamber')}
 
     def start(self):

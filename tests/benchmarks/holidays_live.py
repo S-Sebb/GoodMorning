@@ -138,8 +138,20 @@ def answer(form, language, scenario):
     for field in form['fields']:
         options = field.get('options') or []
         labels = [(option.get('label', '') + ' ' + str(option.get('value', ''))).casefold() for option in options]
-        picks = ANSWERS[scenario] if about_holidays(field) else KEEP
-        chosen = next((option['value'] for word in picks for option, label in zip(options, labels) if word in label), None)
+        chosen = None
+        if scenario == 'setup':
+            chosen = next((option['value'] for option, label in zip(options, labels)
+                           if any(word in label for word in ('save', '保存', '写入'))
+                           and not any(word in label for word in (
+                               "don't", 'do not', 'not now', 'cancel', 'skip', '不保存', '不写', '暂不', '先不',
+                               'check', 'verify', 'weather', 'news', '检查', '联网'))), None)
+            if chosen is None:
+                chosen = next((option['value'] for option, label in zip(options, labels)
+                               if any(word in label for word in ('逐项', '分组', 'review each', 'step by step'))), None)
+        saving = any(word in field.get('title', '').casefold() for word in ('save', 'consent', '保存', '写入', '存储'))
+        picks = ANSWERS[scenario] if about_holidays(field) and not saving else KEEP
+        if chosen is None:
+            chosen = next((option['value'] for word in picks for option, label in zip(options, labels) if word in label), None)
         if chosen is not None:
             values[field['key']] = [chosen] if field.get('type') == 'multiselect' else chosen
         elif about_holidays(field) and (field.get('type') == 'string' or field.get('custom')):

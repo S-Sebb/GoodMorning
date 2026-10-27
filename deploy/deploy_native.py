@@ -217,7 +217,8 @@ def stage(archive, name):
                             cwd=release, env=env, capture_output=True, text=True, timeout=900)
     if python.returncode:
         raise RuntimeError('Release tests failed: '+python.stderr[-5000:])
-    node = command([NODE, '--test', '--test-reporter=tap', str(release/'tests/test_projects.mjs')], cwd=release)
+    node = command([NODE, '--test', '--test-reporter=tap', str(release/'tests/test_projects.mjs'),
+                    str(release/'tests/test_parked_reasoning.mjs')], cwd=release)
     with read_db() as db:
         require_schema(db)
     result = {'archive': archive_hash, 'files': files,

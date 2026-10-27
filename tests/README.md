@@ -13,7 +13,7 @@ Chromium once with `PY -m playwright install chromium`.
 | Gate | Command | Runs in |
 |---|---|---|
 | Unit and system tests | `PY -m unittest discover -s tests -p 'test_*.py' -q` | every PR (CI), deploy |
-| Project-access helper | `node --test tests/test_projects.mjs` | every PR (CI), deploy |
+| Project-access helper and parked-reasoning projection | `node --test tests/test_projects.mjs tests/test_parked_reasoning.mjs` | every PR (CI), deploy |
 
 `test_public_assets.py` also runs `test_network.mjs` when Node is available.
 Shared fixtures (`FakeChamber`, `MockChamber`, the gateway and live-viewer HTTP
