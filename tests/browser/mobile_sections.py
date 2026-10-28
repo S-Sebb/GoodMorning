@@ -38,7 +38,7 @@ def main():
                         errors=[];page.on('pageerror',lambda error:errors.append(str(error)))
                         for kind,scheme in (('gm','classic'),('gm','warm'),('gn','classic')):
                             for language in ('en','zh-CN'):
-                                page.goto(address+f'/{kind}.html')
+                                page.goto(address+f'/{kind}')
                                 page.locator('#prefs-menu > summary').click()
                                 page.locator('#website-language').select_option(language)
                                 expect(page.locator('html')).to_have_attribute('lang',language)
@@ -64,7 +64,7 @@ def main():
                                 page.screenshot(path=str(artifacts/f'picker-{engine.name}-{kind}-{scheme}-{width}-{language}.png'))
                                 links.nth(1).tap()
                                 expect(dialog).not_to_be_visible()
-                                expect(page).to_have_url(address+f'/{kind}.html#section-2')
+                                expect(page).to_have_url(address+f'/{kind}#section-2')
                                 expect(page.locator('#section-2')).to_be_focused()
                                 expect(page.locator('#section-2')).to_be_in_viewport()
                                 button.tap();expect(dialog).to_be_visible()
@@ -86,20 +86,20 @@ def main():
                         assert not errors,errors
                         page.close()
                     page=browser.new_page(viewport={'width':390,'height':844},java_script_enabled=False)
-                    page.goto(address+'/gm.html');expect(page.locator('#mobile-sections')).to_be_hidden()
+                    page.goto(address+'/gm');expect(page.locator('#mobile-sections')).to_be_hidden()
                     page.locator('.briefing-section-nav a').nth(1).click()
-                    expect(page).to_have_url(address+'/gm.html#section-2')
+                    expect(page).to_have_url(address+'/gm#section-2')
                     page.close()
                     # The app's News widget opens ?section=news and lands on the news section's own anchor.
                     page=browser.new_page(viewport={'width':390,'height':844},is_mobile=True,has_touch=True)
-                    page.goto(address+'/gm.html?section=news')
-                    expect(page).to_have_url(address+'/gm.html#section-7')
+                    page.goto(address+'/gm?section=news')
+                    expect(page).to_have_url(address+'/gm#section-7')
                     expect(page.locator('#section-7')).to_be_in_viewport()
                     # The page's 32px scroll padding plus the section's 32px scroll margin.
                     top=page.evaluate("document.querySelector('#section-7').getBoundingClientRect().top")
                     assert abs(top-64)<2,top
-                    page.goto(address+'/gn.html?section=missing')
-                    expect(page).to_have_url(address+'/gn.html');assert page.evaluate('scrollY')==0
+                    page.goto(address+'/gn?section=missing')
+                    expect(page).to_have_url(address+'/gn');assert page.evaluate('scrollY')==0
                     page.close();browser.close()
             assert all((root/'daily'/f'{day}.{kind}.json').read_text()==document for kind in ('gm','gn'))
         finally:

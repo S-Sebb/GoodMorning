@@ -123,8 +123,8 @@ def page(app, week=None):
               '<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>' + title + ' — GoodMorning</title>'
               + favicon_links('secretary') + '<link rel="stylesheet" href="/briefing.css"><link rel="stylesheet" href="/scroll-rails.css">'
               '<script src="/scroll-rails.js" defer></script><script src="/letters.js" defer></script></head><body class="letters-page">'
-              '<header class="masthead"><a class="wordmark" href="/gm.html">GoodMorning<span>A personal secretary just for you</span></a>'
-              '<nav class="edition-switch" aria-label="Your desk"><a class="edition-link" href="/gm.html">Morning</a><a class="edition-link" href="/gn.html">Evening</a>'
+              '<header class="masthead"><a class="wordmark" href="/gm">GoodMorning<span>A personal secretary just for you</span></a>'
+              '<nav class="edition-switch" aria-label="Your desk"><a class="edition-link" href="/gm">Morning</a><a class="edition-link" href="/gn">Evening</a>'
               '<a class="edition-link" href="/schedule">Schedule</a><a class="edition-link selected" href="/letters" aria-current="page">Letters</a>'
               '<a class="edition-link" href="/chat">Secretary</a></nav></header><main>' + content + '</main></body></html>')
     return app.resources.rewrite(ui.page(quick_chat.widget(source, app.csrf), app.csrf, '/letters/' + week if week else '/letters')).encode()

@@ -222,7 +222,7 @@ def run_briefing(output, language, selected, scenario):
             assert letter, 'The weekly letter was not saved'
             result['letter'] = {key: letter.get(key) for key in ('opening', 'signoff')}
             result['checks'].append('The weekly letter was saved')
-        assert link_handoff(folder, 'original', f'/d/{day}/gn.html'), 'Final reply was not a briefing-link handoff'
+        assert link_handoff(folder, 'original', f'/d/{day}/gn'), 'Final reply was not a briefing-link handoff'
         result['functional_complete'] = True
         print(f'{language} {selected} {scenario}: passed', flush=True)
     except Exception as error:

@@ -376,8 +376,8 @@ def page(app):
               '<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>About me — GoodMorning</title>'
               + favicon_links('secretary') + '<link rel="stylesheet" href="/briefing.css"><link rel="stylesheet" href="/about-me.css">'
               '</head><body class="about-page">'
-              '<header class="masthead"><a class="wordmark" href="/gm.html">GoodMorning<span>A personal secretary just for you</span></a>'
-              '<nav class="edition-switch" aria-label="Your desk"><a class="edition-link" href="/gm.html">Morning</a><a class="edition-link" href="/gn.html">Evening</a>'
+              '<header class="masthead"><a class="wordmark" href="/gm">GoodMorning<span>A personal secretary just for you</span></a>'
+              '<nav class="edition-switch" aria-label="Your desk"><a class="edition-link" href="/gm">Morning</a><a class="edition-link" href="/gn">Evening</a>'
               '<a class="edition-link" href="/schedule">Schedule</a><a class="edition-link" href="/letters">Letters</a>'
               '<a class="edition-link" href="/chat">Secretary</a></nav></header>'
               '<main class="about-me"' + ('' if ready else ' data-readonly')

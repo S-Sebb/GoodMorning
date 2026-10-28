@@ -134,7 +134,7 @@ class AdminTests(unittest.TestCase):
         with patch('goodmorning.security.briefing_gateway.Gateway') as gateway,redirect_stdout(output):
             gateway.return_value.proxy.return_value=(200,{'Content-Type':'text/html'},b'<html>synthetic</html>')
             self.assertEqual(backend_status(self.store,'test-user','gm.example.test'),0)
-        self.assertEqual([call.args[2] for call in gateway.return_value.proxy.call_args_list],['/gm.html','/gn.html','/chat'])
+        self.assertEqual([call.args[2] for call in gateway.return_value.proxy.call_args_list],['/gm','/gn','/chat'])
         self.assertTrue(all(call.args[3]=='GET' for call in gateway.return_value.proxy.call_args_list))
 
     def test_backend_check_hides_exception_text_and_rejects_non_html(self):

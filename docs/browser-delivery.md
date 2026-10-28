@@ -22,10 +22,12 @@ The local viewer is for read-only browsing of saved records; generation and chat
 run only on the hosted website, where each account has its own engine. Local
 serving is loopback only; public HTTPS deployment requires `docs/website-security.md`.
 
-`/gm.html` and `/gn.html` select the current briefing day. The day changes at
+`/gm` and `/gn` select the current briefing day. The day changes at
 04:00 in the saved timezone, including daylight-saving changes. A seven-day
-selector shows saved and missing editions. `/d/DATE/gm.html` and `/d/DATE/gn.html`
-pin an archive date. Archive visits never launch a model; missing past editions
+selector shows saved and missing editions. `/d/DATE/gm` and `/d/DATE/gn`
+pin an archive date. The earlier `.html` addresses of these pages and of the
+offline copies answer with a permanent redirect (308) to the clean address,
+keeping the query, so bookmarks, installed apps and old notifications still work. Archive visits never launch a model; missing past editions
 remain read-only. The page rechecks the day on focus and each visible minute,
 preserving the selected edition and pinned archives.
 
@@ -165,7 +167,7 @@ session after this step goes to `/login`.
 
 Signed-in pages register `/sw.js` (`app.js`), in browsers and in the Android
 app's WebView. After each page load the worker refreshes two read-only copies,
-`/offline/gm.html` and `/offline/gn.html`: the latest saved morning and evening
+`/offline/gm` and `/offline/gn`: the latest saved morning and evening
 edition of the seven-day window, with the stylesheets, scripts, icons and images
 they name and the fonts and pictures those stylesheets name. An unchanged copy costs a 304 (the gateway's ETag). A copy has no
 request token, form, chat, week picker or account control, and the gateway adds

@@ -144,7 +144,7 @@ public class ListService extends RemoteViewsService {
             JSONObject editions = briefings == null ? null : briefings.optJSONObject("editions");
             JSONObject document = editions == null ? null : editions.optJSONObject(edition);
             if (document == null || !"ready".equals(document.optString("state"))) return;  // The empty view explains.
-            String page = "/" + edition + ".html" + (news ? "?section=news" : "");
+            String page = "/" + edition + (news ? "?section=news" : "");
             if (!news) {
                 heading(document.optString("greeting"), document.optString("opening"), page);
             }

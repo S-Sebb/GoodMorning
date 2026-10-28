@@ -621,7 +621,7 @@ def act(runtime, identifier, session, action, payload=None):
             draft.unlink()  # Only this confirmed job's temporary cumulative input.
             weather_frame_path(runtime, identifier).unlink(missing_ok=True)
             result = {'saved':True,'date':job['date'],'kind':job['kind'],
-                    'url':f"/d/{job['date']}/{job['kind']}.html",
+                    'url':f"/d/{job['date']}/{job['kind']}",
                     'reply_context':reply_context,
                     'next':('保存已经核实，正文已在网页中。现在只交付链接：用保存的语气写简短的交付标签并附上这个相对链接。'
                             '不要再回顾任务、完成情况、受阻事项、日程或服务失败，不追加邀请。不要查找主机、继续读取、改写记录或确认新闻。'

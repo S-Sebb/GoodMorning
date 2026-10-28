@@ -247,7 +247,7 @@ def link_handoff(folder, stage, expected_url=None):
     """Structural heuristic only; manual review must reject factual recap/invitations."""
     messages = json.loads((folder/(stage+'.messages.json')).read_text())['messages']
     replies = [message['text'].strip() for message in messages if message['role'] == 'assistant']
-    link = r'(?:https?://[^\s)]+|/(?:d/\d{4}-\d{2}-\d{2}/)?(?:gm|gn)\.html)'
+    link = r'(?:https?://[^\s)]+|/(?:d/\d{4}-\d{2}-\d{2}/)?(?:gm|gn)\b)'
     if not replies:
         return False
     text = replies[-1]
@@ -484,8 +484,8 @@ def run_case(output, template, language, scenario, instant):
                 replacement_order_issues = collection_order_issues(replacement_log, default_plan(replacement_context))
                 result['replacement_collection_order_issues'] = replacement_order_issues
                 assert not replacement_order_issues, '; '.join(replacement_order_issues)
-                assert link_handoff(folder, 'replacement', f'/d/{day}/{kind}.html'), 'Regeneration reply was not a verified briefing-link handoff'
-            assert link_handoff(folder, 'original', f'/d/{day}/{kind}.html'), 'Completed reply was not a verified briefing-link handoff'
+                assert link_handoff(folder, 'replacement', f'/d/{day}/{kind}'), 'Regeneration reply was not a verified briefing-link handoff'
+            assert link_handoff(folder, 'original', f'/d/{day}/{kind}'), 'Completed reply was not a verified briefing-link handoff'
             result['checks'].append('Final reply is a short saved-briefing link handoff; content still needs manual review')
         assert not order_issues, '; '.join(order_issues)
         result['checks'].append('No future-section collection before submitting the current position')
@@ -651,7 +651,7 @@ def run_flexible_case(output, template, language, scenario, instant):
             assert moved or 'asked' in result, 'Requested Monday move was neither applied nor asked about'
             result['checks'].append('Partial, blocker and extra accomplishment reported; Monday request '
                                     + ('applied' if moved else 'asked about'))
-        assert link_handoff(folder, stage, f'/d/{day}/{kind}.html'), 'Completed reply was not a verified briefing-link handoff'
+        assert link_handoff(folder, stage, f'/d/{day}/{kind}'), 'Completed reply was not a verified briefing-link handoff'
         result['functional_complete'] = True
         print(language+' '+scenario+': '+str(len(result['checks']))+' checks passed', flush=True)
     except Exception as error:

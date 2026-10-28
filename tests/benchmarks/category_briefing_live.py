@@ -215,7 +215,7 @@ def screenshots(output, cases):
                     page = browser.new_page(viewport={'width': width, 'height': height})
                     errors = []
                     page.on('pageerror', lambda error: errors.append(str(error)))
-                    page.goto(f'http://127.0.0.1:{server.server_port}/{kind}.html')
+                    page.goto(f'http://127.0.0.1:{server.server_port}/{kind}')
                     page.wait_for_timeout(800)
                     page.screenshot(path=str(output / f"{result['language']}-{result['case']}-{label}.png"), full_page=True)
                     if errors or page.evaluate('document.documentElement.scrollWidth > innerWidth'):

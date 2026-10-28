@@ -60,7 +60,7 @@ def main():
                         context=browser.new_context(viewport={'width':width,'height':950})
                         context.route('**/*',forward)
                         page=context.new_page();page.on('pageerror',lambda e:browser_errors.append(str(e)))
-                        for path in ('/gm.html','/gn.html','/schedule','/letters','/chat'):
+                        for path in ('/gm','/gn','/schedule','/letters','/chat'):
                             page.goto(origin+path);page.evaluate('document.fonts.ready')
                             links=page.locator('.edition-switch .edition-link');expect(links).to_have_count(5)
                             for link in links.all():
@@ -76,7 +76,7 @@ def main():
                                 assert image.evaluate('el => el.complete && el.naturalWidth > 0')
                             assert page.evaluate('document.documentElement.scrollWidth <= innerWidth')
                             cases+=1
-                        page.goto(origin+'/gm.html')
+                        page.goto(origin+'/gm')
                         for code,english,chinese in ((429,'Too many requests','请求过于频繁'),(502,'temporarily unavailable','暂时不可用')):
                             fault['status']=code;count=len(posts)
                             page.locator('#generate').click()

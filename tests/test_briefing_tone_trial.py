@@ -91,13 +91,13 @@ class BriefingTrialTests(unittest.TestCase):
                 {'role':'assistant','text':'Checking the weather.'},
                 {'role':'assistant','text':text}]}))
             return link_handoff(self.runtime,'original')
-        self.assertTrue(check('[晨间简报](/d/2026-10-14/gm.html)'))
-        self.assertTrue(check('http://127.0.0.1:8765/gn.html'))
-        self.assertTrue(check('Your evening review is ready: /gn.html'))
-        self.assertTrue(check('Your morning briefing is ready: `/gm.html`'))
-        self.assertTrue(check('今晚的回顾已经保存好了：[/gn.html](/gn.html)'))
-        self.assertTrue(check('晨间简报已保存：\n\n`/d/2026-10-14/gm.html`'))
-        self.assertFalse(check('All saved.\nWeather unavailable.\nhttp://127.0.0.1:8765/gm.html'))
+        self.assertTrue(check('[晨间简报](/d/2026-10-14/gm)'))
+        self.assertTrue(check('http://127.0.0.1:8765/gn'))
+        self.assertTrue(check('Your evening review is ready: /gn'))
+        self.assertTrue(check('Your morning briefing is ready: `/gm`'))
+        self.assertTrue(check('今晚的回顾已经保存好了：[/gn](/gn)'))
+        self.assertTrue(check('晨间简报已保存：\n\n`/d/2026-10-14/gm`'))
+        self.assertFalse(check('All saved.\nWeather unavailable.\nhttp://127.0.0.1:8765/gm'))
         self.assertFalse(check('No link.'))
 
     def test_section_collection_check_allows_help_but_flags_future_reads(self):
@@ -138,9 +138,9 @@ class BriefingTrialTests(unittest.TestCase):
 
     def test_verified_handoff_rejects_guessed_domain_or_other_date(self):
         target=self.runtime/'original.messages.json'
-        expected='/d/2026-10-14/gm.html'
+        expected='/d/2026-10-14/gm'
         for text,valid in (('[Morning briefing]('+expected+')',True),
-                           ('https://wrong.example'+expected,False),('/d/2026-10-13/gm.html',False)):
+                           ('https://wrong.example'+expected,False),('/d/2026-10-13/gm',False)):
             target.write_text(json.dumps({'messages':[{'role':'assistant','text':text}]}))
             self.assertEqual(link_handoff(self.runtime,'original',expected),valid)
 
@@ -158,8 +158,8 @@ class BriefingTrialTests(unittest.TestCase):
     def test_brief_link_delivery_can_include_a_tone_matched_wish(self):
         target=self.runtime/'original.messages.json'
         target.write_text(json.dumps({'messages':[{'role':'assistant',
-            'text':'早上好，简报准备好了。\n\n[简报](/d/2026-10-14/gm.html)\n\n祝你今天顺顺利利。'}]}))
-        self.assertTrue(link_handoff(self.runtime,'original','/d/2026-10-14/gm.html'))
+            'text':'早上好，简报准备好了。\n\n[简报](/d/2026-10-14/gm)\n\n祝你今天顺顺利利。'}]}))
+        self.assertTrue(link_handoff(self.runtime,'original','/d/2026-10-14/gm'))
 
     def scoped_job(self, kind='gm'):
         app=BrowserApp(self.runtime,None,now=lambda:datetime(2026,10,14,12,tzinfo=timezone.utc),preflight=True)

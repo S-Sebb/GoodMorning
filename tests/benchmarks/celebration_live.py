@@ -125,7 +125,7 @@ def run_briefing(output, language, selected, scenario):
         if finished:
             assert celebrations.shown(runtime) == {'tasks': {'100': day}}, 'The milestone was not recorded as shown'
             result['checks'].append('Milestone recorded as shown')
-        assert link_handoff(folder, 'original', f'/d/{day}/{kind}.html'), 'Final reply was not a briefing-link handoff'
+        assert link_handoff(folder, 'original', f'/d/{day}/{kind}'), 'Final reply was not a briefing-link handoff'
         result['checks'].append('Short saved-briefing link handoff')
         result['functional_complete'] = True
         print(f'{language} {selected} {scenario}: {len(result["checks"])} checks passed', flush=True)

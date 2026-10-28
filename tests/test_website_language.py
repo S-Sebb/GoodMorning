@@ -71,9 +71,11 @@ class LanguageTests(unittest.TestCase):
 
     def test_non_javascript_switch_has_csrf_and_safe_redirect(self):
         fixture=gateway(self);fixture.permanent()
-        for target in ('/chat','//evil.example','/chat?x=\r\nInjected: yes'):
+        for target,expected in (('/chat','/chat'),('//evil.example','/'),('/chat?x=\r\nInjected: yes','/'),
+                                ('/d/2026-10-11/gn','/d/2026-10-11/gn'),('/d/2026-10-11/gn.html','/d/2026-10-11/gn'),
+                                ('/gm.html?section=news','/gm?section=news'),('/evil/gm.html','/')):
             status,headers=form_post(fixture,'/api/language',{'language':'zh-CN','csrf':fixture.csrf,'return_to':target})
-            self.assertEqual((status,headers['Location']),(303,'/chat' if target=='/chat' else '/'))
+            self.assertEqual((status,headers['Location']),(303,expected))
         self.assertEqual(fixture.store.website_language(fixture.id),'zh-CN')
 
     def test_language_headers_are_server_owned_and_settings_survive_logout(self):

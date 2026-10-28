@@ -311,7 +311,7 @@ class HTTPFixture(unittest.TestCase):
         self.process=subprocess.Popen([sys.executable,str(TESTS/'test_briefing_server.py'),'--serve-fixture',str(self.root)],stdout=subprocess.PIPE,stderr=subprocess.PIPE,text=True)
         self.address=self.process.stdout.readline().strip().removeprefix('Private live viewer: ')
         self.addCleanup(self.stop)
-        with urlopen(self.address+'/gm.html') as response:
+        with urlopen(self.address+'/gm') as response:
             page=response.read().decode()
         config=json.loads(html.unescape(re.search(r'data-config="([^"]+)"',page)[1]))
         self.csrf=config['csrf'];self.date=config['date']

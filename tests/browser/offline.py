@@ -99,7 +99,7 @@ def main():
                 def unreachable(page):
                     # With nothing kept, a page load fails as it always did (the app then shows its can't-connect screen).
                     try:
-                        page.goto(HOST + '/gm.html')
+                        page.goto(HOST + '/gm')
                     except Exception as error:
                         assert 'ERR_FAILED' in str(error) or 'ERR_INTERNET_DISCONNECTED' in str(error), error
                         page.wait_for_url('chrome-error://chromewebdata/')
@@ -110,7 +110,7 @@ def main():
                 page = phone.new_page()
                 page.on('pageerror', lambda error: errors.append(str(error)))
                 sign_in(page, 'alice')
-                page.goto(HOST + '/gm.html')
+                page.goto(HOST + '/gm')
                 expect(page.get_by_role('heading', name='Existing English briefing', exact=True)).to_be_visible()
                 csrf = json.loads(page.locator('#language-config').get_attribute('data-config'))['csrf']
                 cached = kept(page, 2)
@@ -124,12 +124,12 @@ def main():
                 page.goto(HOST + '/chat')
                 expect(page.locator('#chat-compose')).to_be_visible()
                 page.wait_for_timeout(500)
-                assert ('/offline/gm.html', 304) in copies and ('/offline/gn.html', 304) in copies, copies
+                assert ('/offline/gm', 304) in copies and ('/offline/gn', 304) in copies, copies
 
                 # Without a connection: today's copy with a clear notice, from any page, for both editions.
                 network['up'] = False
                 for language, suffix in (('en', ''), ('zh-CN', '-zh')):
-                    page.goto(HOST + '/gm.html')
+                    page.goto(HOST + '/gm')
                     notice = page.locator('.offline-notice')
                     expect(notice).to_be_visible()
                     expect(page.get_by_role('heading', name='Existing English briefing', exact=True)).to_be_visible()
@@ -141,8 +141,8 @@ def main():
                         expect(page.locator('html')).to_have_attribute('data-day-scheme', re.compile('.+'))
                         assert page.evaluate("getComputedStyle(document.querySelector('.offline-notice')).borderTopStyle") == 'solid'
                     page.screenshot(path=str(artifacts/f'offline-gm-390{suffix}.png'), full_page=True)
-                    page.locator('.edition-switch a[href="/gn.html"]').click()
-                    expect(page).to_have_url(HOST + '/gn.html')
+                    page.locator('.edition-switch a[href="/gn"]').click()
+                    expect(page).to_have_url(HOST + '/gn')
                     expect(page.locator('html')).to_have_attribute('data-edition', 'gn')
                     expect(page.locator('.offline-notice')).to_be_visible()
                     page.screenshot(path=str(artifacts/f'offline-gn-390{suffix}.png'), full_page=True)
@@ -152,29 +152,29 @@ def main():
                         expect(page.locator('.offline-notice')).to_be_visible()
                         # Switch the website language while online, then go offline again.
                         network['up'] = True
-                        page.goto(HOST + '/gm.html')
+                        page.goto(HOST + '/gm')
                         page.locator('#account-menu > summary').click()
                         with page.expect_response('**/api/language'):
                             page.locator('#website-language').select_option('zh-CN')
-                        page.goto(HOST + '/gm.html')
+                        page.goto(HOST + '/gm')
                         page.wait_for_timeout(500)
                         kept(page, 2)
                         network['up'] = False
-                page.goto(HOST + '/gm.html')
+                page.goto(HOST + '/gm')
                 expect(page.locator('.offline-notice a')).to_have_text('重试')
 
                 network['up'] = True
-                page.goto(HOST + '/gm.html')
+                page.goto(HOST + '/gm')
                 page.locator('#account-menu > summary').click()
                 with page.expect_response('**/api/language'):
                     page.locator('#website-language').select_option('en')
-                page.goto(HOST + '/gm.html')
+                page.goto(HOST + '/gm')
                 kept(page, 2)
 
                 # A stopped gateway behind NGINX answers 502 or 504: the copy, saying the server, not the connection, failed.
                 for status in (502, 504):
                     network['status'] = status
-                    page.goto(HOST + '/gn.html')
+                    page.goto(HOST + '/gn')
                     expect(page.locator('html')).to_have_attribute('data-edition', 'gn')
                     expect(page.locator('.offline-notice .unreachable-today')).to_have_text(
                         re.compile(r'^GoodMorning can’t be reached right now · showing the version from \d\d:\d\d\.$'))
@@ -195,10 +195,10 @@ def main():
                     travel = device.new_page()
                     travel.on('pageerror', lambda error: errors.append(str(error)))
                     travel.clock.set_fixed_time(moment)
-                    travel.goto(HOST + '/gm.html')
+                    travel.goto(HOST + '/gm')
                     kept(travel, 2)
                     network['up'] = False
-                    travel.goto(HOST + '/gm.html')
+                    travel.goto(HOST + '/gm')
                     expect(travel.locator('.offline-notice .offline-today')).to_be_visible(visible=current)
                     expect(travel.locator('.offline-notice .offline-earlier')).to_be_visible(visible=not current)
                     network['up'] = True
@@ -217,7 +217,7 @@ def main():
                     for edition, data in editions.items():
                         written.append(runtime/'daily'/f'{zone_day}.{edition}.json')
                         written[-1].write_bytes(data)
-                    page.goto(HOST + '/gm.html')
+                    page.goto(HOST + '/gm')
                     deadline = time.monotonic() + 15
                     while sum(f'data-zone="{zone}"' in text for files in page.evaluate(CACHED).values() for text in files.values()) < 2:
                         assert time.monotonic() < deadline, 'The copies never named ' + zone
@@ -229,10 +229,10 @@ def main():
                 (runtime/'profile.md').write_text(profile)
                 for path in written:
                     if not path.name.startswith(str(day)): path.unlink(missing_ok=True)
-                page.goto(HOST + '/gm.html')
+                page.goto(HOST + '/gm')
                 kept(page, 2)
                 network['up'] = False
-                page.goto(HOST + '/gm.html')
+                page.goto(HOST + '/gm')
 
                 # Back online, Try again opens the live page; signing out forgets the copies.
                 network['up'] = True
@@ -253,7 +253,7 @@ def main():
 
                 # A session that ends without signing out: the next account to sign in never sees the copies.
                 sign_in(page, 'alice', temporary=False)
-                page.goto(HOST + '/gn.html')
+                page.goto(HOST + '/gn')
                 kept(page, 2)
                 alice = page.evaluate(CHECKIN, None)
                 assert alice != scope  # Every sign-in gets its own namespace.
@@ -263,7 +263,7 @@ def main():
                 assert page.evaluate(CHECKINS) == ['goodmorningCheckin:' + alice + ':synthetic']
                 phone.clear_cookies()
                 sign_in(page, 'bob')
-                page.goto(HOST + '/gm.html')
+                page.goto(HOST + '/gm')
                 kept(page, 0)  # Bob has no saved briefing.
                 network['up'] = False
                 unreachable(page)
@@ -274,10 +274,10 @@ def main():
                 wide = desktop.new_page()
                 wide.on('pageerror', lambda error: errors.append(str(error)))
                 sign_in(wide, 'alice', temporary=False)
-                wide.goto(HOST + '/gm.html')
+                wide.goto(HOST + '/gm')
                 kept(wide, 2)
                 network['up'] = False
-                wide.goto(HOST + '/gm.html')
+                wide.goto(HOST + '/gm')
                 expect(wide.locator('.offline-notice')).to_be_visible()
                 wide.screenshot(path=str(artifacts/'offline-gm-1440.png'))
                 network['up'] = True

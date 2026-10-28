@@ -74,7 +74,7 @@ def check_continuity(browser, address):
     control = mock_chats(page)
     page.goto(address + '/chat?id=' + CHAT); settled(page)
     # Real website pages and their Secretary navigation restore the selected ID.
-    for path in ('/gm.html', '/gn.html', '/schedule'):
+    for path in ('/gm', '/gn', '/schedule'):
         page.goto(address + path)
         page.locator('.edition-switch a[href="/chat"]').click()
         settled(page); expect(page).to_have_url(address + '/chat?id=' + CHAT)

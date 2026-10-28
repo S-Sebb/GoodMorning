@@ -39,7 +39,7 @@ def check_recovery(browser, artifacts):
         page=browser.new_page(viewport={'width':390,'height':844},reduced_motion='reduce')
         errors=[];page.on('pageerror',lambda error:errors.append(str(error)))
         try:
-            page.goto(address+'/gn.html')
+            page.goto(address+'/gn')
             date=json.loads(page.locator('#browser-config').get_attribute('data-config'))['date']
             daily=root/'daily'/(date+'.md')
             daily.write_text('# '+date+'\n\n## must-do\n- [ ] Original task\n')
@@ -123,7 +123,7 @@ def main():
                 for viewport in [{'width':1440,'height':900},{'width':390,'height':844},{'width':320,'height':568}]:
                     page=browser.new_page(viewport=viewport,reduced_motion='reduce')
                     errors=[];page.on('pageerror',lambda e:errors.append(str(e)))
-                    page.goto(address+'/gm.html')
+                    page.goto(address+'/gm')
                     expect(page.locator('.week-picker a')).to_have_count(7)
                     assert not page.evaluate('document.documentElement.scrollWidth>innerWidth')
                     if viewport['width']==1440:
@@ -167,10 +167,10 @@ def main():
                     assert page.url==pinned,'Archive date was redirected'
                     page.unroute('**/api/day')
                     with page.expect_response(lambda response: response.url==address+'/api/day'):
-                        page.goto(address+'/gn.html')
+                        page.goto(address+'/gn')
                     page.route('**/api/day',lambda route:route.fulfill(json={'date':'2099-01-01'}),times=1)
                     with page.expect_navigation():page.evaluate('checkDay()')
-                    assert page.url==address+'/gn.html','Rollover changed the selected edition'
+                    assert page.url==address+'/gn','Rollover changed the selected edition'
                     assert not errors,errors
                     page.close()
                 check_recovery(browser,artifacts)

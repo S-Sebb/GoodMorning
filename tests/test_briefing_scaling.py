@@ -92,7 +92,7 @@ class ResourceTests(unittest.TestCase):
 
 class TransportTests(HTTPFixture):
     def test_assets_compress_and_revalidate_without_caching_private_pages(self):
-        with urlopen(self.address + '/gm.html') as response:
+        with urlopen(self.address + '/gm') as response:
             page = response.read().decode()
             self.assertEqual(response.headers['Cache-Control'], 'no-store')
         path = re.search(r'href="([^\"]+/briefing.css)"', page)[1]
@@ -111,12 +111,12 @@ class TransportTests(HTTPFixture):
 
     def test_html_with_language_or_generation_secrets_does_not_compress(self):
         (self.root / 'daily' / f'{self.date}.gm.json').write_text(GM)
-        with urlopen(Request(self.address + '/gm.html', headers={'Accept-Encoding': 'gzip'})) as response:
+        with urlopen(Request(self.address + '/gm', headers={'Accept-Encoding': 'gzip'})) as response:
             self.assertIsNone(response.headers['Content-Encoding'])
             page = response.read().decode()
             self.assertIn(self.csrf, page)
             self.assertEqual(response.headers['Cache-Control'], 'no-store')
-        with urlopen(Request(self.address + '/gn.html', headers={'Accept-Encoding': 'gzip'})) as response:
+        with urlopen(Request(self.address + '/gn', headers={'Accept-Encoding': 'gzip'})) as response:
             self.assertIsNone(response.headers.get('Content-Encoding'))
             self.assertIn(self.csrf, response.read().decode())
 

@@ -147,7 +147,7 @@ def main():
             page.screenshot(path=str(output/'schedule-mobile.png'),full_page=True)
             results['checks'].append('Actual captures appear in the real Schedule tab on desktop and mobile')
             page.set_viewport_size({'width':1440,'height':1000})
-            page.goto(address+'/gn.html')
+            page.goto(address+'/gn')
             page.get_by_role('button', name='Prepare my evening briefing', exact=True).click()
             # The check-in opens by itself; mark every due task not done and skip the optional steps.
             dialog=page.get_by_role('dialog')

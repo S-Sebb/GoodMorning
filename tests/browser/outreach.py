@@ -39,7 +39,7 @@ def outreach(page, address, text, title=None):
 def check_quick_chat(browser, address, artifacts):
     page = browser.new_page(viewport={'width': 1440, 'height': 900})
     errors = watch(page)
-    page.goto(address + '/gm.html')
+    page.goto(address + '/gm')
     launcher = page.locator('#quick-chat-launcher')
     expect(launcher).to_contain_text('Ask Mira')
     chat = outreach(page, address, NOTE['en'])
@@ -60,7 +60,7 @@ def check_quick_chat(browser, address, artifacts):
     page.screenshot(path=str(artifacts / 'panel-note-1440-en.png'))
     # Reading it is remembered for the account, not just this tab.
     other = browser.new_page(viewport={'width': 390, 'height': 844}, has_touch=True)
-    other.goto(address + '/gn.html')
+    other.goto(address + '/gn')
     expect(other.locator('#quick-chat-launcher')).to_contain_text('Ask Mira')
     expect(other.locator('#quick-chat-dot')).to_be_hidden()
     other.close()
@@ -108,7 +108,7 @@ def check_layouts(browser, address, artifacts):
             for edition in ('gm', 'gn'):
                 page = browser.new_page(viewport={'width': width, 'height': height}, has_touch=width < 700)
                 errors = watch(page)
-                page.goto(address + f'/{edition}.html')
+                page.goto(address + f'/{edition}')
                 language(page, address, selected)
                 chat = outreach(page, address, NOTE[selected])
                 page.reload()
@@ -138,7 +138,7 @@ def check_layouts(browser, address, artifacts):
 
 def check_reduced_motion(browser, address):
     page = browser.new_page(reduced_motion='reduce')
-    page.goto(address + '/gm.html')
+    page.goto(address + '/gm')
     outreach(page, address, 'A quiet hello.')
     page.reload()
     dot = page.locator('#quick-chat-dot')

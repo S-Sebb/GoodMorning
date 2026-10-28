@@ -25,7 +25,7 @@ def main():
                         for kind in ('gm','gn'):
                             page=context.new_page();errors=[]
                             page.on('pageerror',lambda error:errors.append(str(error)))
-                            response=page.goto(f'{address}/d/2034-03-{day}/{kind}.html')
+                            response=page.goto(f'{address}/d/2034-03-{day}/{kind}')
                             assert response.status==200
                             page.evaluate('document.fonts.ready')
                             expect(page.locator('article')).to_be_visible()

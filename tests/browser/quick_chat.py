@@ -49,7 +49,7 @@ def check_flow(browser, address):
     errors = watch(page)
     page.goto(address + '/chat')
     expect(page.locator('#quick-chat')).to_have_count(0)
-    for path in ('/gm.html', '/gn.html', '/schedule'):
+    for path in ('/gm', '/gn', '/schedule'):
         page.goto(address + path)
         expect(page.locator('#quick-chat-launcher')).to_be_visible()
         expect(page.locator('#quick-chat-launcher')).to_contain_text('Ask Mira')
@@ -75,7 +75,7 @@ def check_flow(browser, address):
     first = chat_id(page)
     assert first and 'PRIVATE' not in page.evaluate('JSON.stringify(sessionStorage)')
     # Another desk page in this tab reopens the same conversation.
-    page.locator('.edition-switch a[href="/gm.html"]').click()
+    page.locator('.edition-switch a[href="/gm"]').click()
     expect(page.locator('#quick-chat-window')).to_be_visible()
     expect(page.locator('#quick-chat-messages')).to_contain_text('PRIVATE quick question about Thursday')
     expect(page.locator('#quick-chat-open')).to_have_attribute('href', '/chat?id=' + first)
@@ -97,7 +97,7 @@ def check_flow(browser, address):
     page.locator('#quick-chat-text').focus(); page.keyboard.press('Escape')
     expect(page.locator('#quick-chat-window')).to_be_hidden()
     expect(page.locator('#quick-chat-launcher')).to_be_focused()
-    page.goto(address + '/gn.html')
+    page.goto(address + '/gn')
     expect(page.locator('#quick-chat-launcher')).to_be_visible()
     expect(page.locator('#quick-chat-window')).to_be_hidden()
     # New conversation from the quick chat becomes the tab's current one.
@@ -132,13 +132,13 @@ def check_flow(browser, address):
     expect(page.locator('#quick-chat-window')).to_be_visible()
     page.locator('#quick-chat-text').fill('PRIVATE unsent draft')
     page.once('dialog', lambda dialog: dialog.dismiss())
-    page.locator('.edition-switch a[href="/gm.html"]').click(no_wait_after=True)
+    page.locator('.edition-switch a[href="/gm"]').click(no_wait_after=True)
     expect(page).to_have_url(address + '/schedule')
     assert 'PRIVATE' not in page.evaluate('JSON.stringify(sessionStorage)')
     page.locator('#quick-chat-text').fill('')
     assert not errors, errors
     page.close()
-    return {'conversations': 3, 'pages': ['/gm.html', '/gn.html', '/schedule']}
+    return {'conversations': 3, 'pages': ['/gm', '/gn', '/schedule']}
 
 
 def check_waiting(browser, address, artifacts):
@@ -183,7 +183,7 @@ def check_layouts(browser, address, artifacts):
         for language in ('en', 'zh-CN'):
             page = browser.new_page(viewport={'width': width, 'height': height}, has_touch=width < 700)
             errors = watch(page)
-            page.goto(address + '/gm.html')
+            page.goto(address + '/gm')
             csrf = page.evaluate("JSON.parse(document.querySelector('#language-config').dataset.config).csrf")
             page.request.post(address + '/api/language', data={'language': language}, headers={'X-Briefing-CSRF': csrf, 'Origin': address})
             page.reload()

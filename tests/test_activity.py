@@ -112,7 +112,7 @@ class GatewayActivityTests(unittest.TestCase):
         with self.fixture.store.db() as db:
             db.execute("UPDATE metadata SET value=? WHERE key='generation'", (json.dumps(ticket),))
         with patch.object(self.gateway, 'proxy', return_value=(200, {}, b'{"mode":"gn","state":"waiting","date":"2026-10-12"}')):
-            self.assertEqual(self.gateway.activity(self.fixture.id)['activity'][0]['url'], 'https://gm.example.test/d/2026-10-12/gn.html')
+            self.assertEqual(self.gateway.activity(self.fixture.id)['activity'][0]['url'], 'https://gm.example.test/d/2026-10-12/gn')
 
     def test_queue_summary_is_owner_only_and_never_dispatches_or_discards(self):
         entry = {'kind': 'chat', 'user': self.fixture.id, 'host': 'gn.example.test', 'path': '/api/chats',
@@ -138,5 +138,5 @@ class GatewayActivityTests(unittest.TestCase):
             return 200, {}, b'{"mode":"gn","state":"waiting","date":"2026-10-12"}'
         with patch.object(self.gateway, 'proxy', side_effect=proxy):
             self.assertEqual(self.gateway.activity(self.fixture.id), {'activity':[{'mode':'gn','state':'waiting',
-                'url':'https://gm.example.test/d/2026-10-12/gn.html'}]})
+                'url':'https://gm.example.test/d/2026-10-12/gn'}]})
             self.assertEqual(self.gateway.activity(self.fixture.other), {'activity':[]})

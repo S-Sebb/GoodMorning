@@ -547,7 +547,7 @@ async function checkDay() {
   if (document.hidden || config.pinned) return;
   try {
     const day = await api('/api/day');
-    if (day.date !== config.date) location.replace(`/${config.kind}.html`);
+    if (day.date !== config.date) location.replace(`/${config.kind}`);
   } catch { /* Reading cached content stays possible during an outage. */ }
 }
 

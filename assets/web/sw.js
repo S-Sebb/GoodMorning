@@ -1,7 +1,7 @@
 // Shows notifications, and keeps the account's latest morning and evening briefings for reading offline.
 // The copies live in one cache named after the account's owner tag (briefing_gateway.py), which is deleted
 // as soon as the site answers for nobody, or for another account; auth.js also deletes it at sign-out.
-const COPIES = ['/offline/gm.html', '/offline/gn.html'];
+const COPIES = ['/offline/gm', '/offline/gn'];
 const PREFIX = 'offline-';
 let refreshing = null;
 
@@ -54,7 +54,7 @@ async function offline(request, failure) {
   const texts = await Promise.all(copies.map(copy => copy?.text()));
   const zone = texts.join('').match(/data-zone="([^"]+)"/)?.[1];
   const hour = Number(new Intl.DateTimeFormat('en', {timeZone: zone, hour: 'numeric', hourCycle: 'h23'}).format());
-  const wanted = (new URL(request.url).pathname.match(/(gm|gn)\.html$/) || [])[1] || (hour >= 4 && hour < 17 ? 'gm' : 'gn');
+  const wanted = (new URL(request.url).pathname.match(/\/(gm|gn)(?:\.html)?$/) || [])[1] || (hour >= 4 && hour < 17 ? 'gm' : 'gn');
   const shown = (wanted === 'gm' ? [0, 1] : [1, 0]).find(index => copies[index]);
   const headers = new Headers(copies[shown].headers);
   headers.delete('Content-Length');

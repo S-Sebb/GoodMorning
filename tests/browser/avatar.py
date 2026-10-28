@@ -61,7 +61,7 @@ def check_picker(page, address, artifacts):
         page.locator('#prefs-menu > summary').click()
     page.locator('#website-language').select_option('en')
     expect(page.locator('html')).to_have_attribute('lang', 'en')
-    for path in ('/gm.html', '/gn.html', '/chat'):
+    for path in ('/gm', '/gn', '/chat'):
         page.goto(address + path)
         if page.viewport_size['width'] <= 700:
             for link in page.locator('.edition-link').all():
@@ -158,7 +158,7 @@ def check_picker(page, address, artifacts):
     expect(page.locator('.avatar-feedback')).to_have_text('Avatar could not be saved. Try again.')
     expect(page.locator('.avatar-display')).to_have_attribute('data-avatar', 'm2')
     page.unroute('**/api/avatar', reject)
-    page.goto(address + '/gm.html')
+    page.goto(address + '/gm')
     expect(page.locator('.avatar-display')).to_have_attribute('data-avatar', 'm2')
     # Only the secretary's tab-scoped conversation reference may persist (0.37.0).
     assert page.evaluate(r'''() => localStorage.length === 0 && Object.keys(sessionStorage).every(key => {
@@ -201,7 +201,7 @@ def check_motion(browser, address):
     assert not any('-animated' in src for src in page.locator('.avatar-preview img').evaluate_all('nodes => nodes.map(node => node.currentSrc)'))
     page.close()
     page = browser.new_page(viewport={'width': 1440, 'height': 900}, reduced_motion='reduce')
-    page.goto(address + '/gn.html')
+    page.goto(address + '/gn')
     image = page.locator('.avatar-image')
     expect(image).to_have_attribute('src', re.compile(r'desk-secretary(-m2)?\.png$'))
     page.wait_for_function("() => document.querySelector('.avatar-image').complete")
@@ -221,7 +221,7 @@ def check_title_scale(browser, address, root, day):
         for greeting in greetings:
             source.write_text(encode({'v': 1, 'lang': 'en', 'greeting': greeting, 'opening': 'Your day.',
                                       'sections': [['notes', [['p', 'Body.']]]]}))
-            page.goto(address + '/gm.html')
+            page.goto(address + '/gm')
             title = page.locator('.letter-copy > h1')
             sizes.append(title.evaluate('node => parseFloat(getComputedStyle(node).fontSize)'))
             if greeting == greetings[2]:
@@ -242,7 +242,7 @@ def check_layout_alignment(browser, address, artifacts):
         page = browser.new_page(viewport={'width': width, 'height': 1000}, reduced_motion='reduce')
         bounds = {}
         navigation = {}
-        for path, selector in (('/gm.html', '.briefing-section'), ('/gn.html', '.briefing-section'), ('/chat', '.conversation-panel')):
+        for path, selector in (('/gm', '.briefing-section'), ('/gn', '.briefing-section'), ('/chat', '.conversation-panel')):
             page.goto(address + path)
             box = page.locator(selector).first.bounding_box()
             if path == '/chat':
@@ -264,20 +264,20 @@ def check_layout_alignment(browser, address, artifacts):
             assert not page.evaluate('document.documentElement.scrollWidth > innerWidth')
             if path == '/chat' and width in (390, 1440):
                 page.screenshot(path=str(artifacts / f'aligned-secretary-{width}.png'), full_page=True)
-        assert all(abs(left - right) < 1 for left, right in zip(bounds['/gm.html'], bounds['/gn.html'])), (width, bounds)
+        assert all(abs(left - right) < 1 for left, right in zip(bounds['/gm'], bounds['/gn'])), (width, bounds)
         # Since 0.37.0 the secretary page has its own compact gutters: 64px on
         # tablets and 12px on phones, where navigation spans the chat frame.
         if width > 1000:
-            assert all(abs(left - right) < 1 for left, right in zip(bounds['/gm.html'], bounds['/chat'])), (width, bounds)
+            assert all(abs(left - right) < 1 for left, right in zip(bounds['/gm'], bounds['/chat'])), (width, bounds)
         elif width > 700:
-            assert abs(bounds['/gm.html'][0] - bounds['/chat'][0]) < 1 and abs(bounds['/chat'][1] - (width - 64)) < 1, (width, bounds)
+            assert abs(bounds['/gm'][0] - bounds['/chat'][0]) < 1 and abs(bounds['/chat'][1] - (width - 64)) < 1, (width, bounds)
         else:
             assert abs(bounds['/chat'][0] - 12) < 1 and abs(bounds['/chat'][1] - (width - 12)) < 1, (width, bounds)
             chat_navigation = navigation['/chat']
             assert abs(chat_navigation['x'] - bounds['/chat'][0]) < 1, (width, navigation)
             assert abs(chat_navigation['x'] + chat_navigation['width'] - bounds['/chat'][1]) < 1, (width, navigation)
             for key in ('x', 'y', 'width', 'height'):
-                assert abs(navigation['/gm.html'][key] - navigation['/gn.html'][key]) < 1, (width, navigation)
+                assert abs(navigation['/gm'][key] - navigation['/gn'][key]) < 1, (width, navigation)
         results.append({'width': width, 'left': round(bounds['/chat'][0]), 'right': round(bounds['/chat'][1]),
                         'briefingAndChatFrameEdgesMatch': width > 1000, 'desktopSidebarPreserved': width > 700})
         page.close()
@@ -314,7 +314,7 @@ def main():
                     page.on('pageerror', lambda error: errors.append(str(error)))
                     if width == 1440:
                         for kind in ('gm', 'gn'):
-                            page.goto(address + f'/{kind}.html')
+                            page.goto(address + f'/{kind}')
                             check_avatar(page, 'f1', 'Your secretary')
                             expect(page.locator('#generate')).to_be_visible()
                             page.screenshot(path=str(artifacts / f'avatar-preview-{kind}.png'), full_page=True)
@@ -335,26 +335,26 @@ def main():
                             expect(page.locator('.avatar-display')).to_have_attribute('aria-busy', 'false')
                             expect(page.locator('.desk-figure')).to_have_attribute('data-avatar', selected)
                             for kind in ('gm', 'gn'):
-                                page.goto(address + f'/{kind}.html')
+                                page.goto(address + f'/{kind}')
                                 check_avatar(page, selected, label)
                                 expect(page.get_by_role('article')).to_contain_text('Keep this saved briefing unchanged.')
                                 if selected == 'm2':
                                     page.screenshot(path=str(artifacts / f'avatar-{kind}-{width}-{language}.png'), full_page=True)
-                                page.goto(address + f'/d/{day}/{kind}.html')
+                                page.goto(address + f'/d/{day}/{kind}')
                                 check_avatar(page, selected, label)
                     assert not errors, errors
                     results.append({'width': width, 'languages': ['en', 'zh-CN'], 'avatars': 4,
                                     'editions': ['gm', 'gn'], 'archive': True, 'overflow': False, 'pageErrors': 0})
                     page.close()
                 page = browser.new_page(java_script_enabled=False, viewport={'width': 390, 'height': 844}, reduced_motion='reduce')
-                page.goto(address + '/gm.html')
+                page.goto(address + '/gm')
                 expect(page.locator('.avatar-display')).to_have_attribute('data-avatar', 'm2')
                 expect(page.locator('[data-avatar-toggle]')).to_be_disabled()
                 assert not page.evaluate('document.documentElement.scrollWidth > innerWidth')
                 page.close()
                 # Already-open pages discover the new custom choice and replacements.
                 observer = browser.new_page()
-                observer.goto(address + '/gm.html')
+                observer.goto(address + '/gm')
                 uploader = browser.new_page()
                 uploader.goto(address + '/chat')
                 for color in ('purple', 'orange'):
@@ -404,8 +404,8 @@ def main():
                     day_source = response.value.json()['avatars'][-1]['day']
                     assert day_source != custom_source
                     expect(page.locator('.avatar-display')).to_have_attribute('aria-busy', 'false')
-                    for path in ('/gm.html', '/gn.html', f'/d/{day}/gm.html', f'/d/{day}/gn.html'):
-                        expected = day_source if path.endswith('gm.html') else custom_source
+                    for path in ('/gm', '/gn', f'/d/{day}/gm', f'/d/{day}/gn'):
+                        expected = day_source if path.endswith('gm') else custom_source
                         page.goto(address + path)
                         expect(page.locator('.avatar-display')).to_have_attribute('data-avatar', 'custom')
                         expect(page.locator('.avatar-image')).to_have_attribute('src', expected)
