@@ -1,11 +1,13 @@
-# Caps every account engine and viewer together, leaving about 5 GB of the 12 GB server for the
-# gateway, NGINX, SiYuan, sing-box and the system. Seven accounts at their measured engine peak
-# (912M) plus viewers fit under it. At the cap the kernel kills only the largest process in this slice.
+# Caps every account engine and viewer together, leaving about 6 GB of the 12 GB server for the
+# gateway, NGINX, SiYuan, sing-box and the system. Measured engine peaks: median 363M, p90 627M,
+# max 912M; viewers up to 84M. Seven accounts at their p90 need about 4.8 GB; all seven at their
+# worst-ever peak (about 6.8 GB) would hit the cap, where the kernel kills only the largest process
+# in this slice.
 # No MemoryHigh or systemd-oomd here: MemoryHigh only stalls the growing engine, and on
 # systemd 255 oomd's per-unit kill failed and fell back to killing every unit in the slice.
 [Unit]
 Description=GoodMorning account services
 
 [Slice]
-MemoryMax=7G
+MemoryMax=6G
 MemorySwapMax=0
