@@ -123,7 +123,7 @@ dispatches new work.
 
 - `SebOracle`: SSH alias for the server, an Oracle Cloud ARM (aarch64) host on
   Ubuntu 26.04 (batch SSH, passwordless sudo). Never print authentication details.
-  It replaced `TCSFrontEnd` on 2026-10-28; see **Host layout** in
+  It replaced `TCSFrontEnd` on 2026-10-28; see **Host** in
   `docs/server-maintenance.md`.
 - Releases: `/opt/goodmorning/releases/<NAME>`; `/opt/goodmorning/current` points
   to exactly one. Releases are never overwritten. Keep the five newest deployed releases,
