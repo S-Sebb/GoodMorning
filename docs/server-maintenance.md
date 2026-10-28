@@ -1,6 +1,6 @@
 # Server maintenance
 
-`TCSFrontEnd` updates itself every day at 05:00 China time
+`SebOracle` updates itself every day at 05:00 China time
 (`goodmorning-maintenance.timer`), finishing within an hour. The code is
 `deploy/maintain.py`; deployments install and enable its units. Change it only
 through a PR and a deployment, never by hand on the server.
@@ -60,20 +60,45 @@ paused: wait until the run finishes.
 
 ## Host settings
 
-Set by hand on 2026-10-28 after a memory outage; keep them unless the owner agrees.
+Set by hand when the services moved to `SebOracle` on 2026-10-28; keep them unless
+the owner agrees.
 
-- Memory: zram swap only (`zram-tools`, zstd, half of RAM, priority 100; no swap file)
-  with `/etc/sysctl.d/90-goodmorning-zram.conf` (swappiness 100, page-cluster 0).
+- Memory: zram swap only (`/etc/systemd/zram-generator.conf`: zstd, half of RAM,
+  priority 100; no swap file) with `/etc/sysctl.d/90-goodmorning-zram.conf`
+  (swappiness 100, page-cluster 0).
   `goodmorning-accounts.slice` has a hard cap, at which the kernel kills only its largest
   process; systemd-oomd runs but is not used for it. SiYuan's compose file caps it at 512 MB with no swap.
-- SSH: key login only (`/etc/ssh/sshd_config.d/00-goodmorning-hardening.conf`: no
-  passwords or keyboard-interactive, no root login, 3 tries). fail2ban bans repeated
-  failures (`/etc/fail2ban/jail.d/goodmorning-sshd.local`).
+- SSH: key login only (`/etc/ssh/sshd_config.d/10-hardening.conf`: no passwords or
+  keyboard-interactive, no root login, 3 tries). fail2ban bans repeated failures
+  (`/etc/fail2ban/jail.d/goodmorning-sshd.local`).
+- Firewall: `/etc/iptables/rules.v4` and `rules.v6` accept only TCP 22, 80 and 443,
+  matching the Oracle Cloud security list. Restoring them by hand drops Docker's
+  chains; restart Docker afterwards. Docker (`/etc/docker/daemon.json`) uses the
+  `local` log driver, live restore and no-new-privileges; containers publish only
+  on loopback.
+
+## Host layout
+
+- Port 443: `/etc/nginx/stream.d/sni-router.conf` routes by TLS server name. The
+  website names go to nginx's HTTPS servers on `127.0.0.1:8443` with the PROXY
+  protocol; everything else goes to the owner's sing-box proxy on `127.0.0.1:8444`
+  (through `127.0.0.1:8445`, which strips the PROXY header). Every HTTPS site
+  includes `snippets/sni-backend.conf` or the same lines; a new site name must
+  also be added to the router's map. Unknown names on port 80 get no answer.
+- Sites: love765.me (`/var/www/love765.me`, `/api/` to the Taiko server over the
+  VPN), dou.love765.me (NekoBeads, deployed from its own repository to
+  `/home/ubuntu/Repos/NekoBeads`), and SiYuan at seb.love765.me and yuka.love765.me.
+  Shared headers: `snippets/security-headers.conf`.
+- SiYuan: `/opt/siyuan` Compose project, data in `/srv/siyuan` owned by the
+  `siyuan` system user, access codes in root-only `siyuan-*.env` files.
+- VPN: Ubuntu's `softether-vpnclient` package (config in `/var/lib/softether`);
+  a drop-in gives `vpn_myvpn` the address 169.254.222.11/16.
+- Certificates: certbot's webroot renewals, `/var/www/html` for this host's names
+  and `/var/www/nyandou-acme` for dou.love765.me.
 
 ## Not covered
 
 - GoodMorning releases and the engine: deployments only (`docs/server-deployment.md`).
 - Node.js (`/opt/goodmorning/node`): pinned; upgrade deliberately.
-- SoftEther VPN client in `/home/ubuntu/vpnclient`: installed by hand; check upstream occasionally.
-- The static sites (love765.me, dou.love765.me, NekoBeads) need only nginx, which apt updates.
+- The SoftEther VPN client, nginx and the static sites: apt updates the packages.
 - Certificates: certbot's own timer.

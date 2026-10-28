@@ -54,7 +54,10 @@ class DeployHelperTests(unittest.TestCase):
         for name in ('goodmorning-account@.service', 'goodmorning-viewer@.service'):
             self.assertIn('Slice=goodmorning-accounts.slice', (ROOT/'deploy'/name).read_text())
         self.assertIn('MemoryMax=', (ROOT/'deploy/goodmorning-accounts.slice').read_text())
-        self.assertIn('WantedBy=sockets.target', (ROOT/'deploy/goodmorning-account@.socket').read_text())
+        socket = (ROOT/'deploy/goodmorning-account@.socket').read_text()
+        self.assertIn('WantedBy=sockets.target', socket)
+        # Ordered after its vault, so it must drop the default Before=sockets.target to start at boot.
+        self.assertIn('DefaultDependencies=no', socket)
         # The slice and socket must be installed before the units that use them.
         self.assertLess(helper.UNITS.index('goodmorning-accounts.slice'), helper.UNITS.index('goodmorning-account@.service'))
         self.assertLess(helper.UNITS.index('goodmorning-account@.socket'), helper.UNITS.index('goodmorning-account@.service'))

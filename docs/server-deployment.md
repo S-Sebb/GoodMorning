@@ -105,7 +105,7 @@ the user's website language and their secretary's saved tone; it is delivered
 verbatim as an unread conversation, and their usual secretary answers replies:
 
 ```sh
-ssh TCSFrontEnd 'sudo /opt/goodmorning/python/bin/python -B /opt/goodmorning/current/scripts/goodmorning.py admin \
+ssh SebOracle 'sudo /opt/goodmorning/python/bin/python -B /opt/goodmorning/current/scripts/goodmorning.py admin \
   --account-mount /srv/goodmorning/live/accounts message USERNAME --message-file - [--title TEXT]' < note.txt
 ```
 
@@ -121,8 +121,10 @@ dispatches new work.
 
 ## Server
 
-- `TCSFrontEnd`: SSH alias for the server (batch SSH, passwordless sudo).
-  Never print authentication details.
+- `SebOracle`: SSH alias for the server, an Oracle Cloud ARM (aarch64) host on
+  Ubuntu 26.04 (batch SSH, passwordless sudo). Never print authentication details.
+  It replaced `TCSFrontEnd` on 2026-10-28; see **Host layout** in
+  `docs/server-maintenance.md`.
 - Releases: `/opt/goodmorning/releases/<NAME>`; `/opt/goodmorning/current` points
   to exactly one. Releases are never overwritten. Keep the five newest deployed releases,
   including the live one, for rollback; older ones, unused staged ones and their
@@ -139,18 +141,16 @@ dispatches new work.
   and only the `goodmorning-engine` group, which every agent has, can open
   `lib/node_modules`. npm runs as `nobody`, and only `@opencode/cli`'s install
   script runs, to link the binary that suits this CPU. `/opt/goodmorning/node`
-  is a symlink to a root-owned Node.js release (24.21.0); deployments do not
-  upgrade it.
+  is a symlink to a root-owned Node.js release (24.21.0, linux-arm64); deployments
+  do not upgrade it.
 - Updates: the daily maintenance routine installs Ubuntu, Docker, Python patch
   and SiYuan updates and reboots when needed; see `docs/server-maintenance.md`.
 - Python: `/opt/goodmorning/python` is a symlink to the uv-managed environment
   `/opt/goodmorning/python-3.14`. Its CPython lives in `/opt/goodmorning/uv/python`,
   and the environment holds Pillow and `cryptography` (Web Push). Install both
   before deploying a release that lists them in `requirements/browser.txt`; the
-  staged tests fail without them. `/opt/goodmorning/python-3.12` stays for
-  rollback. Install packages with
-  `uv pip install --python /opt/goodmorning/python-3.14/bin/python --index-url https://pypi.org/simple`;
-  the server's default pip index is unreachable.
+  staged tests fail without them. Install packages with
+  `uv pip install --python /opt/goodmorning/python-3.14/bin/python`.
 - Private data lives under `/srv/goodmorning/live` on encrypted mounts. A
   deployment writes there only the pause flag, the deployment ticket, the
   staging marker, backups of replaced system files, and the report
@@ -161,7 +161,10 @@ dispatches new work.
   episodes: the owner registers an app at https://myanimelist.net/apiconfig and
   writes `MAL_CLIENT_ID=…`. Accounts read it after their next agent restart. Without
   it, the secretary offers only AniList and Bangumi.
-- `deploy/nginx-goodmorning.conf` is the exact live NGINX config. Only POST
+- `deploy/nginx-goodmorning.conf` is the exact live NGINX config. Its HTTPS server
+  listens on `127.0.0.1:8443` behind the host's port-443 SNI router (see
+  `docs/server-maintenance.md`), which passes the client address in the PROXY
+  protocol header. Only POST
   `/api/auth/login` and `/api/auth/password` get a per-IP limiter key; never rate
   limit assets, pages or read-only polling.
 

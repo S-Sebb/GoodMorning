@@ -4,6 +4,11 @@
 Description=GoodMorning on-demand agent %i
 BindsTo=goodmorning-vault@%i.service
 After=goodmorning-vault@%i.service
+# The vault starts after basic.target, so the default Before=sockets.target would
+# form a boot ordering cycle that systemd breaks by dropping this socket.
+DefaultDependencies=no
+Conflicts=shutdown.target
+Before=shutdown.target
 
 [Socket]
 Accept=no

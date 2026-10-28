@@ -7,7 +7,7 @@ not the account-creation procedure. Do not rerun provisioning to repair record o
 
 ## Paths
 
-- Server: SSH alias `TCSFrontEnd` (batch SSH, passwordless sudo)
+- Server: SSH alias `SebOracle` (batch SSH, passwordless sudo)
 - Python: `/opt/goodmorning/python/bin/python`
 - CLI: `/opt/goodmorning/current/scripts/goodmorning.py`
 - Encrypted accounts mount: `/srv/goodmorning/live/accounts`
@@ -21,7 +21,7 @@ not the account-creation procedure. Do not rerun provisioning to repair record o
 
 2. **Run one command per username**, one at a time:
    ```sh
-   ssh TCSFrontEnd 'sudo /opt/goodmorning/python/bin/python -B /opt/goodmorning/current/scripts/goodmorning.py admin \
+   ssh SebOracle 'sudo /opt/goodmorning/python/bin/python -B /opt/goodmorning/current/scripts/goodmorning.py admin \
      --account-mount /srv/goodmorning/live/accounts provision USERNAME --gm-host gm.love765.me'
    ```
    It runs these steps, skipping each one that is already done:

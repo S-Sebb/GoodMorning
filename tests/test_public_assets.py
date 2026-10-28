@@ -26,7 +26,7 @@ class PublicAssetTests(unittest.TestCase):
         self.assertEqual(re.findall(r'^\s*(\S+)\s+(\S+);',block,re.M),
                          [('default','""'),('~^POST:/api/auth/(login|password)$','$binary_remote_addr')])
         self.assertRegex(source,r'limit_req_zone \$goodmorning_auth_key zone=goodmorning_auth_submit:')
-        proxied=re.search(r'location / \{(.*?)\}',source.split('listen 443',1)[1],re.S)[1]
+        proxied=re.search(r'location / \{(.*?)\}',source.split('listen 127.0.0.1:8443',1)[1],re.S)[1]
         self.assertRegex(proxied,r'limit_req zone=goodmorning_auth_submit\b')
         self.assertIn('proxy_pass',proxied)
 
