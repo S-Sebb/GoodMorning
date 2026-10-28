@@ -60,7 +60,7 @@ def main():
                             page.on('pageerror', lambda error: errors.append(str(error)))
                             def respond(route):
                                 path = urlsplit(route.request.url).path.lstrip('/')
-                                if path.endswith('.html'):
+                                if path in ('gm', 'gn'):
                                     route.fulfill(body=markup, content_type='text/html')
                                 elif path in ('briefing.css', 'briefing.js'):
                                     route.fulfill(body=(ROOT/'assets/web'/path).read_bytes(), content_type='text/css' if path.endswith('.css') else 'text/javascript')
@@ -69,7 +69,7 @@ def main():
                                 else:
                                     route.fulfill(status=404)
                             page.route('**/*', respond)
-                            page.goto('http://synthetic.test/'+kind+'.html')
+                            page.goto('http://synthetic.test/'+kind)
                             expect(page.get_by_role('heading', name=ui.text('Tasks'), exact=True)).to_be_visible()
                             expect(page.get_by_role('heading', name='Dentist', exact=True)).to_be_visible()
                             expect(page.get_by_text('Maybe build a dashboard', exact=True)).to_have_count(0)

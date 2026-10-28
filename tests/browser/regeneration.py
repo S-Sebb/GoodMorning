@@ -69,7 +69,7 @@ def main():
                 for index,(width,kind) in enumerate([(1440,'gm'),(390,'gn'),(320,'gm')]):
                     page=browser.new_page(viewport={'width':width,'height':900 if width==1440 else 844},reduced_motion='reduce')
                     errors=[];page.on('pageerror',lambda error:errors.append(str(error)))
-                    page.goto(address+'/'+kind+'.html')
+                    page.goto(address+'/'+kind)
                     expect(page.get_by_role('button',name='Regenerate today’s briefing',exact=True)).to_be_visible()
                     config=json.loads(page.locator('#browser-config').get_attribute('data-config'))
                     source=root/'daily'/(config['date']+'.'+kind+'.json');original=source.read_bytes()
@@ -124,7 +124,7 @@ def main():
                     assert not errors,errors
                     page.close()
                 page=browser.new_page(viewport={'width':390,'height':844},reduced_motion='reduce')
-                page.goto(address+'/gn.html')
+                page.goto(address+'/gn')
                 config=json.loads(page.locator('#browser-config').get_attribute('data-config'))
                 assert page.request.post(address+'/api/language',data={'language':'zh-CN'},
                     headers={'Origin':address,'X-Briefing-CSRF':config['csrf']}).ok

@@ -117,12 +117,12 @@ def run(root,origin):
                 profile=runtime/'profile.md';saved_profile=profile.read_text()
                 saved_edition=(runtime/'daily'/(day+'.gm.json')).read_bytes()
                 profile.write_text('timezone: Europe/London\n')
-                status,_,page=client.call('/gn.html')
+                status,_,page=client.call('/gn')
                 assert status==200 and b'Initialize my secretary' in page and b'id="generate"' not in page
                 assert b'href="/chat?mode=initialize"' in page
                 assert client.call('/api/generate',{'date':day,'kind':'gn'})[0]==400
                 assert (runtime/'daily'/(day+'.gm.json')).read_bytes()==saved_edition
-                assert canary.encode() in client.call('/gm.html')[2]
+                assert canary.encode() in client.call('/gm')[2]
                 profile.write_text(saved_profile)
                 report['checks'].append('incomplete setup: Initialize link replaces generation; direct dispatch refused; saved edition preserved and readable')
             secretary=Client('https://sec.love765.me')

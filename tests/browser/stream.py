@@ -72,7 +72,7 @@ def run(artifacts):
                         assert result.returncode == 0, result.stdout + result.stderr
                         return json.loads(result.stdout)
                     try:
-                        page.goto(address + f'/{kind}.html')
+                        page.goto(address + f'/{kind}')
                         expect(page.locator('#generate')).to_be_visible()
                         page.locator('#generate').click()
                         expect(page.get_by_role('heading', name='How did today go?')).to_be_visible()

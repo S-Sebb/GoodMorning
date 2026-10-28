@@ -101,7 +101,7 @@ def main():
                     try:
                         page = browser.new_page(viewport={'width':width,'height':900},reduced_motion='reduce')
                         errors=[]; page.on('pageerror',lambda error:errors.append(str(error)))
-                        page.goto(address+'/gn.html')
+                        page.goto(address+'/gn')
                         page.locator('#generate').click()
                         # The check-in opens by itself in a modal dialog.
                         dialog = page.get_by_role('dialog')
@@ -117,11 +117,11 @@ def main():
                             page.reload()
                             expect(note).to_have_value('A private note.')
                             # Another sign-in on this browser gets another namespace: it never sees the note, which is removed.
-                            page.route('**/gn.html', another_sign_in)
+                            page.route('**/gn', another_sign_in)
                             page.reload()
                             expect(note).to_have_value('')
                             assert 'A private note.' not in page.evaluate('JSON.stringify(localStorage)')
-                            page.unroute('**/gn.html')
+                            page.unroute('**/gn')
                         elif scenario == 'tidy':
                             expect(dialog.locator('.checkin-steps li')).to_have_count(3)
                             dialog.locator('.checkin-verdict .checkin-primary').click()

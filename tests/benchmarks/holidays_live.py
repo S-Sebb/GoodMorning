@@ -114,7 +114,7 @@ def run_briefing(output, language, selected, scenario):
         result['schedule'] = schedule
         assert schedule and re.search(r'"hd_[0-9a-f]{16}"', json.dumps(schedule)), 'No holiday card in the schedule section'
         result['checks'].append('Holiday card in the schedule section')
-        assert link_handoff(folder, 'original', f'/d/{day}/{kind}.html'), 'Final reply was not a briefing-link handoff'
+        assert link_handoff(folder, 'original', f'/d/{day}/{kind}'), 'Final reply was not a briefing-link handoff'
         result['checks'].append('Short saved-briefing link handoff')
         result['functional_complete'] = True
         print(f'{language} {selected} {scenario}: {len(result["checks"])} checks passed', flush=True)

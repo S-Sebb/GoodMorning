@@ -44,7 +44,7 @@ def backend_status(store,name,host):
         return 1
     gateway = Gateway(store,{host:'gm'})
     try:
-        for path in ('/gm.html','/gn.html','/chat'):
+        for path in ('/gm','/gn','/chat'):
             status,headers,data = gateway.proxy(row['id'],host,path,'GET',None,{})
             if status != 200 or not headers.get('Content-Type','').startswith('text/html') or not data:
                 print('Secretary backend is not ready; inspect its services over SSH.')

@@ -536,7 +536,7 @@ class NativeHTTPTests(HTTPFixture):
     def test_native_download_and_read_only_source_mime(self):
         payload = native.encode(document())
         (self.root / 'daily' / f'{self.date}.gm.json').write_text(payload)
-        with urlopen(self.address + '/gm.html') as response:
+        with urlopen(self.address + '/gm') as response:
             self.assertNotIn('class="briefing-tools"', response.read().decode())
             self.assertEqual(response.headers['Cache-Control'], 'no-store')
         with urlopen(self.address + f'/d/{self.date}/gm.json') as response:
@@ -547,9 +547,19 @@ class NativeHTTPTests(HTTPFixture):
             urlopen(self.address + f'/d/{self.date}/gm.md')
         self.assertEqual(error.exception.code, 404); error.exception.close()
 
+    def test_old_html_addresses_redirect_permanently_with_their_query(self):
+        from http.client import HTTPConnection
+        from urllib.parse import urlsplit
+        for old, clean in (('/gm.html', '/gm'), ('/gn.html?section=news', '/gn?section=news'),
+                           (f'/d/{self.date}/gm.html', f'/d/{self.date}/gm'), ('/offline/gn.html', '/offline/gn')):
+            connection = HTTPConnection(urlsplit(self.address).netloc); self.addCleanup(connection.close)
+            connection.request('GET', old)
+            response = connection.getresponse(); response.read()
+            self.assertEqual((response.status, response.headers['Location']), (308, clean))
+
     def test_damaged_native_source_fails_without_modifying_it(self):
         source = self.root / 'daily' / f'{self.date}.gm.json'; source.write_text('{"v":999}')
-        with self.assertRaises(HTTPError) as error: urlopen(self.address + '/gm.html')
+        with self.assertRaises(HTTPError) as error: urlopen(self.address + '/gm')
         self.assertEqual(error.exception.code, 404); error.exception.close()
         self.assertEqual(source.read_text(), '{"v":999}')
 

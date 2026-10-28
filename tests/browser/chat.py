@@ -681,7 +681,7 @@ def main():
                     errors = []; page.on('pageerror', lambda error: errors.append(str(error)))
                     if width == 1440:
                         for kind in ('gm','gn'):
-                            page.goto(address + '/' + kind + '.html')
+                            page.goto(address + '/' + kind)
                             expect(page.get_by_role('link',name='Initialize my secretary')).to_be_visible()
                             expect(page.locator('#generate')).to_have_count(0)
                             assert not page.evaluate('document.documentElement.scrollWidth > innerWidth')
@@ -754,7 +754,7 @@ def main():
                     expect(topic).to_have_text('Secretary')
                     page.goto(address + '/chat?mode=initialize')
                     expect(topic).to_have_text('Secretary')
-                    page.goto(address + '/gm.html')
+                    page.goto(address + '/gm')
                     expect(page.locator('#generate')).to_be_visible()
                     expect(page.locator('#initialize')).to_have_count(0)
                     page.goto(address + '/chat')

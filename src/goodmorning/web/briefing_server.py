@@ -346,10 +346,10 @@ class BrowserApp:
         return self.resources.rewrite(ui.page(chat_page(self.csrf, settings['defaultMode'] == 'secretary', settings['connected'], settings.get('secretary_name'), settings['avatar'], {item['id']: {key: value for key, value in item.items() if key != 'id'} for item in settings['avatars']}, settings['timezone'], settings['theme']),self.csrf,'/chat')).encode()
 
     def initialization_page(self, kind):
-        switches = ''.join(f'<a class="edition-link{" selected" if other == kind else ""}" href="/{other}.html">{label}</a>' for other, label in KINDS.items()) + '<a class="edition-link" href="/schedule">Schedule</a><a class="edition-link" href="/letters">Letters</a>'
-        text = f'<!doctype html><html lang="en" data-edition="{kind}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><title>Initialize your secretary — GoodMorning</title><link rel="stylesheet" href="/briefing.css"></head><body><header class="masthead"><a class="wordmark" href="/{kind}.html">GoodMorning<span>A personal secretary just for you</span></a><nav class="edition-switch" aria-label="Edition">{switches}<a class="edition-link" href="/chat">Secretary</a></nav></header><main><section class="waiting-room"><div class="waiting-art">{celestial(kind)}</div><p class="eyebrow">{KINDS[kind]} edition</p><h1>Let’s make this yours.</h1><p class="subtitle">Complete your secretary’s setup before preparing a briefing. Your saved records stay unchanged.</p><a id="initialize" class="initialize-button" href="/chat?mode=initialize">Initialize my secretary</a></section></main></body></html>'
+        switches = ''.join(f'<a class="edition-link{" selected" if other == kind else ""}" href="/{other}">{label}</a>' for other, label in KINDS.items()) + '<a class="edition-link" href="/schedule">Schedule</a><a class="edition-link" href="/letters">Letters</a>'
+        text = f'<!doctype html><html lang="en" data-edition="{kind}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><title>Initialize your secretary — GoodMorning</title><link rel="stylesheet" href="/briefing.css"></head><body><header class="masthead"><a class="wordmark" href="/{kind}">GoodMorning<span>A personal secretary just for you</span></a><nav class="edition-switch" aria-label="Edition">{switches}<a class="edition-link" href="/chat">Secretary</a></nav></header><main><section class="waiting-room"><div class="waiting-art">{celestial(kind)}</div><p class="eyebrow">{KINDS[kind]} edition</p><h1>Let’s make this yours.</h1><p class="subtitle">Complete your secretary’s setup before preparing a briefing. Your saved records stay unchanged.</p><a id="initialize" class="initialize-button" href="/chat?mode=initialize">Initialize my secretary</a></section></main></body></html>'
         text = self.briefing_layout(text, kind=kind)
-        return self.resources.rewrite(ui.page(text.replace('</head>', favicon_links(kind) + '</head>'),self.csrf,'/'+kind+'.html')).encode()
+        return self.resources.rewrite(ui.page(text.replace('</head>', favicon_links(kind) + '</head>'),self.csrf,'/'+kind)).encode()
 
     def dates(self):
         today = Date.fromisoformat(self.today())
@@ -370,7 +370,7 @@ class BrowserApp:
             label = ui.day_label(day)
             ready = self.source(day, kind).is_file()
             selected = ' aria-current="date"' if day == date else ''
-            link = f'/{kind}.html' if day == today else f'/d/{day}/{kind}.html'
+            link = f'/{kind}' if day == today else f'/d/{day}/{kind}'
             marker = '<span class="today-marker">Today</span>' if day == today else ''
             missing = '' if ready else ' class="is-missing"'
             days.append(f'<a href="{link}"{missing}{selected}>{marker}{label}<small>{"Saved" if ready else "Not generated"}</small></a>')
@@ -457,13 +457,13 @@ class BrowserApp:
                 if cached and cached[0] == page_signature:return cached[1]
         if confirmed:
             text = self.files(date, kind)[f'{kind}.html'].decode()
-            switches = ''.join(f'<a class="edition-link{" selected" if other == kind else ""}" href="{f"/d/{date}/{other}.html" if pinned else f"/{other}.html"}">{label}</a>' for other, label in KINDS.items())
+            switches = ''.join(f'<a class="edition-link{" selected" if other == kind else ""}" href="{f"/d/{date}/{other}" if pinned else f"/{other}"}">{label}</a>' for other, label in KINDS.items())
             text = re.sub(r'<nav class="edition-switch"[^>]*>.*?</nav>', '<nav class="edition-switch" aria-label="Edition">' + switches + '</nav>', text)
             text = text.replace('<main id="content">', '<main id="content">' + week)
             text = text.replace(f'{date} / {KINDS[kind]} edition', f'{KINDS[kind]} edition')
             text = text.replace('href="briefing.css"', 'href="/briefing.css"').replace('src="briefing.js"', 'src="/briefing.js"')
             text = text.replace('href="fonts/lora-italic.woff2"', 'href="/fonts/lora-italic.woff2"')
-            text = text.replace('href="index.html"', f'href="/{kind}.html"')
+            text = text.replace('href="index.html"', f'href="/{kind}"')
             text = text.replace(f'href="{kind}{path.suffix}"', f'href="/d/{date}/{kind}{path.suffix}"').replace('src="media/', 'src="/media/')
         else:
             current = date == self.today()
@@ -475,8 +475,8 @@ class BrowserApp:
                 button = f'<a class="initialize-button" href="/schedule?view=day&amp;day={offset}">Open this day in Schedule</a>'
             if current and not self.chamber:
                 detail = 'Generation is not connected. Ask your administrator to connect it.'
-            switches = ''.join(f'<a class="edition-link{" selected" if other == kind else ""}" href="{f"/d/{date}/{other}.html" if pinned else f"/{other}.html"}">{label}</a>' for other, label in KINDS.items())
-            text = f'<!doctype html><html lang="en" data-edition="{kind}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><title>{KINDS[kind]} briefing — GoodMorning</title><link rel="stylesheet" href="/briefing.css"></head><body><header class="masthead"><a class="wordmark" href="/{kind}.html">GoodMorning<span>A personal secretary just for you</span></a><nav class="edition-switch" aria-label="Edition">{switches}</nav></header><main>{week}<section class="waiting-room"><div class="waiting-art">{celestial(kind)}</div><p class="eyebrow">{KINDS[kind]} edition</p><h1>{heading}</h1><p class="subtitle">{detail}</p>{button}<div id="generation" hidden><div class="desk-animation" aria-hidden="true">✦<span>▱</span>✦</div><progress id="generation-progress" max="100" value="5" aria-label="Briefing preparation stages"></progress><p id="generation-status" role="status"></p><div id="agent-questions"></div></div><p id="generation-error" role="alert"></p><noscript>Enable JavaScript to prepare a briefing. Saved editions can still be read.</noscript></section></main></body></html>'
+            switches = ''.join(f'<a class="edition-link{" selected" if other == kind else ""}" href="{f"/d/{date}/{other}" if pinned else f"/{other}"}">{label}</a>' for other, label in KINDS.items())
+            text = f'<!doctype html><html lang="en" data-edition="{kind}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><title>{KINDS[kind]} briefing — GoodMorning</title><link rel="stylesheet" href="/briefing.css"></head><body><header class="masthead"><a class="wordmark" href="/{kind}">GoodMorning<span>A personal secretary just for you</span></a><nav class="edition-switch" aria-label="Edition">{switches}</nav></header><main>{week}<section class="waiting-room"><div class="waiting-art">{celestial(kind)}</div><p class="eyebrow">{KINDS[kind]} edition</p><h1>{heading}</h1><p class="subtitle">{detail}</p>{button}<div id="generation" hidden><div class="desk-animation" aria-hidden="true">✦<span>▱</span>✦</div><progress id="generation-progress" max="100" value="5" aria-label="Briefing preparation stages"></progress><p id="generation-status" role="status"></p><div id="agent-questions"></div></div><p id="generation-error" role="alert"></p><noscript>Enable JavaScript to prepare a briefing. Saved editions can still be read.</noscript></section></main></body></html>'
             if (current and self.chamber) or date + '.' + kind in self.jobs:
                 controls = re.search(r'<div id="generation".*?</noscript>', text)[0]
                 document = {'v': 1, 'greeting': heading, 'opening': detail, 'sections': []}
@@ -484,7 +484,7 @@ class BrowserApp:
                 text = text.replace('<main id="content">', '<main id="content">' + week)
                 text = re.sub(r'<nav class="edition-switch"[^>]*>.*?</nav>', '<nav class="edition-switch" aria-label="Edition">' + switches + '</nav>', text)
                 text = re.sub(r'<div class="briefing-tools">.*?</div>', '<section class="generation-desk">' + button + controls + '<p class="preview-notice">Unfinished preview · sections appear here as they are prepared. Nothing is saved yet.</p></section>', text)
-                text = text.replace('href="briefing.css"', 'href="/briefing.css"').replace('src="briefing.js"', 'src="/briefing.js"').replace('href="fonts/', 'href="/fonts/').replace('href="index.html"', f'href="/{kind}.html"')
+                text = text.replace('href="briefing.css"', 'href="/briefing.css"').replace('src="briefing.js"', 'src="/briefing.js"').replace('href="fonts/', 'href="/fonts/').replace('href="index.html"', f'href="/{kind}"')
                 text = text.replace(f'{date} / {KINDS[kind]} edition', f'{KINDS[kind]} edition')
         text = self.briefing_layout(text, avatar, kind)
         can_restart = date == self.today() and bool(self.chamber) and self.preflight
@@ -513,7 +513,7 @@ class BrowserApp:
         text = text.replace('href="icons/', 'href="/icons/')
         if '<link rel="icon"' not in text:
             text = text.replace('</head>', favicon_links(kind) + '</head>')
-        return_to=f'/d/{date}/{kind}.html' if pinned else f'/{kind}.html'
+        return_to=f'/d/{date}/{kind}' if pinned else f'/{kind}'
         output = self.resources.rewrite(ui.page(quick_chat.widget(text.replace('</body>', marker + '</body>'), self.csrf),self.csrf,return_to)).encode()
         if confirmed:
             with self.lock:self.pages.put(page_key, (page_signature, output), len(output))
@@ -533,11 +533,11 @@ class BrowserApp:
         saved = datetime.fromtimestamp(self.source(date, kind).stat().st_mtime, ZoneInfo(self.zone))
         time_text = f'{saved:%H:%M}'
         text = self.files(date, kind)[f'{kind}.html'].decode()
-        switches = ''.join(f'<a class="edition-link{" selected" if other == kind else ""}" href="/{other}.html">{label}</a>' for other, label in KINDS.items())
+        switches = ''.join(f'<a class="edition-link{" selected" if other == kind else ""}" href="/{other}">{label}</a>' for other, label in KINDS.items())
         text = re.sub(r'<nav class="edition-switch"[^>]*>.*?</nav>', '<nav class="edition-switch" aria-label="Edition">' + switches + '</nav>', text)
         text = re.sub(r'<div class="briefing-tools">.*?</div>', '', text, count=1, flags=re.S)
         text = text.replace('href="briefing.css"', 'href="/briefing.css"').replace('src="briefing.js"', 'src="/briefing.js"')
-        text = text.replace('href="fonts/', 'href="/fonts/').replace('href="icons/', 'href="/icons/').replace('href="index.html"', f'href="/{kind}.html"')
+        text = text.replace('href="fonts/', 'href="/fonts/').replace('href="icons/', 'href="/icons/').replace('href="index.html"', f'href="/{kind}"')
         # The device keeps only each image's plain source, so no other size is asked for offline.
         text = re.sub(r'\s(?:srcset|sizes)="[^"]*"', '', text.replace('src="media/', 'src="/media/'))
         # briefing.js drops the date only while the edition is the account's current day in its timezone, and
@@ -1225,29 +1225,33 @@ def serve_live(app, port, *, gateway_key=None, public_origins=()):
                     item = app.jobs.get(existing[1] + '.' + existing[2])
                     return self.respond({'job': item['id'] if item else None,
                                          'regeneration_request': item.get('regeneration_request') if item else None})
-                if path in ('/', '/index.html', '/gm.html', '/gn.html'):
-                    kind = 'gn' if path == '/gn.html' else 'gm'
+                old = re.fullmatch(r'(/(?:offline/|d/\d{4}-\d{2}-\d{2}/)?(?:gm|gn))\.html', path)
+                if old:
+                    # Briefing pages moved to clean addresses; bookmarks, apps and notifications keep the old ones.
+                    return self.respond(b'', 308, location=old[1] + ('?' + parsed.query if parsed.query else ''))
+                if path in ('/', '/index.html', '/gm', '/gn'):
+                    kind = 'gn' if path == '/gn' else 'gm'
                     if not app.profile().get('timezone'):
                         return self.respond(app.initialization_page(kind), content_type='text/html; charset=utf-8', compress=True)
                     day = app.today()
                     page = app.page(day, kind, False)
                     return self.respond(page, content_type='text/html; charset=utf-8', compress=b'&quot;csrf&quot;: null' in page)
-                offline = re.fullmatch(r'/offline/(gm|gn)\.html', path)
+                offline = re.fullmatch(r'/offline/(gm|gn)', path)
                 if offline:
                     page = app.offline_page(offline[1])
                     if page is None:
                         return self.respond({'error': 'This briefing is being checked; try again shortly.'}, 503)
                     return self.respond(page, content_type='text/html; charset=utf-8')
-                edition = re.fullmatch(r'/d/(\d{4}-\d{2}-\d{2})/(gm|gn)\.(html|json)', path)
+                edition = re.fullmatch(r'/d/(\d{4}-\d{2}-\d{2})/(gm|gn)(\.json)?', path)
                 if edition:
                     date, kind, suffix = edition.groups()
                     source = app.source(date, kind)
-                    if suffix == 'html':
+                    if not suffix:
                         page = app.page(date, kind, True)
                         return self.respond(page, content_type='text/html; charset=utf-8', compress=b'&quot;csrf&quot;: null' in page)
-                    if source.exists() and source.suffix == '.' + suffix:
+                    if source.exists() and source.suffix == suffix:
                         mime = 'application/json'
-                        return self.respond(app.files(date, kind)[f'{kind}.{suffix}'], content_type=mime + '; charset=utf-8', compress=True)
+                        return self.respond(app.files(date, kind)[f'{kind}{suffix}'], content_type=mime + '; charset=utf-8', compress=True)
                 shared_media = re.fullmatch(r'/media/([a-f0-9]{64}\.webp)', path)
                 if shared_media:
                     data = app.image(shared_media[1])
@@ -1332,7 +1336,8 @@ def serve_live(app, port, *, gateway_key=None, public_origins=()):
                     atomic_text(app.runtime/'website-language.json',json.dumps({'language':selected})+'\n')
                     ui.CURRENT.set(selected)
                     target=body.get('return_to','/')
-                    if not re.fullmatch(r'/(?:|chat|schedule|about-me|(?:gm|gn)\.html|d/\d{4}-\d{2}-\d{2}/(?:gm|gn)\.html)',target):target='/'
+                    if not re.fullmatch(r'/(?:|chat|schedule|about-me|(?:d/\d{4}-\d{2}-\d{2}/)?(?:gm|gn)(?:\.html)?)',target):target='/'
+                    target=target.removesuffix('.html')
                     return self.respond({'language':selected},303 if form else 200,location=target if form else None)
                 if path=='/api/model':
                     return self.respond({'error':'Model selection is automatic from the website language.'},405)
@@ -1341,7 +1346,8 @@ def serve_live(app, port, *, gateway_key=None, public_origins=()):
                     site_colors.write(app.runtime, selected)
                     site_colors.CURRENT.set(selected)
                     target=body.get('return_to','/')
-                    if not re.fullmatch(r'/(?:|chat|schedule|about-me|(?:gm|gn)\.html|d/\d{4}-\d{2}-\d{2}/(?:gm|gn)\.html)',target):target='/'
+                    if not re.fullmatch(r'/(?:|chat|schedule|about-me|(?:d/\d{4}-\d{2}-\d{2}/)?(?:gm|gn)(?:\.html)?)',target):target='/'
+                    target=target.removesuffix('.html')
                     return self.respond(selected,303 if form else 200,location=target if form else None)
                 if path == '/api/generate':
                     requested_at = self.headers.get('X-GoodMorning-Requested-At') if gateway_key else None

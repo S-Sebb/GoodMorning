@@ -29,7 +29,7 @@ def main():
                 browser=playwright.chromium.launch()
                 page=browser.new_page(viewport={'width':390,'height':844},reduced_motion='reduce')
                 errors=[];page.on('pageerror',lambda error:errors.append(str(error)))
-                page.goto(address+'/gm.html');page.locator('#generate').click()
+                page.goto(address+'/gm');page.locator('#generate').click()
                 expect(page.get_by_role('heading',name='How did today go?')).to_be_visible()
                 job=next(iter(json.loads((runtime/'browser-jobs/jobs.json').read_text()).values()))
                 from datetime import date,timedelta

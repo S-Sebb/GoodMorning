@@ -49,8 +49,8 @@ a:focus-visible { outline: 2px solid var(--accent); outline-offset: 5px; }
 .edition-link { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: 44px; padding: 8px 14px; white-space: nowrap; text-decoration: none; border-radius: 30px; transition: color .22s ease, background-color .22s ease, transform .3s var(--ease), box-shadow .3s ease; }
 /* Decorative desk stickers leave translated labels and accessible names intact. */
 .edition-switch .edition-link::before { content: ""; flex: 0 0 24px; width: 24px; height: 24px; background: var(--desk-icon) center / contain no-repeat; }
-.edition-link[href$="gm.html"] { --desk-icon: url("icons/desk-morning.svg"); }
-.edition-link[href$="gn.html"] { --desk-icon: url("icons/desk-evening.svg"); }
+.edition-link[href$="/gm"] { --desk-icon: url("icons/desk-morning.svg"); }
+.edition-link[href$="/gn"] { --desk-icon: url("icons/desk-evening.svg"); }
 .edition-link[href="/schedule"] { --desk-icon: url("icons/desk-schedule.svg"); }
 .edition-link[href="/letters"] { --desk-icon: url("icons/desk-letters.svg"); }
 .edition-link[href="/chat"] { --desk-icon: url("icons/desk-secretary.svg"); }

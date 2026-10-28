@@ -122,7 +122,7 @@ class LiveTests(unittest.TestCase):
             self.assertNotIn(control, page)
         # Every file it names is a shared fingerprinted asset or a briefing link the device opens offline.
         for path in re.findall(r'(?:href|src)="(/[^"]*)"', page):
-            self.assertTrue(path.startswith('/assets/') or path in ('/gm.html', '/gn.html'), path)
+            self.assertTrue(path.startswith('/assets/') or path in ('/gm', '/gn'), path)
         (self.root/'daily/2026-10-10.gm.json').write_text(GM)
         self.assertTrue('2026-10-10 / Morning edition' in self.app.offline_page('gm').decode())
         # While a regenerated edition awaits its check, devices keep the copy they have.
@@ -245,7 +245,7 @@ class LiveTests(unittest.TestCase):
         for selected, kind in [('2026-10-10', 'gm'), ('2026-10-07', 'gn')]:
             week = self.app.week(selected, kind)
             self.assertEqual(week.count('class="today-marker"'), 1)
-            self.assertIn(f'href="/{kind}.html"', week)
+            self.assertIn(f'href="/{kind}"', week)
         self.assertIn('<span class="today-marker">Today</span>', week)
         self.assertIn('data-ui-date="2026-10-10">Sat, Oct 10', week)
         self.app.now = lambda: datetime(2026,10,11,3,0,tzinfo=timezone.utc)
@@ -266,7 +266,7 @@ class LiveTests(unittest.TestCase):
         page = self.app.page('2026-10-10','gm',True).decode()
         self.assertEqual(source.read_text(),GM)
         self.assertIn('href="' + self.app.resources.urls['briefing.css'] + '"',page)
-        self.assertIn('href="/d/2026-10-10/gn.html"',page)
+        self.assertIn('href="/d/2026-10-10/gn"',page)
         self.assertNotIn('class="briefing-tools"',page)
         self.assertRegex(page,r'<h1\b[^>]*>Good morning</h1>')
 
@@ -276,8 +276,8 @@ class LiveTests(unittest.TestCase):
         page = self.app.page('2026-10-09', 'gm', True).decode()
         self.assertIn('href="/schedule?view=day&amp;day=-2"', page)
         self.assertNotIn('id="generate"', page)
-        self.assertRegex(page, r'<a href="/d/2026-10-09/gm.html" class="is-missing" aria-current="date">')
-        self.assertRegex(page, r'<a href="/d/2026-10-10/gm.html">')
+        self.assertRegex(page, r'<a href="/d/2026-10-09/gm" class="is-missing" aria-current="date">')
+        self.assertRegex(page, r'<a href="/d/2026-10-10/gm">')
 
     def test_duplicate_clicks_share_session_and_user_default(self):
         job = self.start()

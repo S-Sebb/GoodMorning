@@ -59,7 +59,7 @@ def main():
             try:
                 page=browser.new_page(viewport={'width':1440,'height':1000})
                 errors=[];page.on('pageerror',lambda error:errors.append(str(error)))
-                page.goto(f'http://127.0.0.1:{server.server_port}/{kind}.html')
+                page.goto(f'http://127.0.0.1:{server.server_port}/{kind}')
                 expect(page.locator('html')).to_have_attribute('lang',language)
                 if bridge:
                     form=page.locator('.agent-form')

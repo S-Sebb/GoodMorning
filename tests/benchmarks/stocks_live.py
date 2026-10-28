@@ -220,7 +220,7 @@ def run_briefing(output, language, selected, scenario, now):
         result['advice_words'] = [word for word in ADVICE_WORDS if word in text.casefold()]
         assert not result['advice_words'], 'The section gave advice or a forecast'
         result['stocks_reads'] = [entry['argv'] for entry in commands(runtime) if entry['argv'][:1] == ['stocks']]
-        assert link_handoff(folder, 'original', f'/d/{day}/gn.html'), 'Final reply was not a briefing-link handoff'
+        assert link_handoff(folder, 'original', f'/d/{day}/gn'), 'Final reply was not a briefing-link handoff'
         result['checks'].append('Short saved-briefing link handoff')
         result['functional_complete'] = True
         print(f'{language} {selected} {scenario}: {len(result["checks"])} checks passed', flush=True)

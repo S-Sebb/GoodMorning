@@ -114,7 +114,7 @@ def run(artifacts):
                 pages = []
                 for kind in ('gm', 'gn'):
                     page = owner.new_page(); page.on('pageerror', lambda error: errors.append(str(error)))
-                    page.goto('https://gm.language.test/'+kind+'.html'); pages.append(page)
+                    page.goto('https://gm.language.test/'+kind); pages.append(page)
                 extra = owner.new_page(); extra.goto('https://gm.language.test/chat'); pages.append(extra)
                 source.close()  # The original tab closes with a real pending form.
                 for page in pages:

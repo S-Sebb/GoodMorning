@@ -102,8 +102,8 @@ screens before linking follow the phone.
 | Secretary chat | 4×3 | Portrait and name, latest conversation title, its reply in a bubble, and a message box | Message box: Ask (dialog, may start paid model work); elsewhere: the conversation |
 | Secretary | 1×1, fixed | The portrait alone, with an accent dot while a reply runs or waits for an answer | The latest conversation |
 | Briefings | 4×5 | Today's morning or evening briefing in full, scrolling, with a Morning/Evening switch | The briefing page; Prepare button (starts generation at once, may start paid model work); refresh button |
-| News | 4×4 | The news sections of today's morning briefing, one card per story: headline, a three-line summary and its publishers | The morning briefing at its first news section (`/gm.html?section=news`); Prepare button while it is missing |
-| Weather | 4×2 | Temperature, rain and air headlines side by side, from the live forecast | The morning briefing's Weather section (`/gm.html?section=weather`); refresh button |
+| News | 4×4 | The news sections of today's morning briefing, one card per story: headline, a three-line summary and its publishers | The morning briefing at its first news section (`/gm?section=news`); Prepare button while it is missing |
+| Weather | 4×2 | Temperature, rain and air headlines side by side, from the live forecast | The morning briefing's Weather section (`/gm?section=weather`); refresh button |
 | Weather details | 4×5 | The three headlines, each beside its hourly chart | As Weather |
 | Temperature, Rain, Air quality | 4×2 each | One headline above its hourly chart | As Weather |
 | Quick note | 4×4 | The newest quick note as a taped sticky note, up to five earlier notes' first lines behind it (fewer when smaller), its state and a Sort pill | The note or a title: that note; +: a new note; Sort: sorts the notes with the secretary (paid model work) and opens that conversation |

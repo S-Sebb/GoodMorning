@@ -181,7 +181,7 @@ def check_briefing(browser, address, artifacts):
                             has_touch=True, reduced_motion='reduce')
     errors = []
     page.on('pageerror', lambda error: errors.append(str(error)))
-    page.goto(address + '/gm.html')
+    page.goto(address + '/gm')
     page.evaluate('document.fonts.ready')
     outer = page.get_by_role('scrollbar', name='Scroll page', exact=True)
     expect(page.get_by_role('scrollbar')).to_have_count(1)
@@ -195,11 +195,11 @@ def check_briefing(browser, address, artifacts):
     expect(outer).to_have_css('opacity', '0')
     page.locator('#mobile-section-list a').first.tap()
     expect(page.locator('#mobile-section-dialog')).not_to_be_visible()
-    expect(page).to_have_url(address + '/gm.html#section-1')
-    page.goto(address + '/d/' + briefing_day('Europe/London') + '/gn.html')
+    expect(page).to_have_url(address + '/gm#section-1')
+    page.goto(address + '/d/' + briefing_day('Europe/London') + '/gn')
     expect(page.get_by_role('scrollbar')).to_have_count(1)
     expect(page.locator('.scroll-rail-label')).to_have_count(0)
-    for path, name in (('/gm.html', 'morning'), ('/gn.html', 'evening'), ('/schedule', 'schedule'), ('/letters', 'letters')):
+    for path, name in (('/gm', 'morning'), ('/gn', 'evening'), ('/schedule', 'schedule'), ('/letters', 'letters')):
         page.goto(address + path)
         page.evaluate('document.fonts.ready')
         expect(page.get_by_role('scrollbar')).to_have_count(1)

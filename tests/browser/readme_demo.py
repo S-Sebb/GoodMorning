@@ -254,14 +254,14 @@ def capture(app, output):
                 (locator or page).screenshot(**options)
                 pictures.append(name)
 
-            open_page('/gm.html')
+            open_page('/gm')
             expect(page.locator('.briefing-section h2')).to_have_text(
                 ['Weather', 'News — as of 07:12', 'Schedule', 'Tasks', 'Reminders'])
             page.set_viewport_size({'width': 1440, 'height': 1800})
             for name, selector in [('weather', '.weather'), ('news', '.news'), ('tasks', '.tasks')]:
                 shot(name, page.locator('.briefing-section' + selector))
             page.set_viewport_size({'width': 1440, 'height': 1050})
-            open_page('/gn.html')
+            open_page('/gn')
             expect(page.locator('html')).to_have_attribute('data-night-scheme', 'starry')
             shot('evening')
             page.set_viewport_size({'width': 1440, 'height': 1800})
@@ -275,7 +275,7 @@ def capture(app, output):
             expect(page.locator('#chat-compose')).to_be_visible()
             page.locator('#chat-scroll').evaluate('element => element.scrollTop = 0')
             shot('secretary-mobile')
-            open_page('/gm.html', 'morning-sky')
+            open_page('/gm', 'morning-sky')
             expect(page.locator('#mobile-sections')).to_be_visible()
             shot('morning-mobile')
 
@@ -316,7 +316,7 @@ def capture(app, output):
                 expect(tab.locator('[data-special="action"]')).to_have_count(2)
                 tab.wait_for_timeout(3500)
 
-            record('morning-tour', '/gm.html', tour)
+            record('morning-tour', '/gm', tour)
             live['stage'] = 0
             record('secretary-chat', '/chat', conversation, day='warm')
             live['stage'] = None
@@ -326,9 +326,9 @@ def capture(app, output):
             with tempfile.TemporaryDirectory(dir=TEMP_ROOT, prefix='gm-readme-frames-') as folder:
                 frames = Path(folder)
                 for number, (path, style, day, night) in enumerate((
-                        ('/gm.html', 'soft', 'first-light', 'starry'), ('/gm.html', 'soft', 'morning-sky', 'starry'),
-                        ('/gm.html', 'pixel', 'grass-block', 'starry'), ('/gn.html', 'soft', 'warm', 'starry'),
-                        ('/gn.html', 'soft', 'warm', 'city-lights'), ('/gn.html', 'pixel', 'warm', 'picnic'))):
+                        ('/gm', 'soft', 'first-light', 'starry'), ('/gm', 'soft', 'morning-sky', 'starry'),
+                        ('/gm', 'pixel', 'grass-block', 'starry'), ('/gn', 'soft', 'warm', 'starry'),
+                        ('/gn', 'soft', 'warm', 'city-lights'), ('/gn', 'pixel', 'warm', 'picnic'))):
                     open_page(path, day, night, style)
                     page.mouse.move(0, 0)
                     page.screenshot(path=str(frames / f'{number}.png'))

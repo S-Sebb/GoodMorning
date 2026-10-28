@@ -22,8 +22,8 @@ class GatewayTests(GatewayFixture):
         self.gateway.hosts = single.hosts
         self.gateway.language_domain = single.language_domain
         self.permanent()
-        for path, expected in (('/', '/gm.html'), ('/gm.html', '/gm.html'),
-                               ('/gn.html', '/gn.html'), ('/chat', '/chat'),
+        for path, expected in (('/', '/gm'), ('/gm', '/gm'),
+                               ('/gn', '/gn'), ('/chat', '/chat'),
                                ('/schedule?week=-3', '/schedule?week=-3'),
                                ('/api/schedule?week=3', '/api/schedule?week=3'),
                                ('/chat?id='+'a'*32, '/chat?id='+'a'*32)):
@@ -31,6 +31,18 @@ class GatewayTests(GatewayFixture):
             self.assertEqual(self.received[-1][0], expected)
         for host in ('gn.example.test', 'sec.example.test'):
             self.assertEqual(self.request('/chat', headers={'Host': host})[0], 403)
+
+    def test_old_briefing_addresses_redirect_permanently_to_clean_ones(self):
+        for signed_in in (False, True):
+            if signed_in:self.permanent()
+            for old, clean in (('/gm.html', '/gm'), ('/gn.html?section=news', '/gn?section=news'),
+                               ('/d/2026-10-11/gm.html', '/d/2026-10-11/gm'), ('/offline/gn.html', '/offline/gn')):
+                with self.subTest(old=old, signed_in=signed_in):
+                    status, headers, body = self.request(old)
+                    self.assertEqual((status, headers['Location'], body), (308, clean, b''))
+        self.assertEqual(self.received, [])
+        for path in ('/index.html', '/schedule.html', '/x/gm.html', '/d/2026-10-11/gm.json.html'):
+            self.assertNotEqual(self.request(path)[0], 308, path)
 
     def test_every_public_asset_is_served_without_login_or_account_proxy(self):
         from goodmorning.web.briefing_resources import Resources
@@ -52,19 +64,19 @@ class GatewayTests(GatewayFixture):
         self.assertEqual(self.request('/api/chats')[0],401)
 
     def test_offline_copy_has_no_session_token_and_names_its_account(self):
-        status,headers,_=self.request('/offline/gm.html')
+        status,headers,_=self.request('/offline/gm')
         self.assertEqual((status,headers['Location']),(302,'/login'))
         self.assertNotIn('X-GoodMorning-Owner',headers)
         self.permanent()
-        status,headers,body=self.request('/offline/gm.html')
+        status,headers,body=self.request('/offline/gm')
         self.assertEqual(status,200)
-        self.assertEqual(self.received[-1][0],'/offline/gm.html')
+        self.assertEqual(self.received[-1][0],'/offline/gm')
         self.assertNotIn(self.csrf.encode(),body)
         for control in (b'id="sign-out"',b'id="language-form"',b'rel="manifest"',b'/app.js'):self.assertNotIn(control,body)
         self.assertEqual(headers['Cache-Control'],'no-store')
         owner=headers['X-GoodMorning-Owner']
         # An unchanged copy is not sent again, and the browser's own condition never reaches the backend.
-        status,headers,body=self.request('/offline/gm.html',headers={'If-None-Match':headers['ETag']})
+        status,headers,body=self.request('/offline/gm',headers={'If-None-Match':headers['ETag']})
         self.assertEqual((status,body,headers['X-GoodMorning-Owner']),(304,b'',owner))
         self.assertNotIn('if-none-match',{key.lower() for key in self.received[-1][1]})
         registry=json.loads((self.root/'backends.json').read_text())
@@ -72,11 +84,11 @@ class GatewayTests(GatewayFixture):
         (self.root/'backends.json').write_text(json.dumps(registry))
         token,_=self.store.anonymous('gm.example.test');pre=self.store.session(token,'gm.example.test')
         token,_,_=self.store.login('bob','temporary-bob-secret1','gm.example.test','192.0.2.2',pre)
-        status,headers,_=self.request('/offline/gn.html',headers={'Cookie':COOKIE+'='+token})
+        status,headers,_=self.request('/offline/gn',headers={'Cookie':COOKIE+'='+token})
         self.assertEqual((status,headers['Location']),(302,'/password'))  # Not before the temporary password is replaced.
         token,_=self.store.change_password(self.store.session(token,'gm.example.test'),'temporary-bob-secret1','permanent-bob-secret1','192.0.2.2')
         self.cookie=COOKIE+'='+token
-        status,headers,_=self.request('/offline/gn.html')
+        status,headers,_=self.request('/offline/gn')
         self.assertEqual(status,200)
         self.assertNotEqual(headers['X-GoodMorning-Owner'],owner)
 
@@ -220,7 +232,7 @@ class GatewayTests(GatewayFixture):
         (self.root/'backends.json').write_text('{}')
         for language,heading in (('en','Secretary setup pending'),('zh-CN','秘书服务尚未完成配置')):
             self.store.website_language(self.id,language)
-            for path in ('/','/gm.html','/gn.html','/chat','/schedule','/d/2026-10-11/gm.html'):
+            for path in ('/','/gm','/gn','/chat','/schedule','/d/2026-10-11/gm'):
                 status,headers,data=self.request(path)
                 self.assertEqual(status,503)
                 self.assertTrue(headers['Content-Type'].startswith('text/html'))
@@ -397,7 +409,7 @@ class GatewayTests(GatewayFixture):
         for icon in json.loads(body)['icons']:
             self.assertEqual(self.request(icon['src'])[0],200)
         session=self.cookie
-        for saved,expected in ((None,'/chat'),('%2Fgm.html','/gm.html'),('%2Fd%2F2026-10-20%2Fgn.html','/d/2026-10-20/gn.html'),
+        for saved,expected in ((None,'/chat'),('%2Fgm','/gm'),('%2Fgm.html','/gm'),('%2Fd%2F2026-10-20%2Fgn.html','/d/2026-10-20/gn'),
                                ('%2F%2Fevil.test','/chat'),('https%3A%2F%2Fevil.test%2Fchat','/chat'),('%2Fapi%2Fchats','/chat')):
             with self.subTest(saved=saved):
                 self.cookie=session+('; GoodMorningAppPage='+saved if saved else '')
@@ -407,7 +419,7 @@ class GatewayTests(GatewayFixture):
         self.assertIn('GoodMorningApp=5;',self.request('/app?app=5&b=1')[1]['Set-Cookie'])
         self.cookie=session+'; GoodMorningAppPage=%2Fgm.html'
         for asked,expected in (('%2Fschedule%3Fview%3Dday%26day%3D2','/schedule?view=day&day=2'),('%2Fchat%3Fid%3D'+'a'*32,'/chat?id='+'a'*32),
-                               ('%2Fgn.html','/gn.html'),('%2Fgm.html%3Fsection%3Dnews','/gm.html?section=news'),('%2F%2Fevil.test','/gm.html'),('%2Fapi%2Fchats','/gm.html'),('%2Fchat%3Fx%3D%0d%0aSet-Cookie','/gm.html')):
+                               ('%2Fgn','/gn'),('%2Fgn.html','/gn'),('%2Fgm.html%3Fsection%3Dnews','/gm?section=news'),('%2F%2Fevil.test','/gm'),('%2Fapi%2Fchats','/gm'),('%2Fchat%3Fx%3D%0d%0aSet-Cookie','/gm')):
             with self.subTest(asked=asked):
                 status,headers,_=self.request('/app?next='+asked+'&b=1')
                 self.assertEqual((status,headers['Location']),(302,expected))
@@ -475,7 +487,7 @@ class GatewayTests(GatewayFixture):
         self.assertEqual((user,kind,reply['url']),(self.id,'chat','/chat?id='+'a'*32))
         self.assertTrue(reply['body'].startswith('Done — your plan is') and len(reply['body'])==180)
         self.assertEqual((waiting_kind,waiting['body'],waiting['url']),('waiting','Which day works?','/chat?id='+'c'*32))
-        self.assertEqual(ready['url'],'/d/2026-10-21/gm.html')
+        self.assertEqual(ready['url'],'/d/2026-10-21/gm')
         self.assertNotEqual(ready['title'],'Your morning briefing is ready')  # Chinese account.
         self.assertNotEqual(stopped['title'],ready['title'])
 
@@ -558,8 +570,8 @@ class GatewayTests(GatewayFixture):
             for _ in range(2):
                 self.gateway.remind_briefings(at('2026-10-26', '07:03'))
             morning = 'Morning ' + ('one', 'two', 'three')[datetime(2026, 10, 26).toordinal() % 3]
-            self.assertEqual(sent, [('gm', morning, '/d/2026-10-26/gm.html', {'only': laptop}),
-                                    ('gm', morning, '/d/2026-10-26/gm.html', {'phone': phone['id']})])
+            self.assertEqual(sent, [('gm', morning, '/d/2026-10-26/gm', {'only': laptop}),
+                                    ('gm', morning, '/d/2026-10-26/gm', {'phone': phone['id']})])
             sent.clear()
             state['editions']['gm'] = 'working'
             self.gateway.remind_briefings(at('2026-10-26', '08:01'))  # Being prepared: no reminder for the later device.
@@ -573,7 +585,7 @@ class GatewayTests(GatewayFixture):
                 db.execute("DELETE FROM metadata WHERE key='generation'")
             self.assertEqual(sent, [])
             self.gateway.remind_briefings(at('2026-10-27', '01:40'))  # Before the 04:00 rollover: still the 26th's evening.
-            self.assertEqual([(kind, url, target) for kind, _, url, target in sent], [('gn', '/d/2026-10-26/gn.html', {'only': late})])
+            self.assertEqual([(kind, url, target) for kind, _, url, target in sent], [('gn', '/d/2026-10-26/gn', {'only': late})])
             sent.clear()
             self.gateway.remind_briefings(at('2026-10-27', '08:30'))  # Missed by more than an hour: skipped.
             self.assertEqual(sent, [])
@@ -891,7 +903,7 @@ class GatewayTests(GatewayFixture):
         self.assertIn(self.csrf.encode(),content)
         self.assertNotIn(('a'*43).encode(),content)
         self.assertEqual(headers['Cache-Control'],'no-store')
-        self.assertEqual(self.received[-1][0],'/gm.html')
+        self.assertEqual(self.received[-1][0],'/gm')
         upstream=self.received[-1][1]
         self.assertEqual(upstream['Authorization'],'Bearer '+self.key)
         self.assertNotIn('Cookie',upstream)
@@ -1367,7 +1379,7 @@ class GatewayTests(GatewayFixture):
             first=self.request('/chat')[2];second=self.request('/chat')[2]
             self.assertEqual(first,second);self.assertEqual(render.call_count,1)
             self.assertIn(self.csrf.encode(),first)
-            self.request('/gm.html');self.assertEqual(render.call_count,2)
+            self.request('/gm');self.assertEqual(render.call_count,2)
             self.store.website_language(self.id,'zh-CN');self.request('/chat');self.assertEqual(render.call_count,3)
             anonymous,_=self.store.anonymous('gm.example.test')
             session=self.store.session(anonymous,'gm.example.test')

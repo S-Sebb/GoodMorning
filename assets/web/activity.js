@@ -145,7 +145,7 @@
         try {
           const url = new URL(entry.url);
           return origins.includes(url.origin) && !url.username && !url.password &&
-            /^(?:\/|\/chat\?id=[a-f0-9]{32}|\/d\/\d{4}-\d{2}-\d{2}\/(?:gm|gn)\.html)$/.test(url.pathname + url.search);
+            /^(?:\/|\/chat\?id=[a-f0-9]{32}|\/d\/\d{4}-\d{2}-\d{2}\/(?:gm|gn))$/.test(url.pathname + url.search);
         } catch { return false; }
       });
       render();

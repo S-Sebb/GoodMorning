@@ -524,7 +524,7 @@ public abstract class Widgets extends AppWidgetProvider {
         service.setData(Uri.parse(service.toUri(Intent.URI_INTENT_SCHEME)));  // One adapter per widget.
         views.setRemoteAdapter(R.id.list, service);
         views.setEmptyView(R.id.list, R.id.empty);
-        String page = "/" + kind + ".html" + (news ? "?section=news" : "");
+        String page = "/" + kind + (news ? "?section=news" : "");
         views.setOnClickPendingIntent(R.id.header, Sync.open(context, page, 3000 + id));
         views.setOnClickPendingIntent(R.id.empty, Sync.open(context, page, 6000 + id));
         Intent template = new Intent(context, Launcher.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
@@ -572,7 +572,7 @@ public abstract class Widgets extends AppWidgetProvider {
             views.setOnClickPendingIntent(R.id.root, screen(context, LinkActivity.class));
             return views;
         }
-        views.setOnClickPendingIntent(R.id.root, Sync.open(context, "/gm.html?section=weather", 7000 + id));
+        views.setOnClickPendingIntent(R.id.root, Sync.open(context, "/gm?section=weather", 7000 + id));
         views.setOnClickPendingIntent(R.id.refresh, action(context, REFRESH, id, "weather"));
         WeatherFrame frame = WeatherFrame.parse(data == null ? null : data.optJSONObject("frame"));
         int past = frame == null ? -1 : frame.past(LocalDateTime.now());

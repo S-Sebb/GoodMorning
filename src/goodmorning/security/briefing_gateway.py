@@ -40,7 +40,7 @@ ASSETS = WEB_ASSETS
 # Digital Asset Links let the Android app open this origin without browser controls.
 ASSET_LINKS = (ASSETS / 'assetlinks.json').read_bytes()
 POLICY = "default-src 'none'; style-src 'self'; script-src 'self'; img-src 'self'; font-src 'self'; connect-src 'self'; manifest-src 'self'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'"
-GET_ROUTES = re.compile(r'(?:/|/(?:index|gm|gn)\.html|/offline/(?:gm|gn)\.html|/chat|/schedule|/about-me|/api/schedule|/letters(?:/\d{4}-\d{2}-\d{2})?|/api/avatar(?:/image/[a-f0-9]{64}\.png)?|/api/chats(?:/[a-f0-9]{32}(?:/status)?)?|/api/day|/api/reminders|/api/app-schedule|/api/app-briefings|/api/app-weather|/api/app-profile|/api/notes(?:/batch)?|/api/edition/\d{4}-\d{2}-\d{2}/(?:gm|gn)|/api/jobs/[a-f0-9]{32}(?:/preview)?|/d/\d{4}-\d{2}-\d{2}/(?:gm|gn)\.(?:html|json)|/media/(?:thumb-v1/)?[a-f0-9]{64}\.webp|/d/\d{4}-\d{2}-\d{2}/media/[a-f0-9]+\.webp|/(?:assets/[a-f0-9]{64}/)?desk-secretary(?:-f2|-m1|-m2)?(?:-profile|(?:-day)?(?:-animated)?)\.png|/(?:assets/[a-f0-9]{64}/)?(?:briefing\.css|briefing\.js|browser\.js|schedule\.js|schedule\.css|questions\.js|chat\.js|chat\.css|avatar\.js|avatar\.css|fonts/(?:lora-italic\.woff2|OFL\.txt)))')
+GET_ROUTES = re.compile(r'(?:/|/index\.html|/(?:offline/)?(?:gm|gn)|/chat|/schedule|/about-me|/api/schedule|/letters(?:/\d{4}-\d{2}-\d{2})?|/api/avatar(?:/image/[a-f0-9]{64}\.png)?|/api/chats(?:/[a-f0-9]{32}(?:/status)?)?|/api/day|/api/reminders|/api/app-schedule|/api/app-briefings|/api/app-weather|/api/app-profile|/api/notes(?:/batch)?|/api/edition/\d{4}-\d{2}-\d{2}/(?:gm|gn)|/api/jobs/[a-f0-9]{32}(?:/preview)?|/d/\d{4}-\d{2}-\d{2}/(?:gm|gn)(?:\.json)?|/media/(?:thumb-v1/)?[a-f0-9]{64}\.webp|/d/\d{4}-\d{2}-\d{2}/media/[a-f0-9]+\.webp|/(?:assets/[a-f0-9]{64}/)?desk-secretary(?:-f2|-m1|-m2)?(?:-profile|(?:-day)?(?:-animated)?)\.png|/(?:assets/[a-f0-9]{64}/)?(?:briefing\.css|briefing\.js|browser\.js|schedule\.js|schedule\.css|questions\.js|chat\.js|chat\.css|avatar\.js|avatar\.css|fonts/(?:lora-italic\.woff2|OFL\.txt)))')
 POST_ROUTES = re.compile(r'(?:/api/notes(?:/sorted)?|/api/schedule/tick|/api/about-me|/api/avatar(?:/upload/(?:day|night|profile))?|/api/(?:generate|regenerate)|/api/chat-uploads/[a-f0-9]{32}|/api/chats|/api/chats/[a-f0-9]{32}/(?:messages|seen|(?:form|permission)/[A-Za-z0-9_]+/reply)|/api/jobs/[a-f0-9]{32}/(?:recover|(?:form|permission)/[A-Za-z0-9_]+/reply))')
 # Only the gateway's own background work reaches these; browsers never can.
 INTERNAL_ROUTES = re.compile(r'/api/briefing-reminders(?:/lines(?:/[a-f0-9]{32})?)?')
@@ -57,9 +57,18 @@ QUEUE_FULL = 'The secretary queue is full. Please wait for earlier requests to f
 PUMP_INTERVAL = 5
 REMINDER_REFRESH = 300  # Seconds between reads of each opted-in account's upcoming events or briefings.
 BRIEFING_WINDOW = 3600  # A briefing reminder missed by longer (server down, time just moved earlier) is skipped.
-PAGE_ROUTES = re.compile(r'(?:/|/(?:index|gm|gn)\.html|/chat|/schedule|/about-me|/letters(?:/\d{4}-\d{2}-\d{2})?|/d/\d{4}-\d{2}-\d{2}/(?:gm|gn)\.html)')
+PAGE_ROUTES = re.compile(r'(?:/|/index\.html|/gm|/gn|/chat|/schedule|/about-me|/letters(?:/\d{4}-\d{2}-\d{2})?|/d/\d{4}-\d{2}-\d{2}/(?:gm|gn))')
+# Briefing pages before clean addresses; each answers with a permanent redirect to its clean one.
+OLD_PAGE = re.compile(r'(/(?:offline/|d/\d{4}-\d{2}-\d{2}/)?(?:gm|gn))\.html')
 BACKEND_PENDING = 'Your secretary is not set up yet. Please contact the server administrator to complete account setup.'
 BACKEND_UNAVAILABLE = 'Secretary temporarily unavailable; records are unchanged'
+
+
+def clean_page(target):
+    """An old briefing address (/gm.html?section=news) as its clean one; any other target unchanged."""
+    page,mark,query=target.partition('?')
+    old=OLD_PAGE.fullmatch(page)
+    return old[1]+mark+query if old else target
 
 
 class BackendPending(ValueError):
@@ -148,7 +157,7 @@ class Gateway:
                 method == 'GET' and re.fullmatch(ACTIVITY_PATH, parsed.path)):
             raise Denied('Not found')
         if parsed.path in ('/','/index.html'):
-            path = '/chat' if self.hosts[host] == 'sec' else '/'+self.hosts[host]+'.html'
+            path = '/chat' if self.hosts[host] == 'sec' else '/'+self.hosts[host]
         forwarded = {'Authorization':'Bearer '+backend['key'],'X-GoodMorning-Origin':'https://'+host,
                       'X-GoodMorning-Language':self.accounts.website_language(identifier) or ui.current()}
         schemes = site_colors.current()  # This device's choice, from select_language.
@@ -205,7 +214,7 @@ class Gateway:
                 return 'https://' + entry['host'] + '/chat?id=' + entry['chat']
             day = entry.get('date') or date
             kind = entry.get('kind') or mode
-            path = f'/d/{day}/{kind}.html' if isinstance(day, str) and re.fullmatch(r'\d{4}-\d{2}-\d{2}', day) and kind in ('gm', 'gn') else '/'
+            path = f'/d/{day}/{kind}' if isinstance(day, str) and re.fullmatch(r'\d{4}-\d{2}-\d{2}', day) and kind in ('gm', 'gn') else '/'
             return 'https://' + entry['host'] + path
         if ticket.get('user') == identifier and ticket.get('host') in self.hosts:
             kind = 'chat' if ticket.get('chat') else 'job'
@@ -451,7 +460,7 @@ class Gateway:
         def t(source, **values):
             return ui.text(source, lang=lang, **values)
         day, edition = ticket.get('date'), ticket.get('kind')
-        page = '/chat?id=' + chat if chat else (f'/d/{day}/{edition}.html' if edition in ('gm', 'gn') and day else '/')
+        page = '/chat?id=' + chat if chat else (f'/d/{day}/{edition}' if edition in ('gm', 'gn') and day else '/')
         if overdue:
             # Shares the finish notification's tag, so that one replaces it.
             tag = 'chat-' + chat if chat else 'briefing-' + str(day) + '-' + str(edition)
@@ -716,7 +725,7 @@ class Gateway:
                     title = ui.text("Your morning briefing isn't prepared yet" if kind == 'gm' else "Your evening briefing isn't prepared yet", lang=lang)
                     # The ready notification shares this tag, so it replaces the reminder.
                     self.notify(user, kind, {'title': title, 'body': reminder_line(state['lines'], kind, day),
-                                             'url': f'/d/{day}/{kind}.html', 'tag': 'briefing-' + day + '-' + kind}, **target)
+                                             'url': f'/d/{day}/{kind}', 'tag': 'briefing-' + day + '-' + kind}, **target)
             except Exception:
                 continue  # One account's backend never stops another's reminders.
 
@@ -1311,11 +1320,12 @@ def handler_for(gateway):
         def app_page(self):
             """A page the app asked for (widgets, notifications), else the last page; the first launch opens chat."""
             target=parse_qs(urlsplit(self.path).query).get('next',[''])[0]
+            target=clean_page(target)  # Apps released before clean addresses ask for the old ones.
             page,_,query=target.partition('?')
             if PAGE_ROUTES.fullmatch(page) and re.fullmatch(r'[A-Za-z0-9=&_.%-]*',query):return target
             try:
                 cookie=SimpleCookie();cookie.load(self.headers.get('Cookie','')[:4096])
-                page=unquote(cookie['GoodMorningAppPage'].value)
+                page=clean_page(unquote(cookie['GoodMorningAppPage'].value))
             except (KeyError,ValueError,CookieError):return '/chat'
             return page if PAGE_ROUTES.fullmatch(page) else '/chat'
 
@@ -1401,6 +1411,10 @@ def handler_for(gateway):
                                         cache='public, max-age=31536000, immutable' if path in gateway.icons.paths else 'public, no-cache',etag=tag,resource=resource)
                 if path=='/.well-known/assetlinks.json':
                     return self.respond(ASSET_LINKS,cache='public, max-age=3600')
+                if OLD_PAGE.fullmatch(path):
+                    # Bookmarks, installed apps and earlier notifications keep working; no session is needed to move on.
+                    query=urlsplit(self.path).query
+                    return self.respond(b'',308,location=clean_page(path+('?'+query if query else '')))
                 if gateway.paused():
                     if path.startswith('/api/'):
                         return self.maintenance_json()
@@ -1491,7 +1505,7 @@ def handler_for(gateway):
                     return self.respond({'publicKey':web_push.public_key(gateway.accounts),
                                          'devices':web_push.devices(gateway.accounts,session['user_id']),
                                          'links':app_link.links(gateway.accounts,session['user_id'])})
-                if re.fullmatch(r'/offline/(?:gm|gn)\.html',path):
+                if re.fullmatch(r'/offline/(?:gm|gn)',path):
                     # The read-only copy sw.js keeps for reading offline gets no session token or account controls.
                     # Its owner tag lets the device drop it when another account signs in here.
                     status,headers,data=gateway.proxy(session['user_id'],host,self.path,'GET',None,{})
@@ -1593,7 +1607,7 @@ def handler_for(gateway):
                     selected=ui.language(body['language'])
                     if session['user_id']:gateway.accounts.website_language(session['user_id'],selected)
                     ui.CURRENT.set(selected)
-                    target=body.get('return_to','/')
+                    target=clean_page(body.get('return_to','/'))
                     if form and (len(target)>2048 or any(ord(c)<32 for c in target) or '\\' in target or urlsplit(target).netloc or urlsplit(target).scheme or not (GET_ROUTES.fullmatch(urlsplit(target).path) or target in ('/login','/password'))):target='/'
                     return self.respond({'language':selected},303 if form else 200,location=target if form else None,language_cookie=selected)
                 if path=='/api/model':
@@ -1603,7 +1617,7 @@ def handler_for(gateway):
                     link=session['user_id'] and self.this_link(session['user_id'])
                     if link:app_link.appearance(gateway.accounts,session['user_id'],link,selected)
                     site_colors.CURRENT.set(selected)
-                    target=body.get('return_to','/')
+                    target=clean_page(body.get('return_to','/'))
                     if form and (len(target)>2048 or any(ord(c)<32 for c in target) or '\\' in target or urlsplit(target).netloc or urlsplit(target).scheme or not (GET_ROUTES.fullmatch(urlsplit(target).path) or target in ('/login','/password'))):target='/'
                     return self.respond(selected,303 if form else 200,location=target if form else None,color_cookie=selected)
                 if path=='/api/auth/login' and not session['user_id']:

@@ -204,7 +204,7 @@ def run_briefing(output, language, selected, scenario, now):
         assert not result['where_to_watch'], 'The section named somewhere to watch'
         reads = [entry for entry in commands(runtime) if entry['argv'][:1] == ['anime']]
         result['anime_reads'] = [entry['argv'] for entry in reads]
-        assert link_handoff(folder, 'original', f'/d/{day}/gn.html'), 'Final reply was not a briefing-link handoff'
+        assert link_handoff(folder, 'original', f'/d/{day}/gn'), 'Final reply was not a briefing-link handoff'
         result['checks'].append('Short saved-briefing link handoff')
         result['functional_complete'] = True
         print(f'{language} {selected} {scenario}: {len(result["checks"])} checks passed', flush=True)

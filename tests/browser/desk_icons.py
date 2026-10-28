@@ -27,7 +27,7 @@ def check(app, url, shots):
             expect(page.locator('html')).to_have_attribute('lang', language)
             for theme, hour in (('gm', 12), ('gn', 21)):
                 app.now = lambda hour=hour: datetime(2026, 10, 13, hour, tzinfo=timezone.utc)
-                for route in ('/gm.html', '/gn.html', '/schedule', '/letters', '/chat'):
+                for route in ('/gm', '/gn', '/schedule', '/letters', '/chat'):
                     for width in (1440, 820, 390, 320):
                         page.set_viewport_size({'width': width, 'height': 900})
                         page.goto(url + route)

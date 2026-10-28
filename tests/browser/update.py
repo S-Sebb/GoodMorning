@@ -66,7 +66,7 @@ def main():
                 expect(baseline.locator('#site-patch-note')).to_be_hidden()
                 baseline.close()
 
-                for path in ('/chat', '/gm.html', '/gn.html'):
+                for path in ('/chat', '/gm', '/gn'):
                     for width in (320, 390, 1440):
                         (root/'website-language.json').write_text('{"language":"en"}')
                         context = browser.new_context(viewport={'width': width, 'height': 700}, reduced_motion='reduce')
@@ -198,7 +198,7 @@ def main():
                 expect(page.locator('#site-patch-note')).to_be_hidden()
                 assert json.loads((root/'release-seen.json').read_text())['version'] == current['release']
                 page.close()
-                other = browser.new_context(); page = other.new_page(); page.goto(address+'/gn.html')
+                other = browser.new_context(); page = other.new_page(); page.goto(address+'/gn')
                 expect(page.locator('#site-update-toggle')).to_be_visible()
                 expect(page.locator('#site-patch-note')).to_be_hidden()
                 other.close()

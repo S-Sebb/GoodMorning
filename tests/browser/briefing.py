@@ -216,7 +216,7 @@ def main():
                 page = context.new_page()
                 errors = []
                 page.on('pageerror', lambda error: errors.append(str(error)))
-                page.goto(f'{args.url.rstrip("/")}/{kind}.html')
+                page.goto(f'{args.url.rstrip("/")}/{kind}')
                 screenshot = args.artifacts / f'{args.browser}-{name}-{kind}.png' if args.artifacts else None
                 result = check(page, kind, options.get('has_touch', False), screenshot, errors)
                 report.append({'browser': args.browser, 'device': name, **result})
@@ -224,7 +224,7 @@ def main():
             context.close()
         context = browser.new_context(viewport={'width': 390, 'height': 844}, is_mobile=True, has_touch=True, reduced_motion='reduce')
         page = context.new_page()
-        page.goto(args.url.rstrip('/') + '/gm.html')
+        page.goto(args.url.rstrip('/') + '/gm')
         assert page.evaluate('getComputedStyle(document.documentElement).scrollBehavior') == 'auto'
         assert page.evaluate('getComputedStyle(document.querySelector(".nav-preview")).transitionDuration') == '0s'
         assert page.evaluate('getComputedStyle(document.querySelector(".scroll-cursor")).transitionDuration') == '0s'
@@ -238,10 +238,10 @@ def main():
         context.close()
         context = browser.new_context(viewport={'width': 390, 'height': 844}, is_mobile=True, has_touch=True, java_script_enabled=False)
         page = context.new_page()
-        page.goto(args.url.rstrip('/') + '/gm.html')
+        page.goto(args.url.rstrip('/') + '/gm')
         assert not page.evaluate('document.documentElement.scrollWidth > innerWidth')
         page.locator('.scroll-chunk').nth(2).tap()
-        expect(page).to_have_url(args.url.rstrip('/') + '/gm.html#section-3')
+        expect(page).to_have_url(args.url.rstrip('/') + '/gm#section-3')
         assert page.locator('.agenda-event').count() > 0
         context.close()
         browser.close()

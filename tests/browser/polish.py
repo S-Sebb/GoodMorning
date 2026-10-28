@@ -25,7 +25,7 @@ def main():
         for kind in ('gm','gn'):
             page=browser.new_page(viewport={'width':1440,'height':1000})
             errors=[];page.on('pageerror',lambda error:errors.append(str(error)))
-            page.goto(f'{args.url}/{kind}.html')
+            page.goto(f'{args.url}/{kind}')
             page.evaluate('document.fonts.ready')
             expect(page.locator('.today-marker')).to_have_count(1)
             expect(page.locator('.today-marker')).to_have_text('Today')
