@@ -47,43 +47,16 @@ the routine finishes.
   `goodmorning-maintenance.timer`, and that release has no hooks. Disable the
   timer until the next deployment removes it.
 
-## Host settings
+## Host
 
-Set by hand when the services moved to `SebOracle` on 2026-10-28; keep them unless
-the owner agrees.
+The host's configuration (port 443 SNI router, other sites, SiYuan, VPN, firewall,
+SSH, zram) is versioned in the private `S-Sebb/SebOracle` repository; its README
+describes the layout. What GoodMorning relies on:
 
-- Memory: zram swap only (`/etc/systemd/zram-generator.conf`: zstd, half of RAM,
-  priority 100; no swap file) with `/etc/sysctl.d/90-goodmorning-zram.conf`
-  (swappiness 100, page-cluster 0).
-  `goodmorning-accounts.slice` has a hard cap, at which the kernel kills only its largest
-  process; systemd-oomd runs but is not used for it. SiYuan's compose file caps it at 512 MB with no swap.
-- SSH: key login only (`/etc/ssh/sshd_config.d/10-hardening.conf`: no passwords or
-  keyboard-interactive, no root login, 3 tries). fail2ban bans repeated failures
-  (`/etc/fail2ban/jail.d/goodmorning-sshd.local`).
-- Firewall: `/etc/iptables/rules.v4` and `rules.v6` accept only TCP 22, 80 and 443,
-  matching the Oracle Cloud security list. Restoring them by hand drops Docker's
-  chains; restart Docker afterwards. Docker (`/etc/docker/daemon.json`) uses the
-  `local` log driver, live restore and no-new-privileges; containers publish only
-  on loopback.
-
-## Host layout
-
-- Port 443: `/etc/nginx/stream.d/sni-router.conf` routes by TLS server name. The
-  website names go to nginx's HTTPS servers on `127.0.0.1:8443` with the PROXY
-  protocol; everything else goes to the owner's sing-box proxy on `127.0.0.1:8444`
-  (through `127.0.0.1:8445`, which strips the PROXY header). Every HTTPS site
-  includes `snippets/sni-backend.conf` or the same lines; a new site name must
-  also be added to the router's map. Unknown names on port 80 get no answer.
-- Sites: love765.me (`/var/www/love765.me`, `/api/` to the Taiko server over the
-  VPN), dou.love765.me (NekoBeads, deployed from its own repository to
-  `/home/ubuntu/Repos/NekoBeads`), and SiYuan at seb.love765.me and yuka.love765.me.
-  Shared headers: `snippets/security-headers.conf`.
-- SiYuan: `/opt/siyuan` Compose project, data in `/srv/siyuan` owned by the
-  `siyuan` system user, access codes in root-only `siyuan-*.env` files.
-- VPN: Ubuntu's `softether-vpnclient` package (config in `/var/lib/softether`);
-  a drop-in gives `vpn_myvpn` the address 169.254.222.11/16.
-- Certificates: certbot's webroot renewals, `/var/www/html` for this host's names
-  and `/var/www/nyandou-acme` for dou.love765.me.
+- Port 443 belongs to the host's SNI router, so `nginx-goodmorning.conf` listens on
+  `127.0.0.1:8443` with the PROXY protocol. Its site name must stay in the router's map.
+- Memory: `goodmorning-accounts.slice` has a hard cap, at which the kernel kills only
+  its largest process; systemd-oomd runs but is not used for it. Swap is zram only.
 
 ## Not covered
 
