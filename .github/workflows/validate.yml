@@ -22,7 +22,12 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22.18.0'
-      - run: uv run --no-project --with-requirements requirements/browser.txt python -m unittest discover -s tests -p 'test_*.py' -q
+      # The same suite as the documented command, one process per module across the runner's
+      # cores; only failing modules print their output.
+      - run: |
+          ls tests/test_*.py | xargs -P "$(nproc)" -n 1 sh -c '
+            out=$(uv run -q --no-project --with-requirements requirements/browser.txt python -m unittest discover -s tests -p "${1##*/}" 2>&1) ||
+              { printf "%s\n" "$out"; exit 1; }' _
         env:
           GM_TEST_TMPDIR: ${{ runner.temp }}/goodmorning-tests
       - run: node --test tests/test_parked_reasoning.mjs
