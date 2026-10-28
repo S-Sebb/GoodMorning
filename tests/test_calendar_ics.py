@@ -1,18 +1,17 @@
 """Published ICS feeds: Outlook-style content expands, applies to the schedule and reconciles removals."""
 import contextlib
 from datetime import datetime, timedelta
-from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from http.server import BaseHTTPRequestHandler
 import io
 import json
 from pathlib import Path
 import sys
 import tempfile
-import threading
 import unittest
 from unittest.mock import patch
 from zoneinfo import ZoneInfo
 
-from support import TEMP_ROOT
+from support import TEMP_ROOT, QuickServer, serve
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'src'))
 from goodmorning.calendar import calendar_ics, secretary_calendar as calendar
 from goodmorning.calendar.calendar_store import CalendarStore
@@ -103,8 +102,7 @@ class FeedTests(unittest.TestCase):
 
             def log_message(self, *args):
                 pass
-        server = ThreadingHTTPServer(('127.0.0.1', 0), Handler)
-        threading.Thread(target=server.serve_forever, daemon=True).start()
+        server = serve(QuickServer(('127.0.0.1', 0), Handler))
         self.addCleanup(server.server_close)
         self.addCleanup(server.shutdown)
         return f'http://127.0.0.1:{server.server_port}/calendar.ics'

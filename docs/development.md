@@ -19,7 +19,8 @@ as the fixture root when it exists; set `GM_TEST_TMPDIR` to use another.
 
 1. Every PR:
    - focused tests for the changed behavior, added or updated in the same PR;
-   - `uv run --no-project --with-requirements requirements/browser.txt python -m unittest discover -s tests -p 'test_*.py' -q`;
+   - `uv run --no-project --with-requirements requirements/browser.txt python tests/run.py`, which runs
+     every `tests/test_*.py` module in parallel groups;
    - `node --test tests/test_parked_reasoning.mjs`.
 2. Browser-visible changes: also run the `tests/browser/*.py` suites for the
    changed pages, listed in `tests/README.md`, with private artifact

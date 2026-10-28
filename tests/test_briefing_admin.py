@@ -48,13 +48,12 @@ class AdminTests(unittest.TestCase):
 
     def test_message_reaches_the_account_viewer_as_an_unread_secretary_conversation(self):
         import threading, time
-        from http.server import ThreadingHTTPServer
-        from support import MockChamber
+        from support import MockChamber, QuickServer
         from goodmorning.web.briefing_server import BrowserApp, serve_live
         from goodmorning.security.briefing_gateway import GET_ROUTES, POST_ROUTES
         runtime=self.root/'runtime'; runtime.mkdir()
         key='k'*43; captured={}
-        class Capture(ThreadingHTTPServer):
+        class Capture(QuickServer):
             def __init__(server,*args,**kwargs):
                 super().__init__(*args,**kwargs); captured['server']=server
         with patch('goodmorning.web.briefing_server.ThreadingHTTPServer',Capture), patch('builtins.print'):

@@ -216,7 +216,7 @@ def stage(archive, name):
         (release/name_).chmod(0o644)
     assert {p.name for p in (release/'scripts').iterdir()} == {'goodmorning.py'}
     env = dict(os.environ, PYTHONDONTWRITEBYTECODE='1')
-    python = subprocess.run([PYTHON, '-B', '-m', 'unittest', 'discover', '-s', 'tests', '-p', 'test_*.py', '-q'],
+    python = subprocess.run([PYTHON, '-B', 'tests/run.py'],
                             cwd=release, env=env, capture_output=True, text=True, timeout=900)
     if python.returncode:
         raise RuntimeError('Release tests failed: '+python.stderr[-5000:])

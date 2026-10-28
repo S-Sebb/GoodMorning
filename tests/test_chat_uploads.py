@@ -1,5 +1,4 @@
 """Native attachments, streamed limits and account isolation using synthetic files."""
-from http.server import ThreadingHTTPServer
 import io
 import itertools
 import json
@@ -15,7 +14,7 @@ from urllib.error import HTTPError
 from urllib.parse import quote
 from urllib.request import Request
 
-from support import TEMP_ROOT, GatewayFixture, MockChamber, ImmediateThread
+from support import TEMP_ROOT, GatewayFixture, MockChamber, ImmediateThread, QuickServer
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'src'))
 from goodmorning.web.chat_uploads import Uploads, MAX_UPLOAD_BYTES, RETENTION_SECONDS, UploadReader, upload_name
 from goodmorning.web.briefing_chat import Chats, NEW_MODES
@@ -271,7 +270,7 @@ class UploadHTTPTests(unittest.TestCase):
         ready = threading.Event()
         servers = []
         def server(*args):
-            created = ThreadingHTTPServer(*args)
+            created = QuickServer(*args)
             servers.append(created); ready.set()
             return created
         with patch('goodmorning.web.briefing_server.ThreadingHTTPServer', server), patch('builtins.print'):

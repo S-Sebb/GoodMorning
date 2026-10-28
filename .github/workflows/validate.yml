@@ -22,7 +22,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22.18.0'
-      - run: uv run --no-project --with-requirements requirements/browser.txt python -m unittest discover -s tests -p 'test_*.py' -q
+      - run: uv run --no-project --with-requirements requirements/browser.txt python tests/run.py
         env:
           GM_TEST_TMPDIR: ${{ runner.temp }}/goodmorning-tests
       - run: node --test tests/test_parked_reasoning.mjs

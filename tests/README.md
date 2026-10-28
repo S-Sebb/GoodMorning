@@ -12,7 +12,7 @@ Chromium once with `PY -m playwright install chromium`.
 
 | Gate | Command | Runs in |
 |---|---|---|
-| Unit and system tests | `PY -m unittest discover -s tests -p 'test_*.py' -q` | every PR (CI), deploy |
+| Unit and system tests | `PY tests/run.py` (parallel groups of the `test_*.py` modules) | every PR (CI), deploy |
 | Parked-reasoning projection | `node --test tests/test_parked_reasoning.mjs` | every PR (CI), deploy |
 
 `test_public_assets.py` also runs `test_network.mjs` when Node is available.
