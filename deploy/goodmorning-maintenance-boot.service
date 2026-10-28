@@ -1,5 +1,5 @@
 [Unit]
-Description=Resume GoodMorning after its daily maintenance reboot
+Description=Release GoodMorning's maintenance hold after a reboot
 After=network-online.target goodmorning-gateway.service
 Wants=network-online.target
 ConditionPathExists=/var/lib/goodmorning-maintenance/hold.json
@@ -10,8 +10,6 @@ ExecStart=/opt/goodmorning/python/bin/python -B /opt/goodmorning/current/deploy/
 TimeoutStartSec=20min
 StateDirectory=goodmorning-maintenance
 StateDirectoryMode=0700
-LogsDirectory=goodmorning-maintenance
-LogsDirectoryMode=0750
 LimitCORE=0
 MemorySwapMax=0
 

@@ -47,7 +47,7 @@ uv run --no-project python deploy/release.py
      and their sockets; writes each account's engine-socket port drop-in from its
      `engine.json` and disables any engine still enabled to start at boot;
    - installs only the unit files, certificate hook and NGINX config that differ
-     from the release's `deploy/`, and enables the daily maintenance timer
+     from the release's `deploy/`, and enables the maintenance boot unit
      (`docs/server-maintenance.md`);
    - switches `/opt/goodmorning/current` and, for a new engine,
      `/opt/goodmorning/engines/current`, remounts the engine and restarts;
@@ -143,8 +143,9 @@ dispatches new work.
   script runs, to link the binary that suits this CPU. `/opt/goodmorning/node`
   is a symlink to a root-owned Node.js release (24.21.0, linux-arm64); deployments
   do not upgrade it.
-- Updates: the daily maintenance routine installs Ubuntu, Docker, Python patch
-  and SiYuan updates and reboots when needed; see `docs/server-maintenance.md`.
+- Updates: the server's daily routine (private `S-Sebb/SebOracle` repository)
+  updates the host and, through GoodMorning's maintenance hooks, its Python
+  patch version; see `docs/server-maintenance.md`.
 - Python: `/opt/goodmorning/python` is a symlink to the uv-managed environment
   `/opt/goodmorning/python-3.14`. Its CPython lives in `/opt/goodmorning/uv/python`,
   and the environment holds Pillow and `cryptography` (Web Push). Install both

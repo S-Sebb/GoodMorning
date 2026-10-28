@@ -45,9 +45,12 @@ ALLOWED = frozenset({'.gitignore', '.opencode', 'LICENSE', 'README.md', 'AGENTS.
                      'templates', 'deploy', 'tests'})
 UNITS = ('goodmorning-accounts.slice', 'goodmorning-account@.socket', 'goodmorning-account@.service', 'goodmorning-viewer@.service',
          'goodmorning-gateway.service', 'goodmorning-vault@.service', 'goodmorning-engine.service',
-         'goodmorning-maintenance.service', 'goodmorning-maintenance.timer', 'goodmorning-maintenance-boot.service')
+         'goodmorning-maintenance-boot.service')
 # Enabled on every switch; see docs/server-maintenance.md.
-MAINTENANCE_UNITS = ('goodmorning-maintenance.timer', 'goodmorning-maintenance-boot.service')
+MAINTENANCE_UNITS = ('goodmorning-maintenance-boot.service',)
+# The server's own routine replaced GoodMorning's daily timer; each switch removes it if present.
+# The timer comes first: it is the only one enabled.
+OBSOLETE_UNITS = ('goodmorning-maintenance.timer', 'goodmorning-maintenance.service')
 NGINX = Path('/etc/nginx/conf.d/goodmorning.conf')
 HOOK = Path('/etc/letsencrypt/renewal-hooks/deploy/goodmorning-reload-nginx')
 SCHEMA = {'users': {'id', 'name', 'salt', 'digest', 'revision', 'temporary', 'enabled'},
@@ -462,7 +465,6 @@ print(json.dumps({'profileReady':status['profile_ready'],'nativeEditions':count}
             engine_switched = True
         command(['systemctl', 'daemon-reload'])
         command(['systemctl', 'enable', *MAINTENANCE_UNITS, *sockets])
-        command(['systemctl', 'start', MAINTENANCE_UNITS[0]])
         # The agents are stopped, so the engine mount is free to move.
         if engine_switched or Path('/etc/systemd/system/goodmorning-engine.service') in installed:
             command(['systemctl', 'restart', 'goodmorning-engine.service'])
@@ -522,6 +524,14 @@ print(json.dumps({'profileReady':status['profile_ready'],'nativeEditions':count}
             command(['systemctl', 'start', *accounts, *viewers, 'goodmorning-gateway.service'])
         gateway.clear_ticket(ticket)
         raise
+    # Only after the switch, so a rollback keeps the previous release's timer.
+    obsolete = [Path('/etc/systemd/system')/unit for unit in OBSOLETE_UNITS]
+    if any(path.exists() for path in obsolete):
+        if obsolete[0].exists():
+            command(['systemctl', 'disable', '--now', obsolete[0].name])
+        for path in obsolete:
+            path.unlink(missing_ok=True)
+        command(['systemctl', 'daemon-reload'])
     report = {'release': str(release), 'previousReleasePreserved': str(old), 'verifiedPublicFiles': len(staged['files']),
               'stagedPythonTests': staged['pythonTests'], 'stagedNodeTests': staged['nodeTests'],
               'protectedPrivateFiles': len(protected), 'recordsPasswordsAndPreferencesUnchanged': True,
