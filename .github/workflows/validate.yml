@@ -22,12 +22,15 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22.18.0'
-      # The same suite as the documented command, one process per module across the runner's
-      # cores; only failing modules print their output.
-      - run: |
-          ls tests/test_*.py | xargs -P "$(nproc)" -n 1 sh -c '
-            out=$(uv run -q --no-project --with-requirements requirements/browser.txt python -m unittest discover -s tests -p "${1##*/}" 2>&1) ||
-              { printf "%s\n" "$out"; exit 1; }' _
+      # The same suite as the documented command, split into twice as many module groups as the
+      # runner has cores; only failing groups print their output. A process per module repeats
+      # the shared imports often enough to cost more than it saves.
+      - working-directory: tests
+        run: |
+          ls test_*.py | sed 's/\.py$//' | awk -v n="$(( 2 * $(nproc) ))" '{ g[NR % n] = g[NR % n] " " $0 } END { for (i in g) print g[i] }' |
+            xargs -P "$(nproc)" -L 1 sh -c '
+              out=$(PYTHONPATH=. uv run -q --no-project --with-requirements ../requirements/browser.txt python -m unittest "$@" 2>&1) ||
+                { printf "%s\n" "$out"; exit 1; }' _
         env:
           GM_TEST_TMPDIR: ${{ runner.temp }}/goodmorning-tests
       - run: node --test tests/test_parked_reasoning.mjs
