@@ -57,7 +57,7 @@ class SupervisorTests(unittest.TestCase):
         runner.start()
         self.assertEqual(self.get('/doc')['password'], 'synthetic-password')
         # A running session, such as a parked question, keeps the engine up.
-        runner.join(3)
+        runner.join(2)
         self.assertTrue(runner.is_alive())
         self.busy.unlink()
         runner.join(30)

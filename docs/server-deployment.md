@@ -27,7 +27,7 @@ uv run --no-project python deploy/release.py
    `deploy/deploy_native.py` from the same commit to `/tmp/opencode/<NAME>/` on
    the server and runs `deploy_native.py stage`. Stage unpacks into
    `/opt/goodmorning/releases/<NAME>`, verifies every file hash, runs the full
-   Python and Node suites on the server's Python, and checks the account
+   Python suite (`tests/run.py`, parallel) and the Node suite on the server's Python, and checks the account
    database schema read-only.
 4. **Stage the engine, still live.** It takes the `@opencode/cli` version pinned in
    `deploy/engine.json`, the version paid trials ran on. `deploy_native.py engine
