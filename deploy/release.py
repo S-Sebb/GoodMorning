@@ -28,7 +28,7 @@ from urllib.error import HTTPError
 from urllib.request import urlopen
 
 ROOT = Path(__file__).resolve().parents[1]
-SERVER = 'TCSFrontEnd'
+SERVER = 'SebOracle'
 SERVER_PYTHON = 'sudo -n /opt/goodmorning/python/bin/python -B'
 ADMIN = SERVER_PYTHON+' /opt/goodmorning/current/scripts/goodmorning.py admin --account-mount /srv/goodmorning/live/accounts'
 UV_BROWSER = ['uv', 'run', '--no-project', '--with-requirements', 'requirements/browser.txt', '--with', 'playwright', 'python']
