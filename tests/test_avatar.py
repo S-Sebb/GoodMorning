@@ -1,4 +1,4 @@
-"""Secretary avatar choice: validation, server persistence, page toggle and routes."""
+"""Secretary avatar choice: validation, server persistence, Account menu picker and routes."""
 from pathlib import Path
 import tempfile
 import unittest
@@ -45,28 +45,34 @@ class AvatarTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             write_avatar(self.root, 'f1')
 
-    def test_page_places_shared_tshirt_picker_above_your_desk(self):
+    def test_portrait_only_shows_the_avatar(self):
         html = page('csrf', True, True, None)
-        for control in ('data-avatar-prev', 'data-avatar-next', 'data-avatar-toggle'):
-            self.assertRegex(html, control + r' [^>]*aria-label="[^"]+"')
-        self.assertIn('class="avatar-menu"', html)
-        self.assertNotIn('avatar-menu-heading', html)
-        self.assertNotIn('data-avatar-close', html)
         self.assertIn('href="/avatar.css"', html)
         self.assertIn('src="/avatar.js"', html)
-        self.assertNotIn('avatar-caption', html)
+        self.assertNotIn('<button', html.split('avatar-display', 1)[1].split('</figure>', 1)[0])
         self.assertIn('data-avatar="f1"', html)
-        self.assertIn('data-avatar-choice="f1" aria-selected="true"', html)
-        self.assertIn(ui.text('Avatar {current} of {total}', current=1, total=4), html)
         self.assertLess(html.index('desk-figure'), html.index('<p class="eyebrow">' + ui.text('Your desk')))
         html = page('csrf', True, True, None, 'm2', {'m2': {'day': '/hashed/m2-day.png', 'night': '/hashed/m2.png', 'profile': '/hashed/m2-profile.png'}})
         self.assertIn('class="avatar-image" src="/hashed/m2-day.png"', html)
         self.assertIn('data-profile="/hashed/m2-profile.png"', html)
-        self.assertIn('class="avatar-image" src="/desk-secretary-m1.png"', page('csrf', True, True, None, 'm1', theme='gn'))
         self.assertIn('data-avatar="m2"', html)
-        self.assertIn('data-avatar-choice="m2" aria-selected="true"', html)
-        self.assertIn(ui.text('Avatar {current} of {total}', current=4, total=4), html)
+        self.assertIn('class="avatar-image" src="/desk-secretary-m1.png"', page('csrf', True, True, None, 'm1', theme='gn'))
         self.assertIn('data-avatar="f1"', page('csrf', True, True, None, 'evil'))
+
+    def test_account_menu_holds_the_avatar_picker(self):
+        source = '<html><head></head><body><main></main></body></html>'
+        signed_in = ui.page(source.replace('</body>', '<nav class="account-tools" aria-label="Account"></nav></body>'), 'csrf')
+        account = signed_in.split('id="account-menu"', 1)[1]
+        self.assertIn('id="avatar-settings"', account)
+        self.assertNotIn('id="avatar-settings"', signed_in.split('id="account-menu"', 1)[0])
+        self.assertIn('src="/avatar.js"', signed_in)
+        # Without an account, viewer pages keep it in Settings; the sign-in page has none.
+        self.assertIn('id="avatar-settings"', ui.page(source, 'csrf', avatars=True).split('id="prefs-menu"', 1)[1])
+        sign_in = ui.page(source, 'csrf')
+        self.assertNotIn('id="avatar-settings"', sign_in)
+        self.assertNotIn('/avatar.js', sign_in)
+        # A page that already loads the script does not load it twice.
+        self.assertEqual(ui.page(source.replace('</body>', '<script src="/avatar.js" defer></script></body>'), 'csrf', avatars=True).count('/avatar.js'), 1)
 
     def test_settings_and_page_follow_saved_avatar(self):
         app = BrowserApp(self.root, FakeChamber())
@@ -74,12 +80,12 @@ class AvatarTests(unittest.TestCase):
         self.assertEqual(settings['avatar'], 'f1')
         self.assertEqual([item['id'] for item in settings['avatars']], list(AVATAR_IDS))
         self.assertTrue(all(item[variant].startswith('/assets/') for item in settings['avatars'] for variant in ('day', 'night', 'profile')))
-        self.assertIn('data-avatar-choice="f1" aria-selected="true"', app.chat_page().decode())
+        self.assertIn('data-avatar="f1"', app.chat_page().decode())
         self.assertEqual(app.set_avatar('f2'), 'f2')
         self.assertEqual(app.chat_settings()['avatar'], 'f2')
         rendered = app.chat_page().decode()
         self.assertIn('data-avatar="f2"', rendered)
-        self.assertIn('data-avatar-choice="f2" aria-selected="true"', rendered)
+        self.assertIn('id="avatar-settings"', rendered)
         with self.assertRaises(ValueError):
             app.set_avatar('unknown')
 
@@ -195,15 +201,11 @@ class AvatarTests(unittest.TestCase):
         self.assertEqual(rendered.count('class="briefing-avatar avatar-display"'), 1)
 
     def test_avatar_strings_translate(self):
-        for key in ('Secretary avatar', 'Previous avatar', 'Next avatar',
-                    'Avatar {current} of {total}', 'Avatar could not be saved. Try again.',
-                    'Change avatar', 'Choose an avatar', 'Avatar {number}'):
+        for key in ('Secretary avatar', 'Secretary avatars', 'Upload your own avatar', 'Avatar {number}',
+                    'Saving avatar…', 'Avatar could not be saved. Try again.'):
             self.assertTrue(ui.CATALOG.get(key, '').strip(), key)
         with selected(ui.CURRENT, 'zh-CN'):
-            self.assertNotEqual(ui.text('Next avatar'), 'Next avatar')
-            counter = ui.text('Avatar {current} of {total}', current=3, total=4)
-        self.assertNotEqual(counter, 'Avatar 3 of 4')
-        self.assertLess(counter.index('3'), counter.index('4'))
+            self.assertNotEqual(ui.text('Secretary avatar'), 'Secretary avatar')
 
 if __name__ == '__main__':
     unittest.main()

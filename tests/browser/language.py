@@ -135,10 +135,10 @@ def run(artifacts):
                 page.locator('#account-form button[type=submit]').click()
                 expect(page.locator('#chat-compose')).to_be_visible()
                 def avatar(page, selected):
-                    if not page.locator('.avatar-menu').is_visible():
-                        page.locator('[data-avatar-toggle]').click()
-                    page.locator(f'[data-avatar-choice="{selected}"]').click()
-                    expect(page.locator('.avatar-display')).to_have_attribute('aria-busy','false')
+                    if page.locator('#account-menu').get_attribute('open') is None:
+                        page.locator('#account-menu > summary').click()
+                    page.locator(f'#account-menu [data-avatar-choice="{selected}"]').click()
+                    expect(page.locator('#avatar-settings')).to_have_attribute('aria-busy','false')
                     expect(page.locator('.avatar-display')).to_have_attribute('data-avatar',selected)
                     page.keyboard.press('Escape')
                 avatar(page,'f2')

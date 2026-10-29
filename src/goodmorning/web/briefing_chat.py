@@ -52,34 +52,16 @@ def avatar_widget(selected='f1', sources=None, class_name='desk-figure', theme='
     selected = selected if selected in ids else 'f1'
     variant = avatar_variant(theme)
     options = html.escape(json.dumps([{'id': entry, **sources[entry]} for entry in ids]), quote=True)
-    previews = ''.join(
-        f'<button type="button" class="avatar-preview" role="option" data-avatar-choice="{entry}" aria-selected="{str(entry == selected).lower()}" aria-label="Avatar {index}">'
-        f'<img src="{html.escape(sources[entry][variant], quote=True)}" alt="" width="72" height="72" loading="lazy"><span>{index}</span></button>'
-        for index, entry in enumerate(ids, 1))
-    uploads = ''.join(f'<button type="button" class="avatar-upload" data-avatar-upload="{kind}" aria-label="{label}">{text}</button>'
-                      for kind, text, label in (('day', 'Scene · day', 'Upload day scene'),
-                                                ('night', 'Scene · night', 'Upload night scene'),
-                                                ('profile', 'Profile', 'Upload profile picture')))
     profile = sources[selected]['profile'] or ''
     animated = sources[selected].get(variant + 'Animated')
+    # Display only: the avatar is chosen in the Account menu (language.py).
     return (f'<figure class="{class_name} avatar-display" data-avatar="{selected}" data-profile="{html.escape(profile, quote=True)}" data-avatar-options="{options}">'
             '<div class="avatar-frame">'
             # Only the main portrait moves, and never for readers who ask for reduced motion.
             '<picture>' + (f'<source media="(prefers-reduced-motion: no-preference)" srcset="{html.escape(animated, quote=True)}">' if animated else '') +
             f'<img class="avatar-image" src="{html.escape(sources[selected][variant], quote=True)}" alt="Secretary avatar" width="220" height="220"></picture>'
             f'<img class="avatar-profile" src="{html.escape(profile or sources[selected][variant], quote=True)}" alt="" width="44" height="44">'
-            '<button class="avatar-toggle" type="button" data-avatar-toggle aria-label="Change avatar" title="Change avatar" aria-expanded="false" disabled>'
-            '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'
-            '<path d="m16 3 5 5-3 3v10H6V11L3 8l5-5a4 4 0 0 0 8 0Z"/></svg></button></div>'
-            '<div class="avatar-menu" role="dialog" aria-label="Choose an avatar" hidden>'
-            '<div class="avatar-carousel"><button class="avatar-step" type="button" data-avatar-prev aria-label="Previous avatar">‹</button>'
-            '<div class="avatar-previews" role="listbox" aria-label="Secretary avatars">' + previews + '</div>'
-            '<button class="avatar-step" type="button" data-avatar-next aria-label="Next avatar">›</button></div>'
-            '<p class="avatar-upload-heading">Upload your own avatar</p>'
-            '<div class="avatar-uploads">' + uploads + '</div>'
-            '<input type="file" data-avatar-file accept="image/png,image/jpeg,image/webp" aria-label="Upload your own avatar" hidden>'
-            '<p class="avatar-upload-note">PNG, JPEG or WebP, up to 5 MB. Missing images are filled in from the ones you upload.</p>'
-            '<p class="avatar-feedback" role="status">Avatar ' + str(ids.index(selected) + 1) + ' of ' + str(len(ids)) + '</p></div></figure>')
+            '</div></figure>')
 
 
 def avatar_id(value):

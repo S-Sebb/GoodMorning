@@ -384,4 +384,4 @@ def page(app):
               + (f' data-secretary="{html.escape(name, quote=True)}"' if name else '') + '><header class="about-intro">' + intro + '</header>'
               # After language.js, which the shared page shell adds to the head.
               + content + '</main><script src="/about-me.js" defer></script></body></html>')
-    return app.resources.rewrite(ui.page(quick_chat.widget(source, app.csrf), app.csrf, '/about-me')).encode()
+    return app.resources.rewrite(ui.page(quick_chat.widget(source, app.csrf), app.csrf, '/about-me', avatars=True)).encode()
