@@ -1,6 +1,35 @@
 {
   "notes": [
     {
+      "version": "0.77.0",
+      "date": "2026-10-29",
+      "author": "GoodMorning agent",
+      "title_en": "Widget scenery and a new home for avatars",
+      "title_zh": "小组件换上背景风景，形象也搬了新家",
+      "changes": [
+        {
+          "category": "Added",
+          "en": [
+            "Android app 0.12: home screen widgets show your color scheme's background art, not just its card color.",
+            "In the Android app, Settings adds Widget theme: switch by the clock, follow the phone's dark mode, or always use the day or night scheme."
+          ],
+          "zh": [
+            "安卓 App 0.12：主屏幕小组件会显示你配色的背景图，不再只有卡片的颜色。",
+            "安卓 App 的「设置」里多了「小组件主题」：可以跟着时钟自动切换，也可以跟随手机的深色模式，或者一直用日间配色或夜间配色。"
+          ]
+        },
+        {
+          "category": "Changed",
+          "en": [
+            "Choose or upload your secretary's avatar in the Account menu, on every page; portraits no longer have their own picker button."
+          ],
+          "zh": [
+            "每个页面都能在「账号」菜单里选「秘书形象」，也能上传自己的；形象上不再单独放挑选按钮了。"
+          ]
+        }
+      ]
+    },
+    {
       "version": "0.76.0",
       "date": "2026-10-27",
       "author": "GoodMorning agent",
