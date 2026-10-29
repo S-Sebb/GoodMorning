@@ -29,8 +29,8 @@ def main():
             errors, push = [], []
             with sync_playwright() as playwright:
                 browser = playwright.chromium.launch(channel='chromium')  # The headless shell has no notifications.
-                def context(width):
-                    result = browser.new_context(viewport={'width': width, 'height': 900}, reduced_motion='reduce')
+                def context(width, **options):
+                    result = browser.new_context(viewport={'width': width, 'height': 900}, reduced_motion='reduce', **options)
                     def forward(route):
                         parsed = urlsplit(route.request.url)
                         if parsed.path.startswith('/api/push'):
@@ -107,6 +107,34 @@ def main():
                     code.press_sequentially(' abcd 2345')  # Headless Chromium ignores synthetic pastes; typing takes the same path.
                 expect(code).to_have_value('ABCD-2345')
                 page.screenshot(path=str(artifacts/'account-390.png'), full_page=True)
+
+                # Only the linked app shows the theme of its widgets in Settings; a browser does not.
+                expect(page.locator('#widget-theme-form')).to_be_hidden()
+                api = playwright.request.new_context(base_url=settings['gateway'],
+                    extra_http_headers={'Host': 'sec.language.test', 'X-Forwarded-Proto': 'https', 'X-Real-IP': '192.0.2.2'})
+                pairing = api.post('/api/app/pair', data={'label': 'Pixel 7'}).json()
+                code.fill(pairing['code'])
+                with page.expect_response('**/api/app/link') as linked:
+                    account.locator('#app-link-form button[type=submit]').click()
+                assert linked.value.status == 200, linked.value.json()
+                phone = api.get('/api/app/pair', headers={'X-GoodMorning-Pairing': pairing['secret']}).json()
+                app_context = context(390, storage_state=owner.storage_state(),
+                    user_agent=f'Mozilla/5.0 (Linux; Android 15) GoodMorningApp/30 GoodMorningLink/{phone["id"]}')
+                app = app_context.new_page()
+                app.on('pageerror', lambda error: errors.append(str(error)))
+                app.goto('https://sec.language.test/chat')
+                theme = menu(app, 'prefs').locator('#widget-theme')
+                expect(theme).to_have_value('clock')
+                with app.expect_response('**/api/app/widgets') as saved:
+                    theme.select_option('phone')
+                assert saved.value.status == 200, saved.value.json()
+                expect(app.locator('#widget-theme-feedback')).to_have_text('Widget theme saved. Widgets change when you leave the app.')
+                app.locator('#widget-theme-form').screenshot(path=str(artifacts/'widget-theme-390.png'))
+                assert api.get('/api/app/sync?after=0', headers={'X-GoodMorning-App': phone['token']}).json()['appearance']['widgets'] == 'phone'
+                app.reload()
+                expect(menu(app, 'prefs').locator('#widget-theme')).to_have_value('phone')
+                app_context.close(); api.dispose()
+                code = account.locator('#app-link-code')
 
                 # The app's "Link in GoodMorning" opens a page with the code to confirm.
                 page.goto('https://sec.language.test/chat?link=wxyz2345')
@@ -207,7 +235,7 @@ def main():
                 browser.close()
             assert errors == [], errors
             print(json.dumps({'modelCalls': 0, 'pushServiceContacted': False, 'choicesPerDevice': True, 'briefingReminderTimes': True, 'accountTurnsOtherDevicesOff': True,
-                              'failedTurnOnLeavesNoWorker': True, 'linkCodeFormatted': True, 'linkCodePrefilled': True,
+                              'failedTurnOnLeavesNoWorker': True, 'linkCodeFormatted': True, 'linkCodePrefilled': True, 'widgetThemeInApp': True,
                               'workerHasNoFetchHandler': True, 'bilingual': True, 'widths': [390, 1440], 'pageErrors': 0}))
         finally:
             process.terminate(); process.wait(timeout=10)

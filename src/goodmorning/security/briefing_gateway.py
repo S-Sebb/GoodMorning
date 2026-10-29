@@ -502,7 +502,8 @@ class Gateway:
         entry = next(entry for entry in app_link.links(self.accounts, user) if entry['id'] == link)
         chosen = entry['settings']
         result = {'device': link, 'settings': chosen, 'language': self.accounts.website_language(user) or 'en',
-                  'appearance': entry['appearance'] or self.accounts.website_color_schemes(user) or site_colors.DEFAULT,
+                  'appearance': {**(entry['appearance'] or self.accounts.website_color_schemes(user) or site_colors.DEFAULT),
+                                 'widgets': entry['widgets']},
                   'notifications': app_link.outbox(self.accounts, user, after, chosen, link), 'busy': self.busy(user)}
         for key, read_part in (('schedule', lambda: read('/api/app-schedule')),
                                ('secretary', lambda: read('/api/app-profile')),
@@ -1654,6 +1655,9 @@ def handler_for(gateway):
                     if set(body)!={'id'} or not isinstance(body['id'],str):raise ValueError('Invalid phone')
                     app_link.unlink(gateway.accounts,session['user_id'],body['id'])
                     return self.respond({'links':app_link.links(gateway.accounts,session['user_id'])})
+                if path=='/api/app/widgets':
+                    if set(body)!={'link','theme'} or not isinstance(body['link'],str):raise ValueError('Invalid widget theme')
+                    return self.respond({'theme':app_link.widgets(gateway.accounts,session['user_id'],body['link'],body['theme'])})
                 if path=='/api/push/subscribe':
                     if set(body)!={'subscription','label'}:raise ValueError('Invalid push subscription')
                     return self.respond(web_push.subscribe(gateway.accounts,session['user_id'],body['subscription'],body['label'],self.this_link(session['user_id'])))
@@ -1693,7 +1697,7 @@ def handler_for(gateway):
                 return self.maintenance_json()
             except (ValueError,KeyError,TypeError):
                 route=urlsplit(self.path).path
-                error='Invalid upload' if UPLOAD_ROUTE.fullmatch(route) else app_link.INVALID_CODE if route=='/api/app/link' else 'Phone request could not be read. Update the app or try again.' if route.startswith('/api/app/') else 'Notification settings could not be saved. Try again.' if route.startswith('/api/push/') else 'Invalid release version' if route=='/api/release/seen' else 'Choose English or Simplified Chinese' if route=='/api/language' else 'Choose one of the offered website models' if route=='/api/model' else 'Choose one of the offered color schemes' if route=='/api/color-schemes' else 'Invalid request. '+PASSWORD_RULE
+                error='Invalid upload' if UPLOAD_ROUTE.fullmatch(route) else app_link.INVALID_CODE if route=='/api/app/link' else 'Widget theme could not be saved. Try again.' if route=='/api/app/widgets' else 'Phone request could not be read. Update the app or try again.' if route.startswith('/api/app/') else 'Notification settings could not be saved. Try again.' if route.startswith('/api/push/') else 'Invalid release version' if route=='/api/release/seen' else 'Choose English or Simplified Chinese' if route=='/api/language' else 'Choose one of the offered website models' if route=='/api/model' else 'Choose one of the offered color schemes' if route=='/api/color-schemes' else 'Invalid request. '+PASSWORD_RULE
                 return self.respond({'error':error},400)
             except Exception:
                 return self.respond({'error':'Request could not be confirmed. Refresh before retrying.'},503)

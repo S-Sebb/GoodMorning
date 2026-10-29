@@ -680,10 +680,10 @@ class GatewayTests(GatewayFixture):
             device='GoodMorningAppearance='+colors.cookie(pixel)
             headers=self.request('/app?link='+waiting_id+'&b=1',headers={'Cookie':self.cookie+'; '+device})[1]
             self.assertIn('GoodMorningLink='+waiting_id+';',headers['Set-Cookie'])
-            self.assertEqual(sync(),pixel)
+            self.assertEqual(sync(),{**pixel,'widgets':'clock'})
             picnic={'style':'soft','day':'picnic','night':'picnic'}
             self.assertEqual(self.request('/api/color-schemes',picnic,headers={'Cookie':self.cookie+'; GoodMorningLink='+waiting_id})[0],200)
-            self.assertEqual(sync(),picnic)
+            self.assertEqual(sync(),{**picnic,'widgets':'clock'})
             self.assertEqual(self.store.website_color_schemes(self.id)['day'],'classic')
         self.assertEqual(value['briefings']['editions']['gm'],{'state':'missing'})
         self.assertEqual(value['weather'],{'city':'London','frame':{'start':'2026-10-21T06:00'}})
@@ -743,6 +743,11 @@ class GatewayTests(GatewayFixture):
         headers=self.request('/app?link='+linked['id']+'&b=1',headers={'Cookie':cookie.split(';')[0]})[1]
         self.assertIn('GoodMorningAppearance='+colors.cookie(pixel)+';',headers['Set-Cookie'])
         self.assertEqual(app_link.links(self.store,self.id)[0]['appearance'],pixel)
+        # The widget theme chosen in the app's Settings reaches the phone with its summary.
+        self.assertEqual(self.request('/api/app/widgets',{'link':linked['id'],'theme':'sunset'})[0],400)
+        self.assertEqual(json.loads(self.request('/api/app/widgets',{'link':linked['id'],'theme':'phone'})[2]),{'theme':'phone'})
+        with patch.object(self.gateway,'proxy',lambda *args:(404,{},b'{}')):
+            self.assertEqual(json.loads(phone('/api/app/sync?after=0',headers=token)[2])['appearance'],{**pixel,'widgets':'phone'})
         # A Chrome subscription made in the app names its phone, so the updated app can retire it.
         keys={'p256dh':json.loads(self.request('/api/push')[2])['publicKey'],'auth':web_push.b64(b'0123456789abcdef')}
         subscription={'endpoint':'https://fcm.googleapis.com/fcm/send/phone','keys':keys}

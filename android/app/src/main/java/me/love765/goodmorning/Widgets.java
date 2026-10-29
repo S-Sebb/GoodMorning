@@ -10,6 +10,12 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.graphics.BitmapShader;
+import android.graphics.Canvas;
+import android.graphics.Matrix;
+import android.graphics.Paint;
+import android.graphics.Shader;
+import android.graphics.drawable.Icon;
 import android.net.Uri;
 import android.os.Bundle;
 import android.text.format.DateFormat;
@@ -66,8 +72,8 @@ public abstract class Widgets extends AppWidgetProvider {
             RemoteViews views = new RemoteViews(context.getPackageName(), R.layout.widget_chat);
             views.setInt(R.id.reply, "setMaxLines", lines);
             views.setViewVisibility(R.id.title, compact ? View.GONE : View.VISIBLE);
-            Palette[] schemes = Palette.of(context);
-            card(context, views, schemes, p -> p.border, p -> p.paper);
+            Palette.Schemes schemes = Palette.of(context);
+            card(context, views, schemes, id, p -> p.border, p -> p.paper);
             Palette.tint(views, schemes, R.id.portrait_ring, p -> p.wash);
             Palette.tint(views, schemes, R.id.bubble_border, p -> p.bubbleLine);
             Palette.tint(views, schemes, R.id.bubble_fill, p -> p.bubble);
@@ -118,7 +124,7 @@ public abstract class Widgets extends AppWidgetProvider {
         @Override
         RemoteViews draw(Context context, int id) {
             RemoteViews views = new RemoteViews(context.getPackageName(), R.layout.widget_portrait);
-            Palette[] schemes = Palette.of(context);
+            Palette.Schemes schemes = Palette.of(context);
             Palette.tint(views, schemes, R.id.portrait_ring, p -> p.wash);
             Palette.tint(views, schemes, R.id.dot_ring, p -> p.surface);
             Palette.tint(views, schemes, R.id.dot_fill, p -> p.accent);
@@ -216,7 +222,7 @@ public abstract class Widgets extends AppWidgetProvider {
         RemoteViews draw(Context context, int id) {
             boolean pixel = Palette.pixel(context);
             RemoteViews views = new RemoteViews(context.getPackageName(), pixel ? R.layout.widget_note_pixel : R.layout.widget_note);
-            Palette[] schemes = Palette.of(context);
+            Palette.Schemes schemes = Palette.of(context);
             views.setImageViewResource(R.id.note_fill, pixel ? R.drawable.note_square : R.drawable.note_paper);
             views.setImageViewResource(R.id.note_shadow, pixel ? R.drawable.note_square : R.drawable.note_shadow);
             views.setImageViewResource(R.id.tape, pixel ? R.drawable.note_tape_pixel : R.drawable.note_tape);
@@ -385,10 +391,52 @@ public abstract class Widgets extends AppWidgetProvider {
                 new Intent(context, activity).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK), PendingIntent.FLAG_IMMUTABLE);
     }
 
-    /** The rounded card with its 1dp border, both in this phone's colors. */
-    static void card(Context context, RemoteViews views, Palette[] schemes, Palette.Pick border, Palette.Pick fill) {
+    /** How much of the card's own color covers the scenery, so text on it stays readable. */
+    private static final int WASH = 150;
+
+    /** The rounded card with its 1dp border, both in this phone's colors, over the scheme's scenery where it has some. */
+    static void card(Context context, RemoteViews views, Palette.Schemes schemes, int id, Palette.Pick border, Palette.Pick fill) {
         Palette.tint(views, schemes, R.id.card_border, border);
-        Palette.tint(views, schemes, R.id.card_fill, fill);
+        boolean scenery = (!Boolean.TRUE.equals(schemes.dark) && schemes.day.scene != 0) || (!Boolean.FALSE.equals(schemes.dark) && schemes.night.scene != 0);
+        if (!scenery) {
+            Palette.tint(views, schemes, R.id.card_fill, fill);
+            return;
+        }
+        int[] size = size(context, id);
+        if (schemes.dark == null) {
+            views.setIcon(R.id.card_fill, "setImageIcon", Icon.createWithBitmap(scene(context, schemes.day, fill, size)),
+                    Icon.createWithBitmap(scene(context, schemes.night, fill, size)));
+        } else {
+            views.setImageViewBitmap(R.id.card_fill, scene(context, schemes.now(), fill, size));
+        }
+    }
+
+    /** The card's fill over the scheme's scenery, as the website's page background, with the card's rounded corners. */
+    private static Bitmap scene(Context context, Palette palette, Palette.Pick fill, int[] size) {
+        float density = context.getResources().getDisplayMetrics().density, scale = Math.min(density, 2f);
+        int width = Math.round((size[0] - 2) * scale), height = Math.round((size[1] - 2) * scale);  // Inside the 1dp border.
+        Bitmap content = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
+        Canvas canvas = new Canvas(content);
+        int color = fill.from(palette);
+        if (palette.scene != 0) {
+            // The scene covers the card and shows its own part of its height, as the website anchors it.
+            Bitmap art = BitmapFactory.decodeResource(context.getResources(), palette.scene);
+            float zoom = Math.max((float) width / art.getWidth(), (float) height / art.getHeight());
+            Matrix place = new Matrix();
+            place.setScale(zoom, zoom);
+            place.postTranslate((width - art.getWidth() * zoom) / 2, (height - art.getHeight() * zoom) * palette.sceneAt);
+            canvas.drawBitmap(art, place, new Paint(Paint.FILTER_BITMAP_FLAG));
+            art.recycle();
+            color = color & 0xFFFFFF | WASH << 24;
+        }
+        canvas.drawColor(color);
+        Bitmap card = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
+        Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        paint.setShader(new BitmapShader(content, Shader.TileMode.CLAMP, Shader.TileMode.CLAMP));
+        float radius = (context.getResources().getDimension(R.dimen.widget_radius) / density - 1) * scale;
+        new Canvas(card).drawRoundRect(0, 0, width, height, radius, radius, paint);
+        content.recycle();
+        return card;
     }
 
     /** The account's portrait: a built-in secretary, or the uploaded one once the app has it. */
@@ -415,8 +463,8 @@ public abstract class Widgets extends AppWidgetProvider {
     RemoteViews list(Context context, int id, String kind) {
         boolean today = "today".equals(kind);
         RemoteViews views = new RemoteViews(context.getPackageName(), today ? R.layout.widget_today : R.layout.widget_week);
-        Palette[] schemes = Palette.of(context);
-        card(context, views, schemes, p -> p.line, p -> p.surface);
+        Palette.Schemes schemes = Palette.of(context);
+        card(context, views, schemes, id, p -> p.line, p -> p.surface);
         Palette.tint(views, schemes, R.id.rule, p -> p.line);
         Palette.tint(views, schemes, R.id.refresh, p -> p.muted);
         Palette.text(views, schemes, R.id.label, p -> p.muted);
@@ -466,8 +514,8 @@ public abstract class Widgets extends AppWidgetProvider {
     RemoteViews briefing(Context context, int id, String kind, boolean news) {
         boolean morning = "gm".equals(kind);
         RemoteViews views = new RemoteViews(context.getPackageName(), R.layout.widget_briefing);
-        Palette[] schemes = Palette.of(context);
-        card(context, views, schemes, p -> p.line, p -> p.surface);
+        Palette.Schemes schemes = Palette.of(context);
+        card(context, views, schemes, id, p -> p.line, p -> p.surface);
         Palette.tint(views, schemes, R.id.rule, p -> p.line);
         Palette.tint(views, schemes, R.id.refresh, p -> p.muted);
         Palette.tint(views, schemes, R.id.icon, p -> p.accent);
@@ -549,8 +597,12 @@ public abstract class Widgets extends AppWidgetProvider {
      */
     RemoteViews weather(Context context, int id, WeatherChart.Kind only, boolean charts, int[] size) {
         RemoteViews views = new RemoteViews(context.getPackageName(), R.layout.widget_weather);
-        Palette[] schemes = Palette.of(context);
-        card(context, views, schemes, p -> p.line, p -> p.surface);
+        Palette.Schemes schemes = Palette.of(context);
+        if (only == null) card(context, views, schemes, id, p -> p.line, p -> p.surface);
+        else {  // A single topic takes its tile color below, so the scenery would be covered.
+            Palette.tint(views, schemes, R.id.card_border, p -> p.line);
+            Palette.tint(views, schemes, R.id.card_fill, p -> p.surface);
+        }
         Palette.tint(views, schemes, R.id.icon, p -> p.accent);
         Palette.tint(views, schemes, R.id.refresh, p -> p.muted);
         Palette.text(views, schemes, R.id.label, p -> p.muted);
@@ -595,14 +647,14 @@ public abstract class Widgets extends AppWidgetProvider {
             int[] colors = tileColors(kind);
             if (only != null) {
                 // A single topic is the whole card, in its tile color.
-                Palette.pair(views, R.id.card_fill, "setColorFilter", colors[1], colors[3]);
+                Palette.pair(views, schemes, R.id.card_fill, "setColorFilter", colors[1], colors[3]);
                 tile.setViewVisibility(R.id.tile_fill, View.GONE);
             }
-            Palette.pair(tile, R.id.tile_fill, "setColorFilter", colors[1], colors[3]);
+            Palette.pair(tile, schemes, R.id.tile_fill, "setColorFilter", colors[1], colors[3]);
             tile.setViewVisibility(R.id.tile_label, charts ? View.VISIBLE : View.GONE);  // Columns rely on their icons.
-            Palette.pair(tile, R.id.tile_icon, "setColorFilter", colors[0], colors[2]);
+            Palette.pair(tile, schemes, R.id.tile_icon, "setColorFilter", colors[0], colors[2]);
             for (int text : new int[] {R.id.tile_label, R.id.tile_main, R.id.tile_sub}) {
-                Palette.pair(tile, text, "setTextColor", colors[0], colors[2]);
+                Palette.pair(tile, schemes, text, "setTextColor", colors[0], colors[2]);
             }
             tile.setImageViewResource(R.id.tile_icon, kind == WeatherChart.Kind.TEMPERATURE ? R.drawable.ic_thermometer
                     : kind == WeatherChart.Kind.RAIN ? R.drawable.ic_rain : R.drawable.ic_leaf);
@@ -618,7 +670,7 @@ public abstract class Widgets extends AppWidgetProvider {
                             .draw(Math.round(chartWidth * density), Math.round(chart * density));
                     tile.setImageViewBitmap(R.id.chart_accent, layers[0]);
                     tile.setImageViewBitmap(R.id.chart_muted, layers[1]);
-                    Palette.pair(tile, R.id.chart_accent, "setColorFilter", colors[0], colors[2]);
+                    Palette.pair(tile, schemes, R.id.chart_accent, "setColorFilter", colors[0], colors[2]);
                     Palette.color(tile, schemes, R.id.chart_muted, "setColorFilter", p -> p.muted);
                 }
             }

@@ -1,7 +1,9 @@
 package me.love765.goodmorning;
 
 import android.content.Context;
+import android.content.res.Configuration;
 import android.graphics.Color;
+import android.os.Build;
 import android.widget.RemoteViews;
 
 import org.json.JSONObject;
@@ -11,14 +13,18 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * The website's color schemes (assets/web/color-schemes.css), so widgets match the day and night
- * look chosen on this phone (the account's earlier choice until the phone chooses its own). Like the website,
- * they follow the clock rather than the phone's dark mode: the day scheme from 06:00, the night scheme from 18:00.
+ * The website's color schemes (assets/web/color-schemes.css) and their scenery, so widgets match the day and
+ * night look chosen on this phone (the account's earlier choice until the phone chooses its own). The phone's
+ * widget theme decides when the night scheme shows: by the clock like the website (the day scheme from 06:00,
+ * the night scheme from 18:00), with the phone's dark mode, or always one of them.
  */
 final class Palette {
     final int surface, ink, muted, accent, line, wash, paper, bubble, bubbleLine, border, warm;
     /** A quick note's paper and the deeper shades of the notes stacked behind it, from the scheme's warm color. */
     final int note, noteBehind, noteBack, tape;
+    /** The website's background scene as a drawable (0 for flat schemes), and which height of it widgets show, 0 top to 1 bottom. */
+    int scene;
+    float sceneAt;
 
     private Palette(String surface, String ink, String muted, String accent, String line, String wash,
                     String paper, String bubble, String bubbleLine, String border, String warm) {
@@ -48,30 +54,59 @@ final class Palette {
                 Math.round(Color.blue(from) + (Color.blue(to) - Color.blue(from)) * share));
     }
 
+    private Palette scene(int drawable, float at) {
+        scene = drawable;
+        sceneAt = at;
+        return this;
+    }
+
     private static final Map<String, Palette> DAY = new HashMap<>();
     private static final Map<String, Palette> NIGHT = new HashMap<>();
 
     static {
         DAY.put("classic", new Palette("#fffefa", "#233c36", "#607169", "#35765b", "#d8dfd4", "#e8eee3", "#f4f2ec", "#fffefa", "#d8dfd4", "#c4cfc4", "#d8b471"));
         DAY.put("warm", new Palette("#fffbf5", "#554032", "#7d6858", "#987052", "#e0cbb8", "#f1e4d4", "#fbf4e9", "#fffdf9", "#ead8c5", "#ceb29a", "#d8b471"));
-        DAY.put("morning-sky", new Palette("#fffdf7", "#293e50", "#304758", "#27465e", "#cfdae0", "#e5eef3", "#f3f8f9", "#fffdf7", "#cfdae0", "#9eb8c8", "#d3af64"));
-        DAY.put("first-light", new Palette("#fffaf5", "#48443c", "#594f43", "#784a30", "#e3d8c7", "#f4ebdc", "#f3ede2", "#fffaf5", "#e3d8c7", "#c6b798", "#c69c55"));
-        DAY.put("grass-block", new Palette("#fbf6e9", "#2d2620", "#5e5246", "#3f7f26", "#c9b997", "#f1e8d0", "#fbf6e9", "#fffdf6", "#ddd0ad", "#b9a77f", "#e0a93a"));
-        DAY.put("picnic", new Palette("#fff7e8", "#4a2f22", "#73533f", "#b8445f", "#ecd0ae", "#fdeedb", "#fff7e8", "#fffbf2", "#ecd0ae", "#d4ad86", "#f0b443"));
+        DAY.put("morning-sky", new Palette("#fffdf7", "#293e50", "#304758", "#27465e", "#cfdae0", "#e5eef3", "#f3f8f9", "#fffdf7", "#cfdae0", "#9eb8c8", "#d3af64").scene(R.drawable.art_day_morning_sky, 0.45f));
+        DAY.put("first-light", new Palette("#fffaf5", "#48443c", "#594f43", "#784a30", "#e3d8c7", "#f4ebdc", "#f3ede2", "#fffaf5", "#e3d8c7", "#c6b798", "#c69c55").scene(R.drawable.art_day_first_light, 0.6f));
+        DAY.put("grass-block", new Palette("#fbf6e9", "#2d2620", "#5e5246", "#3f7f26", "#c9b997", "#f1e8d0", "#fbf6e9", "#fffdf6", "#ddd0ad", "#b9a77f", "#e0a93a").scene(R.drawable.art_day_grass_block, 0.4f));
+        DAY.put("picnic", new Palette("#fff7e8", "#4a2f22", "#73533f", "#b8445f", "#ecd0ae", "#fdeedb", "#fff7e8", "#fffbf2", "#ecd0ae", "#d4ad86", "#f0b443").scene(R.drawable.art_day_picnic, 0f));
         NIGHT.put("classic", new Palette("#192638", "#edece7", "#b1bac8", "#d8bd8b", "#334156", "#223248", "#111c2a", "#192638", "#334156", "#4a5a72", "#d8bd8b"));
-        NIGHT.put("starry", new Palette("#111c32", "#eef2fb", "#b0bed6", "#b8c9f4", "#2d3d59", "#1b2a44", "#0d172b", "#16233d", "#2d3d59", "#526789", "#d8c493"));
-        NIGHT.put("city-lights", new Palette("#151b31", "#f2efe8", "#bdb9cb", "#f2c27b", "#2e3452", "#1d2442", "#0f1428", "#1a2139", "#2e3452", "#5a5f82", "#f2c27b"));
+        NIGHT.put("starry", new Palette("#111c32", "#eef2fb", "#b0bed6", "#b8c9f4", "#2d3d59", "#1b2a44", "#0d172b", "#16233d", "#2d3d59", "#526789", "#d8c493").scene(R.drawable.art_night_starry, 0f));
+        NIGHT.put("city-lights", new Palette("#151b31", "#f2efe8", "#bdb9cb", "#f2c27b", "#2e3452", "#1d2442", "#0f1428", "#1a2139", "#2e3452", "#5a5f82", "#f2c27b").scene(R.drawable.art_night_city_lights, 1f));
         NIGHT.put("midnight-violet", new Palette("#2a2b37", "#f8f8f2", "#b6bbd6", "#ff79c6", "#3d4052", "#33354a", "#24252f", "#2f303d", "#3d4052", "#6d6a9c", "#ffb86c"));
-        NIGHT.put("grass-block", new Palette("#262b45", "#eef0f8", "#b9bfd9", "#ffd166", "#444b70", "#30365a", "#262b45", "#2c3150", "#3d4468", "#4a5280", "#ffd166"));
-        NIGHT.put("picnic", new Palette("#362a4c", "#f8eeff", "#d2c3e4", "#ffb3c7", "#54446e", "#403257", "#362a4c", "#3d3055", "#54446e", "#5f4b7d", "#ffd38a"));
+        NIGHT.put("grass-block", new Palette("#262b45", "#eef0f8", "#b9bfd9", "#ffd166", "#444b70", "#30365a", "#262b45", "#2c3150", "#3d4468", "#4a5280", "#ffd166").scene(R.drawable.art_night_grass_block, 0.4f));
+        NIGHT.put("picnic", new Palette("#362a4c", "#f8eeff", "#d2c3e4", "#ffb3c7", "#54446e", "#403257", "#362a4c", "#3d3055", "#54446e", "#5f4b7d", "#ffd38a").scene(R.drawable.art_night_picnic, 0f));
     }
 
-    /** This phone's day and night schemes, or the website's defaults. */
-    static Palette[] of(Context context) {
+    /** This phone's day and night schemes and when its widgets show which. */
+    static final class Schemes {
+        final Palette day, night;
+        /** Whether the night scheme shows now; null when the launcher switches with the phone's dark mode itself. */
+        final Boolean dark;
+
+        Schemes(Palette day, Palette night, Boolean dark) {
+            this.day = day;
+            this.night = night;
+            this.dark = dark;
+        }
+
+        Palette now() {
+            return Boolean.TRUE.equals(dark) ? night : day;
+        }
+    }
+
+    /** This phone's schemes, or the website's defaults, for widgets. */
+    static Schemes of(Context context) {
         JSONObject appearance = Sync.cached(context).optJSONObject("appearance");
         String day = appearance == null ? "" : appearance.optString("day");
         String night = appearance == null ? "" : appearance.optString("night");
-        return new Palette[] {DAY.getOrDefault(day, DAY.get("morning-sky")), NIGHT.getOrDefault(night, NIGHT.get("starry"))};
+        String theme = appearance == null ? "" : appearance.optString("widgets");
+        Boolean dark;
+        if ("day".equals(theme) || "night".equals(theme)) dark = "night".equals(theme);
+        else if (!"phone".equals(theme)) dark = night();
+        // Android 12 and newer take both colors and switch them with dark mode at once; older phones redraw later.
+        else dark = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S ? null : dark(context);
+        return new Schemes(DAY.getOrDefault(day, DAY.get("morning-sky")), NIGHT.getOrDefault(night, NIGHT.get("starry")), dark);
     }
 
     /** Whether this phone uses the website's Pixel style. */
@@ -88,9 +123,14 @@ final class Palette {
         return hour < DAY_STARTS || hour >= NIGHT_STARTS;
     }
 
-    /** The day or night scheme for the time now. */
+    private static boolean dark(Context context) {
+        return (context.getResources().getConfiguration().uiMode & Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES;
+    }
+
+    /** The scheme for a screen a widget opens, which follows the widget theme too. */
     static Palette now(Context context) {
-        return of(context)[night() ? 1 : 0];
+        Schemes schemes = of(context);
+        return schemes.dark == null ? (dark(context) ? schemes.night : schemes.day) : schemes.now();
     }
 
     /** A color picked from the day or night scheme. */
@@ -98,20 +138,21 @@ final class Palette {
         int from(Palette palette);
     }
 
-    static void color(RemoteViews views, Palette[] schemes, int id, String method, Pick pick) {
-        pair(views, id, method, pick.from(schemes[0]), pick.from(schemes[1]));
+    static void color(RemoteViews views, Schemes schemes, int id, String method, Pick pick) {
+        pair(views, schemes, id, method, pick.from(schemes.day), pick.from(schemes.night));
     }
 
-    /** A fixed day and night color; widgets are redrawn when the scheme switches. */
-    static void pair(RemoteViews views, int id, String method, int day, int night) {
-        views.setInt(id, method, night() ? night : day);
+    /** A fixed day and night color: both for the launcher to pick, or the one for now, redrawn when the scheme switches. */
+    static void pair(RemoteViews views, Schemes schemes, int id, String method, int day, int night) {
+        if (schemes.dark == null) views.setColorInt(id, method, day, night);
+        else views.setInt(id, method, schemes.dark ? night : day);
     }
 
-    static void text(RemoteViews views, Palette[] schemes, int id, Pick pick) {
+    static void text(RemoteViews views, Schemes schemes, int id, Pick pick) {
         color(views, schemes, id, "setTextColor", pick);
     }
 
-    static void tint(RemoteViews views, Palette[] schemes, int id, Pick pick) {
+    static void tint(RemoteViews views, Schemes schemes, int id, Pick pick) {
         color(views, schemes, id, "setColorFilter", pick);
     }
 }

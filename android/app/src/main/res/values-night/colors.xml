@@ -13,6 +13,10 @@
     <color name="preview_line">#2D3D59</color>
     <color name="preview_wash">#1B2A44</color>
     <color name="preview_paper">#0D172B</color>
+    <!-- The card colors over the scenery, as Widgets.WASH covers it. -->
+    <color name="preview_scene_wash">#96111C32</color>
+    <color name="preview_scene_paper_wash">#960D172B</color>
+    <item name="preview_art" type="drawable">@drawable/art_night_starry</item>
     <color name="preview_bubble">#16233D</color>
     <color name="preview_bubble_line">#2D3D59</color>
     <color name="preview_border">#526789</color>

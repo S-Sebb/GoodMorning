@@ -198,6 +198,39 @@ let goodmorningBeforeSignOut;
   })();
 })();
 
+// Widget theme: shown only in the linked app, for that phone's widgets, which pick it up when the app syncs.
+(() => {
+  const form = document.querySelector('#widget-theme-form');
+  const ownLink = (navigator.userAgent.match(/GoodMorningLink\/([a-f0-9]{16})/) || [])[1];
+  if (!form || !ownLink) return;
+  const t = key => typeof goodmorningT === 'function' ? goodmorningT(key) : key;
+  const csrf = JSON.parse(document.querySelector('#language-config').dataset.config).csrf;
+  const select = form.querySelector('#widget-theme');
+  const feedback = form.querySelector('#widget-theme-feedback');
+  let saved;
+  select.addEventListener('change', async () => {
+    select.disabled = true;
+    try {
+      const response = await fetch('/api/app/widgets', {method: 'POST', credentials: 'same-origin', cache: 'no-store',
+        headers: {'Content-Type': 'application/json', 'X-Briefing-CSRF': csrf}, body: JSON.stringify({link: ownLink, theme: select.value})});
+      const value = await goodmorningJSON(response);
+      if (!response.ok) throw new Error(value.error || t('Widget theme could not be saved. Try again.'));
+      saved = value.theme;
+      feedback.textContent = t('Widget theme saved. Widgets change when you leave the app.');
+    } catch (error) { select.value = saved; feedback.textContent = error.message; }
+    finally { select.disabled = false; }
+  });
+  (async () => {
+    try {
+      const response = await fetch('/api/app/links', {credentials: 'same-origin', cache: 'no-store'});
+      const link = response.ok && (await goodmorningJSON(response)).links.find(item => item.id === ownLink);
+      if (!link) return;
+      select.value = saved = link.widgets;
+      form.hidden = false;
+    } catch { /* Without the server's answer the section stays hidden. */ }
+  })();
+})();
+
 // Linked phones: the owner types (or pastes) the code the Android app shows, or the app opens this
 // page with it filled in; linked phones can be removed.
 (() => {
