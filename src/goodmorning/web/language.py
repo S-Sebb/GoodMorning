@@ -172,6 +172,14 @@ def page(source,csrf,return_to='/',avatars=False):
            '<input type="hidden" name="return_to" value="'+html.escape(return_to,quote=True)+'">'
            '<noscript><button type="submit">Apply</button></noscript><span id="language-feedback" role="status"></span></form>')
     appearance='<form id="color-scheme-form"></form>'  # Filled by color_schemes.page.
+    # The linked app reveals this for its own widgets; see app.js.
+    widgets=('<form id="widget-theme-form" class="language-toolbar" hidden>'
+           '<label for="widget-theme">Widget theme</label><select id="widget-theme" name="theme">'
+           +''.join(f'<option value="{code}">{label}</option>' for code,label in (
+               ('clock','Day and night by the clock'),('phone',"Follow the phone’s dark mode"),
+               ('day','Always the day scheme'),('night','Always the night scheme')))+
+           '</select><p class="notification-note">For this phone’s home screen widgets. The clock switches at 06:00 and 18:00, like the website.</p>'
+           '<span id="widget-theme-feedback" role="status"></span></form>')
     # Hosted pages reveal this where the device can show notifications; see app.js.
     notifications=('<form id="notification-form" class="language-toolbar notification-settings" hidden>'
            '<h3 class="color-scheme-heading notification-heading">Notifications</h3><p id="notification-status"></p>'
@@ -220,7 +228,7 @@ def page(source,csrf,return_to='/',avatars=False):
            '<span class="menu-label">Settings</span></summary>'
            '<div class="menu-panel"><div class="settings-menu-header"><div><h2>Settings</h2><p>'
            +('Choices for this device only.' if account else 'Make this space yours.')+'</p></div>'+close+'</div>'
-           +(appearance+notifications if account else language_form+appearance+avatar)+'</div></details>')
+           +(appearance+widgets+notifications if account else language_form+appearance+avatar)+'</div></details>')
     account_menu=('<details class="menu" id="account-menu"><summary><span class="menu-label">Account</span></summary>'
                   '<div class="menu-panel"><div class="settings-menu-header account-menu-header"><div><h2>Account</h2>'
                   '<p>These follow you on every device you sign in on.</p></div>'+close+'</div>'

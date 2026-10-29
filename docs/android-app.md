@@ -74,19 +74,34 @@ unlinking in Settings makes the app forget it on its next check.
 
 Widgets follow the website's look: serif headings, small uppercase labels, the
 desk icons, the secretary's portrait and name, and the day and night color
-schemes chosen on this phone (`Palette`, copied from `assets/web/color-schemes.css`),
-switched by the phone's clock like the website: the day scheme from 06:00, the
-night scheme from 18:00, whatever the phone's dark mode. An alarm redraws the
-widgets at each switch, within ten minutes and once the screen is on. The Ask
-and Quick note screens a widget opens use the same scheme.
+schemes chosen on this phone (`Palette`, copied from `assets/web/color-schemes.css`).
+A scheme with scenery (Morning Sky, First Light, Starry, City Lights, Grass Block,
+Picnic) draws it behind the Today's schedule, Week schedule, Secretary chat,
+Briefings, News, Weather and Weather details cards, under a wash of the card's
+color so text stays readable (`Widgets.scene`). The scenery images in
+`drawable-nodpi/art_*` are screenshots of each scheme's website background in a
+420×900 viewport at 2× (lossless WebP for the pixel-art schemes); retake them when
+that artwork changes. Single-topic weather cards keep their tile color.
+
+The widget theme, chosen in Settings in the app and saved on the phone's link,
+decides when the night scheme shows:
+
+- By the clock (the default), like the website: the day scheme from 06:00, the
+  night scheme from 18:00. An alarm redraws the widgets at each switch, within
+  ten minutes and once the screen is on;
+- With the phone's dark mode. Android 12 and newer get both schemes and switch
+  at once; older phones use the mode at the last redraw;
+- Always the day scheme, or always the night scheme.
+
+The Ask and Quick note screens a widget opens use the same scheme.
 The app opens the site at `/app?link=<id>`, so colors chosen in the app are
 saved for its link (`docs/browser-delivery.md`, Settings and Account) and reach
-the widgets when the app leaves the screen. Until the phone chooses colors,
+the widgets when the app leaves the screen, as does the widget theme. Until the phone chooses colors,
 widgets use the account's earlier choice.
 
 The launcher's widget list shows each widget's `widget_preview_*` layout: the
 real layout filled with a sample Thursday, in the default Morning Sky and Starry
-schemes, switched with dark mode. Their hourly charts are `WeatherChart` layers
+schemes with their scenery (`preview_scene`), switched with dark mode. Their hourly charts are `WeatherChart` layers
 saved as `drawable-nodpi/preview_chart_*` (axis layers with period names also in
 `drawable-zh-rCN-nodpi`). A change to a widget's look needs the same change in
 its preview.

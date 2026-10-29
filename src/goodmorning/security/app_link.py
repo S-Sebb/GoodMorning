@@ -17,6 +17,8 @@ PAIR_SECONDS = 600
 MAX_LINKS = 10
 OUTBOX = 30
 INVALID_CODE = 'That code is not valid. Check it, or show a new code in the app.'
+# When a phone's widgets show the night scheme: by the clock like the website, with the phone's dark mode, or always one.
+WIDGET_THEMES = ('clock', 'phone', 'day', 'night')
 
 
 def _hash(value):
@@ -133,7 +135,8 @@ def links(accounts, user):
     state = web_push.account(accounts, user)
     with accounts.db() as db:
         return [{**{key: entry[key] for key in ('id', 'label', 'created', 'used')},
-                 'notifies': bool(entry.get('notifies')), 'settings': choices(state, entry), 'appearance': entry.get('appearance')}
+                 'notifies': bool(entry.get('notifies')), 'settings': choices(state, entry), 'appearance': entry.get('appearance'),
+                 'widgets': entry.get('widgets', 'clock')}
                 for entry in _metadata(db, 'app-links:' + user, [])]
 
 
@@ -158,6 +161,19 @@ def appearance(accounts, user, identifier, replacement):
             return False
         _store(db, 'app-links:' + user, [{**entry, 'appearance': replacement} if entry['id'] == identifier else entry for entry in entries])
     return True
+
+
+def widgets(accounts, user, identifier, theme):
+    """Replaces one linked phone's widget theme."""
+    if theme not in WIDGET_THEMES:
+        raise ValueError('Choose one of the offered widget themes')
+    with accounts.db() as db:
+        db.execute('BEGIN IMMEDIATE')
+        entries = _metadata(db, 'app-links:' + user, [])
+        if not any(entry['id'] == identifier for entry in entries):
+            raise ValueError('This phone is no longer linked. Link it again in Account.')
+        _store(db, 'app-links:' + user, [{**entry, 'widgets': theme} if entry['id'] == identifier else entry for entry in entries])
+    return theme
 
 
 def unlink(accounts, user, identifier):

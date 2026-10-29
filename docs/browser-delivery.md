@@ -222,6 +222,10 @@ this device's appearance to the link, or, when this view has not chosen colors
 yet but the link has, gives the view the link's colors; later appearance changes on that device
 update the link too, and `/api/app/sync` returns it so the phone's widgets match.
 A link that has none yet gets the account's earlier choice.
+Inside the linked app (its user agent names the link), Settings also shows the
+widget theme: by the clock (the default), with the phone's dark mode, or always
+day or night (`POST /api/app/widgets`). It is kept on the link and returned as
+`appearance.widgets` in `/api/app/sync`; see `docs/android-app.md`.
 
 ## Notifications
 

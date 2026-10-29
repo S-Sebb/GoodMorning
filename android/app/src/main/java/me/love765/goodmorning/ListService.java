@@ -34,7 +34,7 @@ public class ListService extends RemoteViewsService {
         private final int widget;
         private final List<RemoteViews> rows = new ArrayList<>();
         private Context context;
-        private Palette[] schemes;
+        private Palette.Schemes schemes;
 
         Rows(Context context, String kind, int widget) {
             this.base = context;

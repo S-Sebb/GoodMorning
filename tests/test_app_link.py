@@ -84,6 +84,16 @@ class AppLinkTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             app_link.settings(self.accounts, self.bob, phone['id'], everything)  # Not Bob's phone.
 
+    def test_each_phone_keeps_its_own_widget_theme(self):
+        first, second = self.link()['id'], self.link()['id']
+        self.assertEqual(app_link.widgets(self.accounts, self.alice, first, 'phone'), 'phone')
+        self.assertEqual({item['id']: item['widgets'] for item in app_link.links(self.accounts, self.alice)},
+                         {first: 'phone', second: 'clock'})
+        with self.assertRaises(ValueError):
+            app_link.widgets(self.accounts, self.alice, first, 'sunset')
+        with self.assertRaises(ValueError):
+            app_link.widgets(self.accounts, self.bob, first, 'night')  # Not Bob's phone.
+
     def test_a_reminder_for_one_phone_reaches_only_that_phone(self):
         message = {'title': 'Not prepared yet', 'body': 'Tap', 'url': '/', 'tag': 't'}
         first, second = self.link()['id'], self.link()['id']
