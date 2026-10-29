@@ -138,7 +138,7 @@ class InterfaceHTML(HTMLParser):
     def handle_comment(self,data):self.parts.append('<!--'+data+'-->')
 
 
-def page(source,csrf,return_to='/'):
+def page(source,csrf,return_to='/',avatars=False):
     from .release import VERSION
     # Load the shared response reader before every deferred page script.
     if '/network.js' not in source:
@@ -201,6 +201,17 @@ def page(source,csrf,return_to='/'):
            '<h3 class="color-scheme-heading notification-heading">Devices with notifications</h3>'
            '<p class="notification-note">Each device chooses its own notifications in its Settings. Turn one off here if you no longer use it.</p>'
            '<ul id="notification-device-list"></ul><span id="notification-devices-feedback" role="status"></span></section>')
+    # avatar.js fills in the choices and reveals the picker once the account's avatars load.
+    avatar=('<section id="avatar-settings" class="language-toolbar" aria-labelledby="avatar-settings-heading" hidden>'
+           '<h3 id="avatar-settings-heading" class="color-scheme-heading">Secretary avatar</h3>'
+           '<div class="avatar-previews" role="listbox" aria-label="Secretary avatars"></div>'
+           '<p class="avatar-upload-heading">Upload your own avatar</p><div class="avatar-uploads">'
+           +''.join(f'<button type="button" class="avatar-upload" data-avatar-upload="{kind}" aria-label="{label}">{text}</button>'
+                    for kind,text,label in (('day','Scene · day','Upload day scene'),('night','Scene · night','Upload night scene'),
+                                            ('profile','Profile','Upload profile picture')))+
+           '</div><input type="file" data-avatar-file accept="image/png,image/jpeg,image/webp" aria-label="Upload your own avatar" hidden>'
+           '<p class="notification-note">PNG, JPEG or WebP, up to 5 MB. Missing images are filled in from the ones you upload.</p>'
+           '<span class="avatar-feedback" role="status"></span></section>') if avatars or account else ''
     about=('<a id="about-me-link" href="/about-me"><span class="color-scheme-heading about-me-heading">About me</span>'
            '<span class="notification-note">What your secretary knows about you</span></a>')
     # Settings holds what belongs to this device; Account what follows the signed-in owner everywhere.
@@ -209,12 +220,14 @@ def page(source,csrf,return_to='/'):
            '<span class="menu-label">Settings</span></summary>'
            '<div class="menu-panel"><div class="settings-menu-header"><div><h2>Settings</h2><p>'
            +('Choices for this device only.' if account else 'Make this space yours.')+'</p></div>'+close+'</div>'
-           +(appearance+notifications if account else language_form+appearance)+'</div></details>')
+           +(appearance+notifications if account else language_form+appearance+avatar)+'</div></details>')
     account_menu=('<details class="menu" id="account-menu"><summary><span class="menu-label">Account</span></summary>'
                   '<div class="menu-panel"><div class="settings-menu-header account-menu-header"><div><h2>Account</h2>'
                   '<p>These follow you on every device you sign in on.</p></div>'+close+'</div>'
-                  +about+language_form+phones+account+'</div></details>') if account else ''
+                  +about+avatar+language_form+phones+account+'</div></details>') if account else ''
     controls=('<div class="toolbar-row">'+prefs+account_menu+'<span id="update-slot"></span></div>')
+    if avatar and '/avatar.js' not in source:
+        source=source.replace('</head>','<link rel="stylesheet" href="/avatar.css"><script src="/avatar.js" defer></script></head>',1)
     if 'id="language-form"' not in source:
         source=re.sub(r'(<body\b[^>]*>)',lambda match:match[0]+controls,source,count=1)
     elif account and 'id="account-menu"' not in source:

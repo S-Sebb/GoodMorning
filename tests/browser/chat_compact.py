@@ -78,12 +78,12 @@ def check_compact(browser, address, artifacts):
                 return text.left >= button.left && text.right <= button.right;
             })''')
             assert all(labels), (width,labels)
-            page.locator('[data-avatar-toggle]').click()
-            note = page.locator('.avatar-upload-note')
+            page.locator('#prefs-menu > summary').click()
+            note = page.locator('#avatar-settings .notification-note')
             expect(note).to_be_visible()
-            colors = note.evaluate('node => ({ink:getComputedStyle(node).color, paper:getComputedStyle(node).backgroundColor})')
+            colors = note.evaluate("node => ({ink:getComputedStyle(node).color, paper:getComputedStyle(node.closest('.menu-panel')).backgroundColor})")
             assert colors['paper'] != 'rgba(0, 0, 0, 0)' and contrast(colors['ink'],colors['paper']) >= 4.5, colors
-            page.locator('.avatar-menu').screenshot(path=str(artifacts/f'avatar-note-{edition}-{scheme}-{width}.png'))
+            page.locator('#avatar-settings').screenshot(path=str(artifacts/f'avatar-note-{edition}-{scheme}-{width}.png'))
             page.keyboard.press('Escape')
             page.locator('.conversation-panel').screenshot(path=str(artifacts/f'compact-chat-{edition}-{scheme}-{width}.png'))
             assert not page.evaluate('document.documentElement.scrollWidth > innerWidth')

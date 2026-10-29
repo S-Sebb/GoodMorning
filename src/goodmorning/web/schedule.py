@@ -533,4 +533,4 @@ def page(app, offset, mode='week'):
               '<main><div id="schedule-view">' + content + '</div><p id="schedule-error" role="alert"></p><div id="schedule-notice" class="schedule-notice" role="status"></div>'
               '<noscript>Navigation and saved plans work without JavaScript. Reload to see updates.</noscript></main>'
               '<div id="schedule-config" hidden data-config="' + config + '"></div><script src="/schedule.js" defer></script></body></html>')
-    return app.resources.rewrite(ui.page(quick_chat.widget(source, app.csrf), app.csrf, '/schedule')).encode()
+    return app.resources.rewrite(ui.page(quick_chat.widget(source, app.csrf), app.csrf, '/schedule', avatars=True)).encode()

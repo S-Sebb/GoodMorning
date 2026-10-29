@@ -215,10 +215,6 @@ html[data-edition="gn"] #chat-error { color: #f1b1a8; }
   .conversation-sidebar > :not(#conversation-history) { flex-shrink: 0; }
   /* Grow with the viewport height so short windows keep room for history. */
   .secretary-identity .desk-figure { width: clamp(112px, 22vh, 200px); margin: 0 auto 8px; }
-  /* The sidebar clips overflow, so the picker spans the sidebar rather than overflowing the small portrait. */
-  .secretary-identity { position: relative; }
-  .secretary-identity .avatar-display { position: static; }
-  .secretary-identity .avatar-menu { right: 0; width: auto; }
   .conversation-sidebar h1 { font-size: 32px; letter-spacing: -1px; margin: 8px 0; }
   .secretary-identity { flex-shrink: 0; }
   .secretary-identity > p:not(.eyebrow) { font-size: 13px; margin: 0 0 8px; }
@@ -246,9 +242,6 @@ html[data-edition="gn"] #chat-error { color: #f1b1a8; }
   .secretary-identity .avatar-frame { height: 44px; border-radius: 50%; }
   .secretary-identity .avatar-image { display: none; }
   .secretary-identity .avatar-profile { display: block; height: 44px; width: 44px; border-radius: 50%; object-fit: cover; }
-  .secretary-identity .avatar-toggle { inset: 0; width: 44px; height: 44px; border-radius: 50%; opacity: 0; }
-  .secretary-identity .avatar-toggle:focus-visible { opacity: 1; }
-  .secretary-identity .avatar-menu { width: min(340px, calc(100vw - 24px)); }
   .conversation-sidebar h1 { margin: 0; font-size: 22px; line-height: 1.3; letter-spacing: -.5px; overflow-wrap: anywhere; }
   .conversation-panel { order: 1; height: var(--chat-panel-height, calc(100svh - 210px)); min-height: 240px; padding: 12px; padding-bottom: max(12px, env(safe-area-inset-bottom)); border-radius: 20px; }
   .chat-topic-header { gap: 8px; }

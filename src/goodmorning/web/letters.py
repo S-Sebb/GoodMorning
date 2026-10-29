@@ -127,4 +127,4 @@ def page(app, week=None):
               '<nav class="edition-switch" aria-label="Your desk"><a class="edition-link" href="/gm">Morning</a><a class="edition-link" href="/gn">Evening</a>'
               '<a class="edition-link" href="/schedule">Schedule</a><a class="edition-link selected" href="/letters" aria-current="page">Letters</a>'
               '<a class="edition-link" href="/chat">Secretary</a></nav></header><main>' + content + '</main></body></html>')
-    return app.resources.rewrite(ui.page(quick_chat.widget(source, app.csrf), app.csrf, '/letters/' + week if week else '/letters')).encode()
+    return app.resources.rewrite(ui.page(quick_chat.widget(source, app.csrf), app.csrf, ('/letters/' + week if week else '/letters'), avatars=True)).encode()

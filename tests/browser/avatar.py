@@ -20,7 +20,7 @@ def check_avatar(page, selected, label):
     figure = page.locator('.briefing-avatar')
     expect(figure).to_have_attribute('data-avatar', selected)
     expect(figure).to_be_visible()
-    expect(figure.locator('[data-avatar-toggle]')).to_be_enabled()
+    expect(figure.locator('button')).to_have_count(0)
     assert figure.get_by_role('link').count() == 0
     image = figure.locator('.avatar-image')
     assert image.evaluate('node => node.complete && node.naturalWidth > 0')
@@ -50,9 +50,10 @@ def check_avatar(page, selected, label):
 
 
 def open_picker(page):
-    if not page.locator('.avatar-menu').is_visible():
-        page.locator('[data-avatar-toggle]').click()
-    expect(page.locator('.avatar-menu')).to_be_visible()
+    # The viewer has no account, so the picker sits in Settings; signed in, it is in Account.
+    if page.locator('#prefs-menu').get_attribute('open') is None:
+        page.locator('#prefs-menu > summary').click()
+    expect(page.locator('#prefs-menu #avatar-settings')).to_be_visible()
 
 
 def check_picker(page, address, artifacts):
@@ -77,54 +78,36 @@ def check_picker(page, address, artifacts):
                     assert text['y']+text['height'] <= bounds['y']+bounds['height']
                 else:
                     assert abs((bounds['y']+bounds['height']/2)-(text['y']+text['height']/2)) < 2
+        # Portraits only show the avatar; the choice lives in the menu.
+        expect(page.locator('.avatar-display button')).to_have_count(0)
         open_picker(page)
-        toggle = page.locator('[data-avatar-toggle]')
-        expect(toggle).to_have_css('background-color', 'rgba(0, 0, 0, 0)')
-        expect(toggle).to_have_css('box-shadow', 'none')
-        expect(toggle).to_have_css('border-top-width', '0px')
-        expect(toggle).to_have_css('color', 'rgb(53, 118, 91)')
-        assert page.locator('.avatar-menu-heading, [data-avatar-close]').count() == 0
-        # The picker is its own small card, so its choices never float loose over the page.
-        assert page.locator('.avatar-menu').evaluate("node => getComputedStyle(node).backgroundColor") != 'rgba(0, 0, 0, 0)'
-        assert page.locator('.avatar-menu').evaluate("node => getComputedStyle(node).paddingTop") != '0px'
-        expect(page.locator('.avatar-feedback')).to_have_css('clip', 'rect(0px, 0px, 0px, 0px)')
         for name in ('Upload day scene', 'Upload night scene', 'Upload profile picture'):
             expect(page.get_by_role('button', name=name)).to_be_visible()
-        expect(page.locator('[data-avatar-choice]')).to_have_count(4)
-        expect(page.locator('[data-avatar-toggle]')).to_have_attribute('aria-expanded', 'true')
-        assert page.locator('.avatar-previews').evaluate('node => node.clientWidth') >= 68
+        choices = page.locator('#avatar-settings [data-avatar-choice]')
+        expect(choices).to_have_count(4)
+        for choice in choices.all():
+            assert choice.bounding_box()['height'] >= 44
         assert not page.evaluate('document.documentElement.scrollWidth > innerWidth')
         page.locator('[data-avatar-choice="f1"]').click()
-        expect(page.locator('.avatar-feedback')).to_have_text('Avatar 1 of 4')
-        page.locator('[data-avatar-next]').click()
-        expect(page.locator('.avatar-feedback')).to_have_text('Avatar 2 of 4')
-        expect(page.locator('[data-avatar-choice="f2"]')).to_have_attribute('aria-selected', 'true')
+        expect(page.locator('[data-avatar-choice="f1"]')).to_have_attribute('aria-selected', 'true')
         page.locator('[data-avatar-choice="m2"]').click()
-        expect(page.locator('.avatar-feedback')).to_have_text('Avatar 4 of 4')
-        page.wait_for_function("""() => {
-            const strip = document.querySelector('.avatar-previews').getBoundingClientRect();
-            const selected = document.querySelector('.avatar-previews [aria-selected="true"]').getBoundingClientRect();
-            return selected.left >= strip.left - 1 && selected.right <= strip.right + 1;
-        }""")
+        expect(page.locator('[data-avatar-choice="m2"]')).to_have_attribute('aria-selected', 'true')
+        expect(page.locator('.avatar-display')).to_have_attribute('data-avatar', 'm2')
         page.locator('[data-avatar-choice="m2"]').focus()
         page.keyboard.press('ArrowRight')
-        expect(page.locator('.avatar-feedback')).to_have_text('Avatar 1 of 4')
         expect(page.locator('[data-avatar-choice="f1"]')).to_be_focused()
+        expect(page.locator('.avatar-display')).to_have_attribute('data-avatar', 'f1')
         page.keyboard.press('End')
-        expect(page.locator('.avatar-feedback')).to_have_text('Avatar 4 of 4')
-        page.keyboard.press('Escape')
-        expect(page.locator('.avatar-menu')).to_be_hidden()
-        expect(page.locator('[data-avatar-toggle]')).to_be_focused()
-        open_picker(page)
-        page.screenshot(path=str(artifacts / ('picker-' + path.strip('/').replace('.html', '') + '-' + str(page.viewport_size['width']) + '.png')))
-        page.locator('header.masthead').click(position={'x': 4, 'y': 4})
-        expect(page.locator('.avatar-menu')).to_be_hidden()
+        expect(page.locator('[data-avatar-choice="m2"]')).to_be_focused()
+        expect(page.locator('#avatar-settings')).to_have_attribute('aria-busy', 'false')
+        page.locator('#prefs-menu > .menu-panel').screenshot(path=str(artifacts / ('picker-' + path.strip('/') + '-' + str(page.viewport_size['width']) + '.png')))
+        page.locator('#prefs-menu > summary').click()
 
     # Selection stays responsive while one save is pending; the last click wins.
     page.goto(address + '/chat')
     open_picker(page)
     page.locator('[data-avatar-choice="f1"]').click()
-    expect(page.locator('.avatar-feedback')).to_have_text('Avatar 1 of 4')
+    expect(page.locator('#avatar-settings')).to_have_attribute('aria-busy', 'false')
     pending = []
     held = False
     def pause(route):
@@ -137,12 +120,12 @@ def check_picker(page, address, artifacts):
     page.route('**/api/avatar', pause)
     with page.expect_request(lambda request: request.method == 'POST' and request.url.endswith('/api/avatar')):
         page.locator('[data-avatar-choice="f2"]').click()
-    page.locator('[data-avatar-next]').click()
-    page.locator('[data-avatar-next]').click()
+    page.locator('[data-avatar-choice="m1"]').click()
+    page.locator('[data-avatar-choice="m2"]').click()
     expect(page.locator('.avatar-display')).to_have_attribute('data-avatar', 'm2')
     assert page.evaluate("document.dispatchEvent(new Event('website:before-refresh', {cancelable: true}))") is False
     pending.pop().continue_()
-    expect(page.locator('.avatar-feedback')).to_have_text('Avatar 4 of 4')
+    expect(page.locator('#avatar-settings')).to_have_attribute('aria-busy', 'false')
     page.unroute('**/api/avatar', pause)
     page.reload()
     expect(page.locator('.avatar-display')).to_have_attribute('data-avatar', 'm2')
@@ -173,10 +156,7 @@ def check_motion(browser, address):
     page = browser.new_page(viewport={'width': 1440, 'height': 900}, reduced_motion='no-preference')
     page.goto(address + '/chat')
     open_picker(page)
-    expect(page.locator('.avatar-menu')).to_have_css('animation-name', 'avatar-menu-enter')
     page.set_viewport_size({'width': 390, 'height': 900})
-    # The existing mobile picker is an inline carousel, not an animated popup.
-    expect(page.locator('.avatar-menu')).to_have_css('animation-name', 'none')
     page.evaluate("""window.avatarFrames = [];
         const image = document.querySelector('.avatar-image');
         const observer = new MutationObserver(() => {
@@ -191,7 +171,7 @@ def check_motion(browser, address):
     next_avatar = 'm2' if current != 'm2' else 'f1'
     page.locator(f'[data-avatar-choice="{next_avatar}"]').click()
     page.wait_for_function('() => avatarFrames.some(opacity => opacity > 0.4 && opacity < 1)')
-    page.wait_for_function("() => document.querySelector('.avatar-display').getAttribute('aria-busy') === 'false'")
+    page.wait_for_function("() => document.querySelector('#avatar-settings').getAttribute('aria-busy') === 'false'")
     # The main portrait plays the gently animated scene; picker previews stay still.
     # /chat follows the account's local hour, so expect the day or night scene it chose.
     day = page.evaluate('document.documentElement.dataset.edition') == 'gm'
@@ -332,7 +312,7 @@ def main():
                             open_picker(page)
                             page.locator(f'[data-avatar-choice="{selected}"]').click()
                             expect(page.locator('.avatar-feedback')).not_to_have_text('Saving avatar…' if language == 'en' else '正在保存形象…')
-                            expect(page.locator('.avatar-display')).to_have_attribute('aria-busy', 'false')
+                            expect(page.locator('#avatar-settings')).to_have_attribute('aria-busy', 'false')
                             expect(page.locator('.desk-figure')).to_have_attribute('data-avatar', selected)
                             for kind in ('gm', 'gn'):
                                 page.goto(address + f'/{kind}')
@@ -349,7 +329,7 @@ def main():
                 page = browser.new_page(java_script_enabled=False, viewport={'width': 390, 'height': 844}, reduced_motion='reduce')
                 page.goto(address + '/gm')
                 expect(page.locator('.avatar-display')).to_have_attribute('data-avatar', 'm2')
-                expect(page.locator('[data-avatar-toggle]')).to_be_disabled()
+                expect(page.locator('#avatar-settings')).to_be_hidden()
                 assert not page.evaluate('document.documentElement.scrollWidth > innerWidth')
                 page.close()
                 # Already-open pages discover the new custom choice and replacements.
@@ -366,7 +346,7 @@ def main():
                         uploader.locator('[data-avatar-file]').set_input_files({
                             'name': 'avatar.png', 'mimeType': 'image/png', 'buffer': image.getvalue()})
                     custom_source = uploaded.value.json()['avatars'][-1]['night']
-                    expect(uploader.locator('.avatar-display')).to_have_attribute('aria-busy', 'false')
+                    expect(uploader.locator('#avatar-settings')).to_have_attribute('aria-busy', 'false')
                     observer.bring_to_front()
                     # Headless Chromium does not reliably emit window focus on tab activation.
                     observer.evaluate("window.dispatchEvent(new Event('focus'))")
@@ -390,7 +370,7 @@ def main():
                     custom_source = response.value.json()['avatars'][-1]['night']
                     expect(page.locator('.avatar-display')).to_have_attribute('data-avatar', 'custom')
                     expect(page.locator('[data-avatar-choice]')).to_have_count(5)
-                    expect(page.locator('.avatar-display')).to_have_attribute('aria-busy', 'false')
+                    expect(page.locator('#avatar-settings')).to_have_attribute('aria-busy', 'false')
                     open_picker(page)
                     page.screenshot(path=str(artifacts / f'custom-avatar-{width}.png'))
                     assert not page.evaluate('document.documentElement.scrollWidth > innerWidth')
@@ -403,7 +383,7 @@ def main():
                     assert response.value.status == 201
                     day_source = response.value.json()['avatars'][-1]['day']
                     assert day_source != custom_source
-                    expect(page.locator('.avatar-display')).to_have_attribute('aria-busy', 'false')
+                    expect(page.locator('#avatar-settings')).to_have_attribute('aria-busy', 'false')
                     for path in ('/gm', '/gn', f'/d/{day}/gm', f'/d/{day}/gn'):
                         expected = day_source if path.endswith('gm') else custom_source
                         page.goto(address + path)
@@ -412,9 +392,9 @@ def main():
                         assert page.locator('.avatar-image').evaluate('node => node.complete && node.naturalWidth > 0')
                     open_picker(page)
                     page.locator('[data-avatar-choice="f1"]').click()
-                    expect(page.locator('.avatar-display')).to_have_attribute('aria-busy', 'false')
+                    expect(page.locator('#avatar-settings')).to_have_attribute('aria-busy', 'false')
                     page.locator('[data-avatar-choice="custom"]').click()
-                    expect(page.locator('.avatar-display')).to_have_attribute('aria-busy', 'false')
+                    expect(page.locator('#avatar-settings')).to_have_attribute('aria-busy', 'false')
                     with page.expect_response('**/api/avatar/upload/night') as rejected:
                         page.locator('[data-avatar-file]').set_input_files({
                             'name': 'invalid.png', 'mimeType': 'image/png', 'buffer': b'not an image'})

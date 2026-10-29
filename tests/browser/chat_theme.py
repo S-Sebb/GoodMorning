@@ -36,12 +36,12 @@ def main():
                     page.evaluate("window.dispatchEvent(new Event('focus'))")
                     expect(page.locator('html')).to_have_attribute('data-edition', 'gn')
                     page.locator('#chat-text').fill('Keep this unsent draft across theme changes.')
-                    page.locator('[data-avatar-toggle]').click()
+                    page.locator('#prefs-menu > summary').click()
                     url = page.url
                     page.clock.run_for(1100)
                     expect(page.locator('html')).to_have_attribute('data-edition', 'gm')
                     expect(page.locator('#chat-text')).to_have_value('Keep this unsent draft across theme changes.')
-                    expect(page.locator('.avatar-menu')).to_be_visible()
+                    expect(page.locator('#avatar-settings')).to_be_visible()
                     page.keyboard.press('Escape')
                     page.screenshot(path=str(artifacts / f'secretary-day-{width}.png'), full_page=True)
 

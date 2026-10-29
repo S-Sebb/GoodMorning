@@ -1,188 +1,171 @@
-// One account-local picker for briefings and chat. No browser storage or agent work.
+// The account's secretary avatar: picked in the Account menu, shown by every portrait on the page.
+// No browser storage or agent work.
 (() => {
   const t = (key, values = {}) => typeof goodmorningT === 'function' ? goodmorningT(key, values)
     : key.replace(/\{([a-z]+)\}/g, (_, name) => values[name] ?? name);
   const csrf = JSON.parse(document.querySelector('#language-config').dataset.config).csrf;
   const reduced = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const picker = document.querySelector('#avatar-settings');
+  const displays = [...document.querySelectorAll('.avatar-display')];
+  if (!picker && !displays.length) return;
 
-  document.querySelectorAll('[data-avatar-options]').forEach((root, index) => {
-    const options = JSON.parse(root.dataset.avatarOptions);
-    const ids = options.map(item => item.id);
-    const sources = Object.fromEntries(options.map(item => [item.id, item]));
-    const toggle = root.querySelector('[data-avatar-toggle]');
-    const menu = root.querySelector('.avatar-menu');
+  const first = displays[0];
+  let sources = Object.fromEntries((first ? JSON.parse(first.dataset.avatarOptions) : []).map(item => [item.id, item]));
+  let ids = Object.keys(sources);
+  let saved = first ? first.dataset.avatar : null;
+  let wanted = saved;
+  let saving = false;
+  let uploading = false;
+  let syncRevision = 0;
+  let notice = '';
+  let uploadVariant = 'night';
+  // Evening pages and night-time desks show the lamp-lit scene; everything else shows daylight.
+  const variant = () => document.documentElement.dataset.edition === 'gn' ? 'night' : 'day';
+  const scene = id => sources[id][variant()];
+  // Built-in avatars also have a gently animated scene; the <source> shows it unless motion is reduced.
+  const moving = id => sources[id][variant() + 'Animated'] || '';
+
+  function updateOptions(items) {
+    if (!Array.isArray(items)) return;
+    const valid = value => /^\/api\/avatar\/image\/[a-f0-9]{64}\.png$/.test(value);
+    const usable = items.filter(item => item.id !== 'custom' ? typeof item.day === 'string' && typeof item.night === 'string'
+      : valid(item.day) && valid(item.night) && (item.profile === null || valid(item.profile)));
+    if (!usable.length) return;
+    sources = Object.fromEntries(usable.map(item => [item.id, item]));
+    ids = Object.keys(sources);
+  }
+
+  const revisions = new WeakMap();
+  async function showImage(root, id) {
     const image = root.querySelector('.avatar-image');
     const profile = root.querySelector('.avatar-profile');
-    const strip = root.querySelector('.avatar-previews');
-    const choices = [...root.querySelectorAll('[data-avatar-choice]')];
-    const feedback = root.querySelector('.avatar-feedback');
-    const uploads = [...root.querySelectorAll('[data-avatar-upload]')];
-    const fileInput = root.querySelector('[data-avatar-file]');
-    let saved = root.dataset.avatar;
-    let wanted = saved;
-    let saving = false;
-    let uploading = false;
-    let imageRevision = 0;
-    let syncRevision = 0;
-    let notice = '';
-    let uploadVariant = 'night';
-    // Evening pages and night-time desks show the lamp-lit scene; everything else shows daylight.
-    const variant = () => document.documentElement.dataset.edition === 'gn' ? 'night' : 'day';
-    const scene = id => sources[id][variant()];
-    // Built-in avatars also have a gently animated scene; the <source> shows it unless motion is reduced.
-    const moving = id => sources[id][variant() + 'Animated'] || '';
     let motion = image.parentElement.querySelector('source');
     if (!motion) {
       motion = document.createElement('source');
       motion.media = '(prefers-reduced-motion: no-preference)';
       image.before(motion);
     }
-    menu.id = 'avatar-picker-' + index;
-    toggle.setAttribute('aria-controls', menu.id);
-    toggle.disabled = false;
+    const revision = (revisions.get(root) || 0) + 1;
+    revisions.set(root, revision);
+    root.dataset.avatar = id;
+    root.dataset.profile = sources[id].profile || '';
+    profile.src = sources[id].profile || scene(id);
+    if (image.getAttribute('src') === scene(id) && (motion.getAttribute('srcset') || '') === moving(id)) {
+      image.classList.remove('is-changing');
+      return;
+    }
+    const next = new Image();
+    next.src = moving(id) && !reduced() ? moving(id) : scene(id);
+    image.classList.add('is-changing');
+    try { await next.decode(); } catch { /* The normal image fallback remains visible. */ }
+    if (revision !== revisions.get(root)) return;
+    if (moving(id)) motion.srcset = moving(id);
+    else motion.removeAttribute('srcset');
+    image.src = scene(id);
+    image.classList.remove('is-changing');
+    if (!reduced()) {
+      image.getAnimations().forEach(animation => animation.cancel());
+      image.animate([{opacity: .4}, {opacity: 1}], {duration: 220, easing: 'ease-out'});
+    }
+  }
 
-    function updateOptions(items) {
-      if (!Array.isArray(items)) return;
-      const valid = value => /^\/api\/avatar\/image\/[a-f0-9]{64}\.png$/.test(value);
-      const custom = items.find(item => item.id === 'custom' && valid(item.day) && valid(item.night) && (item.profile === null || valid(item.profile)));
-      if (!custom) return;
-      sources.custom = custom;
-      let button = choices.find(item => item.dataset.avatarChoice === 'custom');
-      if (!button) {
-        button = document.createElement('button');
+  const strip = picker && picker.querySelector('.avatar-previews');
+  const feedback = picker && picker.querySelector('.avatar-feedback');
+  const uploads = picker ? [...picker.querySelectorAll('[data-avatar-upload]')] : [];
+  const fileInput = picker && picker.querySelector('[data-avatar-file]');
+
+  function choices() {
+    // Rebuilt only when the set of avatars changes, so keyboard focus stays put.
+    if (strip.dataset.ids !== ids.join()) {
+      strip.dataset.ids = ids.join();
+      strip.replaceChildren(...ids.map(id => {
+        const button = document.createElement('button');
         button.type = 'button';
         button.className = 'avatar-preview';
         button.setAttribute('role', 'option');
-        button.dataset.avatarChoice = 'custom';
-        button.append(document.createElement('img'), document.createElement('span'));
-        button.querySelector('img').alt = '';
-        button.querySelector('img').width = button.querySelector('img').height = 72;
-        button.querySelector('span').textContent = '5';
-        button.addEventListener('click', () => choose('custom'));
-        strip.append(button);
-        choices.push(button);
-        ids.push('custom');
-      }
-      button.setAttribute('aria-label', t('Avatar {number}', {number: 5}));
+        button.dataset.avatarChoice = id;
+        const preview = document.createElement('img');
+        preview.alt = '';
+        preview.width = preview.height = 72;
+        preview.loading = 'lazy';
+        button.append(preview);
+        button.addEventListener('click', () => choose(id));
+        return button;
+      }));
     }
+    return [...strip.children];
+  }
 
-    function center(behavior = 'smooth') {
-      const selected = choices[ids.indexOf(wanted)];
-      strip.scrollTo({left: selected.offsetLeft - strip.offsetLeft - (strip.clientWidth - selected.clientWidth) / 2,
-        behavior: reduced() ? 'auto' : behavior});
-    }
+  function render() {
+    if (!wanted || !sources[wanted]) return;
+    displays.forEach(root => showImage(root, wanted));
+    if (!picker) return;
+    choices().forEach((button, index) => {
+      const id = button.dataset.avatarChoice;
+      const selected = id === wanted;
+      button.setAttribute('aria-selected', String(selected));
+      button.setAttribute('aria-label', t('Avatar {number}', {number: index + 1}));
+      button.tabIndex = selected ? 0 : -1;
+      button.disabled = uploading;
+      const preview = button.querySelector('img');
+      if (preview.getAttribute('src') !== scene(id)) preview.src = scene(id);
+    });
+    uploads.forEach(button => { button.disabled = saving || uploading; });
+    feedback.textContent = notice ? t(notice) : uploading ? t('Uploading avatar…') : saving ? t('Saving avatar…') : '';
+    feedback.classList.toggle('is-error', Boolean(notice));
+    picker.setAttribute('aria-busy', String(saving || uploading));
+    picker.hidden = false;
+  }
 
-    async function showImage(id) {
-      const revision = ++imageRevision;
-      root.dataset.profile = sources[id].profile || '';
-      profile.src = sources[id].profile || scene(id);
-      if (image.getAttribute('src') === scene(id) && (motion.getAttribute('srcset') || '') === moving(id)) {
-        image.classList.remove('is-changing');
-        return;
-      }
-      const next = new Image();
-      next.src = moving(id) && !reduced() ? moving(id) : scene(id);
-      image.classList.add('is-changing');
-      try { await next.decode(); } catch { /* The normal image fallback remains visible. */ }
-      if (revision !== imageRevision) return;
-      if (moving(id)) motion.srcset = moving(id);
-      else motion.removeAttribute('srcset');
-      image.src = scene(id);
-      image.classList.remove('is-changing');
-      if (!reduced()) {
-        image.getAnimations().forEach(animation => animation.cancel());
-        image.animate([{opacity: .4}, {opacity: 1}], {duration: 220, easing: 'ease-out'});
-      }
-    }
-
-    function render() {
-      root.dataset.avatar = wanted;
-      choices.forEach(button => {
-        const selected = button.dataset.avatarChoice === wanted;
-        button.setAttribute('aria-selected', String(selected));
-        button.tabIndex = selected ? 0 : -1;
-        button.disabled = uploading;
-        const preview = button.querySelector('img');
-        if (preview.getAttribute('src') !== scene(button.dataset.avatarChoice)) preview.src = scene(button.dataset.avatarChoice);
-      });
-      uploads.forEach(button => { button.disabled = saving || uploading; });
-      feedback.textContent = t(notice || (uploading ? 'Uploading avatar…' : saving ? 'Saving avatar…' : 'Avatar {current} of {total}'),
-        {current: ids.indexOf(wanted) + 1, total: ids.length});
-      feedback.classList.toggle('is-error', Boolean(notice));
-      root.setAttribute('aria-busy', String(saving || uploading));
-      showImage(wanted);
-      if (!menu.hidden) center();
-    }
-
-    function close(returnFocus = false) {
-      menu.hidden = true;
-      toggle.setAttribute('aria-expanded', 'false');
-      if (returnFocus) toggle.focus({preventScroll: true});
-    }
-
-    function open() {
-      menu.hidden = false;
-      menu.classList.remove('is-above');
-      const frame = root.querySelector('.avatar-frame').getBoundingClientRect();
-      menu.classList.toggle('is-above', innerHeight - frame.bottom < menu.offsetHeight + 16 && frame.top > menu.offsetHeight + 16);
-      toggle.setAttribute('aria-expanded', 'true');
-      center('auto');
-      choices[ids.indexOf(wanted)].focus({preventScroll: true});
-    }
-
-    async function persist() {
-      if (saving || saved === wanted) return;
-      saving = true;
-      render();
-      try {
-        while (saved !== wanted) {
-          const requested = wanted;
-          const response = await fetch('/api/avatar', {method: 'POST', headers: {'Content-Type': 'application/json', 'X-Briefing-CSRF': csrf},
-            body: JSON.stringify({avatar: requested}), credentials: 'same-origin', cache: 'no-store'});
-          if (response.status === 401) { location.replace('/login'); throw new Error('Sign-in required'); }
-          const result = await goodmorningJSON(response);
-          if (!response.ok || !ids.includes(result.avatar)) throw new Error('Avatar save failed');
-          saved = result.avatar;
-          if (wanted === requested) wanted = saved;
-        }
-      } catch {
-        wanted = saved;
-        notice = 'Avatar could not be saved. Try again.';
-      } finally {
-        saving = false;
-        render();
-      }
-    }
-
-    function choose(id) {
-      if (uploading || !ids.includes(id)) return;
-      syncRevision++;
-      wanted = id;
-      notice = '';
-      render();
-      persist();
-    }
-
-    function step(delta) {
-      choose(ids[(ids.indexOf(wanted) + delta + ids.length) % ids.length]);
-    }
-
-    async function sync() {
-      if (saving || uploading || document.hidden) return;
-      const revision = syncRevision;
-      try {
-        const response = await fetch('/api/avatar', {cache: 'no-store', credentials: 'same-origin'});
-        if (!response.ok) return;
+  async function persist() {
+    if (saving || saved === wanted) return;
+    saving = true;
+    render();
+    try {
+      while (saved !== wanted) {
+        const requested = wanted;
+        const response = await fetch('/api/avatar', {method: 'POST', headers: {'Content-Type': 'application/json', 'X-Briefing-CSRF': csrf},
+          body: JSON.stringify({avatar: requested}), credentials: 'same-origin', cache: 'no-store'});
+        if (response.status === 401) { location.replace('/login'); throw new Error('Sign-in required'); }
         const result = await goodmorningJSON(response);
-        if (revision !== syncRevision || saving || uploading) return;
-        updateOptions(result.avatars);
-        if (!ids.includes(result.avatar)) return;
-        saved = wanted = result.avatar;
-        render();
-      } catch { /* Keep the visible avatar during an outage. */ }
+        if (!response.ok || !ids.includes(result.avatar)) throw new Error('Avatar save failed');
+        saved = result.avatar;
+        if (wanted === requested) wanted = saved;
+      }
+    } catch {
+      wanted = saved;
+      notice = 'Avatar could not be saved. Try again.';
+    } finally {
+      saving = false;
+      render();
     }
+  }
 
-    toggle.addEventListener('click', () => menu.hidden ? open() : close());
+  function choose(id) {
+    if (uploading || !ids.includes(id)) return;
+    syncRevision++;
+    wanted = id;
+    notice = '';
+    render();
+    persist();
+  }
+
+  async function sync() {
+    if (saving || uploading || document.hidden) return;
+    const revision = syncRevision;
+    try {
+      const response = await fetch('/api/avatar', {cache: 'no-store', credentials: 'same-origin'});
+      if (!response.ok) return;
+      const result = await goodmorningJSON(response);
+      if (revision !== syncRevision || saving || uploading) return;
+      updateOptions(result.avatars);
+      if (!ids.includes(result.avatar)) return;
+      saved = wanted = result.avatar;
+      render();
+    } catch { /* Keep the visible avatar during an outage. */ }
+  }
+
+  if (picker) {
     uploads.forEach(button => button.addEventListener('click', () => { uploadVariant = button.dataset.avatarUpload; fileInput.click(); }));
     fileInput.addEventListener('change', async () => {
       const file = fileInput.files[0];
@@ -215,25 +198,22 @@
         render();
       }
     });
-    root.querySelector('[data-avatar-prev]').addEventListener('click', () => step(-1));
-    root.querySelector('[data-avatar-next]').addEventListener('click', () => step(1));
-    choices.forEach(button => button.addEventListener('click', () => choose(button.dataset.avatarChoice)));
-    menu.addEventListener('keydown', event => {
-      if (event.key === 'Escape') { event.preventDefault(); close(true); }
+    strip.addEventListener('keydown', event => {
       if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key) || !event.target.matches('[data-avatar-choice]')) return;
       event.preventDefault();
-      if (event.key === 'Home' || event.key === 'End') choose(ids[event.key === 'Home' ? 0 : ids.length - 1]);
-      else step(event.key === 'ArrowRight' ? 1 : -1);
-      choices[ids.indexOf(wanted)].focus({preventScroll: true});
+      const index = ids.indexOf(wanted);
+      choose(ids[event.key === 'Home' ? 0 : event.key === 'End' ? ids.length - 1
+        : (index + (event.key === 'ArrowRight' ? 1 : -1) + ids.length) % ids.length]);
+      strip.children[ids.indexOf(wanted)].focus({preventScroll: true});
     });
-    document.addEventListener('pointerdown', event => { if (!root.contains(event.target)) close(); });
-    root.addEventListener('focusout', event => { if (event.relatedTarget && !root.contains(event.relatedTarget)) close(); });
-    document.addEventListener('website:language', render);
-    new MutationObserver(render).observe(document.documentElement, {attributes: true, attributeFilter: ['data-edition']});
     document.addEventListener('website:before-refresh', event => { if (saving || uploading) event.preventDefault(); });
-    document.addEventListener('secretary:avatar', () => { if (!saving) sync(); });
-    document.addEventListener('visibilitychange', () => { if (!document.hidden) sync(); });
-    window.addEventListener('focus', sync);
-    render();
-  });
+  }
+  document.addEventListener('website:language', render);
+  new MutationObserver(render).observe(document.documentElement, {attributes: true, attributeFilter: ['data-edition']});
+  document.addEventListener('secretary:avatar', () => { if (!saving) sync(); });
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) sync(); });
+  window.addEventListener('focus', sync);
+  // Pages without a portrait learn the avatars from the server before the picker appears.
+  if (picker) sync();
+  render();
 })();
