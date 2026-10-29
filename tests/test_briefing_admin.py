@@ -56,11 +56,12 @@ class AdminTests(unittest.TestCase):
         class Capture(QuickServer):
             def __init__(server,*args,**kwargs):
                 super().__init__(*args,**kwargs); captured['server']=server
-        with patch('goodmorning.web.briefing_server.ThreadingHTTPServer',Capture), patch('builtins.print'):
+        with patch('goodmorning.web.briefing_server.ThreadingHTTPServer',Capture), patch('builtins.print') as quiet:
             threading.Thread(target=serve_live,args=(BrowserApp(runtime,MockChamber(runtime)),0),
                              kwargs={'gateway_key':key,'public_origins':('https://gm.example',)},daemon=True).start()
+            # Wait for the viewer's startup line too, or it can land in the captured CLI output below.
             for _ in range(100):
-                if 'server' in captured: break
+                if quiet.called: break
                 time.sleep(.02)
         server=captured['server']; self.addCleanup(server.shutdown)
         identifier=self.store.administer('test-user',enabled=True)
