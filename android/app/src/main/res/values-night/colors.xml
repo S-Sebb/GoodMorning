@@ -13,9 +13,7 @@
     <color name="preview_line">#2D3D59</color>
     <color name="preview_wash">#1B2A44</color>
     <color name="preview_paper">#0D172B</color>
-    <!-- The card colors over the scenery, as Widgets.WASH covers it. -->
-    <color name="preview_scene_wash">#96111C32</color>
-    <color name="preview_scene_paper_wash">#960D172B</color>
+    <color name="preview_glass">#C7111C32</color>
     <item name="preview_art" type="drawable">@drawable/art_night_starry</item>
     <color name="preview_bubble">#16233D</color>
     <color name="preview_bubble_line">#2D3D59</color>
@@ -25,8 +23,11 @@
     <color name="preview_note_back">#655C47</color>
     <color name="preview_temperature">#A2CDE9</color>
     <color name="preview_temperature_tile">#203345</color>
+    <color name="preview_temperature_glass">#C7203345</color>
     <color name="preview_rain">#C8B9EA</color>
     <color name="preview_rain_tile">#2B2B43</color>
+    <color name="preview_rain_glass">#C72B2B43</color>
     <color name="preview_air">#AED4B7</color>
     <color name="preview_air_tile">#23392F</color>
+    <color name="preview_air_glass">#C723392F</color>
 </resources>

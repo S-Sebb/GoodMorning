@@ -12,6 +12,7 @@ import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.BitmapShader;
 import android.graphics.Canvas;
+import android.graphics.Color;
 import android.graphics.Matrix;
 import android.graphics.Paint;
 import android.graphics.Shader;
@@ -391,9 +392,6 @@ public abstract class Widgets extends AppWidgetProvider {
                 new Intent(context, activity).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK), PendingIntent.FLAG_IMMUTABLE);
     }
 
-    /** How much of the card's own color covers the scenery, so text on it stays readable. */
-    private static final int WASH = 150;
-
     /** The rounded card with its 1dp border, both in this phone's colors, over the scheme's scenery where it has some. */
     static void card(Context context, RemoteViews views, Palette.Schemes schemes, int id, Palette.Pick border, Palette.Pick fill) {
         Palette.tint(views, schemes, R.id.card_border, border);
@@ -403,6 +401,8 @@ public abstract class Widgets extends AppWidgetProvider {
             return;
         }
         int[] size = size(context, id);
+        // A widget redraw reapplies to the same view, so drop the flat color a previous scheme left on the image.
+        views.setInt(R.id.card_fill, "setColorFilter", Color.TRANSPARENT);
         if (schemes.dark == null) {
             views.setIcon(R.id.card_fill, "setImageIcon", Icon.createWithBitmap(scene(context, schemes.day, fill, size)),
                     Icon.createWithBitmap(scene(context, schemes.night, fill, size)));
@@ -411,14 +411,17 @@ public abstract class Widgets extends AppWidgetProvider {
         }
     }
 
-    /** The card's fill over the scheme's scenery, as the website's page background, with the card's rounded corners. */
+    /**
+     * The scheme's scenery at full strength, as the website's page background, or the card's fill on flat schemes,
+     * with the card's rounded corners. Rows carry their own see-through cards over the scenery (round_glass).
+     */
     private static Bitmap scene(Context context, Palette palette, Palette.Pick fill, int[] size) {
         float density = context.getResources().getDisplayMetrics().density, scale = Math.min(density, 2f);
         int width = Math.round((size[0] - 2) * scale), height = Math.round((size[1] - 2) * scale);  // Inside the 1dp border.
         Bitmap content = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
         Canvas canvas = new Canvas(content);
-        int color = fill.from(palette);
-        if (palette.scene != 0) {
+        if (palette.scene == 0) canvas.drawColor(fill.from(palette));
+        else {
             // The scene covers the card and shows its own part of its height, as the website anchors it.
             Bitmap art = BitmapFactory.decodeResource(context.getResources(), palette.scene);
             float zoom = Math.max((float) width / art.getWidth(), (float) height / art.getHeight());
@@ -427,9 +430,7 @@ public abstract class Widgets extends AppWidgetProvider {
             place.postTranslate((width - art.getWidth() * zoom) / 2, (height - art.getHeight() * zoom) * palette.sceneAt);
             canvas.drawBitmap(art, place, new Paint(Paint.FILTER_BITMAP_FLAG));
             art.recycle();
-            color = color & 0xFFFFFF | WASH << 24;
         }
-        canvas.drawColor(color);
         Bitmap card = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
         Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
         paint.setShader(new BitmapShader(content, Shader.TileMode.CLAMP, Shader.TileMode.CLAMP));
@@ -469,8 +470,10 @@ public abstract class Widgets extends AppWidgetProvider {
         Palette.tint(views, schemes, R.id.refresh, p -> p.muted);
         Palette.text(views, schemes, R.id.label, p -> p.muted);
         Palette.text(views, schemes, R.id.title, p -> p.ink);
-        Palette.text(views, schemes, R.id.empty, p -> p.muted);
-        Palette.text(views, schemes, R.id.link, p -> p.ink);
+        Palette.text(views, schemes, R.id.empty_text, p -> p.muted);
+        Palette.text(views, schemes, R.id.link_text, p -> p.ink);
+        Palette.tint(views, schemes, R.id.empty_fill, p -> p.surface);
+        Palette.tint(views, schemes, R.id.link_fill, p -> p.surface);
         views.setContentDescription(R.id.refresh, context.getString(R.string.widget_refresh));
 
         JSONObject schedule = Sync.cached(context).optJSONObject("schedule");
@@ -488,7 +491,7 @@ public abstract class Widgets extends AppWidgetProvider {
         views.setViewVisibility(R.id.list, linked ? View.VISIBLE : View.GONE);
         views.setViewVisibility(R.id.refresh, linked ? View.VISIBLE : View.GONE);
         views.setViewVisibility(R.id.link, linked ? View.GONE : View.VISIBLE);
-        views.setTextViewText(R.id.link, context.getString(R.string.widget_link));
+        views.setTextViewText(R.id.link_text, context.getString(R.string.widget_link));
         if (!linked) {
             views.setOnClickPendingIntent(R.id.root, screen(context, LinkActivity.class));
             return views;
@@ -497,7 +500,7 @@ public abstract class Widgets extends AppWidgetProvider {
                 .putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, id);
         service.setData(Uri.parse(service.toUri(Intent.URI_INTENT_SCHEME)));  // One adapter per widget.
         views.setRemoteAdapter(R.id.list, service);
-        views.setTextViewText(R.id.empty, context.getString(schedule == null ? R.string.widget_loading
+        views.setTextViewText(R.id.empty_text, context.getString(schedule == null ? R.string.widget_loading
                 : today ? R.string.widget_empty_today : R.string.widget_empty_week));
         views.setEmptyView(R.id.list, R.id.empty);
         String page = today ? "/schedule?view=day" : "/schedule";
@@ -522,6 +525,7 @@ public abstract class Widgets extends AppWidgetProvider {
         Palette.text(views, schemes, R.id.label, p -> p.muted);
         Palette.text(views, schemes, R.id.title, p -> p.ink);
         Palette.text(views, schemes, R.id.empty_text, p -> p.muted);
+        Palette.tint(views, schemes, R.id.empty_fill, p -> p.surface);
         Palette.tint(views, schemes, R.id.generate_fill, p -> p.ink);
         Palette.text(views, schemes, R.id.generate_text, p -> p.surface);
         views.setContentDescription(R.id.refresh, context.getString(R.string.widget_refresh));
@@ -607,7 +611,8 @@ public abstract class Widgets extends AppWidgetProvider {
         Palette.tint(views, schemes, R.id.refresh, p -> p.muted);
         Palette.text(views, schemes, R.id.label, p -> p.muted);
         Palette.text(views, schemes, R.id.title, p -> p.ink);
-        Palette.text(views, schemes, R.id.message, p -> p.muted);
+        Palette.text(views, schemes, R.id.message_text, p -> p.muted);
+        Palette.tint(views, schemes, R.id.message_fill, p -> p.surface);
         views.setContentDescription(R.id.refresh, context.getString(R.string.widget_refresh));
         views.setViewVisibility(R.id.header, only == null ? View.VISIBLE : View.GONE);
         views.setViewVisibility(R.id.label, charts ? View.VISIBLE : View.GONE);  // The compact widget keeps one header line.
@@ -688,7 +693,7 @@ public abstract class Widgets extends AppWidgetProvider {
 
     private static void message(RemoteViews views, String text) {
         views.setViewVisibility(R.id.message, View.VISIBLE);
-        views.setTextViewText(R.id.message, text);
+        views.setTextViewText(R.id.message_text, text);
     }
 
     private static String[] periods(Context context, WeatherFrame frame) {

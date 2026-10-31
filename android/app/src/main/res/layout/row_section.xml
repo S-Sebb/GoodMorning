@@ -1,23 +1,51 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<!-- A label between rows, on a chip like the website's labels over scenery. -->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/row"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:gravity="center_vertical"
-    android:orientation="horizontal"
-    android:paddingTop="10dp"
-    android:paddingBottom="4dp">
+    android:paddingTop="8dp"
+    android:paddingBottom="3dp">
 
-    <ImageView
-        android:id="@+id/icon"
-        android:layout_width="18dp"
-        android:layout_height="18dp"
-        android:importantForAccessibility="no" />
-
-    <TextView
-        android:id="@+id/text"
+    <RelativeLayout
         android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginStart="6dp"
-        android:textSize="12sp" />
-</LinearLayout>
+        android:layout_height="wrap_content">
+
+        <ImageView
+            android:id="@+id/card_fill"
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:layout_alignStart="@+id/chip"
+            android:layout_alignTop="@+id/chip"
+            android:layout_alignEnd="@+id/chip"
+            android:layout_alignBottom="@+id/chip"
+            android:importantForAccessibility="no"
+            android:scaleType="fitXY"
+            android:src="@drawable/round_glass_pill" />
+
+        <LinearLayout
+            android:id="@+id/chip"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingStart="8dp"
+            android:paddingTop="4dp"
+            android:paddingEnd="10dp"
+            android:paddingBottom="4dp">
+
+            <ImageView
+                android:id="@+id/icon"
+                android:layout_width="18dp"
+                android:layout_height="18dp"
+                android:importantForAccessibility="no" />
+
+            <TextView
+                android:id="@+id/text"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="6dp"
+                android:textSize="12sp" />
+        </LinearLayout>
+    </RelativeLayout>
+</FrameLayout>

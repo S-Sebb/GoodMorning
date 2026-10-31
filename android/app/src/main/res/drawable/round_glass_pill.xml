@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- round_pill at round_glass's opacity, for labels over scenery. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <solid android:color="#C7FFFFFF" />
+    <corners android:radius="22dp" />
+</shape>

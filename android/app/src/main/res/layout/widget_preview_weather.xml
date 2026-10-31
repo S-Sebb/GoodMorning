@@ -8,7 +8,7 @@
     tools:ignore="HardcodedText,UseAppTint">
 
     <ImageView android:layout_width="match_parent" android:layout_height="match_parent" android:importantForAccessibility="no" android:scaleType="fitXY" android:src="@drawable/round_card" android:tint="@color/preview_line" />
-    <ImageView android:layout_width="match_parent" android:layout_height="match_parent" android:layout_margin="1dp" android:background="@drawable/round_card" android:clipToOutline="true" android:importantForAccessibility="no" android:scaleType="centerCrop" android:src="@drawable/preview_scene" />
+    <ImageView android:layout_width="match_parent" android:layout_height="match_parent" android:layout_margin="1dp" android:background="@drawable/round_card" android:clipToOutline="true" android:importantForAccessibility="no" android:scaleType="centerCrop" android:src="@drawable/preview_art" />
 
     <LinearLayout android:layout_width="match_parent" android:layout_height="match_parent" android:orientation="vertical" android:padding="10dp">
         <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginStart="6dp" android:layout_marginBottom="4dp" android:gravity="center_vertical">
@@ -19,17 +19,17 @@
             <ImageView android:layout_width="36dp" android:layout_height="36dp" android:importantForAccessibility="no" android:padding="8dp" android:src="@drawable/ic_refresh" android:tint="@color/preview_muted" />
         </LinearLayout>
         <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content">
-            <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_marginStart="3dp" android:layout_marginEnd="3dp" android:layout_weight="1" android:background="@drawable/round_card" android:backgroundTint="@color/preview_temperature_tile" android:orientation="vertical" android:padding="8dp">
+            <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_marginStart="3dp" android:layout_marginEnd="3dp" android:layout_weight="1" android:background="@drawable/round_card" android:backgroundTint="@color/preview_temperature_glass" android:orientation="vertical" android:padding="8dp">
                 <ImageView android:layout_width="16dp" android:layout_height="16dp" android:importantForAccessibility="no" android:src="@drawable/ic_thermometer" android:tint="@color/preview_temperature" />
                 <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="4dp" android:maxLines="2" android:text="14°" android:textColor="@color/preview_temperature" android:textSize="17sp" />
                 <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="2dp" android:maxLines="2" android:text="@string/preview_weather_high_low" android:textColor="@color/preview_temperature" android:textSize="11sp" />
             </LinearLayout>
-            <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_marginStart="3dp" android:layout_marginEnd="3dp" android:layout_weight="1" android:background="@drawable/round_card" android:backgroundTint="@color/preview_rain_tile" android:orientation="vertical" android:padding="8dp">
+            <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_marginStart="3dp" android:layout_marginEnd="3dp" android:layout_weight="1" android:background="@drawable/round_card" android:backgroundTint="@color/preview_rain_glass" android:orientation="vertical" android:padding="8dp">
                 <ImageView android:layout_width="16dp" android:layout_height="16dp" android:importantForAccessibility="no" android:src="@drawable/ic_rain" android:tint="@color/preview_rain" />
                 <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="4dp" android:maxLines="2" android:text="@string/preview_weather_dry_until" android:textColor="@color/preview_rain" android:textSize="17sp" />
                 <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="2dp" android:maxLines="2" android:text="@string/preview_weather_then_rain" android:textColor="@color/preview_rain" android:textSize="11sp" />
             </LinearLayout>
-            <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_marginStart="3dp" android:layout_marginEnd="3dp" android:layout_weight="1" android:background="@drawable/round_card" android:backgroundTint="@color/preview_air_tile" android:orientation="vertical" android:padding="8dp">
+            <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_marginStart="3dp" android:layout_marginEnd="3dp" android:layout_weight="1" android:background="@drawable/round_card" android:backgroundTint="@color/preview_air_glass" android:orientation="vertical" android:padding="8dp">
                 <ImageView android:layout_width="16dp" android:layout_height="16dp" android:importantForAccessibility="no" android:src="@drawable/ic_leaf" android:tint="@color/preview_air" />
                 <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="4dp" android:maxLines="2" android:text="@string/weather_aqi_good" android:textColor="@color/preview_air" android:textSize="17sp" />
                 <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="2dp" android:maxLines="2" android:text="@string/preview_weather_aqi" android:textColor="@color/preview_air" android:textSize="11sp" />

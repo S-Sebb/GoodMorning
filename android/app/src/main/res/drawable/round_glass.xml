@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- round_tile at 78% opacity: a widget's color filter keeps this alpha, so a card tinted with it lets
+     the scheme's scenery show through. On flat schemes it sits on a card of nearly the same color. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <solid android:color="#C7FFFFFF" />
+    <corners android:radius="12dp" />
+</shape>
