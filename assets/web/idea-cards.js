@@ -21,10 +21,10 @@ function showIdea(card, state) {
   if (ask) ask.hidden = state.closed;
   const actions = document.createElement('div');
   actions.className = 'idea-actions';
-  const button = ideaLabel('button', state.closed ? 'idea-undo' : 'idea-done', state.closed ? 'Undo' : 'Mark as done');
+  const button = ideaLabel('button', state.closed ? 'idea-undo' : 'idea-done', state.closed ? 'Undo' : 'Stop reminding me');
   button.type = 'button';
   button.addEventListener('click', () => saveIdea(card, button));
-  if (state.closed) actions.append(ideaLabel('span', 'idea-closed', 'Idea closed. It won’t show in your briefings anymore.'));
+  if (state.closed) actions.append(ideaLabel('span', 'idea-closed', 'You won’t be reminded of this idea again.'));
   actions.append(button);
   const error = document.createElement('p');
   error.className = 'idea-error';
