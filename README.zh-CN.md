@@ -121,7 +121,7 @@ GoodMorning 还在 **beta**。它不是独立的聊天机器人，需要：
 
 - **Linux**，以及 **Python 3.14+**，
 - 一个能访问模型的 **[OpenCode](https://opencode.ai)** 智能体
-  （英文请求用 Muse Spark，中文请求用 DeepSeek V4.1 Flash）。
+  （英文和中文请求都用 DeepSeek V4.1 Flash）。
 
 1. 按[部署指南](docs/deployment.md)安装 `goodmorning` 技能。
    浏览器查看器见[浏览器指南](docs/browser-delivery.md)；

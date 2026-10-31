@@ -181,7 +181,7 @@ def main():
     parser.add_argument("--language", required=True, choices=("en", "zh-CN"))
     args = parser.parse_args()
     output = trial_engine.private_output(parser, args.output)
-    selected = {"en": "muse-spark", "zh-CN": "deepseek-flash"}[args.language]
+    selected = models.for_language(args.language)
     day = date(2026, 10, 13)
     output.mkdir(parents=True, exist_ok=True)
     with matrix_lock(output):

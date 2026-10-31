@@ -212,8 +212,8 @@ key credential). Never display this file or copy it into public source. Account
 creation refuses missing or unsafe defaults before asking for a password or
 creating a login, and saves the configured default model for each new account.
 Existing account preferences are not rewritten. Website requests automatically
-route by website language (English: Muse Spark Contributor XHigh; Chinese:
-DeepSeek V4.1 Flash High, paid tier). The provisioning default does not override this routing;
+route by website language (English and Chinese: DeepSeek V4.1 Flash High,
+paid tier). The provisioning default does not override this routing;
 saved legacy model preferences remain intact but no longer select new requests.
 
 Before handing over an account, run the SSH-only `admin provision USERNAME` from the

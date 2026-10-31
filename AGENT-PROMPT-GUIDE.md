@@ -24,8 +24,8 @@ Write the shortest instructions that fully define the intended behavior.
   and tool behavior they describe works as written.
 - For prompts that website agents read, test only new or modified prompts, plus directly affected neighbors, in each
   website language on the model and variant that language uses in production (`for_language` in
-  `src/goodmorning/web/models.py`): today English on Muse Spark, Chinese on DeepSeek Flash. Never run cross pairs
-  (English on DeepSeek, Chinese on Muse Spark); no user can reach them. Trial scripts pick the production model
+  `src/goodmorning/web/models.py`): today both on DeepSeek V4.1 Flash High. Never run a language on a model
+  it does not use in production; no user can reach that pair. Trial scripts pick the production model
   when `--model` is omitted. Determine the changed set from the diff against its merge-base;
   do not rerun the full matrix for unchanged established prompts. Use synthetic normal, ambiguous and
   failure cases for the changed behavior; verify actual actions, outputs and the user's tone. Retest fixes

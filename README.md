@@ -126,7 +126,7 @@ GoodMorning is in **beta**. It is not a standalone chatbot: it needs
 
 - **Linux** with **Python 3.14+**,
 - an **[OpenCode](https://opencode.ai)** agent with model access
-  (English requests use Muse Spark, Chinese requests DeepSeek V4.1 Flash).
+  (English and Chinese requests use DeepSeek V4.1 Flash).
 
 1. Install the `goodmorning` skill with the [deployment guide](docs/deployment.md).
    For the browser viewer, see the [browser guide](docs/browser-delivery.md);

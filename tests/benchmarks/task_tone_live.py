@@ -141,7 +141,7 @@ def matrix_lock(output):
             fcntl.flock(lock,fcntl.LOCK_UN)
 
 
-def run_case(output, source, config, day, extended=True, selected='muse-spark', strict_chat=False):
+def run_case(output, source, config, day, extended=True, selected=models.DEFAULT, strict_chat=False):
     name = f'{config[0]}-{config[1]}-r{config[2]}'
     folder = output/name
     runtime = folder/'account'
