@@ -77,8 +77,13 @@ desk icons, the secretary's portrait and name, and the day and night color
 schemes chosen on this phone (`Palette`, copied from `assets/web/color-schemes.css`).
 A scheme with scenery (Morning Sky, First Light, Starry, City Lights, Grass Block,
 Picnic) draws it behind the Today's schedule, Week schedule, Secretary chat,
-Briefings, News, Weather and Weather details cards, under a wash of the card's
-color so text stays readable (`Widgets.scene`). The scenery images in
+Briefings, News, Weather and Weather details cards at full strength, as the
+website's page background (`Widgets.scene`). Rows, news stories, weather tiles and
+messages sit on their own cards at 78% opacity (`round_glass`, tinted like any
+widget color), so text stays readable and the art still shows through; short
+labels sit on chips, like the website's labels over scenery. On flat schemes the
+cards match the widget's color, except news stories and week days in the wash
+color. The scenery images in
 `drawable-nodpi/art_*` are screenshots of each scheme's website background in a
 420×900 viewport at 2× (lossless WebP for the pixel-art schemes); retake them when
 that artwork changes. Single-topic weather cards keep their tile color.
@@ -101,7 +106,7 @@ widgets use the account's earlier choice.
 
 The launcher's widget list shows each widget's `widget_preview_*` layout: the
 real layout filled with a sample Thursday, in the default Morning Sky and Starry
-schemes with their scenery (`preview_scene`), switched with dark mode. Their hourly charts are `WeatherChart` layers
+schemes with their scenery (`preview_art`) and see-through cards (`preview_glass`), switched with dark mode. Their hourly charts are `WeatherChart` layers
 saved as `drawable-nodpi/preview_chart_*` (axis layers with period names also in
 `drawable-zh-rCN-nodpi`). A change to a widget's look needs the same change in
 its preview.

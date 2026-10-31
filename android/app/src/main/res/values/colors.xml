@@ -18,9 +18,8 @@
     <color name="preview_line">#CFDAE0</color>
     <color name="preview_wash">#E5EEF3</color>
     <color name="preview_paper">#F3F8F9</color>
-    <!-- The card colors over the scenery, as Widgets.WASH covers it. -->
-    <color name="preview_scene_wash">#96FFFDF7</color>
-    <color name="preview_scene_paper_wash">#96F3F8F9</color>
+    <!-- Cards over the scenery, see-through as Palette.glass draws them. -->
+    <color name="preview_glass">#C7FFFDF7</color>
     <item name="preview_art" type="drawable">@drawable/art_day_morning_sky</item>
     <color name="preview_bubble">#FFFDF7</color>
     <color name="preview_bubble_line">#CFDAE0</color>
@@ -30,8 +29,11 @@
     <color name="preview_note_back">#E5D0A2</color>
     <color name="preview_temperature">#316D97</color>
     <color name="preview_temperature_tile">#EDF4F8</color>
+    <color name="preview_temperature_glass">#C7EDF4F8</color>
     <color name="preview_rain">#706392</color>
     <color name="preview_rain_tile">#F1EEF8</color>
+    <color name="preview_rain_glass">#C7F1EEF8</color>
     <color name="preview_air">#387559</color>
     <color name="preview_air_tile">#EDF5EE</color>
+    <color name="preview_air_glass">#C7EDF5EE</color>
 </resources>

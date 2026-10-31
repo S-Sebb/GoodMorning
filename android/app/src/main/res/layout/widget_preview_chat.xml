@@ -8,7 +8,7 @@
     tools:ignore="UseAppTint">
 
     <ImageView android:layout_width="match_parent" android:layout_height="match_parent" android:importantForAccessibility="no" android:scaleType="fitXY" android:src="@drawable/round_card" android:tint="@color/preview_border" />
-    <ImageView android:layout_width="match_parent" android:layout_height="match_parent" android:layout_margin="1dp" android:background="@drawable/round_card" android:clipToOutline="true" android:importantForAccessibility="no" android:scaleType="centerCrop" android:src="@drawable/preview_scene_paper" />
+    <ImageView android:layout_width="match_parent" android:layout_height="match_parent" android:layout_margin="1dp" android:background="@drawable/round_card" android:clipToOutline="true" android:importantForAccessibility="no" android:scaleType="centerCrop" android:src="@drawable/preview_art" />
 
     <LinearLayout android:layout_width="match_parent" android:layout_height="match_parent" android:orientation="vertical" android:padding="14dp">
         <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center_vertical">

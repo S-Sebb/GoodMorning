@@ -94,21 +94,73 @@
             android:paddingTop="4dp"
             android:scrollbars="none" />
 
-        <TextView
+        <!-- Messages instead of the list sit on a card, readable over scenery. -->
+        <FrameLayout
             android:id="@+id/empty"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:gravity="center"
-            android:textSize="13sp"
-            android:visibility="gone" />
+            android:paddingEnd="6dp"
+            android:visibility="gone">
 
-        <TextView
+            <RelativeLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center">
+
+                <ImageView
+                    android:id="@+id/empty_fill"
+                    android:layout_width="0dp"
+                    android:layout_height="0dp"
+                    android:layout_alignStart="@+id/empty_text"
+                    android:layout_alignTop="@id/empty_text"
+                    android:layout_alignEnd="@id/empty_text"
+                    android:layout_alignBottom="@id/empty_text"
+                    android:importantForAccessibility="no"
+                    android:scaleType="fitXY"
+                    android:src="@drawable/round_glass" />
+
+                <TextView
+                    android:id="@+id/empty_text"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:gravity="center"
+                    android:padding="10dp"
+                    android:textSize="13sp" />
+            </RelativeLayout>
+        </FrameLayout>
+
+        <FrameLayout
             android:id="@+id/link"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:gravity="center"
             android:paddingEnd="6dp"
-            android:textSize="13sp"
-            android:visibility="gone" />
+            android:visibility="gone">
+
+            <RelativeLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center">
+
+                <ImageView
+                    android:id="@+id/link_fill"
+                    android:layout_width="0dp"
+                    android:layout_height="0dp"
+                    android:layout_alignStart="@+id/link_text"
+                    android:layout_alignTop="@id/link_text"
+                    android:layout_alignEnd="@id/link_text"
+                    android:layout_alignBottom="@id/link_text"
+                    android:importantForAccessibility="no"
+                    android:scaleType="fitXY"
+                    android:src="@drawable/round_glass" />
+
+                <TextView
+                    android:id="@+id/link_text"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:gravity="center"
+                    android:padding="10dp"
+                    android:textSize="13sp" />
+            </RelativeLayout>
+        </FrameLayout>
     </LinearLayout>
 </FrameLayout>

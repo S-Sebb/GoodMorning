@@ -1,28 +1,49 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- A news category, like the website's: an accent label with a rule after it. -->
+<!-- A news category, like the website's: an accent label with a rule after it, the label on a chip over scenery. -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/row"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:gravity="center_vertical"
     android:orientation="horizontal"
-    android:paddingTop="14dp"
-    android:paddingBottom="4dp">
+    android:paddingTop="10dp"
+    android:paddingBottom="3dp">
 
-    <TextView
-        android:id="@+id/text"
+    <RelativeLayout
         android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:letterSpacing="0.12"
-        android:maxLines="1"
-        android:textSize="11sp"
-        android:textStyle="bold" />
+        android:layout_height="wrap_content">
+
+        <ImageView
+            android:id="@+id/card_fill"
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:layout_alignStart="@+id/text"
+            android:layout_alignTop="@id/text"
+            android:layout_alignEnd="@id/text"
+            android:layout_alignBottom="@id/text"
+            android:importantForAccessibility="no"
+            android:scaleType="fitXY"
+            android:src="@drawable/round_glass_pill" />
+
+        <TextView
+            android:id="@+id/text"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:letterSpacing="0.12"
+            android:maxLines="1"
+            android:paddingStart="8dp"
+            android:paddingTop="3dp"
+            android:paddingEnd="8dp"
+            android:paddingBottom="3dp"
+            android:textSize="11sp"
+            android:textStyle="bold" />
+    </RelativeLayout>
 
     <ImageView
         android:id="@+id/rule"
         android:layout_width="0dp"
         android:layout_height="1dp"
-        android:layout_marginStart="10dp"
+        android:layout_marginStart="6dp"
         android:layout_weight="1"
         android:importantForAccessibility="no"
         android:scaleType="fitXY"

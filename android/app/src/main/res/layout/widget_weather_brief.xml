@@ -14,7 +14,7 @@
         android:layout_height="match_parent"
         android:importantForAccessibility="no"
         android:scaleType="fitXY"
-        android:src="@drawable/round_card" />
+        android:src="@drawable/round_glass_card" />
 
     <LinearLayout
         android:layout_width="match_parent"

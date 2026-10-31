@@ -167,12 +167,30 @@
             android:paddingEnd="6dp"
             android:visibility="gone">
 
-            <TextView
-                android:id="@+id/empty_text"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:gravity="center"
-                android:textSize="13sp" />
+            <RelativeLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content">
+
+                <ImageView
+                    android:id="@+id/empty_fill"
+                    android:layout_width="0dp"
+                    android:layout_height="0dp"
+                    android:layout_alignStart="@+id/empty_text"
+                    android:layout_alignTop="@id/empty_text"
+                    android:layout_alignEnd="@id/empty_text"
+                    android:layout_alignBottom="@id/empty_text"
+                    android:importantForAccessibility="no"
+                    android:scaleType="fitXY"
+                    android:src="@drawable/round_glass" />
+
+                <TextView
+                    android:id="@+id/empty_text"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:gravity="center"
+                    android:padding="10dp"
+                    android:textSize="13sp" />
+            </RelativeLayout>
 
             <FrameLayout
                 android:id="@+id/generate"

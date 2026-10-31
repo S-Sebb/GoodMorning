@@ -1,25 +1,39 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/row"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:orientation="horizontal"
-    android:paddingTop="4dp"
-    android:paddingBottom="4dp">
+    android:paddingTop="3dp"
+    android:paddingBottom="3dp">
 
-    <TextView
-        android:id="@+id/mark"
-        android:layout_width="22dp"
+    <ImageView
+        android:id="@+id/card_fill"
+        android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:textSize="13sp"
-        android:textStyle="bold" />
+        android:importantForAccessibility="no"
+        android:scaleType="fitXY"
+        android:src="@drawable/round_glass" />
 
-    <TextView
-        android:id="@+id/text"
-        android:layout_width="0dp"
+    <LinearLayout
+        android:padding="8dp"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_weight="1"
-        android:ellipsize="end"
-        android:maxLines="2"
-        android:textSize="14sp" />
-</LinearLayout>
+        android:orientation="horizontal">
+
+        <TextView
+            android:id="@+id/mark"
+            android:layout_width="22dp"
+            android:layout_height="match_parent"
+            android:textSize="13sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/text"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:ellipsize="end"
+            android:maxLines="2"
+            android:textSize="14sp" />
+    </LinearLayout>
+</FrameLayout>

@@ -8,7 +8,7 @@
     tools:ignore="HardcodedText,UseAppTint">
 
     <ImageView android:layout_width="match_parent" android:layout_height="match_parent" android:importantForAccessibility="no" android:scaleType="fitXY" android:src="@drawable/round_card" android:tint="@color/preview_line" />
-    <ImageView android:layout_width="match_parent" android:layout_height="match_parent" android:layout_margin="1dp" android:background="@drawable/round_card" android:clipToOutline="true" android:importantForAccessibility="no" android:scaleType="centerCrop" android:src="@drawable/preview_scene" />
+    <ImageView android:layout_width="match_parent" android:layout_height="match_parent" android:layout_margin="1dp" android:background="@drawable/round_card" android:clipToOutline="true" android:importantForAccessibility="no" android:scaleType="centerCrop" android:src="@drawable/preview_art" />
 
     <LinearLayout android:layout_width="match_parent" android:layout_height="match_parent" android:orientation="vertical" android:padding="10dp">
         <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginStart="6dp" android:layout_marginBottom="4dp" android:gravity="center_vertical">
@@ -19,7 +19,7 @@
             </LinearLayout>
             <ImageView android:layout_width="36dp" android:layout_height="36dp" android:importantForAccessibility="no" android:padding="8dp" android:src="@drawable/ic_refresh" android:tint="@color/preview_muted" />
         </LinearLayout>
-        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="6dp" android:background="@drawable/round_card" android:backgroundTint="@color/preview_temperature_tile" android:gravity="center_vertical" android:padding="10dp">
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="6dp" android:background="@drawable/round_card" android:backgroundTint="@color/preview_temperature_glass" android:gravity="center_vertical" android:padding="10dp">
             <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="2" android:orientation="vertical">
                 <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center_vertical">
                     <ImageView android:layout_width="14dp" android:layout_height="14dp" android:importantForAccessibility="no" android:src="@drawable/ic_thermometer" android:tint="@color/preview_temperature" />
@@ -33,7 +33,7 @@
                 <ImageView android:layout_width="match_parent" android:layout_height="wrap_content" android:adjustViewBounds="true" android:importantForAccessibility="no" android:scaleType="fitXY" android:src="@drawable/preview_chart_row_temperature" android:tint="@color/preview_temperature" />
             </FrameLayout>
         </LinearLayout>
-        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="6dp" android:background="@drawable/round_card" android:backgroundTint="@color/preview_rain_tile" android:gravity="center_vertical" android:padding="10dp">
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="6dp" android:background="@drawable/round_card" android:backgroundTint="@color/preview_rain_glass" android:gravity="center_vertical" android:padding="10dp">
             <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="2" android:orientation="vertical">
                 <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center_vertical">
                     <ImageView android:layout_width="14dp" android:layout_height="14dp" android:importantForAccessibility="no" android:src="@drawable/ic_rain" android:tint="@color/preview_rain" />
@@ -47,7 +47,7 @@
                 <ImageView android:layout_width="match_parent" android:layout_height="wrap_content" android:adjustViewBounds="true" android:importantForAccessibility="no" android:scaleType="fitXY" android:src="@drawable/preview_chart_row_rain" android:tint="@color/preview_rain" />
             </FrameLayout>
         </LinearLayout>
-        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="6dp" android:background="@drawable/round_card" android:backgroundTint="@color/preview_air_tile" android:gravity="center_vertical" android:padding="10dp">
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="6dp" android:background="@drawable/round_card" android:backgroundTint="@color/preview_air_glass" android:gravity="center_vertical" android:padding="10dp">
             <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="2" android:orientation="vertical">
                 <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center_vertical">
                     <ImageView android:layout_width="14dp" android:layout_height="14dp" android:importantForAccessibility="no" android:src="@drawable/ic_leaf" android:tint="@color/preview_air" />

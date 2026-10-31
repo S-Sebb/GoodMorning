@@ -65,7 +65,7 @@ public class ListService extends RemoteViewsService {
             if (events.length() == 0 && tasks.length() == 0) return;  // The empty view says so.
             for (int i = 0; i < events.length(); i++) {
                 JSONObject event = events.optJSONObject(i);
-                RemoteViews row = view(R.layout.row_event, page);
+                RemoteViews row = card(R.layout.row_event, page);
                 Palette.tint(row, schemes, R.id.bar, event.optBoolean("tbc") ? (p -> p.line) : (p -> p.accent));
                 Palette.text(row, schemes, R.id.time, p -> p.accent);
                 Palette.text(row, schemes, R.id.text, p -> p.ink);
@@ -81,7 +81,7 @@ public class ListService extends RemoteViewsService {
             for (int i = 0; i < tasks.length(); i++) {
                 JSONObject task = tasks.optJSONObject(i);
                 boolean done = task.optBoolean("done");
-                RemoteViews row = view(R.layout.row_todo, page);
+                RemoteViews row = card(R.layout.row_todo, page);
                 Palette.text(row, schemes, R.id.mark, p -> p.accent);
                 Palette.text(row, schemes, R.id.text, done ? (p -> p.muted) : (p -> p.ink));
                 row.setTextViewText(R.id.mark, done ? "✓" : "○");
@@ -100,10 +100,10 @@ public class ListService extends RemoteViewsService {
 
         private void day(JSONObject day, int offset) {
             String page = "/schedule?view=day&day=" + offset;
+            // On flat schemes the days' cards take the wash color, so they still stand apart.
             RemoteViews row = view(R.layout.row_day, page);
+            Palette.tint(row, schemes, R.id.card_fill, p -> p.scene == 0 ? p.wash : p.surface);
             String date = day.optString("date");
-            row.setViewVisibility(R.id.divider, offset == 0 ? View.GONE : View.VISIBLE);
-            Palette.tint(row, schemes, R.id.divider, p -> p.line);
             // Today's date sits in a filled circle, as in the website's week header.
             Palette.tint(row, schemes, R.id.circle, offset == 0 ? (p -> p.ink) : (p -> p.surface));
             Palette.text(row, schemes, R.id.number, offset == 0 ? (p -> p.surface) : (p -> p.ink));
@@ -158,14 +158,15 @@ public class ListService extends RemoteViewsService {
                     JSONObject item = items.optJSONObject(j);
                     String style = item.optString("style");
                     if ("heading".equals(style)) {
-                        RemoteViews row = view(R.layout.row_category, page);
+                        RemoteViews row = card(R.layout.row_category, page);
                         row.setTextViewText(R.id.text, item.optString("title").toUpperCase(Language.of(context)));
                         Palette.text(row, schemes, R.id.text, p -> p.accent);
                         Palette.tint(row, schemes, R.id.rule, p -> p.line);
                         rows.add(row);
                     } else if ("story".equals(style)) {
                         RemoteViews row = view(R.layout.row_story, page);
-                        Palette.tint(row, schemes, R.id.card_fill, p -> p.wash);
+                        // Flat schemes set stories apart from the card in its wash color, as before.
+                        Palette.tint(row, schemes, R.id.card_fill, p -> p.scene == 0 ? p.wash : p.surface);
                         Palette.text(row, schemes, R.id.title, p -> p.ink);
                         Palette.text(row, schemes, R.id.text, p -> p.muted);
                         Palette.text(row, schemes, R.id.source, p -> p.accent);
@@ -177,7 +178,7 @@ public class ListService extends RemoteViewsService {
                     } else if ("text".equals(style)) {
                         paragraph(item.optString("text"), page);
                     } else {
-                        RemoteViews row = view(R.layout.row_item, page);
+                        RemoteViews row = card(R.layout.row_item, page);
                         Palette.text(row, schemes, R.id.side, p -> p.accent);
                         Palette.text(row, schemes, R.id.title, p -> p.ink);
                         Palette.text(row, schemes, R.id.text, p -> p.muted);
@@ -192,7 +193,7 @@ public class ListService extends RemoteViewsService {
         }
 
         private void heading(String title, String note, String page) {
-            RemoteViews row = view(R.layout.row_heading, page);
+            RemoteViews row = card(R.layout.row_heading, page);
             Palette.text(row, schemes, R.id.title, p -> p.ink);
             Palette.text(row, schemes, R.id.text, p -> p.muted);
             shown(row, R.id.title, title);
@@ -201,9 +202,9 @@ public class ListService extends RemoteViewsService {
         }
 
         private void paragraph(String text, String page) {
-            RemoteViews row = view(R.layout.row_text, page);
-            Palette.text(row, schemes, R.id.row, p -> p.ink);
-            row.setTextViewText(R.id.row, text);
+            RemoteViews row = card(R.layout.row_text, page);
+            Palette.text(row, schemes, R.id.text, p -> p.ink);
+            row.setTextViewText(R.id.text, text);
             rows.add(row);
         }
 
@@ -213,10 +214,17 @@ public class ListService extends RemoteViewsService {
         }
 
         private RemoteViews section(int icon, int label, String page) {
-            RemoteViews row = view(R.layout.row_section, page);
+            RemoteViews row = card(R.layout.row_section, page);
             row.setImageViewResource(R.id.icon, icon);
             row.setTextViewText(R.id.text, context.getString(label));
             Palette.text(row, schemes, R.id.text, p -> p.muted);
+            return row;
+        }
+
+        /** A row on its own see-through card in the widget's color, so it reads over scenery; unseen on flat schemes. */
+        private RemoteViews card(int layout, String page) {
+            RemoteViews row = view(layout, page);
+            Palette.tint(row, schemes, R.id.card_fill, p -> p.surface);
             return row;
         }
 
