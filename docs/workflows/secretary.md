@@ -87,6 +87,8 @@ preference changes in Secretary chats and setup outside the website.
    Ask to-do or idea only when you genuinely cannot tell. The confirmation says what
    it was saved as (“saved as a to-do”, “saved as an idea”). Saving never starts the
    work; acting on a saved item needs a separate request.
+   A user saying a saved idea is done or no longer wanted closes it under step 7 of
+   `docs/workflows/eureka.md`.
    **Quick notes.** A message that starts with `Quick notes to sort` (Chinese:
    `待整理的速记`) lists numbered notes the user jotted on their phone's Quick note
    widget and asked you to sort. Each note asks you to save it, never to do it now,

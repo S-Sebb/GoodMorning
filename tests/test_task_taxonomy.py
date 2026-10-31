@@ -372,32 +372,25 @@ class TaxonomyTests(unittest.TestCase):
             self.capture('Dentist Thursday; time unknown', 'event_proposal', draft={
                 'title': 'Dentist', 'date': '2026-10-15', 'timezone': 'Europe/London', 'confirmed_day': True, 'state': 'tentative'})
 
-    def test_tentative_proposal_does_not_reserve_schedule_and_clear_ideas_are_quiet(self):
+    def test_tentative_proposal_does_not_reserve_schedule(self):
         self.capture('Maybe meet Sam next week', 'event_proposal', draft={'title': 'Meet Sam', 'state': 'tentative'})
-        self.capture('Maybe build a dashboard', 'idea')
         self.capture('Which scope?', 'project_update', questions=['Which scope?'], review_after='2026-10-20')
         self.assertEqual(self.view()['schedule']['items'], [])
         self.assertEqual(self.view()['attention']['items'], [])
         self.assertEqual(self.view(day='2026-10-20')['attention']['total'], 1)
 
-    def test_clear_ideas_return_one_morning_a_fortnight_spread_apart(self):
-        ideas = [self.capture('Idea %d' % n, 'idea')['id'] for n in range(3)]
-        start = date.fromisoformat(DAY)
-        returns = {identifier: [] for identifier in ideas}
-        for offset in range(49):
-            day = (start + timedelta(days=offset)).isoformat()
-            self.assertEqual(self.view('gn', day)['attention']['items'], [])  # Never an evening question.
-            for row in self.view('gm', day)['attention']['items']:
-                returns[row['id']].append(offset)
-        for days in returns.values():
-            self.assertGreaterEqual(days[0], 7)  # Rests a week after capture.
-            self.assertEqual([b - a for a, b in zip(days, days[1:])], [14, 14])
-        self.assertEqual(len({days[0] for days in returns.values()}), 3)  # A batch does not return together.
-        day = (start + timedelta(days=returns[ideas[0]][0])).isoformat()
-        view = self.view('gm', day)
+    def test_clear_ideas_return_every_briefing_until_closed(self):
+        ideas = [self.capture('Idea %d' % n, 'idea')['id'] for n in range(2)]
+        line = "A saved idea. Tell me when you're done with it, and it will stop showing here."
+        for kind in ('gm', 'gn'):  # From the day they are saved, morning and evening.
+            rows = self.view(kind, DAY)['attention']['items']
+            self.assertEqual([(row['id'], row['questions']) for row in rows], [(i, [line]) for i in ideas])
+        view = self.view('gm', DAY)
         self.assertNotIn('Review the supplied details.', view['blocks']['attention'][1][0][3])
-        routing.validate_sources(self.root, self.document(view['blocks']['attention'], 'attention'), day, 'gm')
+        routing.validate_sources(self.root, self.document(view['blocks']['attention'], 'attention'), DAY, 'gm')
         self.assertEqual(self.inbox.show(ideas[0])['status'], 'pending')  # Coming back adopts nothing.
+        self.inbox.mutate('update', {'status': 'done', 'reviewed': True}, 'ses_test', 'closed', NOW, ideas[0], 1)
+        self.assertEqual([row['id'] for row in self.view('gn', DAY)['attention']['items']], [ideas[1]])
 
     def test_due_idea_review_stays_each_morning_until_cleared(self):
         identifier = self.capture('Maybe a mood line', 'idea', review_after='2026-10-15')['id']
@@ -406,14 +399,11 @@ class TaxonomyTests(unittest.TestCase):
             [row] = self.view(day=day)['attention']['items']
             self.assertEqual((row['id'], row['questions']), (identifier, [
                 'You asked to look at this idea again. It stays here until you review it or pick a new date.']))
-            self.assertEqual(self.view('gn', day)['attention']['items'], [])
+            self.assertEqual(self.view('gn', day)['attention']['items'], [row])
         self.assertLocalized('你之前说想再看一眼这个想法；它会一直留在这里，等你看过它，或者给它换个新的日期。', row['questions'][0])
         self.inbox.mutate('update', {'review_after': ''}, 'ses_test', 'reviewed', '2026-10-17T12:00:00+01:00', identifier, 1)
-        self.assertEqual(self.view(day='2026-10-18')['attention']['items'], [])
-        days = [date(2026, 10, 18) + timedelta(days=n) for n in range(28)]
-        back = [day for day in days if self.view(day=day.isoformat())['attention']['items']]
-        self.assertEqual(len(back), 2)  # Back on the fortnightly cycle.
-        self.assertEqual(back[1] - back[0], timedelta(days=14))
+        [row] = self.view(day='2026-10-18')['attention']['items']  # Back to the everyday line.
+        self.assertEqual(row['questions'], ["A saved idea. Tell me when you're done with it, and it will stop showing here."])
 
     def test_complete_event_request_is_saved_before_confirmation_but_not_approved(self):
         payload = {'subject': 'Dentist', 'start': '2026-10-15T14:00:00+01:00', 'end': '2026-10-15T15:00:00+01:00', 'location': 'Town Clinic'}

@@ -273,11 +273,12 @@ heading. Use `scripts/goodmorning.py` with the selected absolute runtime.
     feedback, and SQLite owns live task state. No task table represents a section.
 12. Clear ideas are not nightly questions. Surface actual saved questions,
     unreviewed material or a due `review_after`; respect future review dates and
-    existing answers. A clear idea returns only to morning Reminders and never asks
-    for a reply: every morning once its `review_after` arrives, until that date is
-    cleared (`""`) or moved; otherwise one morning every 14 days, starting at least
-    7 days after it was saved or last changed. When the user has looked at a due
-    idea or picks a new date, clear or move its `review_after`. Ask only unresolved
+    existing answers. A clear pending idea appears in morning and evening Reminders
+    every day from the day it is saved, until it is closed (`docs/workflows/eureka.md`
+    step 7), and never asks for a reply. A future `review_after` hides it until that
+    date; once the date arrives it is shown as a requested review until the date is
+    cleared (`""`) or moved. When the user has looked at a due idea or picks a new
+    date, clear or move its `review_after`. Ask only unresolved
     material facts/consent needed for the requested work. A review can remain
     pending without blocking other sections.
 
