@@ -269,6 +269,8 @@ function nightCheckin(info) {
   const dueItems = due ? due.options.filter(option => option.value !== 'none') : [];
   const tidyItems = info.fields.filter(item => item.tidy);
   const steps = [dueItems.length && 'due', early && 'early', tidyItems.length && 'tidy', 'details'].filter(Boolean);
+  // Custom schedules on a rest day join the optional list, which then covers more than early finishes.
+  const extras = early?.options.some(option => option.rest);
   if (!checkinStates.has(info.id)) {
     const saved = savedCheckin(checkinScope + info.id) || {};
     checkinStates.set(info.id, { step: saved.step || 0, index: saved.index || 0, verdicts: saved.verdicts || {}, early: new Set(saved.early), tidy: saved.tidy || {}, text: saved.text || '' });
@@ -325,7 +327,7 @@ function nightCheckin(info) {
     if (avatar) { const image = avatar.cloneNode(); image.className = 'checkin-avatar'; image.alt = ''; head.append(image); }
     head.append(make('h2', info.title), close);
     const stepper = make('ol', '', 'checkin-steps');
-    const names = { due: t('Due today'), early: t('Finished early?'), tidy: t('Tidy-up'), details: t('Anything else') };
+    const names = { due: t('Due today'), early: extras ? t('Extras') : t('Finished early?'), tidy: t('Tidy-up'), details: t('Anything else') };
     steps.forEach((name, index) => {
       const item = make('li', names[name]);
       if (index === state.step) item.setAttribute('aria-current', 'step'); else if (index < state.step) item.className = 'is-past';
@@ -359,8 +361,9 @@ function nightCheckin(info) {
       body.push(answered);
       setTimeout(() => dialog.querySelector('.checkin-verdict .checkin-primary')?.focus(), 0);
     } else if (step === 'early') {
-      body.push(make('h3', t('Anything finished early?'), 'checkin-title'),
-        make('p', t('None of these are due yet. Tick only what is completely done. Everything else simply stays open.'), 'checkin-lead'));
+      body.push(make('h3', extras ? t('Anything extra today?') : t('Anything finished early?'), 'checkin-title'),
+        make('p', extras ? t('Nothing here was needed today. Tick only what you did anyway. Everything else stays as it is.')
+          : t('None of these are due yet. Tick only what is completely done. Everything else simply stays open.'), 'checkin-lead'));
       const board = make('div', '', 'checkin-board');
       const groups = new Map();
       for (const option of early.options) {
@@ -372,7 +375,9 @@ function nightCheckin(info) {
         const text = make('span', option.label); if (option.description) text.append(make('small', option.description));
         item.append(box, text); groups.get(name).append(item);
       }
-      const earlyCount = () => state.early.size ? t('{count} finished early', { count: state.early.size }) : t('Nothing finished early. That’s fine.');
+      const earlyCount = () => extras
+        ? (state.early.size ? t('{count} extra today', { count: state.early.size }) : t('Nothing extra today. That’s fine.'))
+        : (state.early.size ? t('{count} finished early', { count: state.early.size }) : t('Nothing finished early. That’s fine.'));
       const count = make('span', earlyCount(), 'checkin-count');
       body.push(board, footer(back(), count, button(t('Next'), () => { state.step++; render(); }, true)));
     } else if (step === 'tidy') {
