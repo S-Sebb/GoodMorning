@@ -41,6 +41,7 @@ from .activity import ACTIVITY_PATH, snapshot as activity_snapshot
 from . import app_briefings
 from .briefing_reminders import ReminderLines, Unknown
 from . import schedule
+from . import ideas
 from . import letters
 from . import about_me
 from . import quick_chat
@@ -509,6 +510,8 @@ class BrowserApp:
                              'workspaceScope': hashlib.sha256(('chat-workspace:' + self.csrf).encode()).hexdigest()}).replace('<', '\\u003c')
         # Inert JSON in a data attribute; no inline scripts or unsafe HTML.
         marker = '<div id="browser-config" hidden data-config="' + html.escape(config, quote=True) + '"></div><script src="/questions.js" defer></script><script src="/browser.js" defer></script>'
+        # Idea buttons write records, so they load only here, never in a saved offline copy.
+        marker += '<script src="/idea-cards.js" defer></script>'
         text = re.sub(r'(<nav class="edition-switch"[^>]*>.*?)(</nav>)', r'\1<a class="edition-link" href="/schedule">Schedule</a><a class="edition-link" href="/letters">Letters</a><a class="edition-link" href="/chat">Secretary</a>\2', text, count=1)
         text = text.replace('href="icons/', 'href="/icons/')
         if '<link rel="icon"' not in text:
@@ -1163,6 +1166,9 @@ def serve_live(app, port, *, gateway_key=None, public_origins=()):
                     if hours not in (['3'], ['24']):
                         return self.respond({'error': 'Invalid reminder window'}, 400)
                     return self.respond(schedule.upcoming(app, int(hours[0])))
+                if path == '/api/ideas':
+                    ids = parse_qs(parsed.query).get('ids', [''])[0]
+                    return self.respond(ideas.states(app, ids.split(',') if ids else []))
                 if path == '/api/briefing-reminders':
                     return self.respond(app.reminder_state())
                 lines = re.fullmatch(r'/api/briefing-reminders/lines/([a-f0-9]{32})', path)
@@ -1366,6 +1372,13 @@ def serve_live(app, port, *, gateway_key=None, public_origins=()):
                     except ValueError as error:
                         if str(error).startswith(('write_conflict', 'unknown_occurrence', 'not_found')):
                             return self.respond({'error': 'Couldn’t save — this task changed since the page loaded. Refresh and try again.'}, 409)
+                        raise
+                if path == '/api/ideas/close':
+                    try:
+                        return self.respond(ideas.close(app, body))
+                    except ValueError as error:
+                        if str(error).startswith(('write_conflict', 'not_found')):
+                            return self.respond({'error': 'Couldn’t save — this idea changed since the page loaded. Refresh and try again.'}, 409)
                         raise
                 if path == '/api/chats':
                     return self.respond(app.chats.start(body), 202)
