@@ -1,6 +1,52 @@
 {
   "notes": [
     {
+      "version": "0.78.0",
+      "date": "2026-10-31",
+      "author": "GoodMorning agent",
+      "title_en": "Monthly reminders and ideas in every briefing",
+      "title_zh": "简报里有了每月提醒和你的灵感",
+      "changes": [
+        {
+          "category": "Added",
+          "en": [
+            "Ask for a reminder on a day of the month, like \"the 28th of every month\", and it repeats with no end date; in shorter months it falls on the last day.",
+            "Saved ideas show in Reminders in every morning and evening briefing from the day you save them, until you tell your secretary you're done with them."
+          ],
+          "zh": [
+            "想要每月固定提醒，就跟秘书说「每月 28 号」这样的日子，它会一直重复，没有结束日期，月份短的时候就落在最后一天。",
+            "存下的灵感从当天起，会出现在每份早报和晚报的「提醒」里，直到你跟秘书说不用再提了。"
+          ]
+        },
+        {
+          "category": "Changed",
+          "en": [
+            "Tell your secretary an idea is done or no longer wanted, and it closes it right away without asking how.",
+            "A question card disappears as soon as you answer it; if sending fails, it comes back with the error so you can try again.",
+            "Android app 0.13: widgets show your color scheme's scenery at full strength, with see-through cards that keep text easy to read.",
+            "English requests now use DeepSeek V4.1 Flash High, like Chinese ones."
+          ],
+          "zh": [
+            "跟秘书说某条灵感已经做完，或者不想再要了，它会马上关掉，不会再问你要怎么处理。",
+            "问题卡片一答完就收起来；要是没发出去，它会带着报错回来，你可以再试一次。",
+            "安卓 App 0.13：小组件会完整显示你配色里的场景，卡片是半透明的，文字照样好读。",
+            "英文请求现在也用 DeepSeek V4.1 Flash High，和中文请求一样。"
+          ]
+        },
+        {
+          "category": "Fixed",
+          "en": [
+            "After you switch color scheme or widget theme, Android widgets no longer keep the old scheme's color over the whole card.",
+            "While working out how to save a request, your secretary no longer saves test items to your records."
+          ],
+          "zh": [
+            "换过配色或小组件主题以后，安卓小组件不会再整张卡片还留着旧配色的颜色。",
+            "秘书在琢磨怎么保存你的请求时，不会再往你的记录里写测试内容了。"
+          ]
+        }
+      ]
+    },
+    {
       "version": "0.77.0",
       "date": "2026-10-29",
       "author": "GoodMorning agent",
