@@ -1,6 +1,6 @@
 ---
 name: eureka
-description: Capture a pending idea without doing the work. Save clear details, confirm, and stop; discuss or organize only on separate explicit requests.
+description: Capture a pending idea without doing the work. Save clear details, confirm, and stop; discuss or organize only on separate explicit requests; close it when the user says it is done.
 ---
 
 # Idea capture
@@ -46,6 +46,12 @@ Result: one verified pending idea. Read `docs/core-rules.md` and
    it links stable task IDs without another capture or permission to execute them.
    Set the idea `confirmed` with revision-checked `inbox --update ID` only after
    user confirmation and every agreed authorized write succeeds. Otherwise keep it pending.
+7. Closing: an idea is either pending or closed. When the user says a saved idea is
+   finished, done, dropped or no longer wanted, find it with `inbox --list --kind idea
+   --search "WORDS"` and close it with revision-checked `inbox --update ID`
+   `{"status":"done","reviewed":true}`, then confirm it no longer appears in briefings.
+   Ask only when several ideas could match, listing them; never ask whether it was
+   completed or abandoned, or offer to keep it pending or turn it into tasks.
 
 ## Boundaries
 

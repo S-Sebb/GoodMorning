@@ -536,26 +536,11 @@ def feedback_day(store, day):
     return list(rows.values())
 
 
-IDEA_CYCLE = 14  # Days between a clear idea's morning returns.
-IDEA_REST = 7  # Days after capture or the last change before its first return.
-
-
-def idea_return(entry, today, kind):
-    """The Reminders line for a clear idea back this morning, or None; it never asks for a reply.
-
-    A review date that has arrived keeps the idea there every morning until the
-    date is cleared or moved, so a skipped morning loses nothing. Otherwise the
-    idea comes back for one morning each cycle, and the entry's sequence picks
-    its day, so a batch saved together returns on different mornings."""
-    if kind != 'gm':
-        return None
+def idea_line(entry, today):
+    """The Reminders line for a clear idea, back every morning and evening until it is closed; it never asks for a reply."""
     if entry['review_after'] and entry['review_after'] <= today:
         return 'You asked to look at this idea again. It stays here until you review it or pick a new date.'
-    day = dt.date.fromisoformat(today)
-    rested = day >= dt.date.fromisoformat(entry['updated_at'][:10]) + dt.timedelta(days=IDEA_REST)
-    if rested and (day.toordinal() - entry['seq']) % IDEA_CYCLE == 0:
-        return 'A saved idea, back for another look. Nothing needs doing unless it still interests you.'
-    return None
+    return "A saved idea. Tell me when you're done with it, and it will stop showing here."
 
 
 def attention(store, today, kind, offset=0, limit=7, calendar_changes=()):
@@ -571,10 +556,7 @@ def attention(store, today, kind, offset=0, limit=7, calendar_changes=()):
         if entry['kind'] == 'todo' and not questions and not entry['needs_review']:
             continue
         if entry['kind'] == 'idea' and not questions and not entry['needs_review']:
-            line = idea_return(entry, today, kind)
-            if not line:
-                continue
-            questions = [ui.text(line)]
+            questions = [ui.text(idea_line(entry, today))]
         elif not questions and not entry['needs_review'] and not entry['review_after']:
             continue
         rows.append({'id': entry['id'], 'revision': entry['revision'], 'title': entry['summary'],
