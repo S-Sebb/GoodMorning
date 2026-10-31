@@ -50,7 +50,7 @@ All optional except `title` in a new task. Unset dates and text use `""`; unset
 | `due_at` | ISO timestamp with offset; needs `timezone` |
 | `defer_until` | First day the work may start |
 | `timezone` | IANA zone; required with `repeat`, `when` or `due_at` |
-| `repeat` | `{"start":DATE}` plus exactly one of `weekdays` (0=Monday..6=Sunday), `interval_days` (1–366), `dates`, or `event_subject` (with `offset_days` -14..0); optional `until`, `exclude`, `include`. No `planned_date` alongside |
+| `repeat` | `{"start":DATE}` plus exactly one of `weekdays` (0=Monday..6=Sunday), `monthdays` (1–31; a day the month lacks falls on its last day), `interval_days` (1–366), `dates`, or `event_subject` (with `offset_days` -14..0); optional `until`, `exclude`, `include`. No `planned_date` alongside |
 | `when` | `morning_before` (`"HH:MM"`), `unless_experiment_plan`, `unless_timed_plan`, `planned_task_id`, `custom_rule_id` |
 | `follow_up` | `""`, `until-done` (one-off) or `one-outstanding` (with `interval_days`) |
 | `after` | `task_…` ID this undated step waits for |
