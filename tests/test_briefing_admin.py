@@ -174,7 +174,7 @@ class AdminTests(unittest.TestCase):
     def test_server_defaults_validate_private_policy_without_disclosing_key(self):
         from types import SimpleNamespace
         path=self.root/'server-defaults.json'
-        value={'model':'muse-spark','providerID':'opencode-go','credential':{'type':'key','key':'synthetic-provider-secret'}}
+        value={'model':'deepseek-flash','providerID':'opencode-go','credential':{'type':'key','key':'synthetic-provider-secret'}}
         path.write_text(json.dumps(value));path.chmod(0o600)
         info=SimpleNamespace(st_mode=path.stat().st_mode,st_uid=0,st_size=path.stat().st_size)
         with patch('goodmorning.security.briefing_admin.os.fstat',return_value=info):

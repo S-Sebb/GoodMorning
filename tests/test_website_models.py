@@ -20,22 +20,20 @@ def selected_language(value): return selected(ui.CURRENT, value)
 
 
 class ModelCatalogTests(unittest.TestCase):
-    def test_two_options_with_exact_engine_payloads(self):
-        self.assertEqual(set(site_models.MODELS), {'muse-spark', 'deepseek-flash'})
-        self.assertEqual(site_models.DEFAULT, 'muse-spark')
-        self.assertEqual(site_models.session_payload('muse-spark'),
-                         {'providerID': 'opencode-go', 'id': 'muse-spark-1.3-contributor', 'variant': 'xhigh'})
+    def test_one_option_with_exact_engine_payload(self):
+        self.assertEqual(set(site_models.MODELS), {'deepseek-flash'})
+        self.assertEqual(site_models.DEFAULT, 'deepseek-flash')
         self.assertEqual(site_models.session_payload('deepseek-flash'),
                          {'providerID': 'opencode-go', 'id': 'deepseek-v4.1-flash', 'variant': 'high'})
 
     def test_invalid_choices_rejected(self):
-        for bad in ('gpt-4', '', None, {}, True, 'MUSE-SPARK', 'muse-spark-1.3-contributor', 'opencode-go/muse-spark-1.3-contributor'):
+        for bad in ('gpt-4', '', None, {}, True, 'muse-spark', 'DEEPSEEK-FLASH', 'deepseek-v4.1-flash', 'opencode-go/deepseek-v4.1-flash'):
             with self.assertRaises(ValueError):
                 site_models.model(bad)
 
     def test_automatic_language_mapping(self):
         with selected_model(None):
-            for language,model in (('en','muse-spark'),('zh-CN','deepseek-flash')):
+            for language,model in (('en','deepseek-flash'),('zh-CN','deepseek-flash')):
                 with selected_language(language):
                     self.assertEqual(site_models.current(),model)
                     self.assertEqual(site_models.for_language(language),model)
@@ -48,22 +46,22 @@ class ModelSettingTests(unittest.TestCase):
         fixture = gateway(self)
         fixture.permanent()
         status, _, body = fixture.request('/api/model')
-        self.assertEqual((status, json.loads(body)['model']), (200, 'muse-spark'))
+        self.assertEqual((status, json.loads(body)['model']), (200, 'deepseek-flash'))
         self.assertIsNone(fixture.store.website_model(fixture.id))
         for bad in ('gpt-4', 'zh-CN', None, {},'deepseek-flash'):
             self.assertEqual(fixture.request('/api/model', {'model': bad})[0], 405)
         self.assertIsNone(fixture.gateway.ticket())
-        fixture.store.website_model(fixture.id,'muse-spark')
+        fixture.store.website_model(fixture.id,'deepseek-flash')
         status, _, _ = fixture.request('/api/language', {'language':'zh-CN'})
         self.assertEqual(status,200)
         status, _, body = fixture.request('/api/model')
         self.assertEqual((status, json.loads(body)['model']), (200, 'deepseek-flash'))
-        self.assertEqual(fixture.store.website_model(fixture.id), 'muse-spark')
+        self.assertEqual(fixture.store.website_model(fixture.id), 'deepseek-flash')
         for host in HOSTS:
             status, _, body = fixture.request('/api/model', headers={'Host': host, 'Cookie': session_cookie(fixture, fixture.id, host)})
             self.assertEqual((status, json.loads(body)['model']), (200, 'deepseek-flash'))
         fixture.store.administer('alice', new_name='alice-new')
-        self.assertEqual(fixture.store.website_model(fixture.id), 'muse-spark')
+        self.assertEqual(fixture.store.website_model(fixture.id), 'deepseek-flash')
 
     def test_client_and_legacy_model_are_not_forwarded(self):
         fixture = gateway(self)
@@ -73,7 +71,7 @@ class ModelSettingTests(unittest.TestCase):
         headers = {key.lower(): value for key, value in fixture.received[-1][1].items()}
         self.assertNotIn('x-goodmorning-model',headers)
         self.assertEqual(headers['x-goodmorning-language'],'en')
-        self.assertEqual(json.loads(fixture.request('/api/model')[2])['model'],'muse-spark')
+        self.assertEqual(json.loads(fixture.request('/api/model')[2])['model'],'deepseek-flash')
 
     def test_settings_has_language_but_no_model_selector(self):
         for language in ('en','zh-CN'):
@@ -95,7 +93,7 @@ class DispatchModelTests(unittest.TestCase):
         return root
 
     def test_new_briefings_pin_routed_or_override_model_and_switch_before_send(self):
-        for language,override,model in (('en',None,'muse-spark'),('zh-CN',None,'deepseek-flash'),('en','deepseek-flash','deepseek-flash')):
+        for language,override,model in (('en',None,'deepseek-flash'),('zh-CN',None,'deepseek-flash'),('en','deepseek-flash','deepseek-flash')):
             with self.subTest(language=language,override=override):
                 chamber=FakeChamber()
                 app=BrowserApp(self.root(),chamber,now=lambda:datetime(2026,10,10,12,tzinfo=timezone.utc))
@@ -125,16 +123,16 @@ class DispatchModelTests(unittest.TestCase):
         for prompt,language in zip(prompts,('zh-CN','en','en')):
             self.assertIn('Website language: '+language,prompt)
         self.assertEqual([(turn['language'],turn['model']) for turn in chats.get('a'*32)['turns']],
-                         [('zh-CN','deepseek-flash'),('en','deepseek-flash'),('en','muse-spark')])
-        self.assertEqual(chamber.sessions[chats.get('a'*32)['session']]['model'],site_models.session_payload('muse-spark'))
+                         [('zh-CN','deepseek-flash'),('en','deepseek-flash'),('en','deepseek-flash')])
+        self.assertEqual(chamber.sessions[chats.get('a'*32)['session']]['model'],site_models.session_payload('deepseek-flash'))
         self.assertEqual(chats.status('a'*32)['messages'][0]['text'],'Keep original wording.')
 
-    def test_queued_legacy_briefing_keeps_original_model_and_language(self):
+    def test_queued_briefing_keeps_language_and_moves_retired_model_to_replacement(self):
         root=self.root()
         chamber=FakeChamber()
         app=BrowserApp(root,chamber)
         job={'id':'a'*32,'date':'2026-10-10','kind':'gm','state':'starting',
-             'language':'en','model':'deepseek-flash'}
+             'language':'en','model':'muse-spark'}
         with selected_language('zh-CN'),selected_model(None):
             app.dispatch(job)
         self.assertIn('Website language: en',chamber.calls[-1][1]['prompt'])

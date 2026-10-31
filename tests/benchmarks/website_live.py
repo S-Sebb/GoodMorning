@@ -29,12 +29,10 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     trial_engine.add_arguments(parser)
     parser.add_argument('--blocked-report', action='store_true', help='Submit an explicit Atlas blocker and check canonical reconciliation')
-    parser.add_argument('--model', choices=MODELS, default='muse-spark', help='English browser trial uses the automatically routed Muse XHigh model')
+    parser.add_argument('--model', choices=MODELS, default=for_language('en'), help='English browser trial uses the automatically routed model')
     parser.add_argument('--ambiguity', action='store_true', help='Check scheduling clarification before any capture or pending note')
     parser.add_argument('--resume', action='store_true', help='Continue a preserved trial stopped at the TBC confirmation; never replay its completed captures')
     args = parser.parse_args()
-    if args.model!=for_language('en'):
-        parser.error('This browser trial is English-only and uses automatic Muse routing; use the task/tone matrix for Chinese DeepSeek trials')
     output = trial_engine.private_output(parser, args.output)
     if not args.resume:
         output.mkdir(mode=0o700)

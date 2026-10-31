@@ -17,7 +17,7 @@ from goodmorning.security.briefing_gateway import Gateway
 from goodmorning.security import briefing_provision
 from goodmorning.web.models import MODELS
 
-DEFAULTS = {'model':'muse-spark','providerID':'opencode-go','credential':{'type':'key','key':'synthetic-provider-secret'}}
+DEFAULTS = {'model':'deepseek-flash','providerID':'opencode-go','credential':{'type':'key','key':'synthetic-provider-secret'}}
 
 
 class Engine:
@@ -90,12 +90,12 @@ class ProvisionTests(unittest.TestCase):
         self.assertEqual(handover.stat().st_mode & 0o777, 0o600)
         name, secret = handover.read_text().split()
         self.assertTrue(self.store.check_password(name, secret))
-        self.assertEqual(self.store.website_model(identifier), 'muse-spark')
+        self.assertEqual(self.store.website_model(identifier), 'deepseek-flash')
         config = json.loads((self.root/'live'/identifier/'engine.json').read_text())
         self.assertNotEqual(config['viewerPort'], self.other['port'])
         self.assertEqual(engine.writes, [{'integrationID':'opencode-go','value':DEFAULTS['credential'],'activate':True}])
         opencode = self.root/'live'/identifier/'home/.config/opencode/opencode.json'
-        self.assertEqual(json.loads(opencode.read_text()), {'model':'opencode-go/muse-spark-1.3-contributor'})
+        self.assertEqual(json.loads(opencode.read_text()), {'model':'opencode-go/deepseek-v4.1-flash'})
         drop_in = (self.units/f'goodmorning-account@{identifier}.service.d/identity.conf').read_text()
         self.assertIn('User=gm_synthetic', drop_in)
         self.assertIn('SupplementaryGroups=goodmorning-engine', drop_in)
