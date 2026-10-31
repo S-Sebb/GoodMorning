@@ -121,9 +121,10 @@ function secretaryQuestion(info, send, refreshed, language) {
       if (control.field.required && (result === '' || result === undefined)) { feedback.textContent = questionT('Please answer the required questions.'); return; }
       if (result !== undefined) answer[key] = result;
     }
-    submit.disabled = true;
+    // Hide at once so the choice feels instant; a failed send brings the question back with the error.
+    submit.disabled = true; form.hidden = true;
     try { await send('form', info.id, { answer }); form.remove(); refreshed(); }
-    catch (error) { feedback.textContent = error.message; submit.disabled = false; }
+    catch (error) { feedback.textContent = error.message; submit.disabled = false; form.hidden = false; }
   });
   return form;
 }
@@ -141,9 +142,9 @@ function secretaryPermission(info, send, refreshed, language) {
     const button = make('button', questionT(text)); button.dataset.uiText=text; button.type = 'button';
     if (typeof goodmorningLanguage !== 'undefined') button.lang=goodmorningLanguage;
     button.addEventListener('click', async () => {
-      form.querySelectorAll('button').forEach(item => { item.disabled = true; });
+      form.querySelectorAll('button').forEach(item => { item.disabled = true; }); form.hidden = true;
       try { await send('permission', info.id, { decision }); form.remove(); refreshed(); }
-      catch (error) { feedback.textContent = error.message; form.querySelectorAll('button').forEach(item => { item.disabled = false; }); }
+      catch (error) { feedback.textContent = error.message; form.hidden = false; form.querySelectorAll('button').forEach(item => { item.disabled = false; }); }
     });
     form.append(button);
   }

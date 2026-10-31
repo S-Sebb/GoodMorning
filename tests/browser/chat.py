@@ -520,6 +520,35 @@ def check_waiting_reply_queue(browser, address, artifacts):
         page.close()
 
 
+def check_instant_answer(browser, address):
+    """An answered question leaves at once while its reply is in flight; a failed reply brings it back."""
+    page = browser.new_page(viewport={'width': 390, 'height': 844}, reduced_motion='reduce')
+    errors = []; page.on('pageerror', lambda error: errors.append(str(error)))
+    try:
+        page.goto(address + '/chat?mode=initialize')
+        page.get_by_role('button', name='Start initialization', exact=True).click()
+        skip_first_setup_question(page)
+        heading = page.get_by_role('heading', name='Confirm your location')
+        expect(heading).to_be_visible()
+        page.get_by_role('radio', name='London', exact=True).check()
+        held = []
+        page.route('**/api/chats/*/form/form_city/reply', lambda route: held.append(route))
+        page.get_by_role('button', name='Send answer', exact=True).click()
+        expect(heading).to_be_hidden()
+        held.pop().fulfill(status=400, json={'error': 'Reply failed'})
+        expect(heading).to_be_visible()
+        expect(page.locator('#chat-questions [role="alert"]')).to_have_text('Reply failed')
+        expect(page.get_by_role('button', name='Send answer', exact=True)).to_be_enabled()
+        page.get_by_role('button', name='Send answer', exact=True).click()
+        expect(heading).to_be_hidden()
+        held.pop().fallback()
+        expect(page.get_by_role('heading', name='Permission needed')).to_be_visible()
+        expect(heading).to_have_count(0)
+        assert not errors, errors
+    finally:
+        page.close()
+
+
 def check_scroll(browser, address, artifacts):
     checks = []
     for width in (1440, 768, 390, 320):
@@ -675,6 +704,7 @@ def main():
                 (root / 'setup-consent.json').write_text('{}')  # Agreed to storage; setup not finished.
                 question_checks = check_question_history(browser, address, artifacts)
                 check_waiting_reply_queue(browser, address, artifacts)
+                check_instant_answer(browser, address)
                 scroll_checks = check_scroll(browser, address, artifacts)
                 for width in (1440, 768, 390, 320):
                     page = browser.new_page(viewport={'width': width, 'height': 900}, reduced_motion='reduce')
