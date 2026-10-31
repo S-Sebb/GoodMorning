@@ -1,4 +1,5 @@
 """Canonical actions and event drafts in the inbox transaction, never section tables."""
+from calendar import monthrange
 import datetime as dt
 import hashlib
 import json
@@ -184,9 +185,9 @@ def validate(data, *, draft=False):
         raise ValueError('invalid_input: unset deadline timestamp uses an empty string')
     if out.get('repeat'):
         rule = out['repeat']
-        modes = {'weekdays', 'interval_days', 'dates', 'event_subject'}
+        modes = {'weekdays', 'monthdays', 'interval_days', 'dates', 'event_subject'}
         if not isinstance(rule, dict) or set(rule) - (modes | {'start', 'until', 'exclude', 'include', 'offset_days'}) or 'start' not in rule or len(set(rule) & modes) != 1:
-            raise ValueError('invalid_input: recurrence needs start and exactly one of weekdays, interval_days, dates or event_subject')
+            raise ValueError('invalid_input: recurrence needs start and exactly one of weekdays, monthdays, interval_days, dates or event_subject')
         if 'event_subject' in rule:
             checked(rule['event_subject'], 200, False)
             if type(rule.get('offset_days', 0)) is not int or not -14 <= rule.get('offset_days', 0) <= 0:
@@ -197,6 +198,10 @@ def validate(data, *, draft=False):
             weekdays = rule['weekdays']
             if not isinstance(weekdays, list) or not 1 <= len(weekdays) <= 7 or any(type(d) is not int or not 0 <= d <= 6 for d in weekdays) or len(set(weekdays)) != len(weekdays):
                 raise ValueError('invalid_input: weekdays are distinct integers 0=Monday..6=Sunday')
+        if 'monthdays' in rule:
+            monthdays = rule['monthdays']
+            if not isinstance(monthdays, list) or not 1 <= len(monthdays) <= 31 or any(type(d) is not int or not 1 <= d <= 31 for d in monthdays) or len(set(monthdays)) != len(monthdays):
+                raise ValueError('invalid_input: monthdays are distinct integers 1..31')
         if 'interval_days' in rule and (type(rule['interval_days']) is not int or not 1 <= rule['interval_days'] <= 366):
             raise ValueError('invalid_input: interval_days must be an integer 1..366')
         for field in ('dates', 'exclude', 'include'):
@@ -298,6 +303,10 @@ def planned_on(task, day, event_days=()):
         return True
     if 'weekdays' in rule:
         return target.weekday() in rule['weekdays']
+    if 'monthdays' in rule:
+        # A day the month lacks (31 in November) falls on that month's last day.
+        last = monthrange(target.year, target.month)[1]
+        return target.day in rule['monthdays'] or target.day == last and any(d > last for d in rule['monthdays'])
     if 'interval_days' in rule:
         return (target - dt.date.fromisoformat(rule['start'])).days % rule['interval_days'] == 0
     if 'event_subject' in rule:

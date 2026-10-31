@@ -210,6 +210,19 @@ def scenarios(today):
         deadline = [r for r in rows if r['due_date'] == '2027-02-10' and not r['repeat'] and not r.get('due_soft')]
         assert deadline, 'the final date is a hard deadline on its own item'
 
+    def monthly(runtime, setup):
+        # One task, no leftover probe items (even cancelled), and a real monthly rule.
+        row = only(tasks(runtime)[0])
+        assert (row['repeat'] or {}).get('monthdays') == [28], row['repeat']
+        day = today.replace(day=28) if today.day <= 28 else (today.replace(day=1) + timedelta(days=32)).replace(day=28)
+        assert shown(runtime, 'gm', day.isoformat())[0], 'not in the morning briefing on the 28th'
+
+    def monthly_unsupported(runtime, setup):
+        # "First Monday" has no fixed repeat: the secretary asks rather than saving probe items.
+        rows = tasks(runtime)[0]
+        assert all(r['status'] != 'cancelled' for r in rows), [r['title'] for r in rows]
+        assert len(rows) <= 1, [r['title'] for r in rows]
+
     def day_task(runtime, setup):
         row = only(tasks(runtime)[0])
         assert row['planned_date'] == workday.isoformat() and not row['due_date'], row
@@ -411,6 +424,12 @@ def scenarios(today):
         ('routine_and_deadline', 'secretary', None,
          'Every week I need to follow up on visiting the new theatres and negotiating terms. The whole thing must be finished by 10 February 2027.',
          '每周跟进一次新剧场的考察和商务谈判，整件事必须在2027年2月10日前完成。', routine_and_deadline),
+        ('monthly', 'secretary', None,
+         'Remind me on the 28th of every month to check my Hyperoptic, gas and water bills.',
+         '每个月28号提醒我查一下 Hyperoptic 宽带、燃气和水费账单。', monthly),
+        ('monthly_unsupported', 'secretary', None,
+         'Remind me on the first Monday of every month to back up my laptop.',
+         '每个月第一个周一提醒我备份电脑。', monthly_unsupported),
         ('day_task', 'secretary', None, f'Pass the HL60 cells on {weekday_en}.', f'{weekday_zh}传代HL60细胞。', day_task),
         # A bare weekday name is its next occurrence, today included, never a past day.
         ('weekday_today', 'secretary', None, f'Water the lab plants on {today_en}.', f'{today_zh}给实验室的植物浇水。', weekday_today),

@@ -107,6 +107,23 @@ class TaxonomyTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,'unknown_occurrence'):
             self.tasks.occurrence(self.tasks.show(second),'2026-12-12')
 
+    def test_monthly_day_recurrence_is_open_ended_and_short_months_use_their_last_day(self):
+        bills = self.tasks.show(self.capture(task={'title':'Check bills','timezone':'Europe/London',
+            'repeat':{'monthdays':[28],'start':DAY}})['task_id'])
+        for day in ('2026-10-28','2027-02-28','2031-06-28'):
+            self.tasks.occurrence(bills,day)
+        with self.assertRaisesRegex(ValueError,'unknown_occurrence'):
+            self.tasks.occurrence(bills,'2026-10-27')
+        rent = self.tasks.show(self.capture(task={'title':'Pay rent','timezone':'Europe/London',
+            'repeat':{'monthdays':[31],'start':DAY}})['task_id'])
+        for day in ('2026-10-31','2026-11-30','2027-02-28'):
+            self.tasks.occurrence(rent,day)
+        with self.assertRaisesRegex(ValueError,'unknown_occurrence'):
+            self.tasks.occurrence(rent,'2026-12-30')
+        for bad in ([], [0], [32], [5,5], ['28']):
+            with self.assertRaisesRegex(ValueError,'monthdays'):
+                self.capture(task={'title':'Bad','timezone':'Europe/London','repeat':{'monthdays':bad,'start':DAY}})
+
     def test_moved_meeting_preparation_is_one_series_with_explicit_exception(self):
         receipt=self.capture(task={'title':'Prepare presentation','timezone':'Europe/London',
             'repeat':{'weekdays':[3],'start':'2026-10-12','include':['2026-10-12'],'exclude':['2026-10-15']}})

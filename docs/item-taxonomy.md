@@ -51,8 +51,8 @@ heading. Use `scripts/goodmorning.py` with the selected absolute runtime.
       ("when a supplement runs out, rebuy brand X"): `kind:"reference"`, `trigger`,
       `detail`, no dates or conditions. Never in briefings; `workflow --prepare
       secretary` lists `references`, so match the user's words to a trigger there.
-   7. **Routine**, a fixed rhythm: task `repeat` (weekdays, interval, explicit
-      dates), or `{"event_subject":"Lab meeting","offset_days":-1,"start":DATE}`
+   7. **Routine**, a fixed rhythm: task `repeat` (weekdays, days of the month,
+      interval, explicit dates), or `{"event_subject":"Lab meeting","offset_days":-1,"start":DATE}`
       for preparation that follows every approved appointment with that exact subject.
    8. **Habit**, a rhythm that follows actual completion, chases misses or has a
       weekly cap: `custom --add` (rule 5).
@@ -141,7 +141,8 @@ heading. Use `scripts/goodmorning.py` with the selected absolute runtime.
    `planned_date` assigns a workday; `due_date`/`due_at` does not. A repeat rule is
    `{"weekdays":[4],"start":"YYYY-MM-DD"}` (every Friday) with timezone (0=Monday, 4=Friday, 6=Sunday),
    optional `until`. Clarify ambiguous requested recurrence before recording it.
-   Repeats also support `interval_days` or explicit `dates` instead of `weekdays`,
+   Repeats also support `monthdays` (`[28]` is the 28th of every month; a day the
+   month lacks falls on its last day), `interval_days` or explicit `dates` instead of `weekdays`,
    and optional `include`/`exclude` dates for confirmed exceptions; every rule needs
     `start` and timezone. Exclusions win; bounds still apply to inclusions.
     A forward-looking repeat without a supplied start uses the confirmed current

@@ -106,6 +106,11 @@ that a deadline is easy, sufficient or achievable without evidence about the wor
    and every agreed authorized write succeeds. Clear authorized updates need no
    redundant confirmation. Another person's position does not establish agreement.
    Preserve questions, dates, constraints, sources, uncertainty and permissions.
+6. **No probe writes:** every write changes the user's real records. Take helper
+   formats from `docs/helper-inputs.md`; never save test or probe items to find
+   out what a helper accepts. If a write is rejected, fix it from the error and
+   that contract. If the contract cannot express what the user wants, tell them
+   and ask how to proceed.
 
 Capture is record-only: revise TODO titles into clear imperative actions and add
 grounded detail; preserve verbatim `raw`. Confirm, optionally invite discussion,
