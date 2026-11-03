@@ -337,8 +337,11 @@ remember something, say memory is off and can be turned on from About me.
      remember it.
 3. **Write** before your reply ends. Rewrite each changed part whole rather than
    appending: merge with what is there, drop what is no longer true and `lately`
-   items that are over, and put each thing in the one part it fits. Use second person (“You have a dog, Mochi.”) in the website
-   language: short prose, never the user's name, at most 2,000 characters for the
+   items that are over, and put each thing in the one part it fits. A `lately`
+   item about something coming up keeps its calendar date (“the reveal stream on
+   6 Nov”, never only “this Friday”) so it can be dropped once it has passed. Use
+   second person (“You have a dog, Mochi.”) in the website language: short prose,
+   never the user's name, at most 2,000 characters for the
    whole note. Run `memory --secretary-dir RUNTIME --write --expect-revision N
    --input-stdin` with only the changed parts (`docs/helper-inputs.md`); N comes
    from prepare or your last receipt. On `revision_conflict`, run `memory
