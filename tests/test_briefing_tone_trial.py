@@ -240,6 +240,14 @@ class BriefingTrialTests(unittest.TestCase):
         self.assertNotIn('<',block[1])
         self.assertNotIn('>',block[1])
 
+    def test_morning_weather_read_never_reports_the_daily_maximum_at_any_hour(self):
+        # The live check rejects a 100% rain card; a late-evening run reads into tomorrow's night.
+        from benchmarks.briefing_tone_live import synthetic_weather
+        for hour in (6, 19, 22):
+            reading=synthetic_weather(datetime(2026,11,5,hour,10,tzinfo=timezone.utc))
+            self.assertLess(reading['json']['precip_prob_pct'],100,hour)
+            self.assertNotIn('100%',reading['brief'],hour)
+
     def test_report_lookup_does_not_treat_todays_completion_choices_as_all_candidates(self):
         job=self.scoped_job('gn')
         from goodmorning.briefings.briefing_job import context_path
