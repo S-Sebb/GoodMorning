@@ -120,7 +120,6 @@ class LetterTests(unittest.TestCase):
 
     def reach_letter(self, identifier='c' * 32):
         self.step('init', {'greeting': 'Evening.', 'opening': 'Tonight’s review.'}, identifier)
-        self.step('publish', {'position': 0, 'section': ['today', [['p', 'You shared no updates.']]]}, identifier)
         self.step('publish', {'position': 1, 'section': ['weather', [['p', 'Tomorrow’s weather is unavailable.']], '', 'Weather tomorrow']}, identifier)
         self.step('publish', {'position': 2, 'section': ['schedule', [['p', 'One appointment tomorrow.']]]}, identifier)
         self.step('skip', {'position': 3}, identifier)
@@ -223,7 +222,6 @@ class LetterTests(unittest.TestCase):
         self.assertIsNone(letters.due(self.root, SUNDAY, 'gm'))  # The week before was not in use yet.
         self.job(day=MONDAY)
         self.step('init', {'greeting': 'Evening.', 'opening': 'Tonight’s review.'})
-        self.step('publish', {'position': 0, 'section': ['today', [['p', 'You shared no updates.']]]})
         self.step('publish', {'position': 1, 'section': ['weather', [['p', 'Tomorrow’s weather is unavailable.']], '', 'Weather tomorrow']})
         self.step('publish', {'position': 2, 'section': ['schedule', [['p', 'One appointment tomorrow.']]]})
         self.step('skip', {'position': 3})

@@ -168,7 +168,7 @@ class BriefingTrialTests(unittest.TestCase):
         app.jobs['2026-10-14.'+kind]=job;app.save_jobs()
         prepared=prepare(self.runtime,job)
         if prepared['awaiting']:
-            answer(self.runtime,job,{'details':'No updates today'})
+            answer(self.runtime,job,{'details':'Started the draft.'})  # Something reported keeps Today's position.
         act(self.runtime,job['id'],'ses_trial','init',{'greeting':'Hello.','opening':'Review saved records.'})
         return job
 
