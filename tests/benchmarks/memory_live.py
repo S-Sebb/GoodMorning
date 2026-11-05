@@ -289,7 +289,7 @@ def run_briefing(output, language, selected, scenario):
         document = json.loads(app.source(day, 'gn').read_text())
         save(folder/'original.document.json', document)
         result['greeting'], result['closing'] = document['greeting'], document.get('closing')
-        keywords = ('mochi', 'marathon', 'vegetarian', '马拉松', '吃素', '十点', 'lena')
+        keywords = ('mochi', 'vegetarian', '吃素', '十点', 'lena') + (() if scenario == 'patterns' else ('marathon', '马拉松'))  # Tonight's check-in names a half marathon.
         body = json.dumps([document['opening'], document['sections']], ensure_ascii=False).casefold()
         assert not [word for word in keywords if word in body], 'The note reached the opening or a section'
         result['checks'].append('The note stayed out of the opening and sections')
