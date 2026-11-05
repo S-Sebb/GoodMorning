@@ -3,6 +3,7 @@ import contextlib
 import hashlib
 import io
 import json
+import re
 from pathlib import Path
 import sys
 import tempfile
@@ -68,11 +69,6 @@ class BrowserBriefingTests(unittest.TestCase):
         self.assertIn('fonts/lora-italic.woff2', files)
         self.assertIn('fonts/OFL.txt', files)
 
-    def test_byline_names_the_secretary(self):
-        self.assertIn('<footer><span>Prepared for you by your secretary</span>', web.build(self.runtime, '2026-10-10')['gm.html'].decode())
-        (self.runtime / 'profile.md').write_text('secretary_name: Mira & Co\n')
-        self.assertIn('<footer><span>Prepared for you by Mira &amp; Co</span>', web.build(self.runtime, '2026-10-10')['gm.html'].decode())
-
     def test_refuses_invalid_missing_or_symlinked_inputs(self):
         for date in ('2026-10-9', '../../profile', '2026-02-30', '2026-10-11'):
             with self.subTest(date=date), self.assertRaises(ValueError):
@@ -83,14 +79,12 @@ class BrowserBriefingTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             web.build(self.runtime, '2026-10-10')
 
-    def test_scroll_map_uses_safe_section_previews(self):
+    def test_section_chips_link_each_section_without_javascript(self):
         page = web.edition(json.loads(GM), '2026-10-10', 'gm', {'gm': True})
-        self.assertEqual(page.count('class="scroll-chunk"'), 4)
-        self.assertEqual(page.count('role="tooltip"'), 4)
-        self.assertEqual(page.count('class="touch-hint"'), 4)
-        for value in ('aria-label="01: Weather"', 'aria-describedby="preview-1"', 'viewport-fit=cover'):
-            self.assertIn(value, page)
-        self.assertLess(len(web.PreviewText().excerpt('<p>' + 'word ' * 200 + '</p>')), 185)
+        chips = page.split('<nav class="briefing-section-nav"', 1)[1].split('</nav>', 1)[0]
+        self.assertEqual(re.findall(r'href="(#section-\d+)"', chips), ['#section-1', '#section-2', '#section-3', '#section-4'])
+        self.assertEqual(chips.count('class="data-icon"'), 4)
+        self.assertLess(page.index('briefing-section-nav'), page.index('<article'))
 
     def test_cli_fetches_previews_only_with_explicit_flag_and_never_exports(self):
         argv = ['web', '--secretary-dir', str(self.runtime), '--date', '2026-10-10']

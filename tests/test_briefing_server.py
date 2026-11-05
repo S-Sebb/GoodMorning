@@ -278,6 +278,10 @@ class LiveTests(unittest.TestCase):
         self.assertNotIn('id="generate"', page)
         self.assertRegex(page, r'<a href="/d/2026-10-09/gm" class="is-missing" aria-current="date">')
         self.assertRegex(page, r'<a href="/d/2026-10-10/gm">')
+        # Only the missing day is labelled; saved days carry no note.
+        week = page.split('class="week-picker"', 1)[1].split('</nav>', 1)[0]
+        self.assertEqual(week.count('Not generated'), week.count('class="is-missing"'))
+        self.assertNotIn('Saved', week)
 
     def test_duplicate_clicks_share_session_and_user_default(self):
         job = self.start()

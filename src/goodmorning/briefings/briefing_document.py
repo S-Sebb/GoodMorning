@@ -118,6 +118,12 @@ def frame_clock(frame, offset):
     return '24:00' if (hour, minutes) == (24, 0) and offset == FRAME_HOURS else f'{hour % 24:02d}:{minutes:02d}'
 
 
+def aqi_level(frame):
+    """Index into AQI_LEVELS for the worst hour still ahead."""
+    worst = max(a for _, _, a in frame['hours'][frame['past']:])
+    return next(index for index, (limit, _) in enumerate(AQI_LEVELS) if worst <= limit)
+
+
 def weather_summary(card, frame, say=ui.ui):
     """Headline and its second line, judged only from the hours after the briefing was made.
 
@@ -142,7 +148,7 @@ def weather_summary(card, frame, say=ui.ui):
         return main, say('Through {time} · up to {peak}%', time=frame_clock(frame, FRAME_HOURS), peak=peak)
     if card == 'air' and rows[0][2] is not None:
         values = [a for _, _, a in rows]
-        level = next(name for limit, name in AQI_LEVELS if max(values) <= limit)
+        level = AQI_LEVELS[aqi_level(frame)][1]
         late = frame['start'][11:13] == '18'
         span = f'{min(values)}–{max(values)}' if min(values) != max(values) else str(values[0])
         return say(level), say('AQI {span} overnight' if late else 'AQI {span} through the day', span=span)
@@ -989,7 +995,8 @@ def render_block(value, images, briefing_date=None):
                 previous=date
             # The day heading already names the date, so cards don't repeat it.
             fields = [(labels[3], place, 'pin'), (labels[4], prep, 'list')] if date else [(labels[0], date, 'calendar'), (labels[3], place, 'pin'), (labels[4], prep, 'list')]
-            detail = ''.join(f'<div class="event-detail">{icon(symbol)}<div><span class="detail-label">{escaped(label) if len(value)==3 else ui.ui(label)}</span><div>{escaped(content)}</div></div></div>' for label, content, symbol in fields if content)
+            # The pin and list icons stand in for the Place and Preparation labels; screen readers still hear them.
+            detail = ''.join(f'<div class="event-detail">{icon(symbol)}<div><span class="visually-hidden">{escaped(label) if len(value)==3 else ui.ui(label)}: </span>{escaped(content)}</div></div>' for label, content, symbol in fields if content)
             groups.append(f'<li class="agenda-event"><div class="event-time">{icon("clock")}<span>{escaped(time)}</span></div><div class="event-copy"><h4>{escaped(event)}</h4>{detail}</div></li>')
         return '<div class="agenda">' + ''.join(groups) + '</ol></div></div>'
     if tag == 'weather':
@@ -1018,7 +1025,10 @@ def render_block(value, images, briefing_date=None):
                 source = (f'<a class="weather-tile-source" href="{escaped(url)}" target="_blank" rel="noopener noreferrer" '
                           f'aria-label="{escaped(purpose)}" title="{escaped(purpose)}">{name}<span aria-hidden="true"> ↗</span></a>')
             chart = weather_chart(card, frame) if frame else ''
-            cards.append(f'<div class="weather-tile {style}"><div class="weather-label">{icon(symbol)}<h3>{escaped(custom[0]) if custom else ui.ui(label)}</h3>{source}</div>{metric}<div class="weather-detail"><p>{escaped(detail)}</p></div>{chart}</div>')
+            # A dot in the usual AQI colour; the level word beside it says the same thing.
+            dot = (f'<span class="aqi-dot aqi-{aqi_level(frame)}" aria-hidden="true"></span>'
+                   if card == 'air' and frame and frame['hours'][0][2] is not None else '')
+            cards.append(f'<div class="weather-tile {style}"><div class="weather-label">{icon(symbol)}<h3>{escaped(custom[0]) if custom else ui.ui(label)}</h3>{dot}{source}</div>{metric}<div class="weather-detail"><p>{escaped(detail)}</p></div>{chart}</div>')
         return f'<div class="weather-tiles{" charted" if frame else ""}">' + ''.join(cards) + '</div>'
     if tag == 'outlook':
         _, low, high, symbol, *_ = value

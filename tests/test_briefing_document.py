@@ -84,7 +84,9 @@ class DocumentTests(unittest.TestCase):
         for kind in ('gm','gn'):
             page=web.edition(doc,'2026-10-11',kind,{kind:True})
             self.assertEqual(page.count('class="agenda-day"'),2)
-            self.assertIn('>Tomorrow</bdi> — <span lang="en" data-ui-full-date="2026-10-12">Monday, October 12</span>',page)
+            # Tomorrow needs no date beside it; a later day keeps its full date.
+            self.assertIn('>Tomorrow</bdi></h3>',page)
+            self.assertNotIn('Monday, October 12',page)
             self.assertIn('Tuesday, October 13',page)
             self.assertEqual(page.count('class="agenda-event"'),3)
             self.assertLess(page.index('<h4>First'),page.index('<h4>Second'))
@@ -257,7 +259,8 @@ class DocumentTests(unittest.TestCase):
         page = web.edition(native.parse(native.encode(doc)), DATE, 'gm', {'gm': True})
         for value in ('Dry until 21:00', 'Then rain likely · up to 80%', 'High · low 10°', 'AQI 30 through the day',
                       '07:36', '17:53', 'This afternoon', 'wx-chart temperature', 'wx-chart precipitation', 'wx-chart air',
-                      'href="https://open-meteo.com/en/docs?latitude=1#api_response"', 'aria-label="Air quality source: CAMS"'):
+                      'href="https://open-meteo.com/en/docs?latitude=1#api_response"', 'aria-label="Air quality source: CAMS"',
+                      'class="aqi-dot aqi-0"'):
             self.assertIn(value, page)
         self.assertNotIn('style=', page.split('weather-tiles', 1)[1].split('</section>', 1)[0])  # The page CSP blocks inline styles.
         weather[2] = self.weather_frame(start='2034-03-17T18:00', past=5, air=None)
@@ -286,7 +289,7 @@ class DocumentTests(unittest.TestCase):
         page = web.edition(doc, DATE, 'gm', {'gm': True})
         self.assertIn('First note.', page)
         self.assertIn('Second note.', page)
-        self.assertEqual(page.count('class="scroll-chunk"'), 2)
+        self.assertEqual(page.count('href="#section-'), 2)
 
     def test_done_is_distinct_from_partial_and_blocked(self):
         doc = document('gn')
