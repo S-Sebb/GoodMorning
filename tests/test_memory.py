@@ -196,6 +196,7 @@ class AboutMeMemoryTests(unittest.TestCase):
         section = page[page.index('id="about-memory"'):page.index('id="about-news"')]
         self.assertLess(section.index('You have a dog, Mochi.'), section.index('Training for a marathon.'))
         self.assertIn('What I remember about you', section)
+        self.assertIn('has learned from your chats, check-ins and plans', section)
         self.assertIn('Last updated', section)
         self.assertIn('data-switch="memory"', section)
         self.assertEqual(section.count('data-multiline'), 3)

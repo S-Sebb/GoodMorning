@@ -38,14 +38,16 @@ UNNAMED = {'{name}’s notes about you': 'Your secretary’s notes about you',
            'Helps {name} pick news and ideas that matter to you.': 'Helps your secretary pick news and ideas that matter to you.',
            'Nothing yet. Chat with {name} and this note will grow from there.':
                'Nothing yet. Chat with your secretary and this note will grow from there.',
-           'What {name} picks up as you chat, the way a friend remembers.':
-               'What your secretary picks up as you chat, the way a friend remembers.',
-           '{name} writes this note while you chat and tidies it after evening briefings. It makes chats, briefings and letters '
-           'feel personal, and is never used as a setting or a permission. Edit anything here, or ask in chat to forget something; '
-           'forgotten text is deleted for good. When switched off, nothing is learned or used.':
-               'Your secretary writes this note while you chat and tidies it after evening briefings. It makes chats, briefings and '
-               'letters feel personal, and is never used as a setting or a permission. Edit anything here, or ask in chat to forget '
-               'something; forgotten text is deleted for good. When switched off, nothing is learned or used.',
+           'What {name} has learned from your chats, check-ins and plans.':
+               'What your secretary has learned from your chats, check-ins and plans.',
+           '{name} writes this note while you chat, and after each evening briefing adds what it learns from your check-ins and your '
+           'to-dos, ideas and habits. It makes chats, briefings and letters feel personal, and is never used as a setting or a '
+           'permission. Edit anything here, or ask in chat to forget something; forgotten text is deleted for good. When switched '
+           'off, nothing is learned or used.':
+               'Your secretary writes this note while you chat, and after each evening briefing adds what it learns from your check-ins '
+               'and your to-dos, ideas and habits. It makes chats, briefings and letters feel personal, and is never used as a setting '
+               'or a permission. Edit anything here, or ask in chat to forget something; forgotten text is deleted for good. When '
+               'switched off, nothing is learned or used.',
            'Switching one off keeps its settings, so you can turn it back on anytime. To start a new one, ask {name}.':
                'Switching one off keeps its settings, so you can turn it back on anytime. To start a new one, ask your secretary.'}
 SOURCES = {'anilist': 'AniList', 'bangumi': 'Bangumi', 'myanimelist': 'MyAnimeList'}
@@ -320,8 +322,9 @@ def remembered(app, fields):
             *(note_row('memory:' + part, label, data['note'][part]) for part, label in PARTS.items()),
             row(ui.ui('The whole note'), status,
                 '<button class="about-forget-all" type="button" hidden>' + ui.ui('Forget everything') + '</button>', 'forget')]
-    return section('memory', ui.ui('What I remember about you'), rows, say(fields, 'What {name} picks up as you chat, the way a friend remembers.'),
-                   say(fields, '{name} writes this note while you chat and tidies it after evening briefings. It makes chats, briefings '
+    return section('memory', ui.ui('What I remember about you'), rows, say(fields, 'What {name} has learned from your chats, check-ins and plans.'),
+                   say(fields, '{name} writes this note while you chat, and after each evening briefing adds what it learns from your '
+                               'check-ins and your to-dos, ideas and habits. It makes chats, briefings '
                                'and letters feel personal, and is never used as a setting or a permission. Edit anything here, or ask in '
                                'chat to forget something; forgotten text is deleted for good. When switched off, nothing is learned or used.'))
 
