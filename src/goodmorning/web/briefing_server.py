@@ -970,7 +970,7 @@ class BrowserApp:
                             # Only this job's verified transient preview; never delete unrelated records.
                             if preview_path.exists() and not preview_path.is_symlink():
                                 preview_path.unlink()
-                            for name in ('.activity.json', '.news.json'):
+                            for name in ('.activity.json', '.news.json', '.timings.jsonl'):
                                 transient = self.job_dir / (identifier + name)
                                 if transient.exists() and not transient.is_symlink():
                                     transient.unlink()
