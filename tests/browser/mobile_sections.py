@@ -46,17 +46,18 @@ def main():
                                 page.evaluate('scheme=>document.documentElement.dataset.dayScheme=scheme',scheme)
                                 button=page.locator('#mobile-sections');dialog=page.locator('#mobile-section-dialog')
                                 if width>700:
-                                    expect(button).to_be_hidden();expect(page.locator('.scroll-map')).to_be_visible()
+                                    expect(button).to_be_hidden();expect(page.locator('.briefing-section-nav')).to_be_visible()
                                     continue
                                 expect(button).to_be_visible()
                                 page.locator('#section-6').scroll_into_view_if_needed()
                                 expect(page.locator('.briefing-section-nav')).not_to_be_in_viewport()
                                 expect(button).to_be_in_viewport()
+                                expect(page.locator('.back-to-top')).to_be_hidden()  # The picker offers it instead.
                                 previous=page.evaluate('scrollY')
                                 button.tap();expect(dialog).to_be_visible()
                                 expect(button).to_have_attribute('aria-expanded','true')
                                 assert abs(page.evaluate('scrollY')-previous)<2
-                                links=dialog.locator('a');expect(links).to_have_count(10)
+                                links=dialog.locator('#mobile-section-list a');expect(links).to_have_count(10)
                                 expect(dialog.locator('[aria-current]')).to_have_count(1)
                                 assert links.first.bounding_box()['height']>=44
                                 bounds=dialog.bounding_box()
@@ -74,15 +75,18 @@ def main():
                                 page.wait_for_function('() => !document.documentElement.classList.contains("section-picker-open")')
                                 button.tap();page.locator('#close-sections').tap();expect(dialog).not_to_be_visible()
                                 button.tap();page.touchscreen.tap(width/2,10);expect(dialog).not_to_be_visible()
+                                button.tap();dialog.locator('#sections-top').tap();expect(dialog).not_to_be_visible()
+                                page.wait_for_function('scrollY<2')
+                                page.locator('#section-6').scroll_into_view_if_needed()
                                 # Updated/hidden sections never leave stale choices in the sheet.
                                 page.evaluate("document.querySelector('#section-10').hidden=true;document.dispatchEvent(new Event('briefing:updated'))")
-                                expect(dialog.locator('a')).to_have_count(9)
+                                expect(dialog.locator('#mobile-section-list a')).to_have_count(9)
                                 page.set_viewport_size({'width':1200,'height':900})
                                 expect(button).to_be_hidden()
                                 page.set_viewport_size({'width':width,'height':height})
                                 assert not page.evaluate('document.documentElement.scrollWidth>innerWidth')
                                 checks.append({'engine':engine.name,'width':width,'edition':kind,'scheme':scheme,'language':language,
-                                               'jumpFromMidPage':True,'twoTapNavigation':True,'currentSectionMarked':True,'dismissal':True,'dynamicSections':True})
+                                               'jumpFromMidPage':True,'backToTop':True,'twoTapNavigation':True,'currentSectionMarked':True,'dismissal':True,'dynamicSections':True})
                         assert not errors,errors
                         page.close()
                     page=browser.new_page(viewport={'width':390,'height':844},java_script_enabled=False)

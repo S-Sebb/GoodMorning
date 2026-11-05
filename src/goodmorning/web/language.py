@@ -88,8 +88,9 @@ def agenda_day(day, reference=None):
     except ValueError:
         return html.escape(day)
     relative=({0:'Today',1:'Tomorrow'}.get((value-Date.fromisoformat(reference)).days) if reference else None)
-    # Today and Tomorrow need no date beside them: the page already says which day it is.
-    return ui(relative) if relative else day_label(day,full=True,reference=reference)
+    # Today and Tomorrow show no date beside them: the page already says which day it is. Screen readers still hear it.
+    full=day_label(day,full=True,reference=reference)
+    return ui(relative)+'<span class="visually-hidden">, '+full+'</span>' if relative else full
 
 
 class InterfaceHTML(HTMLParser):
