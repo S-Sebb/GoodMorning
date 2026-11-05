@@ -296,6 +296,14 @@
       forgetAll.hidden = true;
     });
   }
+  page.querySelectorAll('.about-more').forEach(toggle => {
+    const more = [...toggle.closest('.about-holdings').querySelectorAll('tbody tr[hidden]')];
+    toggle.addEventListener('click', () => {
+      const open = toggle.getAttribute('aria-expanded') !== 'true';
+      more.forEach(row => { row.hidden = !open; });
+      toggle.setAttribute('aria-expanded', String(open));
+    });
+  });
   page.querySelectorAll('.about-switch').forEach(control => {
     control.hidden = false;
     control.addEventListener('click', async () => {

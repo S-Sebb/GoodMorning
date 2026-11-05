@@ -13,6 +13,9 @@ from playwright.sync_api import sync_playwright, expect
 REPO = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO/'src'))
 from goodmorning.records import memory
+from goodmorning.runtime_files import set_profile_fields
+HOLDINGS = ['sh600519:100:1650.5', 'usAAPL:12.5', 'sz000858:2000:142', 'sh601318:300', 'usMSFT:3:410', 'sh600036:1000:35.2', 'usNVDA:40:118.75']
+NAMES = {'sh600519': 'Kweichow Moutai', 'usAAPL': 'Apple', 'sh601318': 'Ping An Insurance of China', 'usMSFT': 'Microsoft', 'sh600036': 'China Merchants Bank'}
 EXTRA = '''secretary_name: "Mochi"
 user_name: ""
 work_days: "Monday to Friday"
@@ -126,6 +129,32 @@ def main():
                 expect(phone.get_by_role('switch', name='Weekly letter')).to_have_attribute('aria-checked', 'false')
                 assert 'weekly_letter: "false"' in profile.read_text()
                 expect(phone.get_by_role('switch', name='Stocks')).to_have_count(0)
+
+                # Holdings set up in chat show as a table: names from the last briefing read, the code alone otherwise,
+                # and only the first five until Show all.
+                set_profile_fields(runtime, {'stock_report': 'true', 'stock_holdings': ','.join(HOLDINGS)})
+                (runtime/'browser-stocks').mkdir()
+                (runtime/'browser-stocks'/'2026-11-04.json').write_text(json.dumps(['holdings', [[symbol, name] for symbol, name in NAMES.items()]]))
+                phone.reload()
+                holdings = phone.locator('.about-holdings')
+                expect(holdings.locator('tbody tr:visible')).to_have_count(5)
+                expect(holdings.locator('tbody th').first).to_have_text('Kweichow Moutai600519')
+                expect(holdings.locator('tbody th').nth(2)).to_have_text('000858')
+                expect(holdings.locator('tbody tr').first.locator('td')).to_have_text(['100', '¥1,650.50'])
+                expect(phone.get_by_role('switch', name='Stocks')).to_have_attribute('aria-checked', 'true')
+                assert holdings.locator('td').first.evaluate('cell => getComputedStyle(cell).textAlign') == 'right'
+                no_overflow(phone)
+                phone.locator('[data-field="stock_report"]').screenshot(path=str(artifacts/'stocks-390.png'))
+                more = holdings.get_by_role('button', name='Show all (7)')
+                more.click()
+                expect(holdings.locator('tbody tr:visible')).to_have_count(7)
+                expect(holdings.get_by_role('button', name='Show fewer')).to_have_attribute('aria-expanded', 'true')
+                phone.set_viewport_size({'width': 1440, 'height': 900})
+                no_overflow(phone)
+                phone.locator('[data-field="stock_report"]').screenshot(path=str(artifacts/'stocks-1440.png'))
+                phone.set_viewport_size({'width': 390, 'height': 900})
+                holdings.get_by_role('button', name='Show fewer').click()
+                expect(holdings.locator('tbody tr:visible')).to_have_count(5)
                 expect(phone.locator('#about-day .about-row').first.locator('.about-edit')).to_have_count(0)  # City changes in chat.
                 phone.screenshot(path=str(artifacts/'about-390.png'), full_page=True)
 
@@ -213,6 +242,9 @@ def main():
                 expect(phone.locator('.about-greeting')).to_contain_text('嗨，Ally！')
                 no_overflow(phone)
                 phone.screenshot(path=str(artifacts/'about-390-zh.png'), full_page=True)
+                expect(phone.locator('.about-holdings thead th')).to_have_text(['股票', '股数', '成本价'])
+                expect(phone.locator('.about-more')).to_have_accessible_name('查看全部（7 只）')
+                phone.locator('[data-field="stock_report"]').screenshot(path=str(artifacts/'stocks-390-zh.png'))
 
                 desktop = context(1440).new_page()
                 desktop.on('pageerror', lambda error: errors.append(str(error)))
@@ -237,6 +269,7 @@ def main():
                 expect(alice.locator('[data-field="user_name"] .about-value')).to_have_text('Ally')
                 no_overflow(alice)
                 alice.screenshot(path=str(artifacts/'about-1440-zh.png'), full_page=True)
+                alice.locator('[data-field="stock_report"]').screenshot(path=str(artifacts/'stocks-1440-zh.png'))
                 # A new secretary name reloads the page so every line uses it.
                 row = alice.locator('[data-field="secretary_name"]')
                 row.locator('.about-edit').click()

@@ -124,6 +124,27 @@ class AboutMeTests(unittest.TestCase):
         fields = profile_fields(self.root)
         self.assertEqual((fields['anime_updates'], fields['anime_titles'], fields['game_sales']), ('true', '1, 2', 'false'))
 
+    def test_holdings_show_as_a_table_with_names_from_the_last_read_and_the_rest_behind_show_all(self):
+        held = ['sh600519:100:1650.5', 'usAAPL:12.5', 'sz000858:2000:142', 'sh601318:300', 'usMSFT:3:410', 'sh600036:1000:35.2']
+        set_profile_fields(self.root, {'stock_report': 'true', 'stock_holdings': ','.join(held)})
+        (self.root / 'browser-stocks').mkdir()
+        # An older read named fewer holdings; the newest wins, and holdings it never named keep their code alone.
+        (self.root / 'browser-stocks' / '2026-11-01.json').write_text(json.dumps(['holdings', [['sh601318', 'Old name']]]))
+        (self.root / 'browser-stocks' / '2026-11-04.json').write_text(json.dumps(
+            ['holdings', [['sh600519', '贵州茅台 & Co'], ['usAAPL', 'Apple']]], ensure_ascii=False))
+        page = self.app_page()
+        stocks = page[page.index('data-field="stock_report"'):page.index('data-field="weekly_letter"')]
+        rows = re.findall(r'<tr( hidden)?><th scope="row">(.*?)</th><td>(.*?)</td><td>(.*?)</td></tr>', stocks)
+        self.assertEqual(rows[:3], [('', '<span data-content>贵州茅台 & Co</span><span class="about-code">600519</span>', '100', '¥1,650.50'),
+                                    ('', '<span data-content>Apple</span><span class="about-code">AAPL</span>', '12.5', ''),
+                                    ('', '<span class="about-code">000858</span>', '2,000', '¥142.00')])
+        self.assertEqual([row[0] for row in rows], [''] * 5 + [' hidden'])
+        self.assertNotIn('Old name', stocks)
+        self.assertRegex(stocks, r'<button class="about-more" type="button" aria-expanded="false"><span class="about-all">.*?Show all \(6\)')
+        self.assertIn('role="switch" aria-checked="true" data-switch="stock_report"', stocks)
+        set_profile_fields(self.root, {'stock_holdings': ','.join(held[:5])})
+        self.assertNotIn('about-more', self.app_page())
+
     def test_the_page_shows_the_profile_but_never_private_links_ids_or_paths(self):
         page = self.app_page()
         for text in ('Mochi', 'Shanghai, CN', 'data-countries="CN,JP"', 'AniList', 'Your watching list and 2 more shows',
