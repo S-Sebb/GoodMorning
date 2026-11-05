@@ -837,7 +837,9 @@ class BrowserApp:
             return {'progress': 12, 'progress_cap': 19, 'label': ui.text('Writing your greeting')} if step.get('step') == 'opening' else None
         resolved, planned = len(checkpoint['outcomes']), len(checkpoint['plan'])
         if step.get('step') in ('closing', 'save') and resolved == planned:
-            return {'progress': 95, 'progress_cap': 97, 'label': ui.text('Writing a closing note')} if step['step'] == 'closing' else \
+            # A morning headline is still empty here: this step writes it and the opening.
+            closing = 'Writing today’s headline' if checkpoint['document']['greeting'] == '' else 'Writing a closing note'
+            return {'progress': 95, 'progress_cap': 97, 'label': ui.text(closing)} if step['step'] == 'closing' else \
                    {'progress': 97, 'progress_cap': 99, 'label': ui.text('Saving your briefing')}
         if step.get('position') != resolved:
             return None
