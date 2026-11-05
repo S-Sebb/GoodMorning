@@ -61,7 +61,7 @@ Read the matching guide before acting:
 | Any source change: tests, patch notes, releases | `docs/development.md` |
 | Writing or changing agent prompts or instructions | `AGENT-PROMPT-GUIDE.md` |
 | Chinese interface text in `assets/web/translations.json` | `docs/chinese-copy.md` |
-| Deploying, only when the owner asks | `docs/server-deployment.md` |
+| Deploying | `docs/server-deployment.md` |
 | Server updates, reboots and maintenance logs | `docs/server-maintenance.md` |
 | Creating a hosted server user | `SERVER-USER-GUIDE.md` |
 | Inspecting, migrating, repairing, restoring or modifying hosted account data | `SERVER-DATA-GUIDE.md` |
@@ -77,7 +77,6 @@ Read the matching guide before acting:
   account, file and operation scope, an encrypted rollback backup, the correct
   service identity, and before/after validation. A deployment or version bump
   never authorizes personal-data migration.
-- Keep personal records, credentials and generated artifacts out of this source
-  tree. Public source is shared; each account's private runtime and agent home
+- Keep personal records out of this source tree. Public source is shared; each account's private runtime and agent home
   must remain separate. Tests use isolated synthetic records. Do not weaken
   authentication, encryption or account isolation to make a test pass.
