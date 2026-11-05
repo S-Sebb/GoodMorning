@@ -87,7 +87,7 @@ def paused_checks(version):
     assert status == 503 and headers.get('Retry-After') == '60' and headers.get('Cache-Control') == 'no-store', 'Maintenance response'
     for text in ('maintenance-status', '/maintenance.css', 'Please come back later', '请稍后再来'):
         assert text.encode() in body, 'Maintenance page lacks '+text
-    for asset in ('/maintenance.css', '/desk-secretary.png', '/icons/gm.svg'):
+    for asset in ('/maintenance.css', '/desk-secretary.png', '/icons/app-32.png'):
         assert fetch(asset)[0] == 200, asset+' does not load'
     release = json.loads(fetch('/api/release')[2])['release']
     assert release == version, f'Live release reports {release}, expected {version}'

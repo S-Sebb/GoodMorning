@@ -169,7 +169,7 @@ def edition(document, date, kind, available, images=None, preview_plan=None, ui_
               "CLOSING": '<p class="briefing-closing">' + native.escaped(document['closing']) + '</p>' if document.get('closing') else '',
               "SOURCE": kind + '.json', "SOURCELABEL": 'View saved data',
               "BYLINE": native.escaped(f'Prepared for you by {secretary}' if secretary else 'Prepared for you by your secretary'),
-              "CELESTIAL": celestial(kind), "ICONS": favicon_links(kind, '')}
+              "CELESTIAL": celestial(kind), "ICONS": favicon_links('')}
     output=re.sub(r"\{\{([A-Z]+)\}\}", lambda match: values[match[1]], template)
     return output.replace('data-content lang=','data-ui-language lang=') if ui_intro else output
 

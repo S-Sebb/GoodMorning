@@ -21,7 +21,7 @@ from urllib.request import Request, build_opener, HTTPRedirectHandler
 from urllib.error import HTTPError
 
 from .briefing_accounts import Accounts, COOKIE, Denied, Limited, SESSION_SECONDS, REMEMBER_SECONDS, PASSWORD_MIN, PASSWORD_MAX, PASSWORD_RULE
-from goodmorning.web.briefing_resources import accepts_gzip, Resources, ByteCache, ICON_TYPES, favicon_links
+from goodmorning.web.briefing_resources import accepts_gzip, Resources, ByteCache, favicon_links
 from goodmorning.web.release import VERSION, release_info
 from goodmorning.paths import WEB_ASSETS
 from goodmorning.web import language as ui
@@ -1169,7 +1169,7 @@ def account_page(session, title, kind='gm'):
               password_field('repeat','Repeat new password','new-password'))
     note = 'Accounts are created by the server administrator. Forgotten passwords require administrator help.' if login else (
         'Replace your temporary password before opening private briefings.' if temporary else 'Changing your password signs out other devices. Your encrypted records stay unchanged.')
-    return ('<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">' + favicon_links(kind) +
+    return ('<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">' + favicon_links() +
             '<title>'+html.escape(title)+'</title><link rel="stylesheet" href="/auth.css"></head><body'+(' class="sign-in"' if login else '')+'><main class="account-card">'
             '<p class="wordmark">GoodMorning</p><p class="eyebrow">Your personal secretary</p><h1>'+html.escape(title)+'</h1><p>'+note+'</p>'+
             ('' if login else '<p id="password-rules">'+PASSWORD_RULE+'</p>')+
@@ -1369,7 +1369,7 @@ def handler_for(gateway):
                 return self.respond({'error':message},503)
             title = 'Secretary setup pending' if pending else 'Secretary temporarily unavailable'
             source = ('<!doctype html><html lang="en"><head><meta charset="utf-8">'
-                      '<meta name="viewport" content="width=device-width,initial-scale=1">'+favicon_links(gateway.hosts[host])+
+                      '<meta name="viewport" content="width=device-width,initial-scale=1">'+favicon_links()+
                       '<title>'+title+'</title><link rel="stylesheet" href="/auth.css"></head><body>'
                       '<main class="account-card"><p class="eyebrow">Your personal secretary</p><h1>'+title+'</h1>'
                       '<p role="status">'+message+'</p><p><a href="'+html.escape(self.path,quote=True)+'">Try again</a></p></main>'
