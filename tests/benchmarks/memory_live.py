@@ -29,7 +29,8 @@ from goodmorning.web import models
 
 ZONE = 'Asia/Shanghai'
 # Monday 21:00 in Shanghai (no weekly letter), and Sunday 21:00 (with the letter).
-EVENINGS = {'evening': datetime(2026, 10, 26, 13, tzinfo=timezone.utc), 'sunday': datetime(2026, 10, 25, 13, tzinfo=timezone.utc)}
+EVENINGS = {'evening': datetime(2026, 10, 26, 13, tzinfo=timezone.utc), 'sunday': datetime(2026, 10, 25, 13, tzinfo=timezone.utc),
+            'upcoming': datetime(2026, 10, 26, 13, tzinfo=timezone.utc)}
 NOTES = {'en': {'life': 'You have a dog, Mochi, and head home early after work to walk him. You are vegetarian.',
                 'likes': 'You would rather not have meetings before 10.',
                 'lately': 'You are training for a marathon in March. You are moving house on the weekend of 24–25 October.'},
@@ -44,6 +45,10 @@ FRIENDS = {'en': [f' {name} is a friend from your {place} days.' for place in ('
            'zh-CN': [f'{name}是你{place}时认识的朋友。' for place in ('上学', '大学', '第一份工作', '跑步俱乐部', '合唱团') for name in NAMES]}
 TIDY = {'en': 'My sister Lena is coming to stay next weekend, so I will be cleaning all week.',
         'zh-CN': '我姐姐 Lena 下周末来家里住，所以这周都要大扫除。'}
+# An undated anticipation already in the note, and the chat message that gave the event's date (Friday 30 October).
+UPCOMING = {'en': ('You are looking forward to the Starfall 2 full reveal stream.',
+                   'The Starfall 2 full reveal stream is this Friday at 21:30 and I really want to catch it.'),
+            'zh-CN': ('你很期待《星落 2》的完整发布直播。', '《星落 2》完整发布直播就在这周五晚上 21:30，我很想看。')}
 # scenario: (tone, seeded note: none, full or near the limit, memory on, first message per language)
 CHATS = {
     'picks-up': ('playful', None, True, {
@@ -187,17 +192,22 @@ def run_briefing(output, language, selected, scenario):
     folder.mkdir(mode=0o700)
     runtime = account(folder, language, 'playful', '', ZONE)
     seed(runtime, language, 'full', True)
+    message = TIDY[language]
+    if scenario == 'upcoming':
+        memory.change(runtime, 1, note={'life': '', 'lately': UPCOMING[language][0]})
+        message = UPCOMING[language][1]
     source = source_copy(folder, runtime)
     bridge = CheckpointBridge(trial_engine.Engine(source, runtime).start(), False, language)
     app = BrowserApp(runtime, bridge, now=lambda: EVENINGS[scenario], preflight=True)
     # Earlier today the user mentioned something new in chat; the evening tidy should take it in.
     (runtime/'browser-chats'/'chats.json').write_text(json.dumps({'a' * 32: {
         'id': 'a' * 32, 'mode': 'secretary', 'title': 'Secretary', 'state': 'idle', 'created': time.time() - 3600,
-        'turns': [{'id': 'a' * 32, 'text': TIDY[language]}]}}, ensure_ascii=False))
+        'turns': [{'id': 'a' * 32, 'text': message}]}}, ensure_ascii=False))
     day = app.today()
     result = {'scenario': scenario, 'language': language, 'model': selected, 'checks': [], 'before': note(runtime),
               'review': 'pending manual review: greeting, closing and letter sign-off reflect at most one thing, lightly and '
-                        'accurately; the tidied note keeps its voice and drops the move that is over'}
+                        'accurately; the tidied note keeps its voice and drops the move that is over; upcoming: a '
+                        'greeting or closing mentioning the stream speaks of it as still ahead, and lately keeps its date'}
     try:
         bridge.verify_scope()
         with context(language, selected):
@@ -215,7 +225,9 @@ def run_briefing(output, language, selected, scenario):
         result['checks'].append('The note stayed out of the opening and sections')
         result['after'] = note(runtime)
         save(folder/'memory.json', memory.load(runtime))
-        assert 'lena' in ' '.join(result['after'].values()).casefold(), 'The evening tidy did not take in the new chat message'
+        expected = {'upcoming': ('starfall', '星落')}.get(scenario, ('lena',))
+        assert any(word in ' '.join(result['after'].values()).casefold() for word in expected), \
+            'The evening tidy did not take in the new chat message'
         result['checks'].append('The evening tidy took in the chat message')
         if scenario == 'sunday':
             letter = letters.load(runtime, '2026-10-19')

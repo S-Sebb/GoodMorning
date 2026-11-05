@@ -14,7 +14,9 @@ things) and `lately` (what is going on for them now). The whole note holds at
 most 2,000 characters, about 600 tokens. The secretary writes what the user says
 or plainly shows about themselves, never its own guesses about mood or
 personality, and keeps sensitive topics out unless the user asks it to remember
-them. The note is never a permission, a setting or a source of facts for other
+them. A `lately` item about something coming up keeps its date, so briefings
+never speak of it as past and the evening tidy can drop it once it is over.
+The note is never a permission, a setting or a source of facts for other
 records.
 
 ## How it grows
