@@ -775,7 +775,8 @@ class TaxonomyTests(unittest.TestCase):
             self.assertEqual(result['next']['input'],{'position':0,'section':['weather',[['weather',[[card,'…','…'] for card in ('temperature','precipitation','air')]]],'',title]})
             # A misshapen first publish names the problem and shows the receipt's input; nothing is published.
             expected = json.dumps(result['next']['input'],ensure_ascii=False,separators=(',',':'))
-            for payload, problem in (({'position':0,'blocks':[['p','Sunny.']],'note':''},'has keys blocks, note, position'),
+            for payload, problem in (({'position':0,'blocks':[['p','Sunny.']],'note':''},'missing section; it has unexpected keys blocks, note'),
+                                     ({'input':{'position':0}},'missing position, section; it has unexpected keys input'),
                                      ({'position':0,'section':{'blocks':[['p','Sunny.']]}},'section must be an array'),
                                      ({'position':0,'section':['news',[['p','Sunny.']]]},'this position is weather'),
                                      ({'position':0,'section':['weather','Sunny.','',title]},'blocks (the second item'),

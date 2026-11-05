@@ -549,8 +549,10 @@ def act(runtime, identifier, session, action, payload=None):
             if not isinstance(payload, dict):
                 raise misshapen('The input must be one JSON object')
             if set(payload) != keys:
-                raise misshapen('The input has keys ' + ', '.join(sorted(map(str, payload))) + ' but takes exactly '
-                                + ' and '.join(sorted(keys)) + ('; blocks and note go inside the section array' if action == 'publish' else ''))
+                missing, extra = sorted(keys - set(payload)), sorted(map(str, set(payload) - keys))
+                raise misshapen('; '.join(([f'The input is missing {", ".join(missing)}'] if missing else [])
+                                          + ([f'it has unexpected keys {", ".join(extra)}'] if extra else []))
+                                + ('; blocks and note go inside the section array' if action == 'publish' else ''))
             requested = payload['position']
             if type(requested) is not int or requested < 0:
                 raise ValueError('Invalid section position')
