@@ -50,9 +50,9 @@ save(tab.resize((32, 32), Image.LANCZOS), WEB / 'icons/app-32.png')
 foreground = Image.new('RGBA', (432, 432), (0, 0, 0, 0))
 foreground.alpha_composite(portrait(300), (66, 132))
 save(foreground, ANDROID / 'ic_launcher_foreground.png')
-# Themed icons tint only the alpha: skin and shirt are solid, hair and jacket half
-# strength, and the darkest lines (eyes, outlines) are cut out.
-ink = foreground.convert('L').point(lambda v: 0 if v < 45 else 140 if v < 100 else min(255, 140 + (v - 100) * 115 // 70))
+# Themed icons tint only the alpha, usually dark ink on a light tile: eyes and
+# outlines are solid, hair and jacket strong, skin and shirt faint.
+ink = foreground.convert('L').point(lambda v: 255 if v < 45 else 210 if v < 100 else max(55, 210 - (v - 100) * 155 // 70))
 mono = Image.new('RGBA', foreground.size, (255, 255, 255, 255))
 mono.putalpha(ImageChops.multiply(ink, foreground.getchannel('A')))
 save(mono, ANDROID / 'ic_launcher_monochrome.png')

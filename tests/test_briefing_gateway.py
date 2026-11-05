@@ -362,7 +362,7 @@ class GatewayTests(GatewayFixture):
             status,_,page=self.request('/login',headers={'Host':host})
             self.assertEqual(status,200)
             links=re.findall(rb'<link rel="icon"[^>]+href="([^"]+)"',page)
-            self.assertEqual([link.rsplit(b'.',2)[0] for link in links],[b'/icons/app-32',b'/icons/app-192'])
+            self.assertEqual([link.rsplit(b'/',1)[1] for link in links],[b'app-32.png',b'app-192.png'])
             for link in links:
                 path=link.decode()
                 status,headers,data=self.request(path,headers={'Host':host})
