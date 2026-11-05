@@ -19,9 +19,10 @@ as the fixture root when it exists; set `GM_TEST_TMPDIR` to use another.
 
 1. Every PR:
    - focused tests for the changed behavior, added or updated in the same PR;
-   - `uv run --no-project --with-requirements requirements/browser.txt python tests/run.py`, which runs
-     every `tests/test_*.py` module in parallel groups;
-   - `node --test tests/test_parked_reasoning.mjs`.
+   - `uv run --no-project --with-requirements requirements/browser.txt python tests/run.py --changed origin/main`,
+     which runs the `tests/test_*.py` modules for what the branch changed (all of them when a
+     change maps to none);
+   - `node --test tests/test_parked_reasoning.mjs` when `integrations/opencode/parked-reasoning/` changed.
 2. Browser-visible changes: also run the `tests/browser/*.py` suites for the
    changed pages, listed in `tests/README.md`, with private artifact
    directories outside the checkout.
@@ -34,7 +35,9 @@ as the fixture root when it exists; set `GM_TEST_TMPDIR` to use another.
    emulator check, as described in `docs/android-app.md`.
 
 Put the exact commands and results in the PR's Validation section. CI repeats
-step 1 on every PR; it does not replace steps 2–5.
+step 1 on every PR and push to `main`; it does not replace steps 2–5. The full suite
+(`tests/run.py` without `--changed`, and the node test) runs only for a release: `deploy/release.py`
+runs it while staging (`docs/server-deployment.md`), and CI on the `deploy/*` tag.
 
 ## Releases
 

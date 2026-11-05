@@ -1,8 +1,10 @@
 name: Validate
 
+# PRs and pushes to main test what changed; deploy tags and manual runs test everything.
 on:
   push:
     branches: [main]
+    tags: ['deploy/*']
   pull_request:
   workflow_dispatch:
 
@@ -22,7 +24,16 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22.18.0'
-      - run: uv run --no-project --with-requirements requirements/browser.txt python tests/run.py
+      - name: Choose scope
+        run: |
+          case "${{ github.event_name }}/${{ github.ref }}" in
+            pull_request/*) echo "BASE=origin/${{ github.base_ref }}" >> "$GITHUB_ENV" ;;
+            push/refs/heads/*) echo "BASE=${{ github.event.before }}" >> "$GITHUB_ENV" ;;
+          esac
+      - run: uv run --no-project --with-requirements requirements/browser.txt python tests/run.py ${BASE:+--changed "$BASE"}
         env:
           GM_TEST_TMPDIR: ${{ runner.temp }}/goodmorning-tests
-      - run: node --test tests/test_parked_reasoning.mjs
+      - run: |
+          if [ -z "$BASE" ] || git diff --name-only "$BASE...HEAD" | grep -qE '^(integrations/opencode/parked-reasoning/|tests/test_parked_reasoning\.mjs)'; then
+            node --test tests/test_parked_reasoning.mjs
+          fi
