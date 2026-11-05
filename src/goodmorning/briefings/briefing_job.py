@@ -172,8 +172,10 @@ def next_step(runtime, identifier, session, context, checkpoint):
                                   for item in context['celebrations']]
         action['input'] = {'position':position, 'celebration':{'wish':'…'}}
     elif context.get('document_version') == 2:
-        # A filled example: string placeholders led models to send blocks/note as separate keys.
-        action['input'] = {'position':position, 'section':[tag,[['p','…']],'',title]}
+        # A filled example: string placeholders led models to send blocks/note as separate keys or unwrapped weather cards.
+        blocks = ([['outlook']] if context['workflow'] == 'gn' else [['weather',[[card,'…','…'] for card in ('temperature','precipitation','air')]]]
+                  ) if tag == 'weather' else [['p','…']]
+        action['input'] = {'position':position, 'section':[tag,blocks,'',title]}
     else:
         action['instruction'] = instruction
     return action
@@ -574,7 +576,7 @@ def act(runtime, identifier, session, action, payload=None):
                     raise misshapen(f'section type is {json.dumps(section[0], ensure_ascii=False)}, but this position is '
                                     + checkpoint['plan'][position][0])
                 if not isinstance(section[1], list):
-                    raise misshapen('blocks (the second item of section) must be a list of blocks such as [["p","…"]]')
+                    raise misshapen('blocks (the second item of section) must be a list of blocks')
             if action == 'skip':
                 if checkpoint['plan'][position][0] in ('weather','news','schedule','today','tomorrow','anime','games','stocks','letter','celebration'):
                     raise ValueError('Publish material unavailability; do not skip a required section')
@@ -592,7 +594,12 @@ def act(runtime, identifier, session, action, payload=None):
             if checkpoint['plan'][position][0] == 'weather':
                 section = with_weather_frame(runtime, identifier, section)
             document['sections'].append(section)
-            result = publish(runtime, identifier, document, position=position)
+            try:
+                result = publish(runtime, identifier, document, position=position)
+            except ValueError as error:
+                if str(error).startswith('sections['):
+                    raise misshapen(str(error)) from None
+                raise
             pictures = (native.news_urls(document) if payload['section'][0] == 'news' and context.get('integration_policy', {}).get('publisher_images') is True
                         else native.cover_urls(document) if payload['section'][0] in ('anime', 'games') else [])
             if pictures:
