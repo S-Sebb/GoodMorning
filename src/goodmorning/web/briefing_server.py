@@ -350,7 +350,7 @@ class BrowserApp:
         switches = ''.join(f'<a class="edition-link{" selected" if other == kind else ""}" href="/{other}">{label}</a>' for other, label in KINDS.items()) + '<a class="edition-link" href="/schedule">Schedule</a><a class="edition-link" href="/letters">Letters</a>'
         text = f'<!doctype html><html lang="en" data-edition="{kind}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><title>Initialize your secretary — GoodMorning</title><link rel="stylesheet" href="/briefing.css"></head><body><header class="masthead"><a class="wordmark" href="/{kind}">GoodMorning<span>A personal secretary just for you</span></a><nav class="edition-switch" aria-label="Edition">{switches}<a class="edition-link" href="/chat">Secretary</a></nav></header><main><section class="waiting-room"><div class="waiting-art">{celestial(kind)}</div><p class="eyebrow">{KINDS[kind]} edition</p><h1>Let’s make this yours.</h1><p class="subtitle">Complete your secretary’s setup before preparing a briefing. Your saved records stay unchanged.</p><a id="initialize" class="initialize-button" href="/chat?mode=initialize">Initialize my secretary</a></section></main></body></html>'
         text = self.briefing_layout(text, kind=kind)
-        return self.resources.rewrite(ui.page(text.replace('</head>', favicon_links(kind) + '</head>'),self.csrf,'/'+kind,avatars=True)).encode()
+        return self.resources.rewrite(ui.page(text.replace('</head>', favicon_links() + '</head>'),self.csrf,'/'+kind,avatars=True)).encode()
 
     def dates(self):
         today = Date.fromisoformat(self.today())
@@ -515,7 +515,7 @@ class BrowserApp:
         text = re.sub(r'(<nav class="edition-switch"[^>]*>.*?)(</nav>)', r'\1<a class="edition-link" href="/schedule">Schedule</a><a class="edition-link" href="/letters">Letters</a><a class="edition-link" href="/chat">Secretary</a>\2', text, count=1)
         text = text.replace('href="icons/', 'href="/icons/')
         if '<link rel="icon"' not in text:
-            text = text.replace('</head>', favicon_links(kind) + '</head>')
+            text = text.replace('</head>', favicon_links() + '</head>')
         return_to=f'/d/{date}/{kind}' if pinned else f'/{kind}'
         output = self.resources.rewrite(ui.page(quick_chat.widget(text.replace('</body>', marker + '</body>'), self.csrf),self.csrf,return_to,avatars=True)).encode()
         if confirmed:

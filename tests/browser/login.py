@@ -25,14 +25,13 @@ def main():
                     response=page.goto('https://'+host+'/',wait_until='networkidle')
                     expect(page).to_have_url('https://'+host+'/login')
                     expect(page.get_by_role('heading',name='Sign in')).to_be_visible()
-                    kind='secretary' if host.startswith('sec.') else host.split('.')[0]
                     icons=page.locator('head link[rel="icon"]')
                     expect(icons).to_have_count(2)
                     for href in icons.evaluate_all('(elements) => elements.map(element => element.href)'):
-                        assert '/icons/'+kind+'.' in href
+                        assert '/icons/app-' in href
                         icon=context.request.get(href)
                         assert icon.status==200
-                        assert icon.headers['content-type'] in ('image/png','image/svg+xml')
+                        assert icon.headers['content-type']=='image/png'
                     expect(page.get_by_label('Username',exact=True)).to_be_editable()
                     expect(page.get_by_label('Password',exact=True)).to_have_attribute('type','password')
                     password=page.get_by_label('Password',exact=True)
@@ -71,7 +70,7 @@ def main():
                     api=context.request.get('https://'+host+'/api/jobs/'+('a'*32))
                     assert api.status==401
                     results.append({'host':host,'width':width,'overflow':False,'pageErrors':0,
-                                    'hostOnlySecureCookie':True,'privateAPIStatus':api.status,'tabIcon':kind,'iconFormats':['PNG','SVG'],
+                                    'hostOnlySecureCookie':True,'privateAPIStatus':api.status,'tabIcon':'app','iconFormats':['PNG'],
                                     'languages':['en','zh-CN']})
                     context.close()
                     time.sleep(4)  # Respect the production auth rate limit, not an assertion wait.
