@@ -10,6 +10,7 @@ from pathlib import Path
 import shlex
 import sqlite3
 import sys
+import time
 
 from . import briefing_document as native
 from . import briefing_guides
@@ -182,9 +183,23 @@ def activity_path(runtime, identifier):
     return context_path(runtime, identifier).with_name(identifier + '.activity.json')
 
 
+def timings_path(runtime, identifier):
+    return context_path(runtime, identifier).with_name(identifier + '.timings.jsonl')
+
+
+def timed(runtime, identifier, step, **values):
+    """Append one timestamped step, so read and model-turn times per section can be measured (#220).
+    Private to the account, beside the job's context file and kept as long as it is."""
+    line = json.dumps({'step':step, **values, 'at':round(time.time(), 3)}, separators=(',',':')) + '\n'
+    fd = os.open(timings_path(runtime, identifier), os.O_WRONLY | os.O_CREAT | os.O_APPEND | os.O_NOFOLLOW, 0o600)
+    with os.fdopen(fd, 'a', encoding='utf-8') as log:
+        log.write(line)
+
+
 def note(runtime, identifier, step, **values):
     """Record the step code is on, for the waiting page. Only code writes it, so it never overstates progress."""
     atomic_text(activity_path(runtime, identifier), json.dumps({'step':step, **values}, separators=(',',':')))
+    timed(runtime, identifier, step, **values)
 
 
 def weather_frame_path(runtime, identifier):
@@ -454,6 +469,8 @@ def act(runtime, identifier, session, action, payload=None):
     directory, target, job, context = owned(runtime, identifier, session)
     with runtime_lock(directory, identifier + '.workflow.lock'):
         directory, target, job, context = owned(runtime, identifier, session)
+        # A model turn ends when its call arrives; the last one before the next step is the call that advanced it.
+        timed(runtime, identifier, 'receive', action=action)
         checkpoint = load(target)
         if 'replacement' in job:
             from .briefing_replacement import check

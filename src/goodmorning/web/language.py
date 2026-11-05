@@ -220,8 +220,6 @@ def page(source,csrf,return_to='/',avatars=False):
            '</div><input type="file" data-avatar-file accept="image/png,image/jpeg,image/webp" aria-label="Upload your own avatar" hidden>'
            '<p class="notification-note">PNG, JPEG or WebP, up to 5 MB. Missing images are filled in from the ones you upload.</p>'
            '<span class="avatar-feedback" role="status"></span></section>') if avatars or account else ''
-    about=('<a id="about-me-link" href="/about-me"><span class="color-scheme-heading about-me-heading">About me</span>'
-           '<span class="notification-note">What your secretary knows about you</span></a>')
     # Settings holds what belongs to this device; Account what follows the signed-in owner everywhere.
     # Without an account (sign-in page, local viewer) language stays with this device too.
     prefs=('<details class="menu" id="prefs-menu"><summary><span aria-hidden="true">⚙</span> '
@@ -232,7 +230,7 @@ def page(source,csrf,return_to='/',avatars=False):
     account_menu=('<details class="menu" id="account-menu"><summary><span class="menu-label">Account</span></summary>'
                   '<div class="menu-panel"><div class="settings-menu-header account-menu-header"><div><h2>Account</h2>'
                   '<p>These follow you on every device you sign in on.</p></div>'+close+'</div>'
-                  +about+avatar+language_form+phones+account+'</div></details>') if account else ''
+                  +avatar+language_form+phones+account+'</div></details>') if account else ''
     controls=('<div class="toolbar-row">'+prefs+account_menu+'<span id="update-slot"></span></div>')
     if avatar and '/avatar.js' not in source:
         source=source.replace('</head>','<link rel="stylesheet" href="/avatar.css"><script src="/avatar.js" defer></script></head>',1)

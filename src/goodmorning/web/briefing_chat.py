@@ -11,6 +11,7 @@ from urllib.parse import urlencode
 
 from goodmorning import setup_flow, setup_guides
 from goodmorning.runtime_files import atomic_text
+from .about_me import desk_link
 from .briefing_resources import favicon_links
 from . import language as ui
 from . import models as site_models
@@ -987,7 +988,7 @@ class Chats:
         return {'answered': True}
 
 
-def page(csrf, ready, connected, secretary_name=None, avatar='f1', avatar_urls=None, timezone='UTC', theme='gm'):
+def page(csrf, ready, connected, secretary_name=None, avatar='f1', avatar_urls=None, timezone='UTC', theme='gm', profile=None):
     if avatar not in AVATAR_IDS and not (avatar == 'custom' and (avatar_urls or {}).get('custom')):
         avatar = 'f1'
     sources = dict(avatar_urls) if avatar_urls else {}
@@ -1004,13 +1005,13 @@ def page(csrf, ready, connected, secretary_name=None, avatar='f1', avatar_urls=N
     title = (html.escape(secretary_name) + ' — GoodMorning') if secretary_name else 'Your secretary — GoodMorning'
     return ('<!doctype html><html lang="en" data-edition="' + ('gn' if theme == 'gn' else 'gm') + '"><head><meta charset="utf-8">'
             '<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">'
-            '<title>' + title + '</title>' + favicon_links('secretary') + '<link rel="stylesheet" href="/briefing.css">'
+            '<title>' + title + '</title>' + favicon_links() + '<link rel="stylesheet" href="/briefing.css">'
             '<link rel="stylesheet" href="/chat.css"><link rel="stylesheet" href="/avatar.css">'
             '<link rel="stylesheet" href="/scroll-rails.css"><script src="/scroll-rails.js" defer></script></head><body class="chat-page">'
             '<a class="skip-link" href="#conversation">Skip to conversation</a>'
             '<header class="masthead"><a class="wordmark" href="/chat">GoodMorning<span>A personal secretary just for you</span></a>'
             '<nav class="edition-switch" aria-label="Your desk"><a class="edition-link" href="/gm">Morning</a>'
-            '<a class="edition-link" href="/gn">Evening</a><a class="edition-link" href="/schedule">Schedule</a><a class="edition-link" href="/letters">Letters</a><a class="edition-link selected" href="/chat" aria-current="page">Secretary</a></nav></header>'
+            '<a class="edition-link" href="/gn">Evening</a><a class="edition-link" href="/schedule">Schedule</a><a class="edition-link" href="/letters">Letters</a><a class="edition-link selected" href="/chat" aria-current="page">Secretary</a>' + desk_link(profile or {}) + '</nav></header>'
             '<main class="chat-layout"><aside class="conversation-sidebar">'
             '<div class="secretary-identity">' + avatar_widget(avatar, sources, theme=theme) +
             '<p class="eyebrow">Your desk</p>'

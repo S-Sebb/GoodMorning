@@ -133,6 +133,7 @@ class BriefingMemoryTests(unittest.TestCase):
         greeting = self.step('prepare')['next']
         self.assertEqual((greeting['action'], greeting['memory']), ('init', {'lately': 'Training for the Shanghai marathon in March.'}))
         self.assertIn('`memory`', greeting['guide'])
+        self.assertIn('mention it only as still ahead, never as past', greeting['guide'])
         section = self.step('init', {'greeting': 'Evening.', 'opening': 'Tonight’s review.'})['next']
         self.assertNotIn('memory', section)
         self.assertNotIn('`memory`', section['guide'])
@@ -153,6 +154,7 @@ class BriefingMemoryTests(unittest.TestCase):
         self.assertEqual((saved['memory']['revision'], saved['memory']['note']['life']), (1, 'You have a dog, Mochi.'))
         self.assertEqual([entry['text'] for entry in saved['memory']['messages']], ['Night shifts all week, ugh'])
         self.assertTrue(saved['next'].startswith('Before the handoff, tidy your memory'))
+        self.assertIn('something coming up keeps its calendar date', saved['next'])
         self.assertIn('Hand over the relative link', saved['next'])
 
 

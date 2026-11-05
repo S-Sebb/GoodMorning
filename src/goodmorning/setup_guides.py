@@ -6,7 +6,7 @@ carry the rules for the current step only, in the website language.
 
 # The consent question's text and the closing note; Chinese lives in assets/web/translations.json.
 CONSENT = ('To be your secretary, GoodMorning keeps what you tell me in your account’s private storage: your profile '
-           '(names, birthday, city, weekly routine, news and holiday choices), your schedule, inbox and daily notes, '
+           '(names, birthday, gender, city, weekly routine, news and holiday choices), your schedule, inbox and daily notes, '
            'and your briefings. When you tell me your city, I look it up with the weather service, and at the end of '
            'setup I check your weather and news once. You can change any answer later on About me. If you don’t agree, nothing is saved.')
 DECLINED = ('No problem — I haven’t saved anything. I can only set things up once you agree to GoodMorning keeping '
@@ -38,6 +38,9 @@ TEXT = {
                 'characters. Save its exact spelling; never take it from account names, email or records.'),
   'birthday': ('Ask for the user\'s birthday, optional, so the morning briefing can open with a birthday card that day. '
                'Save month and day only as "MM-DD" (03-14); never ask for or save a year or age.'),
+  'gender': ('Ask the user\'s gender, optional: woman, man, or prefer not to say. Say it only picks the person icon for '
+             'About me in the page bar. Save gender as "woman", "man" or "unspecified" from the user\'s own answer; never infer '
+             'it from names, tone or anything else.'),
   'location': ('Ask where the user is based: city and country, used for weather and the timezone. Save city as '
                '"City, Province or State, CC" with the two-letter country code (Hangzhou, Zhejiang, CN; Edinburgh, '
                'Scotland, GB) so the weather service finds exactly one place, plus region ("mainland-china" for a city in mainland China, '
@@ -74,6 +77,7 @@ TEXT = {
   'secretary_name': "问用户想怎么称呼你，也就是秘书：选填，1–30 个字符。secretary_name 是你的名字，绝不是用户的名字；按原样拼写保存。",
   'user_name': "问用户你该怎么称呼对方：任何名字或称呼方式（“Sam”“李医生”），选填，1–30 个字符。按原样拼写保存；绝不要从账号名、邮箱或记录里取。",
   'birthday': "问用户的生日，选填，好让早间简报在那天以一张生日卡片开场。只把月和日存成 “MM-DD”（03-14）；绝不要问或保存年份和年龄。",
+  'gender': "问用户的性别，选填：女性、男性，或者不想说。告诉用户这只用来选页面栏里“关于我”的人物图标。按用户自己的回答把 gender 存成 “woman”“man” 或 “unspecified”；绝不要从名字、语气或其他任何东西推断。",
   'location': "问用户常驻在哪里：城市和国家，用来查天气和确定时区。城市存成 “City, Province or State, CC”，带两个字母的国家代码（Hangzhou, Zhejiang, CN；Edinburgh, Scotland, GB），好让天气服务只找到一个地方，再加上地区（中国大陆的城市用 “mainland-china”，其他用 “global”）和 IANA 时区（Europe/London），这两项都从城市推算。如果这个城市可能对应好几个地方，就再运行 `ask`，用 `clarify` 列出可能的那几个。",
   'rhythm': "问用户平常一周的情况，全部选填：工作日、工作时段、睡觉时间，以及你该用什么语气跟对方说话（secretary_tone）。用用户的说法存成短语，用户跳过的就不填。如果某种语气对用户有害或不友善，提出一个接近的替代方案，只说一次。",
   'about': "问用户，全部选填：用户的身份（occupations）、用户熟悉的领域（expertise_fields），以及任何需要你留意的事（special_needs）。只有当用户自己说出来时，才保存 industry、project_scope 或 knowledge_area。用用户的说法存成短语；绝不编造默认值。",

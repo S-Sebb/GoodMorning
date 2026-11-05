@@ -41,6 +41,7 @@ from .activity import ACTIVITY_PATH, snapshot as activity_snapshot
 from . import app_briefings
 from .briefing_reminders import ReminderLines, Unknown
 from . import schedule
+from . import ideas
 from . import letters
 from . import about_me
 from . import quick_chat
@@ -343,13 +344,13 @@ class BrowserApp:
 
     def chat_page(self):
         settings = self.chat_settings()
-        return self.resources.rewrite(ui.page(chat_page(self.csrf, settings['defaultMode'] == 'secretary', settings['connected'], settings.get('secretary_name'), settings['avatar'], {item['id']: {key: value for key, value in item.items() if key != 'id'} for item in settings['avatars']}, settings['timezone'], settings['theme']),self.csrf,'/chat',avatars=True)).encode()
+        return self.resources.rewrite(ui.page(chat_page(self.csrf, settings['defaultMode'] == 'secretary', settings['connected'], settings.get('secretary_name'), settings['avatar'], {item['id']: {key: value for key, value in item.items() if key != 'id'} for item in settings['avatars']}, settings['timezone'], settings['theme'], self.profile()),self.csrf,'/chat',avatars=True)).encode()
 
     def initialization_page(self, kind):
         switches = ''.join(f'<a class="edition-link{" selected" if other == kind else ""}" href="/{other}">{label}</a>' for other, label in KINDS.items()) + '<a class="edition-link" href="/schedule">Schedule</a><a class="edition-link" href="/letters">Letters</a>'
-        text = f'<!doctype html><html lang="en" data-edition="{kind}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><title>Initialize your secretary — GoodMorning</title><link rel="stylesheet" href="/briefing.css"></head><body><header class="masthead"><a class="wordmark" href="/{kind}">GoodMorning<span>A personal secretary just for you</span></a><nav class="edition-switch" aria-label="Edition">{switches}<a class="edition-link" href="/chat">Secretary</a></nav></header><main><section class="waiting-room"><div class="waiting-art">{celestial(kind)}</div><p class="eyebrow">{KINDS[kind]} edition</p><h1>Let’s make this yours.</h1><p class="subtitle">Complete your secretary’s setup before preparing a briefing. Your saved records stay unchanged.</p><a id="initialize" class="initialize-button" href="/chat?mode=initialize">Initialize my secretary</a></section></main></body></html>'
+        text = f'<!doctype html><html lang="en" data-edition="{kind}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><title>Initialize your secretary — GoodMorning</title><link rel="stylesheet" href="/briefing.css"></head><body><header class="masthead"><a class="wordmark" href="/{kind}">GoodMorning<span>A personal secretary just for you</span></a><nav class="edition-switch" aria-label="Edition">{switches}<a class="edition-link" href="/chat">Secretary</a>{about_me.desk_link(self.profile())}</nav></header><main><section class="waiting-room"><div class="waiting-art">{celestial(kind)}</div><p class="eyebrow">{KINDS[kind]} edition</p><h1>Let’s make this yours.</h1><p class="subtitle">Complete your secretary’s setup before preparing a briefing. Your saved records stay unchanged.</p><a id="initialize" class="initialize-button" href="/chat?mode=initialize">Initialize my secretary</a></section></main></body></html>'
         text = self.briefing_layout(text, kind=kind)
-        return self.resources.rewrite(ui.page(text.replace('</head>', favicon_links(kind) + '</head>'),self.csrf,'/'+kind,avatars=True)).encode()
+        return self.resources.rewrite(ui.page(text.replace('</head>', favicon_links() + '</head>'),self.csrf,'/'+kind,avatars=True)).encode()
 
     def dates(self):
         today = Date.fromisoformat(self.today())
@@ -451,7 +452,7 @@ class BrowserApp:
         if confirmed:
             manifest = self.runtime / 'browser-images' / date / 'manifest.json'
             if manifest.parent.is_symlink():raise ValueError('Unsafe image manifest')
-            page_signature = self.file_signature(path), self.file_signature(manifest), week, VERSION, avatar, json.dumps(self.avatar_sources(), sort_keys=True), secretary_name(self.runtime), current_job and (current_job['id'], current_job['state'])
+            page_signature = self.file_signature(path), self.file_signature(manifest), week, VERSION, avatar, json.dumps(self.avatar_sources(), sort_keys=True), secretary_name(self.runtime), self.profile().get('gender'), current_job and (current_job['id'], current_job['state'])
             with self.lock:
                 cached = self.pages.get(page_key)
                 if cached and cached[0] == page_signature:return cached[1]
@@ -509,10 +510,12 @@ class BrowserApp:
                              'workspaceScope': hashlib.sha256(('chat-workspace:' + self.csrf).encode()).hexdigest()}).replace('<', '\\u003c')
         # Inert JSON in a data attribute; no inline scripts or unsafe HTML.
         marker = '<div id="browser-config" hidden data-config="' + html.escape(config, quote=True) + '"></div><script src="/questions.js" defer></script><script src="/browser.js" defer></script>'
-        text = re.sub(r'(<nav class="edition-switch"[^>]*>.*?)(</nav>)', r'\1<a class="edition-link" href="/schedule">Schedule</a><a class="edition-link" href="/letters">Letters</a><a class="edition-link" href="/chat">Secretary</a>\2', text, count=1)
+        # Idea buttons write records, so they load only here, never in a saved offline copy.
+        marker += '<script src="/idea-cards.js" defer></script>'
+        text = re.sub(r'(<nav class="edition-switch"[^>]*>.*?)(</nav>)', lambda match: match[1] + '<a class="edition-link" href="/schedule">Schedule</a><a class="edition-link" href="/letters">Letters</a><a class="edition-link" href="/chat">Secretary</a>' + about_me.desk_link(self.profile()) + match[2], text, count=1)
         text = text.replace('href="icons/', 'href="/icons/')
         if '<link rel="icon"' not in text:
-            text = text.replace('</head>', favicon_links(kind) + '</head>')
+            text = text.replace('</head>', favicon_links() + '</head>')
         return_to=f'/d/{date}/{kind}' if pinned else f'/{kind}'
         output = self.resources.rewrite(ui.page(quick_chat.widget(text.replace('</body>', marker + '</body>'), self.csrf),self.csrf,return_to,avatars=True)).encode()
         if confirmed:
@@ -1163,6 +1166,9 @@ def serve_live(app, port, *, gateway_key=None, public_origins=()):
                     if hours not in (['3'], ['24']):
                         return self.respond({'error': 'Invalid reminder window'}, 400)
                     return self.respond(schedule.upcoming(app, int(hours[0])))
+                if path == '/api/ideas':
+                    ids = parse_qs(parsed.query).get('ids', [''])[0]
+                    return self.respond(ideas.states(app, ids.split(',') if ids else []))
                 if path == '/api/briefing-reminders':
                     return self.respond(app.reminder_state())
                 lines = re.fullmatch(r'/api/briefing-reminders/lines/([a-f0-9]{32})', path)
@@ -1366,6 +1372,13 @@ def serve_live(app, port, *, gateway_key=None, public_origins=()):
                     except ValueError as error:
                         if str(error).startswith(('write_conflict', 'unknown_occurrence', 'not_found')):
                             return self.respond({'error': 'Couldn’t save — this task changed since the page loaded. Refresh and try again.'}, 409)
+                        raise
+                if path == '/api/ideas/close':
+                    try:
+                        return self.respond(ideas.close(app, body))
+                    except ValueError as error:
+                        if str(error).startswith(('write_conflict', 'not_found')):
+                            return self.respond({'error': 'Couldn’t save — this idea changed since the page loaded. Refresh and try again.'}, 409)
                         raise
                 if path == '/api/chats':
                     return self.respond(app.chats.start(body), 202)
