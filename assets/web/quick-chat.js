@@ -133,6 +133,10 @@
     showHeader();
   }
 
+  // Only a permission keeps the composer closed; a new message skips a waiting question.
+  function isBlocked() { return chat && (['uncertain', 'unavailable'].includes(state) || state === 'waiting' && permissionsPending); }
+  function canSend() { return !sending && connected && !isBlocked(); }
+
   function showStatus() {
     const active = sending || ['starting', 'running'].includes(state);
     const text = t(sending ? 'Sending your message' : state === 'starting' ? 'Opening your conversation'
@@ -145,9 +149,8 @@
     }
     statusBox.append(make('span', text));
     statusBox.hidden = !text;
-    // Only a permission keeps the composer closed; a new message skips a waiting question.
-    const blocked = chat && (['uncertain', 'unavailable'].includes(state) || state === 'waiting' && permissionsPending);
-    sendButton.disabled = sending || !connected || blocked || (!textBox.value.trim() && !attachments.length);
+    const blocked = isBlocked();
+    sendButton.disabled = !canSend() || (!textBox.value.trim() && !attachments.length);
     textBox.disabled = sending || blocked;
     attachButton.disabled = sending || !connected || blocked;
     attachBox.querySelectorAll('button').forEach(button => { button.disabled = sending; });
@@ -473,12 +476,14 @@
     if (!sendButton.disabled) $('#quick-chat-compose').requestSubmit();
   });
 
-  $('#quick-chat-compose').addEventListener('submit', async event => {
+  $('#quick-chat-compose').addEventListener('submit', event => {
     event.preventDefault();
-    if (sendButton.disabled) return;
+    if (!sendButton.disabled) send(textBox.value, attachments, true);
+  });
+
+  // fromComposer: the text is the draft, cleared once it is delivered; otherwise the draft is left alone.
+  async function send(text, selectedFiles, fromComposer) {
     const first = !chat, request = crypto.randomUUID().replaceAll('-', ''), current = chat || request, version = revision;
-    const text = textBox.value;
-    const selectedFiles = attachments;
     sending = true; errorBox.textContent = ''; showStatus(); showHeader();
     const pending = {turn: request, text, attachments: selectedFiles.map(entry => ({id: entry.id, name: entry.file.name,
       size: entry.file.size, preview: entry.preview}))};
@@ -497,8 +502,8 @@
       if (selectedFiles.length) body.attachments = selectedFiles.map(entry => entry.id);
       result = await api(first ? '/api/chats' : `/api/chats/${current}/messages`, body);
       if (version !== revision) return;
-      chat = current; textBox.value = ''; resizeComposer();
-      attachments = []; showAttachments();
+      chat = current;
+      if (fromComposer) { textBox.value = ''; resizeComposer(); attachments = []; showAttachments(); }
       // Keep local previews until the transcript shows the delivered turn's own images.
       setTimeout(() => releasePreviews(selectedFiles), 60000);
       state = result?.queued ? 'queued' : 'starting';
@@ -518,7 +523,7 @@
         if (chat) poll();
       }
     }
-  });
+  }
 
   async function sendAgain(item) {
     if (sending || !chat || state !== 'idle') return;
@@ -576,13 +581,15 @@
     if (event.target.closest?.('#quick-chat, #mobile-sections, .back-to-top')) tuck(false);
   });
 
-  // Review links open this panel with a starter line instead of leaving the page; nothing sends by itself.
+  // Review links open this panel and send their starter line straight away, keeping any draft in the composer.
+  // While a message cannot be sent, the line waits in an empty composer instead.
   document.addEventListener('click', event => {
     const link = event.target.closest?.('[data-quick-ask]');
     if (!link || !ready || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
     event.preventDefault();
     const starter = t(link.dataset.quickAsk, {title: link.dataset.quickAskTitle || ''});
     (open ? Promise.resolve() : openWindow()).then(() => {
+      if (canSend()) return send(starter, [], false);
       if (!textBox.value.trim()) { textBox.value = starter; resizeComposer(); showStatus(); }
       textBox.focus({preventScroll: true});
     });
