@@ -261,7 +261,7 @@ def link_handoff(folder, stage, expected_url=None):
                 and not any(line.lstrip().startswith(('-', '*', '#')) for line in lines))
 
 
-def collection_order_issues(log, plan, position=0, reconcile=False):
+def collection_order_issues(log, plan, position=0, reconcile=False, quiet=False):
     """Check provider attempts and delivered views against successful publications.
 
     Failed scoped reads return no view. Their blocked attempts remain recorded.
@@ -284,6 +284,9 @@ def collection_order_issues(log, plan, position=0, reconcile=False):
         tag = argv[0] if argv[0] in ('weather','news') else None
         if argv[0] == 'task' and '--briefing' in argv and '--section' in argv:
             tag = argv[argv.index('--section') + 1]
+        if quiet and tag == 'today' and position < len(plan) and plan[position][0] == 'today':
+            position += 1  # Code read Today and skipped it on a quiet evening; the log has no skip for it.
+            continue
         if tag == 'tasks' and position == 0 and reconcile:
             continue  # Targeted feedback reconciliation is reviewed separately.
         if tag and (position >= len(plan) or tag != plan[position][0]):
@@ -453,7 +456,9 @@ def run_case(output, template, language, scenario, instant):
         assert not any(entry['argv'][:1] == ['workflow'] for entry in log), 'Browser agent repeated local preparation'
         prepared = json.loads(context_path(runtime, job).read_text())
         reconcile = kind == 'gn'
-        order_issues = collection_order_issues(log, default_plan(prepared), 1 if bridge.seeded else 0,
+        saved = app.source(day, kind)
+        quiet = kind == 'gn' and saved.exists() and 'today' not in [s[0] for s in json.loads(saved.read_text())['sections']]
+        order_issues = collection_order_issues(log, default_plan(prepared), 1 if bridge.seeded else 0, quiet=quiet,
                                               reconcile=reconcile)
         result['collection_order_issues'] = order_issues
         if scenario == 'evening-ambiguous':
@@ -508,14 +513,16 @@ def run_case(output, template, language, scenario, instant):
                     result['checks'].append('Existing checkpoint resumed without reinit, rewriting or refetching its section')
             elif scenario == 'evening-weather':
                 assert records(runtime) == baseline, 'Evening without updates changed task records'
-                assert [section[0] for section in document['sections']][:3] == ['today','weather','schedule']
-                section = document['sections'][1]
+                assert [section[0] for section in document['sections']][:2] == ['weather','schedule'], 'A quiet evening kept a Today section'
+                assert not any(job_action(entry['argv']) in ('publish','skip') and entry.get('input',{}).get('position') == 0
+                               for entry in log), 'The model spent a turn on the quiet Today position'
+                section = document['sections'][0]
                 assert section[1] == [reading['json']['outlook']], 'The section is not exactly the code-filled card'
                 assert section[3:] == [default_plan(prepared)[1][1]], 'Weather tomorrow lost its planned title'
                 assert section[2:3] and section[2].strip() and '\n' not in section[2], 'No one-line closing note'
                 assert not re.search(r'\d', section[2]), 'The note repeated numbers or times the card already shows'
                 result['weather_note'] = section[2]
-                result['checks'].append('Weather tomorrow follows Today as the code-filled card with a one-line note')
+                result['checks'].append('Quiet evening: no Today section or turn; Weather tomorrow is the code-filled card with a one-line note')
             else:
                 current = records(runtime)
                 atlas = next(task for task in current if task['id'] == baseline[0]['id'])
