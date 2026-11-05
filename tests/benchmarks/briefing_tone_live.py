@@ -259,7 +259,7 @@ def link_handoff(folder, stage, expected_url=None):
                 and not any(line.lstrip().startswith(('-', '*', '#')) for line in lines))
 
 
-def collection_order_issues(log, plan, position=0, reconcile=False):
+def collection_order_issues(log, plan, position=0, reconcile=False, quiet=False):
     """Check provider attempts and delivered views against successful publications.
 
     Failed scoped reads return no view. Their blocked attempts remain recorded.
@@ -282,6 +282,9 @@ def collection_order_issues(log, plan, position=0, reconcile=False):
         tag = argv[0] if argv[0] in ('weather','news') else None
         if argv[0] == 'task' and '--briefing' in argv and '--section' in argv:
             tag = argv[argv.index('--section') + 1]
+        if quiet and tag == 'today' and position < len(plan) and plan[position][0] == 'today':
+            position += 1  # Code read Today and skipped it on a quiet evening; the log has no skip for it.
+            continue
         if tag == 'tasks' and position == 0 and reconcile:
             continue  # Targeted feedback reconciliation is reviewed separately.
         if tag and (position >= len(plan) or tag != plan[position][0]):
@@ -392,9 +395,8 @@ def run_case(output, template, language, scenario, instant):
         prepared = json.loads(context_path(runtime, job).read_text())
         reconcile = kind == 'gn'
         saved = app.source(day, kind)
-        # Code resolves a quiet evening's Today position itself, so the log has no skip for it.
         quiet = kind == 'gn' and saved.exists() and 'today' not in [s[0] for s in json.loads(saved.read_text())['sections']]
-        order_issues = collection_order_issues(log, default_plan(prepared), 1 if bridge.seeded or quiet else 0,
+        order_issues = collection_order_issues(log, default_plan(prepared), 1 if bridge.seeded else 0, quiet=quiet,
                                               reconcile=reconcile)
         result['collection_order_issues'] = order_issues
         if scenario == 'evening-ambiguous':
