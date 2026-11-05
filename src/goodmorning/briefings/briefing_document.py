@@ -943,7 +943,9 @@ def render_block(value, images, briefing_date=None):
             ask = '' if re.fullmatch('[0-9a-f]{16}', row[0]) else (
                 f'<a class="decision-ask" href="/chat" data-quick-ask="Let’s look at “{{title}}” together." data-quick-ask-title="{escaped(disp_title)}">'
                 + ui.ui('Review with your secretary') + '</a>')
-            items.append('<li class="decision-card"><div class="decision-title">' + escaped(disp_title) + '</div>' + detail + ask + '</li>')
+            # The page asks which inbox entries are ideas and adds their Done button.
+            entry = f' data-entry="{row[0]}"' if re.fullmatch('ib_[0-9a-f]{16}', row[0]) else ''
+            items.append(f'<li class="decision-card"{entry}><div class="decision-title">' + escaped(disp_title) + '</div>' + detail + ask + '</li>')
         return '<ul class="decision-list">' + ''.join(items) + '</ul>'
     if tag == 'p':
         return '<p>' + escaped(value[1]) + (' ' + citations(value[2]) if len(value) == 3 else '') + '</p>'

@@ -24,7 +24,7 @@ sys.path.insert(0, str(ROOT/'tests'))
 from benchmarks import trial_engine
 from benchmarks.trial_engine import TrialBridge
 from benchmarks.task_tone_live import context, matrix_lock, records, save, TONES
-from goodmorning.briefings.briefing_job import act, context_path, default_plan
+from goodmorning.briefings.briefing_job import act, context_path, default_plan, timings_path
 from goodmorning.calendar.calendar_store import CalendarStore
 from goodmorning.records.inbox_store import initialize, InboxStore
 from goodmorning.web.briefing_server import BrowserApp
@@ -144,6 +144,8 @@ class CheckpointBridge(TrialBridge):
 def synthetic_weather(instant, later=None):
     """Brief text and JSON from the real weather code: past night rain, drizzle now easing within three hours, rain from 21:00.
 
+    Only today's past night reaches 100%, so the daily maximum is a figure the forward read never reports,
+    even when a late run's window reaches into tomorrow's night.
     A `later` day (tomorrow, for the evening) gets that day's card instead: dry until 21:00, then rain."""
     from unittest.mock import patch
     from goodmorning import weather as w
@@ -151,7 +153,7 @@ def synthetic_weather(instant, later=None):
     day = local.date()
     times = [f'{day + timedelta(days=h // 24)}T{h % 24:02d}:00' for h in range(48)]
     forecast = {'timezone':'Europe/London', 'hourly':{'time':times, 'temperature_2m':[9 + (h % 24) / 4 for h in range(48)],
-                'precipitation_probability':[100 if h % 24 in (3, 4) else 70 + h % 24 if h % 24 >= 21
+                'precipitation_probability':[100 if h in (3, 4) else 70 + h % 24 if h % 24 >= 21
                                               else 60 if 0 <= h - local.hour < 3 and h < 24 else 5 for h in range(48)]},
                 'current':{'time':local.strftime('%Y-%m-%dT%H:00'), 'temperature_2m':12, 'weather_code':51},
                 'daily':{'time':[str(day), str(day + timedelta(days=1))], 'temperature_2m_min':[9, 9], 'temperature_2m_max':[14.8, 14.8],
@@ -259,7 +261,7 @@ def link_handoff(folder, stage, expected_url=None):
                 and not any(line.lstrip().startswith(('-', '*', '#')) for line in lines))
 
 
-def collection_order_issues(log, plan, position=0, reconcile=False):
+def collection_order_issues(log, plan, position=0, reconcile=False, quiet=False):
     """Check provider attempts and delivered views against successful publications.
 
     Failed scoped reads return no view. Their blocked attempts remain recorded.
@@ -282,6 +284,9 @@ def collection_order_issues(log, plan, position=0, reconcile=False):
         tag = argv[0] if argv[0] in ('weather','news') else None
         if argv[0] == 'task' and '--briefing' in argv and '--section' in argv:
             tag = argv[argv.index('--section') + 1]
+        if quiet and tag == 'today' and position < len(plan) and plan[position][0] == 'today':
+            position += 1  # Code read Today and skipped it on a quiet evening; the log has no skip for it.
+            continue
         if tag == 'tasks' and position == 0 and reconcile:
             continue  # Targeted feedback reconciliation is reviewed separately.
         if tag and (position >= len(plan) or tag != plan[position][0]):
@@ -318,8 +323,64 @@ def empty_schedule_block(runtime, day, kind, language):
     return result['block'] if result.get('total') == 0 and not result['warnings'] else None
 
 
+def section_timings(runtime, job, started=None):
+    """Seconds per step from the job's timing log: provider reads, model turns, and code between them.
+
+    A model turn runs from the receipt that handed it a step to the call that advanced it; calls the
+    helper rejected stay in that turn. `start` is the first turn, from dispatch to prepare."""
+    path = timings_path(runtime, job)
+    events = [json.loads(line) for line in path.read_text().splitlines()] if path.exists() else []
+    rows, key = {}, 'start'
+    def row(name):
+        return rows.setdefault(name, {'read':0.0, 'model':0.0, 'code':0.0, 'calls':0})
+    if started and events:
+        row('start')['model'] += events[0]['at'] - started
+    for event, after in zip(events, events[1:] + [None]):
+        gap = after['at'] - event['at'] if after else 0.0
+        step = event['step']
+        if step in ('write', 'opening', 'closing'):
+            key = event['section'] if step == 'write' else step
+        if step == 'receive':
+            row(key)['calls'] += 1
+            # A rejected call gets no receipt, so the model is still on the same step.
+            row(key)['model' if after and after['step'] == 'receive' else 'code'] += gap
+        elif step == 'collect':
+            row(event['section'])['read'] += gap
+        elif step in ('write', 'opening', 'closing'):
+            row(key)['model'] += gap
+        else:  # Images after a publish, and the final save.
+            row(key)['code'] += gap
+    return {name:{part:round(value, 2) for part, value in values.items()} for name, values in rows.items()}
+
+
+def print_timings(language, scenario, timings):
+    print(language+' '+scenario+' timings (s): ' + '; '.join(
+        f"{name} read {value['read']:.1f} model {value['model']:.1f} code {value['code']:.1f} calls {value['calls']}"
+        for name, value in timings.items()), flush=True)
+
+
+def seed_timing(runtime, language, day):
+    """Today and tomorrow appointments and a saved idea, so Schedule and Reminders have rows to present."""
+    tomorrow = (datetime.fromisoformat(day) + timedelta(days=1)).date().isoformat()
+    names = (('Team stand-up', 'Dentist', 'Project review'), 'Try a weekly review on Fridays') if language == 'en' else (
+        ('团队站会', '看牙医', '项目评审'), '试试每周五做一次周回顾')
+    calendar = CalendarStore(str(runtime/'calendar.sqlite'))
+    try:
+        for subject, date, start, end in ((names[0][0], day, '09:30', '09:45'), (names[0][1], day, '15:00', '16:00'),
+                                          (names[0][2], tomorrow, '11:00', '12:00')):
+            calendar.add({'subject':subject, 'start':f'{date}T{start}:00+00:00', 'end':f'{date}T{end}:00+00:00'})
+    finally:
+        calendar.close()
+    inbox = InboxStore(runtime, write=True)
+    try:
+        inbox.mutate('add', {'kind':'idea', 'raw':names[1]}, 'ses_fixture', 'timing-idea', day+'T07:00:00+00:00')
+    finally:
+        inbox.close()
+
+
 def run_case(output, template, language, scenario, instant):
-    folder = output/scenario
+    timing, folder = scenario.endswith('-timing'), output/scenario
+    scenario = scenario.replace('-timing', '-weather')  # Timing cases are the weather cases plus a fuller agenda.
     folder.mkdir(mode=0o700)
     runtime = folder/'account'
     runtime.mkdir(mode=0o700)
@@ -348,9 +409,11 @@ def run_case(output, template, language, scenario, instant):
     bridge = CheckpointBridge(trial_engine.Engine(source, runtime).start(), scenario == 'morning-resume', language)
     app = BrowserApp(runtime, bridge, now=lambda:instant, preflight=True)
     day = app.today()
+    if timing:
+        seed_timing(runtime, language, day)
     baseline = seed_tasks(runtime, language, scenario, day)
     protected = protected_state(runtime)
-    result = {'scenario':scenario, 'language':language, 'tone':tone, 'model':session_payload(selected),
+    result = {'scenario':folder.name, 'language':language, 'tone':tone, 'model':session_payload(selected),
               'date':day, 'checks':[], 'review':'pending manual language/tone/grounding review'}
     save(folder/'baseline.json', {'tasks':baseline, 'protected':protected})
     kind = 'gm' if scenario.startswith('morning') else 'gn'
@@ -383,6 +446,8 @@ def run_case(output, template, language, scenario, instant):
                 app.reply(job, 'form', form['id'], {'answer':answer})
             result['checks'].append('Browser feedback saved before model dispatch')
         status = observe(app, bridge, job, folder, 'original', language, selected)
+        result['timings'] = section_timings(runtime, job, app.job(job).get('running_at'))
+        print_timings(language, folder.name, result['timings'])
         assert protected_state(runtime) == protected, 'Protected settings/calendar changed'
         result['checks'].append('Settings, calendar and integration policy unchanged')
         log = commands(runtime)
@@ -391,7 +456,9 @@ def run_case(output, template, language, scenario, instant):
         assert not any(entry['argv'][:1] == ['workflow'] for entry in log), 'Browser agent repeated local preparation'
         prepared = json.loads(context_path(runtime, job).read_text())
         reconcile = kind == 'gn'
-        order_issues = collection_order_issues(log, default_plan(prepared), 1 if bridge.seeded else 0,
+        saved = app.source(day, kind)
+        quiet = kind == 'gn' and saved.exists() and 'today' not in [s[0] for s in json.loads(saved.read_text())['sections']]
+        order_issues = collection_order_issues(log, default_plan(prepared), 1 if bridge.seeded else 0, quiet=quiet,
                                               reconcile=reconcile)
         result['collection_order_issues'] = order_issues
         if scenario == 'evening-ambiguous':
@@ -446,14 +513,16 @@ def run_case(output, template, language, scenario, instant):
                     result['checks'].append('Existing checkpoint resumed without reinit, rewriting or refetching its section')
             elif scenario == 'evening-weather':
                 assert records(runtime) == baseline, 'Evening without updates changed task records'
-                assert [section[0] for section in document['sections']][:3] == ['today','weather','schedule']
-                section = document['sections'][1]
+                assert [section[0] for section in document['sections']][:2] == ['weather','schedule'], 'A quiet evening kept a Today section'
+                assert not any(job_action(entry['argv']) in ('publish','skip') and entry.get('input',{}).get('position') == 0
+                               for entry in log), 'The model spent a turn on the quiet Today position'
+                section = document['sections'][0]
                 assert section[1] == [reading['json']['outlook']], 'The section is not exactly the code-filled card'
                 assert section[3:] == [default_plan(prepared)[1][1]], 'Weather tomorrow lost its planned title'
                 assert section[2:3] and section[2].strip() and '\n' not in section[2], 'No one-line closing note'
                 assert not re.search(r'\d', section[2]), 'The note repeated numbers or times the card already shows'
                 result['weather_note'] = section[2]
-                result['checks'].append('Weather tomorrow follows Today as the code-filled card with a one-line note')
+                result['checks'].append('Quiet evening: no Today section or turn; Weather tomorrow is the code-filled card with a one-line note')
             else:
                 current = records(runtime)
                 atlas = next(task for task in current if task['id'] == baseline[0]['id'])
@@ -490,11 +559,11 @@ def run_case(output, template, language, scenario, instant):
         assert not order_issues, '; '.join(order_issues)
         result['checks'].append('No future-section collection before submitting the current position')
         result['functional_complete'] = True
-        print(language+' '+scenario+': '+str(len(result['checks']))+' checks passed', flush=True)
+        print(language+' '+folder.name+': '+str(len(result['checks']))+' checks passed', flush=True)
     except Exception as error:
         result['failure'] = str(error)[:1500]
         result['functional_complete'] = False
-        print(language+' '+scenario+': INCOMPLETE — '+result['failure'], flush=True)
+        print(language+' '+folder.name+': INCOMPLETE — '+result['failure'], flush=True)
     finally:
         bridge.close()
         save(folder/'result.json', result)
@@ -668,8 +737,8 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     trial_engine.add_arguments(parser)
     parser.add_argument('--language', choices=('en','zh-CN'), required=True)
-    parser.add_argument('--only', nargs='+', choices=CASES + FLEXIBLE_CASES + ('morning-weather', 'evening-weather'),
-                        help='Run only these scenarios; the weather cases run only when named')
+    parser.add_argument('--only', nargs='+', choices=CASES + FLEXIBLE_CASES + ('morning-weather', 'evening-weather', 'morning-timing', 'evening-timing'),
+                        help='Run only these scenarios; the weather and timing cases run only when named')
     args = parser.parse_args()
     output = trial_engine.private_output(parser, args.output)
     with matrix_lock(output):

@@ -8,6 +8,7 @@ Quoted empty strings prevent an empty field from absorbing the next line. -->
 secretary_name: ""
 user_name: ""
 birthday: ""
+gender: ""
 secretary_language: ""
 city: ""
 region: ""
@@ -67,6 +68,10 @@ these rules guide preference changes in Secretary chats and setup elsewhere.
   celebrate it. Save only month and day as `birthday: "MM-DD"` (“13 February”
   is `"02-13"`); never store a year or age, even when given. Older profiles
   without this field stay valid; never infer it from calendar occasions.
+- Ask fourth, alone, for the user's gender: `gender` is `"woman"`, `"man"` or
+  `"unspecified"` (prefer not to say). It only picks the About me icon in the
+  page bar; never infer it or use it for anything else. Older profiles without
+  it show the neutral icon.
 - Never ask for `secretary_language`: replies, questions and titles follow the
   website language switch and helpers pass `--website-language CODE` without
   writing this field.

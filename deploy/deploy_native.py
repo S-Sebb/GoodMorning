@@ -406,7 +406,7 @@ print(json.dumps({'profileReady':status['profile_ready'],'nativeEditions':count}
                     request = Request('http://127.0.0.1:'+str(config['viewerPort'])+'/chat', headers={
                         'Authorization': 'Bearer '+config['gatewayKey'], 'X-GoodMorning-Origin': 'https://'+HOST})
                     with urlopen(request, timeout=5) as response:
-                        assert response.status == 200 and b'/icons/secretary.svg' in response.read()
+                        assert response.status == 200 and b'/icons/app-32.png' in response.read()
                 try:
                     response = urlopen('https://'+HOST+'/login', timeout=8)
                 except HTTPError as error:

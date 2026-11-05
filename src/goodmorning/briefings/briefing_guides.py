@@ -29,9 +29,11 @@ TEXT = {
            'it is the only place in the briefing for the name, so never use it in the opening, notes or progress. The opening may mention only these sections: SECTIONS. Say what will be reviewed, not findings.'),
   'memory_init': (' `memory` is the note you keep about the user from your chats. The greeting may lightly reflect one thing from it '
                   'when it fits today, as a friend would, or nothing; never recite it, present it as news or add feelings it does not '
-                  'state. The opening, notes and progress never use it.'),
+                  'state; something the note says is coming up has not happened yet: mention it only as still ahead, never as past or today unless its date is today.'
+                  ' The opening, notes and progress never use it.'),
   'memory_finish': (' `memory` is the note you keep about the user. A closing you write anyway may lightly reflect one thing from it '
-                    'when it fits today\'s verified results; never add a closing because of it, recite it or add feelings it does not state.'),
+                    'when it fits today\'s verified results; never add a closing because of it, recite it or add feelings it does not state; '
+                    'something the note says is coming up has not happened yet: mention it only as still ahead, never as past or today unless its date is today.'),
   'memory_letter': (' `memory` is the note you keep about the user. The sign-off\'s wish may lightly reflect one thing from it, as a '
                     'friend would, never anything about next week; the opening and the week\'s summary still use only facts in `letter`, and a '
                     'short week\'s sign-off still names nothing. Never recite it or add feelings it does not state.'),
@@ -39,6 +41,7 @@ TEXT = {
                   'likes: how they like things; lately: what is going on for them now), and `memory.messages` are the user\'s own chat '
                   'messages since the last tidy. Using these and tonight\'s check-in answers, fold in what the user said or plainly showed '
                   'about themselves that the note lacks, correct what they have since said otherwise, and drop lately items that are over. '
+                  'A lately item about something coming up keeps its calendar date ("the reveal stream on 6 Nov", never only "this Friday") so it is clear when it is over. '
                   'Keep out your own guesses about mood or personality, to-dos, appointments, habits, profile facts (name, city, work '
                   'hours, role, field), credentials, and health, religion, politics, sexuality or money unless the user asked you to '
                   'remember it. Put each thing in the one part it fits. Write in second person in the note\'s language, short prose per '
@@ -116,7 +119,7 @@ TEXT = {
             '\'{"raw":"<the user\'s words>","task":{"title":"…","project":"<its project>","planned_date":"YYYY-MM-DD","timezone":"<profile timezone>",'
             '"detail":"<any condition the user gave, e.g. only if enough cells>"}}\'. '
             'Progress without a clear day schedules nothing. Anything else follows the ESCAPE HATCH. 2) After any write, rerun the Today read\'s command (the '
-            '--section today entry in `results`); never reuse a Today read from before a write. 3) Publish its returned block unchanged first (none when it is null): '
+            '--section today entry in `results`); never reuse a Today read from before a write. 3) When its returned block is not null, publish it unchanged first: '
             'they are the cards for completions and recorded partial/blocked work. Then add one ["p","…"] block and the note for reported '
             'outcomes the cards do not show (an accomplishment that matches no task, a moved date or newly planned step, a blocker\'s reason). Mention every '
             'reported outcome; add no advice or invented progress.'),
@@ -165,7 +168,7 @@ TEXT = {
                   '`celebrations` lists, without repeating its numbers or dates. Add no other facts, plans, advice or promises, and never guess '
                   'the user\'s age, feelings or how they will spend the day. Do not describe the card or the briefing, or say how long you have '
                   'been with the user. Do not call the user by name. Never skip this section.'),
-  'today_regenerating': ('REGENERATION: make no task writes and ask nothing; reuse saved feedback. Copy the read\'s block (none when it is null) and '
+  'today_regenerating': ('REGENERATION: make no task writes and ask nothing; reuse saved feedback. Copy the read\'s block when it is not null, and '
                          'mention every reported outcome.'),
   'finish': ('Submit {} or {"closing":"…"} following `writing`. After a verified save, reply only with one short delivery line in '
              'the saved tone plus the returned relative url as a Markdown link.'),
@@ -186,12 +189,12 @@ TEXT = {
             '提交前逐句对照 `writing` 检查。'),
   'init': ('提交 {"greeting":"…","opening":"…"}（各不超过 350 字，纯文本），不要传 plan 或 lang。问候简短、符合保存的语气；若 `reply_context.user_name` 有值，问候里可以原样用这个称呼，也可以不称呼；整份简报只有问候可以出现这个称呼，开场、注记和进度里都不要用。'
            '开场只能提及这些章节：SECTIONS。说明将要回顾的内容，不要提前给出结果。'),
-  'memory_init': ' `memory` 是你从对话中记下的关于用户的笔记。合适时问候可以像朋友那样轻轻带到其中一件事，也可以不提；不要罗列，不要当成新消息，也不要添加笔记里没有的感受。开场、注记和进度里都不要用。',
-  'memory_finish': ' `memory` 是你记下的关于用户的笔记。本来就要写结尾时，若与今天已核实的结果相关，可以轻轻带到其中一件事；不要因为它而添加结尾，不要罗列，也不要添加笔记里没有的感受。',
+  'memory_init': ' `memory` 是你从对话中记下的关于用户的笔记。合适时问候可以像朋友那样轻轻带到其中一件事，也可以不提；不要罗列，不要当成新消息，也不要添加笔记里没有的感受；笔记里还没到的事就是还没发生：只能当作即将到来的事提起，除非日期就是今天，否则不要说成已经发生或就在今天。开场、注记和进度里都不要用。',
+  'memory_finish': ' `memory` 是你记下的关于用户的笔记。本来就要写结尾时，若与今天已核实的结果相关，可以轻轻带到其中一件事；不要因为它而添加结尾，不要罗列，也不要添加笔记里没有的感受；笔记里还没到的事就是还没发生：只能当作即将到来的事提起，除非日期就是今天，否则不要说成已经发生或就在今天。',
   'memory_letter': ' `memory` 是你记下的关于用户的笔记。结尾的祝福可以像朋友那样轻轻带到其中一件事，但不要提下周的事；开头和这一周的小结仍然只用 `letter` 里的事实，清单为空的那一周，结尾仍然不点名任何事。不要罗列，也不要添加笔记里没有的感受。',
   'memory_tidy': ('交付链接之前，先整理你对用户的记忆。`memory.note` 是你的笔记（life：用户的生活、身边的人和兴趣；likes：用户喜欢的方式；'
                   'lately：用户最近的情况），`memory.messages` 是上次整理以来用户本人在对话里发的消息。结合这些和今晚的回顾回答：补上用户说过或明显表现出的、'
-                  '笔记里还没有的关于自己的事；用户后来说法变了的，按新的改；已经过去的 lately 内容删掉。不要写入你自己对心情或性格的猜测、待办、约定、习惯、'
+                  '笔记里还没有的关于自己的事；用户后来说法变了的，按新的改；已经过去的 lately 内容删掉。lately 里还没到的事要写上具体日期（如“11月6日的发布会直播”，不要只写“这周五”“下周末”），这样才知道它什么时候过去。不要写入你自己对心情或性格的猜测、待办、约定、习惯、'
                   '档案里的信息（称呼、城市、工作时间、职位、领域）、凭据；健康、宗教、政治、性取向或钱财，除非用户要求记住。每件事只放进最合适的一个部分。用第二人称、笔记所用的语言写，每部分是简短的叙述，'
                   '整份笔记不超过 2000 字。有变化时只提交改动的部分，每部分整段重写：python scripts/goodmorning.py memory --secretary-dir RUNTIME --write '
                   '--expect-revision N --input-stdin，内容如 {"lately":"……"}，N 是 `memory.revision`。没有变化就什么都不写。不要向用户提起这次整理。然后：'),
@@ -241,7 +244,7 @@ TEXT = {
             '计划中的步骤没有对应的已保存事项时，用 python scripts/goodmorning.py task --secretary-dir RUNTIME --session SESSION --request-key gn-plan:JOB:N --add --input-json '
             '\'{"raw":"<用户原话>","task":{"title":"……","project":"<所属项目>","planned_date":"YYYY-MM-DD","timezone":"<档案时区>",'
             '"detail":"<用户给的条件，例如细胞量足够才做>"}}\' 保存一次。没有明确日期的进展不排期。其他内容按例外通道处理。2）有写入时，完成后重新运行 Today 读取（`results` 中带 --section today 的命令）；'
-            '不要沿用写入之前的 Today 读取结果。3）先原样发布它返回的块（为 null 时没有）：这些是完成项以及已记录的部分完成/受阻事项的卡片。然后为卡片没有体现的结果'
+            '不要沿用写入之前的 Today 读取结果。3）返回的块不为 null 时，先原样发布它：这些是完成项以及已记录的部分完成/受阻事项的卡片。然后为卡片没有体现的结果'
             '（与任何待办都不对应的已完成事项、改动的日期或新排的步骤、受阻原因）加一个 ["p","……"] 块和注记。提到用户报告的每项结果，不添加建议或臆测进展。'),
   'anime': ('这是用户在追的番剧自上次晚间简报以来更新的剧集。读取成功且 `block` 不为 null 时，原样发布该块（行、标题、集数、日期和封面都由代码生成；'
             '不要翻译、调整顺序或增加行）。注记：用保存的语气写一句简短、活泼的话，邀请用户放松追番。`block` 为 null 时改为发布一个 ["p","……"] 块：'
@@ -270,7 +273,7 @@ TEXT = {
                   '你只写一句配在卡片上的祝福：提交 {"position":N,"celebration":{"wish":"…"}}，一到两句（不超过 200 字），纯文本，由你这位秘书以“我”的口吻对用户说，'
                   '不用“我们”，也不以 GoodMorning 团队的身份说话；遵循保存的语气（默认欢快、可爱）。只祝贺 `celebrations` 里列出的事，不要重复其中的数字或日期；'
                   '不要添加其他事实、计划、建议或承诺，不要猜测用户的年龄、心情或这一天会怎么过；不要描述卡片或简报本身，也不要说陪伴了用户多久。不要称呼用户的名字。不要跳过这个章节。'),
-  'today_regenerating': '重新生成：不写入任务、不提问；沿用已保存的反馈。复制读取返回的块（为 null 时没有），提到用户报告的每项结果。',
+  'today_regenerating': '重新生成：不写入任务、不提问；沿用已保存的反馈。读取返回的块不为 null 时原样复制，提到用户报告的每项结果。',
   'finish': '提交 {} 或 {"closing":"…"}，遵循 `writing`。保存核实后，只用保存的语气写一句简短的交付语，并附上返回的相对 url 作为 Markdown 链接。',
  },
 }

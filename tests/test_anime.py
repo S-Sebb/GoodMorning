@@ -221,7 +221,7 @@ class EveningSectionTests(unittest.TestCase):
         result = self.step('init', {'greeting': 'Evening.', 'opening': 'Tonight’s review.'})
         plan = json.loads((self.root / 'browser-jobs' / ('c' * 32 + '.preview.json')).read_text())['plan']
         self.assertEqual(plan[-1], ['anime', 'New episodes'])
-        self.step('publish', {'position': 0, 'section': ['today', [['p', 'You shared no updates.']]]})
+        self.assertEqual(result['next']['section'][0], 'weather')  # Nothing reported: code skips Today.
         self.step('publish', {'position': 1, 'section': ['weather', [['p', 'Tomorrow’s weather is unavailable.']], '', 'Weather tomorrow']})
         self.step('publish', {'position': 2, 'section': ['schedule', [['p', 'No saved appointments tomorrow.']]]})
         self.step('skip', {'position': 3})
@@ -241,6 +241,8 @@ class EveningSectionTests(unittest.TestCase):
             self.step('publish', {'position': 5, 'section': ['anime', [block], 'A new case for a cosy night!']})
         self.assertTrue(covers.call_args.kwargs['direct'])
         self.assertEqual(self.step('finish', {})['saved'], True)
+        saved = json.loads((self.root / 'daily' / (DAY + '.gn.json')).read_text())
+        self.assertEqual([section[0] for section in saved['sections']], ['weather', 'schedule', 'anime'])
 
     def test_section_is_absent_unless_turned_on(self):
         (self.root / 'profile.md').write_text((self.root / 'profile.md').read_text().replace('anime_updates: "true"', 'anime_updates: "false"'))

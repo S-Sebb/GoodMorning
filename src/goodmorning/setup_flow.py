@@ -25,8 +25,8 @@ from .runtime_files import (atomic_text, calendar_path, normalize_profile_text, 
 from .setup_check import profile_status, verify
 from .web import language as ui
 
-STEPS = ('secretary_name', 'user_name', 'birthday', 'location', 'rhythm', 'about', 'news', 'holidays')
-FIELDS = {'secretary_name': ('secretary_name',), 'user_name': ('user_name',), 'birthday': ('birthday',),
+STEPS = ('secretary_name', 'user_name', 'birthday', 'gender', 'location', 'rhythm', 'about', 'news', 'holidays')
+FIELDS = {'secretary_name': ('secretary_name',), 'user_name': ('user_name',), 'birthday': ('birthday',), 'gender': ('gender',),
           'location': ('city', 'region', 'timezone'),
           'rhythm': ('work_days', 'work_hours', 'sleep_time', 'secretary_tone'),
           'about': ('occupations', 'expertise_fields', 'special_needs', 'industry', 'project_scope', 'knowledge_area'),
@@ -38,6 +38,7 @@ REQUIRED = {'location': ('city', 'region', 'timezone'), 'news': ('news_country',
 # Worked out from the user's city rather than quoted.
 DERIVED = ('region', 'timezone')
 NEWS = ('US', 'GB', 'CN', 'CA', 'AU')  # Bundled outlets; others are set up later in a Secretary chat.
+GENDERS = {'woman': 'Woman', 'man': 'Man', 'unspecified': 'Prefer not to say'}  # Only picks About me's page-bar icon.
 COUNTRIES = {'US': 'United States', 'GB': 'United Kingdom', 'CN': 'China', 'CA': 'Canada', 'AU': 'Australia'}
 # Code-applied choices; anything else is the user's own words for the secretary to interpret.
 KEEP, SKIP, KEEP_ALL = 'keep', 'skip', 'keep_all'
@@ -50,6 +51,7 @@ LABELS = {'secretary_name': ('Your secretary’s name', 'A name for me',
                         'Any name or form of address, up to 30 characters. Skip it and I won’t use a name.'),
           'birthday': ('Birthday', 'MM-DD',
                        'Month and day only, like 03-14. On that day your morning briefing opens with a birthday card.'),
+          'gender': ('Gender', '', 'Only used to pick your About me icon in the page bar.'),
           'city': ('City and country', 'City, country',
                    'For example “Edinburgh, UK”. I use it for your weather and to work out your timezone.'),
           'work_days': ('Work days', 'For example, Monday to Friday', ''),
@@ -65,7 +67,7 @@ LABELS = {'secretary_name': ('Your secretary’s name', 'A name for me',
                                 'They show on your Schedule and briefings on their day, and for China the make-up '
                                 'workdays too. Pick as many as you like.')}
 TITLES = {'secretary_name': 'What would you like to call me?', 'user_name': 'What should I call you?',
-          'birthday': 'When’s your birthday?', 'location': 'Where are you based?',
+          'birthday': 'When’s your birthday?', 'gender': 'What’s your gender?', 'location': 'Where are you based?',
           'rhythm': 'What does your usual week look like?',
           'about': 'Is there anything about you that would help me help you?',
           'news': 'Which countries’ news should your morning briefing cover?',
@@ -191,6 +193,9 @@ def field(key, fields, optional, keep_all=False):
         entry['description'] = ui.text(description)
     if key == 'news_country':
         return {**entry, 'options': news_options(), **({'default': saved} if saved in NEWS else {})}
+    if key == 'gender':
+        return {**entry, 'options': [{'value': code, 'label': ui.text(label)} for code, label in GENDERS.items()],
+                **({'default': saved} if saved in GENDERS else {})}
     if key == 'news_additional_countries':
         return {**entry, 'type': 'multiselect', 'required': False, 'options': news_options(),
                 'default': [code for code in split(saved) if code in NEWS]}
@@ -279,6 +284,10 @@ def clean(key, value, saved):
             return normalize_secretary_name(value, key)
         if key == 'birthday':
             return birthday(value)
+        if key == 'gender':
+            if value not in GENDERS:
+                raise ValueError('gender is woman, man or unspecified')
+            return value
         if key == 'region':
             if value not in ('global', 'mainland-china'):
                 raise ValueError('region is global or mainland-china')
@@ -386,7 +395,7 @@ def finish_step(state, step, keep_all=False):
 
 def apply_form(runtime, chat, question, answer):
     """Applies a code question's answer when it holds only choices; returns False when free text needs
-    the secretary. Choices are keep, skip, keep everything, or picked countries and holiday regions."""
+    the secretary. Choices are keep, skip, keep everything, or a picked gender, countries and holiday regions."""
     step = question['form'].get('setup')
     with locked(runtime, chat):
         state = load(runtime, chat)
@@ -398,7 +407,7 @@ def apply_form(runtime, chat, question, answer):
             choices = {option['value'] for option in entry.get('options', [])}
             if value == KEEP_ALL:
                 keep_all = True
-            elif entry['key'] in ('news_country', 'news_additional_countries', 'holiday_countries'):
+            elif entry['key'] in ('gender', 'news_country', 'news_additional_countries', 'holiday_countries'):
                 values[entry['key']] = value if value is not None else []
             elif value in (KEEP, SKIP, None) and value in choices | {None}:
                 continue
@@ -519,7 +528,7 @@ def ask(runtime, chat, payload):
             raise SetupError('invalid_title: one line of up to 300 characters, the question in your words')
         question = form(runtime, state, step, title.strip())
         clarify = payload.get('clarify')
-        if clarify is not None and step in ('news', 'holidays'):
+        if clarify is not None and step in ('gender', 'news', 'holidays'):
             raise SetupError('invalid_clarify: this step already lists its choices')
         if clarify is not None:
             if (not isinstance(clarify, list) or not 2 <= len(clarify) <= 8

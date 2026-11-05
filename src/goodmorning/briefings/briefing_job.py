@@ -10,6 +10,7 @@ from pathlib import Path
 import shlex
 import sqlite3
 import sys
+import time
 
 from . import briefing_document as native
 from . import briefing_guides
@@ -185,9 +186,23 @@ def activity_path(runtime, identifier):
     return context_path(runtime, identifier).with_name(identifier + '.activity.json')
 
 
+def timings_path(runtime, identifier):
+    return context_path(runtime, identifier).with_name(identifier + '.timings.jsonl')
+
+
+def timed(runtime, identifier, step, **values):
+    """Append one timestamped step, so read and model-turn times per section can be measured (#220).
+    Private to the account, beside the job's context file and kept as long as it is."""
+    line = json.dumps({'step':step, **values, 'at':round(time.time(), 3)}, separators=(',',':')) + '\n'
+    fd = os.open(timings_path(runtime, identifier), os.O_WRONLY | os.O_CREAT | os.O_APPEND | os.O_NOFOLLOW, 0o600)
+    with os.fdopen(fd, 'a', encoding='utf-8') as log:
+        log.write(line)
+
+
 def note(runtime, identifier, step, **values):
     """Record the step code is on, for the waiting page. Only code writes it, so it never overstates progress."""
     atomic_text(activity_path(runtime, identifier), json.dumps({'step':step, **values}, separators=(',',':')))
+    timed(runtime, identifier, step, **values)
 
 
 def weather_frame_path(runtime, identifier):
@@ -267,6 +282,15 @@ def read_count(runtime, job, tag, results):
     if tag in ('schedule', 'tasks', 'attention', 'today') and outputs and isinstance(outputs[-1].get('total'), int):
         return outputs[-1]['total']
     return None
+
+
+def quiet_evening(context, results):
+    """Today's read found no outcome cards and the user reported nothing."""
+    feedback = context.get('feedback') or {}
+    read = results[-1] if results else {}
+    return (read.get('exit') == 0 and isinstance(read.get('output'), dict) and read['output'].get('block') is None
+            and not feedback.get('completed') and not feedback.get('progress')
+            and feedback.get('details') in ('No other updates', 'No updates today', None))
 
 
 def run_reads(commands):
@@ -448,6 +472,8 @@ def act(runtime, identifier, session, action, payload=None):
     directory, target, job, context = owned(runtime, identifier, session)
     with runtime_lock(directory, identifier + '.workflow.lock'):
         directory, target, job, context = owned(runtime, identifier, session)
+        # A model turn ends when its call arrives; the last one before the next step is the call that advanced it.
+        timed(runtime, identifier, 'receive', action=action)
         checkpoint = load(target)
         if 'replacement' in job:
             from .briefing_replacement import check
@@ -485,6 +511,9 @@ def act(runtime, identifier, session, action, payload=None):
                         save_weather_frame(runtime, identifier, reads[0], next_action['results'])
                     if tag == 'news':
                         fresh_news(runtime, identifier, job, context, next_action['results'])
+                    if tag == 'today' and quiet_evening(context, next_action['results']):
+                        # No outcome cards and nothing reported: Today stays out, with no model turn.
+                        return receipt({**value, **publish(runtime, identifier, skip=True, position=position)})
                 if next_action['action'] == 'publish':
                     note(runtime, identifier, 'write', position=position, section=tag,
                          count=read_count(runtime, job, tag, next_action.get('results', [])))

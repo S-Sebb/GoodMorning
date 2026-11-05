@@ -356,30 +356,25 @@ class GatewayTests(GatewayFixture):
             self.assertEqual(self.gateway.ticket()['user'],self.other)
             self.assertEqual(self.gateway.ticket()['job'],new)
 
-    def test_public_icons_match_each_host_without_exposing_private_routes(self):
+    def test_every_host_shows_the_same_app_icon_without_exposing_private_routes(self):
         self.gateway.hosts['sec.example.test']='sec'
-        for host,kind in (('gm.example.test','gm'),('gn.example.test','gn'),('sec.example.test','secretary')):
+        for host in ('gm.example.test','gn.example.test','sec.example.test'):
             status,_,page=self.request('/login',headers={'Host':host})
             self.assertEqual(status,200)
             links=re.findall(rb'<link rel="icon"[^>]+href="([^"]+)"',page)
-            self.assertEqual(len(links),2)
+            self.assertEqual([link.rsplit(b'/',1)[1] for link in links],[b'app-32.png',b'app-192.png'])
             for link in links:
                 path=link.decode()
-                self.assertIn('/icons/'+kind+'.',path)
                 status,headers,data=self.request(path,headers={'Host':host})
                 self.assertEqual(status,200)
                 self.assertIn('immutable',headers['Cache-Control'])
-                if path.endswith('.png'):
-                    self.assertEqual(headers['Content-Type'],'image/png')
-                    self.assertTrue(data.startswith(b'\x89PNG\r\n\x1a\n'))
-                else:
-                    self.assertEqual(headers['Content-Type'],'image/svg+xml')
-                    self.assertIn(b'<svg',data)
+                self.assertEqual(headers['Content-Type'],'image/png')
+                self.assertTrue(data.startswith(b'\x89PNG\r\n\x1a\n'))
                 self.assertEqual(self.request(path,headers={'Host':host,'If-None-Match':headers['ETag']})[0],304)
                 self.assertEqual(self.request(path,headers={'Host':host},method='HEAD')[2],b'')
         self.assertEqual(self.received,[])
         self.assertEqual(self.request('/icons/../accounts.sqlite')[0],302)
-        self.assertEqual(self.request('/icons/gm.svg',headers={'Host':'evil.test'})[0],403)
+        self.assertEqual(self.request('/icons/app-32.png',headers={'Host':'evil.test'})[0],403)
 
     def test_android_app_links_manifest_and_last_page(self):
         status,headers,body=self.request('/.well-known/assetlinks.json')

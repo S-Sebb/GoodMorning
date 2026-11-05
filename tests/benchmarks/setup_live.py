@@ -52,22 +52,22 @@ raise SystemExit(code)
 SCENARIOS = ('new', 'review-keep', 'review-change', 'reload', 'side-question', 'secretary-tone', 'recovery')
 # What the persona says for each topic, and what the profile should then hold.
 PERSONA = {
-    'en': {'secretary_name': 'Pip', 'user_name': 'Sam', 'birthday': 'March 14', 'city': 'Edinburgh, UK',
+    'en': {'secretary_name': 'Pip', 'user_name': 'Sam', 'birthday': 'March 14', 'gender': 'Prefer not to say', 'city': 'Edinburgh, UK',
            'work_days': 'Monday to Friday', 'work_hours': '9:00–17:30', 'sleep_time': '23:00',
            'secretary_tone': 'warm and helpful', 'occupations': 'Nurse', 'expertise_fields': 'Cardiology',
            'news_country': 'United Kingdom', 'holiday_countries': 'Scotland',
            'moved': 'Glasgow, UK', 'playful': 'playful', 'skip': 'Skip that for now.', 'keep': 'Keep it as it is.',
            'side': 'Quick question first: if I move cities later, can I change this?'},
-    'zh-CN': {'secretary_name': '小满', 'user_name': '阿杰', 'birthday': '8月21日', 'city': '杭州',
+    'zh-CN': {'secretary_name': '小满', 'user_name': '阿杰', 'birthday': '8月21日', 'gender': '男性', 'city': '杭州',
               'work_days': '周一到周五', 'work_hours': '9:00–18:00', 'sleep_time': '23:30',
               'secretary_tone': '温和一点', 'occupations': '软件工程师', 'expertise_fields': '前端开发',
               'news_country': '中国', 'holiday_countries': '中国',
               'moved': '苏州', 'playful': '活泼一点', 'skip': '这个先跳过。', 'keep': '保持原样就好。',
               'side': '先问一下：以后如果换了城市，这里还能改吗？'}}
 EXPECTED = {
-    'en': {'secretary_name': 'Pip', 'user_name': 'Sam', 'birthday': '03-14', 'timezone': 'Europe/London',
+    'en': {'secretary_name': 'Pip', 'user_name': 'Sam', 'birthday': '03-14', 'gender': 'unspecified', 'timezone': 'Europe/London',
            'region': 'global', 'news_country': 'GB', 'holiday_countries': 'GB-SCT', 'city': 'Edinburgh'},
-    'zh-CN': {'secretary_name': '小满', 'user_name': '阿杰', 'birthday': '08-21', 'timezone': 'Asia/Shanghai',
+    'zh-CN': {'secretary_name': '小满', 'user_name': '阿杰', 'birthday': '08-21', 'gender': 'man', 'timezone': 'Asia/Shanghai',
               'region': 'mainland-china', 'news_country': 'CN', 'holiday_countries': 'CN', 'city': '杭州'}}
 MENTIONED = {'en': {'work_days': 'Monday', 'work_hours': '9', 'sleep_time': '23', 'occupations': 'urse',
                     'expertise_fields': 'ardiolog'},
@@ -120,7 +120,7 @@ def account(folder, scenario, language):
     if scenario in ('new', 'reload', 'side-question'):
         return runtime
     expected, said = EXPECTED[language], PERSONA[language]
-    saved = {**{key: expected[key] for key in ('secretary_name', 'user_name', 'birthday', 'timezone', 'region',
+    saved = {**{key: expected[key] for key in ('secretary_name', 'user_name', 'birthday', 'gender', 'timezone', 'region',
                                                 'news_country', 'holiday_countries')},
              'city': 'Edinburgh, Scotland, GB' if language == 'en' else '杭州, 浙江, CN',
              **{key: said[key] for key in ('work_days', 'work_hours', 'sleep_time', 'secretary_tone', 'occupations', 'expertise_fields')}}

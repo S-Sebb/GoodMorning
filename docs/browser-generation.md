@@ -79,6 +79,8 @@ write agent-owned cumulative drafts. Check exits and `error`/`next` after every 
 3. **skip:** `{"position":N}` only for genuinely empty Tasks/Reminders positions.
    Never skip required Weather/News/Schedule/Today or turn failed retrieval into
    empty success. Publish material unavailability instead; keep all plan positions.
+   Code itself skips Today when its read has no outcome cards and the user reported
+   nothing; the model never receives that position.
 4. **finish:** `{"closing":"…"}` or `{}` after every position is resolved.
    Code verifies owner/session/date/edition/exact preview, saves native JSON/run
    marker, and repairs its derived index. A snapshot alone never proves completion.
@@ -89,7 +91,8 @@ The init and finish receipts, and Sunday's letter read, carry `memory`, the note
 the secretary keeps about the user (`docs/workflows/secretary.md`, *Memory*), when
 memory is on and the note has text. Only the greeting, an optional closing and the
 letter's sign-off may lightly reflect it; sections, notes and progress never use
-it, and it never adds a closing on its own. After an evening save (not a
+it, and it never adds a closing on its own. Something the note says is coming up is
+mentioned only as still ahead, never as past. After an evening save (not a
 regeneration) with memory on, the finish receipt also carries the note and the
 user's chat messages since the last tidy: the agent folds in what is missing,
 drops `lately` items that are over, writes with `memory --write` and only then

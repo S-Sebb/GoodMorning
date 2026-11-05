@@ -80,10 +80,10 @@ def main():
                 phone = context(390).new_page()
                 phone.on('pageerror', lambda error: errors.append(str(error)))
                 sign_in(phone, 'alice')
-                phone.locator('#account-menu > summary').click()
-                link = phone.locator('#account-menu #about-me-link')
-                expect(link).to_be_visible()
-                phone.screenshot(path=str(artifacts/'account-390.png'))
+                # About me is the last page in the bar, with the neutral icon until a gender is saved.
+                link = phone.locator('.edition-switch .edition-link').last
+                expect(link).to_have_accessible_name('About me')
+                expect(link).to_have_attribute('data-person', 'neutral')
                 link.click()
                 expect(phone).to_have_url('https://sec.language.test/about-me')
                 expect(phone.get_by_role('heading', name='Mochi’s notes about you', exact=True)).to_be_visible()
@@ -183,6 +183,16 @@ def main():
                 expect(row.locator('.about-value')).to_have_text('February 29')
                 assert 'birthday: "02-29"' in profile.read_text()
 
+                # Gender is picked from three choices and switches the page bar's icon at once.
+                row = phone.locator('[data-field="gender"]')
+                row.get_by_role('button', name='Edit').click()
+                row.get_by_role('combobox', name='Gender').select_option('woman')
+                row.get_by_role('button', name='Save').click()
+                expect(row.locator('.about-value')).to_have_text('Woman')
+                expect(phone.locator('.edition-link[href="/about-me"]')).to_have_attribute('data-person', 'woman')
+                assert 'gender: "woman"' in profile.read_text()
+                no_overflow(phone)
+
                 # Ask Mochi to change this opens the quick chat with an unsent starter line.
                 phone.locator('#about-day .about-chat').first.click()
                 expect(phone.locator('#quick-chat-text')).to_have_value('I’d like to change my city.')
@@ -197,6 +207,7 @@ def main():
                 expect(phone.locator('[data-countries]')).to_have_text('英国和日本')
                 expect(phone.locator('[data-holidays]')).to_have_text('中国、英国 — 苏格兰')
                 expect(phone.locator('[data-birthday]')).to_have_text('2月29日')
+                expect(phone.locator('[data-gender]')).to_have_text('女性')
                 phone.locator('#account-menu > summary').click()
                 phone.reload()
                 expect(phone.locator('.about-greeting')).to_contain_text('嗨，Ally！')
