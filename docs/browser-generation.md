@@ -79,6 +79,8 @@ write agent-owned cumulative drafts. Check exits and `error`/`next` after every 
 3. **skip:** `{"position":N}` only for genuinely empty Tasks/Reminders positions.
    Never skip required Weather/News/Schedule/Today or turn failed retrieval into
    empty success. Publish material unavailability instead; keep all plan positions.
+   Code itself skips Today when its read has no outcome cards and the user reported
+   nothing; the model never receives that position.
 4. **finish:** `{"closing":"…"}` or `{}` after every position is resolved.
    Code verifies owner/session/date/edition/exact preview, saves native JSON/run
    marker, and repairs its derived index. A snapshot alone never proves completion.
