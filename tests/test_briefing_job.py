@@ -169,7 +169,6 @@ class JobTests(unittest.TestCase):
         self.chamber.idle()
         self.assertEqual(self.app.status(self.identifier)['state'],'ready')
         self.assertFalse((self.app.job_dir/(self.identifier+'.preview.json')).exists())
-        self.assertFalse((self.app.job_dir/(self.identifier+'.timings.jsonl')).exists())
         before = {path:path.read_bytes() for path in (self.root/'daily').iterdir()}
         for action in ('prepare','init','finish'):
             with self.assertRaisesRegex(ValueError,'complete; stop'):

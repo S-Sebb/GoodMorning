@@ -189,7 +189,7 @@ def timings_path(runtime, identifier):
 
 def timed(runtime, identifier, step, **values):
     """Append one timestamped step, so read and model-turn times per section can be measured (#220).
-    Private to the account's job files and removed with its other transient files."""
+    Private to the account, beside the job's context file and kept as long as it is."""
     line = json.dumps({'step':step, **values, 'at':round(time.time(), 3)}, separators=(',',':')) + '\n'
     fd = os.open(timings_path(runtime, identifier), os.O_WRONLY | os.O_CREAT | os.O_APPEND | os.O_NOFOLLOW, 0o600)
     with os.fdopen(fd, 'a', encoding='utf-8') as log:
