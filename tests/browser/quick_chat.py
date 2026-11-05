@@ -284,6 +284,55 @@ def check_attachments(browser, address, artifacts):
     page.close()
 
 
+def check_reminder_cards(browser, address, runtime, artifacts):
+    """A review link sends its starter line at once and keeps the draft; an idea card closes and reopens in place."""
+    sys.path.insert(0, str(REPO / 'src'))
+    from goodmorning.records.inbox_store import InboxStore, initialize
+    if not (runtime / 'inbox.sqlite').exists():
+        initialize(runtime)
+    inbox = InboxStore(runtime, write=True)
+    try:
+        idea = inbox.mutate('add', {'kind': 'idea', 'raw': 'Weekly mood chart'}, 'ses_test', 'browser-idea', '2026-10-13T13:00:00+01:00')['id']
+    finally:
+        inbox.close()
+    page = browser.new_page(viewport={'width': 1440, 'height': 900})
+    errors = watch(page)
+    page.goto(address + '/gm')
+    # The fixture has no saved briefing, so the card a saved Reminders section renders is added to the page.
+    page.evaluate('''idea => {
+      const list = document.createElement('ul'); list.className = 'decision-list section-body';
+      list.innerHTML = `<li class="decision-card" data-entry="${idea}"><div class="decision-title">Weekly mood chart</div>
+        <div class="decision-detail">A saved idea.</div><a class="decision-ask" href="/chat"
+        data-quick-ask="Let’s look at “{title}” together." data-quick-ask-title="Weekly mood chart">Review with your secretary</a></li>`;
+      document.querySelector('main').prepend(list);
+      document.dispatchEvent(new Event('briefing:updated'));
+    }''', idea)
+    card = page.locator(f'[data-entry="{idea}"]')
+    expect(card.locator('.idea-done')).to_be_visible()
+    card.screenshot(path=str(artifacts / 'idea-card-open.png'))
+    card.locator('.idea-done').click()
+    expect(card).to_have_class(re.compile('is-closed'))
+    expect(card.locator('.idea-closed')).to_be_visible()
+    expect(card.locator('.decision-ask')).to_be_hidden()
+    card.screenshot(path=str(artifacts / 'idea-card-closed.png'))
+    card.locator('.idea-undo').click()
+    expect(card.locator('.idea-done')).to_be_visible()
+    expect(card.locator('.decision-ask')).to_be_visible()
+    page.locator('#quick-chat-launcher').click()
+    page.locator('#quick-chat-text').fill('Half-written draft')
+    card.locator('.decision-ask').click()
+    expect(page.locator('#quick-chat-messages')).to_contain_text('Let’s look at “Weekly mood chart” together.')
+    expect(page.locator('#quick-chat-messages')).to_contain_text(REPLY)
+    expect(page.locator('#quick-chat-text')).to_have_value('Half-written draft')
+    assert not errors, errors
+    page.close()
+    inbox = InboxStore(runtime)
+    try:
+        return {'idea': inbox.show(idea)['status']}
+    finally:
+        inbox.close()
+
+
 def check_setup_gate(browser, address, runtime):
     profile = runtime / 'profile.md'
     profile.write_text('secretary_language: English\n')
@@ -311,6 +360,7 @@ def main():
                 report = {'flow': check_flow(browser, address), 'layouts': check_layouts(browser, address, artifacts), 'modelCalls': 0}
                 check_waiting(browser, address, artifacts)
                 check_attachments(browser, address, artifacts)
+                report['reminderCards'] = check_reminder_cards(browser, address, runtime, artifacts)
                 check_setup_gate(browser, address, runtime)
                 browser.close()
         finally:

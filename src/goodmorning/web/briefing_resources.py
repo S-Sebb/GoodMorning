@@ -4,9 +4,8 @@ from dataclasses import dataclass
 import gzip
 import hashlib
 
-ICON_TYPES = {f'icons/{kind}.{extension}': mime
-              for kind in ('gm', 'gn', 'secretary')
-              for extension, mime in (('svg', 'image/svg+xml'), ('png', 'image/png'))}
+# One tab icon on every page, made from the default secretary portrait (assets/app_icons.py).
+ICON_TYPES = {f'icons/app-{size}.png': 'image/png' for size in ('32', '192')}
 DESK_ICON_TYPES = {f'icons/desk-{name}.svg': 'image/svg+xml'
                   for name in ('morning', 'evening', 'schedule', 'letters', 'done', 'habit', 'secretary', 'idea', 'appearance', 'language', 'notifications', 'phone')}
 PIXEL_FONTS = {f'fonts/{name}.woff2': 'font/woff2' for name in ('pixelify-sans', 'silkscreen', 'jersey-10', 'fusion-pixel-zh')}
@@ -15,12 +14,9 @@ PIXEL_SCENES = {f'{name}.svg': 'image/svg+xml'
                              'grass-block-sun', 'pixel-sun', 'pixel-moon', 'picnic-day', 'picnic-night')}
 
 
-def favicon_links(kind, prefix='/'):
-    kind = 'secretary' if kind == 'sec' else kind
-    if kind not in ('gm', 'gn', 'secretary'):
-        raise ValueError('Unknown page icon')
-    return (f'<link rel="icon" type="image/png" sizes="32x32" href="{prefix}icons/{kind}.png">'
-            f'<link rel="icon" type="image/svg+xml" sizes="any" href="{prefix}icons/{kind}.svg">')
+def favicon_links(prefix='/'):
+    return (f'<link rel="icon" type="image/png" sizes="32x32" href="{prefix}icons/app-32.png">'
+            f'<link rel="icon" type="image/png" sizes="192x192" href="{prefix}icons/app-192.png">')
 
 
 class ByteCache:
@@ -83,7 +79,7 @@ class Resources:
                    'questions.js': 'text/javascript', 'chat.js': 'text/javascript', 'chat.css': 'text/css', 'language.js':'text/javascript',
                    'network.js':'text/javascript', 'auth.js':'text/javascript','auth.css':'text/css',
                    'activity.js':'text/javascript','activity.css':'text/css',
-                   'quick-chat.js':'text/javascript','quick-chat.css':'text/css',
+                   'quick-chat.js':'text/javascript','quick-chat.css':'text/css', 'idea-cards.js':'text/javascript',
                      'schedule.js':'text/javascript', 'schedule-mode.js':'text/javascript', 'schedule.css':'text/css',
                     'marked.js': 'text/javascript', 'markdown.js': 'text/javascript',
                       'starry-sky.svg': 'image/svg+xml',
@@ -97,7 +93,7 @@ class Resources:
                    'avatar.js': 'text/javascript', 'avatar.css': 'text/css',
                    'maintenance.css': 'text/css',
                    'app.js': 'text/javascript', 'sw.js': 'text/javascript', 'manifest.webmanifest': 'application/manifest+json',
-                   **{f'icons/app-{size}.png': 'image/png' for size in ('192', '512', 'maskable-512')},
+                   **{f'icons/app-{size}.png': 'image/png' for size in ('512', 'maskable-512')},
                  'fonts/OFL.txt': 'text/plain', 'fonts/pixel-fonts-OFL.txt': 'text/plain',
                  **{f'desk-secretary{person}{variant}.png': 'image/png' for person in ('', '-f2', '-m1', '-m2')
                     for variant in ('', '-day', '-animated', '-day-animated', '-profile')}, **ICON_TYPES}

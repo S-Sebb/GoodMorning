@@ -781,6 +781,12 @@ class TaxonomyTests(unittest.TestCase):
             self.assertEqual(json.loads(activity.read_text()),{'step':'write','position':0,'section':'weather','count':None})
             result = act(self.root,identifier,'ses_test','publish',{'position':0,'section':['weather',[['p','Unavailable.']],'',title]})
             self.assertEqual(json.loads(activity.read_text())['section'],'news')
+            # Each call and step is also timestamped in a private log beside it, for timing runs (#220).
+            log = [json.loads(line) for line in (self.root/'browser-jobs'/(identifier+'.timings.jsonl')).read_text().splitlines()]
+            self.assertEqual([(entry['step'],entry.get('action') or entry.get('section')) for entry in log],
+                             [('receive','prepare'),('opening',None),('receive','init'),('collect','weather'),('write','weather'),
+                              ('receive','publish'),('collect','news'),('write','news')])
+            self.assertEqual([entry['at'] for entry in log],sorted(entry['at'] for entry in log))
             self.assertEqual(result['next']['input']['position'],1)
             self.assertEqual(result['next']['input']['section'][0],'news')
         guide = briefing_guides.guide({'date':DAY}, {'action':'publish','section':['tasks','Tasks']}, [],

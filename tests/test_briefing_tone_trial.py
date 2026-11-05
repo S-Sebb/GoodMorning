@@ -10,7 +10,7 @@ import unittest
 from unittest.mock import patch
 
 from support import TEMP_ROOT, offline_provider_reads
-from benchmarks.briefing_tone_live import CheckpointBridge, seed_tasks, seed_flexible, link_handoff, collection_order_issues, trial_config, external_allowed, job_action
+from benchmarks.briefing_tone_live import section_timings, CheckpointBridge, seed_tasks, seed_flexible, link_handoff, collection_order_issues, trial_config, external_allowed, job_action
 from goodmorning.briefings.briefing_job import act, writing_rule
 from goodmorning.briefings.briefing_preflight import initialize as prepare, answer
 from goodmorning.calendar.calendar_store import CalendarStore
@@ -27,6 +27,20 @@ class BriefingTrialTests(unittest.TestCase):
         (self.runtime/'profile.md').write_text('city: London, GB\ntimezone: Europe/London\nnews_country: GB\ncalendar_source: custom\n')
         initialize(self.runtime)
         CalendarStore(str(self.runtime/'calendar.sqlite')).close()
+
+    def test_timings_split_reads_from_model_turns_and_keep_rejected_calls_in_the_turn(self):
+        job = 'b'*32
+        (self.runtime/'browser-jobs').mkdir()
+        steps = [(100,'receive',{}),(101,'opening',{}),(110,'receive',{}),(111,'collect',{'section':'schedule'}),
+                 (112,'write',{'section':'schedule'}),(120,'receive',{}),(126,'receive',{}),(127,'closing',{}),
+                 (130,'receive',{}),(131,'save',{})]
+        (self.runtime/'browser-jobs'/(job+'.timings.jsonl')).write_text(''.join(
+            json.dumps({'step':step,**values,'at':at})+'\n' for at, step, values in steps))
+        timings = section_timings(self.runtime, job, started=90)
+        self.assertEqual(timings['start'], {'read':0.0,'model':10.0,'code':1.0,'calls':1})
+        self.assertEqual(timings['opening'], {'read':0.0,'model':9.0,'code':1.0,'calls':1})
+        self.assertEqual(timings['schedule'], {'read':1.0,'model':14.0,'code':1.0,'calls':2})
+        self.assertEqual(timings['closing'], {'read':0.0,'model':3.0,'code':1.0,'calls':1})
 
     def test_empty_fixture_has_no_unrequested_actions(self):
         self.assertEqual(seed_tasks(self.runtime,'en','morning-empty','2026-10-14'), [])
