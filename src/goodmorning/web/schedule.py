@@ -19,6 +19,7 @@ from goodmorning.records.routing import converted_draft_ids
 from goodmorning.runtime_files import profile_fields
 from . import language as ui
 from . import quick_chat
+from .about_me import desk_link
 from .briefing_resources import favicon_links
 from .chat_theme import clock_theme
 
@@ -529,7 +530,7 @@ def page(app, offset, mode='week'):
               '<link rel="stylesheet" href="/scroll-rails.css"><script src="/scroll-rails.js" defer></script></head><body class="schedule-page">'
               '<a class="skip-link" href="#schedule-view">Skip to schedule</a><header class="masthead"><a class="wordmark" href="/gm">GoodMorning<span>A personal secretary just for you</span></a>'
               '<nav class="edition-switch" aria-label="Your desk"><a class="edition-link" href="/gm">Morning</a><a class="edition-link" href="/gn">Evening</a>'
-              '<a class="edition-link selected" href="/schedule" aria-current="page">Schedule</a><a class="edition-link" href="/letters">Letters</a><a class="edition-link" href="/chat">Secretary</a></nav></header>'
+              '<a class="edition-link selected" href="/schedule" aria-current="page">Schedule</a><a class="edition-link" href="/letters">Letters</a><a class="edition-link" href="/chat">Secretary</a>' + desk_link(app.profile()) + '</nav></header>'
               '<main><div id="schedule-view">' + content + '</div><p id="schedule-error" role="alert"></p><div id="schedule-notice" class="schedule-notice" role="status"></div>'
               '<noscript>Navigation and saved plans work without JavaScript. Reload to see updates.</noscript></main>'
               '<div id="schedule-config" hidden data-config="' + config + '"></div><script src="/schedule.js" defer></script></body></html>')

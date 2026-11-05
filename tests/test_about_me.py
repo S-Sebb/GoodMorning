@@ -102,6 +102,16 @@ class AboutMeTests(unittest.TestCase):
         self.assertEqual(about_me.save(self.app, {'field': 'birthday', 'value': ''})['value'], '')
         self.assertEqual(profile_fields(self.root).get('birthday', ''), '')
 
+    def test_gender_picks_only_the_about_me_icon_and_defaults_to_neutral(self):
+        bar = lambda: self.app_page().split('<nav class="edition-switch"')[1].split('</nav>')[0]
+        self.assertTrue(bar().endswith('<a class="edition-link selected" href="/about-me" data-person="neutral" aria-current="page">About me</a>'))
+        for saved, person in (('woman', 'woman'), ('man', 'man'), ('unspecified', 'neutral')):
+            self.assertEqual(about_me.save(self.app, {'field': 'gender', 'value': saved}), {'field': 'gender', 'value': saved})
+            self.assertIn(f'data-person="{person}"', bar())
+        with self.assertRaises(ValueError):
+            about_me.save(self.app, {'field': 'gender', 'value': 'female'})
+        self.assertEqual(profile_fields(self.root)['gender'], 'unspecified')
+
     def test_extras_switch_back_on_only_after_chat_set_them_up(self):
         self.assertEqual(about_me.save(self.app, {'field': 'anime_updates', 'value': 'true'})['value'], 'true')
         self.assertEqual(about_me.save(self.app, {'field': 'weekly_letter', 'value': 'false'})['value'], 'false')
@@ -157,7 +167,7 @@ class AboutMeGatewayTests(GatewayFixture):
         self.permanent()
         status, _, page = self.request('/about-me')
         self.assertEqual(status, 200)
-        self.assertIn(b'id="about-me-link"', page)
+        self.assertIn(b'href="/about-me" data-person="neutral" aria-current="page"', page)
         status, _, _ = self.request('/api/about-me', {'field': 'industry', 'value': 'Design'}, headers={'X-Briefing-CSRF': 'wrong'})
         self.assertEqual(status, 403)
         status, _, _ = self.request('/api/about-me', {'field': 'industry', 'value': 'Design'})

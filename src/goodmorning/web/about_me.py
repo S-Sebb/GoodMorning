@@ -14,6 +14,7 @@ from goodmorning import anime, games, stocks
 from goodmorning.briefings.briefing_day import briefing_day
 from goodmorning.calendar import public_holidays
 from goodmorning.records import celebrations, letters, memory as memories
+from goodmorning.setup_flow import GENDERS
 from goodmorning.runtime_files import (PROFILE_TEXT_MAX as LONG, SECRETARY_NAME_MAX as SHORT, calendar_config,
                                        normalize_secretary_name, profile_fields, set_profile_fields)
 from . import language as ui
@@ -69,6 +70,13 @@ def say(fields, text):
     """Interface text with the secretary's saved name, or "your secretary" before there is one."""
     name = saved_name(fields)
     return ui.ui(text, name=name) if name else ui.ui(UNNAMED[text])
+
+
+def desk_link(fields, selected=False):
+    """The page bar's About me link; its icon follows the saved gender, neutral until one is picked."""
+    person = fields.get('gender') if fields.get('gender') in ('woman', 'man') else 'neutral'
+    return (f'<a class="edition-link{" selected" if selected else ""}" href="/about-me" data-person="{person}"'
+            + (' aria-current="page"' if selected else '') + '>About me</a>')
 
 
 def portrait(app):
@@ -129,9 +137,17 @@ def birthday(fields):
     return row(ui.ui('Birthday'), content, '<button class="about-edit" type="button" hidden>' + ui.ui('Edit') + '</button>', 'birthday')
 
 
+def gender(fields):
+    saved = fields.get('gender', '')
+    content = (f'<span class="about-value" data-gender="{saved}">' + ui.ui(GENDERS[saved]) + '</span>' if saved in GENDERS
+               else value(fields, saved))
+    return row(ui.ui('Gender'), content + '<small class="about-hint">' + ui.ui('Only used to pick your About me icon in the page bar.') + '</small>',
+               '<button class="about-edit" type="button" hidden>' + ui.ui('Edit') + '</button>', 'gender')
+
+
 def names(app, fields):
     return section('names', ui.ui('What you call each other'),
-                   [text_row(fields, 'secretary_name'), text_row(fields, 'user_name'), birthday(fields)])
+                   [text_row(fields, 'secretary_name'), text_row(fields, 'user_name'), birthday(fields), gender(fields)])
 
 
 def day(app, fields):
@@ -341,6 +357,9 @@ def save(app, body):
             text = celebrations.birthday(text)
         except ValueError:
             raise Invalid('Pick a real month and day.') from None
+    elif key == 'gender':
+        if text not in GENDERS:
+            raise ValueError('Invalid gender')
     elif key == 'holiday_countries':
         text = ', '.join(public_holidays.regions(text)) or 'none'  # Nothing chosen saves "none", as declining in chat does.
     elif key not in TEXT:
@@ -379,7 +398,7 @@ def page(app):
               '<header class="masthead"><a class="wordmark" href="/gm">GoodMorning<span>A personal secretary just for you</span></a>'
               '<nav class="edition-switch" aria-label="Your desk"><a class="edition-link" href="/gm">Morning</a><a class="edition-link" href="/gn">Evening</a>'
               '<a class="edition-link" href="/schedule">Schedule</a><a class="edition-link" href="/letters">Letters</a>'
-              '<a class="edition-link" href="/chat">Secretary</a></nav></header>'
+              '<a class="edition-link" href="/chat">Secretary</a>' + desk_link(fields, True) + '</nav></header>'
               '<main class="about-me"' + ('' if ready else ' data-readonly')
               + (f' data-secretary="{html.escape(name, quote=True)}"' if name else '') + '><header class="about-intro">' + intro + '</header>'
               # After language.js, which the shared page shell adds to the head.

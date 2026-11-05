@@ -30,7 +30,8 @@ preference changes in Secretary chats and setup outside the website.
    after storage consent. It names the assistant, never the user. Then ask, alone,
    what to call the user (`user_name`, optional, same rules, skippable).
    Then ask, alone and skippable, for the user's birthday (`birthday: "MM-DD"`,
-   month and day only; `docs/initialization.md` step 3).
+   month and day only; `docs/initialization.md` step 3), then for their gender
+   (`gender`: `woman`, `man` or `unspecified`), which only picks the About me icon.
    Chats use website language and leave saved `secretary_language` unchanged;
    pass `--website-language CODE`. Never ask for a reply language.
 3. Collect remaining settings in small related groups: qualified city/timezone;
@@ -252,13 +253,16 @@ preference changes in Secretary chats and setup outside the website.
    briefings show those holidays on their day, and for China also the make-up
    workdays (调休上班); China's list covers only years the government has
    announced. Name places in everyday words, never codes or profile fields. Users
-   can also pick them on the About me page (Account menu), under Public holidays.
+   can also pick them on the About me page (in the page bar), under Public holidays.
    Birthday: the user's own birthday is the profile's `birthday: "MM-DD"`, never
    a calendar occasion; other people's birthdays stay occasions. When the user
    tells you theirs or asks to change it, save month and day only (no year or
    age) and confirm in everyday words: on that day the morning briefing opens
    with a birthday card. Clearing it sets `birthday: ""`. Users can also set it
-   on the About me page. Celebrations (birthday, festive public holidays,
+   on the About me page. Gender: the profile's `gender` is `woman`, `man` or
+   `unspecified` and only picks the person icon for About me in the page bar;
+   save it only as the user states it, never infer it, and use it for nothing else.
+   Celebrations (birthday, festive public holidays,
    GoodMorning anniversaries, finished-task milestones) are always on; if asked to turn them off, say plainly that they cannot be turned off,
    offer to clear the birthday, and save nothing else (`docs/celebrations.md`).
    Weekly letter: on unless `weekly_letter` is `"false"`. When the user asks to

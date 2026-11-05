@@ -74,6 +74,13 @@ class SetupFlowTests(unittest.TestCase):
         self.assertEqual(result['setup']['step'], 'birthday')
         self.assertEqual(result['saved'], {'birthday': '03-14'})
         self.answer('birthday', quote='born 03-14')
+        # Gender is a choice code saves; anything else is refused.
+        gender = setup_flow.fallback(self.root, CHAT)
+        self.assertEqual([option['value'] for option in gender['fields'][0]['options']], ['woman', 'man', 'unspecified'])
+        self.assertFalse(gender['fields'][0].get('custom'))
+        self.assertEqual(self.answer('gender', {'gender': 'female'}, {'gender': 'I am Sam'})[1]['error'], 'invalid_value')
+        self.assertTrue(setup_flow.apply_form(self.root, CHAT, {'form': gender}, {'gender': 'woman'}))
+        self.assertEqual(profile_fields(self.root)['gender'], 'woman')
         location = {'city': 'Edinburgh, Scotland, GB', 'region': 'global', 'timezone': 'Europe/London'}
         # A city the weather service cannot place is never saved; an unreachable service does not block setup.
         self.geocode.side_effect = weather.PlaceError('city is ambiguous; specify country/region or verified coordinates')
@@ -200,7 +207,7 @@ class SetupFlowTests(unittest.TestCase):
     def test_news_and_holiday_choices_list_bundled_countries_and_regions(self):
         self.ready(**READY)
         state = setup_flow.load(self.root, CHAT)
-        state['done'] = list(setup_flow.STEPS[:6])
+        state['done'] = list(setup_flow.STEPS[:setup_flow.STEPS.index('news')])
         setup_flow.store(self.root, CHAT, state)
         news = setup_flow.fallback(self.root, CHAT)
         self.assertEqual([option['value'] for option in news['fields'][0]['options']], list(setup_flow.NEWS))
