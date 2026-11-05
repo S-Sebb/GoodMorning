@@ -65,6 +65,25 @@ def fixture(root, scenario):
                          'ses_fixture','planned',stamp(root))
         finally:
             inbox.close()
+    if scenario == 'rest':
+        from goodmorning.records.custom_store import CustomStore
+        inbox = InboxStore(root, write=True)
+        try:
+            inbox.mutate('add', {'kind':'todo','raw':'Planned errand','task':{'title':'Planned errand','planned_date':app.today()}},
+                         'ses_fixture','planned',stamp(root))
+        finally:
+            inbox.close()
+        # Done yesterday, so tonight is this every-other-day schedule's rest day.
+        yesterday = (date.fromisoformat(app.today())-timedelta(days=1)).isoformat()
+        custom = CustomStore(root, write=True)
+        try:
+            rule = custom.add({'title':'Go gym','timezone':'Europe/London','policy':{
+                'base':'interval_days','interval_days':2,'start':yesterday,'anchor':'last_completion',
+                'miss_policy':'chase','weekly_cap':3,'nightly':'always'}},'ses_fixture','gym',stamp(root))
+            custom.report(rule['id'],rule['revision'],{'status':'done','confirmed_completion':True},
+                          'ses_fixture','gym-yesterday',stamp(root),yesterday)
+        finally:
+            custom.close()
     serve_live(app,0)
 
 
@@ -80,15 +99,17 @@ def main():
         artifacts.mkdir(parents=True,exist_ok=True,mode=0o700)
     with sync_playwright() as p:
         browser = p.chromium.launch()
-        for language,scenario in [(l,s) for l in ('en','zh-CN') for s in ('empty','tasks','tidy')]:
+        for language,scenario in [(l,s) for l in ('en','zh-CN') for s in ('empty','tasks','tidy','rest')]:
             copy = ({'title':'Let’s look back on today','empty':'How did today go?','not_done':'Not done',
                      'early':'Anything finished early?','other':'Other tasks','next':'Next','close':'Close',
                      'continue':'Continue check-in','save':'Save and write my briefing','open':'stays open',
-                     'tidy':'A quick tidy-up (optional)','drop':'No longer needed','did':'It’s done','keep':'Keep it, stop asking'} if language=='en' else
+                     'tidy':'A quick tidy-up (optional)','drop':'No longer needed','did':'It’s done','keep':'Keep it, stop asking',
+                     'extra':'Anything extra today?','rest':'Rest days'} if language=='en' else
                     {'title':'一起回顾一下今天','empty':'今天过得怎么样？','not_done':'未完成',
                      'early':'有提前完成的吗？','other':'其他任务','next':'接下来','close':'关闭',
                      'continue':'继续回顾','save':'保存并写简报','open':'先留着',
-                     'tidy':'顺手整理一下（可选）','drop':'不需要了','did':'已经做完了','keep':'留着，不用再问了'})
+                     'tidy':'顺手整理一下（可选）','drop':'不需要了','did':'已经做完了','keep':'留着，不用再问了',
+                     'extra':'今天有额外完成的吗？','rest':'休息日'})
             for width in (390,1440):
                 # Each viewport answers its own fresh job.
                 with tempfile.TemporaryDirectory(dir='/tmp/opencode',prefix='gm-night-preflight-') as directory:
@@ -142,6 +163,20 @@ def main():
                             dialog.get_by_role('button',name=copy['next']).click()
                             expect(dialog.locator('.checkin-summary')).to_contain_text('✓ Planned errand')
                             expect(dialog.locator('.checkin-summary')).to_contain_text('✓ Book the dentist')
+                        elif scenario == 'rest':
+                            # The rest-day schedule is not a due question, only an optional tick.
+                            expect(dialog.locator('.checkin-steps li')).to_have_count(3)
+                            expect(dialog.locator('.checkin-card h3')).to_have_text('Planned errand')
+                            dialog.locator('.checkin-verdict .checkin-primary').click()
+                            expect(dialog.get_by_text(copy['extra'],exact=True)).to_be_visible()
+                            expect(dialog.locator('.checkin-group h4')).to_have_text([copy['rest']])
+                            gym=dialog.get_by_role('checkbox',name='Go gym')
+                            expect(gym).not_to_be_checked()
+                            gym.check()
+                            if artifacts:
+                                page.screenshot(path=str(artifacts/f'{language}-rest-step-{width}.png'))
+                            dialog.get_by_role('button',name=copy['next']).click()
+                            expect(dialog.locator('.checkin-summary')).to_contain_text('★ Go gym')
                         else:
                             expect(dialog.locator('.checkin-steps li')).to_have_count(3)
                             expect(dialog.get_by_role('heading',name='Planned errand',exact=True)).to_be_visible()
@@ -184,7 +219,8 @@ def main():
                         job=next(j for j in jobs.values() if j['kind']=='gn')
                         context=json.loads((root/'browser-jobs'/(job['id']+'.context.json')).read_text())
                         assert context['feedback']['saved']
-                        assert context['feedback']['completed']==({'tasks':['Review results','Review results'],'tidy':['Planned errand','Book the dentist']}.get(scenario,[]))
+                        assert context['feedback']['completed']==({'tasks':['Review results','Review results'],'tidy':['Planned errand','Book the dentist'],
+                                                                'rest':['Planned errand','Go gym']}.get(scenario,[]))
                         if scenario=='tidy':
                             tidy={key:value for key,value in context['browser_answer'].items() if key.startswith('tidy_')}
                             assert sorted(tidy.values())==['done','drop'], tidy
@@ -199,7 +235,7 @@ def main():
         browser.close()
     print(json.dumps({'opens_as_dialog':'pass','due_step':'pass','project_groups':'pass','unassigned_group':'last',
                       'answers_kept_after_poll_and_close':True,'answers_kept_after_reload':True,'hidden_from_another_sign_in':True,'saved_answers_cleared':True,'not_done_stays_open':'pass','languages':['en','zh-CN'],
-                      'archive_gap_question':'absent','adaptive_empty_state':'pass','feedback_save':'pass','tidy_up':'pass','viewports':2,'model_calls':0}))
+                      'archive_gap_question':'absent','adaptive_empty_state':'pass','feedback_save':'pass','tidy_up':'pass','rest_day_optional':'pass','viewports':2,'model_calls':0}))
 
 
 if __name__ == '__main__':

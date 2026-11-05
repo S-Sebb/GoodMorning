@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/web/icons/gm.svg" width="64" alt="GoodMorning sun" />
+  <img src="assets/web/icons/app-192.png" width="64" alt="GoodMorning secretary" />
 </p>
 
 <h1 align="center">GoodMorning</h1>

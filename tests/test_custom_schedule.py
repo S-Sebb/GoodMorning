@@ -308,6 +308,49 @@ class CustomPreflightTests(unittest.TestCase):
         finally:
             store.close()
 
+    def report_gym(self, day):
+        store = CustomStore(self.root, write=True)
+        try:
+            store.report(self.rule_id, store.show(self.rule_id)["revision"], DONE,
+                         "ses_test", "gym-" + day, day + "T20:00:00+01:00", day)
+        finally:
+            store.close()
+
+    def evening(self, day, mark="e"):
+        job = {**self.job, "id": day.replace("-", "") + mark * 24, "date": day}
+        self.app.jobs[day + ".gn"] = job
+        self.app.save_jobs()
+        return job
+
+    def test_rest_day_is_an_optional_tick_and_records_only_when_ticked(self):
+        from goodmorning.briefings.briefing_preflight import initialize, answer
+        self.report_gym("2026-10-13")
+        for ticked in (False, True):
+            with self.subTest(ticked=ticked):
+                job = self.evening("2026-10-14", "f" if ticked else "e")
+                context = initialize(self.root, job)
+                fields = {field["key"]: field for field in context["form"]["fields"]}
+                self.assertNotIn("completed", fields)
+                [option] = fields["completed_longterm"]["options"]
+                self.assertEqual((option["label"], option["rest"]), ("Go gym", True))
+                self.assertIn("Oct 15", option["description"])  # The next visit's date.
+                result = answer(self.root, job, {"completed_longterm": [option["value"]] if ticked else [],
+                                                 "details": "No other updates"})
+                self.assertEqual("Go gym" in result["feedback"]["completed"], ticked)
+                store = CustomStore(self.root, write=False)
+                try:
+                    days = [row["date"] for row in store.show(self.rule_id)["completions"]]
+                finally:
+                    store.close()
+                self.assertEqual(days, ["2026-10-13", "2026-10-14"] if ticked else ["2026-10-13"])
+
+    def test_schedule_already_done_today_is_not_asked_again(self):
+        from goodmorning.briefings.briefing_preflight import initialize
+        self.report_gym("2026-10-13")
+        context = initialize(self.root, self.job)
+        self.assertFalse(any(task.get("custom") for task in context.get("feedback_tasks", [])))
+        self.assertNotIn("completed_longterm", {field["key"] for field in context["form"]["fields"]})
+
 
 if __name__ == "__main__":
     unittest.main()

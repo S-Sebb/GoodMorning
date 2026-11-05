@@ -33,20 +33,20 @@ class StructureTests(unittest.TestCase):
             app=BrowserApp(root)
             for kind in ('gm','gn'):
                 for page in (app.initialization_page(kind),app.page(app.today(),kind,False)):
-                    self.assertIn(('/icons/'+kind+'.svg').encode(),page)
+                    self.assertIn(b'/icons/app-32.png',page)
                     self.assertNotIn(b'href="icons/',page)
             (root/'profile.md').write_text('secretary_language: English\ntimezone: UTC\ncity: London, GB\nnews_country: GB\n')
             (root/'daily').mkdir()
             document={'v':1,'greeting':'Hello','opening':'Synthetic','sections':[['notes',[['p','Example']]]]}
             for kind in ('gm','gn'):
-                self.assertIn(('/icons/'+kind+'.svg').encode(),app.page(app.today(),kind,False))
+                self.assertIn(b'/icons/app-32.png',app.page(app.today(),kind,False))
                 (root/'daily'/f'{app.today()}.{kind}.json').write_text(native.encode(document))
                 for pinned in (False,True):
                     page=app.page(app.today(),kind,pinned)
-                    self.assertIn(('/icons/'+kind+'.svg').encode(),page)
+                    self.assertIn(b'/icons/app-32.png',page)
                     self.assertNotIn(b'href="icons/',page)
-            self.assertIn(b'/icons/secretary.svg',app.chat_page())
-            self.assertEqual(len(ICON_TYPES),6)
+            self.assertIn(b'/icons/app-32.png',app.chat_page())
+            self.assertEqual(set(ICON_TYPES),{'icons/app-32.png','icons/app-192.png'})
 
     def test_source_imports_do_not_depend_on_old_top_level_modules(self):
         legacy = {p.stem for p in (ROOT / 'src/goodmorning').rglob('*.py')}

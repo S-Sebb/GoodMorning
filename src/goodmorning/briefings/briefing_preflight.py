@@ -63,10 +63,15 @@ def initialize(runtime, job, previous=None):
                         for s in custom_store.briefing(job['date'], 'gn' if job['kind'] == 'gn' else 'gm'):
                             if job['kind'] != 'gn' and not s['due']:
                                 continue
+                            if not s['due'] and s['last_done'] == job['date']:
+                                continue  # Already recorded today; there is nothing to ask.
                             context['feedback_tasks'].append({
                                 'id': s['occurrence_id'], 'task_id': s['id'], 'revision': s['revision'],
                                 'text': s['title'], 'project': '', 'done': False, 'custom': True,
                                 'custom_reason': s['reason'], 'weekly_count': s['weekly_count'],
+                                # An off-day row is only an optional "did it anyway" tick, never a due question.
+                                **({} if s['due'] else {'rest_day': True, 'weekly_cap': s['policy'].get('weekly_cap'),
+                                                         'next_due': s['next_due']}),
                             })
                     finally:
                         custom_store.close()
@@ -123,6 +128,10 @@ def initialize(runtime, job, previous=None):
         today_tasks = []
         longterm_tasks = []
         for _t in open_tasks:
+            if _t.get('rest_day'):
+                _t['_section'] = 'future'
+                longterm_tasks.append(_t)
+                continue
             if not _t.get('actual') or _t.get('due_now'):
                 # Planned work and hard deadlines that have arrived are tonight's checks.
                 _t['_section'] = 'today'
@@ -151,6 +160,17 @@ def initialize(runtime, job, previous=None):
                     if _dates:
                         _notes[_t['id']] = _day_text(min(_dates))
             for _t in longterm_tasks:
+                if _t.get('rest_day'):
+                    _cap, _count = _t['weekly_cap'], _t['weekly_count']
+                    _parts = [ui.text('Rest day', lang=selected)]
+                    if _cap:
+                        _parts.append(ui.text('{count} of {cap} this week', count=_count, cap=_cap, lang=selected))
+                    elif _count:
+                        _parts.append(ui.text('{count} this week', count=_count, lang=selected))
+                    if _t['next_due'] > job['date']:
+                        _parts.append(ui.text('Next: {date}', date=_day_text(_t['next_due']), lang=selected))
+                    _notes[_t['id']] = ' · '.join(_parts)
+                    continue
                 _dates = [d for d in _orig_dates(_t['task_id']) if d]
                 if _dates:
                     _notes[_t['id']] = ', '.join(_day_text(d) for d in _dates)
@@ -158,7 +178,7 @@ def initialize(runtime, job, previous=None):
             ui.CURRENT.reset(_token)
         # Keep project order stable, with unassigned work after every named project.
         today_tasks.sort(key=lambda t: not bool(t.get('project')))
-        longterm_tasks.sort(key=lambda t: not bool(t.get('project')))
+        longterm_tasks.sort(key=lambda t: (not t.get('rest_day'), not bool(t.get('project'))))
         # Drop display-only helpers before persisting task records (size guard).
         for _t in today_tasks + longterm_tasks:
             _t.pop('_label', None)
@@ -175,7 +195,9 @@ def initialize(runtime, job, previous=None):
                     {'key':'completed_longterm','title':'Future tasks (optional)','type':'multiselect','required':False,
                      'description':'Only tick if fully done early.',
                      'options':[
-                         {'value':t['id'],'label':t['text'],'group':t.get('project') or ui.text('Other tasks',lang=selected),
+                         {'value':t['id'],'label':t['text'],
+                          'group':ui.text('Rest days',lang=selected) if t.get('rest_day') else t.get('project') or ui.text('Other tasks',lang=selected),
+                          **({'rest':True} if t.get('rest_day') else {}),
                           **({'description':_notes[t['id']]} if t['id'] in _notes else {})} for t in longterm_tasks]})
             fields.extend(tidy_fields(context, job['date'], selected))
             fields.append(
@@ -266,7 +288,7 @@ def answer(runtime, job, value):
         known = {t['id']:t for t in context.get('feedback_tasks', context['daily']['tasks']) if not t['done']}
         def _is_future(_t):
             if '_section' in _t:
-                return _t['_section'] == 'future' and not _t.get('custom')
+                return _t['_section'] == 'future'  # Includes custom schedules only on their rest days.
             return bool(_t.get('actual')) and not _t.get('custom')
         def _is_today(_t):
             if '_section' in _t:
