@@ -7,7 +7,8 @@ import hashlib
 # One tab icon on every page, made from the default secretary portrait (assets/app_icons.py).
 ICON_TYPES = {f'icons/app-{size}.png': 'image/png' for size in ('32', '192')}
 DESK_ICON_TYPES = {f'icons/desk-{name}.svg': 'image/svg+xml'
-                  for name in ('morning', 'evening', 'schedule', 'letters', 'done', 'habit', 'secretary', 'idea', 'appearance', 'language', 'notifications', 'phone')}
+                  for name in ('morning', 'evening', 'schedule', 'letters', 'done', 'habit', 'secretary', 'idea', 'appearance', 'language', 'notifications', 'phone',
+                               'person-woman', 'person-man', 'person-neutral')}
 PIXEL_FONTS = {f'fonts/{name}.woff2': 'font/woff2' for name in ('pixelify-sans', 'silkscreen', 'jersey-10', 'fusion-pixel-zh')}
 PIXEL_SCENES = {f'{name}.svg': 'image/svg+xml'
                 for name in ('grass-block-day', 'grass-block-night', 'grass-block-stone-day', 'grass-block-stone-night',

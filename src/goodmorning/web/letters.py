@@ -8,6 +8,7 @@ from goodmorning.records import letters
 from goodmorning.runtime_files import normalize_secretary_name, profile_fields
 from . import language as ui
 from . import quick_chat
+from .about_me import desk_link
 from .briefing_chat import avatar_variant
 from .briefing_resources import favicon_links
 from .chat_theme import clock_theme
@@ -126,5 +127,5 @@ def page(app, week=None):
               '<header class="masthead"><a class="wordmark" href="/gm">GoodMorning<span>A personal secretary just for you</span></a>'
               '<nav class="edition-switch" aria-label="Your desk"><a class="edition-link" href="/gm">Morning</a><a class="edition-link" href="/gn">Evening</a>'
               '<a class="edition-link" href="/schedule">Schedule</a><a class="edition-link selected" href="/letters" aria-current="page">Letters</a>'
-              '<a class="edition-link" href="/chat">Secretary</a></nav></header><main>' + content + '</main></body></html>')
+              '<a class="edition-link" href="/chat">Secretary</a>' + desk_link(app.profile()) + '</nav></header><main>' + content + '</main></body></html>')
     return app.resources.rewrite(ui.page(quick_chat.widget(source, app.csrf), app.csrf, ('/letters/' + week if week else '/letters'), avatars=True)).encode()

@@ -74,6 +74,13 @@ class SetupFlowTests(unittest.TestCase):
         self.assertEqual(result['setup']['step'], 'birthday')
         self.assertEqual(result['saved'], {'birthday': '03-14'})
         self.answer('birthday', quote='born 03-14')
+        # Gender is a choice code saves; anything else is refused.
+        gender = setup_flow.fallback(self.root, CHAT)
+        self.assertEqual([option['value'] for option in gender['fields'][0]['options']], ['woman', 'man', 'unspecified'])
+        self.assertFalse(gender['fields'][0].get('custom'))
+        self.assertEqual(self.answer('gender', {'gender': 'female'}, {'gender': 'I am Sam'})[1]['error'], 'invalid_value')
+        self.assertTrue(setup_flow.apply_form(self.root, CHAT, {'form': gender}, {'gender': 'woman'}))
+        self.assertEqual(profile_fields(self.root)['gender'], 'woman')
         location = {'city': 'Edinburgh, Scotland, GB', 'region': 'global', 'timezone': 'Europe/London'}
         # A city the weather service cannot place is never saved; an unreachable service does not block setup.
         self.geocode.side_effect = weather.PlaceError('city is ambiguous; specify country/region or verified coordinates')
@@ -128,13 +135,13 @@ class SetupFlowTests(unittest.TestCase):
         self.assertEqual(self.answer('user_name', {'user_name': '满'}, {'user_name': '满'})[1]['changed'], {'user_name': '满'})
         # Keeping or skipping needs a meaningful quote too.
         self.assertEqual(self.answer('birthday', quote='是')[1]['error'], 'unquoted')
-        self.assertEqual(self.answer('birthday', quote='是的')[1]['setup']['step'], 'location')
+        self.assertEqual(self.answer('birthday', quote='是的')[1]['setup']['step'], 'gender')
         # Code's own words never stand in for the user's: the Initialize button, consent, keep and skip choices.
         self.said('请和我一起开始初始化流程。', language='zh-CN', answers=[{'consent': 'agree'}, {'city': 'keep'}, {'user_name': 'skip'}])
         self.assertEqual(setup_flow.user_words(self.root, CHAT), [])
         for quote in ('请和我一起开始初始化流程', 'keep', 'agree'):
             with self.subTest(quote=quote):
-                self.assertEqual(self.answer('location', quote=quote)[1]['error'], 'unquoted')
+                self.assertEqual(self.answer('gender', quote=quote)[1]['error'], 'unquoted')
 
     def test_values_follow_each_settings_rules(self):
         self.ready()
@@ -152,7 +159,7 @@ class SetupFlowTests(unittest.TestCase):
     def test_required_steps_cannot_be_skipped_and_a_review_can_keep_everything(self):
         self.ready()
         state = setup_flow.load(self.root, CHAT)
-        state['done'] = list(setup_flow.STEPS[:3])
+        state['done'] = list(setup_flow.STEPS[:setup_flow.STEPS.index('location')])
         setup_flow.store(self.root, CHAT, state)
         self.assertEqual(self.answer('location', quote='I am Sam')[1]['error'], 'required')
         self.assertEqual(self.answer('location', keep_all=True, quote='I am Sam')[1]['error'], 'invalid_keep_all')
@@ -200,7 +207,7 @@ class SetupFlowTests(unittest.TestCase):
     def test_news_and_holiday_choices_list_bundled_countries_and_regions(self):
         self.ready(**READY)
         state = setup_flow.load(self.root, CHAT)
-        state['done'] = list(setup_flow.STEPS[:6])
+        state['done'] = list(setup_flow.STEPS[:setup_flow.STEPS.index('news')])
         setup_flow.store(self.root, CHAT, state)
         news = setup_flow.fallback(self.root, CHAT)
         self.assertEqual([option['value'] for option in news['fields'][0]['options']], list(setup_flow.NEWS))

@@ -186,6 +186,45 @@
     months.focus();
   }
 
+  // Gender only picks the page bar's About me icon, so the bar follows a save at once.
+  function editGender(row) {
+    const content = row.querySelector('.about-content');
+    const action = row.querySelector('.about-action');
+    const editButton = action.querySelector('.about-edit');
+    const before = [...content.childNodes];
+    const hint = content.querySelector('.about-hint');
+    const labels = {woman: 'Woman', man: 'Man', unspecified: 'Prefer not to say'};
+    const chosen = content.querySelector('[data-gender]')?.dataset.gender;
+    const select = document.createElement('select');
+    select.append(...Object.entries(labels).map(([value, label]) => new Option(t(label), value, false, value === chosen)));
+    select.setAttribute('aria-labelledby', 'about-label-gender');
+    const button = (label, kind) => Object.assign(document.createElement('button'), {type: 'button', className: kind, textContent: t(label)});
+    const saveButton = button('Save', 'about-save'), cancelButton = button('Cancel', 'about-cancel');
+    const finish = nodes => {
+      content.replaceChildren(...nodes);
+      action.replaceChildren(editButton);
+      editButton.focus({preventScroll: true});
+    };
+    saveButton.addEventListener('click', async () => {
+      const controls = [select, saveButton, cancelButton];
+      controls.forEach(control => { control.disabled = true; });
+      const saved = await save(row, select.value);
+      if (saved === null) return controls.forEach(control => { control.disabled = false; });
+      const node = Object.assign(document.createElement('span'), {className: 'about-value'});
+      node.dataset.gender = saved;
+      node.dataset.uiText = labels[saved];
+      node.textContent = t(labels[saved]);
+      finish([node, hint]);
+      const link = document.querySelector('.edition-link[href="/about-me"]');
+      if (link) link.dataset.person = saved === 'unspecified' ? 'neutral' : saved;
+    });
+    cancelButton.addEventListener('click', () => finish(before));
+    row.querySelector('.about-feedback')?.remove();
+    content.replaceChildren(select, hint);
+    action.replaceChildren(saveButton, cancelButton);
+    select.focus();
+  }
+
   function edit(row) {
     const content = row.querySelector('.about-content');
     const action = row.querySelector('.about-action');
@@ -234,7 +273,7 @@
     button.hidden = false;
     button.addEventListener('click', () => {
       const row = button.closest('.about-row');
-      ({holiday_countries: editHolidays, birthday: editBirthday}[row.dataset.field] || edit)(row);
+      ({holiday_countries: editHolidays, birthday: editBirthday, gender: editGender}[row.dataset.field] || edit)(row);
     });
   });
   // Forgetting deletes the note for good, so it asks first.

@@ -8,6 +8,7 @@ import tempfile
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from support import TEMP_ROOT, returning_viewer
 from support import start_server
+from goodmorning.runtime_files import set_profile_fields
 from test_weekly_schedule import make_runtime
 
 
@@ -27,14 +28,14 @@ def check(app, url, shots):
             expect(page.locator('html')).to_have_attribute('lang', language)
             for theme, hour in (('gm', 12), ('gn', 21)):
                 app.now = lambda hour=hour: datetime(2026, 10, 13, hour, tzinfo=timezone.utc)
-                for route in ('/gm', '/gn', '/schedule', '/letters', '/chat'):
+                for route in ('/gm', '/gn', '/schedule', '/letters', '/chat', '/about-me'):
                     for width in (1440, 820, 390, 320):
                         page.set_viewport_size({'width': width, 'height': 900})
                         page.goto(url + route)
                         page.evaluate('document.fonts.ready')
                         links = page.locator('.edition-switch .edition-link')
-                        expect(links).to_have_count(5)
-                        labels = ['Morning', 'Evening', 'Schedule', 'Letters', 'Secretary'] if language == 'en' else ['早报', '晚报', '日程', '来信', '秘书']
+                        expect(links).to_have_count(6)
+                        labels = ['Morning', 'Evening', 'Schedule', 'Letters', 'Secretary', 'About me'] if language == 'en' else ['早报', '晚报', '日程', '来信', '秘书', '关于我']
                         for link, label in zip(links.all(), labels):
                             expect(link).to_have_accessible_name(label)
                             icon = link.evaluate('el => { const s = getComputedStyle(el, "::before"); return {image: s.backgroundImage, width: parseFloat(s.width), height: parseFloat(s.height)}; }')
@@ -52,6 +53,17 @@ def check(app, url, shots):
                             page.locator('html').evaluate('element => Promise.all(element.getAnimations({subtree: true}).map(animation => animation.finished.catch(() => {})))')
                             page.screenshot(path=str(shots / f'{route[1:]}-{theme}-{language}-{width}.png'))
                         cases += 1
+        # The About me icon follows the saved gender and is neutral until one is saved.
+        page.set_viewport_size({'width': 390, 'height': 900})
+        for gender, person in (('', 'neutral'), ('woman', 'woman'), ('man', 'man'), ('unspecified', 'neutral')):
+            set_profile_fields(app.runtime, {'gender': gender})
+            page.goto(url + '/schedule')
+            link = page.locator('.edition-switch .edition-link[href="/about-me"]')
+            expect(link).to_have_attribute('data-person', person)
+            image = link.evaluate('el => getComputedStyle(el, "::before").backgroundImage')
+            assert f'desk-person-{person}.svg' in image, image
+            if shots:
+                page.locator('.masthead').screenshot(path=str(shots / f'bar-{gender or "unset"}-390.png'))
         assert not errors, errors
         assert not failures, failures
         browser.close()

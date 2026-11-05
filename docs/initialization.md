@@ -16,7 +16,7 @@ language, so the secretary reads no docs for it.
    template, `projects/`, `daily/`, inbox and calendar databases) and records the
    consent; declining saves nothing and says how to come back. While consent is
    missing, every chat message waits on the page and never reaches a model.
-2. Steps, in order: `secretary_name`, `user_name`, `birthday`, `location` (city,
+2. Steps, in order: `secretary_name`, `user_name`, `birthday`, `gender`, `location` (city,
    region, timezone), `rhythm` (work days, hours, bedtime, tone), `about` (roles,
    fields, needs; industry, project scope and knowledge area only when stated),
    `news` (US/GB/CN/CA/AU), `holidays`. A review (ready profile) walks the same
@@ -29,8 +29,8 @@ language, so the secretary reads no docs for it.
    unreachable service is left to the final check). Code saves each
    confirmed step at once, only real changes, and refuses values that break a
    setting's rules, belong to no remaining step, lack a quote, or were changed on
-   About me after the question was asked. Keep, skip and picked countries or
-   holiday regions are saved by code without the secretary.
+   About me after the question was asked. Keep, skip and a picked gender,
+   countries or holiday regions are saved by code without the secretary.
 4. When a turn ends without the current step's question, code asks it in its own
    wording. After the last step, code checks weather and news once (new setups,
    or when the place or news changed), rebuilds the state index, the secretary
@@ -64,6 +64,10 @@ integration access or verification consent.
    celebrate it (a review shows the saved one and allows keeping it). Save only
    month and day as `birthday: "MM-DD"`, never a year or age. Never infer it from
    calendar occasions or records. A skip leaves it unchanged.
+   Then, alone, ask for the user's gender: woman, man or prefer not to say, saved
+   as `gender: "woman"`, `"man"` or `"unspecified"`. It only picks the person icon
+   for About me in the page bar; never infer it or use it for anything else.
+   Profiles without it show the neutral icon.
 4. Requests use the supplied `Website language`; never ask for reply language
    or rewrite saved `secretary_language`. Pass `--website-language CODE` to setup/workflow.
    Source language/country/persona remain separate.
