@@ -72,7 +72,8 @@ def main():
                             page.goto('http://synthetic.test/'+kind)
                             expect(page.get_by_role('heading', name=ui.text('Tasks'), exact=True)).to_be_visible()
                             expect(page.get_by_role('heading', name='Dentist', exact=True)).to_be_visible()
-                            expect(page.get_by_text('Maybe build a dashboard', exact=True)).to_have_count(0)
+                            # A clear idea comes back in every morning and evening Reminders section from the day it is saved.
+                            expect(page.get_by_text('Maybe build a dashboard', exact=True)).to_have_count(1)
                             # The evening shows only deadlines due tomorrow, so Friday's report waits.
                             expect(page.locator('.task-card')).to_have_count(2 if kind == 'gm' else 1)
                             if kind == 'gm':
