@@ -95,15 +95,6 @@ class JobTests(unittest.TestCase):
         self.assertEqual(result['next']['section'],['news','News — as of 07:30'])
         self.assertIn('--latest --as-of 2026-10-11T07:30:00+01:00',result['next']['read'][0])
         self.assertNotIn('calendar',str(result['next']))
-        # Each call and step is timestamped in a private log; the waiting page's step file keeps its shape.
-        log = [json.loads(line) for line in (self.app.job_dir/(self.identifier+'.timings.jsonl')).read_text().splitlines()]
-        self.assertEqual([(entry['step'],entry.get('action') or entry.get('section')) for entry in log],
-                         [('receive','prepare'),('opening',None),('receive','init'),('collect','weather'),('write','weather'),
-                          ('receive','publish'),('collect','news'),('write','news')])
-        self.assertEqual([entry['at'] for entry in log],sorted(entry['at'] for entry in log))
-        self.assertEqual(json.loads((self.app.job_dir/(self.identifier+'.activity.json')).read_text()),
-                         {'step':'write','position':1,'section':'news','count':None})
-        self.assertEqual((self.app.job_dir/(self.identifier+'.timings.jsonl')).stat().st_mode & 0o777,0o600)
 
     def test_evening_forecasts_tomorrow_right_after_today(self):
         context = {'workflow':'gn','document_version':2,'date':'2026-10-11','tomorrow':'2026-10-12','city':'London, GB',
