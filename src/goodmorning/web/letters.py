@@ -122,7 +122,7 @@ def page(app, week=None):
             + '</p></section>'), 'Weekly letters'
     source = ('<!doctype html><html lang="en" data-edition="' + theme + '"><head><meta charset="utf-8">'
               '<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>' + title + ' — GoodMorning</title>'
-              + favicon_links('secretary') + '<link rel="stylesheet" href="/briefing.css"><link rel="stylesheet" href="/scroll-rails.css">'
+              + favicon_links() + '<link rel="stylesheet" href="/briefing.css"><link rel="stylesheet" href="/scroll-rails.css">'
               '<script src="/scroll-rails.js" defer></script><script src="/letters.js" defer></script></head><body class="letters-page">'
               '<header class="masthead"><a class="wordmark" href="/gm">GoodMorning<span>A personal secretary just for you</span></a>'
               '<nav class="edition-switch" aria-label="Your desk"><a class="edition-link" href="/gm">Morning</a><a class="edition-link" href="/gn">Evening</a>'

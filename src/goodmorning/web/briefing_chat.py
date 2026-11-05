@@ -1005,7 +1005,7 @@ def page(csrf, ready, connected, secretary_name=None, avatar='f1', avatar_urls=N
     title = (html.escape(secretary_name) + ' — GoodMorning') if secretary_name else 'Your secretary — GoodMorning'
     return ('<!doctype html><html lang="en" data-edition="' + ('gn' if theme == 'gn' else 'gm') + '"><head><meta charset="utf-8">'
             '<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">'
-            '<title>' + title + '</title>' + favicon_links('secretary') + '<link rel="stylesheet" href="/briefing.css">'
+            '<title>' + title + '</title>' + favicon_links() + '<link rel="stylesheet" href="/briefing.css">'
             '<link rel="stylesheet" href="/chat.css"><link rel="stylesheet" href="/avatar.css">'
             '<link rel="stylesheet" href="/scroll-rails.css"><script src="/scroll-rails.js" defer></script></head><body class="chat-page">'
             '<a class="skip-link" href="#conversation">Skip to conversation</a>'
