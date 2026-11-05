@@ -804,7 +804,8 @@ class TaxonomyTests(unittest.TestCase):
             # the rejected publishes above stay in the Weather turn as received calls.
             log = [json.loads(line) for line in (self.root/'browser-jobs'/(identifier+'.timings.jsonl')).read_text().splitlines()]
             self.assertEqual([(entry['step'],entry.get('action') or entry.get('section')) for entry in log],
-                             [('receive','prepare'),('opening',None),('receive','init'),('collect','weather'),('write','weather')]
+                             # A morning init writes no text, so it records no opening step.
+                             [('receive','prepare'),('receive','init'),('collect','weather'),('write','weather')]
                              + [('receive','publish')]*6
                              + [('receive','publish'),('collect','news'),('write','news')])
             self.assertEqual([entry['at'] for entry in log],sorted(entry['at'] for entry in log))
