@@ -12,8 +12,8 @@ Chromium once with `PY -m playwright install chromium`.
 
 | Gate | Command | Runs in |
 |---|---|---|
-| Unit and system tests | `PY tests/run.py` (parallel groups of the `test_*.py` modules) | every PR (CI), deploy |
-| Parked-reasoning projection | `node --test tests/test_parked_reasoning.mjs` | every PR (CI), deploy |
+| Unit and system tests | `PY tests/run.py --changed origin/main` (modules for what changed); `PY tests/run.py` (all) | every PR and push to `main` (CI); all on deploy and `deploy/*` tags |
+| Parked-reasoning projection | `node --test tests/test_parked_reasoning.mjs` | PRs that change it (CI), deploy |
 
 `test_public_assets.py` also runs `test_network.mjs` when Node is available.
 Shared fixtures (`FakeChamber`, `MockChamber`, the gateway and live-viewer HTTP
