@@ -131,6 +131,7 @@ def check_chat(scenario, language, runtime, before, result, messages):
     if scenario == 'picks-up':
         assert records(runtime) == 1, 'The dog-food to-do was not saved once'
         assert 'mochi' in words, 'The dog was not remembered'
+        assert 'dog food' not in words and '狗粮' not in words, 'The to-do was copied into the note'
     elif scenario == 'remember':
         assert records(runtime) == 0, 'A memory request saved a to-do or idea'
         assert 'vegetarian' in words or '素' in words, 'Vegetarian was not remembered'
