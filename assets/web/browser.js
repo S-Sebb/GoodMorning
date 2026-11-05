@@ -93,6 +93,7 @@ async function updatePreview(state) {
     article.replaceChildren(fragment(preview.sections));
     document.querySelector('h1').textContent = preview.greeting;
     document.querySelector('.subtitle').textContent = preview.opening;
+    document.querySelector('.subtitle').hidden = !preview.opening;
     document.querySelector('h1').removeAttribute('data-ui-language');
     document.querySelector('.subtitle').removeAttribute('data-ui-language');
     article.lang = preview.lang;

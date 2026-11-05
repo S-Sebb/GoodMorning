@@ -98,12 +98,17 @@ def default_plan(context):
     return plan
 
 
+def late_intro(context):
+    """The morning headline names today's top item, so it and the opening are written at finish from the verified sections."""
+    return context.get('document_version') == 2 and context.get('workflow') == 'gm'
+
+
 def next_step(runtime, identifier, session, context, checkpoint):
     """One compact recipe; no speculative flags or whole-briefing fetching."""
     command = ['python', 'scripts/goodmorning.py', 'job', '--secretary-dir', str(runtime), '--job', identifier, '--session', session]
     if not checkpoint:
         if context.get('document_version') == 2:
-            return {'action':'init', 'command':shlex.join(command + ['init']), 'input':{'greeting':'…','opening':'…'}}
+            return {'action':'init', 'command':shlex.join(command + ['init']), 'input':{} if late_intro(context) else {'greeting':'…','opening':'…'}}
         instruction = 'Initialize now, before any provider or additional record reads. Use the supplied default plan unchanged; do not reorder, add or remove sections. Translate plan titles only if needed for the pinned language, preserving order.'
         if context.get('regenerating'):
             instruction += (' This is an explicitly authorized replacement, not a duplicate run. Reuse saved feedback and current records; '
@@ -114,7 +119,7 @@ def next_step(runtime, identifier, session, context, checkpoint):
                 'instruction':instruction}
     position = len(checkpoint['outcomes'])
     if position == len(checkpoint['plan']):
-        return {'action':'finish', 'command':shlex.join(command + ['finish']), 'input':{}}
+        return {'action':'finish', 'command':shlex.join(command + ['finish']), 'input':{'greeting':'…','opening':'…'} if late_intro(context) else {}}
     tag, title = checkpoint['plan'][position]
     reads = []
     selected = context['paths']
@@ -437,11 +442,15 @@ def writing_rule(context, next_action):
     chinese = context.get('website_language') == 'zh-CN'
     action = next_action['action']
     tag = next_action.get('section', [''])[0]
-    if action == 'init':
+    if action == 'init' and not late_intro(context):
         return ('开场只说明即将回顾的内容，不要在获取数据前说已经整理完毕。' if chinese else
                 'Opening describes what will be reviewed; do not claim collection is already complete.')
     if action == 'finish':
-        return ('结尾可省略；没有待办、完成记录或实际反馈可回顾时，不写结尾。否则只回应已核实的结果。空日程只能说明没有已保存的约定，不能说“日程清空”、日子清闲、可以随意安排或时间充裕。不要承诺来源恢复后自动更新，不推断空闲、就绪或未来完成。' if chinese else
+        intro = ''
+        if late_intro(context):
+            intro = ('标题和开场只写已发布章节里核实过的事；期限只认明确的到期日。' if chinese else
+                     'Headline and opening state only facts from the published sections; a deadline needs an explicit due date. ')
+        return intro + ('结尾可省略；没有待办、完成记录或实际反馈可回顾时，不写结尾。否则只回应已核实的结果。空日程只能说明没有已保存的约定，不能说“日程清空”、日子清闲、可以随意安排或时间充裕。不要承诺来源恢复后自动更新，不推断空闲、就绪或未来完成。' if chinese else
                 'Closing is optional; omit it when there are no tasks, completions or actual feedback to reflect. Otherwise use verified results only. An empty calendar means no saved appointments, not a clear schedule, quiet/free day or time to spare. Do not promise automatic updates after recovery, readiness or future completion.')
     if tag == 'tasks':
         return ('动作行的日期是约定工作日，不是截止日期；只有明确的 due_date/due_at 才是期限。不要建议把明天的工作提前到今天。open 仅表示尚未完成，不能据此说已就绪或没有阻碍；也不能保证一个阻碍消失后即可完成。不要猜测哪项更轻松或需要多久。已确认的受阻原因保持原意，不得改写成“暂未推进”或“没有进展”；措辞整理不得改变其原意。' if chinese else
@@ -497,8 +506,9 @@ def act(runtime, identifier, session, action, payload=None):
         def receipt(value):
             checkpoint = load(target)
             next_action = next_step(runtime, identifier, session, context, checkpoint)
-            if next_action['action'] in ('init', 'finish') or next_action.get('section', [None])[0] == 'letter':
-                # Only the greeting, closing and letter sign-off may reflect what the secretary remembers about the user.
+            if (next_action['action'] == 'init' and not late_intro(context) or next_action['action'] == 'finish'
+                    or next_action.get('section', [None])[0] == 'letter'):
+                # Only the greeting, opening, closing and letter sign-off may reflect what the secretary remembers about the user.
                 from goodmorning.records.memory import context as memory
                 try:
                     remembered = {part: text for part, text in memory(runtime).get('note', {}).items() if text}
@@ -525,7 +535,7 @@ def act(runtime, identifier, session, action, payload=None):
                 if next_action['action'] == 'publish':
                     note(runtime, identifier, 'write', position=position, section=tag,
                          count=read_count(runtime, job, tag, next_action.get('results', [])))
-                else:
+                elif not (next_action['action'] == 'init' and late_intro(context)):
                     note(runtime, identifier, 'opening' if next_action['action'] == 'init' else 'closing')
             rule = writing_rule(context, next_action)
             if rule:
@@ -549,6 +559,11 @@ def act(runtime, identifier, session, action, payload=None):
             return receipt({**prepared, 'job': identifier, 'session': session,
                     'next_position': len(checkpoint['outcomes']) if checkpoint else 0})
         if action == 'init':
+            if late_intro(context):
+                if not isinstance(payload, dict) or set(payload) - {'lang', 'plan'}:
+                    raise ValueError('Initialize with {}; the headline and opening are written at finish')
+                # Empty until finish; the preview shows a placeholder and the final save requires both.
+                payload = {**payload, 'greeting': '', 'opening': ''}
             if not isinstance(payload, dict) or not {'greeting','opening'} <= payload.keys() or set(payload) - {'greeting', 'opening', 'lang', 'plan'}:
                 raise ValueError('Initialize with greeting, opening, optional lang and plan')
             selected=context.get('website_language','en')
@@ -654,7 +669,12 @@ def act(runtime, identifier, session, action, payload=None):
                     result['images'] = covers
             return receipt(result)
         if action == 'finish':
-            if not isinstance(payload, dict) or set(payload) - {'closing'}:
+            if late_intro(context):
+                if not isinstance(payload, dict) or not {'greeting', 'opening'} <= payload.keys() or set(payload) - {'greeting', 'opening', 'closing'}:
+                    raise ValueError('Finish with greeting (the headline), opening and an optional closing')
+                native.headline(payload['greeting'], document['lang'])
+                document.update(greeting=payload['greeting'], opening=payload['opening'])
+            elif not isinstance(payload, dict) or set(payload) - {'closing'}:
                 raise ValueError('Finish accepts only an optional closing')
             if 'closing' in payload:
                 document['closing'] = payload['closing']

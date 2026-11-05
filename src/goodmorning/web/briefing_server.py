@@ -806,7 +806,8 @@ class BrowserApp:
                 change['html'] = section_markup(index + 1, native.escaped(title), content, section[0])
             changes.append(change)
         result = {'revision': self.preview_revision(checkpoint, job), 'image_revision': self.image_revision(job), 'resolved': len(outcomes), 'planned': len(plan),
-                  'greeting': document['greeting'], 'opening': document['opening'], 'lang': document.get('lang', 'en'),
+                  'greeting': document['greeting'] or ui.text('Preparing today’s briefing…', lang=document.get('lang', 'en')),
+                  'opening': document['opening'], 'lang': document.get('lang', 'en'),
                   'changes': changes, 'closing': native.escaped(document.get('closing', ''))}
         if after == -1:
             result['sections'] = preview_shell(plan)

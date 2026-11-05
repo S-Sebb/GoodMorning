@@ -24,6 +24,7 @@ sys.path.insert(0, str(ROOT/'tests'))
 from benchmarks import trial_engine
 from benchmarks.trial_engine import TrialBridge
 from benchmarks.task_tone_live import context, matrix_lock, records, save, TONES
+from goodmorning.briefings.briefing_document import HEADLINE_LIMIT
 from goodmorning.briefings.briefing_job import act, context_path, default_plan, timings_path
 from goodmorning.calendar.calendar_store import CalendarStore
 from goodmorning.records.inbox_store import initialize, InboxStore
@@ -130,13 +131,11 @@ class CheckpointBridge(TrialBridge):
             job = next(line.split(': ', 1)[1] for line in parameters['prompt'].splitlines()
                        if line.startswith(('Browser job: ', '浏览器任务: ')))
             session = parameters['sessionId']
-            intro = {'greeting':'Good morning.','opening':'Your saved plans are ready to review.'} if self.language == 'en' else {
-                'greeting':'早上好。','opening':'一起来看看已保存的安排。'}
-            act(self.runtime, job, session, 'init', intro)
+            act(self.runtime, job, session, 'init', {})
             weather = ['weather', [['p', 'Weather is unavailable; check before travelling.' if self.language == 'en'
                                     else '天气数据暂不可用，出行前请另行确认。']]]
             act(self.runtime, job, session, 'publish', {'position':0, 'section':weather})
-            self.seeded = {**intro, 'weather':weather}
+            self.seeded = {'weather':weather}
             save(Path(self.runtime)/'seeded-checkpoint.json', self.seeded)
         return super().control(action, **parameters)
 
@@ -378,6 +377,43 @@ def seed_timing(runtime, language, day):
         inbox.close()
 
 
+# The note's undated or distant items must stay out; only tomorrow's dinner is tied to today (#227).
+HEADLINE_MEMORY = {'en': ('mochi', 'marathon', 'vegetarian'), 'zh-CN': ('mochi', '马拉松', '吃素')}
+
+
+def headline_case(runtime, language, instant):
+    """A dentist appointment today, rain later and a note with one item dated tomorrow."""
+    from goodmorning.records import memory
+    day = instant.astimezone(ZoneInfo('Europe/London')).date()
+    tomorrow = day + timedelta(days=1)
+    calendar = CalendarStore(str(runtime/'calendar.sqlite'))
+    try:
+        calendar.add({'subject':'Dentist' if language == 'en' else '看牙医', 'location':'Elm Street Dental',
+                      'start':datetime(day.year, day.month, day.day, 10, 30, tzinfo=ZoneInfo('Europe/London')).isoformat(),
+                      'end':datetime(day.year, day.month, day.day, 11, 15, tzinfo=ZoneInfo('Europe/London')).isoformat()})
+    finally:
+        calendar.close()
+    note = ({'life':'You have a dog, Mochi. You are vegetarian.',
+             'lately':f'You are training for a marathon in March. Your friend Priya\'s birthday dinner is on {tomorrow.day} {tomorrow:%B}.'}
+            if language == 'en' else
+            {'life':'你养了一只叫 Mochi 的狗。你吃素。',
+             'lately':f'你在为三月的马拉松做训练。{tomorrow.month} 月 {tomorrow.day} 日是朋友 Priya 的生日晚餐。'})
+    memory.change(runtime, 0, note=note)
+
+
+def check_headline(document, language, scenario, result):
+    headline = document['greeting']
+    result['headline'], result['opening'] = headline, document['opening']
+    assert len(headline) <= HEADLINE_LIMIT[language] and '\n' not in headline, 'Headline is not one short line'
+    if scenario == 'morning-headline':
+        words = HEADLINE_MEMORY[language] + ('priya',)
+        assert not [word for word in words if word in headline.casefold()], 'Memory reached the headline'
+        text = json.dumps(document, ensure_ascii=False).casefold()
+        assert not [word for word in HEADLINE_MEMORY[language] if word in text], 'A memory item not tied to today was mentioned'
+        assert 'sam' not in headline.casefold(), 'The name went into the headline'
+    result['checks'].append('Headline is one short line; memory stays out of it')
+
+
 def run_case(output, template, language, scenario, instant):
     timing, folder = scenario.endswith('-timing'), output/scenario
     scenario = scenario.replace('-timing', '-weather')  # Timing cases are the weather cases plus a fuller agenda.
@@ -388,20 +424,22 @@ def run_case(output, template, language, scenario, instant):
     shutil.copytree(template, source)
     (source/'opencode.json').write_text(json.dumps(trial_config(runtime)))
     selected = for_language(language)
-    tone = {'morning-empty':'default', 'morning-weather':'default', 'morning-resume':'formal',
+    tone = {'morning-empty':'default', 'morning-weather':'default', 'morning-headline':'playful', 'morning-resume':'formal',
             'evening-feedback':'playful', 'evening-ambiguous':'formal', 'evening-weather':'default'}[scenario]
     profile = ('city: London, GB\ntimezone: Europe/London\nnews_country: GB\n'
                'secretary_name: Nora\ncalendar_source: custom\n')
     if TONES[tone]:
         profile += 'secretary_tone: '+TONES[tone]+'\n'
-    if scenario in ('morning-empty', 'evening-feedback'):
+    if scenario in ('morning-empty', 'morning-headline', 'evening-feedback'):
         profile += 'user_name: Sam\n'
     (runtime/'profile.md').write_text(profile)
     (runtime/'browser-policy.json').write_text(json.dumps({key:False for key in (
         'calendar_sync','publisher_images','news_acknowledgement')}))
     initialize(runtime)
     CalendarStore(str(runtime/'calendar.sqlite')).close()
-    if scenario in ('morning-weather', 'evening-weather'):
+    if scenario == 'morning-headline':
+        headline_case(runtime, language, instant)
+    if scenario in ('morning-weather', 'morning-headline', 'evening-weather'):
         tomorrow = (instant.astimezone(ZoneInfo('Europe/London')) + timedelta(days=1)).date().isoformat()
         reading = synthetic_weather(instant, tomorrow if scenario == 'evening-weather' else None)
         save(runtime/'trial-weather.json', reading)
@@ -481,9 +519,10 @@ def run_case(output, template, language, scenario, instant):
                 assert expected_schedule in schedule[1], 'Schedule omitted or rewrote the code-owned window summary'
             result['checks'].append('Verified native v2 edition in pinned language; no HTML copy')
             if kind == 'gm':
+                check_headline(document, language, scenario, result)
                 assert records(runtime) == baseline, 'Morning presentation changed task records'
                 assert any(section[0] == 'news' for section in document['sections'])
-                if scenario == 'morning-weather':
+                if scenario in ('morning-weather', 'morning-headline'):
                     blocks = document['sections'][0][1]
                     weather = next(block for block in blocks if block[0] == 'weather')
                     assert len(weather) == 3 and weather[2] == reading['json']['frame'], 'Code did not attach the read frame'
@@ -510,8 +549,6 @@ def run_case(output, template, language, scenario, instant):
                     assert job_action(operations[1]['argv']) == 'init', 'Collection preceded preview init'
                     result['checks'].append('Prepare then immediate init before collection')
                 else:
-                    assert document['greeting'] == bridge.seeded['greeting']
-                    assert document['opening'] == bridge.seeded['opening']
                     assert document['sections'][0] == bridge.seeded['weather']
                     assert not any(entry['argv'][:1] == ['weather'] for entry in log)
                     assert not any(job_action(entry['argv']) == 'init' for entry in log)
@@ -742,7 +779,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     trial_engine.add_arguments(parser)
     parser.add_argument('--language', choices=('en','zh-CN'), required=True)
-    parser.add_argument('--only', nargs='+', choices=CASES + FLEXIBLE_CASES + ('morning-weather', 'evening-weather', 'morning-timing', 'evening-timing'),
+    parser.add_argument('--only', nargs='+', choices=CASES + FLEXIBLE_CASES + ('morning-weather', 'morning-headline', 'evening-weather', 'morning-timing', 'evening-timing'),
                         help='Run only these scenarios; the weather and timing cases run only when named')
     args = parser.parse_args()
     output = trial_engine.private_output(parser, args.output)
