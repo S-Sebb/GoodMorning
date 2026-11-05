@@ -772,7 +772,18 @@ class TaxonomyTests(unittest.TestCase):
             self.assertNotIn('instruction',result['next'])
             result = act(self.root,identifier,'ses_test','init',{'greeting':'Hi.','opening':'Weather first.'})
             guide = result['next']['guide']
-            self.assertEqual(result['next']['input'],{'position':0,'section':['weather','BLOCKS','NOTE',title]})
+            self.assertEqual(result['next']['input'],{'position':0,'section':['weather',[['p','…']],'',title]})
+            # A misshapen first publish names the problem and shows the receipt's input; nothing is published.
+            expected = json.dumps(result['next']['input'],ensure_ascii=False,separators=(',',':'))
+            for payload, problem in (({'position':0,'blocks':[['p','Sunny.']],'note':''},'has keys blocks, note, position'),
+                                     ({'position':0,'section':{'blocks':[['p','Sunny.']]}},'section must be an array'),
+                                     ({'position':0,'section':['news',[['p','Sunny.']]]},'this position is weather'),
+                                     ({'position':0,'section':['weather','Sunny.','',title]},'blocks (the second item')):
+                with self.assertRaises(ValueError) as caught:
+                    act(self.root,identifier,'ses_test','publish',payload)
+                self.assertIn(problem,str(caught.exception))
+                self.assertTrue(str(caught.exception).endswith(expected))
+            self.assertEqual(act(self.root,identifier,'ses_test','prepare')['next_position'],0)
             self.assertIn('`input`',guide)
             self.assertIn('temperature',guide)
             self.assertNotIn('polish:',guide)

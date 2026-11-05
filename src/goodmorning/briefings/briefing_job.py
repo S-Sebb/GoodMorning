@@ -172,7 +172,8 @@ def next_step(runtime, identifier, session, context, checkpoint):
                                   for item in context['celebrations']]
         action['input'] = {'position':position, 'celebration':{'wish':'…'}}
     elif context.get('document_version') == 2:
-        action['input'] = {'position':position, 'section':[tag,'BLOCKS','NOTE',title]}
+        # A filled example: string placeholders led models to send blocks/note as separate keys.
+        action['input'] = {'position':position, 'section':[tag,[['p','…']],'',title]}
     else:
         action['instruction'] = instruction
     return action
@@ -537,8 +538,17 @@ def act(runtime, identifier, session, action, payload=None):
             elif (action == 'publish' and isinstance(payload, dict) and type(payload.get('position')) is int
                     and 0 <= payload['position'] <= min(position, len(checkpoint['plan']) - 1) and checkpoint['plan'][payload['position']][0] == 'celebration'):
                 payload = {'position':payload['position'], 'section':celebration_section(runtime, job, context, payload)}
-            if not isinstance(payload, dict) or set(payload) != ({'position','section'} if action == 'publish' else {'position'}):
-                raise ValueError('Supply the section position and, for publish, one section')
+            def misshapen(problem):
+                # Show the receipt's own input so a wrong first publish recovers without reading source.
+                expected = {'position':position} if action == 'skip' else next_step(runtime, identifier, session, context, checkpoint).get('input')
+                return ValueError(f'{problem}. Send exactly this JSON shape, with your own blocks and note: '
+                                  + json.dumps(expected, ensure_ascii=False, separators=(',',':')))
+            keys = {'position','section'} if action == 'publish' else {'position'}
+            if not isinstance(payload, dict):
+                raise misshapen('The input must be one JSON object')
+            if set(payload) != keys:
+                raise misshapen('The input has keys ' + ', '.join(sorted(map(str, payload))) + ' but takes exactly '
+                                + ' and '.join(sorted(keys)) + ('; blocks and note go inside the section array' if action == 'publish' else ''))
             requested = payload['position']
             if type(requested) is not int or requested < 0:
                 raise ValueError('Invalid section position')
@@ -556,6 +566,15 @@ def act(runtime, identifier, session, action, payload=None):
                 raise ValueError('Published sections cannot change')
             if requested != position or position == len(checkpoint['plan']):
                 raise ValueError('Publish only the next unresolved section')
+            section = payload.get('section')
+            if action == 'publish' and checkpoint['plan'][position][0] not in ('letter', 'celebration'):
+                if not isinstance(section, list) or not 2 <= len(section) <= 4:
+                    raise misshapen('section must be an array [type, blocks, note, title]')
+                if section[0] != checkpoint['plan'][position][0]:
+                    raise misshapen(f'section type is {json.dumps(section[0], ensure_ascii=False)}, but this position is '
+                                    + checkpoint['plan'][position][0])
+                if not isinstance(section[1], list):
+                    raise misshapen('blocks (the second item of section) must be a list of blocks such as [["p","…"]]')
             if action == 'skip':
                 if checkpoint['plan'][position][0] in ('weather','news','schedule','today','tomorrow','anime','games','stocks','letter','celebration'):
                     raise ValueError('Publish material unavailability; do not skip a required section')
