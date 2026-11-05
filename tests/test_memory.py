@@ -19,6 +19,7 @@ from goodmorning.records.inbox_store import initialize
 from goodmorning.web import about_me
 from goodmorning.web.briefing_server import BrowserApp
 from goodmorning.web.chat_actions import read_changes
+from test_letters import records
 
 DAY = '2026-10-26'
 MOCHI = {'life': 'You have a dog, Mochi.'}
@@ -104,6 +105,22 @@ class MemoryTests(unittest.TestCase):
         self.assertEqual(memory.load(self.root)['revision'], 0, 'marking a tidy is not a change to the note')
 
 
+    def test_the_tidy_reads_two_weeks_of_check_ins_and_records_as_dated_lines(self):
+        root = runtime(self, 'timezone: Asia/Shanghai\n')
+        records(root)
+        (root / 'daily').mkdir()
+        (root / 'daily' / '2026-10-25.md').write_text('# 2026-10-25\n\n## feedback\n- Other updates: Long run with Mia\n')
+        lines = memory.activity(root, DAY)
+        for line in ('Tue 2026-10-13 habit done: Stretching', 'Wed 2026-10-14 to-do done: Water the plants',
+                     'Mon 2026-10-19 to-do done: Water the plants', 'Wed 2026-10-21 10:00 idea saved: Try a weekly review with Mia',
+                     'Thu 2026-10-22 10:00 to-do done: Renew passport photo', 'Sun 2026-10-25 check-in: Other updates: Long run with Mia'):
+            self.assertIn(line, lines)
+        self.assertEqual(lines, sorted(lines, key=lambda line: line.split()[1]), 'oldest first')
+        self.assertFalse([line for line in lines if '2026-10-06' in line or '2026-10-12' in line], 'only the last 14 days')
+        self.assertEqual(sum('Draft chapter 2 outline' in line for line in lines), 1, "a day's Done is listed once")
+        self.assertEqual(memory.activity(runtime(self), DAY), [], 'an account with no records yet')
+
+
 class BriefingMemoryTests(unittest.TestCase):
     def setUp(self):
         self.root = runtime(self, 'city: Shanghai, CN\ntimezone: Asia/Shanghai\nnews_country: CN\nsecretary_language: English\n')
@@ -157,6 +174,9 @@ class BriefingMemoryTests(unittest.TestCase):
         saved = self.step('finish', {})
         self.assertEqual((saved['memory']['revision'], saved['memory']['note']['life']), (1, 'You have a dog, Mochi.'))
         self.assertEqual([entry['text'] for entry in saved['memory']['messages']], ['Night shifts all week, ugh'])
+        self.assertTrue([line for line in saved['memory']['activity'] if line.startswith('Mon 2026-10-26 check-in: ')],
+                        "tonight's saved check-in is part of the activity")
+        self.assertIn('patterns, meaning the same kind of thing on at least two different days', saved['next'])
         self.assertTrue(saved['next'].startswith('Before the handoff, tidy your memory'))
         self.assertIn('something coming up keeps its calendar date', saved['next'])
         self.assertIn('Hand over the relative link', saved['next'])
@@ -175,6 +195,7 @@ class AboutMeMemoryTests(unittest.TestCase):
         page = about_me.page(self.app).decode()
         section = page[page.index('id="about-memory"'):page.index('id="about-news"')]
         self.assertLess(section.index('You have a dog, Mochi.'), section.index('Training for a marathon.'))
+        self.assertIn('What I remember about you', section)
         self.assertIn('Last updated', section)
         self.assertIn('data-switch="memory"', section)
         self.assertEqual(section.count('data-multiline'), 3)

@@ -2,12 +2,14 @@
 
 Chat scenarios check the saved note, records and the chat's memory marker; the briefings check that
 the note stays out of the opening and sections, that the evening tidy takes in a new chat message, and that
-Sunday's letter is saved. Tone, language, grounding and whether the note reads like a friend's memory (not
+Sunday's letter is saved. `patterns` gives the evening tidy two weeks of records and check-ins, counts the
+patterns and people it saves, and fails when it copies a one-off record into the note. Tone, language, grounding and whether the note reads like a friend's memory (not
 creepy, not a diagnosis) need manual review of the retained transcripts, `memory.json` and the documents.
 """
 import argparse
 from datetime import datetime, timezone
 import json
+import re
 from pathlib import Path
 import sys
 import time
@@ -30,7 +32,8 @@ from goodmorning.web import models
 ZONE = 'Asia/Shanghai'
 # Monday 21:00 in Shanghai (no weekly letter), and Sunday 21:00 (with the letter).
 EVENINGS = {'evening': datetime(2026, 10, 26, 13, tzinfo=timezone.utc), 'sunday': datetime(2026, 10, 25, 13, tzinfo=timezone.utc),
-            'upcoming': datetime(2026, 10, 26, 13, tzinfo=timezone.utc)}
+            'upcoming': datetime(2026, 10, 26, 13, tzinfo=timezone.utc),
+            'patterns': datetime(2026, 10, 26, 13, tzinfo=timezone.utc)}
 NOTES = {'en': {'life': 'You have a dog, Mochi, and head home early after work to walk him. You are vegetarian.',
                 'likes': 'You would rather not have meetings before 10.',
                 'lately': 'You are training for a marathon in March. You are moving house on the weekend of 24–25 October.'},
@@ -69,6 +72,26 @@ CHATS = {
     'near-limit': ('default', 'long', True, {'en': "Please remember I'm allergic to peanuts.", 'zh-CN': '请记住我对花生过敏。'}),
 }
 BRIEFINGS = tuple(EVENINGS)
+# Two weeks of records ending Monday 26 October: workouts planned every Monday morning, game ideas saved late at
+# night, a stretching habit, one-off errands, and check-ins that name a running friend.
+WORKOUT = {'en': 'Plan this week’s workouts', 'zh-CN': '安排这周的锻炼'}
+GAME_IDEAS = {'en': ('Game idea: a cozy farming roguelike', 'Game idea: tower defense with cats', 'Game idea: a rhythm puzzle about trains'),
+              'zh-CN': ('游戏点子：温馨的种田肉鸽', '游戏点子：猫咪塔防', '游戏点子：关于火车的节奏解谜')}
+ONE_OFFS = {'en': (('Buy dog food', '2026-10-24'), ('Renew passport photo', '2026-10-21'), ('Call the dentist to reschedule', '2026-10-29')),
+            'zh-CN': (('买狗粮', '2026-10-24'), ('补拍护照照片', '2026-10-21'), ('给牙医打电话改约', '2026-10-29'))}
+OAT = {'en': 'Try oat milk in my latte', 'zh-CN': '拿铁试试燕麦奶'}
+STRETCH = {'en': 'Stretching', 'zh-CN': '拉伸'}
+CHECKINS = {'en': {'2026-10-19': 'Long run with Priya from running club; my legs are done.',
+                   '2026-10-22': 'Easy run with Priya again, then an early night.'},
+            'zh-CN': {'2026-10-19': '和跑步俱乐部的 Priya 一起长跑，腿都废了。',
+                      '2026-10-22': '又和 Priya 轻松跑了一圈，然后早早睡了。'}}
+TONIGHT = {'en': 'Signed up for the Shanghai half marathon in December with Priya.',
+           'zh-CN': '和 Priya 一起报名了十二月的上海半程马拉松。'}
+# Saved items: a pattern across days, or a person; each is a list of alternatives that all must match one sentence.
+USEFUL = {'monday workouts': (('workout', 'exercise', 'training', '锻炼', '训练', '健身', '运动'), ('monday', '周一', '星期一', '每周一')),
+          'late-night game ideas': (('game', '游戏'), ('night', 'evening', 'late', '晚', '夜')),
+          'priya': (('priya',),), 'half marathon': (('half', '半马', '半程'),)}
+LEAKS = ('dog food', 'passport', 'dentist', 'oat milk', 'farming', 'tower', 'rhythm', '狗粮', '护照', '牙医', '燕麦', '种田', '塔防', '节奏')
 SENSITIVE = ('therap', 'anxi', '心理', '焦虑', '咨询')
 
 
@@ -187,6 +210,48 @@ def run_chat(output, language, selected, scenario):
     return result
 
 
+def history(runtime, language):
+    from goodmorning.records.custom_store import CustomStore
+    from goodmorning.records.task_store import TaskStore
+    at = lambda day, clock: f'{day}T{clock}:00+08:00'
+    inbox = InboxStore(runtime, write=True)
+    tasks = TaskStore(inbox)
+    try:
+        def add(key, title, day, created, done=True):
+            task = inbox.mutate('add', {'kind': 'todo', 'raw': title, 'task': {'timezone': ZONE, 'title': title, 'planned_date': day}},
+                                'ses_synthetic', key, created)['task_id']
+            if done:
+                tasks.mutate(task, tasks.show(task)['revision'], {'status': 'done', 'confirmed_completion': True},
+                             'ses_synthetic', 'done-' + key, at(day, '20:00'), day=day)
+        for day in ('2026-10-12', '2026-10-19', '2026-10-26'):
+            add('workout-' + day, WORKOUT[language], day, at(day, '08:40'))
+        for (title, day), created in zip(ONE_OFFS[language], ('2026-10-20', '2026-10-15', '2026-10-25')):
+            add(title, title, day, at(created, '12:30'), done=day < '2026-10-26')
+        for raw, day in zip(GAME_IDEAS[language], ('2026-10-14', '2026-10-18', '2026-10-23')):
+            inbox.mutate('add', {'kind': 'idea', 'raw': raw}, 'ses_synthetic', raw, at(day, '23:20'))
+        inbox.mutate('add', {'kind': 'idea', 'raw': OAT[language]}, 'ses_synthetic', 'oat', at('2026-10-16', '10:00'))
+    finally:
+        inbox.close()
+    custom = CustomStore(runtime, write=True)
+    try:
+        rule = custom.add({'title': STRETCH[language], 'timezone': ZONE, 'policy': {'base': 'weekdays', 'weekdays': [0, 1, 2, 3, 4, 5, 6],
+                           'start': '2026-10-01', 'anchor': 'fixed', 'miss_policy': 'fixed'}}, 'ses_synthetic', 'stretch', at('2026-10-01', '09:00'))['id']
+        for revision, day in enumerate(('2026-10-13', '2026-10-15', '2026-10-17', '2026-10-20', '2026-10-22', '2026-10-24'), 1):
+            custom.report(rule, revision, {'status': 'done', 'confirmed_completion': True}, 'ses_synthetic', 'stretch' + day, at(day, '22:00'), day)
+    finally:
+        custom.close()
+    (runtime/'daily').mkdir(exist_ok=True)
+    for day, words in CHECKINS[language].items():
+        (runtime/'daily'/(day + '.md')).write_text(f'# {day}\n\n## feedback\n- Other updates: {words}\n')
+
+
+def tally(after):
+    sentences = [part for text in after.values() for part in re.split(r'[.。!！;；\n]', text) if part.strip()]
+    useful = [name for name, groups in USEFUL.items()
+              if any(all(any(word in sentence.casefold() for word in group) for group in groups) for sentence in sentences)]
+    return useful, [word for word in LEAKS if word in ' '.join(after.values()).casefold()]
+
+
 def run_briefing(output, language, selected, scenario):
     folder = output/scenario
     folder.mkdir(mode=0o700)
@@ -196,6 +261,8 @@ def run_briefing(output, language, selected, scenario):
     if scenario == 'upcoming':
         memory.change(runtime, 1, note={'life': '', 'lately': UPCOMING[language][0]})
         message = UPCOMING[language][1]
+    if scenario == 'patterns':
+        history(runtime, language)
     source = source_copy(folder, runtime)
     bridge = CheckpointBridge(trial_engine.Engine(source, runtime).start(), False, language)
     app = BrowserApp(runtime, bridge, now=lambda: EVENINGS[scenario], preflight=True)
@@ -213,7 +280,10 @@ def run_briefing(output, language, selected, scenario):
         with context(language, selected):
             job = app.start(day, 'gn')['job']
             for form in app.status(job)['forms']:
-                app.reply(job, 'form', form['id'], {'answer': form_answer(form)})
+                values = form_answer(form)
+                if scenario == 'patterns' and 'details' in values:
+                    values['details'] = TONIGHT[language]
+                app.reply(job, 'form', form['id'], {'answer': values})
         status = observe(app, bridge, job, folder, 'original', language, selected)
         assert status['state'] == 'ready', 'Edition did not finish; inspect preserved status/transcript'
         document = json.loads(app.source(day, 'gn').read_text())
@@ -229,6 +299,10 @@ def run_briefing(output, language, selected, scenario):
         assert any(word in ' '.join(result['after'].values()).casefold() for word in expected), \
             'The evening tidy did not take in the new chat message'
         result['checks'].append('The evening tidy took in the chat message')
+        if scenario == 'patterns':
+            result['useful'], result['leaks'] = tally(result['after'])
+            assert not result['leaks'], 'The tidy copied one-off records into the note: ' + ', '.join(result['leaks'])
+            result['checks'].append('No one-off record reached the note')
         if scenario == 'sunday':
             letter = letters.load(runtime, '2026-10-19')
             assert letter, 'The weekly letter was not saved'

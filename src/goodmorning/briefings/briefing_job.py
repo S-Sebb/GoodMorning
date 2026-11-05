@@ -715,12 +715,13 @@ def act(runtime, identifier, session, action, payload=None):
                             'Do not repeat tasks, completions, blockers, schedules or provider failures, or append an invitation. '
                             'No host lookup, further reads, record rewriting or news acknowledgement.')}
             if job['kind'] == 'gn' and 'replacement' not in job:
-                # The evening tidy catches what chats missed; a regenerated edition replays no writes.
+                # The evening tidy catches what chats missed and patterns in the records; a regenerated edition replays no writes.
                 from goodmorning.records import memory
                 try:
                     remembered = memory.context(runtime)
                     if remembered['enabled']:
-                        result['memory'] = {'revision': remembered['revision'], 'note': remembered['note'], 'messages': memory.tidy(runtime)}
+                        result['memory'] = {'revision': remembered['revision'], 'note': remembered['note'], 'messages': memory.tidy(runtime),
+                                            'activity': memory.activity(runtime, job['date'])}
                         result['next'] = briefing_guides.text(context)['memory_tidy'].replace('RUNTIME', str(runtime)) + result['next']
                 except (ValueError, OSError):
                     pass

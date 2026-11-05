@@ -320,7 +320,7 @@ def remembered(app, fields):
             *(note_row('memory:' + part, label, data['note'][part]) for part, label in PARTS.items()),
             row(ui.ui('The whole note'), status,
                 '<button class="about-forget-all" type="button" hidden>' + ui.ui('Forget everything') + '</button>', 'forget')]
-    return section('memory', ui.ui('From your chats'), rows, say(fields, 'What {name} picks up as you chat, the way a friend remembers.'),
+    return section('memory', ui.ui('What I remember about you'), rows, say(fields, 'What {name} picks up as you chat, the way a friend remembers.'),
                    say(fields, '{name} writes this note while you chat and tidies it after evening briefings. It makes chats, briefings '
                                'and letters feel personal, and is never used as a setting or a permission. Edit anything here, or ask in '
                                'chat to forget something; forgotten text is deleted for good. When switched off, nothing is learned or used.'))
