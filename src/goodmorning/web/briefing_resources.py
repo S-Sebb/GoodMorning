@@ -16,8 +16,8 @@ PIXEL_SCENES = {f'{name}.svg': 'image/svg+xml'
 
 
 def favicon_links(prefix='/'):
-    return (f'<link rel="icon" type="image/png" sizes="32x32" href="{prefix}icons/app-32.png">'
-            f'<link rel="icon" type="image/png" sizes="192x192" href="{prefix}icons/app-192.png">')
+    # Only the head crop: browsers given the 192 px full portrait shrink it into the tab.
+    return f'<link rel="icon" type="image/png" sizes="32x32" href="{prefix}icons/app-32.png">'
 
 
 class ByteCache:
