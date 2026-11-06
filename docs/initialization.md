@@ -13,7 +13,7 @@ language, so the secretary reads no docs for it.
 1. Storage consent comes first, as code's own question before any other question
    or model run. A saved profile or `setup-consent.json` counts as consent for the
    base scope. Agreeing creates only missing base storage (profile from the
-   template, `projects/`, `daily/`, inbox and calendar databases) and records the
+   template, `daily/`, inbox and calendar databases) and records the
    consent; declining saves nothing and says how to come back. While consent is
    missing, every chat message waits on the page and never reaches a model.
 2. Steps, in order: `secretary_name`, `user_name`, `birthday`, `gender`, `location` (city,
@@ -35,7 +35,7 @@ language, so the secretary reads no docs for it.
    wording. After the last step, code checks weather and news once (new setups,
    or when the place or news changed), rebuilds the state index, the secretary
    summarizes, and a closing note names what setup leaves to a Secretary chat or
-   About me: other countries' outlets, projects, calendar links and stocks.
+   About me: other countries' outlets, notes on projects, calendar links and stocks.
 5. Setup chats write no memory, and the evening memory tidy skips them.
 
 The rest of this guide applies to setup outside the website.
@@ -103,7 +103,7 @@ integration access or verification consent.
 
 ## Save checkpoint
 
-After consent, create only missing authorized profile/projects/configuration and
+After consent, create only missing authorized profile/configuration and
 runtime folders, initialize missing SQLite calendar/inbox, then rebuild state.
 Use `python scripts/goodmorning.py COMMAND`; see `docs/inbox-pipeline.md`.
 Keep runtime `tmp/` private and set absolute `TMPDIR` for calendar imports.

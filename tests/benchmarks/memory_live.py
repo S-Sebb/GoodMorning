@@ -70,7 +70,16 @@ CHATS = {
                                       'zh-CN': '我周四一整天都有空，和 Sam 的一小时电话放什么时候好？只给建议，不用保存。'}),
     'off': ('default', 'full', False, {'en': 'Remember that I have a cat named Bean.', 'zh-CN': '记住我有只猫叫 Bean。'}),
     'near-limit': ('default', 'long', True, {'en': "Please remember I'm allergic to peanuts.", 'zh-CN': '请记住我对花生过敏。'}),
+    'project-progress': ('default', 'projects', True, {
+        'en': 'Atlas update: I finished the methods section today. Next is the comparison figure for the design review on 14 Nov.',
+        'zh-CN': 'Atlas 的进展：今天把方法部分写完了。接下来做对比图，11 月 14 日设计评审要用。'}),
+    'new-label': ('default', 'projects', True, {
+        'en': 'Add a to-do for my new Boreal field survey project: book the van for the first site visit on Thursday.',
+        'zh-CN': '给我新的 Boreal 野外调查项目加个待办：订好周四第一次实地考察要用的车。'}),
 }
+# Seeded project entries for the project scenarios.
+PROJECTS = {'en': {'Atlas': 'Your comparison study with two agreed baselines. You are writing the methods section.'},
+            'zh-CN': {'Atlas': '你的对比研究，已经定好两个基线。你正在写方法部分。'}}
 BRIEFINGS = tuple(EVENINGS)
 # Two weeks of records ending Monday 26 October: workouts planned every Monday morning, game ideas saved late at
 # night, a stretching habit, one-off errands, and check-ins that name a running friend.
@@ -79,6 +88,7 @@ GAME_IDEAS = {'en': ('Game idea: a cozy farming roguelike', 'Game idea: tower de
               'zh-CN': ('游戏点子：温馨的种田肉鸽', '游戏点子：猫咪塔防', '游戏点子：关于火车的节奏解谜')}
 ONE_OFFS = {'en': (('Buy dog food', '2026-10-24'), ('Renew passport photo', '2026-10-21'), ('Call the dentist to reschedule', '2026-10-29')),
             'zh-CN': (('买狗粮', '2026-10-24'), ('补拍护照照片', '2026-10-21'), ('给牙医打电话改约', '2026-10-29'))}
+FIGURE = {'en': 'Draft the comparison figure', 'zh-CN': '画对比图'}  # The evening's Atlas to-do, for the Tasks section.
 OAT = {'en': 'Try oat milk in my latte', 'zh-CN': '拿铁试试燕麦奶'}
 STRETCH = {'en': 'Stretching', 'zh-CN': '拉伸'}
 CHECKINS = {'en': {'2026-10-19': 'Long run with Priya from running club; my legs are done.',
@@ -103,6 +113,8 @@ def seed(runtime, language, kind, enabled):
                 break
             note['life'] += friend
         memory.change(runtime, 0, note=note)
+    if kind == 'projects':
+        memory.change(runtime, memory.load(runtime)['revision'], note={'projects': PROJECTS[language]})
     if not enabled:
         memory.change(runtime, memory.load(runtime)['revision'], enabled=False)
 
@@ -124,7 +136,9 @@ def check_chat(scenario, language, runtime, before, result, messages):
     words = ' '.join(after.values()).casefold()
     replies = ' '.join(a for turn in result['turns'] for a in turn['assistant']).casefold()
     marked = any(m.get('kind') == 'action' and m['action']['target'] == 'memory' for m in messages)
-    assert marked == (after != before), 'The memory marker does not match whether the note changed'
+    # The marker follows chat writes, which include project entries; seeding and a to-do's new label leave none.
+    assert marked == bool(memory.load(runtime)['changes']), 'The memory marker does not match whether the chat changed the note'
+    assert after == before or memory.load(runtime)['changes'], 'The note changed without a chat write'
     # Keywords only flag the common wordings; review replies for other promises of later recall or use.
     promises = ('keep it in mind', 'keep that in mind', 'keep this in mind', '记在心里', '我会记得', '我会记住', '我记着', '我会留意')
     assert not [p for p in promises if p in replies], 'The reply promised to remember something later'
@@ -151,6 +165,24 @@ def check_chat(scenario, language, runtime, before, result, messages):
     elif scenario == 'off':
         assert after == before, 'The note changed while memory was off'
         assert 'about me' in replies or '关于我' in replies, 'The reply did not say where to turn memory on'
+    elif scenario in ('project-progress', 'new-label'):
+        projects = {memory.key(entry['name']): entry['note'] for entry in memory.load(runtime)['projects']}
+        result['projects'] = memory.load(runtime)['projects']
+        if scenario == 'project-progress':
+            assert set(projects) == {'atlas'}, 'Progress on Atlas changed which projects exist: ' + repr(projects)
+            atlas = projects['atlas'].casefold()
+            assert atlas != PROJECTS[language]['Atlas'].casefold(), 'The Atlas entry did not take in the progress'
+            assert 'figure' in atlas or '图' in atlas, 'The Atlas entry does not say what comes next'
+            assert '14' in atlas, 'The milestone lost its date'
+        else:
+            inbox = InboxStore(runtime)
+            try:
+                labels = [row[0] for row in inbox.db.execute("SELECT json_extract(data,'$.project') FROM tasks")]
+            finally:
+                inbox.close()
+            assert len(labels) == 1 and labels[0], 'The van to-do was not saved once with a project label: ' + repr(labels)
+            assert memory.key(labels[0]) in projects, 'The new label did not start a project entry: ' + repr(projects)
+            assert 'atlas' in projects, 'The existing project was lost'
     elif scenario == 'near-limit':
         assert 'peanut' in words or '花生' in words, 'The allergy was not remembered'
         assert sum(map(len, after.values())) <= memory.LENGTH
@@ -257,13 +289,20 @@ def run_briefing(output, language, selected, scenario):
     folder = output/scenario
     folder.mkdir(mode=0o700)
     runtime = account(folder, language, 'playful', '', ZONE)
-    seed(runtime, language, 'full', True)
+    seed(runtime, language, 'projects' if scenario == 'evening' else 'full', True)  # evening also tidies project entries
     message = TIDY[language]
     if scenario == 'upcoming':
         memory.change(runtime, 1, note={'life': '', 'lately': UPCOMING[language][0]})
         message = UPCOMING[language][1]
     if scenario == 'patterns':
         history(runtime, language)
+    if scenario == 'evening':
+        inbox = InboxStore(runtime, write=True)
+        try:
+            inbox.mutate('add', {'kind': 'todo', 'raw': FIGURE[language], 'project': 'Atlas', 'task': {
+                'timezone': ZONE, 'title': FIGURE[language], 'planned_date': '2026-10-27'}}, 'ses_synthetic', 'figure', '2026-10-25T10:00:00+08:00')
+        finally:
+            inbox.close()
     source = source_copy(folder, runtime)
     bridge = CheckpointBridge(trial_engine.Engine(source, runtime).start(), False, language)
     app = BrowserApp(runtime, bridge, now=lambda: EVENINGS[scenario], preflight=True)
@@ -294,6 +333,12 @@ def run_briefing(output, language, selected, scenario):
         body = json.dumps([document['opening'], document['sections']], ensure_ascii=False).casefold()
         assert not [word for word in keywords if word in body], 'The note reached the opening or a section'
         result['checks'].append('The note stayed out of the opening and sections')
+        if scenario == 'evening':
+            tasks = json.dumps([section for section in document['sections'] if section[0] == 'tasks'], ensure_ascii=False).casefold()
+            assert tasks, 'No Tasks section to use the project entry in'
+            assert not [word for word in ('baseline', '基线') if word in tasks], 'The Tasks section took a fact from the project entry'
+            result['tasks'] = tasks
+            result['checks'].append('The Tasks section took no fact from the project entry')
         result['after'] = note(runtime)
         save(folder/'memory.json', memory.load(runtime))
         expected = {'upcoming': ('starfall', '星落')}.get(scenario, ('lena',))

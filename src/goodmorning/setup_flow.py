@@ -134,8 +134,7 @@ def agree(runtime, chat):
     """Records consent and creates only missing base storage; never overwrites a record."""
     runtime = Path(runtime)
     with runtime_lock(runtime, '.setup.lock'):
-        for name in ('projects', 'daily'):
-            (runtime / name).mkdir(mode=0o700, exist_ok=True)
+        (runtime / 'daily').mkdir(mode=0o700, exist_ok=True)
         profile = runtime / 'profile.md'
         if not profile.exists():
             shutil.copyfile(ROOT / 'templates/profile.template.md', profile)

@@ -48,11 +48,14 @@
     box.classList.toggle('is-error', Boolean(failed));
   }
 
+  // Memory changes carry the note's revision as shown, so an edit left open never overwrites the secretary's newer note.
+  const memory = page.querySelector('#about-memory');
   async function save(row, value, field = row.dataset.field, done = named('Saved! {name} will remember this.', 'Saved! Your secretary will remember this.')) {
     let response, result;
+    const revision = memory?.contains(row) ? {revision: Number(memory.dataset.revision)} : {};
     try {
       response = await fetch('/api/about-me', {method: 'POST', credentials: 'same-origin', cache: 'no-store',
-        headers: {'Content-Type': 'application/json', 'X-Briefing-CSRF': csrf}, body: JSON.stringify({field, value})});
+        headers: {'Content-Type': 'application/json', 'X-Briefing-CSRF': csrf}, body: JSON.stringify({field, value, ...revision})});
       if (response.status === 401) { location.replace('/login'); return null; }
       result = await goodmorningJSON(response);
     } catch {
@@ -64,6 +67,7 @@
       feedback(row, t('Couldn’t confirm the save. Refresh the page to see what’s saved.'), true);
       return null;
     }
+    if (result.revision !== undefined) memory.dataset.revision = result.revision;
     feedback(row, t(done));
     return result.value;
   }
@@ -231,15 +235,17 @@
     const editButton = action.querySelector('.about-edit');
     const actions = [...action.children];
     const before = content.querySelector('.about-value')?.textContent || '';
+    const hint = content.querySelector('.about-hint');
     // The memory note is prose, so its parts edit in a text area.
     const multiline = 'multiline' in editButton.dataset;
     const input = Object.assign(document.createElement(multiline ? 'textarea' : 'input'), {value: before, maxLength: Number(editButton.dataset.limit)});
     if (multiline) input.rows = 4; else input.type = 'text';
-    input.setAttribute('aria-labelledby', 'about-label-' + row.dataset.field);
+    input.setAttribute('aria-labelledby', row.querySelector('dt').id);
     const button = (label, kind) => Object.assign(document.createElement('button'), {type: 'button', className: kind, textContent: t(label)});
     const saveButton = button('Save', 'about-save'), cancelButton = button('Cancel', 'about-cancel');
     const finish = value => {
       show(row, value);
+      if (hint) row.querySelector('.about-content').append(hint);
       action.replaceChildren(...actions);
       editButton.focus({preventScroll: true});
     };
@@ -276,26 +282,19 @@
       ({holiday_countries: editHolidays, birthday: editBirthday, gender: editGender}[row.dataset.field] || edit)(row);
     });
   });
-  // Forgetting deletes the note for good, so it asks first.
-  const forget = page.querySelector('#about-memory [data-field="forget"]');
-  const forgetAll = forget?.querySelector('.about-forget-all');
-  if (forgetAll) {
-    forgetAll.hidden = !page.querySelector('#about-memory .about-value[data-content]');
-    forgetAll.addEventListener('click', async () => {
-      if (!confirm(t('Forget everything your secretary remembers about you? The whole note will be deleted for good.'))) return;
-      forgetAll.disabled = true;
-      const saved = await save(forget, 'all', 'forget', 'Forgotten.');
-      forgetAll.disabled = false;
-      if (saved === null) return;
-      page.querySelectorAll('#about-memory [data-field^="memory:"]').forEach(row => show(row, ''));
-      const empty = Object.assign(document.createElement('span'), {className: 'about-empty'});
-      empty.dataset.uiText = named('Nothing yet. Chat with {name} and this note will grow from there.',
-        'Nothing yet. Chat with your secretary and this note will grow from there.');
-      empty.textContent = t(empty.dataset.uiText);
-      forget.querySelector('.about-content').replaceChildren(empty);
-      forgetAll.hidden = true;
+  // Forgetting a project deletes only its entry; its to-dos keep their project label.
+  page.querySelectorAll('.about-project .about-forget').forEach(button => {
+    button.hidden = false;
+    button.addEventListener('click', async () => {
+      const row = button.closest('.about-row');
+      const name = row.dataset.field.slice('project:'.length);
+      if (!confirm(t('Forget what I remember about {project}? Its to-dos keep their project label.', {project: name}))) return;
+      button.disabled = true;
+      const saved = await save(row, row.dataset.field, 'forget', 'Forgotten.');
+      button.disabled = false;
+      if (saved !== null) row.remove();
     });
-  }
+  });
   page.querySelectorAll('.about-more').forEach(toggle => {
     const more = [...toggle.closest('.about-holdings').querySelectorAll('tbody tr[hidden]')];
     toggle.addEventListener('click', () => {

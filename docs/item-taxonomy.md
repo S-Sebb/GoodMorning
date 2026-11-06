@@ -270,7 +270,7 @@ heading. Use `scripts/goodmorning.py` with the selected absolute runtime.
     makes no task writes of its own (saved evening feedback is still recorded). It
     presents rows with their saved `display` wording; only rows without fresh
     wording may be reworded for the page (same meaning, no new facts), never the record. Errand results live in the saved morning edition (`errands` rows with a
-    private `note`); the next morning reads the latest one as `last`. Project Markdown supplies goals/reports, daily Markdown supplies historical
+    private `note`); the next morning reads the latest one as `last`. Older project Markdown is read-only history, daily Markdown supplies historical
     feedback, and SQLite owns live task state. No task table represents a section.
 12. Clear ideas are not nightly questions. Surface actual saved questions,
     unreviewed material or a due `review_after`; respect future review dates and

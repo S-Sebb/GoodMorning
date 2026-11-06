@@ -551,6 +551,15 @@ def act(runtime, identifier, session, action, payload=None):
                     remembered = None
                 if remembered:
                     next_action['memory'] = remembered
+            if next_action.get('section', [None])[0] == 'tasks':
+                # The Tasks note may borrow a project's wording from memory, never its facts.
+                from goodmorning.records.memory import context as memory
+                try:
+                    projects = {entry['name']: entry['note'] for entry in memory(runtime).get('projects', []) if entry['note']}
+                except (ValueError, OSError):
+                    projects = None
+                if projects:
+                    next_action['projects'] = projects
             if context.get('document_version') == 2:
                 next_action['guide'] = briefing_guides.guide(context, next_action, checkpoint['plan'] if checkpoint else default_plan(context),
                                                              runtime=runtime, job=identifier, session=session)
@@ -768,7 +777,8 @@ def act(runtime, identifier, session, action, payload=None):
                 try:
                     remembered = memory.context(runtime)
                     if remembered['enabled']:
-                        result['memory'] = {'revision': remembered['revision'], 'note': remembered['note'], 'messages': memory.tidy(runtime),
+                        result['memory'] = {'revision': remembered['revision'], 'note': remembered['note'], 'projects': remembered['projects'],
+                                            'messages': memory.tidy(runtime),
                                             'activity': memory.activity(runtime, job['date'])}
                         result['next'] = briefing_guides.text(context)['memory_tidy'].replace('RUNTIME', str(runtime)) + result['next']
                 except (ValueError, OSError):

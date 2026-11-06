@@ -5,16 +5,19 @@ later feature adds its own section (or a row in an existing one) without a copy
 of the data. Simple text fields and the evening extras' switches save through
 `set_profile_fields`; anything that needs a provider or feed check stays in chat.
 """
+from collections import Counter
 from datetime import date as Date, datetime, timezone
 import html
 import json
 import re
+import sqlite3
 
 from goodmorning import anime, games, stocks
 from goodmorning.briefings.briefing_day import briefing_day
 from goodmorning.briefings.briefing_layout import icon
 from goodmorning.calendar import public_holidays
 from goodmorning.records import celebrations, letters, memory as memories
+from goodmorning.records.inbox_store import InboxStore
 from goodmorning.setup_flow import GENDERS
 from goodmorning.runtime_files import (PROFILE_TEXT_MAX as LONG, SECRETARY_NAME_MAX as SHORT, calendar_config,
                                        normalize_secretary_name, profile_fields, set_profile_fields)
@@ -28,17 +31,17 @@ TEXT = {'secretary_name': ('Your secretary’s name', SHORT), 'user_name': ('Wha
         'work_days': ('Work days', LONG), 'work_hours': ('Work hours', LONG), 'sleep_time': ('Bedtime', LONG),
         'secretary_tone': ('Tone', LONG), 'special_needs': ('Things to keep in mind', LONG),
         'occupations': ('Roles', LONG), 'expertise_fields': ('Expertise', LONG), 'industry': ('Industry', LONG),
-        'project_scope': ('Projects', LONG), 'knowledge_area': ('Knowledge area', LONG)}
+        'project_scope': ('Project areas', LONG), 'knowledge_area': ('Knowledge area', LONG)}
 # Lines that name the secretary, and how each reads before a name is saved.
 UNNAMED = {'{name}’s notes about you': 'Your secretary’s notes about you',
            'What {name} calls you': 'What your secretary calls you',
            'How {name} talks with you': 'How your secretary talks with you',
            '{name} doesn’t know yet': 'Your secretary doesn’t know yet',
            'Ask {name}': 'Ask your secretary',
-           'Nothing yet. Chat with {name} and this note will grow from there.':
-               'Nothing yet. Chat with your secretary and this note will grow from there.',
            'What {name} has learned from your chats, check-ins and plans.':
-               'What your secretary has learned from your chats, check-ins and plans.'}
+               'What your secretary has learned from your chats, check-ins and plans.',
+           'Tell {name} about it, or save a to-do for it. Rename or finish a project the same way.':
+               'Tell your secretary about it, or save a to-do for it. Rename or finish a project the same way.'}
 SOURCES = {'anilist': 'AniList', 'bangumi': 'Bangumi', 'myanimelist': 'MyAnimeList'}
 # The user-facing reason for each rule `set_profile_fields` enforces.
 REASONS = {'use 1-30 characters': 'Use up to 30 characters.', 'use at most 300 characters': 'Use up to 300 characters.',
@@ -109,9 +112,9 @@ def text_row(fields, key):
                edit_button(f' data-limit="{limit}"'), key)
 
 
-def section(identifier, title, rows, why='', note=''):
+def section(identifier, title, rows, why='', note='', attributes=''):
     """A card; its title, why line and note are already rendered. The stylesheet gives each identifier its desk icon."""
-    return (f'<section class="about-section" id="about-{identifier}"><h2>{title}</h2>'
+    return (f'<section class="about-section" id="about-{identifier}"{attributes}><h2>{title}</h2>'
             + (f'<p class="about-why">{why}</p>' if why else '') + '<dl>' + ''.join(rows) + '</dl>'
             + (f'<p class="about-note">{note}</p>' if note else '') + '</section>')
 
@@ -160,9 +163,8 @@ def talk(app, fields):
 
 
 def work(app, fields):
-    return section('work', ui.ui('What you do'), [*(text_row(fields, key) for key in
-                                                    ('occupations', 'expertise_fields', 'industry', 'project_scope', 'knowledge_area')),
-                                                  linked_projects(app, fields)])
+    return section('work', ui.ui('What you do'), [text_row(fields, key) for key in
+                                                  ('occupations', 'expertise_fields', 'industry', 'project_scope', 'knowledge_area')])
 
 
 def news(app, fields):
@@ -278,21 +280,6 @@ def calendar(app, fields):
                                                         holidays(fields)])
 
 
-def project_names(runtime):
-    """Names from the profile's Project roots lines (`- Name | path | ...`); paths and scopes stay private."""
-    try:
-        text = (runtime / 'profile.md').read_text(encoding='utf-8')
-    except FileNotFoundError:
-        return []
-    block = re.search(r'^## Project roots[ \t]*$(.*?)(?=^## |\Z)', text, re.M | re.S)
-    return [match[1].strip() for match in re.finditer(r'^- ([^|\r\n]+)\|', block[1], re.M)] if block else []
-
-
-def linked_projects(app, fields):
-    return row(ui.ui('Linked projects'), value(fields, ', '.join(project_names(app.runtime))),
-               chat(app, fields, 'I’d like to change my projects.'))
-
-
 PARTS = {'life': 'Your life', 'likes': 'How you like things', 'lately': 'Lately'}
 
 
@@ -304,47 +291,89 @@ def note_row(key, label, text):
             + edit_button(f' data-limit="{memories.LENGTH}" data-multiline') + '</dd></div>')
 
 
+def open_todos(runtime):
+    """Open to-dos per project, matched the way memory matches project names."""
+    try:
+        inbox = InboxStore(runtime)
+    except (sqlite3.Error, ValueError):
+        return Counter()  # No to-dos saved yet.
+    try:
+        if inbox.version != 2:
+            return Counter()
+        return Counter(memories.key(label) for (label,) in inbox.db.execute(
+            "SELECT json_extract(data,'$.project') FROM tasks WHERE json_extract(data,'$.status') IN ('open','partial','blocked') "
+            "AND COALESCE(json_extract(data,'$.kind'),'')=''") if label)
+    finally:
+        inbox.close()
+
+
+def project_row(number, entry, todos, today):
+    """One project's entry, with its open to-dos and when it last changed; it is edited here, renamed or started in chat."""
+    text, label = entry['note'], f'about-label-project-{number}'
+    content = (f'<span class="about-value" data-content>{html.escape(text)}</span>' if text else
+               '<span class="about-empty">' + ui.ui('Nothing yet') + '</span>')
+    details = ([count('1 open to-do', '{count} open to-dos', todos)] if todos else []) + (
+        [ui.ui('Updated {date}', date=ui.day_text(entry['updated'], reference=today))] if entry.get('updated') else [])
+    return (f'<div class="about-row about-project" data-field="{html.escape("project:" + entry["name"], quote=True)}" data-empty="Nothing yet">'
+            f'<dt id="{label}">' + ui.ui('Project: {name}', name=entry['name']) + f'</dt><dd class="about-content">{content}'
+            + ('<small class="about-hint">' + ' · '.join(details) + '</small>' if details else '') + '</dd><dd class="about-action">'
+            + edit_button(f' data-limit="{memories.PROJECT}" data-multiline')
+            + '<button class="about-forget" type="button" hidden>' + ui.ui('Forget') + '</button></dd></div>')
+
+
 def remembered(app, fields):
-    """The note the secretary keeps about the user, part by part; each part can be edited, or all of it forgotten."""
+    """The note the secretary keeps about the user, part by part; each part can be edited and each project edited or forgotten."""
     data = memories.load(app.runtime)
-    status = ('<span class="about-value">' + ui.ui('Last updated {date}', date=ui.day_text(
-                 data['updated'], reference=briefing_day(fields.get('timezone', '')))) + '</span>' if any(data['note'].values()) else
-              '<span class="about-empty">' + say(fields, 'Nothing yet. Chat with {name} and this note will grow from there.') + '</span>')
+    today = briefing_day(fields.get('timezone', ''))
+    todos = open_todos(app.runtime) if data['projects'] else Counter()
     rows = [row(ui.ui('Remember things about me'), switch('memory', data['enabled']), key='memory'),
             *(note_row('memory:' + part, label, data['note'][part]) for part, label in PARTS.items()),
-            row(ui.ui('The whole note'), status,
-                '<button class="about-forget-all" type="button" hidden>' + ui.ui('Forget everything') + '</button>', 'forget')]
+            *(project_row(number, entry, todos[memories.key(entry['name'])], today) for number, entry in enumerate(data['projects'])),
+            row(ui.ui('New project'), '<span class="about-details">' + say(
+                fields, 'Tell {name} about it, or save a to-do for it. Rename or finish a project the same way.') + '</span>',
+                chat(app, fields, 'I’d like to tell you about a project.'))]
     return section('memory', ui.ui('What I remember about you'), rows, say(fields, 'What {name} has learned from your chats, check-ins and plans.'),
                    ui.ui('Only used to make chats, briefings and letters personal, never as a setting or a permission. '
-                         'When switched off, nothing is learned or used. Forgotten text is deleted for good.'))
+                         'When switched off, nothing is learned or used. Forgotten text is deleted for good.'),
+                   f' data-revision="{data["revision"]}"')
 
 
-def remember(app, key, text):
-    """Switch memory on or off, forget the whole note, or rewrite one part of it."""
-    revision = memories.load(app.runtime)['revision']
+def remember(app, key, text, revision):
+    """Switch memory on or off, forget one project, or rewrite one part or project entry.
+
+    `revision` is the note the page showed, so an edit open while the secretary changed the note never overwrites it."""
+    data = memories.load(app.runtime)
     try:
+        if revision != data['revision']:
+            raise ValueError('revision_conflict')  # First, so a project renamed or forgotten meanwhile says so too.
         if key == 'memory':
             if text not in ('true', 'false'):
                 raise ValueError('Invalid switch')
-            memories.change(app.runtime, revision, enabled=text == 'true')
+            saved = memories.change(app.runtime, revision, enabled=text == 'true')
         elif key == 'forget':
-            if text != 'all':
+            if text.startswith('project:') and memories.find(data['projects'], text.removeprefix('project:')):
+                saved = memories.change(app.runtime, revision, note={'projects': {text.removeprefix('project:'): None}})
+            else:
                 raise ValueError('Invalid change')
-            memories.change(app.runtime, revision, note=dict.fromkeys(memories.PARTS, ''))
         elif key.removeprefix('memory:') in memories.PARTS:
-            memories.change(app.runtime, revision, note={key.removeprefix('memory:'): text})
+            saved = memories.change(app.runtime, revision, note={key.removeprefix('memory:'): text})
             text = memories.load(app.runtime)['note'][key.removeprefix('memory:')]
+        elif key.startswith('project:') and memories.find(data['projects'], key.removeprefix('project:')):
+            # Only an existing entry: projects start in chat or with their first to-do.
+            saved = memories.change(app.runtime, revision, note={'projects': {key.removeprefix('project:'): text}})
+            text = memories.find(memories.load(app.runtime)['projects'], key.removeprefix('project:'))['note']
         else:
             raise ValueError('This can only be changed in chat')
     except ValueError as error:
         reason = {'memory_off': 'Turn memory on to edit it.',
                   'revision_conflict': 'Your secretary just changed this. Refresh the page to see the latest.',
                   'memory_too_long': f'The whole note fits {memories.LENGTH:,} characters. Shorten it a little.',
+                  'project_too_long': f'A project fits {memories.PROJECT} characters. Shorten it a little.',
                   'invalid_input': 'Use plain text.'}.get(str(error).split(':', 1)[0])
         if reason:
             raise Invalid(reason) from None
         raise
-    return {'field': key, 'value': text}
+    return {'field': key, 'value': text, 'revision': saved['revision']}
 
 
 SECTIONS = [names, day, talk, work, remembered, news, extras, calendar]
@@ -352,13 +381,16 @@ SECTIONS = [names, day, talk, work, remembered, news, extras, calendar]
 
 def save(app, body):
     """One field per request: a text field's new value, or an evening extra switched on or off."""
-    if not isinstance(body, dict) or set(body) != {'field', 'value'} or not isinstance(body['value'], str):
+    if not isinstance(body, dict) or set(body) - {'revision'} != {'field', 'value'} or not isinstance(body['value'], str):
         raise ValueError('Invalid About me change')
     key, text = body['field'], body['value']
     if not (app.runtime / 'profile.md').is_file():
         raise ValueError('No profile to change yet')
-    if key in ('memory', 'forget') or key.startswith('memory:'):
-        return remember(app, key, text)
+    if key in ('memory', 'forget') or key.startswith(('memory:', 'project:')):
+        revision = body.get('revision', memories.load(app.runtime)['revision'])
+        if type(revision) is not int:
+            raise ValueError('Invalid About me change')
+        return remember(app, key, text, revision)
     if key in ('anime_updates', 'game_sales', 'stock_report', 'weekly_letter'):
         if text not in ('true', 'false'):
             raise ValueError('Invalid switch')

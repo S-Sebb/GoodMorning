@@ -11,7 +11,7 @@ CONSENT = ('To be your secretary, GoodMorning keeps what you tell me in your acc
            'setup I check your weather and news once. You can change any answer later on About me. If you don’t agree, nothing is saved.')
 DECLINED = ('No problem — I haven’t saved anything. I can only set things up once you agree to GoodMorning keeping '
             'your information. Whenever you’re ready, send me a message here or start Initialize again.')
-MORE = ('One more thing: I can also follow news outlets from other countries, check on your projects, add a '
+MORE = ('One more thing: I can also follow news outlets from other countries, keep notes on your projects, add a '
         'calendar link, and report your stocks’ daily gain or loss. You can set any of these up whenever you like '
         'in a Secretary chat or on About me.')
 

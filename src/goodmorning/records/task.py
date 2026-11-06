@@ -30,6 +30,7 @@ def main(argv=None):
     parser.add_argument('--browser-job', help='Bind a browser section read to its owning job and next position')
     for name in ('show', 'update', 'report', 'adopt', 'convert'):
         actions.add_argument('--' + name)
+    actions.add_argument('--rename-project', action='store_true', help='Rename a project on every to-do and in memory')
     actions.add_argument('--search', metavar='TEXT', help='Live tasks and event drafts whose current wording contains every word')
     parser.add_argument('--draft', action='store_true')
     parser.add_argument('--date')
@@ -94,7 +95,7 @@ def main(argv=None):
                     result['block'] = ['p', ui.text('No saved appointments for {date} ({timezone}).',
                         date=ui.day_text(window['start']), timezone=result['timezone'])]
         else:
-            writing = bool(args.add or args.capture_draft or args.update or args.report or args.adopt or args.convert)
+            writing = bool(args.add or args.capture_draft or args.update or args.report or args.adopt or args.convert or args.rename_project)
             if writing and not (args.session and args.request_key):
                 raise ValueError('input_required: writes need actual session and stable request key')
             inbox = InboxStore(runtime, write=writing)
@@ -108,7 +109,9 @@ def main(argv=None):
             else:
                 payload = decode_input(args)
                 now = stamp(runtime)
-                if args.add or args.capture_draft:
+                if args.rename_project:
+                    result = store.rename_project(payload, args.session, args.request_key, now)
+                elif args.add or args.capture_draft:
                     result = inbox.mutate('add', {**payload, 'kind': 'event_proposal' if args.capture_draft else 'todo'}, args.session, args.request_key, now)
                 elif args.adopt or args.convert:
                     if not args.confirm or args.expect_revision is None:

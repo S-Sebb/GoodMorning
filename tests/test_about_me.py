@@ -148,7 +148,7 @@ class AboutMeTests(unittest.TestCase):
     def test_the_page_shows_the_profile_but_never_private_links_ids_or_paths(self):
         page = self.app_page()
         for text in ('Mochi', 'Shanghai, CN', 'data-countries="CN,JP"', 'AniList', 'Your watching list and 2 more shows',
-                     'Connected', 'Thesis', 'data-quick-ask="I’d like to change my city."'):
+                     'Connected', 'data-quick-ask="I’d like to change my city."'):
             self.assertIn(text, page)
         for secret in ('private-key', 'samwatches', '/home/sam', 'read'):
             self.assertNotIn(secret, re.sub(r'<[^>]+>', ' ', page.split('<main', 1)[1]))

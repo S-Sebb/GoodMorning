@@ -60,6 +60,8 @@ facts. Title and detail are not part of source validation.
   missing object, filler opener, non-imperative title or `etc.` fog — not mere punctuation.
   Add a short section note in the saved tone (default warm and helpful), naming the top 1–3 project groups and the next
   useful step (for example which group to pick today); do not repeat every card.
+  A project's memory entry (`projects` on the receipt) may shape the note's wording
+  only; facts, steps, dates and progress come from the read.
 - `["events",[[event_or_draft_id,revision,date,time,title,place,preparation],...]]`:
   only in Schedule. Code supplies saved events and confirmed TBC drafts;
   retain timezone in adjacent prose and actual dates.

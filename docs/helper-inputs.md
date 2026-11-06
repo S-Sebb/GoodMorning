@@ -149,13 +149,32 @@ on its actual day: `{"status":"done","confirmed_completion":true}` with optional
 
 The note the secretary keeps about the user (`docs/workflows/secretary.md`,
 *Memory*): any of `life`, `likes` and `lately`, each plain prose (line breaks
-allowed). Send only the parts that change, each rewritten whole; `""` empties a
-part. The whole note holds at most 2,000 characters. Instead of a request key,
-every write passes `--expect-revision N`; each receipt returns the next revision,
-and an unchanged note returns `"saved": false`.
+allowed), and `projects`, which maps a project's name (its to-dos' `project`
+label) to its whole new entry, or to `null` to drop it. Send only the parts and
+projects that change, each rewritten whole; `""` empties one. A project entry holds
+at most 500 characters, the note keeps at most 8 projects, and the whole note with
+its projects holds at most 4,000 characters. Names match ignoring case and spacing.
+Instead of a request key, every write passes `--expect-revision N`; each receipt
+returns the next revision, and an unchanged note returns `"saved": false`.
 
 ```json memory --write
 {"life":"You have a dog, Mochi, and head home early after work to walk him.","lately":"Night shifts all this week."}
+```
+
+```json memory --write
+{"projects":{"Atlas":"Your comparison study with two agreed baselines. The methods are half written; the figure comes next, for the design review on 14 Nov.","Boreal":null}}
+```
+
+## Project rename: `task --rename-project`
+
+Renames a project on every to-do and capture that carries its label, and moves its
+memory entry with them, in one call with a session and request key. It never starts an entry,
+moves one while memory is off too, and leaves each to-do's `updated_at`. It fails with
+`project_exists`, renaming nothing, when memory has entries under both names: ask
+the user whether to merge them before anything else.
+
+```json task --rename-project
+{"from":"Atlas","to":"Atlas comparison study"}
 ```
 
 ## Website setup: `setup ask` and `setup answer`

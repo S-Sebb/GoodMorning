@@ -33,8 +33,8 @@ After confirming setup answers and file formats with the user:
     missing fields in an older profile do not invalidate it.
     For multiple national-news countries, confirm one primary `news_country` and
     store the others as comma-separated `news_additional_countries`.
-2. Create `secretary/projects/` and `secretary/daily/`. Copy
-   `templates/project.template.md` for each confirmed project.
+2. Create `secretary/daily/`. Projects live in the secretary memory
+   (`docs/secretary-memory.md`), not in files or folders.
 3. Initialize `secretary/inbox.sqlite` with
    `python scripts/goodmorning.py inbox --secretary-dir RUNTIME --init` after storage consent.
    Capture exact actionable user input with `--add`; query current state through

@@ -1,10 +1,12 @@
 """Secretary memory: the note's revision-checked store, its chat marker, chat preparation, briefings and the About me page."""
 from datetime import datetime, timezone
+import html
 import json
 import os
 from pathlib import Path
 import sys
 import tempfile
+import threading
 import time
 import unittest
 from unittest.mock import patch
@@ -15,7 +17,9 @@ from goodmorning.briefings import briefing_guides
 from goodmorning.briefings.briefing_job import act
 from goodmorning.briefings.briefing_preflight import answer, initialize as preflight
 from goodmorning.records import memory, workflow
-from goodmorning.records.inbox_store import initialize
+from goodmorning.records.inbox_store import InboxStore, initialize, stamp
+from goodmorning.records.task_store import TaskStore
+from goodmorning.runtime_files import runtime_lock
 from goodmorning.web import about_me
 from goodmorning.web.briefing_server import BrowserApp
 from goodmorning.web.chat_actions import read_changes
@@ -52,6 +56,97 @@ class MemoryTests(unittest.TestCase):
             memory.change(self.root, 2, note={'likes': 'x' * (memory.LENGTH - 30)})
         memory.change(self.root, 2, note=dict.fromkeys(memory.PARTS, ''))
         self.assertNotIn('Mochi', memory.path(self.root).read_text(), 'forgetting deletes the text')
+
+    def test_projects_are_entries_named_like_their_to_dos(self):
+        memory.path(self.root).write_text(json.dumps({'changes': [], 'enabled': True, 'note': {**dict.fromkeys(memory.PARTS, ''), **MOCHI},
+                                                      'revision': 4}))
+        self.assertEqual(memory.context(self.root)['projects'], [], 'a note saved before projects keeps none')
+        memory.change(self.root, 4, note={'projects': {' Atlas ': 'Your comparison study; the methods come next.', 'Boreal': ''}})
+        memory.change(self.root, 5, note={'projects': {'ATLAS': 'The methods are written; the figure comes next.'}})
+        self.assertEqual([(entry['name'], entry['note']) for entry in memory.context(self.root)['projects']],
+                         [('Atlas', 'The methods are written; the figure comes next.'), ('Boreal', '')])
+        self.assertEqual(memory.change(self.root, 6, note={'projects': {'Boreal': None}})['revision'], 7)
+        self.assertEqual([entry['name'] for entry in memory.load(self.root)['projects']], ['Atlas'])
+        with self.assertRaisesRegex(ValueError, 'project_too_long'):
+            memory.change(self.root, 7, note={'projects': {'Atlas': 'x' * (memory.PROJECT + 1)}})
+        full = {f'P{n}': '' for n in range(memory.PROJECTS - 1)}
+        memory.change(self.root, 7, note={'projects': full})
+        with self.assertRaisesRegex(ValueError, 'memory_projects_full'):
+            memory.change(self.root, 8, note={'projects': {'Ninth': ''}})
+        memory.change(self.root, 8, note={'projects': {'Ninth': '', 'P0': None}})  # A finished project makes room.
+        with self.assertRaisesRegex(ValueError, 'memory_too_long'):
+            memory.change(self.root, 9, note={'life': 'x' * 3000, 'projects': {'P1': 'y' * 500, 'P2': 'z' * 500}})
+        for note in ({'projects': {}}, {'projects': ['Atlas']}, {'projects': {'Two\nlines': ''}}, {'projects': {'Atlas': 3}},
+                     {'projects': {'Atlas': '', 'atlas': ''}}):
+            with self.subTest(note), self.assertRaisesRegex(ValueError, 'invalid_input'):
+                memory.change(self.root, 9, note=note)
+
+    def test_the_first_to_do_with_a_label_starts_its_project_and_a_rename_moves_both(self):
+        initialize(self.root)
+        def store():
+            inbox = InboxStore(self.root, write=True)
+            self.addCleanup(inbox.close)
+            return inbox
+        def add(raw, project, key):
+            store().mutate('add', {'kind': 'todo', 'raw': raw, 'project': project}, 'ses_a', key, stamp(self.root))
+        add('Draft the methods', 'Atlas', 'k1')
+        memory.change(self.root, 1, note={'projects': {'Atlas': 'Your comparison study.'}})
+        add('Make the figure', 'atlas', 'k2')
+        add('Buy milk', '', 'k3')
+        self.assertEqual([(entry['name'], entry['note']) for entry in memory.load(self.root)['projects']], [('Atlas', 'Your comparison study.')])
+        memory.change(self.root, 2, note={'projects': {'Atlas': None}})
+        add('Check the baselines', 'Atlas', 'k4')
+        self.assertEqual(memory.load(self.root)['projects'], [], 'forgetting a project keeps its label on to-dos but does not restart it')
+        add('Book the van', 'Boreal', 'k5')
+        self.assertEqual([entry['name'] for entry in memory.load(self.root)['projects']], ['Boreal'])
+        tasks = TaskStore(store())
+        receipt = tasks.rename_project({'from': 'boreal', 'to': 'Northern station'}, 'ses_a', 'k6', stamp(self.root))
+        self.assertEqual(receipt, {'saved': True, 'project': 'Northern station', 'tasks': 1})
+        self.assertEqual({task['title']: task['project'] for task in tasks.all()}['Book the van'], 'Northern station')
+        self.assertTrue(tasks.rename_project({'from': 'boreal', 'to': 'Northern station'}, 'ses_a', 'k6', stamp(self.root))['replayed'])
+        self.assertEqual([entry['name'] for entry in memory.load(self.root)['projects']], ['Northern station'])
+        memory.change(self.root, memory.load(self.root)['revision'], enabled=False)
+        add('Ship the figure', 'Comet', 'k7')
+        self.assertEqual(len(memory.load(self.root)['projects']), 1, 'nothing is written while memory is off')
+
+    def test_a_rename_moves_only_an_existing_entry_after_the_to_dos_and_keeps_their_dates(self):
+        initialize(self.root)
+        inbox = InboxStore(self.root, write=True)
+        self.addCleanup(inbox.close)
+        for key, project in (('k1', 'Atlas'), ('k2', 'Boreal')):
+            inbox.mutate('add', {'kind': 'todo', 'raw': 'Step', 'project': project}, 'ses_a', key, '2026-10-01T09:00:00+00:00')
+        tasks = TaskStore(inbox)
+        memory.change(self.root, 2, note={'projects': {'Atlas': None}})
+        tasks.rename_project({'from': 'Atlas', 'to': 'Atlas Paper'}, 'ses_a', 'k3', stamp(self.root))
+        self.assertEqual([entry['name'] for entry in memory.load(self.root)['projects']], ['Boreal'],
+                         'a rename never brings back a forgotten project')
+        self.assertEqual({task['project']: task['updated_at'] for task in tasks.all()},
+                         {'Atlas Paper': '2026-10-01T09:00:00+00:00', 'Boreal': '2026-10-01T09:00:00+00:00'},
+                         'a rename is not activity, so tidy and stale checks keep their dates')
+        memory.change(self.root, memory.load(self.root)['revision'], enabled=False)
+        tasks.rename_project({'from': 'Boreal', 'to': 'Northern station'}, 'ses_a', 'k4', stamp(self.root))
+        self.assertEqual([entry['name'] for entry in memory.load(self.root)['projects']], ['Northern station'],
+                         "the user's entry follows its to-dos while memory is off")
+        memory.change(self.root, memory.load(self.root)['revision'], enabled=True)
+        memory.change(self.root, memory.load(self.root)['revision'], note={'projects': {'Comet': 'A survey.'}})
+        with self.assertRaisesRegex(ValueError, 'project_exists: .*ask the user'):
+            tasks.rename_project({'from': 'Northern station', 'to': 'comet'}, 'ses_a', 'k5', stamp(self.root))
+        self.assertEqual({task['project'] for task in tasks.all()}, {'Atlas Paper', 'Northern station'}, 'nothing was renamed')
+
+    def test_a_busy_memory_lock_still_starts_the_project(self):
+        initialize(self.root)
+        inbox = InboxStore(self.root, write=True)
+        self.addCleanup(inbox.close)
+        held, release = threading.Event(), threading.Event()
+        def hold():
+            with runtime_lock(self.root, 'memory.lock'):
+                held.set(); release.wait(5)
+        thread = threading.Thread(target=hold); thread.start()
+        held.wait(5)
+        threading.Timer(0.3, release.set).start()
+        inbox.mutate('add', {'kind': 'todo', 'raw': 'Step', 'project': 'Atlas'}, 'ses_a', 'k1', stamp(self.root))
+        thread.join()
+        self.assertEqual([entry['name'] for entry in memory.load(self.root)['projects']], ['Atlas'])
 
     def test_off_hides_the_note_and_refuses_writes(self):
         memory.change(self.root, 0, note=MOCHI)
@@ -113,7 +208,7 @@ class MemoryTests(unittest.TestCase):
         lines = memory.activity(root, DAY)
         for line in ('Tue 2026-10-13 habit done: Stretching', 'Wed 2026-10-14 to-do done: Water the plants',
                      'Mon 2026-10-19 to-do done: Water the plants', 'Wed 2026-10-21 10:00 idea saved: Try a weekly review with Mia',
-                     'Thu 2026-10-22 10:00 to-do done: Renew passport photo', 'Sun 2026-10-25 check-in: Other updates: Long run with Mia'):
+                     'Thu 2026-10-22 10:00 to-do done: Renew passport photo [project: Home]', 'Sun 2026-10-25 check-in: Other updates: Long run with Mia'):
             self.assertIn(line, lines)
         self.assertEqual(lines, sorted(lines, key=lambda line: line.split()[1]), 'oldest first')
         self.assertFalse([line for line in lines if '2026-10-06' in line or '2026-10-12' in line], 'only the last 14 days')
@@ -200,14 +295,14 @@ class AboutMeMemoryTests(unittest.TestCase):
         self.assertLess(section.index('You have a dog, Mochi.'), section.index('Training for a marathon.'))
         self.assertIn('What I remember about you', section)
         self.assertIn('has learned from your chats, check-ins and plans', section)
-        self.assertIn('Last updated', section)
+        self.assertNotIn('Forget everything', section)
         self.assertIn('data-switch="memory"', section)
         self.assertEqual(section.count('data-multiline'), 3)
 
     def test_edit_forget_and_switch_off_from_the_page(self):
         self.assertEqual(self.save('memory:life', ' You have two dogs.\nBoth are loud. '),
-                         {'field': 'memory:life', 'value': 'You have two dogs.\nBoth are loud.'})
-        self.assertEqual(self.save('memory:lately', ''), {'field': 'memory:lately', 'value': ''})
+                         {'field': 'memory:life', 'value': 'You have two dogs.\nBoth are loud.', 'revision': 2})
+        self.assertEqual(self.save('memory:lately', '')['value'], '')
         with self.assertRaisesRegex(about_me.Invalid, 'Shorten it'):
             self.save('memory:likes', 'x' * memory.LENGTH)
         with self.assertRaises(ValueError):
@@ -217,9 +312,44 @@ class AboutMeMemoryTests(unittest.TestCase):
         with self.assertRaisesRegex(about_me.Invalid, 'Turn memory on'):
             self.save('memory:life', 'You have a cat.')
         self.save('memory', 'true')
-        self.save('forget', 'all')
+        for part in memory.PARTS:
+            self.save('memory:' + part, '')
         self.assertFalse(any(memory.load(self.root)['note'].values()))
-        self.assertIn('Nothing yet. Chat with your secretary', about_me.page(self.app).decode())
+        with self.assertRaisesRegex(ValueError, 'Invalid change'):
+            self.save('forget', 'all')
+
+    def test_projects_show_as_entries_that_are_edited_or_forgotten_one_by_one(self):
+        initialize(self.root)
+        inbox = InboxStore(self.root, write=True)
+        self.addCleanup(inbox.close)
+        for key, project in (('k1', 'Atlas'), ('k2', 'atlas'), ('k3', 'Boreal')):
+            inbox.mutate('add', {'kind': 'todo', 'raw': 'Step', 'project': project}, 'ses_a', key, stamp(self.root))
+        memory.change(self.root, 3, note={'projects': {'Atlas': 'Your comparison study.'}})
+        page = html.unescape(about_me.page(self.app).decode())
+        section = page[page.index('id="about-memory"'):page.index('id="about-news"')]
+        self.assertIn('data-revision="4"', section)
+        self.assertLess(section.index('Training for a marathon.'), section.index('Project: Atlas'))
+        self.assertLess(section.index('Project: Atlas'), section.index('Project: Boreal'))
+        self.assertLess(section.index('Project: Boreal'), section.index('New project'))
+        self.assertIn('2 open to-dos', section)
+        self.assertIn('Tell your secretary about it, or save a to-do for it.', section)
+        self.assertEqual(section.count('class="about-forget"'), 2)
+        work = page[page.index('id="about-work"'):page.index('id="about-memory"')]
+        self.assertIn('Project areas', work)
+        self.assertNotIn('Linked projects', page)
+        with self.assertRaisesRegex(about_me.Invalid, 'just changed this'):
+            about_me.save(self.app, {'field': 'project:Atlas', 'value': 'Old tab.', 'revision': 3})
+        with self.assertRaisesRegex(about_me.Invalid, 'just changed this'):
+            about_me.save(self.app, {'field': 'project:Gone', 'value': 'Old tab.', 'revision': 3})
+        self.assertEqual(about_me.save(self.app, {'field': 'project:atlas', 'value': ' The figure is next. ', 'revision': 4}),
+                         {'field': 'project:atlas', 'value': 'The figure is next.', 'revision': 5})
+        with self.assertRaisesRegex(about_me.Invalid, 'A project fits 500'):
+            self.save('project:Atlas', 'x' * 501)
+        with self.assertRaisesRegex(ValueError, 'only be changed in chat'):
+            self.save('project:Comet', 'A new project.')
+        self.save('forget', 'project:Boreal')
+        self.assertEqual([entry['name'] for entry in memory.load(self.root)['projects']], ['Atlas'])
+        self.assertEqual(len(list(TaskStore(inbox).all())), 3, 'forgetting keeps the to-dos')
 
 
 if __name__ == '__main__':

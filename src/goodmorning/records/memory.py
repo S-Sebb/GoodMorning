@@ -1,8 +1,9 @@
 """Secretary memory: one short note the secretary keeps about the user, like a friend who remembers.
 
+The note has three parts and one entry per project the user works on; a project's name is its to-dos' project label.
 The secretary rewrites the note in chat as it picks things up, and the evening briefing tidies it
-with the day's chat messages and the patterns in recent check-ins and records. The About me page shows it and lets the user edit it, forget it all
-or turn memory off. Unlike other records, forgotten text is deleted, not cancelled.
+with the day's chat messages and the patterns in recent check-ins and records. The About me page shows it and lets the user edit or empty
+each part, edit or forget each project, or turn memory off. Unlike other records, forgotten text is deleted, not cancelled.
 """
 import argparse
 from datetime import date, datetime, timedelta, timezone
@@ -19,7 +20,9 @@ from goodmorning.runtime_files import atomic_text, profile_fields, runtime_lock,
 from .inbox_store import encode
 
 PARTS = ('life', 'likes', 'lately')
-LENGTH = 2000  # The whole note, about 600 tokens in every conversation.
+LENGTH = 4000  # The whole note with every project entry, about 1,200 tokens in every conversation.
+PROJECTS, PROJECT, NAME = 8, 500, 160  # Projects kept, each entry's length, and a name's length (as a to-do's project label).
+WAIT = 5  # Seconds a to-do write or rename waits for a memory write to finish; a note write takes milliseconds.
 CHANGES = 30   # Recent chat sessions that changed the note, for the chat's memory marker.
 MESSAGES, MESSAGE = 40, 500  # The newest user messages the evening tidy rereads, and each one's length.
 DAYS, ACTIVITY, TITLE = 14, 80, 160  # Days of records the evening tidy reads for patterns, its newest lines, each title's length.
@@ -35,8 +38,19 @@ def path(runtime):
 def load(runtime):
     target = path(runtime)
     if not target.exists():
-        return {'enabled': True, 'revision': 0, 'note': dict.fromkeys(PARTS, ''), 'changes': []}
-    return json.loads(target.read_text(encoding='utf-8'))
+        return {'enabled': True, 'revision': 0, 'note': dict.fromkeys(PARTS, ''), 'projects': [], 'changes': []}
+    data = json.loads(target.read_text(encoding='utf-8'))
+    data.setdefault('projects', [])  # A note saved before projects keeps none.
+    return data
+
+
+def key(name):
+    """Project names match ignoring case and spacing."""
+    return ' '.join(name.split()).casefold()
+
+
+def find(entries, name):
+    return next((entry for entry in entries if key(entry['name']) == key(name)), None)
 
 
 def context(runtime):
@@ -44,17 +58,36 @@ def context(runtime):
     data = load(runtime)
     if not data['enabled']:
         return {'enabled': False, 'revision': data['revision']}
-    return {'enabled': True, 'revision': data['revision'], 'note': data['note'],
+    return {'enabled': True, 'revision': data['revision'], 'note': data['note'], 'projects': data['projects'],
             **({'updated': data['updated']} if 'updated' in data else {})}
 
 
+def plain(label, text):
+    if not isinstance(text, str) or any(ord(c) < 32 and c != '\n' for c in text):
+        raise ValueError(f'invalid_input: {label} is plain text')
+    return text.strip()
+
+
+def project_name(name):
+    if not isinstance(name, str) or not 0 < len(' '.join(name.split())) <= NAME or any(ord(c) < 32 and c not in ' \t' for c in name):
+        raise ValueError(f'invalid_input: a project name is one line of 1-{NAME} characters, its to-dos\' project label')
+    return ' '.join(name.split())
+
+
 def checked(note):
-    if not isinstance(note, dict) or not note or set(note) - set(PARTS):
-        raise ValueError('invalid_input: supply a JSON object with any of life, likes and lately')
-    for part, text in note.items():
-        if not isinstance(text, str) or any(ord(c) < 32 and c != '\n' for c in text):
-            raise ValueError(f'invalid_input: {part} is plain text')
-    return {part: text.strip() for part, text in note.items()}
+    """The parts and the project entries a write changes; a project set to null is dropped."""
+    if not isinstance(note, dict) or not note or set(note) - {*PARTS, 'projects'}:
+        raise ValueError('invalid_input: supply a JSON object with any of life, likes, lately and projects')
+    projects = note.get('projects', {})
+    if not isinstance(projects, dict) or 'projects' in note and not projects:
+        raise ValueError('invalid_input: projects maps each project name to its whole new entry, or to null to drop it')
+    entries = {}
+    for name, text in projects.items():
+        name = project_name(name)
+        if find([{'name': other} for other in entries], name):
+            raise ValueError(f'invalid_input: {name} appears twice in projects')
+        entries[name] = None if text is None else plain(name, text)
+    return {part: plain(part, text) for part, text in note.items() if part != 'projects'}, entries
 
 
 def conversations(runtime):
@@ -87,23 +120,82 @@ def change(runtime, revision, *, note=None, enabled=None, session=None):
         else:
             if not data['enabled']:
                 raise ValueError('memory_off: the user turned memory off on the About me page; write nothing')
-            merged = data['note'] | checked(note)
+            parts, projects = checked(note)
+            merged = data['note'] | parts
+            today = briefing_day(profile_fields(runtime).get('timezone', ''))
+            entries = [dict(entry) for entry in data['projects']]
+            written = [text for part, text in merged.items() if text != data['note'][part]]
+            # Drops first, so a write can replace a finished project with a new one when all are taken.
+            for name, text in sorted(projects.items(), key=lambda item: item[1] is not None):
+                entry = find(entries, name)
+                if text is None:
+                    if entry:
+                        entries.remove(entry)
+                    continue
+                if len(text) > PROJECT:
+                    raise ValueError(f'project_too_long: the {name} entry would be {len(text)} characters; trim it to {PROJECT} and write again')
+                if not entry:
+                    if len(entries) >= PROJECTS:
+                        raise ValueError(f'memory_projects_full: the note keeps at most {PROJECTS} projects; drop a finished one '
+                                         '(null) in the same write only if the user said it is finished, otherwise write nothing for this project')
+                    entry = {'name': name, 'note': ''}
+                    entries.append(entry)
+                if text != entry['note']:
+                    written.append(text)
+                    entry.update(note=text, updated=today)
             if item and item['turns'] and item['turns'][-1].get('language') == 'zh-CN' and any(
-                    text and text != data['note'][part] and not chinese(text) for part, text in merged.items()):
-                raise ValueError('memory_language: write each changed part in Simplified Chinese, the website language; nothing was saved')
-            size = sum(len(text) for text in merged.values())
+                    text and not chinese(text) for text in written):
+                raise ValueError('memory_language: write each changed part and project in Simplified Chinese, the website language; nothing was saved')
+            size = sum(len(text) for text in merged.values()) + sum(len(entry['note']) for entry in entries)
             if size > LENGTH:
-                raise ValueError(f'memory_too_long: the note would be {size} characters; merge and trim it to {LENGTH} and write again')
-            if merged == data['note']:
+                raise ValueError(f'memory_too_long: the note with its projects would be {size} characters; merge and trim it to {LENGTH} and write again')
+            if merged == data['note'] and entries == data['projects']:
                 return {'saved': False, 'revision': data['revision']}
-            data['note'] = merged
-            data['updated'] = briefing_day(profile_fields(runtime).get('timezone', ''))
+            data['note'], data['projects'] = merged, entries
+            data['updated'] = today
         data['revision'] += 1
         if session and note is not None:
             stamp = datetime.now(timezone.utc).astimezone().isoformat(timespec='seconds')
             data['changes'] = [*data['changes'], {'seq': data['revision'], 'session': session, 'at': stamp}][-CHANGES:]
         atomic_text(path(runtime), encode(data))
     return {'saved': True, 'revision': data['revision']}
+
+
+def add_projects(runtime, names):
+    """An empty entry for each project a to-do has just named for the first time, while memory is on and has room."""
+    with runtime_lock(runtime, 'memory.lock', WAIT):
+        data = load(runtime)
+        if not data['enabled']:
+            return
+        entries, today = list(data['projects']), briefing_day(profile_fields(runtime).get('timezone', ''))
+        for name in names:
+            if len(' '.join(name.split())) <= NAME and not find(entries, name) and len(entries) < PROJECTS:
+                entries.append({'name': project_name(name), 'note': '', 'updated': today})
+        if entries != data['projects']:
+            data['projects'], data['updated'] = entries, today
+            data['revision'] += 1
+            atomic_text(path(runtime), encode(data))
+
+
+def renamed(data, old, new):
+    """The entry a rename moves, or None; it never starts one. It moves while memory is off too: the entry is the user's."""
+    entry = find(data['projects'], old)
+    if entry and find(data['projects'], new) not in (None, entry):
+        raise ValueError(f'project_exists: the note already has entries for both {old} and {new}; ask the user whether to merge '
+                         'them; only if they agree, merge them into one memory write that drops the other, then rename again')
+    return entry if entry and entry['name'] != new else None
+
+
+def rename(runtime, old, new):
+    """Move a project's entry to the new name its to-dos now carry."""
+    new = project_name(new)
+    with runtime_lock(runtime, 'memory.lock', WAIT):
+        data = load(runtime)
+        entry = renamed(data, old, new)
+        if entry:
+            entry['name'] = new
+            data['revision'] += 1
+            atomic_text(path(runtime), encode(data))
 
 
 def tidy(runtime):
@@ -140,14 +232,15 @@ def activity(runtime, day):
     days = [(end - timedelta(days=n)).isoformat() for n in range(DAYS - 1, -1, -1)]
     lines = set()
 
-    def add(at, what, title, when=''):
+    def add(at, what, title, when='', project=''):
         """`at` is a day, or a local ISO time from the stores; `when` is the day the item is planned or due."""
         moment = datetime.fromisoformat(at) if 'T' in at else None
         on = briefing_day(zone, moment) if moment else at
         if days[0] <= on <= day and title:
             label = date.fromisoformat(on).strftime('%a ') + on + (moment.strftime(' %H:%M') if moment else '')
             lines.add((on, label + ' ' + what + ': ' + ' '.join(title.split())[:TITLE]
-                       + (f' (for {date.fromisoformat(when).strftime("%a")} {when})' if when else '')))
+                       + (f' (for {date.fromisoformat(when).strftime("%a")} {when})' if when else '')
+                       + (f' [project: {project}]' if project else '')))
 
     for on in days:
         text, _ = read_record(record_path(runtime, on))
@@ -173,13 +266,14 @@ def activity(runtime, day):
                 finished = {row[0] for row in inbox.db.execute("SELECT task_id FROM task_occurrences WHERE status='done'")}
                 for identifier, created, updated, raw in inbox.db.execute('SELECT id,created_at,updated_at,data FROM tasks'):
                     task = json.loads(raw)
-                    add(created, 'to-do added', task['title'], task.get('planned_date') or task.get('due_date') or '')
+                    project = task.get('project', '')
+                    add(created, 'to-do added', task['title'], task.get('planned_date') or task.get('due_date') or '', project)
                     # A day's Done is its occurrence below; only an undated finish or a cancellation is dated by the change.
                     if task['status'] == 'cancelled' or task['status'] == 'done' and identifier not in finished:
-                        add(updated, 'to-do ' + task['status'], task['title'])
-                for title, on in inbox.db.execute("SELECT json_extract(t.data,'$.title'),o.date FROM task_occurrences o "
-                                                  "JOIN tasks t ON t.id=o.task_id WHERE o.status='done'"):
-                    add(on, 'to-do done', title)
+                        add(updated, 'to-do ' + task['status'], task['title'], project=project)
+                for title, project, on in inbox.db.execute("SELECT json_extract(t.data,'$.title'),json_extract(t.data,'$.project'),o.date "
+                                                           "FROM task_occurrences o JOIN tasks t ON t.id=o.task_id WHERE o.status='done'"):
+                    add(on, 'to-do done', title, project=project or '')
         finally:
             inbox.close()
     try:
