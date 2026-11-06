@@ -285,6 +285,17 @@ def text(value, path, limit=5000, empty=False):
         fail(path, 'control characters are not allowed')
 
 
+HEADLINE_LIMIT = {'en': 60, 'zh-CN': 30}
+
+
+def headline(value, lang):
+    """A new morning greeting is the page's one-line headline. Saved editions keep the 350-character read limit."""
+    limit = HEADLINE_LIMIT.get(lang, HEADLINE_LIMIT['en'])
+    text(value, 'greeting', limit)
+    if '\n' in value:
+        fail('greeting', f'the headline is one line of at most {limit} characters')
+
+
 def sequence(value, path, low, high):
     if not isinstance(value, list) or not low <= len(value) <= high:
         fail(path, f'expected array of {low}..{high} entries')
@@ -553,7 +564,8 @@ def validate(data, partial=False):
     if type(data['v']) is not int or data['v'] not in (1, 2):
         fail('v', 'unsupported version; preserve the original')
     for key in ('greeting', 'opening'):
-        text(data[key], key, 350)
+        # A morning preview leaves both empty until finish; a saved edition always has them.
+        text(data[key], key, 350, empty=partial)
     if 'closing' in data:
         text(data['closing'], 'closing', 600)
     if 'lang' in data and (not isinstance(data['lang'], str) or not re.fullmatch('[a-z]{2,3}(?:-[A-Za-z0-9]{2,8})*', data['lang'])):

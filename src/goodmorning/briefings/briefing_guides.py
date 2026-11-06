@@ -27,13 +27,16 @@ TEXT = {
   'init': ('Submit {"greeting":"…","opening":"…"} (each ≤350 chars, plain text); do not send plan or lang. Greeting is short, '
            'in the saved tone. If `reply_context.user_name` is set, the greeting may call the user by exactly that name, or by none; '
            'it is the only place in the briefing for the name, so never use it in the opening, notes or progress. The opening may mention only these sections: SECTIONS. Say what will be reviewed, not findings.'),
-  'memory_init': (' `memory` is the note you keep about the user from your chats. The greeting may lightly reflect one thing from it '
-                  'when it fits today, as a friend would, or nothing; never recite it, present it as news or add feelings it does not '
-                  'state; something the note says is coming up has not happened yet: mention it only as still ahead, never as past or today unless its date is today.'
-                  ' The opening, notes and progress never use it.'),
-  'memory_finish': (' `memory` is the note you keep about the user. A closing you write anyway may lightly reflect one thing from it '
-                    'when it fits today\'s verified results; never add a closing because of it, recite it or add feelings it does not state; '
-                    'something the note says is coming up has not happened yet: mention it only as still ahead, never as past or today unless its date is today.'),
+  'init_gm': 'Submit {} now; do not send greeting, opening, plan or lang. You write the headline and opening at finish, after every section is verified.',
+  'memory_init': (' `memory` is the note you keep about the user from your chats. The greeting may lightly mention one item from it, as a '
+                  'friend would, only when the note dates it today or tomorrow (today is DATE), saying which; otherwise leave it out. Never '
+                  'recite it, present it as news or add feelings it does not state. The opening, notes and progress never use it.'),
+  'memory_finish': (' `memory` is the note you keep about the user. A closing you write anyway may lightly mention one item from it only '
+                    'when the note dates it today or tomorrow (today is DATE), saying which; never add a closing because of it, recite it '
+                    'or add feelings it does not state.'),
+  'memory_finish_gm': (' `memory` is the note you keep about the user. It never goes in the headline. The opening, or a closing you write '
+                       'anyway, may lightly mention one item from it only when the note dates it today or tomorrow (today is DATE), saying '
+                       'which; otherwise leave it out. Never add a closing because of it, recite it or add feelings it does not state.'),
   'memory_letter': (' `memory` is the note you keep about the user. The sign-off\'s wish may lightly reflect one thing from it, as a '
                     'friend would, never anything about next week; the opening and the week\'s summary still use only facts in `letter`, and a '
                     'short week\'s sign-off still names nothing. Never recite it or add feelings it does not state.'),
@@ -173,6 +176,16 @@ TEXT = {
                          'mention every reported outcome.'),
   'finish': ('Submit {} or {"closing":"…"} following `writing`. After a verified save, reply only with one short delivery line in '
              'the saved tone plus the returned relative url as a Markdown link.'),
+  'finish_gm': ('Submit {"greeting":"…","opening":"…"}, adding "closing" only as `writing` allows; plain text built only from the sections '
+                'you published. greeting is the page\'s big headline, not a hello: one line of at most 60 characters naming today\'s most '
+                'important item. Choose in this order: a deadline due today or a timed appointment today (earliest first), then a weather '
+                'warning or extreme (storm, heavy rain or snow, heat, frost), then whatever else matters most today; at most two items, '
+                'joined by a comma (e.g. "Dentist at 10:30, rain from noon"). With none of these, state plainly what today holds (e.g. '
+                '"No appointments saved, dry and mild"). No greeting, name, feelings or filler in the headline. opening (at most 350 '
+                'characters) is the warm hello in the saved tone, then one sentence on the rest of the day from the sections, without '
+                'repeating the headline. If `reply_context.user_name` is set, the opening may call the user by exactly that name, or by '
+                'none; it is the only place in the briefing for the name. After a verified save, reply only with one short delivery line '
+                'in the saved tone plus the returned relative url as a Markdown link.'),
  },
  'zh-CN': {
   'contract': (
@@ -190,8 +203,10 @@ TEXT = {
             '提交前逐句对照 `writing` 检查。'),
   'init': ('提交 {"greeting":"…","opening":"…"}（各不超过 350 字，纯文本），不要传 plan 或 lang。问候简短、符合保存的语气；若 `reply_context.user_name` 有值，问候里可以原样用这个称呼，也可以不称呼；整份简报只有问候可以出现这个称呼，开场、注记和进度里都不要用。'
            '开场只能提及这些章节：SECTIONS。说明将要回顾的内容，不要提前给出结果。'),
-  'memory_init': ' `memory` 是你从对话中记下的关于用户的笔记。合适时问候可以像朋友那样轻轻带到其中一件事，也可以不提；不要罗列，不要当成新消息，也不要添加笔记里没有的感受；笔记里还没到的事就是还没发生：只能当作即将到来的事提起，除非日期就是今天，否则不要说成已经发生或就在今天。开场、注记和进度里都不要用。',
-  'memory_finish': ' `memory` 是你记下的关于用户的笔记。本来就要写结尾时，若与今天已核实的结果相关，可以轻轻带到其中一件事；不要因为它而添加结尾，不要罗列，也不要添加笔记里没有的感受；笔记里还没到的事就是还没发生：只能当作即将到来的事提起，除非日期就是今天，否则不要说成已经发生或就在今天。',
+  'init_gm': '现在提交 {}，不要传 greeting、opening、plan 或 lang。标题和开场等所有章节都核实之后，在 finish 时再写。',
+  'memory_init': ' `memory` 是你从对话中记下的关于用户的笔记。只有笔记里写明日期是今天或明天（今天是 DATE）的事，问候才可以像朋友那样轻轻带到其中一件，并说清是今天还是明天；其他的都不要提。不要罗列，不要当成新消息，也不要添加笔记里没有的感受。开场、注记和进度里都不要用。',
+  'memory_finish': ' `memory` 是你记下的关于用户的笔记。本来就要写结尾时，只有笔记里写明日期是今天或明天（今天是 DATE）的事，才可以轻轻带到其中一件，并说清是今天还是明天；不要因为它而添加结尾，不要罗列，也不要添加笔记里没有的感受。',
+  'memory_finish_gm': ' `memory` 是你记下的关于用户的笔记。标题里不要用它。只有笔记里写明日期是今天或明天（今天是 DATE）的事，开场或本来就要写的结尾才可以轻轻带到其中一件，并说清是今天还是明天；其他的都不要提。不要因为它而添加结尾，不要罗列，也不要添加笔记里没有的感受。',
   'memory_letter': ' `memory` 是你记下的关于用户的笔记。结尾的祝福可以像朋友那样轻轻带到其中一件事，但不要提下周的事；开头和这一周的小结仍然只用 `letter` 里的事实，清单为空的那一周，结尾仍然不点名任何事。不要罗列，也不要添加笔记里没有的感受。',
   'memory_tidy': ('交付链接之前，先整理你对用户的记忆。`memory.note` 是你的笔记（life：用户的生活、身边的人和兴趣；likes：用户喜欢的方式；'
                   'lately：用户最近的情况），`memory.messages` 是上次整理以来用户本人在对话里发的消息。结合这些和今晚的回顾回答：补上用户说过或明显表现出的、'
@@ -276,6 +291,12 @@ TEXT = {
                   '不要添加其他事实、计划、建议或承诺，不要猜测用户的年龄、心情或这一天会怎么过；不要描述卡片或简报本身，也不要说陪伴了用户多久。不要称呼用户的名字。不要跳过这个章节。'),
   'today_regenerating': '重新生成：不写入任务、不提问；沿用已保存的反馈。读取返回的块不为 null 时原样复制，提到用户报告的每项结果。',
   'finish': '提交 {} 或 {"closing":"…"}，遵循 `writing`。保存核实后，只用保存的语气写一句简短的交付语，并附上返回的相对 url 作为 Markdown 链接。',
+  'finish_gm': ('提交 {"greeting":"…","opening":"…"}，只有 `writing` 允许时才加 "closing"；纯文本，只用你已发布章节里的内容。greeting 是页面的大标题，'
+                '不是问候：一行，不超过 30 个字，写今天最要紧的事。按这个顺序挑：今天到期的期限或今天有具体时间的约定（时间早的优先），其次是天气预警或极端天气'
+                '（暴风雨、大雨大雪、高温、霜冻），再其次是今天其他最要紧的事；最多两件，用逗号连起来（例如“10:30 看牙，午后有雨”）。都没有时，就直接说今天的情况'
+                '（例如“今天没有已保存的约定，干爽温和”）。标题里不要放问候、称呼、感受或客套话。opening（不超过 350 字）用保存的语气先打个招呼，再用一句话说说今天'
+                '其余的情况，不要重复标题。若 `reply_context.user_name` 有值，开场里可以原样用这个称呼，也可以不称呼；整份简报只有这里可以出现这个称呼。'
+                '保存核实后，只用保存的语气写一句简短的交付语，并附上返回的相对 url 作为 Markdown 链接。'),
  },
 }
 
@@ -292,13 +313,15 @@ def guide(context, action, plan, *, runtime, job, session):
     """The rules for exactly one receipt step, with this job's values filled in."""
     words = text(context)
     tag = action['section'][0] if action.get('section') else action['action']
+    # v2 morning headlines name today's top item, so they are written at finish from the verified sections.
+    morning = context.get('workflow') == 'gm'
     if action['action'] == 'init':
         separator = '、' if words is TEXT['zh-CN'] else ', '
-        value = words['init'].replace('SECTIONS', separator.join(title for _, title in plan))
+        value = words['init_gm'] if morning else words['init'].replace('SECTIONS', separator.join(title for _, title in plan))
         if context.get('regenerating'):
             value += words['regenerating']
     elif action['action'] == 'finish':
-        value = words['finish']
+        value = words['finish_gm' if morning else 'finish']
     elif tag in ('letter', 'celebration'):
         value = words[tag]
     elif tag == 'today' and context.get('regenerating'):
@@ -308,7 +331,7 @@ def guide(context, action, plan, *, runtime, job, session):
     else:
         value = words['shape'] + words.get(tag, '')
     if action.get('memory'):
-        value += words['memory_' + ('letter' if tag == 'letter' else action['action'])]
+        value += words['memory_' + ('letter' if tag == 'letter' else action['action']) + ('_gm' if morning and action['action'] == 'finish' else '')]
     for token, actual in (('RUNTIME', str(runtime)), ('SESSION', session), ('JOB', job), ('DATE', context['date'])):
         value = value.replace(token, actual)
     return value

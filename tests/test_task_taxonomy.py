@@ -512,15 +512,23 @@ class TaxonomyTests(unittest.TestCase):
     def test_browser_v2_save_does_not_create_daily_tasks_and_keeps_archives_readable(self):
         self.capture(task={'title': 'Undated action'})
         job = self.browser_job('a', 'gm', 'running', session='ses_test'); preflight(self.root, job)
-        act(self.root, job['id'], 'ses_test', 'init', {'greeting': 'Morning.', 'opening': 'Plan.'})
+        act(self.root, job['id'], 'ses_test', 'init', {})
         act(self.root, job['id'], 'ses_test', 'publish', {'position': 0, 'section': ['weather', [['p', 'Weather unavailable; check before travelling.']]]})
         act(self.root, job['id'], 'ses_test', 'publish', {'position': 1, 'section': ['news', [['p', 'News unavailable.']]]})
         act(self.root, job['id'], 'ses_test', 'publish', {'position': 2, 'section': ['schedule', [['p', 'No appointments.']]]})
         act(self.root, job['id'], 'ses_test', 'publish', {'position': 3, 'section': ['tasks', [self.view()['blocks']['tasks']]]})
         act(self.root, job['id'], 'ses_test', 'skip', {'position': 4})
-        act(self.root, job['id'], 'ses_test', 'finish', {})
+        # The morning headline is written last; until then the page shows a placeholder that is never saved.
+        app = BrowserApp(self.root, now=lambda: datetime(2026, 10, 13, 12, tzinfo=timezone.utc), preflight=True)
+        self.assertEqual(app.preview(job['id'])['greeting'], 'Preparing today’s briefing…')
+        checkpoint = json.loads((self.root/'browser-jobs'/(job['id']+'.preview.json')).read_text())
+        self.assertEqual(app.activity(job['id'], checkpoint)['label'], 'Writing today’s headline')
+        for greeting in ('x' * 61, 'One undated action\nand more', ''):
+            with self.assertRaises(ValueError):
+                act(self.root, job['id'], 'ses_test', 'finish', {'greeting': greeting, 'opening': 'Morning.'})
+        act(self.root, job['id'], 'ses_test', 'finish', {'greeting': 'One undated action', 'opening': 'Morning.'})
         doc = native.parse((self.root/'daily'/f'{DAY}.gm.json').read_text())
-        self.assertEqual(doc['v'], 2)
+        self.assertEqual((doc['v'], doc['greeting']), (2, 'One undated action'))
         self.assertEqual(daily.show(self.root, DAY)['tasks_total'], 0)
         old = {'v': 1, 'greeting': 'Old.', 'opening': 'Archive.', 'sections': [['must-do', [['tasks', [['open', 'Historical', '']]]]]]}
         self.assertEqual(native.parse(native.encode(old)), old)
@@ -767,10 +775,9 @@ class TaxonomyTests(unittest.TestCase):
             result = act(self.root,identifier,'ses_test','prepare')
             self.assertIn(contract,result['contract'])
             self.assertIn('docs/core-rules.md',result['contract'])
-            self.assertEqual(result['next']['input'],{'greeting':'…','opening':'…'})
-            self.assertIn(title,result['next']['guide'])
+            self.assertEqual(result['next']['input'],{})
             self.assertNotIn('instruction',result['next'])
-            result = act(self.root,identifier,'ses_test','init',{'greeting':'Hi.','opening':'Weather first.'})
+            result = act(self.root,identifier,'ses_test','init',{})
             guide = result['next']['guide']
             self.assertEqual(result['next']['input'],{'position':0,'section':['weather',[['weather',[[card,'…','…'] for card in ('temperature','precipitation','air')]]],'',title]})
             # A misshapen first publish names the problem and shows the receipt's input; Weather stays unpublished (checked below).
@@ -797,7 +804,8 @@ class TaxonomyTests(unittest.TestCase):
             # the rejected publishes above stay in the Weather turn as received calls.
             log = [json.loads(line) for line in (self.root/'browser-jobs'/(identifier+'.timings.jsonl')).read_text().splitlines()]
             self.assertEqual([(entry['step'],entry.get('action') or entry.get('section')) for entry in log],
-                             [('receive','prepare'),('opening',None),('receive','init'),('collect','weather'),('write','weather')]
+                             # A morning init writes no text, so it records no opening step.
+                             [('receive','prepare'),('receive','init'),('collect','weather'),('write','weather')]
                              + [('receive','publish')]*6
                              + [('receive','publish'),('collect','news'),('write','news')])
             self.assertEqual([entry['at'] for entry in log],sorted(entry['at'] for entry in log))
@@ -816,7 +824,7 @@ class TaxonomyTests(unittest.TestCase):
         self.capture('Buy milk', task={'title': 'Buy milk', 'planned_date': DAY})
         job = self.browser_job('d', kind='gm', state='running', session='ses_test', language='en')
         preflight(self.root, job)
-        result = act(self.root, job['id'], 'ses_test', 'init', {'greeting': 'Hi.', 'opening': 'Weather first.'})
+        result = act(self.root, job['id'], 'ses_test', 'init', {})
         self.assertNotIn('read', result['next'])
         self.assertEqual([r['command'].split()[2] for r in result['next']['results']], ['weather'])
         for position, tag in ((0, 'weather'), (1, 'news')):

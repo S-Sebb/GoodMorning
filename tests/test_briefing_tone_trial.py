@@ -78,7 +78,6 @@ class BriefingTrialTests(unittest.TestCase):
         receipt=act(self.runtime,job['id'],'ses_trial','prepare')
         self.assertEqual(receipt['next_position'],1)
         self.assertEqual(receipt['next']['section'][0],'news')
-        self.assertEqual(bridge.seeded['greeting'],'Good morning.')
         self.assertEqual(json.loads((self.runtime/'seeded-checkpoint.json').read_text()),bridge.seeded)
 
     def test_request_labels_use_the_pinned_language_not_current_interface(self):
@@ -183,7 +182,7 @@ class BriefingTrialTests(unittest.TestCase):
         prepared=prepare(self.runtime,job)
         if prepared['awaiting']:
             answer(self.runtime,job,{'details':'Started the draft.'})  # Something reported keeps Today's position.
-        act(self.runtime,job['id'],'ses_trial','init',{'greeting':'Hello.','opening':'Review saved records.'})
+        act(self.runtime,job['id'],'ses_trial','init',{} if kind=='gm' else {'greeting':'Hello.','opening':'Review saved records.'})
         return job
 
     def read_section(self, job, section, extra=()):

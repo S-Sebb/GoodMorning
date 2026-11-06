@@ -132,8 +132,12 @@ class BriefingMemoryTests(unittest.TestCase):
         memory.change(self.root, 0, note={'lately': 'Training for the Shanghai marathon in March.'})
         greeting = self.step('prepare')['next']
         self.assertEqual((greeting['action'], greeting['memory']), ('init', {'lately': 'Training for the Shanghai marathon in March.'}))
-        self.assertIn('`memory`', greeting['guide'])
-        self.assertIn('mention it only as still ahead, never as past', greeting['guide'])
+        self.assertIn('only when the note dates it today or tomorrow (today is ' + DAY, greeting['guide'])  # Not the same item every day (#227).
+        for language, cap, outside in (('en', 'at most 60 characters', 'It never goes in the headline'), ('zh-CN', '不超过 30 个字', '标题里不要用它')):
+            morning = briefing_guides.guide({'date': DAY, 'workflow': 'gm', 'website_language': language}, {'action': 'finish', 'memory': MOCHI},
+                                            [], runtime=self.root, job='c' * 32, session='ses_test')
+            self.assertIn(cap, morning)
+            self.assertIn(outside, morning)
         section = self.step('init', {'greeting': 'Evening.', 'opening': 'Tonight’s review.'})['next']
         self.assertNotIn('memory', section)
         self.assertNotIn('`memory`', section['guide'])

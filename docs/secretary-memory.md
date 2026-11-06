@@ -2,7 +2,8 @@
 
 The secretary keeps one short note about the user, the way a friend remembers
 things as you keep talking, and uses it in every Secretary conversation, in
-briefing greetings and closings and in the weekly letter's sign-off. The agent
+evening greetings, morning openings and closings (only for something dated
+today or tomorrow) and in the weekly letter's sign-off. The agent
 rules are in `docs/workflows/secretary.md`, *Memory*; briefing use is in
 `docs/browser-generation.md`.
 

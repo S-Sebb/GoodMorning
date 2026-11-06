@@ -190,6 +190,11 @@ class DocumentTests(unittest.TestCase):
             section.extend(['', 'My saved title'])
             self.assertEqual(native.section_title(section, DATE, 'zh-CN'), 'My saved title')
 
+    def test_morning_headline_limit_counts_characters_per_language(self):
+        native.headline('牙' * 30, 'zh-CN')
+        with self.assertRaises(ValueError):
+            native.headline('牙' * 31, 'zh-CN')
+
     def test_headlines_with_dashes_and_every_citation_are_preserved(self):
         doc = document()
         news = doc['sections'][1][1][0]

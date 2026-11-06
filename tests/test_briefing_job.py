@@ -123,7 +123,7 @@ class JobTests(unittest.TestCase):
         version_two(self.root)
         initialize(self.root,self.job)
         with patch('goodmorning.briefings.briefing_job.run_reads', side_effect=reads):
-            act(self.root,self.identifier,'ses_fixture','init',{'greeting':'Morning.','opening':'Let’s look.'})
+            act(self.root,self.identifier,'ses_fixture','init',{})
         self.assertTrue((self.app.job_dir/(self.identifier+'.weather.json')).exists())
         # The model writes only advice; a value it sends anyway is replaced by the read's.
         section = ['weather',[['weather',[['temperature','Mild.'],['precipitation','100% – Rain likely','Dry.'],['air','Fine air.']]]]]
