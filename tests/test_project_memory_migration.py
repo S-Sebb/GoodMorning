@@ -114,7 +114,7 @@ class MigrationTests(unittest.TestCase):
         self.assertEqual((list(manifest)[-1], manifest['revision'], len(manifest['files'])), ('complete', 3, 8))
         self.assertEqual(self.run_main('migrate')[1]['status'], 'nothing_to_migrate', 'a rerun changes nothing')
         self.assertEqual(self.run_main('verify-backup', str(backup), '--restore-test')[1]['restore_test'], 'passed')
-        self.assertEqual(sorted(path.name for path in backup.iterdir()), ['files', 'manifest.json', 'migrated.json'],
+        self.assertEqual(sorted(path.name for path in backup.iterdir()), ['done.json', 'files', 'intent.json', 'manifest.json'],
                          'the restore test deletes its scratch copy')
 
     def test_yuka_shape_has_no_projects_but_loses_its_legacy_records(self):
@@ -209,6 +209,142 @@ class MigrationTests(unittest.TestCase):
         with patch('os.geteuid', return_value=os.geteuid() + 1):
             self.assertEqual(self.run_main('migrate')[1]['error'], 'wrong_user')
         self.assertTrue((self.root / 'projects.json').exists())
+
+    def refused(self, error, *args):
+        """Run migrate (or `args`) and check it refuses with `error` and leaves every runtime file as it was."""
+        before = self.snapshot()
+        code, result = self.run_main(*(args or ('migrate',)))
+        self.assertEqual((code, result.get('error')), (1, error), result)
+        self.assertEqual(self.snapshot(), before)
+        return result
+
+    def test_a_missing_unowned_or_unreadable_vault_is_an_error_not_no_runtime(self):
+        self.vault = self.vault.with_name('typo')
+        self.assertEqual(self.run_main('migrate')[1]['error'], 'no_vault')
+        self.vault.mkdir()
+        self.assertEqual(self.run_main('migrate')[1]['error'], 'no_runtime_dir')
+        self.vault = self.root.parent
+        with patch('os.geteuid', return_value=os.geteuid() + 1):
+            self.assertEqual(self.run_main('migrate')[1]['error'], 'wrong_user', 'checked before profile.md')
+        os.chmod(self.root, 0)
+        self.addCleanup(os.chmod, self.root, 0o700)
+        self.assertEqual(self.run_main('migrate')[0], 1, 'an unreadable runtime is not a missing profile')
+
+    def test_an_unclear_profile_is_refused(self):
+        tail = '\n## Setup rules\n'
+        for profile in (HEAD + '<!--\n## Project roots\n- Atlas | /a\n-->\n' + tail,
+                        HEAD + '```\n## Project roots\n- Atlas | /a\n```\n' + tail,
+                        HEAD + '## Project roots\n- Atlas | /a\n\n## Project roots\n- Comet | /c\n' + tail,
+                        HEAD + '## project roots\n- Atlas | /a\n' + tail,
+                        HEAD + '## Project roots (old)\n- Atlas | /a\n' + tail,
+                        HEAD + 'Project roots moved to the notes below.\n' + tail):
+            with self.subTest(profile[len(HEAD):len(HEAD) + 30]):
+                self.setUp()
+                self.account(profile, records={'Atlas': record('Atlas', 'Goal.')})
+                self.refused('profile_unclear')
+                self.assertFalse((self.vault / 'backups').exists())
+        self.setUp()
+        self.account(HEAD + tail, records={'Atlas': record('Atlas', 'Goal.')})
+        self.assertEqual(self.run_main('migrate')[1]['status'], 'migrated', 'a profile that never had the section is clear')
+
+    def test_the_section_ends_at_any_top_heading_outside_comments(self):
+        profile = HEAD + '## Project roots\n<!-- a\n# not a heading\n-->\n- Atlas | /a\n# Notes\n\nKeep this.\n'
+        self.account(profile, records={})
+        self.run_main('migrate')
+        self.assertEqual((self.root / 'profile.md').read_text(), HEAD + '# Notes\n\nKeep this.\n')
+
+    def test_crlf_records_keep_their_name_and_date(self):
+        self.account(records={'atlas-notes': record('Atlas', 'Goal.', updated='2026-08-01').replace('\n', '\r\n')})
+        self.run_main('migrate')
+        self.assertEqual(self.entries()['Atlas'], ('Goal.', '2026-08-01'))
+
+    def test_the_fingerprint_covers_to_do_labels_and_the_chat_language(self):
+        self.account(records={'Echo': record('Echo', 'Goal.')}, labels=('Echo',))
+        fingerprint = self.run_main('migrate', '--dry-run')[1]['fingerprint']
+        inbox = InboxStore(self.root, write=True)
+        inbox.db.execute("UPDATE tasks SET data=json_set(data,'$.status','done')")
+        inbox.close()
+        self.refused('fingerprint_changed', 'migrate', '--expect', fingerprint)
+        fingerprint = self.run_main('migrate', '--dry-run')[1]['fingerprint']
+        (self.root / 'browser-chats').mkdir()
+        (self.root / 'browser-chats' / 'chats.json').write_text(json.dumps(
+            {'c1': {'mode': 'secretary', 'created': 1, 'turns': [{'text': '你好', 'language': 'zh-CN', 'created': 2}]}}))
+        self.refused('fingerprint_changed', 'migrate', '--expect', fingerprint)
+
+    def test_resume_refuses_a_memory_write_made_after_the_interruption(self):
+        self.account(records={'Atlas': record('Atlas', 'Goal.')}, labels=('Atlas',))
+        with patch.object(Path, 'rmdir', side_effect=OSError('interrupted')):
+            self.run_main('migrate')
+        memory.change(self.root, memory.load(self.root)['revision'], note={'likes': 'Tea.'})
+        self.refused('memory_changed')
+        backup = next((self.vault / 'backups').iterdir())
+        self.refused('memory_changed', 'restore', str(backup))
+
+    def test_a_crash_around_the_memory_write_still_resumes_and_restores(self):
+        real = migration.atomic_bytes
+        for after in (False, True):  # Crash on the memory write, or on the first write after it.
+            with self.subTest(after=after):
+                self.setUp()
+                self.account(records={'Atlas': record('Atlas', 'Goal.')}, labels=('Atlas',))
+                before, written = self.snapshot(), []
+
+                def crash(path, data, mode):
+                    if written or path == self.root / 'memory.json' and not after:
+                        raise OSError('crash')
+                    real(path, data, mode)
+                    if path == self.root / 'memory.json':
+                        written.append(path)
+                with patch.object(migration, 'atomic_bytes', crash):
+                    self.assertEqual(self.run_main('migrate')[0], 1)
+                backup = next((self.vault / 'backups').iterdir())
+                self.assertEqual(self.run_main('restore', str(backup))[1]['status'], 'restored')
+                self.assertEqual(self.snapshot(), before)
+                self.assertEqual(self.run_main('migrate')[1]['revision'], 4, 'seeded once')
+
+    def test_restore_refuses_after_any_later_memory_write(self):
+        self.account(records={'Atlas': record('Atlas', 'Goal.')})
+        backup = self.run_main('migrate')[1]['backup']
+        memory.tidy(self.root)  # The evening tidy changes only `tidied`.
+        self.refused('memory_changed', 'restore', backup)
+
+    def test_legacy_files_added_after_the_backup_are_refused_not_deleted(self):
+        self.account(records={'Atlas': record('Atlas', 'Goal.')})
+        real = migration.verify_backup
+
+        def add_file(*args):
+            (self.root / 'projects' / 'Late.md').write_text('late')
+            return real(*args)
+        with patch.object(migration, 'verify_backup', add_file):
+            self.assertEqual(self.run_main('migrate')[1]['error'], 'changed_since_backup')
+        self.assertTrue((self.root / 'projects' / 'Late.md').exists())
+        self.assertIn('Project roots', (self.root / 'profile.md').read_text())
+        self.assertEqual(memory.load(self.root)['revision'], 3, 'nothing is seeded either')
+
+    def test_foreign_owners_and_failed_restore_tests_stop_before_anything_changes(self):
+        self.account(records={'Atlas': record('Atlas', 'Goal.')})
+        with patch('os.getegid', return_value=os.getegid() + 1):
+            self.refused('foreign_owner')
+        with patch.object(migration, 'verify_backup', side_effect=ValueError('restore_mismatch: test')):
+            self.refused('restore_mismatch')
+
+    def test_restore_checks_every_owner_before_writing(self):
+        self.account(records={'Atlas': record('Atlas', 'Goal.')})
+        backup = Path(self.run_main('migrate')[1]['backup'])
+        manifest = json.loads((backup / 'manifest.json').read_text())
+        manifest['files'][-1]['uid'] += 1
+        (backup / 'manifest.json').write_text(json.dumps(manifest))
+        self.refused('restore_owner', 'restore', str(backup))
+
+    def test_xattrs_are_recorded_and_refused(self):
+        self.account(records={'Atlas': record('Atlas', 'Goal.')})
+        try:
+            os.setxattr(self.root / 'projects' / 'Atlas.md', 'user.tag', b'x')
+        except OSError:
+            self.skipTest('no user xattrs here')
+        self.refused('unsupported_metadata')
+        os.removexattr(self.root / 'projects' / 'Atlas.md', 'user.tag')
+        backup = Path(self.run_main('migrate')[1]['backup'])
+        self.assertEqual({tuple(entry['xattrs']) for entry in json.loads((backup / 'manifest.json').read_text())['files']}, {()})
 
 
 if __name__ == '__main__':

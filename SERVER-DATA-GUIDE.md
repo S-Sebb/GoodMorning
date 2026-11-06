@@ -138,25 +138,47 @@ user, with the vault `/srv/goodmorning/live/<ACCOUNT_ID>`:
 ```bash
 ID=<ACCOUNT_ID>; V=/srv/goodmorning/live/$ID
 as_account() { runuser -u gm_${ID:0:12} -- env HOME=$V/home TMPDIR=$V/tmp \
-  /opt/goodmorning/python/bin/python /opt/goodmorning/current/deploy/migrate_project_memory.py --vault $V "$@"; }
-as_account migrate --dry-run              # counts and a fingerprint; no personal text
-as_account migrate --expect FINGERPRINT   # refuses if anything changed since the dry run
-as_account verify-backup BACKUP --restore-test
+  /opt/goodmorning/python/bin/python /opt/goodmorning/current/"$@"; }
+migration() { as_account deploy/migrate_project_memory.py --vault $V "$@"; }
 ```
 
-- Steps 1–2 above still apply: get the owner's approval for the account, and
-  pause the account's website work so no chat writes memory meanwhile.
-- `no_runtime` (never provisioned), `memory_off` and `nothing_to_migrate` change
-  nothing and exit 0. While memory is off the legacy files stay untouched.
-- The backup is `$V/backups/project-memory-290-<UTC>/`, inside the vault and
-  outside `secretary/`, with `manifest.json` (hashes, sizes, modes, owners,
-  mtimes, memory revision, release). `complete: true` is written last.
-- After an error, run `migrate` again: it checks the backup against its manifest
-  and finishes the removal without seeding twice. It never retries silently.
-- Rollback: `as_account restore BACKUP`. It refuses once memory has a newer
-  revision than the migration's, or profile.md changed, so it never overwrites
-  newer user work; ask the owner then.
-- Keep the backup until the owner agrees to delete it.
+1. Steps 1–2 above still apply: get the owner's approval for the account, and
+   pause the account's website work so no chat writes memory meanwhile.
+2. `migration migrate --dry-run` prints counts and a fingerprint, never personal
+   text. `no_runtime` (never provisioned), `memory_off` and `nothing_to_migrate`
+   change nothing and exit 0; while memory is off the legacy files stay untouched.
+   Any other error exits 1 and changes nothing: inspect by hand.
+3. `migration migrate --expect FINGERPRINT` refuses if anything it reads changed
+   since the dry run. In order, it:
+   - checks that every file to migrate belongs to the service user and group and
+     has no ACL or xattr;
+   - writes the backup `$V/backups/project-memory-290-<UTC>/` (inside the vault,
+     outside `secretary/`): copies plus `manifest.json` with hashes, sizes,
+     modes, owners, mtimes, xattrs, memory revision and release, `complete: true`
+     written last;
+   - test-restores it into a scratch directory inside the backup and compares;
+   - records the seeded memory in `intent.json`, writes memory, then removes the
+     section and exactly the backed-up legacy files, each rechecked first;
+   - writes `done.json`.
+   It refuses `profile_unclear` (heading missing, repeated, varied, commented or
+   fenced), `foreign_owner`, `unsupported_metadata`, `changed_since_backup` and
+   `memory_changed`.
+4. After an error, run `migrate` again: it resumes from the newest unfinished
+   backup only while memory.json is still the backed-up or the seeded version.
+5. Verify (step 6 above), as the service user:
+   ```bash
+   migration verify-backup BACKUP --restore-test
+   as_account scripts/goodmorning.py memory --secretary-dir $V/secretary --show \
+     | python3 -c 'import json,sys; d=json.load(sys.stdin); print(d["revision"], len(d.get("projects", [])))'
+   ls $V/secretary/projects $V/secretary/projects.json 2>&1 | head -2   # both absent
+   ```
+   Expect the revision and project count the migration printed, then resume the
+   account's website work.
+6. Rollback: `migration restore BACKUP`. It refuses once memory.json changed after
+   the migration (any chat write or evening tidy), profile.md changed, or the
+   backup records an owner this user cannot set, so it never overwrites newer
+   user work; ask the owner then.
+7. Keep the backup until the owner agrees to delete it.
 
 ## Completion and limits
 
