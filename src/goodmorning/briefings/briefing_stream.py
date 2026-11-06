@@ -104,7 +104,7 @@ def publish(runtime, identifier, document=None, plan=None, skip=False, *, positi
             document = previous if skip else document
             if document is None:
                 raise ValueError('Supply the cumulative draft')
-            # A morning headline and opening are filled in once, after the last section.
+            # A v2 greeting and opening are filled in once, after the last section.
             fixed = ('sections', 'closing') + (('greeting', 'opening') if previous['greeting'] == previous['opening'] == '' and len(old['outcomes']) == len(old['plan']) else ())
             if {k: v for k, v in document.items() if k not in fixed} != {k: v for k, v in previous.items() if k not in fixed}:
                 raise ValueError('Published greeting, opening and language cannot change')

@@ -218,7 +218,7 @@ class EveningSectionTests(unittest.TestCase):
 
     def test_section_is_last_copied_unchanged_and_never_skipped(self):
         self.job()
-        result = self.step('init', {'greeting': 'Evening.', 'opening': 'Tonight’s review.'})
+        result = self.step('init', {})
         plan = json.loads((self.root / 'browser-jobs' / ('c' * 32 + '.preview.json')).read_text())['plan']
         self.assertEqual(plan[-1], ['anime', 'New episodes'])
         self.assertEqual(result['next']['section'][0], 'weather')  # Nothing reported: code skips Today.
@@ -240,14 +240,14 @@ class EveningSectionTests(unittest.TestCase):
         with patch('goodmorning.briefings.briefing_images.cache_previews', return_value={}) as covers:
             self.step('publish', {'position': 5, 'section': ['anime', [block], 'A new case for a cosy night!']})
         self.assertTrue(covers.call_args.kwargs['direct'])
-        self.assertEqual(self.step('finish', {})['saved'], True)
+        self.assertEqual(self.step('finish', {'greeting': 'Evening.', 'opening': 'Tonight’s review.'})['saved'], True)
         saved = json.loads((self.root / 'daily' / (DAY + '.gn.json')).read_text())
         self.assertEqual([section[0] for section in saved['sections']], ['weather', 'schedule', 'anime'])
 
     def test_section_is_absent_unless_turned_on(self):
         (self.root / 'profile.md').write_text((self.root / 'profile.md').read_text().replace('anime_updates: "true"', 'anime_updates: "false"'))
         self.job()
-        self.step('init', {'greeting': 'Evening.', 'opening': 'Tonight’s review.'})
+        self.step('init', {})
         plan = json.loads((self.root / 'browser-jobs' / ('c' * 32 + '.preview.json')).read_text())['plan']
         self.assertNotIn('anime', [tag for tag, _ in plan])
 

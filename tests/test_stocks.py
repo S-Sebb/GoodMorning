@@ -282,7 +282,7 @@ class EveningSectionTests(unittest.TestCase):
 
     def test_section_is_last_copied_unchanged_and_never_skipped(self):
         self.job()
-        self.step('init', {'greeting': 'Evening.', 'opening': 'Tonight’s review.'})
+        self.step('init', {})
         plan = json.loads((self.root / 'browser-jobs' / ('c' * 32 + '.preview.json')).read_text())['plan']
         self.assertEqual(plan[-1], ['stocks', 'Stocks'])
         self.step('publish', {'position': 1, 'section': ['weather', [['p', 'Tomorrow’s weather is unavailable.']], '', 'Weather tomorrow']})
@@ -306,12 +306,12 @@ class EveningSectionTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'market overview'):
             self.step('publish', {'position': 5, 'section': ['stocks', [block[:3]], 'Up!']})
         self.step('publish', {'position': 5, 'section': ['stocks', [block], 'A-shares dipped a little; Apple rose on Friday.']})
-        self.assertEqual(self.step('finish', {})['saved'], True)
+        self.assertEqual(self.step('finish', {'greeting': 'Evening.', 'opening': 'Tonight’s review.'})['saved'], True)
 
     def test_section_is_absent_unless_turned_on(self):
         (self.root / 'profile.md').write_text((self.root / 'profile.md').read_text().replace('stock_report: "true"', 'stock_report: "false"'))
         self.job()
-        self.step('init', {'greeting': 'Evening.', 'opening': 'Tonight’s review.'})
+        self.step('init', {})
         plan = json.loads((self.root / 'browser-jobs' / ('c' * 32 + '.preview.json')).read_text())['plan']
         self.assertNotIn('stocks', [tag for tag, _ in plan])
 

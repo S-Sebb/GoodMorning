@@ -73,8 +73,9 @@ write agent-owned cumulative drafts. Check exits and `error`/`next` after every 
 1. **init:** `{"greeting":"…","opening":"…"}`. Optional `lang` must equal the
    pinned language; optional `plan` must equal the default. Greeting/opening remain
    immutable. Keep the opening factual before collection, not a speculative overview.
-   A v2 morning edition submits `{}` instead: its headline and opening are written
-   at finish, and until then the page shows "Preparing today's briefing…".
+   A v2 edition submits `{}` instead: its greeting (the morning headline) and
+   opening are written at finish, and until then the page shows "Preparing
+   today's briefing…" or "Preparing tonight's briefing…".
 2. **publish:** gather only the next section from saved context/returned results,
    follow pages/review requirements, then submit
    `{"position":N,"section":[TYPE,BLOCKS,NOTE?,TITLE?]}`. This notation describes
@@ -88,16 +89,16 @@ write agent-owned cumulative drafts. Check exits and `error`/`next` after every 
    nothing, and an evening Tasks or Reminders position whose read has 0 rows (and
    no errands); the model never receives those positions.
 4. **finish:** `{"closing":"…"}` or `{}` after every position is resolved. A v2
-   morning edition finishes with `{"greeting":"…","opening":"…"}` plus an optional
+   edition finishes with `{"greeting":"…","opening":"…"}` plus an optional
    closing, written from the published sections (`docs/briefing-format.md`).
    Code verifies owner/session/date/edition/exact preview, saves native JSON/run
    marker, and repairs its derived index. A snapshot alone never proves completion.
    New v2 editions copy no tasks to daily checklists. Already-published v1 previews
    may finish under their saved contract, never as new canonical plans.
 
-The evening init receipt, every finish receipt and Sunday's letter read carry `memory`, the note
+Every finish receipt and Sunday's letter read carry `memory`, the note
 the secretary keeps about the user (`docs/workflows/secretary.md`, *Memory*), when
-memory is on and the note has text. Only the evening greeting, the morning opening,
+memory is on and the note has text. Only the evening greeting or opening, the morning opening,
 an optional closing and the letter's sign-off may lightly mention it, and only an
 item the note dates today or tomorrow; the morning headline, sections, notes and
 progress never use it, and it never adds a closing on its own. After an evening save (not a

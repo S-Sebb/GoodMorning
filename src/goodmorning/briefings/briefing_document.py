@@ -289,7 +289,7 @@ HEADLINE_LIMIT = {'en': 60, 'zh-CN': 30}
 
 
 def headline(value, lang):
-    """A new morning greeting is the page's one-line headline. Saved editions keep the 350-character read limit."""
+    """A new greeting is the page's one-line headline. Saved editions keep the 350-character read limit."""
     limit = HEADLINE_LIMIT.get(lang, HEADLINE_LIMIT['en'])
     text(value, 'greeting', limit)
     if '\n' in value:

@@ -16,7 +16,10 @@ today's most important item (a deadline, an appointment or a weather extreme),
 at most 60 characters in English or 30 in Chinese, never a hello, memory or
 filler. Code rejects a longer or multi-line headline when the edition is saved;
 editions saved earlier keep the old 350-character limit. The warm hello and the
-user's name go in `opening`. Evening greetings are unchanged.
+user's name go in `opening`. In an evening edition, `greeting` is a short
+hello in the saved tone under the same one-line limit, and `opening` is one or
+two sentences about tonight, naming what matters most in the published sections
+(never a list of the sections).
 
 Each section is `[type,blocks,note?,title?]`. Omit trailing optional fields.
 Types: `schedule`, `tasks`, `attention`, `today`, `weather`, `news`, plus the

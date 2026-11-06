@@ -119,7 +119,7 @@ class LetterTests(unittest.TestCase):
         return act(self.root, identifier, 'ses_test', action, payload)
 
     def reach_letter(self, identifier='c' * 32):
-        self.step('init', {'greeting': 'Evening.', 'opening': 'Tonight’s review.'}, identifier)
+        self.step('init', {}, identifier)
         self.step('publish', {'position': 1, 'section': ['weather', [['p', 'Tomorrow’s weather is unavailable.']], '', 'Weather tomorrow']}, identifier)
         self.step('publish', {'position': 2, 'section': ['schedule', [['p', 'One appointment tomorrow.']]]}, identifier)
         self.step('skip', {'position': 3}, identifier)
@@ -178,7 +178,7 @@ class LetterTests(unittest.TestCase):
         self.assertEqual(result['next']['results'][0]['output'], {'week': WEEK, 'saved': True, 'counts': [5, 2, 1]})
         self.step('publish', {'position': 5, 'letter': {'opening': 'Rewritten.', 'signoff': 'Bye.'}}, again)
         self.assertEqual((self.root / 'letters' / f'{WEEK}.json').read_text(), before)
-        self.assertTrue(self.step('finish', {}, again)['saved'])
+        self.assertTrue(self.step('finish', {'greeting': 'Evening.', 'opening': 'Tonight’s review.'}, again)['saved'])
         document = json.loads((self.root / 'daily' / f'{SUNDAY}.gn.json').read_text())
         self.assertEqual(document['sections'][-1], ['letter', [['letter', WEEK, [5, 2, 1]]]])
         card = native.render_block(document['sections'][-1][1][0], {}, SUNDAY)
@@ -211,7 +211,7 @@ class LetterTests(unittest.TestCase):
     def test_other_days_carry_no_letter_for_a_new_account_and_the_user_can_turn_it_off(self):
         def plan(identifier, day=SUNDAY):
             self.job(identifier, day)
-            self.step('init', {'greeting': 'Evening.', 'opening': 'Tonight’s review.'}, identifier)
+            self.step('init', {}, identifier)
             return [tag for tag, _ in json.loads((self.root / 'browser-jobs' / (identifier + '.preview.json')).read_text())['plan']]
         self.assertNotIn('letter', plan('a' * 32, '2026-10-24'))
         (self.root / 'profile.md').write_text((self.root / 'profile.md').read_text() + 'weekly_letter: "false"\n')
@@ -221,7 +221,7 @@ class LetterTests(unittest.TestCase):
         (self.root / 'daily' / '2026-10-21.md').write_text('# 2026-10-21\n')  # The account was in use that week.
         self.assertIsNone(letters.due(self.root, SUNDAY, 'gm'))  # The week before was not in use yet.
         self.job(day=MONDAY)
-        self.step('init', {'greeting': 'Evening.', 'opening': 'Tonight’s review.'})
+        self.step('init', {})
         self.step('publish', {'position': 1, 'section': ['weather', [['p', 'Tomorrow’s weather is unavailable.']], '', 'Weather tomorrow']})
         self.step('publish', {'position': 2, 'section': ['schedule', [['p', 'One appointment tomorrow.']]]})
         self.step('skip', {'position': 3})

@@ -826,7 +826,7 @@ class BrowserApp:
                 change['html'] = section_markup(index + 1, native.escaped(title), content, section[0])
             changes.append(change)
         result = {'revision': self.preview_revision(checkpoint, job), 'image_revision': self.image_revision(job), 'resolved': len(outcomes), 'planned': len(plan),
-                  'greeting': document['greeting'] or ui.text('Preparing today’s briefing…', lang=document.get('lang', 'en')),
+                  'greeting': document['greeting'] or ui.text('Preparing tonight’s briefing…' if job['kind'] == 'gn' else 'Preparing today’s briefing…', lang=document.get('lang', 'en')),
                   'opening': document['opening'], 'lang': document.get('lang', 'en'),
                   'changes': changes, 'closing': native.escaped(document.get('closing', ''))}
         if after == -1:
@@ -842,7 +842,7 @@ class BrowserApp:
     def preview_revision(self, checkpoint, job):
         return hashlib.sha256(json.dumps([checkpoint, self.image_revision(job)], ensure_ascii=False, separators=(',', ':')).encode()).hexdigest()[:24]
 
-    def activity(self, identifier, checkpoint):
+    def activity(self, identifier, checkpoint, kind):
         """Label and bar position for the step the job helper last recorded.
         A marker for another section than the preview's next one is stale and ignored."""
         path = self.job_dir / (identifier + '.activity.json')
@@ -857,8 +857,9 @@ class BrowserApp:
             return {'progress': 12, 'progress_cap': 19, 'label': ui.text('Writing your greeting')} if step.get('step') == 'opening' else None
         resolved, planned = len(checkpoint['outcomes']), len(checkpoint['plan'])
         if step.get('step') in ('closing', 'save') and resolved == planned:
-            # A morning headline is still empty here: this step writes it and the opening.
-            closing = 'Writing today’s headline' if checkpoint['document']['greeting'] == '' else 'Writing a closing note'
+            # The greeting is still empty here: this step writes it (the morning headline) and the opening.
+            closing = ('Writing a closing note' if checkpoint['document']['greeting'] != '' else
+                       'Writing your greeting' if kind == 'gn' else 'Writing today’s headline')
             return {'progress': 95, 'progress_cap': 97, 'label': ui.text(closing)} if step['step'] == 'closing' else \
                    {'progress': 97, 'progress_cap': 99, 'label': ui.text('Saving your briefing')}
         if step.get('position') != resolved:
@@ -960,7 +961,7 @@ class BrowserApp:
                               label=f'{resolved} of {planned} sections resolved' if resolved == planned else f'Preparing {checkpoint["plan"][resolved][1]}')
             except (ValueError, OSError, UnicodeError, TypeError, KeyError):
                 result.update(preview_error='The preview is unreadable. Preserve it and inspect the briefing session.')
-        result.update(self.activity(identifier, checkpoint) or {})
+        result.update(self.activity(identifier, checkpoint, job['kind']) or {})
         if job.get('running_at'):
             result['elapsed'] = max(0, int(time.time() - job['running_at']))
         if job.get('session') and self.chamber:
