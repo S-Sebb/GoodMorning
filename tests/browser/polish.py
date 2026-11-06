@@ -24,6 +24,15 @@ BADGE_GLYPHS = '''marker => {
   const pill=marker.getBoundingClientRect();
   return {lines:boxes(marker),pill:{left:pill.left,right:pill.right,top:pill.top,bottom:pill.bottom},date:[...marker.parentElement.childNodes].filter(n=>n!==marker).flatMap(boxes)};
 }'''
+# Words of each tile's date label that break across lines, such as 周 and 二 of 周二 (#282).
+SPLIT_WORDS = '''picker => [...picker.querySelectorAll('[data-ui-date]')].flatMap(label => {
+  const text=label.firstChild, range=document.createRange(), split=[];
+  for (const word of text.data.matchAll(/\\S+/g)) {
+    const tops=new Set([...word[0]].map((_,i)=>{range.setStart(text,word.index+i);range.setEnd(text,word.index+i+1);return Math.round(range.getBoundingClientRect().top);}));
+    if (tops.size>1) split.push(word[0]);
+  }
+  return split.length?[{label:text.data,split}]:[];
+})'''
 
 
 def set_language(page,language):
@@ -34,18 +43,24 @@ def set_language(page,language):
 
 
 def check_today_badge(page):
-    """On a phone, the badge stays on one line and never covers the date, in both languages."""
-    page.set_viewport_size({'width':390,'height':844})
+    """On phones, no date label word wraps, and the badge stays on one line clear of the date, in both languages."""
     try:
         for language in ('zh-CN','en'):
             set_language(page,language)
-            page.evaluate("scrollTo({top:0,behavior:'instant'})")
-            boxes=page.locator('.today-marker').evaluate(BADGE_GLYPHS)
-            b,date=boxes['pill'],boxes['date']
-            assert len({round(line['top']) for line in boxes['lines']})==1,(language,'badge wraps',boxes['lines'])
-            # 1px slack: the pill may touch the date's line box, whose top is font ascent space, not ink.
-            assert date and not any(b['left']<d['right'] and d['left']<b['right'] and b['top']<d['bottom'] and d['top']<b['bottom']-1
-                                    for d in date),(language,'badge covers the date',boxes)
+            # A reload renders the labels on the server, as a saved language does; they are wider than
+            # the ones the language switch formats in the page.
+            page.reload();page.evaluate('document.fonts.ready')
+            for width,height in [(390,844),(320,568)]:
+                page.set_viewport_size({'width':width,'height':height})
+                page.evaluate("scrollTo({top:0,behavior:'instant'})")
+                split=page.locator('.week-picker').evaluate(SPLIT_WORDS)
+                assert not split,(language,width,'date label wraps inside a word',split)
+                boxes=page.locator('.today-marker').evaluate(BADGE_GLYPHS)
+                b,date=boxes['pill'],boxes['date']
+                assert len({round(line['top']) for line in boxes['lines']})==1,(language,width,'badge wraps',boxes['lines'])
+                # 1px slack: the pill may touch the date's line box, whose top is font ascent space, not ink.
+                assert date and not any(b['left']<d['right'] and d['left']<b['right'] and b['top']<d['bottom'] and d['top']<b['bottom']-1
+                                        for d in date),(language,width,'badge covers the date',boxes)
     finally:
         # The language is saved to the account, so later checks and reruns need English back.
         if page.evaluate('document.documentElement.lang')!='en':set_language(page,'en')
@@ -143,9 +158,9 @@ def main():
                 assert page.evaluate('document.documentElement.clientWidth')-box['x']-box['width']>=27
                 if args.artifacts:page.screenshot(path=str(args.artifacts/f'{kind}-centered-button-{width}.png'))
             check_today_badge(page)
-            if args.artifacts:page.locator('.week-picker').screenshot(path=str(args.artifacts/f'{kind}-today-badge-390.png'))
+            if args.artifacts:page.locator('.week-picker').screenshot(path=str(args.artifacts/f'{kind}-today-badge-320.png'))
             assert not errors,errors
-            report.append({'edition':kind,'whole_panel_motion':'stronger fade; stationary glyphs through final frame','hover':checked,'today_badge':'one line, clear of the date at 390 px in zh-CN and en','corner_button':'beside quick chat and centred without it at two desktop widths; hidden on phones','reduced_motion':'pass'})
+            report.append({'edition':kind,'whole_panel_motion':'stronger fade; stationary glyphs through final frame','hover':checked,'today_badge':'date words unbroken; badge on one line, clear of the date at 390 and 320 px in zh-CN and en','corner_button':'beside quick chat and centred without it at two desktop widths; hidden on phones','reduced_motion':'pass'})
             page.close()
         browser.close()
     print(json.dumps(report))
