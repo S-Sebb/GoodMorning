@@ -9,8 +9,7 @@ What it records:
     a weather / news / schedule / tasks / feedback section?
   - Inbox pressure (pending ideas, TODOs and updates, oldest date) so /gm and /gn know
     what to remind without reading the whole inbox.
-   - Project last-update dates and stored calendar counts, so stale
-    projects and calendar drift are visible in one cheap read.
+  - Stored calendar counts, so calendar drift is visible in one cheap read.
 
 Design rule (token discipline): daily files and the calendar database are sources of truth; state.json
 is a derived index. Skills read --check + today's daily file by
@@ -134,7 +133,6 @@ def blank_state() -> dict:
             "last_gm_date": None, "last_gn_date": None, "days": {},
             "history_before": None,
             "inbox": {"pending": 0, "oldest_pending_date": None, "total": 0},
-            "projects": {},
             "calendar": {"total": 0, "custom": 0, "imported": 0}}
 
 
@@ -269,31 +267,6 @@ def scan_inbox(secretary_dir: str) -> dict:
     return {"pending": 0, "oldest_pending_date": None, "total": 0}
 
 
-def scan_projects(secretary_dir: str) -> dict:
-    """name -> last-update date (explicit line wins, else file mtime)."""
-    out: dict[str, dict] = {}
-    pdir = os.path.join(secretary_dir, "projects")
-    try:
-        names = sorted(os.listdir(pdir))
-    except FileNotFoundError:
-        return out
-    for name in names:
-        if not name.endswith(".md"):
-            continue
-        key = name[:-3]
-        path = os.path.join(pdir, name)
-        try:
-            with open(path, encoding="utf-8") as f:
-                text = f.read()
-            mtime = dt.date.fromtimestamp(os.path.getmtime(path)).isoformat()
-        except FileNotFoundError:
-            continue
-        m = re.search(r"(?:last.?update|updated)\s*:\s*(\d{4}-\d{2}-\d{2})",
-                      text, re.I)
-        out[key] = {"last_update": m.group(1) if m else mtime}
-    return out
-
-
 def calendar_stats(secretary_dir: str) -> dict:
     path = str(calendar_path(secretary_dir))
     return read_stats(path)
@@ -378,9 +351,9 @@ def rebuild_index(secretary_dir: str, state: dict, today: str | None = None,
     gn_days = sorted(d for d, v in days.items() if v["gn"]["ran"])
     state["last_gm_date"] = gm_days[-1] if gm_days else None
     state["last_gn_date"] = gn_days[-1] if gn_days else None
+    state.pop("projects", None)  # Indexed legacy projects/*.md records before #290; projects live in memory now.
     if scan_context:
         state["inbox"] = scan_inbox(secretary_dir)
-        state["projects"] = scan_projects(secretary_dir)
         state["calendar"] = calendar_stats(secretary_dir)
     tz = read_profile_timezone(secretary_dir)
     state["timezone"] = tz
@@ -461,9 +434,6 @@ def cmd_check(secretary_dir: str, today: str, as_json: bool, limit: int = 7, off
             "next_offset": page["next_offset"],
             "sections_today": day.get("sections", {k: False for k in SECTION_KEYS}),
             "inbox": state["inbox"],
-            "projects_total": len(state["projects"]),
-            "projects": dict(sorted(state["projects"].items())[offset:offset + limit]),
-            "projects_next_offset": offset + limit if offset + limit < len(state["projects"]) else None,
             "calendar": state["calendar"],
             "answer_cost_7d": c7, "answer_cost_30d": c30,
             "warnings": state["warnings"],
@@ -497,13 +467,6 @@ def cmd_check(secretary_dir: str, today: str, as_json: bool, limit: int = 7, off
               "— remind at /gn, else next /gm.")
     else:
         print("inbox: nothing pending.")
-    if state["projects"]:
-        stale = sorted(n for n, v in state["projects"].items()
-                       if v["last_update"] < today)
-        print(f"projects: {len(state['projects'])} tracked"
-              + (f" | stale (not updated today): {', '.join(stale[:limit])}" if stale else ""))
-    else:
-        print("projects: none registered yet.")
     cal = state["calendar"]
     print(f"calendar: {cal['custom']} custom, {cal['imported']} imported.")
     print(f"answer re-read cost: last 7d ~{c7['tokens_est']} tok "

@@ -32,10 +32,9 @@ project's entry is dropped, with no archive; forgetting a project deletes its en
 only, and its to-dos keep their label. Dated milestones are allowed and drop out
 once past. The morning and evening Tasks note may borrow an entry's wording, never
 its facts. Projects used to be profile lines (`## Project roots`, a name and a
-folder the secretary could not open) and `projects/*.md` records; those stay
-readable and untouched. `deploy/migrate_project_memory.py`, run per account as its
-service user, seeds each legacy root name as an empty entry and can strip the
-folder paths from the profile.
+folder the secretary could not open), `projects/*.md` records and `projects.json`;
+nothing reads them any more. `deploy/migrate_project_memory.py` moves them into
+memory once per account and removes them after a backup (`SERVER-DATA-GUIDE.md`).
 
 ## How it grows
 

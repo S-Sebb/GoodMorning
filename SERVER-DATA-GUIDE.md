@@ -125,6 +125,39 @@ logs from files the account actually needs to read or write.
   Report identifiers/counts and necessary technical paths, never private record
   text, credentials, `.env` contents or raw transcripts.
 
+## One-off migrations
+
+### Legacy projects into memory (#290)
+
+`deploy/migrate_project_memory.py` moves one account's `## Project roots`,
+`projects/*.md` and `projects.json` into memory projects, then removes them.
+Its docstring lists what it changes. Run it from the deployed release
+(`/opt/goodmorning/current`) for each account in turn, as that account's service
+user, with the vault `/srv/goodmorning/live/<ACCOUNT_ID>`:
+
+```bash
+ID=<ACCOUNT_ID>; V=/srv/goodmorning/live/$ID
+as_account() { runuser -u gm_${ID:0:12} -- env HOME=$V/home TMPDIR=$V/tmp \
+  /opt/goodmorning/python/bin/python /opt/goodmorning/current/deploy/migrate_project_memory.py --vault $V "$@"; }
+as_account migrate --dry-run              # counts and a fingerprint; no personal text
+as_account migrate --expect FINGERPRINT   # refuses if anything changed since the dry run
+as_account verify-backup BACKUP --restore-test
+```
+
+- Steps 1–2 above still apply: get the owner's approval for the account, and
+  pause the account's website work so no chat writes memory meanwhile.
+- `no_runtime` (never provisioned), `memory_off` and `nothing_to_migrate` change
+  nothing and exit 0. While memory is off the legacy files stay untouched.
+- The backup is `$V/backups/project-memory-290-<UTC>/`, inside the vault and
+  outside `secretary/`, with `manifest.json` (hashes, sizes, modes, owners,
+  mtimes, memory revision, release). `complete: true` is written last.
+- After an error, run `migrate` again: it checks the backup against its manifest
+  and finishes the removal without seeding twice. It never retries silently.
+- Rollback: `as_account restore BACKUP`. It refuses once memory has a newer
+  revision than the migration's, or profile.md changed, so it never overwrites
+  newer user work; ask the owner then.
+- Keep the backup until the owner agrees to delete it.
+
 ## Completion and limits
 
 Complete means the authorized change and invariants are verified under the actual

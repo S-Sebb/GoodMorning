@@ -145,11 +145,10 @@ class HelpersTests(unittest.TestCase):
         self.assertIsNone(result["paths"]["calendar_db"])
         self.assertIn("calendar_configuration", result)
 
-    def test_prepare_does_not_read_snapshot_bodies_or_scan_unrelated_project_records(self):
+    def test_prepare_does_not_read_snapshot_bodies_or_scan_the_calendar(self):
         from goodmorning.records import state
         self.file(f"# {DAY}\n- gm: no\n")
         with patch.object(state, "stat_answer", side_effect=AssertionError("snapshot body")), \
-             patch.object(state, "scan_projects", side_effect=AssertionError("unrelated project")), \
              patch.object(state, "calendar_stats", side_effect=AssertionError("calendar scan")):
             self.assertTrue(workflow.prepare(self.root, "gm", DAY)["ready"])
 
