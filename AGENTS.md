@@ -25,8 +25,11 @@ copy. A globally loaded skill never changes the browser request's release or run
 
 For `/gm` or `/gn` browser-generation prompts, read no docs before starting. The
 prompt supplies an edition, browser job ID, selected runtime, website language
-and the job's `prepare` receipt, already run for this session. Start with that
-receipt's `next`; do not run `prepare` again or look up the session or files.
+and the job's `prepare` receipt, already run for this session. The receipt holds
+the contract and saved tone (`reply_context`); read no other files for them. Start
+with its `next`: run each `command` as written from this working directory, with
+its `input` JSON on stdin. Do not run `prepare` again, ask for help output, or
+look up the session, files or source.
 Its `contract` and each receipt's `next` (`guide`, `writing`, `read`,
 `command`) are the complete, localized rules for one step at a time; code owns
 the cumulative document, validation and final save. Read the docs a contract
