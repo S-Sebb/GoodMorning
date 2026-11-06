@@ -28,6 +28,7 @@ def check(app, url, shots):
             expect(page.locator('html')).to_have_attribute('lang', language)
             for theme, hour in (('gm', 12), ('gn', 21)):
                 app.now = lambda hour=hour: datetime(2026, 10, 13, hour, tzinfo=timezone.utc)
+                bar = {}  # Phone page-bar item sizes by route and width.
                 for route in ('/gm', '/gn', '/schedule', '/letters', '/chat', '/about-me'):
                     for width in (1440, 820, 390, 320):
                         page.set_viewport_size({'width': width, 'height': 900})
@@ -45,6 +46,25 @@ def check(app, url, shots):
                         assert all(0 <= box['left'] < box['right'] <= width for box in boxes), boxes
                         assert all(a['right'] <= b['left'] + 1 for a, b in zip(boxes, boxes[1:])), boxes
                         assert not page.evaluate('document.documentElement.scrollWidth > innerWidth'), (route, width, language)
+                        if width <= 390:
+                            # The highlight is the ::after pill; each corner of the label's ink box must sit inside its rounded shape.
+                            label = page.locator('.edition-link.selected').evaluate('''el => {
+                                const r = el.getBoundingClientRect(), s = getComputedStyle(el), pill = getComputedStyle(el, '::after'), range = document.createRange();
+                                range.selectNodeContents(document.createTreeWalker(el, NodeFilter.SHOW_TEXT).nextNode());
+                                const lines = [...range.getClientRects()], context = document.createElement('canvas').getContext('2d');
+                                context.font = `${s.fontWeight} ${s.fontSize} ${s.fontFamily}`;
+                                const m = context.measureText(el.textContent.trim()), first = lines[0], baseline = first.top + (first.height - m.fontBoundingBoxAscent - m.fontBoundingBoxDescent) / 2 + m.fontBoundingBoxAscent;
+                                const ink = lines.length === 1 ? {left: first.left, right: first.right, top: baseline - m.actualBoundingBoxAscent, bottom: baseline + m.actualBoundingBoxDescent}
+                                    : {left: Math.min(...lines.map(line => line.left)), right: Math.max(...lines.map(line => line.right)), top: first.top, bottom: lines.at(-1).bottom};
+                                const left = r.left + parseFloat(pill.left), right = r.right - parseFloat(pill.right), top = r.top + parseFloat(pill.top), bottom = r.bottom - parseFloat(pill.bottom);
+                                const radius = Math.min(parseFloat(pill.borderTopLeftRadius), (right - left) / 2, (bottom - top) / 2);
+                                const inside = (x, y) => Math.hypot(x - Math.min(Math.max(x, left + radius), right - radius), y - Math.min(Math.max(y, top + radius), bottom - radius)) <= radius;
+                                return [[ink.left, ink.top], [ink.right, ink.top], [ink.left, ink.bottom], [ink.right, ink.bottom]].every(([x, y]) => inside(x, y));
+                            }''')
+                            assert label, (route, width, language)
+                            bar[route, width] = [(round(box['right'] - box['left']), round(box['bottom'] - box['top'])) for box in boxes]
+                            if route in ('/letters', '/about-me'):
+                                assert bar[route, width] == bar['/gm', width], (route, width, language, bar[route, width], bar['/gm', width])
                         # Header: the wordmark stands alone; Settings is a gear and, while up to date, What's new a sparkle.
                         expect(page.locator('.wordmark > *')).to_have_count(0)
                         settings = page.locator('#prefs-menu > summary')

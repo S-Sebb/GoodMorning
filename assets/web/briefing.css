@@ -620,9 +620,9 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
   /* Narrow bars become full-width dropdown sheets anchored to the row. */
   .toolbar-row .menu { position: static; }
   .toolbar-row .menu-panel { left: 16px; right: 16px; top: auto; width: auto; margin-top: 8px; }
-  .briefing-letter .masthead, .chat-page .masthead { padding: 10px 16px; gap: 8px; align-items: center; }
+  .briefing-letter .masthead, .chat-page .masthead, .about-page .masthead, .letters-page .masthead { padding: 10px 16px; gap: 8px; align-items: center; }
   .briefing-letter .wordmark, .chat-page .wordmark { font-size: 22px; }
-  .briefing-letter .edition-switch, .chat-page .edition-switch { gap: 0; font-size: 11px; justify-content: space-between; }
+  .briefing-letter .edition-switch, .chat-page .edition-switch, .about-page .edition-switch, .letters-page .edition-switch { gap: 0; font-size: 11px; justify-content: space-between; }
   /* Room below the last section for the floating Sections and secretary buttons. */
   .briefing-letter main { padding: 0 16px max(88px, calc(env(safe-area-inset-bottom) + 80px)); }
   .briefing-letter .week-picker { display: flex; gap: 6px; overflow-x: auto; padding: 12px 0 2px; scrollbar-width: none; }
@@ -647,8 +647,8 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
   .briefing-section-nav a { font-size: 12px; padding: 8px 12px; gap: 6px; }
   .briefing-section-nav a .data-icon { width: 16px; height: 16px; }
 }
-/* Six pages share a phone's width: each grows from its label width, and a label wraps under its icon only when the bar is too narrow. */
-@media (max-width: 480px) { .edition-switch .edition-link { flex: 1 1 auto; min-width: 0; flex-direction: column; gap: 3px; padding: 6px 2px; font-size: 11px; white-space: normal; text-align: center; line-height: 1.1; } .edition-link::after { inset: 0; } }
+/* Six pages share a phone's width: each grows from its label width, and a label wraps under its icon only when the bar is too narrow. The selected highlight reaches 4px past its link so its rounded ends clear the label. */
+@media (max-width: 480px) { .edition-switch .edition-link { flex: 1 1 auto; min-width: 0; flex-direction: column; gap: 3px; padding: 6px 2px; font-size: 11px; white-space: normal; text-align: center; line-height: 1.1; } .edition-link::after { inset: 0 -4px; } }
 @media (max-width: 360px) { .edition-switch .edition-link { font-size: 10px; } }
 @media (max-width: 350px) { .briefing-letter .masthead, .chat-page .masthead { display: block; } .briefing-letter .edition-switch, .chat-page .edition-switch { margin-top: 6px; justify-content: flex-start; } .briefing-letter .hero-copy { grid-template-columns: 84px minmax(0, 1fr); gap: 12px; } .briefing-letter h1 { font-size: calc(24px * var(--title-scale)); } }
 @media print { .edition-switch, .menu-panel, .orbit, .briefing-avatar, .reading-progress, footer, .skip-link, .back-to-top, .decision-ask, .idea-actions { display: none; } body { background: white; color: black; } main, .masthead { padding: 0; } .hero { padding: 24px 0; } .briefing-letter .hero-copy { display: block; } .hero-copy > *, .briefing-section.arriving { animation: none; } .briefing-section { border: 0; padding: 0; break-inside: avoid; } .section-body { color: black; } }

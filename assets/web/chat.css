@@ -261,3 +261,5 @@ html[data-edition="gn"] #chat-error { color: #f1b1a8; }
 }
 @media (prefers-reduced-motion: reduce) { .chat-page *, .chat-page *::before { animation: none !important; transition: none !important; scroll-behavior: auto !important; } }
 @media (max-width: 700px) { #chat-scroll { --reply-gutter: 44px; padding: 14px 10px 16px 54px; } .chat-message { max-width: 94%; } .chat-message.user { margin-left: auto; } .reply-portrait { width: 36px; height: 36px; left: -43px; top: 6px; } }
+/* Like the other pages' bars, labels shrink at the narrowest widths so they stay inside their highlight. */
+@media (max-width: 360px) { .chat-page .edition-link { font-size: 10px; } }
