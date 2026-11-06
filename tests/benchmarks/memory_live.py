@@ -135,7 +135,9 @@ def check_chat(scenario, language, runtime, before, result, messages):
     words = ' '.join(after.values()).casefold()
     replies = ' '.join(a for turn in result['turns'] for a in turn['assistant']).casefold()
     marked = any(m.get('kind') == 'action' and m['action']['target'] == 'memory' for m in messages)
-    assert marked == (after != before), 'The memory marker does not match whether the note changed'
+    # The marker follows chat writes, which include project entries; seeding and a to-do's new label leave none.
+    assert marked == bool(memory.load(runtime)['changes']), 'The memory marker does not match whether the chat changed the note'
+    assert after == before or memory.load(runtime)['changes'], 'The note changed without a chat write'
     # Keywords only flag the common wordings; review replies for other promises of later recall or use.
     promises = ('keep it in mind', 'keep that in mind', 'keep this in mind', '记在心里', '我会记得', '我会记住', '我记着', '我会留意')
     assert not [p for p in promises if p in replies], 'The reply promised to remember something later'
