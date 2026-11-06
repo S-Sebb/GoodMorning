@@ -92,6 +92,7 @@ html[data-edition="gn"][data-night-scheme="picnic"] .chat-page, html[data-editio
 html:not([data-edition="gn"])[data-day-scheme]:not([data-day-scheme="classic"]) .account-card { background: var(--surface); border-color: var(--line); }
 html:not([data-edition="gn"])[data-day-scheme]:not([data-day-scheme="classic"]) .account-card .eyebrow,
 html:not([data-edition="gn"])[data-day-scheme]:not([data-day-scheme="classic"]) .account-card a,
+html:not([data-edition="gn"])[data-day-scheme]:not([data-day-scheme="classic"]) .toolbar-row .menu > summary::after,
 html:not([data-edition="gn"])[data-day-scheme]:not([data-day-scheme="classic"]) .menu-panel .language-toolbar label { color: var(--muted); }
 html:not([data-edition="gn"])[data-day-scheme]:not([data-day-scheme="classic"]) .account-card input { background: var(--bubble); border-color: var(--line); color: var(--ink); }
 html:not([data-edition="gn"])[data-day-scheme]:not([data-day-scheme="classic"]) .account-card button { background: var(--accent); color: var(--surface); }
@@ -107,6 +108,7 @@ html:not([data-edition="gn"])[data-day-scheme]:not([data-day-scheme="classic"]) 
 :is(#prefs-menu, #account-menu) .settings-close { display: grid; place-items: center; width: 28px; min-width: 28px; height: 28px; min-height: 28px; padding: 0; border: 0; border-radius: 8px; background: transparent; color: var(--muted, #56746a); }
 :is(#prefs-menu, #account-menu) .settings-close:hover { background: var(--wash, #f2f6f5); }
 .settings-menu-header h2 { display: flex; align-items: center; gap: 7px; font: 600 14px/1.4 ui-sans-serif, system-ui, sans-serif; letter-spacing: 0; margin: 0; }
+.settings-menu-header h2::before { content: "⚙"; font-size: 14px; font-weight: 400; line-height: 1; }
 .settings-menu-header p { font-size: 11px; line-height: 1.5; color: var(--muted, #56746a); margin: 4px 0 0; }
 :is(#prefs-menu, #account-menu) .language-toolbar { display: grid; justify-content: stretch; align-items: stretch; gap: 6px; width: auto; margin: 0; }
 :is(#prefs-menu, #account-menu) .language-toolbar label { font-size: 12px; line-height: 20px; }
@@ -127,6 +129,7 @@ html:not([data-edition="gn"])[data-day-scheme]:not([data-day-scheme="classic"]) 
 :is(#prefs-menu, #account-menu) :is(#app-links, #notification-device-list) li { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: .8rem; }
 :is(#prefs-menu, #account-menu) :is(#app-links, #notification-device-list) li small { display: block; color: var(--muted); }
 :is(#prefs-menu, #account-menu) :is(#app-links, #notification-device-list) li button { width: auto; min-height: 36px; }
+#account-menu .settings-menu-header h2::before { content: none; }
 :is(#prefs-menu, #account-menu) [hidden] { display: none; }
 #account-menu :is(#avatar-settings, #language-form, #app-link-form, #notification-devices, .account-tools) { border-top: 1px solid var(--line, #b4c7c0); padding-top: 14px; }
 :is(#prefs-menu, #account-menu) #notification-kinds { display: grid; gap: 2px; min-width: 0; margin: 4px 0 6px; padding: 0; border: 0; }

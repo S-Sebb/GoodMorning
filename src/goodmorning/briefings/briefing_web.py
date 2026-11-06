@@ -58,9 +58,9 @@ def navigation(number, title, layout, ui_title=False):
 
 def section_markup(number, heading, content, layout, pending=False):
     busy = ' data-pending="true" aria-busy="true"' if pending else ''
-    # The chip row shows the section's icon; the hidden copy lets briefing.js rebuild that row.
+    # briefing.js copies the corner icon into the section's chip.
     return (f'<section id="section-{number}" class="briefing-section {layout}"{busy}><header><h2>{heading}</h2>'
-            f'<span class="section-symbol" hidden>{icon(SYMBOLS.get(layout, "list"))}</span></header><div class="section-body">{content}</div></section>')
+            f'<span class="section-symbol">{icon(SYMBOLS.get(layout, "list"))}</span></header><div class="section-body">{content}</div></section>')
 
 
 # Small scenes for a section being prepared; parts a1–a3 animate only while it is the working section.

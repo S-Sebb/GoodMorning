@@ -53,7 +53,8 @@ def check(app, url, shots, canonical=False):
             expect(day.locator('.schedule-calendar h4')).to_have_count(1 if events else 0)
             expect(day.locator('.schedule-work h4')).to_have_count(1 if tasks else 0)
             expect(day.get_by_text('Nothing saved', exact=True)).to_have_count(0 if events or tasks else 1)
-        expect(page.locator('.schedule-date')).to_have_css('padding-left', '0px')  # No second calendar icon by the heading.
+        # The calendar icon sits beside the heading.
+        assert 'desk-schedule' in page.locator('.schedule-date').evaluate('el => getComputedStyle(el, "::before").backgroundImage')
         # Routine metadata stays in the details menu.
         visible_text = page.locator('main').inner_text()
         assert 'Europe/London' not in visible_text

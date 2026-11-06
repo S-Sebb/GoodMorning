@@ -48,6 +48,11 @@ def check(page, kind, touch, screenshot=None, errors=None):
     assert count > 0
     expect(chips).to_have_count(count)
     assert page.locator('.scroll-map, .section-number').count() == 0
+    # Each section header keeps its corner icon, the same one its chip shows.
+    assert page.evaluate("""() => [...document.querySelectorAll('.briefing-section:not([hidden])')].every(section => {
+      const symbol = section.querySelector(':scope > header > .section-symbol > svg'), box = symbol?.parentElement.getBoundingClientRect();
+      return box && box.width >= 34 && box.right >= section.querySelector('header').getBoundingClientRect().right - 1;
+    })""")
     assert not page.evaluate('document.documentElement.scrollWidth > innerWidth')
     assert page.evaluate("""() => { const main=document.querySelector('main'); const style=getComputedStyle(main);
       return Math.abs(document.querySelector('article').getBoundingClientRect().width -
