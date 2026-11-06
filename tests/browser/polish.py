@@ -15,7 +15,8 @@ CENTERED = '''() => {
 BESIDE_CHAT = '''() => {
   const button=document.querySelector('.back-to-top').getBoundingClientRect();
   const pill=document.querySelector('#quick-chat-launcher').getBoundingClientRect();
-  return Math.abs(button.y+button.height/2-pill.y-pill.height/2)<1&&Math.abs(pill.x-button.right-10)<1;
+  // Stacked above the launcher's right end, so the column reserves only the launcher's width (#284).
+  return Math.abs(pill.right-4-button.right)<1&&button.bottom+8<=pill.top;
 }'''
 # The Today badge's text lines and pill, and the date's text boxes beside it (#258).
 BADGE_GLYPHS = '''marker => {
@@ -160,7 +161,7 @@ def main():
             check_today_badge(page)
             if args.artifacts:page.locator('.week-picker').screenshot(path=str(args.artifacts/f'{kind}-today-badge-320.png'))
             assert not errors,errors
-            report.append({'edition':kind,'whole_panel_motion':'stronger fade; stationary glyphs through final frame','hover':checked,'today_badge':'date words unbroken; badge on one line, clear of the date at 390 and 320 px in zh-CN and en','corner_button':'beside quick chat and centred without it at two desktop widths; hidden on phones','reduced_motion':'pass'})
+            report.append({'edition':kind,'whole_panel_motion':'stronger fade; stationary glyphs through final frame','hover':checked,'today_badge':'date words unbroken; badge on one line, clear of the date at 390 and 320 px in zh-CN and en','corner_button':'above quick chat and centred without it at two desktop widths; hidden on phones','reduced_motion':'pass'})
             page.close()
         browser.close()
     print(json.dumps(report))

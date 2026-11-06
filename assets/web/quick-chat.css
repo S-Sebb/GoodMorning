@@ -4,14 +4,15 @@
 #quick-chat :is(button, a, [tabindex]):focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 /* Back to top shares the launcher's row, starting at the activity card's left edge when that card is open. */
 body:has(#quick-chat-launcher:not([hidden])) .back-to-top { right: calc(max(24px, env(safe-area-inset-right)) + var(--quick-chat-width, 128px) + 10px); bottom: max(28px, calc(env(safe-area-inset-bottom) + 20px)); }
-@media (min-width: 701px) { body:has(#quick-chat-launcher:not([hidden])):has(#account-activity:not([hidden]) #activity-window:not([hidden])) .back-to-top { right: calc(max(24px, env(safe-area-inset-right)) + max(var(--quick-chat-width, 128px) + 10px, 258px)); } }
-/* On desktop the briefing column leaves a fixed corner for that row: a launcher of at most 200px, the 10px gap,
-   48px Back to top and 24px air. Fixed and reserved from first paint, before the script reveals quick chat, so the
-   column never reflows when quick chat appears, the launcher is measured, its font loads, or the panel opens; wide screens
-   whose centred margin fits it keep the usual gutter. */
+@media (min-width: 701px) { body:has(#quick-chat-launcher:not([hidden])):has(#account-activity:not([hidden]) #activity-window:not([hidden])) .back-to-top { right: calc(max(24px, env(safe-area-inset-right)) + max(var(--quick-chat-width, 128px) + 10px, 258px)); bottom: max(28px, calc(env(safe-area-inset-bottom) + 20px)); } }
+/* On desktop Back to top stacks above the launcher's right end (beside the open activity card it stays in the row),
+   so the briefing column leaves a fixed corner only as wide as a launcher of at most 200px plus 24px air. Fixed and
+   reserved from first paint, before the script reveals quick chat, so the column never reflows when quick chat appears,
+   the launcher is measured, its font loads, or the panel opens; wide screens whose centred margin fits it keep the usual gutter. */
 @media (min-width: 701px) {
   #quick-chat #quick-chat-launcher { max-width: 200px; }
-  body:has(#quick-chat) main:has(.briefing-section) { padding-right: max(calc(var(--content-gutter) + var(--safe-right)), calc(max(24px, env(safe-area-inset-right)) + 282px - max(0px, (100% - 1440px) / 2))); }
+  body:has(#quick-chat) main:has(.briefing-section) { padding-right: max(calc(var(--content-gutter) + var(--safe-right)), calc(max(24px, env(safe-area-inset-right)) + 224px - max(0px, (100% - 1440px) / 2))); }
+  body:has(#quick-chat-launcher:not([hidden])) .back-to-top { right: calc(max(24px, env(safe-area-inset-right)) + 4px); bottom: max(92px, calc(env(safe-area-inset-bottom) + 84px)); }
 }
 body:has(#quick-chat:not([hidden])) #account-activity { bottom: max(92px, calc(env(safe-area-inset-bottom) + 84px)); }
 body.quick-chat-open #account-activity { display: none; }
