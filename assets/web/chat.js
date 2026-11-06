@@ -931,9 +931,14 @@ function syncChatAvatar() {
   document.querySelectorAll('.chat-portrait').forEach(portrait => {
     if (portrait.querySelector('img').getAttribute('src') !== source) portrait.querySelector('img').src = source;
   });
+  // The empty conversation shows the same desk scene, still.
+  const scene = figure.querySelector('.avatar-image').getAttribute('src');
+  const empty = document.querySelector('.chat-empty-figure');
+  if (empty.getAttribute('src') !== scene) empty.src = scene;
+  empty.classList.toggle('is-custom', figure.dataset.avatar === 'custom');
 }
 new MutationObserver(syncChatAvatar).observe(document.querySelector('.avatar-display .avatar-image'), {attributes: true, attributeFilter: ['src']});
-new MutationObserver(syncChatAvatar).observe(document.querySelector('.avatar-display'), {attributes: true, attributeFilter: ['data-profile']});
+new MutationObserver(syncChatAvatar).observe(document.querySelector('.avatar-display'), {attributes: true, attributeFilter: ['data-profile', 'data-avatar']});
 syncChatAvatar();
 
 async function pollQueue() {

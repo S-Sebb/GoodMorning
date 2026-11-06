@@ -1013,7 +1013,7 @@ def page(csrf, ready, connected, secretary_name=None, avatar='f1', avatar_urls=N
             '<nav class="edition-switch" aria-label="Your desk"><a class="edition-link" href="/gm">Morning</a>'
             '<a class="edition-link" href="/gn">Evening</a><a class="edition-link" href="/schedule">Schedule</a><a class="edition-link" href="/letters">Letters</a><a class="edition-link selected" href="/chat" aria-current="page">Secretary</a>' + desk_link(profile or {}) + '</nav></header>'
             '<main class="chat-layout"><aside class="conversation-sidebar">'
-            '<div class="secretary-identity"><span class="chat-portrait" aria-hidden="true"><img src="' + html.escape(sources[avatar].get('profile') or sources[avatar].get(avatar_variant(theme)) or '', quote=True) + '" alt=""></span>'
+            '<div class="secretary-identity">' + avatar_widget(avatar, sources, theme=theme) +
             '<h1 id="secretary-heading">' + heading + '</h1>'
              '</div><section id="conversation-history" aria-labelledby="history-heading">'
              '<h2 id="history-heading">History conversations</h2>'
@@ -1038,7 +1038,7 @@ def page(csrf, ready, connected, secretary_name=None, avatar='f1', avatar_urls=N
               '<p>Write naturally; no commands are needed. Enter sends your message; Shift+Enter adds a new line.</p>'
               '<p>Attach files with the paperclip, or paste or drag them in. <span>Up to 50 MB · kept 30 days</span></p></div>'
              '<div id="chat-scroll" role="region" aria-label="Conversation" tabindex="0">'
-             '<div id="chat-empty">' + avatar_widget(avatar, sources, class_name='desk-figure chat-empty-figure', theme=theme).replace('<figure ', '<figure aria-hidden="true" ', 1) +
+             '<div id="chat-empty"><img class="chat-empty-figure" src="' + html.escape(sources[avatar].get(avatar_variant(theme)) or '', quote=True) + '" alt="" width="220" height="220">'
             '<h2 id="chat-welcome"></h2><p id="chat-hint"></p>'
             '<div id="chat-starters"' + ('' if ready else ' hidden') + ' aria-label="Conversation starters">'
              '<button type="button" data-starter>Remind me to…</button><button type="button" data-starter>I had an idea…</button>'

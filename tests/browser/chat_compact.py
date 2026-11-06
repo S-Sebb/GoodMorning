@@ -43,9 +43,11 @@ def check_compact(browser, address, artifacts):
         expect(page.locator('.conversation-sidebar .eyebrow')).to_have_count(0)
         expect(page.locator('#chat-topic-mode')).to_be_hidden()
         expect(page.locator('.chat-topic-hint')).to_have_count(0)
-        expect(page.locator('#chat-empty .chat-empty-figure')).to_have_attribute('aria-hidden', 'true')
-        expect(page.locator('#chat-empty .avatar-image')).to_be_visible()
-        expect(page.locator('.secretary-identity .chat-portrait img')).to_be_visible()
+        # The empty conversation shows the sidebar avatar's desk scene as a decorative image.
+        figure = page.locator('#chat-empty .chat-empty-figure')
+        expect(figure).to_have_attribute('alt', '')
+        page.wait_for_function("() => document.querySelector('.chat-empty-figure').naturalWidth > 0")
+        assert figure.get_attribute('src') == page.locator('.desk-figure .avatar-image').get_attribute('src')
         # The size and keep limits show only beside attached files; the paperclip always describes them.
         assert clip.evaluate("node => document.getElementById(node.getAttribute('aria-describedby')).textContent") == 'Up to 50 MB · kept 30 days'
         assert page.locator('#upload-note').evaluate('node => node.getBoundingClientRect().width') <= 1
@@ -107,7 +109,7 @@ def check_compact(browser, address, artifacts):
                 expect(page.locator('#chat-send')).to_be_in_viewport()
                 aligned = page.evaluate('''() => {
                     const panel=document.querySelector('.conversation-panel').getBoundingClientRect();
-                    const avatar=document.querySelector('.secretary-identity').getBoundingClientRect();
+                    const avatar=document.querySelector('.desk-figure').getBoundingClientRect();
                     const scroll=document.querySelector('#chat-scroll').getBoundingClientRect();
                     const composer=document.querySelector('#chat-compose').getBoundingClientRect();
                     const hist=document.querySelector('#chat-history');
@@ -135,7 +137,7 @@ def check_compact(browser, address, artifacts):
             page.set_viewport_size({'width':width,'height':600})
             expect(page.locator('#chat-send')).to_be_in_viewport()
             short = page.locator('.conversation-panel').bounding_box()
-            avatar = page.locator('.secretary-identity').bounding_box()
+            avatar = page.locator('.desk-figure').bounding_box()
             assert page.evaluate('document.documentElement.scrollHeight-innerHeight')<=1
             assert 100<short['y']<300 and abs(avatar['y']-short['y'])<1, (short,avatar)
             assert short['y']+short['height']<=601, short
