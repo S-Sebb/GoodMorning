@@ -41,13 +41,6 @@ stock_report: ""
 stock_holdings: ""
 weekly_letter: ""
 
-## Project roots
-
-<!-- Add one user-confirmed project per line:
-- Name | folder path
-The secretary keeps notes about these projects; it cannot open the folders.
-Never put passwords or keys here. -->
-
 ## Setup rules
 
 Website Initialize chats ask only their code-led steps (`docs/initialization.md`);

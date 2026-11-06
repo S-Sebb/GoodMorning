@@ -57,8 +57,9 @@ class SetupFlowTests(unittest.TestCase):
         self.assertTrue(setup_flow.consented(self.root), 'an existing profile predates the consent record')
         setup_flow.agree(self.root, CHAT)
         self.assertEqual((self.root / 'profile.md').read_text(), 'city: Leeds\n')
-        for name in ('projects', 'daily', 'calendar.sqlite', 'inbox.sqlite', 'setup-consent.json'):
+        for name in ('daily', 'calendar.sqlite', 'inbox.sqlite', 'setup-consent.json'):
             self.assertTrue((self.root / name).exists(), name)
+        self.assertFalse((self.root / 'projects').exists(), 'projects live in memory, not folders')
 
     def test_a_new_setup_walks_every_step_in_order_and_saves_each_one(self):
         self.ready()

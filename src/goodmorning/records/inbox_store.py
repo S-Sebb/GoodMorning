@@ -183,15 +183,31 @@ class InboxStore:
     def close(self):
         self.db.close()
 
+    def projects(self):
+        """Each to-do project label, by the name its memory entry matches."""
+        if self.version != 2:
+            return {}  # A store from before tasks.
+        from .memory import key
+        return {key(label): label for (label,) in self.db.execute("SELECT DISTINCT json_extract(data,'$.project') FROM tasks") if label and label.strip()}
+
     @contextlib.contextmanager
     def transaction(self):
         self.db.execute("BEGIN IMMEDIATE")
         try:
+            before = self.projects()
             yield
+            new = [label for name, label in self.projects().items() if name not in before]
             self.db.commit()
         except Exception:
             self.db.rollback()
             raise
+        if new:
+            # The first to-do with a project label starts that project's memory entry.
+            from .memory import add_projects
+            try:
+                add_projects(self.directory, new)
+            except (ValueError, OSError):
+                pass  # The to-do is saved; the secretary can still start the entry in chat.
 
     def stats(self):
         row = self.db.execute(f"SELECT COUNT(*) total,COALESCE(SUM({self.active_sql}),0) pending,"

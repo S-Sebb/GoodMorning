@@ -47,10 +47,16 @@ TEXT = {
                   'credentials, other people\'s private details beyond a name and relationship, and health, religion, politics, '
                   'sexuality or money unless the user asked you to remember it. Correct what the user has since said otherwise and '
                   'drop lately items that are over; a lately item about something coming up keeps its calendar date ("the reveal stream on 6 Nov", never only "this Friday") so it is clear when it is over; keep a pattern already in the note unless the user has said otherwise. Put each '
-                  'thing in the one part it fits. Write in second person in the note\'s language, short prose per part, the whole note '
-                  'within 2,000 characters. When something changes, send only the changed parts, each rewritten whole: '
+                  'thing in the one part it fits. `memory.projects` holds one entry per project, named like its to-dos\' project label '
+                  '(activity lines end with [project: NAME]). Rewrite the entry of each project the messages, check-ins or activity tell you '
+                  'something new about: what it is, where it stands and what comes next, within 500 characters, keeping a milestone\'s calendar date '
+                  'and dropping milestones that are past; send null for a project only when the user said it is finished. Never start a project '
+                  'here. Write in second person in the note\'s language, short prose per part, the whole note with its projects '
+                  'within 4,000 characters. When something changes, send only the changed parts and projects, each rewritten whole: '
                   'python scripts/goodmorning.py memory --secretary-dir RUNTIME --write --expect-revision N --input-stdin with '
-                  '{"lately":"…"}, where N is `memory.revision`. Otherwise write nothing. Never mention this tidy to the user. Then: '),
+                  '{"lately":"…","projects":{"NAME":"…"}}, where N is `memory.revision`. Otherwise write nothing. Never mention this tidy to the user. Then: '),
+  'memory_tasks': (' `projects` is your memory note about the user\'s projects. The section note may use an entry only for wording, such as '
+                   'calling a project by what it is for; facts, steps, dates and progress come only from the read.'),
   'regenerating': (' This is an explicitly authorized replacement, not a duplicate run: reuse saved feedback and current records; '
                    'do not replay task, daily, inbox, project or calendar writes, and ask nothing already answered.'),
   'weather': ('On a successful read use one block ["weather",[[type,detail],...]] with types in order temperature, '
@@ -217,9 +223,12 @@ TEXT = {
                   '关于怎么安排和做事的规律放进 likes，生活里的固定节奏放进 life。不要把单条待办、灵感、约定、习惯、截止日期或完成情况抄进笔记：这些由记录保存。'
                   '不要写入你自己对心情或性格的猜测、档案里的信息（称呼、城市、工作时间、职位、领域）、凭据、他人除名字和关系以外的隐私；健康、宗教、政治、性取向或钱财，'
                   '除非用户要求记住。用户后来说法变了的，按新的改；已经过去的 lately 内容删掉；lately 里还没到的事要写上具体日期（如“11月6日的发布会直播”，不要只写“这周五”“下周末”），这样才知道它什么时候过去；笔记里已有的规律，除非用户说过不再如此，否则保留。'
-                  '每件事只放进最合适的一个部分。用第二人称、笔记所用的语言写，每部分是简短的叙述，'
-                  '整份笔记不超过 2000 字。有变化时只提交改动的部分，每部分整段重写：python scripts/goodmorning.py memory --secretary-dir RUNTIME --write '
-                  '--expect-revision N --input-stdin，内容如 {"lately":"……"}，N 是 `memory.revision`。没有变化就什么都不写。不要向用户提起这次整理。然后：'),
+                  '每件事只放进最合适的一个部分。`memory.projects` 是每个项目一条的记录，名字和该项目待办的项目标签一致（activity 行末尾标有 [project: 名字]）。'
+                  '消息、回顾或 activity 里有某个项目的新情况时，整条重写它的记录：这个项目是什么、进展到哪一步、接下来做什么，不超过 500 字；里程碑写上具体日期，'
+                  '已经过去的里程碑删掉；只有用户说项目已经完成时，才把它设为 null。不要在这里新建项目。用第二人称、笔记所用的语言写，每部分是简短的叙述，'
+                  '整份笔记连同项目不超过 4000 字。有变化时只提交改动的部分和项目，每部分整段重写：python scripts/goodmorning.py memory --secretary-dir RUNTIME --write '
+                  '--expect-revision N --input-stdin，内容如 {"lately":"……","projects":{"名字":"……"}}，N 是 `memory.revision`。没有变化就什么都不写。不要向用户提起这次整理。然后：'),
+  'memory_tasks': ' `projects` 是你记下的用户各个项目的情况。章节注记只能借用其中的说法来措辞，例如用项目的用途来称呼它；事实、步骤、日期和进展只能来自读取结果。',
   'regenerating': '这是经明确授权的重新生成，不是重复运行：沿用已保存的反馈和当前记录；不要重放任务、日记、收件箱、项目或日历写入，也不要再问已回答的问题。',
   'weather': ('读取成功时用一个块 ["weather",[[type,detail],...]]，type 依次为 temperature、precipitation、warning（仅适用时）、air。'
               '每张卡片的数值、来源和更新时间由代码根据读取结果填写，不要自己写。detail 是以读取结果为准的简短建议：temperature 的 detail 只写穿衣；'
@@ -342,6 +351,8 @@ def guide(context, action, plan, *, runtime, job, session):
         value = words['shape'] + words.get(tag, '')
     if action.get('memory'):
         value += words['memory_' + ('letter' if tag == 'letter' else action['action']) + ('_gm' if morning and action['action'] == 'finish' else '')]
+    if action.get('projects'):
+        value += words['memory_tasks']
     for token, actual in (('RUNTIME', str(runtime)), ('SESSION', session), ('JOB', job), ('DATE', context['date'])):
         value = value.replace(token, actual)
     return value

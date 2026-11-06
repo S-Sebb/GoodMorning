@@ -64,8 +64,8 @@ create daily clarification tasks, and no workflow installs a scheduler.
    person's role/position is not agreement. Keep proposals out of confirmed plans
    until meaning and external write scope are confirmed. A pending report is not
    permission for project write-back; exact authorized clear updates need no repeat approval.
-4. Perform only agreed scoped writes, preserve unrelated records and update project
-   `last_update`. Mark the entry `confirmed` with its current revision only after
+4. Perform only agreed scoped writes, preserve unrelated records and update the
+   project's memory entry. Mark the entry `confirmed` with its current revision only after
    all agreed updates succeed. Partial/unknown writes keep it pending. No per-edit
    state rebuild. Due questions may appear in Reminders, respecting answers,
    deferrals and future review dates; they do not block unrelated confirmed reporting.

@@ -19,7 +19,7 @@ A website Initialize chat follows its `Setup step:` receipts instead of this
 section (`docs/initialization.md`, Website setup is code-led). This section covers
 preference changes in Secretary chats and setup outside the website.
 
-1. Follow `docs/initialization.md`, `config.example.md` and profile/project templates.
+1. Follow `docs/initialization.md`, `config.example.md` and the profile template.
    Reuse confirmed answers and records. Explicit Initialize reviews all existing
    preferences; missing-setup recovery asks only missing settings. Neither resets data.
    If the user explicitly keeps every saved value and skips blank optional fields,
@@ -44,7 +44,7 @@ preference changes in Secretary chats and setup outside the website.
    Then ask, alone, which public holidays to show (Public holidays in step 4 of
    Normal work); a review shows the saved choice and allows keeping it.
 4. Present one exact storage/access summary before new permissions: Markdown
-   profile/projects/daily history, native JSON briefings, SQLite inbox/calendar/news
+   profile/daily history, native JSON briefings, SQLite inbox/calendar/news
    reports and JSON configuration/index. Reuse consent for its exact scope. No
    credentials in records. Model AQI needs no key; WAQI is optional via
    https://aqicn.org/data-platform/token/ with tokens only in the environment.
@@ -317,7 +317,8 @@ errors, say the release notes cannot be read right now.
 Prepare's `memory.note` is what you have come to know about the user, kept like a
 friend remembers: `life` (their life, people, pets, home, work and interests),
 `likes` (how they like things, including how you work with them) and `lately`
-(what is going on for them now). Briefings and letters use it too, and the user
+(what is going on for them now), plus `projects`, one entry per project they work
+on (step 5). Briefings and letters use it too, and the user
 reads it on the About me page. When `enabled` is false, write nothing; if asked to
 remember something, say memory is off and can be turned on from About me.
 
@@ -355,9 +356,9 @@ remember something, say memory is off and can be turned on from About me.
    item about something coming up keeps its calendar date (“the reveal stream on
    6 Nov”, never only “this Friday”) so it can be dropped once it has passed. Use
    second person (“You have a dog, Mochi.”) in the website language: short prose,
-   never the user's name, at most 2,000 characters for the
-   whole note. Run `memory --secretary-dir RUNTIME --write --expect-revision N
-   --input-stdin` with only the changed parts (`docs/helper-inputs.md`); N comes
+   never the user's name, at most 4,000 characters for the
+   whole note with its projects. Run `memory --secretary-dir RUNTIME --write --expect-revision N
+   --input-stdin` with only the changed parts and projects (`docs/helper-inputs.md`); N comes
    from prepare or your last receipt. On `revision_conflict`, run `memory
    --secretary-dir RUNTIME --show` and write again; on `memory_too_long`, trim and
    write again.
@@ -370,6 +371,23 @@ remember something, say memory is off and can be turned on from About me.
    edit it, forget it or switch memory off, so you cannot promise to keep it in
    mind or use it later. Never call it saving to their profile or records. When asked what you remember, tell them in everyday words and mention
    About me, where they can read and edit the whole note.
+5. **Projects.** Each entry in `memory.projects` is named exactly like its
+   to-dos' `project` label; use that name when you save a to-do for it. Code
+   starts an empty entry when a to-do first carries a new label. Start one
+   yourself only when the user tells you about a project they are working on. In
+   at most 500 characters, an entry says what the project is, where it stands and
+   what comes next; a milestone keeps its calendar date and is dropped once past.
+   When the user tells you about a project's progress, rewrite its entry whole in
+   the same write as the rest (`{"projects":{"NAME":"…"}}`). Single to-dos stay in
+   their records; the entry keeps the stage they belong to. At most 8 projects:
+   - Finished (the user says so): drop the entry with `null`; there is no archive.
+   - Forget: drop the entry the same way; its to-dos keep their label.
+   - Rename: run `task --secretary-dir RUNTIME --rename-project --session SESSION
+     --request-key KEY --input-stdin` with `{"from":"OLD","to":"NEW"}`, which
+     renames the to-dos and the entry together.
+   - `memory_projects_full`: ask which project is finished; write nothing for the
+     new one until the user answers.
+   An entry is never the source of a to-do's facts, dates or progress.
 
 ## Avatar requests only
 

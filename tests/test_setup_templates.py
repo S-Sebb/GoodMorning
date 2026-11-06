@@ -82,9 +82,7 @@ class SetupTemplateTests(unittest.TestCase):
     def test_project_last_update_is_readable(self):
         projects = self.directory / "projects"
         projects.mkdir()
-        template = (ROOT / "templates/project.template.md").read_text()
-        (projects / "example.md").write_text(
-            template.replace('last_update: ""', 'last_update: 2026-10-09'))
+        (projects / "example.md").write_text('# Project record\n\nname: "Example"\nlast_update: 2026-10-09\n')
         self.assertEqual(scan_projects(str(self.directory)),
                          {"example": {"last_update": "2026-10-09"}})
 

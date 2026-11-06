@@ -515,6 +515,38 @@ class TaskStore:
                             (identifier, 'adopt', now, session, encode(payload), key, digest, encode(result)))
             return result
 
+    def rename_project(self, payload, session, key, now):
+        """Give every to-do and capture with one project label the new name, and move the project's memory entry with them."""
+        from .memory import key as same, project_name, rename
+        if not isinstance(payload, dict) or set(payload) != {'from', 'to'}:
+            raise ValueError('invalid_input: supply {"from": the current project name, "to": the new name}')
+        old, new = project_name(payload['from']), project_name(payload['to'])
+        checked(session, 200, False); checked(key, 240, False)
+        digest = hashlib.sha256(encode(['rename-project', payload, session]).encode()).hexdigest()
+        with self.inbox.transaction():
+            previous = self.db.execute('SELECT fingerprint,receipt FROM task_events WHERE request_key=?', (key,)).fetchone()
+            if previous:
+                if previous['fingerprint'] != digest:
+                    raise ValueError('request_conflict: key belongs to different input')
+                return {**json.loads(previous['receipt']), 'replayed': True}
+            if self.db.execute('SELECT 1 FROM events WHERE request_key=?', (key,)).fetchone():
+                raise ValueError('request_conflict: key belongs to capture')
+            renamed = 0
+            for identifier, raw in self.db.execute('SELECT id,data FROM tasks').fetchall():
+                task = json.loads(raw)
+                if task.get('project') and same(task['project']) == same(old) and task['project'] != new:
+                    self.db.execute('UPDATE tasks SET revision=revision+1,updated_at=?,data=? WHERE id=?',
+                                    (now, encode({**task, 'project': new}), identifier))
+                    renamed += 1
+            for identifier, project in self.db.execute("SELECT id,project FROM entries WHERE project!=''").fetchall():
+                if same(project) == same(old) and project != new:
+                    self.db.execute('UPDATE entries SET project=?,revision=revision+1,updated_at=? WHERE id=?', (new, now, identifier))
+            rename(self.inbox.directory, old, new)
+            result = {'saved': True, 'project': new, 'tasks': renamed}
+            self.db.execute('INSERT INTO task_events(item_id,action,at,session,snapshot,request_key,fingerprint,receipt) VALUES (?,?,?,?,?,?,?,?)',
+                            ('project', 'rename-project', now, session, encode(payload), key, digest, encode(result)))
+            return result
+
     def convert(self, runtime, identifier, expected, payload, session, key, now):
         """Persist conversion intent, use stable calendar identity, then finalize the receipt."""
         from goodmorning.calendar.calendar_store import CalendarStore, normalize

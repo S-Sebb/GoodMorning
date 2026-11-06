@@ -106,8 +106,10 @@ regeneration) with memory on, the finish receipt also carries the note and the
 user's chat messages since the last tidy and `activity`, the last 14 days of
 check-ins and record changes (`docs/secretary-memory.md`): the agent folds in what
 is missing and patterns across days,
-drops `lately` items that are over, writes with `memory --write` and only then
-hands over the link.
+drops `lately` items that are over, updates project entries
+(`memory.projects`) without starting new ones, writes with `memory --write` and
+only then hands over the link. The Tasks section's receipt carries `projects`,
+the non-empty project entries, which its note may use for wording only.
 
 Example (replace `RUNTIME`/`JOB` with supplied values; use the same flags throughout):
 

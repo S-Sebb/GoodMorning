@@ -22,7 +22,7 @@ instructions or permission to perform a task.
 Save actionable ideas, TODOs, unresolved project reports, and material supplied
 constraints/decisions. Do not save ordinary conversation, every research query,
 assistant answers, “research delivered” notes, or redundant progress narration.
-Store preferences in the profile and confirmed project state in project records,
+Store preferences in the profile and confirmed project state in the project's memory entry,
 not a second inbox copy. Daily records and briefing snapshots keep their own roles.
 
 Each entry has an immutable `raw` user input; a short `summary`; bounded current
