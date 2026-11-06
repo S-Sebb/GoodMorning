@@ -20,8 +20,8 @@ TEXT = {
     'attribution), grep docs/core-rules.md and docs/item-taxonomy.md for that operation only, then either do the clearly requested, '
     'permitted write or ask with the native question tool and wait. Keep progress in the website language while doing so. Never '
     'inspect files outside this release root and the runtime. Do not publish the affected section or finish while waiting.'),
-  'shape': ('Submit `input` with its placeholders filled: BLOCKS is a list such as [["p","…"]] and NOTE is "" when there is '
-            'none; keep its position, type and title unchanged. Plain text only (no Markdown/HTML). The note is a short grounded takeaway '
+  'shape': ('Submit `input` with its example replaced: `section` is one array [type, BLOCKS, NOTE, title], where BLOCKS is a list '
+            'such as [["p","…"]] and NOTE is "" when there is none; keep its position, type and title unchanged. Plain text only (no Markdown/HTML). The note is a short grounded takeaway '
             'in the saved tone, not a repeat of the cards. `results` holds this section\'s reads, already run for you (command, exit, '
             'output); do not run them again unless this guide says so. Before submitting, check every sentence against `writing`. '),
   'init': ('Submit {"greeting":"…","opening":"…"} (each ≤350 chars, plain text); do not send plan or lang. Greeting is short, '
@@ -185,7 +185,7 @@ TEXT = {
     '例外通道：如果用户保存的反馈里有任何指南未覆盖的内容（新待办、灵感、更正、归属不清），只为该操作在 docs/core-rules.md 和 '
     'docs/item-taxonomy.md 中 grep 相关规则，然后执行明确要求且允许的写入，或用原生提问工具询问并等待。期间的进度说明仍用简体中文。'
     '不要查看本发布目录和运行目录之外的文件。等待期间不要发布受影响的章节或调用 finish。'),
-  'shape': ('提交填好占位符的 `input`：BLOCKS 是块的列表，例如 [["p","……"]]；没有注记时 NOTE 填 ""；不要改动其中的位置、类型和标题。'
+  'shape': ('提交替换掉示例内容的 `input`：`section` 是一个数组 [type, BLOCKS, NOTE, title]，其中 BLOCKS 是块的列表，例如 [["p","……"]]；没有注记时 NOTE 填 ""；不要改动其中的位置、类型和标题。'
             '只用纯文本（不用 Markdown/HTML）。注记是用保存语气写的简短、有依据的要点，不要复述卡片。`results` 里是本章节已替你运行好的读取结果（command、exit、output）；除非本指南要求，不要再次运行。'
             '提交前逐句对照 `writing` 检查。'),
   'init': ('提交 {"greeting":"…","opening":"…"}（各不超过 350 字，纯文本），不要传 plan 或 lang。问候简短、符合保存的语气；若 `reply_context.user_name` 有值，问候里可以原样用这个称呼，也可以不称呼；整份简报只有问候可以出现这个称呼，开场、注记和进度里都不要用。'

@@ -11,6 +11,12 @@ CENTERED = '''() => {
   const safe=parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--safe-right'))||0;
   return Math.abs(button.x+button.width/2-(edge+document.documentElement.clientWidth-safe)/2)<1;
 }'''
+# With quick chat shown, the button joins the launcher's row, 10px to its left (#63).
+BESIDE_CHAT = '''() => {
+  const button=document.querySelector('.back-to-top').getBoundingClientRect();
+  const pill=document.querySelector('#quick-chat-launcher').getBoundingClientRect();
+  return Math.abs(button.y+button.height/2-pill.y-pill.height/2)<1&&Math.abs(pill.x-button.right-10)<1;
+}'''
 
 
 def main():
@@ -81,20 +87,31 @@ def main():
             for width,height in [(1440,1000),(1920,1080),(390,844),(320,568)]:
                 page.set_viewport_size({'width':width,'height':height})
                 page.evaluate("scrollTo({top:document.documentElement.scrollHeight,behavior:'instant'})")
-                page.wait_for_function(CENTERED)
+                if width<=700:
+                    # Phones offer Back to top in the section picker instead of a floating button.
+                    expect(page.locator('.back-to-top')).to_be_hidden();continue
+                expect(page.locator('#quick-chat-launcher')).to_be_visible()
+                page.wait_for_function(BESIDE_CHAT)
                 expect(page.locator('.back-to-top')).to_be_visible()
+                assert not page.evaluate('document.documentElement.scrollWidth>innerWidth')
+                assert page.locator('.briefing-section').evaluate_all("els=>els.every(el=>getComputedStyle(el).animationName==='none')")
+                if args.artifacts:page.screenshot(path=str(args.artifacts/f'{kind}-corner-button-{width}.png'))
+                page.evaluate("scrollTo({top:0,behavior:'instant'})")
+                expect(page.locator('.today-marker')).to_be_visible()
+                if args.artifacts and width<=390:page.screenshot(path=str(args.artifacts/f'{kind}-today-{width}.png'))
+            # Without quick chat, the button centres in the content gutter beside the sections.
+            page.locator('#quick-chat-launcher').evaluate('el=>el.hidden=true')
+            for width,height in [(1440,1000),(1920,1080)]:
+                page.set_viewport_size({'width':width,'height':height})
+                page.evaluate("scrollTo({top:document.documentElement.scrollHeight,behavior:'instant'})")
+                page.wait_for_function(CENTERED)
                 box=page.locator('.back-to-top').bounding_box()
                 edge=page.locator('.briefing-section').first.bounding_box()
                 assert box['x']>=edge['x']+edge['width']+20
                 assert page.evaluate('document.documentElement.clientWidth')-box['x']-box['width']>=27
-                assert not page.evaluate('document.documentElement.scrollWidth>innerWidth')
-                assert page.locator('.briefing-section').evaluate_all("els=>els.every(el=>getComputedStyle(el).animationName==='none')")
                 if args.artifacts:page.screenshot(path=str(args.artifacts/f'{kind}-centered-button-{width}.png'))
-                page.evaluate("scrollTo({top:0,behavior:'instant'})")
-                expect(page.locator('.today-marker')).to_be_visible()
-                if args.artifacts and width<=390:page.screenshot(path=str(args.artifacts/f'{kind}-today-{width}.png'))
             assert not errors,errors
-            report.append({'edition':kind,'whole_panel_motion':'stronger fade; stationary glyphs through final frame','hover':checked,'today_badge':'pass','centered_button':'four viewport widths','reduced_motion':'pass'})
+            report.append({'edition':kind,'whole_panel_motion':'stronger fade; stationary glyphs through final frame','hover':checked,'today_badge':'pass','corner_button':'beside quick chat and centred without it at two desktop widths; hidden on phones','reduced_motion':'pass'})
             page.close()
         browser.close()
     print(json.dumps(report))

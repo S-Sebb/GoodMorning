@@ -175,7 +175,7 @@ def run(artifacts):
                         expect(page.locator('.preview-notice')).to_have_count(0)
                         expect(page.locator('.briefing-section')).to_have_count(len(document['sections']))
                         expect(page.locator('.flexible-schedule')).to_contain_text('Synthetic untimed work')
-                        expect(page.locator('.scroll-chunk')).to_have_count(len(document['sections']))
+                        expect(page.locator('.briefing-section-nav a')).to_have_count(len(document['sections']))
                         assert not (root / 'browser-jobs' / (job + '.preview.json')).exists()
                         assert len(json.loads((root / 'browser-jobs/jobs.json').read_text())) == 1
                         assert not (root / 'browser').exists()

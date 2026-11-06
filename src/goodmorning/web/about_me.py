@@ -87,7 +87,8 @@ def portrait(app):
 
 def chat(app, fields, starter):
     picture = portrait(app)
-    return ('<a class="about-chat" href="/chat" data-quick-ask="' + html.escape(starter, quote=True) + '">'
+    return ('<a class="about-chat" href="/chat" data-quick-ask-prefill data-quick-ask="'
+            + html.escape(starter, quote=True) + '">'
             + (f'<img src="{html.escape(picture, quote=True)}" alt="" width="24" height="24">' if picture else '')
             + say(fields, 'Ask {name} to change this') + '</a>')
 
@@ -97,11 +98,11 @@ def value(fields, text):
             else '<span class="about-empty">' + say(fields, '{name} doesn’t know yet') + '</span>')
 
 
-def row(label, content, action='', key=None):
-    """One labelled line; `label` is already rendered interface text."""
+def row(label, content, action='', key=None, below=''):
+    """One labelled line; `label` is already rendered interface text, `below` a full-width part under it."""
     field, label_id = (f' data-field="{key}"', f' id="about-label-{key}"') if key else ('', '')
     return (f'<div class="about-row"{field}><dt{label_id}>{label}</dt><dd class="about-content">{content}</dd>'
-            f'<dd class="about-action">{action}</dd></div>')
+            f'<dd class="about-action">{action}</dd>{below}</div>')
 
 
 def text_row(fields, key):
@@ -200,15 +201,31 @@ def extras_state(runtime, fields):
     except games.GameError:
         pass
     try:
-        held = stocks.holdings(fields.get('stock_holdings', ''))
-        state['stock_report'] = ['<br>'.join(
-            f'<span data-content>{html.escape(symbol)}</span> · ' + count('1 share', '{count} shares', shares)
-            + (' · ' + ui.ui('cost {price}', price=('$' if symbol.startswith('us') else '¥') + f'{cost:,.2f}') if cost else '')
-            for symbol, (shares, cost, _) in held.items())]
+        state['stock_report'] = holdings_table(stocks.holdings(fields.get('stock_holdings', '')), stocks.saved_names(runtime))
     except stocks.StockError:
         pass
     state['weekly_letter'] = [ui.ui('Written with Sunday’s evening briefing')]
     return state
+
+
+SHOWN_HOLDINGS = 5
+
+
+def holdings_table(held, names):
+    """Name over code, shares and cost per holding; rows past the first few wait behind Show all."""
+    rows = []
+    for position, (symbol, (shares, cost, _)) in enumerate(held.items()):
+        code = f'<span class="about-code">{html.escape(symbol[2:])}</span>'
+        name = names.get(symbol)
+        holding = f'<span data-content>{html.escape(name)}</span>{code}' if name else code
+        price = (('$' if symbol.startswith('us') else '¥') + f'{cost:,.2f}') if cost else ''
+        rows.append(f'<tr{" hidden" if position >= SHOWN_HOLDINGS else ""}><th scope="row">{holding}</th>'
+                    f'<td>{shares:,}</td><td>{price}</td></tr>')
+    more = len(held) - SHOWN_HOLDINGS
+    toggle = ('<button class="about-more" type="button" aria-expanded="false"><span class="about-all">' + ui.ui('Show all ({count})', count=len(held))
+              + '</span><span class="about-fewer">' + ui.ui('Show fewer') + '</span></button>' if more > 0 else '')
+    return ('<dd class="about-holdings"><table><thead><tr><th scope="col">' + ui.ui('Holding') + '</th><th scope="col">'
+            + ui.ui('Shares') + '</th><th scope="col">' + ui.ui('Cost') + f'</th></tr></thead><tbody>{"".join(rows)}</tbody></table>{toggle}</dd>')
 
 
 def switch(key, on):
@@ -226,8 +243,10 @@ def extras(app, fields):
                                 ('stock_report', 'Stocks', 'I’d like to update my stocks.'),
                                 ('weekly_letter', 'Weekly letter', None)):
         details = state.get(key)
-        content = (switch(key, on[key]) + '<span class="about-details">' + ' · '.join(details) + '</span>') if details else value(fields, '')
-        rows.append(row(ui.ui(label), content, chat(app, fields, starter) if starter else '', key))
+        # Stocks get their own table under the row; the other extras fit on one line.
+        table = details if key == 'stock_report' else ''
+        content = (switch(key, on[key]) + ('' if table else '<span class="about-details">' + ' · '.join(details) + '</span>')) if details else value(fields, '')
+        rows.append(row(ui.ui(label), content, chat(app, fields, starter) if starter else '', key, table))
     return section('extras', ui.ui('Evening extras'), rows, ui.ui('Little treats at the end of your evening briefing.'),
                    say(fields, 'Switching one off keeps its settings, so you can turn it back on anytime. To start a new one, ask {name}.'))
 

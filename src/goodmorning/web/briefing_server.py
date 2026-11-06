@@ -19,7 +19,7 @@ from urllib.parse import urlsplit, quote, parse_qs, urlencode
 from urllib.request import Request, build_opener, HTTPRedirectHandler
 
 from goodmorning.briefings.briefing_day import briefing_day
-from goodmorning.briefings.briefing_web import ASSETS, KINDS, build, celestial, edition, preview_shell, secretary_name, section_markup, navigation
+from goodmorning.briefings.briefing_web import ASSETS, KINDS, build, celestial, edition, preview_shell, section_markup
 from .briefing_resources import ByteCache, Resources, accepts_gzip, favicon_links
 from goodmorning.briefings.briefing_images import checked_image, small_preview, cached_previews
 from goodmorning.briefings.briefing_document import source_path
@@ -289,41 +289,15 @@ class BrowserApp:
         questions = '<div id="agent-questions"></div>'
         if questions in text and '<article' in text:
             text = text.replace(questions, '', 1)
-            text = re.sub(r'<article\b', questions + '<article', text, count=1)
-        links = []
-        layouts = {}
-        for section_match in re.finditer(r'<section id="section-(\d+)" class="briefing-section ([^"]+)"', text):
-            layouts[section_match.group(1)] = section_match.group(2).split()[0] if section_match.group(2).strip() else 'notes'
-        symbols = {'weather': 'sun', 'news': 'news', 'schedule': 'calendar',
-                   'must-do': 'check', 'nice-to-do': 'list', 'reminders': 'bell', 'tomorrow': 'calendar',
-                   'today': 'sun', 'still-open': 'list', 'tasks': 'check', 'attention': 'bell'}
-        from goodmorning.briefings.briefing_layout import icon as section_icon
-        for match in re.finditer(r'<a class="scroll-chunk" href="(#section-(\d+))"([^>]*)>', text):
-            label = re.search(r'aria-label="\d+: ([^"]+)"', match.group(3))
-            if not label:
-                continue
-            full = html.unescape(label.group(1))
-            base, iso = native.split_dated_title(full)
-            number = match.group(2)
-            layout = layouts.get(number, 'notes')
-            symbol = symbols.get(layout, 'list')
-            if iso:
-                human = native.humanize_iso_date(iso)
-                visible = (section_icon(symbol) + '<span class="nav-label" data-content>' + html.escape(base) + '</span>' +
-                           ' <span class="nav-date" data-date="' + html.escape(iso, quote=True) + '" data-content>· ' + html.escape(human) + '</span>')
-                links.append(f'<a href="{match.group(1)}" data-layout="{html.escape(layout, quote=True)}" aria-label="{html.escape(full, quote=True)}" data-content>{visible}</a>')
-            else:
-                visible = section_icon(symbol) + '<span class="nav-label" data-content>' + html.escape(base) + '</span>'
-                links.append(f'<a href="{match.group(1)}" data-layout="{html.escape(layout, quote=True)}" data-content>{visible}</a>')
-        navigation = '<nav class="briefing-section-nav" aria-label="Briefing sections">' + ''.join(links) + '</nav>'
-        text = re.sub(r'<article\b', navigation + '<article', text, count=1)
+            text = re.sub(r'<nav class="briefing-section-nav"', questions + '<nav class="briefing-section-nav"', text, count=1)
         text = text.replace('</head>', '<link rel="stylesheet" href="/avatar.css"></head>')
         text = text.replace('</body>', '<script src="/avatar.js" defer></script></body>')
         picker = ('<button id="mobile-sections" type="button" hidden aria-controls="mobile-section-dialog" aria-expanded="false" aria-label="Browse sections">'
                   '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" aria-hidden="true"><path d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg><span>Sections</span></button>'
                   '<dialog id="mobile-section-dialog" aria-labelledby="mobile-section-heading"><header><h2 id="mobile-section-heading">Briefing sections</h2>'
                   '<button id="close-sections" type="button" aria-label="Close sections"><svg viewBox="0 0 20 20" width="20" height="20" fill="none" aria-hidden="true"><path d="m6 6 8 8m0-8-8 8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></button></header>'
-                  '<nav id="mobile-section-list" aria-label="Briefing sections"></nav></dialog>')
+                  '<nav id="mobile-section-list" aria-label="Briefing sections"></nav>'
+                  '<a id="sections-top" href="#page-top"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 11 6-6 6 6M12 5v14"/></svg><span>Back to top</span></a></dialog>')
         text = text.replace('</body>', picker + '</body>')
         return text
 
@@ -374,7 +348,8 @@ class BrowserApp:
             link = f'/{kind}' if day == today else f'/d/{day}/{kind}'
             marker = '<span class="today-marker">Today</span>' if day == today else ''
             missing = '' if ready else ' class="is-missing"'
-            days.append(f'<a href="{link}"{missing}{selected}>{marker}{label}<small>{"Saved" if ready else "Not generated"}</small></a>')
+            # Saved is the usual case; only a missing day says so.
+            days.append(f'<a href="{link}"{missing}{selected}>{marker}{label}{"" if ready else "<small>Not generated</small>"}</a>')
         return '<nav class="week-picker" aria-label="Past seven briefing days">' + ''.join(days) + '</nav>'
 
     def files(self, date, kind):
@@ -387,7 +362,7 @@ class BrowserApp:
         manifest = self.runtime / 'browser-images' / date / 'manifest.json'
         if manifest.is_symlink() or manifest.parent.is_symlink():
             raise ValueError('Unsafe image manifest')
-        signature += (self.file_signature(manifest), secretary_name(self.runtime))  # The byline names the secretary.
+        signature += (self.file_signature(manifest),)
         with self.lock:
             key = date, kind, ui.current()
             cached = self.cache.get(key)
@@ -452,7 +427,7 @@ class BrowserApp:
         if confirmed:
             manifest = self.runtime / 'browser-images' / date / 'manifest.json'
             if manifest.parent.is_symlink():raise ValueError('Unsafe image manifest')
-            page_signature = self.file_signature(path), self.file_signature(manifest), week, VERSION, avatar, json.dumps(self.avatar_sources(), sort_keys=True), secretary_name(self.runtime), self.profile().get('gender'), current_job and (current_job['id'], current_job['state'])
+            page_signature = self.file_signature(path), self.file_signature(manifest), week, VERSION, avatar, json.dumps(self.avatar_sources(), sort_keys=True), self.profile().get('secretary_name'), self.profile().get('gender'), current_job and (current_job['id'], current_job['state'])
             with self.lock:
                 cached = self.pages.get(page_key)
                 if cached and cached[0] == page_signature:return cached[1]
@@ -481,7 +456,7 @@ class BrowserApp:
             if (current and self.chamber) or date + '.' + kind in self.jobs:
                 controls = re.search(r'<div id="generation".*?</noscript>', text)[0]
                 document = {'v': 1, 'greeting': heading, 'opening': detail, 'sections': []}
-                text = edition(document, date, kind, KINDS, preview_plan=DEFAULT_PLANS[kind],ui_intro=True, secretary=secretary_name(self.runtime))
+                text = edition(document, date, kind, KINDS, preview_plan=DEFAULT_PLANS[kind],ui_intro=True)
                 text = text.replace('<main id="content">', '<main id="content">' + week)
                 text = re.sub(r'<nav class="edition-switch"[^>]*>.*?</nav>', '<nav class="edition-switch" aria-label="Edition">' + switches + '</nav>', text)
                 text = re.sub(r'<div class="briefing-tools">.*?</div>', '<section class="generation-desk">' + button + controls + '<p class="preview-notice">Unfinished preview · sections appear here as they are prepared. Nothing is saved yet.</p></section>', text)
@@ -828,14 +803,13 @@ class BrowserApp:
                 content = ''.join(native.render_block(value, images, job['date']) for value in section[1])
                 if len(section) >= 3 and section[2]:
                     content += '<p class="section-takeaway">' + native.escaped(section[2]) + '</p>'
-                change.update(html=section_markup(index + 1, native.escaped(title), content, section[0]),
-                              navigation=navigation(index + 1, title, content, job['kind']))
+                change['html'] = section_markup(index + 1, native.escaped(title), content, section[0])
             changes.append(change)
         result = {'revision': self.preview_revision(checkpoint, job), 'image_revision': self.image_revision(job), 'resolved': len(outcomes), 'planned': len(plan),
                   'greeting': document['greeting'], 'opening': document['opening'], 'lang': document.get('lang', 'en'),
                   'changes': changes, 'closing': native.escaped(document.get('closing', ''))}
         if after == -1:
-            result['sections'], result['navigation'] = preview_shell(plan, job['kind'])
+            result['sections'] = preview_shell(plan)
         return result
 
     def image_revision(self, job):

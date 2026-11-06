@@ -48,7 +48,7 @@ class DocumentTests(unittest.TestCase):
             expected = [doc['greeting'], doc['opening'], doc['closing']]
             urls = []
             for section in doc['sections']:
-                expected.append(native.section_title(section, sample['date']))
+                expected.extend(part for part in native.split_dated_title(native.section_title(section, sample['date'])) if part)
                 if len(section) >= 3: expected.append(section[2])
                 for value in section[1]:
                     tag = value[0]
@@ -84,7 +84,8 @@ class DocumentTests(unittest.TestCase):
         for kind in ('gm','gn'):
             page=web.edition(doc,'2026-10-11',kind,{kind:True})
             self.assertEqual(page.count('class="agenda-day"'),2)
-            self.assertIn('>Tomorrow</bdi> — <span lang="en" data-ui-full-date="2026-10-12">Monday, October 12</span>',page)
+            # Tomorrow shows no date beside it, but screen readers still hear it.
+            self.assertIn('>Tomorrow</bdi><span class="visually-hidden">, <span lang="en" data-ui-full-date="2026-10-12">Monday, October 12</span></span>',page)
             self.assertIn('Tuesday, October 13',page)
             self.assertEqual(page.count('class="agenda-event"'),3)
             self.assertLess(page.index('<h4>First'),page.index('<h4>Second'))
@@ -92,16 +93,16 @@ class DocumentTests(unittest.TestCase):
         self.assertEqual(doc,original)
 
     def test_agenda_relative_day_is_pinned_and_legacy_date_text_is_not_guessed(self):
-        value=['agenda',[[day,'09:00','Event','',''] for day in ('2026-12-31','2027-01-01','Date TBC','<script>unsafe</script>','')]]
+        value=['agenda',[[day,'09:00','Event','',''] for day in ('2026-12-31','2027-01-01','2027-01-04','Date TBC','<script>unsafe</script>','')]]
         page=native.render_block(value,{},'2026-12-31')
-        self.assertIn('>Today</bdi>',page)
-        self.assertIn('>Tomorrow</bdi>',page)
-        self.assertIn('data-ui-year>Friday, January 1, 2027',page)  # Another year is named.
+        self.assertIn('>Today</bdi><span class="visually-hidden">',page)
+        self.assertIn('>Tomorrow</bdi><span class="visually-hidden">',page)
+        self.assertIn('data-ui-year>Monday, January 4, 2027',page)  # Another year is named.
         self.assertIn('Date TBC',page)
         self.assertNotIn('<script>unsafe',page)
-        self.assertEqual(page.count('data-ui-full-date='),2)
-        self.assertEqual(page.count('<ol class="agenda-events">'),5)
-        self.assertEqual(page.count('</ol>'),5)
+        self.assertEqual(page.count('data-ui-full-date='),3)
+        self.assertEqual(page.count('<ol class="agenda-events">'),6)
+        self.assertEqual(page.count('</ol>'),6)
 
     def test_flexible_work_renders_without_timed_events_and_preserves_dates_and_status(self):
         from goodmorning.web import language as ui
@@ -257,15 +258,14 @@ class DocumentTests(unittest.TestCase):
         page = web.edition(native.parse(native.encode(doc)), DATE, 'gm', {'gm': True})
         for value in ('Dry until 21:00', 'Then rain likely · up to 80%', 'High · low 10°', 'AQI 30 through the day',
                       '07:36', '17:53', 'This afternoon', 'wx-chart temperature', 'wx-chart precipitation', 'wx-chart air',
-                      'href="https://open-meteo.com/en/docs?latitude=1#api_response"', 'aria-label="Air quality source: CAMS"'):
+                      'href="https://open-meteo.com/en/docs?latitude=1#api_response"', 'aria-label="Air quality source: CAMS"',
+                      'class="aqi-dot aqi-0"'):
             self.assertIn(value, page)
         self.assertNotIn('style=', page.split('weather-tiles', 1)[1].split('</section>', 1)[0])  # The page CSP blocks inline styles.
         weather[2] = self.weather_frame(start='2034-03-17T18:00', past=5, air=None)
         page = web.edition(native.parse(native.encode(doc)), DATE, 'gm', {'gm': True})
         for value in ('Dry until 09:00', 'Overnight', 'Sat morning'):
             self.assertIn(value, page)
-        excerpt = page.split('class="preview-excerpt" data-content>', 1)[1].split('</span>', 1)[0]
-        self.assertTrue(excerpt.startswith('Temperature 14° High · low 11° London'), excerpt[:80])
         self.assertNotIn('wx-chart air', page)
         self.assertNotIn('Air quality source', page)
 
@@ -306,7 +306,7 @@ class DocumentTests(unittest.TestCase):
         page = web.edition(doc, DATE, 'gm', {'gm': True})
         self.assertIn('First note.', page)
         self.assertIn('Second note.', page)
-        self.assertEqual(page.count('class="scroll-chunk"'), 2)
+        self.assertEqual(page.count('href="#section-'), 2)
 
     def test_done_is_distinct_from_partial_and_blocked(self):
         doc = document('gn')
@@ -418,7 +418,6 @@ class SaveAndViewTests(unittest.TestCase):
         try:page=app.preview(identifier)['changes'][0]['html']
         finally:ui.CURRENT.reset(token)
         self.assertIn('>明天</bdi>',page)
-        self.assertIn('3月18日 周六',page)
         self.assertIn('Preserved event',page)
 
     def test_validation_failure_does_not_save_or_mark(self):

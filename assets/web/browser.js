@@ -91,7 +91,6 @@ async function updatePreview(state) {
   if (!article) return;
   if (resolvedSections === -1) {
     article.replaceChildren(fragment(preview.sections));
-    document.querySelector('.scroll-track').replaceChildren(fragment(preview.navigation));
     document.querySelector('h1').textContent = preview.greeting;
     document.querySelector('.subtitle').textContent = preview.opening;
     document.querySelector('h1').removeAttribute('data-ui-language');
@@ -102,17 +101,14 @@ async function updatePreview(state) {
   }
   for (const change of preview.changes) {
     const section = document.querySelector(`#section-${change.index + 1}`);
-    const segment = document.querySelector(`.scroll-chunk[href="#section-${change.index + 1}"]`).parentElement;
     if (change.state === 'skipped') {
       section.hidden = true;
       if (section.parentElement.classList.contains('section-entry')) section.parentElement.hidden = true;
-      segment.hidden = true;
     } else {
       const ready = fragment(change.html).firstElementChild;
       section.replaceChildren(...ready.childNodes);
       section.className = ready.className + (change.index >= resolvedSections ? ' arriving' : '');
       section.removeAttribute('data-pending'); section.removeAttribute('aria-busy');
-      segment.replaceWith(fragment(change.navigation));
     }
   }
   if (preview.closing && !article.querySelector('.briefing-closing')) {
