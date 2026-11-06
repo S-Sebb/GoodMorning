@@ -81,6 +81,9 @@ def main():
             for width,height in [(1440,1000),(1920,1080),(390,844),(320,568)]:
                 page.set_viewport_size({'width':width,'height':height})
                 page.evaluate("scrollTo({top:document.documentElement.scrollHeight,behavior:'instant'})")
+                if width<=700:
+                    # Phones offer Back to top in the section picker instead of a floating button.
+                    expect(page.locator('.back-to-top')).to_be_hidden();continue
                 page.wait_for_function(CENTERED)
                 expect(page.locator('.back-to-top')).to_be_visible()
                 box=page.locator('.back-to-top').bounding_box()

@@ -582,14 +582,15 @@
   });
 
   // Review links open this panel and send their starter line straight away, keeping any draft in the composer.
-  // While a message cannot be sent, the line waits in an empty composer instead.
+  // While a message cannot be sent, or the link is marked prefill (About me edits need the user's new value),
+  // the line waits in an empty composer instead.
   document.addEventListener('click', event => {
     const link = event.target.closest?.('[data-quick-ask]');
     if (!link || !ready || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
     event.preventDefault();
     const starter = t(link.dataset.quickAsk, {title: link.dataset.quickAskTitle || ''});
     (open ? Promise.resolve() : openWindow()).then(() => {
-      if (canSend()) return send(starter, [], false);
+      if (canSend() && !('quickAskPrefill' in link.dataset)) return send(starter, [], false);
       if (!textBox.value.trim()) { textBox.value = starter; resizeComposer(); showStatus(); }
       textBox.focus({preventScroll: true});
     });

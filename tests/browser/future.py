@@ -29,7 +29,7 @@ def main():
                             assert response.status==200
                             page.evaluate('document.fonts.ready')
                             expect(page.locator('article')).to_be_visible()
-                            expect(page.locator('.scroll-chunk')).to_have_count(page.locator('.briefing-section').count())
+                            expect(page.locator('.briefing-section-nav a')).to_have_count(page.locator('.briefing-section').count())
                             assert f'CONTENT_END_{kind}_2034-03-{day}' in page.locator('article').inner_text()
                             assert not page.evaluate('document.documentElement.scrollWidth>innerWidth')
                             if day in (16,17):
@@ -48,8 +48,7 @@ def main():
                                 page.screenshot(path=str(artifacts/f'native-full-{kind}-{width}.png'), full_page=True)
                             page.evaluate("scrollTo({top:document.documentElement.scrollHeight,behavior:'instant'})")
                             page.evaluate('new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))')
-                            expect(page.locator('.scroll-chunk').last).to_have_attribute('aria-current','location')
-                            page.wait_for_function("Array.from(document.querySelectorAll('.scroll-chunk')).every(n=>Number(n.style.getPropertyValue('--section-progress'))===1)")
+                            expect(page.locator('.briefing-section-nav a').last).to_have_attribute('aria-current','location')
                             if artifacts and day in (11,14,17):page.screenshot(path=str(artifacts/f'future-{day}-{kind}-{width}.png'))
                             assert not errors,errors
                             cases.append({'date':f'2034-03-{day}','kind':kind,'width':width,'sections':page.locator('.briefing-section').count(),'pass':True})

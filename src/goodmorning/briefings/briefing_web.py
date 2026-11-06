@@ -2,7 +2,6 @@
 import argparse
 import hashlib
 import html
-from html.parser import HTMLParser
 import json
 from pathlib import Path
 import re
@@ -14,38 +13,12 @@ from .briefing_images import cache_previews, cached_previews
 from . import briefing_document as native
 from goodmorning.news.news_cache import feed_images
 from goodmorning.paths import WEB_ASSETS
-from goodmorning.runtime_files import cache_path, normalize_secretary_name, profile_fields
+from goodmorning.runtime_files import cache_path
 from goodmorning.web.briefing_resources import ICON_TYPES, favicon_links
 from goodmorning.web import language as ui
 
 ASSETS = WEB_ASSETS
 KINDS = {"gm": "Morning", "gn": "Evening"}
-
-
-class PreviewText(HTMLParser):
-    """Extract an inert excerpt from the rendered section."""
-    def __init__(self):
-        super().__init__(convert_charrefs=True)
-        self.parts = []
-        self.skipping = 0
-
-    def handle_starttag(self, tag, attrs):
-        # Chart labels and source buttons are not prose; keep them out of the excerpt.
-        if self.skipping or {'wx-chart', 'weather-tile-source'} & set((dict(attrs).get('class') or '').split()):
-            self.skipping += 1
-
-    def handle_endtag(self, tag):
-        if self.skipping:
-            self.skipping -= 1
-
-    def handle_data(self, data):
-        if not self.skipping:
-            self.parts.append(data)
-
-    def excerpt(self, content):
-        self.feed(content)
-        text = " ".join(" ".join(self.parts).split())
-        return text if len(text) <= 180 else text[:180].rsplit(" ", 1)[0] + "…"
 
 
 def visible_text(source):
@@ -67,32 +40,27 @@ def display_heading(title, translate=False):
     return html.escape(base) + badge
 
 
-def navigation(number, title, body, kind, ui_title=False):
-    label = html.escape(title.strip())
-    attributes=f' data-ui-section-title="{label}" data-ui-section-number="{number:02d}"' if ui_title else ''
-    accessible=html.escape(ui.text(title.strip())) if ui_title else label
+SYMBOLS = {'weather': 'sun', 'news': 'news', 'schedule': 'calendar',
+           'must-do': 'check', 'nice-to-do': 'list', 'reminders': 'bell', 'tomorrow': 'calendar',
+           'today': 'sun', 'still-open': 'list', 'tasks': 'check', 'attention': 'bell', 'anime': 'tv', 'games': 'tag', 'stocks': 'chart',
+           'letter': 'letter', 'celebration': 'gift'}
+
+
+def navigation(number, title, layout, ui_title=False):
+    """One section chip for the row above the briefing; briefing.js rebuilds the row as sections arrive."""
     base, iso = native.split_dated_title(title.strip())
-    if iso:
-        human = native.humanize_iso_date(iso)
-        badge = (f' <span class="preview-date" data-date="{html.escape(iso, quote=True)}">'
-                 f'· {html.escape(human)}</span>')
-        if ui_title:
-            visible = ui.ui(base) + badge
-        else:
-            visible = html.escape(base) + badge
-    else:
-        visible=ui.ui(title.strip()) if ui_title else label
-    preview = html.escape(PreviewText().excerpt(body))
-    return f'<div class="scroll-segment"><a class="scroll-chunk" href="#section-{number}"{attributes} aria-label="{number:02d}: {accessible}" aria-describedby="preview-{number}"><span class="chunk-bar" aria-hidden="true"></span><span class="chunk-number" aria-hidden="true">{number:02d}</span></a><span class="nav-preview" id="preview-{number}" role="tooltip"><span class="preview-eyebrow">{ui.ui("SECTION {number} / "+KINDS[kind].upper()+" EDITION",number=f"{number:02d}")}</span><span class="preview-title" data-content>{visible}</span><span class="preview-excerpt" data-content>{ui.ui(PreviewText().excerpt(body)) if ui_title else preview}</span><span class="preview-footer"><span class="preview-lines" aria-hidden="true"></span><span class="pointer-hint">{ui.ui("Jump to section ↗")}</span><span class="touch-hint">{ui.ui("Tap again to jump ↗")}</span></span></span></div>'
+    label = f'<span class="nav-label">{ui.ui(base)}</span>' if ui_title else f'<span class="nav-label" data-content>{html.escape(base)}</span>'
+    date = (f' <span class="nav-date" data-date="{html.escape(iso, quote=True)}" data-content>· {html.escape(native.humanize_iso_date(iso))}</span>'
+            if iso else '')
+    return (f'<a href="#section-{number}" data-layout="{html.escape(layout, quote=True)}">{icon(SYMBOLS.get(layout, "list"))}'
+            f'{label}{date}</a>')
 
 
 def section_markup(number, heading, content, layout, pending=False):
-    symbol = {'weather': 'sun', 'news': 'news', 'schedule': 'calendar',
-              'must-do': 'check', 'nice-to-do': 'list', 'reminders': 'bell', 'tomorrow': 'calendar',
-              'today': 'sun', 'still-open': 'list', 'tasks': 'check', 'attention': 'bell', 'anime': 'tv', 'games': 'tag', 'stocks': 'chart',
-              'letter': 'letter', 'celebration': 'gift'}.get(layout, 'list')
     busy = ' data-pending="true" aria-busy="true"' if pending else ''
-    return f'<section id="section-{number}" class="briefing-section {layout}"{busy}><header><span class="section-number">{number:02d}</span><h2>{heading}</h2><span class="section-symbol">{icon(symbol)}</span></header><div class="section-body">{content}</div></section>'
+    # The chip row shows the section's icon; the hidden copy lets briefing.js rebuild that row.
+    return (f'<section id="section-{number}" class="briefing-section {layout}"{busy}><header><h2>{heading}</h2>'
+            f'<span class="section-symbol" hidden>{icon(SYMBOLS.get(layout, "list"))}</span></header><div class="section-body">{content}</div></section>')
 
 
 # Small scenes for a section being prepared; parts a1–a3 animate only while it is the working section.
@@ -128,18 +96,12 @@ def loading_body(layout):
     return f'<div class="section-loading loading-{layout}"><div class="section-loader" aria-hidden="true">{loader}</div><p class="section-loading-label">{ui.ui("Waiting its turn")}</p><div class="skeleton-lines" aria-hidden="true"><i></i><i></i><i></i></div></div>'
 
 
-def preview_shell(plan, kind, ui_titles=False):
-    sections = ''.join(section_markup(n, display_heading(title, translate=ui_titles), loading_body(tag), tag, pending=True)
-                       for n, (tag, title) in enumerate(plan, 1))
-    nav = ''.join(navigation(n, title, '<p>Waiting its turn</p>', kind,ui_title=ui_titles) for n, (_, title) in enumerate(plan, 1))
-    return sections, nav
+def preview_shell(plan, ui_titles=False):
+    return ''.join(section_markup(n, display_heading(title, translate=ui_titles), loading_body(tag), tag, pending=True)
+                   for n, (tag, title) in enumerate(plan, 1))
 
 
-def secretary_name(runtime):
-    return normalize_secretary_name(profile_fields(runtime).get('secretary_name', '')) or None
-
-
-def edition(document, date, kind, available, images=None, preview_plan=None, ui_intro=False, secretary=None):
+def edition(document, date, kind, available, images=None, preview_plan=None, ui_intro=False):
     native.validate(document, partial=preview_plan is not None)
     nav, sections = [], []
     for number, section in enumerate(document['sections'], 1):
@@ -147,11 +109,11 @@ def edition(document, date, kind, available, images=None, preview_plan=None, ui_
         content = ''.join(native.render_block(value, images or {}, date) for value in section[1])
         if len(section) >= 3 and section[2]:
             content += '<p class="section-takeaway">' + native.escaped(section[2]) + '</p>'
-        nav.append(navigation(number, title, content, kind))
+        nav.append(navigation(number, title, section[0]))
         sections.append(section_markup(number, display_heading(title), content, section[0]))
     if preview_plan is not None:
-        panels, chunks = preview_shell(preview_plan, kind,ui_titles=ui_intro)
-        sections, nav = [panels], [chunks]
+        sections = [preview_shell(preview_plan, ui_titles=ui_intro)]
+        nav = [navigation(n, title, tag, ui_title=ui_intro) for n, (tag, title) in enumerate(preview_plan, 1)]
     switches = []
     for other, label in KINDS.items():
         if other in available:
@@ -168,7 +130,6 @@ def edition(document, date, kind, available, images=None, preview_plan=None, ui_
               "LANG": ui.current() if ui_intro else document.get('lang', 'en'),
               "CLOSING": '<p class="briefing-closing">' + native.escaped(document['closing']) + '</p>' if document.get('closing') else '',
               "SOURCE": kind + '.json', "SOURCELABEL": 'View saved data',
-              "BYLINE": native.escaped(f'Prepared for you by {secretary}' if secretary else 'Prepared for you by your secretary'),
               "CELESTIAL": celestial(kind), "ICONS": favicon_links('')}
     output=re.sub(r"\{\{([A-Z]+)\}\}", lambda match: values[match[1]], template)
     return output.replace('data-content lang=','data-ui-language lang=') if ui_intro else output
@@ -198,9 +159,8 @@ def build(runtime, date, fetch_images=False, include_assets=True, kind=None):
         cache_previews(urls, cache, runtime / 'browser-images' / 'objects', hints)
     images, image_files = cached_previews(cache, urls + covers, responsive=not include_assets)
     files = dict(image_files)
-    secretary = secretary_name(runtime)
     for kind, document in documents.items():
-        files[f'{kind}.html'] = edition(document, date, kind, documents, images, secretary=secretary).encode()
+        files[f'{kind}.html'] = edition(document, date, kind, documents, images).encode()
         files[kind + '.json'] = sources[kind]
     if include_assets:
         for name in ('briefing.css', 'briefing.js', 'fonts/lora-italic.woff2', 'fonts/OFL.txt', *ICON_TYPES):

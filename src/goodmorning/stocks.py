@@ -343,6 +343,16 @@ def saved_rows(runtime, today):
     return block[1] if block else []
 
 
+def saved_names(runtime):
+    """{symbol: name} from the newest saved briefing read; holdings it never named are absent."""
+    folder = Path(runtime) / 'browser-stocks'
+    newest = max((path.stem for path in folder.glob('????-??-??.json')), default=None) if folder.is_dir() and not folder.is_symlink() else None
+    try:
+        return {row[0]: row[1] for row in saved_rows(runtime, newest)} if newest else {}
+    except (ValueError, OSError, IndexError, TypeError):
+        return {}
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--secretary-dir')
