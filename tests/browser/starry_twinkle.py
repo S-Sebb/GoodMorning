@@ -42,16 +42,17 @@ def main():
             page.emulate_media(reduced_motion='reduce')
             page.goto('https://starry.test/')
             background = page.locator('body')
-            expect(background).to_have_css('background-attachment', 'fixed, fixed')
-            expect(background).to_have_css('background-position', '50% 0%, 50% 0%')
-            expect(background).to_have_css('background-size', 'cover, cover')
-            expect(background).to_have_css('background-repeat', 'no-repeat, no-repeat')
+            sky = lambda: background.evaluate('''body => { const sky = getComputedStyle(body, '::before');
+                return [sky.position, sky.top, sky.bottom, sky.backgroundPosition, sky.backgroundSize, sky.backgroundRepeat, sky.backgroundImage,
+                        getComputedStyle(body).backgroundImage]; }''')
+            # The sky is its own fixed layer, so its frames never repaint the page above it.
+            assert sky()[:6] == ['fixed', '0px', '0px', '50% 0%, 50% 0%', 'cover, cover', 'no-repeat, no-repeat'], sky()
+            assert sky()[7] == 'none'
             baseline = Image.open(BytesIO(page.screenshot(path=str(artifacts / f'static-{width}.png')))).convert('RGB')
             layout = background.bounding_box()
             page.emulate_media(reduced_motion='no-preference')
-            expect(background).to_have_css('background-image',
-                f'url("https://starry.test{resources.urls["starry-sky.svg"]}#twinkle"), '
-                'radial-gradient(at 65% 12%, rgba(36, 56, 91, 0.4), rgba(0, 0, 0, 0) 65%)')
+            assert sky()[6] == (f'url("https://starry.test{resources.urls["starry-sky.svg"]}#twinkle"), '
+                'radial-gradient(at 65% 12%, rgba(36, 56, 91, 0.4), rgba(0, 0, 0, 0) 65%)'), sky()
             frames = []
             for _ in range(6):
                 # Sample animation frames rather than assuming a particular start phase.

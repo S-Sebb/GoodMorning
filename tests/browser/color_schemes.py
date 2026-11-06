@@ -106,7 +106,9 @@ def main():
                 def background(page):
                     return page.locator('body').evaluate('node => getComputedStyle(node).backgroundColor')
                 def stars(page):
-                    return page.locator('body').evaluate('node => getComputedStyle(node).backgroundImage')
+                    # The starry sky paints on the body's fixed ::before layer; other scenes paint the body itself.
+                    return page.locator('body').evaluate('''node => [getComputedStyle(node), getComputedStyle(node, '::before')]
+                        .map(style => style.backgroundImage).filter(image => image !== 'none').join(', ') || "none"''')
                 def scroll_to_end(page):
                     # The briefing has no footer since #233, so scroll the document itself and
                     # check the scheme still paints the page end, not just the first screen.
@@ -231,7 +233,7 @@ def main():
                 assert sky['status'] == 200 and sky['type'].startswith('image/svg+xml')
                 assert background(evening) == 'rgb(8, 15, 32)' and 'radial-gradient' in stars(evening)
                 assert 'starry-sky.svg' in stars(evening)
-                expect(evening.locator('body')).to_have_css('background-repeat', 'no-repeat, no-repeat')
+                assert evening.locator('body').evaluate("node => getComputedStyle(node, '::before').backgroundRepeat") == 'no-repeat, no-repeat'
                 expect(evening.locator('.briefing-section').first).to_have_css('background-color', 'rgb(17, 28, 50)')
                 evening.locator('details.menu:has(#color-scheme-form) > summary').click()
                 evening.screenshot(path=str(artifacts/'starry-night-full.png'), full_page=True)
