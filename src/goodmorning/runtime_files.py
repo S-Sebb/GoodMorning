@@ -136,15 +136,16 @@ def runtime_lock(directory, name, wait=0):
     import fcntl
     import time
 
-    deadline = time.monotonic() + wait
+    tries = round(wait / 0.05)  # Counted rather than timed, so code under a mocked clock never sees these reads.
     with open(Path(directory) / name, "a", encoding="utf-8") as stream:
         while True:
             try:
                 fcntl.flock(stream, fcntl.LOCK_EX | fcntl.LOCK_NB)
                 break
             except BlockingIOError:
-                if time.monotonic() >= deadline:
+                if tries <= 0:
                     raise ValueError("runtime_busy: another command is active; retry later") from None
+                tries -= 1
                 time.sleep(0.05)
         try:
             yield
