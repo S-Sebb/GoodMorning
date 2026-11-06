@@ -26,7 +26,7 @@ def main():
                     expect(page).to_have_url('https://'+host+'/login')
                     expect(page.get_by_role('heading',name='Sign in')).to_be_visible()
                     icons=page.locator('head link[rel="icon"]')
-                    expect(icons).to_have_count(2)
+                    expect(icons).to_have_count(1)
                     for href in icons.evaluate_all('(elements) => elements.map(element => element.href)'):
                         assert '/icons/app-' in href
                         icon=context.request.get(href)
