@@ -82,7 +82,7 @@ TEXT = {
            'If reads fail, publish one ["p","…"] block saying only that the news could not be obtained; never skip this section.'),
   'schedule': ('Copy the read\'s returned block exactly, including the empty-day paragraph; do not recompute dates or '
                'widen the range. Preparation is attendee requirements only (no join links, meeting IDs or privacy footers).'),
-  'tasks': ('Copy every page\'s rows (while next_offset is not null, rerun the read\'s command with --offset N). Make no record writes; ids, dates, '
+  'tasks': ('BLOCKS is the read\'s actions block in place of the example\'s ["p","…"], with every page\'s rows copied in (while next_offset is not null, rerun the read\'s command with --offset N). Make no record writes; ids, dates, '
             'status and revisions stay exactly as returned. Copy each row\'s title and detail exactly: they are the wording saved with the item. '
             'Only rows whose id is in the read\'s `fallback` list have no saved wording, and those you must check: if the title is vague, a '
             'fragment, not an imperative action, overlong or awkward, reword it for display as a clear imperative with a specific object, '
@@ -238,7 +238,7 @@ TEXT = {
            '["news",CATEGORY,[[标题,摘要,[[来源名,绝对URL],...]],...],COUNTRY?]，保留全部引用，只收录这些读取结果中的报道。称之为过去一天的新闻，'
            '不要说成昨天的新闻或突发新闻。读取失败时发布一个 ["p","……"] 块，只说明无法获取新闻；不得跳过本章节。'),
   'schedule': '原样复制读取返回的块（包括空日程段落）；不要重新计算日期或扩大范围。准备事项只写参会要求（不要加入会议链接、会议号或隐私声明）。',
-  'tasks': ('复制每一页返回的行（next_offset 不为 null 时，用读取结果的 command 加 --offset N 再运行一次）。不写入任何记录：id、日期、状态和 revision 必须与返回的完全一致。'
+  'tasks': ('BLOCKS 是读取返回的 actions 块，用它替换示例中的 ["p","……"]，并把每一页返回的行都复制进去（next_offset 不为 null 时，用读取结果的 command 加 --offset N 再运行一次）。不写入任何记录：id、日期、状态和 revision 必须与返回的完全一致。'
             '原样复制每一行的标题和说明：它们是和事项一起保存的措辞。只有 id 在读取结果 `fallback` 列表里的行没有保存的措辞，这些行你必须逐一检查：标题含糊、只是片段、'
             '不是祈使句、过长或别扭时，为展示改写成清楚的祈使句，带具体对象，含义不变，不添加事实，保留名称、数字和项目用语（例如 "牙医" + "五月前做检查" → '
             '"预约牙医检查"）；说明只要超过一句或夹着你自己的笔记，就必须把自由文字改写成至多一句用户据此行动的话，保留用户需要的数字、价格线、地点或联系方式（只有这类信息都没有时才留空），去掉你自己的笔记（提醒机制、"我会去查……"、提醒日期或"明天"、"确认后再关闭"、'
