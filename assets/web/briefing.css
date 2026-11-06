@@ -12,9 +12,10 @@ body { margin: 0; background: var(--bg); color: var(--ink); font-family: ui-sans
 .toolbar-row .menu > summary { display: inline-flex; align-items: center; gap: .45rem; list-style: none; cursor: pointer; font-size: .8rem; min-height: 44px; padding: .4rem .8rem; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); color: var(--ink); white-space: nowrap; transition: border-color .2s, background-color .2s; }
 .toolbar-row .menu > summary::-webkit-details-marker { display: none; }
 .toolbar-row .menu > summary::marker { content: ''; }
-/* Settings is a gear alone; the open panel names it. */
+.toolbar-row .menu > summary::after { content: '▾'; font-size: .7em; color: var(--muted); transition: transform .2s; }
+.toolbar-row .menu[open] > summary::after { transform: rotate(180deg); }
+/* Settings shows its gear, not its name; the open panel names it. */
 .toolbar-row .menu-icon { width: 18px; height: 18px; flex: none; }
-#prefs-menu > summary { justify-content: center; min-width: 44px; padding-inline: 0; }
 #prefs-menu .menu-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .toolbar-row .menu > summary:hover { border-color: var(--accent); }
 .toolbar-row .menu > summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
@@ -206,6 +207,8 @@ h3 { font-size: 12px; text-transform: uppercase; letter-spacing: 1.6px; color: v
 .check.is-blocked { border-color: var(--warm); }
 /* Distinct information layouts: weather tiles, an agenda, and editorial cards. */
 .data-icon { width: 22px; height: 22px; display: inline-block; flex-shrink: 0; vertical-align: middle; }
+.section-symbol { margin-left: auto; color: var(--accent); display: grid; place-items: center; width: 42px; height: 42px; border-radius: 12px; background: var(--wash); }
+.section-symbol .data-icon { width: 23px; height: 23px; }
 .section-body > p { max-width: 84ch; }
 .section-body > hr:last-child { display: none; }
 .weather .section-body { display: block; }
@@ -441,6 +444,8 @@ details.task-project > .task-project-heading { padding: 14px 20px; border-bottom
 .decision-card.is-closed .decision-meta, .decision-card.is-closed .decision-detail { display: none; }
 @media (max-width: 1000px) { .section-body .news-grid, .section-body .episode-list, .section-body .deal-list { grid-template-columns: minmax(0, 1fr); } .weather-tiles { gap: 12px; } .weather-tile { padding: 18px; } .weather-label { gap: 8px; } .weather-label h3 { letter-spacing: .8px; font-size: 10px; } }
 @media (max-width: 700px) {
+  .section-symbol { width: 34px; height: 34px; border-radius: 9px; }
+  .section-symbol .data-icon { width: 19px; height: 19px; }
   .weather-tiles, .weather-tiles.charted, .weather-tiles.charted:has(> :nth-child(4)) { grid-template-columns: minmax(0, 1fr); }
   .wx-values { font-size: 11px; }
   .weather-label h3 { font-size: 11px; }
@@ -614,7 +619,6 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
   .briefing-letter { --content-gutter: 16px; }
   .briefing-letter .toolbar-row, .chat-page .toolbar-row, .briefing-letter .language-toolbar, .chat-page .language-toolbar { padding: 4px 16px; font-size: 11px; }
   .briefing-letter .toolbar-row .menu > summary, .chat-page .toolbar-row .menu > summary { min-height: 36px; padding: 4px 12px; font-size: 11px; }
-  .briefing-letter #prefs-menu > summary, .chat-page #prefs-menu > summary { min-width: 36px; padding-inline: 0; }
   .briefing-letter .toolbar-row .menu-panel, .chat-page .toolbar-row .menu-panel { font-size: 13px; }
   .briefing-letter .language-toolbar select, .chat-page .language-toolbar select { min-height: 36px; padding: 4px 8px; }
   /* Narrow bars become full-width dropdown sheets anchored to the row. */

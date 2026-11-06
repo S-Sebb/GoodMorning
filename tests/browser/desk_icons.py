@@ -65,13 +65,15 @@ def check(app, url, shots):
                             bar[route, width] = [(round(box['right'] - box['left']), round(box['bottom'] - box['top'])) for box in boxes]
                             if route in ('/letters', '/about-me'):
                                 assert bar[route, width] == bar['/gm', width], (route, width, language, bar[route, width], bar['/gm', width])
-                        # Header: the wordmark stands alone; Settings is a gear and, while up to date, What's new a sparkle.
+                        # Header: the wordmark stands alone; Settings is a gear, menus keep their ▾, and while up to date What's new is a sparkle.
                         expect(page.locator('.wordmark > *')).to_have_count(0)
                         settings = page.locator('#prefs-menu > summary')
                         expect(settings).to_have_accessible_name('Settings' if language == 'en' else '设置')
                         expect(settings.locator('svg.menu-icon')).to_be_visible()
-                        box = settings.bounding_box()
-                        assert box['width'] >= 36 and box['height'] >= 36 and abs(box['width'] - box['height']) <= 1, box
+                        expect(settings.locator('.menu-label')).to_have_css('width', '1px')
+                        assert settings.bounding_box()['height'] >= 36
+                        for menu in page.locator('.toolbar-row .menu > summary').all():
+                            assert menu.evaluate('el => getComputedStyle(el, "::after").content') == '"▾"'
                         notes = page.locator('#site-update-toggle')
                         expect(notes).to_have_attribute('data-state', 'current')
                         expect(notes).to_have_accessible_name('What’s new: view patch notes' if language == 'en' else '新变化：查看更新日志')
