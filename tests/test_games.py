@@ -163,7 +163,6 @@ class EveningSectionTests(unittest.TestCase):
         self.step('init', {'greeting': 'Evening.', 'opening': 'Tonight’s review.'})
         plan = json.loads((self.root / 'browser-jobs' / ('c' * 32 + '.preview.json')).read_text())['plan']
         self.assertEqual(plan[-1], ['games', 'Game sales'])
-        self.step('publish', {'position': 0, 'section': ['today', [['p', 'You shared no updates.']]]})
         self.step('publish', {'position': 1, 'section': ['weather', [['p', 'Tomorrow’s weather is unavailable.']], '', 'Weather tomorrow']})
         self.step('publish', {'position': 2, 'section': ['schedule', [['p', 'No saved appointments tomorrow.']]]})
         self.step('skip', {'position': 3})
