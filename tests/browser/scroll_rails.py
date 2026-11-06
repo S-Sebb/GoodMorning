@@ -153,7 +153,9 @@ def check_chat(browser, address, artifacts, width, height):
     outer = page.get_by_role('scrollbar', name='滚动页面', exact=True)
     expect(inner).to_have_attribute('aria-label', '滚动消息')
     expect(outer).to_have_attribute('aria-label', '滚动页面')
-    expect(outer).to_have_attribute('aria-valuetext', '100%')
+    # The page bar can rewrap in another language, and scroll anchoring then moves the page.
+    expect(outer).to_have_attribute('aria-valuetext', str(round(page.evaluate(
+        'scrollY / (document.documentElement.scrollHeight - innerHeight) * 100'))) + '%')
 
     # Growing or clearing the history updates scrollability without stale handles.
     status['messages'] = []
