@@ -174,7 +174,7 @@ def next_step(runtime, identifier, session, context, checkpoint):
         action['input'] = {'position':position, 'celebration':{'wish':'…'}}
     elif context.get('document_version') == 2:
         # A filled example: string placeholders led models to send blocks/note as separate keys or unwrapped weather cards.
-        blocks = ([['outlook']] if context['workflow'] == 'gn' else [['weather',[[card,'…','…'] for card in ('temperature','precipitation','air')]]]
+        blocks = ([['outlook']] if context['workflow'] == 'gn' else [['weather',[[card,'…'] for card in ('temperature','precipitation','air')]]]
                   ) if tag == 'weather' else [['p','…']]
         action['input'] = {'position':position, 'section':[tag,blocks,'',title]}
     else:
