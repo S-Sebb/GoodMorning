@@ -85,7 +85,8 @@ write agent-owned cumulative drafts. Check exits and `error`/`next` after every 
    Never skip required Weather/News/Schedule/Today or turn failed retrieval into
    empty success. Publish material unavailability instead; keep all plan positions.
    Code itself skips Today when its read has no outcome cards and the user reported
-   nothing; the model never receives that position.
+   nothing, and an evening Tasks or Reminders position whose read has 0 rows (and
+   no errands); the model never receives those positions.
 4. **finish:** `{"closing":"…"}` or `{}` after every position is resolved. A v2
    morning edition finishes with `{"greeting":"…","opening":"…"}` plus an optional
    closing, written from the published sections (`docs/briefing-format.md`).

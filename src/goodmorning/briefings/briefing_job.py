@@ -184,7 +184,9 @@ def next_step(runtime, identifier, session, context, checkpoint):
         # A filled example: string placeholders led models to send blocks/note as separate keys or unwrapped weather cards.
         blocks = ([['outlook']] if context['workflow'] == 'gn' else [['weather',[[card,'…'] for card in ('temperature','precipitation','air')]]]
                   ) if tag == 'weather' else [['p','…']]
-        action['input'] = {'position':position, 'section':[tag,blocks,'',title]}
+        # Weather tomorrow always has a note; "…" marks its slot, as "" there read as no note.
+        note = '…' if tag == 'weather' and context['workflow'] == 'gn' else ''
+        action['input'] = {'position':position, 'section':[tag,blocks,note,title]}
     else:
         action['instruction'] = instruction
     return action
@@ -328,6 +330,14 @@ def quiet_evening(context, results):
     return (read.get('exit') == 0 and isinstance(read.get('output'), dict) and read['output'].get('block') is None
             and not feedback.get('completed') and not feedback.get('progress')
             and feedback.get('details') in ('No other updates', 'No updates today', None))
+
+
+def empty_evening_read(context, tag, results):
+    """An evening Tasks or Reminders read returned no rows (and Tasks no errands), so there is nothing to publish."""
+    read = results[-1] if results else {}
+    output = read.get('output') if read.get('exit') == 0 else None
+    return (context['workflow'] == 'gn' and tag in ('tasks', 'attention') and isinstance(output, dict)
+            and output.get('total') == 0 and not output.get('errands'))
 
 
 def run_reads(commands):
@@ -553,8 +563,8 @@ def act(runtime, identifier, session, action, payload=None):
                         save_weather_frame(runtime, identifier, reads[0], next_action['results'])
                     if tag == 'news':
                         fresh_news(runtime, identifier, job, context, next_action['results'])
-                    if tag == 'today' and quiet_evening(context, next_action['results']):
-                        # No outcome cards and nothing reported: Today stays out, with no model turn.
+                    if tag == 'today' and quiet_evening(context, next_action['results']) or empty_evening_read(context, tag, next_action['results']):
+                        # No outcome cards and nothing reported, or nothing to remind: the section stays out, with no model turn.
                         return receipt({**value, **publish(runtime, identifier, skip=True, position=position)})
                 if next_action['action'] == 'publish':
                     note(runtime, identifier, 'write', position=position, section=tag,
@@ -626,9 +636,18 @@ def act(runtime, identifier, session, action, payload=None):
                 raise misshapen('The input must be one JSON object')
             if set(payload) != keys:
                 missing, extra = sorted(keys - set(payload)), sorted(map(str, set(payload) - keys))
-                raise misshapen('; '.join(([f'The input is missing {", ".join(missing)}'] if missing else [])
-                                          + ([f'it has unexpected keys {", ".join(extra)}'] if extra else []))
-                                + ('; blocks and note go inside the section array' if action == 'publish' else ''))
+                problem = ('; '.join(([f'The input is missing {", ".join(missing)}'] if missing else [])
+                                     + ([f'it has unexpected keys {", ".join(extra)}'] if extra else []))
+                           + ('; blocks and note go inside the section array' if action == 'publish' else ''))
+                if (action == 'publish' and 'section' not in payload and position < len(checkpoint['plan'])
+                        and checkpoint['plan'][position][0] in ('tasks', 'attention')):
+                    # Models tried {"position":N} or a skip key through publish; skipping is its own action.
+                    step = next_step(runtime, identifier, session, context, checkpoint)
+                    raise ValueError(f'{problem}. To leave this section out, skip is a separate action: run '
+                                     + step['command'].removesuffix(' publish') + ' skip with input '
+                                     + json.dumps({'position':position}, separators=(',',':'))
+                                     + '. Otherwise publish ' + json.dumps(step['input'], ensure_ascii=False, separators=(',',':')))
+                raise misshapen(problem)
             requested = payload['position']
             if type(requested) is not int or requested < 0:
                 raise ValueError('Invalid section position')

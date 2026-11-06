@@ -273,6 +273,28 @@ class BriefingTrialTests(unittest.TestCase):
         saved=load(context_path(self.runtime,job['id']).with_name(job['id']+'.preview.json'))['document']['sections'][0]
         self.assertEqual(saved[1],[['p','The draft is started.']])
 
+    def evening_to_tasks(self, job):
+        act(self.runtime,job['id'],'ses_trial','publish',{'position':0,'section':['today',[['p','The draft is started.']],'']})
+        act(self.runtime,job['id'],'ses_trial','publish',{'position':1,'section':['weather',[['p','Unavailable.']],'','Weather tomorrow']})
+        return act(self.runtime,job['id'],'ses_trial','publish',{'position':2,'section':['schedule',[['p','Nothing saved.']],'']})['next']
+
+    def test_evening_sections_with_empty_reads_are_skipped_by_code(self):
+        job=self.scoped_job('gn')
+        self.assertEqual(self.evening_to_tasks(job)['action'],'finish')  # Tasks and Reminders had 0 rows: no model turn.
+        from goodmorning.briefings.briefing_stream import load
+        from goodmorning.briefings.briefing_job import context_path
+        self.assertEqual(load(context_path(self.runtime,job['id']).with_name(job['id']+'.preview.json'))['outcomes'][3:],
+                         ['skipped','skipped'])
+
+    def test_evening_section_with_rows_waits_for_the_model_and_names_skip(self):
+        seed_tasks(self.runtime,'en','evening-feedback','2026-10-14')
+        job=self.scoped_job('gn',completed=['none'])
+        receipt=self.evening_to_tasks(job)
+        self.assertEqual(receipt['section'][0],'tasks')
+        self.assertGreater(receipt['results'][-1]['output']['total'],0)
+        with self.assertRaisesRegex(ValueError,r'skip is a separate action: run .* skip with input \{"position":3\}'):
+            act(self.runtime,job['id'],'ses_trial','publish',{'position':3,'skip':True})
+
     def test_empty_schedule_window_uses_real_calendar_weekdays_for_focus_day_only(self):
         from benchmarks.briefing_tone_live import empty_schedule_block
         block=empty_schedule_block(self.runtime,'2026-10-14','gn','zh-CN')

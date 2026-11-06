@@ -268,7 +268,7 @@ def link_handoff(folder, stage, expected_url=None):
                 and not any(line.lstrip().startswith(('-', '*', '#')) for line in lines))
 
 
-def collection_order_issues(log, plan, position=0, reconcile=False, quiet=False):
+def collection_order_issues(log, plan, position=0, reconcile=False, skipped=()):
     """Check provider attempts and delivered views against successful publications.
 
     Failed scoped reads return no view. Their blocked attempts remain recorded.
@@ -291,8 +291,8 @@ def collection_order_issues(log, plan, position=0, reconcile=False, quiet=False)
         tag = argv[0] if argv[0] in ('weather','news') else None
         if argv[0] == 'task' and '--briefing' in argv and '--section' in argv:
             tag = argv[argv.index('--section') + 1]
-        if quiet and tag == 'today' and position < len(plan) and plan[position][0] == 'today':
-            position += 1  # Code read Today and skipped it on a quiet evening; the log has no skip for it.
+        if tag and position in skipped and position < len(plan) and tag == plan[position][0]:
+            position += 1  # Code read this position and skipped it (quiet Today, 0 rows); the log has no skip for it.
             continue
         if (tag == 'today' and entry.get('receipt') and 0 < position <= len(plan) and plan[position - 1][0] == 'today'):
             continue  # Publishing Today reread it to place the cards, after the publish call was logged.
@@ -301,6 +301,16 @@ def collection_order_issues(log, plan, position=0, reconcile=False, quiet=False)
         if tag and (position >= len(plan) or tag != plan[position][0]):
             issues.append('Collected '+tag+' before resolving position '+str(position))
     return issues
+
+
+def code_skipped(log, plan, document):
+    """Positions left out of the saved edition with no skip call in the log: code skipped them."""
+    if document is None:
+        return set()
+    shown = {section[0] for section in document['sections']}
+    model = {entry.get('input', {}).get('position') for entry in log
+             if job_action(entry['argv']) == 'skip' and entry.get('exit', 0) == 0}
+    return {position for position, (tag, _) in enumerate(plan) if tag not in shown and position not in model}
 
 
 def trial_config(runtime):
@@ -505,8 +515,11 @@ def run_case(output, template, language, scenario, instant):
         prepared = json.loads(context_path(runtime, job).read_text())
         reconcile = kind == 'gn'
         saved = app.source(day, kind)
-        quiet = kind == 'gn' and saved.exists() and 'today' not in [s[0] for s in json.loads(saved.read_text())['sections']]
-        order_issues = collection_order_issues(log, default_plan(prepared), 1 if bridge.seeded else 0, quiet=quiet,
+        skipped = code_skipped(log, default_plan(prepared), json.loads(saved.read_text()) if saved.exists() else None)
+        result['code_skipped'] = [default_plan(prepared)[position][0] for position in skipped]
+        assert not any(job_action(entry['argv']) in ('publish','skip') and entry.get('input',{}).get('position') in skipped
+                       for entry in log), 'The model spent a turn on a position code skipped'
+        order_issues = collection_order_issues(log, default_plan(prepared), 1 if bridge.seeded else 0, skipped=skipped,
                                               reconcile=reconcile)
         result['collection_order_issues'] = order_issues
         if scenario == 'evening-ambiguous':
@@ -574,6 +587,9 @@ def run_case(output, template, language, scenario, instant):
                 assert section[2:3] and section[2].strip() and '\n' not in section[2], 'No one-line closing note'
                 assert not re.search(r'\d', section[2]), 'The note repeated numbers or times the card already shows'
                 result['weather_note'] = section[2]
+                weather = [entry for entry in log if job_action(entry['argv']) == 'publish'
+                           and entry.get('input',{}).get('position') == 1]
+                assert len(weather) == 1, f'Weather tomorrow took {len(weather)} publish calls, not one'
                 result['checks'].append('Quiet evening: no Today section or turn; Weather tomorrow is the code-filled card with a one-line note')
             else:
                 current = records(runtime)
