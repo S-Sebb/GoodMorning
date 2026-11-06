@@ -288,7 +288,7 @@ def run_briefing(output, language, selected, scenario):
     folder = output/scenario
     folder.mkdir(mode=0o700)
     runtime = account(folder, language, 'playful', '', ZONE)
-    seed(runtime, language, 'full', True)
+    seed(runtime, language, 'projects' if scenario == 'evening' else 'full', True)  # evening also tidies project entries
     message = TIDY[language]
     if scenario == 'upcoming':
         memory.change(runtime, 1, note={'life': '', 'lately': UPCOMING[language][0]})
