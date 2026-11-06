@@ -534,7 +534,7 @@ def page(app, offset, mode='week'):
               '<script src="/schedule-mode.js"></script>'
               + favicon_links() + '<link rel="stylesheet" href="/briefing.css"><link rel="stylesheet" href="/schedule.css">'
               '<link rel="stylesheet" href="/scroll-rails.css"><script src="/scroll-rails.js" defer></script></head><body class="schedule-page">'
-              '<a class="skip-link" href="#schedule-view">Skip to schedule</a><header class="masthead"><a class="wordmark" href="/gm">GoodMorning<span>A personal secretary just for you</span></a>'
+              '<a class="skip-link" href="#schedule-view">Skip to schedule</a><header class="masthead"><a class="wordmark" href="/gm">GoodMorning</a>'
               '<nav class="edition-switch" aria-label="Your desk"><a class="edition-link" href="/gm">Morning</a><a class="edition-link" href="/gn">Evening</a>'
               '<a class="edition-link selected" href="/schedule" aria-current="page">Schedule</a><a class="edition-link" href="/letters">Letters</a><a class="edition-link" href="/chat">Secretary</a>' + desk_link(app.profile()) + '</nav></header>'
               '<main><div id="schedule-view">' + content + '</div><p id="schedule-error" role="alert"></p><div id="schedule-notice" class="schedule-notice" role="status"></div>'

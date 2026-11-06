@@ -30,8 +30,10 @@ a { color: #315e50; }
 .toolbar-row .menu > summary { display: inline-flex; align-items: center; gap: .45rem; list-style: none; cursor: pointer; font-size: .85rem; min-height: 44px; padding: .45rem .8rem; border: 1px solid #b4c7c0; border-radius: 999px; background: white; color: #253d45; white-space: nowrap; }
 .toolbar-row .menu > summary::-webkit-details-marker { display: none; }
 .toolbar-row .menu > summary::marker { content: ''; }
-.toolbar-row .menu > summary::after { content: '▾'; font-size: .7em; color: #56746a; }
-.toolbar-row .menu[open] > summary::after { transform: rotate(180deg); display: inline-block; }
+/* Settings is a gear alone; the open panel names it. */
+.toolbar-row .menu-icon { width: 18px; height: 18px; flex: none; }
+#prefs-menu > summary { justify-content: center; min-width: 44px; padding-inline: 0; }
+#prefs-menu .menu-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .toolbar-row .menu > summary:hover { border-color: #315e50; }
 .toolbar-row .menu > summary:focus-visible { outline: 3px solid #719bb8; outline-offset: 3px; }
 .toolbar-row .menu-panel { position: absolute; right: 0; top: calc(100% + 8px); width: min(300px, calc(100vw - 32px)); background: white; border: 1px solid #b4c7c0; border-radius: .9rem; box-shadow: 0 12px 40px #253d4518; padding: .9rem; z-index: 50; }

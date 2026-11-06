@@ -45,6 +45,18 @@ def check(app, url, shots):
                         assert all(0 <= box['left'] < box['right'] <= width for box in boxes), boxes
                         assert all(a['right'] <= b['left'] + 1 for a, b in zip(boxes, boxes[1:])), boxes
                         assert not page.evaluate('document.documentElement.scrollWidth > innerWidth'), (route, width, language)
+                        # Header: the wordmark stands alone; Settings is a gear and, while up to date, What's new a sparkle.
+                        expect(page.locator('.wordmark > *')).to_have_count(0)
+                        settings = page.locator('#prefs-menu > summary')
+                        expect(settings).to_have_accessible_name('Settings' if language == 'en' else '设置')
+                        expect(settings.locator('svg.menu-icon')).to_be_visible()
+                        box = settings.bounding_box()
+                        assert box['width'] >= 36 and box['height'] >= 36 and abs(box['width'] - box['height']) <= 1, box
+                        notes = page.locator('#site-update-toggle')
+                        expect(notes).to_have_attribute('data-state', 'current')
+                        expect(notes).to_have_accessible_name('What’s new: view patch notes' if language == 'en' else '新变化：查看更新日志')
+                        expect(notes.locator('span')).to_be_hidden()
+                        expect(notes.locator('svg')).to_be_visible()
                         if route == '/chat':
                             expect(page.locator('[data-starter]')).to_have_count(3)
                         if route == '/letters':
