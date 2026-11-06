@@ -58,6 +58,9 @@ def check_flow(browser, address):
     expect(page.locator('#quick-chat-window')).to_be_visible()
     expect(page.locator('#quick-chat-text')).to_be_focused()
     expect(page.locator('#quick-chat-empty')).to_be_visible()
+    # The empty state shows the secretary's desk; the header names only the secretary, not the usual mode.
+    page.wait_for_function("() => document.querySelector('#quick-chat-empty .quick-chat-figure').naturalWidth > 0")
+    expect(page.locator('#quick-chat-mode')).to_have_text('Mira')
     # The message shows while its send is still in flight; the delivered turn replaces it.
     held = []
     page.route('**/api/chats', lambda route: held.append(route) if route.request.method == 'POST' and not held
@@ -271,6 +274,9 @@ def check_attachments(browser, address, artifacts):
     page.locator('#quick-chat-launcher').click()
     page.locator('#quick-chat-new').click()
     expect(page.locator('#quick-chat-send')).to_be_disabled()
+    note = page.locator('#quick-chat-upload-note')
+    expect(page.locator('#quick-chat-attach')).to_have_attribute('aria-describedby', 'quick-chat-upload-note')
+    assert note.evaluate('node => node.getBoundingClientRect().width') <= 1
     # A pasted screenshot becomes an attachment; a file-only message can be sent.
     file_event(page, 'paste', '#quick-chat-text', 'screenshot.png')
     chips = page.locator('#quick-chat-attachments .quick-chat-chip')
@@ -283,6 +289,8 @@ def check_attachments(browser, address, artifacts):
     file_event(page, 'drop', '#quick-chat-scroll', 'dropped.png')
     page.locator('#quick-chat-files').set_input_files({'name': 'notes.txt', 'mimeType': 'text/plain', 'buffer': b'Synthetic notes'})
     expect(chips).to_have_count(3)
+    expect(note).to_have_text('Up to 50 MB · kept 30 days')
+    assert note.evaluate('node => node.getBoundingClientRect().width') > 50
     page.screenshot(path=str(artifacts / 'quick-chat-attachments.png'))
     chips.nth(1).locator('button').click()
     expect(chips).to_have_count(2)

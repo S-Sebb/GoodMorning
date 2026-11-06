@@ -22,7 +22,7 @@ html[data-style="pixel"] {
 html[data-style="pixel"] :is(h1, h2, h3, .wordmark, .eyebrow, .edition-link, .briefing-section-nav a, .week-picker a, .weather-label,
   .weather-value, .section-number, #new-conversation, .toolbar-row .menu > summary, #site-update-toggle, #quick-chat-launcher,
   .schedule-date, .preview-eyebrow, .preview-title, .today-marker, .scheme-name, :is(#prefs-menu, #account-menu) legend,
-  #activity-heading, .activity-title, #mobile-sections, .secretary-identity > p:not(.eyebrow), .chat-topic-hint, #chat-help,
+  #activity-heading, .activity-title, #mobile-sections, #chat-help,
   .settings-menu-header p) { font-family: var(--px-font); letter-spacing: 0; }
 html[data-style="pixel"] :is(.wordmark, h1, h2) { font-family: var(--px-title); }
 html[data-style="pixel"] :is(.eyebrow, .weather-label, .today-marker, .preview-eyebrow, #activity-heading, .weather-tile-source) { font-family: var(--px-label); }
@@ -163,7 +163,7 @@ html[data-style="pixel"]:lang(zh) :is(h1, h2, h3, .wordmark span, .eyebrow, .edi
 html[data-style="pixel"]:lang(zh) :is(h3, .wordmark span, .eyebrow, .edition-link, .briefing-section-nav a, .week-picker a, .weather-label,
   #new-conversation, .toolbar-row .menu > summary, #site-update-toggle, #quick-chat-launcher, .scheme-name, :is(#prefs-menu, #account-menu) legend,
   .settings-menu-header h2, .color-scheme-heading, .preview-eyebrow, #activity-heading, #mobile-sections, .week-picker small, .today-marker,
-  .secretary-identity > p:not(.eyebrow), .chat-topic-hint, #chat-help, .settings-menu-header p) { font-size: 12px; line-height: 18px; }
+  #chat-help, .settings-menu-header p) { font-size: 12px; line-height: 18px; }
 html[data-style="pixel"]:lang(zh) :is(h2, .preview-title, .activity-title) { font-size: 24px; line-height: 36px; }
 html[data-style="pixel"]:lang(zh) h1 { font-size: 36px; line-height: 48px; }
 @media (max-width: 700px) { html[data-style="pixel"]:lang(zh) h1 { font-size: 24px; line-height: 36px; } }
