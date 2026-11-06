@@ -177,13 +177,27 @@ def check_waiting(browser, address, artifacts):
     page.close()
 
 
-def check_layouts(browser, address, artifacts):
+# Cards stack down the page, so on desktop a button sharing any column with a card covers it at some scroll position (#259).
+CLEAR_OF_CARDS = '''selector => { const button = document.querySelector(selector).getBoundingClientRect();
+  return [...document.querySelectorAll('.briefing-section')].every(card => {
+    const box = card.getBoundingClientRect(); return box.right <= button.left || button.right <= box.left; }); }'''
+
+
+def check_layouts(browser, address, runtime, artifacts):
+    sys.path.insert(0, str(REPO / 'src'))
+    from goodmorning.briefings.briefing_day import briefing_day
+    from goodmorning.briefings.briefing_document import encode
+    daily = runtime / 'daily'; daily.mkdir(exist_ok=True)
+    document = encode({'v': 1, 'lang': 'en', 'greeting': 'Synthetic layout test.', 'opening': 'Synthetic records.',
+                       'sections': [['notes', [['p', 'Synthetic reading content. ' * 30]] * 3, '', f'Synthetic section {index}'] for index in range(3)]})
+    saved = [daily / f'{briefing_day("Europe/London")}.{kind}.json' for kind in ('gm', 'gn')]
+    for path in saved: path.write_text(document)
     results = []
     for width, height in ((1440, 900), (1024, 700), (390, 844), (320, 640)):
-        for language in ('en', 'zh-CN'):
+        for language, kind in (('en', 'gm'), ('zh-CN', 'gm'), ('en', 'gn'), ('zh-CN', 'gn')):
             page = browser.new_page(viewport={'width': width, 'height': height}, has_touch=width < 700)
             errors = watch(page)
-            page.goto(address + '/gm')
+            page.goto(address + '/' + kind)
             csrf = page.evaluate("JSON.parse(document.querySelector('#language-config').dataset.config).csrf")
             page.request.post(address + '/api/language', data={'language': language}, headers={'X-Briefing-CSRF': csrf, 'Origin': address})
             page.reload()
@@ -204,6 +218,8 @@ def check_layouts(browser, address, artifacts):
                 page.mouse.wheel(0, -200)  # Scrolling back up returns them before the pause.
                 expect(page.locator('html.floaters-tucked')).to_have_count(0, timeout=600)
             page.mouse.wheel(0, 4000); page.wait_for_timeout(400)
+            expect(page.locator('html.floaters-tucked')).to_have_count(0)  # Phones bring tucked buttons back after a pause.
+            launcher.evaluate('el => Promise.all(el.getAnimations().map(a => a.finished))')
             box = launcher.bounding_box()
             assert box['x'] >= 0 and box['x'] + box['width'] <= width and box['y'] + box['height'] <= height, box
             for other in ('.back-to-top.is-visible', '#mobile-sections'):
@@ -212,18 +228,23 @@ def check_layouts(browser, address, artifacts):
                     overlap = not (near['x'] + near['width'] <= box['x'] or box['x'] + box['width'] <= near['x']
                                    or near['y'] + near['height'] <= box['y'] or box['y'] + box['height'] <= near['y'])
                     assert not overlap, (other, width, near, box)
-            page.screenshot(path=str(artifacts / f'quick-chat-closed-{width}-{language}.png'))
+            if width > 700:
+                expect(page.locator('.back-to-top.is-visible')).to_be_visible()
+                for button in ('#quick-chat-launcher', '.back-to-top'):
+                    assert page.evaluate(CLEAR_OF_CARDS, button), (button, width, language, kind)
+            page.screenshot(path=str(artifacts / f'quick-chat-closed-{width}-{language}-{kind}.png'))
             launcher.click()
             page.evaluate("Promise.all(document.querySelector('#quick-chat-window').getAnimations().map(a => a.finished))")
             panel = page.locator('#quick-chat-window').bounding_box()
             assert panel['x'] >= 0 and panel['x'] + panel['width'] <= width and panel['y'] >= 0 and panel['y'] + panel['height'] <= height, panel
             expect(page.locator('#quick-chat-compose')).to_be_in_viewport()
-            page.screenshot(path=str(artifacts / f'quick-chat-open-{width}-{language}.png'))
+            page.screenshot(path=str(artifacts / f'quick-chat-open-{width}-{language}-{kind}.png'))
             page.locator('#quick-chat-minimize').click()
             page.request.post(address + '/api/language', data={'language': 'en'}, headers={'X-Briefing-CSRF': csrf, 'Origin': address})
             assert not errors, errors
-            results.append(f'{width}x{height}-{language}')
+            results.append(f'{width}x{height}-{language}-{kind}')
             page.close()
+    for path in saved: path.unlink()
     return results
 
 
@@ -357,7 +378,7 @@ def main():
             address = server.stdout.readline().strip().removeprefix('Private live viewer: ')
             with sync_playwright() as playwright:
                 browser = playwright.chromium.launch()
-                report = {'flow': check_flow(browser, address), 'layouts': check_layouts(browser, address, artifacts), 'modelCalls': 0}
+                report = {'flow': check_flow(browser, address), 'layouts': check_layouts(browser, address, runtime, artifacts), 'modelCalls': 0}
                 check_waiting(browser, address, artifacts)
                 check_attachments(browser, address, artifacts)
                 report['reminderCards'] = check_reminder_cards(browser, address, runtime, artifacts)
