@@ -117,17 +117,21 @@ class JobTests(unittest.TestCase):
         frame = {'start':'2026-10-11T06:00','past':6,'hours':[[12,5,30]]*18,'sun':[['sunrise',1.2]],'night':[[0,1.2]],'snow':False,
                  'links':{'forecast':'https://open-meteo.com/en/docs#api_response','air':'https://open-meteo.com/en/docs/air-quality-api#api_response'}}
         def reads(commands):
-            return [{'command':command,'exit':0,'output':{'frame':frame} if command.endswith('--json') else 'London: dry.'} for command in commands]
+            return [{'command':command,'exit':0,'output':{'frame':frame,'temp_c':12,'aqi':{'us_aqi':30}} if command.endswith('--json') else 'London: dry.'}
+                    for command in commands]
         from goodmorning.records.inbox_store import initialize as version_two
         version_two(self.root)
         initialize(self.root,self.job)
         with patch('goodmorning.briefings.briefing_job.run_reads', side_effect=reads):
             act(self.root,self.identifier,'ses_fixture','init',{'greeting':'Morning.','opening':'Let’s look.'})
         self.assertTrue((self.app.job_dir/(self.identifier+'.weather.json')).exists())
-        section = ['weather',[['weather',[['temperature','12°C','Mild.'],['precipitation','5% – No rain','Dry.']]]]]
+        # The model writes only advice; a value it sends anyway is replaced by the read's.
+        section = ['weather',[['weather',[['temperature','Mild.'],['precipitation','100% – Rain likely','Dry.'],['air','Fine air.']]]]]
         act(self.root,self.identifier,'ses_fixture','publish',{'position':0,'section':section})
         saved = load(self.app.job_dir/(self.identifier+'.preview.json'))['document']['sections'][0]
-        self.assertEqual(saved[1][0][2], frame)
+        self.assertEqual(saved[1][0], ['weather',[['temperature','12° – High · low 12°','Mild.'],
+                                                  ['precipitation','Dry – Up to 5% chance of rain','Dry.'],
+                                                  ['air','Good – AQI 30 through the day','Fine air.']],frame])
         # A retried publish of the agent's own section is recognised as the same one.
         self.assertTrue(act(self.root,self.identifier,'ses_fixture','publish',{'position':0,'section':section})['reused'])
 
@@ -138,12 +142,12 @@ class JobTests(unittest.TestCase):
         with patch('goodmorning.briefings.briefing_job.run_reads', side_effect=reads):
             save_weather_frame(self.root, self.identifier, 'weather --day 2026-10-12', [{'exit':0}])
         section = ['weather',[['outlook']],'Sleep well.','Weather tomorrow']
-        self.assertEqual(with_weather_frame(self.root, self.identifier, section), ['weather',[card],'Sleep well.','Weather tomorrow'])
-        self.assertEqual(with_weather_frame(self.root, self.identifier, ['weather',[['weather',[['temperature','1°C','Cold.']]]]])[1][0],
+        self.assertEqual(with_weather_frame(self.root, self.identifier, section, 'en'), ['weather',[card],'Sleep well.','Weather tomorrow'])
+        self.assertEqual(with_weather_frame(self.root, self.identifier, ['weather',[['weather',[['temperature','1°C','Cold.']]]]], 'en')[1][0],
                          ['weather',[['temperature','1°C','Cold.']]])  # A card never becomes a morning frame.
         with patch('goodmorning.briefings.briefing_job.run_reads', side_effect=reads):
             save_weather_frame(self.root, self.identifier, 'weather --day 2026-10-12', [{'exit':1}])
-        self.assertEqual(with_weather_frame(self.root, self.identifier, section), section)
+        self.assertEqual(with_weather_frame(self.root, self.identifier, section, 'en'), section)
 
     def test_bad_json_and_block_shape_preserve_preview_and_explain_repairs(self):
         self.init()

@@ -515,6 +515,18 @@ class WeatherTests(unittest.TestCase):
         with self.assertRaises(SystemExit):
             self.run_cli("--day", "tomorrow")
 
+    def test_morning_frame_says_when_its_forecast_and_air_were_current(self):
+        def provider(url, fail_air=False, **kwargs):
+            if fail_air and "air-quality" in url:
+                raise w.WeatherError("HTTP 429")
+            if "geocoding" in url or "air-quality" in url:
+                return self.provider(url)
+            return {**forecast(), "hourly": hourly()}
+        code, text, _ = self.run_cli("--city", "Test", "--json", provider=provider)
+        self.assertEqual(json.loads(text)["frame"]["as_of"], {"forecast": ["10:00", False], "air": ["10:00", False]})
+        code, text, _ = self.run_cli("--city", "Test", "--json", "--no-cache", provider=lambda url, **kw: provider(url, fail_air=True))
+        self.assertEqual(json.loads(text)["frame"]["as_of"]["air"], None)  # A failed AQI read has no time to show.
+
     def test_missing_hourly_data_keeps_the_daily_judgement(self):
         with patch.object(w, "http_get_json", return_value=forecast(precipitation_probability_max=[80])):
             out = w.fetch_openmeteo("Test", 0, 0)

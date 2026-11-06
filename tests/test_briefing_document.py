@@ -269,6 +269,26 @@ class DocumentTests(unittest.TestCase):
         self.assertNotIn('wx-chart air', page)
         self.assertNotIn('Air quality source', page)
 
+    def test_code_writes_morning_card_values_and_their_times(self):
+        from goodmorning.web import language as ui
+        say = lambda words, **fill: ui.text(words, lang='zh-CN', **fill)
+        frame = self.weather_frame()
+        read = {'frame': frame, 'temp_c': 10, 'aqi': {'us_aqi': 30}}
+        self.assertEqual(native.weather_values(read, ui.text)['precipitation'], 'Dry until 21:00 – Then rain likely · up to 80%')
+        # Without hourly data the read's own figures stand; missing AQI is unavailable, never good air.
+        bare = {'temp_c': 9.6, 'temp_min_c': 9.3, 'temp_max_c': 10.7, 'rain': 'yes', 'snow': False, 'precip_prob_pct': 51, 'aqi': None}
+        self.assertEqual(native.weather_values(bare, say), {'temperature': '9.6°C (9.3–10.7°C)', 'precipitation': '51% – 可能下雨',
+                                                            'warning': None, 'air': ui.text('Unavailable', lang='zh-CN')})
+        self.assertEqual(native.weather_values({**bare, 'aqi': {'us_aqi': 120}}, ui.text)['air'], '120 – Unhealthy for sensitive groups')
+        doc = document()
+        doc['sections'][0][1][0].append({**frame, 'as_of': {'forecast': ['07:00', True], 'air': None}})
+        page = web.edition(native.parse(native.encode(doc)), DATE, 'gm', {'gm': True})
+        self.assertIn("Couldn&#x27;t refresh · as of 07:00", page)
+        self.assertEqual(page.count('weather-asof'), 2)  # Temperature and precipitation; the air read had no time.
+        with self.assertRaises(ValueError):
+            doc['sections'][0][1][0][2]['as_of'] = {'forecast': ['7am', False], 'air': None}
+            native.parse(json.dumps(doc))
+
     def test_invalid_weather_frames_are_rejected(self):
         for change in ({'start': '2034-03-17T07:00'}, {'past': 18}, {'hours': [[10, 5, 30]] * 17},
                        {'hours': [[10, 101, 30]] * 18}, {'hours': [[10, 5, 30]] * 17 + [[10, 5, None]]},

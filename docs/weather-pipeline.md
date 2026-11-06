@@ -79,8 +79,11 @@ brief never pairs "light drizzle" with "dry until 09:00". When it is wet, the
 brief names the condition in the rain clause ("rain likely now, light drizzle"),
 never beside the temperature. JSON adds `ahead` and `frame` (hourly
 temperature, rain chance and AQI, sunrise/sunset, night spans, source links).
-Browser jobs attach that `frame` to the saved weather block when the section is
-published, so its charts and headlines are code-owned.
+`frame.as_of` holds the forecast and AQI times, each `[HH:MM, stale]`, with AQI
+null when no reading was usable. Browser jobs keep the whole morning read and, when the
+section is published, fill each card's value from it and attach `frame`, so the
+cards' figures, charts, sources and times are code-owned; the model writes only
+each card's advice and the note.
 
 `--day YYYY-MM-DD` (the evening's Weather tomorrow) reads that day's 06:00–24:00
 instead, with the same wet-hour rule and that day's own snow flag, and no air

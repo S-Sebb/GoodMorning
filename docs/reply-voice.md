@@ -39,7 +39,8 @@ blanket single-reply or silent-tool requirement.
   chronological appointments/TBC commitments; Tasks holds untimed actions under
   `docs/item-taxonomy.md`. An empty calendar is not a free day.
 - Weather order is temperature, precipitation, applicable extreme warning, AQI.
-  Unknown warning data is not proof of no warning. Use display-ready values:
+  Unknown warning data is not proof of no warning. Code writes a briefing's weather
+  card values; elsewhere use display-ready values:
   `16°C (14.5–20.4°C)`, `65% – Rain likely`, `30 – Good`; never `16C`, raw
   `rain yes/no`, or an `US AQI` prefix. Preserve actual freshness/health warnings.
 - News summaries preserve source facts, brief quotations and citations. Reuse

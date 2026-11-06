@@ -85,8 +85,13 @@ AQI_LEVELS = ((50, 'Good'), (100, 'Moderate'), (150, 'Unhealthy for sensitive gr
 
 def weather_frame(value, path):
     """The code-owned hourly frame weather.py attached to a weather block."""
-    if not isinstance(value, dict) or set(value) != {'start', 'past', 'hours', 'sun', 'night', 'snow', 'links'}:
+    if not isinstance(value, dict) or set(value) - {'as_of'} != {'start', 'past', 'hours', 'sun', 'night', 'snow', 'links'}:
         fail(path, 'invalid weather frame')
+    if 'as_of' in value:
+        stamp = lambda v: v is None or (isinstance(v, list) and len(v) == 2 and isinstance(v[0], str)
+                                        and re.fullmatch(r'\d{2}:\d{2}', v[0]) and type(v[1]) is bool)
+        if not isinstance(value['as_of'], dict) or set(value['as_of']) != {'forecast', 'air'} or not all(map(stamp, value['as_of'].values())):
+            fail(path + '.as_of', 'invalid as-of times')
     if not isinstance(value['start'], str) or not re.fullmatch(r'\d{4}-\d{2}-\d{2}T(06|18):00', value['start']):
         fail(path + '.start', 'frame starts at 06:00 or 18:00')
     Date.fromisoformat(value['start'][:10])
@@ -147,6 +152,26 @@ def weather_summary(card, frame, say=ui.ui):
         span = f'{min(values)}–{max(values)}' if min(values) != max(values) else str(values[0])
         return say(level), say('AQI {span} overnight' if late else 'AQI {span} through the day', span=span)
     return None
+
+
+def weather_values(read, say):
+    """Each morning card's value, written by code from the weather read; the page's headlines when the read has a frame."""
+    frame, aqi = read.get('frame'), read.get('aqi') or {}
+    ahead = read.get('ahead') or {'temp_min_c': read.get('temp_min_c'), 'temp_max_c': read.get('temp_max_c')}
+
+    def headline(card):
+        parts = weather_summary(card, frame, say) if frame else None
+        return parts and f'{parts[0]} – {parts[1]}'
+    number, low, high = lambda value: f'{round(value, 1):g}', ahead['temp_min_c'], ahead['temp_max_c']
+    temperature = None if read.get('temp_c') is None else f'{number(read["temp_c"])}°C' + (
+        '' if None in (low, high) else f' ({number(low)}–{number(high)}°C)')
+    sky = say('Snow likely') if read.get('snow') else say({'yes': 'Rain likely', 'no': 'Dry'}.get(read.get('rain'), 'Rain unknown'))
+    chance = read.get('precip_prob_pct')
+    us = aqi.get('us_aqi')
+    air = say('Unavailable') if us is None else f'{us} – ' + say(next(name for limit, name in AQI_LEVELS if us <= limit))
+    return {'temperature': headline('temperature') or temperature,
+            'precipitation': headline('precipitation') or (sky if chance is None else f'{chance:g}% – {sky}'),
+            'warning': None, 'air': headline('air') or air}
 
 
 def weather_chart(card, frame):
@@ -1010,8 +1035,11 @@ def render_block(value, images, briefing_date=None):
                 metric = f'<p class="weather-value"><span class="weather-main">{main}</span><span class="weather-sub">{sub}</span></p>'
             else:
                 metric = f'<p class="weather-value"><span class="weather-main">{main}</span></p>'
-            source = ''
-            if frame and card in ('temperature', 'precipitation', 'air') and (card != 'air' or frame['hours'][0][2] is not None):
+            source, stamp = '', (frame.get('as_of') or {}).get('air' if card == 'air' else 'forecast') if frame and card != 'warning' else None
+            if stamp:
+                words = "Couldn't refresh · as of {time}" if stamp[1] else 'As of {time}'
+                metric += f'<p class="weather-asof{" stale" if stamp[1] else ""}">{ui.ui(words, time=stamp[0])}</p>'
+            if frame and card in ('temperature', 'precipitation', 'air') and (card != 'air' or frame['hours'][0][2] is not None or stamp):
                 url = frame['links']['air' if card == 'air' else 'forecast']
                 name = 'Open-Meteo' if card != 'air' else 'WAQI' if 'open-meteo.com' not in url else 'CAMS'
                 purpose = ui.text('Air quality source: {name}' if card == 'air' else 'Forecast source: {name}', name=name)
