@@ -483,7 +483,8 @@ footer { max-width: 1440px; margin: 48px auto 0; padding: 26px max(80px, calc(en
 .briefing-section .section-body > p.section-takeaway { max-width: none; margin: 24px 0 0; padding: 18px 22px; border-left: 2px solid var(--accent); border-radius: 0 12px 12px 0; background: var(--wash); color: var(--ink); font: italic 18px/1.8 "Lora Commentary", Georgia, serif; }
 .subtitle:empty { display: none; }
 .week-picker { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 8px; padding-top: 24px; }
-.week-picker a { position: relative; border: 1px solid var(--line); border-radius: 12px; padding: 12px 8px; text-align: center; text-decoration: none; font-size: 12px; background: var(--surface); transition: border-color .2s ease, background-color .2s ease; }
+/* keep-all: a Chinese label breaks only at its space, so 周二 moves down whole rather than splitting (#282). */
+.week-picker a { position: relative; word-break: keep-all; border: 1px solid var(--line); border-radius: 12px; padding: 12px 8px; text-align: center; text-decoration: none; font-size: 12px; background: var(--surface); transition: border-color .2s ease, background-color .2s ease; }
 .week-picker small { display: block; font-size: 9px; color: var(--muted); }
 .week-picker .today-marker { position: absolute; top: -9px; left: 50%; transform: translateX(-50%); background: var(--accent); color: var(--bg); border: 2px solid var(--bg); border-radius: 10px; padding: 0 7px; font-size: 9px; font-weight: 600; line-height: 1.6; white-space: nowrap; }
 @media (hover: hover) and (pointer: fine) { .week-picker a:hover { background: var(--wash); border-color: var(--accent); } }
