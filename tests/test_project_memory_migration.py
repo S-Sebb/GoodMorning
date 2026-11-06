@@ -73,9 +73,10 @@ class MigrationTests(unittest.TestCase):
                 (self.root / 'projects' / f'{stem}.md').write_text(text)
             (self.root / 'projects.json').write_text('{"version":1,"projects":[]}\n')
 
-    def run_main(self, *args):
+    def run_main(self, *args, allow_root=True):
+        """Release staging runs the suite as root, so tests allow it; only the command line refuses root unconditionally."""
         with redirect_stdout(io.StringIO()) as out:
-            code = migration.main(['--vault', str(self.vault), *args])
+            code = migration.main(['--vault', str(self.vault), *args], allow_root=allow_root)
         return code, json.loads(out.getvalue())
 
     def entries(self):
@@ -208,6 +209,14 @@ class MigrationTests(unittest.TestCase):
         self.account(records={})
         with patch('os.geteuid', return_value=os.geteuid() + 1):
             self.assertEqual(self.run_main('migrate')[1]['error'], 'wrong_user')
+        vault, runtime, real = self.vault, self.root, Path.lstat
+
+        def as_root(path):  # The vault and runtime look root-owned, as when run by root; faked so any user can test it.
+            info = real(path)
+            return os.stat_result((*info[:4], 0, *info[5:10])) if path in (vault, runtime) else info
+        with patch('os.geteuid', return_value=0), patch.object(Path, 'lstat', as_root):
+            self.assertEqual(self.run_main('migrate', allow_root=False)[1]['error'], 'wrong_user', 'root is refused')
+            self.assertNotEqual(self.run_main('migrate', '--dry-run')[1].get('error'), 'wrong_user', 'only for being root')
         self.assertTrue((self.root / 'projects.json').exists())
 
     def refused(self, error, *args):
@@ -226,9 +235,10 @@ class MigrationTests(unittest.TestCase):
         self.vault = self.root.parent
         with patch('os.geteuid', return_value=os.geteuid() + 1):
             self.assertEqual(self.run_main('migrate')[1]['error'], 'wrong_user', 'checked before profile.md')
-        os.chmod(self.root, 0)
-        self.addCleanup(os.chmod, self.root, 0o700)
-        self.assertEqual(self.run_main('migrate')[0], 1, 'an unreadable runtime is not a missing profile')
+        if os.geteuid() != 0:  # Root reads any mode, so only another user can meet an unreadable runtime.
+            os.chmod(self.root, 0)
+            self.addCleanup(os.chmod, self.root, 0o700)
+            self.assertEqual(self.run_main('migrate')[0], 1, 'an unreadable runtime is not a missing profile')
 
     def test_an_unclear_profile_is_refused(self):
         tail = '\n## Setup rules\n'

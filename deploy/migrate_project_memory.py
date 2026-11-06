@@ -459,8 +459,8 @@ def verify_backup(target, restore_test=False):
     return {**result, 'restore_test': 'passed'}
 
 
-def owned_directory(path, missing):
-    """Refuse a missing, symlinked or foreign directory; True when it is the caller's own."""
+def owned_directory(path, missing, allow_root):
+    """Refuse a missing, symlinked or foreign directory; True when it is the caller's own and, unless allowed, not root's."""
     try:
         info = path.lstat()
     except FileNotFoundError:
@@ -469,10 +469,11 @@ def owned_directory(path, missing):
         return False
     if not stat.S_ISDIR(info.st_mode):
         raise ValueError(f'unsafe_path: {path} is not a directory')
-    return info.st_uid == os.geteuid() and info.st_uid != 0
+    return info.st_uid == os.geteuid() and (info.st_uid != 0 or allow_root)
 
 
-def main(argv=None):
+def main(argv=None, *, allow_root=False):
+    """`allow_root` lets the test suite run as root, as release staging does; the command line never sets it."""
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument('--vault', required=True)
     parser.add_argument('mode', choices=('migrate', 'restore', 'verify-backup'))
@@ -487,7 +488,7 @@ def main(argv=None):
     vault = Path(os.path.abspath(args.vault))
     runtime = vault / 'secretary'
     try:
-        if not owned_directory(vault, 'no_vault') or not owned_directory(runtime, 'no_runtime_dir'):
+        if not owned_directory(vault, 'no_vault', allow_root) or not owned_directory(runtime, 'no_runtime_dir', allow_root):
             print(json.dumps({'error': 'wrong_user', 'next': "run as the account's own service user"}))
             return 1
         if not os.access(runtime, os.R_OK | os.W_OK | os.X_OK):
