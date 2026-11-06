@@ -50,8 +50,7 @@ class DatedTitleTests(unittest.TestCase):
             ['news', [['news', 'World', [['H', 'S', [['Src', 'https://example.org']]]]]]],
         ]}
         page = web.edition(doc, '2026-10-13', 'gm', {'gm': True})
-        self.assertIn('aria-label="01: News — 2026-10-12"', page)
-        self.assertIn('preview-date', page)
+        self.assertIn('class="nav-date" data-date="2026-10-12"', page)
         self.assertIn('Oct 12', page)
         self.assertIn('section-date', page)
 

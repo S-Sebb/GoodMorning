@@ -26,57 +26,36 @@ def wait_anchor_scroll(page, index):
     }''', arg=index)
 
 
-def check_reading_states(page, screenshot=None):
-    targets = page.locator('.briefing-section').evaluate_all('''sections => [0, ...sections.map(section =>
+def check_reading_states(page):
+    """Exactly one chip and its section are current at every reading position, the last one at the bottom."""
+    targets = page.locator('.briefing-section').evaluate_all("""sections => [0, ...sections.map(section =>
         section.offsetTop + section.offsetHeight / 2 - Math.min(innerHeight * .3, 180)),
-        Math.max(0, document.documentElement.scrollHeight - innerHeight - 40),
-        document.documentElement.scrollHeight]''')
-    page.keyboard.press('Escape')
-    page.mouse.move(0, 0)
-    page.evaluate('document.activeElement.blur()')
-    for index, target in enumerate(targets):
+        document.documentElement.scrollHeight]""")
+    for target in targets:
         page.evaluate('top => scrollTo({top, behavior: "instant"})', target)
         # Scroll handlers update on animation frames; observe that rendering cycle.
         page.evaluate('new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))')
-        states = page.locator('.scroll-chunk').evaluate_all('''links => links.map(link => ({
-            active: link.classList.contains('active'),
-            fill: Number(link.style.getPropertyValue('--section-progress'))
-        }))''')
-        active = [i for i, state in enumerate(states) if state['active']]
-        assert len(active) == 1, states
-        for number, state in enumerate(states):
-            assert 0 <= state['fill'] <= 1, states
-            if number < active[0]:
-                assert state['fill'] == 1, f'Earlier segment has an empty patch: {states}'
-            if number > active[0]:
-                assert state['fill'] == 0, f'Future segment filled early: {states}'
-        if screenshot and index == 5:
-            settle_motion(page)
-            page.locator('.scroll-map').screenshot(path=str(screenshot.with_name(screenshot.stem + '-fifth-section-minimap.png')))
-        if screenshot and index == len(targets) - 2:
-            settle_motion(page)
-            page.locator('.scroll-map').screenshot(path=str(screenshot.with_name(screenshot.stem + '-before-bottom-minimap.png')))
-    assert all(state['fill'] == 1 for state in states), states
+        states = page.evaluate("""() => [Array.from(document.querySelectorAll('.briefing-section-nav a'), link => link.hasAttribute('aria-current')),
+            Array.from(document.querySelectorAll('.briefing-section'), section => section.classList.contains('is-current'))]""")
+        assert states[0].count(True) == 1 and states[0] == states[1], states
+    assert states[0][-1], states
 
 
 def check(page, kind, touch, screenshot=None, errors=None):
     sections = page.locator('.briefing-section')
-    chunks = page.locator('.scroll-chunk')
+    chips = page.locator('.briefing-section-nav a')
     count = sections.count()
     assert count > 0
-    expect(chunks).to_have_count(count)
-    assert page.locator('.rail').count() == 0
+    expect(chips).to_have_count(count)
+    assert page.locator('.scroll-map, .section-number').count() == 0
     assert not page.evaluate('document.documentElement.scrollWidth > innerWidth')
-    assert page.evaluate('''() => { const main=document.querySelector('main'); const style=getComputedStyle(main);
+    assert page.evaluate("""() => { const main=document.querySelector('main'); const style=getComputedStyle(main);
       return Math.abs(document.querySelector('article').getBoundingClientRect().width -
-        (main.clientWidth-parseFloat(style.paddingLeft)-parseFloat(style.paddingRight))) < 1; }''')
+        (main.clientWidth-parseFloat(style.paddingLeft)-parseFloat(style.paddingRight))) < 1; }""")
     errors = [] if errors is None else errors
-    expect(chunks.first).to_have_attribute('aria-current', 'location')
+    expect(chips.first).to_have_attribute('aria-current', 'location')
     expect(page.locator('.back-to-top')).to_be_hidden()
-    assert page.locator('.briefing-tools .source-link').count() == 1
     page.evaluate('document.fonts.ready')
-    expect(page.locator('.scroll-cursor')).to_have_css('border-top-width', '0px')
-    expect(page.locator('.scroll-chunk.active .chunk-bar')).to_have_css('border-top-color', 'rgba(0, 0, 0, 0)')
     if kind == 'gm':
         assert page.locator('.weather-tile').count() > 0
         assert page.locator('.agenda-event').count() > 0
@@ -93,98 +72,39 @@ def check(page, kind, touch, screenshot=None, errors=None):
     if screenshot:
         page.screenshot(path=str(screenshot))
     for index in range(count):
-        chunk = chunks.nth(index)
-        tooltip = page.locator(f'#preview-{index + 1}')
-        if touch:
-            old_hash = page.evaluate('location.hash')
-            chunk.tap()
-            expect(tooltip).to_be_visible()
-            expect(chunk).to_have_attribute('aria-expanded', 'true')
-            assert page.evaluate('location.hash') == old_hash
-            assert chunk.bounding_box()['height'] >= 44
-        else:
-            chunk.hover()
-            expect(tooltip).to_be_visible()
-        expect(tooltip).to_have_css('opacity', '1')
-        settle_motion(page, f'#preview-{index + 1}')
-        box = tooltip.bounding_box()
-        viewport = page.viewport_size
-        assert box['x'] >= 0 and box['y'] >= 0
-        assert box['x'] + box['width'] <= viewport['width']
-        assert box['y'] + box['height'] <= viewport['height']
-        expect(tooltip.locator('.preview-title')).to_have_text(sections.nth(index).locator('h2').inner_text())
-        if screenshot and index == 1:
-            page.screenshot(path=str(screenshot.with_name(screenshot.stem + '-preview.png')))
-        if touch:
-            if index % 2:
-                tooltip.locator('.preview-footer').tap()
-            else:
-                chunk.tap()
-        else:
-            chunk.click()
+        chip = chips.nth(index)
+        page.evaluate('scrollTo({top: 0, behavior: "instant"})')
+        chip.scroll_into_view_if_needed()  # Phones reach later chips by scrolling the row sideways.
+        assert chip.bounding_box()['height'] >= 44
+        chip.tap() if touch else chip.click()
         expect(page).to_have_url(f'{page.url.split("#")[0]}#section-{index + 1}')
-        expect(tooltip).to_be_hidden()
         # Wait on the observable scroll result, never a fixed sleep.
         wait_anchor_scroll(page, index)
-        expect(chunk).to_have_attribute('aria-current', 'location')
-    page.keyboard.press('Escape')
-    if not touch:
-        chunks.first.focus()
-        expect(page.locator('#preview-1')).to_be_visible()
-        page.keyboard.press('Escape')
-        expect(page.locator('#preview-1')).to_be_hidden()
-    else:
-        chunks.first.tap()
-        expect(page.locator('#preview-1')).to_be_visible()
-        page.locator('h1').tap()
-        expect(page.locator('#preview-1')).to_be_hidden()
-        page.keyboard.press('Tab')
-        chunks.first.focus()
-        expect(page.locator('#preview-1')).to_be_visible()
-        page.keyboard.press('Escape')
-        expect(page.locator('#preview-1')).to_be_hidden()
-        page.keyboard.press('Enter')
-        expect(page).to_have_url(f'{page.url.split("#")[0]}#section-1')
-        expect(sections.first).to_be_in_viewport()
-    # Use a fresh document for exact geometry checks. A pending keyboard/native
-    # scroll from the interaction checks must not compete with these test jumps.
+        expect(chip).to_have_attribute('aria-current', 'location')
+    # Use a fresh document for exact geometry checks.
     page.emulate_media(reduced_motion='reduce')
     page.goto(page.url.split('#')[0])
     page.evaluate('window.scrollTo({top: document.documentElement.scrollHeight, behavior: "instant"})')
     page.evaluate('new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))')
-    expect(chunks.last).to_have_attribute('aria-current', 'location')
-    fills = chunks.evaluate_all('(links) => links.map(link => Number(link.style.getPropertyValue("--section-progress")))')
-    assert fills == [1] * count, f'Page bottom left incomplete segment fills: {fills}; viewport={page.viewport_size}; scroll={page.evaluate("({y: scrollY, height: document.documentElement.scrollHeight, viewport: innerHeight})")}'
+    expect(chips.last).to_have_attribute('aria-current', 'location')
     page.wait_for_function('() => document.querySelector(".reading-progress").getBoundingClientRect().width / document.documentElement.clientWidth > .99')
-    check_reading_states(page, screenshot)
+    check_reading_states(page)
     settle_motion(page)
-    expect(page.locator('.back-to-top')).to_be_visible()
-    map_box = page.locator('.scroll-map').bounding_box()
-    button_box = page.locator('.back-to-top').bounding_box()
-    assert page.locator('.back-to-top').evaluate('''button => {
-      const contentRight = document.querySelector('.briefing-section').getBoundingClientRect().right;
-      const safeRight = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--safe-right')) || 0;
-      const expected = (contentRight + document.documentElement.clientWidth - safeRight) / 2;
-      const box = button.getBoundingClientRect();
-      return Math.abs(box.x + box.width / 2 - expected) < 1;
-    }'''), 'Back-to-top is not centered in the content gutter'
-    assert map_box['y'] + map_box['height'] + 6 <= button_box['y'], 'Navigation overlaps back-to-top'
-    assert button_box['width'] >= 44 and button_box['height'] >= 44
-    page.locator('.back-to-top').click()
-    page.wait_for_function('() => scrollY <= 2')
-    expect(page.locator('.back-to-top')).to_be_hidden()
-    assert page.locator('.scroll-chunk').first.get_attribute('aria-current') == 'location'
-    assert page.locator('.briefing-tools .source-link').bounding_box()['y'] < sections.first.bounding_box()['y']
-    cursor = page.locator('.scroll-cursor').bounding_box()
-    active_bar = page.locator('.scroll-chunk.active .chunk-bar').bounding_box()
-    assert abs(cursor['y'] - active_bar['y']) < 1
-    assert abs(cursor['height'] - active_bar['height']) < 1
+    if page.viewport_size['width'] <= 700:
+        # Phones offer Back to top in the section picker instead of a floating button.
+        expect(page.locator('.back-to-top')).to_be_hidden()
+    else:
+        expect(page.locator('.back-to-top')).to_be_visible()
+        button_box = page.locator('.back-to-top').bounding_box()
+        assert button_box['width'] >= 44 and button_box['height'] >= 44
+        page.locator('.back-to-top').click()
+        page.wait_for_function('() => scrollY <= 2')
+        expect(page.locator('.back-to-top')).to_be_hidden()
+        assert chips.first.get_attribute('aria-current') == 'location'
     assert page.locator('.briefing-section.is-current').count() == 1
     assert page.evaluate('document.getAnimations().filter(animation => animation.playState === "running").length') == 0
-    if screenshot:
-        page.locator('.scroll-map').screenshot(path=str(screenshot.with_name(screenshot.stem + '-bottom-minimap.png')))
     assert not errors, errors
-    return {'edition': kind, 'sections': count, 'touch': touch, 'overflow': False, 'previews': 'pass', 'navigation': 'pass', 'bottom_fills': 'pass', 'intermediate_fills': 'pass', 'motion': 'pass', 'idle_animations': 0, 'back_to_top': 'pass'}
+    return {'edition': kind, 'sections': count, 'touch': touch, 'overflow': False, 'navigation': 'pass', 'reading_states': 'pass', 'motion': 'pass', 'idle_animations': 0, 'back_to_top': 'pass'}
 
 
 def main():
@@ -226,8 +146,7 @@ def main():
         page = context.new_page()
         page.goto(args.url.rstrip('/') + '/gm')
         assert page.evaluate('getComputedStyle(document.documentElement).scrollBehavior') == 'auto'
-        assert page.evaluate('getComputedStyle(document.querySelector(".nav-preview")).transitionDuration') == '0s'
-        assert page.evaluate('getComputedStyle(document.querySelector(".scroll-cursor")).transitionDuration') == '0s'
+        assert page.evaluate('getComputedStyle(document.querySelector(".briefing-section-nav a")).transitionDuration') == '0s'
         assert page.evaluate('document.getAnimations().length') == 0
         page.evaluate('scrollTo({top: 120, behavior: "instant"})')
         page.evaluate('new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))')
@@ -240,7 +159,7 @@ def main():
         page = context.new_page()
         page.goto(args.url.rstrip('/') + '/gm')
         assert not page.evaluate('document.documentElement.scrollWidth > innerWidth')
-        page.locator('.scroll-chunk').nth(2).tap()
+        page.locator('.briefing-section-nav a').nth(2).tap()
         expect(page).to_have_url(args.url.rstrip('/') + '/gm#section-3')
         assert page.locator('.agenda-event').count() > 0
         context.close()

@@ -2,7 +2,7 @@
 
 GoodMorning and GoodNight use validated native JSON only. The viewer renders
 selectable HTML with clickable citations, typed weather/news/agenda/task sections,
-a section minimap and reading progress. It never exports dated webpages or reads
+a row of section chips and reading progress. It never exports dated webpages or reads
 Markdown briefings and presentation sidecars. Profiles, projects and daily work
 records still use Markdown; inbox and calendar storage use SQLite.
 
@@ -388,10 +388,10 @@ dashboard and the registry's owned-session IDs to review unreferenced sessions.
 On narrow mobile screens, the floating Sections button opens a native modal
 bottom sheet containing only currently visible briefing sections. Selecting an
 anchor closes it and focuses the destination; Escape, its close button and an
-outside tap dismiss it. It marks the current reading section and updates during
-section publication and website-language changes. The desktop minimap and
-top-of-briefing native anchor list remain available; the latter also works without
-JavaScript. Navigation never changes saved briefing data or dispatches model work.
+outside tap dismiss it. Its Back to top link replaces the floating Back to top
+button on phones. It marks the current reading section and updates during
+section publication and website-language changes. The section chips above the
+briefing remain available and also work without JavaScript. Navigation never changes saved briefing data or dispatches model work.
 
 Use isolated synthetic runtimes. These commands make no model calls:
 
