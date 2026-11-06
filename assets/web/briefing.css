@@ -176,6 +176,10 @@ article { min-width: 0; }
 .section-entry { display: flow-root; }
 .briefing-section { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; margin-bottom: 28px; padding: 32px 36px; scroll-margin-top: 32px; }
 .briefing-section { transition: border-color .35s ease, box-shadow .35s ease; }
+/* The hover shadow fades in on its own box by opacity; transitioning a large box-shadow repainted the whole section every frame. */
+.briefing-section { position: relative; }
+.briefing-section::after { content: ""; position: absolute; inset: -1px; border-radius: inherit; box-shadow: 0 8px 28px #00000008; opacity: 0; transition: opacity .35s ease; pointer-events: none; }
+html[data-style="pixel"] .briefing-section::after { content: none; }
 .briefing-section.is-current { border-color: var(--accent); }
 @supports (color: color-mix(in srgb, black, white)) { .briefing-section.is-current { border-color: color-mix(in srgb, var(--accent) 35%, var(--line)); } }
 .briefing-section > header { display: flex; align-items: center; gap: 18px; padding-bottom: 20px; border-bottom: 1px solid var(--line); margin-bottom: 24px; }
@@ -484,7 +488,7 @@ footer { max-width: 1440px; margin: 48px auto 0; padding: 26px max(80px, calc(en
 .briefing-section.arriving { animation: arrive .8s cubic-bezier(.25, .1, .25, 1); }
 /* Text stays on its final pixel grid: no translated layer to snap at settling. */
 @keyframes arrive { from { opacity: .14; } to { opacity: 1; } }
-@media (hover: hover) and (pointer: fine) { .briefing-section:hover { box-shadow: 0 8px 28px #00000008; } .section-body .task-card:hover { background: var(--wash); } .section-body .agenda-event:hover, .section-body .news-card:hover, .section-body .news-card:focus-within, .section-body .episode-card:hover, .section-body .deal-card:hover { background: var(--wash); border-color: var(--accent); box-shadow: 0 4px 14px #00000008; } .weather-tile:hover { border-color: var(--tile-accent); box-shadow: 0 4px 14px #00000009; } .section-body tbody tr:hover { background: var(--wash); } }
+@media (hover: hover) and (pointer: fine) { .briefing-section:hover::after { opacity: 1; } .section-body .task-card:hover { background: var(--wash); } .section-body .agenda-event:hover, .section-body .news-card:hover, .section-body .news-card:focus-within, .section-body .episode-card:hover, .section-body .deal-card:hover { background: var(--wash); border-color: var(--accent); box-shadow: 0 4px 14px #00000008; } .weather-tile:hover { border-color: var(--tile-accent); box-shadow: 0 4px 14px #00000009; } .section-body tbody tr:hover { background: var(--wash); } }
 @media (hover: hover) and (pointer: fine) { .edition-link:hover { transform: translateY(-2px); box-shadow: 0 5px 16px #0001; } .edition-link:not(.selected):hover { background: var(--wash); } }
 @media (max-width: 1000px) { .briefing-section { padding: 26px; } .hero { grid-template-columns: 1fr 220px; } .orbit { width: 220px; } }
 @media (max-width: 1100px) and (min-width: 701px) { .briefing-letter .hero { grid-template-columns: minmax(0, 1fr) 140px; gap: 20px; } .briefing-letter .hero-copy { grid-template-columns: 168px minmax(0, 1fr); gap: 28px; } .briefing-letter .orbit { width: 140px; } .briefing-letter .orbit .sky-scene { height: 100px; } .briefing-letter .orbit .sun { width: 140px; height: 100px; } }
@@ -615,7 +619,7 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
 @media (max-width: 350px) { .week-picker { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 @media (prefers-reduced-motion: reduce) { .desk-animation span { animation: none; } }
 @media (max-width: 700px) { :root { --content-gutter: 104px; } main { padding-right: calc(var(--content-gutter) + var(--safe-right)); } .briefing-tools { gap: 8px; } .briefing-section .section-body > p.section-takeaway { font-size: 17px; padding: 16px; } }
-@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } .hero-copy > *, .briefing-section.arriving { animation: none; } a, .briefing-section-nav a, .reading-progress, .edition-link, .briefing-section, .section-body li, .section-body tr, .section-body .task-card, .section-body .agenda-event, .section-body .news-card, .weather-tile, .week-picker a, .back-to-top, .back-to-top > span { transition: none; } .sun, .edition-link:hover { transform: none; } }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } .hero-copy > *, .briefing-section.arriving { animation: none; } a, .briefing-section-nav a, .reading-progress, .edition-link, .briefing-section, .briefing-section::after, .section-body li, .section-body tr, .section-body .task-card, .section-body .agenda-event, .section-body .news-card, .weather-tile, .week-picker a, .back-to-top, .back-to-top > span { transition: none; } .sun, .edition-link:hover { transform: none; } }
 @media (max-width: 700px) {
   .edition-link { display: inline-flex; align-items: center; justify-content: center; position: relative; isolation: isolate; min-height: 44px; padding: 0 10px; line-height: 1; }
   .edition-link::after { content: ""; position: absolute; z-index: -1; inset: 4px 0; border-radius: 999px; background: transparent; }

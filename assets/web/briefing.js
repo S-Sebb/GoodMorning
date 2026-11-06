@@ -130,9 +130,11 @@ if ('IntersectionObserver' in window) {
     updateReading();
   });
   heroObserver.observe(hero);
+  // Each section fades in once; replaying the fade on every re-entry repainted sections while scrolling back.
   entryObserver = new IntersectionObserver(entries => {
-    for (const entry of entries) {
-      entry.target.firstElementChild.classList.toggle('arriving', entry.isIntersecting);
+    for (const entry of entries.filter(entry => entry.isIntersecting)) {
+      entry.target.firstElementChild.classList.add('arriving');
+      entryObserver.unobserve(entry.target);
     }
   }, { rootMargin: '0px 0px -8% 0px' });
 }
