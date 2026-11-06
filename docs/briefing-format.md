@@ -24,8 +24,8 @@ optional evening sections, the weekly `letter` and a celebration day's
 `celebration` (first, before the defaults). Blocks are
 nonempty. Morning defaults to Weather, News, Schedule, Tasks, Reminders in that fixed order;
 evening defaults to Today, Weather tomorrow, Schedule, Tasks, Reminders. A quiet evening
-(no Today outcome cards and nothing reported) has no Today section: code skips it. Omit empty optional
-sections. A material failed retrieval is unavailable, not an empty/free day.
+(no Today outcome cards and nothing reported) has no Today section: code skips it, and an evening
+Tasks or Reminders read with 0 rows. Omit empty optional sections. A material failed retrieval is unavailable, not an empty/free day.
 Override section titles for the selected language or a different news window;
 published titles must match the saved browser plan. Notes are grounded takeaways,
 not repeated cards or news facts. Use `""` for note when only overriding title.

@@ -68,7 +68,7 @@ TEXT = {
               '(no cause, no retry promise); never skip this section.'),
   'weather_tomorrow': ('Tomorrow\'s weather, for winding down after the day. If the read succeeded, BLOCKS is exactly [["outlook"]]: '
                        'code fills the card (range, rain, comparison with today, any heads-up and what to get ready tonight) from the read. '
-                       'NOTE is one short, cozy closing line in the saved tone about getting ready for tomorrow, grounded in the read; '
+                       'NOTE, the section\'s third element where the example shows "…" (never a separate key), is one short, cozy closing line in the saved tone about getting ready for tomorrow, grounded in the read; '
                        'it repeats no numbers, temperatures, times or percentages and adds nothing the read does not say. If the read failed, '
                        'publish one ["p","…"] block saying only that tomorrow\'s weather could not be obtained (no cause, no retry promise) '
                        'with NOTE ""; never skip this section.'),
@@ -228,7 +228,8 @@ TEXT = {
               '雨、雪和带伞建议只写在 precipitation 的 detail 里；air 的 detail 写对应等级的健康建议。detail 不重复任何气温、百分比或 AQI 数值。'
               'AQI 未知不等于空气好，预警未知不等于没有预警。读取失败时发布一个 ["p","……"] 块，只说明本期无法获取天气（不写原因，不承诺补充）；不得跳过本章节。'),
   'weather_tomorrow': ('这是忙完一天后看的明日天气。读取成功时，BLOCKS 必须正好是 [["outlook"]]：卡片（气温范围、降雨、与今天的对比、'
-                       '需要留意的情况和今晚要准备的东西）由代码根据读取结果填写。NOTE 用保存的语气写一句简短、温馨的收尾，'
+                       '需要留意的情况和今晚要准备的东西）由代码根据读取结果填写。NOTE 是 section 数组的第三个元素，即示例中 "…" 的位置（不要另设键），'
+                       '用保存的语气写一句简短、温馨的收尾，'
                        '围绕为明天做准备，内容以读取结果为准；不重复任何数字、气温、时间或百分比，也不添加读取结果里没有的内容。'
                        '读取失败时发布一个 ["p","……"] 块，只说明没能获取明天的天气（不写原因，不承诺补充），NOTE 为 ""；不得跳过本章节。'),
   'news': ('`results` 中每个国家的读取结果都会按板块列出本章节截止时间前 24 小时内的已选报道和更多候选，上一期晨间简报已展示的报道已被去除。'
