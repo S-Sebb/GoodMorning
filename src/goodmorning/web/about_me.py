@@ -334,7 +334,7 @@ def remembered(app, fields):
     rows = [row(ui.ui('Remember things about me'), switch('memory', data['enabled']), key='memory'),
             *(note_row('memory:' + part, label, data['note'][part]) for part, label in PARTS.items()),
             *(project_row(number, entry, todos[memories.key(entry['name'])], today) for number, entry in enumerate(data['projects'])),
-            row(ui.ui('New project'), '<span class="about-value">' + say(
+            row(ui.ui('New project'), '<span class="about-details">' + say(
                 fields, 'Tell {name} about it, or save a to-do for it. Rename or finish a project the same way.') + '</span>',
                 chat(app, fields, 'I’d like to tell you about a project.')),
             row(ui.ui('The whole note'), status,

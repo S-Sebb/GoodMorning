@@ -44,6 +44,7 @@ def main():
             memory.change(runtime, 0, note={'life': 'You have a dog, Mochi, and head home early to walk him.',
                                             'likes': 'You’d rather not have meetings before 10.',
                                             'lately': 'Training for the Shanghai marathon in March.'})
+            memory.change(runtime, 1, note={'projects': {'Atlas': 'Your comparison study; the figure comes next.', 'Boreal': ''}})
             errors = []
             with sync_playwright() as playwright:
                 browser = playwright.chromium.launch()
@@ -103,8 +104,9 @@ def main():
                 expect(city.locator('.about-chat')).to_have_accessible_name('Ask Mochi to change this')
                 value_box, ask_box = city.locator('.about-value').bounding_box(), city.locator('.about-chat').bounding_box()
                 assert abs((value_box['y'] + value_box['height'] / 2) - (ask_box['y'] + ask_box['height'] / 2)) < 8, (value_box, ask_box)
-                # Linked projects sit with the other work lines; no section repeats why it exists.
-                expect(phone.locator('#about-work dt').last).to_have_text('Linked projects')
+                # Projects live in memory now; the work section keeps only Project areas. No section repeats why it exists.
+                expect(phone.locator('#about-work dt')).to_contain_text(['Project areas'])
+                expect(phone.locator('#about-work dt').last).to_have_text('Knowledge area')
                 expect(phone.locator('#about-projects, .about-why:not(#about-memory .about-why)')).to_have_count(0)
 
                 # Simple fields save in place; the profile keeps every other line.
@@ -187,6 +189,29 @@ def main():
                 lately.get_by_role('button', name='Save').click()
                 expect(lately.locator('.about-empty')).to_have_text('Nothing yet')
                 assert memory.load(runtime)['note']['lately'] == ''
+                # Each project is its own entry: edited in place or forgotten alone; new ones start in chat.
+                atlas = memories.locator('[data-field="project:Atlas"]')
+                expect(atlas.locator('dt')).to_have_text('Project: Atlas')
+                atlas.get_by_role('button', name='Edit').click()
+                expect(atlas.get_by_role('textbox', name='Project: Atlas')).to_have_value('Your comparison study; the figure comes next.')
+                atlas.get_by_role('textbox').fill('Your comparison study; the figure is done.')
+                atlas.get_by_role('button', name='Save').click()
+                expect(atlas.locator('.about-value')).to_have_text('Your comparison study; the figure is done.')
+                expect(atlas.locator('.about-hint')).to_contain_text('Updated')
+                phone.once('dialog', lambda dialog: dialog.accept())
+                memories.locator('[data-field="project:Boreal"]').get_by_role('button', name='Forget').click()
+                expect(memories.locator('[data-field="project:Boreal"]')).to_have_count(0)
+                assert [entry['name'] for entry in memory.load(runtime)['projects']] == ['Atlas']
+                expect(memories.locator('.about-row', has_text='New project').locator('.about-chat')).to_have_text('Ask Mochi')
+                # An edit opened before the secretary changed the note is refused instead of overwriting it.
+                atlas.get_by_role('button', name='Edit').click()
+                memory.change(runtime, memory.load(runtime)['revision'], note={'projects': {'Atlas': 'Changed in chat.'}})
+                atlas.get_by_role('textbox').fill('An old tab.')
+                atlas.get_by_role('button', name='Save').click()
+                expect(atlas.locator('.about-feedback')).to_contain_text('Your secretary just changed this')
+                atlas.get_by_role('button', name='Cancel').click()
+                assert memory.load(runtime)['projects'][0]['note'] == 'Changed in chat.'
+                phone.reload()
                 switch = phone.get_by_role('switch', name='Remember things about me')
                 switch.click()
                 expect(switch).to_have_attribute('aria-checked', 'false')
@@ -299,6 +324,7 @@ def main():
                 alice.once('dialog', lambda dialog: dialog.accept())
                 alice.get_by_role('button', name='全部忘记').click()
                 expect(alice.locator('#about-memory [data-field^="memory:"] .about-empty')).to_have_text(['还没写'] * 3)
+                expect(alice.locator('#about-memory .about-project')).to_have_count(0)
                 expect(alice.locator('#about-memory [data-field="forget"] .about-empty')).to_have_text('还没写。和Pip多聊聊，这份记忆就会慢慢长起来。')
                 expect(alice.get_by_role('button', name='全部忘记')).to_be_hidden()
                 assert not any(memory.load(runtime)['note'].values())
