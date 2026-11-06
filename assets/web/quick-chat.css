@@ -8,10 +8,14 @@ body:has(#quick-chat-launcher:not([hidden])) .back-to-top { right: calc(max(24px
 /* On desktop Back to top stacks above the launcher's right end (beside the open activity card it stays in the row),
    so the briefing column leaves a fixed corner only as wide as a launcher of at most 200px plus 24px air. Fixed and
    reserved from first paint, before the script reveals quick chat, so the column never reflows when quick chat appears,
-   the launcher is measured, its font loads, or the panel opens; wide screens whose centred margin fits it keep the usual gutter. */
+   the launcher is measured, its font loads, or the panel opens; wide screens whose centred margin fits it keep the usual gutter.
+   The date tiles are navigation like the masthead, so they keep the usual gutter. The body is the size container so
+   main and the tiles measure the corner (--quick-chat-corner, beyond the gutter) against the same page width. */
 @media (min-width: 701px) {
   #quick-chat #quick-chat-launcher { max-width: 200px; }
-  body:has(#quick-chat) main:has(.briefing-section) { padding-right: max(calc(var(--content-gutter) + var(--safe-right)), calc(max(24px, env(safe-area-inset-right)) + 224px - max(0px, (100% - 1440px) / 2))); }
+  body:has(#quick-chat):has(main .briefing-section) { container-type: inline-size; }
+  body:has(#quick-chat) main:has(.briefing-section) { --quick-chat-corner: max(0px, max(24px, env(safe-area-inset-right)) + 224px - max(0px, (100cqw - 1440px) / 2) - var(--content-gutter) - var(--safe-right)); padding-right: calc(var(--content-gutter) + var(--safe-right) + var(--quick-chat-corner)); }
+  body:has(#quick-chat) main:has(.briefing-section) > .week-picker { margin-right: calc(-1 * var(--quick-chat-corner)); }
   body:has(#quick-chat-launcher:not([hidden])) .back-to-top { right: calc(max(24px, env(safe-area-inset-right)) + 4px); bottom: max(92px, calc(env(safe-area-inset-bottom) + 84px)); }
 }
 body:has(#quick-chat:not([hidden])) #account-activity { bottom: max(92px, calc(env(safe-area-inset-bottom) + 84px)); }

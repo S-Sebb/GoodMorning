@@ -1,6 +1,7 @@
 /* One calm calendar sheet. Operational details stay in the corner menu. */
-.schedule-page main { padding: 0 max(24px, env(safe-area-inset-right)) 48px max(24px, env(safe-area-inset-left)); }
-.schedule-page .masthead { padding-top: 18px; padding-bottom: 18px; padding-right: max(24px, env(safe-area-inset-right)); }
+.schedule-page { --content-gutter: 24px; }
+.schedule-page main { padding: 0 calc(var(--content-gutter) + var(--safe-right)) 48px max(24px, env(safe-area-inset-left)); }
+.schedule-page .masthead { padding-top: 18px; padding-bottom: 18px; padding-right: calc(var(--content-gutter) + var(--safe-right)); }
 .schedule-toolbar { display: flex; justify-content: space-between; align-items: center; gap: 24px; padding: 32px 0 24px; }
 .schedule-date { min-width: 0; position: relative; padding-left: 58px; }
 .schedule-date::before { content: ""; position: absolute; left: 0; top: 2px; width: 42px; height: 42px; background: url("icons/desk-schedule.svg") center / contain no-repeat; }
