@@ -19,6 +19,9 @@ from support import FakeChamber
 from goodmorning.web.release import patch_notes
 from playwright.sync_api import sync_playwright, expect
 
+# Hrefs, not labels: labels change with the website language.
+PAGE_BAR=['/gm','/gn','/schedule','/letters','/chat','/about-me']
+
 
 def main():
     fixture=GatewayFixture();fixture.setUp()
@@ -62,7 +65,8 @@ def main():
                         page=context.new_page();page.on('pageerror',lambda e:browser_errors.append(str(e)))
                         for path in ('/gm','/gn','/schedule','/letters','/chat'):
                             page.goto(origin+path);page.evaluate('document.fonts.ready')
-                            links=page.locator('.edition-switch .edition-link');expect(links).to_have_count(5)
+                            links=page.locator('.edition-switch .edition-link')
+                            assert [link.get_attribute('href') for link in links.all()]==PAGE_BAR,path
                             for link in links.all():
                                 value=link.evaluate('el => getComputedStyle(el,"::before").backgroundImage')
                                 assert '/assets/' in value
