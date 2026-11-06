@@ -49,3 +49,7 @@ The tidy-up keeps its history in `task_events`, keyed `tidy:DATE`: a
 `tidy-offer` event when the check-in shows it, and a `tidy` event with every
 item's answer when the check-in is saved. These records decide which items
 are left out later; they never change a task themselves.
+
+The memory tidy after the evening briefing is separate: it reads the saved
+check-in with the rest of the last 14 days only for patterns about the user
+(`docs/secretary-memory.md`) and never changes a task.

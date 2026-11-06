@@ -98,7 +98,9 @@ an optional closing and the letter's sign-off may lightly mention it, and only a
 item the note dates today or tomorrow; the morning headline, sections, notes and
 progress never use it, and it never adds a closing on its own. After an evening save (not a
 regeneration) with memory on, the finish receipt also carries the note and the
-user's chat messages since the last tidy: the agent folds in what is missing,
+user's chat messages since the last tidy and `activity`, the last 14 days of
+check-ins and record changes (`docs/secretary-memory.md`): the agent folds in what
+is missing and patterns across days,
 drops `lately` items that are over, writes with `memory --write` and only then
 hands over the link.
 
