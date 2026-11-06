@@ -509,6 +509,8 @@ def run_case(output, template, language, scenario, instant):
         saved = app.source(day, kind)
         skipped = code_skipped(log, default_plan(prepared), json.loads(saved.read_text()) if saved.exists() else None)
         result['code_skipped'] = [default_plan(prepared)[position][0] for position in skipped]
+        assert not any(job_action(entry['argv']) in ('publish','skip') and entry.get('input',{}).get('position') in skipped
+                       for entry in log), 'The model spent a turn on a position code skipped'
         order_issues = collection_order_issues(log, default_plan(prepared), 1 if bridge.seeded else 0, skipped=skipped,
                                               reconcile=reconcile)
         result['collection_order_issues'] = order_issues
@@ -577,6 +579,9 @@ def run_case(output, template, language, scenario, instant):
                 assert section[2:3] and section[2].strip() and '\n' not in section[2], 'No one-line closing note'
                 assert not re.search(r'\d', section[2]), 'The note repeated numbers or times the card already shows'
                 result['weather_note'] = section[2]
+                weather = [entry for entry in log if job_action(entry['argv']) == 'publish'
+                           and entry.get('input',{}).get('position') == 1]
+                assert len(weather) == 1, f'Weather tomorrow took {len(weather)} publish calls, not one'
                 result['checks'].append('Quiet evening: no Today section or turn; Weather tomorrow is the code-filled card with a one-line note')
             else:
                 current = records(runtime)
