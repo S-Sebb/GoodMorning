@@ -114,9 +114,8 @@ TEXT = {
             'Blocked means something outside the user\'s control stops it (waiting on someone, missing material, closed). "Not done yet", '
             '"didn\'t get to it" or "will do it tomorrow" is neither blocked nor partial: write no status. A daily follow-up or deadline '
             'already comes back by itself; for other work a clearly named day is a move request (below). '
-            'Work in this order. 1) Reconcile: for each partial/blocked report in feedback.details, use the Tasks read in `results`, then '
-            'python scripts/goodmorning.py task --secretary-dir RUNTIME --show TASK_ID for its revision. When exactly one action clearly '
-            'matches, record it once: an occurrence agreed for DATE uses task --report TASK_ID --date DATE; otherwise task --update TASK_ID '
+            'Work in this order. 1) Reconcile: for each partial/blocked report in feedback.details, find the action in the Tasks read in `results`; REV is that row\'s revision, or the revision your last '
+            'write to it returned. When exactly one action clearly matches, record it once: an occurrence agreed for DATE uses task --report TASK_ID --date DATE; otherwise task --update TASK_ID '
             '(keep its planned date); both with --expect-revision REV --session SESSION --request-key gn-report:JOB:TASK_ID --input-json '
             '\'{"status":"blocked|partial","detail":"<the user\'s reason, same meaning>"}\'. If a report could match several actions, ask '
             'with the native question tool listing only the matching actions and stop (no write, publish or finish). A clear request to move '
@@ -127,10 +126,9 @@ TEXT = {
             'A planned step matching no saved action: save it once with python scripts/goodmorning.py task --secretary-dir RUNTIME --session SESSION --request-key gn-plan:JOB:N --add --input-json '
             '\'{"raw":"<the user\'s words>","task":{"title":"…","project":"<its project>","planned_date":"YYYY-MM-DD","timezone":"<profile timezone>",'
             '"detail":"<any condition the user gave, e.g. only if enough cells>"}}\'. '
-            'Progress without a clear day schedules nothing. Anything else follows the ESCAPE HATCH. 2) After any write, rerun the Today read\'s command (the '
-            '--section today entry in `results`); never reuse a Today read from before a write. 3) When its returned block is not null, publish it unchanged first: '
-            'they are the cards for completions and recorded partial/blocked work. Then add one ["p","…"] block and the note for reported '
-            'outcomes the cards do not show (an accomplishment that matches no task, a moved date or newly planned step, a blocker\'s reason). Mention every '
+            'Progress without a clear day schedules nothing. Anything else follows the ESCAPE HATCH. 2) Publish only your words: '
+            'one ["p","…"] block and the note. Code places the cards for completions and recorded partial/blocked work above it when publishing, '
+            'read after your writes, so never copy or reread them. The paragraph covers reported outcomes the cards do not show (an accomplishment that matches no task, a moved date or newly planned step, a blocker\'s reason). Mention every '
             'reported outcome; add no advice or invented progress.'),
   'anime': ('New episodes of the user\'s shows that aired since the previous night briefing. If the read succeeded and its `block` '
             'is not null, publish that block exactly as returned (rows, titles, numbers, dates and covers are code-owned; never '
@@ -177,8 +175,8 @@ TEXT = {
                   '`celebrations` lists, without repeating its numbers or dates. Add no other facts, plans, advice or promises, and never guess '
                   'the user\'s age, feelings or how they will spend the day. Do not describe the card or the briefing, or say how long you have '
                   'been with the user. Do not call the user by name. Never skip this section.'),
-  'today_regenerating': ('REGENERATION: make no task writes and ask nothing; reuse saved feedback. Copy the read\'s block when it is not null, and '
-                         'mention every reported outcome.'),
+  'today_regenerating': ('REGENERATION: make no task writes and ask nothing; reuse saved feedback. Publish one ["p","…"] block and the note '
+                         '(code places the cards), mentioning every reported outcome.'),
   'finish': ('Submit {} or {"closing":"…"} following `writing`. After a verified save, reply only with one short delivery line in '
              'the saved tone plus the returned relative url as a Markdown link.'),
   'finish_gm': ('Submit {"greeting":"…","opening":"…"}, adding "closing" only as `writing` allows; plain text built only from the sections '
@@ -259,7 +257,7 @@ TEXT = {
             '要提到，但不要据此把任何步骤标为完成。feedback.details 或 feedback.progress 中给某个步骤说了明确日期的计划（“后天看细胞生长情况”）属于排期，按第 1 步处理。受阻指用户无法控制的原因阻止了它（在等别人、缺材料、店没开）。'
             '“还没做”“没顾上”“明天再去/明天再做”既不是受阻也不是部分完成：不要写入状态。每天跟进的事项和有截止日期的事项会自动再次出现；'
             '其他事项如明确说了哪一天，按下面的改期处理。按以下顺序处理。1）核对：对 feedback.details 中每条'
-            '部分完成/受阻的报告，先查看 `results` 中的 Tasks 读取结果，再运行 python scripts/goodmorning.py task --secretary-dir RUNTIME --show TASK_ID 获取版本号。'
+            '部分完成/受阻的报告，在 `results` 的 Tasks 读取结果中找到对应事项；REV 是该行的 revision，或你上一次写入它时返回的 revision。'
             '恰好只有一项明确匹配时记录一次：DATE 当天约定的事项用 task --report TASK_ID --date DATE；否则用 task --update TASK_ID（保留原计划日期）；'
             '两者都带 --expect-revision REV --session SESSION --request-key gn-report:JOB:TASK_ID --input-json '
             '\'{"status":"blocked|partial","detail":"<用户给出的原因，含义不变>"}\'。若某条报告可能对应多项，用原生提问工具只列出匹配的事项询问并停下'
@@ -269,9 +267,9 @@ TEXT = {
             '带条件的步骤（“细胞量足够就做 X”）同样改到那天，并在注记里写明条件。'
             '计划中的步骤没有对应的已保存事项时，用 python scripts/goodmorning.py task --secretary-dir RUNTIME --session SESSION --request-key gn-plan:JOB:N --add --input-json '
             '\'{"raw":"<用户原话>","task":{"title":"……","project":"<所属项目>","planned_date":"YYYY-MM-DD","timezone":"<档案时区>",'
-            '"detail":"<用户给的条件，例如细胞量足够才做>"}}\' 保存一次。没有明确日期的进展不排期。其他内容按例外通道处理。2）有写入时，完成后重新运行 Today 读取（`results` 中带 --section today 的命令）；'
-            '不要沿用写入之前的 Today 读取结果。3）返回的块不为 null 时，先原样发布它：这些是完成项以及已记录的部分完成/受阻事项的卡片。然后为卡片没有体现的结果'
-            '（与任何待办都不对应的已完成事项、改动的日期或新排的步骤、受阻原因）加一个 ["p","……"] 块和注记。提到用户报告的每项结果，不添加建议或臆测进展。'),
+            '"detail":"<用户给的条件，例如细胞量足够才做>"}}\' 保存一次。没有明确日期的进展不排期。其他内容按例外通道处理。2）只发布你写的文字：一个 ["p","……"] 块和注记。完成项以及已记录的部分完成/受阻事项的卡片由代码在发布时'
+            '按写入之后的读取放在段落上方，不要复制或重新读取它们。段落写卡片没有体现的结果'
+            '（与任何待办都不对应的已完成事项、改动的日期或新排的步骤、受阻原因）。提到用户报告的每项结果，不添加建议或臆测进展。'),
   'anime': ('这是用户在追的番剧自上次晚间简报以来更新的剧集。读取成功且 `block` 不为 null 时，原样发布该块（行、标题、集数、日期和封面都由代码生成；'
             '不要翻译、调整顺序或增加行）。注记：用保存的语气写一句简短、活泼的话，邀请用户放松追番。`block` 为 null 时改为发布一个 ["p","……"] 块：'
             '用保存的语气写一句简短、活泼的话，说明自上次晚间简报以来没有新剧集，注记为 ""。读取失败时发布一个 ["p","……"] 块，只说明这次没能查到新剧集'
@@ -299,7 +297,7 @@ TEXT = {
                   '你只写一句配在卡片上的祝福：提交 {"position":N,"celebration":{"wish":"…"}}，一到两句（不超过 200 字），纯文本，由你这位秘书以“我”的口吻对用户说，'
                   '不用“我们”，也不以 GoodMorning 团队的身份说话；遵循保存的语气（默认欢快、可爱）。只祝贺 `celebrations` 里列出的事，不要重复其中的数字或日期；'
                   '不要添加其他事实、计划、建议或承诺，不要猜测用户的年龄、心情或这一天会怎么过；不要描述卡片或简报本身，也不要说陪伴了用户多久。不要称呼用户的名字。不要跳过这个章节。'),
-  'today_regenerating': '重新生成：不写入任务、不提问；沿用已保存的反馈。读取返回的块不为 null 时原样复制，提到用户报告的每项结果。',
+  'today_regenerating': '重新生成：不写入任务、不提问；沿用已保存的反馈。发布一个 ["p","……"] 块和注记（卡片由代码放置），提到用户报告的每项结果。',
   'finish': '提交 {} 或 {"closing":"…"}，遵循 `writing`。保存核实后，只用保存的语气写一句简短的交付语，并附上返回的相对 url 作为 Markdown 链接。',
   'finish_gm': ('提交 {"greeting":"…","opening":"…"}，只有 `writing` 允许时才加 "closing"；纯文本，只用你已发布章节里的内容。greeting 是页面的大标题，'
                 '不是问候：一行，不超过 30 个字，写今天最要紧的事。按这个顺序挑：今天到期的期限或今天有具体时间的约定（时间早的优先），其次是天气预警或极端天气'

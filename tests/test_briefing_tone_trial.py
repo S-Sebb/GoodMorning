@@ -174,14 +174,14 @@ class BriefingTrialTests(unittest.TestCase):
             'text':'早上好，简报准备好了。\n\n[简报](/d/2026-10-14/gm)\n\n祝你今天顺顺利利。'}]}))
         self.assertTrue(link_handoff(self.runtime,'original','/d/2026-10-14/gm'))
 
-    def scoped_job(self, kind='gm'):
+    def scoped_job(self, kind='gm', **feedback):
         app=BrowserApp(self.runtime,None,now=lambda:datetime(2026,10,14,12,tzinfo=timezone.utc),preflight=True)
         job={'id':'a'*32,'date':'2026-10-14','kind':kind,'session':'ses_trial','state':'running','language':'en',
              'created':datetime(2026,10,14,6,tzinfo=timezone.utc).timestamp()}
         app.jobs['2026-10-14.'+kind]=job;app.save_jobs()
         prepared=prepare(self.runtime,job)
         if prepared['awaiting']:
-            answer(self.runtime,job,{'details':'Started the draft.'})  # Something reported keeps Today's position.
+            answer(self.runtime,job,{'details':'Started the draft.',**feedback})  # Something reported keeps Today's position.
         act(self.runtime,job['id'],'ses_trial','init',{} if kind=='gm' else {'greeting':'Hello.','opening':'Review saved records.'})
         return job
 
@@ -227,6 +227,40 @@ class BriefingTrialTests(unittest.TestCase):
         self.assertEqual(code,1)
         self.assertEqual(result['error'],'browser_section_not_ready')
         query.assert_not_called()
+
+    def test_code_places_today_cards_read_after_this_steps_task_write(self):
+        seed_tasks(self.runtime,'en','evening-feedback','2026-10-14')
+        job=self.scoped_job('gn',completed=['none'])
+        receipt=act(self.runtime,job['id'],'ses_trial','prepare')['next']
+        tasks,today=receipt['results']
+        self.assertIsNone(today['output']['block'])  # Nothing recorded yet: no cards before the write.
+        groceries=next(row for row in tasks['output']['items'] if row['title']=='Buy groceries')
+        from goodmorning.records.task import main
+        with redirect_stdout(io.StringIO()) as output:
+            main(['--secretary-dir',str(self.runtime),'--report',groceries['id'],'--date','2026-10-14',
+                  '--expect-revision',str(groceries['revision']),'--session','ses_trial','--request-key','gn-report:test',
+                  '--input-json','{"status":"partial","detail":"Got half the list."}'])
+        self.assertEqual(json.loads(output.getvalue())['revision'],groceries['revision']+1)  # The next write needs no --show.
+        words=['today',[['p','Half the groceries are in.']],'Steady progress.','Today']
+        stale=['today',[['actions',[]],*words[1]],*words[2:]]  # A copied card block is replaced, never kept.
+        act(self.runtime,job['id'],'ses_trial','publish',{'position':0,'section':stale})
+        from goodmorning.briefings.briefing_stream import load
+        from goodmorning.briefings.briefing_job import context_path
+        saved=load(context_path(self.runtime,job['id']).with_name(job['id']+'.preview.json'))['document']['sections'][0]
+        self.assertEqual(saved[0],'today')
+        self.assertEqual([block[0] for block in saved[1]],['actions','p'])
+        self.assertEqual([(row[0],row[4]) for row in saved[1][0][1]],[(groceries['id'],'partial')])
+        self.assertEqual(saved[1][1:]+saved[2:],[['p','Half the groceries are in.'],'Steady progress.','Today'])
+        # A retried call with the same words is the same publication.
+        self.assertTrue(act(self.runtime,job['id'],'ses_trial','publish',{'position':0,'section':words})['reused'])
+
+    def test_today_without_cards_publishes_only_the_words(self):
+        job=self.scoped_job('gn')
+        act(self.runtime,job['id'],'ses_trial','publish',{'position':0,'section':['today',[['p','The draft is started.']],'']})
+        from goodmorning.briefings.briefing_stream import load
+        from goodmorning.briefings.briefing_job import context_path
+        saved=load(context_path(self.runtime,job['id']).with_name(job['id']+'.preview.json'))['document']['sections'][0]
+        self.assertEqual(saved[1],[['p','The draft is started.']])
 
     def test_empty_schedule_window_uses_real_calendar_weekdays_for_focus_day_only(self):
         from benchmarks.briefing_tone_live import empty_schedule_block
