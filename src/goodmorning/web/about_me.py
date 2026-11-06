@@ -38,8 +38,6 @@ UNNAMED = {'{name}’s notes about you': 'Your secretary’s notes about you',
            'How {name} talks with you': 'How your secretary talks with you',
            '{name} doesn’t know yet': 'Your secretary doesn’t know yet',
            'Ask {name}': 'Ask your secretary',
-           'Nothing yet. Chat with {name} and this note will grow from there.':
-               'Nothing yet. Chat with your secretary and this note will grow from there.',
            'What {name} has learned from your chats, check-ins and plans.':
                'What your secretary has learned from your chats, check-ins and plans.',
            'Tell {name} about it, or save a to-do for it. Rename or finish a project the same way.':
@@ -324,21 +322,16 @@ def project_row(number, entry, todos, today):
 
 
 def remembered(app, fields):
-    """The note the secretary keeps about the user, part by part; each part can be edited, or all of it forgotten."""
+    """The note the secretary keeps about the user, part by part; each part can be edited and each project edited or forgotten."""
     data = memories.load(app.runtime)
     today = briefing_day(fields.get('timezone', ''))
-    status = ('<span class="about-value">' + ui.ui('Last updated {date}', date=ui.day_text(data['updated'], reference=today)) + '</span>'
-              if (any(data['note'].values()) or data['projects']) and 'updated' in data else
-              '<span class="about-empty">' + say(fields, 'Nothing yet. Chat with {name} and this note will grow from there.') + '</span>')
     todos = open_todos(app.runtime) if data['projects'] else Counter()
     rows = [row(ui.ui('Remember things about me'), switch('memory', data['enabled']), key='memory'),
             *(note_row('memory:' + part, label, data['note'][part]) for part, label in PARTS.items()),
             *(project_row(number, entry, todos[memories.key(entry['name'])], today) for number, entry in enumerate(data['projects'])),
             row(ui.ui('New project'), '<span class="about-details">' + say(
                 fields, 'Tell {name} about it, or save a to-do for it. Rename or finish a project the same way.') + '</span>',
-                chat(app, fields, 'I’d like to tell you about a project.')),
-            row(ui.ui('The whole note'), status,
-                '<button class="about-forget-all" type="button" hidden>' + ui.ui('Forget everything') + '</button>', 'forget')]
+                chat(app, fields, 'I’d like to tell you about a project.'))]
     return section('memory', ui.ui('What I remember about you'), rows, say(fields, 'What {name} has learned from your chats, check-ins and plans.'),
                    ui.ui('Only used to make chats, briefings and letters personal, never as a setting or a permission. '
                          'When switched off, nothing is learned or used. Forgotten text is deleted for good.'),
@@ -346,7 +339,7 @@ def remembered(app, fields):
 
 
 def remember(app, key, text, revision):
-    """Switch memory on or off, forget the whole note or one project, or rewrite one part or project entry.
+    """Switch memory on or off, forget one project, or rewrite one part or project entry.
 
     `revision` is the note the page showed, so an edit open while the secretary changed the note never overwrites it."""
     data = memories.load(app.runtime)
@@ -356,11 +349,7 @@ def remember(app, key, text, revision):
                 raise ValueError('Invalid switch')
             saved = memories.change(app.runtime, revision, enabled=text == 'true')
         elif key == 'forget':
-            if text == 'all':
-                saved = memories.change(app.runtime, revision, note={**dict.fromkeys(memories.PARTS, ''),
-                                                                     **({'projects': dict.fromkeys(entry['name'] for entry in data['projects'])}
-                                                                        if data['projects'] else {})})
-            elif text.startswith('project:') and memories.find(data['projects'], text.removeprefix('project:')):
+            if text.startswith('project:') and memories.find(data['projects'], text.removeprefix('project:')):
                 saved = memories.change(app.runtime, revision, note={'projects': {text.removeprefix('project:'): None}})
             else:
                 raise ValueError('Invalid change')

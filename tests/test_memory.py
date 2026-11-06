@@ -254,7 +254,7 @@ class AboutMeMemoryTests(unittest.TestCase):
         self.assertLess(section.index('You have a dog, Mochi.'), section.index('Training for a marathon.'))
         self.assertIn('What I remember about you', section)
         self.assertIn('has learned from your chats, check-ins and plans', section)
-        self.assertIn('Last updated', section)
+        self.assertNotIn('Forget everything', section)
         self.assertIn('data-switch="memory"', section)
         self.assertEqual(section.count('data-multiline'), 3)
 
@@ -271,9 +271,11 @@ class AboutMeMemoryTests(unittest.TestCase):
         with self.assertRaisesRegex(about_me.Invalid, 'Turn memory on'):
             self.save('memory:life', 'You have a cat.')
         self.save('memory', 'true')
-        self.save('forget', 'all')
+        for part in memory.PARTS:
+            self.save('memory:' + part, '')
         self.assertFalse(any(memory.load(self.root)['note'].values()))
-        self.assertIn('Nothing yet. Chat with your secretary', about_me.page(self.app).decode())
+        with self.assertRaisesRegex(ValueError, 'Invalid change'):
+            self.save('forget', 'all')
 
     def test_projects_show_as_entries_that_are_edited_or_forgotten_one_by_one(self):
         initialize(self.root)
@@ -305,8 +307,6 @@ class AboutMeMemoryTests(unittest.TestCase):
         self.save('forget', 'project:Boreal')
         self.assertEqual([entry['name'] for entry in memory.load(self.root)['projects']], ['Atlas'])
         self.assertEqual(len(list(TaskStore(inbox).all())), 3, 'forgetting keeps the to-dos')
-        self.save('forget', 'all')
-        self.assertEqual(memory.load(self.root)['projects'], [])
 
 
 if __name__ == '__main__':

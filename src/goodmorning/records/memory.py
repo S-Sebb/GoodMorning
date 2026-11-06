@@ -2,8 +2,8 @@
 
 The note has three parts and one entry per project the user works on; a project's name is its to-dos' project label.
 The secretary rewrites the note in chat as it picks things up, and the evening briefing tidies it
-with the day's chat messages and the patterns in recent check-ins and records. The About me page shows it and lets the user edit it, forget it all
-or turn memory off. Unlike other records, forgotten text is deleted, not cancelled.
+with the day's chat messages and the patterns in recent check-ins and records. The About me page shows it and lets the user edit or empty
+each part, edit or forget each project, or turn memory off. Unlike other records, forgotten text is deleted, not cancelled.
 """
 import argparse
 from datetime import date, datetime, timedelta, timezone

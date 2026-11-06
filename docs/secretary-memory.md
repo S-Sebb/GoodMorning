@@ -73,9 +73,9 @@ own services. Every change goes through `src/goodmorning/records/memory.py`,
 checks the revision, holds `memory.lock` and replaces the file atomically.
 
 On About me, under **What I remember about you** (我记得的关于你的事), the user
-reads the note part by part, then each project with its open to-dos, edits any
-part or project, forgets one project, starts a new one through **Ask** (chat), switches
-memory off or uses **Forget everything**. Unlike other records, forgotten text is
-deleted, not cancelled; vault backups keep it until they rotate out. Memory is on
-by default; when off, nothing is written, tidied or used, and the note stays
-until the user forgets it.
+reads the note part by part, then each project with its open to-dos, edits or
+empties any part, edits or forgets one project, starts a new one through **Ask**
+(chat), or switches memory off; no single button forgets the whole note. Unlike
+other records, forgotten text is deleted, not cancelled; vault backups keep it
+until they rotate out. Memory is on by default; when off, nothing is written,
+tidied or used, and the note stays until the user empties it.

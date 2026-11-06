@@ -282,27 +282,6 @@
       ({holiday_countries: editHolidays, birthday: editBirthday, gender: editGender}[row.dataset.field] || edit)(row);
     });
   });
-  // Forgetting deletes the note for good, so it asks first.
-  const forget = page.querySelector('#about-memory [data-field="forget"]');
-  const forgetAll = forget?.querySelector('.about-forget-all');
-  if (forgetAll) {
-    forgetAll.hidden = !page.querySelector('#about-memory .about-value[data-content], #about-memory .about-project');
-    forgetAll.addEventListener('click', async () => {
-      if (!confirm(t('Forget everything your secretary remembers about you? The whole note will be deleted for good.'))) return;
-      forgetAll.disabled = true;
-      const saved = await save(forget, 'all', 'forget', 'Forgotten.');
-      forgetAll.disabled = false;
-      if (saved === null) return;
-      page.querySelectorAll('#about-memory [data-field^="memory:"]').forEach(row => show(row, ''));
-      page.querySelectorAll('#about-memory .about-project').forEach(row => row.remove());
-      const empty = Object.assign(document.createElement('span'), {className: 'about-empty'});
-      empty.dataset.uiText = named('Nothing yet. Chat with {name} and this note will grow from there.',
-        'Nothing yet. Chat with your secretary and this note will grow from there.');
-      empty.textContent = t(empty.dataset.uiText);
-      forget.querySelector('.about-content').replaceChildren(empty);
-      forgetAll.hidden = true;
-    });
-  }
   // Forgetting a project deletes only its entry; its to-dos keep their project label.
   page.querySelectorAll('.about-project .about-forget').forEach(button => {
     button.hidden = false;
