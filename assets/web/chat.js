@@ -165,10 +165,12 @@ function leaveSecretary() {
 
 function showTopic() {
   document.querySelector('#chat-topic').textContent = conversationTitles.get(chat) || chatT(chat ? 'Conversation' : 'New conversation');
-  document.querySelector('#chat-topic-mode').textContent = chatT(mode === 'todo' ? 'To-do' : mode[0].toUpperCase() + mode.slice(1));
+  const label = document.querySelector('#chat-topic-mode');
+  label.textContent = chatT(mode === 'todo' ? 'To-do' : mode[0].toUpperCase() + mode.slice(1));
+  // Every page here is the secretary's; only another mode, such as Initialize, needs naming.
+  label.hidden = mode === 'secretary';
   // A fresh conversation has nothing to continue or replace yet.
   document.querySelector('#new-conversation').hidden = !chat;
-  document.querySelector('.chat-topic-hint').hidden = !chat;
   const resume = !chat && validChat(workspace.resume);
   document.querySelector('#chat-resume-notice').hidden = !resume;
   if (resume) document.querySelector('#chat-resume').href = '/chat?id=' + workspace.resume;

@@ -11,6 +11,9 @@ import tempfile
 from playwright.sync_api import sync_playwright, expect
 from PIL import Image, ImageDraw
 
+# The computed accent colour, read through a throwaway probe inside the node.
+ACCENT = "node => { const probe = node.appendChild(document.createElement('span')); probe.style.color = 'var(--accent)'; const color = getComputedStyle(probe).color; probe.remove(); return color; }"
+
 
 def check_composer(browser, address, artifacts):
     checks = []
@@ -45,7 +48,7 @@ def check_composer(browser, address, artifacts):
                 assert transition['middle'] not in (plain, transition['final']), transition
             else:
                 assert row.evaluate('node => node.getAnimations().length') == 0
-            accent = page.locator('.desk-symbol').evaluate('node => getComputedStyle(node).color')
+            accent = page.locator('.conversation-panel').evaluate(ACCENT)
             expect(row).to_have_css('border-color', accent)
             assert row.evaluate("node => getComputedStyle(node).boxShadow.endsWith('0px 0px 0px 1px inset')")
             assert row.evaluate(layout) == before, 'Focus moved or resized the composer'
@@ -101,7 +104,7 @@ def check_highlight(browser, address, artifacts):
             settle()
             before = scroll.evaluate(geometry)
             plain = scroll.evaluate('node => getComputedStyle(node).borderColor')
-            accent = page.locator('.desk-symbol').evaluate('node => getComputedStyle(node).color')
+            accent = page.locator('.conversation-panel').evaluate(ACCENT)
             for side in ('top', 'right', 'bottom', 'left'):
                 expect(send).to_have_css(f'border-{side}-width', '0px')
             assert send.evaluate('node => [node.offsetWidth, node.offsetHeight]') == [44, 44]

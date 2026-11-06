@@ -104,6 +104,12 @@
       const image = portrait.querySelector('img');
       if (image.getAttribute('src') !== source) image.src = source;
     });
+    // The empty state shows the whole desk scene, still even when the edition's portrait moves.
+    const scene = entry[document.documentElement.dataset.edition === 'gn' ? 'night' : 'day'];
+    const figure = $('#quick-chat-empty .quick-chat-figure');
+    figure.hidden = typeof scene !== 'string' || !scene.startsWith('/');
+    if (!figure.hidden && figure.getAttribute('src') !== scene) figure.src = scene;
+    figure.classList.toggle('is-custom', entry.id === 'custom');
   }
 
   function showHeader() {
@@ -114,7 +120,8 @@
     launcher.classList.toggle('has-note', Boolean(note));
     launcher.setAttribute('aria-label', [ask, ...(dot.hidden || note ? [] : [dot.title])].join(' · '));
     $('#quick-chat-title').textContent = titles.get(chat) || t(chat ? 'Conversation' : 'New conversation');
-    $('#quick-chat-mode').textContent = t(modes[mode] || 'Secretary') + ' · ' + name;
+    // The portrait and name say whose chat this is; only another mode, such as Initialize, needs naming.
+    $('#quick-chat-mode').textContent = mode === 'secretary' || !modes[mode] ? name : t(modes[mode]) + ' · ' + name;
     $('#quick-chat-open').href = chat ? '/chat?id=' + chat : '/chat';
     const resume = !chat && validChat(workspace.resume);
     $('#quick-chat-resume').hidden = !resume;
