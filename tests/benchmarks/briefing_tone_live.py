@@ -574,6 +574,13 @@ def run_case(output, template, language, scenario, instant):
                 assert groceries['status'] == 'done' and len(current) == len(baseline)
                 assert not any(entry['argv'][:1] == ['news'] for entry in log)
                 result['checks'].append('Exact selected completion and explicit blocker applied without changing future workday')
+                assert not any(entry['argv'][:1] == ['task'] and '--show' in entry['argv'] for entry in log), 'Today looked up a revision the Tasks read gave'
+                today = next(section for section in document['sections'] if section[0] == 'today')
+                assert today[1][:1] and today[1][0][0] == 'actions', 'Code did not place the Today cards first'
+                assert not any(json.dumps(entry.get('input'), ensure_ascii=False).count('"actions"') for entry in log
+                               if job_action(entry['argv']) == 'publish' and entry.get('input', {}).get('position') == 0), \
+                    'The model wrote the Today cards itself'
+                result['checks'].append('Today: the model sent only its words; code placed the cards, with no revision lookup')
                 before = (runtime/'inbox.sqlite').read_bytes()
                 feedback = (runtime/'daily'/(day+'.md')).read_text().split('## feedback',1)[1]
                 save(folder/'regenerate-intent.json', {'previous':job})
