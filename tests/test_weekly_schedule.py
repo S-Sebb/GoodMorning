@@ -123,6 +123,15 @@ class ScheduleTests(unittest.TestCase):
             markup = snapshot(self.app, 0)['view']
             self.assertIn(ui.text('Appointment time not yet confirmed'), markup)
             self.assertIn('Awaiting lab approval.', markup)
+            # The project is a tag; its "Project:" prefix is read out but not shown.
+            self.assertIn('<small class="task-project"><span class="visually-hidden">' + ui.ui('Project:') + ' </span><span data-content>Atlas</span></small>', markup)
+            # Headings only over lists with something in them; a day with nothing says so once.
+            for day, section in zip(days.values(), markup.split('<section id="day-')[1:]):
+                self.assertEqual(section.count(ui.ui('Events')), bool(day['events']), day['date'])
+                self.assertEqual(section.count(ui.ui('To-dos')), bool(day['tasks']), day['date'])
+                self.assertEqual(ui.ui('Nothing saved') in section, not day['events'] and not day['tasks'], day['date'])
+        self.assertTrue(any(not day['events'] and not day['tasks'] for day in days.values()))
+        self.assertTrue(any(not day['events'] and day['tasks'] for day in days.values()))
 
     def test_canonical_reads_ignore_legacy_failures_and_do_not_mutate_records(self):
         canonical_records(self.root)
@@ -325,7 +334,11 @@ class ScheduleTests(unittest.TestCase):
         self.assertIn('Atlas: draft', result['view'])
         self.assertFalse((self.root / 'calendar.sqlite').exists())
         (self.root / 'calendar.sqlite').write_text('not SQLite')
-        self.assertIn('Calendar records could not be read', snapshot(self.app, 0)['view'])
+        broken = snapshot(self.app, 0)['view']
+        self.assertIn('Calendar records could not be read', broken)
+        # An unreadable calendar is never shown as an empty day.
+        self.assertEqual(broken.count('>Calendar unavailable<'), 7)
+        self.assertNotIn('Nothing saved', broken)
         (self.root / 'daily/2026-10-14.md').write_text('## flexible\n## flexible\n')
         self.assertTrue(self.data()['days'][2]['plan_error'])
         self.assertIn('Atlas: draft', snapshot(self.app, 0)['view'])

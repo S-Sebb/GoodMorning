@@ -47,6 +47,12 @@ def check(app, url, shots):
                         assert not page.evaluate('document.documentElement.scrollWidth > innerWidth'), (route, width, language)
                         if route == '/chat':
                             expect(page.locator('[data-starter]')).to_have_count(3)
+                        if route == '/letters':
+                            # No letters yet: the envelope and one sentence; the tab names the page.
+                            empty = page.locator('.letters-empty')
+                            assert '/assets/' in empty.evaluate('el => getComputedStyle(el, "::before").backgroundImage')
+                            expect(empty.locator('p')).to_have_count(1)
+                            expect(empty.locator('h1')).to_have_class('visually-hidden')
                         if shots and route in ('/schedule', '/chat') and width in (1440, 390):
                             page.mouse.move(0, 0)
                             page.evaluate('new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))')

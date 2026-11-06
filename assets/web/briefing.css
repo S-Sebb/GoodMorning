@@ -757,8 +757,7 @@ h2:lang(zh) { font-family: var(--cn-sans); letter-spacing: 0; font-weight: 600; 
 .letters-note { margin: 0 0 18px; text-align: center; color: var(--muted); }
 .letters-empty { max-width: 560px; margin: 32px auto; padding: 44px 32px; text-align: center; border: 1px solid var(--line); border-radius: 28px; background: var(--surface); }
 .letters-empty::before { content: ""; display: block; width: 96px; height: 96px; margin: 0 auto 14px; background: url("icons/desk-letters.svg") center / contain no-repeat; }
-.letters-empty h1 { margin: 0 0 10px; font: normal clamp(30px, 4vw, 40px)/1.2 Georgia, serif; letter-spacing: -.6px; }
-.letters-intro { color: var(--muted); }
+.letters-empty p { margin: 0; font-size: 17px; line-height: 1.6; }
 .letters-desk { display: grid; grid-template-columns: 200px minmax(0, 1fr); gap: 40px; align-items: start; }
 .letter-wheel { position: sticky; top: 24px; }
 .letter-wheel::before { content: ""; position: absolute; left: 6px; right: 6px; top: 50%; height: 66px; transform: translateY(-50%); border-block: 1px dashed var(--line); pointer-events: none; }

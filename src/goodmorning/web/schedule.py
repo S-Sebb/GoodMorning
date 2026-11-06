@@ -201,7 +201,9 @@ def task_card(task, day=None):
     elif task.get('marker') == 'flexible':
         metadata.append('<small class="task-marker">' + ui.ui('Flexible habit · moves with what you actually do') + '</small>')
     if task.get('project'):
-        metadata.append('<small class="task-project">' + ui.ui('Project: {name}', name=task['project']) + '</small>')
+        # A tag; the "Project:" prefix stays for screen readers.
+        metadata.append('<small class="task-project"><span class="visually-hidden">' + ui.ui('Project:') + ' </span><span data-content>'
+                        + html.escape(task['project']) + '</span></small>')
     if task['section'] == 'nice-to-do':
         metadata.append('<small class="task-kind">' + ui.ui('Optional') + '</small>')
     if state in ('partial', 'blocked'):
@@ -311,19 +313,22 @@ def view(data, checked):
         columns += ('<section id="day-' + day['date'] + '" class="schedule-day' + (' is-today' if today else '') + '" aria-labelledby="heading-' + day['date'] + '">'
                     '<header class="schedule-day-heading"><h3 id="heading-' + day['date'] + '"><span class="schedule-weekday">' + date_part(day['date'], 'weekday')
                     + '</span><span class="schedule-day-number">' + date_part(day['date'], 'day') + '</span></h3>' + marker + holidays(day) + '</header>'
-                    '<div class="schedule-calendar"><h4>' + ui.ui('Events') + '</h4>')
+                    '<div class="schedule-calendar">')
+        # Only lists with something to show get a heading; a day with nothing saved says so once.
+        # The two cells stay, empty or not, so the week's to-dos line up across days.
         if day['events']:
-            columns += ''.join(event_card(event, day['date'], data['timezone']) for event in day['events'])
-        else:
-            empty_label = 'Calendar unavailable' if data.get('calendar_error') else 'No calendar events saved'
-            columns += '<span class="schedule-empty" role="img" aria-label="' + empty_label + '" title="' + empty_label + '">—</span>'
-        columns += '</div><div class="schedule-work"><h4>' + ui.ui('To-dos') + '</h4>'
+            columns += '<h4>' + ui.ui('Events') + '</h4>' + ''.join(event_card(event, day['date'], data['timezone']) for event in day['events'])
+        elif data.get('calendar_error'):
+            columns += '<h4>' + ui.ui('Events') + '</h4><p class="schedule-empty">' + ui.ui('Calendar unavailable') + '</p>'
+        elif not day['tasks'] and not day['plan_error']:
+            columns += '<p class="schedule-empty">' + ui.ui('Nothing saved') + '</p>'
+        columns += '</div><div class="schedule-work">'
+        if day['tasks'] or day['plan_error']:
+            columns += '<h4>' + ui.ui('To-dos') + '</h4>'
         if day['tasks']:
             columns += '<ul class="schedule-tasks">' + ''.join(task_card(task, day['date']) for task in sorted(day['tasks'], key=lambda task: bool(task['done']))) + '</ul>'
         if day['plan_error']:
             columns += '<p class="schedule-empty">' + ui.ui('Task records unavailable' if day['plan_error'] == 'tasks' else 'Daily plan unavailable') + '</p>'
-        elif not day['tasks']:
-            columns += '<span class="schedule-empty" role="img" aria-label="No to-dos saved" title="No to-dos saved">—</span>'
         columns += '</div></section>'
     notice = notices(data)
     return controls + notice + overview + '</nav>' + columns + '</div>'
@@ -521,7 +526,8 @@ def page(app, offset, mode='week'):
         content = result['view']
     else:
         result = {'revision': None, 'checked': None}
-        content = '<div class="schedule-setup"><h2>Let’s make this yours.</h2><p>Set your timezone to see your weekly schedule. Your saved records stay unchanged.</p><a href="/chat?mode=initialize">Initialize my secretary</a></div>'
+        content = ('<section class="waiting-room schedule-setup"><h1>Let’s make this yours.</h1><p class="subtitle">Finish setup to see your schedule. Your saved records stay unchanged.</p>'
+                   '<a class="initialize-button" href="/chat?mode=initialize">Initialize my secretary</a></section>')
     config = html.escape(json.dumps({'mode': mode, 'revision': result['revision'], 'checked': result['checked'], 'ready': bool(zone)}), quote=True)
     source = ('<!doctype html><html lang="en" data-edition="' + theme + '"><head><meta charset="utf-8">'
               '<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>Schedule — GoodMorning</title>'
