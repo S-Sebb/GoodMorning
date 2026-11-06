@@ -173,7 +173,10 @@ def next_step(runtime, identifier, session, context, checkpoint):
                                   for item in context['celebrations']]
         action['input'] = {'position':position, 'celebration':{'wish':'…'}}
     elif context.get('document_version') == 2:
-        action['input'] = {'position':position, 'section':[tag,'BLOCKS','NOTE',title]}
+        # A filled example: string placeholders led models to send blocks/note as separate keys or unwrapped weather cards.
+        blocks = ([['outlook']] if context['workflow'] == 'gn' else [['weather',[[card,'…','…'] for card in ('temperature','precipitation','air')]]]
+                  ) if tag == 'weather' else [['p','…']]
+        action['input'] = {'position':position, 'section':[tag,blocks,'',title]}
     else:
         action['instruction'] = instruction
     return action
@@ -566,8 +569,19 @@ def act(runtime, identifier, session, action, payload=None):
             elif (action == 'publish' and isinstance(payload, dict) and type(payload.get('position')) is int
                     and 0 <= payload['position'] <= min(position, len(checkpoint['plan']) - 1) and checkpoint['plan'][payload['position']][0] == 'celebration'):
                 payload = {'position':payload['position'], 'section':celebration_section(runtime, job, context, payload)}
-            if not isinstance(payload, dict) or set(payload) != ({'position','section'} if action == 'publish' else {'position'}):
-                raise ValueError('Supply the section position and, for publish, one section')
+            def misshapen(problem):
+                # Show the receipt's own input so a wrong first publish recovers without reading source.
+                expected = {'position':position} if action == 'skip' else next_step(runtime, identifier, session, context, checkpoint).get('input')
+                return ValueError(f'{problem}. Send exactly this JSON shape, with your own blocks and note: '
+                                  + json.dumps(expected, ensure_ascii=False, separators=(',',':')))
+            keys = {'position','section'} if action == 'publish' else {'position'}
+            if not isinstance(payload, dict):
+                raise misshapen('The input must be one JSON object')
+            if set(payload) != keys:
+                missing, extra = sorted(keys - set(payload)), sorted(map(str, set(payload) - keys))
+                raise misshapen('; '.join(([f'The input is missing {", ".join(missing)}'] if missing else [])
+                                          + ([f'it has unexpected keys {", ".join(extra)}'] if extra else []))
+                                + ('; blocks and note go inside the section array' if action == 'publish' else ''))
             requested = payload['position']
             if type(requested) is not int or requested < 0:
                 raise ValueError('Invalid section position')
@@ -585,6 +599,15 @@ def act(runtime, identifier, session, action, payload=None):
                 raise ValueError('Published sections cannot change')
             if requested != position or position == len(checkpoint['plan']):
                 raise ValueError('Publish only the next unresolved section')
+            section = payload.get('section')
+            if action == 'publish' and checkpoint['plan'][position][0] not in ('letter', 'celebration'):
+                if not isinstance(section, list) or not 2 <= len(section) <= 4:
+                    raise misshapen('section must be an array [type, blocks, note, title]')
+                if section[0] != checkpoint['plan'][position][0]:
+                    raise misshapen(f'section type is {json.dumps(section[0], ensure_ascii=False)}, but this position is '
+                                    + checkpoint['plan'][position][0])
+                if not isinstance(section[1], list):
+                    raise misshapen('blocks (the second item of section) must be a list of blocks')
             if action == 'skip':
                 if checkpoint['plan'][position][0] in ('weather','news','schedule','today','tomorrow','anime','games','stocks','letter','celebration'):
                     raise ValueError('Publish material unavailability; do not skip a required section')
@@ -602,7 +625,12 @@ def act(runtime, identifier, session, action, payload=None):
             if checkpoint['plan'][position][0] == 'weather':
                 section = with_weather_frame(runtime, identifier, section)
             document['sections'].append(section)
-            result = publish(runtime, identifier, document, position=position)
+            try:
+                result = publish(runtime, identifier, document, position=position)
+            except ValueError as error:
+                if str(error).startswith('sections['):
+                    raise misshapen(str(error)) from None
+                raise
             pictures = (native.news_urls(document) if payload['section'][0] == 'news' and context.get('integration_policy', {}).get('publisher_images') is True
                         else native.cover_urls(document) if payload['section'][0] in ('anime', 'games') else [])
             if pictures:
