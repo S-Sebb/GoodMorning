@@ -219,6 +219,11 @@ def main():
                 switch.click()
                 expect(switch).to_have_attribute('aria-checked', 'true')
                 no_overflow(phone)
+                # Every button is at least 44px to tap; a switch's track is smaller, but its tap area is not.
+                assert phone.evaluate('''[...document.querySelectorAll('main :is(button, a.about-chat)')].filter(b => b.checkVisibility())
+                    .map(b => [b.className, b.getBoundingClientRect(), getComputedStyle(b, '::before')])
+                    .filter(([, r, before]) => r.width < 44 || r.height + (before.content === 'none' ? 0 : -2 * parseFloat(before.top)) < 44)
+                    .map(([name]) => name)''') == []
                 memories.screenshot(path=str(artifacts/'memory-390.png'))
                 # Public holidays are picked from the listed regions; the UK, Australia and Canada by nation, state or province.
                 row = phone.locator('[data-field="holiday_countries"]')
