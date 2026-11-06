@@ -211,7 +211,7 @@ h3 { font-size: 12px; text-transform: uppercase; letter-spacing: 1.6px; color: v
 .section-symbol .data-icon { width: 23px; height: 23px; }
 .section-body > p { max-width: 84ch; }
 .section-body > hr:last-child { display: none; }
-.weather .section-body { display: block; }
+.weather .section-body { display: block; container-type: inline-size; }
 .weather-tiles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
 .weather-tile { --tile-accent: var(--accent); --tile-bg: var(--wash); background: var(--tile-bg); border: 1px solid var(--line); border-radius: 14px; padding: 24px; min-width: 0; transition: border-color .25s ease, box-shadow .25s ease; }
 .weather-tile.cool { --tile-accent: #316d97; --tile-bg: #edf4f8; }
@@ -277,6 +277,10 @@ html[data-edition="gn"] .weather-tile.air { --tile-accent: #aed4b7; --tile-bg: #
 .wx-axis .data-icon { width: 15px; height: 15px; flex: none; color: var(--tile-accent); }
 .wx-periods { margin-top: 6px; font-size: 11px; font-weight: 600; letter-spacing: .4px; color: var(--muted); }
 .wx-periods span + span { border-left: 1px solid var(--line); }
+.wx-periods span { padding: 0 4px; white-space: normal; text-align: center; line-height: 1.3; }
+/* Below these widths a chart's caption cells get narrower than their words, so the tiles stack. */
+@container (max-width: 719px) { .weather-tiles.charted { grid-template-columns: minmax(0, 1fr); } }
+@container (max-width: 479px) { .weather-tiles.charted:has(> :nth-child(4)) { grid-template-columns: minmax(0, 1fr); } }
 .weather .section-body > p { color: var(--muted); font-family: Georgia, serif; font-size: 18px; margin-top: 24px; }
 .agenda { margin: 28px 0; }
 .agenda-group + .agenda-group, .action-group + .action-group { margin-top: 30px; }
