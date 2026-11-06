@@ -522,7 +522,7 @@ class TaxonomyTests(unittest.TestCase):
         app = BrowserApp(self.root, now=lambda: datetime(2026, 10, 13, 12, tzinfo=timezone.utc), preflight=True)
         self.assertEqual(app.preview(job['id'])['greeting'], 'Preparing today’s briefing…')
         checkpoint = json.loads((self.root/'browser-jobs'/(job['id']+'.preview.json')).read_text())
-        self.assertEqual(app.activity(job['id'], checkpoint)['label'], 'Writing today’s headline')
+        self.assertEqual(app.activity(job['id'], checkpoint, 'gm')['label'], 'Writing today’s headline')
         for greeting in ('x' * 61, 'One undated action\nand more', ''):
             with self.assertRaises(ValueError):
                 act(self.root, job['id'], 'ses_test', 'finish', {'greeting': greeting, 'opening': 'Morning.'})

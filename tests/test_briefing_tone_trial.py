@@ -193,7 +193,7 @@ class BriefingTrialTests(unittest.TestCase):
         prepared=prepare(self.runtime,job)
         if prepared['awaiting']:
             answer(self.runtime,job,{'details':'Started the draft.',**feedback})  # Something reported keeps Today's position.
-        act(self.runtime,job['id'],'ses_trial','init',{} if kind=='gm' else {'greeting':'Hello.','opening':'Review saved records.'})
+        act(self.runtime,job['id'],'ses_trial','init',{})
         return job
 
     def read_section(self, job, section, extra=()):
@@ -280,11 +280,22 @@ class BriefingTrialTests(unittest.TestCase):
 
     def test_evening_sections_with_empty_reads_are_skipped_by_code(self):
         job=self.scoped_job('gn')
-        self.assertEqual(self.evening_to_tasks(job)['action'],'finish')  # Tasks and Reminders had 0 rows: no model turn.
+        finish=self.evening_to_tasks(job)
+        self.assertEqual(finish['action'],'finish')  # Tasks and Reminders had 0 rows: no model turn.
         from goodmorning.briefings.briefing_stream import load
         from goodmorning.briefings.briefing_job import context_path
-        self.assertEqual(load(context_path(self.runtime,job['id']).with_name(job['id']+'.preview.json'))['outcomes'][3:],
-                         ['skipped','skipped'])
+        checkpoint=load(context_path(self.runtime,job['id']).with_name(job['id']+'.preview.json'))
+        self.assertEqual(checkpoint['outcomes'][3:],['skipped','skipped'])
+        # The evening greeting and opening are written last, about tonight (#256); until then a placeholder shows.
+        self.assertEqual(finish['input'],{'greeting':'…','opening':'…'})
+        app=BrowserApp(self.runtime,None,now=lambda:datetime(2026,10,14,12,tzinfo=timezone.utc),preflight=True)
+        self.assertEqual(app.preview(job['id'])['greeting'],'Preparing tonight’s briefing…')
+        self.assertEqual(app.activity(job['id'],checkpoint,'gn')['label'],'Writing your greeting')
+        for payload in ({},{'greeting':'x'*61,'opening':'Tonight.'},{'greeting':'Evening!\nRest.','opening':'Tonight.'}):
+            with self.assertRaises(ValueError):
+                act(self.runtime,job['id'],'ses_trial','finish',payload)
+        act(self.runtime,job['id'],'ses_trial','finish',{'greeting':'Good evening!','opening':'The draft is started; tomorrow has no saved appointments.'})
+        self.assertEqual(json.loads((self.runtime/'daily'/'2026-10-14.gn.json').read_text())['greeting'],'Good evening!')
 
     def test_evening_section_with_rows_waits_for_the_model_and_names_skip(self):
         seed_tasks(self.runtime,'en','evening-feedback','2026-10-14')

@@ -62,12 +62,13 @@ class JobTests(unittest.TestCase):
         initialize(self.root,self.job)
         result=act(self.root,self.identifier,'ses_fixture','prepare')
         self.assertEqual(result['reply_context']['user_name'],'Sam')
-        for language,optional,only in (('en','or by none','never use it in the opening, notes or progress'),
-                                       ('zh-CN','也可以不称呼','开场、注记和进度里都不要用')):
-            guide=briefing_guides.guide({'date':'2026-10-20','website_language':language},{'action':'init'},[],
+        for language,optional,only,tonight in (('en','or by none','the only place in the briefing for the name','Never list or preview the sections'),
+                                               ('zh-CN','也可以不称呼','整份简报只有这里可以出现这个称呼','不要罗列或预告章节')):
+            guide=briefing_guides.guide({'date':'2026-10-20','website_language':language,'workflow':'gn'},{'action':'finish'},[],
                                         runtime=self.root,job='j'*32,session='ses_fixture')
             self.assertIn(optional,guide)  # The name is optional and limited to the greeting.
             self.assertIn(only,guide)
+            self.assertIn(tonight,guide)  # The evening opening speaks to tonight, not the section list (#256).
 
     def test_owner_and_prepared_context_are_code_owned(self):
         with self.assertRaises(ValueError): act(self.root,self.identifier,'ses_other','prepare')

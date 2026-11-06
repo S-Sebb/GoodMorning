@@ -450,6 +450,17 @@ def check_headline(document, language, scenario, result):
     result['checks'].append('Headline is one short line; memory stays out of it')
 
 
+def check_evening_opening(document, plan, log, result, key='opening'):
+    """The evening greeting and opening are written at finish about tonight, never a list of the sections (#256)."""
+    result[key] = [document['greeting'], document['opening']]
+    # An init whose stdin did not parse was rejected and sent nothing.
+    inits = [entry for entry in log if job_action(entry['argv']) == 'init' and 'input' in entry]
+    assert all(entry['input'] == {} for entry in inits), 'The evening init sent a greeting or opening'
+    named = [title for _, title in plan if title.casefold() in document['opening'].casefold()]
+    assert len(named) < 3, f'The opening listed the sections: {named}'
+    result['checks'].append('Evening greeting and opening written at finish; no section list')
+
+
 def run_case(output, template, language, scenario, instant):
     timing, folder = scenario.endswith('-timing'), output/scenario
     scenario = scenario.replace('-timing', '-weather')  # Timing cases are the weather cases plus a fuller agenda.
@@ -596,7 +607,9 @@ def run_case(output, template, language, scenario, instant):
                     assert not any(entry['argv'][:1] == ['weather'] for entry in log)
                     assert not any(job_action(entry['argv']) == 'init' for entry in log)
                     result['checks'].append('Existing checkpoint resumed without reinit, rewriting or refetching its section')
-            elif scenario == 'evening-weather':
+            else:
+                check_evening_opening(document, default_plan(prepared), log, result)
+            if scenario == 'evening-weather':
                 assert records(runtime) == baseline, 'Evening without updates changed task records'
                 assert [section[0] for section in document['sections']][:2] == ['weather','schedule'], 'A quiet evening kept a Today section'
                 assert not any(job_action(entry['argv']) in ('publish','skip') and entry.get('input',{}).get('position') == 0
@@ -611,7 +624,7 @@ def run_case(output, template, language, scenario, instant):
                            and entry.get('input',{}).get('position') == 1]
                 assert len(weather) == 1, f'Weather tomorrow took {len(weather)} publish calls, not one'
                 result['checks'].append('Quiet evening: no Today section or turn; Weather tomorrow is the code-filled card with a one-line note')
-            else:
+            elif kind == 'gn':
                 current = records(runtime)
                 atlas = next(task for task in current if task['id'] == baseline[0]['id'])
                 groceries = next(task for task in current if task['id'] == baseline[2]['id'])
@@ -638,6 +651,8 @@ def run_case(output, template, language, scenario, instant):
                 assert (runtime/'inbox.sqlite').read_bytes() == before, 'Regeneration mutated task records'
                 assert (runtime/'daily'/(day+'.md')).read_text().split('## feedback',1)[1] == feedback
                 save(folder/'replacement.document.json', json.loads(app.source(day,kind).read_text()))
+                check_evening_opening(json.loads(app.source(day,kind).read_text()), default_plan(prepared), commands(runtime)[len(log):],
+                                      result, 'replacement_opening')
                 if expected_schedule:
                     replacement_doc = json.loads(app.source(day,kind).read_text())
                     schedule = next(section for section in replacement_doc['sections'] if section[0] == 'schedule')

@@ -160,7 +160,7 @@ class EveningSectionTests(unittest.TestCase):
 
     def test_section_is_last_copied_unchanged_and_never_skipped(self):
         self.job()
-        self.step('init', {'greeting': 'Evening.', 'opening': 'Tonight’s review.'})
+        self.step('init', {})
         plan = json.loads((self.root / 'browser-jobs' / ('c' * 32 + '.preview.json')).read_text())['plan']
         self.assertEqual(plan[-1], ['games', 'Game sales'])
         self.step('publish', {'position': 1, 'section': ['weather', [['p', 'Tomorrow’s weather is unavailable.']], '', 'Weather tomorrow']})
@@ -181,12 +181,12 @@ class EveningSectionTests(unittest.TestCase):
         with patch('goodmorning.briefings.briefing_images.cache_previews', return_value={}) as covers:
             self.step('publish', {'position': 5, 'section': ['games', [block], 'Two hunts on sale tonight!']})
         self.assertTrue(covers.call_args.kwargs['direct'])
-        self.assertEqual(self.step('finish', {})['saved'], True)
+        self.assertEqual(self.step('finish', {'greeting': 'Evening.', 'opening': 'Tonight’s review.'})['saved'], True)
 
     def test_section_is_absent_unless_turned_on(self):
         (self.root / 'profile.md').write_text((self.root / 'profile.md').read_text().replace('game_sales: "true"', 'game_sales: "false"'))
         self.job()
-        self.step('init', {'greeting': 'Evening.', 'opening': 'Tonight’s review.'})
+        self.step('init', {})
         plan = json.loads((self.root / 'browser-jobs' / ('c' * 32 + '.preview.json')).read_text())['plan']
         self.assertNotIn('games', [tag for tag, _ in plan])
 

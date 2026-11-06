@@ -99,8 +99,9 @@ def default_plan(context):
 
 
 def late_intro(context):
-    """The morning headline names today's top item, so it and the opening are written at finish from the verified sections."""
-    return context.get('document_version') == 2 and context.get('workflow') == 'gm'
+    """The greeting and opening speak to what the edition holds (the morning headline names today's top item),
+    so v2 editions write them at finish from the verified sections."""
+    return context.get('document_version') == 2
 
 
 def next_step(runtime, identifier, session, context, checkpoint):
@@ -482,8 +483,8 @@ def writing_rule(context, next_action):
     if action == 'finish':
         intro = ''
         if late_intro(context):
-            intro = ('标题和开场只写已发布章节里核实过的事；期限只认明确的到期日。' if chinese else
-                     'Headline and opening state only facts from the published sections; a deadline needs an explicit due date. ')
+            intro = (('标题' if context.get('workflow') == 'gm' else '问候') + '和开场只写已发布章节里核实过的事；期限只认明确的到期日。' if chinese else
+                     ('Headline' if context.get('workflow') == 'gm' else 'Greeting') + ' and opening state only facts from the published sections; a deadline needs an explicit due date. ')
         return intro + ('结尾可省略；没有待办、完成记录或实际反馈可回顾时，不写结尾。否则只回应已核实的结果。空日程只能说明没有已保存的约定，不能说“日程清空”、日子清闲、可以随意安排或时间充裕。不要承诺来源恢复后自动更新，不推断空闲、就绪或未来完成。' if chinese else
                 'Closing is optional; omit it when there are no tasks, completions or actual feedback to reflect. Otherwise use verified results only. An empty calendar means no saved appointments, not a clear schedule, quiet/free day or time to spare. Do not promise automatic updates after recovery, readiness or future completion.')
     if tag == 'tasks':
@@ -595,7 +596,7 @@ def act(runtime, identifier, session, action, payload=None):
         if action == 'init':
             if late_intro(context):
                 if not isinstance(payload, dict) or set(payload) - {'lang', 'plan'}:
-                    raise ValueError('Initialize with {}; the headline and opening are written at finish')
+                    raise ValueError('Initialize with {}; the greeting and opening are written at finish')
                 # Empty until finish; the preview shows a placeholder and the final save requires both.
                 payload = {**payload, 'greeting': '', 'opening': ''}
             if not isinstance(payload, dict) or not {'greeting','opening'} <= payload.keys() or set(payload) - {'greeting', 'opening', 'lang', 'plan'}:
@@ -718,7 +719,7 @@ def act(runtime, identifier, session, action, payload=None):
         if action == 'finish':
             if late_intro(context):
                 if not isinstance(payload, dict) or not {'greeting', 'opening'} <= payload.keys() or set(payload) - {'greeting', 'opening', 'closing'}:
-                    raise ValueError('Finish with greeting (the headline), opening and an optional closing')
+                    raise ValueError('Finish with greeting, opening and an optional closing')
                 native.headline(payload['greeting'], document['lang'])
                 document.update(greeting=payload['greeting'], opening=payload['opening'])
             elif not isinstance(payload, dict) or set(payload) - {'closing'}:
