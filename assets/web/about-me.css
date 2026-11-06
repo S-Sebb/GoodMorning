@@ -10,7 +10,7 @@
 html[data-edition="gn"] .about-me { --paper: color-mix(in srgb, var(--warm) 7%, var(--surface)); }
 .about-intro { display: flex; align-items: center; gap: 18px; margin: 8px 0 28px; }
 .about-portrait { flex: none; width: 84px; height: 84px; border-radius: 50%; object-fit: cover; border: 3px solid var(--accent); background: var(--wash); box-shadow: 0 2px 8px #0002; }
-.about-intro h1 { margin: 0 0 8px; font: italic 600 clamp(28px, 4vw, 38px)/1.2 "Lora Commentary", Georgia, serif; }
+.about-intro h1 { margin: 0 0 8px; font: italic 600 clamp(28px, 4vw, 38px)/1.2 "Lora Commentary", Georgia, serif; letter-spacing: 0; }
 /* Lora has no CJK and slanted CJK reads badly: Chinese headings stay upright in the system font (#about-memory outranks the note titles). */
 :is(.about-me, #about-memory) :is(h1, h2, dt):lang(zh) { font-family: var(--cn-sans, inherit); font-style: normal; }
 /* The greeting reads as the secretary speaking. */
@@ -102,7 +102,8 @@ html[data-edition="gn"] .about-feedback.is-error { color: #ffb4ab; }
   content: ""; position: absolute; top: -9px; left: 50%; width: 64px; height: 18px; margin-left: -32px; background: var(--tape); transform: rotate(-3deg);
 }
 #about-memory :is([data-field^="memory:"], .about-project):nth-child(even)::before { transform: rotate(4deg); }
-#about-memory :is([data-field^="memory:"], .about-project, .about-row:not([data-field])) dt { grid-area: label; align-self: center; font: italic 600 1.05rem/1.4 "Lora Commentary", Georgia, serif; color: var(--ink); }
+#about-memory :is([data-field^="memory:"], .about-project, .about-row:not([data-field])) dt { font: italic 600 1.05rem/1.4 "Lora Commentary", Georgia, serif; color: var(--ink); }
+#about-memory :is([data-field^="memory:"], .about-project) dt { grid-area: label; align-self: center; }
 /* The lines start under the note's title, so its text sits on them. */
 #about-memory :is([data-field^="memory:"], .about-project) .about-content {
   grid-area: text; display: block; min-height: 84px; line-height: 28px;
