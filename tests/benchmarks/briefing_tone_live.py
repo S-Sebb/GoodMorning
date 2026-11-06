@@ -24,8 +24,9 @@ sys.path.insert(0, str(ROOT/'tests'))
 from benchmarks import trial_engine
 from benchmarks.trial_engine import TrialBridge
 from benchmarks.task_tone_live import context, matrix_lock, records, save, TONES
+from goodmorning.briefings import briefing_job
 from goodmorning.briefings.briefing_document import HEADLINE_LIMIT
-from goodmorning.briefings.briefing_job import act, context_path, default_plan, timings_path
+from goodmorning.briefings.briefing_job import act, context_path, default_plan, session_job, timings_path
 from goodmorning.calendar.calendar_store import CalendarStore
 from goodmorning.records.inbox_store import initialize, InboxStore
 from goodmorning.web.briefing_server import BrowserApp
@@ -100,7 +101,7 @@ raise SystemExit(code)
 
 
 class CheckpointBridge(TrialBridge):
-    """Seed an interrupted preview before the ordinary, unchanged dispatch prompt."""
+    """Seed an interrupted preview before the server prepares the ordinary, unchanged dispatch prompt."""
     def __init__(self, engine, seed, language):
         super().__init__(engine, agent='build')
         self.runtime, self.seed, self.language = str(engine.runtime), seed, language
@@ -126,18 +127,25 @@ class CheckpointBridge(TrialBridge):
             time.sleep(.5)
         raise AssertionError('Isolated trial permission scope was not confirmed; no model request dispatched')
 
-    def control(self, action, **parameters):
-        if action == 'session.send' and self.seed and self.seeded is None:
-            job = next(line.split(': ', 1)[1] for line in parameters['prompt'].splitlines()
-                       if line.startswith(('Browser job: ', '浏览器任务: ')))
-            session = parameters['sessionId']
-            act(self.runtime, job, session, 'init', {})
+    def request(self, path, body=None, method=None):
+        # Setting the model is the last engine call after the job owns its session and before the server's prepare.
+        session = re.fullmatch(r'/api/session/([^/]+)/model', path)
+        if session and self.seed and self.seeded is None:
+            session = session.group(1)
+            job = session_job(self.runtime, session)
             weather = ['weather', [['p', 'Weather is unavailable; check before travelling.' if self.language == 'en'
                                     else '天气数据暂不可用，出行前请另行确认。']]]
-            act(self.runtime, job, session, 'publish', {'position':0, 'section':weather})
+            # Setup, not the agent's work: its receipts' reads fail quietly and stay out of the trial log.
+            reads = briefing_job.run_reads
+            briefing_job.run_reads = lambda commands: [{'command':command, 'exit':1, 'output':{'error':'provider_unavailable'}} for command in commands]
+            try:
+                act(self.runtime, job, session, 'init', {})
+                act(self.runtime, job, session, 'publish', {'position':0, 'section':weather})
+            finally:
+                briefing_job.run_reads = reads
             self.seeded = {'weather':weather}
             save(Path(self.runtime)/'seeded-checkpoint.json', self.seeded)
-        return super().control(action, **parameters)
+        return super().request(path, body, method)
 
 
 def synthetic_weather(instant, later=None):
@@ -260,7 +268,7 @@ def link_handoff(folder, stage, expected_url=None):
                 and not any(line.lstrip().startswith(('-', '*', '#')) for line in lines))
 
 
-def collection_order_issues(log, plan, position=0, reconcile=False, quiet=False):
+def collection_order_issues(log, plan, position=0, reconcile=False, skipped=()):
     """Check provider attempts and delivered views against successful publications.
 
     Failed scoped reads return no view. Their blocked attempts remain recorded.
@@ -283,8 +291,8 @@ def collection_order_issues(log, plan, position=0, reconcile=False, quiet=False)
         tag = argv[0] if argv[0] in ('weather','news') else None
         if argv[0] == 'task' and '--briefing' in argv and '--section' in argv:
             tag = argv[argv.index('--section') + 1]
-        if quiet and tag == 'today' and position < len(plan) and plan[position][0] == 'today':
-            position += 1  # Code read Today and skipped it on a quiet evening; the log has no skip for it.
+        if tag and position in skipped and position < len(plan) and tag == plan[position][0]:
+            position += 1  # Code read this position and skipped it (quiet Today, 0 rows); the log has no skip for it.
             continue
         if (tag == 'today' and entry.get('receipt') and 0 < position <= len(plan) and plan[position - 1][0] == 'today'):
             continue  # Publishing Today reread it to place the cards, after the publish call was logged.
@@ -293,6 +301,16 @@ def collection_order_issues(log, plan, position=0, reconcile=False, quiet=False)
         if tag and (position >= len(plan) or tag != plan[position][0]):
             issues.append('Collected '+tag+' before resolving position '+str(position))
     return issues
+
+
+def code_skipped(log, plan, document):
+    """Positions left out of the saved edition with no skip call in the log: code skipped them."""
+    if document is None:
+        return set()
+    shown = {section[0] for section in document['sections']}
+    model = {entry.get('input', {}).get('position') for entry in log
+             if job_action(entry['argv']) == 'skip' and entry.get('exit', 0) == 0}
+    return {position for position, (tag, _) in enumerate(plan) if tag not in shown and position not in model}
 
 
 def trial_config(runtime):
@@ -497,8 +515,11 @@ def run_case(output, template, language, scenario, instant):
         prepared = json.loads(context_path(runtime, job).read_text())
         reconcile = kind == 'gn'
         saved = app.source(day, kind)
-        quiet = kind == 'gn' and saved.exists() and 'today' not in [s[0] for s in json.loads(saved.read_text())['sections']]
-        order_issues = collection_order_issues(log, default_plan(prepared), 1 if bridge.seeded else 0, quiet=quiet,
+        skipped = code_skipped(log, default_plan(prepared), json.loads(saved.read_text()) if saved.exists() else None)
+        result['code_skipped'] = [default_plan(prepared)[position][0] for position in skipped]
+        assert not any(job_action(entry['argv']) in ('publish','skip') and entry.get('input',{}).get('position') in skipped
+                       for entry in log), 'The model spent a turn on a position code skipped'
+        order_issues = collection_order_issues(log, default_plan(prepared), 1 if bridge.seeded else 0, skipped=skipped,
                                               reconcile=reconcile)
         result['collection_order_issues'] = order_issues
         if scenario == 'evening-ambiguous':
@@ -547,9 +568,9 @@ def run_case(output, template, language, scenario, instant):
                     result['checks'].append('Required unavailable sections retained; empty optional positions skipped')
                     operations = [entry for entry in log if '--help' not in entry['argv'] and '-h' not in entry['argv']
                                   and not (entry['argv'][:1] == ['job'] and entry.get('exit',0) != 0)]
-                    assert job_action(operations[0]['argv']) == 'prepare', 'First operation was not job prepare'
-                    assert job_action(operations[1]['argv']) == 'init', 'Collection preceded preview init'
-                    result['checks'].append('Prepare then immediate init before collection')
+                    assert not any(job_action(entry['argv']) == 'prepare' for entry in operations), 'The model reran job prepare'
+                    assert job_action(operations[0]['argv']) == 'init', 'Collection preceded preview init'
+                    result['checks'].append('Immediate init before collection; prepare ran in code')
                 else:
                     assert document['sections'][0] == bridge.seeded['weather']
                     assert not any(entry['argv'][:1] == ['weather'] for entry in log)
@@ -566,6 +587,9 @@ def run_case(output, template, language, scenario, instant):
                 assert section[2:3] and section[2].strip() and '\n' not in section[2], 'No one-line closing note'
                 assert not re.search(r'\d', section[2]), 'The note repeated numbers or times the card already shows'
                 result['weather_note'] = section[2]
+                weather = [entry for entry in log if job_action(entry['argv']) == 'publish'
+                           and entry.get('input',{}).get('position') == 1]
+                assert len(weather) == 1, f'Weather tomorrow took {len(weather)} publish calls, not one'
                 result['checks'].append('Quiet evening: no Today section or turn; Weather tomorrow is the code-filled card with a one-line note')
             else:
                 current = records(runtime)

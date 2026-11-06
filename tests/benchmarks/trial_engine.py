@@ -15,6 +15,7 @@ import json
 import os
 from pathlib import Path
 import secrets
+import shlex
 import shutil
 import signal
 import socket
@@ -27,6 +28,7 @@ from urllib.request import urlopen
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT/'src'))
+from goodmorning.briefings import briefing_job
 from goodmorning.security.briefing_runtime import LocalBridge
 from goodmorning.web import models
 
@@ -220,13 +222,31 @@ class Engine:
 class TrialBridge(LocalBridge):
     """The production account bridge to a started engine, recording the sessions it creates.
 
-    `agent` pins an experimental agent and confirms it before any prompt is sent."""
+    `agent` pins an experimental agent and confirms it before any prompt is sent.
+    The server's `prepare` runs receipt reads in this process; while the bridge is open they go through
+    the trial source's own CLI, so its provider faults and command log apply as to agent-run reads."""
     def __init__(self, engine, *, agent=None):
         super().__init__(engine.url, str(engine.release), engine.password)
         self.engine, self.agent, self.sessions = engine, agent, []
+        self.real_reads, briefing_job.run_reads = briefing_job.run_reads, self.run_reads
 
     def close(self):
+        briefing_job.run_reads = self.real_reads
         self.engine.stop()
+
+    def run_reads(self, commands):
+        results = []
+        for command in commands:
+            done = subprocess.run([sys.executable, 'scripts/goodmorning.py', *shlex.split(command)[2:]],
+                                  cwd=self.engine.release, capture_output=True, text=True, timeout=300,
+                                  env={**os.environ, 'SECRETARY_DIR':str(self.engine.runtime),
+                                       'GM_CACHE_DIR':str(self.engine.runtime/'cache')})
+            try:
+                value = json.loads(done.stdout)
+            except ValueError:
+                value = (done.stdout.strip() or done.stderr.strip())[-4000:]
+            results.append({'command':command, 'exit':done.returncode, 'output':value})
+        return results
 
     def control(self, action, **parameters):
         result = super().control(action, **parameters)
