@@ -87,7 +87,8 @@ def portrait(app):
 
 def chat(app, fields, starter):
     picture = portrait(app)
-    return ('<a class="about-chat" href="/chat" data-quick-ask="' + html.escape(starter, quote=True) + '">'
+    return ('<a class="about-chat" href="/chat" data-quick-ask-prefill data-quick-ask="'
+            + html.escape(starter, quote=True) + '">'
             + (f'<img src="{html.escape(picture, quote=True)}" alt="" width="24" height="24">' if picture else '')
             + say(fields, 'Ask {name} to change this') + '</a>')
 
