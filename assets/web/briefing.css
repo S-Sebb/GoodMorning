@@ -56,9 +56,11 @@ a:focus-visible { outline: 2px solid var(--accent); outline-offset: 5px; }
 .edition-link[href="/schedule"] { --desk-icon: url("icons/desk-schedule.svg"); }
 .edition-link[href="/letters"] { --desk-icon: url("icons/desk-letters.svg"); }
 .edition-link[href="/chat"] { --desk-icon: url("icons/desk-secretary.svg"); }
-.edition-link[href="/about-me"] { --desk-icon: url("icons/desk-person-neutral.svg"); }
-.edition-link[data-person="woman"] { --desk-icon: url("icons/desk-person-woman.svg"); }
-.edition-link[data-person="man"] { --desk-icon: url("icons/desk-person-man.svg"); }
+.edition-link[href="/about-me"] { --desk-icon: url("icons/desk-person-neutral.png"); }
+.edition-link[data-person="woman"] { --desk-icon: url("icons/desk-person-woman.png"); }
+.edition-link[data-person="man"] { --desk-icon: url("icons/desk-person-man.png"); }
+/* The person icons are pixel art: keep their pixels sharp when scaled to 24 px. */
+.edition-link[href="/about-me"]::before { image-rendering: pixelated; }
 .edition-link.selected { background: var(--ink); color: var(--bg); }
 .edition-unavailable { display: flex; align-items: center; gap: 7px; padding: 8px 14px; color: var(--muted); font-size: 13px; }
 .edition-unavailable small { font-size: 9px; padding: 2px 7px; background: var(--wash); border-radius: 12px; }

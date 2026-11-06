@@ -82,8 +82,8 @@ class ResourceTests(unittest.TestCase):
         from goodmorning.web.briefing_resources import DESK_ICON_TYPES
         for name in DESK_ICON_TYPES:
             resource = resources.alias('/' + name)
-            self.assertEqual(resource.mime, 'image/svg+xml')
-            self.assertIn(b'<svg', resource.data)
+            self.assertEqual(resource.mime, DESK_ICON_TYPES[name])
+            self.assertTrue(resource.data.startswith(b'\x89PNG' if name.endswith('.png') else b'<svg'), name)
         for name in ('briefing.css', 'schedule.css'):
             css = resources.alias('/' + name).data
             self.assertNotIn(b'url("icons/desk-', css)
