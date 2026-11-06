@@ -163,6 +163,42 @@ class LiveTests(unittest.TestCase):
         initialize.assert_not_called()
         self.assertEqual(self.chamber.calls, [])
 
+    def test_dispatch_sends_the_code_prepared_receipt_in_both_editions_and_languages(self):
+        from goodmorning.web import language as ui
+        self.app.preflight = True
+        for kind, language, header in (('gm', 'en', '/gm\nBrowser job: '), ('gn', 'zh-CN', '请准备我的晚间简报（/gn）。\n浏览器任务: ')):
+            token = ui.CURRENT.set(language)
+            try:
+                with patch('goodmorning.web.briefing_server.threading.Thread', ImmediateThread):
+                    job = self.app.start('2026-10-10', kind)['job']
+                    if kind == 'gn':  # The evening first asks how today went.
+                        form = self.app.status(job)['forms'][0]
+                        self.app.reply(job, 'form', form['id'], {'answer': {'details': 'No updates today'}})
+            finally:
+                ui.CURRENT.reset(token)
+            prompt = self.chamber.calls[-1][1]['prompt']
+            label = '准备回执: ' if language == 'zh-CN' else 'Prepare receipt: '
+            self.assertTrue(prompt.startswith(header + job))
+            receipt = json.loads(prompt.split('\n' + label, 1)[1])
+            # The model starts on init: the receipt is already bound to this job and its session.
+            self.assertEqual((receipt['job'], receipt['session'], receipt['next']['action']), (job, 'ses_fixture', 'init'))
+            self.assertEqual((receipt['reply_context']['language'], receipt['website_language']), (language, language))
+            self.assertEqual(self.app.job(job)['state'], 'running')
+
+    def test_failed_prepare_stops_the_job_without_a_model_run(self):
+        self.app.preflight = True
+        with patch('goodmorning.briefings.briefing_job.act', side_effect=OSError('Synthetic private failure')), \
+             patch('goodmorning.web.briefing_server.threading.Thread', ImmediateThread), \
+             self.assertLogs('goodmorning.web.briefing_server', level='WARNING') as logs:
+            job = self.app.start('2026-10-10', 'gm')['job']
+        self.assertIn('briefing_prepare_failed (OSError)', logs.output[0])
+        self.assertNotIn('private', logs.output[0])
+        self.assertNotIn('session.send', [action for action, _ in self.chamber.calls])
+        self.chamber.idle()
+        status = self.app.status(job)
+        self.assertEqual((status['state'], status['recovery_action']), ('stopped', 'resume'))
+        self.assertTrue(status['label'].startswith('Preparation stopped before an edition was saved'))
+
     def test_acknowledged_inputs_never_reappear_or_yield_before_engine_catches_up(self):
         from unittest.mock import patch
         job=self.start()

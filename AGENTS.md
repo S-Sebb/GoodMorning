@@ -24,10 +24,10 @@ root. Read workflows and run helpers here, not from another installed GoodMornin
 copy. A globally loaded skill never changes the browser request's release or runtime.
 
 For `/gm` or `/gn` browser-generation prompts, read no docs before starting. The
-prompt supplies only an edition, browser job ID, selected runtime and website
-language. Run `scripts/goodmorning.py job --secretary-dir RUNTIME --job JOB prepare`
-with the real session ID from the environment or an explicit `--session`; never
-guess it. Its `contract` and each receipt's `next` (`guide`, `writing`, `read`,
+prompt supplies an edition, browser job ID, selected runtime, website language
+and the job's `prepare` receipt, already run for this session. Start with that
+receipt's `next`; do not run `prepare` again or look up the session or files.
+Its `contract` and each receipt's `next` (`guide`, `writing`, `read`,
 `command`) are the complete, localized rules for one step at a time; code owns
 the cumulative document, validation and final save. Read the docs a contract
 names only for something no guide covers. Do not create text/card/presentation/HTML

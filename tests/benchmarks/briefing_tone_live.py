@@ -25,7 +25,7 @@ from benchmarks import trial_engine
 from benchmarks.trial_engine import TrialBridge
 from benchmarks.task_tone_live import context, matrix_lock, records, save, TONES
 from goodmorning.briefings.briefing_document import HEADLINE_LIMIT
-from goodmorning.briefings.briefing_job import act, context_path, default_plan, timings_path
+from goodmorning.briefings.briefing_job import act, context_path, default_plan, session_job, timings_path
 from goodmorning.calendar.calendar_store import CalendarStore
 from goodmorning.records.inbox_store import initialize, InboxStore
 from goodmorning.web.briefing_server import BrowserApp
@@ -100,7 +100,7 @@ raise SystemExit(code)
 
 
 class CheckpointBridge(TrialBridge):
-    """Seed an interrupted preview before the ordinary, unchanged dispatch prompt."""
+    """Seed an interrupted preview before the server prepares the ordinary, unchanged dispatch prompt."""
     def __init__(self, engine, seed, language):
         super().__init__(engine, agent='build')
         self.runtime, self.seed, self.language = str(engine.runtime), seed, language
@@ -126,18 +126,19 @@ class CheckpointBridge(TrialBridge):
             time.sleep(.5)
         raise AssertionError('Isolated trial permission scope was not confirmed; no model request dispatched')
 
-    def control(self, action, **parameters):
-        if action == 'session.send' and self.seed and self.seeded is None:
-            job = next(line.split(': ', 1)[1] for line in parameters['prompt'].splitlines()
-                       if line.startswith(('Browser job: ', '浏览器任务: ')))
-            session = parameters['sessionId']
+    def request(self, path, body=None, method=None):
+        # Setting the model is the last engine call after the job owns its session and before the server's prepare.
+        session = re.fullmatch(r'/api/session/([^/]+)/model', path)
+        if session and self.seed and self.seeded is None:
+            session = session.group(1)
+            job = session_job(self.runtime, session)
             act(self.runtime, job, session, 'init', {})
             weather = ['weather', [['p', 'Weather is unavailable; check before travelling.' if self.language == 'en'
                                     else '天气数据暂不可用，出行前请另行确认。']]]
             act(self.runtime, job, session, 'publish', {'position':0, 'section':weather})
             self.seeded = {'weather':weather}
             save(Path(self.runtime)/'seeded-checkpoint.json', self.seeded)
-        return super().control(action, **parameters)
+        return super().request(path, body, method)
 
 
 def synthetic_weather(instant, later=None):

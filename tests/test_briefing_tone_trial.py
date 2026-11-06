@@ -66,18 +66,21 @@ class BriefingTrialTests(unittest.TestCase):
         engine = SimpleNamespace(url='http://127.0.0.1:9', release=Path('/synthetic/source'), runtime=self.runtime, password='x')
         bridge = CheckpointBridge(engine, True, 'en')
         app = BrowserApp(self.runtime, bridge, now=lambda:datetime(2026,10,14,12,tzinfo=timezone.utc), preflight=True)
-        job = {'id':'a'*32,'date':'2026-10-14','kind':'gm','session':'ses_trial','state':'running','language':'en',
+        job = {'id':'a'*32,'date':'2026-10-14','kind':'gm','state':'starting','language':'en',
                'created':datetime(2026,10,14,6,tzinfo=timezone.utc).timestamp()}
         app.jobs['2026-10-14.gm'] = job
         app.save_jobs()
         prepare(self.runtime,job)
-        prompt='/gm\nBrowser job: '+job['id']+'\nRuntime: '+str(self.runtime)+'\nWebsite language: en'
-        with patch('benchmarks.trial_engine.TrialBridge.control',return_value={'promptDispatched':True}) as dispatch:
-            bridge.control('session.send',sessionId='ses_trial',prompt=prompt)
-        self.assertEqual(dispatch.call_args.kwargs['prompt'],prompt)
-        receipt=act(self.runtime,job['id'],'ses_trial','prepare')
-        self.assertEqual(receipt['next_position'],1)
-        self.assertEqual(receipt['next']['section'][0],'news')
+        engine_calls = lambda action, **kw: {'sessionId':'ses_trial'} if action == 'session.create' else {'promptDispatched':True}
+        with patch('benchmarks.trial_engine.TrialBridge.control',side_effect=engine_calls) as control, \
+             patch('benchmarks.trial_engine.TrialBridge.request',return_value={}):
+            app.dispatch(job)
+        # Seeded before the server's prepare, so the dispatched receipt resumes after the seeded section.
+        prompt = control.call_args.kwargs['prompt']
+        header = '/gm\nBrowser job: '+job['id']+'\nRuntime: '+str(self.runtime)+'\nWebsite language: en\nPrepare receipt: '
+        self.assertTrue(prompt.startswith(header))
+        receipt = json.loads(prompt[len(header):])
+        self.assertEqual((receipt['next_position'],receipt['next']['section'][0],app.job(job['id'])['state']),(1,'news','running'))
         self.assertEqual(json.loads((self.runtime/'seeded-checkpoint.json').read_text()),bridge.seeded)
 
     def test_request_labels_use_the_pinned_language_not_current_interface(self):
