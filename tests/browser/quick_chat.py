@@ -235,6 +235,8 @@ def check_layouts(browser, address, runtime, artifacts):
                 expect(page.locator('.back-to-top.is-visible')).to_be_visible()
                 for button in ('#quick-chat-launcher', '.back-to-top'):
                     assert page.evaluate(CLEAR_OF_CARDS, button), (button, width, language, kind)
+                # The column's width is fixed: it never reflows as the panel opens or the label grows (#274).
+                column = page.locator('.briefing-section').first.bounding_box()
             page.screenshot(path=str(artifacts / f'quick-chat-closed-{width}-{language}-{kind}.png'))
             launcher.click()
             page.evaluate("Promise.all(document.querySelector('#quick-chat-window').getAnimations().map(a => a.finished))")
@@ -242,7 +244,20 @@ def check_layouts(browser, address, runtime, artifacts):
             assert panel['x'] >= 0 and panel['x'] + panel['width'] <= width and panel['y'] >= 0 and panel['y'] + panel['height'] <= height, panel
             expect(page.locator('#quick-chat-compose')).to_be_in_viewport()
             page.screenshot(path=str(artifacts / f'quick-chat-open-{width}-{language}-{kind}.png'))
+            if width > 700:
+                assert page.locator('.briefing-section').first.bounding_box() == column, (width, language, kind)
             page.locator('#quick-chat-minimize').click()
+            if width > 700:
+                expect(launcher).to_be_visible()
+                # A long secretary name truncates instead of pushing the launcher over the cards.
+                page.locator('#quick-chat-launcher-label').evaluate("label => label.textContent = 'Ask ' + 'Alexandrina '.repeat(4)")
+                page.evaluate('new Promise(done => requestAnimationFrame(() => requestAnimationFrame(done)))')
+                for button in ('#quick-chat-launcher', '.back-to-top'):
+                    assert page.evaluate(CLEAR_OF_CARDS, button), (button, width, language, kind)
+                assert page.locator('.briefing-section').first.bounding_box() == column, (width, language, kind)
+                # The corner is reserved before the script reveals quick chat, so its arrival moves nothing.
+                page.locator('#quick-chat').evaluate('root => root.hidden = true')
+                assert page.locator('.briefing-section').first.bounding_box() == column, (width, language, kind)
             page.request.post(address + '/api/language', data={'language': 'en'}, headers={'X-Briefing-CSRF': csrf, 'Origin': address})
             assert not errors, errors
             results.append(f'{width}x{height}-{language}-{kind}')

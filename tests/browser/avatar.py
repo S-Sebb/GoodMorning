@@ -248,7 +248,11 @@ def check_layout_alignment(browser, address, artifacts):
         # Since 0.37.0 the secretary page has its own compact gutters: 64px on
         # tablets and 12px on phones, where navigation spans the chat frame.
         if width > 1000:
-            assert all(abs(left - right) < 1 for left, right in zip(bounds['/gm'], bounds['/chat'])), (width, bounds)
+            # Shared navigation and the left edge stay put between pages; the briefing column alone ends
+            # earlier, leaving the corner to the quick chat launcher that /chat does not have (#259, #274).
+            assert abs(bounds['/gm'][0] - bounds['/chat'][0]) < 1 and bounds['/gm'][1] <= bounds['/chat'][1], (width, bounds)
+            for key in ('x', 'y', 'width', 'height'):
+                assert abs(navigation['/gm'][key] - navigation['/chat'][key]) < 1, (width, navigation)
         elif width > 700:
             assert abs(bounds['/gm'][0] - bounds['/chat'][0]) < 1 and abs(bounds['/chat'][1] - (width - 64)) < 1, (width, bounds)
         else:
@@ -259,7 +263,7 @@ def check_layout_alignment(browser, address, artifacts):
             for key in ('x', 'y', 'width', 'height'):
                 assert abs(navigation['/gm'][key] - navigation['/gn'][key]) < 1, (width, navigation)
         results.append({'width': width, 'left': round(bounds['/chat'][0]), 'right': round(bounds['/chat'][1]),
-                        'briefingAndChatFrameEdgesMatch': width > 1000, 'desktopSidebarPreserved': width > 700})
+                        'briefingAndChatLeftEdgesAndNavigationMatch': width > 1000, 'desktopSidebarPreserved': width > 700})
         page.close()
     return results
 
