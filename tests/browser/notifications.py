@@ -183,7 +183,8 @@ def main():
                 expect(desktop.locator('#notification-lead')).to_have_value('15')
                 expect(desktop.locator('#notification-form input[name=gm_time]')).to_have_value('07:00')
                 expect(desktop.locator('#notification-form input[name=gn_time]')).to_have_value('21:00')
-                expect(desktop.locator('#notification-choices > .notification-note')).to_have_text('These choices apply to this device only.')
+                # The Settings heading says once that these choices are for this device.
+                expect(desktop.locator('#prefs-menu .settings-menu-header p')).to_be_visible()
                 desktop.locator('#notification-choices').screenshot(path=str(artifacts/'reminders-1440.png'))
                 with desktop.expect_response('**/api/push/settings') as saved:
                     desktop.locator('#notification-form input[name=chat]').uncheck()

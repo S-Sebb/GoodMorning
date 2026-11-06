@@ -141,6 +141,11 @@ class InterfaceHTML(HTMLParser):
     def handle_comment(self,data):self.parts.append('<!--'+data+'-->')
 
 
+GEAR=('<svg class="menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true" focusable="false">'
+      '<path d="M9.3 5.3 10.1 2.7h3.8l.8 2.6 2.5-1.3 2.7 2.7-1.3 2.5 2.6.8v3.8l-2.6.8 1.3 2.5-2.7 2.7-2.5-1.3-.8 2.6h-3.8l-.8-2.6-2.5 1.3-2.7-2.7 1.3-2.5-2.6-.8v-3.8l2.6-.8-1.3-2.5 2.7-2.7Z"/>'
+      '<circle cx="12" cy="12" r="3"/></svg>')
+
+
 def page(source,csrf,return_to='/',avatars=False):
     from .release import VERSION
     # Load the shared response reader before every deferred page script.
@@ -197,20 +202,18 @@ def page(source,csrf,return_to='/',avatars=False):
            +''.join(f'<div class="briefing-reminder"><label><input type="checkbox" name="{kind}"> {label}</label>'
                     f'<input type="time" name="{kind}_time" aria-label="{label} reminder time" required></div>'
                     for kind,label in (('gm','Morning briefing'),('gn','Evening briefing')))+
-           '<p class="notification-note">Sent at that time only if the briefing isn’t prepared yet.</p></fieldset>'
-           '<p class="notification-note">These choices apply to this device only.</p></div>'
+           '<p class="notification-note">Sent at that time only if the briefing isn’t prepared yet.</p></fieldset></div>'
            '<span id="notification-feedback" role="status"></span></form>')
     phones=('<form id="app-link-form" class="language-toolbar app-link-settings" hidden>'
            '<h3 class="color-scheme-heading app-link-heading">Linked phones</h3>'
-           '<p class="notification-note">Linked phones show your schedule, briefings and secretary chat in Android home screen widgets. '
-           'In the GoodMorning app, open Link this phone, then enter the code it shows.</p>'
+           '<p class="notification-note">For Android home screen widgets. In the GoodMorning app, open Link this phone, then enter the code it shows.</p>'
            '<label for="app-link-code">Code from the app</label>'
            '<input id="app-link-code" name="code" autocomplete="off" autocapitalize="characters" spellcheck="false" inputmode="text" placeholder="ABCD-2345" required>'
            '<button type="submit">Link phone</button><ul id="app-links"></ul>'
            '<span id="app-link-feedback" role="status"></span></form>'
            '<section id="notification-devices" class="language-toolbar notification-settings" hidden>'
            '<h3 class="color-scheme-heading notification-heading">Devices with notifications</h3>'
-           '<p class="notification-note">Each device chooses its own notifications in its Settings. Turn one off here if you no longer use it.</p>'
+           '<p class="notification-note">Each device sets its own in Settings. Turn off one you no longer use.</p>'
            '<ul id="notification-device-list"></ul><span id="notification-devices-feedback" role="status"></span></section>')
     # avatar.js fills in the choices and reveals the picker once the account's avatars load.
     avatar=('<section id="avatar-settings" class="language-toolbar" aria-labelledby="avatar-settings-heading" hidden>'
@@ -225,14 +228,14 @@ def page(source,csrf,return_to='/',avatars=False):
            '<span class="avatar-feedback" role="status"></span></section>') if avatars or account else ''
     # Settings holds what belongs to this device; Account what follows the signed-in owner everywhere.
     # Without an account (sign-in page, local viewer) language stays with this device too.
-    prefs=('<details class="menu" id="prefs-menu"><summary><span aria-hidden="true">⚙</span> '
-           '<span class="menu-label">Settings</span></summary>'
-           '<div class="menu-panel"><div class="settings-menu-header"><div><h2>Settings</h2><p>'
-           +('Choices for this device only.' if account else 'Make this space yours.')+'</p></div>'+close+'</div>'
+    # The gear names Settings; the label stays for screen readers and the tooltip.
+    prefs=('<details class="menu" id="prefs-menu"><summary title="Settings">'+GEAR+'<span class="menu-label">Settings</span></summary>'
+           '<div class="menu-panel"><div class="settings-menu-header"><div><h2>Settings</h2>'
+           +('<p>This device only</p>' if account else '')+'</div>'+close+'</div>'
            +(appearance+widgets+notifications if account else language_form+appearance+avatar)+'</div></details>')
     account_menu=('<details class="menu" id="account-menu"><summary><span class="menu-label">Account</span></summary>'
                   '<div class="menu-panel"><div class="settings-menu-header account-menu-header"><div><h2>Account</h2>'
-                  '<p>These follow you on every device you sign in on.</p></div>'+close+'</div>'
+                  '<p>On every device you sign in on</p></div>'+close+'</div>'
                   +avatar+language_form+phones+account+'</div></details>') if account else ''
     controls=('<div class="toolbar-row">'+prefs+account_menu+'<span id="update-slot"></span></div>')
     if avatar and '/avatar.js' not in source:
