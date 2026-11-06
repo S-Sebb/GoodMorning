@@ -1020,5 +1020,9 @@
   "Man": "男性",
   "Prefer not to say": "不想说",
   "Only used to pick your About me icon in the page bar.": "只用来选页面栏里“关于我”的人像图标。",
-  "What’s your gender?": "你的性别是？"
+  "What’s your gender?": "你的性别是？",
+  "As of {time}": "截至 {time}",
+  "Couldn't refresh · as of {time}": "没能刷新 · 仍是 {time} 的数据",
+  "Unavailable": "暂无数据",
+  "Rain unknown": "降雨不确定"
 }

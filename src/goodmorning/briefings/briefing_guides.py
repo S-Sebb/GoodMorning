@@ -51,12 +51,13 @@ TEXT = {
                   '{"lately":"…"}, where N is `memory.revision`. Otherwise write nothing. Never mention this tidy to the user. Then: '),
   'regenerating': (' This is an explicitly authorized replacement, not a duplicate run: reuse saved feedback and current records; '
                    'do not replay task, daily, inbox, project or calendar writes, and ask nothing already answered.'),
-  'weather': ('On a successful read use one block ["weather",[[type,value,detail],...]] with types in order temperature, '
-              'precipitation, warning (only if one applies), air. Values are display text: "16°C (14.5–20.4°C)", "65% – Rain likely", '
-              '"30 – Good" (no "US AQI" prefix, no raw yes/no). Detail holds advice, timestamps and material gaps. Rain, snow and umbrella '
-              'advice go only in the precipitation detail; the temperature detail covers temperature and what to wear. Unknown AQI is not '
-              'good air and an unknown warning is not "no warning". If the read fails, publish one ["p","…"] block saying only that this '
-              'edition could not obtain the weather (no cause, no retry promise); never skip this section.'),
+  'weather': ('On a successful read use one block ["weather",[[type,detail],...]] with types in order temperature, '
+              'precipitation, warning (only if one applies), air. Code fills each card\'s value, source and as-of time from the read; '
+              'never write them. Detail is short advice grounded in the read: the temperature detail covers what to wear; rain, snow '
+              'and umbrella advice go only in the precipitation detail; the air detail gives health advice for its level. Details '
+              'repeat no temperatures, percentages or AQI numbers. Unknown AQI is not good air and an unknown warning is not "no '
+              'warning". If the read fails, publish one ["p","…"] block saying only that this edition could not obtain the weather '
+              '(no cause, no retry promise); never skip this section.'),
   'weather_tomorrow': ('Tomorrow\'s weather, for winding down after the day. If the read succeeded, BLOCKS is exactly [["outlook"]]: '
                        'code fills the card (range, rain, comparison with today, any heads-up and what to get ready tonight) from the read. '
                        'NOTE is one short, cozy closing line in the saved tone about getting ready for tomorrow, grounded in the read; '
@@ -199,9 +200,9 @@ TEXT = {
                   '整份笔记不超过 2000 字。有变化时只提交改动的部分，每部分整段重写：python scripts/goodmorning.py memory --secretary-dir RUNTIME --write '
                   '--expect-revision N --input-stdin，内容如 {"lately":"……"}，N 是 `memory.revision`。没有变化就什么都不写。不要向用户提起这次整理。然后：'),
   'regenerating': '这是经明确授权的重新生成，不是重复运行：沿用已保存的反馈和当前记录；不要重放任务、日记、收件箱、项目或日历写入，也不要再问已回答的问题。',
-  'weather': ('读取成功时用一个块 ["weather",[[type,value,detail],...]]，type 依次为 temperature、precipitation、warning（仅适用时）、air。'
-              'value 是展示文本："16°C (14.5–20.4°C)"、"65% – 可能下雨"、"30 – 良好"（不加 "US AQI" 前缀，不用 yes/no 原始值）。detail 写建议、时间和重要缺口。'
-              '雨、雪和带伞建议只写在 precipitation 的 detail 里；temperature 的 detail 只写气温和穿衣。'
+  'weather': ('读取成功时用一个块 ["weather",[[type,detail],...]]，type 依次为 temperature、precipitation、warning（仅适用时）、air。'
+              '每张卡片的数值、来源和更新时间由代码根据读取结果填写，不要自己写。detail 是以读取结果为准的简短建议：temperature 的 detail 只写穿衣；'
+              '雨、雪和带伞建议只写在 precipitation 的 detail 里；air 的 detail 写对应等级的健康建议。detail 不重复任何气温、百分比或 AQI 数值。'
               'AQI 未知不等于空气好，预警未知不等于没有预警。读取失败时发布一个 ["p","……"] 块，只说明本期无法获取天气（不写原因，不承诺补充）；不得跳过本章节。'),
   'weather_tomorrow': ('这是忙完一天后看的明日天气。读取成功时，BLOCKS 必须正好是 [["outlook"]]：卡片（气温范围、降雨、与今天的对比、'
                        '需要留意的情况和今晚要准备的东西）由代码根据读取结果填写。NOTE 用保存的语气写一句简短、温馨的收尾，'

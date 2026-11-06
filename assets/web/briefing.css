@@ -241,6 +241,8 @@ html[data-edition="gn"] .weather-tile.air { --tile-accent: #aed4b7; --tile-bg: #
 .weather-tile .weather-main { display: block; }
 .weather-tile .weather-sub { display: block; font-size: 18px; line-height: 1.4; letter-spacing: -0.2px; font-weight: 500; margin-top: 6px; overflow-wrap: anywhere; }
 .weather-detail { font-size: 13px; line-height: 1.8; }
+.weather-tile .weather-asof { margin: -8px 0 12px; font-size: 12px; font-weight: 600; color: var(--tile-accent); }
+.weather-tile .weather-asof.stale { color: var(--ink); }
 .weather-detail ul, .weather-detail ol { list-style: none; margin: 0; padding: 0; }
 .weather-detail li { padding: 0; }
 .weather-detail > p { margin: 12px 0 0; }

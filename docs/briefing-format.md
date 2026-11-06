@@ -85,20 +85,22 @@ conflict, reread affected records; never infer progress or alter immutable secti
   every cell is text and each row exactly matches its columns. Do not replace
   linked action/event blocks with unverified prose tables.
 - `["weather",[[type,value,detail,label?],...],frame?]`: temperature, precipitation,
-  applicable warning, then air, with no duplicates. Value is text or null when
-  unavailable. Detail retains health advice, actual timestamps and material gaps.
-  Rain, snow and umbrella advice belong only in the precipitation detail; the
-  temperature detail covers temperature and what to wear.
+  applicable warning, then air, with no duplicates. The morning Weather step
+  publishes `["weather",[[type,detail],...]]`; code fills each value from the
+  weather read when the section is published, in the website language: the
+  page's headline from the frame (for example `11° – High · low 9°`), or without
+  hourly data the read's own figures (`10°C (9–11°C)`, `51% – Rain likely`,
+  `54 – Moderate`). Missing or failed AQI is `Unavailable`, never good air; a
+  warning carries no value. Detail is the model's short advice: what to wear on
+  temperature, rain, snow and umbrella advice only on precipitation, health
+  advice on air, with no temperatures, percentages or AQI numbers.
   Unknown AQI is not good air; an unknown warning is not proof of no warning.
-  Format values for display, never raw provider tokens:
-  temperature uses °C with an en-dash range, e.g. `16°C (14.5–20.4°C)`;
-  precipitation uses percent plus natural words, e.g. `65% – Rain likely`,
-  never raw `rain yes/no/unknown`;
-  air uses number plus level, e.g. `30 – Good`, never a `US AQI`/`EU AQI` prefix
-  (the card label already says AQI; sources belong in detail).
+  Older editions keep their model-written values and optional label.
   `frame` is the weather read's hourly forecast; code attaches it when the
-  section is published, and the page draws charts and headlines from it. Never
-  write or copy it.
+  section is published, and the page draws charts and headlines from it. Its
+  `as_of` gives the forecast and AQI times as `[HH:MM, stale]` (AQI null when
+  unavailable); each card shows its source and that time, and a stale copy says
+  it could not refresh. Never write or copy it.
 - `["outlook",low,high,icon,sky,compare,alert,bring]`: the evening's Weather
   tomorrow card, copied from the weather read's `outlook`. Publish the
   placeholder `[["outlook"]]` alone in that section; code fills it, and the page

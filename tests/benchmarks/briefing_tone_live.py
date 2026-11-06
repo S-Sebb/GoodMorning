@@ -489,6 +489,11 @@ def run_case(output, template, language, scenario, instant):
                     assert len(weather) == 3 and weather[2] == reading['json']['frame'], 'Code did not attach the read frame'
                     cards = {row[0]:row for row in weather[1]}
                     assert {'temperature','precipitation','air'} <= set(cards), 'Weather cards missing'
+                    from goodmorning.briefings.briefing_document import weather_values
+                    from goodmorning.web import language as ui
+                    values = weather_values(reading['json'], lambda words, **fill: ui.text(words, lang=language, **fill))
+                    assert all(row[1] == values[kind] for kind, row in cards.items()), 'Card values did not come from the read'
+                    assert not any(re.search(r'\d+ ?%|°', str(row[2])) for row in cards.values()), 'A detail repeated card figures'
                     rain = ' '.join(str(value) for value in cards['precipitation'][1:3])
                     assert '100%' not in rain, 'Precipitation repeated the whole-day 100% the read no longer reports'
                     warm = str(cards['temperature'][2]).casefold()

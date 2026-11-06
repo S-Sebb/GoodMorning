@@ -619,6 +619,10 @@ def apply_frame(out, frame):
     # The current code can show model drizzle in an hour the frame calls dry; the hours ahead are the one precipitation source.
     if ahead["rain_from"] != ahead["from"] and out["condition"] in PRECIP_TEXT:
         out["condition"] = None
+    # The page shows when each card's figures were current; a stale copy says it could not refresh.
+    air = out.get("aqi") if (out.get("aqi") or {}).get("us_aqi") is not None else None
+    frame["as_of"] = {"forecast": [out["time"][11:16], out.get("cache_state") == "stale"],
+                      "air": air and [air["time"][11:16], air.get("cache_state") == "stale"]}
 
 
 def outlook(out, frame, day):
