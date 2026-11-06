@@ -94,6 +94,18 @@ def main():
                 expect(phone.locator('[data-field="anime_updates"] .about-details')).to_contain_text('Your watching list and 2 more shows')
                 assert 'alicewatches' not in phone.locator('main').inner_text()
                 no_overflow(phone)
+                # Edit is a pencil named by its label; Ask buttons show "Ask Mochi" and stay on the value's line on phones.
+                expect(phone.locator('[data-field="work_days"] .about-edit')).to_have_accessible_name('Edit')
+                expect(phone.locator('[data-field="work_days"] .about-edit')).to_have_text('')
+                expect(phone.locator('[data-field="work_days"] .about-edit svg')).to_be_visible()
+                city = phone.locator('#about-day .about-row').first
+                expect(city.locator('.about-chat')).to_have_text('Ask Mochi')
+                expect(city.locator('.about-chat')).to_have_accessible_name('Ask Mochi to change this')
+                value_box, ask_box = city.locator('.about-value').bounding_box(), city.locator('.about-chat').bounding_box()
+                assert abs((value_box['y'] + value_box['height'] / 2) - (ask_box['y'] + ask_box['height'] / 2)) < 8, (value_box, ask_box)
+                # Linked projects sit with the other work lines; no section repeats why it exists.
+                expect(phone.locator('#about-work dt').last).to_have_text('Linked projects')
+                expect(phone.locator('#about-projects, .about-why:not(#about-memory .about-why)')).to_have_count(0)
 
                 # Simple fields save in place; the profile keeps every other line.
                 before = profile.read_text()
@@ -276,7 +288,9 @@ def main():
                 row.get_by_role('textbox').fill('Pip')
                 row.get_by_role('textbox').press('Enter')
                 expect(alice.get_by_role('heading', name='Pip记得的你', exact=True)).to_be_visible()
-                expect(alice.locator('.about-chat').first).to_contain_text('让Pip来改')
+                expect(alice.locator('.about-chat').first).to_have_text('问问Pip')
+                expect(alice.locator('.about-chat').first).to_have_accessible_name('让Pip来改')
+                expect(alice.locator('.about-edit').first).to_have_accessible_name('编辑')
                 alice.wait_for_load_state('networkidle')
                 alice.locator('#about-memory').screenshot(path=str(artifacts/'memory-1440-zh.png'))
                 alice.once('dialog', lambda dialog: dialog.dismiss())

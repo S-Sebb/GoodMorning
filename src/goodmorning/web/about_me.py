@@ -12,6 +12,7 @@ import re
 
 from goodmorning import anime, games, stocks
 from goodmorning.briefings.briefing_day import briefing_day
+from goodmorning.briefings.briefing_layout import icon
 from goodmorning.calendar import public_holidays
 from goodmorning.records import celebrations, letters, memory as memories
 from goodmorning.setup_flow import GENDERS
@@ -33,23 +34,11 @@ UNNAMED = {'{name}’s notes about you': 'Your secretary’s notes about you',
            'What {name} calls you': 'What your secretary calls you',
            'How {name} talks with you': 'How your secretary talks with you',
            '{name} doesn’t know yet': 'Your secretary doesn’t know yet',
-           'Ask {name} to change this': 'Ask your secretary to change this',
-           'So {name} knows when to plan and when to let you rest.': 'So your secretary knows when to plan and when to let you rest.',
-           'Helps {name} pick news and ideas that matter to you.': 'Helps your secretary pick news and ideas that matter to you.',
+           'Ask {name}': 'Ask your secretary',
            'Nothing yet. Chat with {name} and this note will grow from there.':
                'Nothing yet. Chat with your secretary and this note will grow from there.',
            'What {name} has learned from your chats, check-ins and plans.':
-               'What your secretary has learned from your chats, check-ins and plans.',
-           '{name} writes this note while you chat, and after each evening briefing adds what it learns from your check-ins and your '
-           'to-dos, ideas and habits. It makes chats, briefings and letters feel personal, and is never used as a setting or a '
-           'permission. Edit anything here, or ask in chat to forget something; forgotten text is deleted for good. When switched '
-           'off, nothing is learned or used.':
-               'Your secretary writes this note while you chat, and after each evening briefing adds what it learns from your check-ins '
-               'and your to-dos, ideas and habits. It makes chats, briefings and letters feel personal, and is never used as a setting '
-               'or a permission. Edit anything here, or ask in chat to forget something; forgotten text is deleted for good. When '
-               'switched off, nothing is learned or used.',
-           'Switching one off keeps its settings, so you can turn it back on anytime. To start a new one, ask {name}.':
-               'Switching one off keeps its settings, so you can turn it back on anytime. To start a new one, ask your secretary.'}
+               'What your secretary has learned from your chats, check-ins and plans.'}
 SOURCES = {'anilist': 'AniList', 'bangumi': 'Bangumi', 'myanimelist': 'MyAnimeList'}
 # The user-facing reason for each rule `set_profile_fields` enforces.
 REASONS = {'use 1-30 characters': 'Use up to 30 characters.', 'use at most 300 characters': 'Use up to 300 characters.',
@@ -89,10 +78,12 @@ def portrait(app):
 
 def chat(app, fields, starter):
     picture = portrait(app)
+    name = saved_name(fields)
+    label = f'Ask {name} to change this' if name else 'Ask your secretary to change this'
     return ('<a class="about-chat" href="/chat" data-quick-ask-prefill data-quick-ask="'
-            + html.escape(starter, quote=True) + '">'
+            + html.escape(starter, quote=True) + f'" aria-label="{html.escape(label, quote=True)}">'
             + (f'<img src="{html.escape(picture, quote=True)}" alt="" width="24" height="24">' if picture else '')
-            + say(fields, 'Ask {name} to change this') + '</a>')
+            + say(fields, 'Ask {name}') + '</a>')
 
 
 def value(fields, text):
@@ -107,10 +98,15 @@ def row(label, content, action='', key=None, below=''):
             f'<dd class="about-action">{action}</dd>{below}</div>')
 
 
+def edit_button(attributes=''):
+    """The pencil that turns a row into an editor; the script shows it once the page can save."""
+    return f'<button class="about-edit" type="button" aria-label="Edit" title="Edit"{attributes} hidden>' + icon('pencil') + '</button>'
+
+
 def text_row(fields, key):
     label, limit = TEXT[key]
     return row(say(fields, label) if label in UNNAMED else ui.ui(label), value(fields, fields.get(key, '')),
-               f'<button class="about-edit" type="button" data-limit="{limit}" hidden>' + ui.ui('Edit') + '</button>', key)
+               edit_button(f' data-limit="{limit}"'), key)
 
 
 def section(identifier, title, rows, why='', note=''):
@@ -137,15 +133,14 @@ def birthday(fields):
         content = f'<span class="about-value" data-birthday="{known}">{shown}</span>'
     else:
         content = value(fields, saved)
-    return row(ui.ui('Birthday'), content, '<button class="about-edit" type="button" hidden>' + ui.ui('Edit') + '</button>', 'birthday')
+    return row(ui.ui('Birthday'), content, edit_button(), 'birthday')
 
 
 def gender(fields):
     saved = fields.get('gender', '')
     content = (f'<span class="about-value" data-gender="{saved}">' + ui.ui(GENDERS[saved]) + '</span>' if saved in GENDERS
                else value(fields, saved))
-    return row(ui.ui('Gender'), content + '<small class="about-hint">' + ui.ui('Only used to pick your About me icon in the page bar.') + '</small>',
-               '<button class="about-edit" type="button" hidden>' + ui.ui('Edit') + '</button>', 'gender')
+    return row(ui.ui('Gender'), content + '<small class="about-hint">' + ui.ui('Only sets your About me icon.') + '</small>', edit_button(), 'gender')
 
 
 def names(app, fields):
@@ -157,8 +152,7 @@ def day(app, fields):
     return section('day', ui.ui('Your day'),
                    [row(ui.ui('City'), value(fields, fields.get('city', '')), chat(app, fields, 'I’d like to change my city.')),
                     row(ui.ui('Time zone'), value(fields, fields.get('timezone', '')), chat(app, fields, 'I’d like to change my time zone.')),
-                    *(text_row(fields, key) for key in ('work_days', 'work_hours', 'sleep_time'))],
-                   say(fields, 'So {name} knows when to plan and when to let you rest.'))
+                    *(text_row(fields, key) for key in ('work_days', 'work_hours', 'sleep_time'))])
 
 
 def talk(app, fields):
@@ -166,9 +160,9 @@ def talk(app, fields):
 
 
 def work(app, fields):
-    return section('work', ui.ui('What you do'), [text_row(fields, key) for key in
-                                                  ('occupations', 'expertise_fields', 'industry', 'project_scope', 'knowledge_area')],
-                   say(fields, 'Helps {name} pick news and ideas that matter to you.'))
+    return section('work', ui.ui('What you do'), [*(text_row(fields, key) for key in
+                                                    ('occupations', 'expertise_fields', 'industry', 'project_scope', 'knowledge_area')),
+                                                  linked_projects(app, fields)])
 
 
 def news(app, fields):
@@ -249,8 +243,7 @@ def extras(app, fields):
         table = details if key == 'stock_report' else ''
         content = (switch(key, on[key]) + ('' if table else '<span class="about-details">' + ' · '.join(details) + '</span>')) if details else value(fields, '')
         rows.append(row(ui.ui(label), content, chat(app, fields, starter) if starter else '', key, table))
-    return section('extras', ui.ui('Evening extras'), rows, ui.ui('Little treats at the end of your evening briefing.'),
-                   say(fields, 'Switching one off keeps its settings, so you can turn it back on anytime. To start a new one, ask {name}.'))
+    return section('extras', ui.ui('Evening extras'), rows, note=ui.ui('Switching one off keeps its settings.'))
 
 
 def holiday_regions():
@@ -274,7 +267,7 @@ def holidays(fields):
         content = '<span class="about-value">' + ui.ui('No public holidays') + '</span>' if saved else value(fields, '')
     regions = html.escape(json.dumps(holiday_regions(), ensure_ascii=False, separators=(',', ':')), quote=True)
     return row(ui.ui('Public holidays'), content,
-               f'<button class="about-edit" type="button" data-holiday-regions="{regions}" hidden>' + ui.ui('Edit') + '</button>',
+               edit_button(f' data-holiday-regions="{regions}"'),
                'holiday_countries')
 
 
@@ -295,10 +288,9 @@ def project_names(runtime):
     return [match[1].strip() for match in re.finditer(r'^- ([^|\r\n]+)\|', block[1], re.M)] if block else []
 
 
-def projects(app, fields):
-    found = project_names(app.runtime)
-    return section('projects', ui.ui('Your projects'),
-                   [row(ui.ui('Linked projects'), value(fields, ', '.join(found)), chat(app, fields, 'I’d like to change my projects.'))])
+def linked_projects(app, fields):
+    return row(ui.ui('Linked projects'), value(fields, ', '.join(project_names(app.runtime))),
+               chat(app, fields, 'I’d like to change my projects.'))
 
 
 PARTS = {'life': 'Your life', 'likes': 'How you like things', 'lately': 'Lately'}
@@ -308,8 +300,8 @@ def note_row(key, label, text):
     content = (f'<span class="about-value" data-content>{html.escape(text)}</span>' if text else
                '<span class="about-empty">' + ui.ui('Nothing yet') + '</span>')
     return (f'<div class="about-row" data-field="{key}" data-empty="Nothing yet"><dt id="about-label-{key}">' + ui.ui(label)
-            + f'</dt><dd class="about-content">{content}</dd><dd class="about-action"><button class="about-edit" type="button" '
-            f'data-limit="{memories.LENGTH}" data-multiline hidden>' + ui.ui('Edit') + '</button></dd></div>')
+            + f'</dt><dd class="about-content">{content}</dd><dd class="about-action">'
+            + edit_button(f' data-limit="{memories.LENGTH}" data-multiline') + '</dd></div>')
 
 
 def remembered(app, fields):
@@ -323,10 +315,8 @@ def remembered(app, fields):
             row(ui.ui('The whole note'), status,
                 '<button class="about-forget-all" type="button" hidden>' + ui.ui('Forget everything') + '</button>', 'forget')]
     return section('memory', ui.ui('What I remember about you'), rows, say(fields, 'What {name} has learned from your chats, check-ins and plans.'),
-                   say(fields, '{name} writes this note while you chat, and after each evening briefing adds what it learns from your '
-                               'check-ins and your to-dos, ideas and habits. It makes chats, briefings '
-                               'and letters feel personal, and is never used as a setting or a permission. Edit anything here, or ask in '
-                               'chat to forget something; forgotten text is deleted for good. When switched off, nothing is learned or used.'))
+                   ui.ui('Only used to make chats, briefings and letters personal, never as a setting or a permission. '
+                         'When switched off, nothing is learned or used. Forgotten text is deleted for good.'))
 
 
 def remember(app, key, text):
@@ -357,7 +347,7 @@ def remember(app, key, text):
     return {'field': key, 'value': text}
 
 
-SECTIONS = [names, day, talk, work, remembered, news, extras, calendar, projects]
+SECTIONS = [names, day, talk, work, remembered, news, extras, calendar]
 
 
 def save(app, body):
@@ -406,11 +396,9 @@ def page(app):
     if not ready:
         greeting = ui.ui('Hi! I don’t know much about you yet. Once we finish setting up in chat, what I remember will show up here.')
     elif user:
-        greeting = ui.ui('Hi {user}! These are the little things I remember about you, so every plan and briefing fits you just right. '
-                         'Change anything here, or just tell me.', user=user)
+        greeting = ui.ui('Hi {user}! Change anything here, or just tell me.', user=user)
     else:
-        greeting = ui.ui('Hi! These are the little things I remember about you, so every plan and briefing fits you just right. '
-                         'Change anything here, or just tell me.')
+        greeting = ui.ui('Hi! Change anything here, or just tell me.')
     intro = ((f'<img class="about-portrait" src="{html.escape(picture, quote=True)}" alt="" width="84" height="84">' if picture else '')
              + '<div><h1>' + say(fields, '{name}’s notes about you') + f'</h1><p class="about-greeting">{greeting}</p></div>')
     source = ('<!doctype html><html lang="en" data-edition="' + theme + '"><head><meta charset="utf-8">'
