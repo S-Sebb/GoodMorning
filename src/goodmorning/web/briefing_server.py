@@ -654,7 +654,9 @@ class BrowserApp:
             session = previous.get('session') if previous else baseline['run']['session']
             if session:
                 forms, permissions = self.chamber.pending(session)
-                if forms or permissions or self.chamber.control('session.status', sessionId=session)['sessionStatus']['type'] != 'idle':
+                # A complete job's session may still be tidying memory and replying; a replacement writes no memory, so it need not wait.
+                busy = not (previous and previous['state'] == 'complete') and self.chamber.control('session.status', sessionId=session)['sessionStatus']['type'] != 'idle'
+                if forms or permissions or busy:
                     raise ValueError('Finish or stop the existing session and resolve pending inputs before regenerating')
             context = None
             if previous:
@@ -919,6 +921,27 @@ class BrowserApp:
                 return {'state': 'stopped', 'progress': 95, 'label': mismatch if reason == 'foreign' else invalid, 'forms': [], 'permissions': [],
                         'regeneratable': self.preflight and job['date'] == self.today()}
             return {'state': 'ready', 'progress': 100, 'label': 'Your briefing is ready', 'forms': [], 'permissions': []}
+
+        def complete():
+            with self.lock:
+                if self.jobs[job['date'] + '.' + job['kind']]['id'] != identifier:
+                    return self.status(identifier)  # An older poll must never complete its replacement.
+                self.jobs[job['date'] + '.' + job['kind']]['state'] = 'complete'
+                self.save_jobs()
+                # Only this job's verified transient preview; never delete unrelated records.
+                if preview_path.exists() and not preview_path.is_symlink():
+                    preview_path.unlink()
+                for name in ('.activity.json', '.news.json'):
+                    transient = self.job_dir / (identifier + name)
+                    if transient.exists() and not transient.is_symlink():
+                        transient.unlink()
+            from goodmorning.briefings.briefing_job import timed
+            timed(self.runtime, identifier, 'ready')
+            return self.status(identifier)
+
+        if self.preflight and saved and job['state'] == 'running' and verified() == 'ready':
+            # Ready at the verified save: the memory tidy and link reply that follow need no wait (#253).
+            return complete()
         result = {'state': job['state'], 'progress': 5, 'label': 'Opening your secretary’s desk', 'forms': [], 'permissions': [],
                   'language':job.get('language'), 'date':job['date'], 'kind':job['kind']}
         if job['state'] == 'preflight':
@@ -960,19 +983,7 @@ class BrowserApp:
                 if state == 'idle' and job['state'] == 'running':
                     reason = verified() if saved else 'invalid'
                     if reason == 'ready':
-                        with self.lock:
-                            if self.jobs[job['date'] + '.' + job['kind']]['id'] != identifier:
-                                return self.status(identifier)  # An older poll must never complete its replacement.
-                            self.jobs[job['date'] + '.' + job['kind']]['state'] = 'complete'
-                            self.save_jobs()
-                            # Only this job's verified transient preview; never delete unrelated records.
-                            if preview_path.exists() and not preview_path.is_symlink():
-                                preview_path.unlink()
-                            for name in ('.activity.json', '.news.json'):
-                                transient = self.job_dir / (identifier + name)
-                                if transient.exists() and not transient.is_symlink():
-                                    transient.unlink()
-                        result.update(state='ready', progress=100, label='Your briefing is ready')
+                        return complete()  # Saved just after this poll's first check.
                     else:
                         replacement = 'replacement' in job
                         result.update(state='stopped', label='Regeneration stopped before the new briefing was saved. Your previous briefing is preserved.' if replacement
