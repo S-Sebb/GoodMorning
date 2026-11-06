@@ -70,7 +70,16 @@ CHATS = {
                                       'zh-CN': '我周四一整天都有空，和 Sam 的一小时电话放什么时候好？只给建议，不用保存。'}),
     'off': ('default', 'full', False, {'en': 'Remember that I have a cat named Bean.', 'zh-CN': '记住我有只猫叫 Bean。'}),
     'near-limit': ('default', 'long', True, {'en': "Please remember I'm allergic to peanuts.", 'zh-CN': '请记住我对花生过敏。'}),
+    'project-progress': ('default', 'projects', True, {
+        'en': 'Atlas update: I finished the methods section today. Next is the comparison figure for the design review on 14 Nov.',
+        'zh-CN': 'Atlas 的进展：今天把方法部分写完了。接下来做对比图，11 月 14 日设计评审要用。'}),
+    'new-label': ('default', 'projects', True, {
+        'en': 'Add a to-do for my new Boreal field survey project: book the van for the first site visit on Thursday.',
+        'zh-CN': '给我新的 Boreal 野外调查项目加个待办：订好周四第一次实地考察要用的车。'}),
 }
+# Seeded project entries for the project scenarios.
+PROJECTS = {'en': {'Atlas': 'Your comparison study with two agreed baselines. You are writing the methods section.'},
+            'zh-CN': {'Atlas': '你的对比研究，已经定好两个基线。你正在写方法部分。'}}
 BRIEFINGS = tuple(EVENINGS)
 # Two weeks of records ending Monday 26 October: workouts planned every Monday morning, game ideas saved late at
 # night, a stretching habit, one-off errands, and check-ins that name a running friend.
@@ -103,6 +112,8 @@ def seed(runtime, language, kind, enabled):
                 break
             note['life'] += friend
         memory.change(runtime, 0, note=note)
+    if kind == 'projects':
+        memory.change(runtime, memory.load(runtime)['revision'], note={'projects': PROJECTS[language]})
     if not enabled:
         memory.change(runtime, memory.load(runtime)['revision'], enabled=False)
 
@@ -151,6 +162,24 @@ def check_chat(scenario, language, runtime, before, result, messages):
     elif scenario == 'off':
         assert after == before, 'The note changed while memory was off'
         assert 'about me' in replies or '关于我' in replies, 'The reply did not say where to turn memory on'
+    elif scenario in ('project-progress', 'new-label'):
+        projects = {memory.key(entry['name']): entry['note'] for entry in memory.load(runtime)['projects']}
+        result['projects'] = memory.load(runtime)['projects']
+        if scenario == 'project-progress':
+            assert set(projects) == {'atlas'}, 'Progress on Atlas changed which projects exist: ' + repr(projects)
+            atlas = projects['atlas'].casefold()
+            assert atlas != PROJECTS[language]['Atlas'].casefold(), 'The Atlas entry did not take in the progress'
+            assert 'figure' in atlas or '图' in atlas, 'The Atlas entry does not say what comes next'
+            assert '14' in atlas, 'The milestone lost its date'
+        else:
+            inbox = InboxStore(runtime)
+            try:
+                labels = [row[0] for row in inbox.db.execute("SELECT json_extract(data,'$.project') FROM tasks")]
+            finally:
+                inbox.close()
+            assert len(labels) == 1 and labels[0], 'The van to-do was not saved once with a project label: ' + repr(labels)
+            assert memory.key(labels[0]) in projects, 'The new label did not start a project entry: ' + repr(projects)
+            assert 'atlas' in projects, 'The existing project was lost'
     elif scenario == 'near-limit':
         assert 'peanut' in words or '花生' in words, 'The allergy was not remembered'
         assert sum(map(len, after.values())) <= memory.LENGTH
