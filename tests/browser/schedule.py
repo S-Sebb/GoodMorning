@@ -37,13 +37,23 @@ def check(app, url, shots, canonical=False):
         if canonical:
             expect(page.locator('.schedule-event.is-tbc')).to_have_count(1)
             expect(page.locator('.schedule-event.is-tbc')).to_contain_text('TBC')
-            expect(page.locator('.task-project').first).to_contain_text('Atlas')
+            # The project is a tag: only its name shows, and screen readers still hear "Project:".
+            project = page.locator('.task-project').first
+            expect(project).to_have_text('Project: Atlas')
+            assert project.locator('.visually-hidden').bounding_box()['width'] <= 1
             expect(page.locator('.task-deadline')).to_contain_text('Due: Fri, Oct 16')
             expect(page.locator('.schedule-task.is-partial')).to_contain_text('First baseline compared.')
             expect(page.locator('.schedule-task.is-blocked')).to_contain_text('Awaiting lab approval.')
             # A deadline is a marker on its due day, never a workday.
             expect(page.get_by_text('Deadline only, not a workday', exact=True)).to_have_count(1)
             expect(page.locator('#day-2026-10-16 .task-marker')).to_have_text('Deadline · no workday assigned')
+        # Only lists with something in them get a heading; a day with nothing saved says so once.
+        for day in page.locator('.schedule-day').all():
+            events, tasks = day.locator('.schedule-event').count(), day.locator('.schedule-task').count()
+            expect(day.locator('.schedule-calendar h4')).to_have_count(1 if events else 0)
+            expect(day.locator('.schedule-work h4')).to_have_count(1 if tasks else 0)
+            expect(day.get_by_text('Nothing saved', exact=True)).to_have_count(0 if events or tasks else 1)
+        expect(page.locator('.schedule-date')).to_have_css('padding-left', '0px')  # No second calendar icon by the heading.
         # Routine metadata stays in the details menu.
         visible_text = page.locator('main').inner_text()
         assert 'Europe/London' not in visible_text

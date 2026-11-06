@@ -12,8 +12,9 @@ from . import color_schemes
 LANGUAGES = {'en':'English', 'zh-CN':'Simplified Chinese'}
 CURRENT = ContextVar('website_language', default='en')
 CATALOG = json.loads((WEB_ASSETS/'translations.json').read_text())
+# Most literal text first, so "Ask {name} to change this" wins over "Ask {name}".
 PATTERNS = [(source, re.compile('^'+re.sub(r'\\\{([a-z]+)\\\}', r'(?P<\1>.+?)', re.escape(source))+'$'))
-            for source in CATALOG if '{' in source]
+            for source in sorted((key for key in CATALOG if '{' in key), key=lambda key: -len(re.sub(r'\{[a-z]+\}', '', key)))]
 
 
 def language(value):

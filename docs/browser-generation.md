@@ -36,8 +36,9 @@ Chinese requests state the edition and label the job/runtime in Chinese; the job
 - v2 receipts run the next section's read recipes themselves, after the
   previous publication, and return them as `next.results` (`command`, `exit`,
   `output`). This removes one model turn per read without collecting future
-  sections. The agent reruns a result's command only for a later Tasks page or
-  a fresh Today read after a feedback write. Legacy v1 receipts still list
+  sections. The agent reruns a result's command only for a later Tasks page.
+  The evening Today section is the agent's paragraph and note only: publishing
+  rereads Today after any feedback writes and places its cards first. Legacy v1 receipts still list
   `read` commands for the agent to run.
 - Do not rerun `workflow`, ask missing-edition questions or re-ask supplied progress.
   Additional questions cover unresolved material ambiguity/consent only. Browser

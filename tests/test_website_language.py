@@ -113,6 +113,11 @@ class LanguageTests(unittest.TestCase):
             self.assertIn('name="csrf" value="new-csrf"',page)
             self.assertEqual(page.count('id="language-form"'),1)
 
+    def test_the_longer_of_two_matching_patterns_translates(self):
+        # "Ask {name}" also matches "Ask Pip to change this", with the name "Pip to change this".
+        self.assertEqual(ui.text('Ask Pip to change this',lang='zh-CN'),'让Pip来改')
+        self.assertEqual(ui.text('Ask Pip',lang='zh-CN'),'问问Pip')
+
     def test_browser_setup_uses_website_language_without_changing_local_preferences(self):
         root=self.root();original=(root/'profile.md').read_bytes()
         self.assertEqual(profile_status(root,profile_fields(root))['missing_fields'],['secretary_language'])

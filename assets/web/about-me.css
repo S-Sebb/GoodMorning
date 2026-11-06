@@ -16,7 +16,6 @@
 #about-news { --about-icon: url("icons/desk-language.svg"); }
 #about-extras { --about-icon: url("icons/desk-evening.svg"); }
 #about-calendar { --about-icon: url("icons/desk-schedule.svg"); }
-#about-projects { --about-icon: url("icons/desk-done.svg"); }
 #about-memory { --about-icon: url("icons/desk-letters.svg"); }
 .about-why { margin: 0 0 6px 44px; font-size: .85rem; color: var(--muted); }
 .about-section dl { margin: 0 0 0 44px; }
@@ -39,6 +38,9 @@
 .about-content input:focus-visible, .about-content textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 .about-action { display: flex; justify-content: flex-end; gap: 6px; }
 .about-action button, .about-chat { display: inline-flex; align-items: center; min-height: 36px; padding: 0 12px; font: inherit; font-size: .8rem; white-space: nowrap; border: 1px solid var(--line); border-radius: 999px; background: var(--bg); color: var(--ink); text-decoration: none; cursor: pointer; }
+/* Edit is a pencil; its name comes from aria-label. */
+.about-action .about-edit { justify-content: center; width: 36px; padding: 0; color: var(--muted); }
+.about-edit .data-icon { width: 18px; height: 18px; }
 .about-action .about-save { border-color: var(--accent); background: var(--accent); color: var(--surface); }
 .about-chat { gap: 7px; padding-left: 4px; color: var(--accent); }
 .about-chat img { flex: none; width: 24px; height: 24px; border-radius: 50%; object-fit: cover; }
@@ -67,7 +69,8 @@
 .about-holdings :is(th, td):first-child { padding-left: 0; text-align: left; overflow-wrap: anywhere; }
 .about-holdings thead th { border-top: 0; font-size: .8rem; color: var(--muted); }
 .about-holdings tbody th { font-weight: 600; }
-.about-code { display: block; font-size: .8rem; font-weight: 400; color: var(--muted); }
+.about-code { margin-left: 6px; font-size: .8rem; font-weight: 400; color: var(--muted); }
+.about-code:first-child { margin-left: 0; }
 .about-holdings button { min-height: 36px; margin-top: 4px; padding: 0 12px; font: inherit; font-size: .8rem; border: 1px solid var(--line); border-radius: 999px; background: var(--bg); color: var(--ink); cursor: pointer; }
 .about-more[aria-expanded="false"] .about-fewer, .about-more[aria-expanded="true"] .about-all { display: none; }
 .about-holdings button:hover { border-color: var(--accent); }
@@ -84,5 +87,4 @@ html[data-edition="gn"] .about-feedback.is-error { color: #ffb4ab; }
   .about-section dl, .about-why, .about-note { margin-left: 0; }
   .about-row { grid-template-columns: minmax(0, 1fr) auto; padding: 8px 0; }
   .about-row dt { grid-column: 1 / -1; font-size: .8rem; }
-  .about-row:has(.about-chat) .about-action { grid-column: 1 / -1; justify-content: flex-start; }
 }

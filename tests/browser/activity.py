@@ -150,22 +150,19 @@ def run(artifacts):
                 page.locator('#fixture-corner-control').evaluate('node => node.remove()')
                 expect(page.locator('#account-activity')).to_have_css('bottom', '92px')
                 assert page.evaluate(above, '#quick-chat-launcher')
-                # Back to top joins the launcher's row; on wide screens it starts at the card's left edge.
+                # Back to top joins the launcher's row and starts at the card's left edge.
+                # Phones have no floating Back to top (the Sections sheet offers it; mobile_sections checks that).
                 for night in pages[:2]:
                     night.bring_to_front()
-                    for width in (1440, 390):
-                        night.set_viewport_size({'width': width, 'height': 900})
-                        night.evaluate("scrollTo({top: document.documentElement.scrollHeight, behavior: 'instant'})")
-                        expect(night.locator('.back-to-top')).to_have_css('opacity', '1')
-                        night.wait_for_timeout(400)
-                        top, pill, card = (night.locator(selector).bounding_box() for selector in ('.back-to-top', '#quick-chat-launcher', '#activity-window'))
-                        assert abs(top['y'] + top['height'] / 2 - pill['y'] - pill['height'] / 2) < 1, (top, pill)
-                        assert top['x'] + top['width'] + 8 <= pill['x'], (top, pill)
-                        assert card['y'] + card['height'] < top['y'], (top, card)
-                        if width > 700: assert abs(top['x'] - card['x']) < 1, (top, card)
-                        else: assert abs(pill['x'] - top['x'] - top['width'] - 10) < 1, (top, pill)
-                        night.screenshot(path=str(artifacts/f'stack-{urlsplit(night.url).path.strip("/")}-{width}.png'))
-                    night.set_viewport_size({'width': 1440, 'height': 900})
+                    night.evaluate("scrollTo({top: document.documentElement.scrollHeight, behavior: 'instant'})")
+                    expect(night.locator('.back-to-top')).to_have_css('opacity', '1')
+                    night.wait_for_timeout(400)
+                    top, pill, card = (night.locator(selector).bounding_box() for selector in ('.back-to-top', '#quick-chat-launcher', '#activity-window'))
+                    assert abs(top['y'] + top['height'] / 2 - pill['y'] - pill['height'] / 2) < 1, (top, pill)
+                    assert top['x'] + top['width'] + 8 <= pill['x'], (top, pill)
+                    assert card['y'] + card['height'] < top['y'], (top, card)
+                    assert abs(top['x'] - card['x']) < 1, (top, card)
+                    night.screenshot(path=str(artifacts/f'stack-{urlsplit(night.url).path.strip("/")}.png'))
                     night.evaluate("scrollTo({top: 0, behavior: 'instant'})")
                 page.bring_to_front()
                 page = pages[-1]
@@ -201,6 +198,7 @@ def run(artifacts):
                     page.locator('#account-activity').screenshot(path=str(artifacts/f'waiting-{width}-zh-CN.png'))
                     page.locator('#website-language').select_option('en')
                     expect(page.locator('#account-activity')).to_contain_text('Your secretary needs your answer')
+                page.keyboard.press('Escape')  # Close the language menu so it does not cover the card on phones.
                 page.route('**/api/activity', lambda route: route.fulfill(status=503, json={'error': 'Synthetic outage'}), times=1)
                 page.evaluate('window.dispatchEvent(new Event("focus"))')
                 expect(page.locator('#account-activity')).to_contain_text('Activity status is unavailable')

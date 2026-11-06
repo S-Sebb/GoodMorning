@@ -51,7 +51,7 @@ class AvatarTests(unittest.TestCase):
         self.assertIn('src="/avatar.js"', html)
         self.assertNotIn('<button', html.split('avatar-display', 1)[1].split('</figure>', 1)[0])
         self.assertIn('data-avatar="f1"', html)
-        self.assertLess(html.index('desk-figure'), html.index('<p class="eyebrow">' + ui.text('Your desk')))
+        self.assertLess(html.index('desk-figure'), html.index('id="secretary-heading"'))
         html = page('csrf', True, True, None, 'm2', {'m2': {'day': '/hashed/m2-day.png', 'night': '/hashed/m2.png', 'profile': '/hashed/m2-profile.png'}})
         self.assertIn('class="avatar-image" src="/hashed/m2-day.png"', html)
         self.assertIn('data-profile="/hashed/m2-profile.png"', html)

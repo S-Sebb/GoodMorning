@@ -276,7 +276,10 @@ class LetterTests(unittest.TestCase):
 
     def test_the_letters_page_opens_the_newest_letter_with_a_wheel_of_weeks(self):
         app = BrowserApp(self.root, now=lambda: NIGHT)
-        self.assertIn('No letters yet', pages.page(app).decode())
+        empty = pages.page(app).decode()
+        card = re.search(r'<section class="letters-empty">(.*?)</section>', empty)[1]
+        self.assertEqual(card.count('<p'), 1)  # One sentence under the envelope; the tab names the page.
+        self.assertIn('Sunday’s evening briefing', visible(card))
         letters.save(self.root, '2026-10-12', {'opening': 'An earlier week.', 'signoff': 'Bye.'}, 'en', SUNDAY)
         letters.save(self.root, WEEK, WORDS, 'en', SUNDAY)
         newest = pages.page(app).decode()

@@ -17,6 +17,38 @@ BESIDE_CHAT = '''() => {
   const pill=document.querySelector('#quick-chat-launcher').getBoundingClientRect();
   return Math.abs(button.y+button.height/2-pill.y-pill.height/2)<1&&Math.abs(pill.x-button.right-10)<1;
 }'''
+# The Today badge's text lines and pill, and the date's text boxes beside it (#258).
+BADGE_GLYPHS = '''marker => {
+  const boxes=node=>{const range=document.createRange();node.nodeType===3?range.selectNode(node):range.selectNodeContents(node);
+    return [...range.getClientRects()].map(r=>({left:r.left,right:r.right,top:r.top,bottom:r.bottom}));};
+  const pill=marker.getBoundingClientRect();
+  return {lines:boxes(marker),pill:{left:pill.left,right:pill.right,top:pill.top,bottom:pill.bottom},date:[...marker.parentElement.childNodes].filter(n=>n!==marker).flatMap(boxes)};
+}'''
+
+
+def set_language(page,language):
+    page.locator('#prefs-menu > summary').click()
+    page.locator('#website-language').select_option(language)
+    expect(page.locator('html')).to_have_attribute('lang',language)
+    page.locator('#prefs-menu > summary').click()
+
+
+def check_today_badge(page):
+    """On a phone, the badge stays on one line and never covers the date, in both languages."""
+    page.set_viewport_size({'width':390,'height':844})
+    try:
+        for language in ('zh-CN','en'):
+            set_language(page,language)
+            page.evaluate("scrollTo({top:0,behavior:'instant'})")
+            boxes=page.locator('.today-marker').evaluate(BADGE_GLYPHS)
+            b,date=boxes['pill'],boxes['date']
+            assert len({round(line['top']) for line in boxes['lines']})==1,(language,'badge wraps',boxes['lines'])
+            # 1px slack: the pill may touch the date's line box, whose top is font ascent space, not ink.
+            assert date and not any(b['left']<d['right'] and d['left']<b['right'] and b['top']<d['bottom'] and d['top']<b['bottom']-1
+                                    for d in date),(language,'badge covers the date',boxes)
+    finally:
+        # The language is saved to the account, so later checks and reruns need English back.
+        if page.evaluate('document.documentElement.lang')!='en':set_language(page,'en')
 
 
 def main():
@@ -110,8 +142,10 @@ def main():
                 assert box['x']>=edge['x']+edge['width']+20
                 assert page.evaluate('document.documentElement.clientWidth')-box['x']-box['width']>=27
                 if args.artifacts:page.screenshot(path=str(args.artifacts/f'{kind}-centered-button-{width}.png'))
+            check_today_badge(page)
+            if args.artifacts:page.locator('.week-picker').screenshot(path=str(args.artifacts/f'{kind}-today-badge-390.png'))
             assert not errors,errors
-            report.append({'edition':kind,'whole_panel_motion':'stronger fade; stationary glyphs through final frame','hover':checked,'today_badge':'pass','corner_button':'beside quick chat and centred without it at two desktop widths; hidden on phones','reduced_motion':'pass'})
+            report.append({'edition':kind,'whole_panel_motion':'stronger fade; stationary glyphs through final frame','hover':checked,'today_badge':'one line, clear of the date at 390 px in zh-CN and en','corner_button':'beside quick chat and centred without it at two desktop widths; hidden on phones','reduced_motion':'pass'})
             page.close()
         browser.close()
     print(json.dumps(report))

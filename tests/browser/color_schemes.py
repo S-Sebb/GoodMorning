@@ -90,7 +90,8 @@ def main():
                     expect(page.locator('#day-color-scheme input[type=radio]')).to_have_count(6)
                     expect(page.locator('#night-color-scheme input[type=radio]')).to_have_count(6)
                     expect(page.locator('#website-style input[type=radio]')).to_have_count(2)
-                    with page.expect_response('**/api/color-schemes') as response:
+                    # Match the save itself: the page's background sync GETs share this URL.
+                    with page.expect_response(lambda r: r.url.endswith('/api/color-schemes') and r.request.method == 'POST') as response:
                         card(page, theme, value).click()
                     assert response.value.status == 200
                     expect(page.locator('html')).to_have_attribute('data-style' if theme == 'style' else 'data-'+theme+'-scheme', value)
@@ -106,6 +107,13 @@ def main():
                     return page.locator('body').evaluate('node => getComputedStyle(node).backgroundColor')
                 def stars(page):
                     return page.locator('body').evaluate('node => getComputedStyle(node).backgroundImage')
+                def scroll_to_end(page):
+                    # The briefing has no footer since #233, so scroll the document itself and
+                    # check the scheme still paints the page end, not just the first screen.
+                    color, image = background(page), stars(page)
+                    page.evaluate('window.scrollTo(0, document.documentElement.scrollHeight)')
+                    assert page.evaluate('scrollY > 0 && Math.ceil(scrollY + innerHeight) >= document.documentElement.scrollHeight')
+                    assert (background(page), stars(page)) == (color, image)
 
                 owner = context(); chat = page_in(owner)
                 login(chat, 'sec', 'alice', 'a1alice-temporary'); permanent(chat, 'alice')
@@ -175,7 +183,7 @@ def main():
                         }
                     }''')
                     morning.screenshot(path=str(artifacts/(scheme+'-long-full-page.png')), full_page=True, animations='disabled')
-                    morning.locator('footer').first.scroll_into_view_if_needed()
+                    scroll_to_end(morning)
                     morning.screenshot(path=str(artifacts/(scheme+'-long-bottom.png')), animations='disabled')
                     morning.set_viewport_size({'width': 390, 'height': 1000})
                     morning.screenshot(path=str(artifacts/(scheme+'-long-mobile-full-page.png')), full_page=True, animations='disabled')
@@ -186,7 +194,7 @@ def main():
                         assert not morning.evaluate('document.documentElement.scrollWidth > innerWidth')
                         morning.screenshot(path=str(artifacts/(scheme+f'-{width}-full-page.png')), full_page=True, animations='disabled')
                     morning.set_viewport_size({'width': 1440, 'height': 1000})
-                    morning.locator('footer').first.scroll_into_view_if_needed()
+                    scroll_to_end(morning)
                     morning.screenshot(path=str(artifacts/(scheme+'-scrolled.png')), animations='disabled')
                     morning.evaluate('window.scrollTo(0, 0)')
                     morning.emulate_media(reduced_motion='no-preference')
@@ -228,7 +236,7 @@ def main():
                 evening.locator('details.menu:has(#color-scheme-form) > summary').click()
                 evening.screenshot(path=str(artifacts/'starry-night-full.png'), full_page=True)
                 evening.screenshot(path=str(artifacts/'starry-night-viewport.png'))
-                evening.locator('footer').first.scroll_into_view_if_needed()
+                scroll_to_end(evening)
                 evening.screenshot(path=str(artifacts/'starry-night-scrolled.png'))
                 evening.evaluate('window.scrollTo(0, 0)')
                 evening.reload()

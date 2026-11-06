@@ -2,7 +2,10 @@
 const languageConfig = JSON.parse(document.querySelector('#language-config').dataset.config);
 let goodmorningLanguage = languageConfig.language;
 let languageRevision = 0;
-const languagePatterns = Object.entries(goodmorningCatalog).filter(([key]) => key.includes('{')).map(([key, value]) => {
+// Most literal text first, so "Ask {name} to change this" wins over "Ask {name}".
+const literalLength = key => key.replace(/\{[a-z]+\}/g, '').length;
+const languagePatterns = Object.entries(goodmorningCatalog).filter(([key]) => key.includes('{'))
+  .sort(([a], [b]) => literalLength(b) - literalLength(a)).map(([key, value]) => {
   const names = [];
   const pattern = key.split(/(\{[a-z]+\})/).map(part => {
     if (/^\{[a-z]+\}$/.test(part)) { names.push(part.slice(1, -1)); return '(.+?)'; }

@@ -116,10 +116,10 @@ def page(app, week=None):
         letter = reading(letters.load(app.runtime, week), len(saved) - saved.index(week), today, signature)
         content, title = note + '<div class="letters-desk">' + wheel(saved, week, today) + letter + '</div>', 'Weekly letter'
     else:
-        content, title = ('<section class="letters-empty"><h1>' + ui.ui('Weekly letters') + '</h1>' + (note or (
-            '<p>' + ui.ui('No letters yet. Your first one is written when you prepare Sunday’s evening briefing.') + '</p>'))
-            + '<p class="letters-intro">' + ui.ui('A letter about each week, written with Sunday’s evening briefing and kept here to look back on.')
-            + '</p></section>'), 'Weekly letters'
+        # The tab already names the page; the envelope and one sentence say the rest.
+        content, title = ('<section class="letters-empty"><h1 class="visually-hidden">' + ui.ui('Weekly letters') + '</h1>' + (note or (
+            '<p>' + ui.ui('Your first weekly letter is written with Sunday’s evening briefing, and each one is kept here.') + '</p>'))
+            + '</section>'), 'Weekly letters'
     source = ('<!doctype html><html lang="en" data-edition="' + theme + '"><head><meta charset="utf-8">'
               '<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>' + title + ' — GoodMorning</title>'
               + favicon_links() + '<link rel="stylesheet" href="/briefing.css"><link rel="stylesheet" href="/scroll-rails.css">'

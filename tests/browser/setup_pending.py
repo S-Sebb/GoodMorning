@@ -38,7 +38,8 @@ def main():
                             handler.fulfill(status=status,headers={key:value for key,value in headers.items()
                                 if key.lower() not in ('content-length','set-cookie','connection','transfer-encoding')},body=data)
                         page.route('https://gm.example.test/**',route)
-                        response=page.goto('https://gm.example.test/chat',wait_until='networkidle')
+                        # Not networkidle: the avatar sync leaves its unread 503 body pending under page.route.
+                        response=page.goto('https://gm.example.test/chat')
                         assert response.status==503
                         expect(page.get_by_role('heading',name='Secretary setup pending' if pending else 'Secretary temporarily unavailable',exact=True)).to_be_visible()
                         page.locator('details.menu:has(#website-language) > summary').click()

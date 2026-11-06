@@ -157,7 +157,10 @@ def next_step(runtime, identifier, session, context, checkpoint):
                                 '--section', tag,
                                 '--website-language', context.get('website_language', 'en')]
         reads.append(shlex.join(read_command))
-        if tag == 'today' and not context.get('regenerating') and context.get('feedback',{}).get('details') not in ('No other updates','No updates today',None):
+        feedback = context.get('feedback') or {}
+        if tag == 'today' and not context.get('regenerating') and (
+                feedback.get('progress') or feedback.get('details') not in ('No other updates','No updates today',None)):
+            # The Tasks read gives each reported action's id and revision, so no lookup per task is needed.
             candidates = read_command.copy()
             candidates[candidates.index('--section') + 1] = 'tasks'
             reads.insert(0, shlex.join(candidates))
@@ -251,6 +254,27 @@ def with_weather_frame(runtime, identifier, section, language):
             section = deepcopy(section)
             section[1][index] = ['weather', rows] + ([read['frame']] if read.get('frame') else [])
             break
+    return section
+
+
+def without_cards(section):
+    """The evening Today section as the model writes it: its words, without any card block."""
+    if not (isinstance(section, list) and len(section) > 1 and isinstance(section[1], list)):
+        return section
+    return [section[0], [block for block in section[1] if not (isinstance(block, list) and block[:1] == ['actions'])], *section[2:]]
+
+
+def with_today_cards(runtime, identifier, session, context, checkpoint, section):
+    """Code places the Today cards first, from a read taken now, after any task writes this step made.
+
+    The model sends only its paragraph and note, so it never copies or rereads the cards."""
+    command = next(read for read in next_step(runtime, identifier, session, context, checkpoint)['read'] if '--section today' in read)
+    result = run_reads([command])[0]
+    if result['exit'] != 0 or not isinstance(result['output'], dict):
+        raise ValueError('The Today read failed while placing its cards: ' + json.dumps(result['output'], ensure_ascii=False)[:500])
+    section = without_cards(section)
+    if result['output'].get('block'):
+        section[1].insert(0, result['output']['block'])
     return section
 
 
@@ -616,8 +640,10 @@ def act(runtime, identifier, session, action, payload=None):
                 outcome = checkpoint['outcomes'][requested]
                 sections = iter(document['sections'])
                 previous = [next(sections) if value == 'ready' else None for value in checkpoint['outcomes']]
-                if (action == 'skip' and outcome == 'skipped') or (action == 'publish' and outcome == 'ready' and previous[requested] in (
-                        payload['section'], with_weather_frame(runtime, identifier, payload['section'], context.get('website_language', 'en')))):
+                cards = context.get('document_version') == 2 and checkpoint['plan'][requested][0] == 'today'
+                if (action == 'skip' and outcome == 'skipped') or (action == 'publish' and outcome == 'ready' and (
+                        previous[requested] in (payload['section'], with_weather_frame(runtime, identifier, payload['section'], context.get('website_language', 'en')))
+                        or cards and without_cards(previous[requested]) == without_cards(payload['section']))):
                     return receipt({'resolved':position,'planned':len(checkpoint['plan']),'saved':False,'reused':True})
                 raise ValueError('Published sections cannot change')
             if requested != position or position == len(checkpoint['plan']):
@@ -647,6 +673,8 @@ def act(runtime, identifier, session, action, payload=None):
             section = payload['section']
             if checkpoint['plan'][position][0] == 'weather':
                 section = with_weather_frame(runtime, identifier, section, context.get('website_language', 'en'))
+            if checkpoint['plan'][position][0] == 'today' and context.get('document_version') == 2:
+                section = with_today_cards(runtime, identifier, session, context, checkpoint, section)
             document['sections'].append(section)
             try:
                 result = publish(runtime, identifier, document, position=position)
