@@ -284,7 +284,7 @@ class BrowserApp:
                              lambda match: '<div class="hero-copy">' + portrait + '<div class="letter-copy">' + match[1] + '</div></div>',
                              text, count=1, flags=re.S)
         if not count:
-            text = text.replace('<p class="eyebrow">', portrait + '<p class="eyebrow">', 1)
+            text = re.sub(r'<div class="waiting-art">.*?</div>', lambda match: match[0] + portrait, text, count=1, flags=re.S)
         text = re.sub(r'<div class="briefing-tools">.*?</div>', '', text, count=1, flags=re.S)
         questions = '<div id="agent-questions"></div>'
         if questions in text and '<article' in text:
@@ -322,7 +322,7 @@ class BrowserApp:
 
     def initialization_page(self, kind):
         switches = ''.join(f'<a class="edition-link{" selected" if other == kind else ""}" href="/{other}">{label}</a>' for other, label in KINDS.items()) + '<a class="edition-link" href="/schedule">Schedule</a><a class="edition-link" href="/letters">Letters</a>'
-        text = f'<!doctype html><html lang="en" data-edition="{kind}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><title>Initialize your secretary — GoodMorning</title><link rel="stylesheet" href="/briefing.css"></head><body><header class="masthead"><a class="wordmark" href="/{kind}">GoodMorning<span>A personal secretary just for you</span></a><nav class="edition-switch" aria-label="Edition">{switches}<a class="edition-link" href="/chat">Secretary</a>{about_me.desk_link(self.profile())}</nav></header><main><section class="waiting-room"><div class="waiting-art">{celestial(kind)}</div><p class="eyebrow">{KINDS[kind]} edition</p><h1>Let’s make this yours.</h1><p class="subtitle">Complete your secretary’s setup before preparing a briefing. Your saved records stay unchanged.</p><a id="initialize" class="initialize-button" href="/chat?mode=initialize">Initialize my secretary</a></section></main></body></html>'
+        text = f'<!doctype html><html lang="en" data-edition="{kind}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><title>Initialize your secretary — GoodMorning</title><link rel="stylesheet" href="/briefing.css"></head><body><header class="masthead"><a class="wordmark" href="/{kind}">GoodMorning<span>A personal secretary just for you</span></a><nav class="edition-switch" aria-label="Edition">{switches}<a class="edition-link" href="/chat">Secretary</a>{about_me.desk_link(self.profile())}</nav></header><main><section class="waiting-room"><div class="waiting-art">{celestial(kind)}</div><h1>Let’s make this yours.</h1><p class="subtitle">Finish setup to get your briefings. Your saved records stay unchanged.</p><a id="initialize" class="initialize-button" href="/chat?mode=initialize">Initialize my secretary</a></section></main></body></html>'
         text = self.briefing_layout(text, kind=kind)
         return self.resources.rewrite(ui.page(text.replace('</head>', favicon_links() + '</head>'),self.csrf,'/'+kind,avatars=True)).encode()
 

@@ -112,7 +112,6 @@
   "Couldn’t save — this idea changed since the page loaded. Refresh and try again.": "没能保存，这条灵感在页面打开之后已经被改过了，刷新一下再试吧。",
   "Couldn’t save — this task changed since the page loaded. Refresh and try again.": "没能保存，这条待办在页面打开之后已经被改过了，刷新一下再试吧。",
   "Couldn’t save. Check your connection and try again.": "没能保存，检查一下网络连接再试吧。",
-  "Set your timezone to see your weekly schedule. Your saved records stay unchanged.": "设置时区后就能看到每周日程，已保存的记录不会变。",
   "Navigation and saved plans work without JavaScript. Reload to see updates.": "没开 JavaScript 也能浏览已保存的计划，重新加载页面即可看到更新。",
   "Page": "页面",
   "Messages": "消息",
@@ -362,7 +361,6 @@
   "Today": "今天",
   "Past seven briefing days": "最近七天的简报",
   "Initialize your secretary — GoodMorning": "初始化你的秘书 — GoodMorning",
-  "Complete your secretary’s setup before preparing a briefing. Your saved records stay unchanged.": "请先完成秘书设置，再生成简报；已保存的记录不会改变。",
   "Initialize my secretary": "初始化我的秘书",
   "Your briefing awaits.": "你的简报在等你啦。",
   "Preparing today’s briefing…": "正在准备今天的简报…",
@@ -821,8 +819,6 @@
   "1 new idea": "记下 1 个新灵感",
   "{count} new ideas": "记下 {count} 个新灵感",
   "Weekly letters are turned off. Ask your secretary to turn them back on.": "每周来信已关闭。想重新打开，问问你的秘书就行。",
-  "No letters yet. Your first one is written when you prepare Sunday’s evening briefing.": "还没有信。第一封会在你准备周日晚报时写好。",
-  "A letter about each week, written with Sunday’s evening briefing and kept here to look back on.": "每一周都有一封信，跟着周日晚报一起写好，留在这里，想回头看看时随时翻。",
   "What you finished": "你完成的事",
   "Habits": "习惯",
   "Ideas you saved": "你记下的灵感",
@@ -1026,5 +1022,10 @@
   "As of {time}": "截至 {time}",
   "Couldn't refresh · as of {time}": "没能刷新 · 仍是 {time} 的数据",
   "Unavailable": "暂无数据",
-  "Rain unknown": "降雨不确定"
+  "Rain unknown": "降雨不确定",
+  "Nothing saved": "还没有保存的内容",
+  "Project:": "项目：",
+  "Your first weekly letter is written with Sunday’s evening briefing, and each one is kept here.": "第一封信会跟着周日晚报一起写好，以后每一封也都留在这里。",
+  "Finish setup to get your briefings. Your saved records stay unchanged.": "完成设置后就能看到你的简报，已经保存的记录不会变。",
+  "Finish setup to see your schedule. Your saved records stay unchanged.": "完成设置后就能看到你的日程，已经保存的记录不会变。"
 }
