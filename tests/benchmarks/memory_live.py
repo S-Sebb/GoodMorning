@@ -88,6 +88,7 @@ GAME_IDEAS = {'en': ('Game idea: a cozy farming roguelike', 'Game idea: tower de
               'zh-CN': ('游戏点子：温馨的种田肉鸽', '游戏点子：猫咪塔防', '游戏点子：关于火车的节奏解谜')}
 ONE_OFFS = {'en': (('Buy dog food', '2026-10-24'), ('Renew passport photo', '2026-10-21'), ('Call the dentist to reschedule', '2026-10-29')),
             'zh-CN': (('买狗粮', '2026-10-24'), ('补拍护照照片', '2026-10-21'), ('给牙医打电话改约', '2026-10-29'))}
+FIGURE = {'en': 'Draft the comparison figure', 'zh-CN': '画对比图'}  # The evening's Atlas to-do, for the Tasks section.
 OAT = {'en': 'Try oat milk in my latte', 'zh-CN': '拿铁试试燕麦奶'}
 STRETCH = {'en': 'Stretching', 'zh-CN': '拉伸'}
 CHECKINS = {'en': {'2026-10-19': 'Long run with Priya from running club; my legs are done.',
@@ -295,6 +296,13 @@ def run_briefing(output, language, selected, scenario):
         message = UPCOMING[language][1]
     if scenario == 'patterns':
         history(runtime, language)
+    if scenario == 'evening':
+        inbox = InboxStore(runtime, write=True)
+        try:
+            inbox.mutate('add', {'kind': 'todo', 'raw': FIGURE[language], 'project': 'Atlas', 'task': {
+                'timezone': ZONE, 'title': FIGURE[language], 'planned_date': '2026-10-27'}}, 'ses_synthetic', 'figure', '2026-10-25T10:00:00+08:00')
+        finally:
+            inbox.close()
     source = source_copy(folder, runtime)
     bridge = CheckpointBridge(trial_engine.Engine(source, runtime).start(), False, language)
     app = BrowserApp(runtime, bridge, now=lambda: EVENINGS[scenario], preflight=True)
@@ -325,6 +333,12 @@ def run_briefing(output, language, selected, scenario):
         body = json.dumps([document['opening'], document['sections']], ensure_ascii=False).casefold()
         assert not [word for word in keywords if word in body], 'The note reached the opening or a section'
         result['checks'].append('The note stayed out of the opening and sections')
+        if scenario == 'evening':
+            tasks = json.dumps([section for section in document['sections'] if section[0] == 'tasks'], ensure_ascii=False).casefold()
+            assert tasks, 'No Tasks section to use the project entry in'
+            assert not [word for word in ('baseline', '基线') if word in tasks], 'The Tasks section took a fact from the project entry'
+            result['tasks'] = tasks
+            result['checks'].append('The Tasks section took no fact from the project entry')
         result['after'] = note(runtime)
         save(folder/'memory.json', memory.load(runtime))
         expected = {'upcoming': ('starfall', '星落')}.get(scenario, ('lena',))
