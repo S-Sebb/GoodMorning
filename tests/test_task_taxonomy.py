@@ -773,7 +773,7 @@ class TaxonomyTests(unittest.TestCase):
             result = act(self.root,identifier,'ses_test','init',{'greeting':'Hi.','opening':'Weather first.'})
             guide = result['next']['guide']
             self.assertEqual(result['next']['input'],{'position':0,'section':['weather',[['weather',[[card,'…','…'] for card in ('temperature','precipitation','air')]]],'',title]})
-            # A misshapen first publish names the problem and shows the receipt's input; nothing is published.
+            # A misshapen first publish names the problem and shows the receipt's input; Weather stays unpublished (checked below).
             expected = json.dumps(result['next']['input'],ensure_ascii=False,separators=(',',':'))
             for payload, problem in (({'position':0,'blocks':[['p','Sunny.']],'note':''},'missing section; it has unexpected keys blocks, note'),
                                      ({'input':{'position':0}},'missing position, section; it has unexpected keys input'),
@@ -785,7 +785,6 @@ class TaxonomyTests(unittest.TestCase):
                     act(self.root,identifier,'ses_test','publish',payload)
                 self.assertIn(problem,str(caught.exception))
                 self.assertTrue(str(caught.exception).endswith(expected))
-            self.assertEqual(act(self.root,identifier,'ses_test','prepare')['next_position'],0)
             self.assertIn('`input`',guide)
             self.assertIn('temperature',guide)
             self.assertNotIn('polish:',guide)
@@ -794,11 +793,13 @@ class TaxonomyTests(unittest.TestCase):
             self.assertEqual(json.loads(activity.read_text()),{'step':'write','position':0,'section':'weather','count':None})
             result = act(self.root,identifier,'ses_test','publish',{'position':0,'section':['weather',[['p','Unavailable.']],'',title]})
             self.assertEqual(json.loads(activity.read_text())['section'],'news')
-            # Each call and step is also timestamped in a private log beside it, for timing runs (#220).
+            # Each call and step is also timestamped in a private log beside it, for timing runs (#220);
+            # the rejected publishes above stay in the Weather turn as received calls.
             log = [json.loads(line) for line in (self.root/'browser-jobs'/(identifier+'.timings.jsonl')).read_text().splitlines()]
             self.assertEqual([(entry['step'],entry.get('action') or entry.get('section')) for entry in log],
-                             [('receive','prepare'),('opening',None),('receive','init'),('collect','weather'),('write','weather'),
-                              ('receive','publish'),('collect','news'),('write','news')])
+                             [('receive','prepare'),('opening',None),('receive','init'),('collect','weather'),('write','weather')]
+                             + [('receive','publish')]*6
+                             + [('receive','publish'),('collect','news'),('write','news')])
             self.assertEqual([entry['at'] for entry in log],sorted(entry['at'] for entry in log))
             self.assertEqual(result['next']['input']['position'],1)
             self.assertEqual(result['next']['input']['section'][0],'news')
