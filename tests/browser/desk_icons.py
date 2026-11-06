@@ -8,6 +8,7 @@ import tempfile
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from support import TEMP_ROOT, returning_viewer
 from support import start_server
+from goodmorning.briefings.briefing_document import encode
 from goodmorning.runtime_files import set_profile_fields
 from test_weekly_schedule import make_runtime
 
@@ -30,7 +31,7 @@ def check(app, url, shots):
                 app.now = lambda hour=hour: datetime(2026, 10, 13, hour, tzinfo=timezone.utc)
                 bar = {}  # Phone page-bar item sizes by route and width.
                 for route in ('/gm', '/gn', '/schedule', '/letters', '/chat', '/about-me'):
-                    for width in (1440, 820, 390, 320):
+                    for width in (1500, 1440, 1280, 1024, 820, 390, 320):
                         page.set_viewport_size({'width': width, 'height': 900})
                         page.goto(url + route)
                         page.evaluate('document.fonts.ready')
@@ -46,6 +47,18 @@ def check(app, url, shots):
                         assert all(0 <= box['left'] < box['right'] <= width for box in boxes), boxes
                         assert all(a['right'] <= b['left'] + 1 for a, b in zip(boxes, boxes[1:])), boxes
                         assert not page.evaluate('document.documentElement.scrollWidth > innerWidth'), (route, width, language)
+                        if width in (1500, 1280, 1024):
+                            # Top controls, page bar and date tiles end on the page content's edge: the frame less its gutter.
+                            edges = page.evaluate('''() => {
+                                const right = nodes => Math.max(...[...nodes].map(node => node.getBoundingClientRect().right));
+                                const main = document.querySelector('main'), page = document.documentElement.clientWidth;
+                                const gutter = parseFloat(getComputedStyle(main).getPropertyValue('--content-gutter'));
+                                const picker = document.querySelector('.week-picker');
+                                return {content: (page + Math.min(page, 1440)) / 2 - gutter, toolbar: right(document.querySelectorAll('.toolbar-row > :not(#update-slot), #update-slot > *')),
+                                    bar: right(document.querySelectorAll('.edition-switch .edition-link')), tiles: picker && picker.getBoundingClientRect().right};
+                            }''')
+                            assert edges['tiles'] is not None or route not in ('/gm', '/gn'), edges
+                            assert all(abs(edge - edges['content']) <= 1 for edge in edges.values() if edge is not None), (route, width, language, edges)
                         if width <= 390:
                             # The highlight is the ::after pill; each corner of the label's ink box must sit inside its rounded shape.
                             label = page.locator('.edition-link.selected').evaluate('''el => {
@@ -119,6 +132,11 @@ def main():
         args.screenshots.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(dir=TEMP_ROOT) as temporary:
         app = make_runtime(Path(temporary))
+        # A saved briefing brings the date tiles and the quick-chat corner beside the reading column.
+        document = encode({'v': 1, 'lang': 'en', 'greeting': 'Synthetic layout test.', 'opening': 'Synthetic records.',
+                           'sections': [['notes', [['p', 'Synthetic reading content.']], '', 'Synthetic section']]})
+        for kind in ('gm', 'gn'):
+            (Path(temporary) / 'daily' / f'2026-10-13.{kind}.json').write_text(document)
         returning_viewer(app.runtime)
         server = start_server(app)
         try:
