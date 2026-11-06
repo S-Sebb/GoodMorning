@@ -24,7 +24,8 @@
     + '<header class="patch-header"><h2 id="patch-note-heading"></h2><span id="patch-beta"></span></header>'
     + '<nav id="patch-note-versions"></nav>'
     + '<section class="patch-content" tabindex="0" aria-labelledby="patch-note-version">'
-    + '<p id="patch-note-version"></p><h3 id="patch-note-title"></h3><p id="patch-note-date"></p>'
+    // The selected version button already shows the version and date; the version stays here to name the section.
+    + '<p id="patch-note-version"></p><h3 id="patch-note-title"></h3>'
     + '<div id="patch-note-text"></div><p id="patch-note-source"></p></section>'
     + '<footer class="patch-footer"><p id="app-update-status" role="status" hidden></p><p id="update-status" role="status"></p>'
     + '<p id="update-feedback" role="status" aria-live="polite"></p>'
@@ -104,7 +105,6 @@
     for (const button of versions.children) button.setAttribute('aria-current', String(button.dataset.version === selected));
     patch.querySelector('#patch-note-version').textContent = 'v' + note.version;
     patch.querySelector('#patch-note-title').textContent = localized(note, 'title_');
-    patch.querySelector('#patch-note-date').textContent = note.date + ' · ' + note.author;
     const contentKey = JSON.stringify([note.version, document.documentElement.lang, note.changes]);
     if (renderedChanges !== contentKey) {
       const content = document.createDocumentFragment();

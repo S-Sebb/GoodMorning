@@ -1009,7 +1009,7 @@ def page(csrf, ready, connected, secretary_name=None, avatar='f1', avatar_urls=N
             '<link rel="stylesheet" href="/chat.css"><link rel="stylesheet" href="/avatar.css">'
             '<link rel="stylesheet" href="/scroll-rails.css"><script src="/scroll-rails.js" defer></script></head><body class="chat-page">'
             '<a class="skip-link" href="#conversation">Skip to conversation</a>'
-            '<header class="masthead"><a class="wordmark" href="/chat">GoodMorning<span>A personal secretary just for you</span></a>'
+            '<header class="masthead"><a class="wordmark" href="/chat">GoodMorning</a>'
             '<nav class="edition-switch" aria-label="Your desk"><a class="edition-link" href="/gm">Morning</a>'
             '<a class="edition-link" href="/gn">Evening</a><a class="edition-link" href="/schedule">Schedule</a><a class="edition-link" href="/letters">Letters</a><a class="edition-link selected" href="/chat" aria-current="page">Secretary</a>' + desk_link(profile or {}) + '</nav></header>'
             '<main class="chat-layout"><aside class="conversation-sidebar">'

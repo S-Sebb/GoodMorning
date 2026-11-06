@@ -26,10 +26,9 @@ html[data-style="pixel"] :is(h1, h2, h3, .wordmark, .eyebrow, .edition-link, .br
   .settings-menu-header p) { font-family: var(--px-font); letter-spacing: 0; }
 html[data-style="pixel"] :is(.wordmark, h1, h2) { font-family: var(--px-title); }
 html[data-style="pixel"] :is(.eyebrow, .weather-label, .today-marker, .preview-eyebrow, #activity-heading, .weather-tile-source) { font-family: var(--px-label); }
-html[data-style="pixel"] :is(.letter-copy > .subtitle, .section-takeaway, .briefing-closing, .wordmark span) { font-family: var(--px-font); font-style: normal; }
+html[data-style="pixel"] :is(.letter-copy > .subtitle, .section-takeaway, .briefing-closing) { font-family: var(--px-font); font-style: normal; }
 html[data-style="pixel"] h1 { font-weight: 500; }
 html[data-style="pixel"] .wordmark { font-size: 30px; font-weight: 600; }
-html[data-style="pixel"] .wordmark span { font-size: 14px; }
 html[data-style="pixel"] img { image-rendering: pixelated; }
 
 /* Notched frames with a hard offset shadow. */
@@ -120,7 +119,6 @@ html[data-edition="gn"][data-night-scheme="picnic"] {
 
 html[data-style="pixel"] .week-picker a.is-missing:not([aria-current]) { background: color-mix(in srgb, var(--surface) 70%, transparent); }
 /* Grass Block extras: the week as a hotbar and weather tiles as inventory slots. */
-:is(html[data-style="pixel"]:not([data-edition="gn"])[data-day-scheme="grass-block"], html[data-style="pixel"][data-edition="gn"][data-night-scheme="grass-block"]) .wordmark span { font: 11px/1.5 var(--px-label); }
 :is(html[data-style="pixel"]:not([data-edition="gn"])[data-day-scheme="grass-block"], html[data-style="pixel"][data-edition="gn"][data-night-scheme="grass-block"]) .week-picker { gap: 0; padding: 6px; background: #8b8b8b; box-shadow: 0 0 0 3px var(--px-line), inset 3px 3px 0 #b5b5b5, inset -3px -3px 0 #5a5a5a; }
 :is(html[data-style="pixel"]:not([data-edition="gn"])[data-day-scheme="grass-block"], html[data-style="pixel"][data-edition="gn"][data-night-scheme="grass-block"]) .week-picker a,
 :is(html[data-style="pixel"]:not([data-edition="gn"])[data-day-scheme="grass-block"], html[data-style="pixel"][data-edition="gn"][data-night-scheme="grass-block"]) .week-picker a.is-missing:not([aria-current]) { margin: 3px; background: #a9a9a9; color: #2b2b2b; border: 0; box-shadow: inset 3px 3px 0 #6c6c6c, inset -3px -3px 0 #d6d6d6; }
@@ -155,12 +153,12 @@ html[data-style="pixel"][data-edition="gn"][data-night-scheme="grass-block"] .we
 
 /* Chinese pixel glyphs sit on a 12px grid: they stay crisp only at 12/24/36px and without
    synthetic bold, so Chinese pixel text snaps to those sizes. Reading text keeps the system font. */
-html[data-style="pixel"]:lang(zh) :is(h1, h2, h3, .wordmark span, .eyebrow, .edition-link, .briefing-section-nav a, .week-picker a, .weather-label,
+html[data-style="pixel"]:lang(zh) :is(h1, h2, h3, .eyebrow, .edition-link, .briefing-section-nav a, .week-picker a, .weather-label,
   .section-number, #new-conversation, .toolbar-row .menu > summary, #site-update-toggle, #quick-chat-launcher, .scheme-name,
   :is(#prefs-menu, #account-menu) legend, .preview-eyebrow, .preview-title, .today-marker, #activity-heading, .activity-title, #mobile-sections) {
   font-weight: 400; font-synthesis: none; letter-spacing: 0;
 }
-html[data-style="pixel"]:lang(zh) :is(h3, .wordmark span, .eyebrow, .edition-link, .briefing-section-nav a, .week-picker a, .weather-label,
+html[data-style="pixel"]:lang(zh) :is(h3, .eyebrow, .edition-link, .briefing-section-nav a, .week-picker a, .weather-label,
   #new-conversation, .toolbar-row .menu > summary, #site-update-toggle, #quick-chat-launcher, .scheme-name, :is(#prefs-menu, #account-menu) legend,
   .settings-menu-header h2, .color-scheme-heading, .preview-eyebrow, #activity-heading, #mobile-sections, .week-picker small, .today-marker,
   #chat-help, .settings-menu-header p) { font-size: 12px; line-height: 18px; }
