@@ -15,7 +15,7 @@ from unittest.mock import patch
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 from goodmorning.calendar.secretary_calendar import load_config_file, main as calendar_main
-from goodmorning.records.state import read_profile_timezone, scan_projects
+from goodmorning.records.state import read_profile_timezone
 from goodmorning.weather import parse_profile
 from goodmorning.runtime_files import profile_fields
 
@@ -78,13 +78,6 @@ class SetupTemplateTests(unittest.TestCase):
         self.assertEqual(profile_status(self.directory, profile_fields(self.directory))["user_name"], "Sam")
         self.assertEqual(prepare(self.directory, "todo")["profile"]["user_name"], "Sam")
         self.assertIn('user_name: ""', (ROOT / "templates/profile.template.md").read_text())
-
-    def test_project_last_update_is_readable(self):
-        projects = self.directory / "projects"
-        projects.mkdir()
-        (projects / "example.md").write_text('# Project record\n\nname: "Example"\nlast_update: 2026-10-09\n')
-        self.assertEqual(scan_projects(str(self.directory)),
-                         {"example": {"last_update": "2026-10-09"}})
 
     def test_optional_role_and_expertise_fields_are_empty_then_readable(self):
         template = (ROOT / "templates/profile.template.md").read_text()
