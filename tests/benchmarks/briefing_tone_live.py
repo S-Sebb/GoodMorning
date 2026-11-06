@@ -286,6 +286,8 @@ def collection_order_issues(log, plan, position=0, reconcile=False, quiet=False)
         if quiet and tag == 'today' and position < len(plan) and plan[position][0] == 'today':
             position += 1  # Code read Today and skipped it on a quiet evening; the log has no skip for it.
             continue
+        if (tag == 'today' and entry.get('receipt') and 0 < position <= len(plan) and plan[position - 1][0] == 'today'):
+            continue  # Publishing Today reread it to place the cards, after the publish call was logged.
         if tag == 'tasks' and position == 0 and reconcile:
             continue  # Targeted feedback reconciliation is reviewed separately.
         if tag and (position >= len(plan) or tag != plan[position][0]):
