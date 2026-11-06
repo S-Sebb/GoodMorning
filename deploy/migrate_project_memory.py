@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Move one account's legacy profile `## Project roots` into secretary memory (#290). Run as that account's service user.
 
-seed         Add an empty memory entry for each root name memory lacks, in profile order (names match ignoring case and
+seed         While memory is on, add an empty memory entry for each root name memory lacks, in profile order (names match ignoring case and
              spacing). Every other memory key stays byte-identical; the revision rises only when an entry is added.
 strip-roots  Rewrite each root line `- Name | path | ...` in profile.md to `- Name`; every other byte stays the same.
 
@@ -22,7 +22,7 @@ from goodmorning.records.inbox_store import encode  # noqa: E402
 from goodmorning.runtime_files import atomic_text, runtime_lock  # noqa: E402
 
 SECTION = re.compile(r'^## Project roots[ \t]*\r?$(.*?)(?=^## |\Z)', re.M | re.S)
-ROOT = re.compile(r'^- ([^|\r\n]*[^|\s])[ \t]*(\|[^\r\n]*)?$', re.M)
+ROOT = re.compile(r'^- ([^|\r\n]*[^|\s])[ \t]*(\|[^\r\n]*)?(?=\r?$)', re.M)
 
 
 def roots(text):
@@ -36,10 +36,12 @@ def roots(text):
 
 
 def seed(runtime, dry_run=False):
-    names = [match[1].strip() for match in roots((runtime / 'profile.md').read_text(encoding='utf-8'))]
+    names = [match[1].strip() for match in roots((runtime / 'profile.md').read_bytes().decode('utf-8'))]
     with runtime_lock(runtime, 'memory.lock'):
         target = memory.path(runtime)
         data = json.loads(target.read_text(encoding='utf-8')) if target.exists() else memory.load(runtime)
+        if not data['enabled']:
+            return {'mode': 'seed', 'skipped': 'memory_off', 'saved': False}  # The user turned memory off: nothing is added.
         entries = list(data.get('projects', []))
         for name in names:
             if not memory.find(entries, name):
@@ -58,7 +60,7 @@ def seed(runtime, dry_run=False):
 def strip_roots(runtime, dry_run=False):
     profile = runtime / 'profile.md'
     with runtime_lock(runtime, '.profile.lock'):
-        text = profile.read_text(encoding='utf-8')
+        text = profile.read_bytes().decode('utf-8')  # Not read_text: it would turn CRLF into LF.
         found = [match for match in roots(text) if match[2]]
         rewritten = text
         for match in reversed(found):

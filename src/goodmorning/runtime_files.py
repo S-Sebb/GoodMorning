@@ -131,15 +131,21 @@ def atomic_text(path, text):
 
 
 @contextlib.contextmanager
-def runtime_lock(directory, name):
-    """Serialize cooperating commands without deleting a stable lock file (Linux)."""
+def runtime_lock(directory, name, wait=0):
+    """Serialize cooperating commands without deleting a stable lock file (Linux), waiting up to `wait` seconds."""
     import fcntl
+    import time
 
+    deadline = time.monotonic() + wait
     with open(Path(directory) / name, "a", encoding="utf-8") as stream:
-        try:
-            fcntl.flock(stream, fcntl.LOCK_EX | fcntl.LOCK_NB)
-        except BlockingIOError:
-            raise ValueError("runtime_busy: another command is active; retry later") from None
+        while True:
+            try:
+                fcntl.flock(stream, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                break
+            except BlockingIOError:
+                if time.monotonic() >= deadline:
+                    raise ValueError("runtime_busy: another command is active; retry later") from None
+                time.sleep(0.05)
         try:
             yield
         finally:

@@ -73,6 +73,16 @@ class MigrationTests(unittest.TestCase):
         self.assertEqual(migration.strip_roots(self.root)['saved'], False, 'a rerun changes nothing')
         self.assertEqual(migration.seed(self.root)['added'], 2, 'seeding still reads stripped roots')
 
+    def test_seed_skips_memory_that_is_off_and_strip_keeps_crlf(self):
+        (self.root / 'memory.json').write_text(json.dumps({**OLD, 'enabled': False}))
+        self.assertEqual(migration.seed(self.root), {'mode': 'seed', 'skipped': 'memory_off', 'saved': False})
+        self.assertNotIn('projects', self.stored())
+        (self.root / 'profile.md').write_bytes(PROFILE.replace('\n', '\r\n').encode())
+        self.assertEqual(migration.strip_roots(self.root)['stripped'], 3)
+        self.assertEqual((self.root / 'profile.md').read_bytes(), PROFILE.replace(' | /home/sam/atlas', '')
+                         .replace(' | /home/sam/boreal | local | read', '').replace(' | /home/sam/elsewhere', '')
+                         .replace('\n', '\r\n').encode())
+
     def test_no_memory_file_and_no_roots(self):
         (self.root / 'memory.json').unlink()
         migration.seed(self.root)

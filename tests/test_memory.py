@@ -6,6 +6,7 @@ import os
 from pathlib import Path
 import sys
 import tempfile
+import threading
 import time
 import unittest
 from unittest.mock import patch
@@ -18,6 +19,7 @@ from goodmorning.briefings.briefing_preflight import answer, initialize as prefl
 from goodmorning.records import memory, workflow
 from goodmorning.records.inbox_store import InboxStore, initialize, stamp
 from goodmorning.records.task_store import TaskStore
+from goodmorning.runtime_files import runtime_lock
 from goodmorning.web import about_me
 from goodmorning.web.briefing_server import BrowserApp
 from goodmorning.web.chat_actions import read_changes
@@ -106,6 +108,45 @@ class MemoryTests(unittest.TestCase):
         memory.change(self.root, memory.load(self.root)['revision'], enabled=False)
         add('Ship the figure', 'Comet', 'k7')
         self.assertEqual(len(memory.load(self.root)['projects']), 1, 'nothing is written while memory is off')
+
+    def test_a_rename_moves_only_an_existing_entry_after_the_to_dos_and_keeps_their_dates(self):
+        initialize(self.root)
+        inbox = InboxStore(self.root, write=True)
+        self.addCleanup(inbox.close)
+        for key, project in (('k1', 'Atlas'), ('k2', 'Boreal')):
+            inbox.mutate('add', {'kind': 'todo', 'raw': 'Step', 'project': project}, 'ses_a', key, '2026-10-01T09:00:00+00:00')
+        tasks = TaskStore(inbox)
+        memory.change(self.root, 2, note={'projects': {'Atlas': None}})
+        tasks.rename_project({'from': 'Atlas', 'to': 'Atlas Paper'}, 'ses_a', 'k3', stamp(self.root))
+        self.assertEqual([entry['name'] for entry in memory.load(self.root)['projects']], ['Boreal'],
+                         'a rename never brings back a forgotten project')
+        self.assertEqual({task['project']: task['updated_at'] for task in tasks.all()},
+                         {'Atlas Paper': '2026-10-01T09:00:00+00:00', 'Boreal': '2026-10-01T09:00:00+00:00'},
+                         'a rename is not activity, so tidy and stale checks keep their dates')
+        memory.change(self.root, memory.load(self.root)['revision'], enabled=False)
+        tasks.rename_project({'from': 'Boreal', 'to': 'Northern station'}, 'ses_a', 'k4', stamp(self.root))
+        self.assertEqual([entry['name'] for entry in memory.load(self.root)['projects']], ['Northern station'],
+                         "the user's entry follows its to-dos while memory is off")
+        memory.change(self.root, memory.load(self.root)['revision'], enabled=True)
+        memory.change(self.root, memory.load(self.root)['revision'], note={'projects': {'Comet': 'A survey.'}})
+        with self.assertRaisesRegex(ValueError, 'project_exists: .*ask the user'):
+            tasks.rename_project({'from': 'Northern station', 'to': 'comet'}, 'ses_a', 'k5', stamp(self.root))
+        self.assertEqual({task['project'] for task in tasks.all()}, {'Atlas Paper', 'Northern station'}, 'nothing was renamed')
+
+    def test_a_busy_memory_lock_still_starts_the_project(self):
+        initialize(self.root)
+        inbox = InboxStore(self.root, write=True)
+        self.addCleanup(inbox.close)
+        held, release = threading.Event(), threading.Event()
+        def hold():
+            with runtime_lock(self.root, 'memory.lock'):
+                held.set(); release.wait(5)
+        thread = threading.Thread(target=hold); thread.start()
+        held.wait(5)
+        threading.Timer(0.3, release.set).start()
+        inbox.mutate('add', {'kind': 'todo', 'raw': 'Step', 'project': 'Atlas'}, 'ses_a', 'k1', stamp(self.root))
+        thread.join()
+        self.assertEqual([entry['name'] for entry in memory.load(self.root)['projects']], ['Atlas'])
 
     def test_off_hides_the_note_and_refuses_writes(self):
         memory.change(self.root, 0, note=MOCHI)
@@ -298,6 +339,8 @@ class AboutMeMemoryTests(unittest.TestCase):
         self.assertNotIn('Linked projects', page)
         with self.assertRaisesRegex(about_me.Invalid, 'just changed this'):
             about_me.save(self.app, {'field': 'project:Atlas', 'value': 'Old tab.', 'revision': 3})
+        with self.assertRaisesRegex(about_me.Invalid, 'just changed this'):
+            about_me.save(self.app, {'field': 'project:Gone', 'value': 'Old tab.', 'revision': 3})
         self.assertEqual(about_me.save(self.app, {'field': 'project:atlas', 'value': ' The figure is next. ', 'revision': 4}),
                          {'field': 'project:atlas', 'value': 'The figure is next.', 'revision': 5})
         with self.assertRaisesRegex(about_me.Invalid, 'A project fits 500'):

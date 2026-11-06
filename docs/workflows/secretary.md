@@ -378,13 +378,17 @@ remember something, say memory is off and can be turned on from About me.
    at most 500 characters, an entry says what the project is, where it stands and
    what comes next; a milestone keeps its calendar date and is dropped once past.
    When the user tells you about a project's progress, rewrite its entry whole in
-   the same write as the rest (`{"projects":{"NAME":"…"}}`). Single to-dos stay in
+   the same write as the rest (`{"projects":{"NAME":"…"}}`). A progress report
+   saved as a `project_update` follows `docs/skill-rules.md`; this entry is not
+   part of confirming it, so with memory off confirm it and write no memory. Single to-dos stay in
    their records; the entry keeps the stage they belong to. At most 8 projects:
    - Finished (the user says so): drop the entry with `null`; there is no archive.
    - Forget: drop the entry the same way; its to-dos keep their label.
    - Rename: run `task --secretary-dir RUNTIME --rename-project --session SESSION
      --request-key KEY --input-stdin` with `{"from":"OLD","to":"NEW"}`, which
-     renames the to-dos and the entry together.
+     renames the to-dos and the entry together (also while memory is off). On
+     `project_exists`, both names have entries: ask the user whether to merge
+     them, and rename nothing until they say yes.
    - `memory_projects_full`: ask which project is finished; write nothing for the
      new one until the user answers.
    An entry is never the source of a to-do's facts, dates or progress.

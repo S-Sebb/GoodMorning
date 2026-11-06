@@ -344,6 +344,8 @@ def remember(app, key, text, revision):
     `revision` is the note the page showed, so an edit open while the secretary changed the note never overwrites it."""
     data = memories.load(app.runtime)
     try:
+        if revision != data['revision']:
+            raise ValueError('revision_conflict')  # First, so a project renamed or forgotten meanwhile says so too.
         if key == 'memory':
             if text not in ('true', 'false'):
                 raise ValueError('Invalid switch')

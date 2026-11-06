@@ -191,12 +191,13 @@ class InboxStore:
         return {key(label): label for (label,) in self.db.execute("SELECT DISTINCT json_extract(data,'$.project') FROM tasks") if label and label.strip()}
 
     @contextlib.contextmanager
-    def transaction(self):
+    def transaction(self, start_projects=True):
+        """One write; with `start_projects`, a project label no to-do had before starts its memory entry after the commit."""
         self.db.execute("BEGIN IMMEDIATE")
         try:
-            before = self.projects()
+            before = self.projects() if start_projects else {}
             yield
-            new = [label for name, label in self.projects().items() if name not in before]
+            new = [label for name, label in self.projects().items() if name not in before] if start_projects else []
             self.db.commit()
         except Exception:
             self.db.rollback()

@@ -168,8 +168,10 @@ returns the next revision, and an unchanged note returns `"saved": false`.
 ## Project rename: `task --rename-project`
 
 Renames a project on every to-do and capture that carries its label, and moves its
-memory entry with them, in one call with a session and request key. It fails with
-`project_exists` when memory already has an entry under the new name.
+memory entry with them, in one call with a session and request key. It never starts an entry,
+moves one while memory is off too, and leaves each to-do's `updated_at`. It fails with
+`project_exists`, renaming nothing, when memory has entries under both names: ask
+the user whether to merge them before anything else.
 
 ```json task --rename-project
 {"from":"Atlas","to":"Atlas comparison study"}

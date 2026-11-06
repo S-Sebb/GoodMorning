@@ -22,6 +22,7 @@ from .inbox_store import encode
 PARTS = ('life', 'likes', 'lately')
 LENGTH = 4000  # The whole note with every project entry, about 1,200 tokens in every conversation.
 PROJECTS, PROJECT, NAME = 8, 500, 160  # Projects kept, each entry's length, and a name's length (as a to-do's project label).
+WAIT = 5  # Seconds a to-do write or rename waits for a memory write to finish; a note write takes milliseconds.
 CHANGES = 30   # Recent chat sessions that changed the note, for the chat's memory marker.
 MESSAGES, MESSAGE = 40, 500  # The newest user messages the evening tidy rereads, and each one's length.
 DAYS, ACTIVITY, TITLE = 14, 80, 160  # Days of records the evening tidy reads for patterns, its newest lines, each title's length.
@@ -162,7 +163,7 @@ def change(runtime, revision, *, note=None, enabled=None, session=None):
 
 def add_projects(runtime, names):
     """An empty entry for each project a to-do has just named for the first time, while memory is on and has room."""
-    with runtime_lock(runtime, 'memory.lock'):
+    with runtime_lock(runtime, 'memory.lock', WAIT):
         data = load(runtime)
         if not data['enabled']:
             return
@@ -176,20 +177,25 @@ def add_projects(runtime, names):
             atomic_text(path(runtime), encode(data))
 
 
+def renamed(data, old, new):
+    """The entry a rename moves, or None; it never starts one. It moves while memory is off too: the entry is the user's."""
+    entry = find(data['projects'], old)
+    if entry and find(data['projects'], new) not in (None, entry):
+        raise ValueError(f'project_exists: the note already has entries for both {old} and {new}; ask the user whether to merge '
+                         'them; only if they agree, merge them into one memory write that drops the other, then rename again')
+    return entry if entry and entry['name'] != new else None
+
+
 def rename(runtime, old, new):
-    """Move a project's entry to the new name its to-dos now carry; nothing to move when memory is off or has no entry."""
+    """Move a project's entry to the new name its to-dos now carry."""
     new = project_name(new)
-    with runtime_lock(runtime, 'memory.lock'):
+    with runtime_lock(runtime, 'memory.lock', WAIT):
         data = load(runtime)
-        entry = find(data['projects'], old)
-        if not data['enabled'] or not entry or entry['name'] == new:
-            return
-        if find(data['projects'], new) not in (None, entry):
-            raise ValueError(f'project_exists: the note already has an entry for {new}; merge the two entries in one memory write '
-                             'and drop one before renaming')
-        entry['name'] = new
-        data['revision'] += 1
-        atomic_text(path(runtime), encode(data))
+        entry = renamed(data, old, new)
+        if entry:
+            entry['name'] = new
+            data['revision'] += 1
+            atomic_text(path(runtime), encode(data))
 
 
 def tidy(runtime):
