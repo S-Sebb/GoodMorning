@@ -5,9 +5,14 @@
 /* Back to top shares the launcher's row, starting at the activity card's left edge when that card is open. */
 body:has(#quick-chat-launcher:not([hidden])) .back-to-top { right: calc(max(24px, env(safe-area-inset-right)) + var(--quick-chat-width, 128px) + 10px); bottom: max(28px, calc(env(safe-area-inset-bottom) + 20px)); }
 @media (min-width: 701px) { body:has(#quick-chat-launcher:not([hidden])):has(#account-activity:not([hidden]) #activity-window:not([hidden])) .back-to-top { right: calc(max(24px, env(safe-area-inset-right)) + max(var(--quick-chat-width, 128px) + 10px, 258px)); } }
-/* On desktop the briefing's right gutter holds that whole row (launcher, 10px gap, 48px Back to top) plus 24px air,
-   so neither button covers a card; wide screens whose centred margin already fits it keep the usual gutter. */
-@media (min-width: 701px) { body:has(#quick-chat-launcher:not([hidden])) main:has(.briefing-section) { padding-right: max(calc(var(--content-gutter) + var(--safe-right)), calc(max(24px, env(safe-area-inset-right)) + var(--quick-chat-width, 128px) + 82px - max(0px, (100% - 1440px) / 2))); } }
+/* On desktop the briefing column leaves a fixed corner for that row: a launcher of at most 200px, the 10px gap,
+   48px Back to top and 24px air. Fixed and reserved from first paint, before the script reveals quick chat, so the
+   column never reflows when quick chat appears, the launcher is measured, its font loads, or the panel opens; wide screens
+   whose centred margin fits it keep the usual gutter. */
+@media (min-width: 701px) {
+  #quick-chat #quick-chat-launcher { max-width: 200px; }
+  body:has(#quick-chat) main:has(.briefing-section) { padding-right: max(calc(var(--content-gutter) + var(--safe-right)), calc(max(24px, env(safe-area-inset-right)) + 282px - max(0px, (100% - 1440px) / 2))); }
+}
 body:has(#quick-chat:not([hidden])) #account-activity { bottom: max(92px, calc(env(safe-area-inset-bottom) + 84px)); }
 body.quick-chat-open #account-activity { display: none; }
 
