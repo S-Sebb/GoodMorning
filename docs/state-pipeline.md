@@ -18,11 +18,10 @@ Invalid named timezones are errors, not silent fallbacks.
 ## Agent contract
 
 - `--check --json` returns one compact object: today's run/session/answer pointers,
-  section flags, missed-day page and total, project page and total, inbox/calendar
+  section flags, missed-day page and total, inbox/calendar
   counts, warnings, and 7/30-day reply costs.
 - Missed days are oldest first. Default page size is seven; `--limit 1..30` and
-  `--offset` page missed days and project records. Use `next_offset` and
-  `projects_next_offset`. Long gaps are counted without constructing every row.
+  `--offset` page missed days. Use `next_offset`. Long gaps are counted without constructing every row.
 - Save concise daily records using `templates/daily.template.md`. New browser
   editions live in `daily/YYYY-MM-DD.gm.json` and `.gn.json` (`docs/briefing-format.md`).
 - Briefing saves call `state --mark-gm|--mark-gn` internally from the browser
