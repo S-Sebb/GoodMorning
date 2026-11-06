@@ -1,6 +1,8 @@
 """Mechanical web workflow: short dispatch, explicit feedback and durable tasks."""
+from contextlib import redirect_stdout
 from copy import deepcopy
 from datetime import datetime, timezone
+import io
 import json
 from pathlib import Path
 import sys
@@ -12,14 +14,14 @@ from unittest.mock import patch
 from support import TEMP_ROOT, FakeChamber, complete_profile
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'src'))
 from goodmorning.briefings.briefing_job import (act, context_path, decode_input, default_plan, next_step,
-                                                save_weather_frame, with_weather_frame)
+                                                save_weather_frame, timings_path, with_weather_frame)
 from goodmorning.briefings import briefing_guides
 from goodmorning.briefings.briefing_preflight import answer, initialize
 from goodmorning.web.briefing_server import BrowserApp
 from goodmorning.briefings.briefing_stream import load
 from goodmorning.records.daily import inspect
 from goodmorning.records.daily import amend as daily_amend
-from goodmorning.records import state
+from goodmorning.records import memory, state
 
 
 class JobTests(unittest.TestCase):
@@ -668,6 +670,38 @@ class JobTests(unittest.TestCase):
         self.chamber.idle()
         self.assertEqual(self.app.status(self.identifier)['state'],'ready')
 
+    def test_ready_at_verified_save_while_the_session_still_tidies(self):
+        self.init()
+        act(self.root,self.identifier,'ses_fixture','publish',{'position':0,'section':['must-do',[['tasks',[['open','Ranking','']]]]]})
+        act(self.root,self.identifier,'ses_fixture','skip',{'position':1})
+        self.chamber.forms,self.chamber.permissions=[],[]
+        self.assertEqual(self.app.status(self.identifier)['state'],'running')
+        act(self.root,self.identifier,'ses_fixture','finish',{})
+        self.assertTrue(self.chamber.busy)  # The memory tidy and link reply are still running.
+        self.assertEqual(self.app.status(self.identifier)['state'],'ready')
+        self.assertEqual(self.job['state'],'complete')
+        steps=[json.loads(line)['step'] for line in timings_path(self.root,self.identifier).read_text().splitlines()]
+        self.assertEqual(steps[-2:],['save','ready'])
+
+    def test_regeneration_during_the_old_tidy_keeps_its_memory_write_revision_checked(self):
+        self.init()
+        act(self.root,self.identifier,'ses_fixture','publish',{'position':0,'section':['must-do',[['tasks',[['open','Ranking','']]]]]})
+        act(self.root,self.identifier,'ses_fixture','skip',{'position':1})
+        act(self.root,self.identifier,'ses_fixture','finish',{})
+        self.chamber.forms,self.chamber.permissions=[],[]
+        tidy_revision=memory.context(self.root)['revision']
+        self.assertEqual(self.app.status(self.identifier)['state'],'ready')
+        identifier,_=self.regenerate()  # The old session is still busy.
+        self.assertNotEqual(identifier,self.identifier)
+        self.assertEqual(self.app.status(self.identifier)['state'],'stopped')
+        memory.change(self.root,tidy_revision,note={'life':'You have a dog, Mochi.'})  # A chat saves first.
+        output=io.StringIO()
+        with redirect_stdout(output):
+            code=memory.main(['--secretary-dir',str(self.root),'--write','--expect-revision',str(tidy_revision),
+                              '--input-json',json.dumps({'lately':'Night shifts all week.'})])
+        self.assertEqual((code,json.loads(output.getvalue())['error']),(1,'revision_conflict'))
+        self.assertEqual(memory.context(self.root)['note'],{'life':'You have a dog, Mochi.','likes':'','lately':''})
+
     def regenerate(self, request='b'*32):
         self.chamber.pending=lambda session:(self.chamber.forms,self.chamber.permissions)
         previous=self.app.jobs['2026-10-11.'+self.job['kind']]['id']
@@ -789,7 +823,7 @@ class JobTests(unittest.TestCase):
         self.save_original()
         before={p:p.read_bytes() for p in (self.root/'daily').iterdir()}
         body={'date':'2026-10-11','kind':'gm','id':'b'*32,'previous':self.identifier}
-        for job_state,busy,forms in [('starting',False,[]),('uncertain',False,[]),('complete',True,[]),
+        for job_state,busy,forms in [('starting',False,[]),('uncertain',False,[]),('running',True,[]),
                                       ('complete',False,[{'id':'frm_pending'}])]:
             self.job['state']=job_state;self.app.save_jobs();self.chamber.busy=busy;self.chamber.forms=forms
             with self.assertRaises(ValueError):self.app.regenerate(body)
@@ -864,14 +898,14 @@ class JobTests(unittest.TestCase):
 
     def test_old_status_poll_cannot_complete_replacement_job(self):
         self.save_original();self.job['state']='running';self.app.save_jobs()
-        control=self.chamber.control
+        files=self.app.files
         replacement=[]
-        def during_status(action, **kwargs):
-            if action=='session.status' and not replacement:
+        def during_status(*args):
+            if not replacement:
                 replacement.append(True)
                 replacement.append(self.regenerate()[0])
-            return control(action,**kwargs)
-        with patch.object(self.chamber,'control',side_effect=during_status):
+            return files(*args)
+        with patch.object(self.app,'files',side_effect=during_status):
             self.assertEqual(self.app.status(self.identifier)['state'],'stopped')
         self.assertEqual(self.app.jobs['2026-10-11.gm']['id'],replacement[1])
         self.assertEqual(self.app.jobs['2026-10-11.gm']['state'],'running')

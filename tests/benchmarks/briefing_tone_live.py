@@ -221,9 +221,15 @@ def observe(app, bridge, job, folder, stage, language, selected):
             status = app.status(job)
         if status['state'] in ('ready', 'waiting', 'stopped', 'uncertain'):
             break
-        time.sleep(3)
-    save(folder/(stage+'.status.json'), status)
+        time.sleep(.5)
     session = app.job(job).get('session')
+    if status['state'] == 'ready' and session:
+        # Ready comes at the verified save (#253); the memory tidy and link reply finish after it, before later checks read them.
+        status['ready_at'] = time.time()
+        while time.monotonic() < deadline and bridge.control('session.status', sessionId=session)['sessionStatus']['type'] != 'idle':
+            time.sleep(.5)
+        status['idle_at'] = time.time()
+    save(folder/(stage+'.status.json'), status)
     if session:
         info = bridge.session(session)
         save(folder/(stage+'.session.json'), {key:info.get(key) for key in ('id','agent','model','cost','outcome')})
@@ -349,6 +355,7 @@ def section_timings(runtime, job, started=None):
     helper rejected stay in that turn. `start` is the first turn, from dispatch to prepare."""
     path = timings_path(runtime, job)
     events = [json.loads(line) for line in path.read_text().splitlines()] if path.exists() else []
+    events = [event for event in events if event['step'] != 'ready']  # The page's mark after the save, not work.
     rows, key = {}, 'start'
     def row(name):
         return rows.setdefault(name, {'read':0.0, 'model':0.0, 'code':0.0, 'calls':0})
@@ -370,6 +377,15 @@ def section_timings(runtime, job, started=None):
         else:  # Images after a publish, and the final save.
             row(key)['code'] += gap
     return {name:{part:round(value, 2) for part, value in values.items()} for name, values in rows.items()}
+
+
+def handoff_timing(runtime, job, status):
+    """Seconds from the verified save to the job's ready mark, and to the end of the session's tidy and reply."""
+    path = timings_path(runtime, job)
+    events = {event['step']:event['at'] for event in map(json.loads, path.read_text().splitlines())} if path.exists() else {}
+    if 'save' not in events or 'ready' not in events or 'idle_at' not in status:
+        return None
+    return {'ready': round(events['ready'] - events['save'], 2), 'idle': round(status['idle_at'] - events['save'], 2)}
 
 
 def print_timings(language, scenario, timings):
@@ -506,6 +522,10 @@ def run_case(output, template, language, scenario, instant):
         status = observe(app, bridge, job, folder, 'original', language, selected)
         result['timings'] = section_timings(runtime, job, app.job(job).get('running_at'))
         print_timings(language, folder.name, result['timings'])
+        result['handoff'] = handoff_timing(runtime, job, status)
+        if result['handoff']:
+            print(f"{language} {folder.name} handoff (s): save to ready {result['handoff']['ready']:.1f}, "
+                  f"save to session idle {result['handoff']['idle']:.1f}", flush=True)
         assert protected_state(runtime) == protected, 'Protected settings/calendar changed'
         result['checks'].append('Settings, calendar and integration policy unchanged')
         log = commands(runtime)
