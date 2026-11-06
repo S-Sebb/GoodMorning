@@ -115,7 +115,7 @@ def check(app, url, shots):
             link = page.locator('.edition-switch .edition-link[href="/about-me"]')
             expect(link).to_have_attribute('data-person', person)
             image = link.evaluate('el => getComputedStyle(el, "::before").backgroundImage')
-            assert f'desk-person-{person}.svg' in image, image
+            assert f'desk-person-{person}.png' in image, image
             if shots:
                 page.locator('.masthead').screenshot(path=str(shots / f'bar-{gender or "unset"}-390.png'))
         assert not errors, errors
