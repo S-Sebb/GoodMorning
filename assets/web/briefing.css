@@ -236,7 +236,7 @@ html[data-edition="gn"] .weather-tile.air { --tile-accent: #aed4b7; --tile-bg: #
 .outlook-ready h4 { margin: 0 0 10px; color: var(--accent); font-size: 11px; letter-spacing: 1.4px; text-transform: uppercase; }
 .outlook-ready ul { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; padding: 0; list-style: none; }
 .outlook-ready li { padding: 6px 13px; border-radius: 999px; background: var(--surface); border: 1px solid var(--line); font-size: 14px; }
-.weather-label { display: flex; align-items: center; gap: 10px; color: var(--tile-accent); }
+.weather-label { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; color: var(--tile-accent); }
 .weather-label h3 { margin: 0; color: inherit; font-size: 11px; letter-spacing: 1.4px; }
 /* US AQI colours, softened to sit with the tile palette. */
 .aqi-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; margin-left: -4px; }
