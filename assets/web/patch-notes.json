@@ -1,6 +1,87 @@
 {
   "notes": [
     {
+      "version": "0.79.0",
+      "date": "2026-11-06",
+      "author": "GoodMorning agent",
+      "title_en": "Projects in memory and a friendlier secretary",
+      "title_zh": "项目住进记忆，秘书更亲切了",
+      "changes": [
+        {
+          "category": "Added",
+          "en": [
+            "Your secretary remembers each project; About me lists them with their open to-dos, and New project starts one in chat.",
+            "Memory also learns patterns from your check-ins, to-dos and ideas, and is now called \"What I remember about you\".",
+            "About me is its own page at the end of the page bar, with a person icon set by the new Gender row.",
+            "Idea cards in Reminders have \"Stop reminding me\", with Undo if you change your mind."
+          ],
+          "zh": [
+            "秘书会记住你的每个项目，「关于我」里列出它们和还没做完的待办，点「新项目」可以在聊天里新建一个。",
+            "你的秘书的记忆现在还会从你的回顾、待办和灵感里看出规律，「关于我」把它叫作「我记得的关于你的事」。",
+            "「关于我」现在是单独的一页，排在页面栏最后，还有一个人形图标，你可以在新的「性别」一项里挑选。",
+            "「提醒」里的灵感卡片有「不再提示」按钮，一点就不会再提醒这条灵感，改主意了还能「撤销」。"
+          ]
+        },
+        {
+          "category": "Changed",
+          "en": [
+            "The default secretary has a redrawn, friendlier face, which is also the icon on browser tabs and the installed web app.",
+            "About me looks like index cards on slightly yellow notebook paper, with bigger buttons.",
+            "Pages and menus repeat fewer words and labels; icons and pictures stay.",
+            "The morning headline is one short line about what matters most today.",
+            "The evening opening talks about tonight instead of listing the sections.",
+            "Briefings start and finish sooner, and evenings skip Today, Tasks or Reminders when they're empty.",
+            "Morning weather figures come straight from the forecast.",
+            "\"Review with your secretary\" sends right away; About me's Ask buttons fill in the chat box for you to finish.",
+            "On rest days, custom schedules move to the optional Extras step.",
+            "About me shows stock holdings in a table with name, shares and cost.",
+            "On phones, Back to top is at the end of the Sections list."
+          ],
+          "zh": [
+            "默认秘书换了一张重画的脸，眼睛更友善，这张头像现在也是每个浏览器标签页和已安装的网页应用的图标。",
+            "「关于我」看起来像一张张索引卡，放在微微发黄的笔记本纸上，按钮更大，更好点。",
+            "简报、日程、周信、秘书聊天、「关于我」和各个菜单里重复的字和标签少了，图标和图片都还在。",
+            "早报的头条只有一行短句，说今天最要紧的那件事。",
+            "晚报的开头现在聊今晚的事，不再把章节念一遍。",
+            "简报更早开始写，存好就显示为已就绪；晚报在没有内容时会跳过「今天」「待办任务」或「提醒」。",
+            "早报天气卡上的数字现在直接来自天气预报。",
+            "「提醒」上的「和秘书一起看看」会马上把消息发出去；「关于我」里的「让秘书来改」按钮会把话填进聊天框，由你来补完。",
+            "休息日里，自定义日程会挪到可选的「额外完成」一步，不再问你「已完成」还是「未完成」。",
+            "「关于我」用表格显示你的持仓，包含名称、股数和成本。",
+            "手机上的简报里，「返回顶部」放在「章节」列表末尾，不再浮在页面上。"
+          ]
+        },
+        {
+          "category": "Fixed",
+          "en": [
+            "Briefings no longer talk about upcoming events as if they already happened.",
+            "On desktop, the Ask button and Back to top no longer cover briefing cards.",
+            "Weather chart captions no longer overlap on tablets and smaller windows.",
+            "On phones, page-bar labels stay inside their highlight, and Chinese date tiles stay whole."
+          ],
+          "zh": [
+            "秘书记忆里的未来事件会保留日期，简报不会再把它当成已经发生过的事来讲。",
+            "在电脑上，提问按钮和「返回顶部」不再挡住简报卡片。",
+            "平板和较小的电脑窗口里，早报天气图的说明文字不再互相重叠。",
+            "手机上，页面栏里选中的标签文字留在高亮范围内，中文日期块里的「今天」和星期也保持完整。"
+          ]
+        },
+        {
+          "category": "Removed",
+          "en": [
+            "About me drops Forget everything: clear a part with Edit, a project with Forget, or switch memory off.",
+            "Linked projects is gone; projects now live in your secretary's memory.",
+            "Briefings drop the numbered section badges and the side section map."
+          ],
+          "zh": [
+            "「关于我」不再有「全部忘记」：清空某一部分用「编辑」，删掉项目用「忘记」，也可以用开关关掉记忆。",
+            "「关于我」不再列出「已关联的项目」；你的项目现在放在秘书的记忆里。",
+            "简报去掉了带编号的章节徽章和侧边章节地图。"
+          ]
+        }
+      ]
+    },
+    {
       "version": "0.78.0",
       "date": "2026-10-31",
       "author": "GoodMorning agent",
