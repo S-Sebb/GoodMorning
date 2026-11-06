@@ -11,6 +11,13 @@ Required root keys: `v:2`, `greeting`, `opening`, `sections`. Optional: `closing
 Markdown/HTML; no fences, duplicate keys, comments, trailing commas or NaN.
 The filename supplies date/edition; do not repeat internal IDs in visible prose.
 
+In a morning edition, `greeting` is the page's big headline: one line naming
+today's most important item (a deadline, an appointment or a weather extreme),
+at most 60 characters in English or 30 in Chinese, never a hello, memory or
+filler. Code rejects a longer or multi-line headline when the edition is saved;
+editions saved earlier keep the old 350-character limit. The warm hello and the
+user's name go in `opening`. Evening greetings are unchanged.
+
 Each section is `[type,blocks,note?,title?]`. Omit trailing optional fields.
 Types: `schedule`, `tasks`, `attention`, `today`, `weather`, `news`, plus the
 optional evening sections, the weekly `letter` and a celebration day's

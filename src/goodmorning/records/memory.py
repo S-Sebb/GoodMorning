@@ -1,13 +1,14 @@
 """Secretary memory: one short note the secretary keeps about the user, like a friend who remembers.
 
 The secretary rewrites the note in chat as it picks things up, and the evening briefing tidies it
-with the day's chat messages. The About me page shows it and lets the user edit it, forget it all
+with the day's chat messages and the patterns in recent check-ins and records. The About me page shows it and lets the user edit it, forget it all
 or turn memory off. Unlike other records, forgotten text is deleted, not cancelled.
 """
 import argparse
-from datetime import datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 import json
 import os
+import sqlite3
 from pathlib import Path
 import sys
 import time
@@ -21,6 +22,7 @@ PARTS = ('life', 'likes', 'lately')
 LENGTH = 2000  # The whole note, about 600 tokens in every conversation.
 CHANGES = 30   # Recent chat sessions that changed the note, for the chat's memory marker.
 MESSAGES, MESSAGE = 40, 500  # The newest user messages the evening tidy rereads, and each one's length.
+DAYS, ACTIVITY, TITLE = 14, 80, 160  # Days of records the evening tidy reads for patterns, its newest lines, each title's length.
 
 
 def path(runtime):
@@ -123,6 +125,78 @@ def tidy(runtime):
         data['tidied'] = now
         atomic_text(path(runtime), encode(data))
     return [{'at': datetime.fromtimestamp(at, zone).strftime('%a %H:%M'), 'text': text[:MESSAGE]} for at, text in found]
+
+
+def activity(runtime, day):
+    """The last DAYS days of check-ins and changes to to-dos, ideas and habits, oldest first, one line each.
+
+    The evening tidy looks here for patterns that repeat across days; the records stay the source of each fact.
+    Each line starts with its weekday and day, so patterns by weekday are visible."""
+    from goodmorning.records.daily import inspect, read_record, record_path
+    from .custom_store import CustomStore
+    from .inbox_store import InboxStore
+    zone = profile_fields(runtime).get('timezone', '')
+    end = date.fromisoformat(day)
+    days = [(end - timedelta(days=n)).isoformat() for n in range(DAYS - 1, -1, -1)]
+    lines = set()
+
+    def add(at, what, title, when=''):
+        """`at` is a day, or a local ISO time from the stores; `when` is the day the item is planned or due."""
+        moment = datetime.fromisoformat(at) if 'T' in at else None
+        on = briefing_day(zone, moment) if moment else at
+        if days[0] <= on <= day and title:
+            label = date.fromisoformat(on).strftime('%a ') + on + (moment.strftime(' %H:%M') if moment else '')
+            lines.add((on, label + ' ' + what + ': ' + ' '.join(title.split())[:TITLE]
+                       + (f' (for {date.fromisoformat(when).strftime("%a")} {when})' if when else '')))
+
+    for on in days:
+        text, _ = read_record(record_path(runtime, on))
+        feedback, headings, _ = inspect(text, on)
+        start = headings.get('feedback')
+        if start is not None:
+            stop = next((n for n in sorted(headings.values()) if n > start), len(feedback))
+            for line in feedback[start + 1:stop]:
+                add(on, 'check-in', line.strip().removeprefix('- '))
+    try:
+        inbox = InboxStore(runtime)
+    except sqlite3.Error:
+        inbox = None  # Nothing captured yet.
+    if inbox:
+        try:
+            inbox.db.execute('BEGIN')
+            for status, created, updated, summary, raw in inbox.db.execute(
+                    "SELECT status,created_at,updated_at,summary,raw FROM entries WHERE kind='idea'"):
+                add(created, 'idea saved', summary or raw)
+                if status == 'done':
+                    add(updated, 'idea closed', summary or raw)
+            if inbox.version == 2:  # A store from before tasks has only ideas.
+                finished = {row[0] for row in inbox.db.execute("SELECT task_id FROM task_occurrences WHERE status='done'")}
+                for identifier, created, updated, raw in inbox.db.execute('SELECT id,created_at,updated_at,data FROM tasks'):
+                    task = json.loads(raw)
+                    add(created, 'to-do added', task['title'], task.get('planned_date') or task.get('due_date') or '')
+                    # A day's Done is its occurrence below; only an undated finish or a cancellation is dated by the change.
+                    if task['status'] == 'cancelled' or task['status'] == 'done' and identifier not in finished:
+                        add(updated, 'to-do ' + task['status'], task['title'])
+                for title, on in inbox.db.execute("SELECT json_extract(t.data,'$.title'),o.date FROM task_occurrences o "
+                                                  "JOIN tasks t ON t.id=o.task_id WHERE o.status='done'"):
+                    add(on, 'to-do done', title)
+        finally:
+            inbox.close()
+    try:
+        custom = CustomStore(runtime)
+    except ValueError:
+        custom = None  # No habits saved yet.
+    if custom:
+        try:
+            names = {}
+            for rule in custom.all():
+                names[rule['id']] = rule['title']
+                add(rule['created_at'], 'habit added', rule['title'])
+            for rule_id, on in custom.db.execute("SELECT rule_id,date FROM custom_completions WHERE status='done'"):
+                add(on, 'habit done', names.get(rule_id, ''))
+        finally:
+            custom.close()
+    return [line for _, line in sorted(lines)][-ACTIVITY:]
 
 
 def main(argv=None):

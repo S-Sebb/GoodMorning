@@ -70,6 +70,8 @@ write agent-owned cumulative drafts. Check exits and `error`/`next` after every 
 1. **init:** `{"greeting":"…","opening":"…"}`. Optional `lang` must equal the
    pinned language; optional `plan` must equal the default. Greeting/opening remain
    immutable. Keep the opening factual before collection, not a speculative overview.
+   A v2 morning edition submits `{}` instead: its headline and opening are written
+   at finish, and until then the page shows "Preparing today's briefing…".
 2. **publish:** gather only the next section from saved context/returned results,
    follow pages/review requirements, then submit
    `{"position":N,"section":[TYPE,BLOCKS,NOTE?,TITLE?]}`. This notation describes
@@ -81,20 +83,24 @@ write agent-owned cumulative drafts. Check exits and `error`/`next` after every 
    empty success. Publish material unavailability instead; keep all plan positions.
    Code itself skips Today when its read has no outcome cards and the user reported
    nothing; the model never receives that position.
-4. **finish:** `{"closing":"…"}` or `{}` after every position is resolved.
+4. **finish:** `{"closing":"…"}` or `{}` after every position is resolved. A v2
+   morning edition finishes with `{"greeting":"…","opening":"…"}` plus an optional
+   closing, written from the published sections (`docs/briefing-format.md`).
    Code verifies owner/session/date/edition/exact preview, saves native JSON/run
    marker, and repairs its derived index. A snapshot alone never proves completion.
    New v2 editions copy no tasks to daily checklists. Already-published v1 previews
    may finish under their saved contract, never as new canonical plans.
 
-The init and finish receipts, and Sunday's letter read, carry `memory`, the note
+The evening init receipt, every finish receipt and Sunday's letter read carry `memory`, the note
 the secretary keeps about the user (`docs/workflows/secretary.md`, *Memory*), when
-memory is on and the note has text. Only the greeting, an optional closing and the
-letter's sign-off may lightly reflect it; sections, notes and progress never use
-it, and it never adds a closing on its own. Something the note says is coming up is
-mentioned only as still ahead, never as past. After an evening save (not a
+memory is on and the note has text. Only the evening greeting, the morning opening,
+an optional closing and the letter's sign-off may lightly mention it, and only an
+item the note dates today or tomorrow; the morning headline, sections, notes and
+progress never use it, and it never adds a closing on its own. After an evening save (not a
 regeneration) with memory on, the finish receipt also carries the note and the
-user's chat messages since the last tidy: the agent folds in what is missing,
+user's chat messages since the last tidy and `activity`, the last 14 days of
+check-ins and record changes (`docs/secretary-memory.md`): the agent folds in what
+is missing and patterns across days,
 drops `lately` items that are over, writes with `memory --write` and only then
 hands over the link.
 

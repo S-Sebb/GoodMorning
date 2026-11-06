@@ -123,7 +123,7 @@ class CelebrationTests(unittest.TestCase):
         self.saved('2026-07-18')
         with patch.object(celebrations, 'tasks_done', return_value=100):
             self.job()
-        result = self.step('init', {'greeting': 'Good morning.', 'opening': 'Weather, news and your day.'})
+        result = self.step('init', {})
         self.assertEqual(result['next']['section'], ['celebration', 'Something to celebrate'])
         self.assertEqual(result['next']['input'], {'position': 0, 'celebration': {'wish': '…'}})
         self.assertEqual([entry['headline'] for entry in result['next']['celebrations']],
@@ -160,7 +160,7 @@ class CelebrationTests(unittest.TestCase):
 
     def test_an_ordinary_day_has_no_celebration_section(self):
         self.job()
-        result = self.step('init', {'greeting': 'Good morning.', 'opening': 'Weather, news and your day.'})
+        result = self.step('init', {})
         self.assertEqual(result['next']['section'][0], 'weather')
 
 
