@@ -74,6 +74,12 @@ def check(page, kind, touch, screenshot=None, errors=None):
         page.wait_for_function('() => parseFloat(document.querySelector(".hero").style.getPropertyValue("--sun-drift")) > 0')
         page.evaluate('scrollTo({top: 0, behavior: "instant"})')
         page.wait_for_function('() => parseFloat(document.querySelector(".hero").style.getPropertyValue("--sun-drift")) === 0')
+    # Sections fade in once: scrolling back to an arrived section does not replay the fade.
+    page.evaluate('''async () => { const frame = () => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+        scrollTo({top: document.documentElement.scrollHeight, behavior: "instant"}); await frame();
+        scrollTo({top: 0, behavior: "instant"}); await frame(); }''')
+    assert page.locator('.briefing-section').first.evaluate('section => section.getAnimations().filter(animation => animation.animationName === "arrive").length') == 0
+    settle_motion(page)
     if screenshot:
         page.screenshot(path=str(screenshot))
     for index in range(count):
