@@ -4,7 +4,9 @@ Inputs: `/gm|/gn`, browser job ID, selected runtime and website language. Result
 a verified saved edition and browser link; code owns cumulative JSON, validation
 and final save.
 
-Browser agents do not read this file up front. `job prepare` returns a localized
+Browser agents do not read this file up front. The server runs `job prepare` for
+the job's session before dispatching, and sends its receipt with the request; a
+failed `prepare` stops the job before any model run. The receipt holds a localized
 `contract`, and every receipt's `next.guide` carries the rules for that one step
 (`src/goodmorning/briefings/briefing_guides.py`, English and Chinese). The
 contract sends the agent to `docs/core-rules.md` and `docs/item-taxonomy.md`
@@ -14,11 +16,11 @@ guides: when a rule here changes, update the matching guide in both languages.
 ## Prepare and resolve gates
 
 ```sh
-python scripts/goodmorning.py job --secretary-dir RUNTIME --job JOB prepare
+python scripts/goodmorning.py job --secretary-dir RUNTIME --job JOB --session SESSION prepare
 ```
 
-Use the real session from `OPENCODE_SESSION_ID`, or `--session REAL_SESSION`.
-Ownership is checked. Reuse returned preparation, pinned date/paths/preferences,
+The server runs this for every dispatch and continuation, so the agent starts on
+the receipt's `next`. Ownership is checked. Reuse returned preparation, pinned date/paths/preferences,
 actual browser feedback and `website_language`. The edition retains this language
 through questions/titles/document `lang`; later interface changes affect future
 requests, not this edition or earlier content. Never ask another reply language.

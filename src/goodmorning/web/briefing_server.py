@@ -580,6 +580,16 @@ class BrowserApp:
         return (f"{edition}\n{job_label}: {job['id']}\n"
                 f"{runtime_label}: {self.runtime}\nWebsite language: {selected}")
 
+    def prepared_prompt(self, job):
+        """The request with this job's `prepare` receipt, run here so the model starts on its first step."""
+        prompt = self.generation_prompt(job)
+        if not self.preflight:
+            return prompt  # Without preflight there is no saved context to prepare from.
+        from goodmorning.briefings.briefing_job import act
+        receipt = act(self.runtime, job['id'], job['session'], 'prepare')
+        label = '准备回执' if job.get('language') == 'zh-CN' else 'Prepare receipt'
+        return f"{prompt}\n{label}: {json.dumps(receipt, ensure_ascii=False, separators=(',', ':'))}"
+
     def dispatch(self, job):
         try:
             result = self.chamber.control('session.create', title=job_session_title(
@@ -591,7 +601,15 @@ class BrowserApp:
                 job['session'] = session
                 self.save_jobs()
             site_models.apply_to_session(self.chamber, session, job.get('model', site_models.DEFAULT))
-            prompt = self.generation_prompt(job)
+            try:
+                prompt = self.prepared_prompt(job)
+            except Exception as error:
+                # Nothing was sent: stop with a definite state instead of a model run without its receipt.
+                logging.getLogger(__name__).warning('briefing_prepare_failed (%s)', type(error).__name__)
+                with self.lock:
+                    job['state'] = 'stopped'
+                    self.save_jobs()
+                return
             dispatched = self.chamber.control('session.send', sessionId=session, prompt=prompt)
             if dispatched.get('promptDispatched') is not True:
                 raise ValueError('Prompt dispatch was not confirmed')
@@ -752,7 +770,7 @@ class BrowserApp:
                 raise ValueError('Session changed before continuation')
             self.chamber.relocate(job['session'])
             site_models.apply_to_session(self.chamber, job['session'], job.get('model', site_models.DEFAULT))
-            prompt = self.generation_prompt(job) + ('\n\n' + model_answer(question['form'], question['answer']) if question else '')
+            prompt = self.prepared_prompt(job) + ('\n\n' + model_answer(question['form'], question['answer']) if question else '')
         except Exception:
             # Nothing was sent, so this is not an uncertain dispatch: the question waits for the user again.
             with self.lock:
@@ -959,6 +977,10 @@ class BrowserApp:
                         replacement = 'replacement' in job
                         result.update(state='stopped', label='Regeneration stopped before the new briefing was saved. Your previous briefing is preserved.' if replacement
                                       else mismatch if reason == 'foreign' else invalid if saved else 'Preparation stopped before an edition was saved. Continue the conversation, or ask your administrator for help.')
+                elif state == 'idle' and job['state'] == 'stopped':
+                    # Code's prepare failed before anything was sent to this session.
+                    result.update(label='Regeneration stopped before the new briefing was saved. Your previous briefing is preserved.' if 'replacement' in job
+                                  else 'Preparation stopped before an edition was saved. Continue the conversation, or ask your administrator for help.')
         elif job.get('session'):
             result.update(state='uncertain', label='The secretary is not connected. Completed preview sections remain readable; ask your administrator to check the conversation.')
         if result['state'] == 'uncertain':
