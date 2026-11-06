@@ -51,7 +51,9 @@ class AvatarTests(unittest.TestCase):
         self.assertIn('src="/avatar.js"', html)
         self.assertNotIn('<button', html.split('avatar-display', 1)[1].split('</figure>', 1)[0])
         self.assertIn('data-avatar="f1"', html)
-        self.assertLess(html.index('desk-figure'), html.index('id="secretary-heading"'))
+        # The sidebar leads with a round portrait; the full desk scene greets an empty conversation.
+        self.assertLess(html.index('class="chat-portrait"'), html.index('id="secretary-heading"'))
+        self.assertLess(html.index('id="chat-empty"'), html.index('desk-figure'))
         html = page('csrf', True, True, None, 'm2', {'m2': {'day': '/hashed/m2-day.png', 'night': '/hashed/m2.png', 'profile': '/hashed/m2-profile.png'}})
         self.assertIn('class="avatar-image" src="/hashed/m2-day.png"', html)
         self.assertIn('data-profile="/hashed/m2-profile.png"', html)
