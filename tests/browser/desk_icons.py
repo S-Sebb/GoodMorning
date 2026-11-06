@@ -73,7 +73,8 @@ def check(app, url, shots):
                         expect(settings.locator('.menu-label')).to_have_css('width', '1px')
                         assert settings.bounding_box()['height'] >= 36
                         for menu in page.locator('.toolbar-row .menu > summary').all():
-                            assert menu.evaluate('el => getComputedStyle(el, "::after").content') == '"▾"'
+                            # The arrow is decorative: empty alt text keeps it out of the accessible name.
+                            assert menu.evaluate('el => getComputedStyle(el, "::after").content').startswith('"▾"'), menu
                         notes = page.locator('#site-update-toggle')
                         expect(notes).to_have_attribute('data-state', 'current')
                         expect(notes).to_have_accessible_name('What’s new: view patch notes' if language == 'en' else '新变化：查看更新日志')

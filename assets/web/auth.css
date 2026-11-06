@@ -30,7 +30,7 @@ a { color: #315e50; }
 .toolbar-row .menu > summary { display: inline-flex; align-items: center; gap: .45rem; list-style: none; cursor: pointer; font-size: .85rem; min-height: 44px; padding: .45rem .8rem; border: 1px solid #b4c7c0; border-radius: 999px; background: white; color: #253d45; white-space: nowrap; }
 .toolbar-row .menu > summary::-webkit-details-marker { display: none; }
 .toolbar-row .menu > summary::marker { content: ''; }
-.toolbar-row .menu > summary::after { content: '▾'; font-size: .7em; color: #56746a; }
+.toolbar-row .menu > summary::after { content: '▾' / ''; font-size: .7em; color: #56746a; }
 .toolbar-row .menu[open] > summary::after { transform: rotate(180deg); display: inline-block; }
 /* Settings shows its gear, not its name; the open panel names it. */
 .toolbar-row .menu-icon { width: 18px; height: 18px; flex: none; }

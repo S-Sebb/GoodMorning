@@ -12,7 +12,7 @@ body { margin: 0; background: var(--bg); color: var(--ink); font-family: ui-sans
 .toolbar-row .menu > summary { display: inline-flex; align-items: center; gap: .45rem; list-style: none; cursor: pointer; font-size: .8rem; min-height: 44px; padding: .4rem .8rem; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); color: var(--ink); white-space: nowrap; transition: border-color .2s, background-color .2s; }
 .toolbar-row .menu > summary::-webkit-details-marker { display: none; }
 .toolbar-row .menu > summary::marker { content: ''; }
-.toolbar-row .menu > summary::after { content: '▾'; font-size: .7em; color: var(--muted); transition: transform .2s; }
+.toolbar-row .menu > summary::after { content: '▾' / ''; font-size: .7em; color: var(--muted); transition: transform .2s; }
 .toolbar-row .menu[open] > summary::after { transform: rotate(180deg); }
 /* Settings shows its gear, not its name; the open panel names it. */
 .toolbar-row .menu-icon { width: 18px; height: 18px; flex: none; }
