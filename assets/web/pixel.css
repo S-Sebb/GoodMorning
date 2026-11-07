@@ -188,7 +188,11 @@ html[data-style="pixel"][data-edition="gn"]:not([data-night-scheme="grass-block"
 html[data-style="pixel"]:not(:lang(zh)) .week-picker a { font-size: 13px; }
 html[data-style="pixel"]:not(:lang(zh)) .week-picker small { font-size: 11px; }
 html[data-style="pixel"]:not(:lang(zh)) .week-picker .today-marker { font-size: 10px; }
-/* Phone tiles are narrow: one date line and a one-line status keep them at the plain style's height (#334). */
-@media (max-width: 700px) { html[data-style="pixel"]:not(:lang(zh)) .briefing-letter .week-picker a { font-size: 11px; } html[data-style="pixel"]:not(:lang(zh)) .briefing-letter .week-picker small { font-size: 9px; } }
-/* Chinese pixel tiles hold two date lines and a status line below the tall Today badge. */
-@media (max-width: 700px) { html[data-style="pixel"]:lang(zh) .briefing-letter .week-picker a { min-height: 68px; } html[data-style="pixel"]:lang(zh) .briefing-letter .week-picker small { line-height: 12px; } }
+/* Tablet and phone tiles are narrow: a one-line status (and on phones one date line) keeps them at the plain style's height (#334). */
+@media (max-width: 1000px) { html[data-style="pixel"]:not(:lang(zh)) .week-picker small { font-size: 9px; } }
+@media (max-width: 700px) { html[data-style="pixel"]:not(:lang(zh)) .briefing-letter .week-picker a { font-size: 11px; } }
+/* Chinese pixel lines are tall: tiles leave room for the date, a status line and the Today badge (two date lines on phones). */
+html[data-style="pixel"]:lang(zh) .week-picker small { line-height: 12px; }
+@media (min-width: 701px) { html[data-style="pixel"]:lang(zh) .week-picker a { min-height: 50px; } }
+@media (min-width: 701px) and (max-width: 1000px) { html[data-style="pixel"]:lang(zh) .week-picker a { min-height: 55px; } }
+@media (max-width: 700px) { html[data-style="pixel"]:lang(zh) .briefing-letter .week-picker a { min-height: 68px; } }

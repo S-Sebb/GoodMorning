@@ -521,11 +521,11 @@ footer { max-width: 1440px; margin: 48px auto 0; padding: 26px max(80px, calc(en
 .subtitle:empty { display: none; }
 .week-picker { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 8px; padding-top: 24px; }
 /* keep-all: a Chinese label breaks only at its space, so 周二 moves down whole rather than splitting (#282). */
-.week-picker a { position: relative; word-break: keep-all; border: 1px solid var(--line); border-radius: 12px; display: grid; align-content: center; min-height: calc(1.7em + 26px); padding: 2px 8px; line-height: 1.3; text-align: center; text-decoration: none; font-size: 12px; background: var(--surface); transition: border-color .2s ease, background-color .2s ease; }
+.week-picker a { position: relative; word-break: keep-all; border: 1px solid var(--line); border-radius: 12px; display: grid; align-content: safe center; min-height: calc(1.7em + 26px); padding: 2px 8px; line-height: 1.3; text-align: center; text-decoration: none; font-size: 12px; background: var(--surface); transition: border-color .2s ease, background-color .2s ease; }
 /* Tiles keep the height of a lone date line; a status line fits inside it, so the row never grows (#334). */
 .week-picker small { display: block; font-size: 9px; line-height: 1.2; color: var(--muted); }
 /* Today's status line sits low, clear of the Today badge. */
-.week-picker a:has(.today-marker):has(small) { align-content: end; padding-bottom: 3px; }
+.week-picker a:has(.today-marker):has(small) { align-content: safe end; padding-bottom: 3px; }
 .week-picker .today-marker { position: absolute; top: -9px; left: 50%; transform: translateX(-50%); background: var(--accent); color: var(--bg); border: 2px solid var(--bg); border-radius: 10px; padding: 0 7px; font-size: 9px; font-weight: 600; line-height: 1.6; white-space: nowrap; }
 @media (hover: hover) and (pointer: fine) { .week-picker a:hover { background: var(--wash); border-color: var(--accent); } }
 .week-picker [aria-current] { border-color: var(--accent); background: var(--wash); }

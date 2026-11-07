@@ -114,28 +114,41 @@ def check(app, url, shots):
                                 if edge is not None
                             ), (route, width, language, edges)
                         if route in ("/gm", "/gn"):
-                            # Morning has "Not generated" days and Evening none; both rows keep one tile height.
-                            tiles[route, width] = {
-                                round(height)
-                                for height in page.locator(
-                                    ".week-picker a"
-                                ).evaluate_all(
-                                    "nodes => nodes.map(node => node.getBoundingClientRect().height)"
-                                )
-                            }
-                            assert len(tiles[route, width]) == 1, (
-                                route,
-                                width,
-                                language,
-                                tiles[route, width],
+                            # Morning has "Not generated" days and Evening none; both rows keep one tile height, in both styles.
+                            saved = page.evaluate(
+                                "document.documentElement.dataset.style"
                             )
-                            if route == "/gn":
-                                assert tiles[route, width] == tiles["/gm", width], (
+                            for style in (saved, "pixel"):
+                                tiles[route, width, style] = page.evaluate(
+                                    """async style => {
+                                        document.documentElement.dataset.style = style;
+                                        await document.fonts.ready;  // The pixel faces load on first use.
+                                        return [...new Set([...document.querySelectorAll('.week-picker a')].map(node => Math.round(node.getBoundingClientRect().height)))];
+                                    }""",
+                                    style,
+                                )
+                                assert len(tiles[route, width, style]) == 1, (
+                                    route,
                                     width,
                                     language,
-                                    tiles["/gm", width],
-                                    tiles[route, width],
+                                    style,
+                                    tiles[route, width, style],
                                 )
+                                if route == "/gn":
+                                    assert (
+                                        tiles[route, width, style]
+                                        == tiles["/gm", width, style]
+                                    ), (
+                                        width,
+                                        language,
+                                        style,
+                                        tiles["/gm", width, style],
+                                        tiles[route, width, style],
+                                    )
+                            page.evaluate(
+                                "style => { document.documentElement.dataset.style = style; }",
+                                saved,
+                            )
                         if width <= 390:
                             # The highlight is the ::after pill; each corner of the label's ink box must sit inside its rounded shape.
                             label = page.locator(".edition-link.selected").evaluate("""el => {
