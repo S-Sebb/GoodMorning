@@ -173,10 +173,6 @@ function sectionActivity(state) {
     target.dataset.uiText=label;
     target.textContent=browserT(label);
   });
-  const notice = document.querySelector('.preview-notice');
-  if (notice) notice.textContent = browserT(state.state === 'stopped'
-    ? 'Unfinished preview · preparation stopped. Completed sections remain below; the full briefing is not confirmed complete.'
-    : 'Unfinished preview · completed sections are readable below. The full briefing is not finished yet.');
 }
 
 async function api(path, body) {
