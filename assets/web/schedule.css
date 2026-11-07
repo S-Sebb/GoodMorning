@@ -85,8 +85,21 @@
 .schedule-task .task-progress { color: var(--ink); font-weight: 600; }
 .schedule-task .task-marker { color: var(--ink); font-weight: 600; }
 .schedule-task .task-detail { white-space: pre-line; }
-/* The week keeps notes to two lines; the day view shows them in full. */
-.schedule-grid .schedule-task .task-detail { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; }
+/* A small picture per kind tells to-dos apart; its tooltip says what the kind means.
+   The week keeps one line per to-do: long markers and notes stay in the day view and the tooltip. */
+.task-icon { display: inline-block; width: 18px; height: 18px; margin: 0 6px -4px 0; background: center / contain no-repeat; }
+.task-icon.is-habit { background-image: url("icons/desk-habit.svg"); }
+.task-icon.is-prep { background-image: url("icons/todo-prep.svg"); }
+.task-icon.is-routine { background-image: url("icons/todo-routine.svg"); }
+.task-icon.is-project { background-image: url("icons/todo-project.svg"); }
+.task-icon.is-deadline { background-image: url("icons/todo-deadline.svg"); }
+.task-icon.is-oneoff { background-image: url("icons/todo-oneoff.svg"); }
+.schedule-focus .task-marker.is-short, .schedule-grid .task-marker.is-long, .schedule-grid .task-detail { display: none !important; }
+/* Done work stays visible but steps back: no tags or notes in the week. */
+.schedule-grid .schedule-task.is-done { opacity: .55; }
+.schedule-grid .schedule-task.is-done small { display: none !important; }
+.schedule-grid .schedule-task.is-done .task-title { text-decoration-thickness: 1px; }
+.schedule-grid .schedule-task.is-done .task-icon { filter: grayscale(1); }
 .schedule-task .task-project { display: inline-block; padding: 0 8px; border: 0; border-radius: 999px; background: var(--wash); color: var(--ink); overflow: visible; }
 .schedule-event.is-tbc { border-left-style: dashed; }
 .schedule-empty { display: block; font-size: 12px; color: var(--muted); margin: 0; line-height: 1.6; }

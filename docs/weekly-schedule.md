@@ -38,7 +38,13 @@ does not require a connected agent or a new morning/evening briefing.
 - Untimed work stays separate. Canonical agreed workdays and recurrence appear
   with project/optional labels and explicit partial/blocked/completed status.
   Legacy daily checklists remain a pre-migration fallback only. Confirmed
-  completion remains visible. Empty days say nothing is saved, not that the day
+  completion remains visible.
+- Each to-do has a small icon for its saved kind: habit, preparation for an
+  event, deadline, project step, repeating, or one-off. The icon's tooltip says
+  which. The week keeps one line per to-do: the habit and deadline explanations
+  and the to-do's notes move into tooltips (deadlines keep a short "Deadline"
+  tag), and done to-dos fade with a thin strike-through and no tags. The day
+  view shows all of it in full, since phones have no hover. Empty days say nothing is saved, not that the day
   is free. Past weeks are the current saved records, not immutable snapshots.
 - The corner **Schedule details** menu holds appointment/task counts, confirmed
   completion totals, timezone, and the saved-record check time. There is no summary strip, sync footer, marketing

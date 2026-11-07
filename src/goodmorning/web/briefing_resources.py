@@ -25,6 +25,16 @@ DESK_ICON_TYPES = {
     )
 }
 DESK_ICON_TYPES |= {
+    f"icons/todo-{name}.svg": "image/svg+xml"
+    for name in (
+        "prep",
+        "routine",
+        "project",
+        "deadline",
+        "oneoff",
+    )
+}
+DESK_ICON_TYPES |= {
     f"icons/desk-person-{person}.png": "image/png"
     for person in ("woman", "man", "neutral")
 }

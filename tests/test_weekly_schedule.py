@@ -317,6 +317,24 @@ class ScheduleTests(unittest.TestCase):
             markup = snapshot(self.app, 0)["view"]
             self.assertIn(ui.text("Appointment time not yet confirmed"), markup)
             self.assertIn("Awaiting lab approval.", markup)
+            # Each to-do's icon names its kind; its note moves into the row's tooltip.
+            for title, kind in (
+                ("Draft the methods", "project"),
+                ("Wash towels", "routine"),
+                ("Deadline only, not a workday", "deadline"),
+                ("Pick up a parcel", "oneoff"),
+            ):
+                self.assertRegex(
+                    markup,
+                    "task-icon is-"
+                    + kind
+                    + '"[^>]*></span><span class="task-title" data-content>'
+                    + title
+                    + "<",
+                )
+            self.assertIn(
+                'title="Compare the two baselines. · First baseline compared."', markup
+            )
             # The project is a tag; its "Project:" prefix is read out but not shown.
             self.assertIn(
                 '<small class="task-project"><span class="visually-hidden">'
