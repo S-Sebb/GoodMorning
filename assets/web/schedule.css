@@ -1,7 +1,6 @@
 /* One calm calendar sheet. Operational details stay in the corner menu. */
-.schedule-page { --content-gutter: 24px; }
-.schedule-page main { padding: 0 calc(var(--content-gutter) + var(--safe-right)) 48px max(24px, env(safe-area-inset-left)); }
-.schedule-page .masthead { padding-top: 18px; padding-bottom: 18px; padding-right: calc(var(--content-gutter) + var(--safe-right)); }
+/* The week grid takes a narrower gutter; the top bar keeps the shared one so it doesn't move between pages. */
+.schedule-page main { --content-gutter: 24px; padding: 0 calc(var(--content-gutter) + var(--safe-right)) 48px max(24px, env(safe-area-inset-left)); }
 .schedule-toolbar { display: flex; justify-content: space-between; align-items: center; gap: 24px; padding: 32px 0 24px; }
 .schedule-date { min-width: 0; position: relative; padding-left: 58px; }
 .schedule-date::before { content: ""; position: absolute; left: 0; top: 2px; width: 42px; height: 42px; background: url("icons/desk-schedule.svg") center / contain no-repeat; }
@@ -144,9 +143,6 @@
   :is(.schedule-calendar, .schedule-work):empty { display: none; }
 }
 @media (max-width: 600px) {
-  .schedule-page .masthead { align-items: start; flex-direction: column; gap: 14px; padding-top: 14px; padding-bottom: 10px; }
-  .schedule-page .edition-switch { flex-wrap: nowrap; gap: 2px; width: 100%; justify-content: space-between; }
-  .schedule-page .edition-link { padding: 8px 6px; }
   .schedule-toolbar { align-items: start; flex-direction: column; gap: 18px; padding: 24px 0 20px; }
   .schedule-navigation { width: 100%; gap: 4px; }
   .schedule-navigation { flex-wrap: wrap; }
