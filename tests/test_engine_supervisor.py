@@ -108,6 +108,10 @@ class EngineEnvironmentTests(unittest.TestCase):
             patch.object(sys, "argv", ["runtime", "--volume", str(volume), "engine"]),
             patch.object(briefing_runtime, "encrypted_mount", return_value=volume),
             patch.object(briefing_runtime.os, "chdir"),
+            # The server stage runs the suite as root; main() refuses root.
+            patch.object(
+                briefing_runtime.os, "geteuid", return_value=volume.stat().st_uid
+            ),
             patch.object(briefing_runtime.socket, "create_server"),
             patch.object(briefing_runtime, "Supervisor", supervisor),
             patch.object(briefing_runtime.signal, "signal"),
