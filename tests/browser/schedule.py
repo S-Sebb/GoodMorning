@@ -75,7 +75,11 @@ def check(app, url, shots, canonical=False):
                 icon_url = icon.evaluate(
                     "el => getComputedStyle(el).backgroundImage.slice(5, -2)"
                 )
-                assert page.request.get(icon_url).ok, icon_url
+                assert icon_url.startswith("data:image/svg+xml;base64,"), icon_url[:60]
+                assert page.evaluate(
+                    "async url => { const image = new Image(); image.src = url; await image.decode(); return image.naturalWidth; }",
+                    icon_url,
+                ), icon_url[:60]
             # Done work steps back: faded, a thin strike-through, no tags or notes.
             done = page.locator(".schedule-grid .schedule-task.is-done").first
             assert done.evaluate("el => getComputedStyle(el).opacity") == "0.55"
