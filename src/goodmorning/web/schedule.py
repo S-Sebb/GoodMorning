@@ -370,13 +370,16 @@ def task_card(task, day=None):
     metadata = []
     if task.get("marker") == "due":
         metadata.append(
-            '<small class="task-marker">'
+            '<small class="task-marker is-short">' + ui.ui("Deadline") + "</small>"
+        )
+        metadata.append(
+            '<small class="task-marker is-long">'
             + ui.ui("Deadline · no workday assigned")
             + "</small>"
         )
     elif task.get("marker") == "flexible":
         metadata.append(
-            '<small class="task-marker">'
+            '<small class="task-marker is-long">'
             + ui.ui("Flexible habit · moves with what you actually do")
             + "</small>"
         )
@@ -462,17 +465,47 @@ def task_card(task, day=None):
             + mark
             + "</span>"
         )
+    kind, hint = task_kind(task)
+    icon = (
+        '<span class="task-icon is-'
+        + kind
+        + '" role="img" title="'
+        + html.escape(ui.text(hint), quote=True)
+        + '" aria-label="'
+        + html.escape(ui.text(hint), quote=True)
+        + '"></span>'
+    )
+    tip = ' title="' + html.escape(detail, quote=True) + '"' if detail else ""
     return (
         '<li class="schedule-task is-'
         + state
-        + '">'
+        + '"'
+        + tip
+        + ">"
         + mark
-        + '<div><span class="task-title" data-content>'
+        + "<div>"
+        + icon
+        + '<span class="task-title" data-content>'
         + html.escape(task["text"])
         + "</span>"
         + "".join(metadata)
         + "</div></li>"
     )
+
+
+def task_kind(task):
+    """The icon that tells to-dos apart, and the tooltip that says what it means."""
+    if task.get("category") == "habit":
+        return "habit", "Flexible habit · moves with what you actually do"
+    if task.get("prep_for"):
+        return "prep", "Preparation for an event"
+    if task.get("marker") == "due":
+        return "deadline", "Deadline · no workday assigned"
+    if task.get("project"):
+        return "project", "Project step"
+    if task.get("category") == "routine":
+        return "routine", "Repeats"
+    return "oneoff", "One-off to-do"
 
 
 def date_part(day, part):

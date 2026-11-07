@@ -54,9 +54,38 @@ def check(app, url, shots, canonical=False):
             expect(
                 page.get_by_text("Deadline only, not a workday", exact=True)
             ).to_have_count(1)
-            expect(page.locator("#day-2026-10-16 .task-marker")).to_have_text(
-                "Deadline · no workday assigned"
+            # The week shows a short tag; the full explanation is the icon's tooltip and the day view's text.
+            deadline_day = page.locator("#day-2026-10-16")
+            expect(deadline_day.locator(".task-marker.is-short")).to_have_text(
+                "Deadline"
             )
+            expect(deadline_day.locator(".task-marker.is-long")).to_be_hidden()
+            expect(deadline_day.locator(".task-icon.is-deadline")).to_have_attribute(
+                "title", "Deadline · no workday assigned"
+            )
+            # Notes leave the week grid for the row's tooltip.
+            partial = page.locator(".schedule-task.is-partial")
+            expect(partial.locator(".task-detail")).to_be_hidden()
+            expect(partial).to_have_attribute(
+                "title", re.compile("First baseline compared.")
+            )
+            # Every to-do's icon loads.
+            for icon in page.locator(".task-icon").all():
+                url = icon.evaluate(
+                    "el => getComputedStyle(el).backgroundImage.slice(5, -2)"
+                )
+                assert page.request.get(url).ok, url
+            # Done work steps back: faded, a thin strike-through, no tags or notes.
+            done = page.locator(".schedule-grid .schedule-task.is-done").first
+            assert done.evaluate("el => getComputedStyle(el).opacity") == "0.55"
+            assert (
+                done.locator(".task-title").evaluate(
+                    "el => getComputedStyle(el).textDecorationLine"
+                )
+                == "line-through"
+            )
+            for tag in done.locator("small").all():
+                expect(tag).to_be_hidden()
         # Only lists with something in them get a heading; a day with nothing saved says so once.
         for day in page.locator(".schedule-day").all():
             events, tasks = (
