@@ -521,13 +521,18 @@ footer { max-width: 1440px; margin: 48px auto 0; padding: 26px max(80px, calc(en
 .subtitle:empty { display: none; }
 .week-picker { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 8px; padding-top: 24px; }
 /* keep-all: a Chinese label breaks only at its space, so 周二 moves down whole rather than splitting (#282). */
-.week-picker a { position: relative; word-break: keep-all; border: 1px solid var(--line); border-radius: 12px; padding: 12px 8px; text-align: center; text-decoration: none; font-size: 12px; background: var(--surface); transition: border-color .2s ease, background-color .2s ease; }
-.week-picker small { display: block; font-size: 9px; color: var(--muted); }
+.week-picker a { position: relative; word-break: keep-all; border: 1px solid var(--line); border-radius: 12px; display: grid; align-content: safe center; min-height: calc(1.7em + 26px); padding: 2px 8px; line-height: 1.3; text-align: center; text-decoration: none; font-size: 12px; background: var(--surface); transition: border-color .2s ease, background-color .2s ease; }
+/* Tiles keep the height of a lone date line; a status line fits inside it, so the row never grows (#334). */
+.week-picker small { display: block; font-size: 9px; line-height: 1.2; color: var(--muted); }
+/* Today's status line sits low, clear of the Today badge. */
+.week-picker a:has(.today-marker):has(small) { align-content: safe end; padding-bottom: 3px; }
 .week-picker .today-marker { position: absolute; top: -9px; left: 50%; transform: translateX(-50%); background: var(--accent); color: var(--bg); border: 2px solid var(--bg); border-radius: 10px; padding: 0 7px; font-size: 9px; font-weight: 600; line-height: 1.6; white-space: nowrap; }
 @media (hover: hover) and (pointer: fine) { .week-picker a:hover { background: var(--wash); border-color: var(--accent); } }
 .week-picker [aria-current] { border-color: var(--accent); background: var(--wash); }
 /* Days without a briefing stay quiet so saved ones stand out. */
 .week-picker a.is-missing:not([aria-current]) { border-style: dashed; background: transparent; color: var(--muted); }
+/* On tablets Chinese dates wrap to two lines; leave room for them, a status line and the Today badge. */
+@media (min-width: 701px) and (max-width: 1000px) { .week-picker a:lang(zh) { min-height: calc(2.6em + 24px); } }
 .waiting-room { text-align: center; max-width: 760px; padding: 40px 0 70px; margin: auto; }
 .waiting-room h1 { font-size: clamp(36px, 5vw, 64px); letter-spacing: -2px; }
 .initialize-button { display: inline-block; margin-top: 12px; padding: 13px 22px; border-radius: 8px; background: var(--ink); color: var(--bg); font-weight: 600; text-decoration: none; }
@@ -633,7 +638,7 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
 .is-waiting .section-loader, .is-stopped .section-loader { color: var(--warm); }
 @keyframes section-breathe { 50% { opacity: .45; } }
 @media (prefers-reduced-motion: reduce) { .is-working .loader-scene *, .is-working .skeleton-lines { animation: none !important; } .loader-scene { transition: none; } }
-@media (max-width: 700px) { .week-picker { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px 6px; } .week-picker a { padding: 10px 4px; font-size: 10px; } .week-picker small { font-size: 8px; } .agent-form { padding: 16px; } }
+@media (max-width: 700px) { .week-picker { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px 6px; } .week-picker a { min-height: calc(1.7em + 22px); padding: 2px 4px; font-size: 10px; } .week-picker small { font-size: 8px; } .agent-form { padding: 16px; } }
 @media (max-width: 700px) { .masthead { padding-right: max(68px, calc(env(safe-area-inset-right) + 64px)); } }
 @media (max-width: 350px) { .week-picker { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 @media (prefers-reduced-motion: reduce) { .desk-animation span { animation: none; } }
@@ -661,7 +666,9 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
   /* Room below the last section for the floating Sections and secretary buttons. */
   .briefing-letter main { padding: 0 16px max(88px, calc(env(safe-area-inset-bottom) + 80px)); }
   .briefing-letter .week-picker { display: flex; gap: 6px; overflow-x: auto; padding: 12px 0 2px; scrollbar-width: none; }
-  .briefing-letter .week-picker a { flex: 0 0 72px; padding: 8px 4px; font-size: 10px; }
+  .briefing-letter .week-picker a { flex: 0 0 72px; min-height: calc(1.7em + 18px); padding: 2px 4px; font-size: 10px; }
+  /* Chinese dates wrap to two lines in these narrow tiles. */
+  .briefing-letter:lang(zh) .week-picker a { min-height: calc(3.4em + 18px); }
   /* The section picker offers Back to top on phones, so one fewer button floats over the page. */
   .briefing-letter .back-to-top { display: none; }
   .briefing-letter .hero { position: relative; display: block; padding: 26px 0 18px; }

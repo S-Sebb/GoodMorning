@@ -40,6 +40,7 @@ def check(app, url, shots):
             for theme, hour in (("gm", 12), ("gn", 21)):
                 app.now = lambda hour=hour: datetime(2026, 10, 13, hour, tzinfo=UTC)
                 bar = {}  # Phone page-bar item sizes by route and width.
+                tiles = {}  # Date-tile heights by route and width.
                 for route in (
                     "/gm",
                     "/gn",
@@ -112,6 +113,42 @@ def check(app, url, shots):
                                 for edge in edges.values()
                                 if edge is not None
                             ), (route, width, language, edges)
+                        if route in ("/gm", "/gn"):
+                            # Morning has "Not generated" days and Evening none; both rows keep one tile height, in both styles.
+                            saved = page.evaluate(
+                                "document.documentElement.dataset.style"
+                            )
+                            for style in (saved, "pixel"):
+                                tiles[route, width, style] = page.evaluate(
+                                    """async style => {
+                                        document.documentElement.dataset.style = style;
+                                        await document.fonts.ready;  // The pixel faces load on first use.
+                                        return [...new Set([...document.querySelectorAll('.week-picker a')].map(node => Math.round(node.getBoundingClientRect().height)))];
+                                    }""",
+                                    style,
+                                )
+                                assert len(tiles[route, width, style]) == 1, (
+                                    route,
+                                    width,
+                                    language,
+                                    style,
+                                    tiles[route, width, style],
+                                )
+                                if route == "/gn":
+                                    assert (
+                                        tiles[route, width, style]
+                                        == tiles["/gm", width, style]
+                                    ), (
+                                        width,
+                                        language,
+                                        style,
+                                        tiles["/gm", width, style],
+                                        tiles[route, width, style],
+                                    )
+                            page.evaluate(
+                                "style => { document.documentElement.dataset.style = style; }",
+                                saved,
+                            )
                         if width <= 390:
                             # The highlight is the ::after pill; each corner of the label's ink box must sit inside its rounded shape.
                             label = page.locator(".edition-link.selected").evaluate("""el => {
@@ -349,8 +386,12 @@ def main():
                 ],
             }
         )
-        for kind in ("gm", "gn"):
-            (Path(temporary) / "daily" / f"2026-10-13.{kind}.json").write_text(document)
+        # Evening has the whole week saved; Morning only today, so its other days say "Not generated".
+        (Path(temporary) / "daily" / "2026-10-13.gm.json").write_text(document)
+        for day in range(7, 14):
+            (Path(temporary) / "daily" / f"2026-10-{day:02}.gn.json").write_text(
+                document
+            )
         returning_viewer(app.runtime)
         server = start_server(app)
         try:
