@@ -1,5 +1,6 @@
 """Shared immutable assets, negotiated text compression and bounded byte caches."""
 
+import base64
 import gzip
 import hashlib
 from collections import OrderedDict
@@ -210,9 +211,18 @@ class Resources:
                     self.urls["fonts/lora-italic.woff2"].encode(),
                 )
             if mime == "text/css":
+                # Desk icons travel inside the render-blocking stylesheet: a separate fetch per icon, behind the
+                # service worker on every navigation, let pages paint their page bar before the icons arrived.
                 for icon in DESK_ICON_TYPES:
                     if icon in self.urls:
-                        data = data.replace(icon.encode(), self.urls[icon].encode())
+                        resource = self.paths[self.urls[icon]]
+                        data = data.replace(
+                            icon.encode(),
+                            b"data:"
+                            + resource.mime.encode()
+                            + b";base64,"
+                            + base64.b64encode(resource.data),
+                        )
             if name in ("color-schemes.css", "pixel.css"):
                 for asset in (*PIXEL_FONTS, *PIXEL_SCENES):
                     if asset in self.urls:

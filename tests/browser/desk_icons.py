@@ -1,6 +1,7 @@
 """Check decorative icons, translations and narrow layouts with synthetic records."""
 
 import argparse
+import base64
 import sys
 import tempfile
 from datetime import UTC, datetime
@@ -74,7 +75,7 @@ def check(app, url, shots):
                                 18 if route == "/chat" and width <= 700 else 20
                             )  # Compact phone chat header.
                             assert (
-                                "/assets/" in icon["image"]
+                                icon["image"].startswith('url("data:image/')
                                 and icon["width"] >= size
                                 and icon["height"] >= size
                             ), icon
@@ -172,7 +173,7 @@ def check(app, url, shots):
                         if route == "/letters":
                             # No letters yet: the envelope and one sentence; the tab names the page.
                             empty = page.locator(".letters-empty")
-                            assert "/assets/" in empty.evaluate(
+                            assert "data:image/" in empty.evaluate(
                                 'el => getComputedStyle(el, "::before").backgroundImage'
                             )
                             expect(empty.locator("p")).to_have_count(1)
@@ -211,7 +212,13 @@ def check(app, url, shots):
             image = link.evaluate(
                 'el => getComputedStyle(el, "::before").backgroundImage'
             )
-            assert f"desk-person-{person}.png" in image, image
+            icon = base64.b64encode(
+                (
+                    Path(__file__).resolve().parents[2]
+                    / f"assets/web/icons/desk-person-{person}.png"
+                ).read_bytes()
+            ).decode()
+            assert icon in image, (person, image[:60])
             if shots:
                 page.locator(".masthead").screenshot(
                     path=str(shots / f"bar-{gender or 'unset'}-390.png")
