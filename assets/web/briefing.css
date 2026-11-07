@@ -62,6 +62,14 @@ a:focus-visible { outline: 2px solid var(--accent); outline-offset: 5px; }
 /* The person icons are pixel art: keep their pixels sharp when scaled to 24 px. */
 .edition-link[href="/about-me"]::before { image-rendering: pixelated; }
 .edition-link.selected { background: var(--ink); color: var(--bg); }
+/* page-bar.js: a decorative selected key glides over the bar from the page just left. */
+.edition-switch.page-bar-sliding { position: relative; }
+.page-bar-sliding .edition-link { transition: none; }
+.edition-switch .edition-link:is(.page-bar-pill, .page-bar-copy) { position: absolute; box-sizing: border-box; pointer-events: none; }
+.edition-switch .edition-link.page-bar-pill { min-height: 0; padding: 0; }
+.edition-switch .edition-link.page-bar-pill::before { content: none; }
+.page-bar-labels { position: absolute; inset: 0; overflow: hidden; border-radius: inherit; }
+.page-bar-track { position: absolute; }
 .edition-unavailable { display: flex; align-items: center; gap: 7px; padding: 8px 14px; color: var(--muted); font-size: 13px; }
 .edition-unavailable small { font-size: 9px; padding: 2px 7px; background: var(--wash); border-radius: 12px; }
 main { max-width: 1440px; width: 100%; padding: 0 64px; padding-left: max(24px, env(safe-area-inset-left)); padding-right: calc(var(--content-gutter) + var(--safe-right)); margin: 0 auto; }
