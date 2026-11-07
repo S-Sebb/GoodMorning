@@ -247,8 +247,11 @@ html[data-edition="gn"] .weather-tile.air { --tile-accent: #aed4b7; --tile-bg: #
 /* US AQI colours, softened to sit with the tile palette. */
 .aqi-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; margin-left: -4px; }
 .aqi-0 { background: #3f9b5a; } .aqi-1 { background: #d9b02a; } .aqi-2 { background: #e8862e; } .aqi-3 { background: #d64545; } .aqi-4 { background: #8f4fa0; } .aqi-5 { background: #7e2738; }
-.weather-tile .weather-value { color: var(--tile-accent); font-size: clamp(34px, 3.7vw, 48px); font-weight: 500; line-height: 1.2; letter-spacing: -2px; margin: 22px 0 16px; }
-.weather-tile .weather-main { display: block; }
+.weather-tile .weather-value { color: var(--tile-accent); font-size: clamp(34px, 3.7vw, 48px); font-weight: 500; line-height: 1.2; margin: 22px 0 16px; }
+/* briefing.js sets --value-ems; a headline too long for one line at full size shrinks to the tile's width,
+   then wraps onto two balanced lines rather than falling below 26px. Letter spacing scales with the size. */
+.weather-tile { container-type: inline-size; }
+.weather-tile .weather-main { display: block; font-size: clamp(26px, 100cqi / (var(--value-ems, 1) * 1.02), 1em); letter-spacing: -.04em; text-wrap: balance; }
 .weather-tile .weather-sub { display: block; font-size: 18px; line-height: 1.4; letter-spacing: -0.2px; font-weight: 500; margin-top: 6px; overflow-wrap: anywhere; }
 .weather-detail { font-size: 13px; line-height: 1.8; }
 .weather-tile .weather-asof { margin: -8px 0 12px; font-size: 12px; font-weight: 600; color: var(--tile-accent); }

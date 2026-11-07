@@ -67,7 +67,7 @@ restoration.
 | `scroll_rails` | Phone scroll rails on all five tabs, drag, keyboard control, drafts |
 | `taxonomy` (`--screenshots DIR`) | v2 renderer at desktop and phone widths, English and Chinese |
 | `update` | Patch-note discovery, history, dismissals, safe updates |
-| `weather_chart` (no arguments) | Morning weather chart captions stay apart at 768, 1024, 1280 and 1440 px, English and Chinese |
+| `weather_chart` (no arguments) | Morning weather chart captions stay apart at 768, 1024, 1280 and 1440 px, English and Chinese; a long headline ("Unhealthy for sensitive groups") shrinks to at most two lines without growing its row, also after switching language in place, while short ones keep their size |
 | `readme_demo` (`OUTPUT_DIR`) | Regenerates README screenshots; review before copying into `assets/readme/` |
 | `briefing`, `polish` (`--url URL`) | Briefing rendering and motion against a running private preview |
 | `briefing_model_output` (`--trial DIR --output DIR`) | Renders documents from a preserved paid trial; no new model calls |

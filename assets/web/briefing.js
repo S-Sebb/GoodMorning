@@ -140,6 +140,13 @@ if ('IntersectionObserver' in window) {
 }
 function refreshBriefing() {
   const previousSections = sections;
+  // Each weather headline's one-line width in em, so briefing.css can shrink a long one to its tile.
+  // A language switch changes the text, so this reruns.
+  document.querySelectorAll('.weather-main').forEach(value => {
+    value.style.width = 'max-content';
+    value.style.setProperty('--value-ems', value.getBoundingClientRect().width / parseFloat(getComputedStyle(value).fontSize));
+    value.style.width = '';
+  });
   sections = Array.from(document.querySelectorAll('.briefing-section:not([hidden])'));
   const inlineNav = document.querySelector('.briefing-section-nav');
   const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
