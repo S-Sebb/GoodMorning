@@ -245,6 +245,13 @@ GEAR = (
     '<path d="M9.3 5.3 10.1 2.7h3.8l.8 2.6 2.5-1.3 2.7 2.7-1.3 2.5 2.6.8v3.8l-2.6.8 1.3 2.5-2.7 2.7-2.5-1.3-.8 2.6h-3.8l-.8-2.6-2.5 1.3-2.7-2.7 1.3-2.5-2.6-.8v-3.8l2.6-.8-1.3-2.5 2.7-2.7Z"/>'
     '<circle cx="12" cy="12" r="3"/></svg>'
 )
+UPDATE_TOGGLE = (
+    '<button id="site-update-toggle" type="button" data-state="current" aria-haspopup="dialog" aria-controls="site-patch-note"'
+    ' aria-label="What’s new: view patch notes" title="What’s new: view patch notes">'
+    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">'
+    '<path class="update-arrow" d="M12 19V5m-6 6 6-6 6 6"/>'
+    '<path class="update-check" d="M12 4c.6 4.2 2.8 6.4 7 7-4.2.6-6.4 2.8-7 7-.6-4.2-2.8-6.4-7-7 4.2-.6 6.4-2.8 7-7Z"/></svg><span></span></button>'
+)
 
 
 def page(source, csrf, return_to="/", avatars=False):
@@ -436,11 +443,14 @@ def page(source, csrf, return_to="/", avatars=False):
         if account
         else ""
     )
+    # The update pill is in the page from the start, so the top row doesn't shift when update.js finds the notes.
     controls = (
         '<div class="toolbar-row">'
         + prefs
         + account_menu
-        + '<span id="update-slot"></span></div>'
+        + '<span id="update-slot">'
+        + UPDATE_TOGGLE
+        + "</span></div>"
     )
     if avatar and "/avatar.js" not in source:
         source = source.replace(
@@ -455,7 +465,7 @@ def page(source, csrf, return_to="/", avatars=False):
     elif account and 'id="account-menu"' not in source:
         # A proxied backend page brings device-only menus; signed in, they are rebuilt with Account.
         source = re.sub(
-            r'<div class="toolbar-row">.*?<span id="update-slot"></span></div>',
+            r'<div class="toolbar-row">.*?<span id="update-slot">.*?</button></span></div>',
             lambda _: controls,
             source,
             count=1,

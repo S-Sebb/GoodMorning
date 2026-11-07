@@ -5,6 +5,7 @@ python tests/browser/schedule.py --preview --port 18791
 """
 
 import argparse
+import base64
 import re
 import sys
 import tempfile
@@ -100,7 +101,13 @@ def check(app, url, shots, canonical=False):
                 0 if events or tasks else 1
             )
         # The calendar icon sits beside the heading.
-        assert "desk-schedule" in page.locator(".schedule-date").evaluate(
+        icon = base64.b64encode(
+            (
+                Path(__file__).resolve().parents[2]
+                / "assets/web/icons/desk-schedule.svg"
+            ).read_bytes()
+        ).decode()
+        assert icon in page.locator(".schedule-date").evaluate(
             'el => getComputedStyle(el, "::before").backgroundImage'
         )
         # Routine metadata stays in the details menu.

@@ -177,6 +177,10 @@ phone (see [App tokens](#app-tokens)) and remove every browser's notification
 subscription (see [Notifications](#notifications)). Logout revokes the current token. Login rotates the
 anonymous cookie. Every mutation also requires the exact HTTPS Origin and the
 authenticated session's CSRF token. CSP blocks external scripts and framing.
+Scripts, styles and fonts load only from the site itself. Images may also be
+`data:` URIs, which can't run code: the desk icons are embedded in the
+stylesheets so every page paints them at once (#314). Chat pages also allow
+`blob:` images for unsent upload previews.
 
 The same account logs into gm and gn independently; no parent-domain cookie is
 shared with unrelated sibling services. Temporary passwords can access only the

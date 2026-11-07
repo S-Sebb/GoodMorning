@@ -8,15 +8,7 @@
   const inApp = appBuild > 0 || matchMedia('(display-mode: standalone)').matches || navigator.userAgent.includes('GoodMorningApp/');
   let appRelease = null;  // A newer app build, {code, name}, once the server reports one.
   const localized = (note, prefix = '') => note[prefix + (document.documentElement.lang === 'zh-CN' ? 'zh' : 'en')];
-  const toggle = document.createElement('button');
-  toggle.id = 'site-update-toggle';
-  toggle.type = 'button';
-  toggle.hidden = true;
-  toggle.setAttribute('aria-haspopup', 'dialog');
-  toggle.setAttribute('aria-controls', 'site-patch-note');
-  toggle.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">'
-    + '<path class="update-arrow" d="M12 19V5m-6 6 6-6 6 6"/>'
-    + '<path class="update-check" d="M12 4c.6 4.2 2.8 6.4 7 7-4.2.6-6.4 2.8-7 7-.6-4.2-2.8-6.4-7-7 4.2-.6 6.4-2.8 7-7Z"/></svg><span></span>';
+  const toggle = document.querySelector('#site-update-toggle');  // Rendered in the top row (language.py).
   const patch = document.createElement('dialog');
   patch.id = 'site-patch-note';
   patch.setAttribute('aria-labelledby', 'patch-note-heading');
@@ -32,10 +24,6 @@
     + '<div><button id="patch-note-dismiss" type="button"></button><button id="app-update" type="button" hidden></button>'
     + '<button id="update-refresh" type="button"></button></div></footer></div>';
   document.body.append(patch);
-  // The toggle lives in the top utility row's fixed slot; without it (older
-  // cached pages) it falls back to a body-level button as before.
-  const slot = document.querySelector('#update-slot');
-  if (slot) slot.append(toggle); else document.body.append(toggle);
   const versions = patch.querySelector('#patch-note-versions');
   const feedback = patch.querySelector('#update-feedback');
   const refreshButton = patch.querySelector('#update-refresh');
