@@ -302,7 +302,7 @@ reasons, plans or future releases it does not state. Reply in the saved tone:
 3. one line summing up `fixed`, `removed` and `security`; give every `notes` item,
    since they say what to do;
 4. with `older_not_shown`, say older changes were left out; end by pointing to the
-   What's new button at the top of the page (Chinese: 新变化) for the full list.
+   What's new button at the top of the page (Chinese: 新更新) for the full list.
 An item naming an Android app version arrives with that app update; say so.
 For `--search`, answer the question with only the matches about it, what changed
 and when; skip the rest without mentioning them or the search. If none fits, say

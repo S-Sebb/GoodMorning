@@ -143,31 +143,46 @@ def check(app, url, shots):
                                     bar[route, width],
                                     bar["/gm", width],
                                 )
-                        # Header: the wordmark stands alone; Settings is a gear, menus keep their ▾, and while up to date What's new is a sparkle.
+                        # Header: the wordmark stands alone; Settings, Account and What's new each show an icon and their name,
+                        # on one line down to 320px; desktop menus keep their ▾.
                         expect(page.locator(".wordmark > *")).to_have_count(0)
                         settings = page.locator("#prefs-menu > summary")
                         expect(settings).to_have_accessible_name(
                             "Settings" if language == "en" else "设置"
                         )
-                        expect(settings.locator("svg.menu-icon")).to_be_visible()
-                        expect(settings.locator(".menu-label")).to_have_css(
-                            "width", "1px"
-                        )
-                        assert settings.bounding_box()["height"] >= 36
-                        for menu in page.locator(".toolbar-row .menu > summary").all():
-                            # The arrow is decorative: empty alt text keeps it out of the accessible name.
-                            assert menu.evaluate(
-                                'el => getComputedStyle(el, "::after").content'
-                            ).startswith('"▾"'), menu
                         notes = page.locator("#site-update-toggle")
                         expect(notes).to_have_attribute("data-state", "current")
                         expect(notes).to_have_accessible_name(
                             "What’s new: view patch notes"
                             if language == "en"
-                            else "新变化：查看更新日志"
+                            else "新更新：查看更新日志"
                         )
-                        expect(notes.locator("span")).to_be_hidden()
-                        expect(notes.locator("svg")).to_be_visible()
+                        expect(notes.locator("span")).to_have_text(
+                            "What’s new" if language == "en" else "新更新"
+                        )
+                        buttons = page.locator(
+                            ".toolbar-row .menu > summary, #site-update-toggle"
+                        )
+                        tops = set()
+                        for button in buttons.all():
+                            expect(button.locator("svg")).to_be_visible()
+                            expect(
+                                button.locator(".menu-label, :scope > span")
+                            ).to_be_visible()
+                            box = button.bounding_box()
+                            assert box["height"] >= 36, (route, width, box)
+                            tops.add(round(box["y"]))
+                        assert len(tops) == 1, (route, width, language, tops)
+                        for menu in page.locator(".toolbar-row .menu > summary").all():
+                            # The arrow is decorative: empty alt text keeps it out of the accessible name.
+                            arrow = menu.evaluate(
+                                'el => getComputedStyle(el, "::after").content'
+                            )
+                            assert (
+                                arrow.startswith('"▾"')
+                                if width > 700
+                                else arrow == "none"
+                            ), (menu, width, arrow)
                         if route == "/chat":
                             expect(page.locator("[data-starter]")).to_have_count(3)
                         if route == "/letters":
