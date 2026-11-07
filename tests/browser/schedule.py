@@ -161,10 +161,17 @@ def check(app, url, shots, canonical=False):
         expect(page.get_by_role("link", name="Next week", exact=True)).to_have_count(0)
         page.go_back()
         expect(page.locator(".schedule-range")).to_contain_text("2 weeks ahead")
+        # The range names both months and reads at body size in the main text colour.
+        expect(page.locator(".schedule-range")).to_contain_text("Oct 26–Nov 1")
+        expect(page.locator(".schedule-range")).to_have_css("font-size", "16px")
+        assert page.locator(".schedule-range").evaluate(
+            'node => getComputedStyle(node).color === getComputedStyle(node.closest(".schedule-date")).color'
+        )
         page.get_by_role("link", name="This week", exact=True).click()
         page.locator("#prefs-menu summary").click()
         page.locator("#website-language").select_option("zh-CN")
         expect(page.locator("h1")).to_have_text("2026年10月")
+        expect(page.locator(".schedule-range")).to_have_text("10月12日–18日")
         expect(page.locator(".schedule-event").first).to_contain_text("Team check-in")
         page.locator("#prefs-menu summary").click()
         page.locator("#schedule-refresh").click()

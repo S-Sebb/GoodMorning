@@ -17,7 +17,8 @@ function scheduleStatus() {
     const part = node.dataset.schedulePart;
     const options = part === 'month' ? {month: 'long', year: 'numeric'}
       : part === 'full' ? {weekday: 'long', day: 'numeric', month: 'long'}
-      : part === 'weekday' ? {weekday: 'short'} : {day: 'numeric', month: 'short'};
+      : part === 'weekday' ? {weekday: 'short'} : part === 'range-day' ? {day: 'numeric'}
+      : part === 'dated' ? {day: 'numeric', month: 'short', year: 'numeric'} : {day: 'numeric', month: 'short'};
     node.textContent = part === 'day' ? String(day.getUTCDate())
       : new Intl.DateTimeFormat(goodmorningLanguage, {...options, timeZone: 'UTC'}).format(day);
   });
