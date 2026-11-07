@@ -152,6 +152,9 @@ dispatches new work.
   before deploying a release that lists them in `requirements/browser.txt`; the
   staged tests fail without them. Install packages with
   `uv pip install --python /opt/goodmorning/python-3.14/bin/python`.
+  Engines put its `bin` first on their agents' `PATH`, so the `python` in
+  briefing receipts is this environment; the host has no `python` and its
+  `python3` lacks Pillow, which left news without thumbnails (#318).
 - Private data lives under `/srv/goodmorning/live` on encrypted mounts. A
   deployment writes there only the pause flag, the deployment ticket, the
   staging marker, backups of replaced system files, and the report
