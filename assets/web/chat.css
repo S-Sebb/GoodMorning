@@ -222,15 +222,10 @@ html[data-edition="gn"] #chat-error { color: #f1b1a8; }
 }
 .chat-page > .account-tools { max-width: 1440px; width: 100%; margin: 0 auto; }
 .chat-page .menu-panel .account-tools { max-width: none; margin: 0; padding: 0; }
-@media (min-width: 701px) and (max-width: 1000px) { .chat-page { --content-gutter: 64px; } .chat-layout { grid-template-columns: 240px minmax(0, 1fr); gap: 16px; } .conversation-panel { padding: 16px; } #conversation-history { padding: 14px; } #history-heading { font-size: 18px; } .conversation-sidebar h1 { font-size: 28px; } }
+/* The conversation takes a narrower gutter; the top bar keeps the shared one so it doesn't move between pages. */
+@media (min-width: 701px) and (max-width: 1000px) { .chat-layout { --content-gutter: 64px; } .chat-layout { grid-template-columns: 240px minmax(0, 1fr); gap: 16px; } .conversation-panel { padding: 16px; } #conversation-history { padding: 14px; } #history-heading { font-size: 18px; } .conversation-sidebar h1 { font-size: 28px; } }
 @media (min-width: 701px) and (max-height: 700px) { .chat-page .masthead { padding-block: 12px; } #chat-guide { max-height: 80px; } }
 @media (max-width: 700px) {
-  .chat-page .toolbar-row { padding: 4px 12px; gap: 4px; }
-  .chat-page .masthead { padding: 6px 12px 8px; gap: 8px; }
-  .chat-page .wordmark { font-size: 22px; }
-  .chat-page .edition-switch { width: 100%; justify-content: space-between; gap: 2px; }
-  .chat-page .edition-link { padding: 6px; font-size: 12px; gap: 4px; }
-  .chat-page .edition-link::before { width: 18px; height: 18px; flex-basis: 18px; }
   .chat-layout { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; padding: 0 12px 24px; padding-bottom: calc(24px + var(--chat-keyboard-inset, 0px)); }
   .conversation-sidebar { display: contents; }
   .secretary-identity { order: 0; display: flex; align-items: center; gap: 12px; min-width: 0; }
