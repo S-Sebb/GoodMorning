@@ -14,7 +14,9 @@ does not require a connected agent or a new morning/evening briefing.
 - Previous/next navigation covers this week and three weeks on either side.
   `This week` returns to the current week. Both the page and API enforce the range.
 - Desktop uses one softly framed calendar sheet with seven day columns, a compact
-  month/week header, and a circled date for today. Smaller screens have a compact day
+  month/week header, and a circled date for today. Under the month title the week's
+  range always names its month ("Nov 2 – 8") and adds years only when the week spans
+  two; the day view's subtitle uses the same readable size. Smaller screens have a compact day
   navigation strip and two-column or single-column agendas, without horizontal
   scrolling. Today is identified with text as well as color.
 - Inside that same sheet, **Events** is the upper band and **To-dos**
