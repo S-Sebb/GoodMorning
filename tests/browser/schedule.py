@@ -511,26 +511,39 @@ def check_day(url):
 
 
 def check_top_bar(url):
-    """The top bar sits exactly where it does on the briefing pages, so nothing moves when switching pages."""
+    """Every page puts the top bar exactly where Morning does, so nothing moves when switching pages."""
     from playwright.sync_api import sync_playwright
 
     boxes = """() => [...document.querySelectorAll('.toolbar-row, .toolbar-row > *, .masthead, .wordmark, .edition-switch, .edition-link')]
         .map(node => { const box = node.getBoundingClientRect(); return [node.tagName, node.id, box.x, box.y, box.width, box.height]; })"""
+    # 701-1000 px is where the tablet header rules switch over.
+    widths = [1440, 900, 390, 320, *range(701, 1001, 60), 1000]
+    failures = []
     with sync_playwright() as playwright:
         browser = playwright.chromium.launch()
         page = browser.new_page()
-        for width, height in ((1440, 1050), (900, 1000), (390, 844), (320, 700)):
-            page.set_viewport_size({"width": width, "height": height})
-            measured = []
-            for path in ("/gm", "/schedule"):
+        for width in widths:
+            page.set_viewport_size({"width": width, "height": 900})
+            measured = {}
+            for path in ("/gm", "/gn", "/schedule", "/letters", "/chat", "/about-me"):
                 # The What's new button arrives after load and shifts the settings button.
                 page.goto(url + path, wait_until="networkidle")
-                measured.append(page.evaluate(boxes))
-            assert measured[0] == measured[1], (
-                width,
-                [pair for pair in zip(*measured) if pair[0] != pair[1]],
-            )
+                measured[path] = page.evaluate(boxes)
+            failures += [
+                (
+                    width,
+                    path,
+                    [
+                        pair
+                        for pair in zip(measured["/gm"], boxes_)
+                        if pair[0] != pair[1]
+                    ][:2],
+                )
+                for path, boxes_ in measured.items()
+                if boxes_ != measured["/gm"]
+            ]
         browser.close()
+    assert not failures, failures
 
 
 def main():
