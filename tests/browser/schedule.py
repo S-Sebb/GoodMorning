@@ -71,10 +71,10 @@ def check(app, url, shots, canonical=False):
             )
             # Every to-do's icon loads.
             for icon in page.locator(".task-icon").all():
-                url = icon.evaluate(
+                icon_url = icon.evaluate(
                     "el => getComputedStyle(el).backgroundImage.slice(5, -2)"
                 )
-                assert page.request.get(url).ok, url
+                assert page.request.get(icon_url).ok, icon_url
             # Done work steps back: faded, a thin strike-through, no tags or notes.
             done = page.locator(".schedule-grid .schedule-task.is-done").first
             assert done.evaluate("el => getComputedStyle(el).opacity") == "0.55"
