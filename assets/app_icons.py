@@ -45,10 +45,11 @@ ImageDraw.Draw(tab).rounded_rectangle((0, 0, 127, 127), 28, BACKGROUND)
 tab.alpha_composite(face.resize((128, 128), Image.LANCZOS))
 save(tab.resize((32, 32), Image.LANCZOS), WEB / 'icons/app-32.png')
 
-# Android adaptive icon at 108dp xxxhdpi: the head sits inside the 66dp safe circle
-# and the shoulders run to the bottom edge, which every launcher mask crops.
+# Android adaptive icon at 108dp xxxhdpi: the face sits at the centre of the
+# launcher mask, with the head inside the 66dp safe circle and the shoulders
+# running to the bottom edge, which every launcher mask crops.
 foreground = Image.new('RGBA', (432, 432), (0, 0, 0, 0))
-foreground.alpha_composite(portrait(300), (66, 132))
+foreground.alpha_composite(portrait(340), (46, 92))
 save(foreground, ANDROID / 'ic_launcher_foreground.png')
 # Themed icons tint only the alpha, usually dark ink on a light tile: eyes and
 # outlines are solid, hair and jacket strong, skin and shirt faint.
