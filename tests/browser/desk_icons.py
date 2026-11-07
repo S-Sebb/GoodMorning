@@ -92,11 +92,12 @@ def check(app, url, shots):
                             "document.documentElement.scrollWidth > innerWidth"
                         ), (route, width, language)
                         if width in (1500, 1280, 1024):
-                            # Top controls, page bar and date tiles end on the page content's edge: the frame less its gutter.
+                            # Top controls, page bar and date tiles end on the top bar's edge: the frame less its gutter.
+                            # Read the gutter from the masthead: Schedule's week grid takes a narrower one of its own.
                             edges = page.evaluate("""() => {
                                 const right = nodes => Math.max(...[...nodes].map(node => node.getBoundingClientRect().right));
-                                const main = document.querySelector('main'), page = document.documentElement.clientWidth;
-                                const gutter = parseFloat(getComputedStyle(main).getPropertyValue('--content-gutter'));
+                                const masthead = document.querySelector('.masthead'), page = document.documentElement.clientWidth;
+                                const gutter = parseFloat(getComputedStyle(masthead).getPropertyValue('--content-gutter'));
                                 const picker = document.querySelector('.week-picker');
                                 return {content: (page + Math.min(page, 1440)) / 2 - gutter, toolbar: right(document.querySelectorAll('.toolbar-row > :not(#update-slot), #update-slot > *')),
                                     bar: right(document.querySelectorAll('.edition-switch .edition-link')), tiles: picker && picker.getBoundingClientRect().right};
