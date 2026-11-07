@@ -95,6 +95,11 @@ class EngineEnvironmentTests(unittest.TestCase):
         (volume / "engine.json").write_text(
             json.dumps({"chamberPort": 0, "uiPassword": "synthetic"})
         )
+        # main() refuses root, and the server stage runs the suite as root.
+        owner = volume.stat().st_uid
+        if owner == 0:
+            owner = 65534
+            os.chown(volume, owner, -1)
         started = {}
 
         def supervisor(listener, command, env, *args):
@@ -108,10 +113,7 @@ class EngineEnvironmentTests(unittest.TestCase):
             patch.object(sys, "argv", ["runtime", "--volume", str(volume), "engine"]),
             patch.object(briefing_runtime, "encrypted_mount", return_value=volume),
             patch.object(briefing_runtime.os, "chdir"),
-            # The server stage runs the suite as root; main() refuses root.
-            patch.object(
-                briefing_runtime.os, "geteuid", return_value=volume.stat().st_uid
-            ),
+            patch.object(briefing_runtime.os, "geteuid", return_value=owner),
             patch.object(briefing_runtime.socket, "create_server"),
             patch.object(briefing_runtime, "Supervisor", supervisor),
             patch.object(briefing_runtime.signal, "signal"),
