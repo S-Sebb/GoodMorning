@@ -629,16 +629,16 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
   .edition-switch .edition-link { gap: 5px; padding: 0 8px; }
   .edition-switch .edition-link::before { flex-basis: 20px; width: 20px; height: 20px; }
   .briefing-letter { --content-gutter: 16px; }
-  .briefing-letter .toolbar-row, .chat-page .toolbar-row, .briefing-letter .language-toolbar, .chat-page .language-toolbar { padding: 4px 16px; font-size: 11px; }
-  .briefing-letter .toolbar-row .menu > summary, .chat-page .toolbar-row .menu > summary { min-height: 36px; padding: 4px 12px; font-size: 11px; }
-  .briefing-letter .toolbar-row .menu-panel, .chat-page .toolbar-row .menu-panel { font-size: 13px; }
-  .briefing-letter .language-toolbar select, .chat-page .language-toolbar select { min-height: 36px; padding: 4px 8px; }
+  .briefing-letter .toolbar-row, .chat-page .toolbar-row, .schedule-page .toolbar-row, .briefing-letter .language-toolbar, .chat-page .language-toolbar, .schedule-page .language-toolbar { padding: 4px 16px; font-size: 11px; }
+  .briefing-letter .toolbar-row .menu > summary, .chat-page .toolbar-row .menu > summary, .schedule-page .toolbar-row .menu > summary { min-height: 36px; padding: 4px 12px; font-size: 11px; }
+  .briefing-letter .toolbar-row .menu-panel, .chat-page .toolbar-row .menu-panel, .schedule-page .toolbar-row .menu-panel { font-size: 13px; }
+  .briefing-letter .language-toolbar select, .chat-page .language-toolbar select, .schedule-page .language-toolbar select { min-height: 36px; padding: 4px 8px; }
   /* Narrow bars become full-width dropdown sheets anchored to the row. */
   .toolbar-row .menu { position: static; }
   .toolbar-row .menu-panel { left: 16px; right: 16px; top: auto; width: auto; margin-top: 8px; }
-  .briefing-letter .masthead, .chat-page .masthead, .about-page .masthead, .letters-page .masthead { padding: 10px 16px; gap: 8px; align-items: center; }
-  .briefing-letter .wordmark, .chat-page .wordmark { font-size: 22px; }
-  .briefing-letter .edition-switch, .chat-page .edition-switch, .about-page .edition-switch, .letters-page .edition-switch { gap: 0; font-size: 11px; justify-content: space-between; }
+  .briefing-letter .masthead, .chat-page .masthead, .schedule-page .masthead, .about-page .masthead, .letters-page .masthead { padding: 10px 16px; gap: 8px; align-items: center; }
+  .briefing-letter .wordmark, .chat-page .wordmark, .schedule-page .wordmark { font-size: 22px; }
+  .briefing-letter .edition-switch, .chat-page .edition-switch, .schedule-page .edition-switch, .about-page .edition-switch, .letters-page .edition-switch { gap: 0; font-size: 11px; justify-content: space-between; }
   /* Room below the last section for the floating Sections and secretary buttons. */
   .briefing-letter main { padding: 0 16px max(88px, calc(env(safe-area-inset-bottom) + 80px)); }
   .briefing-letter .week-picker { display: flex; gap: 6px; overflow-x: auto; padding: 12px 0 2px; scrollbar-width: none; }
@@ -666,7 +666,7 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
 /* Six pages share a phone's width: each grows from its label width, and a label wraps under its icon only when the bar is too narrow. The selected highlight reaches 4px past its link so its rounded ends clear the label. */
 @media (max-width: 480px) { .edition-switch .edition-link { flex: 1 1 auto; min-width: 0; flex-direction: column; gap: 3px; padding: 6px 2px; font-size: 11px; white-space: normal; text-align: center; line-height: 1.1; } .edition-link::after { inset: 0 -4px; } }
 @media (max-width: 360px) { .edition-switch .edition-link { font-size: 10px; } }
-@media (max-width: 350px) { .briefing-letter .masthead, .chat-page .masthead { display: block; } .briefing-letter .edition-switch, .chat-page .edition-switch { margin-top: 6px; justify-content: flex-start; } .briefing-letter .hero-copy { grid-template-columns: 84px minmax(0, 1fr); gap: 12px; } .briefing-letter h1 { font-size: calc(24px * var(--title-scale)); } }
+@media (max-width: 350px) { .briefing-letter .masthead, .chat-page .masthead, .schedule-page .masthead { display: block; } .briefing-letter .edition-switch, .chat-page .edition-switch, .schedule-page .edition-switch { margin-top: 6px; justify-content: flex-start; } .briefing-letter .hero-copy { grid-template-columns: 84px minmax(0, 1fr); gap: 12px; } .briefing-letter h1 { font-size: calc(24px * var(--title-scale)); } }
 @media print { .edition-switch, .menu-panel, .orbit, .briefing-avatar, .reading-progress, footer, .skip-link, .back-to-top, .decision-ask, .idea-actions { display: none; } body { background: white; color: black; } main, .masthead { padding: 0; } .hero { padding: 24px 0; } .briefing-letter .hero-copy { display: block; } .hero-copy > *, .briefing-section.arriving { animation: none; } .briefing-section { border: 0; padding: 0; break-inside: avoid; } .section-body { color: black; } }
 .account-tools { display: grid; gap: .25rem; max-width: 1440px; width: 100%; margin: 0 auto; padding: .65rem max(24px,env(safe-area-inset-right)); font-size: .85rem; }
 .account-tools a { color: var(--ink); text-decoration: none; padding: .6rem .7rem; border-radius: .6rem; }
