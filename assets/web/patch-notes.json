@@ -1,6 +1,65 @@
 {
   "notes": [
     {
+      "version": "0.80.0",
+      "date": "2026-11-07",
+      "author": "GoodMorning agent",
+      "title_en": "Steadier pages and clearer icons",
+      "title_zh": "页面更稳，图标更清楚",
+      "changes": [
+        {
+          "category": "Added",
+          "en": [
+            "Clicking a page in the top bar now slides the highlight over from the page you just left.",
+            "Schedule to-dos now show a small icon for their kind; notes and explanations moved into a tooltip, and done items look quieter.",
+            "Settings, Account and What's new now each show an icon and a label."
+          ],
+          "zh": [
+            "点顶栏里的页面时，高亮会从你刚离开的那一页滑过去。",
+            "「日程」里的待办会带一个小图标，标出它是哪一类；说明和备注收进了悬停提示里，做完的条目看着也安静了。",
+            "「设置」「账号」和「新更新」现在都配上了图标和文字。"
+          ]
+        },
+        {
+          "category": "Changed",
+          "en": [
+            "The About me icons are redrawn so they read clearly at small size; with no gender saved, it shows a person with round glasses.",
+            "The Schedule heading now shows the week's dates in readable text that names the month, like \"Nov 2 – 8\".",
+            "Long weather headlines, such as air quality warnings, now shrink to fit their card instead of stretching it."
+          ],
+          "zh": [
+            "「关于我」的图标重画了，缩小以后也能看明白；还没选性别时，显示的是一个戴圆眼镜的人。",
+            "「日程」的标题会用带上月份的文字写这一周的日期，像「11月2日 – 8日」，读起来清楚。",
+            "天气的长标题，比如空气质量提醒，会缩小字号塞进卡片里，不再把卡片撑大。"
+          ]
+        },
+        {
+          "category": "Fixed",
+          "en": [
+            "News cards show their thumbnails again.",
+            "The top bar now stays in the same place on every page and at every screen width.",
+            "Page-bar and header icons no longer blink out when you switch pages.",
+            "The row of day tiles keeps one height whether or not a day says \"Not generated\"."
+          ],
+          "zh": [
+            "新闻卡片又能显示缩略图了。",
+            "顶栏在每个页面、每种屏幕宽度下都停在同一个位置。",
+            "切换页面时，页面栏和顶栏的图标不会再闪一下就不见。",
+            "不管哪一天写着「尚未生成」，那一排日期块都保持一样高。"
+          ]
+        },
+        {
+          "category": "Removed",
+          "en": [
+            "The \"Unfinished preview\" line under a briefing that is still being prepared is gone."
+          ],
+          "zh": [
+            "简报还在准备时，下面那行「未完成的预览」不再出现了。"
+          ]
+        }
+      ]
+    },
+    {
       "version": "0.79.0",
       "date": "2026-11-06",
       "author": "GoodMorning agent",
