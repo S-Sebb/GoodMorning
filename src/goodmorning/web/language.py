@@ -245,12 +245,16 @@ GEAR = (
     '<path d="M9.3 5.3 10.1 2.7h3.8l.8 2.6 2.5-1.3 2.7 2.7-1.3 2.5 2.6.8v3.8l-2.6.8 1.3 2.5-2.7 2.7-2.5-1.3-.8 2.6h-3.8l-.8-2.6-2.5 1.3-2.7-2.7 1.3-2.5-2.6-.8v-3.8l2.6-.8-1.3-2.5 2.7-2.7Z"/>'
     '<circle cx="12" cy="12" r="3"/></svg>'
 )
+PERSON = (
+    '<svg class="menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true" focusable="false">'
+    '<circle cx="12" cy="8" r="3.6"/><path d="M4.8 20.2c.9-3.9 3.7-6 7.2-6s6.3 2.1 7.2 6Z"/></svg>'
+)
 UPDATE_TOGGLE = (
     '<button id="site-update-toggle" type="button" data-state="current" aria-haspopup="dialog" aria-controls="site-patch-note"'
     ' aria-label="What’s new: view patch notes" title="What’s new: view patch notes">'
-    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">'
+    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true">'
     '<path class="update-arrow" d="M12 19V5m-6 6 6-6 6 6"/>'
-    '<path class="update-check" d="M12 4c.6 4.2 2.8 6.4 7 7-4.2.6-6.4 2.8-7 7-.6-4.2-2.8-6.4-7-7 4.2-.6 6.4-2.8 7-7Z"/></svg><span></span></button>'
+    '<path class="update-check" d="M12 4c.6 4.2 2.8 6.4 7 7-4.2.6-6.4 2.8-7 7-.6-4.2-2.8-6.4-7-7 4.2-.6 6.4-2.8 7-7Z"/></svg><span>What’s new</span></button>'
 )
 
 
@@ -410,7 +414,6 @@ def page(source, csrf, return_to="/", avatars=False):
     )
     # Settings holds what belongs to this device; Account what follows the signed-in owner everywhere.
     # Without an account (sign-in page, local viewer) language stays with this device too.
-    # The gear names Settings; the label stays for screen readers and the tooltip.
     prefs = (
         '<details class="menu" id="prefs-menu"><summary title="Settings">'
         + GEAR
@@ -429,7 +432,9 @@ def page(source, csrf, return_to="/", avatars=False):
     )
     account_menu = (
         (
-            '<details class="menu" id="account-menu"><summary><span class="menu-label">Account</span></summary>'
+            '<details class="menu" id="account-menu"><summary>'
+            + PERSON
+            + '<span class="menu-label">Account</span></summary>'
             '<div class="menu-panel"><div class="settings-menu-header account-menu-header"><div><h2>Account</h2>'
             "<p>On every device you sign in on</p></div>"
             + close

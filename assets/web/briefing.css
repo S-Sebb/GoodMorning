@@ -14,9 +14,18 @@ body { margin: 0; background: var(--bg); color: var(--ink); font-family: ui-sans
 .toolbar-row .menu > summary::marker { content: ''; }
 .toolbar-row .menu > summary::after { content: '▾' / ''; font-size: .7em; color: var(--muted); transition: transform .2s; }
 .toolbar-row .menu[open] > summary::after { transform: rotate(180deg); }
-/* Settings shows its gear, not its name; the open panel names it. */
 .toolbar-row .menu-icon { width: 18px; height: 18px; flex: none; }
-#prefs-menu .menu-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+/* Phones: smaller pills without the ▾ keep all three labelled buttons on one line down to 320px. */
+@media (max-width: 700px) {
+  .toolbar-row .menu > summary { min-height: 36px; gap: 5px; padding: 4px 10px; font-size: 12px; }
+  .toolbar-row .menu > summary::after { content: none; }
+  .toolbar-row .menu-icon { width: 16px; height: 16px; }
+}
+@media (max-width: 400px) { .toolbar-row { gap: 6px; } }
+@media (max-width: 359px) {
+  .toolbar-row .menu > summary { gap: 4px; padding: 4px 9px; font-size: 11px; }
+  .toolbar-row .menu-icon { width: 14px; height: 14px; }
+}
 .toolbar-row .menu > summary:hover { border-color: var(--accent); }
 .toolbar-row .menu > summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
 .toolbar-row .menu-panel { position: absolute; right: 0; top: calc(100% + 8px); width: min(300px, calc(100vw - 32px)); background: var(--surface); border: 1px solid var(--line); border-radius: .9rem; box-shadow: 0 12px 40px #233c3618; padding: .9rem; z-index: 50; }
