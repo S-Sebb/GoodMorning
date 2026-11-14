@@ -14,8 +14,8 @@ never a system interpreter. The live server's setup is in
 
 ## Tests
 
-Run from the task worktree after the final rebase. Local runs use `/tmp/opencode`
-as the fixture root when it exists; set `GM_TEST_TMPDIR` to use another.
+Run from the task worktree after the final rebase. Fixtures go under `~/scratch/GoodMorning/tests/`;
+set `GM_TEST_TMPDIR` to use another.
 
 1. Every PR:
    - focused tests for the changed behavior, added or updated in the same PR;

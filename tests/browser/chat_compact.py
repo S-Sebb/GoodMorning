@@ -1,67 +1,128 @@
 """Compact chat layout, centered welcome, always-open history and readable avatar note."""
+
 import json
-from pathlib import Path
 import subprocess
 import sys
 import tempfile
+from pathlib import Path
 
-from playwright.sync_api import sync_playwright, expect
 from chat_markdown import contrast
+from playwright.sync_api import expect, sync_playwright
 
 REPO = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(REPO / "tests"))
+from support import TEMP_ROOT
 
 
 def check_compact(browser, address, artifacts):
     checks = []
     for width in (1440, 768, 390, 320):
-        page = browser.new_page(viewport={'width':width, 'height':1000}, reduced_motion='reduce')
-        errors = []; page.on('pageerror', lambda error:errors.append(str(error)))
-        title = 'Secretary Review ST-Morph priorities'
+        page = browser.new_page(
+            viewport={"width": width, "height": 1000}, reduced_motion="reduce"
+        )
+        errors = []
+        page.on("pageerror", lambda error: errors.append(str(error)))
+        title = "Secretary Review ST-Morph priorities"
         title_reads = []
+
         def listing(route):
             title_reads.append(True)
-            pending = len(title_reads)==1
-            route.fulfill(json={'defaultMode':'secretary', 'connected':True,
-                'chats':[{'id':'a'*32, 'mode':'secretary', 'title':'Secretary' if pending else title,'title_pending':pending}]
-                       +[{'id':format(index,'032x'),'mode':'todo','title':'Synthetic saved task '+str(index)} for index in range(40)]})
-        page.route('**/api/chats', listing)
-        page.goto(address+'/chat?mode=secretary')
-        expect(page.locator('#chat-history a').first).to_contain_text(title)
-        assert len(title_reads)>=2, 'Late native title never refreshed'
-        expect(page.locator('#secretary-heading')).to_have_text('Your secretary')
-        expect(page.locator('#mode-description')).to_have_count(0)
-        expect(page.locator('#compose-note')).to_have_count(0)
-        expect(page.locator('.attachment-controls')).to_have_count(0)
-        clip = page.get_by_role('button',name='Attach files',exact=True)
-        expect(clip.locator('svg')).to_have_count(1)
-        assert clip.text_content()==''
-        assert clip.evaluate("node => node.parentElement.classList.contains('chat-input-row') && node===node.parentElement.firstElementChild")
-        expect(page.locator('#conversation-history')).to_be_visible()
-        expect(page.locator('#conversation-history summary')).to_have_count(0)
-        expect(page.locator('#history-heading')).to_have_text('History conversations')
+            pending = len(title_reads) == 1
+            route.fulfill(
+                json={
+                    "defaultMode": "secretary",
+                    "connected": True,
+                    "chats": [
+                        {
+                            "id": "a" * 32,
+                            "mode": "secretary",
+                            "title": "Secretary" if pending else title,
+                            "title_pending": pending,
+                        }
+                    ]
+                    + [
+                        {
+                            "id": format(index, "032x"),
+                            "mode": "todo",
+                            "title": "Synthetic saved task " + str(index),
+                        }
+                        for index in range(40)
+                    ],
+                }
+            )
+
+        page.route("**/api/chats", listing)
+        page.goto(address + "/chat?mode=secretary")
+        expect(page.locator("#chat-history a").first).to_contain_text(title)
+        assert len(title_reads) >= 2, "Late native title never refreshed"
+        expect(page.locator("#secretary-heading")).to_have_text("Your secretary")
+        expect(page.locator("#mode-description")).to_have_count(0)
+        expect(page.locator("#compose-note")).to_have_count(0)
+        expect(page.locator(".attachment-controls")).to_have_count(0)
+        clip = page.get_by_role("button", name="Attach files", exact=True)
+        expect(clip.locator("svg")).to_have_count(1)
+        assert clip.text_content() == ""
+        assert clip.evaluate(
+            "node => node.parentElement.classList.contains('chat-input-row') && node===node.parentElement.firstElementChild"
+        )
+        expect(page.locator("#conversation-history")).to_be_visible()
+        expect(page.locator("#conversation-history summary")).to_have_count(0)
+        expect(page.locator("#history-heading")).to_have_text("History conversations")
         # One heading per block: no eyebrows over the name or history, no mode label for the secretary itself.
-        expect(page.locator('.conversation-sidebar .eyebrow')).to_have_count(0)
-        expect(page.locator('#chat-topic-mode')).to_be_hidden()
-        expect(page.locator('.chat-topic-hint')).to_have_count(0)
+        expect(page.locator(".conversation-sidebar .eyebrow")).to_have_count(0)
+        expect(page.locator("#chat-topic-mode")).to_be_hidden()
+        expect(page.locator(".chat-topic-hint")).to_have_count(0)
         # The empty conversation shows the sidebar avatar's desk scene as a decorative image.
-        figure = page.locator('#chat-empty .chat-empty-figure')
-        expect(figure).to_have_attribute('alt', '')
-        page.wait_for_function("() => document.querySelector('.chat-empty-figure').naturalWidth > 0")
-        assert figure.get_attribute('src') == page.locator('.desk-figure .avatar-image').get_attribute('src')
+        figure = page.locator("#chat-empty .chat-empty-figure")
+        expect(figure).to_have_attribute("alt", "")
+        page.wait_for_function(
+            "() => document.querySelector('.chat-empty-figure').naturalWidth > 0"
+        )
+        assert figure.get_attribute("src") == page.locator(
+            ".desk-figure .avatar-image"
+        ).get_attribute("src")
         # The size and keep limits show only beside attached files; the paperclip always describes them.
-        assert clip.evaluate("node => document.getElementById(node.getAttribute('aria-describedby')).textContent") == 'Up to 50 MB · kept 30 days'
-        assert page.locator('#upload-note').evaluate('node => node.getBoundingClientRect().width') <= 1
-        page.locator('#chat-files').set_input_files(files=[{'name':'synthetic.pdf','mimeType':'application/pdf','buffer':b'%PDF-1.4 synthetic'}])
-        expect(page.locator('#upload-note')).to_be_visible()
-        assert page.locator('#upload-note').evaluate('node => node.getBoundingClientRect().width') > 50
-        page.locator('#chat-attachments .attachment-remove').click()
-        expect(page.locator('#chat-attachments')).to_be_empty()
-        expect(page.locator('.chat-room-header')).to_have_count(0)
-        expect(page.locator('#conversation-name')).to_have_css('clip', 'rect(0px, 0px, 0px, 0px)')
-        page.evaluate('document.fonts.ready')
-        for edition, scheme in (('gm','classic'), ('gm','warm'), ('gn','classic')):
-            page.evaluate("([edition, scheme]) => { clearTimeout(themeTimer); document.documentElement.dataset.edition=edition; document.documentElement.dataset.dayScheme=scheme; }", [edition,scheme])
-            geometry = page.evaluate('''() => {
+        assert (
+            clip.evaluate(
+                "node => document.getElementById(node.getAttribute('aria-describedby')).textContent"
+            )
+            == "Up to 50 MB · kept 30 days"
+        )
+        assert (
+            page.locator("#upload-note").evaluate(
+                "node => node.getBoundingClientRect().width"
+            )
+            <= 1
+        )
+        page.locator("#chat-files").set_input_files(
+            files=[
+                {
+                    "name": "synthetic.pdf",
+                    "mimeType": "application/pdf",
+                    "buffer": b"%PDF-1.4 synthetic",
+                }
+            ]
+        )
+        expect(page.locator("#upload-note")).to_be_visible()
+        assert (
+            page.locator("#upload-note").evaluate(
+                "node => node.getBoundingClientRect().width"
+            )
+            > 50
+        )
+        page.locator("#chat-attachments .attachment-remove").click()
+        expect(page.locator("#chat-attachments")).to_be_empty()
+        expect(page.locator(".chat-room-header")).to_have_count(0)
+        expect(page.locator("#conversation-name")).to_have_css(
+            "clip", "rect(0px, 0px, 0px, 0px)"
+        )
+        page.evaluate("document.fonts.ready")
+        for edition, scheme in (("gm", "classic"), ("gm", "warm"), ("gn", "classic")):
+            page.evaluate(
+                "([edition, scheme]) => { clearTimeout(themeTimer); document.documentElement.dataset.edition=edition; document.documentElement.dataset.dayScheme=scheme; }",
+                [edition, scheme],
+            )
+            geometry = page.evaluate("""() => {
                 const scroll=document.querySelector('#chat-scroll'), box=scroll.getBoundingClientRect();
                 const heading=document.querySelector('#chat-welcome').getBoundingClientRect();
                 const hint=document.querySelector('#chat-hint').getBoundingClientRect();
@@ -76,38 +137,59 @@ def check_compact(browser, address, artifacts):
                 return {headingOffset:heading.left+heading.width/2-centerX, hintOffset:hint.left+hint.width/2-centerX,
                     verticalOffset:(symbol.top+last.bottom)/2-centerY, controlsTop:controls.top-panel.top,
                     scrollOverflow:scroll.scrollHeight-scroll.clientHeight};
-            }''')
-            assert abs(geometry['headingOffset']) <= 1 and abs(geometry['hintOffset']) <= 1, geometry
-            assert abs(geometry['verticalOffset']) <= 2, geometry
-            assert geometry['controlsTop'] <= 190 and geometry['scrollOverflow'] <= 1, geometry
-            expect(page.locator('#chat-guide')).to_be_hidden()
-            page.locator('#chat-help').click()
-            expect(page.locator('#chat-guide')).to_be_visible()
-            expect(page.locator('#chat-guide [data-guide="secretary"] li')).to_have_count(4)
-            page.locator('.conversation-panel').screenshot(path=str(artifacts/f'chat-guide-{edition}-{scheme}-{width}.png'))
-            expect(page.locator('#chat-help')).to_have_attribute('aria-expanded','true')
-            page.keyboard.press('Escape')
-            expect(page.locator('#chat-guide')).to_be_hidden()
-            expect(page.locator('#chat-help')).to_be_focused()
-            labels = page.locator('#chat-help, [data-starter]').evaluate_all('''nodes => nodes.map(node => {
+            }""")
+            assert (
+                abs(geometry["headingOffset"]) <= 1 and abs(geometry["hintOffset"]) <= 1
+            ), geometry
+            assert abs(geometry["verticalOffset"]) <= 2, geometry
+            assert geometry["controlsTop"] <= 190 and geometry["scrollOverflow"] <= 1, (
+                geometry
+            )
+            expect(page.locator("#chat-guide")).to_be_hidden()
+            page.locator("#chat-help").click()
+            expect(page.locator("#chat-guide")).to_be_visible()
+            expect(
+                page.locator('#chat-guide [data-guide="secretary"] li')
+            ).to_have_count(4)
+            page.locator(".conversation-panel").screenshot(
+                path=str(artifacts / f"chat-guide-{edition}-{scheme}-{width}.png")
+            )
+            expect(page.locator("#chat-help")).to_have_attribute(
+                "aria-expanded", "true"
+            )
+            page.keyboard.press("Escape")
+            expect(page.locator("#chat-guide")).to_be_hidden()
+            expect(page.locator("#chat-help")).to_be_focused()
+            labels = page.locator("#chat-help, [data-starter]").evaluate_all("""nodes => nodes.map(node => {
                 const range=document.createRange();range.selectNodeContents(node);
                 const text=range.getBoundingClientRect(), button=node.getBoundingClientRect();
                 return text.left >= button.left && text.right <= button.right;
-            })''')
-            assert all(labels), (width,labels)
-            page.locator('#prefs-menu > summary').click()
-            note = page.locator('#avatar-settings .notification-note')
+            })""")
+            assert all(labels), (width, labels)
+            page.locator("#prefs-menu > summary").click()
+            note = page.locator("#avatar-settings .notification-note")
             expect(note).to_be_visible()
-            colors = note.evaluate("node => ({ink:getComputedStyle(node).color, paper:getComputedStyle(node.closest('.menu-panel')).backgroundColor})")
-            assert colors['paper'] != 'rgba(0, 0, 0, 0)' and contrast(colors['ink'],colors['paper']) >= 4.5, colors
-            page.locator('#avatar-settings').screenshot(path=str(artifacts/f'avatar-note-{edition}-{scheme}-{width}.png'))
-            page.keyboard.press('Escape')
-            page.locator('.conversation-panel').screenshot(path=str(artifacts/f'compact-chat-{edition}-{scheme}-{width}.png'))
-            assert not page.evaluate('document.documentElement.scrollWidth > innerWidth')
-            if width>700:
+            colors = note.evaluate(
+                "node => ({ink:getComputedStyle(node).color, paper:getComputedStyle(node.closest('.menu-panel')).backgroundColor})"
+            )
+            assert (
+                colors["paper"] != "rgba(0, 0, 0, 0)"
+                and contrast(colors["ink"], colors["paper"]) >= 4.5
+            ), colors
+            page.locator("#avatar-settings").screenshot(
+                path=str(artifacts / f"avatar-note-{edition}-{scheme}-{width}.png")
+            )
+            page.keyboard.press("Escape")
+            page.locator(".conversation-panel").screenshot(
+                path=str(artifacts / f"compact-chat-{edition}-{scheme}-{width}.png")
+            )
+            assert not page.evaluate(
+                "document.documentElement.scrollWidth > innerWidth"
+            )
+            if width > 700:
                 # Viewport-fit desktop: no page scroll, composer visible without scrolling.
-                expect(page.locator('#chat-send')).to_be_in_viewport()
-                aligned = page.evaluate('''() => {
+                expect(page.locator("#chat-send")).to_be_in_viewport()
+                aligned = page.evaluate("""() => {
                     const panel=document.querySelector('.conversation-panel').getBoundingClientRect();
                     const avatar=document.querySelector('.desk-figure').getBoundingClientRect();
                     const scroll=document.querySelector('#chat-scroll').getBoundingClientRect();
@@ -117,61 +199,117 @@ def check_compact(browser, address, artifacts):
                         scrollHeight:scroll.height,composerBottom:composer.bottom,
                         pageScrollable:document.documentElement.scrollHeight-innerHeight,
                         histClient:hist.clientHeight,histScroll:hist.scrollHeight};
-                }''')
-                assert aligned['pageScrollable']<=1, aligned
-                assert 100<aligned['panelTop']<300 and abs(aligned['avatarTop']-aligned['panelTop'])<1, aligned
-                assert aligned['panelBottom']<=1000 and aligned['composerBottom']<=1000, aligned
-                assert 350<=aligned['scrollHeight']<=700, aligned
-                assert aligned['histClient']>100 and aligned['histScroll']>aligned['histClient'], aligned
-                page.screenshot(path=str(artifacts/f'desktop-bottom-{edition}-{scheme}-{width}.png'))
-            checks.append({'width':width,'edition':edition,'scheme':scheme, **geometry, 'avatarNoteContrast':round(contrast(colors['ink'],colors['paper']),2)})
-        history = page.locator('#conversation-history')
+                }""")
+                assert aligned["pageScrollable"] <= 1, aligned
+                assert (
+                    100 < aligned["panelTop"] < 300
+                    and abs(aligned["avatarTop"] - aligned["panelTop"]) < 1
+                ), aligned
+                assert (
+                    aligned["panelBottom"] <= 1000 and aligned["composerBottom"] <= 1000
+                ), aligned
+                assert 350 <= aligned["scrollHeight"] <= 700, aligned
+                assert (
+                    aligned["histClient"] > 100
+                    and aligned["histScroll"] > aligned["histClient"]
+                ), aligned
+                page.screenshot(
+                    path=str(
+                        artifacts / f"desktop-bottom-{edition}-{scheme}-{width}.png"
+                    )
+                )
+            checks.append(
+                {
+                    "width": width,
+                    "edition": edition,
+                    "scheme": scheme,
+                    **geometry,
+                    "avatarNoteContrast": round(
+                        contrast(colors["ink"], colors["paper"]), 2
+                    ),
+                }
+            )
+        history = page.locator("#conversation-history")
         page.evaluate("localStorage.setItem('goodmorning.chat.history', 'closed')")
-        page.reload(); expect(history).to_be_visible()
-        expect(history.locator('summary')).to_have_count(0)
-        assert page.evaluate("Object.values(sessionStorage).every(raw => !raw.includes('Synthetic saved task') && !raw.includes('Keep this draft'))")
+        page.reload()
+        expect(history).to_be_visible()
+        expect(history.locator("summary")).to_have_count(0)
+        assert page.evaluate(
+            "Object.values(sessionStorage).every(raw => !raw.includes('Synthetic saved task') && !raw.includes('Keep this draft'))"
+        )
         assert not errors, errors
         page.evaluate("secretaryName='Aurora';applySecretaryName()")
-        expect(page.locator('#secretary-heading')).to_have_text('Aurora')
-        if width>700:
-            page.set_viewport_size({'width':width,'height':600})
-            expect(page.locator('#chat-send')).to_be_in_viewport()
-            short = page.locator('.conversation-panel').bounding_box()
-            avatar = page.locator('.desk-figure').bounding_box()
-            assert page.evaluate('document.documentElement.scrollHeight-innerHeight')<=1
-            assert 100<short['y']<300 and abs(avatar['y']-short['y'])<1, (short,avatar)
-            assert short['y']+short['height']<=601, short
-            page.locator('#chat-help').click()
-            expect(page.locator('#chat-send')).to_be_in_viewport()
-            page.locator('.conversation-panel').screenshot(path=str(artifacts/f'short-desktop-help-{width}.png'))
+        expect(page.locator("#secretary-heading")).to_have_text("Aurora")
+        if width > 700:
+            page.set_viewport_size({"width": width, "height": 600})
+            expect(page.locator("#chat-send")).to_be_in_viewport()
+            short = page.locator(".conversation-panel").bounding_box()
+            avatar = page.locator(".desk-figure").bounding_box()
+            assert (
+                page.evaluate("document.documentElement.scrollHeight-innerHeight") <= 1
+            )
+            assert 100 < short["y"] < 300 and abs(avatar["y"] - short["y"]) < 1, (
+                short,
+                avatar,
+            )
+            assert short["y"] + short["height"] <= 601, short
+            page.locator("#chat-help").click()
+            expect(page.locator("#chat-send")).to_be_in_viewport()
+            page.locator(".conversation-panel").screenshot(
+                path=str(artifacts / f"short-desktop-help-{width}.png")
+            )
         page.close()
-    page = browser.new_page(viewport={'width':390,'height':1000})
-    page.add_init_script("Object.defineProperty(window, 'localStorage', {get() { throw new Error('Synthetic disabled storage'); }});")
-    page.goto(address+'/chat?mode=secretary')
-    expect(page.locator('#conversation-history')).to_be_visible()
-    expect(page.locator('#conversation-history summary')).to_have_count(0)
-    expect(page.locator('#chat-send')).to_be_in_viewport()
+    page = browser.new_page(viewport={"width": 390, "height": 1000})
+    page.add_init_script(
+        "Object.defineProperty(window, 'localStorage', {get() { throw new Error('Synthetic disabled storage'); }});"
+    )
+    page.goto(address + "/chat?mode=secretary")
+    expect(page.locator("#conversation-history")).to_be_visible()
+    expect(page.locator("#conversation-history summary")).to_have_count(0)
+    expect(page.locator("#chat-send")).to_be_in_viewport()
     page.close()
     return checks
 
 
 def main():
-    artifacts=Path(sys.argv[1]);artifacts.mkdir(parents=True,exist_ok=True,mode=0o700)
-    with tempfile.TemporaryDirectory(dir='/tmp/opencode',prefix='gm-compact-') as directory:
-        (Path(directory)/'profile.md').write_text('secretary_language: English\ncity: London\ntimezone: Europe/London\nnews_country: GB\n')
-        server=subprocess.Popen([sys.executable,str(REPO/'tests/test_briefing_chat.py'),'--serve-fixture',directory],
-                                stdout=subprocess.PIPE,stderr=subprocess.PIPE,text=True)
+    artifacts = Path(sys.argv[1])
+    artifacts.mkdir(parents=True, exist_ok=True, mode=0o700)
+    with tempfile.TemporaryDirectory(dir=TEMP_ROOT, prefix="gm-compact-") as directory:
+        (Path(directory) / "profile.md").write_text(
+            "secretary_language: English\ncity: London\ntimezone: Europe/London\nnews_country: GB\n"
+        )
+        server = subprocess.Popen(
+            [
+                sys.executable,
+                str(REPO / "tests/test_briefing_chat.py"),
+                "--serve-fixture",
+                directory,
+            ],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
         try:
-            address=server.stdout.readline().strip().removeprefix('Private live viewer: ')
+            address = (
+                server.stdout.readline().strip().removeprefix("Private live viewer: ")
+            )
             with sync_playwright() as playwright:
-                browser=playwright.chromium.launch()
-                checks=check_compact(browser,address,artifacts)
+                browser = playwright.chromium.launch()
+                checks = check_compact(browser, address, artifacts)
                 browser.close()
         finally:
-            server.terminate();server.communicate(timeout=5)
-    report={'modelCalls':0,'checks':checks,'historyAlwaysOpen':True,'oldCollapsePreferenceIgnored':True,'storageDisabledWorks':True}
-    (artifacts/'result.json').write_text(json.dumps(report,indent=2))
+            server.terminate()
+            server.communicate(timeout=5)
+    report = {
+        "modelCalls": 0,
+        "checks": checks,
+        "historyAlwaysOpen": True,
+        "oldCollapsePreferenceIgnored": True,
+        "storageDisabledWorks": True,
+    }
+    (artifacts / "result.json").write_text(json.dumps(report, indent=2))
     print(json.dumps(report))
 
 
-if __name__=='__main__':main()
+if __name__ == "__main__":
+    main()

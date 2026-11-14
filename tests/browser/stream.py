@@ -11,7 +11,7 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO / "src"))
 sys.path.insert(0, str(REPO / "tests"))
-from support import FakeChamber
+from support import TEMP_ROOT, FakeChamber
 
 from goodmorning.web.briefing_server import BrowserApp, serve_live
 
@@ -70,7 +70,7 @@ def run(artifacts):
         for kind in ("gm", "gn"):
             for width, height in ((1440, 900), (390, 844), (320, 568)):
                 with tempfile.TemporaryDirectory(
-                    dir="/tmp/opencode", prefix="gm-stream-"
+                    dir=TEMP_ROOT, prefix="gm-stream-"
                 ) as directory:
                     root = Path(directory)
                     (root / "profile.md").write_text(

@@ -17,6 +17,7 @@ from urllib.request import Request, urlopen
 REPO = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO / "src"))
 sys.path.insert(0, str(REPO / "tests"))
+from support import TEMP_ROOT
 
 
 def fixture(root, hosts=None):
@@ -170,7 +171,7 @@ def run(artifacts):
 
     artifacts.mkdir(parents=True, exist_ok=True, mode=0o700)
     with tempfile.TemporaryDirectory(
-        dir="/tmp/opencode", prefix="gm-language-browser-"
+        dir=TEMP_ROOT, prefix="gm-language-browser-"
     ) as directory:
         root = Path(directory)  # noqa: F841
         process = subprocess.Popen(
