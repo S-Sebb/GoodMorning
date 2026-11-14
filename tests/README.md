@@ -1,7 +1,7 @@
 # Tests
 
 All tests use isolated synthetic records, never a personal runtime. Fixtures go
-under `/tmp/opencode` when it exists, or `GM_TEST_TMPDIR`. Write browser
+under `~/scratch/GoodMorning/tests/`, or `GM_TEST_TMPDIR`. Write browser
 artifacts to a private directory outside the checkout.
 
 Shorthand below: `PY` = `uv run --no-project --with-requirements requirements/browser.txt python`.

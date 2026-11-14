@@ -1,162 +1,240 @@
 """Shared briefing avatars on isolated synthetic records; no model calls."""
-import json
+
 import io
+import json
 import re
-from pathlib import Path
 import subprocess
 import sys
 import tempfile
+from pathlib import Path
 
-from playwright.sync_api import expect, sync_playwright
 from PIL import Image
+from playwright.sync_api import expect, sync_playwright
 
 REPO = Path(__file__).resolve().parents[2]
-sys.path.insert(0, str(REPO / 'src'))
+sys.path.insert(0, str(REPO / "tests"))
+from support import TEMP_ROOT
+
+sys.path.insert(0, str(REPO / "src"))
 from goodmorning.briefings.briefing_day import briefing_day
 from goodmorning.briefings.briefing_document import encode
 
 
 def check_avatar(page, selected, label):
-    figure = page.locator('.briefing-avatar')
-    expect(figure).to_have_attribute('data-avatar', selected)
+    figure = page.locator(".briefing-avatar")
+    expect(figure).to_have_attribute("data-avatar", selected)
     expect(figure).to_be_visible()
-    expect(figure.locator('button')).to_have_count(0)
-    assert figure.get_by_role('link').count() == 0
-    image = figure.locator('.avatar-image')
-    assert image.evaluate('node => node.complete && node.naturalWidth > 0')
-    assert image.get_attribute('src').startswith('/assets/')
-    assert page.locator('.celestial-art').count() == 1
-    kind = page.locator('html').get_attribute('data-edition')
+    expect(figure.locator("button")).to_have_count(0)
+    assert figure.get_by_role("link").count() == 0
+    image = figure.locator(".avatar-image")
+    assert image.evaluate("node => node.complete && node.naturalWidth > 0")
+    assert image.get_attribute("src").startswith("/assets/")
+    assert page.locator(".celestial-art").count() == 1
+    kind = page.locator("html").get_attribute("data-edition")
     # Morning shows the daylight scene; evening keeps the lamp-lit one.
-    assert image.get_attribute('src').endswith('-day.png') == (kind == 'gm'), image.get_attribute('src')
-    assert page.locator('#morning-sun-body' if kind == 'gm' else '#moon-light').count() == 1
-    assert page.locator('.secretary-panel, .briefing-tools').count() == 0
-    card = page.locator('.briefing-section').first
-    assert card.evaluate('node => getComputedStyle(node).backgroundColor') != 'rgba(0, 0, 0, 0)'
-    assert float(card.evaluate('node => parseFloat(getComputedStyle(node).borderTopLeftRadius)')) > 0
+    assert image.get_attribute("src").endswith("-day.png") == (kind == "gm"), (
+        image.get_attribute("src")
+    )
+    assert (
+        page.locator("#morning-sun-body" if kind == "gm" else "#moon-light").count()
+        == 1
+    )
+    assert page.locator(".secretary-panel, .briefing-tools").count() == 0
+    card = page.locator(".briefing-section").first
+    assert (
+        card.evaluate("node => getComputedStyle(node).backgroundColor")
+        != "rgba(0, 0, 0, 0)"
+    )
+    assert (
+        float(
+            card.evaluate(
+                "node => parseFloat(getComputedStyle(node).borderTopLeftRadius)"
+            )
+        )
+        > 0
+    )
     portrait = image.bounding_box()
-    assert abs(portrait['width'] - portrait['height']) < 1, portrait
+    assert abs(portrait["width"] - portrait["height"]) < 1, portrait
     # A long greeting wraps beside the portrait without resizing it.
-    title = page.locator('.letter-copy > h1')
-    saved = title.evaluate('node => node.textContent')
-    title.evaluate("node => { node.textContent = 'Good morning gorgeous — let us get today glowing and keep it bright all day long!' }")
+    title = page.locator(".letter-copy > h1")
+    saved = title.evaluate("node => node.textContent")
+    title.evaluate(
+        "node => { node.textContent = 'Good morning gorgeous — let us get today glowing and keep it bright all day long!' }"
+    )
     resized = image.bounding_box()
-    assert (resized['width'], resized['height']) == (portrait['width'], portrait['height']), (resized, portrait)
-    title.evaluate('(node, text) => { node.textContent = text }', saved)
-    expect(page.locator('.orbit')).to_be_visible()
-    if page.viewport_size['width'] <= 700:
-        assert page.locator('.briefing-section').first.bounding_box()['width'] >= page.viewport_size['width'] - 33
-    assert not page.evaluate('document.documentElement.scrollWidth > innerWidth')
+    assert (resized["width"], resized["height"]) == (
+        portrait["width"],
+        portrait["height"],
+    ), (resized, portrait)
+    title.evaluate("(node, text) => { node.textContent = text }", saved)
+    expect(page.locator(".orbit")).to_be_visible()
+    if page.viewport_size["width"] <= 700:
+        assert (
+            page.locator(".briefing-section").first.bounding_box()["width"]
+            >= page.viewport_size["width"] - 33
+        )
+    assert not page.evaluate("document.documentElement.scrollWidth > innerWidth")
 
 
 def open_picker(page):
     # The viewer has no account, so the picker sits in Settings; signed in, it is in Account.
-    if page.locator('#prefs-menu').get_attribute('open') is None:
-        page.locator('#prefs-menu > summary').click()
-    expect(page.locator('#prefs-menu #avatar-settings')).to_be_visible()
+    if page.locator("#prefs-menu").get_attribute("open") is None:
+        page.locator("#prefs-menu > summary").click()
+    expect(page.locator("#prefs-menu #avatar-settings")).to_be_visible()
 
 
 def check_picker(page, address, artifacts):
-    page.goto(address + '/chat')
-    if page.locator('#prefs-menu').get_attribute('open') is None:
-        page.locator('#prefs-menu > summary').click()
-    page.locator('#website-language').select_option('en')
-    expect(page.locator('html')).to_have_attribute('lang', 'en')
-    for path in ('/gm', '/gn', '/chat'):
+    page.goto(address + "/chat")
+    if page.locator("#prefs-menu").get_attribute("open") is None:
+        page.locator("#prefs-menu > summary").click()
+    page.locator("#website-language").select_option("en")
+    expect(page.locator("html")).to_have_attribute("lang", "en")
+    for path in ("/gm", "/gn", "/chat"):
         page.goto(address + path)
-        if page.viewport_size['width'] <= 700:
-            for link in page.locator('.edition-link').all():
+        if page.viewport_size["width"] <= 700:
+            for link in page.locator(".edition-link").all():
                 bounds = link.bounding_box()
-                text = link.locator('bdi').bounding_box()
-                assert bounds['height'] >= 44
-                icon_height=link.evaluate("node => parseFloat(getComputedStyle(node, '::before').height)")
+                text = link.locator("bdi").bounding_box()
+                assert bounds["height"] >= 44
+                icon_height = link.evaluate(
+                    "node => parseFloat(getComputedStyle(node, '::before').height)"
+                )
                 # The secretary's compact phone navigation uses 18px icons (0.37.0).
-                assert icon_height >= (18 if path == '/chat' else 20)
-                if link.evaluate('node => getComputedStyle(node).flexDirection')=='column':
-                    assert abs((bounds['x']+bounds['width']/2)-(text['x']+text['width']/2)) < 2
-                    assert text['y'] >= bounds['y']+icon_height
-                    assert text['y']+text['height'] <= bounds['y']+bounds['height']
+                assert icon_height >= (18 if path == "/chat" else 20)
+                if (
+                    link.evaluate("node => getComputedStyle(node).flexDirection")
+                    == "column"
+                ):
+                    assert (
+                        abs(
+                            (bounds["x"] + bounds["width"] / 2)
+                            - (text["x"] + text["width"] / 2)
+                        )
+                        < 2
+                    )
+                    assert text["y"] >= bounds["y"] + icon_height
+                    assert text["y"] + text["height"] <= bounds["y"] + bounds["height"]
                 else:
-                    assert abs((bounds['y']+bounds['height']/2)-(text['y']+text['height']/2)) < 2
+                    assert (
+                        abs(
+                            (bounds["y"] + bounds["height"] / 2)
+                            - (text["y"] + text["height"] / 2)
+                        )
+                        < 2
+                    )
         # Portraits only show the avatar; the choice lives in the menu.
-        expect(page.locator('.avatar-display button')).to_have_count(0)
+        expect(page.locator(".avatar-display button")).to_have_count(0)
         open_picker(page)
-        for name in ('Upload day scene', 'Upload night scene', 'Upload profile picture'):
-            expect(page.get_by_role('button', name=name)).to_be_visible()
-        choices = page.locator('#avatar-settings [data-avatar-choice]')
+        for name in (
+            "Upload day scene",
+            "Upload night scene",
+            "Upload profile picture",
+        ):
+            expect(page.get_by_role("button", name=name)).to_be_visible()
+        choices = page.locator("#avatar-settings [data-avatar-choice]")
         expect(choices).to_have_count(4)
         for choice in choices.all():
-            assert choice.bounding_box()['height'] >= 44
-        assert not page.evaluate('document.documentElement.scrollWidth > innerWidth')
+            assert choice.bounding_box()["height"] >= 44
+        assert not page.evaluate("document.documentElement.scrollWidth > innerWidth")
         page.locator('[data-avatar-choice="f1"]').click()
-        expect(page.locator('[data-avatar-choice="f1"]')).to_have_attribute('aria-selected', 'true')
+        expect(page.locator('[data-avatar-choice="f1"]')).to_have_attribute(
+            "aria-selected", "true"
+        )
         page.locator('[data-avatar-choice="m2"]').click()
-        expect(page.locator('[data-avatar-choice="m2"]')).to_have_attribute('aria-selected', 'true')
-        expect(page.locator('.avatar-display')).to_have_attribute('data-avatar', 'm2')
+        expect(page.locator('[data-avatar-choice="m2"]')).to_have_attribute(
+            "aria-selected", "true"
+        )
+        expect(page.locator(".avatar-display")).to_have_attribute("data-avatar", "m2")
         page.locator('[data-avatar-choice="m2"]').focus()
-        page.keyboard.press('ArrowRight')
+        page.keyboard.press("ArrowRight")
         expect(page.locator('[data-avatar-choice="f1"]')).to_be_focused()
-        expect(page.locator('.avatar-display')).to_have_attribute('data-avatar', 'f1')
-        page.keyboard.press('End')
+        expect(page.locator(".avatar-display")).to_have_attribute("data-avatar", "f1")
+        page.keyboard.press("End")
         expect(page.locator('[data-avatar-choice="m2"]')).to_be_focused()
-        expect(page.locator('#avatar-settings')).to_have_attribute('aria-busy', 'false')
-        page.locator('#prefs-menu > .menu-panel').screenshot(path=str(artifacts / ('picker-' + path.strip('/') + '-' + str(page.viewport_size['width']) + '.png')))
-        page.locator('#prefs-menu > summary').click()
+        expect(page.locator("#avatar-settings")).to_have_attribute("aria-busy", "false")
+        page.locator("#prefs-menu > .menu-panel").screenshot(
+            path=str(
+                artifacts
+                / (
+                    "picker-"
+                    + path.strip("/")
+                    + "-"
+                    + str(page.viewport_size["width"])
+                    + ".png"
+                )
+            )
+        )
+        page.locator("#prefs-menu > summary").click()
 
     # Selection stays responsive while one save is pending; the last click wins.
-    page.goto(address + '/chat')
+    page.goto(address + "/chat")
     open_picker(page)
     page.locator('[data-avatar-choice="f1"]').click()
-    expect(page.locator('#avatar-settings')).to_have_attribute('aria-busy', 'false')
+    expect(page.locator("#avatar-settings")).to_have_attribute("aria-busy", "false")
     pending = []
     held = False
+
     def pause(route):
         nonlocal held
-        if route.request.method == 'POST' and not held:
+        if route.request.method == "POST" and not held:
             held = True
             pending.append(route)
         else:
             route.continue_()
-    page.route('**/api/avatar', pause)
-    with page.expect_request(lambda request: request.method == 'POST' and request.url.endswith('/api/avatar')):
+
+    page.route("**/api/avatar", pause)
+    with page.expect_request(
+        lambda request: request.method == "POST" and request.url.endswith("/api/avatar")
+    ):
         page.locator('[data-avatar-choice="f2"]').click()
     page.locator('[data-avatar-choice="m1"]').click()
     page.locator('[data-avatar-choice="m2"]').click()
-    expect(page.locator('.avatar-display')).to_have_attribute('data-avatar', 'm2')
-    assert page.evaluate("document.dispatchEvent(new Event('website:before-refresh', {cancelable: true}))") is False
+    expect(page.locator(".avatar-display")).to_have_attribute("data-avatar", "m2")
+    assert (
+        page.evaluate(
+            "document.dispatchEvent(new Event('website:before-refresh', {cancelable: true}))"
+        )
+        is False
+    )
     pending.pop().continue_()
-    expect(page.locator('#avatar-settings')).to_have_attribute('aria-busy', 'false')
-    page.unroute('**/api/avatar', pause)
+    expect(page.locator("#avatar-settings")).to_have_attribute("aria-busy", "false")
+    page.unroute("**/api/avatar", pause)
     page.reload()
-    expect(page.locator('.avatar-display')).to_have_attribute('data-avatar', 'm2')
+    expect(page.locator(".avatar-display")).to_have_attribute("data-avatar", "m2")
 
     open_picker(page)
+
     def reject(route):
-        if route.request.method == 'POST':
-            route.fulfill(status=500, json={'error': 'Synthetic avatar failure'})
+        if route.request.method == "POST":
+            route.fulfill(status=500, json={"error": "Synthetic avatar failure"})
         else:
             route.continue_()
-    page.route('**/api/avatar', reject)
+
+    page.route("**/api/avatar", reject)
     page.locator('[data-avatar-choice="f1"]').click()
-    expect(page.locator('.avatar-feedback')).to_have_text('Avatar could not be saved. Try again.')
-    expect(page.locator('.avatar-display')).to_have_attribute('data-avatar', 'm2')
-    page.unroute('**/api/avatar', reject)
-    page.goto(address + '/gm')
-    expect(page.locator('.avatar-display')).to_have_attribute('data-avatar', 'm2')
+    expect(page.locator(".avatar-feedback")).to_have_text(
+        "Avatar could not be saved. Try again."
+    )
+    expect(page.locator(".avatar-display")).to_have_attribute("data-avatar", "m2")
+    page.unroute("**/api/avatar", reject)
+    page.goto(address + "/gm")
+    expect(page.locator(".avatar-display")).to_have_attribute("data-avatar", "m2")
     # Only the secretary's tab-scoped conversation reference may persist (0.37.0).
-    assert page.evaluate(r'''() => localStorage.length === 0 && Object.keys(sessionStorage).every(key => {
+    assert page.evaluate(r"""() => localStorage.length === 0 && Object.keys(sessionStorage).every(key => {
         if (!/^goodmorning\.chat\.workspace\.[a-f0-9]{64}$/.test(key)) return false;
         const value = JSON.parse(sessionStorage.getItem(key));
         return Object.keys(value).sort().join(',') === 'away,chat,draft,resume'
             && [value.chat, value.resume].every(id => id === null || /^[a-f0-9]{32}$/.test(id));
-    })''')
+    })""")
 
 
 def check_motion(browser, address):
-    page = browser.new_page(viewport={'width': 1440, 'height': 900}, reduced_motion='no-preference')
-    page.goto(address + '/chat')
+    page = browser.new_page(
+        viewport={"width": 1440, "height": 900}, reduced_motion="no-preference"
+    )
+    page.goto(address + "/chat")
     open_picker(page)
-    page.set_viewport_size({'width': 390, 'height': 900})
+    page.set_viewport_size({"width": 390, "height": 900})
     page.evaluate("""window.avatarFrames = [];
         const image = document.querySelector('.avatar-image');
         const observer = new MutationObserver(() => {
@@ -167,51 +245,92 @@ def check_motion(browser, address):
             requestAnimationFrame(sample);
         });
         observer.observe(image, {attributes: true, attributeFilter: ['src']});""")
-    current = page.locator('.avatar-display').get_attribute('data-avatar')
-    next_avatar = 'm2' if current != 'm2' else 'f1'
+    current = page.locator(".avatar-display").get_attribute("data-avatar")
+    next_avatar = "m2" if current != "m2" else "f1"
     page.locator(f'[data-avatar-choice="{next_avatar}"]').click()
-    page.wait_for_function('() => avatarFrames.some(opacity => opacity > 0.4 && opacity < 1)')
-    page.wait_for_function("() => document.querySelector('#avatar-settings').getAttribute('aria-busy') === 'false'")
+    page.wait_for_function(
+        "() => avatarFrames.some(opacity => opacity > 0.4 && opacity < 1)"
+    )
+    page.wait_for_function(
+        "() => document.querySelector('#avatar-settings').getAttribute('aria-busy') === 'false'"
+    )
     # The main portrait plays the gently animated scene; picker previews stay still.
     # /chat follows the account's local hour, so expect the day or night scene it chose.
-    day = page.evaluate('document.documentElement.dataset.edition') == 'gm'
-    animated = ('-m2' if next_avatar == 'm2' else '') + ('-day' if day else '') + '-animated.png'
-    page.wait_for_function(f"() => document.querySelector('.avatar-image').currentSrc.endsWith('/desk-secretary{animated}')")
-    assert page.locator('.avatar-image').evaluate('node => node.complete && node.naturalWidth > 0')
-    assert not any('-animated' in src for src in page.locator('.avatar-preview img').evaluate_all('nodes => nodes.map(node => node.currentSrc)'))
+    day = page.evaluate("document.documentElement.dataset.edition") == "gm"
+    animated = (
+        ("-m2" if next_avatar == "m2" else "")
+        + ("-day" if day else "")
+        + "-animated.png"
+    )
+    page.wait_for_function(
+        f"() => document.querySelector('.avatar-image').currentSrc.endsWith('/desk-secretary{animated}')"
+    )
+    assert page.locator(".avatar-image").evaluate(
+        "node => node.complete && node.naturalWidth > 0"
+    )
+    assert not any(
+        "-animated" in src
+        for src in page.locator(".avatar-preview img").evaluate_all(
+            "nodes => nodes.map(node => node.currentSrc)"
+        )
+    )
     page.close()
-    page = browser.new_page(viewport={'width': 1440, 'height': 900}, reduced_motion='reduce')
-    page.goto(address + '/gn')
-    image = page.locator('.avatar-image')
-    expect(image).to_have_attribute('src', re.compile(r'desk-secretary(-m2)?\.png$'))
+    page = browser.new_page(
+        viewport={"width": 1440, "height": 900}, reduced_motion="reduce"
+    )
+    page.goto(address + "/gn")
+    image = page.locator(".avatar-image")
+    expect(image).to_have_attribute("src", re.compile(r"desk-secretary(-m2)?\.png$"))
     page.wait_for_function("() => document.querySelector('.avatar-image').complete")
-    assert image.evaluate('node => node.currentSrc') == image.evaluate('node => node.src'), 'Reduced motion keeps the still scene'
+    assert image.evaluate("node => node.currentSrc") == image.evaluate(
+        "node => node.src"
+    ), "Reduced motion keeps the still scene"
     page.close()
 
 
 def check_title_scale(browser, address, root, day):
     """Longer greetings shrink gradually and take fewer lines than at full size."""
-    greetings = ['Good morning, Seb!', 'Good morning, Seb! Ready to make this Monday yours?',
-                 "Good morning, Seb! Ready to make this Monday yours? Let's get you set for a brilliant day ahead.",
-                 '早上好，Seb！准备好让这个星期一属于你了吗？我们一起为美好的一天做好准备吧。']
-    source = root / 'daily' / f'{day}.gm.json'
+    greetings = [
+        "Good morning, Seb!",
+        "Good morning, Seb! Ready to make this Monday yours?",
+        "Good morning, Seb! Ready to make this Monday yours? Let's get you set for a brilliant day ahead.",
+        "早上好，Seb！准备好让这个星期一属于你了吗？我们一起为美好的一天做好准备吧。",
+    ]
+    source = root / "daily" / f"{day}.gm.json"
     for width in (1440, 390):
-        page = browser.new_page(viewport={'width': width, 'height': 900}, reduced_motion='reduce')
+        page = browser.new_page(
+            viewport={"width": width, "height": 900}, reduced_motion="reduce"
+        )
         sizes = []
         for greeting in greetings:
-            source.write_text(encode({'v': 1, 'lang': 'en', 'greeting': greeting, 'opening': 'Your day.',
-                                      'sections': [['notes', [['p', 'Body.']]]]}))
-            page.goto(address + '/gm')
-            title = page.locator('.letter-copy > h1')
-            sizes.append(title.evaluate('node => parseFloat(getComputedStyle(node).fontSize)'))
+            source.write_text(
+                encode(
+                    {
+                        "v": 1,
+                        "lang": "en",
+                        "greeting": greeting,
+                        "opening": "Your day.",
+                        "sections": [["notes", [["p", "Body."]]]],
+                    }
+                )
+            )
+            page.goto(address + "/gm")
+            title = page.locator(".letter-copy > h1")
+            sizes.append(
+                title.evaluate("node => parseFloat(getComputedStyle(node).fontSize)")
+            )
             if greeting == greetings[2]:
-                lines = title.evaluate('node => Math.round(node.getBoundingClientRect().height / parseFloat(getComputedStyle(node).lineHeight))')
+                lines = title.evaluate(
+                    "node => Math.round(node.getBoundingClientRect().height / parseFloat(getComputedStyle(node).lineHeight))"
+                )
                 title.evaluate("node => node.style.removeProperty('--title-length')")
-                full = title.evaluate('node => Math.round(node.getBoundingClientRect().height / parseFloat(getComputedStyle(node).lineHeight))')
+                full = title.evaluate(
+                    "node => Math.round(node.getBoundingClientRect().height / parseFloat(getComputedStyle(node).lineHeight))"
+                )
                 assert lines < full, (width, lines, full)
-        assert sizes[0] > sizes[1] > sizes[2] >= sizes[0] * .75 - .1, (width, sizes)
+        assert sizes[0] > sizes[1] > sizes[2] >= sizes[0] * 0.75 - 0.1, (width, sizes)
         assert sizes[3] < sizes[1], (width, sizes)
-        assert not page.evaluate('document.documentElement.scrollWidth > innerWidth')
+        assert not page.evaluate("document.documentElement.scrollWidth > innerWidth")
         page.close()
     source.unlink()
 
@@ -219,51 +338,104 @@ def check_title_scale(browser, address, root, day):
 def check_layout_alignment(browser, address, artifacts):
     results = []
     for width in (320, 390, 768, 1024, 1440, 1920):
-        page = browser.new_page(viewport={'width': width, 'height': 1000}, reduced_motion='reduce')
+        page = browser.new_page(
+            viewport={"width": width, "height": 1000}, reduced_motion="reduce"
+        )
         bounds = {}
         navigation = {}
-        for path, selector in (('/gm', '.briefing-section'), ('/gn', '.briefing-section'), ('/chat', '.conversation-panel')):
+        for path, selector in (
+            ("/gm", ".briefing-section"),
+            ("/gn", ".briefing-section"),
+            ("/chat", ".conversation-panel"),
+        ):
             page.goto(address + path)
             box = page.locator(selector).first.bounding_box()
-            if path == '/chat':
+            if path == "/chat":
                 # Phones flatten the sidebar (display: contents); the identity row leads instead.
-                sidebar = page.locator('.conversation-sidebar' if width > 700 else '.secretary-identity').bounding_box()
-                bounds[path] = (sidebar['x'], box['x'] + box['width'])
+                sidebar = page.locator(
+                    ".conversation-sidebar" if width > 700 else ".secretary-identity"
+                ).bounding_box()
+                bounds[path] = (sidebar["x"], box["x"] + box["width"])
                 if width > 700:
-                    assert box['x'] > sidebar['x'] + sidebar['width'], (width, sidebar, box)
-                    assert abs(box['y'] - sidebar['y']) < 1, (width, sidebar, box)
+                    assert box["x"] > sidebar["x"] + sidebar["width"], (
+                        width,
+                        sidebar,
+                        box,
+                    )
+                    assert abs(box["y"] - sidebar["y"]) < 1, (width, sidebar, box)
                 else:
-                    assert box['y'] >= sidebar['y'] + sidebar['height'], (width, sidebar, box)
-                    assert abs(box['x'] - sidebar['x']) < 1
+                    assert box["y"] >= sidebar["y"] + sidebar["height"], (
+                        width,
+                        sidebar,
+                        box,
+                    )
+                    assert abs(box["x"] - sidebar["x"]) < 1
             else:
-                bounds[path] = (box['x'], box['x'] + box['width'])
-            navigation[path] = page.locator('.edition-switch').bounding_box()
+                bounds[path] = (box["x"], box["x"] + box["width"])
+            navigation[path] = page.locator(".edition-switch").bounding_box()
             # Compare document layout, not a viewport-relative position after
             # the browser has scrolled to the focused composer.
-            navigation[path]['y'] += page.evaluate('scrollY')
-            assert not page.evaluate('document.documentElement.scrollWidth > innerWidth')
-            if path == '/chat' and width in (390, 1440):
-                page.screenshot(path=str(artifacts / f'aligned-secretary-{width}.png'), full_page=True)
-        assert all(abs(left - right) < 1 for left, right in zip(bounds['/gm'], bounds['/gn'])), (width, bounds)
+            navigation[path]["y"] += page.evaluate("scrollY")
+            assert not page.evaluate(
+                "document.documentElement.scrollWidth > innerWidth"
+            )
+            if path == "/chat" and width in (390, 1440):
+                page.screenshot(
+                    path=str(artifacts / f"aligned-secretary-{width}.png"),
+                    full_page=True,
+                )
+        assert all(
+            abs(left - right) < 1 for left, right in zip(bounds["/gm"], bounds["/gn"])
+        ), (width, bounds)
         # Since 0.37.0 the secretary page has its own compact gutters: 64px on
         # tablets and 12px on phones, where navigation spans the chat frame.
         if width > 1000:
             # Shared navigation and the left edge stay put between pages; the briefing column alone ends
             # earlier, leaving the corner to the quick chat launcher that /chat does not have (#259, #274).
-            assert abs(bounds['/gm'][0] - bounds['/chat'][0]) < 1 and bounds['/gm'][1] <= bounds['/chat'][1], (width, bounds)
-            for key in ('x', 'y', 'width', 'height'):
-                assert abs(navigation['/gm'][key] - navigation['/chat'][key]) < 1, (width, navigation)
+            assert (
+                abs(bounds["/gm"][0] - bounds["/chat"][0]) < 1
+                and bounds["/gm"][1] <= bounds["/chat"][1]
+            ), (width, bounds)
+            for key in ("x", "y", "width", "height"):
+                assert abs(navigation["/gm"][key] - navigation["/chat"][key]) < 1, (
+                    width,
+                    navigation,
+                )
         elif width > 700:
-            assert abs(bounds['/gm'][0] - bounds['/chat'][0]) < 1 and abs(bounds['/chat'][1] - (width - 64)) < 1, (width, bounds)
+            assert (
+                abs(bounds["/gm"][0] - bounds["/chat"][0]) < 1
+                and abs(bounds["/chat"][1] - (width - 64)) < 1
+            ), (width, bounds)
         else:
-            assert abs(bounds['/chat'][0] - 12) < 1 and abs(bounds['/chat'][1] - (width - 12)) < 1, (width, bounds)
-            chat_navigation = navigation['/chat']
-            assert abs(chat_navigation['x'] - bounds['/chat'][0]) < 1, (width, navigation)
-            assert abs(chat_navigation['x'] + chat_navigation['width'] - bounds['/chat'][1]) < 1, (width, navigation)
-            for key in ('x', 'y', 'width', 'height'):
-                assert abs(navigation['/gm'][key] - navigation['/gn'][key]) < 1, (width, navigation)
-        results.append({'width': width, 'left': round(bounds['/chat'][0]), 'right': round(bounds['/chat'][1]),
-                        'briefingAndChatLeftEdgesAndNavigationMatch': width > 1000, 'desktopSidebarPreserved': width > 700})
+            assert (
+                abs(bounds["/chat"][0] - 12) < 1
+                and abs(bounds["/chat"][1] - (width - 12)) < 1
+            ), (width, bounds)
+            chat_navigation = navigation["/chat"]
+            assert abs(chat_navigation["x"] - bounds["/chat"][0]) < 1, (
+                width,
+                navigation,
+            )
+            assert (
+                abs(
+                    chat_navigation["x"] + chat_navigation["width"] - bounds["/chat"][1]
+                )
+                < 1
+            ), (width, navigation)
+            for key in ("x", "y", "width", "height"):
+                assert abs(navigation["/gm"][key] - navigation["/gn"][key]) < 1, (
+                    width,
+                    navigation,
+                )
+        results.append(
+            {
+                "width": width,
+                "left": round(bounds["/chat"][0]),
+                "right": round(bounds["/chat"][1]),
+                "briefingAndChatLeftEdgesAndNavigationMatch": width > 1000,
+                "desktopSidebarPreserved": width > 700,
+            }
+        )
         page.close()
     return results
 
@@ -272,155 +444,288 @@ def main():
     artifacts = Path(sys.argv[1])
     artifacts.mkdir(parents=True, exist_ok=True, mode=0o700)
     results = []
-    with tempfile.TemporaryDirectory(dir='/tmp/opencode', prefix='gm-avatar-browser-') as directory:
+    with tempfile.TemporaryDirectory(
+        dir=TEMP_ROOT, prefix="gm-avatar-browser-"
+    ) as directory:
         root = Path(directory)
-        (root / 'profile.md').write_text('secretary_language: English\ntimezone: Europe/London\ncity: London, GB\nnews_country: GB\n')
-        (root / 'daily').mkdir()
+        (root / "profile.md").write_text(
+            "secretary_language: English\ntimezone: Europe/London\ncity: London, GB\nnews_country: GB\n"
+        )
+        (root / "daily").mkdir()
         # The asserted toggle colors are the Classic day palette; Morning Sky became the default in 0.38.0.
-        (root / 'website-color-schemes.json').write_text('{"day": "classic", "night": "starry"}\n')
-        day = briefing_day('Europe/London')
-        document = encode({'v': 1, 'lang': 'en', 'greeting': 'A little room to breathe.',
-                           'opening': 'Your priorities, prepared by your secretary.',
-                           'sections': [['notes', [['p', 'Keep this saved briefing unchanged.']]]]})
-        process = subprocess.Popen([sys.executable, str(REPO / 'tests/test_briefing_server.py'), '--serve-fixture', directory],
-                                   stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-        address = process.stdout.readline().strip().removeprefix('Private live viewer: ')
+        (root / "website-color-schemes.json").write_text(
+            '{"day": "classic", "night": "starry"}\n'
+        )
+        day = briefing_day("Europe/London")
+        document = encode(
+            {
+                "v": 1,
+                "lang": "en",
+                "greeting": "A little room to breathe.",
+                "opening": "Your priorities, prepared by your secretary.",
+                "sections": [["notes", [["p", "Keep this saved briefing unchanged."]]]],
+            }
+        )
+        process = subprocess.Popen(
+            [
+                sys.executable,
+                str(REPO / "tests/test_briefing_server.py"),
+                "--serve-fixture",
+                directory,
+            ],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        address = (
+            process.stdout.readline().strip().removeprefix("Private live viewer: ")
+        )
         try:
             with sync_playwright() as playwright:
                 browser = playwright.chromium.launch()
                 alignment_checks = check_layout_alignment(browser, address, artifacts)
                 check_motion(browser, address)
                 check_title_scale(browser, address, root, day)
-                (root / 'website-avatar.json').write_text('{"avatar":"f1"}\n')
+                (root / "website-avatar.json").write_text('{"avatar":"f1"}\n')
                 for width in (1440, 768, 390, 320):
-                    page = browser.new_page(viewport={'width': width, 'height': 900}, reduced_motion='reduce')
+                    page = browser.new_page(
+                        viewport={"width": width, "height": 900},
+                        reduced_motion="reduce",
+                    )
                     errors = []
-                    page.on('pageerror', lambda error: errors.append(str(error)))
+                    page.on("pageerror", lambda error: errors.append(str(error)))
                     if width == 1440:
-                        for kind in ('gm', 'gn'):
-                            page.goto(address + f'/{kind}')
-                            check_avatar(page, 'f1', 'Your secretary')
-                            expect(page.locator('#generate')).to_be_visible()
-                            page.screenshot(path=str(artifacts / f'avatar-preview-{kind}.png'), full_page=True)
-                            page.screenshot(path=str(artifacts / f'layout-preview-{kind}.png'))
-                            (root / 'daily' / f'{day}.{kind}.json').write_text(document)
+                        for kind in ("gm", "gn"):
+                            page.goto(address + f"/{kind}")
+                            check_avatar(page, "f1", "Your secretary")
+                            expect(page.locator("#generate")).to_be_visible()
+                            page.screenshot(
+                                path=str(artifacts / f"avatar-preview-{kind}.png"),
+                                full_page=True,
+                            )
+                            page.screenshot(
+                                path=str(artifacts / f"layout-preview-{kind}.png")
+                            )
+                            (root / "daily" / f"{day}.{kind}.json").write_text(document)
                     check_picker(page, address, artifacts)
-                    for language, label in (('en', 'Your secretary'), ('zh-CN', '你的秘书')):
-                        page.goto(address + '/chat')
-                        if page.locator('#prefs-menu').get_attribute('open') is None:
-                            page.locator('#prefs-menu > summary').click()
-                        page.locator('#website-language').select_option(language)
-                        expect(page.locator('html')).to_have_attribute('lang', language)
-                        for selected in ('f1', 'f2', 'm1', 'm2'):
-                            page.goto(address + '/chat')
+                    for language, label in (
+                        ("en", "Your secretary"),
+                        ("zh-CN", "你的秘书"),
+                    ):
+                        page.goto(address + "/chat")
+                        if page.locator("#prefs-menu").get_attribute("open") is None:
+                            page.locator("#prefs-menu > summary").click()
+                        page.locator("#website-language").select_option(language)
+                        expect(page.locator("html")).to_have_attribute("lang", language)
+                        for selected in ("f1", "f2", "m1", "m2"):
+                            page.goto(address + "/chat")
                             open_picker(page)
                             page.locator(f'[data-avatar-choice="{selected}"]').click()
-                            expect(page.locator('.avatar-feedback')).not_to_have_text('Saving avatar…' if language == 'en' else '正在保存形象…')
-                            expect(page.locator('#avatar-settings')).to_have_attribute('aria-busy', 'false')
-                            expect(page.locator('.desk-figure')).to_have_attribute('data-avatar', selected)
-                            for kind in ('gm', 'gn'):
-                                page.goto(address + f'/{kind}')
+                            expect(page.locator(".avatar-feedback")).not_to_have_text(
+                                "Saving avatar…"
+                                if language == "en"
+                                else "正在保存形象…"
+                            )
+                            expect(page.locator("#avatar-settings")).to_have_attribute(
+                                "aria-busy", "false"
+                            )
+                            expect(page.locator(".desk-figure")).to_have_attribute(
+                                "data-avatar", selected
+                            )
+                            for kind in ("gm", "gn"):
+                                page.goto(address + f"/{kind}")
                                 check_avatar(page, selected, label)
-                                expect(page.get_by_role('article')).to_contain_text('Keep this saved briefing unchanged.')
-                                if selected == 'm2':
-                                    page.screenshot(path=str(artifacts / f'avatar-{kind}-{width}-{language}.png'), full_page=True)
-                                page.goto(address + f'/d/{day}/{kind}')
+                                expect(page.get_by_role("article")).to_contain_text(
+                                    "Keep this saved briefing unchanged."
+                                )
+                                if selected == "m2":
+                                    page.screenshot(
+                                        path=str(
+                                            artifacts
+                                            / f"avatar-{kind}-{width}-{language}.png"
+                                        ),
+                                        full_page=True,
+                                    )
+                                page.goto(address + f"/d/{day}/{kind}")
                                 check_avatar(page, selected, label)
                     assert not errors, errors
-                    results.append({'width': width, 'languages': ['en', 'zh-CN'], 'avatars': 4,
-                                    'editions': ['gm', 'gn'], 'archive': True, 'overflow': False, 'pageErrors': 0})
+                    results.append(
+                        {
+                            "width": width,
+                            "languages": ["en", "zh-CN"],
+                            "avatars": 4,
+                            "editions": ["gm", "gn"],
+                            "archive": True,
+                            "overflow": False,
+                            "pageErrors": 0,
+                        }
+                    )
                     page.close()
-                page = browser.new_page(java_script_enabled=False, viewport={'width': 390, 'height': 844}, reduced_motion='reduce')
-                page.goto(address + '/gm')
-                expect(page.locator('.avatar-display')).to_have_attribute('data-avatar', 'm2')
-                expect(page.locator('#avatar-settings')).to_be_hidden()
-                assert not page.evaluate('document.documentElement.scrollWidth > innerWidth')
+                page = browser.new_page(
+                    java_script_enabled=False,
+                    viewport={"width": 390, "height": 844},
+                    reduced_motion="reduce",
+                )
+                page.goto(address + "/gm")
+                expect(page.locator(".avatar-display")).to_have_attribute(
+                    "data-avatar", "m2"
+                )
+                expect(page.locator("#avatar-settings")).to_be_hidden()
+                assert not page.evaluate(
+                    "document.documentElement.scrollWidth > innerWidth"
+                )
                 page.close()
                 # Already-open pages discover the new custom choice and replacements.
                 observer = browser.new_page()
-                observer.goto(address + '/gm')
+                observer.goto(address + "/gm")
                 uploader = browser.new_page()
-                uploader.goto(address + '/chat')
-                for color in ('purple', 'orange'):
+                uploader.goto(address + "/chat")
+                for color in ("purple", "orange"):
                     uploader.bring_to_front()
                     open_picker(uploader)
                     image = io.BytesIO()
-                    Image.new('RGB', (120, 160), color).save(image, format='PNG')
-                    with uploader.expect_response('**/api/avatar/upload/night') as uploaded:
-                        uploader.locator('[data-avatar-file]').set_input_files({
-                            'name': 'avatar.png', 'mimeType': 'image/png', 'buffer': image.getvalue()})
-                    custom_source = uploaded.value.json()['avatars'][-1]['night']
-                    expect(uploader.locator('#avatar-settings')).to_have_attribute('aria-busy', 'false')
+                    Image.new("RGB", (120, 160), color).save(image, format="PNG")
+                    with uploader.expect_response(
+                        "**/api/avatar/upload/night"
+                    ) as uploaded:
+                        uploader.locator("[data-avatar-file]").set_input_files(
+                            {
+                                "name": "avatar.png",
+                                "mimeType": "image/png",
+                                "buffer": image.getvalue(),
+                            }
+                        )
+                    custom_source = uploaded.value.json()["avatars"][-1]["night"]
+                    expect(uploader.locator("#avatar-settings")).to_have_attribute(
+                        "aria-busy", "false"
+                    )
                     observer.bring_to_front()
                     # Headless Chromium does not reliably emit window focus on tab activation.
                     observer.evaluate("window.dispatchEvent(new Event('focus'))")
-                    expect(observer.locator('.avatar-display')).to_have_attribute('data-avatar', 'custom')
-                    expect(observer.locator('.avatar-image')).to_have_attribute('src', custom_source)
-                    expect(observer.locator('[data-avatar-choice]')).to_have_count(5)
+                    expect(observer.locator(".avatar-display")).to_have_attribute(
+                        "data-avatar", "custom"
+                    )
+                    expect(observer.locator(".avatar-image")).to_have_attribute(
+                        "src", custom_source
+                    )
+                    expect(observer.locator("[data-avatar-choice]")).to_have_count(5)
                 observer.close()
                 uploader.close()
                 for width in (1440, 390, 320):
-                    page = browser.new_page(viewport={'width': width, 'height': 900}, reduced_motion='reduce')
+                    page = browser.new_page(
+                        viewport={"width": width, "height": 900},
+                        reduced_motion="reduce",
+                    )
                     errors = []
-                    page.on('pageerror', lambda error: errors.append(str(error)))
-                    page.goto(address + '/chat')
+                    page.on("pageerror", lambda error: errors.append(str(error)))
+                    page.goto(address + "/chat")
                     open_picker(page)
                     image = io.BytesIO()
-                    Image.new('RGB', (120, 160), 'teal').save(image, format='PNG')
-                    with page.expect_response('**/api/avatar/upload/night') as response:
-                        page.locator('[data-avatar-file]').set_input_files({
-                            'name': 'my-secretary.png', 'mimeType': 'image/png', 'buffer': image.getvalue()})
+                    Image.new("RGB", (120, 160), "teal").save(image, format="PNG")
+                    with page.expect_response("**/api/avatar/upload/night") as response:
+                        page.locator("[data-avatar-file]").set_input_files(
+                            {
+                                "name": "my-secretary.png",
+                                "mimeType": "image/png",
+                                "buffer": image.getvalue(),
+                            }
+                        )
                     assert response.value.status == 201
-                    custom_source = response.value.json()['avatars'][-1]['night']
-                    expect(page.locator('.avatar-display')).to_have_attribute('data-avatar', 'custom')
-                    expect(page.locator('[data-avatar-choice]')).to_have_count(5)
-                    expect(page.locator('#avatar-settings')).to_have_attribute('aria-busy', 'false')
+                    custom_source = response.value.json()["avatars"][-1]["night"]
+                    expect(page.locator(".avatar-display")).to_have_attribute(
+                        "data-avatar", "custom"
+                    )
+                    expect(page.locator("[data-avatar-choice]")).to_have_count(5)
+                    expect(page.locator("#avatar-settings")).to_have_attribute(
+                        "aria-busy", "false"
+                    )
                     open_picker(page)
-                    page.screenshot(path=str(artifacts / f'custom-avatar-{width}.png'))
-                    assert not page.evaluate('document.documentElement.scrollWidth > innerWidth')
+                    page.screenshot(path=str(artifacts / f"custom-avatar-{width}.png"))
+                    assert not page.evaluate(
+                        "document.documentElement.scrollWidth > innerWidth"
+                    )
                     with page.expect_file_chooser() as chooser:
                         page.locator('[data-avatar-upload="day"]').click()
                     day_image = io.BytesIO()
-                    Image.new('RGB', (120, 160), 'gold').save(day_image, format='PNG')
-                    with page.expect_response('**/api/avatar/upload/day') as response:
-                        chooser.value.set_files({'name': 'day.png', 'mimeType': 'image/png', 'buffer': day_image.getvalue()})
+                    Image.new("RGB", (120, 160), "gold").save(day_image, format="PNG")
+                    with page.expect_response("**/api/avatar/upload/day") as response:
+                        chooser.value.set_files(
+                            {
+                                "name": "day.png",
+                                "mimeType": "image/png",
+                                "buffer": day_image.getvalue(),
+                            }
+                        )
                     assert response.value.status == 201
-                    day_source = response.value.json()['avatars'][-1]['day']
+                    day_source = response.value.json()["avatars"][-1]["day"]
                     assert day_source != custom_source
-                    expect(page.locator('#avatar-settings')).to_have_attribute('aria-busy', 'false')
-                    for path in ('/gm', '/gn', f'/d/{day}/gm', f'/d/{day}/gn'):
-                        expected = day_source if path.endswith('gm') else custom_source
+                    expect(page.locator("#avatar-settings")).to_have_attribute(
+                        "aria-busy", "false"
+                    )
+                    for path in ("/gm", "/gn", f"/d/{day}/gm", f"/d/{day}/gn"):
+                        expected = day_source if path.endswith("gm") else custom_source
                         page.goto(address + path)
-                        expect(page.locator('.avatar-display')).to_have_attribute('data-avatar', 'custom')
-                        expect(page.locator('.avatar-image')).to_have_attribute('src', expected)
-                        assert page.locator('.avatar-image').evaluate('node => node.complete && node.naturalWidth > 0')
+                        expect(page.locator(".avatar-display")).to_have_attribute(
+                            "data-avatar", "custom"
+                        )
+                        expect(page.locator(".avatar-image")).to_have_attribute(
+                            "src", expected
+                        )
+                        assert page.locator(".avatar-image").evaluate(
+                            "node => node.complete && node.naturalWidth > 0"
+                        )
                     open_picker(page)
                     page.locator('[data-avatar-choice="f1"]').click()
-                    expect(page.locator('#avatar-settings')).to_have_attribute('aria-busy', 'false')
+                    expect(page.locator("#avatar-settings")).to_have_attribute(
+                        "aria-busy", "false"
+                    )
                     page.locator('[data-avatar-choice="custom"]').click()
-                    expect(page.locator('#avatar-settings')).to_have_attribute('aria-busy', 'false')
-                    with page.expect_response('**/api/avatar/upload/night') as rejected:
-                        page.locator('[data-avatar-file]').set_input_files({
-                            'name': 'invalid.png', 'mimeType': 'image/png', 'buffer': b'not an image'})
+                    expect(page.locator("#avatar-settings")).to_have_attribute(
+                        "aria-busy", "false"
+                    )
+                    with page.expect_response("**/api/avatar/upload/night") as rejected:
+                        page.locator("[data-avatar-file]").set_input_files(
+                            {
+                                "name": "invalid.png",
+                                "mimeType": "image/png",
+                                "buffer": b"not an image",
+                            }
+                        )
                     assert rejected.value.status == 400
-                    expect(page.locator('.avatar-feedback')).to_have_class('avatar-feedback is-error')
-                    expect(page.locator('.avatar-display')).to_have_attribute('data-avatar', 'custom')
+                    expect(page.locator(".avatar-feedback")).to_have_class(
+                        "avatar-feedback is-error"
+                    )
+                    expect(page.locator(".avatar-display")).to_have_attribute(
+                        "data-avatar", "custom"
+                    )
                     assert not errors, errors
-                    results.append({'width': width, 'customUpload': True, 'defaultSwitch': True,
-                                    'invalidImagePreservedAvatar': True, 'pageErrors': 0})
+                    results.append(
+                        {
+                            "width": width,
+                            "customUpload": True,
+                            "defaultSwitch": True,
+                            "invalidImagePreservedAvatar": True,
+                            "pageErrors": 0,
+                        }
+                    )
                     page.close()
                 browser.close()
-            for kind in ('gm', 'gn'):
-                assert (root / 'daily' / f'{day}.{kind}.json').read_text() == document
-            assert not (root / 'browser-jobs' / 'jobs.json').exists()
+            for kind in ("gm", "gn"):
+                assert (root / "daily" / f"{day}.{kind}.json").read_text() == document
+            assert not (root / "browser-jobs" / "jobs.json").exists()
         finally:
             process.terminate()
             process.communicate(timeout=5)
-    report = {'modelCalls': 0, 'savedContentUnchanged': True, 'noJavaScript': 'pass', 'checks': results,
-              'alignment': alignment_checks}
-    (artifacts / 'result.json').write_text(json.dumps(report, indent=2))
+    report = {
+        "modelCalls": 0,
+        "savedContentUnchanged": True,
+        "noJavaScript": "pass",
+        "checks": results,
+        "alignment": alignment_checks,
+    }
+    (artifacts / "result.json").write_text(json.dumps(report, indent=2))
     print(json.dumps(report))
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

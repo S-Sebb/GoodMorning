@@ -1,98 +1,232 @@
 """Opt-in v2 renderer checks in a real browser; synthetic records, no live accounts."""
+
 import argparse
 import json
-from pathlib import Path
 import sys
 import tempfile
+from pathlib import Path
 from urllib.parse import urlsplit
 
 from playwright.sync_api import expect, sync_playwright
 
 ROOT = Path(__file__).resolve().parents[2]
-sys.path.insert(0, str(ROOT/'src'))
-from goodmorning.records.inbox_store import initialize, InboxStore
-from goodmorning.records.routing import prepare
-from goodmorning.calendar.calendar_store import CalendarStore
+sys.path.insert(0, str(ROOT / "tests"))
+from support import TEMP_ROOT
+
+sys.path.insert(0, str(ROOT / "src"))
 from goodmorning.briefings.briefing_web import edition
+from goodmorning.calendar.calendar_store import CalendarStore
+from goodmorning.records.inbox_store import InboxStore, initialize
+from goodmorning.records.routing import prepare
 from goodmorning.web import language as ui
 
-DAY = '2026-10-13'
+DAY = "2026-10-13"
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--screenshots', type=Path)
+    parser.add_argument("--screenshots", type=Path)
     args = parser.parse_args()
     if args.screenshots:
         args.screenshots.mkdir(parents=True, exist_ok=True)
-    with tempfile.TemporaryDirectory(dir='/tmp/opencode', prefix='taxonomy-browser-') as temporary:
+    with tempfile.TemporaryDirectory(
+        dir=TEMP_ROOT, prefix="taxonomy-browser-"
+    ) as temporary:
         runtime = Path(temporary)
-        (runtime/'profile.md').write_text('timezone: Europe/London\n')
+        (runtime / "profile.md").write_text("timezone: Europe/London\n")
         initialize(runtime)
-        CalendarStore(str(runtime/'calendar.sqlite')).close()
+        CalendarStore(str(runtime / "calendar.sqlite")).close()
         inbox = InboxStore(runtime, write=True)
-        for key, payload in enumerate([
-            {'kind': 'todo', 'raw': 'Send Atlas report by Friday', 'task': {'title': 'Send Atlas report', 'due_date': '2026-10-16', 'project': 'Atlas'}},
-            {'kind': 'todo', 'raw': 'Buy milk', 'task': {'planned_date': DAY}},
-            {'kind': 'event_proposal', 'raw': 'Dentist Thursday', 'draft': {'title': 'Dentist', 'date': '2026-10-15', 'timezone': 'Europe/London', 'confirmed_day': True, 'notice': {'morning': 2, 'evening': 2}}},
-            {'kind': 'project_update', 'raw': 'Confirm report scope', 'questions': ['Which comparison should the report include?']},
-            {'kind': 'idea', 'raw': 'Maybe build a dashboard'},
-        ]):
-            inbox.mutate('add', payload, 'ses_synthetic_browser', str(key), DAY+'T12:00:00+01:00')
+        for key, payload in enumerate(
+            [
+                {
+                    "kind": "todo",
+                    "raw": "Send Atlas report by Friday",
+                    "task": {
+                        "title": "Send Atlas report",
+                        "due_date": "2026-10-16",
+                        "project": "Atlas",
+                    },
+                },
+                {"kind": "todo", "raw": "Buy milk", "task": {"planned_date": DAY}},
+                {
+                    "kind": "event_proposal",
+                    "raw": "Dentist Thursday",
+                    "draft": {
+                        "title": "Dentist",
+                        "date": "2026-10-15",
+                        "timezone": "Europe/London",
+                        "confirmed_day": True,
+                        "notice": {"morning": 2, "evening": 2},
+                    },
+                },
+                {
+                    "kind": "project_update",
+                    "raw": "Confirm report scope",
+                    "questions": ["Which comparison should the report include?"],
+                },
+                {"kind": "idea", "raw": "Maybe build a dashboard"},
+            ]
+        ):
+            inbox.mutate(
+                "add",
+                payload,
+                "ses_synthetic_browser",
+                str(key),
+                DAY + "T12:00:00+01:00",
+            )
         inbox.close()
         with sync_playwright() as playwright:
             browser = playwright.chromium.launch()
-            for lang in ('en', 'zh-CN'):
+            for lang in ("en", "zh-CN"):
                 token = ui.CURRENT.set(lang)
                 try:
-                    for kind in ('gm', 'gn'):
+                    for kind in ("gm", "gn"):
                         items = prepare(runtime, DAY, kind)
-                        document = {'v': 2, 'lang': lang, 'greeting': 'Synthetic briefing.', 'opening': 'Source-linked records.',
-                                    'sections': [[tag, [items['blocks'][tag]]] for tag in ('schedule', 'tasks', 'attention') if items['blocks'][tag][1]]}
-                        if kind == 'gm':
-                            document['sections'].insert(0, ['celebration', [['celebration', [['birthday'], ['holiday', 'Christmas Day', ['United Kingdom', 'China']],
-                                                                              ['years', 2, '2024-10-13'], ['tasks', 1000, 1003]],
-                                                                             'Wishing you a sparkly day full of little joys!', 'Mochi']]])
-                        markup = edition(document, DAY, kind, {'gm': True, 'gn': True})
+                        document = {
+                            "v": 2,
+                            "lang": lang,
+                            "greeting": "Synthetic briefing.",
+                            "opening": "Source-linked records.",
+                            "sections": [
+                                [tag, [items["blocks"][tag]]]
+                                for tag in ("schedule", "tasks", "attention")
+                                if items["blocks"][tag][1]
+                            ],
+                        }
+                        if kind == "gm":
+                            document["sections"].insert(
+                                0,
+                                [
+                                    "celebration",
+                                    [
+                                        [
+                                            "celebration",
+                                            [
+                                                ["birthday"],
+                                                [
+                                                    "holiday",
+                                                    "Christmas Day",
+                                                    ["United Kingdom", "China"],
+                                                ],
+                                                ["years", 2, "2024-10-13"],
+                                                ["tasks", 1000, 1003],
+                                            ],
+                                            "Wishing you a sparkly day full of little joys!",
+                                            "Mochi",
+                                        ]
+                                    ],
+                                ],
+                            )
+                        markup = edition(document, DAY, kind, {"gm": True, "gn": True})
                         for width in (1440, 390, 320):
-                            page = browser.new_page(viewport={'width': width, 'height': 900}, reduced_motion='reduce')
+                            page = browser.new_page(
+                                viewport={"width": width, "height": 900},
+                                reduced_motion="reduce",
+                            )
                             errors = []
-                            page.on('pageerror', lambda error: errors.append(str(error)))
+                            page.on(
+                                "pageerror", lambda error: errors.append(str(error))
+                            )
+
                             def respond(route):
-                                path = urlsplit(route.request.url).path.lstrip('/')
-                                if path in ('gm', 'gn'):
-                                    route.fulfill(body=markup, content_type='text/html')
-                                elif path in ('briefing.css', 'briefing.js'):
-                                    route.fulfill(body=(ROOT/'assets/web'/path).read_bytes(), content_type='text/css' if path.endswith('.css') else 'text/javascript')
-                                elif path.startswith(('fonts/', 'icons/')) and (ROOT/'assets/web'/path).is_file():
-                                    route.fulfill(body=(ROOT/'assets/web'/path).read_bytes())
+                                path = urlsplit(route.request.url).path.lstrip("/")
+                                if path in ("gm", "gn"):
+                                    route.fulfill(body=markup, content_type="text/html")
+                                elif path in ("briefing.css", "briefing.js"):
+                                    route.fulfill(
+                                        body=(ROOT / "assets/web" / path).read_bytes(),
+                                        content_type="text/css"
+                                        if path.endswith(".css")
+                                        else "text/javascript",
+                                    )
+                                elif (
+                                    path.startswith(("fonts/", "icons/"))
+                                    and (ROOT / "assets/web" / path).is_file()
+                                ):
+                                    route.fulfill(
+                                        body=(ROOT / "assets/web" / path).read_bytes()
+                                    )
                                 else:
                                     route.fulfill(status=404)
-                            page.route('**/*', respond)
-                            page.goto('http://synthetic.test/'+kind)
-                            expect(page.get_by_role('heading', name=ui.text('Tasks'), exact=True)).to_be_visible()
-                            expect(page.get_by_role('heading', name='Dentist', exact=True)).to_be_visible()
+
+                            page.route("**/*", respond)
+                            page.goto("http://synthetic.test/" + kind)
+                            expect(
+                                page.get_by_role(
+                                    "heading", name=ui.text("Tasks"), exact=True
+                                )
+                            ).to_be_visible()
+                            expect(
+                                page.get_by_role("heading", name="Dentist", exact=True)
+                            ).to_be_visible()
                             # A clear idea comes back in every morning and evening Reminders section from the day it is saved.
-                            expect(page.get_by_text('Maybe build a dashboard', exact=True)).to_have_count(1)
+                            expect(
+                                page.get_by_text("Maybe build a dashboard", exact=True)
+                            ).to_have_count(1)
                             # The evening shows only deadlines due tomorrow, so Friday's report waits.
-                            expect(page.locator('.task-card')).to_have_count(2 if kind == 'gm' else 1)
-                            if kind == 'gm':
-                                expect(page.get_by_role('heading', name=ui.text('Something to celebrate'), exact=True)).to_be_visible()
-                                expect(page.locator('.celebration-list h4')).to_have_text([ui.text('Happy birthday! 🎂'), ui.text('Merry Christmas! 🎄'),
-                                    ui.text('Happy GoodMorning anniversary! 🎉'), ui.text('{count} tasks done! ✨', count='1,000')])
-                                expect(page.get_by_text('— Mochi', exact=True)).to_be_visible()
-                            page.evaluate('document.fonts.ready')
-                            assert not page.evaluate('document.documentElement.scrollWidth > innerWidth'), (kind, lang, width)
-                            assert 'task_' not in page.get_by_role('article').inner_text()
+                            expect(page.locator(".task-card")).to_have_count(
+                                2 if kind == "gm" else 1
+                            )
+                            if kind == "gm":
+                                expect(
+                                    page.get_by_role(
+                                        "heading",
+                                        name=ui.text("Something to celebrate"),
+                                        exact=True,
+                                    )
+                                ).to_be_visible()
+                                expect(
+                                    page.locator(".celebration-list h4")
+                                ).to_have_text(
+                                    [
+                                        ui.text("Happy birthday! 🎂"),
+                                        ui.text("Merry Christmas! 🎄"),
+                                        ui.text("Happy GoodMorning anniversary! 🎉"),
+                                        ui.text(
+                                            "{count} tasks done! ✨", count="1,000"
+                                        ),
+                                    ]
+                                )
+                                expect(
+                                    page.get_by_text("— Mochi", exact=True)
+                                ).to_be_visible()
+                            page.evaluate("document.fonts.ready")
+                            assert not page.evaluate(
+                                "document.documentElement.scrollWidth > innerWidth"
+                            ), (kind, lang, width)
+                            assert (
+                                "task_" not in page.get_by_role("article").inner_text()
+                            )
                             assert not errors, errors
-                            if args.screenshots and kind == 'gm' and width in (1440, 390):
-                                page.screenshot(path=str(args.screenshots/f'gm-{lang}-{width}.png'), full_page=True)
+                            if (
+                                args.screenshots
+                                and kind == "gm"
+                                and width in (1440, 390)
+                            ):
+                                page.screenshot(
+                                    path=str(
+                                        args.screenshots / f"gm-{lang}-{width}.png"
+                                    ),
+                                    full_page=True,
+                                )
                             page.close()
                 finally:
                     ui.CURRENT.reset(token)
             browser.close()
-    print(json.dumps({'synthetic': True, 'engine': 'Chromium', 'checks': 12, 'editions': ['gm', 'gn'], 'languages': ['en', 'zh-CN'], 'widths': [1440, 390, 320]}))
+    print(
+        json.dumps(
+            {
+                "synthetic": True,
+                "engine": "Chromium",
+                "checks": 12,
+                "editions": ["gm", "gn"],
+                "languages": ["en", "zh-CN"],
+                "widths": [1440, 390, 320],
+            }
+        )
+    )
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

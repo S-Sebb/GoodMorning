@@ -278,8 +278,9 @@ Only when the owner asks. GitHub releases are public.
 
    ```sh
    cd android && ./gradlew test assembleRelease
-   cp app/build/outputs/apk/release/app-release.apk /tmp/opencode/GoodMorning-<versionName>.apk
-   gh release create android-v<versionCode> /tmp/opencode/GoodMorning-<versionName>.apk \
+   mkdir -p ~/scratch/GoodMorning/<issue>
+   cp app/build/outputs/apk/release/app-release.apk ~/scratch/GoodMorning/<issue>/GoodMorning-<versionName>.apk
+   gh release create android-v<versionCode> ~/scratch/GoodMorning/<issue>/GoodMorning-<versionName>.apk \
      --prerelease --title <versionName> --notes "<what changed, for users>"
    ```
 

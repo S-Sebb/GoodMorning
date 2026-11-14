@@ -1,277 +1,460 @@
 """Floating quick chat on desk pages: shared tab conversation, layout and setup gating. Synthetic, no model calls."""
+
 import json
 import re
-from pathlib import Path
 import subprocess
 import sys
 import tempfile
+from pathlib import Path
 
-from playwright.sync_api import sync_playwright, expect
+from playwright.sync_api import expect, sync_playwright
 
 REPO = Path(__file__).resolve().parents[2]
-READY = 'secretary_language: English\ncity: London\ntimezone: Europe/London\nnews_country: GB\nsecretary_name: Mira\n'
-WAITING = 'c' * 32
-REPLY = 'Synthetic reply. Your text stays text'
+sys.path.insert(0, str(REPO / "tests"))
+from support import TEMP_ROOT
+
+READY = "secretary_language: English\ncity: London\ntimezone: Europe/London\nnews_country: GB\nsecretary_name: Mira\n"
+WAITING = "c" * 32
+REPLY = "Synthetic reply. Your text stays text"
 
 
 def watch(page):
     errors = []
-    page.on('pageerror', lambda error: errors.append(str(error)))
+    page.on("pageerror", lambda error: errors.append(str(error)))
     return errors
 
 
 def chat_id(page):
-    return page.evaluate('''() => {
+    return page.evaluate("""() => {
       const key = Object.keys(sessionStorage).find(key => key.startsWith('goodmorning.chat.workspace.'));
       return key && JSON.parse(sessionStorage.getItem(key)).chat;
-    }''')
+    }""")
 
 
 def age_absence(page, milliseconds):
-    page.evaluate('''milliseconds => {
+    page.evaluate(
+        """milliseconds => {
       const key = Object.keys(sessionStorage).find(key => key.startsWith('goodmorning.chat.workspace.'));
       const saved = JSON.parse(sessionStorage.getItem(key));
       saved.away = Date.now() - milliseconds;
       sessionStorage.setItem(key, JSON.stringify(saved));
-    }''', milliseconds)
+    }""",
+        milliseconds,
+    )
 
 
 def send(page, text):
-    page.locator('#quick-chat-text').fill(text)
-    page.locator('#quick-chat-text').press('Enter')
-    expect(page.locator('#quick-chat-messages')).to_contain_text(text)
-    expect(page.locator('#quick-chat-messages')).to_contain_text(REPLY)
-    expect(page.locator('#quick-chat-send')).to_be_disabled()
+    page.locator("#quick-chat-text").fill(text)
+    page.locator("#quick-chat-text").press("Enter")
+    expect(page.locator("#quick-chat-messages")).to_contain_text(text)
+    expect(page.locator("#quick-chat-messages")).to_contain_text(REPLY)
+    expect(page.locator("#quick-chat-send")).to_be_disabled()
 
 
 def check_flow(browser, address):
-    page = browser.new_page(viewport={'width': 1440, 'height': 900})
+    page = browser.new_page(viewport={"width": 1440, "height": 900})
     errors = watch(page)
-    page.goto(address + '/chat')
-    expect(page.locator('#quick-chat')).to_have_count(0)
-    for path in ('/gm', '/gn', '/schedule'):
+    page.goto(address + "/chat")
+    expect(page.locator("#quick-chat")).to_have_count(0)
+    for path in ("/gm", "/gn", "/schedule"):
         page.goto(address + path)
-        expect(page.locator('#quick-chat-launcher')).to_be_visible()
-        expect(page.locator('#quick-chat-launcher')).to_contain_text('Ask Mira')
+        expect(page.locator("#quick-chat-launcher")).to_be_visible()
+        expect(page.locator("#quick-chat-launcher")).to_contain_text("Ask Mira")
     # Start on Schedule; the reply renders as text, not markup.
-    page.locator('#quick-chat-launcher').click()
-    expect(page.locator('#quick-chat-window')).to_be_visible()
-    expect(page.locator('#quick-chat-text')).to_be_focused()
-    expect(page.locator('#quick-chat-empty')).to_be_visible()
+    page.locator("#quick-chat-launcher").click()
+    expect(page.locator("#quick-chat-window")).to_be_visible()
+    expect(page.locator("#quick-chat-text")).to_be_focused()
+    expect(page.locator("#quick-chat-empty")).to_be_visible()
     # The empty state shows the secretary's desk; the header names only the secretary, not the usual mode.
-    page.wait_for_function("() => document.querySelector('#quick-chat-empty .quick-chat-figure').naturalWidth > 0")
-    expect(page.locator('#quick-chat-mode')).to_have_text('Mira')
+    page.wait_for_function(
+        "() => document.querySelector('#quick-chat-empty .quick-chat-figure').naturalWidth > 0"
+    )
+    expect(page.locator("#quick-chat-mode")).to_have_text("Mira")
     # The message shows while its send is still in flight; the delivered turn replaces it.
     held = []
-    page.route('**/api/chats', lambda route: held.append(route) if route.request.method == 'POST' and not held
-               else route.fallback())
-    page.locator('#quick-chat-text').fill('PRIVATE quick question about Thursday')
-    page.locator('#quick-chat-text').press('Enter')
-    expect(page.locator('.quick-chat-message.user.pending')).to_have_text('PRIVATE quick question about Thursday')
+    page.route(
+        "**/api/chats",
+        lambda route: (
+            held.append(route)
+            if route.request.method == "POST" and not held
+            else route.fallback()
+        ),
+    )
+    page.locator("#quick-chat-text").fill("PRIVATE quick question about Thursday")
+    page.locator("#quick-chat-text").press("Enter")
+    expect(page.locator(".quick-chat-message.user.pending")).to_have_text(
+        "PRIVATE quick question about Thursday"
+    )
     while not held:
         page.wait_for_timeout(50)
     held[0].fallback()
-    expect(page.locator('#quick-chat-messages')).to_contain_text(REPLY)
-    expect(page.locator('.quick-chat-message.user')).to_have_count(1)
-    expect(page.locator('.quick-chat-message.pending')).to_have_count(0)
-    assert page.locator('#quick-chat-messages img').count() == 0
+    expect(page.locator("#quick-chat-messages")).to_contain_text(REPLY)
+    expect(page.locator(".quick-chat-message.user")).to_have_count(1)
+    expect(page.locator(".quick-chat-message.pending")).to_have_count(0)
+    assert page.locator("#quick-chat-messages img").count() == 0
     first = chat_id(page)
-    assert first and 'PRIVATE' not in page.evaluate('JSON.stringify(sessionStorage)')
+    assert first and "PRIVATE" not in page.evaluate("JSON.stringify(sessionStorage)")
     # Another desk page in this tab reopens the same conversation.
     page.locator('.edition-switch a[href="/gm"]').click()
-    expect(page.locator('#quick-chat-window')).to_be_visible()
-    expect(page.locator('#quick-chat-messages')).to_contain_text('PRIVATE quick question about Thursday')
-    expect(page.locator('#quick-chat-open')).to_have_attribute('href', '/chat?id=' + first)
+    expect(page.locator("#quick-chat-window")).to_be_visible()
+    expect(page.locator("#quick-chat-messages")).to_contain_text(
+        "PRIVATE quick question about Thursday"
+    )
+    expect(page.locator("#quick-chat-open")).to_have_attribute(
+        "href", "/chat?id=" + first
+    )
     # The jump opens this exact conversation on the Secretary page.
-    page.locator('#quick-chat-open').click()
-    expect(page).to_have_url(address + '/chat?id=' + first)
-    expect(page.locator('#chat-messages')).to_contain_text('PRIVATE quick question about Thursday')
+    page.locator("#quick-chat-open").click()
+    expect(page).to_have_url(address + "/chat?id=" + first)
+    expect(page.locator("#chat-messages")).to_contain_text(
+        "PRIVATE quick question about Thursday"
+    )
     # A conversation chosen on the Secretary page follows to the quick chat.
-    page.locator('#new-conversation').click()
-    page.locator('#chat-text').fill('Secretary page plan for Friday')
-    page.locator('#chat-text').press('Enter')
-    expect(page.locator('#chat-messages')).to_contain_text(REPLY)
-    second = page.evaluate('chat')
+    page.locator("#new-conversation").click()
+    page.locator("#chat-text").fill("Secretary page plan for Friday")
+    page.locator("#chat-text").press("Enter")
+    expect(page.locator("#chat-messages")).to_contain_text(REPLY)
+    second = page.evaluate("chat")
     page.locator('.edition-switch a[href="/schedule"]').click()
-    expect(page.locator('#quick-chat-window')).to_be_visible()
-    expect(page.locator('#quick-chat-messages')).to_contain_text('Secretary page plan for Friday')
+    expect(page.locator("#quick-chat-window")).to_be_visible()
+    expect(page.locator("#quick-chat-messages")).to_contain_text(
+        "Secretary page plan for Friday"
+    )
     assert chat_id(page) == second != first
     # Minimize with Escape; focus returns and the closed state follows navigation.
-    page.locator('#quick-chat-text').focus(); page.keyboard.press('Escape')
-    expect(page.locator('#quick-chat-window')).to_be_hidden()
-    expect(page.locator('#quick-chat-launcher')).to_be_focused()
-    page.goto(address + '/gn')
-    expect(page.locator('#quick-chat-launcher')).to_be_visible()
-    expect(page.locator('#quick-chat-window')).to_be_hidden()
+    page.locator("#quick-chat-text").focus()
+    page.keyboard.press("Escape")
+    expect(page.locator("#quick-chat-window")).to_be_hidden()
+    expect(page.locator("#quick-chat-launcher")).to_be_focused()
+    page.goto(address + "/gn")
+    expect(page.locator("#quick-chat-launcher")).to_be_visible()
+    expect(page.locator("#quick-chat-window")).to_be_hidden()
     # New conversation from the quick chat becomes the tab's current one.
-    page.locator('#quick-chat-launcher').click()
-    page.locator('#quick-chat-new').click()
-    expect(page.locator('#quick-chat-empty')).to_be_visible()
-    expect(page.locator('#quick-chat-open')).to_have_attribute('href', '/chat')
-    send(page, 'A brand new quick thread')
+    page.locator("#quick-chat-launcher").click()
+    page.locator("#quick-chat-new").click()
+    expect(page.locator("#quick-chat-empty")).to_be_visible()
+    expect(page.locator("#quick-chat-open")).to_have_attribute("href", "/chat")
+    send(page, "A brand new quick thread")
     third = chat_id(page)
     assert third not in (first, second)
     # Settled conversations open fresh after 15 minutes away, with a way back.
-    page.locator('#quick-chat-minimize').click()
+    page.locator("#quick-chat-minimize").click()
     age_absence(page, 15 * 60 * 1000)
-    page.goto(address + '/schedule')
-    page.locator('#quick-chat-launcher').click()
-    expect(page.locator('#quick-chat-resume')).to_be_visible()
-    expect(page.locator('#quick-chat-empty')).to_be_visible()
-    page.locator('#quick-chat-resume-link').click()
-    expect(page.locator('#quick-chat-messages')).to_contain_text('A brand new quick thread')
+    page.goto(address + "/schedule")
+    page.locator("#quick-chat-launcher").click()
+    expect(page.locator("#quick-chat-resume")).to_be_visible()
+    expect(page.locator("#quick-chat-empty")).to_be_visible()
+    page.locator("#quick-chat-resume-link").click()
+    expect(page.locator("#quick-chat-messages")).to_contain_text(
+        "A brand new quick thread"
+    )
     # A Secretary page restored from the back/forward cache follows the quick chat's choice.
-    page.goto(address + '/chat?id=' + first)
-    expect(page.locator('#chat-messages')).to_contain_text('PRIVATE quick question about Thursday')
-    page.evaluate('''id => {
+    page.goto(address + "/chat?id=" + first)
+    expect(page.locator("#chat-messages")).to_contain_text(
+        "PRIVATE quick question about Thursday"
+    )
+    page.evaluate(
+        """id => {
       const key = Object.keys(sessionStorage).find(key => key.startsWith('goodmorning.chat.workspace.'));
       sessionStorage.setItem(key, JSON.stringify({chat: id, resume: null, away: null, draft: false}));
       dispatchEvent(new PageTransitionEvent('pageshow', {persisted: true}));
-    }''', third)
-    expect(page).to_have_url(address + '/chat?id=' + third)
-    expect(page.locator('#chat-messages')).to_contain_text('A brand new quick thread')
+    }""",
+        third,
+    )
+    expect(page).to_have_url(address + "/chat?id=" + third)
+    expect(page.locator("#chat-messages")).to_contain_text("A brand new quick thread")
     # An unsent quick draft asks before leaving and is never stored.
-    page.goto(address + '/schedule')
-    expect(page.locator('#quick-chat-window')).to_be_visible()
-    page.locator('#quick-chat-text').fill('PRIVATE unsent draft')
-    page.once('dialog', lambda dialog: dialog.dismiss())
+    page.goto(address + "/schedule")
+    expect(page.locator("#quick-chat-window")).to_be_visible()
+    page.locator("#quick-chat-text").fill("PRIVATE unsent draft")
+    page.once("dialog", lambda dialog: dialog.dismiss())
     page.locator('.edition-switch a[href="/gm"]').click(no_wait_after=True)
-    expect(page).to_have_url(address + '/schedule')
-    assert 'PRIVATE' not in page.evaluate('JSON.stringify(sessionStorage)')
-    page.locator('#quick-chat-text').fill('')
+    expect(page).to_have_url(address + "/schedule")
+    assert "PRIVATE" not in page.evaluate("JSON.stringify(sessionStorage)")
+    page.locator("#quick-chat-text").fill("")
     assert not errors, errors
     page.close()
-    return {'conversations': 3, 'pages': ['/gm', '/gn', '/schedule']}
+    return {"conversations": 3, "pages": ["/gm", "/gn", "/schedule"]}
 
 
 def check_waiting(browser, address, artifacts):
-    page = browser.new_page(viewport={'width': 1440, 'height': 900})
+    page = browser.new_page(viewport={"width": 1440, "height": 900})
     errors = watch(page)
-    form = {'id': 'frm_quick', 'title': 'Which afternoon works?', 'fields': [{'key': 'day', 'title': 'Day', 'type': 'multiselect',
-            'required': True, 'minItems': 1, 'maxItems': 1, 'options': [{'value': 'thu', 'label': 'Thursday'}, {'value': 'fri', 'label': 'Friday'}]}]}
-    pending = {'forms': [form], 'permissions': []}
-    page.route(f'**/api/chats/{WAITING}**', lambda route: route.fulfill(json={'chat': WAITING, 'mode': 'todo', 'state': 'waiting',
-        'language': 'en', 'label': 'Your secretary needs your answer', **pending,
-        'messages': [{'id': 'm1', 'role': 'user', 'text': 'Book the dentist'},
-                     {'id': 'm2', 'role': 'assistant', 'kind': 'action', 'action': {'target': 'task', 'operation': 'added'}, 'text': 'Dentist'}]}))
-    page.goto(address + '/schedule')
-    page.evaluate('''id => {
+    form = {
+        "id": "frm_quick",
+        "title": "Which afternoon works?",
+        "fields": [
+            {
+                "key": "day",
+                "title": "Day",
+                "type": "multiselect",
+                "required": True,
+                "minItems": 1,
+                "maxItems": 1,
+                "options": [
+                    {"value": "thu", "label": "Thursday"},
+                    {"value": "fri", "label": "Friday"},
+                ],
+            }
+        ],
+    }
+    pending = {"forms": [form], "permissions": []}
+    page.route(
+        f"**/api/chats/{WAITING}**",
+        lambda route: route.fulfill(
+            json={
+                "chat": WAITING,
+                "mode": "todo",
+                "state": "waiting",
+                "language": "en",
+                "label": "Your secretary needs your answer",
+                **pending,
+                "messages": [
+                    {"id": "m1", "role": "user", "text": "Book the dentist"},
+                    {
+                        "id": "m2",
+                        "role": "assistant",
+                        "kind": "action",
+                        "action": {"target": "task", "operation": "added"},
+                        "text": "Dentist",
+                    },
+                ],
+            }
+        ),
+    )
+    page.goto(address + "/schedule")
+    page.evaluate(
+        """id => {
       const key = 'goodmorning.chat.workspace.' + JSON.parse(document.querySelector('#quick-chat').dataset.config).workspaceScope;
       sessionStorage.setItem(key, JSON.stringify({chat: id, resume: null, away: null, draft: false}));
-    }''', WAITING)
+    }""",
+        WAITING,
+    )
     page.reload()
-    expect(page.locator('#quick-chat-dot')).to_have_attribute('data-state', 'waiting')
-    expect(page.locator('#quick-chat-launcher')).to_have_attribute('aria-label', 'Ask Mira · Your secretary needs your answer')
-    page.locator('#quick-chat-launcher').click()
-    expect(page.locator('#quick-chat-questions')).to_contain_text('Which afternoon works?')
-    expect(page.locator('#quick-chat-messages')).to_contain_text('Task added')
-    expect(page.locator('#quick-chat-mode')).to_contain_text('To-do')
+    expect(page.locator("#quick-chat-dot")).to_have_attribute("data-state", "waiting")
+    expect(page.locator("#quick-chat-launcher")).to_have_attribute(
+        "aria-label", "Ask Mira · Your secretary needs your answer"
+    )
+    page.locator("#quick-chat-launcher").click()
+    expect(page.locator("#quick-chat-questions")).to_contain_text(
+        "Which afternoon works?"
+    )
+    expect(page.locator("#quick-chat-messages")).to_contain_text("Task added")
+    expect(page.locator("#quick-chat-mode")).to_contain_text("To-do")
     # A new message skips a waiting question; only a permission keeps the composer closed.
-    expect(page.locator('#quick-chat-text')).to_be_enabled()
-    expect(page.locator('#quick-chat-dot')).to_be_hidden()
-    for edition in ('gm', 'gn'):
-        page.evaluate('edition => { document.documentElement.dataset.edition = edition; }', edition)
-        page.locator('#quick-chat-window').screenshot(path=str(artifacts / f'quick-chat-waiting-{edition}.png'))
-    pending.update(forms=[], permissions=[{'id': 'per_quick', 'action': 'Save the dentist task', 'resources': ['Synthetic task']}])
+    expect(page.locator("#quick-chat-text")).to_be_enabled()
+    expect(page.locator("#quick-chat-dot")).to_be_hidden()
+    for edition in ("gm", "gn"):
+        page.evaluate(
+            "edition => { document.documentElement.dataset.edition = edition; }",
+            edition,
+        )
+        page.locator("#quick-chat-window").screenshot(
+            path=str(artifacts / f"quick-chat-waiting-{edition}.png")
+        )
+    pending.update(
+        forms=[],
+        permissions=[
+            {
+                "id": "per_quick",
+                "action": "Save the dentist task",
+                "resources": ["Synthetic task"],
+            }
+        ],
+    )
     page.reload()
-    expect(page.locator('#quick-chat-questions')).to_contain_text('Save the dentist task')
-    expect(page.locator('#quick-chat-text')).to_be_disabled()
+    expect(page.locator("#quick-chat-questions")).to_contain_text(
+        "Save the dentist task"
+    )
+    expect(page.locator("#quick-chat-text")).to_be_disabled()
     assert not errors, errors
     page.close()
 
 
 # Cards stack down the page, so on desktop a button sharing any column with a card covers it at some scroll position (#259).
-CLEAR_OF_CARDS = '''selector => { const button = document.querySelector(selector).getBoundingClientRect();
+CLEAR_OF_CARDS = """selector => { const button = document.querySelector(selector).getBoundingClientRect();
   return [...document.querySelectorAll('.briefing-section')].every(card => {
-    const box = card.getBoundingClientRect(); return box.right <= button.left || button.right <= box.left; }); }'''
+    const box = card.getBoundingClientRect(); return box.right <= button.left || button.right <= box.left; }); }"""
 
 
 def check_layouts(browser, address, runtime, artifacts):
-    sys.path.insert(0, str(REPO / 'src'))
+    sys.path.insert(0, str(REPO / "src"))
     from goodmorning.briefings.briefing_day import briefing_day
     from goodmorning.briefings.briefing_document import encode
-    daily = runtime / 'daily'; daily.mkdir(exist_ok=True)
-    document = encode({'v': 1, 'lang': 'en', 'greeting': 'Synthetic layout test.', 'opening': 'Synthetic records.',
-                       'sections': [['notes', [['p', 'Synthetic reading content. ' * 30]] * 3, '', f'Synthetic section {index}'] for index in range(3)]})
-    saved = [daily / f'{briefing_day("Europe/London")}.{kind}.json' for kind in ('gm', 'gn')]
-    for path in saved: path.write_text(document)
+
+    daily = runtime / "daily"
+    daily.mkdir(exist_ok=True)
+    document = encode(
+        {
+            "v": 1,
+            "lang": "en",
+            "greeting": "Synthetic layout test.",
+            "opening": "Synthetic records.",
+            "sections": [
+                [
+                    "notes",
+                    [["p", "Synthetic reading content. " * 30]] * 3,
+                    "",
+                    f"Synthetic section {index}",
+                ]
+                for index in range(3)
+            ],
+        }
+    )
+    saved = [
+        daily / f"{briefing_day('Europe/London')}.{kind}.json" for kind in ("gm", "gn")
+    ]
+    for path in saved:
+        path.write_text(document)
     results = []
     for width, height in ((1440, 900), (1024, 700), (390, 844), (320, 640)):
-        for language, kind in (('en', 'gm'), ('zh-CN', 'gm'), ('en', 'gn'), ('zh-CN', 'gn')):
-            page = browser.new_page(viewport={'width': width, 'height': height}, has_touch=width < 700)
+        for language, kind in (
+            ("en", "gm"),
+            ("zh-CN", "gm"),
+            ("en", "gn"),
+            ("zh-CN", "gn"),
+        ):
+            page = browser.new_page(
+                viewport={"width": width, "height": height}, has_touch=width < 700
+            )
             errors = watch(page)
-            page.goto(address + '/' + kind)
-            csrf = page.evaluate("JSON.parse(document.querySelector('#language-config').dataset.config).csrf")
-            page.request.post(address + '/api/language', data={'language': language}, headers={'X-Briefing-CSRF': csrf, 'Origin': address})
+            page.goto(address + "/" + kind)
+            csrf = page.evaluate(
+                "JSON.parse(document.querySelector('#language-config').dataset.config).csrf"
+            )
+            page.request.post(
+                address + "/api/language",
+                data={"language": language},
+                headers={"X-Briefing-CSRF": csrf, "Origin": address},
+            )
             page.reload()
-            launcher = page.locator('#quick-chat-launcher')
+            launcher = page.locator("#quick-chat-launcher")
             expect(launcher).to_be_visible()
-            if language == 'zh-CN':
-                expect(page.locator('#quick-chat')).to_have_attribute('aria-label', '快捷对话')
-                expect(launcher).to_have_attribute('aria-label', '问问Mira')
+            if language == "zh-CN":
+                expect(page.locator("#quick-chat")).to_have_attribute(
+                    "aria-label", "快捷对话"
+                )
+                expect(launcher).to_have_attribute("aria-label", "问问Mira")
             if width < 700:
                 # Reading down tucks the floating buttons away; a pause brings them back.
                 page.mouse.wheel(0, 300)
-                expect(page.locator('html.floaters-tucked')).to_have_count(1)
-                expect(launcher).to_have_css('opacity', '0')
-                expect(page.locator('html.floaters-tucked')).to_have_count(0)
-                expect(launcher).to_have_css('opacity', '1')
+                expect(page.locator("html.floaters-tucked")).to_have_count(1)
+                expect(launcher).to_have_css("opacity", "0")
+                expect(page.locator("html.floaters-tucked")).to_have_count(0)
+                expect(launcher).to_have_css("opacity", "1")
                 page.mouse.wheel(0, 300)
-                expect(page.locator('html.floaters-tucked')).to_have_count(1)
-                page.mouse.wheel(0, -200)  # Scrolling back up returns them before the pause.
-                expect(page.locator('html.floaters-tucked')).to_have_count(0, timeout=600)
-            page.mouse.wheel(0, 4000); page.wait_for_timeout(400)
-            expect(page.locator('html.floaters-tucked')).to_have_count(0)  # Phones bring tucked buttons back after a pause.
-            launcher.evaluate('el => Promise.all(el.getAnimations().map(a => a.finished))')
+                expect(page.locator("html.floaters-tucked")).to_have_count(1)
+                page.mouse.wheel(
+                    0, -200
+                )  # Scrolling back up returns them before the pause.
+                expect(page.locator("html.floaters-tucked")).to_have_count(
+                    0, timeout=600
+                )
+            page.mouse.wheel(0, 4000)
+            page.wait_for_timeout(400)
+            expect(page.locator("html.floaters-tucked")).to_have_count(
+                0
+            )  # Phones bring tucked buttons back after a pause.
+            launcher.evaluate(
+                "el => Promise.all(el.getAnimations().map(a => a.finished))"
+            )
             box = launcher.bounding_box()
-            assert box['x'] >= 0 and box['x'] + box['width'] <= width and box['y'] + box['height'] <= height, box
-            for other in ('.back-to-top.is-visible', '#mobile-sections'):
-                if page.locator(other).count() and page.locator(other).first.is_visible():
+            assert (
+                box["x"] >= 0
+                and box["x"] + box["width"] <= width
+                and box["y"] + box["height"] <= height
+            ), box
+            for other in (".back-to-top.is-visible", "#mobile-sections"):
+                if (
+                    page.locator(other).count()
+                    and page.locator(other).first.is_visible()
+                ):
                     near = page.locator(other).first.bounding_box()
-                    overlap = not (near['x'] + near['width'] <= box['x'] or box['x'] + box['width'] <= near['x']
-                                   or near['y'] + near['height'] <= box['y'] or box['y'] + box['height'] <= near['y'])
+                    overlap = not (
+                        near["x"] + near["width"] <= box["x"]
+                        or box["x"] + box["width"] <= near["x"]
+                        or near["y"] + near["height"] <= box["y"]
+                        or box["y"] + box["height"] <= near["y"]
+                    )
                     assert not overlap, (other, width, near, box)
             if width > 700:
-                expect(page.locator('.back-to-top.is-visible')).to_be_visible()
-                for button in ('#quick-chat-launcher', '.back-to-top'):
-                    assert page.evaluate(CLEAR_OF_CARDS, button), (button, width, language, kind)
+                expect(page.locator(".back-to-top.is-visible")).to_be_visible()
+                for button in ("#quick-chat-launcher", ".back-to-top"):
+                    assert page.evaluate(CLEAR_OF_CARDS, button), (
+                        button,
+                        width,
+                        language,
+                        kind,
+                    )
                 # The column's width is fixed: it never reflows as the panel opens or the label grows (#274).
-                column = page.locator('.briefing-section').first.bounding_box()
-            page.screenshot(path=str(artifacts / f'quick-chat-closed-{width}-{language}-{kind}.png'))
+                column = page.locator(".briefing-section").first.bounding_box()
+            page.screenshot(
+                path=str(artifacts / f"quick-chat-closed-{width}-{language}-{kind}.png")
+            )
             launcher.click()
-            page.evaluate("Promise.all(document.querySelector('#quick-chat-window').getAnimations().map(a => a.finished))")
-            panel = page.locator('#quick-chat-window').bounding_box()
-            assert panel['x'] >= 0 and panel['x'] + panel['width'] <= width and panel['y'] >= 0 and panel['y'] + panel['height'] <= height, panel
-            expect(page.locator('#quick-chat-compose')).to_be_in_viewport()
-            page.screenshot(path=str(artifacts / f'quick-chat-open-{width}-{language}-{kind}.png'))
+            page.evaluate(
+                "Promise.all(document.querySelector('#quick-chat-window').getAnimations().map(a => a.finished))"
+            )
+            panel = page.locator("#quick-chat-window").bounding_box()
+            assert (
+                panel["x"] >= 0
+                and panel["x"] + panel["width"] <= width
+                and panel["y"] >= 0
+                and panel["y"] + panel["height"] <= height
+            ), panel
+            expect(page.locator("#quick-chat-compose")).to_be_in_viewport()
+            page.screenshot(
+                path=str(artifacts / f"quick-chat-open-{width}-{language}-{kind}.png")
+            )
             if width > 700:
-                assert page.locator('.briefing-section').first.bounding_box() == column, (width, language, kind)
-            page.locator('#quick-chat-minimize').click()
+                assert (
+                    page.locator(".briefing-section").first.bounding_box() == column
+                ), (width, language, kind)
+            page.locator("#quick-chat-minimize").click()
             if width > 700:
                 expect(launcher).to_be_visible()
                 # A long secretary name truncates instead of pushing the launcher over the cards.
-                page.locator('#quick-chat-launcher-label').evaluate("label => label.textContent = 'Ask ' + 'Alexandrina '.repeat(4)")
-                page.evaluate('new Promise(done => requestAnimationFrame(() => requestAnimationFrame(done)))')
-                for button in ('#quick-chat-launcher', '.back-to-top'):
-                    assert page.evaluate(CLEAR_OF_CARDS, button), (button, width, language, kind)
-                assert page.locator('.briefing-section').first.bounding_box() == column, (width, language, kind)
+                page.locator("#quick-chat-launcher-label").evaluate(
+                    "label => label.textContent = 'Ask ' + 'Alexandrina '.repeat(4)"
+                )
+                page.evaluate(
+                    "new Promise(done => requestAnimationFrame(() => requestAnimationFrame(done)))"
+                )
+                for button in ("#quick-chat-launcher", ".back-to-top"):
+                    assert page.evaluate(CLEAR_OF_CARDS, button), (
+                        button,
+                        width,
+                        language,
+                        kind,
+                    )
+                assert (
+                    page.locator(".briefing-section").first.bounding_box() == column
+                ), (width, language, kind)
                 # The corner is reserved before the script reveals quick chat, so its arrival moves nothing.
-                page.locator('#quick-chat').evaluate('root => root.hidden = true')
-                assert page.locator('.briefing-section').first.bounding_box() == column, (width, language, kind)
-            page.request.post(address + '/api/language', data={'language': 'en'}, headers={'X-Briefing-CSRF': csrf, 'Origin': address})
+                page.locator("#quick-chat").evaluate("root => root.hidden = true")
+                assert (
+                    page.locator(".briefing-section").first.bounding_box() == column
+                ), (width, language, kind)
+            page.request.post(
+                address + "/api/language",
+                data={"language": "en"},
+                headers={"X-Briefing-CSRF": csrf, "Origin": address},
+            )
             assert not errors, errors
-            results.append(f'{width}x{height}-{language}-{kind}')
+            results.append(f"{width}x{height}-{language}-{kind}")
             page.close()
-    for path in saved: path.unlink()
+    for path in saved:
+        path.unlink()
     return results
 
 
-PNG = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4v+HIfwAImANzCMzkcwAAAABJRU5ErkJggg=='
+PNG = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4v+HIfwAImANzCMzkcwAAAABJRU5ErkJggg=="
 
 
-def file_event(page, kind, target, name, mime='image/png'):
+def file_event(page, kind, target, name, mime="image/png"):
     """Dispatch a real paste or drop carrying a file, as the browser does for a copied screenshot."""
-    page.evaluate("""([kind, target, name, mime, data]) => {
+    page.evaluate(
+        """([kind, target, name, mime, data]) => {
       const transfer = new DataTransfer();
       const bytes = Uint8Array.from(atob(data), c => c.charCodeAt(0));
       transfer.items.add(new File([bytes], name, {type: mime}));
@@ -279,138 +462,186 @@ def file_event(page, kind, target, name, mime='image/png'):
       if (kind === 'paste') node.dispatchEvent(new ClipboardEvent('paste', {clipboardData: transfer, bubbles: true, cancelable: true}));
       else for (const type of ['dragenter', 'dragover', 'drop'])
         node.dispatchEvent(new DragEvent(type, {dataTransfer: transfer, bubbles: true, cancelable: true}));
-    }""", [kind, target, name, mime, PNG])
+    }""",
+        [kind, target, name, mime, PNG],
+    )
 
 
 def check_attachments(browser, address, artifacts):
-    page = browser.new_page(viewport={'width': 1440, 'height': 900})
+    page = browser.new_page(viewport={"width": 1440, "height": 900})
     errors = watch(page)
-    page.goto(address + '/schedule')
-    page.locator('#quick-chat-launcher').click()
-    page.locator('#quick-chat-new').click()
-    expect(page.locator('#quick-chat-send')).to_be_disabled()
-    note = page.locator('#quick-chat-upload-note')
-    expect(page.locator('#quick-chat-attach')).to_have_attribute('aria-describedby', 'quick-chat-upload-note')
-    assert note.evaluate('node => node.getBoundingClientRect().width') <= 1
+    page.goto(address + "/schedule")
+    page.locator("#quick-chat-launcher").click()
+    page.locator("#quick-chat-new").click()
+    expect(page.locator("#quick-chat-send")).to_be_disabled()
+    note = page.locator("#quick-chat-upload-note")
+    expect(page.locator("#quick-chat-attach")).to_have_attribute(
+        "aria-describedby", "quick-chat-upload-note"
+    )
+    assert note.evaluate("node => node.getBoundingClientRect().width") <= 1
     # A pasted screenshot becomes an attachment; a file-only message can be sent.
-    file_event(page, 'paste', '#quick-chat-text', 'screenshot.png')
-    chips = page.locator('#quick-chat-attachments .quick-chat-chip')
+    file_event(page, "paste", "#quick-chat-text", "screenshot.png")
+    chips = page.locator("#quick-chat-attachments .quick-chat-chip")
     expect(chips).to_have_count(1)
-    expect(chips.first).to_contain_text('screenshot.png')
-    expect(chips.first.locator('img')).to_have_count(1)
-    page.wait_for_function("() => document.querySelector('#quick-chat-attachments img')?.naturalWidth > 0")
-    expect(page.locator('#quick-chat-send')).to_be_enabled()
+    expect(chips.first).to_contain_text("screenshot.png")
+    expect(chips.first.locator("img")).to_have_count(1)
+    page.wait_for_function(
+        "() => document.querySelector('#quick-chat-attachments img')?.naturalWidth > 0"
+    )
+    expect(page.locator("#quick-chat-send")).to_be_enabled()
     # Dropping onto the panel and the attach button add more; × removes one.
-    file_event(page, 'drop', '#quick-chat-scroll', 'dropped.png')
-    page.locator('#quick-chat-files').set_input_files({'name': 'notes.txt', 'mimeType': 'text/plain', 'buffer': b'Synthetic notes'})
+    file_event(page, "drop", "#quick-chat-scroll", "dropped.png")
+    page.locator("#quick-chat-files").set_input_files(
+        {"name": "notes.txt", "mimeType": "text/plain", "buffer": b"Synthetic notes"}
+    )
     expect(chips).to_have_count(3)
-    expect(note).to_have_text('Up to 50 MB · kept 30 days')
-    assert note.evaluate('node => node.getBoundingClientRect().width') > 50
-    page.screenshot(path=str(artifacts / 'quick-chat-attachments.png'))
-    chips.nth(1).locator('button').click()
+    expect(note).to_have_text("Up to 50 MB · kept 30 days")
+    assert note.evaluate("node => node.getBoundingClientRect().width") > 50
+    page.screenshot(path=str(artifacts / "quick-chat-attachments.png"))
+    chips.nth(1).locator("button").click()
     expect(chips).to_have_count(2)
-    page.locator('#quick-chat-text').press('Enter')
-    expect(page.locator('#quick-chat-messages')).to_contain_text('Synthetic attachment reply')
-    user = page.locator('.quick-chat-message.user').last
-    expect(user.locator('img')).to_have_count(1)
-    expect(user.locator('img')).to_have_attribute('src', re.compile(r'^(blob:|/api/chat-uploads/[a-f0-9]{32}/image)'))
-    user.locator('img').evaluate("image => image.complete ? image.naturalWidth : new Promise(done => image.onload = () => done(image.naturalWidth))")
-    expect(user).to_contain_text('notes.txt')
-    expect(page.locator('#quick-chat-attachments')).to_be_hidden()
-    expect(page.locator('#quick-chat-attachments .quick-chat-chip')).to_have_count(0)
+    page.locator("#quick-chat-text").press("Enter")
+    expect(page.locator("#quick-chat-messages")).to_contain_text(
+        "Synthetic attachment reply"
+    )
+    user = page.locator(".quick-chat-message.user").last
+    expect(user.locator("img")).to_have_count(1)
+    expect(user.locator("img")).to_have_attribute(
+        "src", re.compile(r"^(blob:|/api/chat-uploads/[a-f0-9]{32}/image)")
+    )
+    user.locator("img").evaluate(
+        "image => image.complete ? image.naturalWidth : new Promise(done => image.onload = () => done(image.naturalWidth))"
+    )
+    expect(user).to_contain_text("notes.txt")
+    expect(page.locator("#quick-chat-attachments")).to_be_hidden()
+    expect(page.locator("#quick-chat-attachments .quick-chat-chip")).to_have_count(0)
     # A file dropped outside the open panel never navigates away from the page.
     before = page.url
-    file_event(page, 'drop', 'main, body', 'stray.png')
+    file_event(page, "drop", "main, body", "stray.png")
     assert page.url == before
-    expect(page.locator('#quick-chat-attachments .quick-chat-chip')).to_have_count(0)
-    assert 'screenshot.png' not in page.evaluate('JSON.stringify(sessionStorage)')
+    expect(page.locator("#quick-chat-attachments .quick-chat-chip")).to_have_count(0)
+    assert "screenshot.png" not in page.evaluate("JSON.stringify(sessionStorage)")
     assert not errors, errors
     page.close()
 
 
 def check_reminder_cards(browser, address, runtime, artifacts):
     """A review link sends its starter line at once and keeps the draft; an idea card closes and reopens in place."""
-    sys.path.insert(0, str(REPO / 'src'))
+    sys.path.insert(0, str(REPO / "src"))
     from goodmorning.records.inbox_store import InboxStore, initialize
-    if not (runtime / 'inbox.sqlite').exists():
+
+    if not (runtime / "inbox.sqlite").exists():
         initialize(runtime)
     inbox = InboxStore(runtime, write=True)
     try:
-        idea = inbox.mutate('add', {'kind': 'idea', 'raw': 'Weekly mood chart'}, 'ses_test', 'browser-idea', '2026-10-13T13:00:00+01:00')['id']
+        idea = inbox.mutate(
+            "add",
+            {"kind": "idea", "raw": "Weekly mood chart"},
+            "ses_test",
+            "browser-idea",
+            "2026-10-13T13:00:00+01:00",
+        )["id"]
     finally:
         inbox.close()
-    page = browser.new_page(viewport={'width': 1440, 'height': 900})
+    page = browser.new_page(viewport={"width": 1440, "height": 900})
     errors = watch(page)
-    page.goto(address + '/gm')
+    page.goto(address + "/gm")
     # The fixture has no saved briefing, so the card a saved Reminders section renders is added to the page.
-    page.evaluate('''idea => {
+    page.evaluate(
+        """idea => {
       const list = document.createElement('ul'); list.className = 'decision-list section-body';
       list.innerHTML = `<li class="decision-card" data-entry="${idea}"><div class="decision-title">Weekly mood chart</div>
         <div class="decision-detail">A saved idea.</div><a class="decision-ask" href="/chat"
         data-quick-ask="Let’s look at “{title}” together." data-quick-ask-title="Weekly mood chart">Review with your secretary</a></li>`;
       document.querySelector('main').prepend(list);
       document.dispatchEvent(new Event('briefing:updated'));
-    }''', idea)
+    }""",
+        idea,
+    )
     card = page.locator(f'[data-entry="{idea}"]')
-    expect(card.locator('.idea-done')).to_be_visible()
-    card.screenshot(path=str(artifacts / 'idea-card-open.png'))
-    card.locator('.idea-done').click()
-    expect(card).to_have_class(re.compile('is-closed'))
-    expect(card.locator('.idea-closed')).to_be_visible()
-    expect(card.locator('.decision-ask')).to_be_hidden()
-    card.screenshot(path=str(artifacts / 'idea-card-closed.png'))
-    card.locator('.idea-undo').click()
-    expect(card.locator('.idea-done')).to_be_visible()
-    expect(card.locator('.decision-ask')).to_be_visible()
-    page.locator('#quick-chat-launcher').click()
-    page.locator('#quick-chat-text').fill('Half-written draft')
-    card.locator('.decision-ask').click()
-    expect(page.locator('#quick-chat-messages')).to_contain_text('Let’s look at “Weekly mood chart” together.')
-    expect(page.locator('#quick-chat-messages')).to_contain_text(REPLY)
-    expect(page.locator('#quick-chat-text')).to_have_value('Half-written draft')
+    expect(card.locator(".idea-done")).to_be_visible()
+    card.screenshot(path=str(artifacts / "idea-card-open.png"))
+    card.locator(".idea-done").click()
+    expect(card).to_have_class(re.compile("is-closed"))
+    expect(card.locator(".idea-closed")).to_be_visible()
+    expect(card.locator(".decision-ask")).to_be_hidden()
+    card.screenshot(path=str(artifacts / "idea-card-closed.png"))
+    card.locator(".idea-undo").click()
+    expect(card.locator(".idea-done")).to_be_visible()
+    expect(card.locator(".decision-ask")).to_be_visible()
+    page.locator("#quick-chat-launcher").click()
+    page.locator("#quick-chat-text").fill("Half-written draft")
+    card.locator(".decision-ask").click()
+    expect(page.locator("#quick-chat-messages")).to_contain_text(
+        "Let’s look at “Weekly mood chart” together."
+    )
+    expect(page.locator("#quick-chat-messages")).to_contain_text(REPLY)
+    expect(page.locator("#quick-chat-text")).to_have_value("Half-written draft")
     assert not errors, errors
     page.close()
     inbox = InboxStore(runtime)
     try:
-        return {'idea': inbox.show(idea)['status']}
+        return {"idea": inbox.show(idea)["status"]}
     finally:
         inbox.close()
 
 
 def check_setup_gate(browser, address, runtime):
-    profile = runtime / 'profile.md'
-    profile.write_text('secretary_language: English\n')
+    profile = runtime / "profile.md"
+    profile.write_text("secretary_language: English\n")
     page = browser.new_page()
     errors = watch(page)
-    page.goto(address + '/schedule')
-    page.wait_for_load_state('networkidle')
-    expect(page.locator('#quick-chat')).to_be_hidden()
+    page.goto(address + "/schedule")
+    page.wait_for_load_state("networkidle")
+    expect(page.locator("#quick-chat")).to_be_hidden()
     assert not errors, errors
     page.close()
     profile.write_text(READY)
 
 
 def main():
-    artifacts = Path(sys.argv[1]); artifacts.mkdir(parents=True, exist_ok=True, mode=0o700)
-    with tempfile.TemporaryDirectory(dir='/tmp/opencode' if Path('/tmp/opencode').is_dir() else None, prefix='gm-quick-chat-') as directory:
+    artifacts = Path(sys.argv[1])
+    artifacts.mkdir(parents=True, exist_ok=True, mode=0o700)
+    with tempfile.TemporaryDirectory(
+        dir=TEMP_ROOT, prefix="gm-quick-chat-"
+    ) as directory:
         runtime = Path(directory)
-        (runtime / 'profile.md').write_text(READY)
-        server = subprocess.Popen([sys.executable, str(REPO / 'tests/test_briefing_chat.py'), '--serve-fixture', directory],
-                                  stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        (runtime / "profile.md").write_text(READY)
+        server = subprocess.Popen(
+            [
+                sys.executable,
+                str(REPO / "tests/test_briefing_chat.py"),
+                "--serve-fixture",
+                directory,
+            ],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
         try:
-            address = server.stdout.readline().strip().removeprefix('Private live viewer: ')
+            address = (
+                server.stdout.readline().strip().removeprefix("Private live viewer: ")
+            )
             with sync_playwright() as playwright:
                 browser = playwright.chromium.launch()
-                report = {'flow': check_flow(browser, address), 'layouts': check_layouts(browser, address, runtime, artifacts), 'modelCalls': 0}
+                report = {
+                    "flow": check_flow(browser, address),
+                    "layouts": check_layouts(browser, address, runtime, artifacts),
+                    "modelCalls": 0,
+                }
                 check_waiting(browser, address, artifacts)
                 check_attachments(browser, address, artifacts)
-                report['reminderCards'] = check_reminder_cards(browser, address, runtime, artifacts)
+                report["reminderCards"] = check_reminder_cards(
+                    browser, address, runtime, artifacts
+                )
                 check_setup_gate(browser, address, runtime)
                 browser.close()
         finally:
-            server.terminate(); server.communicate(timeout=5)
-    (artifacts / 'result.json').write_text(json.dumps(report, indent=2))
+            server.terminate()
+            server.communicate(timeout=5)
+    (artifacts / "result.json").write_text(json.dumps(report, indent=2))
     print(json.dumps(report))
 
 
-if __name__ == '__main__': main()
+if __name__ == "__main__":
+    main()

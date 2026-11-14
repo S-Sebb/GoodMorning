@@ -10,7 +10,7 @@ themes, and record rendering are real. Theme image credits are in
 To refresh them, use the existing Playwright/Chromium environment and `ffmpeg`:
 
 ```sh
-python tests/browser/readme_demo.py /tmp/opencode/goodmorning-readme-demo
+python tests/browser/readme_demo.py ~/scratch/GoodMorning/<issue>/readme-demo
 ```
 
 The helper creates a disposable runtime outside the repository, permits only its

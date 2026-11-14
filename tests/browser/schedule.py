@@ -1,6 +1,6 @@
 """Optional real-browser weekly schedule checks, using only a synthetic runtime.
 
-python tests/browser/schedule.py --screenshots /tmp/opencode/schedule-shots
+python tests/browser/schedule.py --screenshots ~/scratch/GoodMorning/<issue>/schedule-shots
 python tests/browser/schedule.py --preview --port 18791
 """
 
