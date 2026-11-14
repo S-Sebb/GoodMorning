@@ -37,7 +37,7 @@ def main():
     args = parser.parse_args()
     trial = args.trial.resolve()
     output = args.output.resolve()
-    scratch = Path.home() / "scratch/GoodMorning"
+    scratch = (Path.home() / "scratch/GoodMorning").resolve()
     if not trial.is_relative_to(scratch) or not output.is_relative_to(scratch):
         parser.error(
             f"Use private synthetic trial/output directories beneath {scratch}"

@@ -27,8 +27,9 @@ from goodmorning.security.briefing_accounts import (
 from goodmorning.security.briefing_gateway import Gateway, handler_for
 from goodmorning.web.briefing_server import Chamber, serve_live
 
+# Resolved: ~/scratch is a symlink, and runtimes refuse symlinked paths.
 TEMP_ROOT = os.environ.get("GM_TEST_TMPDIR") or str(
-    Path.home() / "scratch/GoodMorning/tests"
+    (Path.home() / "scratch/GoodMorning/tests").resolve()
 )
 Path(TEMP_ROOT).mkdir(parents=True, exist_ok=True)
 
