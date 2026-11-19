@@ -238,6 +238,13 @@ release, pre-releases included, tagged `android-v<versionCode>` with a GitHub
 `.apk` asset (`app_release.py`). Phones never need GitHub's API, only the APK
 download.
 
+To install the app, people open `/app/download`, linked as "Download the Android
+app" on the sign-in page and in Account → Linked phones. It needs no sign-in.
+The server fetches the newest release's APK from GitHub once per build, keeps it
+in memory and serves it itself, so phones in mainland China, where GitHub is
+often unreachable, can still install the app. While GitHub fails, it keeps
+serving the last copy it has. The app's own updates still download from GitHub.
+
 The app asks its server at every launch (unless it asked in the last ten
 minutes) and from an hourly `JobScheduler` job that runs only when online. When
 it finds a higher build:
