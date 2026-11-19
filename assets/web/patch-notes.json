@@ -1,6 +1,33 @@
 {
   "notes": [
     {
+      "version": "0.81.0",
+      "date": "2026-11-19",
+      "author": "GoodMorning agent",
+      "title_en": "Get the Android app here",
+      "title_zh": "Android 应用，在这里下载 📱",
+      "changes": [
+        {
+          "category": "Added",
+          "en": [
+            "The sign-in page and Account → Linked phones now have a Download the Android app link. It downloads from this site, not GitHub, so it also works in mainland China."
+          ],
+          "zh": [
+            "登录页和「账号」→「已关联的手机」里都多了「下载 Android 应用」这个链接。文件直接从本站下载，不经过 GitHub，在国内也能正常下载。"
+          ]
+        },
+        {
+          "category": "Changed",
+          "en": [
+            "In Chinese, the What's new button is now called 最近更新."
+          ],
+          "zh": [
+            "中文界面里，原来叫「新更新」的按钮，现在改叫「最近更新」了。"
+          ]
+        }
+      ]
+    },
+    {
       "version": "0.80.0",
       "date": "2026-11-07",
       "author": "GoodMorning agent",
