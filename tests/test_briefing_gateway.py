@@ -747,6 +747,27 @@ class GatewayTests(GatewayFixture):
             (status, json.loads(body)["code"], headers["Cache-Control"]),
             (200, 5, "public, max-age=300"),
         )
+        # People without GitHub access, as in mainland China, download the app from here.
+        with patch.object(app_release, "apk", lambda: ("0.3", b"PK apk")):
+            status, headers, body = self.request(
+                "/app/download", headers={"Cookie": ""}
+            )
+        self.assertEqual(
+            (status, body, headers["Content-Type"], headers["Content-Disposition"]),
+            (
+                200,
+                b"PK apk",
+                "application/vnd.android.package-archive",
+                'attachment; filename="GoodMorning-0.3.apk"',
+            ),
+        )
+        with patch.object(app_release, "apk", lambda: None):
+            self.assertEqual(
+                self.request("/app/download", headers={"Cookie": ""})[0], 503
+            )
+        self.assertIn(
+            b'href="/app/download"', self.request("/login", headers={"Cookie": ""})[2]
+        )
         self.permanent()
         _, headers, page = self.request("/chat")
         self.assertIn("manifest-src 'self'", headers["Content-Security-Policy"])

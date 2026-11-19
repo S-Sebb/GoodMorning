@@ -2090,6 +2090,11 @@ def account_page(session, title, kind="gm"):
         + '</button></form><p id="account-error" role="alert"></p>'
         + "<noscript>Enable JavaScript to sign in or change your password.</noscript>"
         + ("" if login or temporary else '<a href="/">Back to briefing</a>')
+        + (
+            '<p><a href="/app/download">Download the Android app</a></p>'
+            if login
+            else ""
+        )
         + '<script src="/auth.js" defer></script></main></body></html>'
     ).encode()
 
@@ -2123,6 +2128,7 @@ def handler_for(gateway):
             resource=None,
             retry_after=None,
             owner=None,
+            attachment=None,
         ):
             if not isinstance(data, bytes):
                 if isinstance(data, dict) and isinstance(data.get("error"), str):
@@ -2170,6 +2176,10 @@ def handler_for(gateway):
                 self.send_header("ETag", etag)
             if owner:
                 self.send_header("X-GoodMorning-Owner", owner)
+            if attachment:
+                self.send_header(
+                    "Content-Disposition", f'attachment; filename="{attachment}"'
+                )
             if token is not None:
                 self.send_header(
                     "Set-Cookie",
@@ -2475,6 +2485,24 @@ def handler_for(gateway):
                 if path == "/api/app/release":
                     return self.respond(
                         app_release.latest(), cache="public, max-age=300"
+                    )
+                if path == "/app/download":
+                    # Served from here: phones in mainland China often cannot reach GitHub.
+                    copy = app_release.apk()
+                    if not copy:
+                        return self.respond(
+                            {
+                                "error": "The Android app can't be downloaded right now. Try again later."
+                            },
+                            503,
+                        )
+                    return self.respond(
+                        copy[1],
+                        mime="application/vnd.android.package-archive",
+                        cache="public, max-age=300",
+                        attachment="GoodMorning-"
+                        + re.sub(r"[^0-9A-Za-z.]", "", copy[0])
+                        + ".apk",
                     )
                 if path == "/api/release":
                     tag = 'W/"' + VERSION + '"'

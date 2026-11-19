@@ -380,7 +380,7 @@ def page(source, csrf, return_to="/", avatars=False):
     phones = (
         '<form id="app-link-form" class="language-toolbar app-link-settings" hidden>'
         '<h3 class="color-scheme-heading app-link-heading">Linked phones</h3>'
-        '<p class="notification-note">For Android home screen widgets. In the GoodMorning app, open Link this phone, then enter the code it shows.</p>'
+        '<p class="notification-note">For Android home screen widgets. In the GoodMorning app, open Link this phone, then enter the code it shows. <a href="/app/download">Download the Android app</a></p>'
         '<label for="app-link-code">Code from the app</label>'
         '<input id="app-link-code" name="code" autocomplete="off" autocapitalize="characters" spellcheck="false" inputmode="text" placeholder="ABCD-2345" required>'
         '<button type="submit">Link phone</button><ul id="app-links"></ul>'
