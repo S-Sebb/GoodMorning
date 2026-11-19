@@ -8,6 +8,7 @@
     <string name="server_checking">正在检查服务器…</string>
     <string name="server_error_address">请输入以 https:// 开头的网站地址。</string>
     <string name="server_error_unreachable">没能连上这个服务器。检查一下地址和网络，再试一次吧。</string>
+    <string name="server_error_insecure">没能和这个服务器建立安全连接。检查一下手机的日期和时间对不对；如果开着 VPN 或代理，先关掉再试一次吧。</string>
     <string name="server_error_unsupported">这个服务器暂时还不支持 GoodMorning 应用。检查一下地址，或者问问服务器的主人。</string>
     <string name="update_title">有可用更新</string>
     <string name="update_message">GoodMorning %1$s 已经就绪。更新会花一点时间；你的账号和记录都存在服务器上，不会改变。</string>
