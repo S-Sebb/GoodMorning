@@ -413,7 +413,7 @@ def run(artifacts):
                     for width in (320, 390, 1440):
                         other.set_viewport_size({"width": width, "height": 900})
                         no_overflow(other)
-                        labelled_header(other, ("设置", "账号", "新更新"))
+                        labelled_header(other, ("设置", "账号", "最近更新"))
                         expect(other.locator(".agenda-day").first).to_contain_text(
                             "明天"
                         )

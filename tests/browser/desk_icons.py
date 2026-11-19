@@ -192,10 +192,10 @@ def check(app, url, shots):
                         expect(notes).to_have_accessible_name(
                             "What’s new: view patch notes"
                             if language == "en"
-                            else "新更新：查看更新日志"
+                            else "最近更新：查看更新日志"
                         )
                         expect(notes.locator("span")).to_have_text(
-                            "What’s new" if language == "en" else "新更新"
+                            "What’s new" if language == "en" else "最近更新"
                         )
                         buttons = page.locator(
                             ".toolbar-row .menu > summary, #site-update-toggle"
