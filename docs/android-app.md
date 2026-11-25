@@ -306,3 +306,41 @@ The server picker refuses a server that does not serve the app's
 `assetlinks.json`. To test the update flow without publishing a release, point
 a temporary debug build's `RELEASES_URL` at a local feed. That needs a debug-only
 `usesCleartextTraffic` manifest overlay; remove both afterwards.
+
+## On yanglab16
+
+The paths above are nobara-pc's. yanglab16 has no `~/.local/share/goodmorning-android/`
+and no release keystore (never copy it there), so it runs unit tests and debug
+builds only; release APKs are built on nobara-pc. The interactive shells of this
+project already load `/home/tony/t3-apps/_shared/env.sh` (shared SDK,
+AVD and `adb`/`emulator` on `PATH`).
+
+- **JDK:** the default `java` is a JRE 25 without a compiler, so set
+  `JAVA_HOME` to the installed JDK 17 (the app targets Java 17).
+- **SDK:** the shared SDK has the emulator, platform tools and the API 36 image,
+  but not platform 36 or the build tools. Gradle downloads them into a writable
+  `ANDROID_HOME`, so build with a private SDK folder that holds only the shared
+  SDK's accepted licenses, and keep Gradle's cache off the small system disk.
+  Both go under `~/scratch/GoodMorning/`:
+
+  ```sh
+  mkdir -p ~/scratch/GoodMorning/android-sdk && cp -r /home/tony/t3-apps/_shared/android-sdk/licenses ~/scratch/GoodMorning/android-sdk/
+  export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
+  export ANDROID_HOME=~/scratch/GoodMorning/android-sdk ANDROID_SDK_ROOT=~/scratch/GoodMorning/android-sdk
+  export GRADLE_USER_HOME=~/scratch/GoodMorning/gradle
+  cd android && ./gradlew test assembleDebug   # app/build/outputs/apk/debug/app-debug.apk
+  ```
+
+  `assembleRelease` fails here without the keystore.
+- **Emulator:** `android-emu` starts a headless API 36 Pixel instance of your own
+  and prints its adb serial (e.g. `emulator-5556`); stop it with
+  `android-emu stop <serial>`. Do not use the nobara-pc `emulator -avd gmtest`
+  command or `ANDROID_AVD_HOME` above.
+
+  ```sh
+  serial=$(android-emu)
+  adb -s $serial install -r app/build/outputs/apk/debug/app-debug.apk
+  adb -s $serial shell monkey -p me.love765.goodmorning -c android.intent.category.LAUNCHER 1
+  adb -s $serial exec-out screencap -p > ~/scratch/GoodMorning/<issue>/shot.png
+  android-emu stop $serial
+  ```
