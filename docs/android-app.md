@@ -306,3 +306,43 @@ The server picker refuses a server that does not serve the app's
 `assetlinks.json`. To test the update flow without publishing a release, point
 a temporary debug build's `RELEASES_URL` at a local feed. That needs a debug-only
 `usesCleartextTraffic` manifest overlay; remove both afterwards.
+
+## On yanglab16
+
+The paths above are nobara-pc's. yanglab16 has no `~/.local/share/goodmorning-android/`
+and no release keystore (never copy it there), so it runs unit tests and debug
+builds only; release APKs are built on nobara-pc. This is a non-research project,
+so everything stays on yanglab16's local disk, in the project's capped image
+`/home/tony/t3-apps/GoodMorning/`, never on the NAS (`~/scratch/GoodMorning/` is
+on the NAS). The interactive shells of this project already load
+`~/.config/t3-apps/env.sh`, which sets `GRADLE_USER_HOME` to
+`/home/tony/t3-apps/GoodMorning/cache/gradle`, and
+`/home/tony/t3-apps/_shared/env.sh` (shared SDK as `ANDROID_HOME`, AVD and
+`adb`/`emulator` on `PATH`). Do not override these. Scratch files go in
+`/home/tony/t3-apps/GoodMorning/scratch/<issue>/`.
+
+- **JDK:** the default `java` is a JRE 25 without a compiler, so set
+  `JAVA_HOME` to the installed JDK 17 (the app targets Java 17).
+- **SDK:** build with the shared SDK directly. Its licenses are accepted and
+  your account can write to it, so Gradle installs the missing platform 36 and
+  build tools there on the first build, for every project. Do not make a
+  private SDK folder.
+
+  ```sh
+  export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
+  cd android && ./gradlew test assembleDebug   # app/build/outputs/apk/debug/app-debug.apk
+  ```
+
+  `assembleRelease` fails here without the keystore.
+- **Emulator:** `android-emu` starts a headless API 36 Pixel instance of your own
+  and prints its adb serial (e.g. `emulator-5556`); stop it with
+  `android-emu stop <serial>`. Do not use the nobara-pc `emulator -avd gmtest`
+  command or `ANDROID_AVD_HOME` above.
+
+  ```sh
+  serial=$(android-emu)
+  adb -s $serial install -r app/build/outputs/apk/debug/app-debug.apk
+  adb -s $serial shell monkey -p me.love765.goodmorning -c android.intent.category.LAUNCHER 1
+  adb -s $serial exec-out screencap -p > /home/tony/t3-apps/GoodMorning/scratch/<issue>/shot.png
+  android-emu stop $serial
+  ```
