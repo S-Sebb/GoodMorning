@@ -311,23 +311,25 @@ a temporary debug build's `RELEASES_URL` at a local feed. That needs a debug-onl
 
 The paths above are nobara-pc's. yanglab16 has no `~/.local/share/goodmorning-android/`
 and no release keystore (never copy it there), so it runs unit tests and debug
-builds only; release APKs are built on nobara-pc. The interactive shells of this
-project already load `/home/tony/t3-apps/_shared/env.sh` (shared SDK,
-AVD and `adb`/`emulator` on `PATH`).
+builds only; release APKs are built on nobara-pc. This is a non-research project,
+so everything stays on yanglab16's local disk, in the project's capped image
+`/home/tony/t3-apps/GoodMorning/`, never on the NAS (`~/scratch/GoodMorning/` is
+on the NAS). The interactive shells of this project already load
+`~/.config/t3-apps/env.sh`, which sets `GRADLE_USER_HOME` to
+`/home/tony/t3-apps/GoodMorning/cache/gradle`, and
+`/home/tony/t3-apps/_shared/env.sh` (shared SDK as `ANDROID_HOME`, AVD and
+`adb`/`emulator` on `PATH`). Do not override these. Scratch files go in
+`/home/tony/t3-apps/GoodMorning/scratch/<issue>/`.
 
 - **JDK:** the default `java` is a JRE 25 without a compiler, so set
   `JAVA_HOME` to the installed JDK 17 (the app targets Java 17).
-- **SDK:** the shared SDK has the emulator, platform tools and the API 36 image,
-  but not platform 36 or the build tools. Gradle downloads them into a writable
-  `ANDROID_HOME`, so build with a private SDK folder that holds only the shared
-  SDK's accepted licenses, and keep Gradle's cache off the small system disk.
-  Both go under `~/scratch/GoodMorning/`:
+- **SDK:** build with the shared SDK directly. Its licenses are accepted and
+  your account can write to it, so Gradle installs the missing platform 36 and
+  build tools there on the first build, for every project. Do not make a
+  private SDK folder.
 
   ```sh
-  mkdir -p ~/scratch/GoodMorning/android-sdk && cp -r /home/tony/t3-apps/_shared/android-sdk/licenses ~/scratch/GoodMorning/android-sdk/
   export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
-  export ANDROID_HOME=~/scratch/GoodMorning/android-sdk ANDROID_SDK_ROOT=~/scratch/GoodMorning/android-sdk
-  export GRADLE_USER_HOME=~/scratch/GoodMorning/gradle
   cd android && ./gradlew test assembleDebug   # app/build/outputs/apk/debug/app-debug.apk
   ```
 
@@ -341,6 +343,6 @@ AVD and `adb`/`emulator` on `PATH`).
   serial=$(android-emu)
   adb -s $serial install -r app/build/outputs/apk/debug/app-debug.apk
   adb -s $serial shell monkey -p me.love765.goodmorning -c android.intent.category.LAUNCHER 1
-  adb -s $serial exec-out screencap -p > ~/scratch/GoodMorning/<issue>/shot.png
+  adb -s $serial exec-out screencap -p > /home/tony/t3-apps/GoodMorning/scratch/<issue>/shot.png
   android-emu stop $serial
   ```
