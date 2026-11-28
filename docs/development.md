@@ -14,8 +14,11 @@ never a system interpreter. The live server's setup is in
 
 ## Tests
 
-Run from the task worktree after the final rebase. Fixtures go under `~/scratch/GoodMorning/tests/`;
-set `GM_TEST_TMPDIR` to use another.
+Run from the task worktree after the final rebase. Fixtures go under
+`~/t3-apps/GoodMorning/scratch/tests/` when `~/t3-apps/GoodMorning/scratch/`
+exists (yanglab16's local SSD; the NAS behind its `~/scratch` fails the runtime's
+owner checks), otherwise under `~/scratch/GoodMorning/tests/`; set
+`GM_TEST_TMPDIR` to use another.
 
 1. Every PR:
    - focused tests for the changed behavior, added or updated in the same PR;
