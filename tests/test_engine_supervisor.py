@@ -1,5 +1,6 @@
 """The account engine supervisor relays its socket to `opencode serve` and stops only when idle."""
 
+import os
 import socket
 import sys
 import tempfile
@@ -7,11 +8,13 @@ import textwrap
 import threading
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 from urllib.request import Request, urlopen
 
 from support import TEMP_ROOT
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
+from goodmorning.security import briefing_runtime
 from goodmorning.security.briefing_runtime import Supervisor
 
 # A stand-in for `opencode serve`: it echoes its password, and reports a
@@ -124,6 +127,56 @@ class EngineEnvironmentTests(unittest.TestCase):
             shutil.which("python", path=started["env"]["PATH"]),
             str(Path(sys.executable).parent / "python"),
         )
+
+
+class ForeignRipgrepTests(unittest.TestCase):
+    """A vault moved from another CPU keeps OpenCode's cached `rg`, which then fails (#347)."""
+
+    def setUp(self):
+        temp = tempfile.TemporaryDirectory(dir=TEMP_ROOT)
+        self.addCleanup(temp.cleanup)
+        self.home = Path(temp.name)
+        self.rg = self.home / ".cache/opencode/bin/rg"
+        self.rg.parent.mkdir(parents=True)
+        host = patch.object(
+            briefing_runtime.platform, "machine", return_value="aarch64"
+        )
+        host.start()
+        self.addCleanup(host.stop)
+
+    def cache(self, machine):
+        self.rg.write_bytes(
+            b"\x7fELF\x02\x01" + bytes(12) + machine.to_bytes(2, "little") + bytes(40)
+        )
+
+    def test_removes_an_x86_64_rg_on_an_arm_host(self):
+        self.cache(62)
+        briefing_runtime.drop_foreign_ripgrep(self.home)
+        self.assertFalse(self.rg.exists())
+
+    def test_keeps_a_matching_rg(self):
+        self.cache(183)
+        briefing_runtime.drop_foreign_ripgrep(self.home)
+        self.assertTrue(self.rg.exists())
+
+    def test_a_fifo_at_the_path_does_not_block(self):
+        os.mkfifo(self.rg)
+        check = threading.Thread(
+            target=briefing_runtime.drop_foreign_ripgrep, args=(self.home,), daemon=True
+        )
+        check.start()
+        check.join(5)
+        if check.is_alive():
+            # Free the blocked open so the thread can finish.
+            os.close(os.open(self.rg, os.O_WRONLY | os.O_NONBLOCK))
+            self.fail("drop_foreign_ripgrep blocked on a FIFO")
+        self.assertTrue(self.rg.exists())
+
+    def test_a_failed_removal_does_not_stop_the_engine(self):
+        self.cache(62)
+        with patch.object(Path, "unlink", side_effect=PermissionError("synthetic")):
+            briefing_runtime.drop_foreign_ripgrep(self.home)
+        self.assertTrue(self.rg.exists())
 
 
 if __name__ == "__main__":

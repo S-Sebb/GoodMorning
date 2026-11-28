@@ -4,8 +4,10 @@ import argparse
 import base64
 import json
 import os
+import platform
 import signal
 import socket
+import stat
 import subprocess
 import sys
 import threading
@@ -56,6 +58,43 @@ PROVIDER_KEYS = ("MAL_CLIENT_ID",)
 # An engine with no connections and no running session exits after this long;
 # its systemd socket keeps the port and starts it again on the next connection.
 IDLE_SECONDS = 600
+
+
+ELF_MACHINES = {"x86_64": 62, "aarch64": 183}
+
+
+def elf_machine(path):
+    """The ELF e_machine field, or None for a missing or non-ELF file."""
+    try:
+        # Nonblocking, so a FIFO planted at the path can't stall engine start.
+        fd = os.open(path, os.O_RDONLY | os.O_NONBLOCK)
+    except OSError:
+        return None
+    with os.fdopen(fd, "rb") as file:
+        if not stat.S_ISREG(os.fstat(fd).st_mode):
+            return None
+        header = file.read(20)
+    if len(header) < 20 or header[:4] != b"\x7fELF":
+        return None
+    return int.from_bytes(header[18:20], "little" if header[5] == 1 else "big")
+
+
+def drop_foreign_ripgrep(home):
+    """Remove OpenCode's cached `rg` when it was built for another CPU (#347).
+
+    Vaults move between hosts with their cache, and OpenCode reuses a cached `rg`
+    instead of downloading one, so its grep tool fails with ENOEXEC. Without the
+    file OpenCode fetches the build for this host.
+    """
+    cached = home / ".cache/opencode/bin/rg"
+    host = ELF_MACHINES.get(platform.machine())
+    machine = elf_machine(cached)
+    if host and machine is not None and machine != host:
+        try:
+            cached.unlink(missing_ok=True)
+        except OSError as error:
+            # The engine still serves; only its grep tool stays broken.
+            print(f"Could not remove the foreign cached rg: {error!r}", file=sys.stderr)
 
 
 def free_port():
@@ -215,6 +254,7 @@ def main():
     os.environ.update(env)
     os.chdir(source)
     if args.action == "engine":
+        drop_foreign_ripgrep(home)
         if activated:
             listener = socket.socket(fileno=3)
         else:
