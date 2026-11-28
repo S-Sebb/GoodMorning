@@ -213,4 +213,6 @@ Every routine and to-do row also has `id` and `revision` for the request above,
 on future days too, so a cached next day can be ticked once 04:00 passes.
 `tickable` says whether it can be ticked now: rows on future days, deadline
 markers and stopped habits have `tickable: false`, and markers and stopped
-habits have no `id`. `days[0]` is today.
+habits have no `id`. `days[0]` is today. The Android widgets decide from `id`,
+`kind` and the account's today instead, since `tickable` goes stale once 04:00
+passes (`docs/android-app.md`, Ticking to-dos).

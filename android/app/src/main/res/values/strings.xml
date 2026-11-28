@@ -222,4 +222,23 @@
     <string name="preview_note_older_two">Gift ideas for Mia</string>
     <string name="preview_note_older_three">Call the bank</string>
     <string name="preview_note_sort">Sort 3 notes with Aria</string>
+    <string name="widget_checklist_name">Today</string>
+    <string name="widget_checklist_description">Tick off today’s routines and to-dos: the next one at 2×2, the whole list when larger</string>
+    <string name="checklist_progress">%1$d of %2$d done</string>
+    <string name="checklist_progress_short">%1$d/%2$d</string>
+    <string name="checklist_all_done">All done for today</string>
+    <string name="checklist_all_done_short">All done</string>
+    <string name="checklist_all_done_routines">Routines come back tomorrow.</string>
+    <string name="checklist_done">Done · %1$d</string>
+    <string name="checklist_empty_title">Nothing on today’s list</string>
+    <string name="checklist_empty">Routines and to-dos planned for today show up here. Tap a row when it’s done, or ask your secretary to add a daily routine.</string>
+    <string name="checklist_undo">Undo</string>
+    <string name="checklist_waiting">Not sent yet</string>
+    <string name="checklist_saved">Saved</string>
+    <string name="checklist_offline">Offline. Ticks are saved on this phone and sent when it’s back online.</string>
+    <string name="checklist_partial">Partial</string>
+    <string name="checklist_blocked">Blocked</string>
+    <string name="checklist_optional">Optional</string>
+    <string name="preview_routine_one">Take vitamins</string>
+    <string name="preview_routine_cadence">Every day</string>
 </resources>

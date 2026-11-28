@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The website's desk-done icon (assets/web/icons/desk-done.svg). -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="30dp"
+    android:height="30dp"
+    android:viewportWidth="32"
+    android:viewportHeight="32">
+    <path
+        android:fillColor="#D9EAD9"
+        android:pathData="M12,6H20A7,7 0,0 1,27 13V21A7,7 0,0 1,20 28H12A7,7 0,0 1,5 21V13A7,7 0,0 1,12 6Z"
+        android:strokeWidth="1.5"
+        android:strokeColor="#628B7A" />
+    <path
+        android:pathData="M10.5,17l4,4 7,-8.5"
+        android:strokeWidth="2.4"
+        android:strokeColor="#4F7D68"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+    <path
+        android:fillColor="#EDC478"
+        android:pathData="M25,1l1.1,3.4L29.5,5.5l-3.4,1.1L25,10l-1.1,-3.4L20.5,5.5l3.4,-1.1Z" />
+</vector>

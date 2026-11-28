@@ -138,6 +138,7 @@ class Device:
     def run(self, *args, check=True, timeout=60, **kwargs):
         result = subprocess.run(
             [self.adb, "-s", self.serial, *args],
+            check=False,
             capture_output=True,
             timeout=timeout,
             **kwargs,
@@ -216,9 +217,19 @@ class Device:
             )
             time.sleep(1)
 
-    def has_chat_widget(self):
-        # The dump names each provider once, then once more per placed widget.
-        return self.shell("dumpsys appwidget").count(f"{PACKAGE}.Widgets$Chat") > 1
+    def pin(self, widget):
+        """Places that widget unless one is already placed; the dump names each provider once, then per widget."""
+        if self.shell("dumpsys appwidget").count(f"{PACKAGE}.Widgets${widget}") > 1:
+            return
+        self.hook(f"--es pin {widget}")
+        add = self.find(
+            lambda text: (
+                text.lower() in ("add to home screen", "add automatically", "add")
+            ),
+            timeout=15,
+        )
+        if add:
+            self.tap(add)
 
     def hook(self, *extras):
         self.shell(f"am start -n {PACKAGE}/.TestHooks " + " ".join(extras))
@@ -228,11 +239,48 @@ class Device:
         path.write_bytes(
             subprocess.run(
                 [self.adb, "-s", self.serial, "exec-out", "screencap", "-p"],
+                check=False,
                 capture_output=True,
                 timeout=30,
             ).stdout
         )
         return path
+
+
+def fresh_app(device, apk, origin):
+    """A clean app, pointed at the fake server; force-stop drops the settings a running process holds."""
+    device.run("install", "-r", str(apk), timeout=240)
+    device.shell(f"pm clear {PACKAGE}")
+    prefs = f"<?xml version='1.0' encoding='utf-8' standalone='yes' ?>\n<map><string name=\"server\">{origin}</string></map>\n"
+    device.run(
+        "shell",
+        f"run-as {PACKAGE} sh -c 'mkdir -p shared_prefs && cat > shared_prefs/app.xml'",
+        input=prefs.encode(),
+    )
+    device.shell(f"am force-stop {PACKAGE}")
+
+
+def build(arguments, out):
+    """The debug APK, built unless --skip-build; None when it failed or is missing."""
+    android = ROOT / "android"
+    if not arguments.skip_build:
+        with open(out / "gradle.log", "wb") as log:
+            built = subprocess.run(
+                ["./gradlew", "-q", "assembleDebug"],
+                check=False,
+                cwd=android,
+                stdout=log,
+                stderr=subprocess.STDOUT,
+                timeout=900,
+            )
+        if built.returncode:
+            print(f"FAIL build: see {out / 'gradle.log'}")
+            return None
+    apk = android / "app/build/outputs/apk/debug/app-debug.apk"
+    if not apk.exists():
+        print("PREFLIGHT FAIL: no debug APK; run without --skip-build")
+        return None
+    return apk
 
 
 def preflight(arguments):
@@ -248,6 +296,7 @@ def preflight(arguments):
         )
     state = subprocess.run(
         [adb, "-s", arguments.serial, "shell", "getprop", "sys.boot_completed"],
+        check=False,
         capture_output=True,
         timeout=20,
     )
@@ -297,23 +346,9 @@ def main():
             flush=True,
         )
 
-    android = ROOT / "android"
-    if not arguments.skip_build:
-        with open(out / "gradle.log", "wb") as log:
-            built = subprocess.run(
-                ["./gradlew", "-q", "assembleDebug"],
-                cwd=android,
-                stdout=log,
-                stderr=subprocess.STDOUT,
-                timeout=900,
-            )
-        if built.returncode:
-            print(f"FAIL build: see {out / 'gradle.log'}")
-            return 1
-    apk = android / "app/build/outputs/apk/debug/app-debug.apk"
-    if not apk.exists():
-        print("PREFLIGHT FAIL: no debug APK; run without --skip-build")
-        return 2
+    apk = build(arguments, out)
+    if apk is None:
+        return 1
 
     fake = Fake()
     server = ThreadingHTTPServer(("127.0.0.1", 0), fake.handler())
@@ -321,28 +356,9 @@ def main():
     origin = f"http://10.0.2.2:{server.server_address[1]}"
     device = Device(adb, arguments.serial, out)
     try:
-        # A clean app, pointed at the fake server; force-stop drops the settings a running process holds.
-        device.run("install", "-r", str(apk), timeout=240)
-        device.shell(f"pm clear {PACKAGE}")
-        prefs = f"<?xml version='1.0' encoding='utf-8' standalone='yes' ?>\n<map><string name=\"server\">{origin}</string></map>\n"
-        device.run(
-            "shell",
-            f"run-as {PACKAGE} sh -c 'mkdir -p shared_prefs && cat > shared_prefs/app.xml'",
-            input=prefs.encode(),
-        )
-        device.shell(f"am force-stop {PACKAGE}")
-
+        fresh_app(device, apk, origin)
         # Place the widget once; a rerun finds it again, showing the link prompt after the data was cleared.
-        if not device.has_chat_widget():
-            device.hook("--es pin Chat")
-            add = device.find(
-                lambda text: (
-                    text.lower() in ("add to home screen", "add automatically", "add")
-                ),
-                timeout=15,
-            )
-            if add:
-                device.tap(add)
+        device.pin("Chat")
         device.hook(
             "--ez sync true"
         )  # Unlinked, this redraws every widget with the link prompt.

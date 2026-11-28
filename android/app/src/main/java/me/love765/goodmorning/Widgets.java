@@ -20,6 +20,11 @@ import android.graphics.Shader;
 import android.graphics.drawable.Icon;
 import android.net.Uri;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
+import android.text.SpannableString;
+import android.text.Spanned;
+import android.text.style.StrikethroughSpan;
 import android.text.format.DateFormat;
 import android.view.View;
 import android.widget.RemoteViews;
@@ -29,8 +34,10 @@ import org.json.JSONObject;
 
 import java.io.File;
 import java.time.LocalDate;
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.TextStyle;
 
@@ -39,6 +46,7 @@ public abstract class Widgets extends AppWidgetProvider {
     private static final String REFRESH = "me.love765.goodmorning.REFRESH";
     private static final String EDITION = "me.love765.goodmorning.EDITION";
     private static final String GENERATE = "me.love765.goodmorning.GENERATE";
+    private static final String TICK = "me.love765.goodmorning.TICK";
     // Named SCHEME when it only followed the day and night switch; alarms already set still carry it.
     private static final String REDRAW = "me.love765.goodmorning.SCHEME";
     /** Before this hour the briefings widget opens on the morning edition, from it on the evening one. */
@@ -51,6 +59,14 @@ public abstract class Widgets extends AppWidgetProvider {
         @Override
         RemoteViews draw(Context context, int id) {
             return super.list(context, id, "today");
+        }
+    }
+
+    /** Today's routines and to-dos to tick off: the next one when small, the whole list from about 3×3. */
+    public static class Checklist extends Widgets {
+        @Override
+        RemoteViews draw(Context context, int id) {
+            return super.checklist(context, id);
         }
     }
 
@@ -293,6 +309,7 @@ public abstract class Widgets extends AppWidgetProvider {
         manager.notifyAppWidgetViewDataChanged(ids, R.id.list);
         schemeSwitch(context);
         conversationTimeout(context);
+        dayTurns(context);
     }
 
     @Override
@@ -316,6 +333,22 @@ public abstract class Widgets extends AppWidgetProvider {
             updateAll(context);
             return;
         }
+        if (TICK.equals(action) && intent.hasExtra("id")) {
+            Context app = context.getApplicationContext();
+            PendingResult pending = goAsync();
+            new Thread(() -> {
+                try {
+                    Ticks.tap(app, intent.getStringExtra("id"), intent.getStringExtra("date"), intent.getBooleanExtra("undo", false));
+                    updateAll(app);
+                    // RemoteViews can't time anything: redraw in the settled order once the Undo ends.
+                    new Handler(Looper.getMainLooper()).postDelayed(() -> updateAll(app), Ticks.UNDO + 200);
+                    Sync.run(app);  // Sends the tap, then the rest of the summary.
+                } finally {
+                    pending.finish();
+                }
+            }).start();
+            return;
+        }
         if (!REFRESH.equals(action) && !GENERATE.equals(action)) return;
         PendingResult pending = goAsync();
         new Thread(() -> {
@@ -331,7 +364,7 @@ public abstract class Widgets extends AppWidgetProvider {
     /** Redraws every widget of every kind, for example after a new summary. */
     static void updateAll(Context context) {
         AppWidgetManager manager = AppWidgetManager.getInstance(context);
-        for (Widgets kind : new Widgets[] {new Today(), new Week(), new Chat(), new Portrait(), new Briefing(), new News(),
+        for (Widgets kind : new Widgets[] {new Today(), new Checklist(), new Week(), new Chat(), new Portrait(), new Briefing(), new News(),
                 new Weather(), new WeatherFull(), new Temperature(), new Rain(), new Air(), new QuickNote()}) {
             int[] ids = manager.getAppWidgetIds(new ComponentName(context, kind.getClass()));
             if (ids.length > 0) kind.onUpdate(context, manager, ids);
@@ -363,6 +396,23 @@ public abstract class Widgets extends AppWidgetProvider {
         AlarmManager alarms = context.getSystemService(AlarmManager.class);
         if (at == Long.MAX_VALUE || at <= System.currentTimeMillis()) alarms.cancel(intent);
         else alarms.setWindow(AlarmManager.RTC, at, 60_000, intent);
+    }
+
+    /** Redraws the widgets when the account's day turns at 04:00, so they move on to the cached next day. */
+    private static void dayTurns(Context context) {
+        JSONObject schedule = Sync.cached(context).optJSONObject("schedule");
+        ZoneId zone;
+        try {
+            zone = ZoneId.of(schedule == null ? "" : schedule.optString("timezone"));
+        } catch (java.time.DateTimeException unknown) {
+            zone = ZoneId.systemDefault();
+        }
+        ZonedDateTime now = ZonedDateTime.now(zone);
+        ZonedDateTime at = now.toLocalDate().atTime(ROLLOVER, 0).atZone(zone);
+        if (!at.isAfter(now)) at = now.toLocalDate().plusDays(1).atTime(ROLLOVER, 0).atZone(zone);
+        PendingIntent intent = PendingIntent.getBroadcast(context, 2, new Intent(context, Today.class).setAction(REDRAW),
+                PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
+        context.getSystemService(AlarmManager.class).setWindow(AlarmManager.RTC, at.toInstant().toEpochMilli(), 10 * 60_000, intent);
     }
 
     private static SharedPreferences choices(Context context) {
@@ -485,13 +535,15 @@ public abstract class Widgets extends AppWidgetProvider {
         Palette.tint(views, schemes, R.id.link_fill, p -> p.surface);
         views.setContentDescription(R.id.refresh, context.getString(R.string.widget_refresh));
 
-        JSONObject schedule = Sync.cached(context).optJSONObject("schedule");
+        JSONObject data = Sync.cached(context);
+        JSONObject schedule = data.optJSONObject("schedule");
         JSONArray days = schedule == null ? null : schedule.optJSONArray("days");
         views.setTextViewText(R.id.label, context.getString(today ? R.string.widget_label_today : R.string.widget_label_week)
                 .toUpperCase(Language.of(context)));
         String title = context.getString(today ? R.string.widget_today_name : R.string.widget_week_name);
-        if (days != null && days.length() > 0) {
-            String first = days.optJSONObject(0).optString("date");
+        JSONObject shown = today ? Sync.today(data, Instant.now()) : days == null ? null : days.optJSONObject(0);
+        if (shown != null) {
+            String first = shown.optString("date");
             title = today ? day(context, first, "EEEEMMMMd")
                     : context.getString(R.string.widget_week_range, day(context, first, "MMMd"), day(context, days.optJSONObject(days.length() - 1).optString("date"), "MMMd"));
         }
@@ -521,6 +573,190 @@ public abstract class Widgets extends AppWidgetProvider {
         Intent refresh = new Intent(context, getClass()).setAction(REFRESH);
         views.setOnClickPendingIntent(R.id.refresh, PendingIntent.getBroadcast(context, 5000 + id, refresh, PendingIntent.FLAG_IMMUTABLE));
         return views;
+    }
+
+    /**
+     * The Today widget: a progress bar over today's checklist. Large, the whole list scrolls, with Undo in the
+     * header and a line for a refused or waiting tick; small, the next row alone with a footer for them.
+     */
+    RemoteViews checklist(Context context, int id) {
+        int[] size = size(context, id);
+        boolean small = size[0] < 200 || size[1] < 230;
+        boolean pixel = Palette.pixel(context);
+        RemoteViews views = new RemoteViews(context.getPackageName(), small ? R.layout.widget_checklist_small : R.layout.widget_checklist);
+        Palette.Schemes schemes = Palette.of(context);
+        card(context, views, schemes, id, p -> p.line, p -> p.surface);
+        Palette.text(views, schemes, R.id.label, p -> p.muted);
+        Palette.text(views, schemes, R.id.title, p -> p.ink);
+        Palette.text(views, schemes, R.id.message_title, p -> p.ink);
+        Palette.text(views, schemes, R.id.message_text, p -> p.muted);
+        Palette.tint(views, schemes, R.id.message_fill, p -> p.surface);
+        Palette.tint(views, schemes, R.id.note_fill, p -> p.surface);
+        Palette.tint(views, schemes, R.id.undo_fill, p -> p.accent);
+        Palette.text(views, schemes, R.id.undo_text, p -> p.surface);
+        if (pixel) {
+            for (int shape : new int[] {R.id.message_fill, R.id.note_fill, R.id.undo_fill}) views.setImageViewResource(shape, R.drawable.note_square);
+        }
+        views.setTextViewText(R.id.undo_text, context.getString(R.string.checklist_undo));
+        views.setViewVisibility(R.id.undo, View.GONE);
+        views.setViewVisibility(R.id.bar, View.GONE);
+        String label = context.getString(R.string.widget_label_today);
+        views.setTextViewText(R.id.label, label.toUpperCase(Language.of(context)));
+        views.setTextViewText(R.id.title, context.getString(R.string.widget_checklist_name));
+        if (!Sync.linked(context)) {
+            checklistMessage(views, small, "", context.getString(R.string.widget_link));
+            views.setOnClickPendingIntent(R.id.root, screen(context, LinkActivity.class));
+            return views;
+        }
+        views.setOnClickPendingIntent(R.id.root, Sync.open(context, "/schedule?view=day", 3000 + id));
+        JSONObject day = Sync.today(Sync.cached(context), Instant.now());
+        if (day == null) {
+            checklistMessage(views, small, "", context.getString(R.string.widget_loading));
+            return views;
+        }
+        String date = day.optString("date");
+        JSONObject state = Ticks.load(context);
+        long now = System.currentTimeMillis();
+        Ticks.Checklist list = Ticks.checklist(day, state, now);
+        boolean empty = list.open.isEmpty() && list.done.isEmpty();
+        if (!small) views.setTextViewText(R.id.label, (label + " · " + day(context, date, "EEEMMMd")).toUpperCase(Language.of(context)));
+        views.setTextViewText(R.id.title, empty || list.total == 0 ? (small ? day(context, date, "EEEMMMd") : context.getString(R.string.checklist_empty_title))
+                : list.finished == list.total ? context.getString(small ? R.string.checklist_all_done_short : R.string.checklist_all_done)
+                : small ? context.getString(R.string.checklist_progress_short, list.finished, list.total)
+                : context.getString(R.string.checklist_progress, list.finished, list.total));
+        if (list.total > 0) bar(context, views, schemes, list.finished, list.total, size[0] - (small ? 28 : 32));
+
+        JSONObject undo = Ticks.undo(state, now);
+        String undoing = undo == null ? "" : undo.optString("key");
+        if (undo != null) {
+            int split = undoing.lastIndexOf('|');
+            Intent again = new Intent(context, Checklist.class).setAction(TICK).setData(Uri.parse("widget:" + id + "/undo"))
+                    .putExtra("id", undoing.substring(0, split)).putExtra("date", undoing.substring(split + 1)).putExtra("undo", true);
+            views.setViewVisibility(R.id.undo, View.VISIBLE);
+            views.setOnClickPendingIntent(R.id.undo, PendingIntent.getBroadcast(context, 8000 + id, again,
+                    PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT));
+        }
+        String refusal = Ticks.note(state, now);
+        boolean offline = Ticks.offline(state);
+        if (small) {
+            JSONObject next = list.open.isEmpty() ? null : list.open.get(0);
+            views.setViewVisibility(R.id.row, next == null ? View.GONE : View.VISIBLE);
+            if (next == null) {
+                checklistMessage(views, true, "", context.getString(empty ? R.string.widget_empty_today : R.string.checklist_all_done_short));
+            } else {
+                views.setViewVisibility(R.id.message, View.GONE);
+                if (pixel) views.setImageViewResource(R.id.card_row, R.drawable.note_square);
+                Palette.tint(views, schemes, R.id.card_row, p -> p.surface);
+                boolean done = next.optBoolean("done");
+                Palette.text(views, schemes, R.id.row_title, done ? (p -> p.muted) : (p -> p.ink));
+                box(views, schemes, done, pixel);
+                SpannableString text = new SpannableString(next.optString("text"));
+                if (done) text.setSpan(new StrikethroughSpan(), 0, text.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+                views.setTextViewText(R.id.row_title, text);
+                views.setContentDescription(R.id.row, context.getString(done ? R.string.widget_tick_open : R.string.widget_tick_done, next.optString("text")));
+                Intent tick = new Intent(context, Checklist.class).setAction(TICK).setData(Uri.parse("widget:" + id + "/tick"))
+                        .putExtra("id", next.optString("id")).putExtra("date", date);
+                views.setOnClickPendingIntent(R.id.row, PendingIntent.getBroadcast(context, 9000 + id, tick,
+                        PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT));
+            }
+            JSONObject items = state.optJSONObject("items");
+            JSONObject item = items == null ? null : items.optJSONObject(undoing);
+            boolean waiting = item != null && item.optJSONArray("taps").length() > 0;
+            String status = !refusal.isEmpty() ? refusal : undo != null ? context.getString(waiting ? R.string.checklist_waiting : R.string.checklist_saved)
+                    : offline ? context.getString(R.string.checklist_waiting) : "";
+            views.setViewVisibility(R.id.note, status.isEmpty() ? View.INVISIBLE : View.VISIBLE);
+            views.setTextViewText(R.id.note_text, status);
+            if (refusal.isEmpty()) Palette.text(views, schemes, R.id.note_text, p -> p.muted);
+            else Palette.pair(views, schemes, R.id.note_text, "setTextColor", 0xFFB3261E, 0xFFF2B8B5);
+            return views;
+        }
+        String note = !refusal.isEmpty() ? refusal : offline ? context.getString(R.string.checklist_offline) : "";
+        views.setViewVisibility(R.id.note, note.isEmpty() ? View.GONE : View.VISIBLE);
+        views.setViewVisibility(R.id.note_mark, refusal.isEmpty() ? View.GONE : View.VISIBLE);
+        Palette.pair(views, schemes, R.id.note_mark, "setColorFilter", 0xFFB3261E, 0xFFF2B8B5);
+        Palette.text(views, schemes, R.id.note_text, p -> p.ink);
+        views.setTextViewText(R.id.note_text, note);
+        Intent service = new Intent(context, ListService.class).putExtra("kind", "checklist")
+                .putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, id);
+        service.setData(Uri.parse(service.toUri(Intent.URI_INTENT_SCHEME)));  // One adapter per widget.
+        views.setRemoteAdapter(R.id.list, service);
+        views.setViewVisibility(R.id.message_title, View.GONE);
+        views.setTextViewText(R.id.message_text, context.getString(R.string.checklist_empty));
+        views.setEmptyView(R.id.list, R.id.message);
+        // Rows fill in their own to-do; the template must stay mutable for that.
+        views.setPendingIntentTemplate(R.id.list, PendingIntent.getBroadcast(context, 4000 + id,
+                new Intent(context, Checklist.class).setAction(TICK), PendingIntent.FLAG_MUTABLE | PendingIntent.FLAG_UPDATE_CURRENT));
+        return views;
+    }
+
+    /** A message in place of the list or the next row; small widgets show only its text. */
+    private static void checklistMessage(RemoteViews views, boolean small, String title, String text) {
+        views.setViewVisibility(R.id.message, View.VISIBLE);
+        views.setViewVisibility(small ? R.id.row : R.id.list, View.GONE);
+        views.setViewVisibility(R.id.note, small ? View.INVISIBLE : View.GONE);
+        views.setViewVisibility(R.id.message_title, title.isEmpty() ? View.GONE : View.VISIBLE);
+        views.setTextViewText(R.id.message_title, title);
+        views.setTextViewText(R.id.message_text, text);
+    }
+
+    /** A square tick box, as on the website: an outline when open, filled with a ✓ when done; hard corners in Pixel style. */
+    static void box(RemoteViews row, Palette.Schemes schemes, boolean done, boolean pixel) {
+        row.setImageViewResource(R.id.box_line, pixel ? R.drawable.check_box_pixel : R.drawable.check_box);
+        row.setImageViewResource(R.id.box_fill, pixel ? R.drawable.note_square : R.drawable.check_fill);
+        Palette.tint(row, schemes, R.id.box_line, p -> p.accent);
+        Palette.tint(row, schemes, R.id.box_fill, p -> p.accent);
+        Palette.tint(row, schemes, R.id.box_check, p -> p.surface);
+        row.setViewVisibility(R.id.box_fill, done ? View.VISIBLE : View.GONE);
+        row.setViewVisibility(R.id.box_check, done ? View.VISIBLE : View.GONE);
+    }
+
+    /** A row's second line: a routine's repeat or a to-do's project, then its Partial, Blocked or Optional tag. */
+    static String meta(Context context, JSONObject task) {
+        java.util.List<String> parts = new java.util.ArrayList<>();
+        String first = "routine".equals(task.optString("kind")) ? task.optString("cadence") : task.optString("project");
+        if (!first.isEmpty()) parts.add(first);
+        String status = task.optString("status");
+        if ("partial".equals(status)) parts.add(context.getString(R.string.checklist_partial));
+        if ("blocked".equals(status)) parts.add(context.getString(R.string.checklist_blocked));
+        if (task.optBoolean("optional")) parts.add(context.getString(R.string.checklist_optional));
+        return String.join(" · ", parts);
+    }
+
+    /** The progress bar in the day and night colors, drawn because RemoteViews can't size a fill. */
+    @SuppressLint("NewApi")  // schemes.dark is null only on Android 12 and newer; see Palette.of().
+    private static void bar(Context context, RemoteViews views, Palette.Schemes schemes, int done, int total, int width) {
+        views.setViewVisibility(R.id.bar, View.VISIBLE);
+        if (schemes.dark == null) {
+            views.setIcon(R.id.bar, "setImageIcon", Icon.createWithBitmap(bar(context, schemes.day, done, total, width)),
+                    Icon.createWithBitmap(bar(context, schemes.night, done, total, width)));
+        } else {
+            views.setImageViewBitmap(R.id.bar, bar(context, schemes.now(), done, total, width));
+        }
+    }
+
+    /** As on the website: a segment per to-do up to ten, one continuous bar beyond. */
+    private static Bitmap bar(Context context, Palette palette, int done, int total, int width) {
+        float density = context.getResources().getDisplayMetrics().density;
+        int w = Math.round(width * density), h = Math.round(5 * density);
+        float gap = 3 * density, line = density, radius = h / 2f;
+        Bitmap bar = Bitmap.createBitmap(Math.max(w, 1), Math.max(h, 1), Bitmap.Config.ARGB_8888);
+        Canvas canvas = new Canvas(bar);
+        Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        int segments = total <= 10 ? total : 1;
+        float each = (w - gap * (segments - 1)) / segments;
+        for (int i = 0; i < segments; i++) {
+            float left = i * (each + gap), right = left + each;
+            paint.setColor(palette.line);
+            canvas.drawRoundRect(left, 0, right, h, radius, radius, paint);
+            paint.setColor(palette.surface);
+            canvas.drawRoundRect(left + line, line, right - line, h - line, radius, radius, paint);
+            float filled = segments == 1 && total > 10 ? left + each * done / total : i < done ? right : left;
+            if (filled > left) {
+                paint.setColor(palette.accent);
+                canvas.drawRoundRect(left, 0, filled, h, radius, radius, paint);
+            }
+        }
+        return bar;
     }
 
     RemoteViews briefing(Context context, int id, String kind, boolean news) {
