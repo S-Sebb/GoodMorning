@@ -483,12 +483,14 @@ def main():
                     evening
                 ) == "rgb(8, 15, 32)" and "radial-gradient" in stars(evening)
                 assert "starry-sky.svg" in stars(evening)
-                assert (
-                    evening.locator("body").evaluate(
+                # Chromium 159 reports one value for all layers; older ones repeat it per layer.
+                assert set(
+                    evening.locator("body")
+                    .evaluate(
                         "node => getComputedStyle(node, '::before').backgroundRepeat"
                     )
-                    == "no-repeat, no-repeat"
-                )
+                    .split(", ")
+                ) == {"no-repeat"}
                 expect(evening.locator(".briefing-section").first).to_have_css(
                     "background-color", "rgb(17, 28, 50)"
                 )
@@ -784,7 +786,7 @@ def main():
                     ).bounding_box()
                     assert (
                         bounds["x"] >= 0 and bounds["x"] + bounds["width"] <= width
-                    ), bounds
+                    ), (width, bounds)
                     if width in (390, 320):
                         chat.screenshot(
                             path=str(artifacts / f"warm-site-{width}.png"),
