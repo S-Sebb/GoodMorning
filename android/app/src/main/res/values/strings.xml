@@ -9,6 +9,7 @@
     <string name="server_checking">Checking the server…</string>
     <string name="server_error_address">Enter a website address that starts with https://.</string>
     <string name="server_error_unreachable">Couldn\'t reach this server. Check the address and your connection, then try again.</string>
+    <string name="server_error_insecure">Couldn\'t connect securely to this server. Check that your phone\'s date and time are correct, turn off any VPN or proxy, then try again.</string>
     <string name="server_error_unsupported">This server doesn\'t support the GoodMorning app yet. Check the address or ask the server\'s owner.</string>
     <string name="update_title">Update available</string>
     <string name="update_message">GoodMorning %1$s is ready. Updating takes a moment; your account and records are kept on the server and stay unchanged.</string>
