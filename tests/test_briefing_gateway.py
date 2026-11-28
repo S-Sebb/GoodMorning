@@ -1,5 +1,6 @@
 """Public request boundaries and private account routing with synthetic data."""
 
+import hashlib
 import html
 import json
 import re
@@ -1600,10 +1601,15 @@ class GatewayTests(GatewayFixture):
             )
         self.assertEqual(generated, [(self.id, {"date": "2026-10-21", "kind": "gn"})])
         sent = []
-        self.gateway.chat_message = lambda user, host, path, raw, headers: (
+
+        # Through the real chat path: the widget's source is the gateway's own word, not a client field.
+        def proxy(user, host, path, method, raw, headers, **_):
+            if method == "GET":
+                return 200, {}, b'{"state":"running"}'
             sent.append((user, path, json.loads(raw)))
-            or (202, {"Content-Type": "application/json"}, b'{"chat":"x"}')
-        )
+            return 202, {"Content-Type": "application/json"}, b'{"chat":"x"}'
+
+        self.gateway.proxy = proxy
         self.assertEqual(
             phone(
                 "/api/app/chat",
@@ -1628,16 +1634,27 @@ class GatewayTests(GatewayFixture):
             )[0],
             403,
         )
-        (user, path, new), (_, follow_path, follow) = sent
+        # The first starts at once; the second waits in line behind it with its source kept.
+        ((user, path, new),) = sent
         self.assertEqual(
-            (user, path, new["mode"], new["text"]),
-            (self.id, "/api/chats", "secretary", "Plan my day"),
-        )
-        self.assertEqual(
-            (follow_path, follow["text"]),
-            ("/api/chats/" + "b" * 32 + "/messages", "More"),
+            (user, path, new["mode"], new["text"], new["source"]),
+            (self.id, "/api/chats", "secretary", "Plan my day", "widget"),
         )
         self.assertRegex(new["id"], "^[a-f0-9]{32}$")
+        with self.store.db() as db:
+            (waiting,) = self.gateway._read_queue(db)
+        self.assertEqual(
+            (waiting["path"], waiting["body"]["text"], waiting["body"]["source"]),
+            ("/api/chats/" + "b" * 32 + "/messages", "More", "widget"),
+        )
+        # A browser cannot claim to be the widget.
+        self.assertEqual(
+            self.request(
+                "/api/chats",
+                {"id": "e" * 32, "mode": "secretary", "text": "x", "source": "widget"},
+            )[0],
+            400,
+        )
 
         def enabled(value):
             with self.store.db() as db:
@@ -2211,12 +2228,26 @@ class GatewayTests(GatewayFixture):
         )
         self.assertEqual(status, 202)
         self.assertTrue(json.loads(data).get("queued"))
-        other = {**body, "id": "b" * 32}
+        other = {**body, "id": "b" * 32, "page": "c" * 32}
         status, _, data = self.gateway.chat_message(
             self.other, "gm.example.test", "/api/chats", json.dumps(other).encode(), {}
         )
         self.assertEqual(status, 202)
         self.assertTrue(json.loads(data).get("queued"))
+        # A waiting message keeps only the page token's hash, never the token itself.
+        with self.store.db() as db:
+            stored = repr(
+                [tuple(row) for row in db.execute("SELECT key, value FROM metadata")]
+            )
+            (waiting,) = [
+                entry
+                for entry in self.gateway._read_queue(db)
+                if entry["kind"] == "chat"
+            ]
+        self.assertNotIn("c" * 32, stored)
+        self.assertEqual(
+            waiting["body"]["page_hash"], hashlib.sha256(b"c" * 32).hexdigest()
+        )
         self.assertEqual(sum(args[3] == "POST" for args in calls), 1)
         self.assertEqual(self.gateway.queue_status(self.other)["depth"], 2)
 
@@ -2824,10 +2855,52 @@ class GatewayTests(GatewayFixture):
             )
             path = "/api/chats/" + ("a" * 32) + "/form/form_city/reply"
             status, _, raw = self.gateway.input_reply(
-                self.id, "gm.example.test", path, b'{"answer":{"city":"London"}}', {}
+                self.id,
+                "gm.example.test",
+                path,
+                b'{"answer":{"city":"London"},"page":"' + b"f" * 32 + b'"}',
+                {},
             )
             self.assertEqual(status, 202)
-            self.assertTrue(json.loads(raw)["queued"])
+            # A queued answer still tells its page which turn it becomes.
+            from goodmorning.web.briefing_chat import answer_turn
+
+            self.assertEqual(
+                (
+                    json.loads(raw)["queued"],
+                    json.loads(raw)["turn"],
+                    json.loads(raw)["owner"],
+                ),
+                (True, answer_turn("a" * 32, "form_city"), True),
+            )
+            # Another tab sending the same answer keeps the turn but owns none of its settings,
+            # even if the line moves on right after the duplicate is found.
+            reserve = self.gateway._reserve_or_queue
+
+            def advancing(*args, **kwargs):
+                result = reserve(*args, **kwargs)
+                with self.store.db() as db:
+                    saved = self.gateway._read_queue(db)
+                    self.gateway._write_queue(db, [])
+                advanced.append(saved)
+                return result
+
+            advanced = []
+            self.gateway._reserve_or_queue = advancing
+            for page, owner in ((b"e" * 32, False), (b"f" * 32, True)):
+                _, _, again = self.gateway.input_reply(
+                    self.id,
+                    "gm.example.test",
+                    path,
+                    b'{"answer":{"city":"London"},"page":"' + page + b'"}',
+                    {},
+                )
+                self.assertEqual(json.loads(again)["owner"], owner, page)
+                with self.store.db() as db:
+                    self.gateway._write_queue(
+                        db, advanced[-1]
+                    )  # Back in line for the next tab.
+            self.gateway._reserve_or_queue = reserve
             self.assertEqual(chamber.replies, [])
             with self.store.db() as db:
                 queue = self.gateway._read_queue(db)
@@ -2844,6 +2917,14 @@ class GatewayTests(GatewayFixture):
                 'User has answered your questions: "City"="London".', sent["prompt"]
             )
             self.assertEqual(len(chamber.sessions), 1)
+            answered = chats.get("a" * 32)["turns"][-1]
+            self.assertEqual(
+                (answered["id"], answered["page"]),
+                (
+                    answer_turn("a" * 32, "form_city"),
+                    hashlib.sha256(b"f" * 32).hexdigest(),
+                ),
+            )
             self.assertIsNone(self.gateway.ticket())  # The next permission also yields.
             permission = (
                 "/api/chats/" + ("a" * 32) + "/permission/permission_setup/reply"

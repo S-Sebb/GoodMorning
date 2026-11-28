@@ -269,7 +269,10 @@ class MockChamber(Chamber):
                 "data": {
                     key: {"type": "running"}
                     for key, value in self.sessions.items()
-                    if value.get("forms") or value.get("permissions")
+                    # `busy`: the engine is still writing, as after a question it closed.
+                    if value.get("forms")
+                    or value.get("permissions")
+                    or value.get("busy")
                 }
             }
         if path.endswith("/move"):

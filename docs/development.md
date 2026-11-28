@@ -42,6 +42,16 @@ step 1 on every PR and push to `main`; it does not replace steps 2–5. The full
 (`tests/run.py` without `--changed`, and the node test) runs only for a release: `deploy/release.py`
 runs it while staging (`docs/server-deployment.md`), and CI on the `deploy/*` tag.
 
+## Website settings parity
+
+The secretary can change everything the header pop-ups can
+(`docs/workflows/secretary.md`, *Website settings*). A PR that adds or changes a
+pop-up setting or action also adds it to `src/goodmorning/web/website_settings.py`
+(server-side state through the account's backend, device state through the chat
+page's applier in `assets/web/chat.js`), `docs/helper-inputs.md` and that section,
+with its tests and the prompt trials (`tests/benchmarks/settings_live.py`). Password changes stay self-service; linking,
+unlinking and signing out run only on the user's own tap of the card's button.
+
 ## Releases
 
 Website releases are below. Android APKs are released separately, only when the

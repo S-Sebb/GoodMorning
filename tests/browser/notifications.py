@@ -19,6 +19,150 @@ sys.path.insert(0, str(REPO / "tests"))
 from support import TEMP_ROOT
 
 
+def settings_applied(page, menu, settings, playwright, artifacts):
+    """Changes the secretary prepared run through the real pop-ups: page ones in order once the reply
+    ends, and linking, unlinking and signing out only on a real tap. The transcript and the one-time
+    claim are stubbed; every control and route behind them is the real gateway's."""
+    chat = "b" * 32
+    menu(page, "notify")
+    with page.expect_response("**/api/push/subscribe"):
+        page.locator("#notification-device").click()
+    expect(page.locator("#notification-choices")).to_be_visible()
+    api = playwright.request.new_context(
+        base_url=settings["gateway"],
+        extra_http_headers={
+            "Host": "sec.language.test",
+            "X-Forwarded-Proto": "https",
+            "X-Real-IP": "192.0.2.3",
+        },
+    )
+    pairing = api.post("/api/app/pair", data={"label": "Pixel 8"}).json()
+
+    def request(seq, name, value):
+        return {
+            "id": f"action:setting:{seq}",
+            "role": "assistant",
+            "kind": "action",
+            "text": "",
+            "from_turn": "mine",
+            "action": {
+                "operation": "requested",
+                "target": "setting",
+                "setting": name,
+                "value": value,
+                "seq": seq,
+                "state": "open",
+            },
+        }
+
+    changes = [
+        request(1, "night_scheme", "city-lights"),
+        request(2, "style", "pixel"),
+        request(3, "notifications", {"gm": True, "gm_time": "06:45"}),
+        request(4, "link_phone", pairing["code"]),
+        request(5, "unlink_phone", "workphone galaxy"),
+        request(6, "sign_out", True),
+    ]
+    status = {
+        "mode": "secretary",
+        "state": "running",
+        "label": "Working",
+        "language": "en",
+        "forms": [],
+        "permissions": [],
+        "messages": [
+            {"id": "u", "role": "user", "text": "Please", "turn": "mine"},
+            *changes,
+        ],
+    }
+    claims, token = [], {}
+
+    def claim(route):
+        seq = int(route.request.url.split("/settings/")[1].split("/")[0])
+        claims.append(seq)
+        entry = changes[seq - 1]["action"]
+        sent = json.loads(route.request.post_data)
+        # Taps alone claim linking, unlinking and signing out, always with this page's token.
+        assert sent == {
+            "setting": entry["setting"],
+            "page": token["page"],
+            "tap": seq >= 4,
+        }, sent
+        route.fulfill(
+            json={
+                "claimed": True,
+                "seq": seq,
+                "setting": entry["setting"],
+                "value": entry["value"],
+            }
+        )
+
+    page.route(f"**/api/chats/{chat}", lambda route: route.fulfill(json=status))
+    page.route("**/settings/*/claim", claim)
+    page.goto(f"https://sec.language.test/chat?id={chat}")
+    token["page"] = page.evaluate("goodmorningSettings.page")
+    expect(page.locator("#chat-status")).to_contain_text("working")
+    page.evaluate("goodmorningSettings.remember('mine')")
+    page.evaluate("pollChat()")
+    page.wait_for_timeout(600)
+    assert claims == [], claims  # Nothing runs while the reply is still being written.
+    status["state"] = "idle"
+    page.evaluate("pollChat()")
+    card = lambda seq: page.locator(
+        f'[data-message="action:setting:{seq}"] .chat-setting'
+    )
+    for seq in (1, 2, 3):
+        expect(card(seq).locator(".chat-setting-result")).to_have_text(
+            "Done on this device.", timeout=20000
+        )
+    assert page.evaluate(
+        "[document.documentElement.dataset.nightScheme, document.documentElement.dataset.style]"
+    ) == ["city-lights", "pixel"]
+    expect(page.locator("#notification-form input[name=gm_time]")).to_have_value(
+        "06:45"
+    )
+    assert claims == [1, 2, 3], claims  # Taps alone claim the rest.
+    # Another tab of the same browser sees the cards but never their buttons.
+    other = page.context.new_page()
+    other.route(f"**/api/chats/{chat}", lambda route: route.fulfill(json=status))
+    other.route("**/settings/*/claim", claim)
+    other.goto(f"https://sec.language.test/chat?id={chat}")
+    other_card = other.locator('[data-message="action:setting:6"] .chat-setting')
+    expect(other_card.locator(".chat-setting-result")).to_have_text(
+        "Not changed. Ask again here, or use the pop-up."
+    )
+    expect(other.locator(".chat-setting-confirm:visible")).to_have_count(0)
+    other.close()
+    expect(card(1).locator(".chat-setting-title")).to_have_text(
+        "Night color scheme → City Lights"
+    )
+    # A script's click is not the user's tap.
+    link = card(4).locator(".chat-setting-confirm")
+    expect(link).to_have_text(f"Link this phone ({pairing['code']})")
+    link.evaluate("button => button.click()")
+    page.wait_for_timeout(500)
+    assert 4 not in claims
+    with page.expect_response("**/api/app/link") as linked:
+        link.click()
+    assert linked.value.status == 200, linked.value.json()
+    expect(card(4).locator(".chat-setting-result")).to_have_text("Done.", timeout=15000)
+    # Case, spacing and a unique part of the name find the phone.
+    rows = page.locator("#app-links li")
+    before = rows.count()
+    with page.expect_response("**/api/app/unlink") as unlinked:
+        card(5).locator(".chat-setting-confirm").click()
+    assert unlinked.value.status == 200
+    expect(card(5).locator(".chat-setting-result")).to_have_text("Done.", timeout=15000)
+    expect(rows).to_have_count(before - 1)
+    page.screenshot(path=str(artifacts / "settings-cards-1440.png"))
+    expect(card(6).locator(".chat-setting-confirm")).to_have_text(
+        "Sign out of this browser"
+    )
+    card(6).locator(".chat-setting-confirm").click()
+    expect(page).to_have_url("https://sec.language.test/login", timeout=15000)
+    api.dispose()
+
+
 def main():
     artifacts = Path(sys.argv[1])
     artifacts.mkdir(parents=True, exist_ok=True, mode=0o700)
@@ -469,6 +613,7 @@ def main():
                 expect(desktop.locator("#notification-status")).to_have_text(
                     "Notifications are off for this device."
                 )
+                settings_applied(desktop, menu, settings, playwright, artifacts)
                 browser.close()
             assert errors == [], errors
             print(

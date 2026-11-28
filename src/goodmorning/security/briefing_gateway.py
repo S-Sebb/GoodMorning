@@ -70,7 +70,7 @@ GET_ROUTES = re.compile(
     r"(?:/|/index\.html|/(?:offline/)?(?:gm|gn)|/chat|/schedule|/about-me|/api/schedule|/letters(?:/\d{4}-\d{2}-\d{2})?|/api/avatar(?:/image/[a-f0-9]{64}\.png)?|/api/chats(?:/[a-f0-9]{32}(?:/status)?)?|/api/day|/api/ideas|/api/reminders|/api/app-schedule|/api/app-briefings|/api/app-weather|/api/app-profile|/api/notes(?:/batch)?|/api/edition/\d{4}-\d{2}-\d{2}/(?:gm|gn)|/api/jobs/[a-f0-9]{32}(?:/preview)?|/d/\d{4}-\d{2}-\d{2}/(?:gm|gn)(?:\.json)?|/media/(?:thumb-v1/)?[a-f0-9]{64}\.webp|/d/\d{4}-\d{2}-\d{2}/media/[a-f0-9]+\.webp|/(?:assets/[a-f0-9]{64}/)?desk-secretary(?:-f2|-m1|-m2)?(?:-profile|(?:-day)?(?:-animated)?)\.png|/(?:assets/[a-f0-9]{64}/)?(?:briefing\.css|briefing\.js|browser\.js|schedule\.js|schedule\.css|questions\.js|chat\.js|chat\.css|avatar\.js|avatar\.css|fonts/(?:lora-italic\.woff2|OFL\.txt)))"
 )
 POST_ROUTES = re.compile(
-    r"(?:/api/notes(?:/sorted)?|/api/schedule/tick|/api/ideas/close|/api/about-me|/api/avatar(?:/upload/(?:day|night|profile))?|/api/(?:generate|regenerate)|/api/chat-uploads/[a-f0-9]{32}|/api/chats|/api/chats/[a-f0-9]{32}/(?:messages|seen|(?:form|permission)/[A-Za-z0-9_]+/reply)|/api/jobs/[a-f0-9]{32}/(?:recover|(?:form|permission)/[A-Za-z0-9_]+/reply))"
+    r"(?:/api/notes(?:/sorted)?|/api/schedule/tick|/api/ideas/close|/api/about-me|/api/avatar(?:/upload/(?:day|night|profile))?|/api/(?:generate|regenerate)|/api/chat-uploads/[a-f0-9]{32}|/api/chats|/api/chats/[a-f0-9]{32}/(?:messages|seen|settings/[0-9]{1,9}/claim|(?:form|permission)/[A-Za-z0-9_]+/reply)|/api/jobs/[a-f0-9]{32}/(?:recover|(?:form|permission)/[A-Za-z0-9_]+/reply))"
 )
 # Only the gateway's own background work reaches these; browsers never can.
 # Reached only by the gateway itself: reminders, and the chat summary of the app-token-authenticated phone sync.
@@ -957,9 +957,16 @@ class Gateway:
         else:
             path, payload = (
                 "/api/chats",
-                {"id": request, "mode": "secretary", "text": body["text"]},
+                {
+                    "id": request,
+                    "mode": "secretary",
+                    "text": body["text"],
+                },
             )
-        return self.chat_message(user, host, path, json.dumps(payload).encode(), {})
+        # The source is the gateway's own word, never a field a client can send.
+        return self.chat_message(
+            user, host, path, json.dumps(payload).encode(), {}, source="widget"
+        )
 
     def app_note(self, user, body):
         """Saves one quick note word for word; no model runs."""
@@ -1407,8 +1414,11 @@ class Gateway:
             self.confirm_dispatch(candidate)
         return status
 
-    def _reserve_or_queue(self, kind, candidate, path, body, language, enqueued=None):
-        """Atomically take the active slot or join the bounded global waiting line."""
+    def _reserve_or_queue(
+        self, kind, candidate, path, body, language, enqueued=None, duplicate=None
+    ):
+        """Atomically take the active slot or join the bounded global waiting line.
+        A `duplicate` list receives the waiting entry a duplicate matched, read in the same transaction."""
         self.check_paused()
         entry = {
             "kind": kind,
@@ -1443,6 +1453,8 @@ class Gateway:
                         and waiting.get("candidate") == candidate
                     ):
                         self._write_queue(db, queue)
+                        if duplicate is not None:
+                            duplicate.append(waiting)
                         return ("queued_duplicate", index + 1, len(queue))
                 if len(queue) >= MAX_QUEUE:
                     self._write_queue(db, queue)
@@ -1457,6 +1469,8 @@ class Gateway:
                         and waiting.get("candidate") == candidate
                     ):
                         self._write_queue(db, queue)
+                        if duplicate is not None:
+                            duplicate.append(waiting)
                         return ("queued_duplicate", index + 1, len(queue))
                 if len(queue) >= MAX_QUEUE:
                     self._write_queue(db, queue)
@@ -1563,27 +1577,35 @@ class Gateway:
             payload["job"] = candidate["job"]
         return 202, {"Content-Type": "application/json"}, json.dumps(payload).encode()
 
-    def chat_message(self, identifier, host, path, raw, headers):
+    def chat_message(self, identifier, host, path, raw, headers, *, source=None):
         self.check_paused()
-        from goodmorning.web.briefing_chat import MODES, message
+        from goodmorning.web.briefing_chat import MODES, hash_page, message
         from goodmorning.web.briefing_chat import identifier as chat_id
 
         body = json.loads(raw)
         if path == "/api/chats":
             if (
-                set(body)
+                set(body) - {"page"}
                 not in ({"id", "mode", "text"}, {"id", "mode", "text", "attachments"})
                 or body["mode"] not in MODES
             ):
                 raise ValueError("Invalid secretary mode")
             chat = chat_id(body["id"])
         else:
-            if set(body) not in ({"id", "text"}, {"id", "text", "attachments"}):
+            if set(body) - {"page"} not in (
+                {"id", "text"},
+                {"id", "text", "attachments"},
+            ):
                 raise ValueError("Invalid conversation message")
             chat = re.fullmatch(r"/api/chats/([a-f0-9]{32})/messages", path)[1]
         request = chat_id(body["id"])
         message(body["text"])
         attachment_ids(body)
+        # Neither the queue nor the backend ever stores the page's own token, only its hash.
+        body = hash_page(body)
+        if source:
+            body["source"] = source
+        raw = json.dumps(body).encode()
         candidate = {
             "user": identifier,
             "host": host,
@@ -1804,9 +1826,21 @@ class Gateway:
             )
         body = json.loads(raw)
         if category == "form" and (
-            set(body) != {"answer"} or not isinstance(body["answer"], dict)
+            set(body) - ({"page"} if key == "chat" else set()) != {"answer"}
+            or not isinstance(body["answer"], dict)
         ):
             raise ValueError("Invalid briefing answer")
+        mark = None
+        if key == "chat":
+            from goodmorning.web.briefing_chat import answer_turn, hash_page
+
+            body = hash_page(body)
+            raw = json.dumps(body).encode()
+            mark = body.get("page_hash")
+            # The answering page applies settings asked for in reply, even when the answer waits in line.
+            turn = {"turn": answer_turn(target, request)} if category == "form" else {}
+        else:
+            turn = {}
         if category == "permission" and (
             set(body) != {"decision"} or body["decision"] not in ("once", "reject")
         ):
@@ -1826,15 +1860,32 @@ class Gateway:
             "kind": value.get("kind") or value.get("mode"),
         }
         self.pump_queue()
+        matched = []
         action, position, depth = self._reserve_or_queue(
             "reply",
             candidate,
             path,
             body,
             self.accounts.website_language(identifier) or ui.current(),
+            duplicate=matched,
         )
+        if turn:
+            # Only the page whose answer is the one saved in line owns that turn's settings.
+            if action == "queued":
+                turn["owner"] = bool(mark)
+            elif action == "queued_duplicate":
+                turn["owner"] = (
+                    bool(mark) and matched[0]["body"].get("page_hash") == mark
+                )
+            else:
+                turn["owner"] = (
+                    False  # Already on its way; the first answer's page owns it.
+                )
         if action in ("queued", "queued_duplicate"):
-            return self.queued_response("reply", candidate, position, depth)
+            status, upstream, data = self.queued_response(
+                "reply", candidate, position, depth
+            )
+            return status, upstream, json.dumps(json.loads(data) | turn).encode()
         if action == "full":
             return (
                 429,
@@ -1845,7 +1896,7 @@ class Gateway:
             return (
                 202,
                 {"Content-Type": "application/json"},
-                json.dumps({key: target}).encode(),
+                json.dumps({key: target} | turn).encode(),
             )
         status, upstream, data = self.proxy(
             identifier, host, path, "POST", raw, headers

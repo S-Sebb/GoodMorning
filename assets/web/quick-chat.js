@@ -176,6 +176,7 @@
   }
 
   function messageLabel(item) {
+    if (item.action?.target === 'setting') return '';  // The settings card names it (chat-settings.js).
     if (item.kind === 'action') {
       const target = t(actionTargets[item.action?.target] || 'Record');
       return t(actionLabels[item.action?.operation] || '{target} updated', {target});
@@ -184,6 +185,7 @@
   }
 
   function showMessages(messages) {
+    goodmorningSettings.update(chat, messages, state);
     shownMessages = messages;
     const delivered = new Set(messages.map(item => item.turn).filter(Boolean));
     pendingMessages = pendingMessages.filter(item => !delivered.has(item.turn));
@@ -197,6 +199,7 @@
       if (item.language) bubble.lang = item.language;
       const label = messageLabel(item);
       if (label) bubble.append(make('p', label, 'quick-chat-label'));
+      if (item.action?.target === 'setting') bubble.append(goodmorningSettings.card(chat, item));
       const content = make('div', '', 'quick-chat-text');
       if (item.kind === 'outreach') bubble.classList.add('outreach');
       if (item.role === 'assistant' && (!item.kind || item.kind === 'outreach')) {
@@ -231,7 +234,9 @@
     formSignature = signature;
     const refreshed = () => { formSignature = ''; follow = true; poll(); };
     const reply = async (category, id, body) => {
-      const receipt = await api(`/api/chats/${current}/${category}/${id}/reply`, body);
+      const receipt = await api(`/api/chats/${current}/${category}/${id}/reply`,
+        category === 'form' ? {...body, page: goodmorningSettings.page} : body);
+      if (receipt.owner) goodmorningSettings.remember(receipt.turn);
       if (version === revision && receipt.queued) { state = 'queued'; statusLabel = queueText(receipt.position, receipt.depth); showStatus(); }
       return receipt;
     };
@@ -495,6 +500,7 @@
     const pending = {turn: request, text, attachments: selectedFiles.map(entry => ({id: entry.id, name: entry.file.name,
       size: entry.file.size, preview: entry.preview}))};
     pendingMessages.push(pending);
+    goodmorningSettings.remember(request);
     showMessages(shownMessages); scrollToLatest();
     let result;
     try {
@@ -505,7 +511,7 @@
         }
         if (version !== revision) return;
       }
-      const body = first ? {id: current, mode: 'secretary', text} : {id: request, text};
+      const body = {...(first ? {id: current, mode: 'secretary', text} : {id: request, text}), page: goodmorningSettings.page};
       if (selectedFiles.length) body.attachments = selectedFiles.map(entry => entry.id);
       result = await api(first ? '/api/chats' : `/api/chats/${current}/messages`, body);
       if (version !== revision) return;
@@ -537,12 +543,13 @@
     const current = chat, version = revision, request = crypto.randomUUID().replaceAll('-', '');
     // Uploads removed after 30 days cannot be sent again.
     const attachments = item.attachments.filter(entry => !entry.removed);
-    const body = {id: request, text: item.text};
+    const body = {id: request, text: item.text, page: goodmorningSettings.page};
     if (attachments.length) body.attachments = attachments.map(entry => entry.id);
     const previous = shownMessages;
     sending = true; errorBox.textContent = ''; showStatus();
     // The new message replaces the one that was not sent.
     pendingMessages.push({turn: request, text: item.text, attachments});
+    goodmorningSettings.remember(request);
     showMessages(previous.filter(entry => entry.id !== item.id)); scrollToLatest();
     try {
       const result = await api(`/api/chats/${current}/messages`, body);

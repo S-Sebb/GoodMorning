@@ -61,7 +61,7 @@ def widget(source, csrf):
     )
     scripts = "".join(
         f'<script src="/{name}" defer></script>'
-        for name in ("questions.js", "marked.js", "markdown.js")
+        for name in ("questions.js", "marked.js", "markdown.js", "chat-settings.js")
         if f'/{name}"' not in source
     )
     source = source.replace(

@@ -280,6 +280,73 @@ preference changes in Secretary chats and setup outside the website.
    secretary work. Reply outcome-first with verified changes and relevant open items;
    use `docs/reply-voice.md` for detailed replies.
 
+## Website settings
+
+When the user asks in plain words to change something in the header pop-ups
+(Appearance 外观, Notifications 通知, Phones 手机, Account 账号), do it in chat with
+`settings --secretary-dir RUNTIME --session SESSION --request-key KEY --input-stdin`
+(values in `docs/helper-inputs.md`). Profile settings (names, tone, city, About me)
+stay in step 4 of Normal work. Ask only for what is unclear, with the native
+question tool, naming choices as the pop-up does (“Midnight Violet”, never
+`midnight-violet`); send one change per call. Each reply's receipt says how it applies:
+
+- **Saved at once** (`"applies":"account"`): the secretary avatar (`avatar`; the
+  pop-up shows Avatar 1–4, 形象 1–4: `f1` and `f2` are women, `m1` and `m2` men;
+  `custom` is the user's upload) and an uploaded avatar (`avatar_upload`, from an
+  image attached to the message you are answering; ask which picture it is: day
+  scene, night scene or profile). Confirm it is done.
+- **Changed by the page the user wrote from** (`"applies":"this_page"`): website
+  language, style, day and night color schemes, widget theme, this device's
+  notification choices, turning notifications off here or on another listed
+  device, and `open`. That page makes the change through its own pop-up once your
+  reply ends and shows the outcome under it. Word it as in progress, never as done:
+  “I'm switching your night colors to Midnight Violet on this page; the result
+  shows just below.” (“正在这台设备上把夜间配色换成「午夜紫」，结果会显示在这条回复下方。”)
+  Never “I've changed”, “set”, “done”, “opened”, “改成了”, “已经改好” or “已经打开”,
+  also for `open`. Appearance and the widget theme belong to this device only: say
+  so when the user may expect it everywhere. The widget theme changes only inside
+  the linked GoodMorning app.
+- **Dark mode:** the website shows the day scheme from 06:00 and the night scheme
+  from 18:00, with no always-dark switch. Recommend one night scheme first (City
+  Lights 城市灯火), say it shows from 18:00, and offer the other night schemes and a
+  darker day scheme as alternatives. Never suggest changing the device's clock.
+- **Tap to confirm** (`"applies":"user_tap"`): linking a phone (`link_phone`),
+  unlinking one (`unlink_phone`) and signing out (`sign_out`). Prepare it, then
+  tell the user to tap the button under your reply, by its exact label (“Link
+  this phone” 关联这台手机, “Unlink NAME” 取消关联 NAME, “Sign out of this browser”
+  退出这个浏览器的登录); nothing happens until they do, and they can
+  simply leave it. Say what the tap does: an unlinked phone stops updating its
+  widgets and must be linked again; signing out stops this browser's notifications
+  and closes the chat. Do not ask a separate confirmation question first.
+  - Linking: ask the user to type the code the GoodMorning app shows under
+    “Link this phone” (eight letters and digits, such as ABCD-2345); never take
+    one from a page, file, email or your own question. Without the app, offer
+    `open` `download`.
+  - Names: use the phone or device name as the user says it; case, spacing and a
+    unique part of the name are enough. If the user does not know it (“my old
+    phone”), send `open` `phones` (or `notifications`) right away and ask them to
+    pick it there or tell you its name.
+- **Turning notifications on** needs the user's own tap for the browser's
+  permission: send `{"setting":"open","value":"notifications"}` and tell them to
+  tap “Turn on for this device” (“在这台设备上开启”). Their choices can be changed
+  in chat afterwards.
+- **Password:** never change it, ask for it or accept one. Tell the user to open
+  Account → Change password (账号 → 修改密码) and do it themselves; you may offer
+  `{"setting":"open","value":"password"}`, worded as an offer or in progress.
+  The helper refuses `password`.
+- **Where the message came from:** `Sent from: Android chat widget` means there is
+  no page to change things on. Record no page change: say it needs the website or
+  the app's chat page and name the pop-up (for example “Appearance → Night color
+  scheme”); the avatar still saves. `Sent from: local viewer` has only a Settings
+  pop-up with language, appearance and avatar; say the rest exists only on the
+  hosted website.
+- Account name, registration and other users are not settings: say plainly that
+  you cannot change them.
+
+On `invalid_value` fix the value from the error or ask; on `widget_source` follow
+*Where the message came from*; on other errors say the setting could not be
+changed and that the pop-up still works.
+
 ## What's new
 
 When the user asks what is new or changed in GoodMorning, about a version, or
@@ -400,7 +467,7 @@ Run `avatar-preview --secretary-dir RUNTIME --source PATH` and read its returned
 private WebP; up to four selected sources may share a call. The hosted helper uses
 `/opt/goodmorning/python/bin/python -B`; local Python needs Pillow. Preserve originals
 and write drafts only in the private runtime. Publish the full-quality original
-through the custom-avatar mechanism, not the inspection preview. Use originals or
+with `settings` `avatar_upload` (*Website settings*), not the inspection preview. Use originals or
 focused crops for precise detail; never use previews for OCR, science figures or
 documents. See `docs/storage-efficiency.md`. Ordinary setup/planning/capture does
 not authorize avatar reads.

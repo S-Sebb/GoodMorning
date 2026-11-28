@@ -148,6 +148,120 @@ class ChatTests(unittest.TestCase):
         self.assertEqual(
             len([call for call in self.chamber.calls if call[0] == "session.create"]), 1
         )
+        self.assertNotIn("Sent from", later)
+        # The phone's chat widget has no page to apply website settings on, so the secretary is told.
+        self.chats.send(
+            self.id, {"id": "e" * 32, "text": "Night colors please", "source": "widget"}
+        )
+        widget = [
+            body["prompt"]
+            for action, body in self.chamber.calls
+            if action == "session.send"
+        ][-1]
+        self.assertIn("\nSent from: Android chat widget\n", widget)
+        self.assertEqual(
+            len([call for call in self.chamber.calls if call[0] == "session.create"]), 1
+        )
+
+    def test_only_the_sending_page_claims_a_setting_once_after_the_reply(self):
+        import _thread
+        import threading
+
+        from goodmorning.web import website_settings
+
+        mine, other = "a" * 32, "b" * 32
+        self.chats.start(
+            {
+                "id": self.id,
+                "mode": "secretary",
+                "text": "Night colors please",
+                "page": mine,
+            }
+        )
+        session = self.chats.get(self.id)["session"]
+        with patch.dict("os.environ", {"OPENCODE_SESSION_ID": session}):
+            website_settings.change(
+                self.root, session, "k1", {"setting": "night_scheme", "value": "starry"}
+            )
+        body = {"setting": "night_scheme", "page": mine, "tap": False}
+        # A reply paused on a permission or question is not finished either.
+        for state in ("running", "waiting"):
+            with patch.object(self.chats, "status", return_value={"state": state}):
+                self.assertEqual(
+                    self.chats.claim_setting(self.id, 1, body),
+                    {"claimed": False, "state": "running"},
+                    state,
+                )
+        with patch.object(self.chats, "status", return_value={"state": "running"}):
+            self.assertEqual(
+                self.chats.claim_setting(self.id, 1, body),
+                {"claimed": False, "state": "running"},
+            )
+        # Two tabs race: the other one is refused and the sending one applies it exactly once.
+        results = []
+
+        def claim(page):
+            try:
+                results.append(
+                    self.chats.claim_setting(self.id, 1, {**body, "page": page}).get(
+                        "claimed"
+                    )
+                )
+            except ValueError as error:
+                results.append(str(error))
+
+        # These tests make threading.Thread run inline, so start real threads directly.
+        done = [threading.Event() for _ in range(3)]
+        for page, event in zip((mine, mine, other), done):
+            _thread.start_new_thread(
+                lambda page, event: (claim(page), event.set()), (page, event)
+            )
+        for event in done:
+            self.assertTrue(event.wait(10))
+        self.assertEqual(
+            sorted(map(str, results)),
+            sorted(
+                ["True", "False", "Only the page that sent this message can apply it"]
+            ),
+        )
+
+    def test_a_message_sent_during_a_reply_is_an_interrupt_and_the_gateway_hash_is_kept(
+        self,
+    ):
+        from goodmorning.web import website_settings
+
+        self.start()
+        busy = {"state": "running", "permissions": []}
+        with patch.object(self.chats, "status", return_value=busy):
+            self.chats.send(
+                self.id,
+                {"id": "b" * 32, "text": "Something else", "page_hash": "e" * 64},
+            )
+        newest = self.chats.get(self.id)["turns"][-1]
+        self.assertEqual((newest["interrupt"], newest["page"]), (True, "e" * 64))
+        # The helper cannot tell which message asked, so it changes nothing.
+        session = self.chats.get(self.id)["session"]
+        with self.assertRaisesRegex(ValueError, "^ask_again"):
+            website_settings.change(
+                self.root, session, "k1", {"setting": "night_scheme", "value": "starry"}
+            )
+
+    def test_a_link_code_typed_into_a_question_counts_but_its_options_do_not(self):
+        from goodmorning.web import website_settings
+
+        self.start("secretary", "Ask my city")
+        session = self.chats.get(self.id)["session"]
+        self.chats.reply(
+            self.id,
+            "form",
+            "form_city",
+            {"answer": {"city": "abcd 2345"}, "page": "a" * 32},
+        )
+        receipt = website_settings.change(
+            self.root, session, "k1", {"setting": "link_phone", "value": "ABCD-2345"}
+        )
+        self.assertEqual(receipt["applies"], "user_tap")
+        self.assertEqual(self.chats.get(self.id)["turns"][-1]["typed"], ["abcd 2345"])
 
     def test_secretary_opened_conversation_keeps_its_title_and_language(self):
         from goodmorning.web import language as ui
@@ -288,6 +402,74 @@ class ChatTests(unittest.TestCase):
         self.assertEqual(
             len([1 for action, _ in self.chamber.calls if action == "session.send"]), 1
         )
+
+    def test_held_messages_from_two_pages_merge_into_a_turn_no_page_owns(self):
+        from goodmorning.web import website_settings
+
+        for pages, mixed in (
+            (("a" * 32, "b" * 32), True),
+            (("a" * 32, "a" * 32), False),
+        ):
+            for record in (
+                "setup-consent.json",
+                "profile.md",
+            ):  # Agreeing creates both.
+                (self.root / record).unlink(missing_ok=True)
+            chat = ("d" if mixed else "e") * 32
+            self.chats.start(
+                {
+                    "id": chat,
+                    "mode": "secretary",
+                    "text": "Night colors please",
+                    "page": pages[0],
+                }
+            )
+            self.chats.send(
+                chat, {"id": chat[:31] + "f", "text": "And more", "page": pages[1]}
+            )
+            (consent,) = self.chats.status(chat)["forms"]
+            self.chats.reply(
+                chat, "form", consent["id"], {"answer": {"consent": "agree"}}
+            )
+            merged = self.chats.get(chat)["turns"][-1]
+            self.assertEqual(
+                (merged.get("mixed", False), "page" in merged), (mixed, not mixed)
+            )
+            request = {"setting": "night_scheme", "value": "starry"}
+            if mixed:
+                with self.assertRaisesRegex(ValueError, "^ask_again"):
+                    website_settings.change(
+                        self.root, self.chats.get(chat)["session"], "k", request
+                    )
+            else:
+                website_settings.change(
+                    self.root, self.chats.get(chat)["session"], "k", request
+                )
+
+    def test_a_parked_question_does_not_hide_a_reply_still_running(self):
+        from goodmorning.web import website_settings
+
+        self.start("secretary", "Ask my city")
+        self.chats.status(self.id)  # Parks the question; the engine keeps writing.
+        session_id = self.chats.get(self.id)["session"]
+        session = self.chamber.sessions[session_id]
+        session["busy"] = True
+        self.assertEqual(self.chats.status(self.id)["state"], "waiting")
+        self.chats.send(
+            self.id, {"id": "b" * 32, "text": "Something else", "page": "b" * 32}
+        )
+        self.assertTrue(self.chats.get(self.id)["turns"][-1]["interrupt"])
+        with self.assertRaisesRegex(ValueError, "^ask_again"):
+            website_settings.change(
+                self.root,
+                session_id,
+                "k1",
+                {"setting": "night_scheme", "value": "starry"},
+            )
+        # Once the engine is idle again, a message is an ordinary turn.
+        session["busy"] = False
+        self.chats.send(self.id, {"id": "c" * 32, "text": "Hello again"})
+        self.assertNotIn("interrupt", self.chats.get(self.id)["turns"][-1])
 
     def test_blank_setup_start_asks_its_first_question_without_a_model(self):
         self.start("initialize", "")
@@ -818,7 +1000,15 @@ class ChatTests(unittest.TestCase):
         )
         session = self.chamber.sessions[self.chats.get(self.id)["session"]]
         self.chamber.add(session, "assistant", "Take your time choosing.")
-        self.chats.reply(self.id, "form", "form_city", {"answer": {"city": "London"}})
+        receipt = self.chats.reply(
+            self.id,
+            "form",
+            "form_city",
+            {"answer": {"city": "London"}, "page": "a" * 32},
+        )
+        self.assertTrue(receipt["owner"])
+        # The answering page owns the reply's settings requests, so it learns the answer's turn.
+        self.assertEqual(receipt["turn"], self.chats.get(self.id)["turns"][-1]["id"])
         self.chats.reply(
             self.id, "permission", "permission_setup", {"decision": "reject"}
         )
@@ -839,10 +1029,17 @@ class ChatTests(unittest.TestCase):
             [entry["text"] for entry in restored.status(self.id)["messages"]], expected
         )
         sent = len(self.chamber.calls)
-        self.assertEqual(
-            restored.reply(self.id, "form", "form_city", {"answer": {"city": "Paris"}}),
-            {"answered": True},
-        )
+        # A retried answer keeps its turn, but only the page that sent it first owns its settings.
+        for page, owner in (("a" * 32, True), ("b" * 32, False)):
+            self.assertEqual(
+                restored.reply(
+                    self.id,
+                    "form",
+                    "form_city",
+                    {"answer": {"city": "Paris"}, "page": page},
+                ),
+                {"answered": True, "turn": receipt["turn"], "owner": owner},
+            )
         self.assertEqual(
             [entry["text"] for entry in restored.status(self.id)["messages"]], expected
         )
@@ -1088,11 +1285,16 @@ class ChatTests(unittest.TestCase):
 
     def test_identical_replies_each_need_their_own_acknowledgment(self):
         self.start()
-        self.chats.send(self.id, {"id": "b" * 32, "text": "Yes"})
+        self.chats.send(self.id, {"id": "b" * 32, "text": "Yes", "page": "f" * 32})
         self.chamber.fail = True
         self.chats.send(self.id, {"id": "c" * 32, "text": "Yes"})
         self.chats.items[self.id]["uncertain_since"] = 0
         status = self.chats.status(self.id)
+        # Website settings follow only turns the engine accepted, never one it never received.
+        accepted, lost = self.chats.get(self.id)["turns"][-2:]
+        self.assertTrue(accepted["accepted"] and accepted["page"])
+        self.assertNotIn("accepted", lost)
+        self.assertIn("prompt_hash", lost)
         self.assertEqual(status["state"], "idle")
         self.assertEqual(
             [
