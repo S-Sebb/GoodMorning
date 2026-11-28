@@ -1,12 +1,14 @@
-"""Emulator check for the chat widget's conversation restore (#352), against a local fake server.
+"""Emulator check for the chat widget's conversation restore (#352) and Ask's attachments (#351),
+against a local fake server.
 
-    python tests/android/widget_chat.py --serial emulator-5554
+    python tests/android/widget_chat.py --serial emulator-5554 [--only restore|attachments]
 
 Needs a booted emulator (yanglab16: `android-emu`) and JDK 17 (`JAVA_HOME`). It builds and installs the debug
 APK, whose debug-only overlay allows plain HTTP to the emulator host (10.0.2.2) and adds the TestHooks
 activity. The app links itself through the fake server's pairing endpoints, so it seals a real token, then
 the chat widget is placed and checked. Time away is simulated with the phone's departure record
-(TestHooks) and the summary's `active` time, not the emulator clock. Rerunning clears the app's data first.
+(TestHooks) and the summary's `active` time, not the emulator clock. Attachments are picked in the system file picker from files the script puts in
+Download, in English and Chinese. Rerunning clears the app's data first.
 Logs and screenshots go to `--out` (default: the project scratch folder).
 """
 
@@ -42,6 +44,12 @@ class Fake:
         self.chat = None
         self.leave_chat = False
         self.draft = False
+        self.language = "en"
+        self.fail_uploads = 0  # The next uploads to refuse, as a server error.
+        self.upload_delay = 0  # Seconds each upload takes to answer.
+        self.widgets = "day"
+        self.uploads = []  # (id, name, body, status)
+        self.sent = []  # /api/app/chat bodies
         self.requests = []
         self.lock = threading.Lock()
 
@@ -49,8 +57,12 @@ class Fake:
         return {
             "device": "0123456789abcdef",
             "settings": {},
-            "language": "en",
-            "appearance": {"day": "morning-sky", "night": "starry", "widgets": "day"},
+            "language": self.language,
+            "appearance": {
+                "day": "morning-sky",
+                "night": "starry",
+                "widgets": self.widgets,
+            },
             "notifications": [],
             "busy": False,
             "schedule": None,
@@ -78,8 +90,28 @@ class Fake:
 
             def answer(self):
                 path = urlsplit(self.path).path
+                body = self.rfile.read(int(self.headers.get("Content-Length") or 0))
                 with fake.lock:
                     fake.requests.append((time.time(), self.command, self.path))
+                if path.startswith("/api/app/chat-uploads/"):
+                    time.sleep(fake.upload_delay)
+                    refused = fake.fail_uploads > 0
+                    fake.fail_uploads -= refused
+                    identifier = path.rsplit("/", 1)[1]
+                    name = parse_qs(urlsplit(self.path).query)["name"][0]
+                    fake.uploads.append(
+                        (identifier, name, body, 500 if refused else 201)
+                    )
+                    if refused:
+                        self.send_response(500)
+                        self.send_header("Content-Length", "0")
+                        return self.end_headers()
+                    return self.reply(
+                        {"id": identifier, "name": name, "size": len(body)}
+                    )
+                if path == "/api/app/chat":
+                    fake.sent.append(json.loads(body))
+                    return self.reply({"chat": CHAT})
                 if path == "/api/app/pair" and self.command == "POST":
                     return self.reply(
                         {"code": "TEST-0001", "secret": "s" * 32, "expires": 600}
@@ -180,6 +212,9 @@ class Device:
                         (bounds[0] + bounds[2]) // 2,
                         (bounds[1] + bounds[3]) // 2,
                         node.get("checked") == "true",
+                        node.get("content-desc", ""),
+                        node.get("enabled") == "true",
+                        node.get("resource-id", ""),
                     )
                 )
         return found
@@ -189,6 +224,15 @@ class Device:
         while time.time() < deadline:
             for node in self.nodes():
                 if match(node[0]):
+                    return node
+            time.sleep(1)
+        return None
+
+    def find_desc(self, desc, timeout=20):
+        deadline = time.time() + timeout
+        while time.time() < deadline:
+            for node in self.nodes():
+                if node[5] == desc:
                     return node
             time.sleep(1)
         return None
@@ -235,6 +279,247 @@ class Device:
         return path
 
 
+ASK_TEXT = {
+    "en": {
+        "composer": f"Message {NAME}…",
+        "attach": "Attach files",
+        "note": "Up to 50 MB · kept 30 days",
+        "too_large": "Files must be 50 MB or smaller.",
+        "failed": "Couldn't send. Check your connection and try again.",
+        "remove": "Remove {}",
+        "send": "Send",
+    },
+    "zh-CN": {
+        "composer": f"给 {NAME} 发消息…",
+        "attach": "添加附件",
+        "note": "50 MB 以内 · 保留 30 天",
+        "too_large": "文件大小不能超过 50 MB。",
+        "failed": "没能发送。检查一下网络，再试一次吧。",
+        "remove": "移除 {}",
+        "send": "发送",
+    },
+}
+NOTES, EXTRA, BIG = "gm-notes.txt", "gm-extra.txt", "gm-big.bin"
+LIST = [f"gm-list-{n:02}.txt" for n in range(1, 13)]
+
+
+def attachments(device, fake, check):
+    """Ask with files, in each website language: an oversize file is refused when picked, a failed upload keeps
+    the message and its files for a retry or removal, and the retry sends what is left under the same IDs."""
+    device.shell(
+        f"mkdir -p /sdcard/Download && echo 'Synthetic notes' > /sdcard/Download/{NOTES}"
+        f" && echo 'Synthetic extra' > /sdcard/Download/{EXTRA}"
+        f" && head -c {50 * 1024 * 1024 + 1} /dev/zero > /sdcard/Download/{BIG}"
+        + "".join(f" && echo {name} > /sdcard/Download/{name}" for name in LIST)
+        + " && content call --method scan_volume --uri content://media --arg external_primary"
+    )
+
+    def pick(name, words):
+        attach = device.find_desc(words["attach"], timeout=10)
+        if not attach:
+            return False
+        device.tap(attach)
+        found = device.find(lambda text: text == name, timeout=10)
+        for _ in range(4):  # Further down the picker's Recent list.
+            if found:
+                break
+            device.shell("input swipe 540 1700 540 700 400")
+            found = device.find(lambda text: text == name, timeout=3)
+        if found:
+            device.tap(found)
+        else:
+            device.shell("input keyevent KEYCODE_BACK")
+        time.sleep(2)
+        return found is not None
+
+    def chip(name):
+        return device.find(lambda text: text.startswith(name + " · "), timeout=5)
+
+    for language, words in ASK_TEXT.items():
+        tag = "zh" if language != "en" else "en"
+        fake.language = language
+        fake.uploads.clear()
+        fake.sent.clear()
+        fake.chat = {
+            "id": CHAT,
+            "title": "Trip plan",
+            "state": "idle",
+            "unread": False,
+            "active": time.time() - 60,
+            "reply": REPLY,
+            "reply_id": "m1",
+        }
+        device.hook("--ez sync true")
+        time.sleep(3)
+        device.home()
+        composer = device.find(lambda text: text == words["composer"], timeout=20)
+        if composer:
+            device.tap(composer)
+        attach = device.find_desc(words["attach"], timeout=10)
+        note = device.find(lambda text: text == words["note"], timeout=2)
+        device.screenshot(f"attach-control-{tag}")
+        check(
+            f"Ask ({tag}) offers Attach files, with the limits note hidden until a file is attached",
+            attach is not None and note is None,
+            "" if attach and not note else f"saw {device.texts()[:10]}",
+        )
+        if not attach:
+            device.shell("input keyevent KEYCODE_BACK")
+            continue
+
+        picked = pick(BIG, words)
+        refused = device.find(lambda text: text == words["too_large"], timeout=5)
+        check(
+            f"Ask ({tag}) refuses a file over 50 MB as the browser does",
+            picked and refused is not None and chip(BIG) is None,
+            f"picked {picked}; saw {device.texts()[:10]}",
+        )
+
+        pick(NOTES, words)
+        pick(EXTRA, words)
+        shown = chip(NOTES), chip(EXTRA)
+        device.screenshot(f"attached-{tag}")
+        check(
+            f"Ask ({tag}) lists both picked files with their sizes and the limits note",
+            all(shown)
+            and shown[0][0] == f"{NOTES} · 1 KB"
+            and words["note"] in device.texts(),
+            f"saw {device.texts()[:12]}",
+        )
+
+        text = next(
+            (node for node in device.nodes() if node[7].endswith(":id/text")), None
+        )
+        if text:
+            device.tap(text)
+            device.shell("input text 'Please%sread'")
+            device.shell(
+                "input keyevent KEYCODE_ESCAPE"
+            )  # Closes the keyboard so every control shows.
+            time.sleep(1)
+        fake.fail_uploads = 1
+        send = device.find(lambda text: text == words["send"], timeout=5)
+        if send:
+            device.tap(send)
+        failed = device.find(lambda text: text == words["failed"], timeout=20)
+        time.sleep(1)
+        send = device.find(lambda text: text == words["send"], timeout=5)
+        removable = device.find_desc(words["remove"].format(EXTRA), timeout=5)
+        device.screenshot(f"upload-failed-{tag}")
+        check(
+            f"Ask ({tag}) shows a failed upload and keeps the files to retry or remove",
+            failed is not None
+            and send is not None
+            and send[6]
+            and removable is not None
+            and removable[6]
+            and chip(NOTES) is not None
+            and not fake.sent,
+            f"saw {device.texts()[:12]}; send enabled {send and send[6]}",
+        )
+        if removable:
+            device.tap(removable)
+        time.sleep(1)
+        check(
+            f"Ask ({tag}) removes a file with ×",
+            chip(EXTRA) is None and chip(NOTES) is not None,
+        )
+        send = device.find(lambda text: text == words["send"], timeout=5)
+        if send:
+            device.tap(send)
+        deadline = time.time() + 30
+        while time.time() < deadline and not fake.sent:
+            time.sleep(1)
+        notes = [entry for entry in fake.uploads if entry[1] == NOTES]
+        sent = fake.sent[0] if fake.sent else {}
+        check(
+            f"Ask ({tag}) retry uploads the file under the same ID and sends it with the message",
+            len(notes) == 2
+            and notes[0][0] == notes[1][0]
+            and notes[1][2] == b"Synthetic notes\n"
+            and notes[1][3] == 201
+            and sent.get("attachments") == [notes[0][0]]
+            and sent.get("text") == "Please read"
+            and len(fake.sent) == 1
+            and not any(
+                entry[1] == EXTRA and entry[3] == 201 for entry in fake.uploads
+            ),
+            f"uploads {[(entry[1], entry[3]) for entry in fake.uploads]}; sent {fake.sent}",
+        )
+        if device.find(lambda text: text == words["send"], timeout=3):
+            device.shell("input keyevent KEYCODE_BACK")
+        device.home()
+
+        def open_ask():
+            device.home()
+            composer = device.find(lambda text: text == words["composer"], timeout=20)
+            if composer:
+                device.tap(composer)
+            return device.find_desc(words["attach"], timeout=10) is not None
+
+        # Recreated in the middle of an upload (a dark-mode switch, as on rotation): the new dialog shows that send,
+        # with Send disabled, and the draft arrives once. The phone follows dark mode for the night render.
+        fake.widgets = "phone"
+        device.hook("--ez sync true")
+        time.sleep(3)
+        fake.uploads.clear()
+        fake.sent.clear()
+        opened = open_ask()
+        pick(NOTES, words)
+        fake.upload_delay = 8
+        send = device.find(lambda text: text == words["send"], timeout=5)
+        if send:
+            device.tap(send)
+        time.sleep(2)
+        device.shell("cmd uimode night yes")
+        time.sleep(4)
+        during = device.find(lambda text: text == words["send"], timeout=5)
+        device.screenshot(f"sending-night-{tag}")
+        deadline = time.time() + 30
+        while time.time() < deadline and not fake.sent:
+            time.sleep(1)
+        time.sleep(4)  # Anything sent twice would arrive by now.
+        closed = device.find(lambda text: text == words["send"], timeout=2) is None
+        device.shell("cmd uimode night no")
+        fake.upload_delay = 0
+        check(
+            f"Ask ({tag}) recreated during an upload keeps Send disabled and sends once",
+            opened
+            and during is not None
+            and not during[6]
+            and len(fake.sent) == 1
+            and len(fake.uploads) == 1
+            and closed,
+            f"send {'missing' if during is None else 'enabled' if during[6] else 'disabled'} while sending;"
+            f" uploads {len(fake.uploads)}, messages {len(fake.sent)}, closed {closed}",
+        )
+        fake.widgets = "day"
+        device.hook("--ez sync true")
+        time.sleep(3)
+
+        # A long list scrolls inside the dialog, so Cancel and Send stay on screen.
+        opened = open_ask()
+        for name in LIST:
+            pick(name, words)
+        height = int(re.findall(r"\d+", device.shell("wm size"))[-1])
+        send = device.find(lambda text: text == words["send"], timeout=5)
+        listed = sum(text.startswith("gm-list-") for text in device.texts())
+        device.screenshot(f"twelve-files-{tag}")
+        check(
+            f"Ask ({tag}) with 12 files keeps Send on screen and the list scrolls",
+            opened and send is not None and send[3] < height and 0 < listed < 12,
+            f"send at {send and send[3]} of {height}; rows shown {listed}",
+        )
+        device.shell("input keyevent KEYCODE_BACK")
+        time.sleep(1)
+        if device.find(lambda text: text == words["send"], timeout=2):
+            device.shell("input keyevent KEYCODE_BACK")
+        device.home()
+    fake.language = "en"
+    device.hook("--ez sync true")
+    time.sleep(3)
+
+
 def preflight(arguments):
     adb = shutil.which("adb") or str(
         Path(os.environ.get("ANDROID_HOME", "")) / "platform-tools" / "adb"
@@ -279,6 +564,9 @@ def main():
     parser.add_argument(
         "--skip-build", action="store_true", help="install the debug APK already built"
     )
+    parser.add_argument(
+        "--only", choices=("restore", "attachments"), help="run one group of checks"
+    )
     arguments = parser.parse_args()
     adb, problem = preflight(arguments)
     if problem:
@@ -288,6 +576,10 @@ def main():
     out.mkdir(parents=True, exist_ok=True)
     (out / "adb.log").write_bytes(b"")
     results = []
+
+    def report():
+        print(f"{sum(results)}/{len(results)} passed; logs and screenshots in {out}")
+        return 0 if results and all(results) else 1
 
     def check(name, passed, detail=""):
         results.append(passed)
@@ -377,6 +669,10 @@ def main():
             bool(fake.since(moment, "/api/app/sync")),
         )
         device.home()
+        if arguments.only != "restore":
+            attachments(device, fake, check)
+        if arguments.only == "attachments":
+            return report()
 
         def prepare(chat, ago):
             """The server's chat, then this phone's times: left `ago` minutes ago, last reply read long before.
@@ -713,8 +1009,7 @@ def main():
         (out / "requests.log").write_text(
             "".join(f"{at:.1f} {method} {path}\n" for at, method, path in fake.requests)
         )
-    print(f"{sum(results)}/{len(results)} passed; logs and screenshots in {out}")
-    return 0 if results and all(results) else 1
+    return report()
 
 
 if __name__ == "__main__":

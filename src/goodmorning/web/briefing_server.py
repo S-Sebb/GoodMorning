@@ -2223,6 +2223,14 @@ def serve_live(app, port, *, gateway_key=None, public_origins=()):
                     return self.respond(app.app_profile())
                 if path == "/api/app-chat":
                     return self.respond({"chat": app.chats.latest("secretary")})
+                if path == "/api/chat-uploads-check":
+                    missing = []
+                    for identifier in parse_qs(parsed.query)["ids"][0].split(","):
+                        try:
+                            app.chats.uploads.get(identifier)
+                        except ValueError:
+                            missing.append(identifier)
+                    return self.respond({"missing": missing})
                 if path == "/api/app-schedule":
                     return self.respond(schedule.compact(app), compress=True)
                 if path == "/api/app-briefings":

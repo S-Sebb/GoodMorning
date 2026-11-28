@@ -17,7 +17,7 @@
         <ImageView
             android:id="@+id/portrait"
             android:layout_width="44dp"
-            android:layout_height="44dp"
+            android:layout_height="48dp"
             android:importantForAccessibility="no"
             android:padding="2dp"
             android:src="@drawable/portrait_f1" />
@@ -72,6 +72,29 @@
         android:padding="14dp"
         android:textSize="15sp" />
 
+    <!-- AskActivity caps its height at 160dp, so Cancel and Send stay on screen. -->
+    <ScrollView
+        android:id="@+id/attachments_scroll"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+
+        <LinearLayout
+            android:id="@+id/attachments"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:accessibilityLiveRegion="polite"
+            android:orientation="vertical" />
+    </ScrollView>
+
+    <TextView
+        android:id="@+id/upload_note"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="6dp"
+        android:text="@string/ask_upload_note"
+        android:textSize="12sp"
+        android:visibility="gone" />
+
     <CheckBox
         android:id="@+id/fresh"
         android:layout_width="wrap_content"
@@ -92,14 +115,28 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="12dp"
-        android:gravity="end|center_vertical"
+        android:gravity="center_vertical"
         android:orientation="horizontal">
+
+        <ImageButton
+            android:id="@+id/attach"
+            style="@android:style/Widget.Material.Button.Borderless"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:contentDescription="@string/ask_attach"
+            android:src="@drawable/ic_attach"
+            android:tooltipText="@string/ask_attach" />
+
+        <View
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:layout_weight="1" />
 
         <Button
             android:id="@+id/cancel"
             style="@android:style/Widget.Material.Button.Borderless"
             android:layout_width="wrap_content"
-            android:layout_height="44dp"
+            android:layout_height="48dp"
             android:text="@android:string/cancel"
             android:textAllCaps="false" />
 
@@ -107,7 +144,7 @@
             android:id="@+id/send"
             style="@android:style/Widget.Material.Button.Borderless"
             android:layout_width="wrap_content"
-            android:layout_height="44dp"
+            android:layout_height="48dp"
             android:layout_marginStart="8dp"
             android:minWidth="96dp"
             android:paddingHorizontal="22dp"
