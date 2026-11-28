@@ -442,7 +442,7 @@ def run(artifacts):
                                 / (host + "-flexible-" + str(width) + "-en.png")
                             )
                         )
-                    for width in (320, 701, 768, 800, 900, 901, 1024, 1280):
+                    for width in (320, 701, 768, 800, 900, 901, 1024, 1200, 1201, 1280):
                         other.set_viewport_size({"width": width, "height": 900})
                         labelled_header(
                             other,

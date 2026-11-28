@@ -162,6 +162,10 @@ html:not([data-edition="gn"])[data-day-scheme]:not([data-day-scheme="classic"]) 
 /* The pop-up's own title already names these sections. */
 .toolbar-row:has(#account-menu) #prefs-menu #color-scheme-form > .color-scheme-heading, #notify-menu #notification-form > .notification-heading { display: none; }
 :is(#notify-menu, #phones-menu, #account-menu) > .menu-panel { width: min(420px, calc(100vw - 32px)); }
+/* Signed in, four labelled buttons put Appearance far from the edge until wide screens, so like the
+   tablet rule in briefing.css every pop-up aligns to the toolbar's end there instead of its button. */
+@media (min-width: 701px) and (max-width: 1200px) { .toolbar-row:has(#account-menu) .menu { position: static; }
+  .toolbar-row:has(#account-menu) .menu-panel { right: calc(var(--content-gutter, 24px) + var(--safe-right, 0px)); } }
 /* Up to small laptops, signed in: four menus and What's new on one line, the menus as icons named
    for screen readers (their labelled pills fit from about 900px). */
 @media (max-width: 900px) {
