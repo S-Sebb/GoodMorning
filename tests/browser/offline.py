@@ -2,6 +2,7 @@
 morning and evening copies, shows them without a connection, keeps no token, and forgets them at sign-out
 and when another account signs in. No model is contacted."""
 
+import base64
 import json
 import os
 import re
@@ -198,9 +199,14 @@ def main():
                     path.startswith(("/api/", "/login", "/logout", "/password"))
                     for path in files
                 ), sorted(files)
-                assert any(path.endswith("/desk-morning.svg") for path in files), (
-                    sorted(files)
-                )
+                # Desk icons travel inlined in the stylesheets (briefing_resources.py), so they work offline too.
+                desk_icon = base64.b64encode(
+                    (REPO / "assets/web/icons/desk-morning.svg").read_bytes()
+                ).decode()
+                assert any(
+                    path.endswith(".css") and desk_icon in text
+                    for path, text in files.items()
+                ), sorted(files)
                 assert not any(
                     csrf in text or "csrf" in text.lower() for text in files.values()
                 )
