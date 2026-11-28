@@ -198,14 +198,23 @@ refused, or answers for another account, so a session that ended without
 signing out is forgotten the next time the device is online. Until then the copy
 stays readable offline. Nothing from `/api/` or the sign-in pages is kept.
 
-## Settings and Account
+## Header menus
 
-Signed in, the two top menus split by scope. **Settings** holds what belongs to
-this device: its appearance and, where they can work (a browser with Web Push,
-or the Android app), its notifications. **Account** holds what follows the owner
-everywhere: website language, linked phones, devices with notifications, Change
-password and Sign out. Without a sign-in (the sign-in page, a local viewer)
-language stays in Settings too.
+Signed in, the header has four menus, each with its own pop-up:
+
+- **Appearance** (this device): style, day and night color schemes and, in the
+  linked app, the widget theme.
+- **Notifications**: this device's notifications, where they can work (a browser
+  with Web Push, or the Android app), then the account's Devices with
+  notifications. It hides when neither part applies.
+- **Phones**: the Android app download, linking a phone and the linked phones.
+  It hides while linking is unavailable.
+- **Account** (every device): website language, the secretary avatar, Change
+  password and Sign out.
+
+Up to 900px wide the four show as icon buttons named for screen readers.
+Without a sign-in (the sign-in page, a local viewer) there is one **Settings**
+pop-up with language, appearance and the avatar.
 
 Appearance (style, day and night color schemes) lives in the
 `GoodMorningAppearance` cookie (`style.day.night`, one year, shared by the
@@ -222,14 +231,14 @@ this device's appearance to the link, or, when this view has not chosen colors
 yet but the link has, gives the view the link's colors; later appearance changes on that device
 update the link too, and `/api/app/sync` returns it so the phone's widgets match.
 A link that has none yet gets the account's earlier choice.
-Inside the linked app (its user agent names the link), Settings also shows the
+Inside the linked app (its user agent names the link), Appearance also shows the
 widget theme: by the clock (the default), with the phone's dark mode, or always
 day or night (`POST /api/app/widgets`). It is kept on the link and returned as
 `appearance.widgets` in `/api/app/sync`; see `docs/android-app.md`.
 
 ## Notifications
 
-Settings → Notifications belongs to the device it is shown on. In a browser,
+Notifications belongs to the device it is shown on. In a browser,
 turning it on asks for permission and subscribes that browser, through the
 service worker (`/sw.js`, see Offline reading), under a name such as "Firefox on
 Linux". Turning it off, or signing out, unsubscribes it. Each
@@ -240,10 +249,10 @@ start from the account-wide choices saved then.
 In the Android app, the app posts notifications itself: usually within a few
 minutes, while the account's work runs (`busy` below), or within about 15
 minutes otherwise. The app names its link in its
-user agent (`GoodMorningLink/<id>`, from app 0.2), so Settings there edits that
+user agent (`GoodMorningLink/<id>`, from app 0.2), so Notifications there edits that
 linked phone's choices, and the phone's summary returns only those kinds.
 
-Account → Devices with notifications lists every subscribed browser and every
+Notifications → Devices with notifications lists every subscribed browser and every
 linked phone that posts its own notifications, each with Turn off, so a lost or
 unused device can be stopped from anywhere. Subscription endpoints stay on the
 server; pages see only a short name derived from them.

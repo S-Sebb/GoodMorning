@@ -40,7 +40,7 @@ html[data-edition="gn"][data-night-scheme="midnight-violet"] .weather-tile.warm 
 html[data-edition="gn"][data-night-scheme="midnight-violet"] .weather-tile.precipitation { --tile-accent: #bd93f9; --tile-bg: #35304d; }
 html[data-edition="gn"][data-night-scheme="midnight-violet"] .weather-tile.air { --tile-accent: #50fa7b; --tile-bg: #273d33; }
 html[data-edition="gn"][data-night-scheme="midnight-violet"] .chat-page { --special-question: #f1fa8c; --special-answer: #8be9fd; --special-added: #50fa7b; --special-updated: #bd93f9; --special-cancelled: #ff5555; }
-html:not([data-edition="gn"])[data-day-scheme="warm"] { color-scheme: light; --bg: #f6eee3; --surface: #fffbf5; --ink: #554032; --muted: #7d6858; --accent: #987052; --line: #e0cbb8; --wash: #f1e4d4; --warm: #d8b471; --chat-paper: #fbf4e9; --chat-border: #ceb29a; --bubble: #fffdf9; --your-bubble: #f3d7c1; --bubble-line: #ead8c5; --your-line: #e1bc9f; color: var(--ink); background: var(--bg); }
+html:not([data-edition="gn"])[data-day-scheme="warm"] { color-scheme: light; --bg: #f6eee3; --surface: #fffbf5; --ink: #554032; --muted: #7d6858; --accent: #987052; --accent-fill: #8a6247; --line: #e0cbb8; --wash: #f1e4d4; --warm: #d8b471; --chat-paper: #fbf4e9; --chat-border: #ceb29a; --bubble: #fffdf9; --your-bubble: #f3d7c1; --bubble-line: #ead8c5; --your-line: #e1bc9f; color: var(--ink); background: var(--bg); }
 html:not([data-edition="gn"])[data-day-scheme="warm"] body { color: var(--ink); background: var(--bg); }
 html:not([data-edition="gn"])[data-day-scheme="morning-sky"] { --bg: #f3f8f9; --surface: #fffdf7; --ink: #293e50; --muted: #304758; --accent: #27465e; --line: #cfdae0; --wash: #e5eef3; --warm: #d3af64; --chat-border: #9eb8c8; --your-bubble: #e2edf4; --day-scene: url("/morning-sky.svg"), url("/morning-clouds.webp"), url("/morning-clouds-continuation.webp"); --day-repeat: no-repeat, no-repeat, repeat-y; }
 html:not([data-edition="gn"])[data-day-scheme="first-light"] { --bg: #f3ede2; --surface: #fffaf5; --ink: #48443c; --muted: #594f43; --accent: #784a30; --line: #e3d8c7; --wash: #f4ebdc; --warm: #c69c55; --chat-border: #c6b798; --your-bubble: #f5e5ce; --day-scene: url("/first-light.svg"); --day-repeat: no-repeat; }
@@ -98,7 +98,7 @@ html:not([data-edition="gn"])[data-day-scheme]:not([data-day-scheme="classic"]) 
 html:not([data-edition="gn"])[data-day-scheme]:not([data-day-scheme="classic"]) .toolbar-row .menu > summary::after,
 html:not([data-edition="gn"])[data-day-scheme]:not([data-day-scheme="classic"]) .menu-panel .language-toolbar label { color: var(--muted); }
 html:not([data-edition="gn"])[data-day-scheme]:not([data-day-scheme="classic"]) .account-card input { background: var(--bubble); border-color: var(--line); color: var(--ink); }
-html:not([data-edition="gn"])[data-day-scheme]:not([data-day-scheme="classic"]) .account-card button { background: var(--accent); color: var(--surface); }
+html:not([data-edition="gn"])[data-day-scheme]:not([data-day-scheme="classic"]) .account-card button { background: var(--accent-fill, var(--accent)); color: var(--surface); }
 html:not([data-edition="gn"])[data-day-scheme]:not([data-day-scheme="classic"]) .account-card .password-toggle { background: var(--wash); color: var(--ink); }
 html:not([data-edition="gn"])[data-day-scheme]:not([data-day-scheme="classic"]) .toolbar-row .menu > summary,
 html:not([data-edition="gn"])[data-day-scheme]:not([data-day-scheme="classic"]) .toolbar-row .menu-panel { background: var(--surface); border-color: var(--line); color: var(--ink); }
@@ -127,8 +127,9 @@ html:not([data-edition="gn"])[data-day-scheme]:not([data-day-scheme="classic"]) 
 :is(#prefs-menu, #notify-menu, #phones-menu, #account-menu) #app-link-code { font: inherit; letter-spacing: .08em; text-transform: uppercase; min-height: 44px; padding: .4rem .65rem; border: 1px solid var(--line); border-radius: .6rem; background: var(--bg); color: var(--ink); }
 :is(#prefs-menu, #notify-menu, #phones-menu, #account-menu) :is(#app-links, #notification-device-list) { display: grid; gap: 6px; margin: 4px 0 0; padding: 0; list-style: none; }
 :is(#prefs-menu, #notify-menu, #phones-menu, #account-menu) :is(#app-links, #notification-device-list) li { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: .8rem; }
+:is(#prefs-menu, #notify-menu, #phones-menu, #account-menu) :is(#app-links, #notification-device-list) li > span { min-width: 0; overflow-wrap: anywhere; }
 :is(#prefs-menu, #notify-menu, #phones-menu, #account-menu) :is(#app-links, #notification-device-list) li small { display: block; color: var(--muted); }
-:is(#prefs-menu, #notify-menu, #phones-menu, #account-menu) :is(#app-links, #notification-device-list) li button { width: auto; min-height: 36px; }
+:is(#prefs-menu, #notify-menu, #phones-menu, #account-menu) :is(#app-links, #notification-device-list) li button { flex: none; width: auto; min-height: 36px; }
 :is(#prefs-menu, #notify-menu, #phones-menu, #account-menu) [hidden] { display: none; }
 :is(#prefs-menu, #notify-menu, #phones-menu, #account-menu) #notification-kinds { display: grid; gap: 2px; min-width: 0; margin: 10px 0 4px; padding: 0; border: 0; }
 :is(#prefs-menu, #notify-menu, #phones-menu, #account-menu) #notification-kinds legend { margin: 0 0 4px; padding: 0; font-size: 12px; color: var(--muted); }
@@ -174,6 +175,8 @@ html:not([data-edition="gn"])[data-day-scheme]:not([data-day-scheme="classic"]) 
   .toolbar-row:has(#account-menu) .menu-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
   .toolbar-row:has(#account-menu) .menu > summary .menu-icon { width: 19px; height: 19px; }
   .toolbar-row:has(#account-menu) .menu > summary::after { content: none; }
+  /* Without the turning arrow, an accent ring marks the open menu. */
+  .toolbar-row:has(#account-menu) .menu[open] > summary { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
 }
 html[data-style="pixel"] :is(#prefs-menu, #notify-menu, #phones-menu, #account-menu) :is(.menu-panel .language-toolbar, .settings-menu-header > .menu-icon, .app-download, #app-link-code, #app-link-form button, .account-tools a, .account-tools button) { border-radius: 0; }
 /* Pixel selects draw their frame and drop shadow outside the box; keep them inside the card. */
@@ -184,7 +187,8 @@ html[data-style="pixel"] :is(#language-form, #widget-theme-form) > select { widt
 #app-link-form .app-download { justify-self: start; display: inline-flex; align-items: center; gap: 5px; padding: 4px 10px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); color: var(--ink); font-size: 12px; font-weight: 600; text-decoration: none; white-space: nowrap; }
 #app-link-form .app-download::before { content: ""; flex: none; width: 16px; height: 16px; background: url("icons/desk-phone.svg") center / contain no-repeat; }
 #app-link-form .app-download:hover { border-color: var(--accent); }
-:is(#prefs-menu, #notify-menu, #phones-menu, #account-menu) #app-link-form button[type="submit"] { width: auto; min-height: 44px; padding: 0 14px; background: var(--accent); border-color: var(--accent); color: var(--surface); font-weight: 600; }
+/* Filled buttons use --accent-fill where a theme's accent is too light behind surface-coloured text (Warm). */
+:is(#prefs-menu, #notify-menu, #phones-menu, #account-menu) #app-link-form button[type="submit"] { width: auto; min-height: 44px; padding: 0 14px; background: var(--accent-fill, var(--accent)); border-color: var(--accent-fill, var(--accent)); color: var(--surface); font-weight: 600; }
 #app-link-form label[for="app-link-code"] { margin-top: 4px; }
 :is(#app-links, #notification-device-list):not(:empty) { border-top: 1px solid var(--line); padding-top: 6px; }
 /* Avatars: the four pictures, then the three uploads as one row of small picture buttons. */
@@ -203,7 +207,16 @@ html[data-style="pixel"] :is(#language-form, #widget-theme-form) > select { widt
 @media (max-width: 700px) {
   #color-scheme-form .scheme-picker { grid-template-columns: none; grid-auto-flow: column; grid-auto-columns: 84px; overflow-x: auto; overscroll-behavior-x: contain;
     margin: 0 -12px; padding: 4px 12px 6px; scroll-padding-inline: 12px; scrollbar-width: none; }
-  #color-scheme-form .scheme-picker legend { padding: 0 12px; } }
+  #color-scheme-form .scheme-picker legend { padding: 0 12px; }
+  /* The strip fades out at an edge while more schemes lie past it (the legend above stays clear). */
+  @supports (animation-timeline: scroll()) {
+    /* A legend straddles the fieldset's top border; a border as tall as the legend keeps it inside the masked box. */
+    #color-scheme-form .scheme-picker { border-top: 28px solid transparent; animation: scheme-strip-edges linear both; animation-timeline: scroll(self inline);
+      mask: linear-gradient(#000 0 0) top / 100% 28px no-repeat,
+        linear-gradient(to right, transparent, #000 var(--fade-start), #000 calc(100% - var(--fade-end)), transparent) 0 28px / 100% calc(100% - 28px) no-repeat; } } }
+@property --fade-start { syntax: "<length>"; inherits: false; initial-value: 0px; }
+@property --fade-end { syntax: "<length>"; inherits: false; initial-value: 0px; }
+@keyframes scheme-strip-edges { from { --fade-start: 0px; --fade-end: 36px; } 8% { --fade-start: 36px; } 92% { --fade-end: 36px; } to { --fade-start: 36px; --fade-end: 0px; } }
 #website-style > legend { --settings-icon: url("icons/desk-idea.svg"); }
 #day-color-scheme > legend { --settings-icon: url("icons/desk-morning.svg"); }
 #night-color-scheme > legend { --settings-icon: url("icons/desk-evening.svg"); }

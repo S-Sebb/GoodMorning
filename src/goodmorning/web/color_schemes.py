@@ -103,9 +103,7 @@ def form(csrf, return_to):
                 + (" checked" if code == selected[theme] else "")
                 + ">"
                 f'<span class="scheme-swatch" data-swatch="{theme}-{code}" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span>'
-                f'<span class="scheme-name" data-ui-text="{label}" data-ui-title="{label}" title="'
-                + ui.text(label)
-                + '">'
+                f'<span class="scheme-name" data-ui-text="{label}" title="{label}">'
                 + ui.text(label)
                 + "</span></label>"
                 for code, label in choices.items()

@@ -322,6 +322,12 @@ def run(artifacts):
                         other.get_by_role("heading", name="登录", exact=True)
                     ).to_be_visible()
                     other.close()
+                # Signed out, Settings sits beside What's new; on tablets its pop-up still stays on screen.
+                expect(page.locator("#site-update-toggle")).to_be_visible()
+                for width in (320, 701, 768, 1000):
+                    page.set_viewport_size({"width": width, "height": 900})
+                    panels_fit(page)
+                page.set_viewport_size({"width": 1440, "height": 900})
                 login(page, "sec", "alice", "a1alice-temporary")
                 expect(
                     page.get_by_role("heading", name="修改密码", exact=True)

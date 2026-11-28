@@ -28,7 +28,8 @@ a { color: #315e50; }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 .toolbar-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: .5rem .75rem; width: min(100%,28rem); margin: 0 0 .75rem; font-size: .85rem; position: relative; }
 #update-slot { display: contents; }
-.toolbar-row .menu { position: relative; }
+/* Pop-ups align to the toolbar's end: under its own button, Settings' pop-up ran off the left edge with What's new beside it. */
+.toolbar-row .menu { position: static; }
 .toolbar-row .menu > summary { display: inline-flex; align-items: center; gap: .45rem; list-style: none; cursor: pointer; font-size: .85rem; min-height: 44px; padding: .45rem .8rem; border: 1px solid #b4c7c0; border-radius: 999px; background: white; color: #253d45; white-space: nowrap; }
 .toolbar-row .menu > summary::-webkit-details-marker { display: none; }
 .toolbar-row .menu > summary::marker { content: ''; }
@@ -57,7 +58,7 @@ body:has(.toolbar-row) .account-card { align-self: center; }
 /* Keep the form anchored while mobile browser bars or the keyboard change height. */
 @media (max-width: 600px) { body, body:has(.language-toolbar), body:has(.toolbar-row) { align-content: start; } .account-card, body:has(.language-toolbar) .account-card, body:has(.toolbar-row) .account-card { align-self: start; } }
 /* Narrow bars become full-width dropdown sheets anchored to the row. */
-@media (max-width: 700px) { .toolbar-row .menu { position: static; } .toolbar-row .menu-panel { left: 1rem; right: 1rem; top: auto; width: auto; margin-top: 8px; } }
+@media (max-width: 700px) { .toolbar-row .menu-panel { left: 1rem; right: 1rem; top: auto; width: auto; margin-top: 8px; } }
 /* Before sign-in no saved palette is known, so use the default Morning Sky look. */
 .sign-in { color: #293e50; background: linear-gradient(180deg, #cfe3f0, #e6f0f6 45%, #f3f8f9); }
 .sign-in .account-card { border-color: #cfdae0; background: #fffdf7; box-shadow: 0 1rem 4rem #27465e1a; }

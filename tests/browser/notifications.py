@@ -168,7 +168,7 @@ def main():
                 expect(code).to_have_value("ABCD-2345")
                 page.screenshot(path=str(artifacts / "account-390.png"), full_page=True)
 
-                # Only the linked app shows the theme of its widgets in Settings; a browser does not.
+                # Only the linked app shows the theme of its widgets in Appearance; a browser does not.
                 expect(page.locator("#widget-theme-form")).to_be_hidden()
                 api = playwright.request.new_context(
                     base_url=settings["gateway"],
@@ -178,7 +178,10 @@ def main():
                         "X-Real-IP": "192.0.2.2",
                     },
                 )
-                pairing = api.post("/api/app/pair", data={"label": "Pixel 7"}).json()
+                # A 29-character name with no spaces, which pairing accepts, has to wrap in Linked phones.
+                pairing = api.post(
+                    "/api/app/pair", data={"label": "WORKPHONEGALAXYZFOLDSEVENXMAX"}
+                ).json()
                 code.fill(pairing["code"])
                 with page.expect_response("**/api/app/link") as linked:
                     phones.locator("#app-link-form button[type=submit]").click()
@@ -187,6 +190,22 @@ def main():
                     "/api/app/pair",
                     headers={"X-GoodMorning-Pairing": pairing["secret"]},
                 ).json()
+                # A long unbroken phone name wraps beside Unlink, which stays inside the list.
+                unlink = phones.locator("#app-links li button")
+                expect(unlink).to_be_visible(
+                    timeout=10000
+                )  # The page polls every 3 seconds.
+                for width in (390, 1280):
+                    page.set_viewport_size({"width": width, "height": 900})
+                    boxes = phones.locator("#app-links").evaluate(
+                        "list => [list, list.querySelector('li > span'), list.querySelector('li button')].map(e => e.getBoundingClientRect().toJSON())"
+                    )
+                    row, name, button = boxes
+                    assert (
+                        name["right"] <= button["left"]
+                        and button["right"] <= row["right"]
+                    ), (width, boxes)
+                page.set_viewport_size({"width": 390, "height": 900})
                 app_context = context(
                     390,
                     storage_state=owner.storage_state(),
