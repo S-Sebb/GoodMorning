@@ -4,6 +4,7 @@
 const COPIES = ['/offline/gm', '/offline/gn'];
 const PREFIX = 'offline-';
 let refreshing = null;
+let quiet = null;
 
 self.addEventListener('install', () => self.skipWaiting());
 // The page that registered this worker already loaded, so the first copies are fetched now.
@@ -15,7 +16,7 @@ self.addEventListener('fetch', event => {
   if (request.mode === 'navigate') {
     event.respondWith(fetch(request).then(response => {
       if (failed(response)) return offline(request, response);
-      event.waitUntil(update());
+      event.waitUntil(updateWhenQuiet());
       return response;
     }, () => offline(request)));
   } else if (['style', 'script', 'font', 'image'].includes(request.destination)) {
@@ -33,6 +34,20 @@ function failed(response) {
 function update() {
   refreshing = refreshing || refresh().catch(() => {}).finally(() => { refreshing = null; });
   return refreshing;
+}
+
+// The refresh renders both copies on the server, so it waits until the new page has loaded its own files
+// and no other page was opened meanwhile; quick switches refresh once, after the last one.
+function updateWhenQuiet() {
+  if (quiet) clearTimeout(quiet.timer);
+  else {
+    let done;
+    quiet = {settled: new Promise(resolve => { done = resolve; })};
+    quiet.done = done;
+  }
+  const waiting = quiet;
+  waiting.timer = setTimeout(() => { quiet = null; update().then(waiting.done); }, 3000);
+  return waiting.settled;
 }
 
 async function kept() {

@@ -141,8 +141,10 @@ def main():
                     )  # A password change starts without earlier answers.
 
                 def kept(page, count):
-                    # The worker refreshes its copies after each page load; wait until it holds exactly these.
-                    deadline = time.monotonic() + 15
+                    # The worker refreshes its copies 3 s after the last page load; wait until it holds exactly
+                    # these and nothing more arrives.
+                    page.wait_for_timeout(3000)
+                    deadline, previous = time.monotonic() + 15, None
                     while True:
                         cached = page.evaluate(CACHED)
                         names = [name for name in cached if name.startswith("offline-")]
@@ -152,13 +154,15 @@ def main():
                             and any(path.endswith(".css") for path in files)
                             == (count > 0)
                             and len(names) <= 1
+                            and cached == previous
                         ):
                             return cached
+                        previous = cached
                         if time.monotonic() > deadline:
                             raise AssertionError(
                                 f"Offline copies never settled: { {name: sorted(value) for name, value in cached.items()} }"
                             )
-                        time.sleep(0.2)
+                        time.sleep(0.5)
 
                 def unreachable(page):
                     # With nothing kept, a page load fails as it always did (the app then shows its can't-connect screen).
@@ -204,7 +208,7 @@ def main():
                 # Another page load checks the copies without downloading them again.
                 page.goto(HOST + "/chat")
                 expect(page.locator("#chat-compose")).to_be_visible()
-                page.wait_for_timeout(500)
+                kept(page, 2)
                 assert ("/offline/gm", 304) in copies and (
                     "/offline/gn",
                     304,
