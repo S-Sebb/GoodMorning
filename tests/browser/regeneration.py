@@ -303,7 +303,7 @@ def main():
                 ).ok
                 page.reload()
                 expect(
-                    page.get_by_role("button", name="重新生成今日简报", exact=True)
+                    page.get_by_role("button", name="重新生成简报", exact=True)
                 ).to_be_visible()
                 page.locator("#regenerate").click()
                 expect(page.locator("#regenerate-title")).to_have_text(
