@@ -142,7 +142,8 @@ heading. Use `scripts/goodmorning.py` with the selected absolute runtime.
    `{"weekdays":[4],"start":"YYYY-MM-DD"}` (every Friday) with timezone (0=Monday, 4=Friday, 6=Sunday),
    optional `until`. Clarify ambiguous requested recurrence before recording it.
    Repeats also support `monthdays` (`[28]` is the 28th of every month; a day the
-   month lacks falls on its last day), `interval_days` or explicit `dates` instead of `weekdays`,
+   month lacks falls on its last day; add `"every_months":2` for every other month,
+   counted from `start`'s month, never a written-out list of dates), `interval_days` or explicit `dates` instead of `weekdays`,
    and optional `include`/`exclude` dates for confirmed exceptions; every rule needs
     `start` and timezone. Exclusions win; bounds still apply to inclusions.
     A forward-looking repeat without a supplied start uses the confirmed current

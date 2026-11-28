@@ -215,6 +215,57 @@ class TaxonomyTests(unittest.TestCase):
                     }
                 )
 
+    def test_every_n_months_counts_from_a_past_start_month_and_keeps_month_end(self):
+        filters = self.tasks.show(
+            self.capture(
+                task={
+                    "title": "Swap water filters",
+                    "timezone": "Europe/London",
+                    "repeat": {
+                        "monthdays": [1],
+                        "every_months": 2,
+                        "start": "2026-11-01",
+                    },
+                }
+            )["task_id"]
+        )
+        for day in ("2026-11-01", "2027-01-01", "2027-03-01", "2035-11-01"):
+            self.tasks.occurrence(filters, day)
+        for day in ("2026-12-01", "2027-02-01", "2027-01-02"):
+            with self.assertRaisesRegex(ValueError, "unknown_occurrence"):
+                self.tasks.occurrence(filters, day)
+        quarterly = self.tasks.show(
+            self.capture(
+                task={
+                    "title": "Quarter close",
+                    "timezone": "Europe/London",
+                    "repeat": {
+                        "monthdays": [31],
+                        "every_months": 3,
+                        "start": "2026-08-31",
+                    },
+                }
+            )["task_id"]
+        )
+        for day in ("2026-08-31", "2026-11-30", "2027-02-28", "2028-02-29"):
+            self.tasks.occurrence(quarterly, day)
+        for day in ("2026-09-30", "2026-12-31"):
+            with self.assertRaisesRegex(ValueError, "unknown_occurrence"):
+                self.tasks.occurrence(quarterly, day)
+        for rule in (
+            {"monthdays": [1], "every_months": 0},
+            {"monthdays": [1], "every_months": "2"},
+            {"interval_days": 7, "every_months": 2},
+        ):
+            with self.assertRaisesRegex(ValueError, "every_months"):
+                self.capture(
+                    task={
+                        "title": "Bad",
+                        "timezone": "Europe/London",
+                        "repeat": {**rule, "start": DAY},
+                    }
+                )
+
     def test_moved_meeting_preparation_is_one_series_with_explicit_exception(self):
         receipt = self.capture(
             task={
