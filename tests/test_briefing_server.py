@@ -294,7 +294,7 @@ class LiveTests(unittest.TestCase):
         self.assertEqual(self.app.job(job)["state"], "preflight")
         self.assertEqual(self.chamber.calls, [])
 
-    def test_preflight_end_races_neither_dispatch_twice_nor_break_status(self):
+    def test_status_during_a_failing_preflight_reads_one_snapshot(self):
         self.app.preflight = True
         with patch("goodmorning.web.briefing_server.threading.Thread"):
             identifier = self.app.start("2026-10-10", "gm")["job"]
@@ -308,9 +308,13 @@ class LiveTests(unittest.TestCase):
 
         with patch.object(self.app, "source", side_effect=fail_preflight):
             self.assertEqual(self.app.status(identifier)["state"], "starting")
+
+    def test_a_reply_as_preflight_ends_dispatches_once(self):
+        self.app.preflight = True
+        with patch("goodmorning.web.briefing_server.threading.Thread"):
+            self.app.start("2026-10-10", "gm")
+        live = self.app.jobs["2026-10-10.gm"]
         # A feedback reply right after the worker's save dispatches on its own.
-        live["state"] = "preflight"
-        self.app.preparing.add(identifier)
         save = self.app.save_jobs
 
         def replied():
