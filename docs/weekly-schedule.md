@@ -46,6 +46,23 @@ does not require a connected agent or a new morning/evening briefing.
   tag), and done to-dos fade with a thin strike-through and no tags. The day
   view shows all of it in full, since phones have no hover. Empty days say nothing is saved, not that the day
   is free. Past weeks are the current saved records, not immutable snapshots.
+- **Day** (`/schedule?view=day`) is the day's plan and its tick-off list, with
+  equal weight. A **Schedule** section shows all-day events, holidays and deadline
+  markers as chips on top, then event cards with time range, place and notes, tagged
+  **Now**, **Next up** or **Overlaps …**. On the current day a now line separates
+  ended events (dimmed) from upcoming ones. A **To-dos** section lists routines
+  (repeating tasks and habits, labelled with their rhythm, such as "Every Tuesday"),
+  then other to-dos, each in the schedule's order, with progress ("2 of 7 done") and
+  ticked rows under "Done · N". Events and deadline markers are never tickable and
+  never count; optional rows show but don't count. Future days show the same rows
+  read-only, with no progress.
+- Desktop puts the two sections side by side, the schedule a little wider, and
+  keeps a right gutter for the secretary button. Phones put the Schedule first,
+  fold ended events into "Earlier today · N", move the date between the day arrows,
+  and add a "To-dos · N of M ↓" chip that jumps to the list.
+- Phones always open Schedule on Day (today). Wider screens reopen the view used
+  last in that browser, Week the first time. The Android Today widget opens
+  `/schedule?view=day`.
 - The corner **Schedule details** menu holds appointment/task counts, confirmed
   completion totals, timezone, and the saved-record check time. There is no summary strip, sync footer, marketing
   introduction, or general help section around the calendar. Real read failures
@@ -120,11 +137,13 @@ schedule write; calendar events have no write endpoint.
 
 ## Ticking to-dos
 
-A tap on a to-do's mark (○/✓) saves at once. It means exactly what the evening
+A tap on a to-do's mark (○/✓), or anywhere on its row in Day, saves at once. The
+mark flips straight away and the row stays where it is: the list settles into
+its new order (ticked rows under "Done") only when the Undo notice ends. It means exactly what the evening
 check-in's **Done** means (`TaskStore.complete_day`): a one-off task, even one
 spread over several workdays, becomes finished as a whole; a recurring task or
 habit is done only on that day. Habits save through `CustomStore.report`.
-A notice with **Undo** stays about 6 seconds. Undo, or tapping the mark again
+A notice with **Undo** stays 5 seconds. Undo, or tapping the mark again
 later, restores exactly the state before the tap (for example Partial with its
 note), as long as nothing else changed the task since. A done mark that came
 from somewhere else (the secretary, the check-in) is reopened instead: that day
@@ -180,6 +199,18 @@ Responses:
 ### Widget rows
 
 `GET /api/app-schedule` (inside `/api/app/sync` as `schedule`) gives each task
-row `{text, done, tickable}`. A row with `tickable: true` also has `id` and
-`revision` for the request above; rows on future days, deadline markers and
-other read-only rows have `tickable: false` and no `id`. `days[0]` is today.
+row `{text, done, tickable, kind, cadence, status, project, optional}`:
+
+- `kind`: `routine` (a repeating task or a habit), `todo`, or `deadline` (a
+  deadline marker, never ticked and never on a checklist).
+- `cadence`: the routine's rhythm in the website language ("Every day",
+  "Every Tuesday", "Every 2 days"), or `""`.
+- `status`: `open`, `done`, `partial` or `blocked`.
+- `project`: the project name or `""`. `optional`: a nice-to-do that doesn't count
+  toward progress.
+
+Every routine and to-do row also has `id` and `revision` for the request above,
+on future days too, so a cached next day can be ticked once 04:00 passes.
+`tickable` says whether it can be ticked now: rows on future days, deadline
+markers and stopped habits have `tickable: false`, and markers and stopped
+habits have no `id`. `days[0]` is today.

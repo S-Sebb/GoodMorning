@@ -393,19 +393,18 @@ def check_ticks(app, url, shots):
         if shots:
             page.screenshot(path=str(shots / "tick-1-done-with-undo.png"))
         notice.get_by_role("button", name="Undo", exact=True).click()
-        expect(notice).to_contain_text("Marked “Pick up a parcel” not done.")
+        expect(notice).to_be_empty()
         expect(
             page.get_by_role("button", name="Mark “Pick up a parcel” done", exact=True)
         ).to_be_visible()
         if shots:
             page.screenshot(path=str(shots / "tick-2-undone.png"))
-        page.clock.fast_forward(6500)
-        expect(notice).to_be_empty()
         # Partial work ticked done, then ticked back after the notice has gone: Partial and its note return.
         methods = page.locator(".schedule-task").filter(has_text="Draft the methods")
         expect(methods).to_have_class(re.compile("is-partial"))
         methods.get_by_role("button").click()
         expect(methods).to_have_class(re.compile("is-done"))
+        expect(notice).to_contain_text("Marked “Draft the methods” done.")
         if shots:
             page.screenshot(path=str(shots / "tick-3-partial-ticked-done.png"))
         page.clock.fast_forward(6500)
@@ -413,23 +412,53 @@ def check_ticks(app, url, shots):
         methods.get_by_role(
             "button", name="Mark “Draft the methods” not done", exact=True
         ).click()
+        # The row keeps its place until the notice ends; then Partial and its note return.
+        expect(notice).to_contain_text("Marked “Draft the methods” not done.")
+        page.clock.fast_forward(5500)
         expect(methods).to_have_class(re.compile("is-partial"))
         expect(methods).to_contain_text("First baseline compared.")
         if shots:
             page.screenshot(path=str(shots / "tick-4-ticked-back-to-partial.png"))
-        # The day view ticks the same way.
+        # The day view: the whole row ticks, the mark flips in place and the count follows at once.
+        # The row stays put until the 5-second Undo ends, then sinks under "Done".
         page.get_by_role("link", name="Day", exact=True).click()
-        expect(page.locator(".schedule-focus")).to_have_count(1)
-        page.get_by_role(
+        expect(page.locator(".day-wrap")).to_have_count(1)
+        progress = page.locator(".tl-progress")
+        expect(progress).to_have_text("0 of 3 done")
+        row = page.get_by_role(
             "button", name="Mark “Pick up a parcel” done", exact=True
-        ).click()
+        )
+        top = row.bounding_box()["y"]
+        row.click()
         expect(notice).to_contain_text("Marked “Pick up a parcel” done.")
+        expect(progress).to_have_text("1 of 3 done")
+        expect(page.locator(".tl-bar")).to_have_attribute("aria-valuenow", "1")
+        parcel_row = page.locator(".tl-item").filter(has_text="Pick up a parcel")
+        expect(parcel_row).to_have_class(re.compile("is-done"))
         if shots:
             page.screenshot(path=str(shots / "tick-day-view.png"))
+        page.locator(
+            "#schedule-refresh"
+        ).click()  # A check during the notice must not move it.
+        page.clock.fast_forward(3000)
+        assert abs(parcel_row.bounding_box()["y"] - top) < 1
+        page.clock.fast_forward(2500)
+        expect(notice).to_be_empty()
+        expect(page.locator(".tl-done .tl-item")).to_contain_text(["Pick up a parcel"])
+        assert parcel_row.bounding_box()["y"] > top
+        page.get_by_role(
+            "button", name="Mark “Pick up a parcel” not done", exact=True
+        ).click()
+        expect(notice).to_contain_text("Marked “Pick up a parcel” not done.")
         notice.get_by_role("button", name="Undo", exact=True).click()
-        expect(
-            page.get_by_role("button", name="Mark “Pick up a parcel” done", exact=True)
-        ).to_be_visible()
+        expect(notice).to_be_empty()
+        expect(progress).to_have_text("1 of 3 done")
+        page.get_by_role(
+            "button", name="Mark “Pick up a parcel” not done", exact=True
+        ).click()
+        expect(notice).to_contain_text("Marked “Pick up a parcel” not done.")
+        page.clock.fast_forward(5500)
+        expect(page.locator(".tl-done")).to_have_count(0)
         page.get_by_role("link", name="Week", exact=True).click()
         expect(page.locator(".schedule-day")).to_have_count(7)
         # Saved elsewhere since the page loaded: the save is refused and the row keeps its mark.
@@ -504,18 +533,24 @@ def check_day(url):
         expect(page.get_by_role("link", name="Day", exact=True)).to_have_attribute(
             "aria-current", "true"
         )
-        expect(page.locator(".focus-event.is-past")).to_contain_text("Ended")
-        # Side-by-side panels share one top and bottom edge, even when one is shorter.
-        edges = page.locator(".focus-panel").evaluate_all(
-            "nodes => nodes.map(node => [node.getBoundingClientRect().top, node.getBoundingClientRect().bottom])"
+        expect(page.locator(".day-event.is-past")).to_contain_text("Ended")
+        # Desktop: Schedule and To-dos side by side, the schedule at least as wide, and a gutter
+        # on the right that keeps "Ask your secretary" off the rows.
+        schedule, todos = (
+            page.locator(name).bounding_box()
+            for name in (".day-schedule", ".day-todos")
         )
         assert (
-            abs(edges[0][0] - edges[1][0]) < 1 and abs(edges[0][1] - edges[1][1]) < 1
-        ), edges
+            abs(schedule["y"] - todos["y"]) < 1 and schedule["width"] >= todos["width"]
+        ), (schedule, todos)
+        launcher = page.locator("#quick-chat-launcher").bounding_box()
+        assert todos["x"] + todos["width"] <= launcher["x"], (todos, launcher)
+        expect(page.locator(".day-earlier")).to_be_hidden()
+        expect(page.locator(".day-jump")).to_be_hidden()
         page.get_by_role("link", name="Next day", exact=True).click()
         expect(page).to_have_url(url + "/schedule?view=day&day=1")
         expect(page.locator(".schedule-range")).to_contain_text("Tomorrow")
-        expect(page.locator(".focus-event")).to_contain_text("Quiet working block")
+        expect(page.locator(".day-event")).to_contain_text("Quiet working block")
         page.go_back()
         expect(page.locator(".schedule-range")).to_contain_text("Today")
         # The last view used in this browser reopens from the plain Schedule link.
@@ -527,12 +562,12 @@ def check_day(url):
         page.goto(url + "/schedule")
         expect(page).to_have_url(url + "/schedule")
         expect(page.locator(".schedule-day")).to_have_count(7)
-        # Phones remember their own view without changing the wider screen's.
+        # Phones always open on Day, whatever view was used last, without changing the wider screen's.
         page.set_viewport_size({"width": 390, "height": 844})
         page.goto(url + "/schedule")
-        expect(page).to_have_url(url + "/schedule")
-        page.get_by_role("link", name="Day", exact=True).click()
         expect(page).to_have_url(url + "/schedule?view=day")
+        page.get_by_role("link", name="Week", exact=True).click()
+        expect(page).to_have_url(url + "/schedule?week=0")
         page.goto(url + "/schedule")
         expect(page).to_have_url(url + "/schedule?view=day")
         page.set_viewport_size({"width": 1440, "height": 1050})
@@ -541,9 +576,23 @@ def check_day(url):
         expect(page.locator(".schedule-day")).to_have_count(7)
         page.goto(url + "/schedule?view=day")
         page.set_viewport_size({"width": 390, "height": 844})
-        expect(page.locator(".schedule-focus")).to_have_css(
+        # Phones: Schedule first, the date between the day arrows, ended events folded away and
+        # a chip that jumps to the checklist.
+        expect(page.locator(".day-wrap")).to_have_css(
             "grid-template-columns", re.compile(r"^[\d.]+px$")
         )
+        expect(page.locator(".day-current-date")).to_have_text("Today · Tue, Oct 13")
+        assert (
+            page.locator(".day-schedule").bounding_box()["y"]
+            < page.locator(".day-todos").bounding_box()["y"]
+        )
+        expect(page.locator(".day-event.is-past")).to_be_hidden()
+        page.get_by_role("button", name="Earlier today · 1").click()
+        expect(page.locator(".day-event.is-past")).to_be_visible()
+        jump = page.locator(".day-jump")
+        expect(jump).to_have_text(re.compile(r"^To-dos · 0 of \d+ ↓$"))
+        jump.click()
+        expect(page.locator("#day-todos")).to_be_in_viewport()
         assert page.locator(".schedule-mode").bounding_box()["width"] > 300
         assert not page.evaluate("document.documentElement.scrollWidth > innerWidth")
         assert not errors, errors

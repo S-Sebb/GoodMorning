@@ -94,7 +94,7 @@
 .task-icon.is-project { background-image: url("icons/todo-project.svg"); }
 .task-icon.is-deadline { background-image: url("icons/todo-deadline.svg"); }
 .task-icon.is-oneoff { background-image: url("icons/todo-oneoff.svg"); }
-.schedule-focus .task-marker.is-short, .schedule-grid .task-marker.is-long, .schedule-grid .task-detail { display: none !important; }
+.schedule-grid .task-marker.is-long, .schedule-grid .task-detail { display: none !important; }
 /* Done work stays visible but steps back: no tags or notes in the week. */
 .schedule-grid .schedule-task.is-done { opacity: .55; }
 .schedule-grid .schedule-task.is-done small { display: none !important; }
@@ -110,33 +110,134 @@
 .schedule-mode { display: inline-flex; gap: 2px; margin-right: 12px; padding: 3px; border: 1px solid var(--line); border-radius: 999px; }
 .schedule-navigation .schedule-mode-link { min-height: 38px; padding: 0 16px; color: var(--muted); font-size: 12px; }
 .schedule-navigation .schedule-mode-link[aria-current] { background: var(--ink); color: var(--bg); }
-.schedule-range bdi, .day-next { white-space: nowrap; }
-.day-next { color: var(--ink); }
-.day-badge { display: inline-block; margin: 0 0 6px; padding: 1px 8px; border: 1px solid var(--line); border-radius: 999px; color: var(--muted); font-size: 10px; line-height: 1.6; }
-.day-badge.is-now { border-color: var(--accent); background: var(--accent); color: var(--bg); }
-/* Day focus: events and to-dos side by side, every detail visible. */
-.schedule-focus { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 20px; }
-.focus-panel { padding: 28px 32px; border: 1px solid var(--line); border-radius: 22px; background: var(--surface); box-shadow: 0 8px 32px #00000004; }
-.schedule-focus.is-today .focus-panel { background: linear-gradient(180deg, var(--wash), var(--surface) 180px); }
-.focus-panel h2 { display: flex; align-items: center; gap: 10px; margin: 0 0 18px; font: normal 22px/1.3 Georgia, serif; }
-.focus-panel h2::before { content: ""; flex: 0 0 22px; height: 22px; background: url("icons/desk-schedule.svg") center / contain no-repeat; }
-.focus-panel.schedule-work h2::before { background-image: url("icons/desk-secretary.svg"); }
-.focus-events { list-style: none; margin: 0; padding: 0; }
-.focus-event { display: grid; grid-template-columns: 96px minmax(0, 1fr); gap: 20px; padding: 18px 0; border-top: 1px solid color-mix(in srgb, var(--line) 65%, transparent); }
-.focus-event:first-child { border-top: 0; padding-top: 4px; }
-.focus-time strong { display: block; color: var(--accent); font: normal 20px/1.3 Georgia, serif; font-variant-numeric: tabular-nums; }
-.focus-time span { display: block; margin-top: 4px; color: var(--muted); font-size: 11px; }
-.focus-body { min-width: 0; overflow-wrap: anywhere; }
-.focus-body .event-title { margin: 0; font-size: 16px; line-height: 1.5; }
-.focus-body .event-location { font-size: 12px; }
-.focus-body p { margin: 8px 0 0; color: var(--muted); font-size: 12px; line-height: 1.6; }
-.focus-body .event-source { border: 0; padding: 0; font-size: 11px; opacity: .8; }
-.focus-event.is-past { opacity: .55; }
-.focus-event.is-now .focus-body { margin: -10px 0; padding: 10px 14px; border-radius: 14px; background: var(--wash); }
-.focus-event.is-tbc .focus-time strong { font-size: 15px; }
-.focus-panel .schedule-task { font-size: 15px; padding-bottom: 14px; }
-.focus-panel .schedule-task small { font-size: 11px; }
-@media (max-width: 900px) { .schedule-focus { grid-template-columns: minmax(0, 1fr); } }
+.schedule-range bdi { white-space: nowrap; }
+/* Day: a Schedule section and a To-dos checklist with equal weight. Desktop puts them side by side,
+   the schedule a little wider, and keeps a right gutter for the "Ask your secretary" button. */
+.day-wrap { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 18px; align-items: start; max-width: 1180px; margin: 0 auto; }
+@media (min-width: 901px) and (max-width: 1700px) { .day-wrap { max-width: min(1180px, calc(100vw - 2 * 236px)); } }
+.day-wrap .focus-panel { min-width: 0; padding: 18px; border: 1px solid var(--line); border-radius: 22px; background: color-mix(in srgb, var(--surface) 90%, transparent); box-shadow: 0 1px 2px #1d2b3a0f, 0 8px 22px #1d2b3a0d; }
+.day-card-head { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 14px; }
+.day-card-head h2 { display: flex; align-items: center; gap: 10px; margin: 0; font: normal 24px/1.2 Georgia, serif; letter-spacing: -.3px; }
+.day-card-head h2:lang(zh-CN) { font: 600 20px/1.3 system-ui, sans-serif; letter-spacing: 0; }
+.day-card-head h2::before { content: ""; flex: 0 0 30px; height: 30px; background: url("icons/desk-schedule.svg") center / contain no-repeat; }
+.day-todos .day-card-head h2::before { background-image: url("icons/desk-done.svg"); }
+.day-count { margin-left: auto; color: var(--muted); font-size: 13.5px; white-space: nowrap; }
+/* Phones: a chip in the Schedule header shows the checklist's count and jumps to it. */
+.day-jump { display: none; }
+
+/* Events: a time column, then title, tags, place and notes. Never a box to tick. */
+.day-events { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.day-event { display: grid; grid-template-columns: 64px minmax(0, 1fr); gap: 12px; padding: 12px 14px; border-radius: 16px; background: color-mix(in srgb, var(--wash) 75%, var(--surface)); border-left: 4px solid var(--accent); }
+.day-event-time { display: grid; align-content: start; font-variant-numeric: tabular-nums; }
+.day-event-time strong { font-size: 17px; color: var(--ink); }
+.day-event-time span { font-size: 12.5px; color: var(--muted); }
+.day-event-body { min-width: 0; overflow-wrap: anywhere; }
+.day-event-line { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; }
+.day-event .event-title { display: inline; margin: 0; font-size: 16.5px; font-weight: 600; line-height: 1.3; }
+.day-event .event-location { margin-top: 2px; font-size: 13.5px; }
+.day-event-body p { margin: 4px 0 0; font-size: 13.5px; color: var(--muted); }
+.day-event .event-notes { color: var(--ink); opacity: .85; }
+.day-event .event-source { border: 0; padding: 0; font-size: 12px; }
+.day-tag { display: inline-block; padding: 1px 8px; border-radius: 10px; background: var(--surface); color: var(--muted); font-size: 11.5px; font-weight: 700; line-height: 18px; }
+.day-tag.is-now { background: var(--accent); color: var(--surface); }
+.day-tag.is-next { background: color-mix(in srgb, var(--warm) 45%, var(--surface)); color: var(--ink); }
+.day-tag.is-overlap { box-shadow: inset 0 0 0 1.5px var(--warm); color: var(--ink); font-weight: 600; }
+/* Ended: dimmed but readable. Happening now: the brightest card, ringed in the accent. */
+.day-event.is-past { border-left-color: var(--line); background: color-mix(in srgb, var(--wash) 50%, transparent); }
+.day-event.is-past > * { opacity: .62; }
+html[data-edition="gn"] .day-event.is-past > *, html[data-style="pixel"] .day-event.is-past > * { opacity: .8; }
+.day-event.is-now { background: var(--surface); border-left-width: 6px; box-shadow: inset 0 0 0 2px var(--accent), 0 4px 14px color-mix(in srgb, var(--accent) 22%, transparent); }
+.day-event.is-tbc { border-left-style: dashed; }
+.day-event.is-tbc .day-event-time strong { font-size: 15px; }
+.day-chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 10px; }
+.day-chip { display: inline-flex; gap: 8px; align-items: center; padding: 6px 12px; border-radius: 12px; background: color-mix(in srgb, var(--warm) 30%, var(--surface)); font-weight: 600; font-size: 14px; overflow-wrap: anywhere; }
+.day-chip small { font-weight: 700; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); white-space: nowrap; }
+.day-chip.is-deadline { background: var(--surface); box-shadow: inset 0 0 0 1.5px var(--warm); }
+.day-chips .schedule-holiday { margin: 0; padding: 6px 12px; border-radius: 12px; font-size: 14px; }
+/* "Now · 13:00" heads the events happening now, or the next one. */
+.day-now { display: flex; align-items: center; gap: 8px; margin-top: 4px; color: var(--accent); font-size: 12px; font-weight: 700; }
+.day-now::before { content: ""; width: 9px; height: 9px; border-radius: 50%; background: var(--accent); }
+.day-now::after { content: ""; flex: 1; height: 2px; background: var(--accent); }
+.day-earlier { display: none; }
+.day-schedule .schedule-empty { padding: 12px 14px; border-radius: 14px; background: color-mix(in srgb, var(--wash) 70%, transparent); font-size: 14px; }
+
+/* The checklist. A square box reads as tickable at a glance; the whole row is the tap target. */
+.tl { display: grid; gap: 10px; }
+.tl-head { display: grid; gap: 8px; padding: 0 0 4px; }
+.tl-progress { font: normal 20px/1.2 Georgia, serif; letter-spacing: -.3px; }
+.tl-progress:lang(zh-CN), .tl-progress :lang(zh-CN) { font: 600 19px/1.3 system-ui, sans-serif; letter-spacing: 0; }
+.tl-bar { display: flex; gap: 4px; height: 8px; }
+.tl-bar i { flex: 1; border-radius: 999px; background: var(--wash); box-shadow: inset 0 0 0 1px var(--line); transition: background .25s; }
+.tl-bar i.is-on { background: var(--accent); box-shadow: none; }
+.tl-bar.is-continuous { border-radius: 999px; background: var(--wash); box-shadow: inset 0 0 0 1px var(--line); overflow: hidden; }
+.tl-bar.is-continuous i { flex: none; height: 100%; transition: width .3s; }
+.tl-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.tl .tl-row { display: flex; align-items: center; gap: 14px; width: 100%; min-height: 60px; margin: 0; padding: 10px 16px 10px 12px; border: 1px solid var(--line); border-radius: 16px;
+  background: color-mix(in srgb, var(--surface) 94%, transparent); color: var(--ink); text-align: left; font: inherit; font-weight: 400; line-height: normal; -webkit-tap-highlight-color: transparent; transition: background .15s, transform .08s; }
+.tl button.tl-row:enabled { cursor: pointer; }
+.tl button.tl-row:enabled:hover { background: color-mix(in srgb, var(--wash) 70%, var(--surface)); color: var(--ink); }
+.tl button.tl-row:enabled:active { transform: scale(.985); }
+.tl .tl-row:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.tl-check { flex: none; display: grid; place-items: center; width: 28px; height: 28px; border-radius: 7px; border: 2.5px solid var(--accent); background: var(--surface); color: transparent; transition: background .12s, color .12s; }
+.tl-check svg { width: 20px; height: 20px; }
+.tl-item.is-done .tl-check { background: var(--accent); color: var(--surface); }
+.tl-item.is-done .tl-row { background: color-mix(in srgb, var(--surface) 60%, transparent); border-style: dashed; }
+.tl-item.is-done .tl-text { opacity: .55; }
+.tl-item.is-done .task-title { text-decoration: line-through; text-decoration-thickness: 1.5px; text-decoration-color: var(--muted); }
+/* Read-only rows (future days): the same rows with a dashed empty box. */
+.tl-item.is-ro .tl-row { background: color-mix(in srgb, var(--surface) 70%, transparent); }
+.tl-item.is-ro:not(.is-done) .tl-check { border-style: dashed; border-color: var(--muted); background: transparent; }
+.tl-text { display: grid; gap: 2px; min-width: 0; }
+.tl-title { font-size: 16px; line-height: 1.35; overflow-wrap: anywhere; }
+.tl .task-title { margin: 0; font-weight: 400; line-height: inherit; }
+.tl-title .task-icon { width: 16px; height: 16px; margin: 0 7px -2px 0; }
+.tl-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; min-width: 0; font-size: 12.5px; color: var(--muted); }
+.tl-lead { min-width: 0; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tl-tag { display: inline-block; padding: 0 7px; border-radius: 999px; background: var(--wash); color: var(--ink); font-size: 11.5px; line-height: 18px; }
+.tl-note { font-size: 12.5px; color: var(--muted); white-space: pre-line; overflow-wrap: anywhere; }
+.tl-item.is-done :is(.tl-note, .tl-tag) { display: none; }
+p.tl-done-head { margin: 6px 0 0 4px; color: var(--muted); font-size: 13px; font-weight: 600; }
+button.tl-done-head { justify-self: start; display: inline-flex; gap: 6px; align-items: center; min-height: 40px; padding: 0 14px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); color: var(--ink); font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
+button.tl-done-head::after { content: "▾"; }
+button.tl-done-head[aria-expanded="true"]::after { content: "▴"; }
+.tl-future { margin: 0; color: var(--muted); font-size: 14.5px; }
+.tl-all, .tl-empty { display: flex; flex-wrap: wrap; align-items: center; gap: 14px; padding: 12px 14px; border-radius: 18px; background: color-mix(in srgb, var(--surface) 88%, transparent); }
+.tl-all::before, .tl-empty::before { content: ""; flex: none; width: 32px; height: 32px; background: url("icons/desk-done.svg") center / contain no-repeat; }
+.tl-empty::before { background-image: url("icons/desk-habit.svg"); }
+.tl-all p, .tl-empty p { flex: 1 1 200px; margin: 0; font-size: 14.5px; }
+.tl-add { display: inline-flex; align-items: center; min-height: 44px; padding: 0 16px; border: 1px solid var(--accent); border-radius: 999px; background: var(--surface); color: var(--accent); font-weight: 600; text-decoration: none; }
+@media (prefers-reduced-motion: reduce) { .tl .tl-row, .tl-check, .tl-bar i { transition: none; } }
+
+@media (max-width: 900px) {
+  .day-wrap { grid-template-columns: minmax(0, 1fr); }
+  /* Ended events fold into one "Earlier today" line, so the checklist starts about a screen down at most. */
+  .day-schedule:not(.show-earlier) .day-event.is-past { display: none; }
+  .day-earlier { display: inline-flex; align-items: center; gap: 6px; min-height: 40px; margin-bottom: 8px; padding: 0 12px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); color: var(--muted); font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
+  .day-earlier::after { content: "▸"; }
+  .day-earlier[aria-expanded="true"]::after { content: "▾"; }
+  .day-jump:not([hidden]) { display: inline-flex; align-items: center; margin-left: auto; min-height: 36px; padding: 0 12px; border: 1px solid var(--accent); border-radius: 999px; background: var(--surface); color: var(--accent); font-size: 13px; font-weight: 700; white-space: nowrap; text-decoration: none; }
+  .day-schedule .day-card-head:has(.day-jump:not([hidden])) .day-count { display: none; }
+}
+.day-current-date { display: none; }
+@media (max-width: 700px) {
+  .day-wrap { gap: 14px; }
+  .day-wrap .focus-panel { padding: 14px 12px; border-radius: 18px; }
+  .day-event { grid-template-columns: 54px minmax(0, 1fr); gap: 10px; padding: 10px 12px; }
+  .day-event .event-title { font-size: 15.5px; }
+  /* The date moves into the day arrows' row in place of the big heading. */
+  .schedule-toolbar.is-day { padding-top: 0; margin-bottom: 12px; }
+  .is-day .schedule-date { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .is-day .schedule-mode { margin-bottom: 6px; }
+  .is-day #day-current { flex: 1 1 0; min-width: 0; font-size: 13px; font-weight: 600; }
+  .is-day .schedule-tools { margin-left: 4px; padding-left: 6px; }
+  .is-day .day-current-label { display: none; }
+  .is-day .day-current-date { display: inline; }
+  /* The page keeps room at the end for the Undo notice and the secretary button. */
+  .schedule-page main { padding-bottom: 160px; }
+}
+html[data-style="pixel"] :is(.day-event, .day-tag, .day-chip, .day-earlier, .day-jump, .tl-row, .tl-check, .tl-bar, .tl-bar i, .tl-tag, .tl-all, .tl-empty, .tl-add, button.tl-done-head, .day-schedule .schedule-empty) { border-radius: 0; }
+html[data-style="pixel"] :is(.day-event, .day-chip, .day-now, .day-earlier, .day-jump, .tl-title, .tl-meta, .tl-progress, .tl-done-head, .tl-add) { font-family: var(--px-font); }
+html[data-style="pixel"] .day-now::before { border-radius: 0; transform: rotate(45deg); }
 @media (max-width: 1050px) {
   .schedule-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: none; grid-auto-rows: auto max-content max-content; }
   .schedule-day { border-bottom: 1px solid var(--line); }
@@ -161,8 +262,6 @@
   .schedule-navigation { flex-wrap: wrap; }
   .schedule-mode { order: -1; width: 100%; margin: 0 0 8px; }
   .schedule-navigation .schedule-mode-link { flex: 1; }
-  .focus-panel { padding: 22px 18px; }
-  .focus-event { grid-template-columns: 72px minmax(0, 1fr); gap: 14px; }
   .schedule-tools { margin-left: auto; }
   .schedule-grid { grid-template-columns: minmax(0, 1fr); grid-auto-rows: auto auto auto; }
   .schedule-day { border-right: 0; }

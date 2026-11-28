@@ -526,8 +526,8 @@ class ScheduleTests(unittest.TestCase):
             snapshot(self.app, 1, "day")["view"],
         )
         self.assertIn("Tuesday, October 13", tuesday)
-        self.assertIn("focus-event is-past", tuesday)
-        self.assertIn("focus-event is-now", wednesday)
+        self.assertIn("day-event is-past", tuesday)
+        self.assertIn("day-event is-now", wednesday)
 
     def test_week_window_and_strict_query_validation(self):
         self.assertEqual(self.data(-3)["start"], "2026-09-21")
@@ -595,11 +595,20 @@ class ScheduleTests(unittest.TestCase):
         self.assertIn("Draft the methods", markup)
         self.assertNotIn("Quiet working block", markup)
         self.assertNotIn("Dentist", markup)
-        self.assertEqual(markup.count('<li class="focus-event'), 3)
+        self.assertEqual(markup.count('<li class="day-event'), 3)
         self.assertLess(markup.index("Team check-in"), markup.index("Lunch with Mia"))
-        self.assertIn("focus-event is-past", markup)
-        self.assertIn("focus-event is-now", markup)
-        self.assertRegex(markup, r"Next</bdi> · 15:00 <span data-content>Design sync")
+        self.assertIn("day-event is-past", markup)
+        self.assertIn("day-event is-now", markup)
+        self.assertRegex(markup, r"Design sync</span><span class=\"day-tag is-next\">")
+        # The now line sits between the ended check-in and the lunch happening now.
+        self.assertLess(markup.index("Team check-in"), markup.index('class="day-now"'))
+        self.assertLess(markup.index('class="day-now"'), markup.index("Lunch with Mia"))
+        self.assertIn("Earlier today · 1", markup)
+        # The deadline marker is a chip in the Schedule, not a row to tick.
+        self.assertNotIn("Deadline only", markup)
+        # Events are never tickable and never count; rows are ticked whole.
+        self.assertIn("0 of 3 done", markup)
+        self.assertEqual(markup.count('class="tl-row task-tick"'), 3)
         self.assertIn('href="/schedule?week=0"', markup)
         # The view changes only when an event's state does, not every minute.
         self.app.now = lambda: datetime(2026, 10, 13, 12, 1, tzinfo=UTC)
@@ -611,6 +620,11 @@ class ScheduleTests(unittest.TestCase):
         self.assertIn("Dentist", later)
         self.assertIn("In 2 days", later)
         self.assertNotIn("is-past", later)
+        # Future days show their rows read-only, with no progress.
+        self.assertIn("You can tick these on the day.", later)
+        self.assertIn("tl-item is-optional is-ro", later)
+        self.assertNotIn("task-tick", later)
+        self.assertNotIn("tl-bar", later)
         self.assertIn('id="day-next"', snapshot(self.app, 20, "day")["view"])
         self.assertNotIn('id="day-next"', snapshot(self.app, 21, "day")["view"])
         self.assertIn('href="/schedule?week=3"', snapshot(self.app, 21, "day")["view"])
@@ -619,6 +633,7 @@ class ScheduleTests(unittest.TestCase):
         translated = snapshot(self.app, 0, "day")["view"]
         self.assertIn("10月13日星期二", translated)
         self.assertIn("进行中", translated)
+        self.assertIn("10月13日周二", translated)
 
     def test_day_view_keeps_source_failures_visible(self):
         (self.root / "calendar.sqlite").write_text("not SQLite")
@@ -1066,14 +1081,88 @@ class TapToTickTests(unittest.TestCase):
         )
         self.assertIn('aria-label="Mark “Review the outline” not done"', markup)
         self.assertNotIn('data-tick-date="2026-10-15"', markup)
-        today = compact(self.app)["days"][0]["tasks"]
-        parcel = next(task for task in today if task["text"] == "Pick up a parcel")
-        self.assertEqual(set(parcel), {"text", "done", "tickable", "id", "revision"})
-        later = compact(self.app)["days"][2]["tasks"]
+        days = compact(self.app)["days"]
+        methods = next(t for t in days[0]["tasks"] if t["text"] == "Draft the methods")
         self.assertEqual(
-            later,
-            [{"text": "Try the new figure layout", "done": False, "tickable": False}],
+            {k: v for k, v in methods.items() if k not in ("id", "revision")},
+            {
+                "text": "Draft the methods",
+                "done": False,
+                "tickable": True,
+                "kind": "todo",
+                "cadence": "",
+                "status": "partial",
+                "project": "Atlas",
+                "optional": False,
+            },
         )
+        # Future rows carry their tick fields for the widget's cached next day; markers never do.
+        layout = days[2]["tasks"][0]
+        self.assertEqual(
+            (layout["text"], layout["tickable"], layout["optional"], "id" in layout),
+            ("Try the new figure layout", False, True, True),
+        )
+        marker = next(
+            t for t in days[3]["tasks"] if t["text"].startswith("Deadline only")
+        )
+        self.assertEqual((marker["kind"], "id" in marker), ("deadline", False))
+
+    def test_routine_comes_back_unticked_at_04_00_from_the_synced_next_day(self):
+        inbox = InboxStore(self.root, write=True)
+        try:
+            inbox.mutate(
+                "add",
+                {
+                    "kind": "todo",
+                    "raw": "Take the pill",
+                    "task": {
+                        "title": "Take the pill",
+                        "timezone": "Europe/London",
+                        "repeat": {"interval_days": 1, "start": "2026-10-12"},
+                    },
+                },
+                "ses_synthetic",
+                "pill",
+                NOW.isoformat(),
+            )
+        finally:
+            inbox.close()
+        # 03:30 on Wednesday in London: Tuesday is still today.
+        night = BrowserApp(
+            self.root, now=lambda: datetime(2026, 10, 14, 2, 30, tzinfo=UTC)
+        )
+        self.tap("Take the pill", "2026-10-13", True, app=night)
+        synced = compact(night)
+        tuesday, wednesday = synced["days"][0], synced["days"][1]
+        pill = next(t for t in wednesday["tasks"] if t["text"] == "Take the pill")
+        self.assertEqual(synced["today"], "2026-10-13")
+        self.assertTrue(
+            next(t for t in tuesday["tasks"] if t["text"] == "Take the pill")["done"]
+        )
+        self.assertEqual(
+            (pill["done"], pill["tickable"], pill["kind"], pill["cadence"]),
+            (False, False, "routine", "Every day"),
+        )
+        self.assertIn(
+            "You can tick these on the day.", snapshot(night, 1, "day")["view"]
+        )
+        tap = {
+            "id": pill["id"],
+            "date": "2026-10-14",
+            "revision": pill["revision"],
+            "done": True,
+        }
+        with self.assertRaisesRegex(ValueError, "invalid_date"):
+            tick(night, {**tap, "key": "night-key-00000001"})
+        # 04:00: Wednesday is today, the pill is back unticked, and the cached row ticks as it is.
+        morning = BrowserApp(
+            self.root, now=lambda: datetime(2026, 10, 14, 3, tzinfo=UTC)
+        )
+        self.assertEqual(compact(morning)["today"], "2026-10-14")
+        self.assertTrue(self.rows(morning)["Take the pill", "2026-10-14"]["tickable"])
+        self.assertIn("0 of 1 done", snapshot(morning, 0, "day")["view"])
+        self.assertTrue(tick(morning, {**tap, "key": "dawn-key-000000001"})["saved"])
+        self.assertTrue(self.rows(morning)["Take the pill", "2026-10-13"]["done"])
 
     def test_http_tap_needs_csrf_and_reports_conflicts(self):
         server = start_server(self.app)

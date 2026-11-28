@@ -166,6 +166,7 @@ def saved_week(runtime, zone, now, offset):
                         )
                     )
                 ]
+                rules = rhythms(store, runtime)
                 for day in days:
                     day["plan_error"] = (
                         False  # Legacy history is not a canonical source failure.
@@ -182,6 +183,7 @@ def saved_week(runtime, zone, now, offset):
                                 text=r["title"],
                                 done=r["status"] == "done",
                                 section="nice-to-do" if r["optional"] else "flexible",
+                                rhythm=rules.get(r["id"]),
                                 # Deadline markers, future days and stopped habits stay read-only.
                                 tickable=day["date"] <= today.isoformat()
                                 and r.get("marker") != "due"
@@ -240,6 +242,80 @@ def saved_week(runtime, zone, now, offset):
             [year, ", ".join(names)] for year, names in sorted(unlisted.items())
         ],
     }
+
+
+def rhythms(store, runtime):
+    """Each repeating task's rule and each habit's policy, by ID, for its cadence label."""
+    from goodmorning.records.custom_store import CustomStore
+
+    rules = {task["id"]: task["repeat"] for task in store.all() if task["repeat"]}
+    try:
+        custom = CustomStore(runtime, write=False)
+    except ValueError:
+        return rules  # No habits saved yet.
+    try:
+        return rules | {rule["id"]: rule["policy"] for rule in custom.all()}
+    finally:
+        custom.close()
+
+
+WEEKDAYS = {
+    "en": [
+        "Monday",
+        "Tuesday",
+        "Wednesday",
+        "Thursday",
+        "Friday",
+        "Saturday",
+        "Sunday",
+    ],
+    "zh-CN": ["周一", "周二", "周三", "周四", "周五", "周六", "周日"],
+}
+
+
+def cadence(rule):
+    """Plain words for a repeat rule or habit policy, in the website language."""
+    if not rule or "event_subject" in rule:
+        return ""
+    if rule.get("interval_days"):
+        days = rule["interval_days"]
+        return ui.text("Every day" if days == 1 else "Every {count} days", count=days)
+    if "weekdays" in rule:
+        days = sorted(rule["weekdays"])
+        named = {
+            (0, 1, 2, 3, 4, 5, 6): "Every day",
+            (0, 1, 2, 3, 4): "Weekdays",
+            (5, 6): "Weekends",
+        }
+        if tuple(days) in named:
+            return ui.text(named[tuple(days)])
+        names = WEEKDAYS[ui.current()]
+        if len(days) == 1:
+            listed = names[days[0]]
+        elif ui.current() == "zh-CN":
+            listed = "、".join(names[day] for day in days)
+        else:
+            listed = ", ".join(names[day][:3] for day in days)
+        return ui.text("Every {days}", days=listed)
+    if "monthdays" in rule:
+        months = rule.get("every_months", 1)
+        return ui.text(
+            "Every month" if months == 1 else "Every {count} months", count=months
+        )
+    if rule.get("yearly"):
+        return ui.text("Every year")
+    return ui.text("On set dates")
+
+
+def checklist_kind(task):
+    """'routine' for repeats and habits, 'deadline' for markers that are never ticked, else 'todo'."""
+    if task.get("marker") == "due":
+        return "deadline"
+    if task.get("category") == "habit" or (
+        task.get("category") == "routine" and not task.get("prep_for")
+    ):
+        return "routine"
+    return "todo"
 
 
 def worded(item, kind):
@@ -539,6 +615,12 @@ def date_part(day, part):
             if ui.current() == "zh-CN"
             else value.strftime("%A, %B ") + str(value.day)
         )
+    elif part == "weekday-date":
+        label = (
+            f"{value.month}月{value.day}日周" + "一二三四五六日"[value.weekday()]
+            if ui.current() == "zh-CN"
+            else f"{value:%a}, {value:%b} {value.day}"
+        )
     else:
         label = (
             f"{value.month}月{value.day}日"
@@ -805,16 +887,14 @@ def view(data, checked):
 
 def day_event(event, day, zone, now):
     """One event with its times spelled out; on the current day it also says whether it ended."""
+    span = None
     if event.get("draft"):
         place, notes = event["location"], event["detail"]
-        start, until, state, sort = (
-            ui.ui("TBC"),
-            ui.ui("Appointment time not yet confirmed"),
-            "tbc",
-            "",
-        )
+        start, until, state, sort = ui.ui("TBC"), "", "tbc", ""
         source = (
             '<p class="event-source">'
+            + ui.ui("Appointment time not yet confirmed")
+            + " · "
             + ui.ui("Time zone")
             + " · <span data-content>"
             + html.escape(event["timezone"])
@@ -827,17 +907,24 @@ def day_event(event, day, zone, now):
         if event["all_day"]:
             start, until, state, sort = ui.ui("All day"), "", "all-day", ""
         else:
+            span = begins, ends
             # Untimed and continuing entries come first; the rest follow by start time.
             sort = begins.isoformat() if begins.date().isoformat() == day else ""
             start = (
                 html.escape(begins.strftime("%H:%M")) if sort else ui.ui("Continues")
             )
-            end_label = ends.strftime("%H:%M")
-            if begins.date() != ends.date():
-                end_label = ui.text(
-                    "{date} at {time}", date=ends.date().isoformat(), time=end_label
+            until = (
+                html.escape(ends.strftime("%H:%M"))
+                if ends.date().isoformat() == day
+                else ui.ui(
+                    "Until {time}",
+                    time=ui.text(
+                        "{date} at {time}",
+                        date=ends.date().isoformat(),
+                        time=ends.strftime("%H:%M"),
+                    ),
                 )
-            until = ui.ui("Until {time}", time=end_label)
+            )
             # Before 04:00 the briefing day's events show as ended and the calendar day's as live.
             state = (
                 ""
@@ -859,42 +946,278 @@ def day_event(event, day, zone, now):
             + "</span></p>"
         )
         title = event["subject"]
-    badge = {
-        "now": '<span class="day-badge is-now">' + ui.ui("Now") + "</span>",
-        "past": '<span class="day-badge">' + ui.ui("Ended") + "</span>",
-    }.get(state, "")
-    body = (
-        '<span class="event-title" data-content>'
-        + html.escape(title)
-        + "</span>"
-        + (
-            '<span class="event-location" data-content>'
-            + html.escape(place)
-            + "</span>"
-            if place
-            else ""
-        )
-        + (
-            '<p class="event-notes" data-content>' + html.escape(notes) + "</p>"
-            if notes
-            else ""
-        )
-        + source
-    )
     return {
         "start": start,
         "until": until,
         "state": state,
-        "badge": badge,
-        "body": body,
         "title": title,
+        "place": place,
+        "notes": notes,
+        "source": source,
         "sort": sort,
+        "span": span,
     }
 
 
-def day_tasks(day):
-    if day["plan_error"]:
+def day_event_card(item, events, upcoming):
+    tags = []
+    if item["state"] == "now":
+        tags.append('<span class="day-tag is-now">' + ui.ui("Now") + "</span>")
+    if item is upcoming:
+        tags.append('<span class="day-tag is-next">' + ui.ui("Next up") + "</span>")
+    if item["span"]:
+        begins, ends = item["span"]
+        others = [
+            other["title"]
+            for other in events
+            if other is not item
+            and other["span"]
+            and other["span"][0] < ends
+            and begins < other["span"][1]
+        ]
+        if others:
+            tags.append(
+                '<span class="day-tag is-overlap">'
+                + ui.ui(
+                    "Overlaps {events}",
+                    events=("、" if ui.current() == "zh-CN" else ", ").join(others),
+                )
+                + "</span>"
+            )
+    if item["state"] == "past":
+        tags.append('<span class="day-tag">' + ui.ui("Ended") + "</span>")
+    return (
+        '<li class="day-event'
+        + (" is-" + item["state"] if item["state"] else "")
+        + '"><div class="day-event-time"><strong>'
+        + item["start"]
+        + "</strong>"
+        + ("<span>" + item["until"] + "</span>" if item["until"] else "")
+        + '</div><div class="day-event-body"><div class="day-event-line">'
+        '<span class="event-title" data-content>'
+        + html.escape(item["title"])
+        + "</span>"
+        + "".join(tags)
+        + "</div>"
+        + (
+            '<span class="event-location" data-content>'
+            + html.escape(item["place"])
+            + "</span>"
+            if item["place"]
+            else ""
+        )
+        + (
+            '<p class="event-notes" data-content>' + html.escape(item["notes"]) + "</p>"
+            if item["notes"]
+            else ""
+        )
+        + item["source"]
+        + "</div></li>"
+    )
+
+
+def day_schedule(data, day, events, now):
+    """The day's events: all-day and deadline chips, then cards with a now line between past and upcoming."""
+    chips = [
+        '<span class="day-chip"><small>'
+        + ui.ui("All day")
+        + "</small><span data-content>"
+        + html.escape(item["title"])
+        + "</span></span>"
+        for item in events
+        if item["state"] == "all-day"
+    ] + [
+        '<span class="day-chip is-deadline"><small>'
+        + ui.ui("Deadline")
+        + "</small><span data-content>"
+        + html.escape(task["text"])
+        + "</span></span>"
+        for task in day["tasks"]
+        if checklist_kind(task) == "deadline"
+    ]
+    cards = [item for item in events if item["state"] != "all-day"]
+    live = any(item["state"] in ("past", "now", "next") for item in cards)
+    upcoming = next((item for item in cards if item["state"] == "next"), None)
+    ended = sum(item["state"] == "past" for item in cards)
+    rows, placed = [], not live
+    for item in cards:
+        if not placed and item["state"] in ("now", "next"):
+            rows.append(now_line(data["timezone"], now))
+            placed = True
+        rows.append(day_event_card(item, cards, upcoming))
+    if not placed:
+        rows.append(now_line(data["timezone"], now))
+    empty = (
+        '<p class="schedule-empty">'
+        + ui.ui(
+            "Calendar unavailable"
+            if data.get("calendar_error")
+            else "Nothing on the calendar."
+        )
+        + "</p>"
+    )
+    return (
+        '<section class="focus-panel day-schedule" aria-labelledby="day-schedule-heading">'
+        '<header class="day-card-head"><h2 id="day-schedule-heading">'
+        + ui.ui("Schedule")
+        + "</h2>"
+        + (
+            '<span class="day-count">'
+            + ui.ui(
+                "1 event" if len(events) == 1 else "{count} events", count=len(events)
+            )
+            + "</span>"
+            if events
+            else ""
+        )
+        + '<a class="day-jump" href="#day-todos" hidden></a></header>'
+        + (
+            '<div class="day-chips">' + holidays(day) + "".join(chips) + "</div>"
+            if chips or day["holidays"]
+            else ""
+        )
+        + (
+            '<button class="day-earlier" type="button" aria-expanded="false">'
+            + ui.ui("Earlier today · {count}", count=ended)
+            + "</button>"
+            if ended
+            else ""
+        )
+        + ('<ol class="day-events">' + "".join(rows) + "</ol>" if cards else "")
+        + (empty if not events else "")
+        + "</section>"
+    )
+
+
+def now_line(zone, now):
+    # schedule.js sets the time from each check; the line moves only when an event's state does.
+    return (
+        '<li class="day-now">'
+        + ui.ui("Now")
+        + ' · <span class="day-now-time">'
+        + now.astimezone(ZoneInfo(zone)).strftime("%H:%M")
+        + "</span></li>"
+    )
+
+
+CHECK = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 12.5l4 4 8-9" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+
+
+def checklist_row(task, day, kind):
+    meta = []
+    lead = cadence(task.get("rhythm")) if kind == "routine" else task.get("project")
+    if lead:
+        meta.append(
+            '<span class="tl-lead" data-content>' + html.escape(lead) + "</span>"
+        )
+    if task.get("due_date") and task.get("marker") != "due":
+        meta.append(
+            "<span>"
+            + ui.ui(
+                "Soft target: {date}" if task.get("due_soft") else "Due: {date}",
+                date=ui.human_dates(task.get("due_at") or task["due_date"], day),
+            )
+            + "</span>"
+        )
+    state = task.get("status", "done" if task["done"] else "open")
+    if state in ("partial", "blocked") and not task["done"]:
+        meta.append('<span class="tl-tag">' + ui.ui(state.capitalize()) + "</span>")
+    if task["section"] == "nice-to-do":
+        meta.append('<span class="tl-tag">' + ui.ui("Optional") + "</span>")
+    note = " · ".join(
+        value for value in (task.get("detail"), task.get("report_detail")) if value
+    )
+    icon, hint = task_kind(task)
+    text = (
+        '<span class="tl-check">'
+        + CHECK
+        + '</span><span class="tl-text"><span class="tl-title"><span class="task-icon is-'
+        + icon
+        + '" role="img" title="'
+        + html.escape(ui.text(hint), quote=True)
+        + '" aria-label="'
+        + html.escape(ui.text(hint), quote=True)
+        + '"></span><span class="task-title" data-content>'
+        + html.escape(task["text"])
+        + "</span></span>"
+        + ('<span class="tl-meta">' + "".join(meta) + "</span>" if meta else "")
+        + (
+            '<span class="tl-note" data-content>' + html.escape(note) + "</span>"
+            if note
+            else ""
+        )
+        + "</span>"
+    )
+    classes = "tl-item" + (" is-done" if task["done"] else "")
+    classes += " is-optional" if task["section"] == "nice-to-do" else ""
+    if not task.get("tickable"):
         return (
+            '<li class="'
+            + classes
+            + ' is-ro"><div class="tl-row">'
+            + text
+            + "</div></li>"
+        )
+    action = (
+        "Mark “{task}” not done" if task["done"] else "Mark “{task}” done"
+    ).format(task=task["text"])
+    # Enabled by schedule.js; without JavaScript the row stays read-only.
+    return (
+        '<li class="'
+        + classes
+        + '"><button id="tick-'
+        + day
+        + "-"
+        + html.escape(task["task_id"], quote=True)
+        + '" class="tl-row task-tick" type="button" disabled aria-label="'
+        + html.escape(action, quote=True)
+        + '" data-tick-id="'
+        + html.escape(task["task_id"], quote=True)
+        + '" data-tick-date="'
+        + day
+        + '" data-tick-revision="'
+        + str(task["revision"])
+        + '" data-tick-done="'
+        + str(bool(task["done"])).lower()
+        + '">'
+        + text
+        + "</button></li>"
+    )
+
+
+def progress(done, total):
+    label = ui.ui("{done} of {total} done", done=done, total=total)
+    bar = (
+        "".join(
+            '<i class="is-on"></i>' if i < done else "<i></i>" for i in range(total)
+        )
+        if total <= 10  # Segments read well up to 10; longer lists get one bar.
+        else '<i class="is-on" style="width:' + str(100 * done // total) + '%"></i>'
+    )
+    return (
+        '<div class="tl-bar'
+        + ("" if total <= 10 else " is-continuous")
+        + '" role="progressbar" aria-valuemin="0" aria-valuemax="'
+        + str(total)
+        + '" aria-valuenow="'
+        + str(done)
+        + '" aria-label="'
+        + html.escape(
+            ui.text("{done} of {total} done", done=done, total=total), quote=True
+        )
+        + '">'
+        + bar
+        + "</div>",
+        label,
+    )
+
+
+def day_checklist(data, day):
+    """Routines, then other to-dos, each in the schedule's order. Events and deadline markers never count."""
+    today = day["date"] == data["today"]
+    future = day["date"] > data["today"]
+    if day["plan_error"]:
+        body = (
             '<p class="schedule-empty">'
             + ui.ui(
                 "Task records unavailable"
@@ -903,15 +1226,105 @@ def day_tasks(day):
             )
             + "</p>"
         )
-    if not day["tasks"]:
-        return '<p class="schedule-empty">' + ui.ui("No to-dos saved") + "</p>"
-    return (
-        '<ul class="schedule-tasks">'
-        + "".join(
-            task_card(task, day["date"])
-            for task in sorted(day["tasks"], key=lambda task: bool(task["done"]))
+    else:
+        rows = [
+            (task, checklist_kind(task))
+            for task in day["tasks"]
+            if checklist_kind(task) != "deadline" and not task.get("closed")
+        ]
+        rows.sort(key=lambda row: row[1] != "routine")
+        counted = [task for task, _ in rows if task["section"] != "nice-to-do"]
+        done = sum(bool(task["done"]) for task in counted)
+        everything = bool(counted) and done == len(counted)
+        open_rows = "".join(
+            checklist_row(task, day["date"], kind)
+            for task, kind in rows
+            if not task["done"]
         )
-        + "</ul>"
+        done_rows = "".join(
+            checklist_row(task, day["date"], kind)
+            for task, kind in rows
+            if task["done"]
+        )
+        done_count = sum(bool(task["done"]) for task, _ in rows)
+        if not rows:
+            head = ""
+        elif future:
+            head = (
+                '<p class="tl-future">'
+                + ui.ui("Planned for this day. You can tick these on the day.")
+                + "</p>"
+            )
+        elif counted:
+            bar, label = progress(done, len(counted))
+            head = (
+                '<div class="tl-head'
+                + (" is-all" if everything else "")
+                + '"><strong class="tl-progress">'
+                + (
+                    ui.ui("All done for today" if today else "All done")
+                    if everything
+                    else label
+                )
+                + "</strong>"
+                + bar
+                + "</div>"
+            )
+        else:
+            head = ""
+        if not rows:
+            body = (
+                '<div class="tl-empty"><p>'
+                + ui.ui("Nothing planned for today." if today else "No to-dos saved")
+                + "</p>"
+                + (
+                    '<a class="tl-add" href="/chat" data-quick-ask="Add a daily routine: " data-quick-ask-prefill>'
+                    + ui.ui("Add a routine with your secretary")
+                    + "</a>"
+                    if not future
+                    else ""
+                )
+                + "</div>"
+            )
+        else:
+            # All done: a calm line, and the ticked rows fold behind a working "Done · N" button.
+            fold = not open_rows
+            body = (
+                head
+                + (
+                    '<div class="tl-all"><p>'
+                    + ui.ui("Routines come back tomorrow.")
+                    + "</p></div>"
+                    if everything and today
+                    else ""
+                )
+                + ('<ul class="tl-list">' + open_rows + "</ul>" if open_rows else "")
+                + (
+                    (
+                        '<button class="tl-done-head" type="button" aria-expanded="false">'
+                        if fold
+                        else '<p class="tl-done-head">'
+                    )
+                    + ui.ui("Done · {count}", count=done_count)
+                    + ("</button>" if fold else "</p>")
+                    + '<ul class="tl-list tl-done"'
+                    + (" hidden" if fold else "")
+                    + ">"
+                    + done_rows
+                    + "</ul>"
+                    if done_rows
+                    else ""
+                )
+            )
+    return (
+        '<section class="focus-panel day-todos" id="day-todos" aria-labelledby="day-todos-heading">'
+        '<header class="day-card-head"><h2 id="day-todos-heading">'
+        + ui.ui("To-dos")
+        + '</h2></header><div class="tl'
+        + (" is-today" if today else "")
+        + '">'
+        + body
+        + "</div></section>"
     )
 
 
@@ -930,37 +1343,11 @@ def day_view(data, checked, now):
     ) or ui.ui(
         "In {count} days" if offset > 0 else "{count} days ago", count=abs(offset)
     )
-    counts = [
-        ui.ui("1 event" if len(events) == 1 else "{count} events", count=len(events)),
-        ui.ui(
-            "1 to-do" if len(day["tasks"]) == 1 else "{count} to-dos",
-            count=len(day["tasks"]),
-        ),
-    ]
-    if day["tasks"]:
-        counts.append(ui.ui("{done} completed", done=done))
-    upcoming = next((item for item in events if item["state"] == "next"), None)
-    if upcoming:
-        counts.append(
-            '<span class="day-next">'
-            + ui.ui("Next")
-            + " · "
-            + upcoming["start"]
-            + " <span data-content>"
-            + html.escape(upcoming["title"])
-            + "</span></span>"
-        )
     controls = (
-        '<div class="schedule-toolbar"><div class="schedule-date"><h1 id="week-heading">'
+        '<div class="schedule-toolbar is-day"><div class="schedule-date"><h1 id="week-heading">'
         + date_part(day["date"], "full")
         + "</h1>"
-        '<p class="schedule-range">'
-        + relative
-        + '<span class="range-dot"> · </span>'
-        + '<span class="range-dot"> · </span>'.join(counts)
-        + "</p>"
-        + holidays(day)
-        + "</div>"
+        '<p class="schedule-range">' + relative + "</p></div>"
         '<nav class="schedule-navigation" aria-label="Day navigation">'
         + mode_switch("day", data["week"])
         + step_link(
@@ -970,9 +1357,15 @@ def day_view(data, checked, now):
             "‹",
             offset > -DAY_RANGE,
         )
+        # Phones hide the heading, so the date sits between the day arrows.
         + '<a id="day-current" class="current-week" data-schedule-nav href="/schedule?view=day">'
+        + '<span class="day-current-label">'
         + ui.ui("Today")
-        + "</a>"
+        + '</span><span class="day-current-date">'
+        + relative
+        + " · "
+        + date_part(day["date"], "weekday-date")
+        + "</span></a>"
         + step_link(
             "day-next",
             "/schedule?view=day&day=" + str(offset + 1),
@@ -983,44 +1376,17 @@ def day_view(data, checked, now):
         + tools(data, checked, "Day details", len(events), len(day["tasks"]), done)
         + "</nav></div>"
     )
-    notice = notices(data)
-    empty_events = (
-        '<p class="schedule-empty">'
-        + ui.ui(
-            "Calendar unavailable"
-            if data.get("calendar_error")
-            else "No calendar events saved"
-        )
-        + "</p>"
-    )
-    today = " is-today" if day["date"] == data["today"] else ""
-    cards = "".join(
-        '<li class="focus-event'
-        + (" is-" + item["state"] if item["state"] else "")
-        + '"><div class="focus-time"><strong>'
-        + item["start"]
-        + "</strong>"
-        + ("<span>" + item["until"] + "</span>" if item["until"] else "")
-        + '</div><div class="focus-body">'
-        + item["badge"]
-        + item["body"]
-        + "</div></li>"
-        for item in events
-    )
     body = (
-        '<div id="day-' + day["date"] + '" class="schedule-focus' + today + '">'
-        '<section class="focus-panel schedule-calendar"><h2>'
-        + ui.ui("Events")
-        + "</h2>"
-        + ('<ol class="focus-events">' + cards + "</ol>" if events else empty_events)
-        + "</section>"
-        '<section class="focus-panel schedule-work"><h2>'
-        + ui.ui("To-dos")
-        + "</h2>"
-        + day_tasks(day)
-        + "</section></div>"
+        '<div id="day-'
+        + day["date"]
+        + '" class="day-wrap'
+        + (" is-today" if day["date"] == data["today"] else "")
+        + '">'
+        + day_schedule(data, day, events, now)
+        + day_checklist(data, day)
+        + "</div>"
     )
-    return controls + notice + body, [item["state"] for item in events]
+    return controls + notices(data) + body, [item["state"] for item in events]
 
 
 def compact(app):
@@ -1075,9 +1441,20 @@ def compact(app):
                         "text": task["text"],
                         "done": bool(task["done"]),
                         "tickable": bool(task.get("tickable")),
+                        "kind": checklist_kind(task),
+                        "cadence": cadence(task.get("rhythm")),
+                        "status": task.get(
+                            "status", "done" if task["done"] else "open"
+                        ),
+                        "project": task.get("project") or "",
+                        "optional": task["section"] == "nice-to-do",
+                        # Future rows carry them too, so the Today widget can tick its cached next day
+                        # once 04:00 passes; deadline markers and stopped habits never get them.
                         **(
                             {"id": task["task_id"], "revision": task["revision"]}
-                            if task.get("tickable")
+                            if "task_id" in task
+                            and task.get("marker") != "due"
+                            and not task.get("closed")
                             else {}
                         ),
                     }
