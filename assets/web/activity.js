@@ -9,7 +9,7 @@
   const origins = JSON.parse(panel.dataset.origins);
   const modes = {secretary: 'Secretary', initialize: 'Initialize', todo: 'To-do', eureka: 'Eureka', gm: 'Morning briefing', gn: 'Evening briefing'};
   const states = {working: 'Your secretary is working', waiting: 'Your secretary needs your answer', queued: 'Your request is queued.',
-    uncertain: 'Activity needs checking. Open it before trying again.', unavailable: 'Activity status is unavailable. Open it to check.'};
+    uncertain: 'Couldn’t tell whether this went through. Open it to check before trying again.', unavailable: 'Activity status is unavailable. Open it to check.'};
   // Each card keeps its working title across the one-second refresh and draws a new one every 30 seconds.
   const workingTitles = ['Little desk, big bustle.', 'Pens out, sleeves rolled up.', 'Lamp on, pen dancing.',
     'Sticky notes fluttering about.', 'Scribbling away at the notes.', 'Scribbling between coffee sips.',

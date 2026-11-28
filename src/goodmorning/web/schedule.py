@@ -412,7 +412,7 @@ def task_card(task, day=None):
         metadata.append(
             '<small class="task-trigger">'
             + ui.ui(
-                "Reminder trigger: morning starts before {time} ({zone})",
+                "Reminder trigger: you start the morning briefing before {time} ({zone})",
                 time=task["when"]["morning_before"],
                 zone=task["timezone"],
             )

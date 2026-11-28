@@ -56,8 +56,8 @@ sent. Each account's backend checks its own `browser-uploads/` when it starts an
 then hourly; it cannot reach another account's runtime. An upload's age is its
 directory's modification time, which last changes when its metadata is saved.
 
-- Old chats keep each file's name and size and show “*name* · removed after 30
-  days” in its place. The guide and the attach button's screen-reader note say
+- Old chats keep each file's name and size and show “*name* · deleted (files are
+  kept 30 days)” in its place. The guide and the attach button's screen-reader note say
   that files are kept for 30 days.
 - The engine copies each sent file into its session history (base64) when the
   message is sent, so old conversations still continue after the original is

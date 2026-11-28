@@ -899,7 +899,7 @@ function showMessages(messages) {
       attachmentBox.replaceChildren(...(item.attachments || []).map(entry => {
         const file = make('div', '', 'message-attachment');
         if (entry.removed) {
-          file.append(make('p', chatT('{name} · removed after 30 days', {name: entry.name}), 'attachment-name'));
+          file.append(make('p', chatT('{name} · deleted (files are kept 30 days)', {name: entry.name}), 'attachment-name'));
         } else if (entry.preview) {
           // The local preview is released after sending, so it is not enlargeable.
           const image = make('img'); image.alt = entry.name; image.src = entry.preview;

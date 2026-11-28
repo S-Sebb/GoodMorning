@@ -1202,7 +1202,9 @@ class BrowserApp:
         date, kind = body["date"], body["kind"]
         self.source(date, kind)
         if not self.preflight or not self.chamber or date != self.today():
-            raise ValueError("Only today’s connected workflow can be regenerated")
+            raise ValueError(
+                "Only today’s briefing can be regenerated, and only while your secretary is connected."
+            )
         if self.chat_settings()["defaultMode"] == "initialize":
             raise ValueError("Initialize your secretary before preparing a briefing")
         from goodmorning.briefings.briefing_job import context_path
@@ -2655,7 +2657,12 @@ def serve_live(app, port, *, gateway_key=None, public_origins=()):
                     return self.respond(app.reply(*reply.groups(), body))
                 return self.respond({"error": "Not found"}, 404)
             except (ValueError, KeyError, TypeError):
-                return self.respond({"error": "Invalid or stale request"}, 400)
+                return self.respond(
+                    {
+                        "error": "This request is out of date or invalid. Refresh and try again."
+                    },
+                    400,
+                )
             except Exception:  # noqa: BLE001
                 return self.respond(
                     {
