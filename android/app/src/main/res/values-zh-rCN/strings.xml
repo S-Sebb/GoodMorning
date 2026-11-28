@@ -218,4 +218,23 @@
     <string name="preview_note_older_two">给 Mia 的礼物点子</string>
     <string name="preview_note_older_three">给银行打电话</string>
     <string name="preview_note_sort">把3条速记交给小满整理</string>
+    <string name="widget_checklist_name">今天</string>
+    <string name="widget_checklist_description">勾掉今天的每日待办和待办：2×2 时先显示下一项，大一些就显示整份清单</string>
+    <string name="checklist_progress">已完成 %1$d/%2$d 项</string>
+    <string name="checklist_progress_short">%1$d/%2$d</string>
+    <string name="checklist_all_done">今天都做完啦</string>
+    <string name="checklist_all_done_short">全都做完了</string>
+    <string name="checklist_all_done_routines">每日待办明天会再出现。</string>
+    <string name="checklist_done">已完成 · %1$d</string>
+    <string name="checklist_empty_title">今天的清单还空着</string>
+    <string name="checklist_empty">今天安排好的每日待办和待办都会出现在这里。做完一项就点一下，也可以让秘书加一条每日待办。</string>
+    <string name="checklist_undo">撤销</string>
+    <string name="checklist_waiting">还没发送</string>
+    <string name="checklist_saved">已保存</string>
+    <string name="checklist_offline">离线了。勾好的会先存在这台手机上，联网后再发送。</string>
+    <string name="checklist_partial">部分完成</string>
+    <string name="checklist_blocked">受阻</string>
+    <string name="checklist_optional">可选</string>
+    <string name="preview_routine_one">吃维生素</string>
+    <string name="preview_routine_cadence">每天</string>
 </resources>

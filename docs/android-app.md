@@ -118,6 +118,7 @@ screens before linking follow the phone.
 | Widget | Default size | Shows | Taps |
 |---|---|---|---|
 | Today's schedule | 4×4 | Today's events (time, until, place) and to-dos | ○/✓ of a to-do: ticks it done or back (below); elsewhere: day schedule; refresh button |
+| Today | 2×2 | Today's checklist (routines first, then other to-dos) with a progress bar. At 2×2 the count and the next row; from about 3×3 the whole list, done rows under "Done · N" | A row: ticks it done or back, with Undo (below); elsewhere: day schedule |
 | Week schedule | 4×5 | Seven days from today: events and to-do progress | That day's schedule |
 | Secretary chat | 4×3 | Portrait and name, latest conversation title, its reply in a bubble, and a message box | Message box: Ask (dialog, may start paid model work); elsewhere: the conversation |
 | Secretary | 1×1, fixed | The portrait alone, with an accent dot while a reply runs or waits for an answer | The latest conversation |
@@ -143,18 +144,33 @@ has run out shows the loading or unavailable message until the next sync.
 
 ### Ticking to-dos
 
-In the Today's schedule widget, a tap on a to-do's ○ or ✓ ticks it done or back,
-as on the Schedule page (`docs/weekly-schedule.md`, Ticking to-dos): a one-off
-task is finished as a whole, a recurring task or habit only for today, and ✓
-restores exactly the state before. Only rows the server marks `tickable` (planned
-to-dos and habits) tick; the rest of the row, other rows and events open the day
-schedule. The tap goes to `RowActivity`, which has no window and is not exported,
-so the home screen stays as it is and no other app can tick through it. It sends
-`POST /api/app/schedule/tick` with the app token and nothing is saved on the phone
-first: the mark changes when the server answers, and a sync follows. When the save
-fails (offline, or the to-do changed), the mark stays and a toast says
-"Couldn’t save. Open GoodMorning to try again." Android 13 and newer hide that toast
-while the app's notifications are off; the mark still stays unchanged.
+The Today widget and the Today's schedule widget tick the same to-dos, as on the
+Schedule page (`docs/weekly-schedule.md`, Ticking to-dos): a one-off task is
+finished as a whole, a recurring task or habit only for that day, and a second tap
+restores exactly the state before. Rows with an `id` that are not deadlines tick, on
+the account's today or earlier; events, deadlines and stopped habits never do. In
+Today the whole row is the target and its square box fills with a ✓; in Today's
+schedule it is the ○/✓, and the rest of the row opens the day schedule.
+
+A tap shows at once. `Ticks` keeps it on the phone until the server confirms it,
+and `Sync.cached()` applies the waiting taps over the last summary, so both widgets
+always agree. Per to-do and day, a tap not sent yet and its opposite cancel out;
+the rest go out one at a time in order (`POST /api/app/schedule/tick` with the app
+token), each with the revision the previous answer gave, and keep their retry key
+until the server confirms them, so a retry never saves twice. Unreachable (offline,
+or the server busy), the taps wait: rows say "Not sent yet", the large widget says
+so in a line above the list, and a job retries once the phone has a network (after
+30 seconds, doubling up to 15 minutes) and with every sync. A refused tap (the to-do
+changed, 409) puts the row back exactly as it was before it and shows the server's
+message in the widget (Today's schedule: a toast) for up to ten minutes.
+
+After a tap, Today shows Undo for five seconds (in the header, or the 2×2 footer
+with "Saved" or "Not sent yet"). Rows never move under the finger: the tapped row
+flips in place, and the list redraws in its settled order when Undo ends.
+
+The day turns at 04:00 in the account's timezone (`schedule.timezone`), as on the
+website: an alarm redraws the widgets then, and they move on to the summary's cached
+next day without waiting for a sync, where its routines and to-dos tick.
 
 ### Quick notes
 
@@ -329,8 +345,12 @@ config that allows plain HTTP to `10.0.2.2` only, and the exported `TestHooks`
 activity (place a widget, set when the user left a conversation, sync). Release
 builds contain neither; check with `./gradlew :app:processReleaseMainManifest`
 and the merged manifest under `app/build/intermediates/merged_manifest/release/`.
-New widget checks (file uploads, the Today widget) add a script beside it and
-reuse its fake server and `Device` helpers.
+`widget_today.py` covers the Today widget (#371): a tick with Undo, the offline
+queue sent in order once the server is back, a refused tap, a tap outside the
+rows, the 04:00 rollover to the cached next day, and the large size after a
+launcher resize, with screenshots in both schemes and languages. New widget
+checks add a script beside them and reuse their fake server, `Device` and setup
+helpers.
 
 ## On yanglab16
 

@@ -23,7 +23,6 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.HashSet;
 import java.util.Set;
-import java.util.UUID;
 
 /** Reads the app summary from the server and keeps the widgets, status notifications and event reminders up to date. */
 final class Sync {
@@ -46,13 +45,38 @@ final class Sync {
         return new File(context.getFilesDir(), "sync.json");
     }
 
-    /** The last summary the server sent, or an empty object. */
+    /** The last summary the server sent with the ticks not yet confirmed applied, or an empty object. */
     static JSONObject cached(Context context) {
+        return Ticks.apply(stored(context), Ticks.load(context));
+    }
+
+    /** The last summary as the server sent it. */
+    private static JSONObject stored(Context context) {
         try (FileInputStream in = new FileInputStream(cache(context))) {
             return new JSONObject(Server.read(in, 4 << 20));
         } catch (IOException | JSONException missing) {
             return new JSONObject();
         }
+    }
+
+    /**
+     * The account's today in the summary: its day turns at 04:00 in the account's timezone, as on the website,
+     * so the widgets move on to the cached next day without waiting for a sync. Null when the summary has no such day.
+     */
+    static JSONObject today(JSONObject data, java.time.Instant now) {
+        JSONObject schedule = data.optJSONObject("schedule");
+        JSONArray days = schedule == null ? null : schedule.optJSONArray("days");
+        if (days == null || days.length() == 0) return null;
+        String date;
+        try {
+            date = now.atZone(java.time.ZoneId.of(schedule.optString("timezone"))).minusHours(4).toLocalDate().toString();
+        } catch (java.time.DateTimeException unknown) {
+            return days.optJSONObject(0);  // A summary from before it named the timezone.
+        }
+        for (int i = 0; i < days.length(); i++) {
+            if (date.equals(days.optJSONObject(i).optString("date"))) return days.optJSONObject(i);
+        }
+        return null;
     }
 
     static boolean linked(Context context) {
@@ -81,6 +105,7 @@ final class Sync {
 
     /** Returns whether a new summary arrived with the server's current conversation in it. */
     static boolean run(Context context) {
+        Ticks.send(context);  // First, so the summary already holds them.
         synchronized (LOCK) {
             String token = Api.token(context);
             if (token == null) {
@@ -104,7 +129,7 @@ final class Sync {
             // Null when the server couldn't read the conversations; {} when there are none.
             boolean chatChecked = !data.isNull("chat");
             try {
-                JSONObject previous = cached(context);
+                JSONObject previous = stored(context);
                 if (chatChecked) observe(context, data.optJSONObject("chat"));
                 for (String part : new String[] {"schedule", "reminders", "chat", "briefings", "weather"}) {
                     if (data.isNull(part) && previous.has(part)) data.put(part, previous.get(part));
@@ -112,6 +137,7 @@ final class Sync {
                 JSONArray notifications = (JSONArray) data.remove("notifications");
                 data.put("synced", System.currentTimeMillis());
                 write(context, data);
+                Ticks.settle(context, data);
                 long newest = Math.max(cursor, 0);
                 for (int i = 0; i < notifications.length(); i++) newest = Math.max(newest, notifications.getJSONObject(i).getLong("seq"));
                 // The first summary after linking only sets the starting point; old news stays quiet.
@@ -162,6 +188,7 @@ final class Sync {
 
     static void forget(Context context) {
         cache(context).delete();
+        Ticks.forget(context);
         new File(context.getFilesDir(), "portrait.png").delete();
         prefs(context).edit().clear().apply();
         context.getSystemService(JobScheduler.class).cancel(JOB);
@@ -217,42 +244,9 @@ final class Sync {
         run(context);
     }
 
-    /**
-     * The Today widget's ○/✓: asks the server to tick the to-do done or back and shows its answer at once.
-     * Returns false when it could not save, so the old mark stays.
-     */
-    static boolean tick(Context context, String id, String date, int revision, boolean done) {
-        String token = Api.token(context);
-        if (token == null) return true;  // Unlinked meanwhile: the next sync shows the link prompt.
-        try {
-            JSONObject saved = Api.tick(context, token, new JSONObject().put("id", id).put("date", date)
-                    .put("revision", revision).put("done", done).put("key", UUID.randomUUID().toString()));
-            synchronized (LOCK) {
-                write(context, ticked(cached(context), saved));
-            }
-        } catch (IOException | JSONException failed) {
-            return false;
-        }
-        Widgets.updateAll(context);
-        return true;
-    }
-
-    /** The summary with the server's answer to a tick on today's row; a day that has since passed stays as it is. */
-    static JSONObject ticked(JSONObject data, JSONObject saved) throws JSONException {
-        JSONObject today = data.getJSONObject("schedule").getJSONArray("days").getJSONObject(0);
-        JSONArray tasks = today.getJSONArray("tasks");
-        for (int i = 0; today.optString("date").equals(saved.optString("date")) && i < tasks.length(); i++) {
-            JSONObject task = tasks.getJSONObject(i);
-            if (task.optString("id").equals(saved.optString("id"))) {
-                task.put("done", saved.getBoolean("done")).put("revision", saved.getInt("revision"));
-            }
-        }
-        return data;
-    }
-
     private static void briefingState(Context context, String kind, String state) {
         try {
-            JSONObject data = cached(context);
+            JSONObject data = stored(context);
             JSONObject edition = data.getJSONObject("briefings").getJSONObject("editions").getJSONObject(kind);
             edition.put("state", state);
             write(context, data);
@@ -374,7 +368,7 @@ final class Sync {
         prefs(context).edit().remove("soon").apply();
         soon(context, true);
         try {
-            JSONObject data = cached(context);
+            JSONObject data = stored(context);
             JSONObject summary = data.optJSONObject("chat");
             if (summary == null || !summary.optString("id").equals(chat)) summary = new JSONObject().put("id", chat == null ? "" : chat);
             data.put("chat", summary.put("state", "running").put("reply", ""));

@@ -51,11 +51,18 @@ public class ListService extends RemoteViewsService {
                 briefing("news".equals(kind));
                 return;
             }
-            JSONObject schedule = Sync.cached(context).optJSONObject("schedule");
+            JSONObject data = Sync.cached(context);
+            if ("today".equals(kind) || "checklist".equals(kind)) {
+                JSONObject day = Sync.today(data, java.time.Instant.now());
+                if (day == null) return;
+                if ("today".equals(kind)) today(day);
+                else checklist(Ticks.checklist(day, Ticks.load(context), System.currentTimeMillis()));
+                return;
+            }
+            JSONObject schedule = data.optJSONObject("schedule");
             JSONArray days = schedule == null ? null : schedule.optJSONArray("days");
             if (days == null || days.length() == 0) return;
-            if ("today".equals(kind)) today(days.optJSONObject(0));
-            else for (int offset = 0; offset < days.length(); offset++) day(days.optJSONObject(offset), offset);
+ for (int offset = 0; offset < days.length(); offset++) day(days.optJSONObject(offset), offset);
         }
 
         private void today(JSONObject day) {
@@ -85,7 +92,7 @@ public class ListService extends RemoteViewsService {
                 Palette.text(row, schemes, R.id.mark, p -> p.accent);
                 Palette.text(row, schemes, R.id.text, done ? (p -> p.muted) : (p -> p.ink));
                 row.setTextViewText(R.id.mark, done ? "✓" : "○");
-                if (task.optBoolean("tickable")) {
+                if (Ticks.tickable(task, day.optString("date"), day.optString("date"))) {
                     row.setOnClickFillInIntent(R.id.mark, new Intent().putExtra("id", task.optString("id"))
                             .putExtra("date", day.optString("date")).putExtra("revision", task.optInt("revision")).putExtra("done", !done));
                     row.setContentDescription(R.id.mark, context.getString(done ? R.string.widget_tick_open : R.string.widget_tick_done,
@@ -135,6 +142,61 @@ public class ListService extends RemoteViewsService {
             row.setTextViewText(R.id.note, String.join(" · ", notes));
             row.setViewVisibility(R.id.note, notes.isEmpty() ? View.GONE : View.VISIBLE);
             rows.add(row);
+        }
+
+        /**
+         * The Today widget's list: an all-done note, open rows, then "Done · N" and the done rows. A whole row
+         * ticks; it flips in place and moves only once its Undo ends (Ticks.checklist).
+         */
+        private void checklist(Ticks.Checklist list) {
+            boolean pixel = Palette.pixel(context);
+            if (list.allDone()) {
+                RemoteViews row = new RemoteViews(context.getPackageName(), R.layout.row_check_note);
+                solid(row, pixel);
+                Palette.text(row, schemes, R.id.title, p -> p.ink);
+                Palette.text(row, schemes, R.id.text, p -> p.muted);
+                row.setTextViewText(R.id.title, context.getString(R.string.checklist_all_done));
+                boolean routines = false;
+                for (JSONObject task : list.done) routines |= "routine".equals(task.optString("kind"));
+                shown(row, R.id.text, routines ? context.getString(R.string.checklist_all_done_routines) : "");
+                rows.add(row);
+            }
+            for (JSONObject task : list.open) rows.add(check(task, list.date, pixel));
+            if (!list.done.isEmpty()) {
+                RemoteViews chip = new RemoteViews(context.getPackageName(), R.layout.row_check_done);
+                Palette.tint(chip, schemes, R.id.card_fill, p -> p.surface);
+                if (pixel) chip.setImageViewResource(R.id.card_fill, R.drawable.note_square);
+                Palette.text(chip, schemes, R.id.text, p -> p.muted);
+                chip.setTextViewText(R.id.text, context.getString(R.string.checklist_done, list.done.size()));
+                rows.add(chip);
+            }
+            for (JSONObject task : list.done) rows.add(check(task, list.date, pixel));
+        }
+
+        private RemoteViews check(JSONObject task, String date, boolean pixel) {
+            RemoteViews row = new RemoteViews(context.getPackageName(), R.layout.row_check);
+            solid(row, pixel);
+            Widgets.box(row, schemes, task.optBoolean("done"), pixel);
+            boolean done = task.optBoolean("done");
+            String title = task.optString("text");
+            SpannableString text = new SpannableString(title);
+            if (done) text.setSpan(new StrikethroughSpan(), 0, text.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+            row.setTextViewText(R.id.title, text);
+            // Done rows fade, as on the website; RemoteViews can't set a view's alpha everywhere, so their text mutes.
+            Palette.text(row, schemes, R.id.title, done ? (p -> p.muted) : (p -> p.ink));
+            Palette.text(row, schemes, R.id.meta, p -> p.muted);
+            Palette.text(row, schemes, R.id.waiting, p -> p.muted);
+            shown(row, R.id.meta, Widgets.meta(context, task));
+            shown(row, R.id.waiting, task.optBoolean("waiting") ? context.getString(R.string.checklist_waiting) : "");
+            row.setContentDescription(R.id.row, context.getString(done ? R.string.widget_tick_open : R.string.widget_tick_done, title));
+            row.setOnClickFillInIntent(R.id.row, new Intent().putExtra("id", task.optString("id")).putExtra("date", date));
+            return row;
+        }
+
+        /** Rows and notes on solid cards, so text stays readable over busy scenery; square in Pixel style. */
+        private void solid(RemoteViews row, boolean pixel) {
+            if (pixel) row.setImageViewResource(R.id.card_fill, R.drawable.note_square);
+            Palette.tint(row, schemes, R.id.card_fill, p -> p.surface);
         }
 
         /** The saved briefing in reading order; the news widget keeps only its news sections. */
@@ -252,7 +314,7 @@ public class ListService extends RemoteViewsService {
         @Override public int getCount() { return rows.size(); }
         @Override public RemoteViews getViewAt(int position) { return rows.get(position); }
         @Override public RemoteViews getLoadingView() { return null; }
-        @Override public int getViewTypeCount() { return 9; }
+        @Override public int getViewTypeCount() { return 12; }
         @Override public long getItemId(int position) { return position; }
         @Override public boolean hasStableIds() { return false; }
     }
