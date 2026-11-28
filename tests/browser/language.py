@@ -259,6 +259,24 @@ def run(artifacts):
                         "document.documentElement.scrollWidth>innerWidth"
                     )
 
+                def panels_fit(page):
+                    # Each header pop-up opens fully inside the viewport, also where its button sits far from the right edge.
+                    for summary in page.locator(
+                        ".toolbar-row .menu:visible > summary"
+                    ).all():
+                        summary.click()
+                        summary.locator("xpath=..").locator(".menu-panel").wait_for(
+                            state="visible"
+                        )
+                        page.wait_for_function(
+                            "panel => { const box = panel.getBoundingClientRect(); return box.left >= 0 && box.right <= innerWidth; }",
+                            arg=summary.locator("xpath=..")
+                            .locator(".menu-panel")
+                            .element_handle(),
+                            timeout=3000,
+                        )
+                        summary.click()
+
                 def labelled_header(page, names):
                     # The signed-in header shares one line down to 320px; on phones the menus show as icons
                     # that keep their names for screen readers.
@@ -266,7 +284,7 @@ def run(artifacts):
                         ".toolbar-row .menu:visible > summary, #site-update-toggle"
                     )
                     expect(buttons).to_have_count(len(names))
-                    narrow = page.viewport_size["width"] <= 700
+                    narrow = page.viewport_size["width"] <= 900
                     tops = set()
                     for button, name in zip(buttons.all(), names):
                         expect(button.locator("svg")).to_be_visible()
@@ -424,6 +442,19 @@ def run(artifacts):
                                 / (host + "-flexible-" + str(width) + "-en.png")
                             )
                         )
+                    for width in (320, 701, 768, 800, 900, 901, 1024, 1280):
+                        other.set_viewport_size({"width": width, "height": 900})
+                        labelled_header(
+                            other,
+                            (
+                                "Appearance",
+                                "Notifications",
+                                "Phones",
+                                "Account",
+                                "What’s new",
+                            ),
+                        )
+                        panels_fit(other)
                     switch(other, "zh-CN")
                     for width in (320, 390, 1440):
                         other.set_viewport_size({"width": width, "height": 900})

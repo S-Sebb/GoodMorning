@@ -313,8 +313,8 @@ def page(source, csrf, return_to="/", avatars=False):
                 '<link rel="stylesheet" href="/update.css"><script src="/update.js" defer></script></head>',
             )
     config = html.escape(json.dumps({"language": current(), "csrf": csrf}), quote=True)
-    # Top-right utility cluster: two compact menus plus the update pill's fixed
-    # slot. Native details/summary keeps every control usable without
+    # Top-right utility cluster: the menus (four signed in, one Settings otherwise) plus the
+    # update pill's fixed slot. Native details/summary keeps every control usable without
     # JavaScript; each panel is an absolutely positioned dropdown.
     account = ""
     match = re.search(r'<nav class="account-tools".*?</nav>', source, flags=re.DOTALL)

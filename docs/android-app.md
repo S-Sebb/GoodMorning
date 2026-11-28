@@ -65,7 +65,7 @@ Push subscription there. After the update:
 "Link this phone" (a launcher shortcut, or a tap on an unlinked widget) asks the
 server for a pairing code. The owner taps "Link in GoodMorning", which opens the
 site with the code filled in to confirm, or copies the code ("Copy code") or types
-it in Account → Linked phones on any device. The app then claims its token
+it in Phones → Linked phones on any device. The app then claims its token
 (`docs/browser-delivery.md`, Linked phones and app linking). `Pairing` keeps the code until it expires, so the screen shows the
 same code however often it opens. While a code waits, the app checks for its
 token every three seconds, also with the screen closed, and again whenever the
@@ -239,7 +239,7 @@ release, pre-releases included, tagged `android-v<versionCode>` with a GitHub
 download.
 
 To install the app, people open `/app/download`, linked as "Download the Android
-app" on the sign-in page and in Account → Linked phones. It needs no sign-in.
+app" on the sign-in page and in Phones → Linked phones. It needs no sign-in.
 The server fetches the newest release's APK from GitHub once per build, keeps it
 in memory and serves it itself, so phones in mainland China, where GitHub is
 often unreachable, can still install the app. While GitHub fails, it keeps

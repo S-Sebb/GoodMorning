@@ -2289,7 +2289,7 @@ def handler_for(gateway):
             if not found:
                 gateway.accounts.limit([("app-token-ip:" + self.address(), 30)])
                 raise Denied(
-                    "Link this phone again in GoodMorning under Account → Linked phones."
+                    "Link this phone again in GoodMorning under Phones → Linked phones."
                 )
             user, self.app_link = found
             return user

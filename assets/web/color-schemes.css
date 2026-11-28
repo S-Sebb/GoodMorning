@@ -116,12 +116,11 @@ html:not([data-edition="gn"])[data-day-scheme]:not([data-day-scheme="classic"]) 
 .settings-menu-header p { font-size: 11px; line-height: 1.4; color: var(--muted); margin: 1px 0 0; }
 :is(#prefs-menu, #notify-menu, #phones-menu, #account-menu) .language-toolbar { display: grid; justify-content: stretch; align-items: stretch; gap: 6px; width: auto; margin: 0; }
 :is(#prefs-menu, #notify-menu, #phones-menu, #account-menu) .language-toolbar label { font-size: 12px; line-height: 20px; }
-:is(#prefs-menu, #notify-menu, #phones-menu, #account-menu) .language-toolbar select { width: 100%; min-height: 44px; padding: 8px 12px; font-size: 13px; border-radius: 10px; }
-:is(#prefs-menu, #notify-menu, #phones-menu, #account-menu) .color-scheme-heading { grid-column: 1 / -1; color: inherit; font: 600 12px/1.5 ui-sans-serif, system-ui, sans-serif; text-transform: none; letter-spacing: 0; margin: 0 0 4px; }
+:is(#prefs-menu, #notify-menu, #phones-menu, #account-menu) .language-toolbar select { width: 100%; min-height: 40px; padding: 8px 12px; font-size: 13px; border-radius: 10px; }
+:is(#prefs-menu, #notify-menu, #phones-menu, #account-menu) .color-scheme-heading { grid-column: 1 / -1; color: inherit; font: 600 13px/1.5 ui-sans-serif, system-ui, sans-serif; text-transform: none; letter-spacing: 0; margin: 0; }
 :is(#prefs-menu, #notify-menu, #phones-menu, #account-menu) label[for="website-language"], :is(#prefs-menu, #notify-menu, #phones-menu, #account-menu) .color-scheme-heading, :is(#prefs-menu, #notify-menu, #phones-menu, #account-menu) .scheme-picker legend { display: flex; align-items: center; gap: 7px; }
 :is(#prefs-menu, #notify-menu, #phones-menu, #account-menu) label[for="website-language"]::before, :is(#prefs-menu, #notify-menu, #phones-menu, #account-menu) .color-scheme-heading::before, :is(#prefs-menu, #notify-menu, #phones-menu, #account-menu) .scheme-picker legend::before { content: ""; flex: 0 0 20px; width: 20px; height: 20px; background: var(--settings-icon) center / contain no-repeat; }
-:is(#prefs-menu, #notify-menu, #phones-menu, #account-menu) label[for="website-language"] { --settings-icon: url("icons/desk-language.svg"); }
-:is(#prefs-menu, #notify-menu, #phones-menu, #account-menu) label[for="website-model"] { --settings-icon: url("icons/desk-idea.svg"); }
+:is(#prefs-menu, #notify-menu, #phones-menu, #account-menu) label[for="website-language"] { --settings-icon: url("icons/desk-language.svg"); font: 600 13px/1.5 ui-sans-serif, system-ui, sans-serif; color: inherit; }
 :is(#prefs-menu, #notify-menu, #phones-menu, #account-menu) .color-scheme-heading { --settings-icon: url("icons/desk-appearance.svg"); }
 :is(#prefs-menu, #notify-menu, #phones-menu, #account-menu) .notification-heading { --settings-icon: url("icons/desk-notifications.svg"); }
 :is(#prefs-menu, #notify-menu, #phones-menu, #account-menu) .app-link-heading { --settings-icon: url("icons/desk-phone.svg"); }
@@ -131,27 +130,24 @@ html:not([data-edition="gn"])[data-day-scheme]:not([data-day-scheme="classic"]) 
 :is(#prefs-menu, #notify-menu, #phones-menu, #account-menu) :is(#app-links, #notification-device-list) li small { display: block; color: var(--muted); }
 :is(#prefs-menu, #notify-menu, #phones-menu, #account-menu) :is(#app-links, #notification-device-list) li button { width: auto; min-height: 36px; }
 :is(#prefs-menu, #notify-menu, #phones-menu, #account-menu) [hidden] { display: none; }
-:is(#prefs-menu, #notify-menu, #phones-menu, #account-menu) #notification-kinds { display: grid; gap: 2px; min-width: 0; margin: 4px 0 6px; padding: 0; border: 0; }
-:is(#prefs-menu, #notify-menu, #phones-menu, #account-menu) #notification-kinds legend { margin: 0 0 4px; padding: 0; font-size: 12px; }
+:is(#prefs-menu, #notify-menu, #phones-menu, #account-menu) #notification-kinds { display: grid; gap: 2px; min-width: 0; margin: 10px 0 4px; padding: 0; border: 0; }
+:is(#prefs-menu, #notify-menu, #phones-menu, #account-menu) #notification-kinds legend { margin: 0 0 4px; padding: 0; font-size: 12px; color: var(--muted); }
 :is(#prefs-menu, #notify-menu, #phones-menu, #account-menu) #notification-kinds label { display: flex; align-items: center; gap: 8px; min-height: 36px; font-size: .8rem; color: inherit; }
 :is(#prefs-menu, #notify-menu, #phones-menu, #account-menu) #notification-kinds input { flex: none; width: 18px; height: 18px; margin: 0; accent-color: var(--accent); }
-:is(#prefs-menu, #notify-menu, #phones-menu, #account-menu) #briefing-reminders { display: grid; gap: 2px; min-width: 0; margin: 10px 0 6px; padding: 0; border: 0; }
-:is(#prefs-menu, #notify-menu, #phones-menu, #account-menu) #briefing-reminders legend { margin: 0 0 4px; padding: 0; font-size: 12px; }
+:is(#prefs-menu, #notify-menu, #phones-menu, #account-menu) #briefing-reminders { display: grid; gap: 2px; min-width: 0; margin: 10px 0 4px; padding: 0; border: 0; }
+:is(#prefs-menu, #notify-menu, #phones-menu, #account-menu) #briefing-reminders legend { margin: 0 0 4px; padding: 0; font-size: 12px; color: var(--muted); }
 :is(#prefs-menu, #notify-menu, #phones-menu, #account-menu) .briefing-reminder { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 40px; }
 :is(#prefs-menu, #notify-menu, #phones-menu, #account-menu) .briefing-reminder label { display: flex; align-items: center; gap: 8px; font-size: .8rem; color: inherit; }
 :is(#prefs-menu, #notify-menu, #phones-menu, #account-menu) .briefing-reminder input[type="checkbox"] { flex: none; width: 18px; height: 18px; margin: 0; accent-color: var(--accent); }
 :is(#prefs-menu, #notify-menu, #phones-menu, #account-menu) .briefing-reminder input[type="time"] { width: auto; min-height: 36px; padding: .2rem .5rem; font: inherit; font-size: .8rem; border: 1px solid var(--line); border-radius: .6rem; background: var(--bg); color: var(--ink); }
 :is(#prefs-menu, #notify-menu, #phones-menu, #account-menu) .briefing-reminder input[type="time"]:disabled { opacity: .5; }
-:is(#prefs-menu, #notify-menu, #phones-menu, #account-menu) #briefing-reminders .notification-note { margin-top: 2px; }
+:is(#prefs-menu, #notify-menu, #phones-menu, #account-menu) #briefing-reminders .notification-note { grid-column: 1 / -1; margin-top: 2px; }
 :is(#prefs-menu, #notify-menu, #phones-menu, #account-menu) #notification-status, :is(#prefs-menu, #notify-menu, #phones-menu, #account-menu) .notification-note { margin: 0; font-size: .75rem; color: var(--muted); }
 /* Each section is a tinted card: its icon heading on top, controls beside their labels where they fit. */
 :is(#prefs-menu, #notify-menu, #phones-menu, #account-menu) .menu-panel .language-toolbar { padding: 12px; border-radius: 14px; background: var(--wash); }
 :is(#prefs-menu, #notify-menu, #phones-menu, #account-menu) .language-toolbar :is(select, button:not(.avatar-preview), input:not([type="checkbox"])) { background: var(--surface); color: var(--ink); border-color: var(--line); }
-:is(#prefs-menu, #notify-menu, #phones-menu, #account-menu) .language-toolbar select { min-height: 40px; }
-:is(#prefs-menu, #notify-menu, #phones-menu, #account-menu) .color-scheme-heading { font-size: 13px; margin: 0; }
 #language-form, #widget-theme-form { grid-template-columns: max-content minmax(0, 1fr); align-items: center; column-gap: 12px; }
 :is(#language-form, #widget-theme-form) > select { justify-self: end; max-width: 13rem; }
-:is(#prefs-menu, #notify-menu, #phones-menu, #account-menu) label[for="website-language"] { font: 600 13px/1.5 ui-sans-serif, system-ui, sans-serif; color: inherit; }
 #widget-theme-form label { color: inherit; font-weight: 600; }
 :is(#language-form, #widget-theme-form) > :not(label, select) { grid-column: 1 / -1; }
 /* Status beside its on/off button; the lead time beside its label. */
@@ -161,31 +157,29 @@ html:not([data-edition="gn"])[data-day-scheme]:not([data-day-scheme="classic"]) 
 #notification-choices { display: grid; grid-template-columns: minmax(0, 1fr) max-content; align-items: center; column-gap: 12px; }
 #notification-choices > fieldset { grid-column: 1 / -1; }
 :is(#prefs-menu, #notify-menu, #phones-menu, #account-menu) #notification-lead { width: auto; min-height: 36px; }
-:is(#prefs-menu, #notify-menu, #phones-menu, #account-menu) :is(#notification-kinds, #briefing-reminders) { margin: 10px 0 4px; }
-:is(#prefs-menu, #notify-menu, #phones-menu, #account-menu) :is(#notification-kinds, #briefing-reminders) legend { color: var(--muted); }
-:is(#prefs-menu, #notify-menu, #phones-menu, #account-menu) #briefing-reminders .notification-note { grid-column: 1 / -1; }
 /* A header button whose pop-up has nothing to show on this device hides. */
 #notify-menu:has(#notification-form[hidden]):has(#notification-devices[hidden]), #phones-menu:has(#app-link-form[hidden]) { display: none; }
 /* The pop-up's own title already names these sections. */
-#prefs-menu #color-scheme-form > .color-scheme-heading, #notify-menu #notification-form > .notification-heading { display: none; }
+.toolbar-row:has(#account-menu) #prefs-menu #color-scheme-form > .color-scheme-heading, #notify-menu #notification-form > .notification-heading { display: none; }
 :is(#notify-menu, #phones-menu, #account-menu) > .menu-panel { width: min(420px, calc(100vw - 32px)); }
-/* Phones, signed in: four menus and What's new on one line, the menus as icons named for screen readers. */
-@media (max-width: 700px) {
+/* Up to small laptops, signed in: four menus and What's new on one line, the menus as icons named
+   for screen readers (their labelled pills fit from about 900px). */
+@media (max-width: 900px) {
   .toolbar-row:has(#account-menu) .menu > summary { width: 36px; min-height: 36px; padding: 0; justify-content: center; }
   .toolbar-row:has(#account-menu) .menu-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
   .toolbar-row:has(#account-menu) .menu > summary .menu-icon { width: 19px; height: 19px; }
+  .toolbar-row:has(#account-menu) .menu > summary::after { content: none; }
 }
-html[data-style="pixel"] :is(#prefs-menu, #notify-menu, #phones-menu, #account-menu) :is(.menu-panel .language-toolbar, .settings-menu-header > .menu-icon, .app-download, .account-tools a, .account-tools button) { border-radius: 0; }
+html[data-style="pixel"] :is(#prefs-menu, #notify-menu, #phones-menu, #account-menu) :is(.menu-panel .language-toolbar, .settings-menu-header > .menu-icon, .app-download, #app-link-code, #app-link-form button, .account-tools a, .account-tools button) { border-radius: 0; }
 /* Pixel selects draw their frame and drop shadow outside the box; keep them inside the card. */
 html[data-style="pixel"] :is(#language-form, #widget-theme-form) > select { width: calc(100% - 3 * var(--px)); }
-/* Linked phones: the download link beside the heading, the code field beside its button. */
+/* Linked phones: the download link under the heading, the code field beside its button. */
 #app-link-form { grid-template-columns: minmax(0, 1fr) max-content; align-items: center; column-gap: 8px; }
-#app-link-form > :not(.app-link-heading, .app-download, #app-link-code, button[type="submit"]) { grid-column: 1 / -1; }
-#app-link-form .app-link-heading { grid-column: 1; }
-#app-link-form .app-download { justify-self: end; display: inline-flex; align-items: center; gap: 5px; padding: 5px 10px; border-radius: 999px; background: var(--accent); color: var(--surface); font-size: 12px; font-weight: 600; text-decoration: none; white-space: nowrap; }
-#app-link-form .app-download::before { content: "↓"; font-weight: 700; }
-#app-link-form .app-download:hover { text-decoration: underline; }
-:is(#prefs-menu, #notify-menu, #phones-menu, #account-menu) #app-link-form button[type="submit"] { width: auto; min-height: 44px; padding: 0 14px; }
+#app-link-form > :not(#app-link-code, button[type="submit"]) { grid-column: 1 / -1; }
+#app-link-form .app-download { justify-self: start; display: inline-flex; align-items: center; gap: 5px; padding: 4px 10px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); color: var(--ink); font-size: 12px; font-weight: 600; text-decoration: none; white-space: nowrap; }
+#app-link-form .app-download::before { content: ""; flex: none; width: 16px; height: 16px; background: url("icons/desk-phone.svg") center / contain no-repeat; }
+#app-link-form .app-download:hover { border-color: var(--accent); }
+:is(#prefs-menu, #notify-menu, #phones-menu, #account-menu) #app-link-form button[type="submit"] { width: auto; min-height: 44px; padding: 0 14px; background: var(--accent); border-color: var(--accent); color: var(--surface); font-weight: 600; }
 #app-link-form label[for="app-link-code"] { margin-top: 4px; }
 :is(#app-links, #notification-device-list):not(:empty) { border-top: 1px solid var(--line); padding-top: 6px; }
 /* Avatars: the four pictures, then the three uploads as one row of small picture buttons. */
@@ -198,16 +192,13 @@ html[data-style="pixel"] :is(#language-form, #widget-theme-form) > select { widt
 #account-menu .menu-panel .account-tools { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 2px; }
 #account-menu .menu-panel .account-tools :is(a, button) { display: flex; align-items: center; justify-content: center; min-height: 40px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); color: var(--ink); text-align: center; font-size: 13px; }
 #avatar-settings .avatar-previews { grid-auto-columns: minmax(0, 104px); }
-@media (min-width: 701px) { :is(#prefs-menu, #notify-menu, #phones-menu, #account-menu) :is(#notification-kinds, #briefing-reminders) { grid-template-columns: 1fr 1fr; column-gap: 16px; } }
 /* Each scene picker is one row: six across on desktop, a sideways-scrolling strip on phones. */
 #color-scheme-form .scheme-picker { grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 8px 6px; }
-#color-scheme-form .scheme-name { font-size: 11px; }
+#color-scheme-form .scheme-name { font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 @media (max-width: 700px) {
   #color-scheme-form .scheme-picker { grid-template-columns: none; grid-auto-flow: column; grid-auto-columns: 84px; overflow-x: auto; overscroll-behavior-x: contain;
     margin: 0 -12px; padding: 4px 12px 6px; scroll-padding-inline: 12px; scrollbar-width: none; }
-  #color-scheme-form .scheme-picker legend { padding: 0 12px; }
-  #app-link-form .app-link-heading { grid-column: 1 / -1; }
-  #app-link-form .app-download { justify-self: start; } }
+  #color-scheme-form .scheme-picker legend { padding: 0 12px; } }
 #website-style > legend { --settings-icon: url("icons/desk-idea.svg"); }
 #day-color-scheme > legend { --settings-icon: url("icons/desk-morning.svg"); }
 #night-color-scheme > legend { --settings-icon: url("icons/desk-evening.svg"); }
@@ -269,3 +260,9 @@ html[data-style="pixel"] :is(#language-form, #widget-theme-form) > select { widt
 #color-scheme-feedback:empty { display: none; }
 @media (max-width: 700px) { :is(#prefs-menu, #notify-menu, #phones-menu, #account-menu) { position: static; } :is(#prefs-menu, #notify-menu, #phones-menu, #account-menu) > .menu-panel { left: 16px; right: 16px; top: calc(100% + 8px); width: auto; } }
 @media (max-width: 360px) { :is(#prefs-menu, #notify-menu, #phones-menu, #account-menu) .scheme-card { font-size: 11px; } .scheme-picker { gap: 8px 6px; } }
+/* Narrow phones: select labels sit above their controls and upload buttons put their icon above a wrapping name. */
+@media (max-width: 420px) {
+  #language-form, #widget-theme-form { grid-template-columns: minmax(0, 1fr); }
+  :is(#language-form, #widget-theme-form) > select { justify-self: stretch; max-width: none; }
+  #avatar-settings .avatar-upload { flex-direction: column; gap: 2px; white-space: normal; text-align: center; }
+}

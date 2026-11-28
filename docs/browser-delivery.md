@@ -296,7 +296,7 @@ token, never the website's login cookie. To link a phone:
 
 1. The app calls `POST /api/app/pair` with the phone's name. It receives a code
    (like `ABCD-2345`) to show, and a pairing secret that it keeps.
-2. The signed-in owner enters that code in Account → Linked phones
+2. The signed-in owner enters that code in Phones → Linked phones
    (`POST /api/app/link`). The box adds the dash after four characters and
    cleans up pasted codes. On the phone being linked, "Link in GoodMorning"
    opens the site at `/chat?link=<code>`, which opens Account with the code

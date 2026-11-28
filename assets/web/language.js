@@ -53,7 +53,14 @@ const languageForm = document.querySelector('#language-form');
 // Compact menus behave like one dropdown: opening one closes the other.
 document.querySelectorAll('.toolbar-row details.menu').forEach(menu => {
   menu.addEventListener('toggle', () => {
-    if (menu.open) document.querySelectorAll('.toolbar-row details.menu').forEach(other => { if (other !== menu) other.open = false; });
+    if (!menu.open) return;
+    document.querySelectorAll('.toolbar-row details.menu').forEach(other => { if (other !== menu) other.open = false; });
+    // A panel hangs from its button; one that would cross the left gutter shifts right to fit.
+    const panel = menu.querySelector('.menu-panel');
+    if (!panel) return;
+    panel.style.translate = '';
+    const left = panel.getBoundingClientRect().left;
+    if (left < 16) panel.style.translate = `${16 - left}px 0`;
   });
 });
 document.querySelectorAll('.settings-close').forEach(button => button.addEventListener('click', () => {

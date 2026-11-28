@@ -1,4 +1,6 @@
-:root { color-scheme: light; font-family: system-ui, sans-serif; color: #253d45; background: #f2f6f5; }
+:root { color-scheme: light; font-family: system-ui, sans-serif; color: #253d45; background: #f2f6f5;
+  /* The Classic sign-in palette, for the shared menu styles in color-schemes.css. */
+  --bg: #f2f6f5; --surface: white; --ink: #253d45; --muted: #56746a; --accent: #315e50; --line: #b4c7c0; --wash: #f2f6f5; }
 * { box-sizing: border-box; }
 body { margin: 0; min-height: 100vh; min-height: 100svh; display: grid; place-items: center; padding: 1rem; background: radial-gradient(ellipse at top left, #e0ede5, transparent 60%); }
 .account-card { width: min(100%, 28rem); padding: clamp(1.4rem, 5vw, 2.5rem); border: 1px solid #d5e0db; border-radius: 1.5rem; background: #fffefa; box-shadow: 0 1rem 4rem #253d4512; }
