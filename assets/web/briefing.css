@@ -822,8 +822,9 @@ h2:lang(zh) { font-family: var(--cn-sans); letter-spacing: 0; font-weight: 600; 
 .letter-wheel a { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 62px; padding: 0 10px; border: 1px solid transparent; border-radius: 18px; color: var(--muted); text-decoration: none; transform-origin: center; backface-visibility: hidden; transition: color .2s ease, background-color .2s ease, border-color .2s ease; }
 .letter-wheel a:hover { color: var(--ink); }
 .letter-wheel a[aria-current] { color: var(--ink); background: var(--surface); border-color: var(--line); box-shadow: 0 6px 18px #0000001a; }
-.wheel-range { font: normal 18px/1.3 Georgia, serif; white-space: nowrap; }
-.wheel-range:lang(zh) { font-family: var(--cn-sans); font-size: 16px; }
+.wheel-name { font: normal 16px/1.25 Georgia, serif; text-align: center; text-wrap: balance; }
+.wheel-name:lang(zh) { font-family: var(--cn-sans); font-size: 15px; white-space: nowrap; }
+.wheel-range { margin-top: 2px; font-size: 12px; white-space: nowrap; }
 .wheel-note { margin-top: 2px; color: var(--accent); font-size: 11px; font-weight: 600; }
 .weekly-letter { position: relative; min-width: 0; padding: 54px 52px 40px; overflow: hidden; border: 1px solid var(--line); border-radius: 28px; background: radial-gradient(130% 55% at 100% 0%, color-mix(in srgb, var(--warm) 16%, transparent), transparent 70%), var(--surface); box-shadow: 0 18px 48px #0000001c; }
 /* An airmail edge along the top of the paper. */
@@ -834,7 +835,8 @@ h2:lang(zh) { font-family: var(--cn-sans); letter-spacing: 0; font-weight: 600; 
 .letter-stamp span { color: #2f2a22; font: 600 11px/1 ui-sans-serif, system-ui, sans-serif; letter-spacing: .04em; white-space: nowrap; }
 .letter-kicker { margin: 0; color: var(--accent); font: italic 16px/1.4 "Lora Commentary", Georgia, serif; }
 .letter-kicker:lang(zh) { font: 600 14px/1.4 var(--cn-sans); letter-spacing: .1em; }
-.weekly-letter h1 { margin: 6px 0 20px; padding-right: 100px; font: normal clamp(34px, 4.4vw, 48px)/1.15 Georgia, serif; letter-spacing: -1px; }
+.weekly-letter h1 { margin: 6px 0 4px; padding-right: 100px; font: normal clamp(34px, 4.4vw, 48px)/1.15 Georgia, serif; letter-spacing: -1px; }
+.letter-range { margin: 0 0 20px; color: var(--muted); font-size: 15px; }
 .letter-opening p, .letter-signoff > p:first-child { margin: 0; font: italic 19px/1.75 "Lora Commentary", Georgia, serif; }
 .letter-opening p:lang(zh-CN), .letter-signoff > p:lang(zh-CN) { font-style: normal; font-family: var(--cn-sans); font-size: 17px; line-height: 1.9; }
 .weekly-letter section { margin-top: 30px; padding-top: 24px; border-top: 2px dashed var(--line); }
