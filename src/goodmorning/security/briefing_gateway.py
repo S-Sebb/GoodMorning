@@ -73,7 +73,10 @@ POST_ROUTES = re.compile(
     r"(?:/api/notes(?:/sorted)?|/api/schedule/tick|/api/ideas/close|/api/about-me|/api/avatar(?:/upload/(?:day|night|profile))?|/api/(?:generate|regenerate)|/api/chat-uploads/[a-f0-9]{32}|/api/chats|/api/chats/[a-f0-9]{32}/(?:messages|seen|(?:form|permission)/[A-Za-z0-9_]+/reply)|/api/jobs/[a-f0-9]{32}/(?:recover|(?:form|permission)/[A-Za-z0-9_]+/reply))"
 )
 # Only the gateway's own background work reaches these; browsers never can.
-INTERNAL_ROUTES = re.compile(r"/api/briefing-reminders(?:/lines(?:/[a-f0-9]{32})?)?")
+# Reached only by the gateway itself: reminders, and the chat summary of the app-token-authenticated phone sync.
+INTERNAL_ROUTES = re.compile(
+    r"/api/briefing-reminders(?:/lines(?:/[a-f0-9]{32})?)?|/api/app-chat"
+)
 QUEUE_KEY = "generation_queue"
 WAITING_KEY = "generation_waiting"
 SINCE_KEY = "generation_since"
@@ -819,8 +822,10 @@ class Gateway:
         notification choices; the phone names itself to the website through `device`."""
         host = next(iter(self.hosts))
 
-        def read(path):
-            status, _, raw = self.proxy(user, host, path, "GET", None, {})
+        def read(path, internal=False):
+            status, _, raw = self.proxy(
+                user, host, path, "GET", None, {}, internal=internal
+            )
             if status != 200:
                 raise ValueError("Backend read failed")
             return json.loads(raw)
@@ -911,20 +916,17 @@ class Gateway:
         )
 
     def app_chat_summary(self, user, read):
-        chats = [
-            item for item in read("/api/chats")["chats"] if item["mode"] == "secretary"
-        ]
-        if not chats:
+        latest = read("/api/app-chat", internal=True)["chat"]
+        if not latest:
             return {}
-        latest = chats[0]
         status = read("/api/chats/" + latest["id"])
         replies = [
-            item["text"]
+            item
             for item in status.get("messages", [])
             if item.get("role") == "assistant" and isinstance(item.get("text"), str)
         ]
         text = (
-            " ".join(re.sub(r"[*_`#>\[\]]+", "", replies[-1]).split())
+            " ".join(re.sub(r"[*_`#>\[\]]+", "", replies[-1]["text"]).split())
             if replies
             else ""
         )
@@ -933,7 +935,10 @@ class Gateway:
             "title": latest["title"],
             "state": status.get("state"),
             "unread": bool(latest.get("unread")),
+            "active": latest["active"],
             "reply": text[:600],
+            # Tells two replies apart even when their text matches.
+            "reply_id": str(replies[-1].get("id", "")) if replies else "",
         }
 
     def app_chat(self, user, body):

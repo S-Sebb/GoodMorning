@@ -41,6 +41,8 @@ public class WebActivity extends Activity {
     private boolean broken;
     private final Handler later = new Handler(Looper.getMainLooper());
     private final Runnable again = this::retry;
+    /** The conversation the page shows, so leaving it starts its time away; see Sync.current. */
+    private String shownChat;
 
     @Override
     protected void onCreate(Bundle state) {
@@ -78,6 +80,14 @@ public class WebActivity extends Activity {
                     // Nothing can open this link; stay on the current page.
                 }
                 return true;
+            }
+
+            // Also called for the chat page's own history changes, as when it opens another conversation.
+            @Override
+            public void doUpdateVisitedHistory(WebView view, String url, boolean reload) {
+                String chat = chatOf(url);
+                if (shownChat != null && !shownChat.equals(chat)) Sync.departed(WebActivity.this, shownChat);
+                shownChat = chat;
             }
 
             @Override
@@ -169,7 +179,8 @@ public class WebActivity extends Activity {
 
     private boolean own(Uri uri) {
         Uri server = Uri.parse(Server.get(this));
-        return uri != null && "https".equals(uri.getScheme()) && server.getAuthority().equals(uri.getAuthority());
+        // The saved server is always https (Server.origin); only a debug test server is plain http.
+        return uri != null && server.getScheme().equals(uri.getScheme()) && server.getAuthority().equals(uri.getAuthority());
     }
 
     private String target(Intent intent) {
@@ -195,7 +206,20 @@ public class WebActivity extends Activity {
     @Override
     protected void onNewIntent(Intent intent) {
         super.onNewIntent(intent);
-        if (intent.getData() != null) web.loadUrl(target(intent));
+        if (intent.getData() == null) return;
+        String next = target(intent);
+        // A conversation opened from a widget never replaces a chat page holding unsent input; the browser keeps it
+        // too (chat.js).
+        String page = web.getUrl();
+        String opening = Uri.parse(next).getQueryParameter("next");
+        if (opening != null && "/chat".equals(Uri.parse(opening).getPath()) && page != null
+                && "/chat".equals(Uri.parse(page).getPath())) {
+            web.evaluateJavascript("typeof hasUnsentInput === 'function' && hasUnsentInput()", unsent -> {
+                if (!"true".equals(unsent)) web.loadUrl(next);
+            });
+            return;
+        }
+        web.loadUrl(next);
     }
 
     private void back() {
@@ -237,8 +261,16 @@ public class WebActivity extends Activity {
     /** Colors chosen in the app reach the widgets as soon as the app leaves the screen. */
     @Override
     protected void onStop() {
+        if (shownChat != null) Sync.departed(this, shownChat);
         if (!isChangingConfigurations() && Sync.linked(this)) Sync.inBackground(this);
         super.onStop();
+    }
+
+    /** The conversation a /chat?id= address shows, or null. */
+    static String chatOf(String url) {
+        Uri page = Uri.parse(url);
+        String id = page.getQueryParameter("id");
+        return "/chat".equals(page.getPath()) && id != null && id.matches("[a-f0-9]{32}") ? id : null;
     }
 
     @Override

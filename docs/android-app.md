@@ -304,8 +304,33 @@ $ANDROID_HOME/platform-tools/adb install -r app/build/outputs/apk/release/app-re
 
 The server picker refuses a server that does not serve the app's
 `assetlinks.json`. To test the update flow without publishing a release, point
-a temporary debug build's `RELEASES_URL` at a local feed. That needs a debug-only
-`usesCleartextTraffic` manifest overlay; remove both afterwards.
+a temporary debug build's `RELEASES_URL` at a local feed; the debug build already
+allows plain HTTP to the emulator host (below).
+
+### Widget checks against a fake server
+
+`tests/android/` holds scripted widget checks that need no real server or
+account. Each one builds and installs the debug APK, clears its data, points it
+at a fake server on this machine, lets the app pair itself (so it seals a real
+token), places the widget and checks what it shows and where a tap leads. Time
+is simulated through the summary and the phone's own records, not the emulator
+clock. Reruns are safe; logs and screenshots go to `--out`.
+
+```sh
+export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64   # yanglab16
+serial=$(android-emu)                                 # yanglab16; elsewhere any booted emulator
+uv run --no-project python tests/android/widget_chat.py --serial "$serial"
+android-emu stop "$serial"
+```
+
+`widget_chat.py` covers the chat widget's 15-minute restore (#352). Only the
+debug source set (`android/app/src/debug/`) makes this possible: a network
+config that allows plain HTTP to `10.0.2.2` only, and the exported `TestHooks`
+activity (place a widget, set when the user left a conversation, sync). Release
+builds contain neither; check with `./gradlew :app:processReleaseMainManifest`
+and the merged manifest under `app/build/intermediates/merged_manifest/release/`.
+New widget checks (file uploads, the Today widget) add a script beside it and
+reuse its fake server and `Device` helpers.
 
 ## On yanglab16
 

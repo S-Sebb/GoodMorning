@@ -130,6 +130,14 @@ def write_avatar(runtime, value):
     return value
 
 
+def active(item):
+    """When the user last wrote in a conversation; its opening turn carries the conversation's own time."""
+    return max(
+        [item.get("created") or 0]
+        + [turn.get("created") or 0 for turn in item.get("turns", [])]
+    )
+
+
 def identifier(value):
     if not isinstance(value, str) or not re.fullmatch("[a-f0-9]{32}", value):
         raise ValueError("Invalid conversation request")
@@ -477,29 +485,45 @@ class Chats:
             except Exception:
                 pass  # Title lookup must not hide preserved conversations during an outage.
         with self.lock:
-            return [
-                {
-                    "id": item["id"],
-                    "mode": item["mode"],
-                    "title": (
-                        (item["title"] or ui.text(OUTREACH_TITLE))
-                        if "opening" in item
-                        else self.title_cache.get(item.get("session"))
-                        or ui.text(MODES[item["mode"]])
-                    ),
-                    "title_pending": bool(
-                        item.get("native_title")
-                        and item.get("session") not in self.title_cache
-                    ),
-                    **({"unread": True} if item.get("unread") else {}),
-                    **(
-                        {"created": item["created"]}
-                        if isinstance(item.get("created"), (int, float))
-                        else {}
-                    ),
-                }
-                for item in items
+            return [self._entry(item) for item in items]
+
+    def _entry(self, item):
+        return {
+            "id": item["id"],
+            "mode": item["mode"],
+            "title": (
+                (item["title"] or ui.text(OUTREACH_TITLE))
+                if "opening" in item
+                else self.title_cache.get(item.get("session"))
+                or ui.text(MODES[item["mode"]])
+            ),
+            "title_pending": bool(
+                item.get("native_title") and item.get("session") not in self.title_cache
+            ),
+            **({"unread": True} if item.get("unread") else {}),
+            **(
+                {"created": item["created"]}
+                if isinstance(item.get("created"), (int, float))
+                else {}
+            ),
+            "active": active(item),
+        }
+
+    def latest(self, mode):
+        """The conversation of this mode the user wrote in last, from all of them, for the phone's widgets.
+        The history listing shows only the newest-created 100, which an older conversation continued since
+        may have left."""
+        listed = {entry["id"]: entry for entry in self.listing()}
+        with self.lock:
+            items = [
+                item
+                for item in reversed(list(self.items.values()))
+                if item["mode"] == mode
             ]
+            if not items:
+                return None
+            item = max(items, key=active)  # On a tie, the newest-created one.
+            return listed.get(item["id"]) or self._entry(item)
 
     def park(self, chat, session, forms):
         """Saves each open engine question, then closes it there. The engine holds a waiting question

@@ -46,7 +46,8 @@ public class Launcher extends Activity {
         // The phone's link, so the colors chosen in the app also reach its widgets.
         String link = Sync.linked(this) ? Sync.cached(this).optString("device") : "";
         if (link.matches("[a-f0-9]{16}")) app.appendQueryParameter("link", link);
-        if (data != null && "https".equals(data.getScheme()) && server.getAuthority().equals(data.getAuthority()) && !"/app".equals(data.getPath())) {
+        // The saved server is always https (Server.origin); only a debug test server is plain http.
+        if (data != null && server.getScheme().equals(data.getScheme()) && server.getAuthority().equals(data.getAuthority()) && !"/app".equals(data.getPath())) {
             app.appendQueryParameter("next", data.getEncodedPath() + (data.getEncodedQuery() == null ? "" : "?" + data.getEncodedQuery()));
         }
         return app.build();

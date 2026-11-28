@@ -26,6 +26,9 @@ import java.io.IOException;
 
 /** A small dialog over the home screen for asking the secretary from the chat widget. */
 public class AskActivity extends Activity {
+    /** Whether the user ticked or cleared "Start a new conversation" themselves. */
+    private boolean chosen;
+
     @Override
     protected void attachBaseContext(Context base) {
         super.attachBaseContext(Language.apply(base));
@@ -34,6 +37,7 @@ public class AskActivity extends Activity {
     @Override
     protected void onCreate(Bundle state) {
         super.onCreate(state);
+        chosen = state != null && state.getBoolean("chosen");  // The checkbox itself comes back with the views.
         String token = Api.token(this);
         if (token == null) {
             startActivity(new Intent(this, LinkActivity.class));
@@ -57,9 +61,22 @@ public class AskActivity extends Activity {
             conversation.setText(R.string.ask_starts_new);
             fresh.setVisibility(View.GONE);
         } else {
-            conversation.setText(getString(R.string.ask_continues, latest.optString("title")));
             fresh.setOnCheckedChangeListener((box, checked) -> conversation.setText(checked
                     ? getString(R.string.ask_starts_new) : getString(R.string.ask_continues, latest.optString("title"))));
+            conversation.setText(getString(R.string.ask_continues, latest.optString("title")));
+            // After 15 minutes away a settled conversation starts fresh, as in the browser, once the server confirms
+            // it is still settled. It can still be continued, and the user's own choice stands.
+            if (Sync.current(this, Sync.cached(this)) == null) {
+                fresh.setOnClickListener(view -> chosen = true);
+                Context app = getApplicationContext();
+                new Thread(() -> {
+                    JSONObject now = Sync.run(app) ? Sync.cached(app).optJSONObject("chat") : null;
+                    boolean start = now != null && chat.equals(now.optString("id")) && Sync.current(app, Sync.cached(app)) == null;
+                    runOnUiThread(() -> {
+                        if (start && !chosen && !isFinishing()) fresh.setChecked(true);
+                    });
+                }).start();
+            }
         }
         EditText text = findViewById(R.id.text);
         TextView status = findViewById(R.id.status);
@@ -97,6 +114,12 @@ public class AskActivity extends Activity {
                 });
             }).start();
         });
+    }
+
+    @Override
+    protected void onSaveInstanceState(Bundle out) {
+        super.onSaveInstanceState(out);
+        out.putBoolean("chosen", chosen);
     }
 
     /** The website's look in the account's day or night scheme, as in the chat widget. */

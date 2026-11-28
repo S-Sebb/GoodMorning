@@ -1,5 +1,6 @@
 package me.love765.goodmorning;
 
+import android.annotation.SuppressLint;
 import android.app.AlarmManager;
 import android.app.PendingIntent;
 import android.appwidget.AppWidgetManager;
@@ -38,7 +39,8 @@ public abstract class Widgets extends AppWidgetProvider {
     private static final String REFRESH = "me.love765.goodmorning.REFRESH";
     private static final String EDITION = "me.love765.goodmorning.EDITION";
     private static final String GENERATE = "me.love765.goodmorning.GENERATE";
-    private static final String SCHEME = "me.love765.goodmorning.SCHEME";
+    // Named SCHEME when it only followed the day and night switch; alarms already set still carry it.
+    private static final String REDRAW = "me.love765.goodmorning.SCHEME";
     /** Before this hour the briefings widget opens on the morning edition, from it on the evening one. */
     private static final int EVENING = 17;
     /** Hours before this still belong to the previous day's evening, as on the website. */
@@ -105,7 +107,7 @@ public abstract class Widgets extends AppWidgetProvider {
                 views.setOnClickPendingIntent(R.id.root, screen(context, LinkActivity.class));
                 return views;
             }
-            JSONObject chat = data.optJSONObject("chat");
+            JSONObject chat = Sync.current(context, data);
             String state = chat == null ? "" : chat.optString("state");
             String reply = chat == null ? "" : chat.optString("reply");
             views.setTextViewText(R.id.title, chat == null ? "" : chat.optString("title"));
@@ -114,7 +116,7 @@ public abstract class Widgets extends AppWidgetProvider {
             views.setViewVisibility(R.id.state, "running".equals(state) || "waiting".equals(state) ? View.VISIBLE : View.GONE);
             views.setTextViewText(R.id.reply, reply.isEmpty() && !"running".equals(state) ? context.getString(R.string.chat_empty, name) : reply);
             views.setViewVisibility(R.id.composer, View.VISIBLE);
-            views.setOnClickPendingIntent(R.id.root, Sync.open(context, conversation(chat), 1000 + id));
+            views.setOnClickPendingIntent(R.id.root, screen(context, ConversationActivity.class));
             views.setOnClickPendingIntent(R.id.composer, screen(context, AskActivity.class));
             return views;
         }
@@ -141,23 +143,18 @@ public abstract class Widgets extends AppWidgetProvider {
                 views.setOnClickPendingIntent(R.id.root, screen(context, LinkActivity.class));
                 return views;
             }
-            JSONObject chat = data.optJSONObject("chat");
+            JSONObject chat = Sync.current(context, data);
             String state = chat == null ? "" : chat.optString("state");
             boolean busy = "running".equals(state) || "waiting".equals(state);
             views.setViewVisibility(R.id.dot, busy ? View.VISIBLE : View.GONE);
             views.setContentDescription(R.id.root, "running".equals(state) ? context.getString(R.string.chat_working, name)
                     : "waiting".equals(state) ? context.getString(R.string.chat_waiting, name)
                     : context.getString(R.string.portrait_open, name));
-            views.setOnClickPendingIntent(R.id.root, Sync.open(context, conversation(chat), 1000 + id));
+            views.setOnClickPendingIntent(R.id.root, screen(context, ConversationActivity.class));
             return views;
         }
     }
 
-    /** The chat page at the latest conversation, if there is one. */
-    private static String conversation(JSONObject chat) {
-        String identifier = chat == null ? "" : chat.optString("id");
-        return identifier.isEmpty() ? "/chat" : "/chat?id=" + identifier;
-    }
 
     /** Today's morning or evening briefing, switched in the widget. */
     public static class Briefing extends Widgets {
@@ -295,6 +292,7 @@ public abstract class Widgets extends AppWidgetProvider {
         for (int id : ids) manager.updateAppWidget(id, draw(Language.apply(context), id));
         manager.notifyAppWidgetViewDataChanged(ids, R.id.list);
         schemeSwitch(context);
+        conversationTimeout(context);
     }
 
     @Override
@@ -314,7 +312,7 @@ public abstract class Widgets extends AppWidgetProvider {
             manager.notifyAppWidgetViewDataChanged(id, R.id.list);
             return;
         }
-        if (SCHEME.equals(action)) {
+        if (REDRAW.equals(action)) {
             updateAll(context);
             return;
         }
@@ -351,10 +349,20 @@ public abstract class Widgets extends AppWidgetProvider {
         if (!at.isAfter(now)) at = now.toLocalDate().atTime(Palette.NIGHT_STARTS, 0);
         if (!at.isAfter(now)) at = now.toLocalDate().plusDays(1).atTime(Palette.DAY_STARTS, 0);
         // Any provider can redraw them all.
-        PendingIntent intent = PendingIntent.getBroadcast(context, 0, new Intent(context, Today.class).setAction(SCHEME),
+        PendingIntent intent = PendingIntent.getBroadcast(context, 0, new Intent(context, Today.class).setAction(REDRAW),
                 PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
         context.getSystemService(AlarmManager.class).setWindow(AlarmManager.RTC,
                 at.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli(), 10 * 60_000, intent);
+    }
+
+    /** Redraws the chat widgets when their conversation would open fresh, so a settled one gives way on time. */
+    private static void conversationTimeout(Context context) {
+        PendingIntent intent = PendingIntent.getBroadcast(context, 1, new Intent(context, Today.class).setAction(REDRAW),
+                PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
+        long at = Sync.freshAt(context, Sync.cached(context));
+        AlarmManager alarms = context.getSystemService(AlarmManager.class);
+        if (at == Long.MAX_VALUE || at <= System.currentTimeMillis()) alarms.cancel(intent);
+        else alarms.setWindow(AlarmManager.RTC, at, 60_000, intent);
     }
 
     private static SharedPreferences choices(Context context) {
@@ -393,6 +401,7 @@ public abstract class Widgets extends AppWidgetProvider {
     }
 
     /** The rounded card with its 1dp border, both in this phone's colors, over the scheme's scenery where it has some. */
+    @SuppressLint("NewApi")  // schemes.dark is null only on Android 12 and newer; see Palette.of().
     static void card(Context context, RemoteViews views, Palette.Schemes schemes, int id, Palette.Pick border, Palette.Pick fill) {
         Palette.tint(views, schemes, R.id.card_border, border);
         boolean scenery = (!Boolean.TRUE.equals(schemes.dark) && schemes.day.scene != 0) || (!Boolean.FALSE.equals(schemes.dark) && schemes.night.scene != 0);
