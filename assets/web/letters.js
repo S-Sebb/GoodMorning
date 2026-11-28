@@ -1,6 +1,11 @@
 // The letter wheel: scroll, tap or use arrow keys to read another week's letter in place.
 // Without scripts the wheel is a plain list of links.
 (() => {
+  // Week names and dates are rendered in both languages, so a language switch needs no reload.
+  const relabel = root => root.querySelectorAll('[data-zh-cn]').forEach(node => {
+    node.textContent = document.documentElement.lang === 'zh-CN' ? node.dataset.zhCn : node.dataset.en;
+  });
+  document.addEventListener('website:language', () => relabel(document));
   const list = document.querySelector('.letter-wheel ol');
   if (!list) return;
   const items = [...list.querySelectorAll('a')];
@@ -40,6 +45,7 @@
       const next = page.querySelector('.weekly-letter');
       if (mine !== request) return;
       if (!next) throw new Error('Letter unavailable');
+      relabel(next);
       next.classList.add('is-arriving');
       document.querySelector('.weekly-letter').replaceWith(next);
       document.title = page.title;
