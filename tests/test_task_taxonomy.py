@@ -1276,12 +1276,32 @@ class TaxonomyTests(unittest.TestCase):
         self.assertEqual(
             states(app, [idea])["ideas"][idea], {"revision": 2, "closed": True}
         )  # The saved card shows it done.
+        # A tap settles only rows this job had published: a new preview can't add the idea at its old revision.
+        with self.assertRaisesRegex(ValueError, "source_conflict"):
+            routing.validate_sources(self.root, doc, DAY, "gm")
         # Only the user's own taps settle a row: any other change since publishing is still a conflict.
         self.inbox.mutate(
             "append", {"detail": "Maybe monthly."}, "ses_test", "later", NOW, idea
         )
         with self.assertRaisesRegex(ValueError, "source_conflict"):
-            routing.validate_sources(self.root, doc, DAY, "gm")
+            routing.validate_sources(self.root, doc, DAY, "gm", {(idea, 1)})
+
+    def test_a_project_rename_after_an_idea_tap_is_still_a_conflict(self):
+        from goodmorning.web.ideas import close
+
+        idea = self.capture("Weekly mood chart", "idea", project="Atlas")["id"]
+        doc = self.document(self.view()["blocks"]["attention"], "attention")
+        app = BrowserApp(self.root, now=lambda: datetime(2026, 10, 13, 12, tzinfo=UTC))
+        close(
+            app, {"id": idea, "revision": 1, "closed": True, "key": "idea-key-00000001"}
+        )
+        routing.validate_sources(self.root, doc, DAY, "gm", {(idea, 1)})
+        # A rename bumps the revision with no inbox event, so the tap alone no longer explains the entry.
+        self.tasks.rename_project(
+            {"from": "Atlas", "to": "Atlas Paper"}, "ses_test", "rename", NOW
+        )
+        with self.assertRaisesRegex(ValueError, "source_conflict"):
+            routing.validate_sources(self.root, doc, DAY, "gm", {(idea, 1)})
 
     def test_evening_questions_only_cover_agreed_day_not_undated_backlog(self):
         self.capture("Undated backlog")

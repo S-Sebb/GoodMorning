@@ -1275,8 +1275,11 @@ def prepare(runtime, today, kind, offset=0, limit=7):
         inbox.close()
 
 
-def validate_sources(runtime, document, today, kind):
-    """Validate source-linked rows before publish/save, never on historical reads."""
+def validate_sources(runtime, document, today, kind, published=()):
+    """Validate source-linked rows before publish/save, never on historical reads.
+
+    published: (id, revision) of decision rows this job had already published.
+    """
     if document["v"] != 2:
         return
     if not any(
@@ -1356,7 +1359,10 @@ def validate_sources(runtime, document, today, kind):
                             not source
                             or [revision, title]
                             != [source["revision"], source["title"]]
-                        ) and not tapped_since(inbox.db, identifier, revision, title):
+                        ) and not (
+                            (identifier, revision) in published
+                            and tapped_since(inbox.db, identifier, revision, title)
+                        ):
                             raise ValueError(
                                 "source_conflict: decision is deferred, changed or not due for review"
                             )
@@ -1365,25 +1371,39 @@ def validate_sources(runtime, document, today, kind):
         ui.CURRENT.reset(token)
 
 
-def tapped_since(db, identifier, revision, title):
-    """An idea the user closed or reopened on the page after its row was published: their tap settles the row.
+def published_decisions(document):
+    """The (id, revision) of every decision row in a published checkpoint."""
+    return {
+        (row[0], row[1])
+        for section in document["sections"]
+        for block in section[1]
+        if block[0] == "decisions"
+        for row in block[1]
+    }
 
-    The page shows each idea's live state, so the saved row keeps its published revision and still reads as done."""
+
+def tapped_since(db, identifier, revision, title):
+    """Whether only the user's own taps on the page changed this idea since its row was published.
+
+    The saved row keeps its published revision; the page shows the idea's live state."""
     entry = db.execute(
-        "SELECT kind,summary FROM entries WHERE id=?", (identifier,)
+        "SELECT kind,summary,revision FROM entries WHERE id=?", (identifier,)
     ).fetchone()
     later = db.execute(
-        "SELECT session,request_key FROM events WHERE entry_id=? AND revision>?",
+        "SELECT revision,session,request_key FROM events WHERE entry_id=? AND revision>? ORDER BY revision",
         (identifier, revision),
     ).fetchall()
+    # Every later revision needs its own tap: some writes (a project rename) bump it without an inbox event.
     return (
         bool(entry)
         and entry["kind"] == "idea"
         and entry["summary"] == title
+        and [r["revision"] for r in later]
+        == list(range(revision + 1, entry["revision"] + 1))
         and bool(later)
         and all(
-            session == "briefing" and key.startswith("idea-tap:")
-            for session, key in later
+            r["session"] == "briefing" and r["request_key"].startswith("idea-tap:")
+            for r in later
         )
     )
 

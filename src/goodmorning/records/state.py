@@ -31,7 +31,6 @@ Dates: --today YYYY-MM-DD overrides "today" (tests, backfill).
 from __future__ import annotations
 
 import argparse
-from contextlib import nullcontext
 import datetime as dt
 import hashlib
 import json
@@ -39,14 +38,22 @@ import os
 import re
 import sqlite3
 import sys
+from contextlib import nullcontext
 from pathlib import Path
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from goodmorning.calendar.calendar_store import read_stats
-from .inbox_store import InboxStore
-from goodmorning.runtime_files import atomic_text, profile_fields, runtime_lock, secretary_path, calendar_path
-from goodmorning.reply_policy import boilerplate_categories
 from goodmorning.briefings.briefing_day import briefing_day
+from goodmorning.calendar.calendar_store import read_stats
+from goodmorning.reply_policy import boilerplate_categories
+from goodmorning.runtime_files import (
+    atomic_text,
+    calendar_path,
+    profile_fields,
+    runtime_lock,
+    secretary_path,
+)
+
+from .inbox_store import InboxStore
 
 VERSION = 1
 STATE_NAME = "state.json"
@@ -80,7 +87,9 @@ def today_str(override: str | None, timezone: str = "") -> str:
             return override
         except ValueError:
             sys.exit(f"error: --today must be YYYY-MM-DD, got '{override}'")
-    return briefing_day(timezone, dt.datetime.now(ZoneInfo(timezone) if timezone else None).astimezone())
+    return briefing_day(
+        timezone, dt.datetime.now(ZoneInfo(timezone) if timezone else None).astimezone()
+    )
 
 
 def read_profile_timezone(secretary_dir: str) -> str:
@@ -116,7 +125,8 @@ def stat_answer(path: str) -> dict | None:
     except FileNotFoundError:
         return None
     return {
-        "chars": chars, "bytes": size,
+        "chars": chars,
+        "bytes": size,
         "lines": lines + (1 if last and last != "\n" else 0),
         "tokens_est": estimate_tokens(chars),
         "sha1": digest.hexdigest()[:12],
@@ -124,16 +134,28 @@ def stat_answer(path: str) -> dict | None:
 
 
 def blank_run() -> dict:
-    return {"ran": False, "session": None, "answer_file": None,
-            "chars": 0, "tokens_est": 0, "sha1": None}
+    return {
+        "ran": False,
+        "session": None,
+        "answer_file": None,
+        "chars": 0,
+        "tokens_est": 0,
+        "sha1": None,
+    }
 
 
 def blank_state() -> dict:
-    return {"version": VERSION, "updated_at": None, "timezone": "",
-            "last_gm_date": None, "last_gn_date": None, "days": {},
-            "history_before": None,
-            "inbox": {"pending": 0, "oldest_pending_date": None, "total": 0},
-            "calendar": {"total": 0, "custom": 0, "imported": 0}}
+    return {
+        "version": VERSION,
+        "updated_at": None,
+        "timezone": "",
+        "last_gm_date": None,
+        "last_gn_date": None,
+        "days": {},
+        "history_before": None,
+        "inbox": {"pending": 0, "oldest_pending_date": None, "total": 0},
+        "calendar": {"total": 0, "custom": 0, "imported": 0},
+    }
 
 
 def browser_owner(secretary_dir: str, day: str, kind: str) -> dict | None:
@@ -145,7 +167,11 @@ def browser_owner(secretary_dir: str, day: str, kind: str) -> dict | None:
         with open(path, encoding="utf-8") as f:
             jobs = json.load(f)
         job = jobs.get(f"{day}.{kind}") if isinstance(jobs, dict) else None
-        if isinstance(job, dict) and job.get("state") != "superseded" and isinstance(job.get("id"), str):
+        if (
+            isinstance(job, dict)
+            and job.get("state") != "superseded"
+            and isinstance(job.get("id"), str)
+        ):
             return job
     except (OSError, ValueError):
         pass
@@ -158,11 +184,18 @@ def load_state(secretary_dir: str) -> dict:
         with open(path, encoding="utf-8") as f:
             data = json.load(f)
         if isinstance(data, dict) and data.get("version") == VERSION:
-            if not isinstance(data.get("days"), dict) or not all(
-                isinstance(day, dict) and all(isinstance(day.get(k), dict) for k in ("gm", "gn"))
-                for day in data["days"].values()
-            ) or not isinstance(data.get("snapshot_cache", {}), dict):
-                eprint("WARN: invalid state index structure; rebuilding from source records.")
+            if (
+                not isinstance(data.get("days"), dict)
+                or not all(
+                    isinstance(day, dict)
+                    and all(isinstance(day.get(k), dict) for k in ("gm", "gn"))
+                    for day in data["days"].values()
+                )
+                or not isinstance(data.get("snapshot_cache", {}), dict)
+            ):
+                eprint(
+                    "WARN: invalid state index structure; rebuilding from source records."
+                )
                 return blank_state()
             return data
         raise ValueError("unsupported state schema; preserve it and check the version")
@@ -174,7 +207,7 @@ def load_state(secretary_dir: str) -> dict:
 
 
 def save_state(secretary_dir: str, state: dict) -> None:
-    state["updated_at"] = dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds")
+    state["updated_at"] = dt.datetime.now(dt.UTC).isoformat(timespec="seconds")
     # Do not truncate the in-memory history before computing checks or costs.
     state = dict(state)
     names = sorted(state.get("days", {}))
@@ -183,8 +216,14 @@ def save_state(secretary_dir: str, state: dict) -> None:
         # Keep only metadata for the additional days in the 30-day cost window.
         # Agents use --check, never read this implementation cache directly.
         state["snapshot_cache"] = {
-            d: {k: {field: run[field] for field in ("chars", "tokens_est", "sha1", "fingerprint")}
-                for k, run in state["days"][d].items() if k in ("gm", "gn") and "fingerprint" in run}
+            d: {
+                k: {
+                    field: run[field]
+                    for field in ("chars", "tokens_est", "sha1", "fingerprint")
+                }
+                for k, run in state["days"][d].items()
+                if k in ("gm", "gn") and "fingerprint" in run
+            }
             for d in names[:-KEEP_DAYS]
             if any("fingerprint" in state["days"][d][k] for k in ("gm", "gn"))
         }
@@ -193,23 +232,32 @@ def save_state(secretary_dir: str, state: dict) -> None:
         state["history_before"] = None
         state.pop("snapshot_cache", None)
     os.makedirs(secretary_dir, exist_ok=True)
-    atomic_text(os.path.join(secretary_dir, STATE_NAME),
-                json.dumps(state, ensure_ascii=False, separators=(",", ":"), sort_keys=True) + "\n")
+    atomic_text(
+        os.path.join(secretary_dir, STATE_NAME),
+        json.dumps(state, ensure_ascii=False, separators=(",", ":"), sort_keys=True)
+        + "\n",
+    )
 
 
 # ---- file parsers (source of truth) ----
 
 DATE_RE = re.compile(r"(\d{4}-\d{2}-\d{2})")
-RUN_LINE = re.compile(r"^\s*[-*]\s*(gm|gn)\s*:\s*(yes|no|y|n|true|false|done|ran)?\b(.*)$", re.I)
-SESSION_RE = re.compile(r"session\s+([A-Za-z0-9_.:/-]+)", re.I)
-ANSWER_RE = re.compile(r"answer\s*:\s*([^\s|)]+)", re.I)
+RUN_LINE = re.compile(
+    r"^\s*[-*]\s*(gm|gn)\s*:\s*(yes|no|y|n|true|false|done|ran)?\b(.*)$", re.IGNORECASE
+)
+SESSION_RE = re.compile(r"session\s+([A-Za-z0-9_.:/-]+)", re.IGNORECASE)
+ANSWER_RE = re.compile(r"answer\s*:\s*([^\s|)]+)", re.IGNORECASE)
 HEADING_RE = re.compile(r"^#{1,4}\s*(.+?)\s*$")
 
 
 def parse_daily(path: str) -> dict:
     """Extract gm/gn run lines + section coverage from a daily file."""
-    day = {"gm": blank_run(), "gn": blank_run(), "has_daily": False,
-           "sections": {k: False for k in SECTION_KEYS}}
+    day = {
+        "gm": blank_run(),
+        "gn": blank_run(),
+        "has_daily": False,
+        "sections": {k: False for k in SECTION_KEYS},
+    }
     try:
         with open(path, encoding="utf-8") as f:
             text = f.read()
@@ -228,7 +276,9 @@ def parse_daily(path: str) -> dict:
         if m:
             kind = m.group(1).lower()
             if kind in seen:
-                raise ValueError("duplicate daily run lines; resolve them before marking")
+                raise ValueError(
+                    "duplicate daily run lines; resolve them before marking"
+                )
             seen.add(kind)
             flag = (m.group(2) or "").lower()
             rest = m.group(3) or ""
@@ -249,7 +299,14 @@ def parse_daily(path: str) -> dict:
                 day["sections"]["news"] = True
             elif "schedul" in h or "calendar" in h:
                 day["sections"]["schedule"] = True
-            elif h == "flexible" or "must" in h or "todo" in h or "to-do" in h or "task" in h or "nice-to" in h:
+            elif (
+                h == "flexible"
+                or "must" in h
+                or "todo" in h
+                or "to-do" in h
+                or "task" in h
+                or "nice-to" in h
+            ):
                 day["sections"]["tasks"] = True
             elif "feedback" in h or "progress" in h:
                 day["sections"]["feedback"] = True
@@ -276,8 +333,13 @@ def daily_path(secretary_dir: str, day: str, suffix: str = ".md") -> str:
     return os.path.join(secretary_dir, "daily", day + suffix)
 
 
-def rebuild_index(secretary_dir: str, state: dict, today: str | None = None,
-                  snapshot_stats: bool = True, scan_context: bool = True) -> dict:
+def rebuild_index(
+    secretary_dir: str,
+    state: dict,
+    today: str | None = None,
+    snapshot_stats: bool = True,
+    scan_context: bool = True,
+) -> dict:
     """Rescan files into state['days'] + summaries. Files win on conflict."""
     ddir = os.path.join(secretary_dir, "daily")
     if Path(ddir).is_symlink():
@@ -286,13 +348,17 @@ def rebuild_index(secretary_dir: str, state: dict, today: str | None = None,
         files = sorted(os.listdir(ddir))
     except FileNotFoundError:
         files = []
-    day_names = sorted({f[:-3] for f in files
-                        if f.endswith(".md") and DATE_RE.fullmatch(f[:-3])})
+    day_names = sorted(
+        {f[:-3] for f in files if f.endswith(".md") and DATE_RE.fullmatch(f[:-3])}
+    )
     previous = {**state.get("snapshot_cache", {}), **state.get("days", {})}
     days: dict[str, dict] = {}
     warnings = []
-    if any(re.fullmatch(r"\d{4}-\d{2}-\d{2}\.(gm|gn)\.json", name)
-           and name[:10] not in day_names for name in files):
+    if any(
+        re.fullmatch(r"\d{4}-\d{2}-\d{2}\.(gm|gn)\.json", name)
+        and name[:10] not in day_names
+        for name in files
+    ):
         warnings.append("orphan_snapshot")
     today = today or today_str(None, read_profile_timezone(secretary_dir))
     cutoff = (dt.date.fromisoformat(today) - dt.timedelta(days=29)).isoformat()
@@ -306,7 +372,7 @@ def rebuild_index(secretary_dir: str, state: dict, today: str | None = None,
             raise ValueError("daily records must not be symlinks")
         parsed = parse_daily(daily_path(secretary_dir, day))
         for kind in ("gm", "gn"):
-            suffix = f'.{kind}.json'
+            suffix = f".{kind}.json"
             ptr = parsed[kind]["answer_file"]
             if ptr:
                 apath = ptr if os.path.isabs(ptr) else os.path.join(secretary_dir, ptr)
@@ -322,17 +388,34 @@ def rebuild_index(secretary_dir: str, state: dict, today: str | None = None,
                     warnings.append("unsafe_answer_pointer")
                     parsed[kind]["answer_file"] = None
                     continue
-            if snapshot_stats and apath and os.path.isfile(apath) and cutoff <= day <= today:
+            if (
+                snapshot_stats
+                and apath
+                and os.path.isfile(apath)
+                and cutoff <= day <= today
+            ):
                 metadata = os.stat(apath)
-                fingerprint = [metadata.st_dev, metadata.st_ino, metadata.st_size,
-                               metadata.st_mtime_ns, metadata.st_ctime_ns]
+                fingerprint = [
+                    metadata.st_dev,
+                    metadata.st_ino,
+                    metadata.st_size,
+                    metadata.st_mtime_ns,
+                    metadata.st_ctime_ns,
+                ]
                 cached_day = previous.get(day, {})
-                cached = cached_day.get(kind, {}) if isinstance(cached_day, dict) else {}
+                cached = (
+                    cached_day.get(kind, {}) if isinstance(cached_day, dict) else {}
+                )
                 if not isinstance(cached, dict):
                     cached = {}
-                if cached.get("fingerprint") == fingerprint and all(
-                    isinstance(cached.get(k), int) and cached[k] >= 0 for k in ("chars", "tokens_est")
-                ) and isinstance(cached.get("sha1"), str):
+                if (
+                    cached.get("fingerprint") == fingerprint
+                    and all(
+                        isinstance(cached.get(k), int) and cached[k] >= 0
+                        for k in ("chars", "tokens_est")
+                    )
+                    and isinstance(cached.get("sha1"), str)
+                ):
                     st = cached
                 else:
                     st = stat_answer(apath)
@@ -351,7 +434,9 @@ def rebuild_index(secretary_dir: str, state: dict, today: str | None = None,
     gn_days = sorted(d for d, v in days.items() if v["gn"]["ran"])
     state["last_gm_date"] = gm_days[-1] if gm_days else None
     state["last_gn_date"] = gn_days[-1] if gn_days else None
-    state.pop("projects", None)  # Indexed legacy projects/*.md records before #290; projects live in memory now.
+    state.pop(
+        "projects", None
+    )  # Indexed legacy projects/*.md records before #290; projects live in memory now.
     if scan_context:
         state["inbox"] = scan_inbox(secretary_dir)
         state["calendar"] = calendar_stats(secretary_dir)
@@ -374,9 +459,14 @@ def missed_page(state: dict, today: str, limit: int, offset: int) -> dict:
         ignored = min(skip, length)
         skip -= ignored
         for i in range(ignored, min(length, ignored + limit - len(rows))):
-            rows.append({"date": (start + dt.timedelta(days=i)).isoformat(), "missing": missing,
-                         "gm_session": value["gm"]["session"] if value else None,
-                         "gn_session": value["gn"]["session"] if value else None})
+            rows.append(
+                {
+                    "date": (start + dt.timedelta(days=i)).isoformat(),
+                    "missing": missing,
+                    "gm_session": value["gm"]["session"] if value else None,
+                    "gn_session": value["gn"]["session"] if value else None,
+                }
+            )
 
     if recorded:
         cursor = dt.date.fromisoformat(recorded[0])
@@ -387,8 +477,11 @@ def missed_page(state: dict, today: str, limit: int, offset: int) -> dict:
             segment(day, 1, [k for k in ("gm", "gn") if not value[k]["ran"]], value)
             cursor = day + dt.timedelta(days=1)
         segment(cursor, (dt.date.fromisoformat(today) - cursor).days, ["gm", "gn"])
-    return {"rows": rows, "total": total,
-            "next_offset": offset + len(rows) if offset + len(rows) < total else None}
+    return {
+        "rows": rows,
+        "total": total,
+        "next_offset": offset + len(rows) if offset + len(rows) < total else None,
+    }
 
 
 def answer_cost(state: dict, today: str, window: int) -> dict:
@@ -404,17 +497,30 @@ def answer_cost(state: dict, today: str, window: int) -> dict:
                 chars += r["chars"]
                 toks += r["tokens_est"]
                 files += 1
-    return {"window_days": window, "snapshots": files,
-            "chars": chars, "tokens_est": toks}
+    return {
+        "window_days": window,
+        "snapshots": files,
+        "chars": chars,
+        "tokens_est": toks,
+    }
 
 
 # ---- commands ----
 
-def cmd_check(secretary_dir: str, today: str, as_json: bool, limit: int = 7, offset: int = 0,
-              timezone: str | None = None) -> int:
+
+def cmd_check(
+    secretary_dir: str,
+    today: str,
+    as_json: bool,
+    limit: int = 7,
+    offset: int = 0,
+    timezone: str | None = None,
+) -> int:
     if not os.path.isdir(secretary_dir):
-        eprint(f"error: no {secretary_dir}/ yet. Run /secretary init first "
-               "(it creates profile, daily/, inbox, calendar.sqlite).")
+        eprint(
+            f"error: no {secretary_dir}/ yet. Run /secretary init first "
+            "(it creates profile, daily/, inbox, calendar.sqlite)."
+        )
         return 1
     state = rebuild_index(secretary_dir, load_state(secretary_dir), today)
     if timezone is not None:
@@ -426,18 +532,29 @@ def cmd_check(secretary_dir: str, today: str, as_json: bool, limit: int = 7, off
     c7 = answer_cost(state, today, 7)
     c30 = answer_cost(state, today, 30)
     if as_json:
-        print(json.dumps({
-            "today": today, "timezone": state.get("timezone", ""),
-            "gm_today": {k: day["gm"][k] for k in blank_run()},
-            "gn_today": {k: day["gn"][k] for k in blank_run()},
-            "missed": missed, "missed_total": page["total"],
-            "next_offset": page["next_offset"],
-            "sections_today": day.get("sections", {k: False for k in SECTION_KEYS}),
-            "inbox": state["inbox"],
-            "calendar": state["calendar"],
-            "answer_cost_7d": c7, "answer_cost_30d": c30,
-            "warnings": state["warnings"],
-        }, separators=(",", ":"), ensure_ascii=False))
+        print(
+            json.dumps(
+                {
+                    "today": today,
+                    "timezone": state.get("timezone", ""),
+                    "gm_today": {k: day["gm"][k] for k in blank_run()},
+                    "gn_today": {k: day["gn"][k] for k in blank_run()},
+                    "missed": missed,
+                    "missed_total": page["total"],
+                    "next_offset": page["next_offset"],
+                    "sections_today": day.get(
+                        "sections", {k: False for k in SECTION_KEYS}
+                    ),
+                    "inbox": state["inbox"],
+                    "calendar": state["calendar"],
+                    "answer_cost_7d": c7,
+                    "answer_cost_30d": c30,
+                    "warnings": state["warnings"],
+                },
+                separators=(",", ":"),
+                ensure_ascii=False,
+            )
+        )
         return 0
     print(f"today: {today}")
     for kind in ("gm", "gn"):
@@ -445,10 +562,14 @@ def cmd_check(secretary_dir: str, today: str, as_json: bool, limit: int = 7, off
         if r["ran"]:
             extra = ""
             if r["answer_file"]:
-                extra = (f" | answer: {r['answer_file']} "
-                         f"({r['chars']} chars ~{r['tokens_est']} tok)")
-            print(f"{kind} today: ALREADY RAN (session {r['session'] or '?'})"
-                  f" — see that session before continuing.{extra}")
+                extra = (
+                    f" | answer: {r['answer_file']} "
+                    f"({r['chars']} chars ~{r['tokens_est']} tok)"
+                )
+            print(
+                f"{kind} today: ALREADY RAN (session {r['session'] or '?'})"
+                f" — see that session before continuing.{extra}"
+            )
         else:
             print(f"{kind} today: not run yet.")
     if missed:
@@ -463,22 +584,27 @@ def cmd_check(secretary_dir: str, today: str, as_json: bool, limit: int = 7, off
         print(f"missed total: {page['total']}; this page is empty.")
     ib = state["inbox"]
     if ib["pending"]:
-        print(f"inbox: {ib['pending']} pending (oldest {ib['oldest_pending_date']}) "
-              "— remind at /gn, else next /gm.")
+        print(
+            f"inbox: {ib['pending']} pending (oldest {ib['oldest_pending_date']}) "
+            "— remind at /gn, else next /gm."
+        )
     else:
         print("inbox: nothing pending.")
     cal = state["calendar"]
     print(f"calendar: {cal['custom']} custom, {cal['imported']} imported.")
-    print(f"answer re-read cost: last 7d ~{c7['tokens_est']} tok "
-          f"({c7['snapshots']} snapshots), last 30d ~{c30['tokens_est']} tok. "
-           "Open snapshots only on demand, never in bulk.")
+    print(
+        f"answer re-read cost: last 7d ~{c7['tokens_est']} tok "
+        f"({c7['snapshots']} snapshots), last 30d ~{c30['tokens_est']} tok. "
+        "Open snapshots only on demand, never in bulk."
+    )
     if state["warnings"]:
         print("warnings: " + ", ".join(state["warnings"]))
     return 0
 
 
-def ensure_daily_line(secretary_dir: str, day: str, kind: str,
-                      session: str, answer_rel: str | None) -> None:
+def ensure_daily_line(
+    secretary_dir: str, day: str, kind: str, session: str, answer_rel: str | None
+) -> None:
     """Create or update the `- gm: ...` / `- gn: ...` line in the daily file."""
     path = daily_path(secretary_dir, day)
     os.makedirs(os.path.dirname(path), exist_ok=True)
@@ -491,7 +617,7 @@ def ensure_daily_line(secretary_dir: str, day: str, kind: str,
         return
     with open(path, encoding="utf-8") as f:
         lines = f.read().splitlines()
-    pat = re.compile(rf"^\s*[-*]\s*{kind}\s*:", re.I)
+    pat = re.compile(rf"^\s*[-*]\s*{kind}\s*:", re.IGNORECASE)
     hit = False
     for i, ln in enumerate(lines):
         if pat.match(ln):
@@ -504,31 +630,66 @@ def ensure_daily_line(secretary_dir: str, day: str, kind: str,
     atomic_text(path, "\n".join(lines) + "\n")
 
 
-def cmd_mark(secretary_dir: str, day: str, kind: str, session: str,
-              answer_file: str | None, answer_stdin: bool, force: bool, as_json: bool = False,
-              browser_job: str | None = None) -> int:
-    suffix = f'.{kind}.json'
+def cmd_mark(
+    secretary_dir: str,
+    day: str,
+    kind: str,
+    session: str,
+    answer_file: str | None,
+    answer_stdin: bool,
+    force: bool,
+    as_json: bool = False,
+    browser_job: str | None = None,
+) -> int:
+    suffix = f".{kind}.json"
     if not re.fullmatch(r"[A-Za-z0-9_.:/-]+", session):
-        return command_error("session_invalid", "--session must be a nonempty session identifier", 2, as_json)
+        return command_error(
+            "session_invalid",
+            "--session must be a nonempty session identifier",
+            2,
+            as_json,
+        )
     state = rebuild_index(secretary_dir, load_state(secretary_dir), day)
     cur = state["days"].get(day, {"gm": blank_run(), "gn": blank_run()})[kind]
     replacement = False
     if browser_job:
         from goodmorning.briefings.briefing_stream import paths
+
         _, _, job = paths(secretary_dir, browser_job)
-        replacement = 'replacement' in job
-    recovering = bool(cur['ran'] and not force and browser_job and cur['session'] == session
-                      and cur['answer_file'] == f'daily/{day}{suffix}')
+        replacement = "replacement" in job
+    recovering = bool(
+        cur["ran"]
+        and not force
+        and browser_job
+        and cur["session"] == session
+        and cur["answer_file"] == f"daily/{day}{suffix}"
+    )
     if not recovering:
         owner = browser_owner(secretary_dir, day, kind)
-        if owner is not None and browser_job != owner.get("id") and session != owner.get("session"):
-            return command_error("browser_owned", f"{kind} on {day} is owned by its browser briefing job "
-                                 f"(session {owner.get('session') or '?'}); regenerate on the website instead of saving here", 2, as_json)
+        if (
+            owner is not None
+            and browser_job != owner.get("id")
+            and session != owner.get("session")
+        ):
+            return command_error(
+                "browser_owned",
+                f"{kind} on {day} is owned by its browser briefing job "
+                f"(session {owner.get('session') or '?'}); regenerate on the website instead of saving here",
+                2,
+                as_json,
+            )
     if cur["ran"] and not force and not recovering and not replacement:
-        return command_error("already_ran", f"{kind} already ran on {day} "
-                              f"(session {cur['session'] or '?'}); use the saved record", 2, as_json)
+        return command_error(
+            "already_ran",
+            f"{kind} already ran on {day} "
+            f"(session {cur['session'] or '?'}); use the saved record",
+            2,
+            as_json,
+        )
     if not (answer_file or answer_stdin):
-        return command_error('answer_required', 'Supply a native briefing JSON file or stdin', 2, as_json)
+        return command_error(
+            "answer_required", "Supply a native briefing JSON file or stdin", 2, as_json
+        )
     answer_rel: str | None = None
     if answer_file or answer_stdin:
         if answer_stdin:
@@ -539,77 +700,134 @@ def cmd_mark(secretary_dir: str, day: str, kind: str, session: str,
                 with open(answer_file, encoding="utf-8") as f:
                     text = f.read(MAX_ANSWER_CHARS + 1)
             except (OSError, UnicodeError):
-                return command_error("answer_unreadable", "cannot read answer file", 2, as_json)
+                return command_error(
+                    "answer_unreadable", "cannot read answer file", 2, as_json
+                )
         if len(text) > MAX_ANSWER_CHARS:
-            return command_error("answer_too_large", "answer exceeds 1,048,576 characters", 2, as_json)
+            return command_error(
+                "answer_too_large", "answer exceeds 1,048,576 characters", 2, as_json
+            )
         if not text.strip():
-            return command_error("answer_empty", "answer text is empty, not saving", 2, as_json)
-        from goodmorning.briefings.briefing_document import parse, encode, strings, validate_task_ownership
+            return command_error(
+                "answer_empty", "answer text is empty, not saving", 2, as_json
+            )
+        from goodmorning.briefings.briefing_document import (
+            encode,
+            parse,
+            strings,
+            validate_task_ownership,
+        )
+
         try:
             document = parse(text)
-            if document['v'] == 1 and not browser_job and Path(secretary_dir, 'inbox.sqlite').exists():
+            if (
+                document["v"] == 1
+                and not browser_job
+                and Path(secretary_dir, "inbox.sqlite").exists()
+            ):
                 from .inbox_store import InboxStore
+
                 inbox = InboxStore(secretary_dir)
                 try:
                     if inbox.version == 2:
-                        raise ValueError('Canonical task storage requires native v2 for new editions; v1 archives remain readable')
+                        raise ValueError(
+                            "Canonical task storage requires native v2 for new editions; v1 archives remain readable"
+                        )
                 finally:
                     inbox.close()
             if not recovering:
                 validate_task_ownership(document)
+                from goodmorning.briefings.briefing_stream import published
+
                 from .routing import validate_sources
-                validate_sources(secretary_dir, document, day, kind)
+
+                validate_sources(
+                    secretary_dir,
+                    document,
+                    day,
+                    kind,
+                    published(secretary_dir, browser_job) if browser_job else (),
+                )
             text = encode(document)
             if browser_job:
                 from goodmorning.briefings.briefing_stream import require_final
+
                 require_final(secretary_dir, browser_job, day, kind, session, document)
                 from goodmorning.briefings.briefing_replacement import check
+
                 check(secretary_dir, job, document)
         except ValueError as error:
-            return command_error('briefing_invalid', str(error), 2, as_json)
+            return command_error("briefing_invalid", str(error), 2, as_json)
         boilerplate = any(boilerplate_categories(value) for value in strings(document))
         if boilerplate:
-            return command_error("answer_noncritical_boilerplate", "rewrite the reply without routine disclaimers; retain material warnings in concise form", 2, as_json)
+            return command_error(
+                "answer_noncritical_boilerplate",
+                "rewrite the reply without routine disclaimers; retain material warnings in concise form",
+                2,
+                as_json,
+            )
         dest = daily_path(secretary_dir, day, suffix)
         if recovering:
             if not os.path.isfile(dest) or parse(Path(dest).read_text()) != document:
-                return command_error('snapshot_exists', 'The owning run and saved edition do not match; preserve them', 2, as_json)
+                return command_error(
+                    "snapshot_exists",
+                    "The owning run and saved edition do not match; preserve them",
+                    2,
+                    as_json,
+                )
             # Repair only the derived index. Never overwrite the edition or daily work.
             save_state(secretary_dir, state)
             if as_json:
-                print(json.dumps({'date':day, 'kind':kind, **{k:cur[k] for k in blank_run()}}, separators=(',',':')))
+                print(
+                    json.dumps(
+                        {"date": day, "kind": kind, **{k: cur[k] for k in blank_run()}},
+                        separators=(",", ":"),
+                    )
+                )
             else:
-                print(f'verified {kind} on {day} (session {session}).')
+                print(f"verified {kind} on {day} (session {session}).")
             return 0
         if os.path.isfile(dest) and not force and not replacement:
             # An interrupted save can resume only from this job's exact, owned preview.
             if not (browser_job and parse(Path(dest).read_text()) == document):
-                return command_error("snapshot_exists", "snapshot exists; inspect it before an authorized replacement", 2, as_json)
-        if kind == 'gm':
+                return command_error(
+                    "snapshot_exists",
+                    "snapshot exists; inspect it before an authorized replacement",
+                    2,
+                    as_json,
+                )
+        if kind == "gm":
             from .daily import amend, planned_tasks, read_record, record_path
+
             try:
                 groups = planned_tasks(document, day)
             except ValueError as error:
-                return command_error('briefing_invalid',str(error),2,as_json)
+                return command_error("briefing_invalid", str(error), 2, as_json)
             if groups:
                 digest = read_record(record_path(secretary_dir, day))[1]
-                amend(secretary_dir, day, digest, {'tasks': groups}, locked=True)
+                amend(secretary_dir, day, digest, {"tasks": groups}, locked=True)
         os.makedirs(os.path.dirname(dest), exist_ok=True)
         atomic_text(dest, text if text.endswith("\n") else text + "\n")
         answer_rel = os.path.relpath(dest, secretary_dir)
         st = stat_answer(dest)
         assert st is not None
         if not as_json:
-            print(f"saved {kind} answer: {answer_rel} "
-                  f"({st['chars']} chars ~{st['tokens_est']} tok). "
-                  "Future reads: open only on demand.")
+            print(
+                f"saved {kind} answer: {answer_rel} "
+                f"({st['chars']} chars ~{st['tokens_est']} tok). "
+                "Future reads: open only on demand."
+            )
     ensure_daily_line(secretary_dir, day, kind, session, answer_rel)
     state = rebuild_index(secretary_dir, state, day)
     save_state(secretary_dir, state)
     if as_json:
         run = state["days"][day][kind]
-        print(json.dumps({"date": day, "kind": kind, **{k: run[k] for k in blank_run()}},
-                         separators=(",", ":")))
+        print(
+            json.dumps(
+                {"date": day, "kind": kind, **{k: run[k] for k in blank_run()}},
+                separators=(",", ":"),
+            )
+        )
     else:
         print(f"marked {kind} on {day} (session {session}).")
     return 0
@@ -630,27 +848,46 @@ def cmd_tokens(path: str, as_json: bool = False) -> int:
     if as_json:
         print(json.dumps(st, separators=(",", ":")))
         return 0
-    print(f"{path}: {st['chars']} chars, {st['bytes']} bytes, "
-          f"{st['lines']} lines, ~{st['tokens_est']} tokens (chars/4 heuristic), "
-          f"sha {st['sha1']}")
-    print("policy: --check + daily file are the cheap default read; "
-          "open this snapshot only on explicit need, never bulk-read.")
+    print(
+        f"{path}: {st['chars']} chars, {st['bytes']} bytes, "
+        f"{st['lines']} lines, ~{st['tokens_est']} tokens (chars/4 heuristic), "
+        f"sha {st['sha1']}"
+    )
+    print(
+        "policy: --check + daily file are the cheap default read; "
+        "open this snapshot only on explicit need, never bulk-read."
+    )
     return 0
 
 
 def main(argv: list[str] | None = None) -> int:
     try:
         return run(argv)
-    except (OSError, UnicodeError, ValueError, sqlite3.Error, ZoneInfoNotFoundError, OverflowError) as error:
+    except (
+        OSError,
+        UnicodeError,
+        ValueError,
+        sqlite3.Error,
+        ZoneInfoNotFoundError,
+        OverflowError,
+    ) as error:
         as_json = "--json" in (argv if argv is not None else sys.argv[1:])
         if as_json:
             busy = str(error).startswith("runtime_busy:")
-            return command_error("runtime_busy" if busy else "state_unavailable",
-                                 "retry later" if busy else "preserve files and check state sources/schema", 1, True)
+            return command_error(
+                "runtime_busy" if busy else "state_unavailable",
+                "retry later"
+                if busy
+                else "preserve files and check state sources/schema",
+                1,
+                True,
+            )
         if isinstance(error, ValueError) and not isinstance(error, UnicodeError):
             eprint(f"error: {error}")
         else:
-            eprint("error: state source/index is unreadable; preserve files and check access/encoding")
+            eprint(
+                "error: state source/index is unreadable; preserve files and check access/encoding"
+            )
         return 1
 
 
@@ -658,9 +895,15 @@ def run(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description="GoodMorning run-state index.")
     ap.add_argument("--secretary-dir", default=None)
     ap.add_argument("--today", default=None, help="override today YYYY-MM-DD")
-    ap.add_argument("--timezone", help="IANA timezone; default profile, then system local")
-    ap.add_argument("--limit", type=int, default=7, help="max missed-day/project rows (1..30)")
-    ap.add_argument("--offset", type=int, default=0, help="missed-day/project page offset")
+    ap.add_argument(
+        "--timezone", help="IANA timezone; default profile, then system local"
+    )
+    ap.add_argument(
+        "--limit", type=int, default=7, help="max missed-day/project rows (1..30)"
+    )
+    ap.add_argument(
+        "--offset", type=int, default=0, help="missed-day/project page offset"
+    )
     ap.add_argument("--json", action="store_true", help="machine-readable output")
     g = ap.add_mutually_exclusive_group(required=True)
     g.add_argument("--check", action="store_true")
@@ -673,10 +916,13 @@ def run(argv: list[str] | None = None) -> int:
     answers.add_argument("--answer-file", default=None)
     answers.add_argument("--answer-stdin", action="store_true")
     ap.add_argument("--force", action="store_true")
-    ap.add_argument('--browser-job', help='Require the completed, matching progressive preview for this browser job')
+    ap.add_argument(
+        "--browser-job",
+        help="Require the completed, matching progressive preview for this browser job",
+    )
     args = ap.parse_args(argv)
     if args.browser_job and not (args.mark_gm or args.mark_gn):
-        ap.error('--browser-job applies only to --mark-gm/--mark-gn')
+        ap.error("--browser-job applies only to --mark-gm/--mark-gn")
 
     if args.tokens is not None:
         return cmd_tokens(args.tokens, args.json)
@@ -692,7 +938,12 @@ def run(argv: list[str] | None = None) -> int:
         ap.error("timezone must be a valid IANA timezone")
     today = today_str(args.today, timezone)
     if not os.path.isdir(secretary_dir):
-        return command_error("setup_required", "no secretary directory; confirm setup first", 1, args.json)
+        return command_error(
+            "setup_required",
+            "no secretary directory; confirm setup first",
+            1,
+            args.json,
+        )
     with runtime_lock(secretary_dir, ".state.lock"):
         return execute_action(args, secretary_dir, today)
 
@@ -700,30 +951,53 @@ def run(argv: list[str] | None = None) -> int:
 def execute_action(args, secretary_dir, today):
 
     if args.check:
-        return cmd_check(secretary_dir, today, args.json, args.limit, args.offset, args.timezone)
+        return cmd_check(
+            secretary_dir, today, args.json, args.limit, args.offset, args.timezone
+        )
     if args.rebuild:
         load_state(secretary_dir)  # Refuse a newer schema before writing anything.
         state = rebuild_index(secretary_dir, blank_state(), today)
         save_state(secretary_dir, state)
         if args.json:
-            print(json.dumps({"rebuilt": True, "days_total": len(state["days"]),
-                              "last_gm_date": state["last_gm_date"], "last_gn_date": state["last_gn_date"],
-                              "warnings": state["warnings"]}, separators=(",", ":")))
+            print(
+                json.dumps(
+                    {
+                        "rebuilt": True,
+                        "days_total": len(state["days"]),
+                        "last_gm_date": state["last_gm_date"],
+                        "last_gn_date": state["last_gn_date"],
+                        "warnings": state["warnings"],
+                    },
+                    separators=(",", ":"),
+                )
+            )
         else:
-            print(f"rebuilt {os.path.join(secretary_dir, STATE_NAME)}: "
-                  f"{len(state['days'])} day(s), "
-                  f"last gm {state['last_gm_date']}, last gn {state['last_gn_date']}, "
-                  f"inbox pending {state['inbox']['pending']}.")
+            print(
+                f"rebuilt {os.path.join(secretary_dir, STATE_NAME)}: "
+                f"{len(state['days'])} day(s), "
+                f"last gm {state['last_gm_date']}, last gn {state['last_gn_date']}, "
+                f"inbox pending {state['inbox']['pending']}."
+            )
         return 0
     kind = "gm" if args.mark_gm else "gn"
     lock = nullcontext()
     if args.browser_job:
         from goodmorning.briefings.briefing_stream import paths
+
         directory, _, _ = paths(secretary_dir, args.browser_job)
-        lock = runtime_lock(directory, args.browser_job + '.preview.lock')
+        lock = runtime_lock(directory, args.browser_job + ".preview.lock")
     with lock:
-        return cmd_mark(secretary_dir, today, kind, args.session,
-                        args.answer_file, args.answer_stdin, args.force, args.json, args.browser_job)
+        return cmd_mark(
+            secretary_dir,
+            today,
+            kind,
+            args.session,
+            args.answer_file,
+            args.answer_stdin,
+            args.force,
+            args.json,
+            args.browser_job,
+        )
 
 
 if __name__ == "__main__":
