@@ -155,7 +155,12 @@ html:not([data-edition="gn"])[data-day-scheme]:not([data-day-scheme="classic"]) 
 #notification-form { grid-template-columns: minmax(0, 1fr) max-content; align-items: center; column-gap: 12px; }
 #notification-form > :not(#notification-status, #notification-device) { grid-column: 1 / -1; }
 :is(#prefs-menu, #notify-menu, #phones-menu, #account-menu) #notification-device { width: auto; min-height: 36px; padding: 6px 12px; }
-#notification-choices { display: grid; grid-template-columns: minmax(0, 1fr) max-content; align-items: center; column-gap: 12px; }
+#notification-choices { display: grid; grid-template-columns: minmax(0, 1fr) max-content; align-items: center; column-gap: 12px; min-width: 0; margin: 0; padding: 0; border: 0; }
+#notification-choices:disabled { opacity: .5; }
+/* Blocked notifications: a strip tinted with the scheme's warm colour and a "!" badge, across the whole card. */
+:is(#prefs-menu, #notify-menu, #phones-menu, #account-menu) #notification-status.notification-warning { grid-column: 1 / -1; display: flex; gap: 8px; align-items: flex-start; padding: 8px 10px; border-left: 3px solid var(--warm); border-radius: 10px; background: color-mix(in srgb, var(--warm) 22%, var(--surface)); color: var(--ink); }
+#notification-status.notification-warning::before { content: "!"; flex: none; display: grid; place-items: center; width: 18px; height: 18px; border-radius: 50%; background: var(--warm); color: color-mix(in srgb, var(--warm) 20%, #000); font: 700 12px/1 ui-sans-serif, system-ui, sans-serif; }
+html[data-style="pixel"] #notify-menu #notification-status.notification-warning, html[data-style="pixel"] #notification-status.notification-warning::before { border-radius: 0; }
 #notification-choices > fieldset { grid-column: 1 / -1; }
 :is(#prefs-menu, #notify-menu, #phones-menu, #account-menu) #notification-lead { width: auto; min-height: 36px; }
 /* A header button whose pop-up has nothing to show on this device hides. */
