@@ -2219,6 +2219,8 @@ def serve_live(app, port, *, gateway_key=None, public_origins=()):
                         return self.respond({"error": "Not found"}, 404)
                 if path == "/api/app-profile":
                     return self.respond(app.app_profile())
+                if path == "/api/app-chat":
+                    return self.respond({"chat": app.chats.latest("secretary")})
                 if path == "/api/app-schedule":
                     return self.respond(schedule.compact(app), compress=True)
                 if path == "/api/app-briefings":

@@ -1,5 +1,6 @@
 package me.love765.goodmorning;
 
+import android.annotation.SuppressLint;
 import android.content.Context;
 import android.content.res.Configuration;
 import android.graphics.Color;
@@ -143,6 +144,7 @@ final class Palette {
     }
 
     /** A fixed day and night color: both for the launcher to pick, or the one for now, redrawn when the scheme switches. */
+    @SuppressLint("NewApi")  // dark is null only on Android 12 and newer; see of().
     static void pair(RemoteViews views, Schemes schemes, int id, String method, int day, int night) {
         if (schemes.dark == null) views.setColorInt(id, method, day, night);
         else views.setInt(id, method, schemes.dark ? night : day);

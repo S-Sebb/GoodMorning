@@ -911,12 +911,9 @@ class Gateway:
         )
 
     def app_chat_summary(self, user, read):
-        chats = [
-            item for item in read("/api/chats")["chats"] if item["mode"] == "secretary"
-        ]
-        if not chats:
+        latest = read("/api/app-chat")["chat"]
+        if not latest:
             return {}
-        latest = chats[0]
         status = read("/api/chats/" + latest["id"])
         replies = [
             item["text"]
@@ -933,6 +930,7 @@ class Gateway:
             "title": latest["title"],
             "state": status.get("state"),
             "unread": bool(latest.get("unread")),
+            "active": latest["active"],
             "reply": text[:600],
         }
 

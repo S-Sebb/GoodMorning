@@ -1395,15 +1395,14 @@ class GatewayTests(GatewayFixture):
             "/api/app-schedule": {"today": "2026-10-21", "days": []},
             "/api/app-profile": {"name": "Aria", "avatar": "f2", "image": None},
             "/api/reminders?hours=24": {"events": []},
-            "/api/chats": {
-                "chats": [
-                    {
-                        "id": "a" * 32,
-                        "mode": "secretary",
-                        "title": "Plan",
-                        "unread": True,
-                    }
-                ]
+            "/api/app-chat": {
+                "chat": {
+                    "id": "a" * 32,
+                    "mode": "secretary",
+                    "title": "Plan",
+                    "unread": True,
+                    "active": 200,
+                }
             },
             "/api/chats/" + "a" * 32: {
                 "state": "idle",
@@ -1439,6 +1438,7 @@ class GatewayTests(GatewayFixture):
                 "title": "Plan",
                 "state": "idle",
                 "unread": True,
+                "active": 200,
                 "reply": "All set",
             },
         )

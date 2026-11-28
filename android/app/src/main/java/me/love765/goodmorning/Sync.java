@@ -31,6 +31,8 @@ final class Sync {
     /** Extra checks while the account's work runs, so its notification and widgets follow soon after it ends. */
     static final int SOON = 3;
     private static final long PERIOD = 15 * 60 * 1000L;
+    /** The browser chat's time away before a settled conversation opens fresh (quick-chat.js awayLimit). */
+    static final long AWAY = 15 * 60 * 1000L;
     private static final long[] SOON_DELAYS = {30_000L, 60_000L, 120_000L, 240_000L};
     private static final Object LOCK = new Object();
 
@@ -77,12 +79,13 @@ final class Sync {
                 .build());
     }
 
-    static void run(Context context) {
+    /** Returns whether a new summary arrived. */
+    static boolean run(Context context) {
         synchronized (LOCK) {
             String token = Api.token(context);
             if (token == null) {
                 forget(context);
-                return;
+                return false;
             }
             SharedPreferences prefs = prefs(context);
             long cursor = prefs.getLong("cursor", -1);
@@ -94,9 +97,9 @@ final class Sync {
                     Api.forget(context);  // Unlinked in Settings: show the link prompt again.
                     forget(context);
                 }
-                return;
+                return false;
             } catch (IOException | JSONException offline) {
-                return;  // The widgets keep showing the last summary.
+                return false;  // The widgets keep showing the last summary.
             }
             try {
                 JSONObject previous = cached(context);
@@ -116,7 +119,7 @@ final class Sync {
                 else prefs.edit().remove("soon").apply();
                 portrait(context, token, data.optJSONObject("secretary"));
             } catch (IOException | JSONException unreadable) {
-                return;
+                return false;
             }
             try {
                 Notes.sync(context, token);
@@ -124,6 +127,7 @@ final class Sync {
                 // Waiting notes stay on the phone; the next run sends them.
             }
             Widgets.updateAll(context);
+            return true;
         }
     }
 
@@ -255,8 +259,49 @@ final class Sync {
         Widgets.updateAll(context);
     }
 
+    /**
+     * The conversation the chat widgets continue, or null for a fresh one. As in the browser's chat, a
+     * settled conversation gives way after 15 minutes away; one still running, waiting for the user's
+     * answer, or holding a reply not yet read stays. Away counts from when the user last left that
+     * conversation on this phone, or wrote in it anywhere since; with no departure known, it stays.
+     */
+    static JSONObject current(JSONObject chat, String departedChat, long departedAt, long now) {
+        if (chat == null || chat.optString("id").isEmpty()) return null;
+        return freshAt(chat, departedChat, departedAt) <= now ? null : chat;
+    }
+
+    /** When the conversation would open fresh; Long.MAX_VALUE while it must stay. */
+    static long freshAt(JSONObject chat, String departedChat, long departedAt) {
+        if (!"idle".equals(chat.optString("state")) || chat.optBoolean("unread") || !chat.optString("id").equals(departedChat)) {
+            return Long.MAX_VALUE;
+        }
+        return Math.max(departedAt, (long) (chat.optDouble("active", 0) * 1000)) + AWAY;
+    }
+
+    static JSONObject current(Context context, JSONObject data) {
+        SharedPreferences prefs = prefs(context);
+        return current(data.optJSONObject("chat"), prefs.getString("departedChat", ""), prefs.getLong("departedAt", 0),
+                System.currentTimeMillis());
+    }
+
+    static long freshAt(Context context, JSONObject data) {
+        JSONObject chat = data.optJSONObject("chat");
+        SharedPreferences prefs = prefs(context);
+        return chat == null ? Long.MAX_VALUE : freshAt(chat, prefs.getString("departedChat", ""), prefs.getLong("departedAt", 0));
+    }
+
+    /** The user just left this conversation on the phone: sent from the widget, or left its page in the app. */
+    static void departed(Context context, String chat) {
+        departed(context, chat, System.currentTimeMillis());
+    }
+
+    static void departed(Context context, String chat, long at) {
+        prefs(context).edit().putString("departedChat", chat).putLong("departedAt", at).apply();
+    }
+
     /** Marks the latest conversation as waiting for its reply until the next summary arrives, which comes soon. */
     static void markSent(Context context, String chat) {
+        if (chat != null) departed(context, chat);
         prefs(context).edit().remove("soon").apply();
         soon(context, true);
         try {

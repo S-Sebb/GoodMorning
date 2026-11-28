@@ -65,6 +65,15 @@
             android:theme="@style/AskDialog"
             android:windowSoftInputMode="adjustResize" />
 
+        <!-- Its own task and no visible window, while it checks the conversation before opening it. -->
+        <activity
+            android:name=".ConversationActivity"
+            android:excludeFromRecents="true"
+            android:exported="false"
+            android:noHistory="true"
+            android:taskAffinity=""
+            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
+
         <!-- Its own task and no window, so a tick from the Today widget leaves the home screen as it is. -->
         <activity
             android:name=".RowActivity"

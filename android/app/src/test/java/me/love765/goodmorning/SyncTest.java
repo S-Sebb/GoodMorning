@@ -2,6 +2,8 @@ package me.love765.goodmorning;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 
 import org.json.JSONArray;
@@ -40,5 +42,43 @@ public class SyncTest {
         // The summary already moved past midnight while the tick was on its way.
         JSONObject saved = new JSONObject().put("saved", true).put("id", "task_a").put("date", "2026-10-25").put("done", true).put("revision", 3);
         assertEquals(summary().toString(), Sync.ticked(summary(), saved).toString());
+    }
+
+    private static final long MINUTE = 60_000L;
+    private static final long NOW = 1_800_000_000_000L;
+
+    private static JSONObject chat(String state) throws Exception {
+        return new JSONObject().put("id", "a").put("state", state).put("active", (NOW - 60 * MINUTE) / 1000.0);
+    }
+
+    @Test
+    public void aSettledConversationOpensFreshAfterFifteenMinutesAway() throws Exception {
+        JSONObject chat = chat("idle");
+        assertSame(chat, Sync.current(chat, "a", NOW - 14 * MINUTE, NOW));
+        assertNull(Sync.current(chat, "a", NOW - 15 * MINUTE, NOW));
+        assertEquals("/chat?mode=secretary", ConversationActivity.path(Sync.current(chat, "a", NOW - 15 * MINUTE, NOW)));
+        assertEquals("/chat?id=a", ConversationActivity.path(Sync.current(chat, "a", NOW - 14 * MINUTE, NOW)));
+        // A message written since, on any device, counts as being there.
+        chat.put("active", (NOW - MINUTE) / 1000.0);
+        assertSame(chat, Sync.current(chat, "a", NOW - 60 * MINUTE, NOW));
+    }
+
+    @Test
+    public void onlyLeavingThisConversationStartsItsTimeAway() throws Exception {
+        JSONObject chat = chat("idle");
+        // Never left on this phone, or the departure on record is another conversation's.
+        assertSame(chat, Sync.current(chat, "", 0, NOW));
+        assertSame(chat, Sync.current(chat, "b", NOW - 60 * MINUTE, NOW));
+    }
+
+    @Test
+    public void runningWaitingAndUnreadConversationsStayAfterAnyTimeAway() throws Exception {
+        for (String state : new String[] {"running", "waiting", "uncertain"}) {
+            JSONObject chat = chat(state);
+            assertSame(state, chat, Sync.current(chat, "a", NOW - 600 * MINUTE, NOW));
+        }
+        JSONObject unread = chat("idle").put("unread", true);
+        assertSame(unread, Sync.current(unread, "a", NOW - 600 * MINUTE, NOW));
+        assertNull(Sync.current(new JSONObject(), "a", NOW, NOW));
     }
 }

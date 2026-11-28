@@ -57,9 +57,11 @@ public class AskActivity extends Activity {
             conversation.setText(R.string.ask_starts_new);
             fresh.setVisibility(View.GONE);
         } else {
-            conversation.setText(getString(R.string.ask_continues, latest.optString("title")));
             fresh.setOnCheckedChangeListener((box, checked) -> conversation.setText(checked
                     ? getString(R.string.ask_starts_new) : getString(R.string.ask_continues, latest.optString("title"))));
+            // After 15 minutes away a settled conversation starts fresh, as in the browser; it can still be continued.
+            fresh.setChecked(Sync.current(this, Sync.cached(this)) == null);
+            if (!fresh.isChecked()) conversation.setText(getString(R.string.ask_continues, latest.optString("title")));
         }
         EditText text = findViewById(R.id.text);
         TextView status = findViewById(R.id.status);
