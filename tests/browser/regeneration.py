@@ -136,7 +136,7 @@ def main():
                     page.goto(address + "/" + kind)
                     expect(
                         page.get_by_role(
-                            "button", name="Regenerate today’s briefing", exact=True
+                            "button", name="Regenerate briefing", exact=True
                         )
                     ).to_be_visible()
                     config = json.loads(
@@ -185,7 +185,7 @@ def main():
                         ),
                         times=1,
                     )
-                    page.get_by_role(
+                    page.get_by_role("dialog").get_by_role(
                         "button", name="Regenerate briefing", exact=True
                     ).click()
                     expect(page.locator("#regeneration-status")).to_contain_text(
@@ -303,7 +303,7 @@ def main():
                 ).ok
                 page.reload()
                 expect(
-                    page.get_by_role("button", name="重新生成今日简报", exact=True)
+                    page.get_by_role("button", name="重新生成简报", exact=True)
                 ).to_be_visible()
                 page.locator("#regenerate").click()
                 expect(page.locator("#regenerate-title")).to_have_text(
