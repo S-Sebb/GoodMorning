@@ -335,8 +335,10 @@ With its token (`X-GoodMorning-App` header) the app can call:
   question first) or `stopped`. If one part cannot be read, that part is
   `null`; the rest still updates.
 - `POST /api/app/chat` with `{text}` or `{text, chat}`, optionally with
-  `attachments` (upload IDs): starts a secretary conversation or continues one
-  through the normal queue. It may start paid model work.
+  `attachments` (upload IDs) and `id` (the message ID, kept for one draft so a
+  resend isn't a second message): starts a secretary conversation or continues
+  one through the normal queue. Every attachment must exist in the account's
+  uploads before the message is accepted or queued. It may start paid model work.
 - `POST /api/app/chat-uploads/<id>?name=<name>`: one attachment's bytes
   (`application/octet-stream`), streamed to the account's own backend exactly
   like the browser's `/api/chat-uploads/<id>`, with the same 50 MB limit,

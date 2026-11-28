@@ -145,12 +145,17 @@ has run out shows the loading or unavailable message until the next sync.
 
 Ask's paper clip opens the system file picker; files join the message like the
 website's: up to 100 per message, each 50 MB or smaller (a larger one is refused
-when picked, with the website's message), shown with name and size and a × to
-remove. Send uploads each file first (`POST /api/app/chat-uploads/<id>`), then
-sends the message with their IDs; text may be empty when files are attached.
-When a file can't be read or an upload or the send fails, the message and its
-files stay with the error below them, so the user can send again or remove a
-file; a file already uploaded keeps its ID and is not uploaded twice.
+when picked, with the website's message; when several are refused, the first
+reason shows), shown with name and size and a × to remove. The list scrolls
+past 160 dp, so Cancel and Send stay on screen, and the limits note appears with
+the first file. Send uploads each file first (`POST /api/app/chat-uploads/<id>`),
+then sends the message with their IDs; text may be empty when files are attached.
+When a file can't be read (or changed size since it was picked) or an upload or
+the send fails, the message and its files stay with the error below them, so the
+user can send again or remove a file; a file already uploaded keeps its ID and is
+not uploaded twice. The message keeps one ID per draft, and the send outlives a
+dialog recreated by rotation or a dark-mode switch, which shows it with Send
+disabled, so a draft is never sent twice.
 
 ### Ticking to-dos
 

@@ -3,6 +3,9 @@ package me.love765.goodmorning;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.Locale;
 import java.util.UUID;
@@ -28,8 +31,42 @@ final class Attachment {
         this.uploaded = uploaded;
     }
 
+    /** A file the phone can no longer read as it was picked: moved, deleted, changed, or its app's permission ended. */
+    static final class Unreadable extends IOException {
+        final Attachment file;
+
+        Unreadable(Attachment file) {
+            this.file = file;
+        }
+    }
+
     static Attachment picked(String uri, String name, long size) {
-        return new Attachment(uri, uploadName(name), size, UUID.randomUUID().toString().replace("-", ""), false);
+        return new Attachment(uri, uploadName(name), size, newId(), false);
+    }
+
+    /** An ID in the server's form, for uploads and drafts. */
+    static String newId() {
+        return UUID.randomUUID().toString().replace("-", "");
+    }
+
+    /**
+     * Copies exactly the picked size. A file that changed since it was picked is refused before its last byte is
+     * written, so the server never completes a cut-off copy.
+     */
+    void copy(InputStream in, OutputStream out) throws IOException {
+        byte[] buffer = new byte[65536];
+        long total = 0;
+        int held = -1;
+        for (int n; (n = in.read(buffer)) != -1; ) {
+            if (n == 0) continue;
+            total += n;
+            if (total > size) throw new Unreadable(this);
+            if (held >= 0) out.write(held);
+            out.write(buffer, 0, n - 1);
+            held = buffer[n - 1] & 0xff;
+        }
+        if (total != size) throw new Unreadable(this);
+        if (held >= 0) out.write(held);
     }
 
     JSONObject json() throws JSONException {

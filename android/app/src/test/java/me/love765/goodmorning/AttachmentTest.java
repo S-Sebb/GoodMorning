@@ -3,9 +3,12 @@ package me.love765.goodmorning;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 import org.junit.Test;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;
 
 public class AttachmentTest {
@@ -39,5 +42,30 @@ public class AttachmentTest {
         assertEquals(file.id, back.id);
         assertTrue(back.uploaded && back.id.matches("[a-f0-9]{32}"));
         assertNotEquals(file.id, Attachment.picked("content://x/1", "notes.txt", 12).id);
+    }
+
+    @Test
+    public void copiesExactlyThePickedSize() throws Exception {
+        byte[] data = new byte[200_000];
+        data[199_999] = 7;
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        Attachment.picked("content://x/1", "data.bin", data.length).copy(new ByteArrayInputStream(data), out);
+        assertEquals(200_000, out.size());
+        assertEquals(7, out.toByteArray()[199_999]);
+    }
+
+    @Test
+    public void aFileThatChangedSincePickedNeverCompletesItsUpload() throws Exception {
+        for (int actual : new int[] {9, 11, 70_000}) {
+            Attachment file = Attachment.picked("content://x/1", "notes.txt", 10);
+            ByteArrayOutputStream out = new ByteArrayOutputStream();
+            try {
+                file.copy(new ByteArrayInputStream(new byte[actual]), out);
+                fail("copied " + actual + " bytes as 10");
+            } catch (Attachment.Unreadable expected) {
+                assertEquals(file, expected.file);
+            }
+            assertTrue("wrote " + out.size(), out.size() < 10);  // The server sees an incomplete upload and keeps nothing.
+        }
     }
 }

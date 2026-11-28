@@ -145,6 +145,7 @@
   "Image preview": "图片预览",
   "Your message…": "输入消息…",
   "Files must be 50 MB or smaller.": "文件大小不能超过 50 MB。",
+  "A file is no longer available. Remove it, then attach it again.": "有个文件已经找不到了。你把它移除，再重新添加一次吧。",
   "Up to 50 MB · kept 30 days": "50 MB 以内 · 保留 30 天",
   "Write naturally; no commands are needed. Enter sends your message; Shift+Enter adds a new line.": "自然表达就好，不用记命令。Enter 发送，Shift+Enter 换行。",
   "Attach files with the paperclip, or paste or drag them in.": "用回形针添加附件，也可以粘贴或拖进来。",

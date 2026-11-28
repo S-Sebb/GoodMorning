@@ -72,12 +72,13 @@ GET_ROUTES = re.compile(
 POST_ROUTES = re.compile(
     r"(?:/api/notes(?:/sorted)?|/api/schedule/tick|/api/ideas/close|/api/about-me|/api/avatar(?:/upload/(?:day|night|profile))?|/api/(?:generate|regenerate)|/api/chat-uploads/[a-f0-9]{32}|/api/chats|/api/chats/[a-f0-9]{32}/(?:messages|seen|settings/[0-9]{1,9}/claim|(?:form|permission)/[A-Za-z0-9_]+/reply)|/api/jobs/[a-f0-9]{32}/(?:recover|(?:form|permission)/[A-Za-z0-9_]+/reply))"
 )
+ATTACHMENT_GONE = "A file is no longer available. Remove it, then attach it again."
 # The chat widget's attachments, authorized by the app token and forwarded to /api/chat-uploads/<id>.
 APP_UPLOAD_ROUTE = re.compile(r"/api/app/chat-uploads/[a-f0-9]{32}")
 # Only the gateway's own background work reaches these; browsers never can.
 # Reached only by the gateway itself: reminders, and the chat summary of the app-token-authenticated phone sync.
 INTERNAL_ROUTES = re.compile(
-    r"/api/briefing-reminders(?:/lines(?:/[a-f0-9]{32})?)?|/api/app-chat"
+    r"/api/briefing-reminders(?:/lines(?:/[a-f0-9]{32})?)?|/api/app-chat|/api/chat-uploads-check"
 )
 QUEUE_KEY = "generation_queue"
 WAITING_KEY = "generation_waiting"
@@ -948,9 +949,10 @@ class Gateway:
         from goodmorning.web.briefing_chat import identifier as chat_id
 
         host = next(iter(self.hosts))
-        if "text" not in body or not set(body) <= {"text", "chat", "attachments"}:
+        if "text" not in body or not set(body) <= {"text", "chat", "attachments", "id"}:
             raise ValueError("Invalid conversation message")
-        request = secrets.token_hex(16)
+        # The phone keeps one ID per draft, so sending it again after an unclear failure is not a second message.
+        request = chat_id(body["id"]) if "id" in body else secrets.token_hex(16)
         if "chat" in body:
             path, payload = (
                 "/api/chats/" + chat_id(body["chat"]) + "/messages",
@@ -1605,7 +1607,24 @@ class Gateway:
             chat = re.fullmatch(r"/api/chats/([a-f0-9]{32})/messages", path)[1]
         request = chat_id(body["id"])
         message(body["text"])
-        attachment_ids(body)
+        attachments = attachment_ids(body)
+        if attachments:
+            # A queued message is acknowledged before the backend reads it, so its files must exist now.
+            status, _, found = self.proxy(
+                identifier,
+                host,
+                "/api/chat-uploads-check?ids=" + ",".join(attachments),
+                "GET",
+                None,
+                {},
+                internal=True,
+            )
+            if status != 200 or json.loads(found)["missing"]:
+                return (
+                    400,
+                    {"Content-Type": "application/json"},
+                    json.dumps({"error": ui.text(ATTACHMENT_GONE)}).encode(),
+                )
         # Neither the queue nor the backend ever stores the page's own token, only its hash.
         body = hash_page(body)
         if source:
@@ -2399,33 +2418,42 @@ def handler_for(gateway):
             )
 
         def app_upload(self, host, path):
-            """A chat widget attachment, streamed to the account's backend like the browser's upload."""
+            """A chat widget attachment, authorized by the app token instead of a session."""
             if gateway.paused():
                 return self.maintenance_json()
+            user = self.app_user()
+            self.select_language({"user_id": user})
+            query = urlsplit(self.path).query
+            return self.upload(
+                user, host, path.replace("/api/app/", "/api/", 1) + "?" + query
+            )
+
+        def upload(self, user, host, path, *, avatar=False):
+            """Streams one authorized upload to the account's own backend, never buffering it here."""
             if (
                 self.headers.get("Transfer-Encoding")
                 or len(self.headers.get_all("Content-Length", [])) != 1
             ):
                 raise ValueError("Invalid request body")
             size = int(self.headers["Content-Length"])
-            user = self.app_user()
-            self.select_language({"user_id": user})
-            if size > MAX_UPLOAD_BYTES:
-                return self.respond({"error": "Files must be 50 MB or smaller."}, 413)
+            if size > (MAX_AVATAR_BYTES if avatar else MAX_UPLOAD_BYTES):
+                return self.respond(
+                    {
+                        "error": "Avatar images must be 5 MB or smaller."
+                        if avatar
+                        else "Files must be 50 MB or smaller."
+                    },
+                    413,
+                )
             if (
                 size < 0
                 or self.headers.get("Content-Type") != "application/octet-stream"
             ):
                 raise ValueError("Invalid upload")
-            query = urlsplit(self.path).query
-            upload_name(query)
+            if not avatar:
+                upload_name(urlsplit(path).query)
             status, headers, data = gateway.proxy(
-                user,
-                host,
-                path.replace("/api/app/", "/api/", 1) + "?" + query,
-                "POST",
-                UploadReader(self.rfile, size),
-                self.headers,
+                user, host, path, "POST", UploadReader(self.rfile, size), self.headers
             )
             return self.respond(
                 data, status, headers.get("Content-Type", "application/json")
@@ -2986,34 +3014,11 @@ def handler_for(gateway):
                         self.headers.get("X-Briefing-CSRF", ""), session["csrf"]
                     ):
                         raise Denied("Forbidden")
-                    avatar_upload = bool(AVATAR_UPLOAD_ROUTE.fullmatch(path))
-                    if size > (MAX_AVATAR_BYTES if avatar_upload else MAX_UPLOAD_BYTES):
-                        return self.respond(
-                            {
-                                "error": "Avatar images must be 5 MB or smaller."
-                                if avatar_upload
-                                else "Files must be 50 MB or smaller."
-                            },
-                            413,
-                        )
-                    if (
-                        size < 0
-                        or self.headers.get("Content-Type")
-                        != "application/octet-stream"
-                    ):
-                        raise ValueError("Invalid upload")
-                    if not avatar_upload:
-                        upload_name(urlsplit(self.path).query)
-                    status, headers, data = gateway.proxy(
+                    return self.upload(
                         session["user_id"],
                         host,
                         self.path,
-                        "POST",
-                        UploadReader(self.rfile, size),
-                        self.headers,
-                    )
-                    return self.respond(
-                        data, status, headers.get("Content-Type", "application/json")
+                        avatar=bool(AVATAR_UPLOAD_ROUTE.fullmatch(path)),
                     )
                 form = (
                     path in ("/api/language", "/api/model", "/api/color-schemes")

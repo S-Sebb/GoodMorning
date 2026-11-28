@@ -302,10 +302,19 @@ class UploadTests(unittest.TestCase):
             os.utime(path, (old, old))
         os.utime(link, (old, old), follow_symlinks=False)
         self.uploads.expire()
+        self.uploads.expire()  # A tombstone stays as it is.
         self.assertEqual(
             sorted(path.name for path in self.uploads.directory.iterdir()),
-            ["b" * 32, "e" * 32, "notes"],
+            ["a" * 32, "b" * 32, "d" * 32, "e" * 32, "notes"],
         )
+        for gone in (image, "d" * 32):
+            self.assertEqual(
+                [path.name for path in (self.uploads.directory / gone).iterdir()],
+                ["expired"],
+            )
+        # An expired ID never takes new content, so the old chat can't show another file.
+        with self.assertRaises(ValueError):
+            self.upload(name="photo.png", data=b"Other", identifier=image)
         self.assertTrue((outside / "keep.txt").exists())
         removed, kept = chats.status(chat)["messages"][0]["attachments"]
         self.assertEqual(
@@ -575,6 +584,48 @@ class UploadHTTPTests(unittest.TestCase):
         chat = json.loads(raw)["chat"]
         status, _, raw = self.fixture.request("/api/chats/" + chat)
         self.assertEqual(json.loads(raw)["messages"][0]["attachments"], [entry])
+        # While other work holds the slot, a message is queued and acknowledged before the backend reads it,
+        # so a missing or another account's upload is refused now rather than after the widget closed.
+        with self.fixture.store.db() as db:
+            db.execute(
+                "INSERT OR REPLACE INTO metadata VALUES (?,?)",
+                (
+                    "generation",
+                    json.dumps(
+                        {
+                            "user": self.fixture.other,
+                            "host": "gm.example.test",
+                            "kind": "gm",
+                        }
+                    ),
+                ),
+            )
+        cookie, self.fixture.cookie = self.fixture.cookie, None
+        try:
+            for attachments, expected in (
+                ([entry["id"], "e" * 32], 400),
+                ([entry["id"]], 202),
+                ([entry["id"]], 202),  # The same draft again joins the queue once.
+            ):
+                status, _, raw = self.fixture.request(
+                    "/api/app/chat",
+                    {
+                        "text": "Again",
+                        "chat": chat,
+                        "attachments": attachments,
+                        "id": "d" * 32,
+                    },
+                    headers={
+                        "Origin": "",
+                        "Sec-Fetch-Site": "",
+                        "X-GoodMorning-App": token,
+                    },
+                )
+                self.assertEqual(status, expected, raw)
+        finally:
+            self.fixture.cookie = cookie
+        queued = json.loads(raw)
+        self.assertEqual((queued.get("queued"), queued.get("depth")), (True, 1), queued)
 
     def test_authentication_origin_csrf_size_and_filename_boundaries(self):
         self.assertEqual(self.request_upload()[0], 403)

@@ -46,6 +46,8 @@ class Fake:
         self.draft = False
         self.language = "en"
         self.fail_uploads = 0  # The next uploads to refuse, as a server error.
+        self.upload_delay = 0  # Seconds each upload takes to answer.
+        self.widgets = "day"
         self.uploads = []  # (id, name, body, status)
         self.sent = []  # /api/app/chat bodies
         self.requests = []
@@ -56,7 +58,11 @@ class Fake:
             "device": "0123456789abcdef",
             "settings": {},
             "language": self.language,
-            "appearance": {"day": "morning-sky", "night": "starry", "widgets": "day"},
+            "appearance": {
+                "day": "morning-sky",
+                "night": "starry",
+                "widgets": self.widgets,
+            },
             "notifications": [],
             "busy": False,
             "schedule": None,
@@ -88,6 +94,7 @@ class Fake:
                 with fake.lock:
                     fake.requests.append((time.time(), self.command, self.path))
                 if path.startswith("/api/app/chat-uploads/"):
+                    time.sleep(fake.upload_delay)
                     refused = fake.fail_uploads > 0
                     fake.fail_uploads -= refused
                     identifier = path.rsplit("/", 1)[1]
@@ -293,6 +300,7 @@ ASK_TEXT = {
     },
 }
 NOTES, EXTRA, BIG = "gm-notes.txt", "gm-extra.txt", "gm-big.bin"
+LIST = [f"gm-list-{n:02}.txt" for n in range(1, 13)]
 
 
 def attachments(device, fake, check):
@@ -302,7 +310,8 @@ def attachments(device, fake, check):
         f"mkdir -p /sdcard/Download && echo 'Synthetic notes' > /sdcard/Download/{NOTES}"
         f" && echo 'Synthetic extra' > /sdcard/Download/{EXTRA}"
         f" && head -c {50 * 1024 * 1024 + 1} /dev/zero > /sdcard/Download/{BIG}"
-        " && content call --method scan_volume --uri content://media --arg external_primary"
+        + "".join(f" && echo {name} > /sdcard/Download/{name}" for name in LIST)
+        + " && content call --method scan_volume --uri content://media --arg external_primary"
     )
 
     def pick(name, words):
@@ -310,9 +319,16 @@ def attachments(device, fake, check):
         if not attach:
             return False
         device.tap(attach)
-        found = device.find(lambda text: text == name, timeout=20)
+        found = device.find(lambda text: text == name, timeout=10)
+        for _ in range(4):  # Further down the picker's Recent list.
+            if found:
+                break
+            device.shell("input swipe 540 1700 540 700 400")
+            found = device.find(lambda text: text == name, timeout=3)
         if found:
             device.tap(found)
+        else:
+            device.shell("input keyevent KEYCODE_BACK")
         time.sleep(2)
         return found is not None
 
@@ -340,12 +356,12 @@ def attachments(device, fake, check):
         if composer:
             device.tap(composer)
         attach = device.find_desc(words["attach"], timeout=10)
-        note = device.find(lambda text: text == words["note"], timeout=3)
+        note = device.find(lambda text: text == words["note"], timeout=2)
         device.screenshot(f"attach-control-{tag}")
         check(
-            f"Ask ({tag}) offers Attach files with the upload limits",
-            attach is not None and note is not None,
-            "" if attach and note else f"saw {device.texts()[:10]}",
+            f"Ask ({tag}) offers Attach files, with the limits note hidden until a file is attached",
+            attach is not None and note is None,
+            "" if attach and not note else f"saw {device.texts()[:10]}",
         )
         if not attach:
             device.shell("input keyevent KEYCODE_BACK")
@@ -364,8 +380,10 @@ def attachments(device, fake, check):
         shown = chip(NOTES), chip(EXTRA)
         device.screenshot(f"attached-{tag}")
         check(
-            f"Ask ({tag}) lists both picked files with their sizes",
-            all(shown) and shown[0][0] == f"{NOTES} · 1 KB",
+            f"Ask ({tag}) lists both picked files with their sizes and the limits note",
+            all(shown)
+            and shown[0][0] == f"{NOTES} · 1 KB"
+            and words["note"] in device.texts(),
             f"saw {device.texts()[:12]}",
         )
 
@@ -429,6 +447,72 @@ def attachments(device, fake, check):
             f"uploads {[(entry[1], entry[3]) for entry in fake.uploads]}; sent {fake.sent}",
         )
         if device.find(lambda text: text == words["send"], timeout=3):
+            device.shell("input keyevent KEYCODE_BACK")
+        device.home()
+
+        def open_ask():
+            device.home()
+            composer = device.find(lambda text: text == words["composer"], timeout=20)
+            if composer:
+                device.tap(composer)
+            return device.find_desc(words["attach"], timeout=10) is not None
+
+        # Recreated in the middle of an upload (a dark-mode switch, as on rotation): the new dialog shows that send,
+        # with Send disabled, and the draft arrives once. The phone follows dark mode for the night render.
+        fake.widgets = "phone"
+        device.hook("--ez sync true")
+        time.sleep(3)
+        fake.uploads.clear()
+        fake.sent.clear()
+        opened = open_ask()
+        pick(NOTES, words)
+        fake.upload_delay = 8
+        send = device.find(lambda text: text == words["send"], timeout=5)
+        if send:
+            device.tap(send)
+        time.sleep(2)
+        device.shell("cmd uimode night yes")
+        time.sleep(4)
+        during = device.find(lambda text: text == words["send"], timeout=5)
+        device.screenshot(f"sending-night-{tag}")
+        deadline = time.time() + 30
+        while time.time() < deadline and not fake.sent:
+            time.sleep(1)
+        time.sleep(4)  # Anything sent twice would arrive by now.
+        closed = device.find(lambda text: text == words["send"], timeout=2) is None
+        device.shell("cmd uimode night no")
+        fake.upload_delay = 0
+        check(
+            f"Ask ({tag}) recreated during an upload keeps Send disabled and sends once",
+            opened
+            and during is not None
+            and not during[6]
+            and len(fake.sent) == 1
+            and len(fake.uploads) == 1
+            and closed,
+            f"send {'missing' if during is None else 'enabled' if during[6] else 'disabled'} while sending;"
+            f" uploads {len(fake.uploads)}, messages {len(fake.sent)}, closed {closed}",
+        )
+        fake.widgets = "day"
+        device.hook("--ez sync true")
+        time.sleep(3)
+
+        # A long list scrolls inside the dialog, so Cancel and Send stay on screen.
+        opened = open_ask()
+        for name in LIST:
+            pick(name, words)
+        height = int(re.findall(r"\d+", device.shell("wm size"))[-1])
+        send = device.find(lambda text: text == words["send"], timeout=5)
+        listed = sum(text.startswith("gm-list-") for text in device.texts())
+        device.screenshot(f"twelve-files-{tag}")
+        check(
+            f"Ask ({tag}) with 12 files keeps Send on screen and the list scrolls",
+            opened and send is not None and send[3] < height and 0 < listed < 12,
+            f"send at {send and send[3]} of {height}; rows shown {listed}",
+        )
+        device.shell("input keyevent KEYCODE_BACK")
+        time.sleep(1)
+        if device.find(lambda text: text == words["send"], timeout=2):
             device.shell("input keyevent KEYCODE_BACK")
         device.home()
     fake.language = "en"

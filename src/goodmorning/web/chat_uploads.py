@@ -1,4 +1,5 @@
 """Private, streamed chat attachments; browsers receive IDs, never filesystem paths."""
+
 import hashlib
 import json
 import os
@@ -13,32 +14,36 @@ from goodmorning.runtime_files import atomic_text
 MAX_UPLOAD_BYTES = 50 * 1024 * 1024
 RETENTION_SECONDS = 30 * 24 * 60 * 60
 EXPIRY_INTERVAL = 60 * 60
-UPLOAD_ROUTE = re.compile(r'/api/chat-uploads/([a-f0-9]{32})')
-IMAGE_ROUTE = re.compile(r'/api/chat-uploads/([a-f0-9]{32})/image')
+UPLOAD_ROUTE = re.compile(r"/api/chat-uploads/([a-f0-9]{32})")
+IMAGE_ROUTE = re.compile(r"/api/chat-uploads/([a-f0-9]{32})/image")
 
 
 def image_type(path):
-    with path.open('rb') as source:
+    with path.open("rb") as source:
         header = source.read(16)
-    if header.startswith(b'\x89PNG\r\n\x1a\n'):
-        return 'image/png'
-    if header.startswith(b'\xff\xd8\xff'):
-        return 'image/jpeg'
-    if header.startswith((b'GIF87a', b'GIF89a')):
-        return 'image/gif'
-    if header.startswith(b'RIFF') and header[8:12] == b'WEBP':
-        return 'image/webp'
+    if header.startswith(b"\x89PNG\r\n\x1a\n"):
+        return "image/png"
+    if header.startswith(b"\xff\xd8\xff"):
+        return "image/jpeg"
+    if header.startswith((b"GIF87a", b"GIF89a")):
+        return "image/gif"
+    if header.startswith(b"RIFF") and header[8:12] == b"WEBP":
+        return "image/webp"
     return None
 
 
 def upload_name(query):
     fields = parse_qs(query, keep_blank_values=True, strict_parsing=True)
-    if set(fields) != {'name'} or len(fields['name']) != 1:
-        raise ValueError('Invalid upload name')
-    name = fields['name'][0]
-    if (not name or name in ('.', '..') or len(name.encode()) > 240
-            or any(ord(char) < 32 or ord(char) == 127 or char in '/\\' for char in name)):
-        raise ValueError('Invalid upload name')
+    if set(fields) != {"name"} or len(fields["name"]) != 1:
+        raise ValueError("Invalid upload name")
+    name = fields["name"][0]
+    if (
+        not name
+        or name in (".", "..")
+        or len(name.encode()) > 240
+        or any(ord(char) < 32 or ord(char) == 127 or char in "/\\" for char in name)
+    ):
+        raise ValueError("Invalid upload name")
     return name
 
 
@@ -53,102 +58,139 @@ def expire_forever(uploads, interval=EXPIRY_INTERVAL):
 
 
 def attachment_ids(body):
-    values = body.get('attachments', [])
-    if (not isinstance(values, list) or len(values) > 100
-            or any(not isinstance(value, str) or not re.fullmatch('[a-f0-9]{32}', value) for value in values)
-            or len(set(values)) != len(values)):
-        raise ValueError('Invalid attachments')
+    values = body.get("attachments", [])
+    if (
+        not isinstance(values, list)
+        or len(values) > 100
+        or any(
+            not isinstance(value, str) or not re.fullmatch("[a-f0-9]{32}", value)
+            for value in values
+        )
+        or len(set(values)) != len(values)
+    ):
+        raise ValueError("Invalid attachments")
     return values
 
 
 class UploadReader:
     """Bound a forwarded binary stream without buffering private files at the gateway."""
+
     def __init__(self, stream, size):
         self.stream, self.remaining = stream, size
 
     def read(self, size=-1):
         if not self.remaining:
-            return b''
+            return b""
         data = self.stream.read(min(self.remaining, size if size >= 0 else 65536))
         if not data:
-            raise ValueError('Incomplete upload')
+            raise ValueError("Incomplete upload")
         self.remaining -= len(data)
         return data
 
 
 class Uploads:
     def __init__(self, runtime):
-        self.directory = runtime / 'browser-uploads'
+        self.directory = runtime / "browser-uploads"
         if self.directory.is_symlink():
-            raise ValueError('Unsafe upload storage')
+            raise ValueError("Unsafe upload storage")
         self.directory.mkdir(mode=0o700, exist_ok=True)
         self.lock = threading.RLock()
 
     def paths(self, identifier):
-        if not isinstance(identifier, str) or not re.fullmatch('[a-f0-9]{32}', identifier):
-            raise ValueError('Invalid attachment ID')
+        if not isinstance(identifier, str) or not re.fullmatch(
+            "[a-f0-9]{32}", identifier
+        ):
+            raise ValueError("Invalid attachment ID")
         directory = self.directory / identifier
         if self.directory.is_symlink() or directory.is_symlink():
-            raise ValueError('Unsafe upload storage')
-        return directory, directory / 'metadata.json'
+            raise ValueError("Unsafe upload storage")
+        return directory, directory / "metadata.json"
 
     def get(self, identifier):
         directory, metadata = self.paths(identifier)
-        if metadata.is_symlink() or not metadata.is_file() or metadata.stat().st_size > 2048:
-            raise ValueError('Unknown attachment')
+        if (
+            metadata.is_symlink()
+            or not metadata.is_file()
+            or metadata.stat().st_size > 2048
+        ):
+            raise ValueError("Unknown attachment")
         entry = json.loads(metadata.read_text())
-        name = upload_name('name=' + quote(entry['name'], safe=''))
-        path = directory / 'files' / name
-        if (path.parent.is_symlink() or path.is_symlink() or not path.is_file()
-                or path.stat().st_size != entry['size'] or not 0 <= entry['size'] <= MAX_UPLOAD_BYTES):
-            raise ValueError('Attachment unavailable')
-        result = {'id': identifier, 'name': name, 'size': entry['size']}
+        name = upload_name("name=" + quote(entry["name"], safe=""))
+        path = directory / "files" / name
+        if (
+            path.parent.is_symlink()
+            or path.is_symlink()
+            or not path.is_file()
+            or path.stat().st_size != entry["size"]
+            or not 0 <= entry["size"] <= MAX_UPLOAD_BYTES
+        ):
+            raise ValueError("Attachment unavailable")
+        result = {"id": identifier, "name": name, "size": entry["size"]}
         mime = image_type(path)
         if mime:
-            result['mime'] = mime
+            result["mime"] = mime
         return result
 
     def image(self, identifier):
         entry = self.get(identifier)
-        if not entry.get('mime'):
-            raise ValueError('Attachment is not a supported image')
-        path = self.directory / identifier / 'files' / entry['name']
-        return path.read_bytes(), entry['mime']
+        if not entry.get("mime"):
+            raise ValueError("Attachment is not a supported image")
+        path = self.directory / identifier / "files" / entry["name"]
+        return path.read_bytes(), entry["mime"]
 
     def files(self, identifiers):
         entries = [self.get(identifier) for identifier in identifiers]
-        return [{'uri': (self.directory / entry['id'] / 'files' / entry['name']).as_uri(), 'name': entry['name']}
-                for entry in entries]
+        return [
+            {
+                "uri": (
+                    self.directory / entry["id"] / "files" / entry["name"]
+                ).as_uri(),
+                "name": entry["name"],
+            }
+            for entry in entries
+        ]
 
     def receive(self, identifier, name, stream, size):
-        upload_name('name=' + quote(name, safe=''))
+        upload_name("name=" + quote(name, safe=""))
         if not 0 <= size <= MAX_UPLOAD_BYTES:
-            raise ValueError('File exceeds 50 MB')
+            raise ValueError("File exceeds 50 MB")
         with self.lock:
             directory, metadata = self.paths(identifier)
             if directory.exists():
+                # A retry of the same file; an expired ID's tombstone has no metadata, so get() refuses it.
                 old = self.get(identifier)
                 digest = hashlib.sha256()
                 reader = UploadReader(stream, size)
                 while chunk := reader.read(65536):
                     digest.update(chunk)
                 saved = json.loads(metadata.read_text())
-                if old['name'] != name or old['size'] != size or saved['sha256'] != digest.hexdigest():
-                    raise ValueError('Upload ID already belongs to another file')
+                if (
+                    old["name"] != name
+                    or old["size"] != size
+                    or saved["sha256"] != digest.hexdigest()
+                ):
+                    raise ValueError("Upload ID already belongs to another file")
                 return old
             directory.mkdir(mode=0o700)
-            files = directory / 'files'
+            files = directory / "files"
             files.mkdir(mode=0o700)
             path = files / name
             try:
                 digest = hashlib.sha256()
                 reader = UploadReader(stream, size)
-                with os.fdopen(os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600), 'wb') as target:
+                with os.fdopen(
+                    os.open(
+                        path,
+                        os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW,
+                        0o600,
+                    ),
+                    "wb",
+                ) as target:
                     while chunk := reader.read(65536):
                         target.write(chunk)
                         digest.update(chunk)
-                entry = {'name': name, 'size': size, 'sha256': digest.hexdigest()}
-                atomic_text(metadata, json.dumps(entry) + '\n')
+                entry = {"name": name, "size": size, "sha256": digest.hexdigest()}
+                atomic_text(metadata, json.dumps(entry) + "\n")
             except Exception:
                 path.unlink(missing_ok=True)
                 metadata.unlink(missing_ok=True)
@@ -159,14 +201,24 @@ class Uploads:
 
     def expire(self, now=None):
         """Delete uploads older than 30 days. Chats keep their names and sizes, and the
-        engine's session history keeps its own copy of each sent file."""
+        engine's session history keeps its own copy of each sent file. Each ID keeps an
+        empty tombstone, so an old chat's attachment can never point at new content."""
         cutoff = (time.time() if now is None else now) - RETENTION_SECONDS
         with self.lock:
             if self.directory.is_symlink():
-                raise ValueError('Unsafe upload storage')
+                raise ValueError("Unsafe upload storage")
             for directory in self.directory.iterdir():
                 # An upload's directory changes last when its metadata lands, so its
                 # mtime is when the upload finished (or, if abandoned, when it began).
-                if (re.fullmatch('[a-f0-9]{32}', directory.name) and not directory.is_symlink()
-                        and directory.is_dir() and directory.lstat().st_mtime < cutoff):
-                    shutil.rmtree(directory)
+                if (
+                    re.fullmatch("[a-f0-9]{32}", directory.name)
+                    and not directory.is_symlink()
+                    and directory.is_dir()
+                    and directory.lstat().st_mtime < cutoff
+                    and not (directory / "expired").exists()
+                ):
+                    for entry in directory.iterdir():
+                        shutil.rmtree(
+                            entry
+                        ) if entry.is_dir() and not entry.is_symlink() else entry.unlink()
+                    (directory / "expired").touch()

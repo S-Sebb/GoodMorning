@@ -55,6 +55,8 @@ Chat uploads are deleted 30 days after upload, including uploads that were never
 sent. Each account's backend checks its own `browser-uploads/` when it starts and
 then hourly; it cannot reach another account's runtime. An upload's age is its
 directory's modification time, which last changes when its metadata is saved.
+Deleting empties the directory but leaves a tombstone (`expired`), so its ID never
+takes new content and an old chat can't show another file under it.
 
 - Old chats keep each file's name and size and show “*name* · deleted (files are
   kept 30 days)” in its place. The guide and the attach button's screen-reader note say

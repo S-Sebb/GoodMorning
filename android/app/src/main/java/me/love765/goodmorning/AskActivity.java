@@ -12,11 +12,14 @@ import android.graphics.drawable.ColorDrawable;
 import android.graphics.drawable.GradientDrawable;
 import android.net.Uri;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.provider.OpenableColumns;
 import android.text.TextUtils;
 import android.view.Gravity;
 import android.widget.ImageView;
 import android.view.View;
+import android.view.ViewGroup;
 import android.view.WindowManager;
 import android.widget.Button;
 import android.widget.CheckBox;
@@ -44,6 +47,26 @@ public class AskActivity extends Activity {
     private final List<Attachment> attachments = new ArrayList<>();
     private boolean sending;
     private Palette palette;
+    /** One ID per draft, kept until it is sent, so sending it again after an unclear failure is not a second message. */
+    private String draft;
+
+    /**
+     * The one send in flight. It outlives a dialog recreated by rotation or a dark-mode switch, which binds to it again
+     * instead of offering Send for the same draft. Touched on the UI thread only.
+     */
+    private static final class Sending {
+        final String draft;
+        final List<Attachment> files;
+        AskActivity screen;
+
+        Sending(String draft, List<Attachment> files, AskActivity screen) {
+            this.draft = draft;
+            this.files = files;
+            this.screen = screen;
+        }
+    }
+
+    private static Sending inFlight;
 
     @Override
     protected void attachBaseContext(Context base) {
@@ -54,6 +77,7 @@ public class AskActivity extends Activity {
     protected void onCreate(Bundle state) {
         super.onCreate(state);
         chosen = state != null && state.getBoolean("chosen");  // The checkbox itself comes back with the views.
+        draft = state == null ? Attachment.newId() : state.getString("draft", Attachment.newId());
         if (state != null) {
             try {
                 JSONArray saved = new JSONArray(state.getString("attachments", "[]"));
@@ -108,58 +132,81 @@ public class AskActivity extends Activity {
         findViewById(R.id.cancel).setOnClickListener(view -> finish());
         findViewById(R.id.attach).setOnClickListener(view -> startActivityForResult(new Intent(Intent.ACTION_OPEN_DOCUMENT)
                 .addCategory(Intent.CATEGORY_OPENABLE).setType("*/*").putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true), PICK));
-        showAttachments();
+        if (state != null) status.setText(state.getCharSequence("status"));
+        if (inFlight != null && inFlight.draft.equals(draft)) {
+            // Recreated while this draft is being sent: show that send rather than offering a second one.
+            inFlight.screen = this;
+            attachments.clear();
+            attachments.addAll(inFlight.files);
+            busy(true);
+        } else {
+            showAttachments();
+        }
         send.setOnClickListener(view -> {
             String message = text.getText().toString().trim();
             if (message.isEmpty() && attachments.isEmpty()) return;
-            String target = fresh.isChecked() ? null : chat;
-            List<Attachment> files = new ArrayList<>(attachments);
-            busy(true);
             status.setText("");
-            new Thread(() -> {
-                String error;
-                String sent = target;
-                try {
-                    // Each file goes up first, as in the browser; one already uploaded is not sent again on a retry.
-                    List<String> ids = new ArrayList<>();
-                    for (Attachment file : files) {
-                        if (!file.uploaded) {
-                            Api.upload(this, token, file, open(file));
-                            file.uploaded = true;
-                        }
-                        ids.add(file.id);
-                    }
-                    JSONObject answer = Api.chat(this, token, message, target, ids);
-                    sent = answer.optString("chat", target);
-                    error = null;
-                } catch (Unreadable unreadable) {
-                    error = getString(R.string.ask_unreadable, unreadable.file.name);
-                } catch (Api.Failure failure) {
-                    error = failure.status == 403 ? getString(R.string.ask_unlinked)
-                            : failure.error.isEmpty() ? getString(R.string.ask_failed) : failure.error;
-                } catch (IOException | JSONException offline) {
-                    error = getString(R.string.ask_failed);
-                }
-                String problem = error, conversationId = sent;
-                runOnUiThread(() -> {
-                    if (problem != null) {
-                        // The message and its files stay, so the user can send again or remove a file first.
-                        status.setText(problem);
-                        busy(false);
-                        return;
-                    }
-                    Sync.markSent(this, conversationId);
-                    Toast.makeText(this, R.string.ask_sent, Toast.LENGTH_LONG).show();
-                    finish();
-                });
-            }).start();
+            Sending operation = inFlight = new Sending(draft, new ArrayList<>(attachments), this);
+            busy(true);
+            send(getApplicationContext(), token, operation, message, fresh.isChecked() ? null : chat);
         });
+    }
+
+    /** Uploads each file, then sends the message, on its own thread; the result goes to whichever dialog shows it then. */
+    private static void send(Context app, String token, Sending operation, String message, String target) {
+        new Thread(() -> {
+            Context words = Language.apply(app);
+            String error = null;
+            String sent = target;
+            try {
+                // Each file goes up first, as in the browser; one already uploaded is not sent again on a retry.
+                List<String> ids = new ArrayList<>();
+                for (Attachment file : operation.files) {
+                    if (!file.uploaded) {
+                        Api.upload(app, token, file, open(app, file));
+                        file.uploaded = true;
+                    }
+                    ids.add(file.id);
+                }
+                sent = Api.chat(app, token, operation.draft, message, target, ids).optString("chat", target);
+            } catch (Attachment.Unreadable unreadable) {
+                error = words.getString(R.string.ask_unreadable, unreadable.file.name);
+            } catch (Api.Failure failure) {
+                error = failure.status == 403 ? words.getString(R.string.ask_unlinked)
+                        : failure.error.isEmpty() ? words.getString(R.string.ask_failed) : failure.error;
+            } catch (IOException | JSONException offline) {
+                error = words.getString(R.string.ask_failed);
+            }
+            String problem = error, conversation = sent;
+            new Handler(Looper.getMainLooper()).post(() -> {
+                inFlight = null;
+                AskActivity screen = operation.screen;
+                if (problem == null) {
+                    Sync.markSent(app, conversation);
+                    Toast.makeText(words, R.string.ask_sent, Toast.LENGTH_LONG).show();
+                    if (screen != null) screen.finish();
+                } else if (screen != null) {
+                    // The message and its files stay, so the user can send again or remove a file first.
+                    ((TextView) screen.findViewById(R.id.status)).setText(problem);
+                    screen.busy(false);
+                }
+            });
+        }).start();
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        if (inFlight != null && inFlight.screen == this) inFlight.screen = null;
     }
 
     @Override
     protected void onSaveInstanceState(Bundle out) {
         super.onSaveInstanceState(out);
         out.putBoolean("chosen", chosen);
+        out.putString("draft", draft);
+        TextView status = findViewById(R.id.status);
+        if (status != null) out.putCharSequence("status", status.getText());
         JSONArray saved = new JSONArray();
         try {
             for (Attachment file : attachments) saved.put(file.json());
@@ -169,7 +216,6 @@ public class AskActivity extends Activity {
         out.putString("attachments", saved.toString());
     }
 
-    /** Picked files join the message, with the browser's limits and messages. */
     @Override
     protected void onActivityResult(int request, int result, Intent data) {
         super.onActivityResult(request, result, data);
@@ -180,61 +226,62 @@ public class AskActivity extends Activity {
         } else if (data.getData() != null) {
             picked.add(data.getData());
         }
-        TextView status = findViewById(R.id.status);
-        status.setText("");
-        for (Uri uri : picked) {
-            String name = uri.getLastPathSegment();
-            long size = -1;
-            try (Cursor row = getContentResolver().query(uri, new String[] {OpenableColumns.DISPLAY_NAME, OpenableColumns.SIZE},
-                    null, null, null)) {
-                if (row != null && row.moveToFirst()) {
-                    if (!row.isNull(0)) name = row.getString(0);
-                    if (!row.isNull(1)) size = row.getLong(1);
+        Context app = getApplicationContext();
+        new Thread(() -> {
+            // Each file's name and size come from its app, which can be slow; the limits apply back on the UI thread.
+            List<Object[]> found = new ArrayList<>();
+            for (Uri uri : picked) {
+                String name = uri.getLastPathSegment();
+                long size = -1;
+                try (Cursor row = app.getContentResolver().query(uri,
+                        new String[] {OpenableColumns.DISPLAY_NAME, OpenableColumns.SIZE}, null, null, null)) {
+                    if (row != null && row.moveToFirst()) {
+                        if (!row.isNull(0)) name = row.getString(0);
+                        if (!row.isNull(1)) size = row.getLong(1);
+                    }
+                } catch (RuntimeException unreadable) {
+                    // Reported below like a file without a size.
                 }
-            } catch (RuntimeException unreadable) {
-                // Reported below like a file without a size.
+                found.add(new Object[] {uri, name, size});
             }
-            if (size < 0) {  // An upload needs its exact size up front.
-                status.setText(getString(R.string.ask_unreadable, Attachment.uploadName(name)));
-                continue;
-            }
-            if (size > Attachment.MAX_BYTES) {
-                status.setText(R.string.ask_too_large);
-                continue;
-            }
-            if (attachments.size() >= Attachment.MAX_FILES) {
-                status.setText(R.string.ask_too_many);
-                break;
-            }
-            attachments.add(Attachment.picked(uri.toString(), name, size));
+            runOnUiThread(() -> add(found));
+        }).start();
+    }
+
+    /** Picked files join the message with the browser's limits; when several can't, the first reason shows. */
+    private void add(List<Object[]> found) {
+        if (isFinishing() || isDestroyed()) return;
+        String problem = null;
+        for (Object[] file : found) {
+            String name = (String) file[1];
+            long size = (Long) file[2];
+            String refused = size < 0 ? getString(R.string.ask_unreadable, Attachment.uploadName(name))  // An upload needs its exact size up front.
+                    : size > Attachment.MAX_BYTES ? getString(R.string.ask_too_large)
+                    : attachments.size() >= Attachment.MAX_FILES ? getString(R.string.ask_too_many) : null;
+            if (refused == null) attachments.add(Attachment.picked(file[0].toString(), name, size));
+            else if (problem == null) problem = refused;
         }
+        ((TextView) findViewById(R.id.status)).setText(problem == null ? "" : problem);
         showAttachments();
     }
 
-    /** A picked file the phone can no longer read: moved, deleted, or its app's permission ended. */
-    private static final class Unreadable extends IOException {
-        final Attachment file;
-
-        Unreadable(Attachment file) {
-            this.file = file;
-        }
-    }
-
-    private InputStream open(Attachment file) throws Unreadable {
+    private static InputStream open(Context app, Attachment file) throws Attachment.Unreadable {
         try {
-            InputStream in = getContentResolver().openInputStream(Uri.parse(file.uri));
+            InputStream in = app.getContentResolver().openInputStream(Uri.parse(file.uri));
             if (in != null) return in;
         } catch (FileNotFoundException | SecurityException unreadable) {
             // Reported as below.
         }
-        throw new Unreadable(file);
+        throw new Attachment.Unreadable(file);
     }
 
     /** While sending, the files and buttons wait, as in the browser. */
     private void busy(boolean now) {
         sending = now;
-        findViewById(R.id.send).setEnabled(!now);
-        findViewById(R.id.attach).setEnabled(!now);
+        for (int id : new int[] {R.id.send, R.id.attach}) {
+            findViewById(id).setEnabled(!now);
+            findViewById(id).setAlpha(now ? 0.45f : 1);  // The palette's custom backgrounds have no disabled look.
+        }
         showAttachments();
     }
 
@@ -263,16 +310,25 @@ public class AskActivity extends Activity {
             remove.setTextSize(18);
             remove.setTextColor(palette.muted);
             remove.setMinWidth(0);
-            remove.setMinimumWidth(Math.round(44 * density));
+            remove.setMinimumWidth(Math.round(48 * density));
             remove.setContentDescription(getString(R.string.ask_remove, file.name));
             remove.setEnabled(!sending);
             remove.setOnClickListener(view -> {
                 attachments.remove(file);
                 showAttachments();
             });
-            row.addView(remove, new LinearLayout.LayoutParams(Math.round(44 * density), Math.round(44 * density)));
+            row.addView(remove, new LinearLayout.LayoutParams(Math.round(48 * density), Math.round(48 * density)));
             list.addView(row, place);
         }
+        // As in the browser: the limits note appears with the first file, and a long list scrolls (max-height 150px)
+        // so Cancel and Send stay on screen.
+        findViewById(R.id.upload_note).setVisibility(attachments.isEmpty() ? View.GONE : View.VISIBLE);
+        list.measure(View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED),
+                View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED));
+        int most = Math.round(160 * density);
+        View scroll = findViewById(R.id.attachments_scroll);
+        scroll.getLayoutParams().height = list.getMeasuredHeight() > most ? most : ViewGroup.LayoutParams.WRAP_CONTENT;
+        scroll.requestLayout();
     }
 
     /** The website's look in the account's day or night scheme, as in the chat widget. */

@@ -84,16 +84,22 @@ final class Api {
         prefs(context).edit().clear().apply();
     }
 
-    /** headers are name/value pairs. */
-    private static JSONObject request(Context context, String method, String path, JSONObject body, String... headers)
-            throws IOException, JSONException {
+    private static HttpURLConnection connect(Context context, String method, String path, int readTimeout, String... headers)
+            throws IOException {
         HttpURLConnection connection = (HttpURLConnection) new URL(Server.get(context) + path).openConnection();
         connection.setConnectTimeout(15000);
-        connection.setReadTimeout(20000);
+        connection.setReadTimeout(readTimeout);
         connection.setInstanceFollowRedirects(false);
         connection.setRequestMethod(method);
         connection.setRequestProperty("Accept", "application/json");
         for (int i = 0; i + 1 < headers.length; i += 2) connection.setRequestProperty(headers[i], headers[i + 1]);
+        return connection;
+    }
+
+    /** headers are name/value pairs. */
+    private static JSONObject request(Context context, String method, String path, JSONObject body, String... headers)
+            throws IOException, JSONException {
+        HttpURLConnection connection = connect(context, method, path, 20000, headers);
         try {
             if (body != null) {
                 byte[] raw = body.toString().getBytes(StandardCharsets.UTF_8);
@@ -131,25 +137,14 @@ final class Api {
      * sending a message; the same ID and file again is accepted, so a retry is safe.
      */
     static JSONObject upload(Context context, String token, Attachment file, InputStream in) throws IOException, JSONException {
-        HttpURLConnection connection = (HttpURLConnection) new URL(Server.get(context) + "/api/app/chat-uploads/" + file.id
-                + "?name=" + java.net.URLEncoder.encode(file.name, "UTF-8").replace("+", "%20")).openConnection();
-        connection.setConnectTimeout(15000);
-        connection.setReadTimeout(60000);
-        connection.setInstanceFollowRedirects(false);
-        connection.setRequestMethod("POST");
-        connection.setRequestProperty("Accept", "application/json");
-        connection.setRequestProperty("X-GoodMorning-App", token);
-        connection.setRequestProperty("Content-Type", "application/octet-stream");
+        HttpURLConnection connection = connect(context, "POST", "/api/app/chat-uploads/" + file.id + "?name="
+                + java.net.URLEncoder.encode(file.name, "UTF-8").replace("+", "%20"), 60000,
+                "X-GoodMorning-App", token, "Content-Type", "application/octet-stream");
         connection.setDoOutput(true);
         connection.setFixedLengthStreamingMode(file.size);
         try (in) {
             try (OutputStream out = connection.getOutputStream()) {
-                byte[] buffer = new byte[65536];
-                long left = file.size;
-                for (int n; left > 0 && (n = in.read(buffer, 0, (int) Math.min(buffer.length, left))) != -1; left -= n) {
-                    out.write(buffer, 0, n);
-                }
-                if (left > 0) throw new IOException("The file changed while it was sent");
+                file.copy(in, out);
             }
             return answer(connection);
         } finally {
@@ -201,10 +196,10 @@ final class Api {
         return request(context, "POST", "/api/app/generate", new JSONObject().put("kind", kind), "X-GoodMorning-App", token);
     }
 
-    /** attachments are IDs of files already uploaded with upload(). */
-    static JSONObject chat(Context context, String token, String text, String chat, java.util.List<String> attachments)
+    /** id stays the same for one draft, so sending it again is not a second message; attachments are uploaded IDs. */
+    static JSONObject chat(Context context, String token, String id, String text, String chat, java.util.List<String> attachments)
             throws IOException, JSONException {
-        JSONObject body = new JSONObject().put("text", text);
+        JSONObject body = new JSONObject().put("id", id).put("text", text);
         if (chat != null) body.put("chat", chat);
         if (!attachments.isEmpty()) body.put("attachments", new org.json.JSONArray(attachments));
         return request(context, "POST", "/api/app/chat", body, "X-GoodMorning-App", token);
