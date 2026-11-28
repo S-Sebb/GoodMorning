@@ -387,8 +387,8 @@ def check_layout_alignment(browser, address, artifacts):
         assert all(
             abs(left - right) < 1 for left, right in zip(bounds["/gm"], bounds["/gn"])
         ), (width, bounds)
-        # Since 0.37.0 the secretary page has its own compact gutters: 64px on
-        # tablets and 12px on phones, where navigation spans the chat frame.
+        # The secretary conversation has its own compact gutters: 64px on
+        # tablets and 12px on phones.
         if width > 1000:
             # Shared navigation and the left edge stay put between pages; the briefing column alone ends
             # earlier, leaving the corner to the quick chat launcher that /chat does not have (#259, #274).
@@ -411,22 +411,14 @@ def check_layout_alignment(browser, address, artifacts):
                 abs(bounds["/chat"][0] - 12) < 1
                 and abs(bounds["/chat"][1] - (width - 12)) < 1
             ), (width, bounds)
-            chat_navigation = navigation["/chat"]
-            assert abs(chat_navigation["x"] - bounds["/chat"][0]) < 1, (
-                width,
-                navigation,
-            )
-            assert (
-                abs(
-                    chat_navigation["x"] + chat_navigation["width"] - bounds["/chat"][1]
-                )
-                < 1
-            ), (width, navigation)
-            for key in ("x", "y", "width", "height"):
-                assert abs(navigation["/gm"][key] - navigation["/gn"][key]) < 1, (
-                    width,
-                    navigation,
-                )
+            # The chat frame keeps its 12px gutters, but the top bar keeps the
+            # shared phone gutter so it doesn't move between pages (#323).
+            for path in ("/gn", "/chat"):
+                for key in ("x", "y", "width", "height"):
+                    assert abs(navigation["/gm"][key] - navigation[path][key]) < 1, (
+                        width,
+                        navigation,
+                    )
         results.append(
             {
                 "width": width,
