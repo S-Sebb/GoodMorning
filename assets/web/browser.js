@@ -573,19 +573,26 @@ regenerationDialog?.addEventListener('close', async () => {
   } catch (error) { errors.textContent = error.message; regenerate.disabled = false; }
 });
 generate?.addEventListener('click', async () => {
-  generate.disabled = true; errorBox.textContent = '';
+  generate.disabled = true; generate.hidden = true; errorBox.textContent = '';
+  // Show progress before the request returns; the first status replaces it (#370).
+  const generation = document.querySelector('#generation');
+  generation.hidden = false;
+  showMeter({state: 'starting', progress: 2});
+  document.querySelector('#generation-status').textContent = browserT('Opening your secretary’s desk');
   try {
     const result = await api('/api/generate', { date: config.date, kind: config.kind });
     if (result.ready) { location.reload(); return; }
     if (result.queued) {
       queuedBriefing = {date: config.date, kind: config.kind};
       showBriefingQueued(result.position, result.depth);
-      generate.hidden = true;
       pollBriefingQueue();
       return;
     }
-    job = result.job; generate.hidden = true; poll();
-  } catch (error) { errorBox.textContent = error.message; generate.disabled = false; }
+    job = result.job; poll();
+  } catch (error) {
+    generation.hidden = true; generate.hidden = false; generate.disabled = false;
+    errorBox.textContent = error.message;
+  }
 });
 
 async function resume() {

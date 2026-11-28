@@ -328,10 +328,21 @@ class BrowserApp:
         self.jobs = (
             json.loads(self.job_file.read_text()) if self.job_file.exists() else {}
         )
+        # Jobs whose preflight runs in a background thread; nothing is sent yet.
+        self.preparing = set()
+        from goodmorning.briefings.briefing_job import context_path
+
         # A restart cannot prove that an interrupted create/send failed.
         for job in self.jobs.values():
             if job["state"] == "starting":
                 job["state"] = "uncertain"
+            # An interrupted preflight sent nothing, so it can be restarted.
+            elif (
+                job["state"] == "preflight"
+                and not job.get("session")
+                and not context_path(self.runtime, job["id"]).exists()
+            ):
+                job["state"] = "stopped"
         if self.jobs:
             self.save_jobs()
 
@@ -847,10 +858,17 @@ class BrowserApp:
                 + disabled
                 + ">"
                 '<svg viewBox="0 0 20 20" width="16" height="16" fill="none" aria-hidden="true"><path d="M16 8a6 6 0 1 0 .2 3M16 3v5h-5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>'
-                '<span>Regenerate today’s briefing</span></button><p id="regeneration-status" role="status"></p><p id="regeneration-error" role="alert"></p></div>'
+                '<span>Regenerate briefing</span></button><p id="regeneration-status" role="status"></p><p id="regeneration-error" role="alert"></p></div>'
             )
+            # The button sits at the right end of the section tabs' row (#357).
             text = re.sub(
-                r'(<nav class="briefing-section-nav")', tools + r"\1", text, count=1
+                r'(<nav class="briefing-section-nav".*?</nav>)',
+                lambda match: (
+                    '<div class="briefing-nav-row">' + match[1] + tools + "</div>"
+                ),
+                text,
+                count=1,
+                flags=re.DOTALL,
             )
             dialog = (
                 '<dialog id="regenerate-dialog" aria-labelledby="regenerate-title" aria-describedby="regenerate-description">'
@@ -1042,25 +1060,37 @@ class BrowserApp:
             self.jobs[key] = job
             self.save_jobs()  # Record intent before any upstream side effect.
             if self.preflight:
-                from goodmorning.briefings.briefing_preflight import initialize
-
-                try:
-                    context = initialize(self.runtime, job)
-                except Exception as error:  # noqa: BLE001
-                    job["state"] = "stopped"
-                    self.save_jobs()
-                    logging.getLogger(__name__).warning(
-                        "briefing_preflight_failed (%s)", type(error).__name__
-                    )
-                    # Preflight failed before dispatch. Return its durable receipt
-                    # so the gateway can release the slot and the user can recover.
-                    return {"job": job["id"]}
-                if context["awaiting"]:
-                    return {"job": job["id"]}
-                job["state"] = "starting"
-                self.save_jobs()
-            threading.Thread(target=self.dispatch, args=(job,), daemon=True).start()
+                self.preparing.add(job["id"])
+            # Preflight reads calendars and records, which can take seconds; the
+            # receipt returns at once so the page shows progress while it runs (#370).
+            threading.Thread(
+                target=self.prepare_and_dispatch if self.preflight else self.dispatch,
+                args=(job,),
+                daemon=True,
+            ).start()
             return {"job": job["id"]}
+
+    def prepare_and_dispatch(self, job):
+        from goodmorning.briefings.briefing_preflight import initialize
+
+        try:
+            context = initialize(self.runtime, job)
+        except Exception as error:  # noqa: BLE001
+            context = None
+            logging.getLogger(__name__).warning(
+                "briefing_preflight_failed (%s)", type(error).__name__
+            )
+        with self.lock:
+            self.preparing.discard(job["id"])
+            # A failed preflight stops before dispatch, so the gateway releases
+            # the slot and the user can restart it.
+            if context is None:
+                job["state"] = "stopped"
+            elif not context["awaiting"]:
+                job["state"] = "starting"
+            self.save_jobs()
+        if job["state"] == "starting":
+            self.dispatch(job)
 
     def generation_prompt(self, job):
         selected = job.get("language", "en")
@@ -1167,7 +1197,10 @@ class BrowserApp:
             if not previous and raw is None and not baseline["run"]["ran"]:
                 raise ValueError("Prepare a briefing before regenerating it")
             if previous:
-                if previous["state"] in ("starting", "uncertain"):
+                if (
+                    previous["state"] in ("starting", "uncertain")
+                    or previous["id"] in self.preparing
+                ):
                     raise ValueError(
                         "A request may still be running. Ask your administrator to check it before regenerating."
                     )
@@ -1266,7 +1299,10 @@ class BrowserApp:
                 raise ValueError("Only today’s connected workflow can be recovered")
             status = self.status(identifier)
             live = self.jobs[job["date"] + "." + job["kind"]]
-            if job["state"] in ("starting", "uncertain", "complete"):
+            if (
+                job["state"] in ("starting", "uncertain", "complete")
+                or identifier in self.preparing
+            ):
                 raise ValueError(
                     "A request may still be running. Ask your administrator to check it; it won’t be sent again."
                 )
@@ -1720,6 +1756,8 @@ class BrowserApp:
             "date": job["date"],
             "kind": job["kind"],
         }
+        if identifier in self.preparing:
+            return {**result, "state": "starting", "label": ui.text(result["label"])}
         if job["state"] == "preflight":
             from goodmorning.briefings.briefing_job import context_path
             from goodmorning.briefings.briefing_stream import bounded_json
