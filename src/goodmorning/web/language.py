@@ -245,6 +245,19 @@ GEAR = (
     '<path d="M9.3 5.3 10.1 2.7h3.8l.8 2.6 2.5-1.3 2.7 2.7-1.3 2.5 2.6.8v3.8l-2.6.8 1.3 2.5-2.7 2.7-2.5-1.3-.8 2.6h-3.8l-.8-2.6-2.5 1.3-2.7-2.7 1.3-2.5-2.6-.8v-3.8l2.6-.8-1.3-2.5 2.7-2.7Z"/>'
     '<circle cx="12" cy="12" r="3"/></svg>'
 )
+PALETTE = (
+    '<svg class="menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true" focusable="false">'
+    '<path d="M12 3.5a8.5 8.5 0 1 0 0 17c1.4 0 1.9-.9 1.6-2-.4-1.3.4-2.5 1.8-2.5h2.2c1.6 0 2.9-1.3 2.9-3 0-5.2-3.8-9.5-8.5-9.5Z"/>'
+    '<circle cx="7.8" cy="11" r="1.1"/><circle cx="10.5" cy="7.4" r="1.1"/><circle cx="15" cy="7.6" r="1.1"/></svg>'
+)
+BELL = (
+    '<svg class="menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true" focusable="false">'
+    '<path d="M6.2 16.5V11a5.8 5.8 0 0 1 11.6 0v5.5l1.7 2H4.5Z"/><path d="M10 20.6a2.1 2.1 0 0 0 4 0"/></svg>'
+)
+PHONE = (
+    '<svg class="menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true" focusable="false">'
+    '<rect x="7" y="2.8" width="10" height="18.4" rx="2.2"/><path d="M10.8 18.2h2.4"/></svg>'
+)
 PERSON = (
     '<svg class="menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true" focusable="false">'
     '<circle cx="12" cy="8" r="3.6"/><path d="M4.8 20.2c.9-3.9 3.7-6 7.2-6s6.3 2.1 7.2 6Z"/></svg>'
@@ -300,8 +313,8 @@ def page(source, csrf, return_to="/", avatars=False):
                 '<link rel="stylesheet" href="/update.css"><script src="/update.js" defer></script></head>',
             )
     config = html.escape(json.dumps({"language": current(), "csrf": csrf}), quote=True)
-    # Top-right utility cluster: two compact menus plus the update pill's fixed
-    # slot. Native details/summary keeps every control usable without
+    # Top-right utility cluster: the menus (four signed in, one Settings otherwise) plus the
+    # update pill's fixed slot. Native details/summary keeps every control usable without
     # JavaScript; each panel is an absolutely positioned dropdown.
     account = ""
     match = re.search(r'<nav class="account-tools".*?</nav>', source, flags=re.DOTALL)
@@ -380,14 +393,17 @@ def page(source, csrf, return_to="/", avatars=False):
     phones = (
         '<form id="app-link-form" class="language-toolbar app-link-settings" hidden>'
         '<h3 class="color-scheme-heading app-link-heading">Linked phones</h3>'
-        '<p class="notification-note">For Android home screen widgets. In the GoodMorning app, open Link this phone, then enter the code it shows. <a href="/app/download">Download the Android app</a></p>'
+        '<a class="app-download" href="/app/download">Download the Android app</a>'
+        '<p class="notification-note">For Android home screen widgets. In the GoodMorning app, open Link this phone, then enter the code it shows.</p>'
         '<label for="app-link-code">Code from the app</label>'
         '<input id="app-link-code" name="code" autocomplete="off" autocapitalize="characters" spellcheck="false" inputmode="text" placeholder="ABCD-2345" required>'
         '<button type="submit">Link phone</button><ul id="app-links"></ul>'
         '<span id="app-link-feedback" role="status"></span></form>'
+    )
+    devices = (
         '<section id="notification-devices" class="language-toolbar notification-settings" hidden>'
         '<h3 class="color-scheme-heading notification-heading">Devices with notifications</h3>'
-        '<p class="notification-note">Each device sets its own in Settings. Turn off one you no longer use.</p>'
+        '<p class="notification-note">Turn off notifications on a device you no longer use.</p>'
         '<ul id="notification-device-list"></ul><span id="notification-devices-feedback" role="status"></span></section>'
     )
     # avatar.js fills in the choices and reveals the picker once the account's avatars load.
@@ -412,47 +428,47 @@ def page(source, csrf, return_to="/", avatars=False):
         if avatars or account
         else ""
     )
-    # Settings holds what belongs to this device; Account what follows the signed-in owner everywhere.
-    # Without an account (sign-in page, local viewer) language stays with this device too.
-    prefs = (
-        '<details class="menu" id="prefs-menu"><summary title="Settings">'
-        + GEAR
-        + '<span class="menu-label">Settings</span></summary>'
-        '<div class="menu-panel"><div class="settings-menu-header"><div><h2>Settings</h2>'
-        + ("<p>This device only</p>" if account else "")
-        + "</div>"
-        + close
-        + "</div>"
-        + (
-            appearance + widgets + notifications
-            if account
-            else language_form + appearance + avatar
-        )
-        + "</div></details>"
-    )
-    account_menu = (
-        (
-            '<details class="menu" id="account-menu"><summary>'
-            + PERSON
-            + '<span class="menu-label">Account</span></summary>'
-            '<div class="menu-panel"><div class="settings-menu-header account-menu-header"><div><h2>Account</h2>'
-            "<p>On every device you sign in on</p></div>"
+
+    def menu(key, icon, title, subtitle, body):
+        return (
+            f'<details class="menu" id="{key}-menu"><summary title="{title}">'
+            + icon
+            + f'<span class="menu-label">{title}</span></summary>'
+            '<div class="menu-panel"><div class="settings-menu-header">'
+            + icon
+            + f"<div><h2>{title}</h2>"
+            + (f"<p>{subtitle}</p>" if subtitle else "")
+            + "</div>"
             + close
             + "</div>"
-            + avatar
-            + language_form
-            + phones
-            + account
+            + body
             + "</div></details>"
         )
-        if account
-        else ""
-    )
+
+    # Signed in, each job has its own short pop-up: Appearance and Notifications belong to this
+    # device; Phones and Account follow the owner everywhere. Without an account (sign-in page,
+    # local viewer) one Settings pop-up holds language, appearance and avatar for this device.
+    if account:
+        menus = (
+            menu(
+                "prefs", PALETTE, "Appearance", "This device only", appearance + widgets
+            )
+            + menu("notify", BELL, "Notifications", "", notifications + devices)
+            + menu("phones", PHONE, "Phones", "", phones)
+            + menu(
+                "account",
+                PERSON,
+                "Account",
+                "On every device you sign in on",
+                language_form + avatar + account,
+            )
+        )
+    else:
+        menus = menu("prefs", GEAR, "Settings", "", language_form + appearance + avatar)
     # The update pill is in the page from the start, so the top row doesn't shift when update.js finds the notes.
     controls = (
         '<div class="toolbar-row">'
-        + prefs
-        + account_menu
+        + menus
         + '<span id="update-slot">'
         + UPDATE_TOGGLE
         + "</span></div>"

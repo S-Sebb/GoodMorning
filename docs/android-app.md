@@ -40,7 +40,7 @@ appears only when no copy is kept yet. This needs no app change: widgets keep
 using `Sync`'s cache. Its user agent includes `GoodMorningApp/<version>`, so the
 website reopens the last page and shows notification settings. WebView has no
 Web Push, so the linked app posts notifications itself (below), with the choices
-made in Settings on that phone. The user agent names the phone's link
+made in Notifications on that phone. The user agent names the phone's link
 (`GoodMorningLink/<id>`), and each summary request says that the app posts
 notifications itself, so Account lists it among the devices with notifications.
 The WebView writes its cookies to disk whenever the app leaves the screen, so a
@@ -65,12 +65,12 @@ Push subscription there. After the update:
 "Link this phone" (a launcher shortcut, or a tap on an unlinked widget) asks the
 server for a pairing code. The owner taps "Link in GoodMorning", which opens the
 site with the code filled in to confirm, or copies the code ("Copy code") or types
-it in Account → Linked phones on any device. The app then claims its token
+it in Phones → Linked phones on any device. The app then claims its token
 (`docs/browser-delivery.md`, Linked phones and app linking). `Pairing` keeps the code until it expires, so the screen shows the
 same code however often it opens. While a code waits, the app checks for its
 token every three seconds, also with the screen closed, and again whenever the
 app or the link screen opens. The token is encrypted with an AES key in the Android Keystore, and
-unlinking in Settings makes the app forget it on its next check.
+unlinking in Phones makes the app forget it on its next check.
 
 Widgets follow the website's look: serif headings, small uppercase labels, the
 desk icons, the secretary's portrait and name, and the day and night color
@@ -88,7 +88,7 @@ color. The scenery images in
 420×900 viewport at 2× (lossless WebP for the pixel-art schemes); retake them when
 that artwork changes. Single-topic weather cards keep their tile color.
 
-The widget theme, chosen in Settings in the app and saved on the phone's link,
+The widget theme, chosen in Appearance in the app and saved on the phone's link,
 decides when the night scheme shows:
 
 - By the clock (the default), like the website: the day scheme from 06:00, the
@@ -239,7 +239,7 @@ release, pre-releases included, tagged `android-v<versionCode>` with a GitHub
 download.
 
 To install the app, people open `/app/download`, linked as "Download the Android
-app" on the sign-in page and in Account → Linked phones. It needs no sign-in.
+app" on the sign-in page and in Phones → Linked phones. It needs no sign-in.
 The server fetches the newest release's APK from GitHub once per build, keeps it
 in memory and serves it itself, so phones in mainland China, where GitHub is
 often unreachable, can still install the app. While GitHub fails, it keeps

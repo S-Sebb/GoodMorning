@@ -90,7 +90,7 @@ let goodmorningBeforeSignOut;
     if (!pushable) {
       device.hidden = true;
       status.textContent = here ? t('This phone gets notifications from the GoodMorning app. They usually arrive within a few minutes, or later while the phone is saving battery.')
-        : t('Link this phone in Account → Linked phones to get notifications here.');
+        : t('Link this phone in Phones → Linked phones to get notifications here.');
     } else {
       device.hidden = Notification.permission === 'denied';
       if (Notification.permission === 'denied') status.textContent = t('Notifications are blocked for this site. Allow them in your browser or app settings, then reload.');

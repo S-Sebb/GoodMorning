@@ -829,25 +829,25 @@ class GatewayTests(GatewayFixture):
             (200, "no-store", [], []),
         )
         self.assertEqual(len(web_push.unb64(value["publicKey"])), 65)
-        # Signed in, Settings holds this device's appearance and notifications; language follows the account.
+        # Signed in, each job has its own pop-up: Appearance and Notifications for this device, Phones and Account for the owner.
         _, page = self.request("/chat")[1:]
-        settings = re.search(
-            rb'<details class="menu" id="prefs-menu">.*?</details>', page, re.DOTALL
-        )[0]
-        account = re.search(
-            rb'<details class="menu" id="account-menu">.*?</details>', page, re.DOTALL
-        )[0]
-        self.assertRegex(settings, rb'<form id="notification-form"[^>]*hidden')
-        self.assertIn(b'id="color-scheme-form"', settings)
-        self.assertNotIn(b'id="language-form"', settings)
-        self.assertNotIn(b'id="color-scheme-form"', account)
-        for part in (
-            b'id="language-form"',
-            b'id="app-link-form"',
-            b'id="notification-devices"',
-            b'id="sign-out"',
-        ):
-            self.assertIn(part, account)
+        menus = {
+            key: re.search(
+                rb'<details class="menu" id="' + key + rb'-menu">.*?</details>',
+                page,
+                re.DOTALL,
+            )[0]
+            for key in (b"prefs", b"notify", b"phones", b"account")
+        }
+        self.assertIn(b'id="color-scheme-form"', menus[b"prefs"])
+        self.assertRegex(menus[b"notify"], rb'<form id="notification-form"[^>]*hidden')
+        self.assertIn(b'id="notification-devices"', menus[b"notify"])
+        self.assertIn(b'id="app-link-form"', menus[b"phones"])
+        self.assertIn(b'href="/app/download"', menus[b"phones"])
+        for part in (b'id="language-form"', b'id="avatar-settings"', b'id="sign-out"'):
+            self.assertIn(part, menus[b"account"])
+        self.assertEqual(page.count(b'id="language-form"'), 1)
+        self.assertEqual(page.count(b'id="color-scheme-form"'), 1)
         keys = {"p256dh": value["publicKey"], "auth": web_push.b64(b"0123456789abcdef")}
         endpoint = "https://fcm.googleapis.com/fcm/send/device"
         self.assertEqual(

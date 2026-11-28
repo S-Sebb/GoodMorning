@@ -111,8 +111,8 @@ def main():
                         page.locator(f"#{name}-menu > summary").click()
                     return page.locator(f"#{name}-menu")
 
-                # Settings holds this device's appearance and notifications; Account holds what follows the owner.
-                settings_menu = menu(page, "prefs")
+                # Notifications has its own header button and pop-up; Appearance, Phones and Account hold the rest.
+                settings_menu = menu(page, "notify")
                 form = page.locator("#notification-form")
                 expect(form).to_be_visible()
                 expect(page.locator("#notification-status")).to_have_text(
@@ -125,7 +125,7 @@ def main():
                     page.locator("#notification-choices")
                 ).to_be_hidden()  # Choices appear once this device is on.
                 assert settings_menu.locator("#website-language").count() == 0
-                expect(settings_menu.locator("#color-scheme-form")).to_be_visible()
+                assert settings_menu.locator("#color-scheme-form").count() == 0
                 page.screenshot(
                     path=str(artifacts / "settings-390.png"), full_page=True
                 )
@@ -145,12 +145,14 @@ def main():
 
                 account = menu(page, "account")
                 assert account.locator("#color-scheme-form").count() == 0
-                for part in ("#language-form", "#app-link-form", "#sign-out"):
+                for part in ("#language-form", "#sign-out"):
                     expect(account.locator(part)).to_be_visible()
                 expect(
-                    account.locator("#notification-devices")
+                    page.locator("#notification-devices")
                 ).to_be_hidden()  # No device gets notifications yet.
-                code = account.locator("#app-link-code")
+                phones = menu(page, "phones")
+                expect(phones.locator(".app-download")).to_be_visible()
+                code = phones.locator("#app-link-code")
                 code.press_sequentially("abcd")
                 expect(code).to_have_value("ABCD-")  # The dash follows the first four.
                 code.press("Backspace")
@@ -166,7 +168,7 @@ def main():
                 expect(code).to_have_value("ABCD-2345")
                 page.screenshot(path=str(artifacts / "account-390.png"), full_page=True)
 
-                # Only the linked app shows the theme of its widgets in Settings; a browser does not.
+                # Only the linked app shows the theme of its widgets in Appearance; a browser does not.
                 expect(page.locator("#widget-theme-form")).to_be_hidden()
                 api = playwright.request.new_context(
                     base_url=settings["gateway"],
@@ -176,15 +178,34 @@ def main():
                         "X-Real-IP": "192.0.2.2",
                     },
                 )
-                pairing = api.post("/api/app/pair", data={"label": "Pixel 7"}).json()
+                # A 29-character name with no spaces, which pairing accepts, has to wrap in Linked phones.
+                pairing = api.post(
+                    "/api/app/pair", data={"label": "WORKPHONEGALAXYZFOLDSEVENXMAX"}
+                ).json()
                 code.fill(pairing["code"])
                 with page.expect_response("**/api/app/link") as linked:
-                    account.locator("#app-link-form button[type=submit]").click()
+                    phones.locator("#app-link-form button[type=submit]").click()
                 assert linked.value.status == 200, linked.value.json()
                 phone = api.get(
                     "/api/app/pair",
                     headers={"X-GoodMorning-Pairing": pairing["secret"]},
                 ).json()
+                # A long unbroken phone name wraps beside Unlink, which stays inside the list.
+                unlink = phones.locator("#app-links li button")
+                expect(unlink).to_be_visible(
+                    timeout=10000
+                )  # The page polls every 3 seconds.
+                for width in (390, 1280):
+                    page.set_viewport_size({"width": width, "height": 900})
+                    boxes = phones.locator("#app-links").evaluate(
+                        "list => [list, list.querySelector('li > span'), list.querySelector('li button')].map(e => e.getBoundingClientRect().toJSON())"
+                    )
+                    row, name, button = boxes
+                    assert (
+                        name["right"] <= button["left"]
+                        and button["right"] <= row["right"]
+                    ), (width, boxes)
+                page.set_viewport_size({"width": 390, "height": 900})
                 app_context = context(
                     390,
                     storage_state=owner.storage_state(),
@@ -217,11 +238,11 @@ def main():
                 )
                 app_context.close()
                 api.dispose()
-                code = account.locator("#app-link-code")
+                code = page.locator("#app-link-code")
 
                 # The app's "Link in GoodMorning" opens a page with the code to confirm.
                 page.goto("https://sec.language.test/chat?link=wxyz2345")
-                expect(page.locator("#account-menu")).to_have_attribute("open", "")
+                expect(page.locator("#phones-menu")).to_have_attribute("open", "")
                 expect(page.locator("#app-link-code")).to_have_value("WXYZ-2345")
                 expect(page.locator("#app-link-feedback")).to_have_text(
                     "Check that this code matches the app, then tap Link phone."
@@ -232,7 +253,7 @@ def main():
                 account.locator("#website-language").select_option("zh-CN")
                 expect(page.locator("#notification-form h3")).to_have_text("通知")
                 page.reload()
-                menu(page, "prefs")
+                menu(page, "notify")
                 expect(page.locator("#notification-status")).to_have_text(
                     "这台设备上的通知已关闭。"
                 )
@@ -272,7 +293,7 @@ def main():
                 desktop.locator("#password-password").fill("a1alice-permanent")
                 desktop.locator("#account-form button[type=submit]").click()
                 expect(desktop.locator("#chat-compose")).to_be_visible()
-                menu(desktop, "prefs")
+                menu(desktop, "notify")
                 with desktop.expect_response("**/api/push/subscribe") as subscribed:
                     desktop.locator("#notification-device").click()
                 assert subscribed.value.status == 200, subscribed.value.json()
@@ -291,10 +312,6 @@ def main():
                 expect(
                     desktop.locator("#notification-form input[name=gn_time]")
                 ).to_have_value("21:00")
-                # The Settings heading says once that these choices are for this device.
-                expect(
-                    desktop.locator("#prefs-menu .settings-menu-header p")
-                ).to_be_visible()
                 desktop.locator("#notification-choices").screenshot(
                     path=str(artifacts / "reminders-1440.png")
                 )
@@ -320,7 +337,7 @@ def main():
                     and saved.value.json()["settings"]["gn_time"] == "22:30"
                 )
                 desktop.reload()
-                menu(desktop, "prefs")
+                menu(desktop, "notify")
                 expect(
                     desktop.locator("#notification-form input[name=chat]")
                 ).not_to_be_checked()
@@ -348,7 +365,7 @@ def main():
                         "document.querySelector('#update-refresh').click()"
                     )
                 assert dialogs == [], dialogs
-                devices = menu(desktop, "account").locator(
+                devices = menu(desktop, "notify").locator(
                     "#notification-device-list li"
                 )
                 expect(devices).to_have_count(1)
@@ -357,11 +374,11 @@ def main():
 
                 # The first browser is still off, sees the other device in Account and turns it off from there.
                 page.reload()
-                menu(page, "prefs")
+                menu(page, "notify")
                 expect(page.locator("#notification-status")).to_have_text(
                     "Notifications are off for this device."
                 )
-                account = menu(page, "account")
+                account = menu(page, "notify")
                 expect(account.locator("#notification-device-list li")).to_have_count(1)
                 expect(
                     account.locator("#notification-device-list li").first
@@ -371,7 +388,7 @@ def main():
                 assert removed.value.status == 200
                 expect(account.locator("#notification-devices")).to_be_hidden()
                 desktop.reload()
-                menu(desktop, "prefs")
+                menu(desktop, "notify")
                 expect(desktop.locator("#notification-status")).to_have_text(
                     "Notifications are off for this device."
                 )

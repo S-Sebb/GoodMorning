@@ -254,7 +254,8 @@ html[data-edition="gn"] #chat-error { color: #f1b1a8; }
   #chat-starters { margin-top: 12px; gap: 6px; }
   #chat-starters button { min-height: 32px; padding: 4px 12px; font-size: 12px; }
 }
-@media (prefers-reduced-motion: reduce) { .chat-page *, .chat-page *::before { animation: none !important; transition: none !important; scroll-behavior: auto !important; } }
+/* The scheme strip's edge fade follows the scroll position rather than moving on its own, so it stays. */
+@media (prefers-reduced-motion: reduce) { .chat-page :not(.scheme-picker), .chat-page *::before { animation: none !important; transition: none !important; scroll-behavior: auto !important; } }
 @media (max-width: 700px) { #chat-scroll { --reply-gutter: 44px; padding: 14px 10px 16px 54px; } .chat-message { max-width: 94%; } .chat-message.user { margin-left: auto; } .reply-portrait { width: 36px; height: 36px; left: -43px; top: 6px; } }
 /* Like the other pages' bars, labels shrink at the narrowest widths so they stay inside their highlight. */
 @media (max-width: 360px) { .chat-page .edition-link { font-size: 10px; } }

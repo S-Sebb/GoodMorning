@@ -259,18 +259,42 @@ def run(artifacts):
                         "document.documentElement.scrollWidth>innerWidth"
                     )
 
+                def panels_fit(page):
+                    # Each header pop-up opens fully inside the viewport, also where its button sits far from the right edge.
+                    for summary in page.locator(
+                        ".toolbar-row .menu:visible > summary"
+                    ).all():
+                        summary.click()
+                        summary.locator("xpath=..").locator(".menu-panel").wait_for(
+                            state="visible"
+                        )
+                        page.wait_for_function(
+                            "panel => { const box = panel.getBoundingClientRect(); return box.left >= 0 && box.right <= innerWidth; }",
+                            arg=summary.locator("xpath=..")
+                            .locator(".menu-panel")
+                            .element_handle(),
+                            timeout=3000,
+                        )
+                        summary.click()
+
                 def labelled_header(page, names):
-                    # Settings, Account and What's new each show an icon and their name, on one line down to 320px.
+                    # The signed-in header shares one line down to 320px; on phones the menus show as icons
+                    # that keep their names for screen readers.
                     buttons = page.locator(
-                        "#prefs-menu > summary, #account-menu > summary, #site-update-toggle"
+                        ".toolbar-row .menu:visible > summary, #site-update-toggle"
                     )
-                    expect(buttons).to_have_count(3)
+                    expect(buttons).to_have_count(len(names))
+                    narrow = page.viewport_size["width"] <= 900
                     tops = set()
                     for button, name in zip(buttons.all(), names):
                         expect(button.locator("svg")).to_be_visible()
-                        expect(
-                            button.locator(".menu-label, :scope > span")
-                        ).to_have_text(name)
+                        label = button.locator(".menu-label, :scope > span")
+                        expect(label).to_have_text(name)
+                        if narrow and button.locator(".menu-label").count():
+                            expect(button).to_have_accessible_name(name)
+                            assert label.bounding_box()["width"] <= 1
+                        else:
+                            expect(label).to_be_visible()
                         tops.add(round(button.bounding_box()["y"]))
                     assert len(tops) == 1, tops
 
@@ -298,6 +322,12 @@ def run(artifacts):
                         other.get_by_role("heading", name="登录", exact=True)
                     ).to_be_visible()
                     other.close()
+                # Signed out, Settings sits beside What's new; on tablets its pop-up still stays on screen.
+                expect(page.locator("#site-update-toggle")).to_be_visible()
+                for width in (320, 701, 768, 1000):
+                    page.set_viewport_size({"width": width, "height": 900})
+                    panels_fit(page)
+                page.set_viewport_size({"width": 1440, "height": 900})
                 login(page, "sec", "alice", "a1alice-temporary")
                 expect(
                     page.get_by_role("heading", name="修改密码", exact=True)
@@ -396,7 +426,16 @@ def run(artifacts):
                     for width in (320, 390, 1440):
                         other.set_viewport_size({"width": width, "height": 900})
                         no_overflow(other)
-                        labelled_header(other, ("Settings", "Account", "What’s new"))
+                        labelled_header(
+                            other,
+                            (
+                                "Appearance",
+                                "Notifications",
+                                "Phones",
+                                "Account",
+                                "What’s new",
+                            ),
+                        )
                         expect(other.locator(".agenda-day").first).to_be_visible()
                         other.locator(".agenda").screenshot(
                             path=str(
@@ -409,11 +448,26 @@ def run(artifacts):
                                 / (host + "-flexible-" + str(width) + "-en.png")
                             )
                         )
+                    for width in (320, 701, 768, 800, 900, 901, 1024, 1200, 1201, 1280):
+                        other.set_viewport_size({"width": width, "height": 900})
+                        labelled_header(
+                            other,
+                            (
+                                "Appearance",
+                                "Notifications",
+                                "Phones",
+                                "Account",
+                                "What’s new",
+                            ),
+                        )
+                        panels_fit(other)
                     switch(other, "zh-CN")
                     for width in (320, 390, 1440):
                         other.set_viewport_size({"width": width, "height": 900})
                         no_overflow(other)
-                        labelled_header(other, ("设置", "账号", "最近更新"))
+                        labelled_header(
+                            other, ("外观", "通知", "手机", "账号", "最近更新")
+                        )
                         expect(other.locator(".agenda-day").first).to_contain_text(
                             "明天"
                         )
