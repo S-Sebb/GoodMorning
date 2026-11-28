@@ -150,14 +150,16 @@ html.section-picker-open { overflow: hidden; }
   #mobile-sections[hidden] { display: none; }
 }
 @media print { #mobile-sections, #mobile-section-dialog { display: none; } }
-.briefing-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px 16px; margin: 0 0 16px; }
+.briefing-nav-row { display: flex; align-items: center; gap: 8px 16px; margin: 0 0 24px; }
+.briefing-nav-row .briefing-section-nav { flex: 1 1 auto; min-width: 0; margin: 0; }
+.briefing-actions { display: flex; flex: 0 1 auto; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px 16px; }
 #regenerate { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 8px 16px; border: 1px solid var(--line); border-radius: 999px; background: transparent; color: var(--muted); font: inherit; font-size: 12px; cursor: pointer; }
 #regenerate[hidden] { display: none; }
 #regenerate:hover:not(:disabled) { color: var(--accent); border-color: var(--accent); background: var(--wash); }
 #regenerate:disabled { opacity: .5; cursor: not-allowed; }
 #regenerate:focus-visible, #regenerate-dialog button:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
 #regenerate svg { flex-shrink: 0; }
-#regeneration-error, #regeneration-status { flex-basis: 100%; margin: 0; font-size: 12px; text-align: right; overflow-wrap: anywhere; }
+#regeneration-error, #regeneration-status { margin: -12px 0 24px; font-size: 12px; text-align: right; overflow-wrap: anywhere; }
 #regeneration-error:empty, #regeneration-status:empty { display: none; }
 #regeneration-error { color: var(--ink); }
 #regenerate-dialog { width: min(480px, calc(100% - 32px)); max-height: calc(100% - 32px); padding: 28px; border: 1px solid var(--line); border-radius: 20px; background: var(--surface); color: var(--ink); box-shadow: 0 24px 80px #0004; }
@@ -168,7 +170,7 @@ html.section-picker-open { overflow: hidden; }
 .dialog-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 10px; margin-top: 24px; }
 #regenerate-dialog button { min-height: 44px; padding: 10px 16px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); color: var(--ink); font: inherit; font-size: 13px; cursor: pointer; }
 #regenerate-dialog #confirm-regenerate { background: var(--ink); color: var(--bg); border-color: var(--ink); }
-@media print { .briefing-actions, #regenerate-dialog { display: none; } }
+@media print { .briefing-actions, #regeneration-status, #regeneration-error, #regenerate-dialog { display: none; } }
 .briefing-letter .briefing-closing { padding-left: 0; }
 .sky-scene { position: relative; width: 100%; height: 155px; }
 .sun { position: absolute; width: 200px; height: 145px; left: calc(50% - 100px); top: 0; transform: translate3d(0, calc(var(--sun-drift, 0px) * -1), 0); }
@@ -561,7 +563,8 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
 .agent-form button + button { margin-left: 12px; }
 .agent-form pre { overflow-wrap: anywhere; white-space: pre-wrap; }
 #generation-error { color: var(--muted); }
-.generation-desk { padding: 24px 0 32px; margin-bottom: 28px; }
+.generation-desk #generation-error:empty { display: none; }
+.generation-desk { margin-bottom: 24px; }
 .generation-desk #generation { margin-top: 12px; display: grid; grid-template-columns: 80px minmax(0, 360px); align-items: center; gap: 4px 16px; }
 .generation-desk #generation[hidden] { display: none; }
 .generation-desk .desk-animation { grid-row: 1 / 3; justify-content: flex-start; gap: 6px; margin: 0; font-size: 12px; }
@@ -683,6 +686,11 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
   .briefing-letter .orbit { display: block; width: 64px; position: absolute; right: 0; top: 14px; }
   .briefing-letter .orbit .sky-scene { height: 46px; }
   .briefing-letter .orbit .sun { width: 64px; height: 46px; left: 0; }
+  .briefing-nav-row { gap: 8px; margin-bottom: 12px; }
+  #regeneration-error, #regeneration-status { margin: -4px 0 12px; }
+  /* Icon only beside the scrolling tabs; the label still names the button. */
+  #regenerate { width: 44px; padding: 0; justify-content: center; }
+  #regenerate span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
   .briefing-section-nav { flex-wrap: nowrap; gap: 6px; margin-bottom: 12px; padding-bottom: 12px; overflow-x: auto; scrollbar-width: none; }
   .briefing-section-nav::-webkit-scrollbar { display: none; }
   .briefing-section-nav a { flex-shrink: 0; }
