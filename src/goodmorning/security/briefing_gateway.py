@@ -73,7 +73,10 @@ POST_ROUTES = re.compile(
     r"(?:/api/notes(?:/sorted)?|/api/schedule/tick|/api/ideas/close|/api/about-me|/api/avatar(?:/upload/(?:day|night|profile))?|/api/(?:generate|regenerate)|/api/chat-uploads/[a-f0-9]{32}|/api/chats|/api/chats/[a-f0-9]{32}/(?:messages|seen|(?:form|permission)/[A-Za-z0-9_]+/reply)|/api/jobs/[a-f0-9]{32}/(?:recover|(?:form|permission)/[A-Za-z0-9_]+/reply))"
 )
 # Only the gateway's own background work reaches these; browsers never can.
-INTERNAL_ROUTES = re.compile(r"/api/briefing-reminders(?:/lines(?:/[a-f0-9]{32})?)?")
+# Reached only by the gateway itself: reminders, and the chat summary of the app-token-authenticated phone sync.
+INTERNAL_ROUTES = re.compile(
+    r"/api/briefing-reminders(?:/lines(?:/[a-f0-9]{32})?)?|/api/app-chat"
+)
 QUEUE_KEY = "generation_queue"
 WAITING_KEY = "generation_waiting"
 SINCE_KEY = "generation_since"
@@ -819,8 +822,10 @@ class Gateway:
         notification choices; the phone names itself to the website through `device`."""
         host = next(iter(self.hosts))
 
-        def read(path):
-            status, _, raw = self.proxy(user, host, path, "GET", None, {})
+        def read(path, internal=False):
+            status, _, raw = self.proxy(
+                user, host, path, "GET", None, {}, internal=internal
+            )
             if status != 200:
                 raise ValueError("Backend read failed")
             return json.loads(raw)
@@ -911,7 +916,7 @@ class Gateway:
         )
 
     def app_chat_summary(self, user, read):
-        latest = read("/api/app-chat")["chat"]
+        latest = read("/api/app-chat", internal=True)["chat"]
         if not latest:
             return {}
         status = read("/api/chats/" + latest["id"])

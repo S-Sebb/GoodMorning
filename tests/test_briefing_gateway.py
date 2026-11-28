@@ -1420,7 +1420,7 @@ class GatewayTests(GatewayFixture):
         with patch.object(
             self.gateway,
             "proxy",
-            lambda user, host, path, *args: (
+            lambda user, host, path, *args, **kwargs: (
                 200,
                 {},
                 json.dumps(answers[path]).encode(),
@@ -1431,6 +1431,11 @@ class GatewayTests(GatewayFixture):
             )
         value = json.loads(body)
         self.assertEqual((status, headers["Cache-Control"]), (200, "no-store"))
+        # The chat summary's route passes the real proxy allowlist for the phone's sync only.
+        self.assertEqual(self.request("/api/app-chat")[0], 403)
+        self.assertNotIn("/api/app-chat", [path for path, _ in self.received])
+        phone("/api/app/sync?after=0", headers={"X-GoodMorning-App": token})
+        self.assertIn("/api/app-chat", [path for path, _ in self.received])
         self.assertEqual(
             value["chat"],
             {
@@ -1460,7 +1465,7 @@ class GatewayTests(GatewayFixture):
         with patch.object(
             self.gateway,
             "proxy",
-            lambda user, host, path, *args: (
+            lambda user, host, path, *args, **kwargs: (
                 200,
                 {},
                 json.dumps(answers[path]).encode(),
@@ -1482,7 +1487,7 @@ class GatewayTests(GatewayFixture):
         with patch.object(
             self.gateway,
             "proxy",
-            lambda user, host, path, *args: (
+            lambda user, host, path, *args, **kwargs: (
                 200,
                 {},
                 json.dumps(answers[path]).encode(),
@@ -1540,7 +1545,7 @@ class GatewayTests(GatewayFixture):
             patch.object(
                 self.gateway,
                 "proxy",
-                lambda user, host, path, *args: (
+                lambda user, host, path, *args, **kwargs: (
                     200,
                     {},
                     json.dumps(answers[path]).encode(),
@@ -1562,7 +1567,7 @@ class GatewayTests(GatewayFixture):
         with patch.object(
             self.gateway,
             "proxy",
-            lambda user, host, path, *args: (
+            lambda user, host, path, *args, **kwargs: (
                 200,
                 {},
                 b'{"date":"2026-10-21","timezone":"Europe/London"}',
@@ -1754,7 +1759,7 @@ class GatewayTests(GatewayFixture):
             json.loads(self.request("/api/push")[2])["devices"][0]["linked"]
         )
         # The summary says while the account's work runs or waits in the queue, so the app checks again soon.
-        answers = lambda user, host, path, *args: (404, {}, b"{}")
+        answers = lambda user, host, path, *args, **kwargs: (404, {}, b"{}")
         busy = lambda: json.loads(phone("/api/app/sync?after=0", headers=token)[2])[
             "busy"
         ]

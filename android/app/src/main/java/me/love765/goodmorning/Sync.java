@@ -79,7 +79,7 @@ final class Sync {
                 .build());
     }
 
-    /** Returns whether a new summary arrived. */
+    /** Returns whether a new summary arrived with the server's current conversation in it. */
     static boolean run(Context context) {
         synchronized (LOCK) {
             String token = Api.token(context);
@@ -101,8 +101,11 @@ final class Sync {
             } catch (IOException | JSONException offline) {
                 return false;  // The widgets keep showing the last summary.
             }
+            // Null when the server couldn't read the conversations; {} when there are none.
+            boolean chatChecked = !data.isNull("chat");
             try {
                 JSONObject previous = cached(context);
+                if (chatChecked) replied(context, previous.optJSONObject("chat"), data.optJSONObject("chat"));
                 for (String part : new String[] {"schedule", "reminders", "chat", "briefings", "weather"}) {
                     if (data.isNull(part) && previous.has(part)) data.put(part, previous.get(part));
                 }
@@ -127,7 +130,7 @@ final class Sync {
                 // Waiting notes stay on the phone; the next run sends them.
             }
             Widgets.updateAll(context);
-            return true;
+            return chatChecked;
         }
     }
 
@@ -265,29 +268,28 @@ final class Sync {
      * answer, or holding a reply not yet read stays. Away counts from when the user last left that
      * conversation on this phone, or wrote in it anywhere since; with no departure known, it stays.
      */
-    static JSONObject current(JSONObject chat, String departedChat, long departedAt, long now) {
+    static JSONObject current(JSONObject chat, long departedAt, long repliedAt, long now) {
         if (chat == null || chat.optString("id").isEmpty()) return null;
-        return freshAt(chat, departedChat, departedAt) <= now ? null : chat;
+        return freshAt(chat, departedAt, repliedAt) <= now ? null : chat;
     }
 
     /** When the conversation would open fresh; Long.MAX_VALUE while it must stay. */
-    static long freshAt(JSONObject chat, String departedChat, long departedAt) {
-        if (!"idle".equals(chat.optString("state")) || chat.optBoolean("unread") || !chat.optString("id").equals(departedChat)) {
+    static long freshAt(JSONObject chat, long departedAt, long repliedAt) {
+        // A reply that came after the user left is one they haven't read yet.
+        if (!"idle".equals(chat.optString("state")) || chat.optBoolean("unread") || departedAt <= 0 || repliedAt > departedAt) {
             return Long.MAX_VALUE;
         }
         return Math.max(departedAt, (long) (chat.optDouble("active", 0) * 1000)) + AWAY;
     }
 
     static JSONObject current(Context context, JSONObject data) {
-        SharedPreferences prefs = prefs(context);
-        return current(data.optJSONObject("chat"), prefs.getString("departedChat", ""), prefs.getLong("departedAt", 0),
-                System.currentTimeMillis());
+        JSONObject chat = data.optJSONObject("chat");
+        return chat == null ? null : current(chat, time(context, "departures", chat), time(context, "replies", chat), System.currentTimeMillis());
     }
 
     static long freshAt(Context context, JSONObject data) {
         JSONObject chat = data.optJSONObject("chat");
-        SharedPreferences prefs = prefs(context);
-        return chat == null ? Long.MAX_VALUE : freshAt(chat, prefs.getString("departedChat", ""), prefs.getLong("departedAt", 0));
+        return chat == null ? Long.MAX_VALUE : freshAt(chat, time(context, "departures", chat), time(context, "replies", chat));
     }
 
     /** The user just left this conversation on the phone: sent from the widget, or left its page in the app. */
@@ -296,7 +298,53 @@ final class Sync {
     }
 
     static void departed(Context context, String chat, long at) {
-        prefs(context).edit().putString("departedChat", chat).putLong("departedAt", at).apply();
+        remember(context, "departures", chat, at);
+    }
+
+    static void repliedAt(Context context, String chat, long at) {
+        remember(context, "replies", chat, at);
+    }
+
+    /** Notes when a reply settled, as first seen here: the conversation ran before, or its reply changed. */
+    private static void replied(Context context, JSONObject before, JSONObject after) {
+        if (before == null || after == null || !"idle".equals(after.optString("state"))
+                || after.optString("id").isEmpty() || !after.optString("id").equals(before.optString("id"))) return;
+        if ("idle".equals(before.optString("state")) && before.optString("reply").equals(after.optString("reply"))) return;
+        repliedAt(context, after.optString("id"), System.currentTimeMillis());
+    }
+
+    private static long time(Context context, String kind, JSONObject chat) {
+        return map(context, kind).optLong(chat.optString("id"), 0);
+    }
+
+    private static JSONObject map(Context context, String kind) {
+        try {
+            return new JSONObject(prefs(context).getString(kind, "{}"));
+        } catch (JSONException unreadable) {
+            return new JSONObject();
+        }
+    }
+
+    /** Keeps a time per conversation, for the 20 most recent. */
+    static JSONObject bounded(JSONObject times, String chat, long at) throws JSONException {
+        times.put(chat, at);
+        while (times.length() > 20) {
+            String oldest = null;
+            for (java.util.Iterator<String> keys = times.keys(); keys.hasNext(); ) {
+                String key = keys.next();
+                if (oldest == null || times.getLong(key) < times.getLong(oldest)) oldest = key;
+            }
+            times.remove(oldest);
+        }
+        return times;
+    }
+
+    private static synchronized void remember(Context context, String kind, String chat, long at) {
+        try {
+            prefs(context).edit().putString(kind, bounded(map(context, kind), chat, at).toString()).apply();
+        } catch (JSONException ignored) {
+            // A number always fits.
+        }
     }
 
     /** Marks the latest conversation as waiting for its reply until the next summary arrives, which comes soon. */

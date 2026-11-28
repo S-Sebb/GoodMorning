@@ -11,6 +11,7 @@ Logs and screenshots go to `--out` (default: the project scratch folder).
 """
 
 import argparse
+import html
 import json
 import os
 import re
@@ -40,6 +41,7 @@ class Fake:
     def __init__(self):
         self.chat = None
         self.leave_chat = False
+        self.draft = False
         self.requests = []
         self.lock = threading.Lock()
 
@@ -102,8 +104,10 @@ class Fake:
                         if fake.leave_chat
                         else ""
                     )
+                    # chat.js's own unsent-input check, which the app asks before opening a fresh conversation.
+                    draft = f"function hasUnsentInput() {{ return {str(fake.draft).lower()} }}"
                     return self.reply(
-                        f"<!doctype html><title>Chat</title><script>{away}</script>",
+                        f"<!doctype html><title>Chat</title><script>{draft}; {away}</script>",
                         "text/html",
                     )
                 if path == "/schedule":
@@ -175,6 +179,7 @@ class Device:
                         node.get("package", ""),
                         (bounds[0] + bounds[2]) // 2,
                         (bounds[1] + bounds[3]) // 2,
+                        node.get("checked") == "true",
                     )
                 )
         return found
@@ -373,7 +378,9 @@ def main():
         )
         device.home()
 
-        def scenario(name, chat, ago, shown, expected_path, change_before_tap=None):
+        def prepare(chat, ago):
+            """The server's chat, then this phone's times: left `ago` minutes ago, last reply read long before.
+            The first sync lets the phone see any state change before the times are set over it."""
             fake.chat = {
                 "id": CHAT,
                 "title": "Trip plan",
@@ -382,8 +389,26 @@ def main():
                 "reply": REPLY,
                 **chat,
             }
-            device.hook(f"--es departed {CHAT} --ei ago {ago} --ez sync true")
-            time.sleep(2)
+            device.hook("--ez sync true")
+            time.sleep(3)
+            device.hook(
+                f"--es departed {CHAT} --ei ago {ago} --ei replied_ago 600 --ez sync true"
+            )
+            time.sleep(3)
+
+        def opened_after(moment):
+            deadline = time.time() + 30
+            opened = []
+            while time.time() < deadline and not opened:
+                opened = [
+                    parse_qs(urlsplit(entry[2]).query).get("next", [""])[0]
+                    for entry in fake.since(moment, "/app")
+                ]
+                time.sleep(1)
+            return opened
+
+        def scenario(name, chat, ago, shown, expected_path, change_before_tap=None):
+            prepare(chat, ago)
             device.home()
             node = device.find(lambda text: text == shown, timeout=20)
             check(
@@ -394,20 +419,15 @@ def main():
                 else f"saw {device.texts()[:8]}; screen {device.screenshot(name.replace(' ', '-'))}",
             )
             device.screenshot(name.replace(" ", "-"))
-            if change_before_tap:
+            if change_before_tap == "unavailable":
+                fake.chat = None  # The server couldn't read the conversations.
+            elif change_before_tap:
                 fake.chat.update(change_before_tap)
             name_node = device.find(lambda text: text == NAME, timeout=5)
             moment = time.time()
             if name_node:
                 device.tap(name_node)
-            deadline = time.time() + 30
-            opened = []
-            while time.time() < deadline and not opened:
-                opened = [
-                    parse_qs(urlsplit(entry[2]).query).get("next", [""])[0]
-                    for entry in fake.since(moment, "/app")
-                ]
-                time.sleep(1)
+            opened = opened_after(moment)
             check(
                 f"{name}: tap opens {expected_path}",
                 opened[:1] == [expected_path],
@@ -441,6 +461,97 @@ def main():
             {"state": "running"},
         )
 
+        # A failed check at tap time never starts fresh from the cached summary.
+        scenario(
+            "settled then unavailable at tap",
+            {"state": "idle"},
+            16,
+            EMPTY,
+            f"/chat?id={CHAT}",
+            "unavailable",
+        )
+
+        # A reply that finishes while the user is away keeps the conversation until they have read it.
+        prepare({"state": "running", "reply": ""}, 16)
+        fake.chat.update(state="idle", reply="Booked the 9:40 train.")
+        device.hook("--ez sync true")
+        time.sleep(3)
+        device.home()
+        kept = device.find(lambda text: text == "Booked the 9:40 train.", timeout=20)
+        check(
+            "reply finished while away: widget keeps it",
+            kept is not None,
+            "" if kept else f"saw {device.texts()[:8]}",
+        )
+        name_node = device.find(lambda text: text == NAME, timeout=5)
+        moment = time.time()
+        if name_node:
+            device.tap(name_node)
+        opened = opened_after(moment)
+        check(
+            f"reply finished while away: tap opens /chat?id={CHAT}",
+            opened[:1] == [f"/chat?id={CHAT}"],
+            f"opened {opened or 'nothing'}",
+        )
+        device.home()
+
+        # A chat page in the app holding an unsent draft is not replaced by a fresh conversation.
+        prepare({"state": "idle"}, 14)
+        fake.draft = True
+        device.home()
+        name_node = device.find(lambda text: text == NAME, timeout=5)
+        if name_node:
+            device.tap(name_node)  # Opens the conversation, which now holds a draft.
+        opened_after(time.time() - 1)
+        time.sleep(3)
+        device.home()
+        prepare({"state": "idle"}, 16)
+        device.home()
+        name_node = device.find(lambda text: text == NAME, timeout=5)
+        moment = time.time()
+        if name_node:
+            device.tap(name_node)
+        time.sleep(10)
+        reloaded = [
+            parse_qs(urlsplit(entry[2]).query).get("next", [""])[0]
+            for entry in fake.since(moment, "/app")
+        ] + [entry[2] for entry in fake.since(moment, "/chat")]
+        check(
+            "a chat page with a draft stays instead of opening fresh",
+            reloaded == [],
+            f"loaded {reloaded}",
+        )
+        fake.draft = False
+        device.home()
+
+        # Ask starts fresh by default only once the server confirms the conversation is still settled.
+        def ask(name, ago, at_open, expected):
+            prepare({"state": "idle"}, ago)
+            device.home()
+            if at_open == "unavailable":
+                fake.chat = None
+            composer = device.find(lambda text: text == f"Message {NAME}…", timeout=10)
+            if composer:
+                device.tap(composer)
+            time.sleep(5)  # The dialog's own check.
+            box = device.find(
+                lambda text: text == "Start a new conversation", timeout=10
+            )
+            device.screenshot("ask-" + name.replace(" ", "-"))
+            check(
+                f"Ask, {name}: starts new by default is {expected}",
+                box is not None and box[4] == expected,
+                f"box {'checked' if box and box[4] else 'missing' if box is None else 'clear'}",
+            )
+            device.shell("input keyevent KEYCODE_BACK")
+            time.sleep(1)
+            device.shell("input keyevent KEYCODE_BACK")
+            device.home()
+
+        ask("settled 14 min away", 14, None, False)
+        ask("settled 16 min away", 16, None, True)
+        ask("settled 16 min away, check fails", 16, "unavailable", False)
+
         # Leaving the conversation for another page in the app starts its time away then, not at Home.
         fake.chat = {
             "id": CHAT,
@@ -451,7 +562,11 @@ def main():
             "reply": REPLY,
         }
         fake.leave_chat = True
-        device.hook(f"--es departed {'b' * 32} --ei ago 60 --ez sync true")
+        device.hook(f"--es departed {'b' * 32} --ei ago 60")
+        time.sleep(2)
+        device.hook(
+            f"--es departed {CHAT} --ei ago 1 --ez sync true"
+        )  # Continued, not fresh.
         time.sleep(3)
         device.home()
         name_node = device.find(lambda text: text == NAME, timeout=10)
@@ -471,17 +586,18 @@ def main():
         record = device.run(
             "shell", f"run-as {PACKAGE} cat shared_prefs/sync.xml", check=False
         )
-        departed = re.search(r'name="departedChat">([^<]*)<', record)
-        at = re.search(r'name="departedAt" value="(\d+)"', record)
-        when = int(at[1]) / 1000 if at else 0
+        saved = re.search(r'name="departures">([^<]*)<', record)
+        departures = json.loads(html.unescape(saved[1])) if saved else {}
+        when = departures.get(CHAT, 0) / 1000
         check(
             "leaving the chat page in the app records the departure then",
-            bool(left)
-            and departed is not None
-            and departed[1] == CHAT
-            and abs(when - left[0][0]) < 3
-            and home - when > 3,
-            f"left at {left[0][0] if left else None}, recorded {departed[1] if departed else None} at {when}, home at {home}",
+            bool(left) and abs(when - left[0][0]) < 3 and home - when > 3,
+            f"left at {left[0][0] if left else None}, recorded {when}, home at {home}",
+        )
+        check(
+            "leaving one conversation keeps another's departure",
+            "b" * 32 in departures,
+            f"departures for {sorted(key[:4] for key in departures)}",
         )
     except (RuntimeError, subprocess.TimeoutExpired) as error:
         check("device steps", False, str(error))
