@@ -260,17 +260,23 @@ def run(artifacts):
                     )
 
                 def labelled_header(page, names):
-                    # Settings, Account and What's new each show an icon and their name, on one line down to 320px.
+                    # The signed-in header shares one line down to 320px; on phones the menus show as icons
+                    # that keep their names for screen readers.
                     buttons = page.locator(
-                        "#prefs-menu > summary, #account-menu > summary, #site-update-toggle"
+                        ".toolbar-row .menu:visible > summary, #site-update-toggle"
                     )
-                    expect(buttons).to_have_count(3)
+                    expect(buttons).to_have_count(len(names))
+                    narrow = page.viewport_size["width"] <= 700
                     tops = set()
                     for button, name in zip(buttons.all(), names):
                         expect(button.locator("svg")).to_be_visible()
-                        expect(
-                            button.locator(".menu-label, :scope > span")
-                        ).to_have_text(name)
+                        label = button.locator(".menu-label, :scope > span")
+                        expect(label).to_have_text(name)
+                        if narrow and button.locator(".menu-label").count():
+                            expect(button).to_have_accessible_name(name)
+                            assert label.bounding_box()["width"] <= 1
+                        else:
+                            expect(label).to_be_visible()
                         tops.add(round(button.bounding_box()["y"]))
                     assert len(tops) == 1, tops
 
@@ -396,7 +402,16 @@ def run(artifacts):
                     for width in (320, 390, 1440):
                         other.set_viewport_size({"width": width, "height": 900})
                         no_overflow(other)
-                        labelled_header(other, ("Settings", "Account", "What’s new"))
+                        labelled_header(
+                            other,
+                            (
+                                "Appearance",
+                                "Notifications",
+                                "Phones",
+                                "Account",
+                                "What’s new",
+                            ),
+                        )
                         expect(other.locator(".agenda-day").first).to_be_visible()
                         other.locator(".agenda").screenshot(
                             path=str(
@@ -413,7 +428,9 @@ def run(artifacts):
                     for width in (320, 390, 1440):
                         other.set_viewport_size({"width": width, "height": 900})
                         no_overflow(other)
-                        labelled_header(other, ("设置", "账号", "最近更新"))
+                        labelled_header(
+                            other, ("外观", "通知", "手机", "账号", "最近更新")
+                        )
                         expect(other.locator(".agenda-day").first).to_contain_text(
                             "明天"
                         )

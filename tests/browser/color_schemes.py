@@ -315,7 +315,8 @@ def main():
                     return {modelRemoved: !document.getElementById('website-model'),
                         stacked: box('website-style').bottom <= day.top && day.bottom <= night.top && day.width === night.width, rows: new Set(tops).size};
                 }""")
-                assert layout == {"modelRemoved": True, "stacked": True, "rows": 2}, (
+                # Each scheme picker is one row: six across on desktop, a sideways strip on phones.
+                assert layout == {"modelRemoved": True, "stacked": True, "rows": 1}, (
                     layout
                 )
                 chat.get_by_role("button", name="Close menu", exact=True).click()
