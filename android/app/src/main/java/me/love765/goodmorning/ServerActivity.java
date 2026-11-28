@@ -9,6 +9,8 @@ import android.widget.TextView;
 
 import java.io.IOException;
 
+import javax.net.ssl.SSLException;
+
 /** First-launch server picker, also opened from the "Change server" launcher shortcut. */
 public class ServerActivity extends Activity {
     private EditText address;
@@ -46,6 +48,8 @@ public class ServerActivity extends Activity {
             int problem;
             try {
                 problem = Server.supportsApp(this, origin) ? 0 : R.string.server_error_unsupported;
+            } catch (SSLException error) {
+                problem = R.string.server_error_insecure;
             } catch (IOException | RuntimeException error) {
                 problem = R.string.server_error_unreachable;
             }
