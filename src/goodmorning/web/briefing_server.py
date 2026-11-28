@@ -331,18 +331,20 @@ class BrowserApp:
         # Jobs whose preflight runs in a background thread; nothing is sent yet.
         self.preparing = set()
         from goodmorning.briefings.briefing_job import context_path
+        from goodmorning.briefings.briefing_stream import bounded_json
 
         # A restart cannot prove that an interrupted create/send failed.
         for job in self.jobs.values():
             if job["state"] == "starting":
                 job["state"] = "uncertain"
-            # An interrupted preflight sent nothing, so it can be restarted.
-            elif (
-                job["state"] == "preflight"
-                and not job.get("session")
-                and not context_path(self.runtime, job["id"]).exists()
-            ):
-                job["state"] = "stopped"
+            elif job["state"] == "preflight" and not job.get("session"):
+                # Only a saved question survives a restart. Anything else was
+                # interrupted before dispatch, sent nothing and can be restarted.
+                target = context_path(self.runtime, job["id"])
+                if not (
+                    target.exists() and bounded_json(target, 300_000).get("awaiting")
+                ):
+                    job["state"] = "stopped"
         if self.jobs:
             self.save_jobs()
 
@@ -1089,7 +1091,10 @@ class BrowserApp:
             elif not context["awaiting"]:
                 job["state"] = "starting"
             self.save_jobs()
-        if job["state"] == "starting":
+            # Decided under the lock: a feedback reply may set `starting` and
+            # dispatch on its own as soon as the lock is released.
+            dispatch = context is not None and not context["awaiting"]
+        if dispatch:
             self.dispatch(job)
 
     def generation_prompt(self, job):
@@ -1629,7 +1634,10 @@ class BrowserApp:
         return None
 
     def status(self, identifier):
-        job = self.job(identifier)
+        # One snapshot: preflight may finish or fail between two separate reads.
+        with self.lock:
+            job = self.job(identifier)
+            preparing = identifier in self.preparing
         if job["state"] == "superseded":
             return {
                 "state": "stopped",
@@ -1756,7 +1764,7 @@ class BrowserApp:
             "date": job["date"],
             "kind": job["kind"],
         }
-        if identifier in self.preparing:
+        if preparing:
             return {**result, "state": "starting", "label": ui.text(result["label"])}
         if job["state"] == "preflight":
             from goodmorning.briefings.briefing_job import context_path

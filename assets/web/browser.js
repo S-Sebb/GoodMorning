@@ -590,7 +590,7 @@ generate?.addEventListener('click', async () => {
     }
     job = result.job; poll();
   } catch (error) {
-    generation.hidden = true; generate.hidden = false; generate.disabled = false;
+    meter.running = false; generation.hidden = true; generate.hidden = false; generate.disabled = false;
     errorBox.textContent = error.message;
   }
 });

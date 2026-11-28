@@ -294,6 +294,54 @@ class LiveTests(unittest.TestCase):
         self.assertEqual(self.app.job(job)["state"], "preflight")
         self.assertEqual(self.chamber.calls, [])
 
+    def test_preflight_end_races_neither_dispatch_twice_nor_break_status(self):
+        self.app.preflight = True
+        with patch("goodmorning.web.briefing_server.threading.Thread"):
+            identifier = self.app.start("2026-10-10", "gm")["job"]
+        live = self.app.jobs["2026-10-10.gm"]
+
+        # A status poll that began before preflight failed must not read a stale job.
+        def fail_preflight(*_):
+            self.app.preparing.discard(identifier)
+            live["state"] = "stopped"
+            return self.root / "missing.json"
+
+        with patch.object(self.app, "source", side_effect=fail_preflight):
+            self.assertEqual(self.app.status(identifier)["state"], "starting")
+        # A feedback reply right after the worker's save dispatches on its own.
+        live["state"] = "preflight"
+        self.app.preparing.add(identifier)
+        save = self.app.save_jobs
+
+        def replied():
+            live["state"] = "starting"
+            save()
+
+        with (
+            patch(
+                "goodmorning.briefings.briefing_preflight.initialize",
+                return_value={"awaiting": True},
+            ),
+            patch.object(self.app, "save_jobs", side_effect=replied),
+            patch.object(self.app, "dispatch") as dispatch,
+        ):
+            self.app.prepare_and_dispatch(live)
+        dispatch.assert_not_called()
+
+    def test_restart_keeps_only_preflight_jobs_with_a_pending_question(self):
+        from goodmorning.briefings.briefing_job import context_path
+
+        self.app.preflight = True
+        for kind, awaiting in (("gm", False), ("gn", True)):
+            with patch("goodmorning.web.briefing_server.threading.Thread"):
+                identifier = self.app.start("2026-10-10", kind)["job"]
+            context_path(self.root, identifier).write_text(
+                json.dumps({"awaiting": awaiting})
+            )
+        restored = BrowserApp(self.root, self.chamber, now=self.app.now, preflight=True)
+        self.assertEqual(restored.jobs["2026-10-10.gm"]["state"], "stopped")
+        self.assertEqual(restored.jobs["2026-10-10.gn"]["state"], "preflight")
+
     def test_failed_recovery_preflight_returns_stopped_receipt_and_never_replays(self):
         from unittest.mock import patch
 
