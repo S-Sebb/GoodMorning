@@ -247,7 +247,7 @@ def outstanding_reminder(store, task, today):
     from goodmorning.web import language as ui
 
     row["detail"] += ("\n" if row["detail"] else "") + ui.text(
-        "One outstanding reminder; completion is not yet confirmed. No makeup backlog and no change to the original cadence."
+        "Shown until you report it done. Missed times don’t pile up, and the repeat schedule stays the same."
     )
     first = start
     if completed:
@@ -1476,7 +1476,7 @@ def action_cells(row, place="morning"):
     if (row.get("when") or {}).get("morning_before"):
         detail.append(
             ui.text(
-                "Reminder trigger: morning starts before {time} ({zone})",
+                "Reminder trigger: you start the morning briefing before {time} ({zone})",
                 time=row["when"]["morning_before"],
                 zone=row["timezone"],
             )
