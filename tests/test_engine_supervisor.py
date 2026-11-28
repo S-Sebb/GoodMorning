@@ -126,5 +126,34 @@ class EngineEnvironmentTests(unittest.TestCase):
         )
 
 
+class ForeignRipgrepTests(unittest.TestCase):
+    """A vault moved from another CPU keeps OpenCode's cached `rg`, which then fails (#347)."""
+
+    def cached(self, machine):
+        from goodmorning.security import briefing_runtime
+
+        temp = tempfile.TemporaryDirectory(dir=TEMP_ROOT)
+        self.addCleanup(temp.cleanup)
+        home = Path(temp.name)
+        rg = home / ".cache/opencode/bin/rg"
+        rg.parent.mkdir(parents=True)
+        rg.write_bytes(
+            b"\x7fELF\x02\x01" + bytes(12) + machine.to_bytes(2, "little") + bytes(40)
+        )
+        return briefing_runtime, home, rg
+
+    def test_removes_an_x86_64_rg_on_an_arm_host_and_keeps_a_matching_one(self):
+        from unittest.mock import patch
+
+        runtime, home, rg = self.cached(62)
+        with patch.object(runtime.platform, "machine", return_value="aarch64"):
+            runtime.drop_foreign_ripgrep(home)
+        self.assertFalse(rg.exists())
+        runtime, home, rg = self.cached(183)
+        with patch.object(runtime.platform, "machine", return_value="aarch64"):
+            runtime.drop_foreign_ripgrep(home)
+        self.assertTrue(rg.exists())
+
+
 if __name__ == "__main__":
     unittest.main()

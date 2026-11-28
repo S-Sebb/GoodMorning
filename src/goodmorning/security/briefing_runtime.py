@@ -4,6 +4,7 @@ import argparse
 import base64
 import json
 import os
+import platform
 import signal
 import socket
 import subprocess
@@ -56,6 +57,35 @@ PROVIDER_KEYS = ("MAL_CLIENT_ID",)
 # An engine with no connections and no running session exits after this long;
 # its systemd socket keeps the port and starts it again on the next connection.
 IDLE_SECONDS = 600
+
+
+ELF_MACHINES = {"x86_64": 62, "aarch64": 183}
+
+
+def elf_machine(path):
+    """The ELF e_machine field, or None for a missing or non-ELF file."""
+    try:
+        with open(path, "rb") as file:
+            header = file.read(20)
+    except OSError:
+        return None
+    if len(header) < 20 or header[:4] != b"\x7fELF":
+        return None
+    return int.from_bytes(header[18:20], "little" if header[5] == 1 else "big")
+
+
+def drop_foreign_ripgrep(home):
+    """Remove OpenCode's cached `rg` when it was built for another CPU (#347).
+
+    Vaults move between hosts with their cache, and OpenCode reuses a cached `rg`
+    instead of downloading one, so its grep tool fails with ENOEXEC. Without the
+    file OpenCode fetches the build for this host.
+    """
+    cached = home / ".cache/opencode/bin/rg"
+    host = ELF_MACHINES.get(platform.machine())
+    machine = elf_machine(cached)
+    if host and machine is not None and machine != host:
+        cached.unlink()
 
 
 def free_port():
@@ -215,6 +245,7 @@ def main():
     os.environ.update(env)
     os.chdir(source)
     if args.action == "engine":
+        drop_foreign_ripgrep(home)
         if activated:
             listener = socket.socket(fileno=3)
         else:
