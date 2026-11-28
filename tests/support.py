@@ -27,9 +27,16 @@ from goodmorning.security.briefing_accounts import (
 from goodmorning.security.briefing_gateway import Gateway, handler_for
 from goodmorning.web.briefing_server import Chamber, serve_live
 
-# Resolved: ~/scratch is a symlink, and runtimes refuse symlinked paths.
+# yanglab16 keeps this project's scratch on its local SSD: its ~/scratch is on
+# the NAS, whose files report a foreign owner, so owner checks fail there.
+# Other machines use ~/scratch. Resolved: runtimes refuse symlinked paths.
+LOCAL_SCRATCH = Path.home() / "t3-apps/GoodMorning/scratch"
 TEMP_ROOT = os.environ.get("GM_TEST_TMPDIR") or str(
-    (Path.home() / "scratch/GoodMorning/tests").resolve()
+    (
+        LOCAL_SCRATCH / "tests"
+        if LOCAL_SCRATCH.is_dir()
+        else Path.home() / "scratch/GoodMorning/tests"
+    ).resolve()
 )
 Path(TEMP_ROOT).mkdir(parents=True, exist_ok=True)
 
