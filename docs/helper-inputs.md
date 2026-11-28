@@ -38,7 +38,7 @@ All optional except `title` in a new task. Unset dates and text use `""`; unset
 
 | Field | Value |
 |---|---|
-| `title` | Imperative, at most 600 characters |
+| `title` | Imperative in the reply language (browser: website language), at most 600 characters |
 | `detail` | 1–2 grounded sentences, or `""` |
 | `extra` | Secretary's own notes for next time, at most 2000 characters |
 | `kind` | `""` (action), `nudge`, `errand` or `reference` |
