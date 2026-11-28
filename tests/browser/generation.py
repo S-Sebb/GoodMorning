@@ -149,7 +149,9 @@ def check_recovery(browser, artifacts):
                 page.get_by_role("button", name="Continue existing session")
             ).to_be_visible()
             page.unroute("**/api/queue")
-            page.get_by_role("button", name="Continue existing session").click()
+            # The button stays visible throughout, so wait for the request itself.
+            with page.expect_response(lambda r: r.url.endswith("/recover")):
+                page.get_by_role("button", name="Continue existing session").click()
             expect(
                 page.get_by_role("button", name="Continue existing session")
             ).to_be_visible()
