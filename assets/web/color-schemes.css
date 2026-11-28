@@ -165,7 +165,8 @@ html:not([data-edition="gn"])[data-day-scheme]:not([data-day-scheme="classic"]) 
 /* Up to small laptops, signed in: four menus and What's new on one line, the menus as icons named
    for screen readers (their labelled pills fit from about 900px). */
 @media (max-width: 900px) {
-  .toolbar-row:has(#account-menu) .menu > summary { width: 36px; min-height: 36px; padding: 0; justify-content: center; }
+  /* Square, as tall as the What's new pill beside it. */
+  .toolbar-row:has(#account-menu) .menu > summary { aspect-ratio: 1; padding: 0; justify-content: center; }
   .toolbar-row:has(#account-menu) .menu-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
   .toolbar-row:has(#account-menu) .menu > summary .menu-icon { width: 19px; height: 19px; }
   .toolbar-row:has(#account-menu) .menu > summary::after { content: none; }
