@@ -466,6 +466,7 @@ class UploadHTTPTests(unittest.TestCase):
         name="notes.txt",
         headers=None,
         identifier="f" * 32,
+        route="/api/chat-uploads/",
     ):
         fixture = self.fixture
         values = {
@@ -478,7 +479,7 @@ class UploadHTTPTests(unittest.TestCase):
             "Content-Type": "application/octet-stream",
         }
         values.update(headers or {})
-        path = "/api/chat-uploads/" + identifier + "?name=" + quote(name, safe="")
+        path = route + identifier + "?name=" + quote(name, safe="")
         try:
             response = fixture.opener.open(
                 Request(
@@ -519,6 +520,61 @@ class UploadHTTPTests(unittest.TestCase):
         self.assertEqual(
             self.fixture.request("/api/fs/upload", {"path": "/tmp/unsafe"})[0], 403
         )
+
+    def test_linked_phone_uploads_with_its_token_and_sends_the_files(self):
+        from goodmorning.security import app_link
+
+        self.fixture.permanent()
+        pairing = app_link.pair(self.fixture.store, "Pixel 7")
+        app_link.confirm(self.fixture.store, self.fixture.id, pairing["code"])
+        token = app_link.claim(self.fixture.store, pairing["secret"])["token"]
+        phone = {
+            "Cookie": "",
+            "Origin": "",
+            "X-Briefing-CSRF": "",
+            "X-GoodMorning-App": token,
+        }
+
+        def upload(data=b"Synthetic upload", **options):
+            return self.request_upload(
+                data,
+                route="/api/app/chat-uploads/",
+                headers={**phone, **options.pop("headers", {})},
+                **options,
+            )
+
+        self.assertEqual(upload(headers={"X-GoodMorning-App": "gma_wrong"})[0], 403)
+        status, refused = upload(
+            b"", headers={"Content-Length": str(MAX_UPLOAD_BYTES + 1)}
+        )
+        self.assertEqual(
+            (status, refused["error"]), (413, "Files must be 50 MB or smaller.")
+        )
+        self.assertEqual(upload(name="../private.txt")[0], 400)
+        self.assertEqual(list(self.app.chats.uploads.directory.iterdir()), [])
+        status, entry = upload()
+        self.assertEqual(status, 201)
+        self.assertEqual(self.app.chats.uploads.get(entry["id"]), entry)
+        cookie, self.fixture.cookie = self.fixture.cookie, None
+        try:
+            with patch(
+                "goodmorning.web.briefing_chat.threading.Thread", ImmediateThread
+            ):
+                status, _, raw = self.fixture.request(
+                    "/api/app/chat",
+                    {"text": "", "attachments": [entry["id"]]},
+                    headers={
+                        "Origin": "",
+                        "Sec-Fetch-Site": "",
+                        "X-GoodMorning-App": token,
+                    },
+                )
+        finally:
+            self.fixture.cookie = cookie
+        self.assertEqual(status, 202, raw)
+        chat = json.loads(raw)["chat"]
+        status, _, raw = self.fixture.request("/api/chats/" + chat)
+        self.assertEqual(json.loads(raw)["messages"][0]["attachments"], [entry])
 
     def test_authentication_origin_csrf_size_and_filename_boundaries(self):
         self.assertEqual(self.request_upload()[0], 403)

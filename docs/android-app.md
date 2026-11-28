@@ -119,7 +119,7 @@ screens before linking follow the phone.
 |---|---|---|---|
 | Today's schedule | 4×4 | Today's events (time, until, place) and to-dos | ○/✓ of a to-do: ticks it done or back (below); elsewhere: day schedule; refresh button |
 | Week schedule | 4×5 | Seven days from today: events and to-do progress | That day's schedule |
-| Secretary chat | 4×3 | Portrait and name, latest conversation title, its reply in a bubble, and a message box | Message box: Ask (dialog, may start paid model work); elsewhere: the conversation |
+| Secretary chat | 4×3 | Portrait and name, latest conversation title, its reply in a bubble, and a message box | Message box: Ask (dialog, may start paid model work; attaches files as in the browser, below); elsewhere: the conversation |
 | Secretary | 1×1, fixed | The portrait alone, with an accent dot while a reply runs or waits for an answer | The latest conversation |
 | Briefings | 4×5 | Today's morning or evening briefing in full, scrolling, with a Morning/Evening switch | The briefing page; Prepare button (starts generation at once, may start paid model work); refresh button |
 | News | 4×4 | The news sections of today's morning briefing, one card per story: headline, a three-line summary and its publishers | The morning briefing at its first news section (`/gm?section=news`); Prepare button while it is missing |
@@ -140,6 +140,17 @@ the headlines from the hours after now, so they move on between syncs;
 `WeatherChart` draws each chart as two white layers (accent and muted) that the
 widget tints with the current scheme. Tiles keep the website's weather colors in both modes. A frame that
 has run out shows the loading or unavailable message until the next sync.
+
+### Attachments in Ask
+
+Ask's paper clip opens the system file picker; files join the message like the
+website's: up to 100 per message, each 50 MB or smaller (a larger one is refused
+when picked, with the website's message), shown with name and size and a × to
+remove. Send uploads each file first (`POST /api/app/chat-uploads/<id>`), then
+sends the message with their IDs; text may be empty when files are attached.
+When a file can't be read or an upload or the send fails, the message and its
+files stay with the error below them, so the user can send again or remove a
+file; a file already uploaded keeps its ID and is not uploaded twice.
 
 ### Ticking to-dos
 
@@ -323,13 +334,15 @@ uv run --no-project python tests/android/widget_chat.py --serial "$serial"
 android-emu stop "$serial"
 ```
 
-`widget_chat.py` covers the chat widget's 15-minute restore (#352). Only the
+`widget_chat.py` covers the chat widget's 15-minute restore (#352) and Ask's
+attachments (#351), in English and Chinese; `--only restore` or
+`--only attachments` runs one group. Only the
 debug source set (`android/app/src/debug/`) makes this possible: a network
 config that allows plain HTTP to `10.0.2.2` only, and the exported `TestHooks`
 activity (place a widget, set when the user left a conversation, sync). Release
 builds contain neither; check with `./gradlew :app:processReleaseMainManifest`
 and the merged manifest under `app/build/intermediates/merged_manifest/release/`.
-New widget checks (file uploads, the Today widget) add a script beside it and
+New widget checks (the Today widget) add a script beside it and
 reuse its fake server and `Device` helpers.
 
 ## On yanglab16

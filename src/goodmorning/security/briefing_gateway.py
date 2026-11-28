@@ -72,6 +72,8 @@ GET_ROUTES = re.compile(
 POST_ROUTES = re.compile(
     r"(?:/api/notes(?:/sorted)?|/api/schedule/tick|/api/ideas/close|/api/about-me|/api/avatar(?:/upload/(?:day|night|profile))?|/api/(?:generate|regenerate)|/api/chat-uploads/[a-f0-9]{32}|/api/chats|/api/chats/[a-f0-9]{32}/(?:messages|seen|settings/[0-9]{1,9}/claim|(?:form|permission)/[A-Za-z0-9_]+/reply)|/api/jobs/[a-f0-9]{32}/(?:recover|(?:form|permission)/[A-Za-z0-9_]+/reply))"
 )
+# The chat widget's attachments, authorized by the app token and forwarded to /api/chat-uploads/<id>.
+APP_UPLOAD_ROUTE = re.compile(r"/api/app/chat-uploads/[a-f0-9]{32}")
 # Only the gateway's own background work reaches these; browsers never can.
 # Reached only by the gateway itself: reminders, and the chat summary of the app-token-authenticated phone sync.
 INTERNAL_ROUTES = re.compile(
@@ -946,7 +948,7 @@ class Gateway:
         from goodmorning.web.briefing_chat import identifier as chat_id
 
         host = next(iter(self.hosts))
-        if set(body) not in ({"text"}, {"text", "chat"}):
+        if "text" not in body or not set(body) <= {"text", "chat", "attachments"}:
             raise ValueError("Invalid conversation message")
         request = secrets.token_hex(16)
         if "chat" in body:
@@ -963,6 +965,9 @@ class Gateway:
                     "text": body["text"],
                 },
             )
+        if "attachments" in body:
+            # Files the phone sent first to /api/app/chat-uploads, in this account's own backend.
+            payload["attachments"] = body["attachments"]
         # The source is the gateway's own word, never a field a client can send.
         return self.chat_message(
             user, host, path, json.dumps(payload).encode(), {}, source="widget"
@@ -2393,6 +2398,39 @@ def handler_for(gateway):
                 data, status, headers.get("Content-Type", "application/json")
             )
 
+        def app_upload(self, host, path):
+            """A chat widget attachment, streamed to the account's backend like the browser's upload."""
+            if gateway.paused():
+                return self.maintenance_json()
+            if (
+                self.headers.get("Transfer-Encoding")
+                or len(self.headers.get_all("Content-Length", [])) != 1
+            ):
+                raise ValueError("Invalid request body")
+            size = int(self.headers["Content-Length"])
+            user = self.app_user()
+            self.select_language({"user_id": user})
+            if size > MAX_UPLOAD_BYTES:
+                return self.respond({"error": "Files must be 50 MB or smaller."}, 413)
+            if (
+                size < 0
+                or self.headers.get("Content-Type") != "application/octet-stream"
+            ):
+                raise ValueError("Invalid upload")
+            query = urlsplit(self.path).query
+            upload_name(query)
+            status, headers, data = gateway.proxy(
+                user,
+                host,
+                path.replace("/api/app/", "/api/", 1) + "?" + query,
+                "POST",
+                UploadReader(self.rfile, size),
+                self.headers,
+            )
+            return self.respond(
+                data, status, headers.get("Content-Type", "application/json")
+            )
+
         def app_build(self):
             """The app's version code from its launch address (/app?app=N), or None."""
             build = parse_qs(urlsplit(self.path).query).get("app", [""])[0]
@@ -2919,6 +2957,8 @@ def handler_for(gateway):
                     "/api/app/schedule/tick",
                 ):
                     return self.app_post(host, urlsplit(self.path).path)
+                if APP_UPLOAD_ROUTE.fullmatch(urlsplit(self.path).path):
+                    return self.app_upload(host, urlsplit(self.path).path)
                 if (
                     self.headers.get("Origin") != "https://" + host
                     or self.headers.get("Sec-Fetch-Site", "same-origin")

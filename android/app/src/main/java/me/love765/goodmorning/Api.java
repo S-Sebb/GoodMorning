@@ -104,19 +104,54 @@ final class Api {
                     out.write(raw);
                 }
             }
-            int status = connection.getResponseCode();
-            InputStream stream = status < 400 ? connection.getInputStream() : connection.getErrorStream();
-            String text = stream == null ? "" : Server.read(stream, 4 << 20);
-            if (status >= 300) {
-                String error = "";
-                try {
-                    error = new JSONObject(text).optString("error");
-                } catch (JSONException ignored) {
-                    // Not every failure has a JSON body.
-                }
-                throw new Failure(status, error);
+            return answer(connection);
+        } finally {
+            connection.disconnect();
+        }
+    }
+
+    private static JSONObject answer(HttpURLConnection connection) throws IOException, JSONException {
+        int status = connection.getResponseCode();
+        InputStream stream = status < 400 ? connection.getInputStream() : connection.getErrorStream();
+        String text = stream == null ? "" : Server.read(stream, 4 << 20);
+        if (status >= 300) {
+            String error = "";
+            try {
+                error = new JSONObject(text).optString("error");
+            } catch (JSONException ignored) {
+                // Not every failure has a JSON body.
             }
-            return new JSONObject(text);
+            throw new Failure(status, error);
+        }
+        return new JSONObject(text);
+    }
+
+    /**
+     * Streams one chat attachment of exactly size bytes to the account's uploads, as the browser does before
+     * sending a message; the same ID and file again is accepted, so a retry is safe.
+     */
+    static JSONObject upload(Context context, String token, Attachment file, InputStream in) throws IOException, JSONException {
+        HttpURLConnection connection = (HttpURLConnection) new URL(Server.get(context) + "/api/app/chat-uploads/" + file.id
+                + "?name=" + java.net.URLEncoder.encode(file.name, "UTF-8").replace("+", "%20")).openConnection();
+        connection.setConnectTimeout(15000);
+        connection.setReadTimeout(60000);
+        connection.setInstanceFollowRedirects(false);
+        connection.setRequestMethod("POST");
+        connection.setRequestProperty("Accept", "application/json");
+        connection.setRequestProperty("X-GoodMorning-App", token);
+        connection.setRequestProperty("Content-Type", "application/octet-stream");
+        connection.setDoOutput(true);
+        connection.setFixedLengthStreamingMode(file.size);
+        try (in) {
+            try (OutputStream out = connection.getOutputStream()) {
+                byte[] buffer = new byte[65536];
+                long left = file.size;
+                for (int n; left > 0 && (n = in.read(buffer, 0, (int) Math.min(buffer.length, left))) != -1; left -= n) {
+                    out.write(buffer, 0, n);
+                }
+                if (left > 0) throw new IOException("The file changed while it was sent");
+            }
+            return answer(connection);
         } finally {
             connection.disconnect();
         }
@@ -166,9 +201,12 @@ final class Api {
         return request(context, "POST", "/api/app/generate", new JSONObject().put("kind", kind), "X-GoodMorning-App", token);
     }
 
-    static JSONObject chat(Context context, String token, String text, String chat) throws IOException, JSONException {
+    /** attachments are IDs of files already uploaded with upload(). */
+    static JSONObject chat(Context context, String token, String text, String chat, java.util.List<String> attachments)
+            throws IOException, JSONException {
         JSONObject body = new JSONObject().put("text", text);
         if (chat != null) body.put("chat", chat);
+        if (!attachments.isEmpty()) body.put("attachments", new org.json.JSONArray(attachments));
         return request(context, "POST", "/api/app/chat", body, "X-GoodMorning-App", token);
     }
 

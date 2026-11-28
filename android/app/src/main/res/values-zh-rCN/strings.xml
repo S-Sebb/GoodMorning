@@ -56,6 +56,12 @@
     <string name="ask_sent">已发送。秘书正在处理，回复会显示在小组件和应用里。</string>
     <string name="ask_failed">没能发送。检查一下网络，再试一次吧。</string>
     <string name="ask_unlinked">这台手机已经不关联了。在 GoodMorning 的 手机 → 已关联的手机 里重新关联一下吧。</string>
+    <string name="ask_attach">添加附件</string>
+    <string name="ask_upload_note">50 MB 以内 · 保留 30 天</string>
+    <string name="ask_too_large">文件大小不能超过 50 MB。</string>
+    <string name="ask_too_many">每条消息最多添加 100 个文件。</string>
+    <string name="ask_remove">移除 %1$s</string>
+    <string name="ask_unreadable">没能读取“%1$s”。移除它，或者重新添加一次吧。</string>
     <string name="channel_status">秘书更新</string>
     <string name="channel_reminders">日程提醒</string>
     <string name="reminder_body">开始于 %1$s</string>

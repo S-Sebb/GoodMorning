@@ -57,6 +57,12 @@
     <string name="ask_sent">Sent. Your secretary is on it; the reply will show in the widget and the app.</string>
     <string name="ask_failed">Couldn\'t send. Check your connection and try again.</string>
     <string name="ask_unlinked">This phone is no longer linked. Link it again in GoodMorning under Phones → Linked phones.</string>
+    <string name="ask_attach">Attach files</string>
+    <string name="ask_upload_note">Up to 50 MB · kept 30 days</string>
+    <string name="ask_too_large">Files must be 50 MB or smaller.</string>
+    <string name="ask_too_many">Attach up to 100 files per message.</string>
+    <string name="ask_remove">Remove %1$s</string>
+    <string name="ask_unreadable">Couldn\'t read “%1$s”. Remove it, or attach it again.</string>
     <string name="channel_status">Secretary updates</string>
     <string name="channel_reminders">Event reminders</string>
     <string name="reminder_body">Starts at %1$s</string>
