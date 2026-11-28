@@ -127,7 +127,9 @@ heading. Use `scripts/goodmorning.py` with the selected absolute runtime.
 4. To-do capture (`docs/workflows/todo.md`) uses `workflow --capture todo`: exact raw input plus a revised clear task
    commit together. `raw` stays verbatim for audit; `summary` and `task.title` carry the
    improved imperative title and `task.detail` carries 1–2 grounded sentences (why it
-   matters plus current state or next step from supplied facts only). Optional `task`
+   matters plus current state or next step from supplied facts only). Write `summary`,
+   `title`, `detail` and `extra` in the reply language (browser chats: the website
+   language, even when the example or an earlier item is English); keep names as given. Optional `task`
    fields preserve supplied explicit timing and project facts. `detail` is useful extra
    notes only: never repeat the title, project, deadline or priority — those live in structured fields and the page already
    shows them once per project group. This holds for every task write, not only to-do capture. Rhythm and presentation mechanics plus setup
