@@ -37,6 +37,7 @@ public class AskActivity extends Activity {
     @Override
     protected void onCreate(Bundle state) {
         super.onCreate(state);
+        chosen = state != null && state.getBoolean("chosen");  // The checkbox itself comes back with the views.
         String token = Api.token(this);
         if (token == null) {
             startActivity(new Intent(this, LinkActivity.class));
@@ -113,6 +114,12 @@ public class AskActivity extends Activity {
                 });
             }).start();
         });
+    }
+
+    @Override
+    protected void onSaveInstanceState(Bundle out) {
+        super.onSaveInstanceState(out);
+        out.putBoolean("chosen", chosen);
     }
 
     /** The website's look in the account's day or night scheme, as in the chat widget. */

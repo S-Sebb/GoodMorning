@@ -73,6 +73,27 @@ public class SyncTest {
     }
 
     @Test
+    public void aReplyArrivesWhenTheConversationSettlesOrItsReplyChanges() throws Exception {
+        JSONObject settled = chat("idle").put("reply_id", "m2");
+        // Never seen before on this phone: unknown, not a new reply.
+        assertFalse(Sync.replyArrived(null, settled));
+        // Seen running, even if another conversation was the latest since.
+        assertTrue(Sync.replyArrived(new JSONObject().put("state", "running").put("reply", "m1"), settled));
+        // Seen settled with another reply, even if its text matches.
+        assertTrue(Sync.replyArrived(new JSONObject().put("state", "idle").put("reply", "m1"), settled));
+        assertFalse(Sync.replyArrived(new JSONObject().put("state", "idle").put("reply", "m2"), settled));
+        assertFalse(Sync.replyArrived(new JSONObject().put("state", "idle").put("reply", "m1"), chat("running")));
+    }
+
+    @Test
+    public void observationsAreBoundedByTheirTime() throws Exception {
+        JSONObject seen = new JSONObject();
+        for (int i = 0; i < 21; i++) Sync.bounded(seen, "c" + i, new JSONObject().put("at", 100 + i).put("state", "idle"));
+        assertEquals(20, seen.length());
+        assertFalse(seen.has("c0"));
+    }
+
+    @Test
     public void leavingAnotherConversationKeepsThisOnesDeparture() throws Exception {
         JSONObject times = Sync.bounded(new JSONObject(), "a", 1);
         Sync.bounded(times, "b", 2);

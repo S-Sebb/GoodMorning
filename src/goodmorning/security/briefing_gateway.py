@@ -921,12 +921,12 @@ class Gateway:
             return {}
         status = read("/api/chats/" + latest["id"])
         replies = [
-            item["text"]
+            item
             for item in status.get("messages", [])
             if item.get("role") == "assistant" and isinstance(item.get("text"), str)
         ]
         text = (
-            " ".join(re.sub(r"[*_`#>\[\]]+", "", replies[-1]).split())
+            " ".join(re.sub(r"[*_`#>\[\]]+", "", replies[-1]["text"]).split())
             if replies
             else ""
         )
@@ -937,6 +937,8 @@ class Gateway:
             "unread": bool(latest.get("unread")),
             "active": latest["active"],
             "reply": text[:600],
+            # Tells two replies apart even when their text matches.
+            "reply_id": str(replies[-1].get("id", "")) if replies else "",
         }
 
     def app_chat(self, user, body):

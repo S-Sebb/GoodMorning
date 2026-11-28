@@ -105,7 +105,7 @@ final class Sync {
             boolean chatChecked = !data.isNull("chat");
             try {
                 JSONObject previous = cached(context);
-                if (chatChecked) replied(context, previous.optJSONObject("chat"), data.optJSONObject("chat"));
+                if (chatChecked) observe(context, data.optJSONObject("chat"));
                 for (String part : new String[] {"schedule", "reminders", "chat", "briefings", "weather"}) {
                     if (data.isNull(part) && previous.has(part)) data.put(part, previous.get(part));
                 }
@@ -305,12 +305,28 @@ final class Sync {
         remember(context, "replies", chat, at);
     }
 
-    /** Notes when a reply settled, as first seen here: the conversation ran before, or its reply changed. */
-    private static void replied(Context context, JSONObject before, JSONObject after) {
-        if (before == null || after == null || !"idle".equals(after.optString("state"))
-                || after.optString("id").isEmpty() || !after.optString("id").equals(before.optString("id"))) return;
-        if ("idle".equals(before.optString("state")) && before.optString("reply").equals(after.optString("reply"))) return;
-        repliedAt(context, after.optString("id"), System.currentTimeMillis());
+    /**
+     * Notes when a conversation's reply arrived, as first seen here: it settled after running, or settled
+     * with another reply than last seen. What was last seen is kept per conversation, so the phone notices
+     * even after another conversation was the latest in between.
+     */
+    private static void observe(Context context, JSONObject chat) {
+        if (chat == null || chat.optString("id").isEmpty()) return;
+        String id = chat.optString("id");
+        long now = System.currentTimeMillis();
+        try {
+            if (replyArrived(map(context, "observed").optJSONObject(id), chat)) repliedAt(context, id, now);
+            remember(context, "observed", id, new JSONObject().put("at", now)
+                    .put("state", chat.optString("state")).put("reply", chat.optString("reply_id")));
+        } catch (JSONException ignored) {
+            // Strings always fit.
+        }
+    }
+
+    /** Whether the conversation settled with a new reply since it was last seen; unknown before its first sighting. */
+    static boolean replyArrived(JSONObject seen, JSONObject chat) {
+        return seen != null && "idle".equals(chat.optString("state"))
+                && (!"idle".equals(seen.optString("state")) || !seen.optString("reply").equals(chat.optString("reply_id")));
     }
 
     private static long time(Context context, String kind, JSONObject chat) {
@@ -325,21 +341,26 @@ final class Sync {
         }
     }
 
-    /** Keeps a time per conversation, for the 20 most recent. */
-    static JSONObject bounded(JSONObject times, String chat, long at) throws JSONException {
-        times.put(chat, at);
-        while (times.length() > 20) {
+    /** Keeps an entry per conversation, a time or an object with one under "at", for the 20 most recent. */
+    static JSONObject bounded(JSONObject entries, String chat, Object value) throws JSONException {
+        entries.put(chat, value);
+        while (entries.length() > 20) {
             String oldest = null;
-            for (java.util.Iterator<String> keys = times.keys(); keys.hasNext(); ) {
+            for (java.util.Iterator<String> keys = entries.keys(); keys.hasNext(); ) {
                 String key = keys.next();
-                if (oldest == null || times.getLong(key) < times.getLong(oldest)) oldest = key;
+                if (oldest == null || at(entries, key) < at(entries, oldest)) oldest = key;
             }
-            times.remove(oldest);
+            entries.remove(oldest);
         }
-        return times;
+        return entries;
     }
 
-    private static synchronized void remember(Context context, String kind, String chat, long at) {
+    private static long at(JSONObject entries, String key) {
+        JSONObject entry = entries.optJSONObject(key);
+        return entry == null ? entries.optLong(key) : entry.optLong("at");
+    }
+
+    private static synchronized void remember(Context context, String kind, String chat, Object at) {
         try {
             prefs(context).edit().putString(kind, bounded(map(context, kind), chat, at).toString()).apply();
         } catch (JSONException ignored) {

@@ -387,6 +387,7 @@ def main():
                 "unread": False,
                 "active": time.time() - 3600,
                 "reply": REPLY,
+                "reply_id": "m1",
                 **chat,
             }
             device.hook("--ez sync true")
@@ -473,7 +474,7 @@ def main():
 
         # A reply that finishes while the user is away keeps the conversation until they have read it.
         prepare({"state": "running", "reply": ""}, 16)
-        fake.chat.update(state="idle", reply="Booked the 9:40 train.")
+        fake.chat.update(state="idle", reply="Booked the 9:40 train.", reply_id="m2")
         device.hook("--ez sync true")
         time.sleep(3)
         device.home()
@@ -494,6 +495,58 @@ def main():
             f"opened {opened or 'nothing'}",
         )
         device.home()
+
+        def kept(name, shown):
+            """The widget still shows this conversation and a tap opens it."""
+            device.home()
+            node = device.find(lambda text: text == shown, timeout=20)
+            check(
+                f"{name}: widget keeps it",
+                node is not None,
+                "" if node else f"saw {device.texts()[:8]}",
+            )
+            name_node = device.find(lambda text: text == NAME, timeout=5)
+            moment = time.time()
+            if name_node:
+                device.tap(name_node)
+            opened = opened_after(moment)
+            check(
+                f"{name}: tap opens /chat?id={CHAT}",
+                opened[:1] == [f"/chat?id={CHAT}"],
+                f"opened {opened or 'nothing'}",
+            )
+            device.home()
+
+        def sync():
+            device.hook("--ez sync true")
+            time.sleep(3)
+
+        # Seen running, then another conversation was the latest while this one settled: still a reply not read.
+        prepare({"state": "running", "reply": "", "reply_id": ""}, 16)
+        mine = fake.chat
+        fake.chat = {
+            **mine,
+            "id": "b" * 32,
+            "title": "Other plan",
+            "state": "idle",
+            "reply": "Noted.",
+            "reply_id": "b1",
+        }
+        sync()
+        fake.chat = {
+            **mine,
+            "state": "idle",
+            "reply": "Booked the 9:40 train.",
+            "reply_id": "m2",
+        }
+        sync()
+        kept("reply settled while another was latest", "Booked the 9:40 train.")
+
+        # A new reply with the same text as the last one is still new.
+        prepare({"state": "idle"}, 16)
+        fake.chat.update(reply_id="m3")
+        sync()
+        kept("new reply with the same text", REPLY)
 
         # A chat page in the app holding an unsent draft is not replaced by a fresh conversation.
         prepare({"state": "idle"}, 14)
@@ -521,7 +574,35 @@ def main():
             reloaded == [],
             f"loaded {reloaded}",
         )
+        # Nor by another conversation the widget now shows.
+        fake.chat = {
+            **fake.chat,
+            "id": "b" * 32,
+            "title": "Other plan",
+            "state": "idle",
+            "reply": "Noted.",
+            "reply_id": "b1",
+        }
+        sync()
+        device.home()
+        other = device.find(lambda text: text == "Noted.", timeout=20)
+        name_node = device.find(lambda text: text == NAME, timeout=5)
+        moment = time.time()
+        if other and name_node:
+            device.tap(name_node)
+        time.sleep(10)
+        reloaded = [
+            parse_qs(urlsplit(entry[2]).query).get("next", [""])[0]
+            for entry in fake.since(moment, "/app")
+        ] + [entry[2] for entry in fake.since(moment, "/chat")]
+        check(
+            "a chat page with a draft stays instead of opening another conversation",
+            other is not None and name_node is not None and reloaded == [],
+            f"widget showed other: {other is not None}; loaded {reloaded}",
+        )
         fake.draft = False
+        # The drafted page would hold off every later chat load; start the app afresh.
+        device.shell(f"am force-stop {PACKAGE}")
         device.home()
 
         # Ask starts fresh by default only once the server confirms the conversation is still settled.
@@ -551,6 +632,32 @@ def main():
         ask("settled 14 min away", 14, None, False)
         ask("settled 16 min away", 16, None, True)
         ask("settled 16 min away, check fails", 16, "unavailable", False)
+
+        # The user's own choice in Ask survives the dialog being recreated (as on rotation), when it checks again.
+        # A dark-mode switch recreates it the same way; the launcher behind it keeps the screen upright.
+        prepare({"state": "idle"}, 16)
+        device.home()
+        composer = device.find(lambda text: text == f"Message {NAME}…", timeout=10)
+        if composer:
+            device.tap(composer)
+        time.sleep(5)
+        box = device.find(lambda text: text == "Start a new conversation", timeout=10)
+        if box:
+            device.tap(box)  # Cleared by the user.
+        device.shell("cmd uimode night yes")
+        time.sleep(8)  # Recreated, and its new check has answered.
+        after = device.find(lambda text: text == "Start a new conversation", timeout=10)
+        device.screenshot("ask-rotated")
+        device.shell("cmd uimode night no")
+        check(
+            "Ask keeps the user's choice when recreated",
+            box is not None and box[4] and after is not None and not after[4],
+            f"before tap {'checked' if box and box[4] else 'clear'}, after recreation {'missing' if after is None else 'checked' if after[4] else 'clear'}",
+        )
+        device.shell("input keyevent KEYCODE_BACK")
+        time.sleep(1)
+        device.shell("input keyevent KEYCODE_BACK")
+        device.home()
 
         # Leaving the conversation for another page in the app starts its time away then, not at Home.
         fake.chat = {

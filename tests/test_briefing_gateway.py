@@ -1406,7 +1406,7 @@ class GatewayTests(GatewayFixture):
             },
             "/api/chats/" + "a" * 32: {
                 "state": "idle",
-                "messages": [{"role": "assistant", "text": "**All** set"}],
+                "messages": [{"id": "m1", "role": "assistant", "text": "**All** set"}],
             },
             "/api/app-briefings": {
                 "date": "2026-10-21",
@@ -1445,6 +1445,7 @@ class GatewayTests(GatewayFixture):
                 "unread": True,
                 "active": 200,
                 "reply": "All set",
+                "reply_id": "m1",
             },
         )
         self.assertEqual([item["body"] for item in value["notifications"]], ["Done"])

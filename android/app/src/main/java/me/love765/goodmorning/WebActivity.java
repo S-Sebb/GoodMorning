@@ -208,9 +208,11 @@ public class WebActivity extends Activity {
         super.onNewIntent(intent);
         if (intent.getData() == null) return;
         String next = target(intent);
-        // A fresh conversation never replaces a chat page holding unsent input; the browser keeps it too (chat.js).
+        // A conversation opened from a widget never replaces a chat page holding unsent input; the browser keeps it
+        // too (chat.js).
         String page = web.getUrl();
-        if ("/chat?mode=secretary".equals(Uri.parse(next).getQueryParameter("next")) && page != null
+        String opening = Uri.parse(next).getQueryParameter("next");
+        if (opening != null && "/chat".equals(Uri.parse(opening).getPath()) && page != null
                 && "/chat".equals(Uri.parse(page).getPath())) {
             web.evaluateJavascript("typeof hasUnsentInput === 'function' && hasUnsentInput()", unsent -> {
                 if (!"true".equals(unsent)) web.loadUrl(next);
