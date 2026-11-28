@@ -633,33 +633,57 @@ class LetterTests(unittest.TestCase):
             self.assertTrue(GET_ROUTES.fullmatch(path) and PAGE_ROUTES.fullmatch(path))
 
     def test_a_week_is_named_for_the_month_of_its_thursday(self):
+        # Week, English name and dates, then Chinese name and dates; the year shows in the name only.
         weeks = (
-            ("2026-11-02", "First week of November", "11月第1周", "Nov 2 – 8"),
+            (
+                "2026-11-02",
+                "First week of November",
+                "Nov 2 – 8",
+                "11月第1周",
+                "11月2日 – 8日",
+            ),
+            # Crosses into November.
             (
                 "2026-10-26",
                 "Fifth week of October",
-                "10月第5周",
                 "Oct 26 – Nov 1",
-            ),  # Crosses into November.
-            ("2026-11-30", "First week of December", "12月第1周", "Nov 30 – Dec 6"),
+                "10月第5周",
+                "10月26日 – 11月1日",
+            ),
+            (
+                "2026-11-30",
+                "First week of December",
+                "Nov 30 – Dec 6",
+                "12月第1周",
+                "11月30日 – 12月6日",
+            ),
+            # Another year.
             (
                 "2025-12-22",
                 "Fourth week of December 2025",
-                "2025年12月第4周",
                 "Dec 22 – 28",
-            ),  # Another year.
-            ("2025-12-29", "First week of January", "1月第1周", "Dec 29 – Jan 4"),
-        )  # Its Thursday is this year's.
-        for week, english, chinese, dates in weeks:
-            for lang, name, note in (("en", english, dates), ("zh-CN", chinese, None)):
+                "2025年12月第4周",
+                "12月22日 – 28日",
+            ),
+            # Starts last year, but its Thursday is this year's.
+            (
+                "2025-12-29",
+                "First week of January",
+                "Dec 29 – Jan 4",
+                "1月第1周",
+                "12月29日 – 1月4日",
+            ),
+        )
+        for week, *names in weeks:
+            for lang, name, dates in (("en", *names[:2]), ("zh-CN", *names[2:])):
                 with self.subTest(week=week, lang=lang):
-                    token = pages.ui.CURRENT.set(lang)
-                    try:
-                        self.assertEqual(pages.week_name(week, "2026-11-28"), name)
-                        if note:
-                            self.assertEqual(pages.week_range(week), note)
-                    finally:
-                        pages.ui.CURRENT.reset(token)
+                    self.assertEqual(
+                        (
+                            pages.week_name(week, "2026-11-28", lang),
+                            pages.week_range(week, lang),
+                        ),
+                        (name, dates),
+                    )
 
 
 if __name__ == "__main__":

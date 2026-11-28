@@ -25,14 +25,14 @@ WEEKDAYS = {
 ORDINALS = ("First", "Second", "Third", "Fourth", "Fifth")
 
 
-def week_name(week, today):
+def week_name(week, today, lang):
     """First week of November, or 11月第1周; the year only when it is not this year's.
 
     A week belongs to the month of its Thursday, which holds most of its days: Oct 26 – Nov 1 is
     the fifth week of October, Nov 30 – Dec 6 the first week of December."""
     thursday = Date.fromisoformat(week) + timedelta(days=3)
     nth, year = (thursday.day - 1) // 7, thursday.year != Date.fromisoformat(today).year
-    if ui.current() == "zh-CN":
+    if lang == "zh-CN":
         return (
             f"{thursday.year}年" if year else ""
         ) + f"{thursday.month}月第{nth + 1}周"
@@ -41,16 +41,26 @@ def week_name(week, today):
     )
 
 
-def week_range(week):
+def week_range(week, lang):
     """Oct 19 – 25, or 10月19日 – 25日: a note under the week's name, which carries the year."""
     start = Date.fromisoformat(week)
     end = start + timedelta(days=6)
-    if ui.current() == "zh-CN":
+    if lang == "zh-CN":
         return f"{start.month}月{start.day}日 – " + (
             f"{end.day}日" if end.month == start.month else f"{end.month}月{end.day}日"
         )
     return f"{start:%b} {start.day} – " + (
         str(end.day) if end.month == start.month else f"{end:%b} {end.day}"
+    )
+
+
+def label(tag, cls, make):
+    """Text in the page's language; letters.js swaps in the other one when the language changes."""
+    en, zh = make("en"), make("zh-CN")
+    return (
+        f'<{tag} class="{cls}" data-content data-en="{html.escape(en, quote=True)}" data-zh-cn="{html.escape(zh, quote=True)}">'
+        + html.escape(zh if ui.current() == "zh-CN" else en)
+        + f"</{tag}>"
     )
 
 
@@ -63,7 +73,8 @@ def wheel(saved, week, today):
         f'<li><a href="/letters/{each}"'
         + (' aria-current="page"' if each == week else "")
         + ">"
-        f'<span class="wheel-name">{week_name(each, today)}</span><span class="wheel-range">{week_range(each)}</span>'
+        + label("span", "wheel-name", lambda lang: week_name(each, today, lang))
+        + label("span", "wheel-range", lambda lang: week_range(each, lang))
         + (
             '<span class="wheel-note">' + ui.ui("Latest") + "</span>"
             if index == 0
@@ -238,11 +249,12 @@ def reading(letter, number, today, signature):
         + "</span></p>"
         '<p class="letter-kicker">'
         + ui.ui("Weekly letter")
-        + "</p><h1>"
-        + week_name(letter["week"], today)
-        + "</h1>"
-        '<p class="letter-range">' + week_range(letter["week"]) + "</p>"
-        '<div class="letter-opening">'
+        + "</p>"
+        + label(
+            "h1", "letter-week", lambda lang: week_name(letter["week"], today, lang)
+        )
+        + label("p", "letter-range", lambda lang: week_range(letter["week"], lang))
+        + '<div class="letter-opening">'
         + words(letter["opening"], lang)
         + "</div>"
         + "".join(parts)
