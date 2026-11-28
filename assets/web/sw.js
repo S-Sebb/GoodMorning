@@ -4,6 +4,10 @@
 const COPIES = ['/offline/gm', '/offline/gn'];
 const PREFIX = 'offline-';
 let refreshing = null;
+let again = false;
+let quiet = null;
+// Raised whenever the copies are forgotten, so a refresh already under way never writes them back.
+let generation = 0;
 
 self.addEventListener('install', () => self.skipWaiting());
 // The page that registered this worker already loaded, so the first copies are fetched now.
@@ -15,7 +19,10 @@ self.addEventListener('fetch', event => {
   if (request.mode === 'navigate') {
     event.respondWith(fetch(request).then(response => {
       if (failed(response)) return offline(request, response);
-      event.waitUntil(update());
+      // The sign-in page means nobody is signed in here; the password page may mean a password change is due.
+      // Neither waits, so a connection lost right after never leaves the copies behind.
+      const path = new URL(request.url).pathname;
+      event.waitUntil(response.ok && path === '/login' ? forgetAll() : response.ok && path === '/password' ? update() : updateWhenQuiet());
       return response;
     }, () => offline(request)));
   } else if (['style', 'script', 'font', 'image'].includes(request.destination)) {
@@ -30,14 +37,43 @@ function failed(response) {
   return [502, 503, 504].includes(response.status);
 }
 
+// A refresh asked for while one runs follows it once, so the newest page load always gets its own check.
 function update() {
-  refreshing = refreshing || refresh().catch(() => {}).finally(() => { refreshing = null; });
+  if (refreshing) {
+    again = true;
+    return refreshing;
+  }
+  refreshing = (async () => {
+    do {
+      again = false;
+      await refresh().catch(() => {});
+    } while (again);
+  })().finally(() => { refreshing = null; });
   return refreshing;
+}
+
+// The refresh renders both copies on the server, so it waits until the new page has loaded its own files
+// and no other page was opened meanwhile; quick switches refresh once, after the last one.
+function updateWhenQuiet() {
+  if (quiet) clearTimeout(quiet.timer);
+  else {
+    let done;
+    quiet = {settled: new Promise(resolve => { done = resolve; })};
+    quiet.done = done;
+  }
+  const waiting = quiet;
+  waiting.timer = setTimeout(() => { quiet = null; update().then(waiting.done); }, 3000);
+  return waiting.settled;
 }
 
 async function kept() {
   const name = (await caches.keys()).find(key => key.startsWith(PREFIX));
   return name && caches.open(name);
+}
+
+function forgetAll() {
+  generation++;
+  return forget();
 }
 
 async function forget(except) {
@@ -63,27 +99,31 @@ async function offline(request, failure) {
 }
 
 async function refresh() {
+  const started = generation;
+  const stale = () => generation !== started;
   let cache = await kept();
   for (const path of COPIES) {
     const copy = cache && await cache.match(path, {ignoreVary: true});
     const response = await fetch(path, {cache: 'no-store', redirect: 'manual', headers: copy ? {'If-None-Match': copy.headers.get('ETag')} : {}});
     // A redirect to sign-in or the password page, or a refusal: nobody this device may keep a copy for.
-    if (response.type === 'opaqueredirect' || response.status === 401 || response.status === 403) return forget();
+    if (response.type === 'opaqueredirect' || response.status === 401 || response.status === 403) return forgetAll();
     const owner = response.headers.get('X-GoodMorning-Owner');
-    if (!owner) return;  // Maintenance or an outage: keep what this device has.
+    if (!owner || stale()) return;  // Maintenance or an outage: keep what this device has.
     await forget(PREFIX + owner);
     cache = await caches.open(PREFIX + owner);
     if (response.status === 200) await cache.put(path, response);
     else if (response.status === 404) await cache.delete(path);  // No saved edition this week.
   }
-  if (cache) await keepFiles(cache);
+  if (cache && !stale()) await keepFiles(cache, stale);
 }
 
 // Keeps exactly the stylesheets, scripts, icons and images the copies name, and the fonts and pictures
 // those stylesheets name.
-async function keepFiles(cache) {
+async function keepFiles(cache, stale) {
   const files = new Set();
-  const add = async () => { for (const file of files) if (!await cache.match(file, {ignoreVary: true})) await cache.add(file).catch(() => {}); };
+  const add = async () => {
+    for (const file of files) if (!stale() && !await cache.match(file, {ignoreVary: true})) await cache.add(file).catch(() => {});
+  };
   for (const path of COPIES) {
     const copy = await cache.match(path, {ignoreVary: true});
     if (copy) for (const [, file] of (await copy.text()).matchAll(/<(?:link|script|img)\b[^>]*?\s(?:href|src)="(\/[^"/][^"]*)"/g)) files.add(file);

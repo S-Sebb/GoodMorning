@@ -166,7 +166,7 @@ session after this step goes to `/login`.
 ## Offline reading
 
 Signed-in pages register `/sw.js` (`app.js`), in browsers and in the Android
-app's WebView. After each page load the worker refreshes two read-only copies,
+app's WebView. A few seconds after the last page load the worker refreshes two read-only copies,
 `/offline/gm` and `/offline/gn`: the latest saved morning and evening
 edition of the seven-day window, with the stylesheets, scripts, icons and images
 they name and the fonts and pictures those stylesheets name. An unchanged copy costs a 304 (the gateway's ETag). A copy has no
