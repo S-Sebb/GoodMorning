@@ -366,7 +366,7 @@ def page(source, csrf, return_to="/", avatars=False):
         '<form id="notification-form" class="language-toolbar notification-settings" hidden>'
         '<h3 class="color-scheme-heading notification-heading">Notifications</h3><p id="notification-status"></p>'
         '<button type="button" id="notification-device" hidden></button>'
-        '<div id="notification-choices" hidden><fieldset id="notification-kinds"><legend>Notify me when</legend>'
+        '<fieldset id="notification-choices" hidden><fieldset id="notification-kinds"><legend>Notify me when</legend>'
         + "".join(
             f'<label><input type="checkbox" name="{name}"> {label}</label>'
             for name, label in (
@@ -387,7 +387,7 @@ def page(source, csrf, return_to="/", avatars=False):
             f'<input type="time" name="{kind}_time" aria-label="{label} reminder time" required></div>'
             for kind, label in (("gm", "Morning briefing"), ("gn", "Evening briefing"))
         )
-        + '<p class="notification-note">Sent at that time only if the briefing isn’t prepared yet.</p></fieldset></div>'
+        + '<p class="notification-note">Sent at that time only if the briefing isn’t prepared yet.</p></fieldset></fieldset>'
         '<span id="notification-feedback" role="status"></span></form>'
     )
     phones = (

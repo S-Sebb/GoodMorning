@@ -92,9 +92,13 @@ let goodmorningBeforeSignOut;
       status.textContent = here ? t('This phone gets notifications from the GoodMorning app. They usually arrive within a few minutes, or later while the phone is saving battery.')
         : t('Link this phone in Phones → Linked phones to get notifications here.');
     } else {
-      device.hidden = Notification.permission === 'denied';
-      if (Notification.permission === 'denied') status.textContent = t('Notifications are blocked for this site. Allow them in your browser or app settings, then reload.');
-      else status.textContent = t(here ? 'Notifications are on for this device.' : 'Notifications are off for this device.');
+      const blocked = Notification.permission === 'denied';
+      // Blocked choices stay visible but disabled, so it is clear what unblocking brings back.
+      device.hidden = choices.disabled = blocked;
+      status.classList.toggle('notification-warning', blocked);
+      status.textContent = blocked
+        ? t('Notifications are blocked for this site, so this device can’t get them. To allow them, open the site settings from the icon beside the web address, or turn on notifications for this app in your phone’s settings.')
+        : t(here ? 'Notifications are on for this device.' : 'Notifications are off for this device.');
       device.textContent = t(here ? 'Turn off for this device' : 'Turn on for this device');
     }
     showOthers();
@@ -192,6 +196,9 @@ let goodmorningBeforeSignOut;
     try {
       await load();
       await show();
+      // Allowing or blocking notifications in the browser updates the pop-up without a reload.
+      if (pushable) navigator.permissions?.query({name: 'notifications'})
+        .then(permission => permission.addEventListener('change', () => show().catch(() => {}))).catch(() => {});
       // Notifications show only where they can work.
       if (pushable || inApp) form.hidden = false;
     } catch { /* Without the server's answer the sections stay hidden. */ }

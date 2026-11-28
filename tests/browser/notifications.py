@@ -3,6 +3,7 @@ accounts; no push service or model is contacted (one browser gets a stubbed push
 
 import base64
 import json
+import re
 import subprocess
 import sys
 import tempfile
@@ -283,6 +284,13 @@ def main():
                         async unsubscribe() { localStorage.removeItem('subscribed'); return true; }};
                     PushManager.prototype.subscribe = async () => { localStorage.setItem('subscribed', '1'); return subscription; };
                     PushManager.prototype.getSubscription = async () => localStorage.getItem('subscribed') ? subscription : null;
+                    // The test blocks and unblocks notifications as a browser's site settings would.
+                    const permission = new EventTarget();
+                    Object.defineProperty(Notification, 'permission', {get: () => localStorage.getItem('blocked') ? 'denied' : 'granted'});
+                    Object.defineProperty(permission, 'state', {get: () => Notification.permission});
+                    const query = navigator.permissions.query.bind(navigator.permissions);
+                    navigator.permissions.query = async request => request.name === 'notifications' ? permission : query(request);
+                    window.notificationPermission = permission;
                 })();"""
                     % p256dh
                 )
@@ -354,6 +362,75 @@ def main():
                 expect(
                     desktop.locator("#notification-form input[name=gn_time]")
                 ).to_have_value("22:30")
+                # Blocked in the browser, this device's choices are a disabled warning; other devices stay listed and usable.
+                desktop.evaluate("localStorage.setItem('blocked', '1')")
+                for language in ("en", "zh-CN"):
+                    if language == "zh-CN":
+                        menu(desktop, "account").locator(
+                            "#website-language"
+                        ).select_option(language)
+                    desktop.reload()
+                    menu(desktop, "notify")
+                    expect(desktop.locator("#notification-status")).to_have_text(
+                        re.compile("blocked" if language == "en" else "拦截")
+                    )
+                    for scheme, script in (
+                        (
+                            "light",
+                            "Object.assign(document.documentElement.dataset, {edition: 'gm', style: 'soft', dayScheme: 'warm'})",
+                        ),
+                        (
+                            "dark",
+                            "Object.assign(document.documentElement.dataset, {edition: 'gn', style: 'pixel', nightScheme: 'grass-block'})",
+                        ),
+                    ):
+                        desktop.evaluate(script)
+                        for width in (390, 1280):
+                            desktop.set_viewport_size({"width": width, "height": 900})
+                            desktop.screenshot(
+                                path=str(
+                                    artifacts
+                                    / f"blocked-{language}-{scheme}-{width}.png"
+                                )
+                            )
+                menu(desktop, "account").locator("#website-language").select_option(
+                    "en"
+                )
+                desktop.set_viewport_size({"width": 1440, "height": 900})
+                desktop.reload()
+                menu(desktop, "notify")
+                status = desktop.locator("#notification-status")
+                expect(status).to_have_class(re.compile("notification-warning"))
+                expect(desktop.locator("#notification-device")).to_be_hidden()
+                expect(desktop.locator("#notification-choices")).to_have_attribute(
+                    "disabled", ""
+                )
+                for control in (
+                    "input[name=briefing]",
+                    "input[name=gn_time]",
+                    "#notification-lead",
+                ):
+                    expect(
+                        desktop.locator(f"#notification-form {control}")
+                    ).to_be_disabled()
+                expect(
+                    desktop.locator("#notification-device-list li button")
+                ).to_be_enabled()
+                # Allowing them again brings the choices back without a reload; a reminder that is off keeps its time off.
+                desktop.evaluate(
+                    "localStorage.removeItem('blocked'); notificationPermission.dispatchEvent(new Event('change'))"
+                )
+                expect(status).to_have_text("Notifications are on for this device.")
+                expect(status).not_to_have_class(re.compile("notification-warning"))
+                expect(desktop.locator("#notification-choices")).not_to_have_attribute(
+                    "disabled", ""
+                )
+                expect(
+                    desktop.locator("#notification-form input[name=gn_time]")
+                ).to_be_enabled()
+                expect(
+                    desktop.locator("#notification-form input[name=gm_time]")
+                ).to_be_disabled()
                 # Saved choices filled in after loading are not unsent text: the update button refreshes without asking.
                 dialogs = []
                 desktop.on(
@@ -408,6 +485,7 @@ def main():
                         "widgetThemeInApp": True,
                         "workerHasNoFetchHandler": True,
                         "bilingual": True,
+                        "blockedShowsWarning": True,
                         "widths": [390, 1440],
                         "pageErrors": 0,
                     }
