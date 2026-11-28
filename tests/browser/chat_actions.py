@@ -380,6 +380,170 @@ def main():
                 page.evaluate("applyWebsiteLanguage('zh-CN')")
                 expect(card.locator(".chat-special-label")).to_have_text("已添加待办")
                 expect(question.locator(".chat-special-label")).to_have_text("想问问你")
+                # Settings the secretary prepared apply on the page that sent (or answered) their turn,
+                # in order, once the reply ends; other turns' requests and script clicks change nothing.
+                page = browser.new_page(viewport={"width": 1000, "height": 900})
+                errors = []
+                page.on("pageerror", lambda error: errors.append(str(error)))
+
+                def setting(seq, turn, name, value):
+                    return {
+                        "id": f"action:setting:{seq}",
+                        "role": "assistant",
+                        "kind": "action",
+                        "text": "",
+                        "from_turn": turn,
+                        "action": {
+                            "operation": "requested",
+                            "target": "setting",
+                            "setting": name,
+                            "value": value,
+                            "seq": seq,
+                            "state": "open",
+                        },
+                    }
+
+                status = {
+                    "mode": "secretary",
+                    "state": "waiting",
+                    "label": "Ready for your reply",
+                    "language": "en",
+                    "forms": [
+                        {
+                            "id": "pick",
+                            "title": "Which colors?",
+                            "fields": [
+                                {
+                                    "key": "colors",
+                                    "title": "Night colors",
+                                    "type": "string",
+                                }
+                            ],
+                        }
+                    ],
+                    "permissions": [],
+                    "messages": [],
+                }
+                claims, token = [], {}
+
+                def claim(route):
+                    seq = int(route.request.url.split("/settings/")[1].split("/")[0])
+                    claims.append(seq)
+                    entry = next(
+                        item["action"]
+                        for item in status["messages"]
+                        if item["action"]["seq"] == seq
+                    )
+                    sent = json.loads(route.request.post_data)
+                    # Each claim names its exact request and carries this page's token.
+                    assert sent == {
+                        "setting": entry["setting"],
+                        "page": token["page"],
+                        "tap": entry["setting"] == "sign_out",
+                    }, sent
+                    # Request 5's claim answers with another action, which the page refuses.
+                    granted = (
+                        {"setting": "sign_out", "value": True}
+                        if seq == 5
+                        else {"setting": entry["setting"], "value": entry["value"]}
+                    )
+                    route.fulfill(json={"claimed": True, "seq": seq} | granted)
+
+                page.route("**/api/chats/*", lambda route: route.fulfill(json=status))
+                page.route("**/settings/*/claim", claim)
+                answers = []
+
+                def answered(route):
+                    answers.append(json.loads(route.request.post_data))
+                    route.fulfill(
+                        json={"answered": True, "turn": "answer-turn", "owner": True}
+                    )
+
+                page.route("**/form/pick/reply", answered)
+                page.goto(address + "/chat?id=" + "d" * 32)
+                token["page"] = page.evaluate("goodmorningSettings.page")
+                question = page.locator("#chat-questions .agent-form")
+                expect(question).to_be_visible()
+                question.locator("input, textarea").first.fill("City Lights")
+                question.locator("button[type=submit]").click()
+                status.update(
+                    state="running",
+                    forms=[],
+                    messages=[
+                        setting(1, "answer-turn", "night_scheme", "city-lights"),
+                        setting(2, "answer-turn", "style", "pixel"),
+                        setting(3, "elsewhere", "day_scheme", "warm"),
+                        setting(4, "answer-turn", "sign_out", True),
+                        setting(5, "answer-turn", "day_scheme", "picnic"),
+                        setting(6, "elsewhere", "sign_out", True),
+                    ],
+                )
+                # The answer carries this page's token, so the server binds its turn to this page.
+                assert answers[0]["page"] == token["page"], answers
+                page.evaluate("pollChat()")
+                page.wait_for_timeout(500)
+                assert claims == [], claims
+                # Paused on a question or permission is not finished: still nothing runs.
+                status["state"] = "waiting"
+                page.evaluate("pollChat()")
+                page.wait_for_timeout(500)
+                assert claims == [], claims
+                card = lambda seq: page.locator(
+                    f'[data-message="action:setting:{seq}"] .chat-setting'
+                )
+                # No tap button before the reply ends, and never for another page's request.
+                expect(card(4).locator(".chat-setting-confirm")).to_be_hidden()
+                status["state"] = "idle"
+                page.evaluate("pollChat()")
+                for seq in (1, 2):
+                    expect(card(seq).locator(".chat-setting-result")).to_have_text(
+                        "Done on this device."
+                    )
+                assert page.evaluate(
+                    "[document.documentElement.dataset.nightScheme, document.documentElement.dataset.style]"
+                ) == ["city-lights", "pixel"]
+                expect(card(3).locator(".chat-setting-result")).to_have_text(
+                    "Not changed. Ask again here, or use the pop-up."
+                )
+                assert (
+                    page.evaluate("document.documentElement.dataset.dayScheme")
+                    != "warm"
+                )
+                expect(card(1).locator(".chat-setting-title")).to_have_text(
+                    "Night color scheme → City Lights"
+                )
+                expect(card(5).locator(".chat-setting-result")).to_have_text(
+                    "Couldn’t change it: Not changed. Ask again here, or use the pop-up."
+                )
+                assert (
+                    page.evaluate("document.documentElement.dataset.dayScheme")
+                    != "picnic"
+                )
+                expect(card(6).locator(".chat-setting-confirm")).to_be_hidden()
+                expect(card(6).locator(".chat-setting-result")).to_have_text(
+                    "Not changed. Ask again here, or use the pop-up."
+                )
+                card(4).locator(".chat-setting-confirm").evaluate(
+                    "button => button.click()"
+                )
+                page.wait_for_timeout(300)
+                assert claims == [1, 2, 5], claims
+                # The local viewer has no sign-out; a real tap says so instead of pretending.
+                card(4).locator(".chat-setting-confirm").click()
+                expect(card(4).locator(".chat-setting-result")).to_have_text(
+                    "Couldn’t change it: This setting isn’t available on this page."
+                )
+                # A reload shows the outcomes without applying anything again.
+                page.reload()
+                expect(card(1).locator(".chat-setting-result")).to_have_text(
+                    "Done on this device."
+                )
+                page.wait_for_timeout(500)
+                assert claims == [1, 2, 5, 4], claims
+                # A reloaded page is another page: it shows outcomes but owns nothing new.
+                expect(card(4).locator(".chat-setting-confirm")).to_be_hidden()
+                assert not errors, errors
+                checks.append("settings applied once, only by the sending page")
                 browser.close()
         finally:
             process.terminate()

@@ -4,26 +4,31 @@ import contextlib
 import io
 import json
 import os
-from pathlib import Path
 import re
 import sys
 import tempfile
 import unittest
+from pathlib import Path
 from unittest.mock import patch
 
 from support import TEMP_ROOT
+
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 from goodmorning import setup_flow
 from goodmorning.records import custom, inbox, memory, task, workflow
 from goodmorning.records.inbox_store import initialize, stamp
+from goodmorning.web import website_settings
 
-EXAMPLE = re.compile(r"^ *```json ([^\n]+)\n(.*?)^ *```", re.M | re.S)
+EXAMPLE = re.compile(r"^ *```json ([^\n]+)\n(.*?)^ *```", re.MULTILINE | re.DOTALL)
 NUDGE = {"raw": "Water the plants", "task": {"title": "Water the plants"}}
 
 
 def examples(path):
-    return [(command, json.loads(body)) for command, body in EXAMPLE.findall(path.read_text())]
+    return [
+        (command, json.loads(body))
+        for command, body in EXAMPLE.findall(path.read_text())
+    ]
 
 
 class HelperInputTests(unittest.TestCase):
@@ -34,8 +39,10 @@ class HelperInputTests(unittest.TestCase):
         env = patch.dict(os.environ, {"SECRETARY_DIR": str(self.root)}, clear=True)
         env.start()
         self.addCleanup(env.stop)
-        (self.root / "profile.md").write_text('city: "London, GB"\ntimezone: "Europe/London"\n'
-            'news_country: "GB"\nsecretary_language: "English"\n')
+        (self.root / "profile.md").write_text(
+            'city: "London, GB"\ntimezone: "Europe/London"\n'
+            'news_country: "GB"\nsecretary_language: "English"\n'
+        )
         initialize(self.root)
         self.keys = 0
 
@@ -44,7 +51,10 @@ class HelperInputTests(unittest.TestCase):
         args = [*args, "--session", "ses-test", "--request-key", f"key-{self.keys}"]
         if payload is not None:
             args.append("--input-stdin")
-        with patch("sys.stdin", io.StringIO(json.dumps(payload))), contextlib.redirect_stdout(io.StringIO()) as out:
+        with (
+            patch("sys.stdin", io.StringIO(json.dumps(payload))),
+            contextlib.redirect_stdout(io.StringIO()) as out,
+        ):
             main(args)
         receipt = json.loads(out.getvalue())
         self.assertTrue(receipt.get("saved"), receipt)
@@ -57,39 +67,121 @@ class HelperInputTests(unittest.TestCase):
         if operation[0] == "workflow":
             return self.run_helper(workflow.main, command.split()[1:], payload)
         if operation == ["task", "--update"] or operation == ["task", "--report"]:
-            repeat = {"timezone": "Europe/London", "repeat": {"weekdays": list(range(7)), "start": today}}
-            created = self.run_helper(task.main, ["--add"], {**NUDGE, "task": {**NUDGE["task"],
-                                      **(repeat if operation[1] == "--report" else {})}})
+            repeat = {
+                "timezone": "Europe/London",
+                "repeat": {"weekdays": list(range(7)), "start": today},
+            }
+            created = self.run_helper(
+                task.main,
+                ["--add"],
+                {
+                    **NUDGE,
+                    "task": {
+                        **NUDGE["task"],
+                        **(repeat if operation[1] == "--report" else {}),
+                    },
+                },
+            )
             day = ["--date", today] if operation[1] == "--report" else []
-            return self.run_helper(task.main, [operation[1], created["task_id"], "--expect-revision", "1", *day], payload)
+            return self.run_helper(
+                task.main,
+                [operation[1], created["task_id"], "--expect-revision", "1", *day],
+                payload,
+            )
         if operation[0] == "task":
             return self.run_helper(task.main, operation[1:], payload)
         if operation[0] == "inbox":
-            created = self.run_helper(workflow.main, ["--capture", "eureka"], {"raw": "Weekly mood line"})
-            revision = ["--expect-revision", str(created["revision"])] if operation[1] == "--update" else []
-            return self.run_helper(inbox.main, [operation[1], created["id"], *revision], payload)
+            created = self.run_helper(
+                workflow.main, ["--capture", "eureka"], {"raw": "Weekly mood line"}
+            )
+            revision = (
+                ["--expect-revision", str(created["revision"])]
+                if operation[1] == "--update"
+                else []
+            )
+            return self.run_helper(
+                inbox.main, [operation[1], created["id"], *revision], payload
+            )
         if operation == ["custom", "--add"]:
             return self.run_helper(custom.main, ["--add"], payload)
         if operation == ["custom", "--report"]:
-            created = self.run_helper(custom.main, ["--add"], {"title": "Stretch", "timezone": "Europe/London",
-                "policy": {"base": "weekdays", "weekdays": [0], "start": today, "anchor": "fixed", "miss_policy": "fixed"}})
-            return self.run_helper(custom.main, ["--report", created["id"], "--expect-revision", "1", "--date", today], payload)
+            created = self.run_helper(
+                custom.main,
+                ["--add"],
+                {
+                    "title": "Stretch",
+                    "timezone": "Europe/London",
+                    "policy": {
+                        "base": "weekdays",
+                        "weekdays": [0],
+                        "start": today,
+                        "anchor": "fixed",
+                        "miss_policy": "fixed",
+                    },
+                },
+            )
+            return self.run_helper(
+                custom.main,
+                ["--report", created["id"], "--expect-revision", "1", "--date", today],
+                payload,
+            )
         if operation[0] == "memory":
             # Memory writes are revision-checked instead of keyed by session and request.
-            with patch("sys.stdin", io.StringIO(json.dumps(payload))), contextlib.redirect_stdout(io.StringIO()) as out:
-                memory.main([operation[1], "--expect-revision", str(memory.context(self.root)["revision"]), "--input-stdin"])
+            with (
+                patch("sys.stdin", io.StringIO(json.dumps(payload))),
+                contextlib.redirect_stdout(io.StringIO()) as out,
+            ):
+                memory.main(
+                    [
+                        operation[1],
+                        "--expect-revision",
+                        str(memory.context(self.root)["revision"]),
+                        "--input-stdin",
+                    ]
+                )
             receipt = json.loads(out.getvalue())
             self.assertTrue(receipt.get("saved"), receipt)
             return receipt
-        if operation[0] == "setup":
-            chat = ("d" if operation[1] == "answer" else "e") * 32  # Each example starts its own setup.
+        if operation[0] == "settings":
             (self.root / "browser-chats").mkdir(exist_ok=True)
-            (self.root / "browser-chats" / "chats.json").write_text(json.dumps({chat: {
-                "id": chat, "mode": "initialize", "session": "ses_doc", "turns": [{"text": "Please call yourself Pip", "language": "en"}]}}))
+            (self.root / "browser-chats" / "chats.json").write_text(
+                json.dumps(
+                    {
+                        "c" * 32: {
+                            "id": "c" * 32,
+                            "mode": "secretary",
+                            "session": "ses-test",
+                            "turns": [{"id": "t1", "text": "Hi", "accepted": 1.0}],
+                        }
+                    }
+                )
+            )
+            return self.run_helper(website_settings.main, [], payload)
+        if operation[0] == "setup":
+            chat = (
+                "d" if operation[1] == "answer" else "e"
+            ) * 32  # Each example starts its own setup.
+            (self.root / "browser-chats").mkdir(exist_ok=True)
+            (self.root / "browser-chats" / "chats.json").write_text(
+                json.dumps(
+                    {
+                        chat: {
+                            "id": chat,
+                            "mode": "initialize",
+                            "session": "ses_doc",
+                            "turns": [
+                                {"text": "Please call yourself Pip", "language": "en"}
+                            ],
+                        }
+                    }
+                )
+            )
             setup_flow.agree(self.root, chat)
             setup_flow.begin(self.root, chat)
             with contextlib.redirect_stdout(io.StringIO()) as out:
-                code = setup_flow.command(self.root, "ses_doc", operation[1], json.dumps(payload))
+                code = setup_flow.command(
+                    self.root, "ses_doc", operation[1], json.dumps(payload)
+                )
             receipt = json.loads(out.getvalue())
             self.assertEqual(code, 0, receipt)
             return receipt
@@ -105,19 +197,43 @@ class HelperInputTests(unittest.TestCase):
     def test_workflow_capture_examples_save(self):
         for name in ("todo", "eureka"):
             found = examples(ROOT / "docs" / "workflows" / f"{name}.md")
-            self.assertEqual([command for command, _ in found], [f"workflow --capture {name}"])
+            self.assertEqual(
+                [command for command, _ in found], [f"workflow --capture {name}"]
+            )
             self.save(*found[0])
 
     def test_malformed_json_is_named_as_an_input_error(self):
-        for main, args in ((workflow.main, ["--capture", "todo"]), (task.main, ["--add"]),
-                           (custom.main, ["--add"]), (inbox.main, ["--add"])):
-            with patch("sys.stdin", io.StringIO('{"raw":"Buy milk"}}')), contextlib.redirect_stdout(io.StringIO()) as out:
-                self.assertEqual(main([*args, "--session", "ses-test", "--request-key", "bad-json", "--input-stdin"]), 1)
+        for main, args in (
+            (workflow.main, ["--capture", "todo"]),
+            (task.main, ["--add"]),
+            (custom.main, ["--add"]),
+            (inbox.main, ["--add"]),
+        ):
+            with (
+                patch("sys.stdin", io.StringIO('{"raw":"Buy milk"}}')),
+                contextlib.redirect_stdout(io.StringIO()) as out,
+            ):
+                self.assertEqual(
+                    main(
+                        [
+                            *args,
+                            "--session",
+                            "ses-test",
+                            "--request-key",
+                            "bad-json",
+                            "--input-stdin",
+                        ]
+                    ),
+                    1,
+                )
             self.assertEqual(json.loads(out.getvalue())["error"], "invalid_input", args)
 
     def test_json_helpers_point_to_the_input_contract(self):
         for main in (workflow.main, task.main, inbox.main, custom.main):
-            with contextlib.redirect_stdout(io.StringIO()) as out, self.assertRaises(SystemExit):
+            with (
+                contextlib.redirect_stdout(io.StringIO()) as out,
+                self.assertRaises(SystemExit),
+            ):
                 main(["--help"])
             self.assertIn("docs/helper-inputs.md", out.getvalue())
 

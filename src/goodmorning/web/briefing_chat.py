@@ -193,6 +193,40 @@ def answer_text(form, answer, language):
     return "\n".join(parts) or "—"
 
 
+def page_mark(body):
+    """The sending page's own token, kept only as a hash: website settings go to that page alone.
+    The gateway hashes it before queueing or forwarding (`page_hash`); the local viewer sends `page`."""
+    token, digest = body.get("page"), body.get("page_hash")
+    if token is None and digest is None:
+        return {}
+    if (
+        token is not None
+        and digest is None
+        and isinstance(token, str)
+        and re.fullmatch("[a-f0-9]{32}", token)
+    ):
+        return {"page": hashlib.sha256(token.encode()).hexdigest()}
+    if (
+        token is None
+        and isinstance(digest, str)
+        and re.fullmatch("[a-f0-9]{64}", digest)
+    ):
+        return {"page": digest}
+    raise ValueError("Invalid page")
+
+
+def hash_page(body):
+    """The gateway's copy of a message or answer, with the page token replaced by its hash."""
+    mark = page_mark(body)
+    body = {key: value for key, value in body.items() if key != "page"}
+    return body | ({"page_hash": mark["page"]} if mark else {})
+
+
+def answer_turn(chat, request):
+    """The stable turn of an answer, known before it is sent, so a queued or retried answer keeps it."""
+    return hashlib.sha256(("answer:" + chat + ":" + request).encode()).hexdigest()[:32]
+
+
 def model_answer(form, answer):
     """The engine's own wording for a question tool result, so a later answer reads as one."""
     parts = []
@@ -380,6 +414,8 @@ def opening_message(opening):
 
 
 class Chats:
+    source = None  # "local viewer" on a local install, whose only menu is Settings.
+
     def __init__(self, runtime, chamber):
         self.runtime, self.chamber = runtime, chamber
         self.uploads = Uploads(runtime)
@@ -667,6 +703,11 @@ class Chats:
                 ],
                 joined=[turn["id"] for turn in requests[:-1]],
             )
+            # Messages from different pages (or from the widget and a page) share one turn now, so
+            # website settings cannot tell which page asked.
+            if len({turn.get("page") for turn in requests}) > 1:
+                request.update(mixed=True)
+                request.pop("page", None)
             item["turns"] = [
                 turn for turn in item["turns"] if turn["id"] not in request["joined"]
             ]
@@ -792,9 +833,10 @@ class Chats:
 
     def start(self, body):
         if (
-            set(body)
+            set(body) - {"source", "page", "page_hash"}
             not in ({"id", "mode", "text"}, {"id", "mode", "text", "attachments"})
             or body["mode"] not in NEW_MODES
+            or body.get("source", "widget") != "widget"
         ):
             raise ValueError("Start a Secretary conversation")
         chat, text = identifier(body["id"]), message(body["text"])
@@ -835,6 +877,9 @@ class Chats:
                         "language": ui.current(),
                         "model": site_models.current(),
                     }
+                    # The phone's chat widget has no page to change settings on.
+                    | ({"source": "widget"} if body.get("source") else {})
+                    | page_mark(body)
                 ],
                 "created": time.time(),
             }
@@ -889,6 +934,25 @@ class Chats:
             self.save()
         return {"chat": chat}
 
+    def engine_busy(self, item):
+        """The engine's own view of the session: parked questions are closed there, so busy means a reply
+        is still being written. Unsure counts as busy, so website settings fail closed."""
+        if not item.get("session") or not self.chamber:
+            return False
+        try:
+            status = self.chamber.control("session.status", sessionId=item["session"])
+            return status["sessionStatus"]["type"] != "idle"
+        except Exception:
+            return True
+
+    def claim_setting(self, chat, seq, body):
+        """A page's one-time claim of a website settings request, refused until its reply has finished."""
+        from goodmorning.web import website_settings
+
+        # Only the engine's finished reply counts: one paused on a question or permission is still going.
+        finished = self.status(chat, include_messages=False)["state"] == "idle"
+        return website_settings.claim(self.runtime, chat, seq, body, finished)
+
     def seen(self, chat):
         with self.lock:
             self.get(chat)
@@ -897,7 +961,11 @@ class Chats:
         return {"seen": True}
 
     def send(self, chat, body):
-        if set(body) not in ({"id", "text"}, {"id", "text", "attachments"}):
+        if (
+            set(body) - {"source", "page", "page_hash"}
+            not in ({"id", "text"}, {"id", "text", "attachments"})
+            or body.get("source", "widget") != "widget"
+        ):
             raise ValueError("Invalid message")
         request, text = identifier(body["id"]), message(body["text"])
         attachments = [self.uploads.get(value) for value in attachment_ids(body)]
@@ -922,6 +990,10 @@ class Chats:
                 return {"chat": chat}
             status = self.status(chat)
             state = status["state"]
+            # A parked question makes the chat look idle while the engine may still be writing.
+            busy = state in ("running", "starting") or (
+                state == "waiting" and self.engine_busy(item)
+            )
             if state == "waiting":
                 if status["permissions"]:
                     raise ValueError("Answer the pending question first")
@@ -956,6 +1028,10 @@ class Chats:
                     "model": site_models.current(),
                     "created": time.time(),
                 }
+                | ({"source": "widget"} if body.get("source") else {})
+                | page_mark(body)
+                # Sent while a reply runs: website settings from then on cannot tell which message asked.
+                | ({"interrupt": True} if busy else {})
             )
             for entry in item.get("questions", []):
                 if entry.get("parked") and "answer" not in entry:
@@ -988,6 +1064,12 @@ class Chats:
                 selected = turn.get("language", "en")
                 chosen = turn.get("model", site_models.DEFAULT)
                 attachments = list(turn.get("attachments", []))
+                # Website settings follow the page the message came from (docs/workflows/secretary.md).
+                source = (
+                    "Android chat widget"
+                    if turn.get("source") == "widget"
+                    else self.source
+                )
                 mode = item["mode"]
                 runtime = self.runtime
                 opening = item.get("opening") if first else None
@@ -1057,6 +1139,8 @@ class Chats:
                 prompt += f"Call the user: {json.dumps(fields['user_name'], ensure_ascii=False)}\n"
             if opening:
                 prompt += f"Secretary opening: {json.dumps(opening['text'], ensure_ascii=False)}\n"
+            if source:
+                prompt += f"Sent from: {source}\n"
             prompt += f"\n{text}"
             if mode == "initialize":
                 setup_flow.begin(runtime, chat_id)
@@ -1107,6 +1191,10 @@ class Chats:
                 if item is None:
                     return
                 item["state"] = "running"
+                # Website settings belong to the newest turn the engine accepted (website_settings.py).
+                for entry in item["turns"]:
+                    if entry["id"] == turn_id:
+                        entry["accepted"] = time.time()
                 self.save()
         except Exception:
             with self.lock:
@@ -1169,6 +1257,7 @@ class Chats:
             item.pop("uncertain_since", None)
             if delivered:
                 item["state"] = "running"
+                turn["accepted"] = time.time()
             else:
                 item["state"] = "idle"
                 question = next(
@@ -1506,7 +1595,11 @@ class Chats:
             ):
                 raise ValueError("Invalid reply target")
             if category + ":" + request in item.get("replied_inputs", []):
-                return {"answered": True}
+                return {"answered": True} | (
+                    self.answer_owner(item, chat, request, body)
+                    if category == "form"
+                    else {}
+                )
             forms, permissions = self.chamber.pending(item["session"])
             if category == "form":
                 return self.answer(chat, item["session"], forms, request, body)
@@ -1548,12 +1641,13 @@ class Chats:
                     "This request is no longer pending in this conversation"
                 )
             if "answer" in question:
-                return {"answered": True}
+                return {"answered": True} | self.answer_owner(item, chat, request, body)
             if item["state"] in ("starting", "uncertain"):
                 raise ValueError(
                     "Wait for the secretary or answer the pending question"
                 )
             answer = valid_answer(question["form"], body.get("answer"))
+            mark = page_mark(body)
             if question["form"].get("setup") == "consent":
                 self.consent(item, question, answer)
                 self.save()
@@ -1562,19 +1656,37 @@ class Chats:
                 raise ValueError("Start a new conversation to keep context bounded")
             text = model_answer(question["form"], answer)
             self.capacity({"answer": answer, "text": text})
-            turn = hashlib.sha256(
-                ("answer:" + chat + ":" + request).encode()
-            ).hexdigest()[:32]
+            turn = answer_turn(chat, request)
+            # Only what the user typed, never the question's wording or options, can carry a phone link code.
+            typed = [
+                value
+                for field in question["form"]["fields"]
+                for value in (
+                    answer.get(field["key"])
+                    if isinstance(answer.get(field["key"]), list)
+                    else [answer.get(field["key"])]
+                )
+                if isinstance(value, str)
+                and value
+                not in {
+                    str(option.get(key))
+                    for option in field.get("options", [])
+                    for key in ("value", "label")
+                }
+            ]
             item["turns"].append(
                 {
                     "id": turn,
                     "text": text,
                     "answer": request,
+                    "typed": typed,
                     "attachments": [],
                     "language": ui.current(),
                     "model": site_models.current(),
                     "created": time.time(),
                 }
+                | mark
+                | ({"interrupt": True} if session and self.engine_busy(item) else {})
             )
             question["answer"] = answer
             question.pop("unsent", None)
@@ -1591,7 +1703,16 @@ class Chats:
             threading.Thread(
                 target=self.dispatch, args=(chat, turn, text, not session), daemon=True
             ).start()
-        return {"answered": True}
+        # The page that answered applies settings requested in reply to it (chat-settings.js).
+        return {"answered": True, "turn": turn, "owner": bool(mark)}
+
+    @staticmethod
+    def answer_owner(item, chat, request, body):
+        """A repeated answer keeps its turn; only the page that first sent it owns that turn's settings."""
+        turn = answer_turn(chat, request)
+        saved = next((entry for entry in item["turns"] if entry["id"] == turn), {})
+        mark = page_mark(body)
+        return {"turn": turn, "owner": bool(mark) and saved.get("page") == mark["page"]}
 
 
 def page(
@@ -1723,5 +1844,5 @@ def page(
         "<noscript>Enable JavaScript to talk with your secretary. Saved briefings remain readable.</noscript></section></main>"
         '<div id="chat-config" hidden data-config="' + config + '"></div>'
         '<script src="/questions.js" defer></script><script src="/avatar.js" defer></script>'
-        '<script src="/marked.js" defer></script><script src="/markdown.js" defer></script><script src="/chat.js" defer></script></body></html>'
+        '<script src="/marked.js" defer></script><script src="/markdown.js" defer></script><script src="/chat-settings.js" defer></script><script src="/chat.js" defer></script></body></html>'
     )

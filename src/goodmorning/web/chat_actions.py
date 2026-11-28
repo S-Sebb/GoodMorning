@@ -1,19 +1,25 @@
 """Read small, session-owned change receipts, never commands or private tool output."""
-from datetime import datetime
-import sqlite3
 
-from goodmorning.runtime_files import calendar_path
+import sqlite3
+from datetime import datetime
+
+from goodmorning.calendar.calendar_store import CalendarStore
 from goodmorning.records import memory
 from goodmorning.records.inbox_store import InboxStore
-from goodmorning.calendar.calendar_store import CalendarStore
+from goodmorning.runtime_files import calendar_path
 
 LIMIT = 30
 
 
 def change(source, row):
-    return {'id': f'action:{source}:{row["seq"]}', 'role': 'assistant', 'kind': 'action',
-            'text': row['title'] or '', 'action': {'operation': row['operation'], 'target': row['target']},
-            'at': row['at']}
+    return {
+        "id": f"action:{source}:{row['seq']}",
+        "role": "assistant",
+        "kind": "action",
+        "text": row["title"] or "",
+        "action": {"operation": row["operation"], "target": row["target"]},
+        "at": row["at"],
+    }
 
 
 def read_changes(runtime, session, *, aliases=()):
@@ -21,13 +27,14 @@ def read_changes(runtime, session, *, aliases=()):
     # Callers supply aliases only from this account's selected conversation,
     # never from a browser request or an unverified label in an audit record.
     owners = tuple(dict.fromkeys((session, *aliases)))
-    placeholders = ','.join('?' for _ in owners)
+    placeholders = ",".join("?" for _ in owners)
     changes, unavailable = [], False
-    if (runtime / 'inbox.sqlite').exists():
+    if (runtime / "inbox.sqlite").exists():
         store = None
         try:
             store = InboxStore(runtime)
-            rows = store.db.execute(f"""
+            rows = store.db.execute(
+                f"""
                 SELECT e.seq,e.created_at at,
                     CASE WHEN e.action='add' THEN 'added'
                          WHEN json_extract(e.changes,'$.status')='done' THEN 'completed'
@@ -41,10 +48,13 @@ def read_changes(runtime, session, *, aliases=()):
                         json_extract(e.changes,'$.raw'),''),1,160) title
                 FROM events e WHERE e.session IN ({placeholders}) AND json_extract(e.receipt,'$.saved')=1
                 ORDER BY e.seq DESC LIMIT ?
-                """, (*owners, LIMIT)).fetchall()
-            changes.extend(change('inbox', row) for row in rows)
+                """,
+                (*owners, LIMIT),
+            ).fetchall()
+            changes.extend(change("inbox", row) for row in rows)
             if store.version == 2:
-                rows = store.db.execute(f"""
+                rows = store.db.execute(
+                    f"""
                     SELECT seq,at,
                         CASE WHEN action='adopt' THEN 'added'
                              WHEN json_extract(snapshot,'$.input.status')='cancelled'
@@ -56,8 +66,10 @@ def read_changes(runtime, session, *, aliases=()):
                         substr(coalesce(json_extract(snapshot,'$.item.title'),''),1,160) title
                     FROM task_events WHERE session IN ({placeholders}) AND action IN ('adopt','update','report')
                         AND json_extract(receipt,'$.saved')=1 ORDER BY seq DESC LIMIT ?
-                    """, (*owners, LIMIT)).fetchall()
-                changes.extend(change('task', row) for row in rows)
+                    """,
+                    (*owners, LIMIT),
+                ).fetchall()
+                changes.extend(change("task", row) for row in rows)
         except (ValueError, OSError, sqlite3.Error):
             unavailable = True
         finally:
@@ -68,7 +80,8 @@ def read_changes(runtime, session, *, aliases=()):
         path = calendar_path(runtime)
         if path.is_file():
             store = CalendarStore(str(path), readonly=True)
-            rows = store.con.execute(f"""
+            rows = store.con.execute(
+                f"""
                 SELECT seq,at,
                     CASE action WHEN 'cancel' THEN 'cancelled' WHEN 'add' THEN 'added'
                          WHEN 'approve' THEN 'approved' WHEN 'reject' THEN 'declined'
@@ -79,8 +92,10 @@ def read_changes(runtime, session, *, aliases=()):
                             json_extract(snapshot,'$.raw.subject'),'') END,1,160) title
                 FROM history WHERE actor IN ({placeholders}) AND action IN ('add','update','cancel','approve','reject')
                 ORDER BY seq DESC LIMIT ?
-                """, (*owners, LIMIT)).fetchall()
-            changes.extend(change('calendar', row) for row in rows)
+                """,
+                (*owners, LIMIT),
+            ).fetchall()
+            changes.extend(change("calendar", row) for row in rows)
     except (ValueError, OSError, sqlite3.Error):
         unavailable = True
     finally:
@@ -89,15 +104,21 @@ def read_changes(runtime, session, *, aliases=()):
     store = None
     try:
         from pathlib import Path as _Path
+
         custom_path = _Path(runtime) / "custom.sqlite"
         if custom_path.is_symlink():
             raise ValueError("unsafe_path: custom store must belong to this runtime")
         if custom_path.is_file():
-            connection = sqlite3.connect(custom_path.resolve().as_uri() + "?mode=ro",
-                                         uri=True, timeout=0, isolation_level=None)
+            connection = sqlite3.connect(
+                custom_path.resolve().as_uri() + "?mode=ro",
+                uri=True,
+                timeout=0,
+                isolation_level=None,
+            )
             connection.row_factory = sqlite3.Row
             try:
-                rows = connection.execute(f"""
+                rows = connection.execute(
+                    f"""
                     SELECT e.seq,e.at at,
                         CASE e.action WHEN 'add' THEN 'added' WHEN 'update' THEN 'updated'
                              WHEN 'report' THEN 'completed' ELSE 'updated' END operation,
@@ -107,22 +128,62 @@ def read_changes(runtime, session, *, aliases=()):
                     FROM custom_events e LEFT JOIN custom_rules r ON r.id=e.item_id
                     WHERE e.session IN ({placeholders}) AND json_extract(e.receipt,'$.saved')=1
                     ORDER BY e.seq DESC LIMIT ?
-                    """, (*owners, LIMIT)).fetchall()
-                changes.extend(change('custom', row) for row in rows)
+                    """,
+                    (*owners, LIMIT),
+                ).fetchall()
+                changes.extend(change("custom", row) for row in rows)
             finally:
                 connection.close()
     except (ValueError, OSError, sqlite3.Error):
         unavailable = True
     try:
+        from goodmorning.web import website_settings
+
+        # The page that sent the request's turn applies it (website_settings, chat-settings.js).
+        changes.extend(
+            {
+                "id": f"action:setting:{entry['seq']}",
+                "role": "assistant",
+                "kind": "action",
+                "text": "",
+                "from_turn": entry["turn"],
+                "action": {
+                    "operation": "updated"
+                    if entry["state"] == "saved"
+                    else "requested",
+                    "target": "setting",
+                    "setting": entry["setting"],
+                    "value": entry["value"],
+                    "seq": entry["seq"],
+                    "state": entry["state"],
+                },
+                "at": entry["at"],
+            }
+            for entry in website_settings.changes(runtime, owners)
+        )
+    except (ValueError, OSError, KeyError):
+        unavailable = True
+    try:
         # Only that the note changed: its text stays on About me.
-        changes.extend(change('memory', {**entry, 'operation': 'updated', 'target': 'memory', 'title': ''})
-                       for entry in memory.load(runtime)['changes'] if entry['session'] in owners)
+        changes.extend(
+            change(
+                "memory",
+                {**entry, "operation": "updated", "target": "memory", "title": ""},
+            )
+            for entry in memory.load(runtime)["changes"]
+            if entry["session"] in owners
+        )
     except (ValueError, OSError):
         unavailable = True
     # Audit timestamps include offsets; string order is not chronological across zones.
     try:
-        changes.sort(key=lambda entry: (datetime.fromisoformat(entry['at']).timestamp(),
-                                       entry['id'].split(':')[1], int(entry['id'].split(':')[2])))
+        changes.sort(
+            key=lambda entry: (
+                datetime.fromisoformat(entry["at"]).timestamp(),
+                entry["id"].split(":")[1],
+                int(entry["id"].split(":")[2]),
+            )
+        )
     except (ValueError, TypeError):
         return [], True
     return changes[-LIMIT:], unavailable
@@ -130,26 +191,41 @@ def read_changes(runtime, session, *, aliases=()):
 
 def action_history(messages, changes, turns, created):
     """Place receipts at the end of their user turn, before the next user message."""
-    legacy = any('created' not in turn for turn in turns[1:])
-    windows = [(turn['id'], turn.get('created', created)) for index, turn in enumerate(turns)
-               if 'created' in turn or index == 0 and not legacy]
-    groups = {}
+    legacy = any("created" not in turn for turn in turns[1:])
+    windows = [
+        (turn["id"], turn.get("created", created))
+        for index, turn in enumerate(turns)
+        if "created" in turn or index == 0 and not legacy
+    ]
+    groups, known = {}, {turn["id"] for turn in turns}
     for entry in changes:
-        at = datetime.fromisoformat(entry['at']).timestamp()
+        # A settings request names its own turn; the page that sent that turn applies it.
+        if entry.get("from_turn") in known:
+            groups.setdefault(entry["from_turn"], []).append(entry)
+            continue
+        at = datetime.fromisoformat(entry["at"]).timestamp()
         # Inbox helpers record whole seconds; do not drop a fast save just
         # because the browser's turn timestamp has fractional seconds.
-        turn = next((identifier for identifier, start in reversed(windows)
-                     if (int(start) if '.' not in entry['at'] else start) <= at), None)
+        turn = next(
+            (
+                identifier
+                for identifier, start in reversed(windows)
+                if (int(start) if "." not in entry["at"] else start) <= at
+            ),
+            None,
+        )
         if turn:
             groups.setdefault(turn, []).append(entry)
     result, current = [], None
     for entry in messages:
-        turn = entry.get('_turn')
+        turn = entry.get("_turn")
         if turn and turn != current:
             result.extend(groups.pop(current, []))
             current = turn
         # Browsers replace their optimistic bubble once its turn appears.
-        result.append({key: value for key, value in entry.items() if key != '_turn'}
-                      | ({'turn': turn} if turn else {}))
+        result.append(
+            {key: value for key, value in entry.items() if key != "_turn"}
+            | ({"turn": turn} if turn else {})
+        )
     result.extend(groups.get(current, []))
     return result

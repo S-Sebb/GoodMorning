@@ -135,6 +135,7 @@ class Resources:
                 "about-me.css": "text/css",
                 "questions.js": "text/javascript",
                 "chat.js": "text/javascript",
+                "chat-settings.js": "text/javascript",
                 "chat.css": "text/css",
                 "language.js": "text/javascript",
                 "network.js": "text/javascript",

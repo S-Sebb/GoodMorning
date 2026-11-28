@@ -271,6 +271,100 @@ def check_waiting(browser, address, artifacts):
     page.close()
 
 
+def check_settings(browser, address):
+    """Quick Chat applies a setting the secretary prepared for a message sent from it, and names it."""
+    page = browser.new_page(viewport={"width": 1440, "height": 900})
+    errors = watch(page)
+    chat, sent, claims = "a" * 32, [], []
+    status = {
+        "chat": chat,
+        "mode": "secretary",
+        "state": "running",
+        "language": "en",
+        "label": "Working",
+        "forms": [],
+        "permissions": [],
+        "messages": [],
+    }
+
+    def messages(route):
+        if route.request.method == "POST":
+            sent.append(json.loads(route.request.post_data))
+            status["state"] = "running"  # Keeps the page polling until the reply ends.
+            return route.fulfill(json={"chat": chat})
+        route.fulfill(json=status)
+
+    def claim(route):
+        claims.append(json.loads(route.request.post_data))
+        route.fulfill(
+            json={
+                "claimed": True,
+                "seq": 1,
+                "setting": "night_scheme",
+                "value": "city-lights",
+            }
+        )
+
+    page.route(f"**/api/chats/{chat}**", messages)
+    page.route("**/settings/*/claim", claim)
+    page.goto(address + "/schedule")
+    page.evaluate(
+        """id => {
+      const key = 'goodmorning.chat.workspace.' + JSON.parse(document.querySelector('#quick-chat').dataset.config).workspaceScope;
+      sessionStorage.setItem(key, JSON.stringify({chat: id, resume: null, away: null, draft: false}));
+    }""",
+        chat,
+    )
+    page.reload()
+    page.locator("#quick-chat-launcher").click()
+    status["state"] = "idle"
+    page.locator("#quick-chat-text").fill("Night colors to City Lights, please")
+    page.locator("#quick-chat-text").press("Enter")
+    page.wait_for_function("() => !document.querySelector('#quick-chat-text').value")
+    assert sent, "Quick Chat did not send"
+    status["messages"] = [
+        {
+            "id": "u",
+            "role": "user",
+            "text": "Night colors to City Lights, please",
+            "turn": sent[0]["id"],
+        },
+        {
+            "id": "action:setting:1",
+            "role": "assistant",
+            "kind": "action",
+            "text": "",
+            "from_turn": sent[0]["id"],
+            "action": {
+                "operation": "requested",
+                "target": "setting",
+                "setting": "night_scheme",
+                "value": "city-lights",
+                "seq": 1,
+                "state": "open",
+            },
+        },
+    ]
+    status["state"] = "idle"
+    card = page.locator("#quick-chat-messages .chat-setting")
+    expect(card.locator(".chat-setting-title")).to_have_text(
+        "Night color scheme → City Lights", timeout=15000
+    )
+    expect(card.locator(".chat-setting-result")).to_have_text(
+        "Done on this device.", timeout=15000
+    )
+    assert (
+        page.evaluate("document.documentElement.dataset.nightScheme") == "city-lights"
+    )
+    # The message and its one claim carry the same page token.
+    assert claims == [
+        {"setting": "night_scheme", "page": sent[0]["page"], "tap": False}
+    ], claims
+    expect(page.locator("#quick-chat-messages")).not_to_contain_text("Record updated")
+    assert not errors, errors
+    page.close()
+
+
 # Cards stack down the page, so on desktop a button sharing any column with a card covers it at some scroll position (#259).
 CLEAR_OF_CARDS = """selector => { const button = document.querySelector(selector).getBoundingClientRect();
   return [...document.querySelectorAll('.briefing-section')].every(card => {
@@ -630,6 +724,7 @@ def main():
                     "modelCalls": 0,
                 }
                 check_waiting(browser, address, artifacts)
+                check_settings(browser, address)
                 check_attachments(browser, address, artifacts)
                 report["reminderCards"] = check_reminder_cards(
                     browser, address, runtime, artifacts

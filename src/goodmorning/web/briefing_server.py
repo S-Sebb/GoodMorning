@@ -2007,6 +2007,8 @@ def serve_live(app, port, *, gateway_key=None, public_origins=()):
         raise ValueError(
             "A public backend requires both a gateway key and explicit HTTPS origins"
         )
+    if not gateway_key:
+        app.chats.source = "local viewer"
 
     class Handler(BaseHTTPRequestHandler):
         def select_language(self):
@@ -2639,6 +2641,13 @@ def serve_live(app, port, *, gateway_key=None, public_origins=()):
                 chat = re.fullmatch(r"/api/chats/([a-f0-9]{32})/messages", path)
                 if chat:
                     return self.respond(app.chats.send(chat[1], body), 202)
+                setting = re.fullmatch(
+                    r"/api/chats/([a-f0-9]{32})/settings/([0-9]{1,9})/claim", path
+                )
+                if setting:
+                    return self.respond(
+                        app.chats.claim_setting(setting[1], int(setting[2]), body)
+                    )
                 chat_seen = re.fullmatch(r"/api/chats/([a-f0-9]{32})/seen", path)
                 if chat_seen:
                     return self.respond(app.chats.seen(chat_seen[1]))

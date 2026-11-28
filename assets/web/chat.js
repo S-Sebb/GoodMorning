@@ -279,6 +279,12 @@ function specialBadge(kind, action = {}) {
   const icon = make('span', '', 'chat-special-icon'); icon.append(specialIcon(kind, action));
   // The note itself stays on About me; the marker only links there.
   const label = action.target === 'memory' ? Object.assign(make('a'), {href: '/about-me#about-memory'}) : make('span');
+  if (kind === 'action' && action.target === 'setting') {
+    // The card names the setting and shows its outcome (chat-settings.js).
+    badge.dataset.target = 'setting';
+    badge.append(icon, goodmorningSettings.card(chat, action.item));
+    return badge;
+  }
   if (kind === 'action') {
     badge.dataset.target = action.target;
     badge.dataset.operation = action.operation;
@@ -831,6 +837,7 @@ latestButton.addEventListener('click', () => scrollToLatest(true));
 window.addEventListener('resize', updateScrollTools);
 
 function showMessages(messages) {
+  goodmorningSettings.update(chat, messages, state);
   shownMessages = messages;
   const delivered = new Set(messages.map(item => item.turn).filter(Boolean));
   pendingMessages = pendingMessages.filter(item => !delivered.has(item.turn));
@@ -849,7 +856,7 @@ function showMessages(messages) {
       if (special) {
         bubble.dataset.special = special;
         if (special === 'action') bubble.dataset.operation = item.action?.operation || 'updated';
-        bubble.append(specialBadge(special, item.action));
+        bubble.append(specialBadge(special, item.action?.target === 'setting' ? {...item.action, item} : item.action));
       }
       if (item.language) bubble.lang = item.language;
       const authorName = item.role === 'user' ? chatT('You') : (secretaryName || chatT('Your secretary'));
@@ -1035,7 +1042,9 @@ async function pollChat() {
     if (formsChanged) {
       const refreshed = () => { formSignature = ''; if (state === 'queued') pollQueue(); else pollChat(); };
       const reply = async (category, id, body) => {
-        const receipt = await chatAPI(`/api/chats/${current}/${category}/${id}/reply`, body);
+        const receipt = await chatAPI(`/api/chats/${current}/${category}/${id}/reply`,
+        category === 'form' ? {...body, page: goodmorningSettings.page} : body);
+        if (receipt.owner) goodmorningSettings.remember(receipt.turn);  // Changes requested in reply to an answer apply here too.
         if (version === revision) {
           followNextUpdate = true;
           if (receipt.queued) { state = 'queued'; showQueued(receipt.position, receipt.depth); showMode(); }
@@ -1098,12 +1107,13 @@ async function sendAgain(item) {
   const request = crypto.randomUUID().replaceAll('-', '');
   // Uploads removed after 30 days cannot be sent again.
   const attachments = item.attachments.filter(entry => !entry.removed);
-  const body = {id: request, text: item.text};
+  const body = {id: request, text: item.text, page: goodmorningSettings.page};
   if (attachments.length) body.attachments = attachments.map(entry => entry.id);
   const previous = shownMessages;
   sending = true; animateMessages = true; errorBox.textContent = ''; composeState();
   // The new message replaces the one that was not sent.
   pendingMessages.push({turn: request, text: item.text, attachments});
+  goodmorningSettings.remember(request);
   showMessages(previous.filter(entry => entry.id !== item.id)); scrollToLatest(true);
   try {
     const result = await chatAPI(`/api/chats/${current}/messages`, body);
@@ -1140,6 +1150,7 @@ document.querySelector('#chat-compose').addEventListener('submit', async event =
   const pending = {turn: request, text, attachments: selectedFiles.map(entry => ({id: entry.id,
     name: entry.file.name, size: entry.file.size, preview: entry.preview}))};
   pendingMessages.push(pending);
+  goodmorningSettings.remember(request);
   showMessages(shownMessages); scrollToLatest(true);
   try {
     for (const entry of selectedFiles) {
@@ -1149,7 +1160,7 @@ document.querySelector('#chat-compose').addEventListener('submit', async event =
       }
       if (version !== revision) return;
     }
-    const body = first ? {id: current, mode, text} : {id: request, text};
+    const body = {...(first ? {id: current, mode, text} : {id: request, text}), page: goodmorningSettings.page};
     if (selectedFiles.length) body.attachments = selectedFiles.map(entry => entry.id);
     dispatching = true;
     const result = await chatAPI(first ? '/api/chats' : `/api/chats/${current}/messages`,
@@ -1203,7 +1214,7 @@ async function returnToSecretary() {
   pollVisible(); focusComposer();
 }
 document.addEventListener('website:language', () => {
-  document.querySelectorAll('.chat-special-label[data-target]').forEach(badge => {
+  document.querySelectorAll('.chat-special-label[data-target]:not([data-target="setting"])').forEach(badge => {
     badge.lastElementChild.textContent = actionLabel(badge.dataset.target, badge.dataset.operation);
     if (typeof goodmorningLanguage !== 'undefined') badge.lastElementChild.lang = goodmorningLanguage;
   });

@@ -177,6 +177,52 @@ the user whether to merge them before anything else.
 {"from":"Atlas","to":"Atlas comparison study"}
 ```
 
+## Website settings: `settings`
+
+`settings --secretary-dir RUNTIME --session SESSION --request-key KEY --input-stdin`
+takes one change, `{"setting":NAME,"value":VALUE}`, rules in
+`docs/workflows/secretary.md` (*Website settings*). A retry with the same key
+records nothing new; a different change needs a new key.
+
+- `avatar`: `f1`, `f2`, `m1`, `m2` or `custom` (only after an upload). Saved at once.
+- `avatar_upload`: `{"variant":"day|night|profile","source":PATH}`, PATH an image
+  attached in this chat. Saved at once and selects the uploaded avatar.
+- Applied by the chat page the user wrote from: `language` (`en`, `zh-CN`);
+  `style` (`soft`, `pixel`); `day_scheme` (`classic`, `warm`, `morning-sky`,
+  `first-light`, `grass-block`, `picnic`); `night_scheme` (`classic`, `starry`,
+  `city-lights`, `midnight-violet`, `grass-block`, `picnic`); `widget_theme`
+  (`clock`, `phone`, `day`, `night`); `notifications`, only the choices that
+  change: `briefing`, `waiting`, `chat`, `events`, `gm`, `gn` (true/false),
+  `gm_time`, `gn_time` (`"HH:MM"`), `lead` (5, 10, 15, 30 or 60 minutes);
+  `notifications_here` (`"off"`); `device_notifications_off` and `unlink_phone`
+  (the name as the user says it; case, spacing and a unique part are enough);
+  `link_phone` (the app's code, only as the user typed it in their own message
+  or answer); `sign_out` (`true`);
+  `open` (`appearance`, `notifications`, `phones`, `account`, `password`,
+  `avatar`, `download`) opens that pop-up or control.
+- `link_phone`, `unlink_phone` and `sign_out` are never applied by the page: the
+  card under the reply shows a button, and the user's tap confirms it
+  (`"applies":"user_tap"`). `password` is always refused.
+- Bound to the newest message the engine accepted, in the engine's own session
+  (`OPENCODE_SESSION_ID`; `--session` counts only without it). If that message is
+  still being delivered or interrupted a reply, nothing changes (`ask_again`):
+  ask the user to ask again once this reply ends. From the phone's
+  chat widget only the avatar saves (`widget_source`), an upload's PATH must be
+  an image attached to that message, and a link code the user did not type is
+  refused (`invalid_value`).
+
+```json settings
+{"setting":"night_scheme","value":"city-lights"}
+```
+
+```json settings
+{"setting":"notifications","value":{"gm":true,"gm_time":"07:30"}}
+```
+
+```json settings
+{"setting":"unlink_phone","value":"Pixel 8"}
+```
+
 ## Website setup: `setup ask` and `setup answer`
 
 Only a website Initialize chat's own session runs these (`docs/initialization.md`).
