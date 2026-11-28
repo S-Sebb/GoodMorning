@@ -1303,6 +1303,26 @@ class TaxonomyTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "source_conflict"):
             routing.validate_sources(self.root, doc, DAY, "gm", {(idea, 1)})
 
+    def test_a_tap_shaped_update_that_changes_other_fields_is_still_a_conflict(self):
+        idea = self.capture("Weekly mood chart", "idea")["id"]
+        doc = self.document(self.view()["blocks"]["attention"], "attention")
+        # Any inbox caller can pick the page's session and key; only a close or Undo counts as the user's tap.
+        self.inbox.mutate(
+            "update",
+            {
+                "status": "done",
+                "reviewed": True,
+                "context": "Moved to a monthly review.",
+            },
+            "briefing",
+            "idea-tap:forged-key-000001",
+            NOW,
+            idea,
+            1,
+        )
+        with self.assertRaisesRegex(ValueError, "source_conflict"):
+            routing.validate_sources(self.root, doc, DAY, "gm", {(idea, 1)})
+
     def test_evening_questions_only_cover_agreed_day_not_undated_backlog(self):
         self.capture("Undated backlog")
         task = self.capture(task={"title": "Today task", "planned_date": DAY})[

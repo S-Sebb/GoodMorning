@@ -1382,6 +1382,10 @@ def published_decisions(document):
     }
 
 
+# What `web/ideas.py close` writes: a close or an Undo. Session and key alone are not proof, since any inbox caller can set them.
+TAP_CHANGES = ({"status": "done", "reviewed": True}, {"status": "pending"})
+
+
 def tapped_since(db, identifier, revision, title):
     """Whether only the user's own taps on the page changed this idea since its row was published.
 
@@ -1390,7 +1394,7 @@ def tapped_since(db, identifier, revision, title):
         "SELECT kind,summary,revision FROM entries WHERE id=?", (identifier,)
     ).fetchone()
     later = db.execute(
-        "SELECT revision,session,request_key FROM events WHERE entry_id=? AND revision>? ORDER BY revision",
+        "SELECT revision,session,request_key,action,changes,detail FROM events WHERE entry_id=? AND revision>? ORDER BY revision",
         (identifier, revision),
     ).fetchall()
     # Every later revision needs its own tap: some writes (a project rename) bump it without an inbox event.
@@ -1402,7 +1406,11 @@ def tapped_since(db, identifier, revision, title):
         == list(range(revision + 1, entry["revision"] + 1))
         and bool(later)
         and all(
-            r["session"] == "briefing" and r["request_key"].startswith("idea-tap:")
+            r["session"] == "briefing"
+            and r["request_key"].startswith("idea-tap:")
+            and r["action"] == "update"
+            and not r["detail"]
+            and json.loads(r["changes"]) in TAP_CHANGES
             for r in later
         )
     )
