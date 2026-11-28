@@ -332,6 +332,38 @@ class LiveTests(unittest.TestCase):
             self.app.prepare_and_dispatch(live)
         dispatch.assert_not_called()
 
+    def test_an_unreadable_preflight_context_stops_only_its_job_at_restart(self):
+        from goodmorning.briefings.briefing_job import context_path
+
+        self.app.preflight = True
+        with patch("goodmorning.web.briefing_server.threading.Thread"):
+            identifier = self.app.start("2026-10-10", "gm")["job"]
+        target = context_path(self.root, identifier)
+        target.write_text("{not json")
+        restored = BrowserApp(self.root, self.chamber, now=self.app.now, preflight=True)
+        self.assertEqual(restored.job(identifier)["state"], "stopped")
+        self.assertEqual(target.read_text(), "{not json")
+
+    def test_a_failed_registry_write_after_preflight_stops_without_dispatch(self):
+        self.app.preflight = True
+        with patch("goodmorning.web.briefing_server.threading.Thread"):
+            identifier = self.app.start("2026-10-10", "gm")["job"]
+        with (
+            patch(
+                "goodmorning.briefings.briefing_preflight.initialize",
+                return_value={"awaiting": False},
+            ),
+            patch.object(self.app, "save_jobs", side_effect=OSError("disk full")),
+            patch.object(self.app, "dispatch") as dispatch,
+            self.assertLogs("goodmorning.web.briefing_server", level="WARNING"),
+        ):
+            self.app.prepare_and_dispatch(self.app.jobs["2026-10-10.gm"])
+        dispatch.assert_not_called()
+        status = self.app.status(identifier)
+        self.assertEqual(
+            (status["state"], status["recovery_action"]), ("stopped", "restart")
+        )
+
     def test_restart_keeps_only_preflight_jobs_with_a_pending_question(self):
         from goodmorning.briefings.briefing_job import context_path
 

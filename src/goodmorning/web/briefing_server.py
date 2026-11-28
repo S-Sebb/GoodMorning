@@ -341,9 +341,14 @@ class BrowserApp:
                 # Only a saved question survives a restart. Anything else was
                 # interrupted before dispatch, sent nothing and can be restarted.
                 target = context_path(self.runtime, job["id"])
-                if not (
-                    target.exists() and bounded_json(target, 300_000).get("awaiting")
-                ):
+                try:
+                    awaiting = target.exists() and bounded_json(target, 300_000).get(
+                        "awaiting"
+                    )
+                except (OSError, ValueError, AttributeError):
+                    # An unreadable context stops only its own job; the file is kept.
+                    awaiting = False
+                if not awaiting:
                     job["state"] = "stopped"
         if self.jobs:
             self.save_jobs()
@@ -860,13 +865,18 @@ class BrowserApp:
                 + disabled
                 + ">"
                 '<svg viewBox="0 0 20 20" width="16" height="16" fill="none" aria-hidden="true"><path d="M16 8a6 6 0 1 0 .2 3M16 3v5h-5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>'
-                '<span>Regenerate briefing</span></button><p id="regeneration-status" role="status"></p><p id="regeneration-error" role="alert"></p></div>'
+                "<span>Regenerate briefing</span></button></div>"
             )
             # The button sits at the right end of the section tabs' row (#357).
             text = re.sub(
                 r'(<nav class="briefing-section-nav".*?</nav>)',
                 lambda match: (
-                    '<div class="briefing-nav-row">' + match[1] + tools + "</div>"
+                    '<div class="briefing-nav-row">'
+                    + match[1]
+                    + tools
+                    + "</div>"
+                    # Full width under the row, so a long message never squeezes the tabs.
+                    + '<p id="regeneration-status" role="status"></p><p id="regeneration-error" role="alert"></p>'
                 ),
                 text,
                 count=1,
@@ -1086,14 +1096,23 @@ class BrowserApp:
             self.preparing.discard(job["id"])
             # A failed preflight stops before dispatch, so the gateway releases
             # the slot and the user can restart it.
-            if context is None:
-                job["state"] = "stopped"
-            elif not context["awaiting"]:
-                job["state"] = "starting"
-            self.save_jobs()
             # Decided under the lock: a feedback reply may set `starting` and
             # dispatch on its own as soon as the lock is released.
             dispatch = context is not None and not context["awaiting"]
+            if context is None:
+                job["state"] = "stopped"
+            elif dispatch:
+                job["state"] = "starting"
+            # A job waiting for an answer keeps its saved `preflight` state.
+            if context is None or dispatch:
+                try:
+                    self.save_jobs()
+                except OSError as error:
+                    # Never dispatch what the registry can't record; stop so the user can restart it.
+                    logging.getLogger(__name__).warning(
+                        "briefing_registry_write_failed (%s)", type(error).__name__
+                    )
+                    job["state"], dispatch = "stopped", False
         if dispatch:
             self.dispatch(job)
 
@@ -1886,6 +1905,10 @@ class BrowserApp:
         if job["state"] == "superseded":
             raise ValueError("This browser job was replaced; refresh the briefing")
         if job["state"] == "preflight" and category == "form":
+            if identifier in self.preparing:
+                raise ValueError(
+                    "This feedback form changed; review the current task list"
+                )
             from goodmorning.briefings.briefing_job import context_path
             from goodmorning.briefings.briefing_preflight import answer
             from goodmorning.briefings.briefing_stream import bounded_json

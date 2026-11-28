@@ -159,7 +159,7 @@ html.section-picker-open { overflow: hidden; }
 #regenerate:disabled { opacity: .5; cursor: not-allowed; }
 #regenerate:focus-visible, #regenerate-dialog button:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
 #regenerate svg { flex-shrink: 0; }
-#regeneration-error, #regeneration-status { flex-basis: 100%; margin: 0; font-size: 12px; text-align: right; overflow-wrap: anywhere; }
+#regeneration-error, #regeneration-status { margin: -12px 0 24px; font-size: 12px; text-align: right; overflow-wrap: anywhere; }
 #regeneration-error:empty, #regeneration-status:empty { display: none; }
 #regeneration-error { color: var(--ink); }
 #regenerate-dialog { width: min(480px, calc(100% - 32px)); max-height: calc(100% - 32px); padding: 28px; border: 1px solid var(--line); border-radius: 20px; background: var(--surface); color: var(--ink); box-shadow: 0 24px 80px #0004; }
@@ -170,7 +170,7 @@ html.section-picker-open { overflow: hidden; }
 .dialog-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 10px; margin-top: 24px; }
 #regenerate-dialog button { min-height: 44px; padding: 10px 16px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); color: var(--ink); font: inherit; font-size: 13px; cursor: pointer; }
 #regenerate-dialog #confirm-regenerate { background: var(--ink); color: var(--bg); border-color: var(--ink); }
-@media print { .briefing-actions, #regenerate-dialog { display: none; } }
+@media print { .briefing-actions, #regeneration-status, #regeneration-error, #regenerate-dialog { display: none; } }
 .briefing-letter .briefing-closing { padding-left: 0; }
 .sky-scene { position: relative; width: 100%; height: 155px; }
 .sun { position: absolute; width: 200px; height: 145px; left: calc(50% - 100px); top: 0; transform: translate3d(0, calc(var(--sun-drift, 0px) * -1), 0); }
@@ -687,6 +687,7 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
   .briefing-letter .orbit .sky-scene { height: 46px; }
   .briefing-letter .orbit .sun { width: 64px; height: 46px; left: 0; }
   .briefing-nav-row { gap: 8px; margin-bottom: 12px; }
+  #regeneration-error, #regeneration-status { margin: -4px 0 12px; }
   /* Icon only beside the scrolling tabs; the label still names the button. */
   #regenerate { width: 44px; padding: 0; justify-content: center; }
   #regenerate span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
