@@ -7,6 +7,7 @@ import os
 import platform
 import signal
 import socket
+import stat
 import subprocess
 import sys
 import threading
@@ -65,10 +66,14 @@ ELF_MACHINES = {"x86_64": 62, "aarch64": 183}
 def elf_machine(path):
     """The ELF e_machine field, or None for a missing or non-ELF file."""
     try:
-        with open(path, "rb") as file:
-            header = file.read(20)
+        # Nonblocking, so a FIFO planted at the path can't stall engine start.
+        fd = os.open(path, os.O_RDONLY | os.O_NONBLOCK)
     except OSError:
         return None
+    with os.fdopen(fd, "rb") as file:
+        if not stat.S_ISREG(os.fstat(fd).st_mode):
+            return None
+        header = file.read(20)
     if len(header) < 20 or header[:4] != b"\x7fELF":
         return None
     return int.from_bytes(header[18:20], "little" if header[5] == 1 else "big")
@@ -85,7 +90,11 @@ def drop_foreign_ripgrep(home):
     host = ELF_MACHINES.get(platform.machine())
     machine = elf_machine(cached)
     if host and machine is not None and machine != host:
-        cached.unlink()
+        try:
+            cached.unlink(missing_ok=True)
+        except OSError as error:
+            # The engine still serves; only its grep tool stays broken.
+            print(f"Could not remove the foreign cached rg: {error!r}", file=sys.stderr)
 
 
 def free_port():
