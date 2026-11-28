@@ -426,7 +426,20 @@ def main():
                 assert page.evaluate(CHECKINS) == [
                     "goodmorningCheckin:" + alice + ":synthetic"
                 ]
+                # The session ends on the server: the sign-in page forgets the copies at once, even if the
+                # connection drops before any later refresh.
                 phone.clear_cookies()
+                page.goto(HOST + "/gm")
+                expect(page).to_have_url(HOST + "/login")
+                network["up"] = False
+                deadline = time.monotonic() + 2
+                while any(
+                    name.startswith("offline-") for name in page.evaluate(CACHED)
+                ):
+                    assert time.monotonic() < deadline, "Copies outlived the session"
+                    time.sleep(0.1)
+                unreachable(page)
+                network["up"] = True
                 sign_in(page, "bob")
                 page.goto(HOST + "/gm")
                 kept(page, 0)  # Bob has no saved briefing.
@@ -460,6 +473,7 @@ def main():
                 "unchangedCopiesNotDownloaded": True,
                 "forgottenAtSignOut": True,
                 "forgottenForAnotherAccount": True,
+                "forgottenWhenSessionEnds": True,
                 "checkinAnswersForgotten": True,
                 "widths": [390, 1440],
             }

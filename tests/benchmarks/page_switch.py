@@ -65,18 +65,29 @@ def proxy(gateway, directory, log, network):
                 if k.lower() not in ("connection", "keep-alive")
             }
             headers.update({"X-Forwarded-Proto": "https", "X-Real-IP": "192.0.2.1"})
-            started = time.monotonic()
+            # Logged as it starts, so a request still pending at a page's first paint counts too.
+            entry = [
+                time.monotonic(),
+                None,
+                self.command,
+                self.path.split("?")[0],
+                None,
+            ]
+            log.append(entry)
             upstream = http.client.HTTPConnection(
                 target.hostname, target.port, timeout=120
             )
             upstream.request(self.command, self.path, body or None, headers)
             response = upstream.getresponse()
-            path = self.path.split("?")[0]
             time.sleep(
                 network["latency"]
-                + (network["asset"] if path.endswith((".css", ".js", ".woff2")) else 0)
+                + (
+                    network["asset"]
+                    if entry[3].endswith((".css", ".js", ".woff2"))
+                    else 0
+                )
             )
-            log.append((started, time.monotonic(), self.command, path, response.status))
+            entry[1], entry[4] = time.monotonic(), response.status
             self.send_response_only(response.status, response.reason)
             length = response.getheader("Content-Length")
             for key, value in response.getheaders():
@@ -273,14 +284,14 @@ def main():
                     result = page.evaluate(TIMING)
                     result["blank_frames"] = sum(map(blank, frames))
                     result["frames"] = len(frames)
-                    # Offline refreshes still running when the click came, or started before the new page painted.
+                    # Offline refreshes running when the click came, started before the new page painted, or still pending.
                     painted = clicked + (result["fcp"] or 0) / 1000
                     result["refreshes_overlapping"] = sum(
                         1
-                        for start, end, _, p, _ in log
+                        for start, end, _, p, _ in list(log)
                         if p.startswith("/offline/")
                         and start < painted
-                        and end > clicked
+                        and (end is None or end > clicked)
                     )
                     return result
 

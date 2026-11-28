@@ -182,7 +182,11 @@ class Accounts:
                 raise Denied("Login required")
             # Each page loads several requests and pages poll; a minute's precision is plenty for a 30-minute idle limit.
             if row["touched"] <= now - TOUCH_SECONDS:
-                db.execute("UPDATE sessions SET touched=? WHERE hash=?", (now, digest))
+                # A concurrent or delayed request may have renewed it meanwhile; never move it backwards.
+                db.execute(
+                    "UPDATE sessions SET touched=? WHERE hash=? AND touched<=?",
+                    (now, digest, now - TOUCH_SECONDS),
+                )
             return dict(row)
 
     def limit(self, keys):
